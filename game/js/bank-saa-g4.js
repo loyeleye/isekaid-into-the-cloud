@@ -25,7 +25,7 @@ SD.bank.push(
       { t: "Move the files to an Amazon EFS file system, which grows and shrinks as files are added and removed.", ok: true },
       { t: "Turn on EFS lifecycle management to move files not accessed for 30 days to the EFS Infrequent Access class.", ok: true },
       { t: "Use EBS Elastic Volumes to shrink the 20 TiB volume to 7 TiB, and grow it again when it starts to fill.", ok: false, no: "Elastic Volumes can increase a volume's size but never decrease it." },
-      { t: "Move the files to Amazon FSx for Lustre, and choose the smallest storage capacity it allows for the share.", ok: false, no: "FSx for Lustre is built for high-performance computing and still needs storage capacity planned and provisioned." },
+      { t: "Move the files to an FSx for Lustre file system on SSD storage, sized at the smallest capacity that holds 6 TiB.", ok: false, no: "SSD storage on FSx for Lustre is provisioned up front and can be increased but never decreased, so capacity still needs planning." },
       { t: "Switch the EFS file system to Provisioned throughput, so that storage is billed only for the throughput it uses.", ok: false, no: "Provisioned throughput adds a charge for throughput. It doesn't change how stored data is billed." }
     ],
     why: "EFS is fully elastic: it grows and shrinks automatically, and you pay for the data stored, with no capacity to provision. Lifecycle management moves files that haven't been read for a set period, 30 days by default, to the cheaper Infrequent Access class.",
@@ -41,9 +41,9 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Every object transitioned is a billed request, and each archived object also carries about 40 KB of extra metadata storage, more than the 8 KB log itself.",
-      "Objects smaller than 128 KB are never moved out of Intelligent-Tiering's frequent access tier, and each object adds a monitoring charge.",
+      "Objects smaller than 128 KB aren't monitored or eligible for auto-tiering, so they always stay in Intelligent-Tiering's Frequent Access tier.",
       "Standard-IA bills every object as at least 128 KB, so 8 KB files cost far more than their size."],
-    why: "Archive classes charge per transition request, and Glacier Flexible Retrieval and Deep Archive add 40 KB of storage per object for index and metadata. AWS advises aggregating many small objects into fewer large ones before archiving them.",
+    why: "Archive classes charge per transition request, and Glacier Flexible Retrieval and Deep Archive add 40 KB of storage per object for index and metadata. For small objects, AWS suggests considering aggregating them into fewer large ones before archiving them.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-transition-general-considerations.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html"] },
 
   { id: "saa-4-204", exam: "SAA", saa: "4.1", topic: "firehose", type: "mc",
@@ -199,12 +199,12 @@ SD.bank.push(
     opts: [
       "Switch the functions to the arm64 architecture (AWS Graviton2) after testing them on it.",
       "Purchase a Compute Savings Plan that covers the functions' current hourly spend for a one-year term.",
-      "Turn on provisioned concurrency for each function, so that the functions are always initialized.",
+      "Repackage each function as a container image in Amazon ECR instead of as a .zip file package.",
       "Set reserved concurrency on each function to cap how many copies of it can run at the same time."
     ], a: 0,
     no: [null,
       "A Savings Plan is a usage commitment, which the company won't make.",
-      "Provisioned concurrency adds a charge for the environments it keeps ready. It doesn't lower the cost.",
+      "Lambda bills requests and compute time the same way for either package type, and ECR adds storage charges.",
       "Reserved concurrency caps scaling and throttles requests. It doesn't lower the price of each invocation."],
     why: "Lambda functions on arm64 (Graviton2) can get significantly better price performance than on x86_64. Pure-Python code generally runs on either architecture without changes, but it should be tested first.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html"] },
@@ -221,7 +221,7 @@ SD.bank.push(
       "There would still be 15 load balancers, each billed for every hour it runs.",
       "A Network Load Balancer works at layer 4 and can't route requests by host name.",
       "A Gateway Load Balancer sends traffic to inspection appliances. It doesn't route web requests by host."],
-    why: "An ALB listener can hold up to 100 rules by default and route on the host header, with several certificates chosen by SNI. One ALB can serve all the apps, removing 14 load balancers' charges.",
+    why: "An ALB supports up to 100 rules by default and can route on the host header, and its HTTPS listener can hold several certificates chosen by SNI. One ALB can serve all the apps, removing 14 load balancers' charges.",
     doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/application/rule-condition-types.html", "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-limits.html"] },
 
   { id: "saa-4-216", exam: "SAA", saa: "4.2", topic: "budgets", type: "multi", hint: "Select TWO.",
@@ -376,13 +376,13 @@ SD.bank.push(
   { id: "saa-4-227", exam: "SAA", saa: "4.4", topic: "vpc", type: "multi", hint: "Select TWO.",
     q: "A development VPC in one Availability Zone has a few instances in a private subnet that download a few GB of updates a month from the internet. Outbound access may stop if an instance fails, and the team is willing to manage a server. The instances must stay in the private subnet. Which steps give outbound IPv4 access at the lowest cost? (Select TWO.)",
     items: [
-      { t: "Launch a small NAT instance from a current Amazon Linux NAT AMI in a public subnet, and disable its source/destination check.", ok: true },
+      { t: "Launch a small NAT instance from a NAT AMI you build on Amazon Linux 2023 in a public subnet, and disable its source/destination check.", ok: true },
       { t: "In the private subnet's route table, point the 0.0.0.0/0 route at the NAT instance's network interface.", ok: true },
       { t: "Launch the NAT instance in the private subnet next to the other instances, and disable its source/destination check.", ok: false, no: "A NAT instance needs internet access, so it must be in a public subnet with a public IP address." },
       { t: "In the private subnet's route table, point the 0.0.0.0/0 route directly at the VPC's internet gateway.", ok: false, no: "That makes the subnet public, and instances without public IP addresses still can't reach the internet." },
       { t: "Create an egress-only internet gateway, and point the private subnet's 0.0.0.0/0 route at it.", ok: false, no: "An egress-only internet gateway carries only IPv6 traffic." }
     ],
-    why: "A NAT gateway is billed per hour and per GB processed, while a NAT instance costs only the instance. For a light, non-critical workload, a small NAT instance in a public subnet with source/destination checks off, plus a route to it, is cheapest.",
+    why: "A NAT gateway is billed per hour and per GB processed, while a NAT instance is billed like any EC2 instance, with no data processing charge. For a light, non-critical workload, a small NAT instance in a public subnet with source/destination checks off, plus a route to it, is cheapest.",
     doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-comparison.html", "https://docs.aws.amazon.com/vpc/latest/userguide/work-with-nat-instances.html"] },
 
   { id: "saa-4-228", exam: "SAA", saa: "4.4", topic: "vpn", type: "mc",
@@ -409,7 +409,7 @@ SD.bank.push(
       { t: "Expose the services in one VPC through an endpoint service, and reach them through PrivateLink endpoints.", ok: false, no: "Interface endpoints add hourly and per-GB processing charges of their own." },
       { t: "Attach the two VPCs to a second transit gateway that only connects the two of them.", ok: false, no: "Traffic through any transit gateway is still charged per GB processed." }
     ],
-    why: "VPC peering has no data processing charge, and it offers the lowest cost for VPC-to-VPC traffic. A route to the other VPC's CIDR is more specific than the summary route to the transit gateway, so only that traffic moves to the peering connection.",
+    why: "VPC peering adds no transit gateway processing charge: traffic is free within an AZ and billed at standard in-Region rates across AZs, and AWS calls peering the lowest-cost option for VPC-to-VPC traffic. A route to the other VPC's CIDR is more specific than the summary route to the transit gateway, so only that traffic moves to the peering connection.",
     doc: ["https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/vpc-peering.html", "https://docs.aws.amazon.com/vpc/latest/userguide/route-tables-priority.html"] },
 
   { id: "saa-4-230", exam: "SAA", saa: "4.4", topic: "route53", type: "mc",
@@ -447,7 +447,7 @@ SD.bank.push(
     items: [
       { t: "Use a cache policy whose cache key includes only the lang query parameter, with no cookies or headers.", ok: true },
       { t: "Have the origin send a longer Cache-Control max-age that matches the daily rate of change.", ok: true },
-      { t: "Set the distribution's default TTL to 0, so CloudFront checks with the origin on every request.", ok: false, no: "This makes CloudFront go back to the origin more often, not less." },
+      { t: "Set the distribution's default TTL to 0, so CloudFront checks with the origin on every request.", ok: false, no: "A lower TTL can only make CloudFront go back to the origin as often or more often, never less." },
       { t: "Put AWS Global Accelerator in front of the ALB, so CloudFront reaches the origin over the AWS network.", ok: false, no: "It can speed up the origin path, but every cache miss still reaches the origin." },
       { t: "Add an origin group with a second ALB in another Region as the failover origin for the distribution.", ok: false, no: "An origin group handles failover. It doesn't make CloudFront fetch any less." }
     ],
@@ -489,7 +489,7 @@ SD.bank.push(
     items: [
       { t: "In the management account, create a CUR 2.0 export in AWS Data Exports with hourly granularity and resource IDs, delivered to S3.", ok: true },
       { t: "Query the export with Amazon Athena, filtering on usage types that end in DataTransfer-Regional-Bytes.", ok: true },
-      { t: "In Cost Explorer, group costs by resource at hourly granularity, and save the report as a monthly view.", ok: false, no: "Cost Explorer keeps hourly, resource-level data for only the past 14 days, so it can't hold years of it." },
+      { t: "In Cost Explorer, group costs by resource at hourly granularity, and save the report as a monthly view.", ok: false, no: "Cost Explorer keeps resource-level data for only the past 14 days, and hourly resource-level data only for EC2 instances." },
       { t: "Turn on VPC Flow Logs in every VPC, and estimate each resource's charges from the bytes in the logs.", ok: false, no: "Flow logs record traffic, not charges, and they add their own costs." },
       { t: "Create an AWS Budgets usage budget for data transfer in each account, with an alert on actual usage.", ok: false, no: "A budget alerts on totals. It doesn't show which resources cause the charges." }
     ],
