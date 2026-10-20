@@ -149,7 +149,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/kms/latest/APIReference/API_GetPublicKey.html"] },
 
   { id: "dva-2-211", exam: "DVA", dva: "2.2", topic: "acm", type: "mc",
-    q: "An Application Load Balancer uses a public ACM certificate that was validated by DNS a year ago. The certificate expires in three weeks, and ACM shows its renewal as pending validation. Last month an engineer cleaned up old records in the domain's DNS zone. What should the developer do?",
+    q: "An Application Load Balancer uses a public ACM certificate that was validated by DNS when it was issued. The certificate expires in three weeks, and ACM shows its renewal as pending validation. Last month an engineer cleaned up old records in the domain's DNS zone. What should the developer do?",
     opts: [
       "Add the CNAME record that ACM gives for the certificate's DNS validation back into the domain's DNS zone.",
       "Import a copy of the current certificate into ACM again, so that ACM restarts managed renewal for the copy.",
@@ -347,17 +347,17 @@ SD.bank.push(
     why: "Standard-tier Parameter Store parameters have no extra storage charge, hold values up to 4 KB, and support SecureString encryption with KMS. Secrets Manager is worth its price when you need rotation or its other secret features.",
     doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html"] },
 
-  { id: "dva-2-225", exam: "DVA", dva: "2.3", topic: "secrets", type: "multi", hint: "Select TWO.",
-    q: "A secret in account A holds credentials that a role in account B must read. The secret is encrypted with the AWS managed key aws/secretsmanager. The role already has an IAM policy that allows secretsmanager:GetSecretValue on the secret's ARN and kms:Decrypt on any key. What else is required? (Select TWO.)",
+  { id: "dva-2-225", exam: "DVA", dva: "2.3", topic: "ssm", type: "multi", hint: "Select TWO.",
+    q: "A platform account keeps a standard-tier String parameter, /shared/vpc-config, in Parameter Store. Apps in several other AWS accounts must read it with the SDK, and the platform team wants to keep one copy that it updates in place. Which steps should the developer take? (Select TWO.)",
     items: [
-      { t: "Re-encrypt the secret with a customer managed key whose key policy allows the role in account B to call kms:Decrypt.", ok: true },
-      { t: "Attach a resource-based policy to the secret that allows the role in account B to call secretsmanager:GetSecretValue.", ok: true },
-      { t: "Edit the key policy of aws/secretsmanager in account A so that it allows the role in account B to call kms:Decrypt.", ok: false, no: "AWS managed keys' policies can't be edited, and those keys can't be used across accounts." },
-      { t: "Replicate the secret to the Region that account B uses, so that the role there can read the secret's replica.", ok: false, no: "Replication copies a secret to other Regions in the same account. It doesn't grant another account access." },
-      { t: "Turn on automatic rotation for the secret, so that Secrets Manager shares each new version with account B.", ok: false, no: "Rotation changes the secret's value on a schedule. It has nothing to do with cross-account access." }
+      { t: "Change the parameter to the advanced tier, and share it with the other accounts through AWS Resource Access Manager.", ok: true },
+      { t: "In the other accounts, call GetParameter with the parameter's full ARN as the Name instead of its bare name.", ok: true },
+      { t: "Keep the parameter in the standard tier, and share it with the other accounts through AWS Resource Access Manager.", ok: false, no: "Only advanced-tier parameters can be shared. A standard parameter has to be changed to advanced first." },
+      { t: "In the other accounts, call GetParameter with the bare name /shared/vpc-config, just as the platform account does.", ok: false, no: "A bare name is looked up in the caller's own account. A shared parameter must be named by its full ARN." },
+      { t: "Run a nightly script that copies the parameter into each of the other accounts under the same parameter name.", ok: false, no: "That keeps a copy in every account that can drift until the next run, which the team wants to avoid." }
     ],
-    why: "Cross-account access to a secret needs a resource policy on the secret, an identity policy in the other account, and a customer managed key whose key policy allows the other account, because aws/secretsmanager can't be used across accounts.",
-    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_examples_cross.html"] },
+    why: "Parameter Store shares parameters with other accounts through AWS RAM, and only advanced-tier parameters can be shared. Consumers read a shared parameter by its full ARN. A shared SecureString also needs a customer managed key that is shared through KMS.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-shared-parameters.html"] },
 
   { id: "dva-2-226", exam: "DVA", dva: "2.3", topic: "secrets", type: "mc",
     q: "A Lambda function written in Go calls GetSecretValue for an API key on every invocation. At peak it runs thousands of times a minute, and the Secrets Manager API bill keeps climbing. The team wants caching without adding code dependencies to the function. What should the developer do?",
@@ -422,7 +422,7 @@ SD.bank.push(
       { t: "In Amazon Macie, create a custom data identifier with a regular expression for the record number format.", ok: true },
       { t: "Run a Macie sensitive data discovery job on the buckets that includes the new custom data identifier.", ok: true },
       { t: "Turn on Amazon GuardDuty S3 Protection, so that it flags objects that contain patient record numbers.", ok: false, no: "GuardDuty S3 Protection looks for suspicious access and threats, not for sensitive data inside objects." },
-      { t: "Use Amazon Inspector to scan the buckets, and filter its findings for the record number format.", ok: false, no: "Inspector scans EC2 instances, container images and Lambda functions for vulnerabilities, not S3 data." },
+      { t: "Use Amazon Inspector to scan the buckets, and filter its findings for the record number format.", ok: false, no: "Inspector scans workloads such as EC2 instances and container images for vulnerabilities, not S3 data." },
       { t: "Turn on S3 Inventory reports, and search the reports for the record number pattern in object names.", ok: false, no: "Inventory lists object metadata. It never looks inside objects, where the numbers are." }
     ],
     why: "Macie finds sensitive data in S3 with managed data identifiers, and custom data identifiers add your own patterns as a regex with optional keywords. A discovery job analyzes objects with the identifiers you choose.",
