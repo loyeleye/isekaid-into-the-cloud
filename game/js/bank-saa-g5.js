@@ -39,13 +39,13 @@ SD.bank.push(
   { id: "saa-1-303", exam: "SAA", saa: "1.1", topic: "servicecatalog", type: "multi", hint: "Select TWO.",
     q: "A central cloud team publishes approved products in an AWS Service Catalog portfolio. Users in 40 member accounts of the company's AWS Organizations organization must be able to launch them. When the central team adds a product or constraint, every account must get the change without a redeployment, and member account admins must not be able to remove constraints. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "Share the portfolio from the central account with the organization or its OUs by using Service Catalog organizational sharing.", ok: true },
-      { t: "Have each member account's admin import the shared portfolio and grant the account's users, groups or roles access to it.", ok: true },
+      { t: "Share the portfolio with the organization or its OUs through AWS Organizations, from a delegated administrator account.", ok: true },
+      { t: "Have each member account's admin grant the account's users, groups or roles access to the imported portfolio.", ok: true },
       { t: "Deploy a copy of the portfolio into every member account with CloudFormation StackSets each time the central team edits it.", ok: false, no: "StackSets deploy independent copies, so every change needs a redeployment, which the requirement rules out." },
       { t: "Attach an SCP to the member accounts that grants servicecatalog:ProvisionProduct for the products in the portfolio.", ok: false, no: "SCPs never grant permissions. They only set the maximum that IAM policies in the accounts can allow." },
       { t: "Copy the product templates to an S3 bucket the organization can read, and let each account build its own portfolio.", ok: false, no: "Portfolios built from copied templates don't stay in sync, and each account's admin could change or drop the constraints." }
     ],
-    why: "A portfolio shared through AWS Organizations is imported, not copied: products and constraints added to the shared portfolio propagate to every import, and recipients can add constraints but can't remove the imported ones. The recipient admin still grants end users access in their own account.",
+    why: "A portfolio shared through AWS Organizations appears in each account as an imported portfolio, not a copy, with no manual import step: products and constraints added to the shared portfolio propagate to every import, and recipients can add constraints but can't remove the imported ones. The recipient admin still grants end users access in their own account.",
     doc: ["https://docs.aws.amazon.com/servicecatalog/latest/adminguide/catalogs_portfolios_sharing.html"] },
 
   { id: "saa-1-304", exam: "SAA", saa: "1.1", topic: "grafana", type: "mc",
@@ -100,7 +100,7 @@ SD.bank.push(
       "Run an open source text-to-speech engine in containers on Amazon ECS and have each task upload the finished audio to S3."
     ], a: 0,
     no: [null,
-      "SynthesizeSpeech is the near-real-time operation and takes only 3,000 characters per request, so a long article fails.",
+      "SynthesizeSpeech is the near-real-time operation and takes only 3,000 billed characters per request, so a long article fails.",
       "Transcribe converts speech to text, the opposite direction.",
       "It works, but running and scaling the speech containers is more overhead than calling a managed API."],
     why: "Polly's asynchronous synthesis (StartSpeechSynthesisTask) queues long text, up to 100,000 billable characters, writes the audio straight to the S3 bucket you name, and can publish a completion message to an SNS topic.",
@@ -142,7 +142,7 @@ SD.bank.push(
       { t: "Turn on AWS Config with a managed rule that finds instances scheduled for retirement and remediates them.", ok: false, no: "Config evaluates resource configurations. It doesn't receive scheduled maintenance events from AWS Health." },
       { t: "Add the operations team as the account's alternate operations contact so that retirement emails reach them sooner.", ok: false, no: "A faster email still needs a person to act, and the requirement is no manual steps." }
     ],
-    why: "AWS Health sends scheduled events such as AWS_EC2_PERSISTENT_INSTANCE_RETIREMENT_SCHEDULED to EventBridge at no extra cost. A rule can target a Systems Manager Automation runbook that stops and starts the instance, which moves an EBS-backed instance to new hardware.",
+    why: "AWS Health sends scheduled events such as AWS_EC2_PERSISTENT_INSTANCE_RETIREMENT_SCHEDULED to EventBridge. A rule can target a Systems Manager Automation runbook that stops and starts the instance, which moves an EBS-backed instance to new hardware.",
     doc: ["https://docs.aws.amazon.com/health/latest/ug/automating-instance-actions.html", "https://docs.aws.amazon.com/health/latest/ug/cloudwatch-events-health.html"] },
 
   { id: "saa-2-306", exam: "SAA", saa: "2.2", topic: "health", type: "mc",
@@ -228,7 +228,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Text detection returns only lines and words, so the team would have to rebuild the forms and tables itself.",
-      "Rekognition DetectText is for text in scenes such as posters and road signs, not for analyzing document forms and tables.",
+      "Rekognition DetectText finds up to 100 words in an image, such as street signs. It returns no form key-value pairs or table structure.",
       "Comprehend's pre-trained entity detection works on plain text and returns no form key-value pairs or table structure."],
     why: "Textract document analysis returns form data as key-value pairs and tables as cells, rows and columns. Multipage PDFs are processed with the asynchronous StartDocumentAnalysis operation.",
     doc: ["https://docs.aws.amazon.com/textract/latest/dg/how-it-works-analyzing.html", "https://docs.aws.amazon.com/textract/latest/dg/api-async.html"] },
@@ -363,18 +363,6 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html", "https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html"] },
 
   // Domain 4: Design Cost-Optimized Architectures
-  { id: "saa-4-301", exam: "SAA", saa: "4.3", topic: "dms", type: "multi", hint: "Select TWO.",
-    q: "A company wants to cut database licensing costs by moving an on-premises Oracle database, including its tables, views and stored procedures, to Amazon Aurora PostgreSQL. It wants AWS managed tools and a report of which objects will need manual rework. Which steps meet these requirements? (Select TWO.)",
-    items: [
-      { t: "Use DMS Schema Conversion to assess the Oracle schema, convert it to PostgreSQL, and apply it to the Aurora cluster.", ok: true },
-      { t: "Use an AWS DMS replication task to migrate the data from Oracle into the converted Aurora PostgreSQL tables.", ok: true },
-      { t: "Use Oracle Data Pump to export the database and import the dump file directly into the Aurora PostgreSQL cluster.", ok: false, no: "Data Pump dump files are Oracle-specific, and PostgreSQL can't import them." },
-      { t: "Use AWS Application Migration Service to replicate the Oracle server and launch it as an Aurora PostgreSQL cluster.", ok: false, no: "Application Migration Service rehosts servers onto EC2. It can't change the database engine or create an Aurora cluster." },
-      { t: "Use AWS DataSync to copy the Oracle data files to S3, then load them into Aurora with the aws_s3 extension.", ok: false, no: "Oracle data files are a binary format PostgreSQL can't load, and nothing converts the stored procedures." }
-    ],
-    why: "DMS Schema Conversion assesses and converts source schemas and code, such as views and stored procedures, to the target engine and reports what needs manual work; it doesn't move data. A DMS task then migrates the data.",
-    doc: ["https://docs.aws.amazon.com/dms/latest/userguide/CHAP_SchemaConversion.html", "https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html"] },
-
   { id: "saa-4-302", exam: "SAA", saa: "4.2", topic: "licensemanager", type: "multi", hint: "Select TWO.",
     q: "A company brings its own SQL Server licenses to EC2 to save costs. Its agreement covers 96 vCPUs, and an audit found that teams had launched more instances than the licenses allow. The company wants launches that would exceed the limit blocked, and license usage tracked centrally. Which steps meet these requirements? (Select TWO.)",
     items: [
