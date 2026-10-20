@@ -353,5 +353,63 @@ SD.bank.push(
       "Acceleration routes the tunnels through Global Accelerator for steadier performance. It adds accelerator and premium data transfer charges instead of lowering them.",
       "Transfer Acceleration can add data transfer charges, and the data still crosses the internet."],
     why: "Direct Connect bills port hours and outbound data transfer at Direct Connect rates, which can reduce network costs and give more consistent throughput than internet-based links. For large, steady volumes over years, that outweighs the port cost.",
-    doc: ["https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html", "https://docs.aws.amazon.com/whitepapers/latest/aws-vpc-connectivity-options/aws-direct-connect.html"] }
+    doc: ["https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html", "https://docs.aws.amazon.com/whitepapers/latest/aws-vpc-connectivity-options/aws-direct-connect.html"] },
+
+  { id: "saa-4-126", exam: "SAA", saa: "4.4", topic: "vpc", type: "multi", hint: "Select TWO.",
+    q: "An IPv4-only VPC has private subnets in three Availability Zones and a single NAT gateway in AZ A. Instances in all three AZs send large volumes of outbound traffic, mostly to DynamoDB tables in the same Region and the rest to third-party APIs on the internet. Cross-AZ data transfer and NAT processing charges are high, and the instances must stay in all three AZs. Which steps will reduce these costs? (Select TWO.)",
+    items: [
+      { t: "Create a NAT gateway in each AZ, and point each private subnet's default route to the NAT gateway in its own AZ.", ok: true },
+      { t: "Create a DynamoDB gateway endpoint, and associate it with the route tables of all the private subnets.", ok: true },
+      { t: "Replace the NAT gateway with a NAT instance in AZ A that is sized for the current traffic volume.", ok: false, no: "Traffic from the other two AZs still crosses AZs to reach it, and the instance must now be managed and scaled." },
+      { t: "Add an egress-only internet gateway, and route the private subnets' outbound traffic through it.", ok: false, no: "An egress-only internet gateway handles only IPv6 traffic, and these instances use IPv4." },
+      { t: "Send the outbound traffic through a transit gateway to a shared egress VPC with one NAT gateway.", ok: false, no: "This adds transit gateway attachment and per-GB processing charges, and traffic still crosses AZs to one NAT gateway." }
+    ],
+    why: "Traffic to a NAT gateway in another AZ pays cross-AZ data transfer, so AWS advises a NAT gateway in each AZ with resources. A gateway endpoint for DynamoDB has no extra charge and takes that traffic off the NAT gateway entirely.",
+    doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html", "https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html"] },
+
+  { id: "saa-4-127", exam: "SAA", saa: "4.4", topic: "s3", type: "mc",
+    q: "A company's EC2 instances in us-east-1 run daily jobs that read about 5 TB from an S3 bucket in eu-west-1 several times a day. The bucket and the instances are in the same AWS account. The jobs have no Region requirement, and their results are small. Inter-Region data transfer is now the largest line on the bill. Which solution is MOST cost-effective?",
+    opts: [
+      "Run the jobs on EC2 instances in eu-west-1, in the same Region as the bucket that holds the data.",
+      "Turn on S3 Transfer Acceleration for the bucket, and have the jobs read through its accelerated endpoint.",
+      "Create an S3 gateway endpoint in the us-east-1 VPC, and add it to the route tables of the instances' subnets.",
+      "Turn on Requester Pays for the bucket, so that the account that reads the data pays for the downloads."
+    ], a: 0,
+    no: [null,
+      "Transfer Acceleration adds its own per-GB fee on top of the transfer, and the data still leaves eu-west-1.",
+      "A gateway endpoint carries traffic only to S3 in its own Region, so reads from a bucket in eu-west-1 don't use it.",
+      "The reader and the bucket owner are the same account, so Requester Pays only moves the same charge within the bill."],
+    why: "Data sent between Regions is billed per GB out of the source Region every time it is read. Running the jobs in the bucket's Region removes that transfer, and only the small results need to move.",
+    doc: ["https://docs.aws.amazon.com/cur/latest/userguide/cur-data-transfers-charges.html", "https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html"] },
+
+  // Task 4.2 and 4.3: compute and database
+  { id: "saa-4-128", exam: "SAA", saa: "4.2", topic: "fargate", type: "mc",
+    q: "A company runs queue workers as an Amazon ECS service on AWS Fargate. Each task processes messages from an SQS queue and can be stopped at any time, because unfinished messages return to the queue after the visibility timeout. The workload's size will change a lot over the next year, so the company won't commit to a usage level, and it doesn't want to manage EC2 instances or rewrite the workers. Which solution is MOST cost-effective?",
+    opts: [
+      "Add the FARGATE_SPOT capacity provider to the cluster, and run the service's tasks on it through a capacity provider strategy.",
+      "Buy a 1-year Compute Savings Plan that covers the service's current hourly Fargate spend, and keep running on Fargate.",
+      "Move the service to an Auto Scaling group of EC2 Spot Instances that are registered as ECS container instances.",
+      "Rewrite the workers as Lambda functions with an SQS event source, and set provisioned concurrency for the peak load."
+    ], a: 0,
+    no: [null,
+      "A Savings Plan needs a 1-year or 3-year commitment to an hourly spend, which the company won't make.",
+      "The company would have to manage the EC2 instances, their AMIs and their scaling, which it doesn't want.",
+      "It means rewriting the workers, and provisioned concurrency is billed for the configured capacity even when idle."],
+    why: "Fargate Spot runs interruption-tolerant ECS tasks on spare capacity at a discount to the Fargate price, with a two-minute warning before a task is stopped. It needs no commitment and no instances to manage.",
+    doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html", "https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html"] },
+
+  { id: "saa-4-129", exam: "SAA", saa: "4.3", topic: "aurora", type: "mc",
+    q: "An order system runs on an Aurora PostgreSQL cluster that uses the Aurora Standard storage configuration. Traffic is steady and write-heavy, and cost reports show that read and write I/O charges are about 60 percent of the cluster's monthly bill. The company wants lower, more predictable database costs without changing the application or the instance sizes. Which solution meets these requirements?",
+    opts: [
+      "Switch the cluster to the Aurora I/O-Optimized storage configuration, which has no charge per I/O request.",
+      "Move the cluster's storage to Provisioned IOPS SSD (io2) volumes that are sized for the cluster's peak I/O rate.",
+      "Buy 1-year reserved DB instances for the cluster's writer and reader instances, and keep the current storage setup.",
+      "Add an Aurora Replica, and send part of the read traffic to the cluster's reader endpoint to spread the I/O load."
+    ], a: 0,
+    no: [null,
+      "Aurora stores data in its own shared cluster volume, so EBS volume types like io2 can't be chosen for it.",
+      "Reserved instances discount instance hours only, so the I/O charges that make up most of the bill stay the same.",
+      "A replica adds another billed instance, its reads from cluster storage are still charged per I/O, and the app must change endpoints."],
+    why: "With Aurora I/O-Optimized you pay for instances and storage with no per-request I/O charges. AWS calls it the best choice when I/O is 25 percent or more of total Aurora spending, and switching from Standard needs no downtime on non-NVMe-based instances.",
+    doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.StorageReliability.html"] }
 );
