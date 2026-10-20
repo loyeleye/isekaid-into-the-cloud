@@ -107,7 +107,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/kinesisvideostreams-webrtc-dg/latest/devguide/what-is-kvswebrtc.html", "https://docs.aws.amazon.com/kinesisvideostreams-webrtc-dg/latest/devguide/kvswebrtc-how-it-works.html"] },
 
   { id: "saa-3-503", exam: "SAA", saa: "3.5", topic: "kinesisvideo", type: "mc",
-    q: "A warehouse streams its security cameras to Amazon Kinesis Video Streams with 90-day data retention. When an incident is reported, the security team must hand investigators a single MP4 file that covers the exact 20-minute window from one camera, without running any video-processing servers. Which solution meets these requirements?",
+    q: "A warehouse streams its security cameras to Amazon Kinesis Video Streams with 90-day data retention. When an incident is reported, the security team must hand investigators a single MP4 file that covers the exact 90-second window from one camera, without running any video-processing servers. Which solution meets these requirements?",
     opts: [
       "Call the Kinesis Video Streams GetClip API for the camera's stream with the window's start and end timestamps, and save the MP4.",
       "Call GetHLSStreamingSessionURL in ON_DEMAND mode for the incident's time range, and give investigators the playback URL.",
@@ -118,7 +118,7 @@ SD.bank.push(
       "An HLS session URL plays the archived video in a player and expires. It isn't a single MP4 file that investigators can keep.",
       "GetImages returns still images taken from the video, not a video file.",
       "Firehose can't use a Kinesis video stream as its source, so it can't deliver the stored video to S3."],
-    why: "GetClip downloads an MP4 file containing the archived media from a video stream over the time range you specify. It requires the stream's data retention to be greater than zero, which this stream has.",
+    why: "GetClip downloads an MP4 file containing the archived media from a video stream over the time range you specify, up to the first 100 MB or 200 fragments, so it suits short clips such as this one. It requires the stream's data retention to be greater than zero, which this stream has.",
     doc: ["https://docs.aws.amazon.com/kinesisvideostreams/latest/APIReference/API_reader_GetClip.html", "https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/hls-playback.html"] },
 
   { id: "saa-3-504", exam: "SAA", saa: "3.5", topic: "textract", type: "mc",
