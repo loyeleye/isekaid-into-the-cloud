@@ -24,11 +24,11 @@ SD.bank.push(
   { id: "dva-1-402", exam: "DVA", dva: "1.1", topic: "cli", type: "multi", hint: "Select TWO.",
     q: "A cleanup script must print the IDs of every EBS volume in a Region that is unattached (in the available state) and larger than 100 GiB, as plain text, from one AWS CLI call. Which commands return exactly those IDs? (Select TWO.)",
     items: [
-      { t: "aws ec2 describe-volumes --filters Name=status,Values=available --query \"Volumes[?Size > `100`].VolumeId\" --output text", ok: true },
-      { t: "aws ec2 describe-volumes --query \"Volumes[?State==`available` && Size > `100`].VolumeId\" --output text", ok: true },
-      { t: "aws ec2 describe-volumes --filters Name=status,Values=available Name=size,Values=100 --query \"Volumes[].VolumeId\" --output text", ok: false, no: "Server-side filters match exact values, so the size filter returns only volumes of exactly 100 GiB." },
-      { t: "aws ec2 describe-volumes --filters Name=status,Values=available --max-items 100 --query \"Volumes[].VolumeId\" --output text", ok: false, no: "--max-items caps how many volumes the CLI returns; it says nothing about their size." },
-      { t: "aws ec2 describe-volumes --query \"Volumes[?Size > `100`].VolumeId\" --output text", ok: false, no: "This returns every volume over 100 GiB, including volumes that are attached to instances." }
+      { t: "aws ec2 describe-volumes --filters Name=status,Values=available --query 'Volumes[?Size > `100`].VolumeId' --output text", ok: true },
+      { t: "aws ec2 describe-volumes --query 'Volumes[?State==`available` && Size > `100`].VolumeId' --output text", ok: true },
+      { t: "aws ec2 describe-volumes --filters Name=status,Values=available Name=size,Values=100 --query 'Volumes[].VolumeId' --output text", ok: false, no: "Server-side filters match exact values, so the size filter returns only volumes of exactly 100 GiB." },
+      { t: "aws ec2 describe-volumes --filters Name=status,Values=available --max-items 100 --query 'Volumes[].VolumeId' --output text", ok: false, no: "--max-items caps how many volumes the CLI returns; it says nothing about their size." },
+      { t: "aws ec2 describe-volumes --query 'Volumes[?Size > `100`].VolumeId' --output text", ok: false, no: "This returns every volume over 100 GiB, including volumes that are attached to instances." }
     ],
     why: "--filters is applied by the service and matches exact values, while --query runs a JMESPath expression on the client that can compare numbers. Filtering the state on the server, or putting both conditions in the query, gives the right IDs, and --output text prints them plainly.",
     doc: ["https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-filter.html", "https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-volumes.html"] },
@@ -115,7 +115,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html"] },
 
   { id: "dva-1-409", exam: "both", dva: "1.1", saa: "2.1", topic: "elb", type: "mc",
-    q: "A legacy Java web app keeps each user's login session in server memory and sets its own JSESSIONID cookie, whose lifetime the app controls. It now runs on three EC2 instances behind an Application Load Balancer, and users are randomly logged out. The app can't be changed yet. Each user must stay on one instance for as long as the app's own session cookie lasts. What should the developer configure?",
+    q: "A legacy Java web app keeps each user's login session in server memory and sets its own JSESSIONID cookie, whose lifetime the app controls. It now runs on three EC2 instances behind an Application Load Balancer, and users are randomly logged out. The app can't be changed yet. Stickiness must be tied to the app's own session cookie, not to a cookie lifetime chosen on the load balancer. What should the developer configure?",
     opts: [
       "Application-based stickiness on the target group, with JSESSIONID as the application cookie name.",
       "Duration-based stickiness on the target group, with a load balancer cookie that lasts for one day.",
@@ -123,10 +123,10 @@ SD.bank.push(
       "Cross-zone load balancing turned off, so that each user's requests stay in one Availability Zone."
     ], a: 0,
     no: [null,
-      "The AWSALB cookie lasts for the fixed duration in the setting, so stickiness wouldn't follow the app's own session cookie.",
+      "Stickiness would follow an AWSALB cookie with a fixed duration set on the load balancer, not the app's own cookie.",
       "The algorithm still picks a target for each request, so a user's requests keep moving between instances.",
       "Users would still move between instances in a zone, and sticky sessions need cross-zone load balancing turned on."],
-    why: "With application-based stickiness, the ALB issues an AWSALBAPP cookie that follows the duration of the named application cookie, so each user stays on one target. Duration-based stickiness uses an AWSALB cookie whose duration the load balancer sets.",
+    why: "With application-based stickiness, the ALB issues an AWSALBAPP cookie tied to the named application cookie, so each user stays on one target. Duration-based stickiness uses an AWSALB cookie whose duration the load balancer sets.",
     doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html"] },
 
   { id: "dva-1-410", exam: "DVA", dva: "1.3", topic: "elasticache", type: "mc",
@@ -229,7 +229,7 @@ SD.bank.push(
   { id: "dva-2-407", exam: "both", dva: "2.1", saa: "1.2", topic: "waf", type: "mc",
     q: "An Application Load Balancer gets all of its traffic through a third-party CDN, which puts each viewer's IP address in the X-Forwarded-For header. The team added an AWS WAF rate-based rule on the ALB that aggregates by source IP address, and it blocked the CDN's own addresses, cutting off every user. Each viewer's IP address must be rate limited on its own. What should the developer change?",
     opts: [
-      "Make the rule aggregate on a forwarded IP from the X-Forwarded-For header, with a fallback for requests without it.",
+      "Make the rule aggregate on a forwarded IP from the X-Forwarded-For header, with a fallback behavior for malformed addresses.",
       "Raise the rule's request limit so that the CDN's addresses stay under it, and keep aggregating on the source IP address.",
       "Set the ALB's X-Forwarded-For processing mode to preserve, so that the header reaches the targets without the CDN address added.",
       "Add an IP set of the CDN's address ranges to a rule that allows those requests before the rate-based rule is evaluated."
@@ -382,7 +382,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "ModifyVolume changes a volume's size, type, IOPS or throughput, not its Availability Zone.",
-      "Snapshots are Regional, so the original can create a volume in any zone of the Region; CopySnapshot copies to Regions, not zones.",
+      "Snapshots are Regional, so the original can already create a volume in any zone of the Region; a copy adds nothing.",
       "Multi-Attach lets instances in the same Availability Zone share an io1 or io2 volume; it never crosses zones."],
     why: "An EBS volume can be attached only to an instance in its own Availability Zone. A snapshot can create a volume in any zone of its Region, so the script should create the volume where the instance is.",
     doc: ["https://docs.aws.amazon.com/ebs/latest/userguide/ebs-attaching-volume.html", "https://docs.aws.amazon.com/ec2/latest/devguide/errors-overview.html"] },
@@ -415,17 +415,17 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html"] },
 
   { id: "dva-4-405", exam: "DVA", dva: "4.3", topic: "elasticache", type: "mc",
-    q: "A Lambda function reads product data from an ElastiCache for Valkey cluster in its VPC. The handler opens a new client connection at the start of each invocation and closes it at the end. Under load, connection setup takes most of each invocation's duration, and the cache's count of new connections is very high. What should the developer do?",
+    q: "A product service caches database query results in an ElastiCache for Memcached cluster of two nodes, using lazy loading with a 24-hour TTL. Since the catalog doubled in size, database load has climbed, and many items are missing from the cache minutes after they were cached. The cluster's Evictions metric rises steadily, while its CPU use stays low. What should the developer do?",
     opts: [
-      "Create the cache client outside the handler, so warm invocations in the same environment reuse its open connection.",
-      "Raise the function's memory setting, so each invocation gets more CPU and opens its connection to the cache faster.",
-      "Configure provisioned concurrency, so that the function's execution environments are initialized before requests arrive.",
-      "Add read replicas to the cluster, and point the function at the reader endpoint to spread the new connections over them."
+      "Add nodes to the cluster or move it to a larger node type, so that the cache has the memory to hold the items that are read often.",
+      "Raise the TTL from 24 hours to 7 days, so that each item stays in the cache for longer before it has to be loaded again.",
+      "Switch from lazy loading to write-through, so that every item is written to the cache whenever it is saved to the database.",
+      "Move the cluster to a node type with more vCPUs and the same memory, so that each node can serve more requests per second."
     ], a: 0,
     no: [null,
-      "More CPU trims setup time a little, but every invocation still opens a new connection, which is the real cost.",
-      "Provisioned concurrency runs the init code early, but this connection is opened inside the handler, so each invocation still makes one.",
-      "Spreading the connections doesn't remove them; every invocation would still pay to set up a new one."],
-    why: "Code outside the handler runs once per execution environment, and Lambda reuses environments for later invocations. Creating the client there lets warm invocations reuse an open connection instead of opening a new TCP connection each time.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html", "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.Clients.Redis.Connections.html"] }
+      "Evictions remove items that haven't expired yet because memory is full, so a longer TTL keeps nothing in the cache any longer.",
+      "Write-through also caches items that are never read, so memory would fill sooner and evictions would rise.",
+      "CPU use is low, so CPU isn't the limit. More vCPUs with the same memory leave the evictions as they are."],
+    why: "The Evictions metric counts items that hadn't expired but were removed to make room for new writes. When it passes the team's threshold, AWS recommends scaling the cluster up to a larger node type or out by adding nodes, so the items in use fit in memory.",
+    doc: ["https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/CacheMetrics.Memcached.html", "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/CacheMetrics.WhichShouldIMonitor.html", "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html"] }
 );
