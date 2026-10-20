@@ -141,7 +141,7 @@ SD.bank.push(
       "Write a log event for each order to CloudWatch Logs with one-year retention, and run a Logs Insights failure-rate query every morning."
     ], a: 0,
     no: [null,
-      "Traces are sampled and kept for 30 days, so they aren't a complete one-year record, and sampling rules don't send notifications.",
+      "X-Ray keeps trace data for 30 days, and sampling rules only choose which requests to trace. They don't send notifications.",
       "CloudTrail records AWS API calls, not the app's own orders, and its notices say nothing about failure rates.",
       "The logs meet the record requirement, but a daily query can't notify anyone within minutes."],
     why: "Logs are the detailed record of individual events. Monitoring turns measurements into metrics and alarms that act on known conditions. The service needs both: logs for the audit record, and a metric with an alarm for the 2% threshold.",
@@ -189,7 +189,7 @@ SD.bank.push(
     why: "ECS runs only health checks defined in the container definition. An UNHEALTHY essential container makes the task UNHEALTHY, so the service replaces it, and startPeriod gives a slow-starting container time before failures count.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/healthcheck.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html"] },
 
-  { id: "dva-4-314", exam: "both", dva: "4.2", saa: "2.2", topic: "route53", type: "mc",
+  { id: "dva-4-314", exam: "DVA", dva: "4.2", topic: "route53", type: "mc",
     q: "An internal API runs on two EC2 instances in different subnets, with private IP addresses only. Clients resolve its name through Route 53 failover records in a private hosted zone. The developer creates an HTTP health check on the primary instance's private IP address, but it always reports unhealthy, though the API works. Which solution will make failover work?",
     opts: [
       "Publish a CloudWatch metric for the API's health with an alarm on it, and attach a health check that monitors the alarm to the primary record.",
