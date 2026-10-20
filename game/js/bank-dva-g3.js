@@ -297,7 +297,7 @@ SD.bank.push(
       { t: "Grant codepipeline:StartPipelineExecution to the release managers, so they can approve by starting the pipeline.", ok: false, no: "Starting a new execution doesn't approve the paused one." }
     ],
     why: "An approval action can publish to an SNS topic in the pipeline's Region and include a URL for review. Approving or rejecting needs codepipeline:PutApprovalResult, which can be scoped to the action.",
-    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-action-add.html", "https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-iam-permissions.html"] },
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals.html", "https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-action-add.html", "https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-iam-permissions.html"] },
 
   { id: "dva-3-321", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "multi", hint: "Select TWO.",
     q: "A pipeline deploys one CloudFormation template to a test stack and then to a prod stack. Each stack needs its own parameter values, kept in source control. A reviewer must see exactly what will change in prod and approve it before prod is changed. Which steps meet these requirements? (Select TWO.)",
@@ -357,7 +357,7 @@ SD.bank.push(
 
   // 3.1 Code repositories
   { id: "dva-3-325", exam: "DVA", dva: "3.1", topic: "codeartifact", type: "mc",
-    q: "A company publishes an internal npm package named acme-auth to a CodeArtifact repository that also has an external connection to npmjs.com. Security worries that someone could publish a higher version of a package named acme-auth on npmjs.com, and builds would install it. Internal publishing must keep working. What should the developer do?",
+    q: "A company publishes an internal npm package named acme-auth to a CodeArtifact repository that also has an external connection to npmjs.com. Security worries that someone could publish a higher version of a package named acme-auth on npmjs.com, and builds would install it, because acme-auth's origin controls currently allow both publishing and upstream versions. Internal publishing must keep working. What should the developer do?",
     opts: [
       "Set acme-auth's package origin controls in the repository to allow publishing and block upstream versions.",
       "Remove the external connection, and copy every public package that the builds need into the repository by hand.",
@@ -387,21 +387,21 @@ SD.bank.push(
     why: "Each L2 construct wraps an L1 construct for its CloudFormation resource. The escape hatch, node.defaultChild, gives access to every CloudFormation property while keeping the L2 construct.",
     doc: ["https://docs.aws.amazon.com/cdk/v2/guide/cfn-layer.html"] },
 
-  // 3.2 Event-driven and mocked integrations
-  { id: "dva-3-327", exam: "DVA", dva: "3.2", topic: "stepfunctions", type: "mc",
-    q: "A Step Functions state calls a third-party payment API through an HTTP Task, with a Catch that routes PaymentDeclined errors to a NotifyCustomer state. The developer must check that routing in an automated test without calling the payment API and without creating or updating a state machine. What should the developer do?",
+  // 3.2 Local tests with a mocked dependency
+  { id: "dva-3-327", exam: "DVA", dva: "3.2", topic: "sam", type: "mc",
+    q: "A developer runs a Lambda function on a laptop with sam local invoke, and its tests must use DynamoDB local instead of the real dev table. DynamoDB local runs in a Docker container named ddb-local on a Docker network named test-net. The function sends DynamoDB calls to the URL in DDB_ENDPOINT, which is set to http://localhost:8000, and every call fails to connect. What should the developer do?",
     opts: [
-      "Call the TestState API with the state's definition and a mocked error result, and check the returned nextState.",
-      "Deploy the state machine to a test account, and start an execution with an order that the payment API will decline.",
-      "Turn on X-Ray tracing for the state machine, and look for the Catch path in the traces of production runs.",
-      "Open the state machine in Workflow Studio, and follow the Catch arrow from the state to confirm the routing."
+      "Run sam local invoke with --docker-network test-net, and set DDB_ENDPOINT to http://ddb-local:8000 in an --env-vars file.",
+      "Run sam local start-lambda instead, so that the function runs directly on the laptop and can reach localhost:8000.",
+      "Restart DynamoDB local with the -inMemory option, so that it accepts connections from other containers on localhost.",
+      "Run sam local invoke with --skip-pull-image, so that the function's container shares the laptop's own network."
     ], a: 0,
     no: [null,
-      "That deploys a state machine and calls the real payment API, which the stem rules out.",
-      "Tracing shows past production runs. It doesn't test the logic on demand without calling the API.",
-      "Looking at a diagram isn't an automated test, and it doesn't check the error matching."],
-    why: "TestState runs a single state's definition without a state machine. It can mock a service integration's result or error and returns the status and next state for the test to assert on.",
-    doc: ["https://docs.aws.amazon.com/step-functions/latest/dg/test-state-isolation.html"] },
+      "start-lambda also runs each function in a Docker container, so localhost still means that container.",
+      "-inMemory keeps the data in memory instead of a file. It doesn't change who can connect.",
+      "That only skips downloading the latest runtime image. The network setup stays the same."],
+    why: "sam local runs the function in its own container, where localhost is that container. --docker-network joins it to DynamoDB local's network, where the container name resolves, and --env-vars overrides the endpoint.",
+    doc: ["https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html"] },
 
   // 3.3 Test events
   { id: "dva-3-328", exam: "DVA", dva: "3.3", topic: "apigateway", type: "multi", hint: "Select TWO.",
@@ -431,7 +431,7 @@ SD.bank.push(
 
   // 3.4 Labels and rollbacks in Elastic Beanstalk
   { id: "dva-3-330", exam: "DVA", dva: "3.4", topic: "beanstalk", type: "mc",
-    q: "A pipeline creates a new Elastic Beanstalk application version, labeled with the commit ID, on every merge. New deploys have started failing because the application version quota is reached. The team must keep the last 50 versions available to redeploy for rollbacks, and auditors need every source bundle kept. What should the developer do?",
+    q: "A pipeline creates a new Elastic Beanstalk application version, labeled with the commit ID, on every merge. It will soon reach the application version quota, after which new deploys would fail. The team must keep the last 50 versions available to redeploy for rollbacks, and auditors need every source bundle kept. What should the developer do?",
     opts: [
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to keep source bundles in S3.",
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to delete the old source bundles.",
@@ -441,7 +441,7 @@ SD.bank.push(
     no: [null,
       "The source bundles would be deleted, which the auditors don't allow.",
       "The quota counts the versions Elastic Beanstalk tracks, not objects in S3, so new deploys still fail.",
-      "Environments belong to one application, so a new application can't deploy to the existing environments."],
+      "The quota covers every application in the Region, and existing environments can't run another application's versions."],
     why: "A lifecycle policy deletes the oldest application versions once a count or age is passed, and never deletes versions in use. It can keep each deleted version's source bundle in S3.",
     doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/applications-lifecycle.html", "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/applications-versions.html"] }
 );
