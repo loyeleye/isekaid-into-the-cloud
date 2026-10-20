@@ -377,7 +377,7 @@ SD.bank.push(
       { t: "Create access keys for DevTestRole in the dev account, and add them to a new profile in the ~/.aws/credentials file.", ok: false, no: "Roles don't have access keys. They provide only temporary credentials when assumed." },
       { t: "Set credential_source to Ec2InstanceMetadata in the role profile, so the CLI takes the source credentials from the laptop.", ok: false, no: "Ec2InstanceMetadata reads an EC2 instance's role. A laptop has no instance metadata, so the user's profile is the source." }
     ],
-    why: "A role profile names the role, the profile whose credentials assume it, and the MFA device. The CLI and SDKs then call AssumeRole, prompt for the MFA code and cache the temporary credentials.",
+    why: "A role profile names the role, the profile whose credentials assume it, and the MFA device. The CLI then calls AssumeRole for you, prompts for the MFA code and caches the temporary credentials.",
     doc: ["https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html"] },
 
   { id: "dva-2-128", exam: "both", dva: "2.1", saa: "1.1", topic: "apigateway", type: "mc",

@@ -152,7 +152,7 @@ SD.bank.push(
     q: "A batch job writes about 8,000 small objects per second to one S3 bucket, all under the key prefix uploads/2026-10-20/. The job starts getting HTTP 503 Slow Down responses, and some writes fail after the job's single retry. Which actions should the developer take to resolve this? (Select TWO.)",
     items: [
       { t: "Spread the object keys across several prefixes, for example by adding a short hash before the date, so each prefix gets fewer requests.", ok: true },
-      { t: "Retry the failed requests with exponential backoff and jitter, as the AWS SDKs' standard retry mode does by default.", ok: true },
+      { t: "Retry the failed requests with exponential backoff and jitter, as the AWS SDKs' built-in retry logic is designed to do.", ok: true },
       { t: "Turn on S3 Transfer Acceleration for the bucket, and send the writes to the bucket's accelerate endpoint from the job.", ok: false, no: "Acceleration speeds up long-distance transfers. It doesn't raise the request rate a prefix supports." },
       { t: "Request a higher S3 request-rate quota for the bucket in Service Quotas, then wait for it to be approved.", ok: false, no: "S3 has no request-rate quota to raise. It scales per prefix, so more prefixes give more throughput." },
       { t: "Upload each small object with multipart upload, so its parts spread over more S3 servers and partitions.", ok: false, no: "Multipart upload adds requests per object, which makes the request rate higher, not lower." }
@@ -315,13 +315,13 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Quotas-Visualize-Alarms.html", "https://docs.aws.amazon.com/servicequotas/latest/userguide/configure-cloudwatch.html"] },
 
   { id: "dva-4-123", exam: "DVA", dva: "4.2", topic: "codedeploy", type: "multi", hint: "Select TWO.",
-    q: "A team deploys a Lambda function with CodeDeploy. Developers want an email each time a deployment in the deployment group succeeds or fails, without changing the application code. Which solutions will meet these requirements? (Select TWO.)",
+    q: "A team deploys an app to EC2 instances with CodeDeploy. Developers want an email each time a deployment in the deployment group succeeds or fails, without changing the application code. Which solutions will meet these requirements? (Select TWO.)",
     items: [
       { t: "Create an EventBridge rule that matches CodeDeploy Deployment State-change Notification events for successful and failed deployments, with an SNS topic as its target.", ok: true },
       { t: "Add a trigger to the deployment group for the deployment success and deployment failure events that publishes to an SNS topic.", ok: true },
       { t: "Add CloudWatch alarms to the deployment group's alarm configuration, so CodeDeploy sends an alarm notification at the end of each deployment.", ok: false, no: "Alarms in a deployment group stop or roll back a deployment when they fire. They don't report each deployment's result." },
       { t: "Create a CloudTrail trail with SNS notifications turned on, so the team is emailed whenever a CodeDeploy API call is logged.", ok: false, no: "CloudTrail's SNS notice fires when a log file is delivered, not when a deployment ends." },
-      { t: "Add an AfterAllowTraffic hook function to the AppSpec file that publishes to an SNS topic when it runs.", ok: false, no: "The hook runs only when the deployment gets that far, so failed deployments send nothing." }
+      { t: "Add a ValidateService hook script to the AppSpec file that publishes to an SNS topic when it runs.", ok: false, no: "The hook runs only when the deployment gets that far, so many failed deployments send nothing." }
     ],
     why: "CodeDeploy sends deployment state changes to EventBridge, where a rule can route them to SNS. A deployment group trigger can also publish deployment and instance events straight to an SNS topic.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/monitoring-cloudwatch-events.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/monitoring-sns-event-notifications-create-trigger.html"] },
@@ -341,7 +341,7 @@ SD.bank.push(
   { id: "dva-4-125", exam: "DVA", dva: "4.2", topic: "cloudwatch", type: "mc",
     q: "A web app is used mostly during business hours. Twice this month its sign-in page broke overnight, and the team learned of it only when customers complained in the morning. They want the sign-in flow tested from a browser every 5 minutes, all day, with screenshots when a step fails, and with the LEAST development effort. What should the developer do?",
     opts: [
-      "Create a CloudWatch Synthetics canary from the GUI workflow blueprint that signs in on a schedule, and alarm on its success metric.",
+      "Create a CloudWatch Synthetics canary from the GUI Workflow Builder blueprint that signs in on a schedule, and alarm on its success metric.",
       "Create a Route 53 health check on the sign-in page's URL with string matching, and alarm on the health check's status metric.",
       "Turn on X-Ray active tracing for the app, and alarm when the service map shows faults on the sign-in service's node.",
       "Schedule a Lambda function with EventBridge Scheduler that runs a headless browser the team packages and maintains itself."
