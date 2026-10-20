@@ -183,12 +183,18 @@
       ]
     }
   };
-  // What they say once their camp scenes are done (or while they're following you).
+  // What they say in camp once their scenes are done. T.idleAfter adds what only makes sense after Freya's gifts.
   T.idle = {
-    mira: ['Sit down before you fall down, love.', 'Freya took my letters to deliver. First person who ever offered.', 'If anyone gets hurt today, I\'d like it to be somebody else for once.'],
-    kai: ['Behind! Hot! ...Sorry. Habit.', 'Three cooks, and they say "Yes, chef" back. I might cry.', 'I\'m not saying it\'s a cult. I\'m saying it\'s got a gift shop.'],
-    seoyeon: ['Forms at dawn. All of you.', 'The watch rota is on the post. Please read it.', 'Freya keeps asking me to choose things. Nobody has ever asked me to choose things.'],
-    dutch: ['Nobody looks at the janitor. That\'s the whole plan.', 'Keys to every room in the Arcanum. Never gave them back.', 'Freya gave me my badge back. Polished it, even.']
+    mira: ['Sit down before you fall down, love.', 'If anyone gets hurt today, I\'d like it to be somebody else for once.'],
+    kai: ['Behind! Hot! ...Sorry. Habit.', 'I\'m not saying it\'s a cult. I\'m saying it\'s got a gift shop.'],
+    seoyeon: ['Forms at dawn. All of you.', 'Someone should keep watch tonight. Nobody has asked me to.'],
+    dutch: ['Nobody looks at the janitor. That\'s the whole plan.', 'Keys to every room in the Arcanum. Never gave them back.']
+  };
+  T.idleAfter = {
+    mira: ['Freya took my letters to deliver. First person who ever offered.'],
+    kai: ['Three cooks, and they say "Yes, chef" back. I might cry.'],
+    seoyeon: ['The watch rota is on the post. Please read it.', 'Freya keeps asking me to choose things. Nobody has ever asked me to choose things.'],
+    dutch: ['Freya gave me my badge back. Polished it, even.']
   };
 
   // ---------- Freya's briefing: a gift for each of them, and every kindness quotes their prayer ----------

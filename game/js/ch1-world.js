@@ -309,7 +309,7 @@
     const f = c1().f;
     if (!f.cart) return say([[id, rnd(T.idle[id])], ['narr', 'Breakfast is in the supply cart, by the fire.']]);
     const k = nextScene(id);
-    if (!k || f.brief) return say([[id, rnd(T.idle[id])]]);
+    if (!k || f.brief) return say([[id, rnd(T.idle[id].concat(f.brief ? T.idleAfter[id] : []))]]);
     const s = T.camp[k], partner = s.who.find(w => w !== id);
     let back = null;
     if (partner !== lead()) {
