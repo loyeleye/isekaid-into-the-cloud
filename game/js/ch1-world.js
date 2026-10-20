@@ -506,10 +506,9 @@
   }
   W1.newGame = async function () {
     begin(await choose());
-    U.stage('dream');
+    freyaForm();
     AU.music('story');
-    await say(T.prologue[lead()]);
-    U.stage(null);
+    await SD.vn.play(T.prologue[lead()]);
     W1.enter();
     await act(wake);
   };

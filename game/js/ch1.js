@@ -264,6 +264,43 @@
     faithful: { name: 'Elder Wren', title: 'Brookfall Shrine', hue: 200, hair: 'bun', eye: '#5a4bd6' }
   });
   SD.cast.dutch.hair = 'slick';
+  // The ones they lost, who only appear in the prologues (and in Freya's borrowed voices).
+  Object.assign(SD.cast, {
+    bram: { name: 'Bram', title: 'Mira\'s husband' },
+    hana: { name: 'Hana', title: 'Saint of Halcyon' },
+    jin: { name: 'Jin', title: 'Burning Peak' },
+    lina: { name: 'Lina', title: 'Dutch\'s daughter' }
+  });
+  [['bram', 300], ['hana', 1100], ['jin', 620], ['lina', 1200]].forEach(([w, hz]) => SD.ui.voice(w, hz));
+
+  // ---------- The prologues' visual-novel art (js/vn.js) ----------
+  // Backgrounds and stills from the cutscene shot list. Until each one is painted (src set), the player shows a
+  // tinted placeholder, and the sprites stand in with the pixel art.
+  SD.vn.addScenes({
+    m1: { src: 'assets/img/vn/m1.webp', label: 'The top of the tower stair, night', tint: ['#5a2a1c', '#0b0606'] },
+    m2: { src: 'assets/img/vn/m2.webp', label: 'Mira holding Bram on the steps', tint: ['#6b1f1f', '#0a0505'] },
+    m3: { label: 'Her cottage, the new moon', tint: ['#2a3550', '#06070c'] },
+    k1: { label: 'The cathedral, a wall of gold light', tint: ['#8a6a2a', '#100c06'] },
+    k2: { label: 'Kai\'s hand on the barrier, Hana inside', tint: ['#b08a3a', '#120d05'] },
+    k3: { label: 'The cathedral steps that night', tint: ['#3a3020', '#050505'] },
+    s1: { label: 'The Murim Alliance\'s duel hall', tint: ['#6a2a24', '#0a0606'] },
+    s2: { label: 'The one second', tint: ['#7a2030', '#0a0406'] },
+    s3: { label: 'A training yard at dawn, in mist', tint: ['#5a6070', '#101218'] },
+    d1: { label: 'A cell at night, one slit of moonlight', tint: ['#2a3a5a', '#040508'] },
+    d2: { label: 'Dutch\'s fist on the wall, Lina\'s diary', tint: ['#3a3a52', '#050508'] },
+    d3: { label: 'Flowers on an empty infirmary bed', tint: ['#5a5560', '#0a0a0c'] }
+  });
+  // Faces to paint: Mira desperate, grief, cold; Kai shock, grief, anger; Seo-yeon frozen, grief, anger; Dutch stone,
+  // grief, anger; Freya smile, cold. Each painted face goes in faces: { face: src }.
+  const stand = src => ({ stand: src, pixel: true, faces: {} });
+  SD.vn.addSprites({
+    mira: { faces: { grief: 'assets/img/vn/mira-grief.webp' } },
+    kai: stand('assets/img/lead/kai.webp'),
+    seoyeon: stand('assets/img/lead/seoyeon.webp'),
+    dutch: stand('assets/img/lead/dutch.webp'),
+    freya: { faces: { smile: 'assets/img/vn/freya-smile.webp' } },
+    bram: { tint: '#5a4a3a' }, hana: { tint: '#b08a3a' }, jin: { tint: '#6a2a2a' }, lina: { tint: '#7a6a9a' }
+  });
   SD.art.addPainted('mira', ['neutral'], true);
   SD.art.addPainted('kai', ['neutral'], true);
   SD.art.addPainted('seoyeon', ['neutral'], true);
