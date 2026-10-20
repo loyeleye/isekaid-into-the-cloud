@@ -18,19 +18,19 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-errors.html"] },
 
   { id: "dva-1-202", exam: "both", dva: "1.2", saa: "3.5", topic: "lambda", type: "mc",
-    q: "A Lambda function reads a Kinesis data stream with 4 shards through an event source mapping. At peak hours the IteratorAge metric climbs to several minutes, although the function's duration is steady and it isn't throttled. The stream's owner won't allow resharding, and records with the same partition key must still be processed in order. What should the developer do?",
+    q: "A Lambda function reads a Kinesis data stream of payment events. For each shard it must publish the count and total value of payments in every 1-minute period, in near real time. The team doesn't want to run a database or cache just to hold running totals between invocations. What should the developer do?",
     opts: [
-      "Raise the event source mapping's ParallelizationFactor, so Lambda processes several batches from each shard at once.",
-      "Register the function as an enhanced fan-out consumer, so that Lambda reads more records from each shard in every batch.",
-      "Set the function's reserved concurrency to 100, so that Lambda can run more copies of the function against the stream.",
-      "Switch the event source mapping's starting position to LATEST, so that the function skips records that are already old."
+      "Set TumblingWindowInSeconds to 60 on the mapping, return running totals as state, and publish them on the final invoke.",
+      "Set MaximumBatchingWindowInSeconds to 60 on the mapping, so that each invocation receives exactly one minute of records.",
+      "Keep the running totals in global variables outside the handler, and publish them once a minute has passed since the last.",
+      "Register the function as an enhanced fan-out consumer, so that Lambda groups each shard's records into 1-minute batches."
     ], a: 0,
     no: [null,
-      "Enhanced fan-out gives the consumer its own read throughput, but the bottleneck is that only one invocation at a time works on each shard.",
-      "With the default ParallelizationFactor of 1, Lambda runs one invocation per shard, so the extra concurrency goes unused.",
-      "Skipping records loses data the business still needs processed."],
-    why: "ParallelizationFactor (1 to 10) lets Lambda run that many batches from one shard at the same time, while still keeping records with the same partition key in order.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html"] },
+      "A batching window is only the longest Lambda waits to fill a batch. Size limits can end a batch early, so one invocation isn't one minute.",
+      "Execution environments can be recycled or run side by side, so totals held in memory can be lost or split.",
+      "Enhanced fan-out gives the consumer dedicated read throughput. It doesn't group records by time or keep state."],
+    why: "With a tumbling window, Lambda passes each invocation the state returned by the previous invocation for the same window, so totals carry across invocations without a database. The last invocation of a window has isFinalInvokeForWindow set, and that is where the function publishes.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/services-kinesis-windows.html"] },
 
   { id: "dva-1-203", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
     q: "An S3 event notification invokes a Lambda function asynchronously for each uploaded invoice, and the function charges the customer's card. When the function times out after the charge went through, Lambda runs it again and the customer is charged twice. Until the code is made idempotent, failed events must not be retried, and they must be kept for review. What should the developer do?",
@@ -246,19 +246,19 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html"] },
 
   { id: "dva-1-218", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
-    q: "A new Lambda function calls a partner API that takes 5 to 8 seconds to respond. Every test invocation fails, and the logs end with \"Task timed out after 3.00 seconds\". The function uses only 60 MB of its 128 MB of memory. What should the developer do?",
+    q: "A developer zips a folder of Python packages with the packages at the top level (requests/, pydantic/ and so on), publishes it as a Lambda layer, and adds the layer to a Python function. The function's imports now fail with No module named 'requests', although the layer is attached. What should the developer do?",
     opts: [
-      "Raise the function's timeout setting above the partner API's slowest response, for example to 15 seconds.",
-      "Raise the function's memory to 1,024 MB, so it gets more CPU and finishes the call in under 3 seconds.",
-      "Configure provisioned concurrency for the function, so that it skips initialization and has more time.",
-      "Set the function's reserved concurrency to 1, so that parallel calls don't overload the partner's API."
+      "Rebuild the layer .zip with the packages under a top-level python/ folder, publish a new layer version, and attach it.",
+      "Change the function's handler setting to /opt/requests, so that the runtime loads the package from the layer's folder.",
+      "Raise the function's ephemeral storage, so that Lambda has enough room to extract the layer's packages into /tmp.",
+      "Move the layer to the top of the function's layer order, so that its packages load before the function's own code."
     ], a: 0,
     no: [null,
-      "The function is waiting on the partner, so more CPU can't make the API answer sooner.",
-      "Initialization isn't the problem. The handler alone needs longer than the timeout allows.",
-      "Even a single call takes longer than 3 seconds, so it still times out."],
-    why: "A function's timeout defaults to 3 seconds. A function that waits on a slow dependency needs a timeout longer than that dependency's worst response time.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html"] },
+      "The handler names the function's own entry point, not where its libraries live.",
+      "Layers are extracted to /opt, not /tmp, and they did extract. The packages just aren't on the import path.",
+      "Layer order only decides which files win when paths clash. The packages still aren't on the import path."],
+    why: "Lambda extracts layers into /opt, and the Python runtime adds /opt/python and its site-packages folder to the import path. Packages at the root of the .zip land directly in /opt, which isn't on the path.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/packaging-layers.html"] },
 
   { id: "dva-1-219", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
     q: "A bug in a Lambda consumer corrupted the results for records written to a Kinesis data stream since 14:00 yesterday. The stream keeps data for 7 days. After fixing the code, the developer creates a new event source mapping that must reprocess records from 14:00 yesterday onward, and none earlier. Which starting position should the developer use?",
@@ -540,17 +540,17 @@ SD.bank.push(
     why: "Valkey and Redis OSS offer sorted sets, which keep members ranked by score, and replication groups with automatic failover across AZs. Memcached offers neither.",
     doc: ["https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/SelectEngine.html"] },
 
-  { id: "dva-1-239", exam: "both", dva: "1.3", saa: "3.3", topic: "caching", type: "multi", hint: "Select TWO.",
-    q: "An app caches product prices from an RDS database in ElastiCache, using lazy loading with a 1-hour TTL. After a price changes, customers sometimes see the old price for up to an hour, which is no longer acceptable. Most of the catalog is rarely viewed, and the cache shouldn't fill up with those items. Which actions should the developer take? (Select TWO.)",
+  { id: "dva-1-239", exam: "both", dva: "1.3", saa: "3.1", topic: "s3", type: "multi", hint: "Select TWO.",
+    q: "An app stores millions of photos in an S3 bucket under keys such as photos/<uuid>.jpg. A new screen must list one user's photos from a given month within milliseconds, but listing the bucket and reading each object's metadata takes minutes. Which actions together meet the requirement? (Select TWO.)",
     items: [
-      { t: "Write each price change to the cache at the same time as it is written to the database.", ok: true },
-      { t: "Keep a TTL on every cache entry, so that items written to the cache but never read expire.", ok: true },
-      { t: "Raise the TTL to 24 hours, so that entries stay in the cache longer and miss less often.", ok: false, no: "A longer TTL makes stale prices last longer, not shorter." },
-      { t: "Switch the engine to Memcached, which removes entries by itself when the database changes.", ok: false, no: "No ElastiCache engine watches the database. The app has to update or delete the entries." },
-      { t: "Reload the whole catalog into the cache every hour from a scheduled job, with no TTL set.", ok: false, no: "It fills the cache with rarely viewed items, and prices can still be an hour stale." }
+      { t: "Keep each photo's metadata in a DynamoDB table keyed on UserId, with the date taken as the sort key and the S3 key as an attribute.", ok: true },
+      { t: "Query that table by UserId with a sort key condition for the month, then fetch the photos by their stored S3 keys.", ok: true },
+      { t: "Call ListObjectsV2 with the user ID as the Prefix parameter, since S3 can match keys on any part of the name.", ok: false, no: "A prefix matches only the start of a key, and these keys start with photos/ and a random UUID." },
+      { t: "Add object tags for UserId and month to each photo, and call ListObjectsV2 with a filter on those tags.", ok: false, no: "ListObjectsV2 can't filter by tags, so the app would still have to check every object." },
+      { t: "Turn on S3 Inventory, and search its latest report for the user's photos each time the screen loads.", ok: false, no: "Inventory reports arrive daily or weekly, so they are stale and far too slow to search per request." }
     ],
-    why: "Write-through updates the cache whenever the database is written, so cached data is never stale. Its drawback is caching data that is never read, which a TTL cleans up.",
-    doc: ["https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html"] },
+    why: "S3 finds objects only by key or key prefix. Keeping searchable metadata in a DynamoDB table, keyed the way the app looks things up, turns the lookup into a fast Query that returns the S3 keys.",
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.KeyConditionExpressions.html"] },
 
   { id: "dva-1-240", exam: "DVA", dva: "1.3", topic: "dax", type: "mc",
     q: "A team puts a DAX cluster in front of a DynamoDB table and switches the app to the DAX client. Most reads become much faster, but one service that calls GetItem with ConsistentRead set to true sees no improvement at all. What explains this?",
@@ -579,20 +579,20 @@ SD.bank.push(
     why: "A DynamoDB item can't be larger than 400 KB. Compressing large attributes, or keeping them in S3 with a pointer in the item, are the documented ways to store bigger data.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-use-s3-too.html"] },
 
-  { id: "dva-1-242", exam: "both", dva: "1.3", saa: "3.1", topic: "s3", type: "mc",
-    q: "An IoT backend writes about 12,000 small objects per second to one S3 bucket, all under the key prefix incoming/, and many PutObject calls get 503 Slow Down responses. Downstream jobs can read from any prefix. Which change will raise the sustained write rate?",
+  { id: "dva-1-242", exam: "both", dva: "1.3", saa: "3.3", topic: "caching", type: "mc",
+    q: "An app on DynamoDB builds each user's recommendations list by running several Query calls and combining the results with heavy computation in code. The same lists are requested many times an hour and may be up to 10 minutes old. The team wants to stop repeating the computation. What should the developer do?",
     opts: [
-      "Spread the keys across several prefixes, such as incoming/00/ to incoming/09/, chosen by a hash of the device ID.",
-      "Turn on S3 Transfer Acceleration, so that the uploads enter the AWS network at the nearest edge location.",
-      "Upload each object with multipart upload, so that each write is split into several parallel part requests.",
-      "Turn on S3 Versioning on the bucket, so that each write creates a new object version instead of a new object."
+      "Store each computed list in ElastiCache for Valkey or Redis OSS with a 10-minute TTL, and check it before computing.",
+      "Put a DAX cluster in front of the table, so that each combined recommendations list is cached once it is computed.",
+      "Switch the Query calls to strongly consistent reads, so that each computation runs faster on fresher source data.",
+      "Turn on DynamoDB auto scaling for the table, so that the Query calls behind each computation are never throttled."
     ], a: 0,
     no: [null,
-      "Acceleration speeds up long-distance transfers. It doesn't raise the request rate a prefix can take.",
-      "Multipart upload adds requests for small objects, which makes the 503 responses worse.",
-      "Versioning changes what is kept, not how many requests per second a prefix can take."],
-    why: "S3 supports at least 3,500 PUT requests per second per partitioned prefix, with no limit on the number of prefixes. Spreading writes across prefixes lets S3 serve them in parallel.",
-    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html"] },
+      "DAX caches DynamoDB responses such as items and query results. It can't cache a result the app computes itself.",
+      "Strongly consistent reads cost more and don't remove the computation.",
+      "More capacity doesn't save the computation that runs on every request."],
+    why: "DAX caches DynamoDB API calls, so the app's own computed result would still be rebuilt every time. ElastiCache stores any value the app puts in it, and a TTL bounds how stale a list can get.",
+    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DAX.html", "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html"] },
 
   { id: "dva-1-243", exam: "both", dva: "1.3", saa: "3.3", topic: "opensearch", type: "mc",
     q: "A store keeps its product catalog in DynamoDB. Customers now need full-text search over product descriptions, with relevance ranking and tolerance for typos, and results must reflect catalog changes within seconds. Which solution meets these requirements with the LEAST operational overhead?",

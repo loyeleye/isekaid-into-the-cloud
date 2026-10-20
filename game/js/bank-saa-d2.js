@@ -213,7 +213,7 @@ SD.bank.push(
     no: [null,
       "A deleted message is gone for the other teams, and standard queues don't keep order or allow replay.",
       "SNS doesn't keep order and doesn't store events for a team to replay.",
-      "Firehose buffers records before delivery, so fraud detection can't act in real time."],
+      "Teams would see events only by polling S3 for new files every few minutes, too slow for real-time fraud detection."],
     why: "Records with the same partition key go to the same shard in order, and each consumer reads the stream independently. The default 24-hour retention lets a team re-read the last day.",
     doc: ["https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html"] },
 
@@ -363,7 +363,7 @@ SD.bank.push(
       { t: "Create an EFS mount target in each of the three AZs, and mount the file system through it.", ok: true },
       { t: "Create an Amazon EFS file system that uses the One Zone file system type to lower the cost.", ok: false, no: "A One Zone file system lives in one AZ and goes down with it." },
       { t: "Attach one io2 EBS volume to every server with Multi-Attach, and format it with ext4.", ok: false, no: "Multi-Attach works only within one AZ, and ext4 isn't built for several writers at once." },
-      { t: "Create an Amazon FSx for Windows File Server Single-AZ file system, and share it to the servers.", ok: false, no: "It serves SMB for Windows clients, and a Single-AZ file system fails with its AZ." }
+      { t: "Create an Amazon FSx for Windows File Server Single-AZ file system, and share it to the servers.", ok: false, no: "It serves SMB, not NFS, and a Single-AZ file system fails with its AZ." }
     ],
     why: "A Regional EFS file system stores data redundantly across AZs. With a mount target in each AZ, instances in the surviving zones keep using the file system if one AZ fails.",
     doc: ["https://docs.aws.amazon.com/efs/latest/ug/features.html", "https://docs.aws.amazon.com/efs/latest/ug/accessing-fs.html"] },

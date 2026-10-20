@@ -16,7 +16,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Half at a time takes 10 of the 20 instances out of service, leaving fewer than the 15 that must keep serving.",
-      "It keeps 19 instances in service, but it needs 20 batches, far more than the requirement allows.",
+      "It keeps 19 instances in service, but it needs 20 batches, where a 75% minimum needs only 4.",
       "All the instances update together, so nothing is guaranteed to stay in service during the release."],
     why: "On EC2, a deployment configuration sets the minimum healthy hosts as a count or a fleet percentage. With 75% of 20, CodeDeploy keeps 15 instances healthy and deploys to the other 5 in each batch.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/instances-health.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations-create.html"] },
@@ -358,7 +358,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-variables.html", "https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html"] },
 
   { id: "dva-3-226", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc",
-    q: "A release pipeline uses a GitHub source through a CodeConnections connection. It now runs on every push to main, but it must run only when a release manager pushes a Git tag that starts with release-, such as release-2.4.0. What should the developer do?",
+    q: "A release pipeline uses a GitHub source through a CodeConnections connection. It now runs on every push to main, but it must start automatically, and only when a release manager pushes a Git tag that starts with release-, such as release-2.4.0. What should the developer do?",
     opts: [
       "Use a V2 pipeline, and add a push trigger that filters on Git tags matching release-*.",
       "Set the source action's BranchName to release-*, so that only matching refs start a run.",
@@ -368,7 +368,7 @@ SD.bank.push(
     no: [null,
       "BranchName names a single branch, not a pattern, and tags aren't branches.",
       "GitHub events don't reach EventBridge on their own, so the rule would never match.",
-      "It works, but it is manual, and nothing ties the run to the tag that was pushed."],
+      "Runs would start by hand, not automatically when the tag is pushed."],
     why: "V2 pipelines support triggers that filter push events on Git tags, branches or file paths. A tag filter makes tagging a commit the act that starts a release.",
     doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/pipelines-filter.html", "https://docs.aws.amazon.com/codepipeline/latest/userguide/pipeline-types-planning.html"] },
 

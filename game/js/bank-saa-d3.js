@@ -116,20 +116,20 @@ SD.bank.push(
     why: "A warm pool holds instances that have already run their slow initialization. Kept Stopped, they cost only their volumes and Elastic IPs, and the group can bring them into service quickly when it scales out.",
     doc: ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-warm-pools.html"] },
 
-  { id: "saa-3-109", exam: "SAA", saa: "3.2", topic: "autoscaling", type: "mc",
-    q: "Worker instances in an Auto Scaling group pull jobs from an SQS queue. Each job takes about 20 seconds, and the business wants every job to start within about 5 minutes of being queued. The queue can grow from a few hundred to tens of thousands of messages within an hour. Which scaling approach keeps processing time on target as the queue changes?",
+  { id: "saa-3-109", exam: "SAA", saa: "3.2", topic: "ec2", type: "mc",
+    q: "A company runs an in-memory analytics engine on general purpose (M family) EC2 instances. CloudWatch agent metrics show memory use near 100 percent and heavy swapping to disk, while CPU utilization stays below 20 percent. Each node must hold a 300 GiB working set in RAM. Which change gives the BEST performance for this workload?",
     opts: [
-      "Use a target tracking policy on a backlog-per-instance metric, set to the acceptable backlog.",
-      "Use a target tracking policy on the queue's ApproximateNumberOfMessagesVisible metric alone.",
-      "Use a target tracking policy that keeps the group's average CPU utilization at 50 percent.",
-      "Use scheduled scaling actions that add workers at the hours when the queue usually grows."
+      "Move to a memory optimized instance type, such as the R family, with enough RAM for the working set.",
+      "Move to a compute optimized instance type, such as the C family, with the same number of vCPUs.",
+      "Move to a storage optimized instance type, such as the I family, so swapping to local NVMe is faster.",
+      "Keep the general purpose type, and attach a large Provisioned IOPS EBS volume as the swap space."
     ], a: 0,
     no: [null,
-      "Queue length alone ignores how many instances are already working, so the group can add more instances than needed as the queue drains.",
-      "Workers that wait on I/O or downstream calls can fall behind while CPU stays low, so CPU doesn't track the backlog.",
-      "The queue grows unpredictably within an hour, so fixed schedules would miss many surges."],
-    why: "Backlog per instance is the visible message count divided by in-service instances. The target is the acceptable latency divided by the time per message (here about 300 / 20 = 15), so capacity grows in proportion to the work waiting.",
-    doc: ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-using-sqs-queue.html"] },
+      "C instances have less memory per vCPU than M instances, so swapping would get worse while CPU sits idle.",
+      "Faster local disks make swapping hurt less, but the working set still doesn't fit in RAM.",
+      "Swap on EBS is still disk I/O over the network, far slower than reading the data from memory."],
+    why: "Memory optimized instances are designed for workloads that process large data sets in memory. They offer more memory per vCPU than general purpose types, so the working set fits in RAM without paying for CPU the engine doesn't use.",
+    doc: ["https://docs.aws.amazon.com/ec2/latest/instancetypes/mo.html", "https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-types.html"] },
 
   { id: "saa-3-110", exam: "SAA", saa: "3.2", topic: "batch", type: "mc",
     q: "A risk team submits thousands of independent, containerized simulation jobs each night. The jobs need different amounts of CPU and memory, failed jobs must be retried, and Spot capacity should be used where possible. The team doesn't want to run or patch a job scheduler. Which solution meets these requirements with the LEAST operational overhead?",
@@ -177,17 +177,20 @@ SD.bank.push(
     why: "Aurora Serverless v2 adjusts capacity in increments as small as half an ACU while the database runs, so it fits variable, spiky workloads without adding instances or resizing.",
     doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.html"] },
 
-  { id: "saa-3-113", exam: "SAA", saa: "3.3", topic: "aurora", type: "multi", hint: "Select TWO.",
-    q: "An Aurora MySQL cluster has one writer and one Aurora Replica. Read traffic from reporting dashboards swings widely during the day and slows the dashboards at peak. The company wants read capacity to grow and shrink automatically, and it doesn't want the application to track individual replica hostnames. Which steps meet these requirements? (Select TWO.)",
-    items: [
-      { t: "Add an Aurora Auto Scaling policy that adjusts the number of Aurora Replicas by a target metric.", ok: true },
-      { t: "Point the dashboards' read-only connections at the cluster's reader endpoint.", ok: true },
-      { t: "Point the dashboards' read-only connections at the cluster endpoint of the DB cluster.", ok: false, no: "The cluster endpoint always connects to the writer, so the replicas would get none of the read traffic." },
-      { t: "List each replica's instance endpoint in the dashboards' configuration and rotate through them.", ok: false, no: "This makes the app track individual replica hostnames, and new replicas would be missed until the list changes." },
-      { t: "Move the writer to a larger DB instance class during business hours with a scheduled job.", ok: false, no: "This doesn't add read capacity automatically, and changing the writer's class can briefly interrupt writes." }
-    ],
-    why: "Aurora Auto Scaling adds and removes Aurora Replicas using CloudWatch metrics and target values. The reader endpoint balances connections across whichever replicas exist, so new replicas are used without app changes.",
-    doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Integrating.AutoScaling.html", "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html"] },
+  { id: "saa-3-113", exam: "SAA", saa: "3.3", topic: "opensearch", type: "mc",
+    q: "An online store keeps its product catalog in Aurora MySQL. Customers search product names and descriptions by free text, and the site runs LIKE '%term%' queries that scan the tables, return results in no useful order, and slow down order processing. The company wants fast, relevance-ranked search across several text fields. Which solution meets these requirements?",
+    opts: [
+      "Index the catalog in Amazon OpenSearch Service, keep the index in sync on each change, and send searches to it.",
+      "Add Aurora Replicas to the cluster, and send the LIKE search queries to the cluster's reader endpoint.",
+      "Cache the results of each search in ElastiCache, keyed by the exact search text the customer typed.",
+      "Copy the catalog to a DynamoDB table, and run a Scan with a contains() filter expression for each search."
+    ], a: 0,
+    no: [null,
+      "This takes the load off the writer, but each search still scans the table and results still aren't ranked by relevance.",
+      "Free-text searches rarely repeat exactly, so most would miss the cache and scan the table, with no relevance ranking.",
+      "A Scan reads the whole table on every search, and DynamoDB doesn't rank results by relevance."],
+    why: "OpenSearch is a search and analytics engine: it indexes text fields, scores matches by relevance, and can boost the fields that matter most. Searches stop scanning the relational tables, which are left to serve orders.",
+    doc: ["https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html", "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/searching.html"] },
 
   { id: "saa-3-114", exam: "SAA", saa: "3.3", topic: "neptune", type: "mc",
     q: "A bank wants to flag fraud rings while a payment is being approved. It must follow links between accounts, devices, cards and addresses several hops deep and get an answer in milliseconds. The data has billions of these relationships. Which database should a solutions architect choose?",
@@ -274,20 +277,20 @@ SD.bank.push(
     why: "A transit gateway is a regional hub that routes between attached VPCs and VPN or Direct Connect connections. It can be shared across accounts with AWS RAM, replacing a peering mesh with one attachment per VPC.",
     doc: ["https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html", "https://docs.aws.amazon.com/vpc/latest/tgw/tgw-transit-gateways.html"] },
 
-  { id: "saa-3-120", exam: "SAA", saa: "3.4", topic: "privatelink", type: "mc",
-    q: "A SaaS provider runs a TCP API in its own VPC. Hundreds of customers want to call it from their VPCs without the traffic crossing the internet, and many customer VPCs use CIDR ranges that overlap with each other and with the provider's VPC. Customers must reach only this one API, not the rest of the provider's network. Which solution meets these requirements?",
+  { id: "saa-3-120", exam: "SAA", saa: "3.4", topic: "localzones", type: "mc",
+    q: "A film studio in Los Angeles runs virtual workstations for its artists on EC2 in us-west-2. Artists connect over the studio's wired network, and the round trip to the Region makes interactive editing feel sluggish. The company wants the workstations as close to the artists as possible, still managed with standard EC2 and VPC tools. Which solution meets these requirements?",
     opts: [
-      "Put the API behind a Network Load Balancer, publish it as an endpoint service, and have customers create interface endpoints.",
-      "Create a VPC peering connection with each customer VPC, and add routes for the API subnets to each side's route tables.",
-      "Attach the provider VPC and every customer VPC to a shared transit gateway, and filter routes in its route tables.",
-      "Put the API behind an internet-facing Network Load Balancer, and allow only each customer's NAT IP in a security group."
+      "Extend the VPC with a subnet in the Los Angeles Local Zone, and launch the workstations in that subnet.",
+      "Put the workstations behind AWS Global Accelerator, and give the artists its two static IP addresses.",
+      "Launch the workstations in an AWS Wavelength Zone in a telecom carrier's network in Los Angeles.",
+      "Deliver the workstation sessions through a CloudFront distribution with edge locations in Los Angeles."
     ], a: 0,
     no: [null,
-      "VPC peering can't connect VPCs with overlapping CIDR blocks, and it opens network-level routing.",
-      "Overlapping CIDRs can't be routed cleanly through one transit gateway, and it joins the networks together.",
-      "The traffic would still cross the internet, which the customers want to avoid."],
-    why: "With AWS PrivateLink, consumers reach an endpoint service through interface endpoint ENIs in their own subnets, so overlapping IP ranges don't conflict and only that service is exposed, never the provider's network.",
-    doc: ["https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html", "https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/aws-privatelink.html"] },
+      "Global Accelerator improves the network path into AWS, but the workstations still run in the distant Region.",
+      "Wavelength Zones sit inside carriers' 5G networks for mobile devices, not the studio's wired network.",
+      "CloudFront caches and delivers web content. It doesn't run the EC2 workstations any closer to the artists."],
+    why: "A Local Zone is an extension of a Region close to large population and industry centers, such as us-west-2-lax-1 for Los Angeles. You create a subnet there in the same VPC and launch instances near the users, for low-latency apps such as virtual workstations.",
+    doc: ["https://docs.aws.amazon.com/local-zones/latest/ug/what-is-aws-local-zones.html", "https://docs.aws.amazon.com/local-zones/latest/ug/how-local-zones-work.html", "https://docs.aws.amazon.com/wavelength/latest/developerguide/what-is-wavelength.html"] },
 
   { id: "saa-3-121", exam: "SAA", saa: "3.4", topic: "directconnect", type: "multi", hint: "Select TWO.",
     q: "A company replicates large database volumes from its data center to a VPC all day. Replication over its internet VPN is slow and its latency varies, so the company wants a link with consistent bandwidth and latency. It also wants a low-cost backup path that takes over automatically if that link fails. Which steps meet these requirements? (Select TWO.)",

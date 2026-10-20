@@ -183,19 +183,19 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-access.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies-vpc-endpoint.html"] },
 
   { id: "saa-1-114", exam: "SAA", saa: "1.2", topic: "privatelink", type: "mc",
-    q: "A SaaS provider runs an API on EC2 instances in its own VPC. Hundreds of customers must call it from their own VPCs without the traffic crossing the internet. Many customer VPCs use the same CIDR range as the provider's VPC, and customers must not be able to reach anything else in the provider's network. Which solution meets these requirements?",
+    q: "A SaaS provider offers its API through AWS PrivateLink: the API sits behind a Network Load Balancer that is published as a VPC endpoint service. Only customer accounts that have signed a contract may create interface endpoints to it, and the provider's team must approve each new connection before any traffic flows. Which solution meets these requirements?",
     opts: [
-      "Put the API behind a Network Load Balancer, create a VPC endpoint service, and have each customer create an interface endpoint.",
-      "Create a VPC peering connection from the provider's VPC to each customer VPC, and add routes to the API subnets on both sides.",
-      "Attach every customer VPC to a shared transit gateway, and use transit gateway route tables to send customers to the API.",
-      "Put the API behind a public Application Load Balancer, and allow only the customers' NAT gateway addresses in its security group."
+      "Add each contracted customer's account ARN to the endpoint service's allowed principals, and turn on acceptance required.",
+      "Allow all principals (*) on the endpoint service, accept connection requests automatically, and remove unknown endpoints later.",
+      "Attach a VPC endpoint policy to the endpoint service that allows requests only from the contracted customers' account IDs.",
+      "Create a VPC peering connection to each contracted customer's VPC, and accept each peering request by hand after review."
     ], a: 0,
     no: [null,
-      "Peering isn't possible between VPCs with overlapping CIDR blocks, and it opens a network path wider than one service.",
-      "Overlapping CIDR ranges can't be routed through one transit gateway, and it joins whole networks, not one service.",
-      "The traffic would cross the internet, which the requirement rules out."],
-    why: "With AWS PrivateLink, consumers reach one service through an interface endpoint in their own VPC. Traffic is one-way to the service, and overlapping IP ranges don't matter.",
-    doc: ["https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html", "https://docs.aws.amazon.com/whitepapers/latest/building-scalable-secure-multi-vpc-network-infrastructure/aws-privatelink.html"] },
+      "Any account could connect at once and send traffic, and nothing waits for the team's approval.",
+      "Endpoint policies attach to the consumer's interface endpoint, which the customer controls, not to the provider's endpoint service.",
+      "Peering joins whole networks rather than exposing one service, and it drops the PrivateLink setup the provider already has."],
+    why: "An endpoint service is available to no one by default. The provider lists the principals allowed to create interface endpoints, and with acceptance required, each connection request waits until the provider accepts it.",
+    doc: ["https://docs.aws.amazon.com/vpc/latest/privatelink/configure-endpoint-service.html", "https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html"] },
 
   { id: "saa-1-115", exam: "SAA", saa: "1.2", topic: "shield", type: "mc",
     q: "An online retailer on CloudFront and an Application Load Balancer was hit by a large DDoS attack last holiday season. This year it wants DDoS experts it can call during an attack, help writing custom mitigations, and detailed attack visibility. The company already has the Business Support plan. Which solution meets these requirements?",
@@ -272,7 +272,7 @@ SD.bank.push(
   { id: "saa-1-120", exam: "SAA", saa: "1.2", topic: "securityhub", type: "mc",
     q: "A company with 25 accounts uses GuardDuty, Inspector and Macie. The security team wants all of their findings in one place, plus automated checks of every account against the CIS AWS Foundations Benchmark and a security score per account. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Turn on AWS Security Hub with a delegated administrator account, and turn on the CIS AWS Foundations Benchmark standard.",
+      "Turn on AWS Security Hub CSPM with a delegated administrator account, and turn on the CIS AWS Foundations Benchmark standard.",
       "Turn on Amazon Detective in every account, and use its behavior graph to combine the findings of the other services.",
       "Send every service's findings to CloudWatch Logs, and build a CloudWatch dashboard per account with custom CIS checks.",
       "Use AWS Trusted Advisor in each account, and export its checks to a spreadsheet that maps them to the CIS benchmark."
@@ -281,7 +281,7 @@ SD.bank.push(
       "Detective helps investigate a finding's root cause. It isn't a findings hub with compliance standards.",
       "It means building and maintaining your own CIS checks and dashboards, which is the overhead to avoid.",
       "Trusted Advisor checks aren't a CIS assessment, and a manual spreadsheet adds work."],
-    why: "Security Hub collects findings from AWS security services across accounts and runs automated checks against standards such as the CIS AWS Foundations Benchmark and AWS Foundational Security Best Practices.",
+    why: "Security Hub CSPM collects findings from AWS security services across accounts and runs automated checks against standards such as the CIS AWS Foundations Benchmark and AWS Foundational Security Best Practices.",
     doc: ["https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html"] },
 
   { id: "saa-1-121", exam: "SAA", saa: "1.2", topic: "detective", type: "mc",
@@ -505,7 +505,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "It works, but duplicating data and keeping copies in sync is far more work than access points.",
-      "The single growing bucket policy is the problem to fix, and adding more conditions to it makes every change riskier.",
+      "aws:SourceIp matches only public addresses, so a private VPC range never matches, and the huge bucket policy stays the problem.",
       "Long-term keys add risk and rotation work, and the VPC restriction still isn't met."],
     why: "Each access point has its own policy and network controls, which splits one large bucket policy into manageable pieces. An access point with a VPC network origin rejects requests that don't come from that VPC.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points-vpc.html"] },
