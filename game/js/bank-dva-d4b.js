@@ -37,7 +37,7 @@ SD.bank.push(
     items: [
       { t: "Set reserved concurrency of 200 on the checkout function, so no other function can use that capacity.", ok: true },
       { t: "Set reserved concurrency on the batch function, so it can't scale past a fixed share of the quota.", ok: true },
-      { t: "Set provisioned concurrency of 200 on an alias of the checkout function, and route traffic to it.", ok: false, no: "Provisioned concurrency is billed for every hour it is configured, which breaks the no-extra-charges rule." },
+      { t: "Set provisioned concurrency of 200 on an alias of the checkout function, and route traffic to it.", ok: false, no: "Provisioned concurrency is billed for as long as it is configured, which breaks the no-extra-charges rule." },
       { t: "Raise the checkout function's timeout, so throttled requests wait longer for capacity to free up.", ok: false, no: "Throttled requests are rejected before the function runs, so the timeout has no effect on them." },
       { t: "Set the batch function's asynchronous retry attempts to 0, so it makes fewer calls during the night.", ok: false, no: "Retries only happen after errors. The batch function's normal load still fills the account's concurrency." }
     ],
@@ -66,7 +66,7 @@ SD.bank.push(
       { t: "Run the open-source AWS Lambda Power Tuning tool to invoke the function at several memory settings.", ok: true },
       { t: "Open the AWS X-Ray service map for the function and read the recommended memory size from it.", ok: false, no: "X-Ray shows latency and errors across services. It doesn't measure memory or recommend a size." },
       { t: "Search AWS CloudTrail for the function's Invoke events to see how much memory each run used.", ok: false, no: "CloudTrail records API calls such as configuration changes, not the resources a run used." },
-      { t: "Connect the function's repository to Amazon CodeGuru Reviewer and apply its memory size suggestion.", ok: false, no: "CodeGuru Reviewer reviews source code for defects. It doesn't size Lambda memory." }
+      { t: "Turn on Amazon Inspector scanning for the function and apply the memory size finding it reports.", ok: false, no: "Inspector scans functions for software vulnerabilities. It doesn't size Lambda memory." }
     ],
     why: "Compute Optimizer recommends Lambda memory sizes from the last 14 days of metrics. Power Tuning runs the function at different memory settings through Step Functions and compares cost and duration.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html", "https://docs.aws.amazon.com/compute-optimizer/latest/ug/view-lambda-recommendations.html"] },
@@ -75,12 +75,12 @@ SD.bank.push(
     q: "A Java service on Amazon ECS runs at high CPU, and the team suspects a few inefficient methods are to blame. They need to see which methods use the most CPU time under real production traffic, with low overhead, and get suggestions for fixes. What should the developer do?",
     opts: [
       "Add the Amazon CodeGuru Profiler agent to the service and review the flame graphs and recommendations it produces.",
-      "Associate the repository with Amazon CodeGuru Reviewer, so it comments on inefficient code in each pull request.",
+      "Turn on Amazon Q Developer code reviews for the repository, so it flags inefficient code in each pull request.",
       "Turn on AWS X-Ray tracing in the service, and read the time spent by each method in the trace timeline.",
       "Turn on CloudWatch Container Insights for the cluster, and compare CPU utilization across the service's tasks."
     ], a: 0,
     no: [null,
-      "Reviewer analyzes code statically. It doesn't measure what uses CPU at run time.",
+      "Code review analyzes source code statically. It doesn't measure what uses CPU under production traffic.",
       "X-Ray traces requests across services and calls you instrument. It doesn't sample the CPU time of every method.",
       "Container Insights shows CPU per task or container, not which code is using it."],
     why: "CodeGuru Profiler samples a running application, shows where CPU time goes as flame graphs, and recommends ways to reduce it.",
@@ -239,7 +239,7 @@ SD.bank.push(
       { t: "Upload the new app.js with a Cache-Control: no-cache header, so that edge locations fetch it from S3 again.", ok: false, no: "The header applies only once the new object is fetched. Copies of the old object stay cached until they expire." },
       { t: "Enable Origin Shield on the S3 origin, so that the edge locations share one up-to-date cache layer.", ok: false, no: "Origin Shield reduces load on the origin. Edge locations still serve their cached old copy." }
     ],
-    why: "An invalidation removes the file from edge caches, and a new file name is a new cache key. AWS recommends versioned names for frequent updates: they also beat browser and proxy caches and cost nothing extra.",
+    why: "An invalidation removes the file from edge caches, and a new file name is a new cache key. AWS recommends versioned names for frequent updates: they also beat browser and proxy caches and avoid invalidation charges.",
     doc: ["https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html"] },
 
   { id: "dva-4-218", exam: "DVA", dva: "4.3", topic: "cloudfront", type: "mc",
@@ -277,7 +277,7 @@ SD.bank.push(
     items: [
       { t: "Download each object with several parallel GET requests for different byte ranges.", ok: true },
       { t: "Upload each result with multipart upload, sending several parts in parallel.", ok: true },
-      { t: "Turn on S3 Transfer Acceleration for the bucket, and use its accelerate endpoint for all transfers.", ok: false, no: "Transfer Acceleration helps over long distances. In the same Region it adds cost without the gain." },
+      { t: "Turn on S3 Transfer Acceleration for the bucket, and use its accelerate endpoint for all transfers.", ok: false, no: "Transfer Acceleration speeds up transfers over long distances. It doesn't help an instance in the same Region." },
       { t: "Store the objects in S3 Intelligent-Tiering, so the most-used objects move to a faster access tier.", ok: false, no: "Intelligent-Tiering lowers storage cost. Its tiers don't change transfer speed." },
       { t: "Turn on S3 Versioning for the bucket, so that uploads of new results don't have to overwrite objects.", ok: false, no: "Versioning keeps old copies. It doesn't make transfers faster." }
     ],
