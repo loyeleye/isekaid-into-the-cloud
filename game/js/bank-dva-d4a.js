@@ -22,7 +22,7 @@ SD.bank.push(
   { id: "dva-4-102", exam: "DVA", dva: "4.1", topic: "lambda", type: "mc",
     q: "A Lambda function with the default 3-second timeout calls a partner's HTTPS API. The function's Errors metric spikes each afternoon. Its logs show Task timed out after 3.00 seconds for the failed runs, the REPORT lines show low memory use, and Throttles is zero. X-Ray traces show the partner call sometimes takes 5 seconds. What should the developer do?",
     opts: [
-      "Raise the function's timeout above the partner call's longest expected latency, and set the HTTP client's own timeout below it.",
+      "Raise the function's timeout above the partner call's slowest latency, and set the HTTP client's timeout below it.",
       "Raise the function's reserved concurrency, so that the afternoon traffic no longer waits for a free execution environment.",
       "Raise the function's memory setting, so that the runtime has more room to hold the partner's responses during the call.",
       "Turn on automatic retries in the HTTP client, so that each slow partner call is attempted again before the invocation ends."
@@ -136,7 +136,7 @@ SD.bank.push(
   { id: "dva-4-110", exam: "DVA", dva: "4.1", topic: "ecs", type: "mc",
     q: "An ECS service on Fargate keeps replacing its tasks. In the console, the stopped tasks show the reason OutOfMemoryError: Container killed due to memory usage. CPU use stays below 30% until each task stops, and the app's logs show no errors before then. What should the developer do?",
     opts: [
-      "Raise the memory in the task definition, at the task level and for the container, then update the service to the new revision.",
+      "Raise the task's and container's memory in a new task definition revision, then update the service to it.",
       "Raise the CPU units in the task definition, so the container finishes its work faster and frees memory before it runs out.",
       "Add an ECS service auto scaling policy on memory use, so more tasks share the load when memory use rises across the service.",
       "Raise the task's ephemeral storage, so the container can spill data to disk instead of holding it in memory as it runs."
@@ -148,17 +148,20 @@ SD.bank.push(
     why: "This stopped reason means processes in the container used more memory than the task definition allows. Giving the task and container more memory in a new revision fixes it.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/out-of-memory.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html"] },
 
-  { id: "dva-4-111", exam: "DVA", dva: "4.1", topic: "s3", type: "multi", hint: "Select TWO.",
-    q: "A batch job writes about 8,000 small objects per second to one S3 bucket, all under the key prefix uploads/2026-10-20/. The job starts getting HTTP 503 Slow Down responses, and some writes fail after the job's single retry. Which actions should the developer take to resolve this? (Select TWO.)",
-    items: [
-      { t: "Spread the object keys across several prefixes, for example by adding a short hash before the date, so each prefix gets fewer requests.", ok: true },
-      { t: "Retry the failed requests with exponential backoff and jitter, as the AWS SDKs' built-in retry logic is designed to do.", ok: true },
-      { t: "Turn on S3 Transfer Acceleration for the bucket, and send the writes to the bucket's accelerate endpoint from the job.", ok: false, no: "Acceleration speeds up long-distance transfers. It doesn't raise the request rate a prefix supports." },
-      { t: "Request a higher S3 request-rate quota for the bucket in Service Quotas, then wait for it to be approved.", ok: false, no: "S3 has no request-rate quota to raise. It scales per prefix, so more prefixes give more throughput." },
-      { t: "Upload each small object with multipart upload, so its parts spread over more S3 servers and partitions.", ok: false, no: "Multipart upload adds requests per object, which makes the request rate higher, not lower." }
-    ],
-    why: "S3 supports at least 3,500 writes per second per partitioned prefix and returns 503 Slow Down while it scales. Spreading keys over more prefixes raises the ceiling, and backoff with jitter rides out the scaling period.",
-    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html"] },
+  { id: "dva-4-111", exam: "DVA", dva: "4.1", topic: "ecs", type: "mc",
+    q: "A new ECS service on Fargate pulls its image from a private Amazon ECR repository in the same account. The tasks never start, and their stopped reason says the task can't pull the image and to check that the role has permission to pull images from the registry. The image and tag exist. What should the developer do?",
+    opts: [
+      "Attach the AmazonECSTaskExecutionRolePolicy managed policy to the role set as the task definition's task execution role.",
+      "Add ecr:BatchGetImage and ecr:GetDownloadUrlForLayer to the role set as the task definition's task role, used by the app.",
+      "Add a repository policy that allows the ecs.amazonaws.com service principal to pull images from the ECR repository.",
+      "Move the tasks to public subnets and turn on public IP assignment, so the tasks can reach the ECR registry endpoint."
+    ], a: 0,
+    no: [null,
+      "The task role is for the app's own AWS calls once it runs. Fargate pulls the image with the task execution role.",
+      "Fargate pulls the image as the task execution role, not as the ECS service principal, so the role still lacks permission.",
+      "The stopped reason points to permissions, not to a network path, and the image would still be refused."],
+    why: "On Fargate, the task execution role pulls images from ECR and sends logs. Its managed policy includes ecr:GetAuthorizationToken, ecr:BatchGetImage and ecr:GetDownloadUrlForLayer. The task role is only for the application's code.",
+    doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_cannot_pull_image.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html"] },
 
   { id: "dva-4-112", exam: "DVA", dva: "4.1", topic: "s3", type: "mc",
     q: "A Lambda function reads reports from an S3 bucket. Last week the bucket's default encryption changed from SSE-S3 to SSE-KMS with a customer managed key, whose key policy lets IAM policies in the account grant access. The function still reads older reports, but GetObject on new reports fails with AccessDenied. What should the developer do?",
@@ -242,7 +245,7 @@ SD.bank.push(
   { id: "dva-4-118", exam: "DVA", dva: "4.2", topic: "xray", type: "mc",
     q: "A team traces its services with AWS X-Ray. They want a CloudWatch alarm that fires when the number of checkout traces taking longer than 3 seconds goes over 50 in a 5-minute period. They don't want to write or deploy code to count the traces. What should the developer do?",
     opts: [
-      "Create an X-Ray group with a filter expression for slow checkout traces, then create an alarm on the trace count metric that the group publishes.",
+      "Create an X-Ray group whose filter expression matches slow checkout traces, then alarm on the group's trace count metric.",
       "Create an X-Ray sampling rule for checkout requests with a reservoir of 50, then create an alarm on the sampling rule's metrics in CloudWatch.",
       "Add an annotation for checkout latency in the code, then create a CloudWatch alarm on the annotation's value for each of the traces.",
       "Create a metric filter on the service's log group that matches trace IDs, then alarm when the count of matching log lines is over 50."
@@ -272,7 +275,7 @@ SD.bank.push(
   { id: "dva-4-120", exam: "DVA", dva: "4.2", topic: "cloudwatch", type: "mc",
     q: "An on-call developer is paged by two separate CloudWatch alarms for a web API, one on p99 latency and one on the 5XX error count. Either one alone is usually harmless, so the team wants a page only when both are in ALARM at the same time. What should the developer do?",
     opts: [
-      "Create a composite alarm whose rule is ALARM(latency) AND ALARM(errors), give it the SNS action, and remove the actions from both child alarms.",
+      "Create a composite alarm with the rule ALARM(latency) AND ALARM(errors), and move the SNS action from the two alarms to it.",
       "Raise datapoints to alarm on both alarms, so that each one needs more breaching periods in a row before it sends its page to the SNS topic.",
       "Send both alarms to one SNS topic, and add a subscription filter policy that delivers a message only when both alarms report ALARM.",
       "Replace both alarms with anomaly detection alarms, so that each one learns the API's normal pattern and pages only on unusual values."
@@ -341,7 +344,7 @@ SD.bank.push(
   { id: "dva-4-125", exam: "DVA", dva: "4.2", topic: "cloudwatch", type: "mc",
     q: "A web app is used mostly during business hours. Twice this month its sign-in page broke overnight, and the team learned of it only when customers complained in the morning. They want the sign-in flow tested from a browser every 5 minutes, all day, with screenshots when a step fails, and with the LEAST development effort. What should the developer do?",
     opts: [
-      "Create a CloudWatch Synthetics canary from the GUI Workflow Builder blueprint that signs in on a schedule, and alarm on its success metric.",
+      "Create a CloudWatch Synthetics canary from the GUI Workflow Builder blueprint that signs in on a schedule, with an alarm.",
       "Create a Route 53 health check on the sign-in page's URL with string matching, and alarm on the health check's status metric.",
       "Turn on X-Ray active tracing for the app, and alarm when the service map shows faults on the sign-in service's node.",
       "Schedule a Lambda function with EventBridge Scheduler that runs a headless browser the team packages and maintains itself."
