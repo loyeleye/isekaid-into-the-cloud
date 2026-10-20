@@ -22,15 +22,15 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/cloudhsm/latest/userguide/bp-cluster-management.html", "https://docs.aws.amazon.com/cloudhsm/latest/userguide/clusters.html"] },
 
   { id: "saa-1-462", exam: "SAA", saa: "1.2", topic: "detective", type: "multi", hint: "Select TWO.",
-    q: "A company has 40 accounts in AWS Organizations and runs many Amazon EKS clusters in one Region. Analysts in a security account must investigate GuardDuty findings across every account, including accounts created later, and must see Kubernetes user activity in the clusters. The team doesn't want to turn on or store any extra logs itself. Which steps meet these requirements with the LEAST operational overhead? (Select TWO.)",
+    q: "A company has 40 accounts in AWS Organizations and runs many Amazon EKS clusters in one Region. A security account has been the delegated Amazon Detective administrator since 2021, but only some accounts are enabled in its behavior graph, and the graph holds no EKS data. Analysts in a security account must investigate GuardDuty findings across every account, including accounts created later, and must see Kubernetes user activity in the clusters. The team doesn't want to turn on or store any extra logs itself. Which steps meet these requirements with the LEAST operational overhead? (Select TWO.)",
     items: [
-      { t: "From the management account, designate the security account as the Amazon Detective administrator, and turn on automatic enabling of new accounts.", ok: true },
+      { t: "In the security account, enable all organization accounts in the behavior graph, and turn on auto-enable for new accounts.", ok: true },
       { t: "In the organization behavior graph, start the optional Amazon Detective source package for Amazon EKS audit logs.", ok: true },
       { t: "Invite each member account to the behavior graph by email address, and have an administrator in each account accept the invitation.", ok: false, no: "Invitations work, but accounts created later wouldn't join on their own, and each one needs a manual acceptance." },
       { t: "Turn on EKS control plane audit logging in every cluster, and send the logs to a central S3 bucket that Athena can query.", ok: false, no: "That's the log pipeline the team wants to avoid, and Athena queries don't give the linked investigation view." },
       { t: "Create VPC flow logs and an organization trail in every account, and point both of them at the Detective behavior graph.", ok: false, no: "Detective reads CloudTrail and flow log data through its own independent streams. You don't create or point logs at it." }
     ],
-    why: "With Organizations, the management account picks the Detective administrator account, which can enable new organization accounts automatically. The EKS audit logs package lets Detective ingest EKS user activity without anyone turning on or storing those logs.",
+    why: "The Detective administrator account can enable the existing organization accounts and turn on auto-enable for accounts added later. The EKS audit logs package is on by default only for behavior graphs created after July 2022, so this older graph needs it started; it lets Detective ingest EKS user activity without anyone turning on or storing those logs.",
     doc: ["https://docs.aws.amazon.com/detective/latest/userguide/accounts-orgs-members-autoenable.html", "https://docs.aws.amazon.com/detective/latest/userguide/detective-source-data-about.html"] },
 
   { id: "saa-1-463", exam: "SAA", saa: "1.2", topic: "firewallmanager", type: "mc",
@@ -53,7 +53,7 @@ SD.bank.push(
     items: [
       { t: "Associate a route table with the internet gateway that sends traffic for the web subnet's CIDR range to the firewall endpoint.", ok: true },
       { t: "In the web subnet's route table, change the 0.0.0.0/0 route so it points to the firewall endpoint instead of the gateway.", ok: true },
-      { t: "Move the firewall endpoint into the web servers' own subnet, so all traffic reaches the firewall before it reaches them.", ok: false, no: "Traffic inside a subnet uses the local route and never passes the endpoint. Firewall subnets should hold only firewall endpoints." },
+      { t: "Move the firewall endpoint into the web servers' own subnet, so all traffic reaches the firewall before it reaches them.", ok: false, no: "A firewall endpoint can't filter traffic going into or out of its own subnet, so firewall subnets should hold only firewall endpoints." },
       { t: "In the firewall subnet's route table, change the 0.0.0.0/0 route so that it points back to the firewall endpoint itself.", ok: false, no: "That would loop inspected traffic back into the firewall. The firewall subnet must send internet traffic to the gateway." },
       { t: "Add network ACL rules to the web subnet that forward all inbound and outbound internet traffic to the firewall endpoint.", ok: false, no: "Network ACLs only allow or deny traffic. They can't forward it anywhere; route tables do that." }
     ],
@@ -88,9 +88,9 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/waf/latest/developerguide/ddos-protections-ec2-nlb.html", "https://docs.aws.amazon.com/waf/latest/developerguide/ddos-event-mitigation-logic-adv-eip.html"] },
 
   { id: "saa-1-467", exam: "SAA", saa: "1.1", topic: "artifact", type: "mc",
-    q: "A company's compliance analysts use IAM roles to get AWS compliance reports from AWS Artifact. They may download only the AWS SOC and PCI reports. They must not see other reports, and they must not accept or terminate any agreement with AWS. Which solution meets these requirements?",
+    q: "A company's compliance analysts use IAM roles to get AWS compliance reports from AWS Artifact. They may download only the AWS SOC and PCI reports. They must not download other reports, and they must not accept or terminate any agreement with AWS. Which solution meets these requirements?",
     opts: [
-      "Allow ListReports, GetReportMetadata, GetReport and GetTermForReport only where artifact:ReportSeries is SOC or PCI.",
+      "Allow ListReports, and allow GetReportMetadata, GetReport and GetTermForReport only where artifact:ReportSeries is SOC or PCI.",
       "Attach the AWS managed policy AWSArtifactReportsReadOnlyAccess to the analysts' role, which grants read-only access to Artifact reports.",
       "Allow the actions ListAgreements, GetAgreement and AcceptNdaForAgreement, which let a role read and download Artifact documents.",
       "Download the SOC and PCI reports once a year, and store them in an S3 bucket whose bucket policy lets only the analysts' role read them."
@@ -128,7 +128,7 @@ SD.bank.push(
     no: [null,
       "Managed Microsoft AD is a separate directory hosted in AWS, which breaks the rule against keeping directory data in AWS.",
       "Those domain controllers would hold a replica of the directory in AWS, and the team would have to run and patch them.",
-      "WorkSpaces uses an AWS Directory Service directory for sign-in, not a Cognito user pool."],
+      "WorkSpaces can't use a Cognito user pool for sign-in. Cognito user pools sign users in to web and mobile apps."],
     why: "AD Connector is a directory gateway that redirects requests to the on-premises Active Directory without caching anything in the cloud. It supports WorkSpaces in the same VPC and can enforce MFA through existing RADIUS servers.",
     doc: ["https://docs.aws.amazon.com/directoryservice/latest/admin-guide/directory_ad_connector.html", "https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ad_connector_mfa.html"] },
 
