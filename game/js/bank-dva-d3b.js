@@ -33,7 +33,7 @@ SD.bank.push(
       "Stopping the deployment leaves the instances partly updated. Nothing redeploys the last working revision.",
       "The hook runs once per instance right after start-up. It doesn't watch the alarm for the rest of the deployment.",
       "A deployment that only raises errors doesn't fail on its own, so the alarm would never trigger a rollback."],
-    why: "CodeDeploy can watch up to the alarms listed on a deployment group and stop the deployment when one fires. With rollback on alarm thresholds turned on, it then redeploys the last known good revision as a new deployment.",
+    why: "CodeDeploy watches the alarms added to a deployment group and stops the deployment when one fires. With rollback on alarm thresholds turned on, it then redeploys the last known good revision as a new deployment.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-groups-configure-advanced-options.html"] },
 
   { id: "dva-3-203", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
@@ -122,7 +122,7 @@ SD.bank.push(
   { id: "dva-3-209", exam: "DVA", dva: "3.4", topic: "ecs", type: "multi", hint: "Select TWO.",
     q: "A team wants to move an ECS service on Fargate from rolling updates to CodeDeploy blue/green deployments that shift 10% of traffic first and the rest after 5 minutes. Which steps are required? (Select TWO.)",
     items: [
-      { t: "Create the service with the CODE_DEPLOY deployment controller, since the controller can't be changed later.", ok: true },
+      { t: "Set the service's deployment controller type to CODE_DEPLOY, so that CodeDeploy manages its task sets.", ok: true },
       { t: "Put an Application Load Balancer in front with a production listener and two target groups.", ok: true },
       { t: "Use a Network Load Balancer with a test listener, and the CodeDeployDefault.ECSCanary10Percent5Minutes config.", ok: false, no: "With a Network Load Balancer, only CodeDeployDefault.ECSAllAtOnce is supported." },
       { t: "Install the CodeDeploy agent in each task's container image, so that CodeDeploy can run hooks inside the tasks.", ok: false, no: "The agent is only for EC2/On-Premises deployments. ECS deployments don't use it." },
@@ -455,7 +455,7 @@ SD.bank.push(
       "Create a usage plan for the new deployment, and assign 5% of the API keys to it while the test runs."
     ], a: 0,
     no: [null,
-      "A beta stage has a different path, so the same URL can't serve it, and weighted DNS splits clients unevenly.",
+      "A beta stage has its own path, so the new deployment wouldn't be served at the same URL.",
       "Alias weights shift the function's traffic only. The API's new mapping templates wouldn't reach anyone.",
       "Usage plans meter and throttle clients. They don't route requests to a deployment."],
     why: "A canary release on a stage sends a set percentage of the stage's traffic to a newer deployment, with its own stage variable overrides and logs. Promoting it makes that deployment the stage's base.",

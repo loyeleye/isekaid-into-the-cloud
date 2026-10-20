@@ -7,7 +7,7 @@ SD.bank.push(
   { id: "saa-1-101", exam: "SAA", saa: "1.1", topic: "iam", type: "mc",
     q: "A platform team wants developers to create their own IAM roles for Lambda functions without waiting for the security team. A developer must never be able to create a role with more permissions than the company's approved maximum, even by attaching AdministratorAccess to it. Which solution meets these requirements?",
     opts: [
-      "Let developers call iam:CreateRole only when the iam:PermissionsBoundary condition names the approved boundary policy, and deny removing boundaries.",
+      "Allow iam:CreateRole only when the iam:PermissionsBoundary condition names the approved boundary, and deny removing boundaries.",
       "Let developers call iam:CreateRole and iam:AttachRolePolicy freely, and run a nightly AWS Config rule that reports any role with admin policies.",
       "Attach an SCP to the developers' account that denies iam:CreateRole for everyone, and let the security team create every role on request.",
       "Give developers a role that can only attach AWS managed policies, and rely on AWS to keep those managed policies to least privilege."
@@ -61,7 +61,7 @@ SD.bank.push(
   { id: "saa-1-105", exam: "SAA", saa: "1.1", topic: "iam", type: "mc",
     q: "A company hires a third-party monitoring vendor that runs its software in the vendor's own AWS account and serves many customers. The vendor needs read-only access to the company's CloudWatch metrics. The company must not create long-term credentials, and must guard against another vendor customer tricking the vendor into using this access. What should a solutions architect do?",
     opts: [
-      "Create a role that trusts the vendor's account, requires a unique external ID in the trust policy, and has a read-only CloudWatch policy.",
+      "Create a role that trusts the vendor's account and requires a unique external ID, with a read-only CloudWatch policy.",
       "Create an IAM user with read-only CloudWatch access, and send the vendor its access key over an encrypted channel to store safely.",
       "Create a role that trusts the vendor's account with a read-only CloudWatch policy, and share the role ARN only with the vendor.",
       "Add the vendor's account to a resource-based policy on each CloudWatch metric so the vendor can read them without assuming a role."
@@ -100,7 +100,7 @@ SD.bank.push(
   { id: "saa-1-108", exam: "SAA", saa: "1.1", topic: "iam", type: "mc",
     q: "Operators sign in to the AWS console as IAM users. Company policy says they may view EC2 resources at any time, but they must have authenticated with MFA in the current session before they can stop or terminate instances. Which solution meets these requirements?",
     opts: [
-      "Allow the view actions, and allow StopInstances and TerminateInstances only when the aws:MultiFactorAuthPresent condition key is true.",
+      "Allow the view actions, and allow StopInstances and TerminateInstances only when aws:MultiFactorAuthPresent is true.",
       "Allow every EC2 action, and add an SCP that requires MFA for the entire account whenever any operator signs in to the console.",
       "Turn on MFA for each operator's IAM user, which on its own makes AWS require MFA for the instance stop and terminate actions.",
       "Allow every EC2 action, and add a CloudTrail rule that alerts the team when an instance is stopped or terminated without MFA."
@@ -127,7 +127,7 @@ SD.bank.push(
   { id: "saa-1-110", exam: "SAA", saa: "1.1", topic: "iam", type: "mc",
     q: "A company with 60 accounts in AWS Organizations is worried that S3 buckets, KMS keys and IAM roles have been shared with AWS accounts outside the company over the years. It wants a continuous report of every resource that grants access to a principal outside the organization. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Create an IAM Access Analyzer external access analyzer with the organization as its zone of trust, and review its findings.",
+      "Create an IAM Access Analyzer external access analyzer with the organization as its zone of trust.",
       "Turn on Amazon Macie in every account, and review its findings about buckets that hold sensitive data shared outside.",
       "Write a Lambda function that reads every resource policy in every account each night and flags unknown account IDs.",
       "Turn on Amazon GuardDuty in every account, and filter its findings for API calls made by principals from outside."
@@ -200,7 +200,7 @@ SD.bank.push(
   { id: "saa-1-115", exam: "SAA", saa: "1.2", topic: "shield", type: "mc",
     q: "An online retailer on CloudFront and an Application Load Balancer was hit by a large DDoS attack last holiday season. This year it wants DDoS experts it can call during an attack, help writing custom mitigations, and detailed attack visibility. The company already has the Business Support plan. Which solution meets these requirements?",
     opts: [
-      "Subscribe to AWS Shield Advanced, add protection to the distribution and the load balancer, and set up access for the Shield Response Team.",
+      "Subscribe to AWS Shield Advanced, protect the distribution and the load balancer, and give the Shield Response Team access.",
       "Rely on AWS Shield Standard, which already protects CloudFront and load balancers and includes a 24/7 response team at no charge.",
       "Attach an AWS WAF web ACL with rate-based rules to the distribution, and page the company's own on-call engineers during attacks.",
       "Turn on Amazon GuardDuty in the account so that its findings call in AWS DDoS specialists automatically during an attack."
@@ -215,7 +215,7 @@ SD.bank.push(
   { id: "saa-1-116", exam: "SAA", saa: "1.2", topic: "network-firewall", type: "mc",
     q: "Instances in private subnets reach the internet through a NAT gateway. A new policy says they may connect only to an approved list of software update domains over HTTP and HTTPS, and the providers behind those domains change their IP addresses often. Which solution meets these requirements?",
     opts: [
-      "Route the subnets' outbound traffic through AWS Network Firewall, and add a stateful domain list rule group that allows only the approved domains.",
+      "Route outbound traffic through AWS Network Firewall with a stateful domain list rule group that allows only the approved domains.",
       "Add outbound security group rules that allow ports 80 and 443 only to the IP addresses that the approved domains resolve to today.",
       "Add outbound network ACL rules that allow ports 80 and 443 only to the IP addresses of the providers, and deny everything else.",
       "Attach an AWS WAF web ACL to the NAT gateway with a rule that allows requests only when the Host header matches the approved list."
@@ -230,7 +230,7 @@ SD.bank.push(
   { id: "saa-1-117", exam: "SAA", saa: "1.2", topic: "firewall-manager", type: "mc",
     q: "A company has 30 accounts in AWS Organizations, and teams create new Application Load Balancers every week. Security requires that every ALB in every account, including accounts added later, use a baseline set of AWS WAF rules. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Use AWS Firewall Manager with a WAF policy scoped to Application Load Balancers in the organization, so it applies the rules automatically.",
+      "Create an AWS Firewall Manager WAF policy scoped to Application Load Balancers across the organization.",
       "Deploy a web ACL to each account with CloudFormation StackSets, and ask every team to associate it with each new ALB they create.",
       "Subscribe each account to AWS Shield Advanced, which applies AWS WAF managed rules to every load balancer in the account for free.",
       "Attach an SCP to the organization root that requires every new Application Load Balancer to have a WAF web ACL associated with it."
@@ -287,7 +287,7 @@ SD.bank.push(
   { id: "saa-1-121", exam: "SAA", saa: "1.2", topic: "detective", type: "mc",
     q: "GuardDuty reports that an IAM role made unusual API calls from an unfamiliar IP address. An analyst must find out what else that role and IP address did over the past few weeks, which resources were involved, and when the behavior started, using visualizations rather than building a log pipeline. Which service should the analyst use?",
     opts: [
-      "Use Amazon Detective, which links the GuardDuty finding to a graph of related activity and shows how behavior changed over time.",
+      "Use Amazon Detective, which links the finding to a graph of related activity and shows how behavior changed over time.",
       "Use Amazon Inspector to scan the role's resources for vulnerabilities, and compare the scan results from week to week.",
       "Use AWS Security Hub to list the finding next to other findings, and read the role's activity from the findings list.",
       "Use AWS Config to view the role's configuration timeline, which shows each API call the role made and from which IP address."
@@ -341,7 +341,7 @@ SD.bank.push(
   { id: "saa-1-125", exam: "SAA", saa: "1.2", topic: "directconnect", type: "mc",
     q: "A bank links its data center to a VPC with a 1 Gbps AWS Direct Connect connection. Auditors now require all traffic between the bank's on-premises router and the VPC to be encrypted end to end, while keeping Direct Connect's consistent performance. Which solution meets these requirements?",
     opts: [
-      "Create an AWS Site-to-Site VPN connection to the VPC that runs over the Direct Connect connection, so traffic travels in IPsec tunnels.",
+      "Run an AWS Site-to-Site VPN connection to the VPC over the Direct Connect connection, so traffic travels in IPsec tunnels.",
       "Rely on Direct Connect itself, because traffic on a dedicated Direct Connect connection is encrypted in transit by default.",
       "Turn on MACsec for the connection, which encrypts traffic from the on-premises router all the way to the instances in the VPC.",
       "Replace Direct Connect with a Site-to-Site VPN over the internet, because a VPN can't use a Direct Connect connection."
@@ -426,7 +426,7 @@ SD.bank.push(
   { id: "saa-1-131", exam: "SAA", saa: "1.3", topic: "cloudhsm", type: "mc",
     q: "A payments app signs transactions with keys that regulators say must live in single-tenant hardware security modules that only the company's own crypto officers manage. The app calls the HSM directly through the industry-standard PKCS #11 library. Which solution meets these requirements?",
     opts: [
-      "Create an AWS CloudHSM cluster, manage its users and keys with the company's own crypto officers, and use the CloudHSM PKCS #11 library.",
+      "Create an AWS CloudHSM cluster whose users and keys the company's crypto officers manage, and use its PKCS #11 library.",
       "Create customer managed keys in AWS KMS with the default key store, and grant the app permission to use them for signing.",
       "Import the company's own key material into an AWS KMS key, and have the app call the KMS Sign API through the AWS SDK.",
       "Store the signing keys in AWS Secrets Manager with a customer managed KMS key, and have the app load them at startup."
@@ -525,7 +525,7 @@ SD.bank.push(
   { id: "saa-1-138", exam: "SAA", saa: "1.3", topic: "config", type: "mc",
     q: "A company with 40 accounts in AWS Organizations must continuously check that resources follow a set of controls mapped to PCI DSS, such as encrypted volumes and restricted SSH, with remediation actions where possible. The same rule set must be deployed to every account as one unit. Which solution meets these requirements?",
     opts: [
-      "Deploy an AWS Config organization conformance pack built from the PCI DSS operational best practices template, with remediation actions.",
+      "Deploy an AWS Config organization conformance pack from the PCI DSS best practices template, with remediation actions.",
       "Turn on AWS CloudTrail in every account, and run Athena queries each month to check the API calls against the PCI DSS controls.",
       "Turn on Amazon Inspector in every account, and treat its vulnerability findings as the record of compliance with the PCI DSS controls.",
       "Run AWS Trusted Advisor checks in each account, and email the security results to the compliance team every week for manual review."
@@ -540,7 +540,7 @@ SD.bank.push(
   { id: "saa-1-139", exam: "SAA", saa: "1.3", topic: "rds", type: "mc",
     q: "An existing RDS for PostgreSQL DB instance accepts both encrypted and unencrypted client connections. A new policy says every connection to the database must use TLS, and any client that tries to connect without it must be rejected by the database. What should a solutions architect do?",
     opts: [
-      "Set the rds.force_ssl parameter to 1 in a custom DB parameter group, attach the group to the instance, and reboot if needed.",
+      "Set rds.force_ssl to 1 in a custom DB parameter group, attach it to the instance, and reboot the instance if needed.",
       "Turn on encryption at rest for the instance with a KMS key, which also requires TLS for every new client connection.",
       "Set the require_secure_transport parameter to ON in the instance's parameter group, as for every RDS database engine.",
       "Change the instance's security group to allow only port 443, so that clients must connect over HTTPS to reach it."
