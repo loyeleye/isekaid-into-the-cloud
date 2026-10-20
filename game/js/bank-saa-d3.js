@@ -162,35 +162,35 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-gpu.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html"] },
 
   // Task 3.3: high-performing database solutions
-  { id: "saa-3-112", exam: "SAA", saa: "3.3", topic: "aurora", type: "mc",
-    q: "A ticketing site runs on an Aurora PostgreSQL provisioned cluster. Load is light most of the time, but surges unpredictably to many times normal when popular events go on sale. Resizing the writer instance takes too long, and sizing it for the peak wastes money. Which solution scales the database's compute MOST closely to demand?",
+  { id: "saa-3-112", exam: "SAA", saa: "3.3", topic: "redshift", type: "mc",
+    q: "A provisioned Amazon Redshift cluster serves BI dashboards. For the first three days of each month, hundreds of analysts run reports at once, queries wait in the WLM queues, and dashboards slow down. The rest of the month the cluster is lightly used. The company wants consistently fast queries on the busy days without paying for a larger cluster all month. What should a solutions architect do?",
     opts: [
-      "Move the cluster's DB instances to Aurora Serverless v2 with a suitable minimum and maximum ACU range.",
-      "Keep the provisioned writer, and add an Aurora Auto Scaling policy that adds Aurora Replicas on demand.",
-      "Move the database to RDS for PostgreSQL, and turn on storage autoscaling for its allocated storage.",
-      "Keep the provisioned writer at its largest instance class, and buy a Reserved Instance for it to save cost."
+      "Turn on concurrency scaling for the WLM queues that the BI dashboards and reports use.",
+      "Use elastic resize to double the cluster's node count, and leave the larger cluster running.",
+      "Create Redshift read replicas in the same Region, and point the analysts' reports at them.",
+      "Unload the busiest tables to S3, and query them through Redshift Spectrum external tables."
     ], a: 0,
     no: [null,
-      "Aurora Auto Scaling adds readers only. It doesn't help the writer, which takes the ticket sales.",
-      "Storage autoscaling grows disk space. It doesn't add CPU or memory when ticket sales surge.",
-      "This pays for peak capacity all the time, which the company wants to stop doing."],
-    why: "Aurora Serverless v2 adjusts capacity in increments as small as half an ACU while the database runs, so it fits variable, spiky workloads without adding instances or resizing.",
-    doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.html"] },
+      "This pays for twice the nodes all month, which the company wants to avoid.",
+      "Redshift has no read replica feature. Read replicas belong to RDS and Aurora.",
+      "The queries would still wait in the same WLM queues, and scanning S3 is slower than reading local tables."],
+    why: "With concurrency scaling, Redshift adds cluster capacity when queries would queue and sends eligible queries to it, giving consistently fast performance for thousands of concurrent users. You pay only while the concurrency-scaling clusters run queries.",
+    doc: ["https://docs.aws.amazon.com/redshift/latest/dg/concurrency-scaling.html"] },
 
-  { id: "saa-3-113", exam: "SAA", saa: "3.3", topic: "opensearch", type: "mc",
-    q: "An online store keeps its product catalog in Aurora MySQL. Customers search product names and descriptions by free text, and the site runs LIKE '%term%' queries that scan the tables, return results in no useful order, and slow down order processing. The company wants fast, relevance-ranked search across several text fields. Which solution meets these requirements?",
+  { id: "saa-3-113", exam: "SAA", saa: "3.3", topic: "documentdb", type: "mc",
+    q: "A content app runs on a self-managed MongoDB replica set on EC2. It stores articles as JSON documents and uses the MongoDB drivers and query API. The team spends too much time on backups, failover and scaling, and wants a managed database without rewriting the data access code. Which solution meets these requirements?",
     opts: [
-      "Index the catalog in Amazon OpenSearch Service, keep the index in sync on each change, and send searches to it.",
-      "Add Aurora Replicas to the cluster, and send the LIKE search queries to the cluster's reader endpoint.",
-      "Cache the results of each search in ElastiCache, keyed by the exact search text the customer typed.",
-      "Copy the catalog to a DynamoDB table, and run a Scan with a contains() filter expression for each search."
+      "Migrate the data to Amazon DocumentDB (with MongoDB compatibility), and point the app's drivers at it.",
+      "Migrate the data to Amazon DynamoDB, with each article stored as an item in an on-demand table.",
+      "Migrate the data to Amazon Keyspaces (for Apache Cassandra), with each article stored as a row.",
+      "Move the replica set to larger EC2 instances, and script the backups and failover with cron jobs."
     ], a: 0,
     no: [null,
-      "This takes the load off the writer, but each search still scans the table and results still aren't ranked by relevance.",
-      "Free-text searches rarely repeat exactly, so most would miss the cache and scan the table, with no relevance ranking.",
-      "A Scan reads the whole table on every search, and DynamoDB doesn't rank results by relevance."],
-    why: "OpenSearch is a search and analytics engine: it indexes text fields, scores matches by relevance, and can boost the fields that matter most. Searches stop scanning the relational tables, which are left to serve orders.",
-    doc: ["https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html", "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/searching.html"] },
+      "DynamoDB has its own API, so the MongoDB data access code would have to be rewritten.",
+      "Keyspaces speaks CQL, the Cassandra query language, not the MongoDB API.",
+      "The database stays self-managed, so the team still owns its backups, failover and scaling."],
+    why: "DocumentDB is a fully managed, MongoDB-compatible document database. Apps keep the same code, drivers and tools they use with MongoDB, while DocumentDB handles automatic continuous backups, replicas and failover.",
+    doc: ["https://docs.aws.amazon.com/documentdb/latest/devguide/what-is.html"] },
 
   { id: "saa-3-114", exam: "SAA", saa: "3.3", topic: "neptune", type: "mc",
     q: "A bank wants to flag fraud rings while a payment is being approved. It must follow links between accounts, devices, cards and addresses several hops deep and get an answer in milliseconds. The data has billions of these relationships. Which database should a solutions architect choose?",
@@ -317,17 +317,20 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver.html"] },
 
   // Task 3.5: high-performing data ingestion and transformation
-  { id: "saa-3-123", exam: "SAA", saa: "3.5", topic: "athena", type: "multi", hint: "Select TWO.",
-    q: "Analysts query five years of CSV log files in S3 with Amazon Athena. Almost every query filters on a date range and reads only 4 of the 60 columns, yet each query scans the whole dataset and takes minutes. Which changes improve query performance the MOST? (Select TWO.)",
-    items: [
-      { t: "Convert the files to Apache Parquet, so queries read only the columns they need.", ok: true },
-      { t: "Partition the data by date in Hive-style S3 prefixes, and register the partitions.", ok: true },
-      { t: "Turn on S3 Transfer Acceleration for the bucket that Athena reads the log data from.", ok: false, no: "Transfer Acceleration speeds long-distance transfers into S3. It doesn't cut the data a query scans." },
-      { t: "Move the log files to S3 Intelligent-Tiering, so frequently read data stays hot.", ok: false, no: "Storage classes change storage cost, not how much data each Athena query has to scan." },
-      { t: "Combine all of the CSV files into one very large file, so Athena opens fewer objects.", ok: false, no: "Athena would still read every byte of every row and column, so the data scanned doesn't shrink." }
-    ],
-    why: "Parquet is columnar and compressed, so Athena reads only the needed columns and can skip blocks. Date partitions let a query read only the matching prefixes. Both reduce data scanned, which improves speed and cost.",
-    doc: ["https://docs.aws.amazon.com/athena/latest/ug/columnar-storage.html", "https://docs.aws.amazon.com/athena/latest/ug/partitions.html"] },
+  { id: "saa-3-123", exam: "SAA", saa: "3.5", topic: "flink", type: "mc",
+    q: "A retailer streams clickstream events into Amazon Kinesis Data Streams. It needs per-product view counts over 5-minute windows, updated continuously, to feed a live dashboard within seconds of each event. The company wants a managed service and doesn't want to run servers or clusters. Which solution meets these requirements?",
+    opts: [
+      "Run an Amazon Managed Service for Apache Flink application that reads the stream and computes the windows.",
+      "Deliver the stream to S3 with Amazon Data Firehose, and run Athena queries over the files every 5 minutes.",
+      "Run Spark Structured Streaming on a long-running Amazon EMR cluster that reads from the Kinesis stream.",
+      "Run an AWS Glue crawler on the stream every minute, and query the Data Catalog table it builds with Athena."
+    ], a: 0,
+    no: [null,
+      "Results would be minutes old: files land in batches and the queries run on a schedule, not as events arrive.",
+      "This works, but the company would size, patch and pay for a cluster, which it wants to avoid.",
+      "A crawler infers schemas for the Data Catalog. It doesn't aggregate stream data or update a dashboard."],
+    why: "Managed Service for Apache Flink runs Flink applications for you, handling compute provisioning, scaling and checkpoints. Flink processes each event as it arrives, for time-series analytics and real-time dashboards.",
+    doc: ["https://docs.aws.amazon.com/managed-flink/latest/java/what-is.html"] },
 
   { id: "saa-3-124", exam: "SAA", saa: "3.5", topic: "glue", type: "multi", hint: "Select TWO.",
     q: "Each night, partner systems drop large CSV files into a raw S3 bucket. The company needs the data converted to Parquet in a curated bucket, and the table definitions that Athena uses must stay current as new partitions and columns appear. The solution must be serverless with the LEAST operational overhead. Which steps meet these requirements? (Select TWO.)",
