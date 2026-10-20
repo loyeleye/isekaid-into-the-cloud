@@ -8,7 +8,7 @@ SD.bank.push(
   { id: "dva-3-101", exam: "DVA", dva: "3.1", topic: "lambda", type: "mc",
     q: "A developer zips only app.py and creates a Python Lambda function from it. The code imports the requests library, which the developer installed on a laptop with pip. Every invocation fails with Unable to import module 'app': No module named 'requests'. What should the developer do?",
     opts: [
-      "Install requests into a package folder with pip install --target, zip it with app.py at the root of the archive, and redeploy.",
+      "Install requests with pip install --target into a package folder, zip it with app.py at the archive root, and redeploy.",
       "Set the PYTHONPATH environment variable on the function to the folder where pip installed the requests library on the laptop.",
       "Raise the function's memory and timeout, so the runtime has time to download requests from PyPI during the init phase.",
       "Change the handler from app.lambda_handler to requests.lambda_handler, so the runtime loads the library before the code."
@@ -23,7 +23,7 @@ SD.bank.push(
   { id: "dva-3-102", exam: "DVA", dva: "3.1", topic: "lambda", type: "mc",
     q: "A Node.js function's handler is set to index.handler. To package it, the developer compresses the project folder itself, so the .zip file holds my-function/index.mjs and my-function/node_modules/. Every test fails because the runtime can't find the module index. What should the developer do?",
     opts: [
-      "Create the .zip file from inside my-function, so that index.mjs and node_modules sit at the root of the archive, and upload it again.",
+      "Create the .zip file from inside my-function, so index.mjs and node_modules are at the archive's root, and upload it again.",
       "Rename index.mjs to handler.mjs, so that the file name matches the handler setting of index.handler that the function has.",
       "Move node_modules into a Lambda layer, and leave index.mjs inside the my-function folder in the deployment package.",
       "Set the NODE_PATH environment variable to /opt/my-function, so that the Node.js runtime searches that folder for the index module."
@@ -279,7 +279,7 @@ SD.bank.push(
   { id: "dva-3-120", exam: "DVA", dva: "3.2", topic: "lambda", type: "mc",
     q: "A developer adds an SQS queue as the on-failure destination of a Lambda function that other services invoke asynchronously. The execution role allows sqs:SendMessage on the queue. To test it, the developer runs a console test event that makes the function throw. The error appears in the console, but nothing reaches the queue. What should the developer do?",
     opts: [
-      "Invoke the function with aws lambda invoke and --invocation-type Event, so Lambda queues the call, retries, then records it.",
+      "Invoke it with aws lambda invoke and --invocation-type Event, so Lambda queues the call, retries, then records it.",
       "Add a dead-letter queue to the function too, because on-failure destinations take effect only when a DLQ is also set.",
       "Change the destination to an SQS FIFO queue, so that the failed event is delivered in order once Lambda's retries are done.",
       "Raise the function's timeout, so the code has time to send the failure record to the queue before the invocation ends."
@@ -331,20 +331,20 @@ SD.bank.push(
     why: "A digest names one exact image and never changes, while a mutable tag can be moved to another image. With tag immutability on, pushing an image with an existing tag fails with ImageTagAlreadyExistsException.",
     doc: ["https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html", "https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-pull-ecr-image.html"] },
 
-  { id: "dva-3-124", exam: "DVA", dva: "3.3", topic: "amplify", type: "mc",
-    q: "A web app is hosted on AWS Amplify from a private GitHub repository and has a backend created with Amplify. QA wants every pull request deployed to its own URL for review before merge, with a temporary backend that is removed when the pull request closes, and no manual step for each pull request. What should the developer do?",
+  { id: "dva-3-124", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
+    q: "A pipeline updates a CloudFormation stack that holds an API and its Lambda functions. A CloudWatch alarm watches the API's 5XXError metric. If the alarm fires during an update, or within 15 minutes after all resources are updated, the whole stack update must roll back automatically, with no custom code. What should the developer do?",
     opts: [
-      "Turn on web previews for pull requests, so each pull request gets its own preview URL and temporary backend.",
-      "Turn on branch autodetection with the pattern feature*, so each matching branch is deployed to its own URL.",
-      "Connect each pull request's source branch in the Amplify console, and disconnect it after the pull request merges.",
-      "Add a staging branch for QA, and merge every pull request into staging before it goes into the main branch."
+      "Add the alarm's ARN as a rollback trigger on the update, and set the rollback configuration's monitoring time to 15 minutes.",
+      "Add a CreationPolicy with a 15-minute ResourceSignal timeout to each function, so CloudFormation waits on the alarm before finishing.",
+      "Attach a stack policy that denies Update actions on the API while the alarm is in the ALARM state, for 15 minutes after the update.",
+      "Schedule drift detection 15 minutes after each update, and have it roll the stack back if the API resources show as drifted."
     ], a: 0,
     no: [null,
-      "That deploys branches whose names match a pattern. It doesn't deploy per pull request or remove a backend when one closes.",
-      "It works, but it's a manual step for every pull request.",
-      "Every change shares one staging URL and backend, so pull requests aren't reviewed apart before merge."],
-    why: "Amplify web previews deploy each pull request to a unique preview URL. For apps with Amplify backends in private repositories, each pull request also gets a temporary backend that's deleted when it closes.",
-    doc: ["https://docs.aws.amazon.com/amplify/latest/userguide/pr-previews.html"] },
+      "CreationPolicy waits for success signals when a resource is created. It doesn't watch alarms or roll back updates.",
+      "Stack policies allow or deny updates to resources by action and resource. They can't refer to alarm states or roll anything back.",
+      "Drift detection compares resource configuration with the template. It doesn't measure errors, and it doesn't roll back stacks."],
+    why: "Rollback triggers make CloudFormation monitor up to 5 CloudWatch alarms during a stack create or update, and for a set monitoring time of up to 180 minutes afterward. If any alarm goes to ALARM, CloudFormation rolls back the whole operation.",
+    doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-rollback-triggers.html"] },
 
   { id: "dva-3-125", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
     q: "One CloudFormation template deploys a Lambda function to dev, test and prod, chosen by an EnvType parameter. MemorySize must be 256 MB in dev, 512 MB in test and 1,024 MB in prod. The sizes must live in the template, not be typed in at each deployment. What should the developer do?",
@@ -403,7 +403,7 @@ SD.bank.push(
   { id: "dva-3-129", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
     q: "A stack update failed, and the rollback then failed too, because an ElastiCache cluster in the stack had been deleted by hand outside CloudFormation. The stack is now in UPDATE_ROLLBACK_FAILED and rejects new updates. The team must return it to a working state without deleting its other resources. What should the developer do?",
     opts: [
-      "Continue the update rollback, and skip the deleted cluster's logical ID so that CloudFormation can finish it.",
+      "Continue the update rollback, and skip the deleted cluster's logical ID so CloudFormation can finish it.",
       "Run update-stack with the original template, so CloudFormation recreates the cluster and clears the failure.",
       "Run cancel-update-stack, so CloudFormation stops the failed rollback and goes back to the last good state.",
       "Run drift detection, so CloudFormation records the cluster as deleted and then completes the rollback itself."
