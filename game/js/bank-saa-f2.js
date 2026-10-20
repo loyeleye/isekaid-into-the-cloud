@@ -64,7 +64,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/awssupport/latest/user/organizational-view.html"] },
 
   { id: "saa-4-433", exam: "SAA", saa: "4.1", topic: "trustedadvisor", type: "multi", hint: "Select TWO.",
-    q: "A company's workloads run in ap-southeast-2, and its support plan includes all Trusted Advisor checks. The FinOps team wants a message in its Slack channel whenever a refresh of the Trusted Advisor Underutilized Amazon EBS volumes check reports a warning, so that it can delete or resize those volumes. Which steps meet these requirements? (Select TWO.)",
+    q: "A company's workloads run in ap-southeast-2, and its support plan includes all Trusted Advisor checks. The FinOps team wants a message in its Slack channel whenever the Trusted Advisor Underutilized Amazon EBS volumes check changes to a warning status for a volume, so that it can delete or resize those volumes. Which steps meet these requirements? (Select TWO.)",
     items: [
       { t: "Create an EventBridge rule in us-east-1 that matches Trusted Advisor Check Item Refresh Status events for that check with the WARN status.", ok: true },
       { t: "Set the rule's target to a Lambda function that posts the check details from each event to the team's Slack channel.", ok: true },
@@ -176,9 +176,9 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-comparison.html"] },
 
   { id: "saa-4-441", exam: "SAA", saa: "4.4", topic: "vpc", type: "mc",
-    q: "A nightly batch system in private subnets of one Availability Zone sends about 200 TB a month to a partner's IPv4-only endpoint on the internet through a NAT gateway. NAT data processing charges are now the largest line on the network bill. Jobs retry automatically if the outbound path is down for a few minutes, and the team is willing to run and patch instances. Which solution is MOST cost-effective?",
+    q: "A nightly batch system in private subnets of one Availability Zone sends about 200 TB a month to a partner's IPv4-only endpoint on the internet through a NAT gateway, at a steady 3 Gbps for about five hours each night. NAT data processing charges are now the largest line on the network bill. The jobs can wait out an outage of the outbound path and retry, and the team is willing to run, patch and recover its own NAT servers. Which solution is MOST cost-effective?",
     opts: [
-      "Run a NAT instance in a public subnet on an instance type with enough baseline bandwidth, and route the subnets' outbound traffic to it.",
+      "Run a NAT instance in a public subnet in the same AZ, on a type with over 3 Gbps of baseline bandwidth, and route the subnets' traffic to it.",
       "Create a second NAT gateway in the same Availability Zone, and split the private subnets' outbound routes between the two gateways.",
       "Create a gateway VPC endpoint for the partner's service, and add it to the route tables of the private subnets that send the data.",
       "Create an egress-only internet gateway, and route the private subnets' outbound traffic to the partner through it instead."
@@ -188,8 +188,8 @@ SD.bank.push(
       "Every NAT gateway charges for each gigabyte it processes, so splitting the traffic leaves the processing charges the same.",
       "Gateway endpoints exist only for S3 and DynamoDB. A partner's endpoint on the internet can't be reached through one.",
       "An egress-only internet gateway carries IPv6 traffic only, and the partner's endpoint accepts IPv4 only."],
-    why: "A NAT gateway is billed per hour and per gigabyte processed, while a NAT instance is billed only as an EC2 instance of the chosen type and size. With 200 TB a month and outages the jobs can tolerate, a NAT instance removes the processing charge. Internet data transfer out is charged either way.",
-    doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-comparison.html", "https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html"] },
+    why: "A NAT gateway is billed per hour and per gigabyte processed (for example $0.045 per GB in US East), so 200 TB costs about $9,000 a month in processing alone. A NAT instance is billed as an EC2 instance of its type and size, with no processing charge, and a non-burst baseline above 3 Gbps (under the 5 Gbps internet gateway limit for instances below 32 vCPUs) keeps up. The jobs tolerate the instance's weaker availability. Internet data transfer out is charged either way.",
+    doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-comparison.html", "https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html", "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html"] },
 
   { id: "saa-4-442", exam: "SAA", saa: "4.4", topic: "vpc", type: "mc",
     q: "A production VPC has private subnets in three Availability Zones, with a zonal NAT gateway in a public subnet in each AZ and a route table per AZ that keeps traffic in its own AZ. The team adds AZs often and keeps forgetting the extra NAT gateway and routes, which sends traffic across AZs. It wants outbound IPv4 access that stays highly available and in-zone with the least to manage. What should a solutions architect do?",
@@ -250,7 +250,7 @@ SD.bank.push(
     a: 0,
     no: [null,
       "Bandwidth belongs to the instance, not to each interface, so a second interface on this instance doesn't add any.",
-      "ENA Express works only between supported EC2 instances in the same Availability Zone, and it doesn't raise the baseline.",
+      "ENA Express runs only between two EC2 instances that both have it turned on, and it raises single-flow limits, not the baseline.",
       "A cluster placement group helps traffic between instances in the group. It doesn't change this instance's baseline bandwidth."],
     why: "Instances listed as \"up to\" a bandwidth have a lower baseline and burst above it with network I/O credits, usually for 5 to 60 minutes. A sustained rate must fit the baseline bandwidth, which describe-instance-types shows as BaselineBandwidthInGbps.",
     doc: ["https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html"] }
