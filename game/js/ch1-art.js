@@ -31,20 +31,23 @@
   }
 
   // ---------- People ----------
-  // Looks follow the recommended concept art (Mira E, Kai C, Seo-yeon C, Dutch A) and the story bible.
+  // Looks follow the chosen concept art (Mira D, Kai A, Seo-yeon C, Dutch D) and the story bible. Faces follow how
+  // each of them feels in the story: mouth is smile, flat or frown, brow is flat, knit or sad. Only Freya smiles.
   const LOOK = {
-    mira: { skin: '#f4d2bd', hair: '#b4472d', hairD: '#83301d', style: 'braid', coat: '#6b6436', coatD: '#4a4524', under: '#a99b74', legs: '#4f4630', boots: '#3a2c1f', eye: '#5a7a3a', wolf: true },
-    kai: { skin: '#c79572', hair: '#1c1719', hairD: '#0d0a0c', style: 'spiky', band: '#f4f1ea', coat: '#f4f1ea', coatD: '#cfc9bb', under: '#2a2a30', legs: '#24242a', boots: '#151518', eye: '#3b2a20', glove: true, towel: true },
-    seoyeon: { skin: '#f3dcc9', hair: '#16131d', hairD: '#06050a', style: 'bob', coat: '#211d28', coatD: '#121017', under: '#8d1d29', legs: '#211d28', boots: '#0f0d14', eye: '#7a1f26', sash: '#f2efe8', sword: true, ribbon: '#b3242e' },
-    dutch: { skin: '#6a4330', hair: null, style: 'shaved', coat: '#24345e', coatD: '#172342', under: '#8e9399', legs: '#8e9399', boots: '#4a3020', eye: '#2a1a12', glasses: true, mop: true, keys: true, k: 1.12 },
-    freya: { skin: '#f6dcc6', hair: '#e7b648', hairD: '#b7862a', style: 'goldbraid', coat: '#2c8a4b', coatD: '#1d6334', under: '#e2bd4f', eye: '#3bd16f', robe: true, halo: true, tray: true },
-    freyav: { skin: '#f6dcc6', hair: '#e7b648', hairD: '#b7862a', style: 'goldbraid', coat: '#1f6a37', coatD: '#0f3d1e', under: '#3bd16f', eye: '#3bd16f', robe: true, halo: true, virus: true },
-    kyu: { skin: '#f0dad0', hair: '#15111b', hairD: '#05040a', style: 'long', coat: '#1b1724', coatD: '#0d0b12', under: '#a3203a', eye: '#8a6cff', robe: true },
-    uptima: { skin: '#ffe3d0', hair: '#ffc69a', hairD: '#e79a6a', style: 'uptima', coat: '#2b2340', coatD: '#1a1530', under: '#ffffff', eye: '#3b8bff', robe: true, apron: true, crown: true },
-    wren: { skin: '#e9c6a6', hair: '#dcd7e6', hairD: '#a9a3b8', style: 'bun', coat: '#5a7ea6', coatD: '#3f5c7e', under: '#e9e1c9', eye: '#4a3b6a', robe: true, staff: true },
+    mira: { skin: '#efe6e2', hair: '#3a4157', hairD: '#262b3b', style: 'nun', hood: '#2a2329', band: '#e8ebf0', coat: '#2e2730', coatD: '#1b161d', under: '#e8ebf0', eye: '#8a96a8', robe: true, wolf: true, wolfCol: '#e3e5ec', wolfFace: false, wolfEye: false, mouth: 'flat', brow: 'sad' },
+    kai: { skin: '#6e4630', hair: '#5b3122', hairD: '#3a1d14', style: 'locs', coat: '#2a2a30', coatD: '#16161a', under: '#3a3a42', legs: '#24242a', boots: '#151518', eye: '#2a1a12', chef: true, glove: true, towel: true, armband: '#f0d27a', mouth: 'frown', brow: 'knit' },
+    seoyeon: { skin: '#f3dcc9', hair: '#16131d', hairD: '#06050a', style: 'bob', coat: '#211d28', coatD: '#121017', under: '#8d1d29', legs: '#211d28', boots: '#0f0d14', eye: '#7a1f26', sash: '#f2efe8', sword: true, ribbon: '#b3242e', mouth: 'flat', brow: 'flat' },
+    dutch: { skin: '#9a6446', hair: '#1d1f2a', style: 'bun', coat: '#24345e', coatD: '#172342', under: '#7d8279', legs: '#7d8279', boots: '#4a3020', eye: '#2a1a12', mop: true, keys: true, k: 1.12, mouth: 'frown', brow: 'knit' },
+    freya: { skin: '#f6dcc6', hair: '#e7b648', hairD: '#b7862a', style: 'goldbraid', coat: '#2c8a4b', coatD: '#1d6334', under: '#e2bd4f', eye: '#3bd16f', robe: true, halo: true, tray: true, mouth: 'smile', blush: true },
+    // Freya before the briefing: the Free Tier's brand promoter, with a lanyard, a clipboard and a basket of samples.
+    freyap: { skin: '#f6dcc6', hair: '#e7b648', hairD: '#b7862a', style: 'bob', coat: '#2c8a4b', coatD: '#1d6334', under: '#e2bd4f', legs: '#1d6334', boots: '#3a2c1f', eye: '#3bd16f', halo: true, lanyard: true, clipboard: true, mouth: 'smile', blush: true },
+    freyav: { skin: '#f6dcc6', hair: '#e7b648', hairD: '#b7862a', style: 'goldbraid', coat: '#1f6a37', coatD: '#0f3d1e', under: '#3bd16f', eye: '#3bd16f', robe: true, halo: true, virus: true, mouth: 'smile', blush: true },
+    kyu: { skin: '#f0dad0', hair: '#15111b', hairD: '#05040a', style: 'long', coat: '#1b1724', coatD: '#0d0b12', under: '#a3203a', eye: '#8a6cff', robe: true, mouth: 'flat', brow: 'sad' },
+    uptima: { skin: '#ffe3d0', hair: '#ffc69a', hairD: '#e79a6a', style: 'uptima', coat: '#2b2340', coatD: '#1a1530', under: '#ffffff', eye: '#3b8bff', robe: true, apron: true, crown: true, mouth: 'frown', brow: 'sad' },
+    wren: { skin: '#e9c6a6', hair: '#dcd7e6', hairD: '#a9a3b8', style: 'bun', coat: '#5a7ea6', coatD: '#3f5c7e', under: '#e9e1c9', eye: '#4a3b6a', robe: true, staff: true, mouth: 'flat', brow: 'sad' },
     faithful: { skin: '#e5c09d', hair: '#7a5a3a', style: 'hood', hood: '#9fb2cf', coat: '#9fb2cf', coatD: '#7a8db0', under: '#f1e7c6', eye: '#3b2a20', robe: true },
     faithful2: { skin: '#a8724f', hair: '#2a1d16', style: 'hood', hood: '#c2a8d6', coat: '#c2a8d6', coatD: '#9a80b0', under: '#f1e7c6', eye: '#2a1a12', robe: true },
-    keeper: { skin: '#e6b893', hair: '#6b3d22', hairD: '#4a2914', style: 'short', coat: '#8a4b2a', coatD: '#6a3720', under: '#f2e6cf', legs: '#4a3b2a', boots: '#2e2218', eye: '#3b2a20', apron: true }
+    keeper: { skin: '#e6b893', hair: '#6b3d22', hairD: '#4a2914', style: 'short', coat: '#8a4b2a', coatD: '#6a3720', under: '#f2e6cf', legs: '#4a3b2a', boots: '#2e2218', eye: '#3b2a20', apron: true, mouth: 'flat', brow: 'flat' }
   };
   A.LOOK = LOOK;
 
@@ -91,7 +94,7 @@
     const w0 = L.k ? 8 : 7.2;
     g.path(x => { x.moveTo(-w0, -9); x.lineTo(w0, -9); x.lineTo(w0 - 1, -20); x.quadraticCurveTo(0, -24, -(w0 - 1), -20); x.closePath(); }).fill(L.coat);
     if (!back) {
-      if (L.style === 'spiky') { g.poly(-1.5, -21.5, 2.5, -21.5, 0.5, -13).fill(L.under, 0.8); g.line(0, -21, 0, -10).stroke(L.coatD, 0.8); [-16.5, -13].forEach(y => g.circle(2.6, y, 0.6).fill(L.coatD, false)); }
+      if (L.chef) { g.poly(-1.5, -21.5, 2.5, -21.5, 0.5, -13).fill(L.under, 0.8); g.line(0, -21, 0, -10).stroke(L.coatD, 0.8); [-16.5, -13].forEach(y => g.circle(2.6, y, 0.6).fill(L.coatD, false)); }
       else if (L.mop) { g.rect(-3, -21, 6, 12).fill(L.under, 0.8); g.line(0, -21, 0, -9).stroke('#6d7177', 0.7); }
       else if (L.wolf) { g.poly(-2.5, -21, 2.5, -21, 1.5, -10, -1.5, -10).fill(L.under, 0.8); }
       else if (!L.robe) g.poly(-2, -21, 2, -21, 1.2, -10, -1.2, -10).fill(L.under, 0.8);
@@ -103,12 +106,14 @@
     if (L.sash && !back) g.path(x => { x.moveTo(-6, -20.5); x.lineTo(-3, -21.5); x.lineTo(6, -11.5); x.lineTo(3, -10.5); x.closePath(); }).fill(L.sash, 0.8);
     if (L.keys) { g.circle(side ? 5 : -5, -9.5, 2.2).stroke('#d9a740', 1); g.line(side ? 5 : -5, -8, side ? 5.6 : -5.6, -5.5).stroke('#d9a740', 0.9); }
     if (L.wolf && !back) { g.rect(-7, -13, 4, 4, 1).fill('#8a5a32', 0.8); }
+    if (L.lanyard && !back) { g.line(-2.5, -21, 0, -15, 2.5, -21).stroke('#e2bd4f', 0.8); g.rect(-1.4, -15.2, 2.8, 3.2, 0.5).fill('#f4f1ea', 0.6); g.rect(-6.6, -11.5, 13.2, 1.8, 0.6).fill(L.under, 0.7); }
     if (L.sword) { const sx = back ? 5 : -6.5; g.line(sx, -14, sx - 2.5, -1).stroke('#6b6f7a', 1.6); g.line(sx - 1.5, -14.5, sx + 1.5, -13.5).stroke('#2a2a2a', 1.4); g.line(sx - 0.2, -14, sx + 1.2, -8).stroke('#3cb87a', 1.2); }
     if (L.towel && !back) g.path(x => { x.moveTo(side ? -2 : -7.5, -21); x.lineTo(side ? 2 : -3.5, -21.5); x.lineTo(side ? 1.5 : -4, -14); x.lineTo(side ? -2.5 : -7.5, -14.5); x.closePath(); }).fill('#e9e2cf', 0.8);
     if (side) armL();
     // Head.
     head(g, L, side, back, t, o);
     if (L.tray && !back) tray(g, side);
+    if (L.clipboard && !back) { const x = side ? 6 : -10.5; g.rect(x, -19, 5, 6.5, 0.6).fill('#9a6a3a', 0.8); g.rect(x + 0.8, -18, 3.4, 4.8).fill('#f4f1ea', false); [-17, -15.6].forEach(y => g.line(x + 1.2, y, x + 3.8, y).stroke('#8a8a8a', 0.4)); }
     armR();
     if (L.halo && !back) halo(g, t);
     if (L.staff) { g.line(side ? 9 : 10, -34, side ? 9 : 10, 0).stroke('#7a5232', 1.8); g.circle(side ? 9 : 10, -35, 2.4).fill('#ffd76a', 1); }
@@ -119,13 +124,14 @@
     const sx = s * (L.k ? 8.2 : 7.4), hx = sx + s * 1.4 + (L.tray && s < 0 ? 2 : 0), hy = -11.5 + p * 1.4;
     if (L.wolf && s > 0) {
       // Mira's left side stays beast: a long grey foreleg in Bram's silver chain, black claws.
-      g.path(x => { x.moveTo(sx - 1.6, -20); x.quadraticCurveTo(sx + 3.5, -16, hx + 1.5, hy + 1); x.lineTo(hx - 2.5, hy + 1.5); x.quadraticCurveTo(sx - 2.5, -14, sx - 1.6, -20); x.closePath(); }).fill('#8f939c');
+      g.path(x => { x.moveTo(sx - 1.6, -20); x.quadraticCurveTo(sx + 3.5, -16, hx + 1.5, hy + 1); x.lineTo(hx - 2.5, hy + 1.5); x.quadraticCurveTo(sx - 2.5, -14, sx - 1.6, -20); x.closePath(); }).fill(L.wolfCol || '#8f939c');
       g.line(sx - 0.6, -15.5, sx + 2.6, -16.2).stroke('#d8dde3', 1); g.line(sx, -13.5, sx + 2.9, -14).stroke('#d8dde3', 1);
       [-1.5, 0, 1.5].forEach(d => g.line(hx + d, hy + 1.5, hx + d * 1.3, hy + 3.4).stroke('#111', 0.9));
       return;
     }
     g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(sx + s * 2.2, -16, hx, hy); }).stroke(L.coatD, 3.6);
     g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(sx + s * 2.2, -16, hx, hy); }).stroke(L.coat, 2.2);
+    if (L.armband && s < 0) g.line(sx + s * 0.4, -17.2, sx + s * 2.6, -16.6).stroke(L.armband, 1.3);   // Hana's ribbon
     if (L.glove && s > 0) { g.circle(hx, hy + 0.6, 2).fill('#1a1416', 0.9); g.line(hx - 1, hy - 0.4, hx + 0.6, hy + 1.6).stroke('#ffcf4a', 0.6); }
     else g.circle(hx, hy + 0.6, 1.7).fill(L.skin, 0.9);
   }
@@ -136,9 +142,10 @@
     if (!back && (L.style === 'bob' || L.style === 'goldbraid' || L.style === 'braid' || L.style === 'short')) {
       g.path(x => { x.moveTo(-11, hy + 1); x.arc(0, hy, 11, Math.PI, 0); x.lineTo(11, hy + (L.style === 'bob' ? 7 : 3)); x.lineTo(-11, hy + (L.style === 'bob' ? 7 : 3)); x.closePath(); }).fill(L.hairD || L.hair);
     }
+    if (L.style === 'nun' && !back) g.path(x => { x.moveTo(-12.5, hy + 15); x.quadraticCurveTo(-13.5, hy - 13, 0, hy - 13); x.quadraticCurveTo(13.5, hy - 13, 12.5, hy + 15); x.closePath(); }).fill(L.hood);
     if (L.style === 'hood') g.path(x => { x.moveTo(-12, hy + 9); x.quadraticCurveTo(-13, hy - 13, 0, hy - 13); x.quadraticCurveTo(13, hy - 13, 12, hy + 9); x.closePath(); }).fill(L.hood);
     g.circle(0, hy, 10).fill(back && L.style !== 'shaved' ? (L.hair || L.skin) : L.skin);
-    if (L.wolf && !back) {
+    if (L.wolf && L.wolfFace !== false && !back) {
       // Fur up her left side to the jaw, a wolf's ear, and one amber slit eye.
       c.save(); g.circle(0, hy, 10); c.clip();
       const wx = side ? 1.5 : 0;
@@ -159,16 +166,23 @@
     ex.forEach((x, i) => {
       if (side && i === 1) { g.ell(x, ey, 0.9, 1.6).fill(INK, false); return; }
       if (blink) { g.line(x - 1.4, ey, x + 1.4, ey).stroke(INK, 1); return; }
-      const wolfEye = L.wolf && x > 0;
+      const wolfEye = L.wolf && L.wolfEye !== false && x > 0;
       g.ell(x, ey, 1.6, 2.1).fill(wolfEye ? '#f0a020' : L.eye, 0.9);
       if (wolfEye) g.line(x, ey - 1.5, x, ey + 1.5).stroke('#111', 0.8);
       else g.circle(x - 0.5, ey - 0.8, 0.6).fill('#fff', false);
     });
     if (L.glasses) { if (side) { g.rect(ex[0] - 2.4, ey - 2.2, 5.2, 4.2, 1.2).stroke('#d9dde2', 0.9); g.line(ex[0] - 2.4, ey - 0.8, -6, ey - 1.6).stroke('#d9dde2', 0.8); } else { ex.forEach(x => g.rect(x - 2.6, ey - 2.2, 5.2, 4.2, 1.2).stroke('#d9dde2', 0.9)); g.line(-1.2, ey - 0.6, 1.2, ey - 0.6).stroke('#d9dde2', 0.8); } }
-    if (!L.glasses && !L.wolf) { g.ell(ex[0] - 2, hy + 4.4, 1.6, 0.9).fill('rgba(255,120,150,.4)', false); if (!side) g.ell(ex[1] + 2, hy + 4.4, 1.6, 0.9).fill('rgba(255,120,150,.4)', false); }
+    if (L.brow) ex.forEach((x, i) => {
+      if (side && i === 1) return;
+      const d = side ? 1 : x < 0 ? 1 : -1, a = L.brow === 'knit' ? [-3.6, -2.6] : L.brow === 'sad' ? [-2.7, -3.7] : [-3.3, -3.3];
+      g.line(x - 1.8 * d, ey + a[0], x + 1.8 * d, ey + a[1]).stroke(INK, 0.9);
+    });
+    if (L.blush) { g.ell(ex[0] - 2, hy + 4.4, 1.6, 0.9).fill('rgba(255,120,150,.4)', false); if (!side) g.ell(ex[1] + 2, hy + 4.4, 1.6, 0.9).fill('rgba(255,120,150,.4)', false); }
     const mx = side ? 5 : 0;
     if (o.mouth === 'open') g.ell(mx, hy + 5.6, 1.3, 1).fill('#7a2a3a', 0.7);
-    else g.path(x => { x.moveTo(mx - 1.4, hy + 5.4); x.quadraticCurveTo(mx, hy + (L.halo ? 7 : 6.3), mx + 1.4, hy + 5.4); }).stroke(INK, 0.8);
+    else if (L.mouth === 'smile') g.path(x => { x.moveTo(mx - 1.4, hy + 5.4); x.quadraticCurveTo(mx, hy + (L.halo ? 7 : 6.3), mx + 1.4, hy + 5.4); }).stroke(INK, 0.8);
+    else if (L.mouth === 'frown') g.path(x => { x.moveTo(mx - 1.5, hy + 6.4); x.quadraticCurveTo(mx, hy + 5.1, mx + 1.5, hy + 6.4); }).stroke(INK, 0.8);
+    else g.line(mx - 1.3, hy + 5.9, mx + 1.3, hy + 5.9).stroke(INK, 0.8);
     hairTop(g, L, false, sx, t);
   }
 
@@ -194,11 +208,28 @@
       }
       case 'bob':
         g.path(x => { x.moveTo(-11, hy + (back ? 8 : 7)); x.lineTo(-11, hy - 2); x.quadraticCurveTo(-11, hy - 11.5, 0, hy - 11.5); x.quadraticCurveTo(11, hy - 11.5, 11, hy - 2); x.lineTo(11, hy + (back ? 8 : 7)); if (!back) { x.lineTo(8.5, hy + 7); x.lineTo(8.2, hy - 3.5); x.lineTo(-8.2, hy - 3.5); x.lineTo(-8.5, hy + 7); } x.closePath(); }).fill(H);
-        // Her scorched red ribbon, streaming.
-        g.path(x => { x.moveTo(-9, hy - 6); x.quadraticCurveTo(-15, hy - 3, -16, hy + 4 + Math.sin(t * 3)); x.lineTo(-14, hy + 4); x.quadraticCurveTo(-13, hy - 2, -8.6, hy - 4); x.closePath(); }).fill(L.ribbon, 0.8);
-        g.rect(-10, hy - 8, 3, 3, 0.8).fill(L.ribbon, 0.8);
+        // Seo-yeon's scorched red ribbon, streaming.
+        if (L.ribbon) g.path(x => { x.moveTo(-9, hy - 6); x.quadraticCurveTo(-15, hy - 3, -16, hy + 4 + Math.sin(t * 3)); x.lineTo(-14, hy + 4); x.quadraticCurveTo(-13, hy - 2, -8.6, hy - 4); x.closePath(); }).fill(L.ribbon, 0.8);
+        if (L.ribbon) g.rect(-10, hy - 8, 3, 3, 0.8).fill(L.ribbon, 0.8);
         break;
       case 'shaved': break;
+      case 'nun':
+        if (back) g.path(x => { x.moveTo(-11.5, hy); x.arc(0, hy, 11.5, Math.PI, 0); x.lineTo(12.5, hy + 16); x.lineTo(-12.5, hy + 16); x.closePath(); }).fill(L.hood);
+        else {
+          // Dark hair framing the face, the white band of her wimple, and the veil over it.
+          g.path(x => { x.moveTo(-10, hy + 7); x.quadraticCurveTo(-10.5, hy - 6, 0, hy - 7); x.quadraticCurveTo(10.5, hy - 6, 10, hy + 7); x.lineTo(7.6, hy + 7); x.quadraticCurveTo(7, hy - 3, 0, hy - 3.6); x.quadraticCurveTo(-7, hy - 3, -7.6, hy + 7); x.closePath(); }).fill(H);
+          g.path(x => { x.moveTo(-10.6, hy - 3.6); x.quadraticCurveTo(0, hy - 9.6, 10.6, hy - 3.6); x.lineTo(10.2, hy - 6.4); x.quadraticCurveTo(0, hy - 12.4, -10.2, hy - 6.4); x.closePath(); }).fill(L.band, 0.9);
+          g.path(x => { x.moveTo(-10.4, hy - 6.2); x.quadraticCurveTo(-11, hy - 14, 0, hy - 14); x.quadraticCurveTo(11, hy - 14, 10.4, hy - 6.2); x.quadraticCurveTo(0, hy - 12.2, -10.4, hy - 6.2); x.closePath(); }).fill(L.hood);
+        }
+        break;
+      case 'locs': {
+        g.path(x => { x.moveTo(-10.5, hy + 1); x.quadraticCurveTo(-11, hy - 11.5, 0, hy - 11.5); x.quadraticCurveTo(11, hy - 11.5, 10.5, hy + 1); x.quadraticCurveTo(5, hy - 5, 0, hy - 5.5); x.quadraticCurveTo(-5, hy - 5, -10.5, hy + 1); x.closePath(); }).fill(back ? H : H);
+        // Locs tied up on top and falling to either side.
+        const lc = back ? [[-8, hy - 4, -10, hy + 9], [-4, hy - 6, -5, hy + 10], [0, hy - 6, 0, hy + 10], [4, hy - 6, 5, hy + 10], [8, hy - 4, 10, hy + 9]]
+          : [[-9, hy - 4, -11, hy + 6], [9, hy - 4, 11, hy + 6], [-1, hy - 10, -5, hy - 17], [1, hy - 10, 1, hy - 18], [2, hy - 10, 6, hy - 16]];
+        lc.forEach(([a, b, c2, d]) => { g.line(a, b, c2, d).stroke(D, 2.4); g.line(a, b, c2, d).stroke(H, 1.4); });
+        break;
+      }
       case 'goldbraid':
         if (back) { g.circle(0, hy, 10.4).fill(H); braid(g, 2, hy + 6, 3, hy + 26, H, D); }
         else {
@@ -269,6 +300,62 @@
     g.path(c => { c.moveTo(x - 4, -40); c.quadraticCurveTo(x, -47, x + 4, -40); c.lineTo(x + 3, -36); c.lineTo(x - 3, -36); c.closePath(); }).fill('#d9dcd6', 1);
     [-2, 0, 2].forEach(d => g.line(x + d, -40, x + d * 1.2, -35).stroke('#a9aca6', 0.6));
   }
+
+  // ---------- The grade: an overcast Cloud ----------
+  // Painted over the world and under the names: the colour drained and cooled (more so towards the temple), cloud
+  // shadows sliding over the ground, a nearer layer of mist that moves faster than the ground does (the parallax),
+  // the fires and lamps glowing through, lightning, and a vignette. grim: 0 at the camp, 1 at the temple.
+  const LIGHTS = [[10.5, 11.6, 2.8, '255,140,60', 1], [8.5, 4.2, 2.2, '226,189,79', 0], [25.5, 5.6, 1.8, '255,170,80', 0], [40.5, 6.4, 1.8, '255,170,80', 1],
+    [36.5, 7.3, 2, '255,200,120', 1], [44.5, 7.3, 2, '255,200,120', 1], [56.5, 10.3, 2, '160,200,255', 1], [62.5, 10.3, 2, '160,200,255', 1], [59.5, 7.6, 2.6, '160,200,255', 0]];
+  const SHADOWS = Array.from({ length: 9 }, (_, i) => { const h = hash(i * 7 + 3, i * 13 + 5); return [h % 76, 2 + (h >> 7) % 15, 3 + (h >> 11) % 3, 0.18 + ((h >> 5) % 10) / 100]; });
+  const MIST = Array.from({ length: 7 }, (_, i) => { const h = hash(i * 11 + 1, i * 5 + 9); return [(h % 100) / 100, 1 + (h >> 6) % 16, 5 + (h >> 9) % 4, 0.5 + ((h >> 4) % 8) / 10]; });
+  let flashT = -9;
+  A.lightning = t => { flashT = t; };
+  A.grade = function (ctx, t, vw, vh, cx, cy, ts, grim) {
+    const k = Math.max(0, Math.min(1, grim));
+    // Drain and cool the colour.
+    ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = `rgba(128,128,128,${0.7 + 0.2 * k})`; ctx.fillRect(0, 0, vw, vh);
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(62,68,96,${0.74 + 0.12 * k})`; ctx.fillRect(0, 0, vw, vh);
+    // Cloud shadows drift east over the ground.
+    SHADOWS.forEach(([x0, y, r, a]) => {
+      const x = ((x0 + t * 0.35) % 82) - 8, X = x * ts - cx, Y = y * ts - cy, R = r * ts;
+      if (X < -R || X > vw + R || Y < -R || Y > vh + R) return;
+      const gr = ctx.createRadialGradient(X, Y, 0, X, Y, R); gr.addColorStop(0, `rgba(20,22,40,${a + 0.12 * k})`); gr.addColorStop(1, 'rgba(30,32,52,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(X, Y, R * 1.5, R, 0, 0, 7); ctx.fill();
+    });
+    // Fires, lamps and windows.
+    ctx.globalCompositeOperation = 'lighter';
+    LIGHTS.forEach(([x, y, r, rgb, flick]) => {
+      const X = x * ts - cx, Y = y * ts - cy, R = r * ts * (1 + (flick ? Math.sin(t * 9 + x) * 0.05 + Math.sin(t * 23 + y) * 0.03 : 0));
+      if (X < -R || X > vw + R || Y < -R || Y > vh + R) return;
+      const gr = ctx.createRadialGradient(X, Y, 0, X, Y, R); gr.addColorStop(0, `rgba(${rgb},.5)`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = gr; ctx.fillRect(X - R, Y - R, R * 2, R * 2);
+    });
+    // Mist, nearer than the ground: it slides past faster than the map scrolls.
+    ctx.globalCompositeOperation = 'source-over';
+    const span = vw + 10 * ts;
+    MIST.forEach(([f, y, w, v]) => {
+      const X = ((f * span + t * v * ts - cx * 1.35) % span + span) % span - 5 * ts, Y = y * ts - cy * 1.35 % (18 * ts);
+      const gr = ctx.createRadialGradient(X, Y, 0, X, Y, w * ts); gr.addColorStop(0, `rgba(176,182,200,${0.16 + 0.06 * k})`); gr.addColorStop(1, 'rgba(196,200,214,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(X, Y, w * ts, w * ts * 0.22, 0, 0, 7); ctx.fill();
+    });
+    // Rain at the temple.
+    if (k > 0.75) {
+      const a = (k - 0.75) * 4 * 0.35;
+      ctx.strokeStyle = `rgba(190,198,222,${a})`; ctx.lineWidth = 1; ctx.beginPath();
+      for (let i = 0; i < 140; i++) {
+        const h = hash(i, 77), x = (h % 1000) / 1000 * (vw + 80) - 40, sp = 0.9 + ((h >> 10) % 10) / 20;
+        const y = (((h >> 4) % 1000) / 1000 * (vh + 60) + t * vh * sp) % (vh + 60) - 30;
+        ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 14);
+      }
+      ctx.stroke();
+    }
+    const since = t - flashT;
+    if (since >= 0 && since < 0.5) { ctx.fillStyle = `rgba(230,236,255,${(since < 0.08 || (since > 0.16 && since < 0.22) ? 0.35 : 0.12) * (1 - since * 2)})`; ctx.fillRect(0, 0, vw, vh); }
+    const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.35, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
+    vg.addColorStop(0, 'rgba(10,8,18,0)'); vg.addColorStop(1, `rgba(8,6,14,${0.62 + 0.15 * k})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);
+  };
 
   // ---------- Ground ----------
   // One tile at (x, y). ch is the map's character there; nb(dx, dy) is the neighbour's.

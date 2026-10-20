@@ -87,6 +87,7 @@
   // ---------- The first morning ----------
   T.wake = [
     ['narr', 'Freya\'s camp, on the first morning. Someone has already made coffee.'],
+    ['narr', 'Freya wears a green uniform and a lanyard with a name badge: FREYA, FREE TIER, ASK ME ANYTHING! She has a clipboard in one hand and a basket of free samples in the other.'],
     ['freya', 'Morning, sweetie! First day. Don\'t worry, chapter one is always the tutorial.'],
     ['lead', { mira: 'You\'re the first one who answered.', kai: 'Chapter what?', seoyeon: 'I don\'t know what that means, but thank you.', dutch: 'Tutorial. Right.' }],
     ['freya', 'Your kit\'s in the supply cart, by the fire. Breakfast too. Help yourself.'],
@@ -198,8 +199,16 @@
   };
 
   // ---------- Freya's briefing: a gift for each of them, and every kindness quotes their prayer ----------
+  // She drops the sales pitch first: the brand promoter turns into the goddess.
+  T.morph = [
+    ['freya', 'Everyone up? Lovely. And you\'ve all signed up now, so I can stop with the sales pitch.'],
+    ['narr', 'Freya unclips her name badge and drops it in the basket of samples.']
+  ];
+  T.morphed = [
+    ['narr', 'The lanyard runs through her fingers as gold thread. Her uniform lets itself down into a long green robe, her bob grows into a braid that coils over one shoulder, and the gold ring over her head settles into a halo. Up close, it is a snake eating its own tail.'],
+    ['freya', 'Oh, that\'s comfier. Presents first, then work.']
+  ];
   T.brief = [
-    ['freya', 'Everyone up? Lovely. Presents first, then work.'],
     ['freya', 'Mira, sweetie, the hospital tent is yours, stocked like a city infirmary. And give me those letters. I\'ll see they get there.'],
     ['mira', 'You\'d do that?'],
     ['freya', 'You\'ve given enough of yourself, sweetie. Let me take the rest.'],

@@ -79,6 +79,8 @@
   };
 
   // ---- Cutscene stage and flashes ----
+  // A chapter can give a stage its own backdrop (js/ch1.js gives its scenes layers of storm cloud).
+  U.stageDecor = {};
   U.stage = function (scene) {
     const st = $('#stage');
     document.body.classList.toggle('cut', !!scene);
@@ -86,7 +88,7 @@
     delete st.dataset.slide; delete st.dataset.glow; delete st.dataset.crumbs;
     if (!scene) { st.hidden = true; st.innerHTML = ''; return; }
     st.dataset.scene = scene; st.hidden = false;
-    st.innerHTML = scene === 'office' ? '' : Array.from({ length: 5 }, (_, i) => `<div class="cloud" style="top:${8 + i * 14}%;animation-delay:${-i * 6}s;transform:scale(${0.6 + (i % 3) * 0.3})"></div>`).join('');
+    st.innerHTML = U.stageDecor[scene] != null ? U.stageDecor[scene] : scene === 'office' ? '' : Array.from({ length: 5 }, (_, i) => `<div class="cloud" style="top:${8 + i * 14}%;animation-delay:${-i * 6}s;transform:scale(${0.6 + (i % 3) * 0.3})"></div>`).join('');
   };
   U.flash = function () {
     const f = document.createElement('div'); f.className = 'flash';

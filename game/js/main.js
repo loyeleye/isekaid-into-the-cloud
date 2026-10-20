@@ -112,6 +112,8 @@
       return;
     }
     AU.music('title');
+    AU.weather('gloom');
+    storm();
     const sv = S.save;
     const has = sv.flags.prologue;
     $('#title-actions').innerHTML = has
@@ -201,6 +203,20 @@
     if (!$('#screen-title').hidden) M.title(); else if (!$('#screen-hub').hidden) M.show('hub', true); else if (!$('#screen-world').hidden && SD.ch1) SD.ch1.hud();
   };
 
+  // The title's storm: lightning every so often, with its thunder once the sound is on, and the cloud layers leaning
+  // apart as the pointer moves (index.html's .pcl layers read --px).
+  let bolt = null;
+  function storm() {
+    clearTimeout(bolt);
+    const strike = () => {
+      if ($('#screen-title').hidden) return;
+      const b = $('.t-bolt'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
+      if (started) setTimeout(() => AU.sfx('thunder'), 300 + Math.random() * 700);
+      bolt = setTimeout(strike, 9000 + Math.random() * 12000);
+    };
+    bolt = setTimeout(strike, 2500 + Math.random() * 3000);
+  }
+
   // ---------- Boot ----------
   function boot() {
     S.load();
@@ -215,6 +231,9 @@
       c.style.transform = `scale(${0.5 + Math.random() * 0.8})`;
       t.appendChild(c);
     }
+    const ts = $('#screen-title');
+    ts.addEventListener('pointermove', e => ts.style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(2)));
+    storm();
     M.title();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

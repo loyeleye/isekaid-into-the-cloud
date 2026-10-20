@@ -21,10 +21,18 @@
   const lead = () => c1().lead;
   const others = () => T.order.filter(id => id !== lead());
 
+  // Freya is the Free Tier's brand promoter until the briefing, where she turns into the goddess.
+  const morphed = () => flag('morph') || flag('brief');
+  function freyaForm() {
+    const m = morphed();
+    SD.cast.freya.title = m ? 'Goddess of the Free Tier' : 'Free Tier Brand Ambassador';
+    if (sc && sc.actors.freya) sc.actors.freya.look = m ? 'freya' : 'freyap';
+    return m;
+  }
   // A scene's lines: 'lead' is whoever you play, and a text can change with the lead.
   function L(lines) {
-    const me = lead();
-    return lines.map(([s, t, e]) => ({ s: s === 'lead' ? me : s, t: typeof t === 'object' ? t[me] : t, e }));
+    const me = lead(), m = freyaForm();
+    return lines.map(([s, t, e]) => ({ s: s === 'lead' ? me : s, t: typeof t === 'object' ? t[me] : t, e: s === 'freya' && !e && !m ? 'promoter' : e }));
   }
   const say = lines => U.dialog(L(lines));
 
@@ -98,7 +106,7 @@
   };
   // Who stands where to begin with.
   const HOME = { mira: [3, 7, 'east'], kai: [13, 6, 'south'], seoyeon: [5, 11, 'south'], dutch: [14, 11, 'west'] };
-  const ZONES = [[17, 'camp', 'town', 'FREYA\'S CAMP'], [31, 'road', 'journey', 'THE ROAD EAST'], [47, 'brookfall', 'explore', 'BROOKFALL'], [99, 'temple', 'quest', 'THE TEMPLE OF UPTIME']];
+  const ZONES = [[17, 'camp', 'camp', 'FREYA\'S CAMP'], [31, 'road', 'road', 'THE ROAD EAST'], [47, 'brookfall', 'brookfall', 'BROOKFALL'], [99, 'temple', 'temple', 'THE TEMPLE OF UPTIME']];
   const zoneAt = x => ZONES.find(z => x < z[0]);
 
   // ---------- The scene ----------
@@ -115,7 +123,10 @@
   function makeScene() {
     const map = BASE.slice();
     const def = {
-      map, solid: 'T#w', doors: { D: 'tavern', G: 'temple' }, ground: false, bg: '#7cc96a', clock: false,
+      map, solid: 'T#w', doors: { D: 'tavern', G: 'temple' }, ground: false, bg: '#2a2f2c', clock: false,
+      grade: (ctx, t, vw, vh, cx, cy, ts) => ART.grade(ctx, t, vw, vh, cx, cy, ts, ((cx + vw / 2) / ts - 14) / 40),
+      // The campfire crackles when you're near it.
+      ambience: () => sc && sc.P && Math.abs(sc.P.x - 10.5) + Math.abs(sc.P.y - 11.5) < 6 ? 'fire' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = y0; y <= Math.min(y1, MH - 1); y++) for (let x = x0; x <= Math.min(x1, MW - 1); x++)
           ART.ground(ctx, groundCh(map, x, y), x, y, ts, t, (dx, dy) => groundCh(map, x + dx, y + dy));
@@ -162,6 +173,7 @@
   // Put the world in step with the story flags (after loading a save, or a scene).
   function applyState() {
     const f = c1().f, A = sc.actors;
+    freyaForm();
     W1.cart.state = f.cart ? 'open' : 'locked';
     W1.temple.state = f.gate ? 'open' : 'closed';
     setTile(59, 7, f.gate ? 'G' : '#');
@@ -203,6 +215,7 @@
       const z = zoneAt(P.x);
       if (z !== zone) { const first = zone === null; zone = z; if (!busy || first) AU.music(z[2]); if (!first) banner(z[3]); }
     }
+    weather();
     if (follow) {
       const party = others().concat('freya');
       party.forEach((id, i) => {
@@ -215,6 +228,18 @@
     const f = c1().f;
     if (f.brief && !f.kyu && P.x >= 29) return act(kyuScene);
     if (f.kyu && !f.shrine && P.x >= 36) return act(wrenScene);
+  }
+  // Wind and far thunder over the camp and the road; rain and lightning at the temple.
+  let nextBolt = 0;
+  function weather() {
+    const storm = zone && zone[1] === 'temple', now = performance.now() / 1000;
+    AU.weather(storm ? 'tempest' : 'gloom');
+    if (!storm) { nextBolt = 0; return; }
+    if (!nextBolt) nextBolt = now + 6 + Math.random() * 10;
+    if (now < nextBolt) return;
+    ART.lightning(now);
+    setTimeout(() => AU.sfx('thunder'), 250 + Math.random() * 900);
+    nextBolt = now + 16 + Math.random() * 22;
   }
   function banner(text) {
     const el = document.createElement('div');
@@ -318,7 +343,7 @@
       await walkTo(partner, x, y);
       faceTo(partner, id); faceTo(id, partner);
     }
-    AU.music('town');
+    AU.music('camp');
     await say(s.lines);
     setFlag('s_' + k);
     U.system('[CAMP] ' + s.title.toUpperCase(), leadScenesDone() && !f.brief ? 'Freya is ready for you at her pavilion.' : 'A scene from their story.');
@@ -330,23 +355,28 @@
     await wait(400);
     await walkTo('freya', P.x, P.y - 1, 3.6);
     faceTo('freya', 'you');
-    AU.music('goddess');
+    AU.music('freya');
     await say(T.wake);
     setFlag('intro');
     await walkTo('freya', 9, 6, 3.6);
     sc.actors.freya.face = 'south';
-    AU.music('town');
+    AU.music('camp');
   }
   async function freyaTalk() {
     const f = c1().f;
     if (!f.cart) return say(T.cartNag);
     if (!leadScenesDone()) return say(T.freyaWait);
     if (f.brief) return say([['freya', 'Off you go, sweetie. East!']]);
-    AU.music('goddess');
+    AU.music('freya');
     // Everyone gathers round.
     const spots = [[7, 7], [10, 7], [8, 8]];
     await Promise.all(others().map((id, i) => walkTo(id, spots[i][0], spots[i][1])));
     others().forEach(id => faceTo(id, 'freya'));
+    await say(T.morph);
+    AU.sfx('sparkle'); U.flash();
+    setFlag('morph'); freyaForm();
+    await wait(700);
+    await say(T.morphed);
     await say(T.brief);
     const card = T.leads[lead()].card;
     c1().deck.push({ id: card, up: false });
@@ -355,7 +385,7 @@
     U.system('NEW CARD: ' + SD.cards[card].name.toUpperCase(), U.esc(SD.cards[card].text.replace(/\{(\w+)\}/g, (_, k) => n[k] != null ? n[k] : '')), 'gold');
     await say(T.mission);
     setFlag('brief');
-    AU.music('town');
+    AU.music('camp');
     U.system('[QUEST] THE TEMPLE OF UPTIME', 'Take the road east, past Brookfall. Your party follows you.', 'gold');
     trail.length = 0;
     applyState();
@@ -369,11 +399,11 @@
       setFlag('cart');
       applyState();
       const P = sc.P; await walkTo('freya', P.x + 1, P.y, 4); faceTo('freya', 'you'); faceTo('you', 'freya');
-      AU.music('goddess');
+      AU.music('freya');
       await say(T.cartWon);
       U.system('[CAMP] SAY GOOD MORNING', 'Everyone with a "!" has a scene with you. Then see Freya.');
       await walkTo('freya', 9, 6, 4); sc.actors.freya.face = 'south';
-      AU.music('town');
+      AU.music('camp');
     });
   }
 
@@ -389,11 +419,11 @@
     sc.actors.kyu.hidden = true;
     U.system('KYU\'S NOTE', U.esc(T.kyuNote));
     await say(T.kyuAfter);
-    AU.music('journey');
+    AU.music('road');
     void P;
   }
   async function wrenScene() {
-    AU.music('quest');
+    AU.music('brookfall');
     await walkTo('wren', 38, 9, 3);
     faceTo('wren', 'you'); faceTo('you', 'wren');
     await say(T.wren);
@@ -414,7 +444,7 @@
     const f = c1().f;
     if (f.gate) return;
     if (!f.shrine) return say([['narr', 'The gate is shut. Four masks hang beside it.']]);
-    AU.music('goddess');
+    AU.music('freya');
     await say(T.gate);
     const q = SD.questions.find(x => x.id === 'q-mask');
     S.seeConcept('roles');
@@ -427,7 +457,7 @@
     setFlag('gate');
     applyState();
     await say(T.gateOpen);
-    AU.music('quest');
+    AU.music('brookfall');
   }
   function enterTemple() {
     return new Promise(res => {

@@ -8,7 +8,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
 <style>
 /* Layout: one full-height app. The hub is a canvas village; everything else is a chunky storybook window over it. */
 :root {
@@ -819,18 +819,126 @@ button.hud-chip { cursor: pointer; font: inherit; font-size: 12px; font-weight: 
 /* Your lead in chapter 1's fights, standing in for the first game's hero sprite. */
 body[data-lead] .stage .hero { background-image: var(--lead-img) !important; background-size: contain !important; background-position: center bottom !important; background-repeat: no-repeat !important; transform: none !important; width: 21% !important; height: 84% !important; bottom: 4%; left: 10%; }
 @media (max-width: 520px) { body[data-lead] .stage .hero { transform: none !important; } }
+
+/* ---------- This game's look: an overcast, grieving Cloud ----------
+   Weathered parchment panels on a storm-dark world, steel and tarnished gold for accents, a carved serif for headings,
+   and layers of storm cloud that drift at different speeds (.pcl far, mid and near) behind the title and the cutscenes.
+   It overrides the first game's bright storybook colours above. */
+:root {
+  color-scheme: dark;
+  --sky1: #12111a; --sky2: #3a3746; --bg: #15141b;
+  --cream: #d6cdb9; --paper: #c7bca4; --bone: #e2dbcb;
+  --ink: #17131f; --muted: #554c5e; --line: #9a8f78;
+  --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --pink: #8e3b4e; --mint: #4f7f5c; --red: #9e3a34; --violet: #5d4d85; --orange: #a8652d;
+  --f-head: "Cinzel", Georgia, "Times New Roman", serif;
+}
+body { background: var(--bg); }
+.ghost, .row button, .bar, .win-h .x, .opt, .conf-b button, .num input, .chip, .hud-chip, .pill, .quest, .plan, .intent, .clog, .me-zone, .card, .foe-card, .c1-lead, .sysnote, .node svg { background: var(--bone); }
+.ghost:hover:not(:disabled), .opt:hover:not(:disabled) { background: #ece6d8; }
+.opt.on, button.on[aria-pressed="true"] { background: #c9d3dc; }
+.primary:hover:not(:disabled) { background: #4d6f93; }
+.danger { background: #e2c9c4; color: #7a1f1f; }
+.win { box-shadow: 0 6px 0 var(--ink), 0 18px 40px rgba(0, 0, 0, .55); }
+.win-h { background: linear-gradient(180deg, #44617f, #2e4660); letter-spacing: .04em; }
+#panel { background: rgba(8, 7, 12, .66); }
+#hud, .nr-hud { background: #1f1c27; border-bottom-color: #0c0a10; color: var(--bone); }
+#hud .hud-chip, .nr-hud .hud-chip, #hud .ghost, .nr-hud .ghost { color: var(--ink); }
+.nr-hud .bar, #hud .bar { border-color: #0c0a10; }
+.w-goal, .hud-chip.due, .pill.due { background: #d9c48e; }
+.w-zone { background: rgba(214, 205, 185, .92); letter-spacing: .14em; font-weight: 700; }
+.c1-lead:hover, .c1-lead:focus-visible { background: #e8dcb8; }
+.c1-txt i { color: #6b3a52; }
+.sysnote.gold { background: #e9dfc2; } .sysnote.red { background: #e6cfca; }
+.card.infra { background: repeating-linear-gradient(135deg, var(--bone) 0 10px, hsl(var(--h) 25% 82%) 10px 20px); }
+.clog.coach { background: #d3dcd8; border-color: #3f6f73; }
+.foe-zone { background: linear-gradient(90deg, #d8c4c4, var(--bone)); }
+.foe-zone:has(.stage) { background: var(--bone); }
+.bossfight .foe-zone { background: linear-gradient(90deg, #d9c48e, var(--bone)); }
+.foe-card.tgt { background: #e9dfc2; } .foe-card.down { background: #cfc8b9; }
+.energy { background: radial-gradient(circle at 35% 30%, #8fa9c4, var(--blue)); }
+.bar.xp i { background: linear-gradient(90deg, var(--blue), #7d9bb8); }
+.bar.sla i { background: linear-gradient(90deg, var(--mint), #86b08e); }
+.node span { background: rgba(226, 219, 203, .9); }
+.node.done svg { background: #b9b2a6; }
+#screen-run { background: linear-gradient(180deg, #121118, #24212c 45%, #2e2a33); color: var(--bone); }
+#screen-run :is(.foe-zone, .me-zone, .clog, .intent, .card, .foe-card, .opt, .chip, .pill, .hud-chip, .ghost, .win, .bar) { color: var(--ink); }
+.c-name { background: hsl(var(--h) 30% 62%); }
+.c-kind { color: hsl(var(--h) 35% 30%); }
+#screen-run .run-hud { border-bottom-color: rgba(226, 219, 203, .2); }
+#screen-run .map-title, #screen-run > .muted, #screen-run .muted { color: #b3aa9a; }
+#screen-run .map-title { color: var(--bone); }
+.map { background: #16141c; }
+/* The battle backdrop, drained and darkened under the fighters. */
+.stage::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40, 42, 66, .7), rgba(22, 20, 32, .55)); mix-blend-mode: multiply; pointer-events: none; }
+.stage > * { z-index: 1; }
+/* Dialogue. */
+.dlg-box { box-shadow: 0 5px 0 var(--ink), 0 14px 30px rgba(0, 0, 0, .5); }
+.dlg-nm { background: #2e2a3a; letter-spacing: .06em; font-family: var(--f-head); }
+#dialog[data-who="freya"] .dlg-nm { background: #2f6a43; }
+#dialog[data-who="kyu"] .dlg-nm { background: #4a3c78; }
+#dialog[data-who="uptima"] .dlg-nm { background: #7a3a4a; }
+#dialog[data-who="narr"] { background: rgba(8, 7, 12, .84); }
+#dialog[data-who="narr"] #dlg-text { color: #e2dbcb; font-weight: 600; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
+#dialog[data-who="narr"] .dlg-foot { color: #8f8799; }
+/* Storm cloud layers: each a seamless strip of cloud that scrolls left at its own speed; the nearer, the faster,
+   darker and bigger. --px (-1 to 1, from the pointer) leans them apart for depth. */
+.pcl { position: absolute; left: -60px; right: -60px; pointer-events: none; background-repeat: repeat-x; animation: pcl linear infinite; translate: calc(var(--px, 0) * var(--d)) 0; transition: translate .6s ease-out; }
+@keyframes pcl { to { background-position-x: calc(var(--w) * -1); } }
+.pcl.far { top: 4%; height: 40%; --w: 1200px; --d: 6px; opacity: .8; animation-duration: 160s; background-size: 1200px 100%;
+  background-image: radial-gradient(ellipse 200px 46px at 150px 62%, rgba(104, 106, 132, .55), transparent 70%), radial-gradient(ellipse 260px 60px at 560px 42%, rgba(96, 98, 124, .5), transparent 70%), radial-gradient(ellipse 210px 50px at 960px 70%, rgba(110, 110, 136, .5), transparent 70%); }
+.pcl.mid { top: 18%; height: 48%; --w: 1500px; --d: 16px; animation-duration: 90s; background-size: 1500px 100%;
+  background-image: radial-gradient(ellipse 300px 80px at 240px 55%, rgba(58, 58, 80, .8), transparent 70%), radial-gradient(ellipse 360px 90px at 820px 40%, rgba(52, 52, 74, .78), transparent 70%), radial-gradient(ellipse 280px 70px at 1300px 62%, rgba(62, 60, 84, .75), transparent 70%); }
+.pcl.near { bottom: -6%; height: 42%; --w: 1900px; --d: 34px; animation-duration: 48s; background-size: 1900px 100%;
+  background-image: radial-gradient(ellipse 420px 110px at 300px 70%, rgba(20, 19, 28, .92), transparent 70%), radial-gradient(ellipse 520px 130px at 1100px 80%, rgba(16, 15, 24, .94), transparent 70%), radial-gradient(ellipse 380px 100px at 1650px 66%, rgba(22, 20, 30, .9), transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .pcl { animation: none; } }
+/* The title: a storm at night, Freya's halo over it, and the four of them on the ridge. */
+#screen-title { background: linear-gradient(180deg, #0c0b12, #1d1b27 45%, #34303f 78%, #2a2632); color: var(--bone); }
+#screen-title .cloud { background: #2c2b3a; opacity: .55; filter: blur(2px); }
+#screen-title .cloud::before, #screen-title .cloud::after { background: #2c2b3a; }
+.t-halo { position: absolute; left: 50%; top: 9%; width: min(46vw, 260px); aspect-ratio: 4 / 1; translate: -50% 0; border-radius: 50%; border: 3px solid rgba(214, 178, 84, .85); box-shadow: 0 0 18px rgba(214, 178, 84, .45), inset 0 0 12px rgba(214, 178, 84, .35); animation: haloGlow 6s ease-in-out infinite; pointer-events: none; }
+.t-halo i { position: absolute; right: 6%; top: 58%; width: 12px; height: 9px; border-radius: 50% 60% 40% 50%; background: #d6b254; box-shadow: 0 0 8px rgba(214, 178, 84, .8); }
+.t-halo i::after { content: ""; position: absolute; right: 2px; top: 2px; width: 3px; height: 3px; border-radius: 50%; background: #3bd16f; box-shadow: 0 0 6px #3bd16f; }
+@keyframes haloGlow { 50% { opacity: .62; box-shadow: 0 0 34px rgba(214, 178, 84, .6), inset 0 0 18px rgba(214, 178, 84, .45); } }
+.t-ridge { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; pointer-events: none; background: #0d0c12; clip-path: polygon(0 38%, 9% 30%, 18% 36%, 30% 22%, 41% 30%, 50% 18%, 61% 28%, 72% 20%, 84% 33%, 93% 26%, 100% 32%, 100% 100%, 0 100%); }
+.t-leads { position: absolute; left: 50%; bottom: calc(30% * .62 - 6px); translate: -50% 0; pointer-events: none; display: flex; gap: clamp(4px, 2vw, 18px); align-items: flex-end; }
+.t-leads img { height: clamp(70px, 15vh, 130px); image-rendering: pixelated; filter: brightness(.08) saturate(0) drop-shadow(0 -1px 0 rgba(214, 205, 185, .35)); }
+.t-rain { position: absolute; inset: -20% 0 0; pointer-events: none; opacity: .22; background: repeating-linear-gradient(105deg, transparent 0 14px, rgba(190, 196, 220, .5) 14px 15px, transparent 15px 34px); background-size: 100% 220px; animation: tRain .5s linear infinite; }
+@keyframes tRain { to { background-position: -60px 220px; } }
+.t-bolt { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 40% 10%, rgba(226, 232, 255, .55), rgba(200, 210, 255, .12) 60%, transparent); opacity: 0; }
+.t-bolt.on { animation: tBolt .9s ease-out; }
+@keyframes tBolt { 0% { opacity: .9; } 8% { opacity: .1; } 16% { opacity: .75; } 100% { opacity: 0; } }
+.logo { color: var(--bone); font-family: var(--f-head); font-weight: 800; letter-spacing: .04em; font-size: clamp(38px, 10vw, 92px); animation: none;
+  text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, .8), 0 0 2px #000; }
+.logo span { color: #c9a24a; font-size: .62em; letter-spacing: .12em; margin-top: .2em; }
+.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .1em; }
+.tagline { color: #cfc6b4; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
+.press { background: #2e2a3a !important; color: var(--bone) !important; letter-spacing: .12em; font-family: var(--f-head); }
+.t-foot { color: #8f8799; }
+#screen-title .snd { background: #2e2a3a; color: var(--bone); }
+/* The cutscene stages: the prologue's dream, Uptima's sanctum and the edge of the Cloud, each under moving storm cloud. */
+#stage .pcl.far { top: 2%; } #stage .pcl.mid { top: 10%; } #stage .pcl.near { bottom: 18%; height: 36%; }
+#stage[data-scene="dream"] { background: radial-gradient(ellipse at 50% 30%, #23223a, #09080f 75%); }
+#stage[data-scene="sanctum"] { background: radial-gradient(ellipse at 50% 24%, #6e6a5a, #3a3426 42%, #15120c 90%); }
+#stage[data-scene="sanctum"]::before { background: repeating-linear-gradient(90deg, rgba(214, 205, 185, .08) 0 26px, rgba(0, 0, 0, .18) 26px 30px, transparent 30px 90px); }
+#stage[data-scene="edge"] { background: linear-gradient(180deg, #2a2a36, #4b4b5a 55%, #262531); }
+#stage[data-scene="edge"]::before { background: rgba(226, 219, 203, .2); }
 </style>
 </head>
 <body>
 <div class="app">
   <section id="screen-title" class="screen">
-    <div class="t-sun" aria-hidden="true"></div>
+    <div class="t-halo" aria-hidden="true"><i></i></div>
+    <div class="pcl far" aria-hidden="true"></div><div class="pcl mid" aria-hidden="true"></div>
     <div id="title-clouds" aria-hidden="true"></div>
-    <div class="t-hills" aria-hidden="true"></div>
+    <div class="t-rain" aria-hidden="true"></div>
+    <div class="t-ridge" aria-hidden="true"></div>
+    <div class="t-leads" aria-hidden="true"><img src="assets/img/lead/kai.webp" alt=""><img src="assets/img/lead/mira.webp" alt=""><img src="assets/img/lead/dutch.webp" alt=""><img src="assets/img/lead/seoyeon.webp" alt=""></div>
+    <div class="pcl near" aria-hidden="true"></div>
+    <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
     <div class="t-ribbon">Working title</div>
     <h1 class="logo">ISEKAI'D<span>INTO THE CLOUD</span></h1>
-    <p class="tagline">An AWS Developer adventure. Fight outages with cards and learn the services for real.</p>
+    <p class="tagline">Four people the gods never answered. One goddess who did. An AWS Developer card battler: learn the services for real.</p>
     <div id="title-actions"></div>
     <div class="t-foot">Built on the AWS documentation · Saves automatically</div>
   </section>

@@ -268,7 +268,9 @@
   SD.art.addPainted('kai', ['neutral'], true);
   SD.art.addPainted('seoyeon', ['neutral'], true);
   SD.art.addPainted('dutch', ['neutral'], true);
-  SD.art.addPainted('freya', ['neutral', 'virus'], true);
+  SD.art.addPainted('freya', ['neutral', 'virus', 'promoter'], true);
+  // The prologue's dream, Uptima's sanctum and the edge of the Cloud play under drifting storm cloud (index.html's .pcl).
+  ['dream', 'sanctum', 'edge'].forEach(k => { SD.ui.stageDecor[k] = '<div class="pcl far"></div><div class="pcl mid"></div><div class="pcl near"></div>'; });
   SD.art.addPainted('kyu', ['neutral', 'angry', 'confused', 'happy', 'laugh', 'smug']);
   [['mira', 520], ['kai', 760], ['seoyeon', 980], ['dutch', 240], ['freya', 860], ['kyu', 700], ['faithful', 420]].forEach(([w, hz]) => SD.ui.voice(w, hz));
   SD.art.addFoe('kyuboss', { col: '#b9a3ff', anim: 'float', src: 'assets/img/monsters/kyuboss.webp' });
