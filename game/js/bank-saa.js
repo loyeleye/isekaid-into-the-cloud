@@ -139,9 +139,9 @@ SD.bank.push(
   { id: "saa-2-02", exam: "SAA", saa: "2.2", topic: "rds", type: "multi", hint: "Select TWO.",
     q: "A reporting workload on an RDS for PostgreSQL DB instance slows down the main app. The company also needs automatic failover if the primary's Availability Zone fails. Which steps meet both requirements? (Select TWO.)",
     items: [
-      { t: "Convert the DB instance to a Multi-AZ deployment.", ok: true },
+      { t: "Convert the DB instance to a Multi-AZ DB instance deployment.", ok: true },
       { t: "Create a read replica, and point the reporting workload at its endpoint.", ok: true },
-      { t: "Point the reporting workload at the Multi-AZ standby instance.", ok: false, no: "In a Multi-AZ DB instance deployment, the standby serves no traffic. It only takes over on failover." },
+      { t: "Point the reporting workload at that deployment's standby.", ok: false, no: "In a Multi-AZ DB instance deployment, the standby serves no traffic. It only takes over on failover." },
       { t: "Take hourly snapshots, and restore one for each reporting run.", ok: false, no: "Restores are slow and manual, and they give no failover." },
       { t: "Move the DB instance to a larger instance class in the same AZ.", ok: false, no: "More capacity eases the load but leaves the single-AZ failure risk." }
     ],
@@ -179,7 +179,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-failover.html"] },
 
   { id: "saa-2-05", exam: "SAA", saa: "2.2", topic: "aurora", type: "mc",
-    q: "A global company runs a relational app on Aurora MySQL in one Region. It needs low-latency local reads in two other Regions, and if the primary Region fails, recovery with about a second of data loss and about a minute of downtime. What should a solutions architect use?",
+    q: "A global company runs a relational app on Aurora MySQL in one Region. It needs low-latency local reads in two other Regions, and if the primary Region fails, recovery with about a second of data loss and a few minutes of downtime. What should a solutions architect use?",
     opts: [
       "An Aurora global database, with read-only secondary clusters in the other two Regions.",
       "Cross-Region automated backups, restored in another Region when the primary fails.",
@@ -190,7 +190,7 @@ SD.bank.push(
       "A restore takes far longer than a minute, and recent writes are lost.",
       "Everything stays in one Region, so a Regional failure takes it all down, and reads elsewhere stay slow.",
       "It replicates across Regions, but only after a rewrite the scenario doesn't need."],
-    why: "An Aurora global database replicates to read-only secondary clusters in other Regions, typically in under a second, and a secondary can be promoted to take writes in about a minute.",
+    why: "An Aurora global database replicates to read-only secondary clusters in other Regions, typically in under a second, and after a Regional outage a secondary can be promoted to take writes, with recovery time in the order of minutes.",
     doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html"] },
 
   { id: "saa-2-06", exam: "SAA", saa: "2.2", topic: "autoscaling", type: "multi", hint: "Select TWO.",
@@ -246,13 +246,13 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "CloudFront delivers HTTP and HTTPS content. It doesn't carry the game's UDP traffic.",
-      "DNS answers are cached by clients, so failover is slower, and players get no fixed IP addresses.",
+      "DNS answers are cached by clients, so failover is slower, and there is no single pair of static IPs: each Region's NLB has its own addresses.",
       "ALBs handle HTTP and HTTPS, not UDP, and they don't take Elastic IP addresses."],
     why: "Global Accelerator provides two static anycast IP addresses, carries TCP and UDP over the AWS network from the nearest edge location, and shifts traffic between Regions quickly.",
     doc: ["https://docs.aws.amazon.com/global-accelerator/latest/dg/what-is-global-accelerator.html"] },
 
   { id: "saa-3-03", exam: "SAA", saa: "3.5", topic: "firehose", type: "mc",
-    q: "A company wants to collect streaming application logs in S3 in Parquet format and query them with SQL, with the LEAST operational overhead. What should a solutions architect do?",
+    q: "A company wants to collect streaming JSON application logs in S3 in Parquet format and query them with SQL, with the LEAST operational overhead. What should a solutions architect do?",
     opts: [
       "Deliver the logs with Amazon Data Firehose, converting them to Parquet in S3, and query them with Athena.",
       "Run a Kafka cluster on EC2 that writes the logs to S3, and query them with Presto on an EMR cluster.",
@@ -263,7 +263,7 @@ SD.bank.push(
       "It works, but it means running and patching two clusters.",
       "A relational database is a costly, poor fit for large volumes of append-only logs.",
       "Athena queries data stored in S3, not records in a stream."],
-    why: "Firehose is a managed delivery service that can convert records to Parquet before writing them to S3, and Athena queries S3 with SQL with nothing to run.",
+    why: "Firehose is a managed delivery service that can convert JSON records to Parquet before writing them to S3, and Athena queries S3 with SQL with nothing to run.",
     doc: ["https://docs.aws.amazon.com/firehose/latest/dev/record-format-conversion.html"] },
 
   { id: "saa-3-04", exam: "SAA", saa: "3.2", topic: "fargate", type: "mc",
@@ -306,7 +306,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "It serves SMB file shares for Windows workloads, not Linux HPC jobs.",
-      "EFS is general-purpose shared storage. FSx for Lustre is built for HPC throughput and links to S3 directly.",
+      "EFS first-byte latency starts around 1 ms. FSx for Lustre gives sub-millisecond latency and very high parallel throughput, and links to S3.",
       "S3 is object storage, not a shared POSIX file system with sub-millisecond latency."],
     why: "FSx for Lustre is a high-performance parallel file system for HPC and machine learning, and it can load from and export to a linked S3 bucket.",
     doc: ["https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html"] },
@@ -346,7 +346,7 @@ SD.bank.push(
       "Standard-IA charges for each GB retrieved, which hurts when images suddenly become popular.",
       "Retrievals take minutes to hours, too slow for images users are waiting for.",
       "It charges retrieval fees, and it keeps the only copy in one Availability Zone."],
-    why: "Intelligent-Tiering moves objects between access tiers based on use, for a small monitoring charge per object, with no retrieval fees.",
+    why: "Intelligent-Tiering moves objects between access tiers based on use, for a small monthly monitoring charge per object (objects of 128 KB or more are tiered), with no retrieval fees.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/intelligent-tiering-overview.html"] },
 
   { id: "saa-4-03", exam: "SAA", saa: "4.2", topic: "ec2", type: "mc",
@@ -392,7 +392,7 @@ SD.bank.push(
   { id: "saa-4-06", exam: "SAA", saa: "4.4", topic: "vpc", type: "mc",
     q: "A development VPC spans three Availability Zones, with a NAT gateway in each. The developers can live without outbound internet access if one AZ fails, and the company wants to cut costs. What should a solutions architect do?",
     opts: [
-      "Keep one NAT gateway, and route every private subnet's outbound internet traffic to it.",
+      "Keep one zonal NAT gateway, and route every private subnet's outbound internet traffic to it.",
       "Attach an internet gateway to each private subnet in place of its NAT gateway.",
       "Peer the VPC with the production VPC, and send traffic through its NAT gateways.",
       "Keep all three NAT gateways, and stop them each evening outside office hours."
