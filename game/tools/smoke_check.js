@@ -4,6 +4,8 @@
 // With --win every fight is won outright (as the debug panel's Win button does), so the boss's win scene and a
 // cleared dungeon get checked too.
 // Needs Playwright (preinstalled in cloud sessions; PLAYWRIGHT_BROWSERS_PATH points at Chromium there).
+// Out of date since chapter 1: New game now opens chapter 1's overworld instead of the name form and the town, so
+// this stops at the name form. tools/ch1_check.js plays the whole chapter 1 demo instead.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 

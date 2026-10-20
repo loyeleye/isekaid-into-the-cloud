@@ -9,9 +9,11 @@ Everything here was first made for or gathered by the first game, [Isekai'd Into
 | "Character Portrait ~ Maid" (`assets/img/portraits/uptima-*.webp`) | Jupiter's Daughter, https://opengameart.org/content/character-portrait-maid | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Uptima's portraits (cropped to busts) |
 | The hero's portraits (`assets/img/portraits/you-*.webp`), the dungeon map's floors, props and room icons (`assets/img/dungeon`), the battle backdrops and your fighter's animations (`assets/img/battle`) and the incident monsters (`assets/img/monsters`) | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription (first made for Isekai'd Into Prod), processed by `tools/village_art.py`, `tools/battle_art.py` and `tools/pixel_portraits.py` | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | The dungeon map, fights and dialogue |
 | Particle Pack (`assets/img/fx`), Emotes Pack (`assets/img/emotes.png`) | Kenney (www.kenney.nl), via OpenGameArt | CC0 | Hit sparks in combat, speech-bubble emotes |
+| Chapter 1's leads and Freya: Mira's, Kai's, Seo-yeon's and Dutch's full bodies and Freya's two forms (`assets/img/lead/*.webp`), and their portraits (`assets/img/portraits/mira-neutral`, `kai-neutral`, `seoyeon-neutral`, `dutch-neutral`, `freya-neutral`, `freya-virus`) | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription: the concept-art picks from the variants generated on 2026-10-20, resized for the game | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Choosing your lead, dialogue, and your fighter in chapter 1's battles |
+| Kyu's portraits (`assets/img/portraits/kyu-*.webp`) and boss sprite (`assets/img/monsters/kyuboss.webp`), and Uptima's boss sprite (`assets/img/monsters/uptimaboss.webp`, the first idle frame of the first game's `assets/img/battle/champ-uptima.webp`) | Generated with [PixelLab](https://pixellab.ai) on Ladi's subscription for Isekai'd Into Prod (its `CREDITS-arc.md` and `CREDITS.md`) | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Kyu and Uptima in chapter 1 |
 | Game-icons.net (137-icon subset in `assets/game-icons.js`) | https://game-icons.net, via the npm package `@iconify-json/game-icons` 1.2.4. Icons by Lorc, Delapouite and other contributors listed at https://game-icons.net/about.html | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Card art, map nodes, story props |
 
-Everything else (code-drawn portraits for characters without a painted one, System windows) is drawn in code in `js/art.js` and `index.html`.
+Everything else is drawn in code: portraits for characters without a painted one and the System windows in `js/art.js` and `index.html`, and chapter 1's whole overworld (the ground, river, buildings, props, the temple, and every character walking about) in `js/ch1-art.js`.
 
 ## Model
 
@@ -34,6 +36,9 @@ Everything else (code-drawn portraits for characters without a painted one, Syst
 | `m-battle` | "JRPG Epic Rock Battle Theme #1" | HydroGene, https://opengameart.org/content/jrpg-epic-rock-battle-theme-1 | CC0 | Battles |
 | `m-boss` | "Epic Boss Battle [Seamlessly Looping]" | Juhani Junkala (SubspaceAudio), https://opengameart.org/content/boss-battle-music | CC0 | Boss |
 | `m-shop` | "Bossa" (shop theme, HD) | SpringySpringo, https://opengameart.org/content/bossa-shop-theme-in-low-fi-and-hd | CC0 (dual-licensed CC0 / CC BY 3.0; used under CC0) | Shops (`shop`) |
+| `m-kyu` | "Shadow of the Ancient Forest (Full version)" | Paul Winter (kaazoom), via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Kyu's scenes (`kyu`) |
+| `m-kyusad` | "Under The Moon Sad Cinematic Loop" | Emmraan, via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Chapter 1's last scene (`kyusad`) |
+| `m-kyuboss` | "Final Battle Epic Orchestral Action Background Music" | Mohd Umar (mumarmds), via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | The Kyu fight (`kyuboss`) |
 | `j-victory`, `j-defeat`, `j-gary` | Music Jingles (SAX set) | Kenney, via OpenGameArt | CC0 | Victory, defeat and rescue jingles |
 | `j-after` | "Sneaky And Funny Strings - Plucked, Quirky Comedy - OPENER" | zec53, via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | A comic opener (`js/arc.js`) |
 
@@ -43,7 +48,7 @@ Techspired Minds credit line: "Orchestral: Our Journey Awaits" by Techspired Min
 
 Matthew Pablo credit line: "Enchanted Festival" by Matthew Pablo (http://www.matthewpablo.com), licensed under CC BY 3.0, https://creativecommons.org/licenses/by/3.0/, via https://opengameart.org/content/enchanted-festival
 
-Pixabay credit lines: "Kokoro no Yume" and "Kaze no Kioku" by Paul Winter (kaazoom), and "Sneaky And Funny Strings" by zec53, via Pixabay (Pixabay Content License). Pixabay marks "Kokoro no Yume" and "Kaze no Kioku" as AI-generated. The license allows use inside the game but not standalone redistribution, so these files must not be offered as separate downloads or a soundtrack pack.
+Pixabay credit lines: "Kokoro no Yume", "Kaze no Kioku" and "Shadow of the Ancient Forest" by Paul Winter (kaazoom), "Under The Moon Sad Cinematic Loop" by Emmraan, "Final Battle Epic Orchestral Action Background Music" by Mohd Umar (mumarmds), and "Sneaky And Funny Strings" by zec53, via Pixabay (Pixabay Content License). Pixabay marks "Kokoro no Yume", "Kaze no Kioku", "Shadow of the Ancient Forest" and "Final Battle" as AI-generated. The three Kyu tracks were first gathered for Isekai'd Into Prod (its `CREDITS-arc.md`). The license allows use inside the game but not standalone redistribution, so these files must not be offered as separate downloads or a soundtrack pack.
 
 Music was re-encoded to MP3 and loudness-normalised; nothing else was changed.
 

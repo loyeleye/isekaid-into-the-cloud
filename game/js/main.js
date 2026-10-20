@@ -1,12 +1,14 @@
 // Boot, title, menu and the town between runs.
-// The town is a plain menu for now: the walkable town (built on js/scene.js) comes once the story picks a place.
+// Chapter 1's overworld (js/ch1-world.js) is the game's home now: New game and Continue go there. The placeholder
+// town menu stays for runs that end outside chapter 1.
 (function () {
   const M = SD.main = {};
   const U = SD.ui, S = SD.state, Q = SD.quiz, AU = SD.audio;
   const $ = U.$;
 
   M.show = function (screen, keepMusic) {
-    ['title', 'hub', 'run'].forEach(s => { $('#screen-' + s).hidden = s !== screen; });
+    ['title', 'hub', 'run', 'world'].forEach(s => { $('#screen-' + s).hidden = s !== screen; });
+    if (screen !== 'world' && SD.ch1) SD.ch1.halt();
     if (screen === 'hub') { M.hud(); town(); if (!keepMusic) AU.music('town'); }
   };
 
@@ -32,6 +34,7 @@
   };
   const today = () => new Date().toDateString();
 
+  M.menu = menu;
   function menu() {
     const p = AU.prefs;
     const b = U.panel(`<div class="opts">
@@ -72,8 +75,8 @@
   function credits() {
     U.panel(`<p class="small">Free art and music, used with thanks. Full details are in CREDITS.md in the game's repository.</p>
       <ul class="links small">
-        <li><b>Portraits:</b> "Character Portrait ~ Maid" by Jupiter's Daughter (CC BY 3.0, OpenGameArt) for Uptima. The hero's portraits, the monsters, the dungeon map and the battle backdrops were generated for this game with PixelLab on Ladi's subscription.</li>
-        <li><b>Music:</b> "Kokoro no Yume" and "Kaze no Kioku" by Paul Winter (kaazoom), via Pixabay. "Orchestral: Our Journey Awaits" by Techspired Minds (CC BY 4.0). "Enchanted Festival" by Matthew Pablo (www.matthewpablo.com), CC BY 3.0. "Hot Springs Town" by Kistol, "Cozy Puzzle In-Game 1" by MintoDog, "Emotional Piano" by Centurion_of_war, "JRPG Epic Rock Battle Theme #1" by HydroGene, "Epic Boss Battle" by Juhani Junkala, "Bossa" by SpringySpringo and an untitled goddess theme (see CREDITS.md), all CC0.</li>
+        <li><b>Portraits:</b> "Character Portrait ~ Maid" by Jupiter's Daughter (CC BY 3.0, OpenGameArt) for Uptima. The hero's portraits, the monsters, the dungeon map and the battle backdrops were generated for this game with PixelLab on Ladi's subscription, as were Mira's, Kai's, Seo-yeon's, Dutch's and Freya's concept portraits and Kyu's portraits and sprite (first made for Isekai'd Into Prod). Chapter 1's overworld, its people and props, and the incidents without a painting are drawn in code.</li>
+        <li><b>Music:</b> "Kokoro no Yume", "Kaze no Kioku" and "Shadow of the Ancient Forest" by Paul Winter (kaazoom), "Under The Moon Sad Cinematic Loop" by Emmraan and "Final Battle Epic Orchestral Action Background Music" by Mohd Umar (mumarmds), via Pixabay. "Orchestral: Our Journey Awaits" by Techspired Minds (CC BY 4.0). "Enchanted Festival" by Matthew Pablo (www.matthewpablo.com), CC BY 3.0. "Hot Springs Town" by Kistol, "Cozy Puzzle In-Game 1" by MintoDog, "Emotional Piano" by Centurion_of_war, "JRPG Epic Rock Battle Theme #1" by HydroGene, "Epic Boss Battle" by Juhani Junkala, "Bossa" by SpringySpringo and an untitled goddess theme (see CREDITS.md), all CC0.</li>
         <li><b>Jingles, particles, emotes and sound effects:</b> Kenney (www.kenney.nl), CC0. Weather sounds via Pixabay. Places and night sounds: "Slow Clock Ticking" Sound Effect By Nicole Marie T (CC BY 4.0); waves and doorbell by qubodup, seagulls by Rango Mango, fire by AntumDeluge, anvils by themightyglider and vishwajai, chimes by pwl, weights by bmaczero and crickets by wolfgang (CC0, OpenGameArt).</li>
         <li><b>Icons:</b> Game-icons.net by Lorc, Delapouite and contributors (CC BY 3.0).</li>
         <li><b>Typed-answer model:</b> potion-base-8M by MinishLab (MIT).</li>
@@ -81,7 +84,8 @@
   }
   function help() {
     U.panel(`<ul class="links">
-      <li><b>Runs.</b> The Dungeon gate takes you down a branching path of incidents, whiteboards, cafés and break rooms, ending at a boss.</li>
+      <li><b>Walking.</b> Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. Someone with a "!" has something for you.</li>
+      <li><b>Runs.</b> The temple gate takes you down a branching path of incidents and side rooms, ending at a boss.</li>
       <li><b>Combat.</b> Each turn you get 3 Capacity. Cards absorb load or mitigate the incident's Severity. The incident shows its next move: read it and answer with the right service or setting.</li>
       <li><b>Matchups.</b> Cards that fit the incident are EFFECTIVE and mitigate hard. Wrong ones are RESISTED, and the game tells you why. That reason is the lesson.</li>
       <li><b>Questions.</b> Answer first, then rate how sure you are. Confident misses come back soonest. Cheat sheet pages return when you get a concept right twice in a row.</li>
@@ -111,11 +115,16 @@
     const sv = S.save;
     const has = sv.flags.prologue;
     $('#title-actions').innerHTML = has
-      ? `<button class="primary" id="t-go">Continue · Loop ${sv.loop}</button><button class="ghost" id="t-help">How to play</button>`
+      ? `<button class="primary" id="t-go">Continue${sv.c1 && sv.c1.lead && SD.ch1story ? ' · ' + U.esc(SD.ch1story.leads[sv.c1.lead].name) : ''}</button><button class="ghost" id="t-new2">New game</button><button class="ghost" id="t-help">How to play</button>`
       : `<button class="primary" id="t-new">New game</button><button class="ghost" id="t-help">How to play</button>`;
     $('#t-help').onclick = help;
-    if (has) $('#t-go').onclick = () => M.toHub(false);
-    else $('#t-new').onclick = newGame;
+    if (has && $('#t-new2')) $('#t-new2').onclick = () => {
+      const c = U.panel('<p>Start again from the prologue? Your level, cheat sheet and everything you learned stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' });
+      c.querySelector('#n-y').onclick = () => { U.closePanel(); S.save.c1 = null; S.save.run = null; S.persist(); SD.ch1 ? SD.ch1.newGame() : newGame(); };
+      c.querySelector('#n-n').onclick = U.closePanel;
+    };
+    if (has) $('#t-go').onclick = () => SD.ch1 ? SD.ch1.resume() : M.toHub(false);
+    else $('#t-new').onclick = () => SD.ch1 ? SD.ch1.newGame() : newGame();
   };
 
   // No cold open yet (the first game's is in its js/intro.js): ask the hero's name and go to town.
@@ -189,7 +198,7 @@
   }
 
   SD.onCloudLoad = function () {
-    if (!$('#screen-title').hidden) M.title(); else if (!$('#screen-hub').hidden) M.show('hub', true);
+    if (!$('#screen-title').hidden) M.title(); else if (!$('#screen-hub').hidden) M.show('hub', true); else if (!$('#screen-world').hidden && SD.ch1) SD.ch1.hud();
   };
 
   // ---------- Boot ----------

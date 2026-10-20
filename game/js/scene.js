@@ -1,6 +1,6 @@
-// Small tile scenes for chapters 7-10: the North Road you walk around (js/northroad.js) and the cutscene maps
-// that play between floors. Same art rules as Pingsby (js/hub.js): 32px PixelLab Wang terrain on a dual grid,
-// objects standing on their bottom edge, people from their sprite sheets (village or arc art).
+// Small tile scenes: walkable maps and the cutscene maps that play between floors. The first game drew them with
+// 32px PixelLab Wang terrain on a dual grid, objects standing on their bottom edge and people from sprite sheets;
+// maps drawn in code (chapter 1's overworld, js/ch1-world.js) set ground: false and paint with under() and rowDraw().
 (function () {
   const SC = SD.scene = {};
   const INK = '#2b2340';
@@ -131,8 +131,9 @@
       for (const [dx, dy] of DIRS) { const a = actorAt(P.x + dx, P.y + dy); if (a && a.talk !== false) return a.id; }
       return null;
     }
+    // sc.locked: a scene is playing (js/ch1-world.js), so keys and taps don't move you; scripted paths still run.
     function onKey(e) {
-      if (!sc.active || !sc.P || e.defaultPrevented) return;
+      if (!sc.active || !sc.P || sc.locked || e.defaultPrevented) return;
       if (!document.getElementById('dialog').hidden || !document.getElementById('panel').hidden) return;
       const k = e.key.toLowerCase();
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { if (!e.repeat && !keys[k]) fresh = true; keys[k] = true; sc.P.path = []; e.preventDefault(); }
@@ -140,7 +141,7 @@
     }
     function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
     function onTap(e) {
-      if (!sc.active || !sc.P) return;
+      if (!sc.active || !sc.P || sc.locked) return;
       const r = canvas.getBoundingClientRect(), { cx, cy } = cam();
       let tx = Math.floor((e.clientX - r.left + cx) / ts), ty = Math.floor((e.clientY - r.top + cy) / ts);
       if (ISO) {
@@ -451,11 +452,13 @@
         const x0 = Math.max(0, Math.floor(cx / ts) - 1), x1 = Math.min(W, Math.ceil((cx + vw) / ts) + 1);
         const y0 = Math.max(0, Math.floor(cy / ts) - 1), y1 = Math.min(HT, Math.ceil((cy + vh) / ts) + 1);
         if (def.ground !== false) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) corner(x, y);
-        if (def.under) def.under(ctx, ts, t);
+        if (def.under) def.under(ctx, ts, t, x0, x1, y0, y1);
         // Trees ring the map; objects and people are drawn row by row so you walk behind them.
         objs = (def.objects || []).filter(o => !o.hidden);
         for (let y = y0; y < y1 + 3; y++) {
           if (y < HT) for (let x = x0; x < x1; x++) if (MAP[y][x] === 'T') obj(hash(x, y) % 5 === 0 ? 'tree2' : 'tree', (x + 0.5) * ts, (y + 1.05) * ts, 1, hash(x, y) % 2);
+          // Maps drawn in code (js/ch1-world.js) paint their own props here, a row at a time, so people walk behind them.
+          if (def.rowDraw) def.rowDraw(ctx, y, ts, t, x0, x1);
           objs.forEach(o => { if (Math.floor(o.y) === y) obj(o.name, (o.x + 0.5) * ts, (o.y + 1) * ts, o.k, o.flip); });
           Object.values(sc.actors).forEach(a => { if (Math.round(a.py) === y) person(a, t); });
         }

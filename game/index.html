@@ -792,6 +792,33 @@ button.hud-chip { cursor: pointer; font: inherit; font-size: 12px; font-weight: 
 .arc-files { padding-left: 20px; }
 .nr-jump { position: absolute; left: 50%; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 3; font-size: 14px; padding: 8px 16px; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .arc-metfx, .arc-cap { animation: none; } }
+
+/* Chapter 1's overworld (js/ch1-world.js) */
+#w-canvas { flex: 1; width: 100%; min-height: 0; display: block; touch-action: none; background: #7cc96a; }
+#w-hud .ghost { padding: 6px 12px; font-size: 14px; }
+.w-xp { width: 90px; flex: none; }
+.w-goal { background: #fff3c4; white-space: normal; }
+.w-sp { flex: 1; }
+.w-zone { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); z-index: 3; pointer-events: none; padding: 8px 22px; border: 3px solid var(--ink); border-radius: 14px; background: rgba(255, 250, 240, .92); font-family: var(--f-head); font-size: clamp(18px, 4.6vw, 30px); letter-spacing: .08em; white-space: nowrap; box-shadow: 0 4px 0 var(--ink); animation: wZone 2.6s ease-out forwards; }
+@keyframes wZone { 0% { opacity: 0; transform: translate(-50%, -12px); } 12% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.c1-leads { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
+.c1-lead { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; color: var(--ink); cursor: pointer; font: inherit; box-shadow: 0 4px 0 var(--ink); }
+.c1-lead:hover, .c1-lead:focus-visible { background: #fff3c4; transform: translateY(-2px); }
+.c1-lead img { flex: none; width: 72px; height: 104px; object-fit: contain; object-position: bottom center; image-rendering: pixelated; }
+.c1-txt { display: flex; flex-direction: column; gap: 3px; }
+.c1-txt b { font-family: var(--f-head); font-size: 17px; }
+.c1-txt i { color: #7a3fbf; }
+.bust.px img { image-rendering: pixelated; }
+#stage[data-scene="dream"] { background: radial-gradient(ellipse at 50% 30%, #2c2a5e, #0d0b22 75%); }
+#stage[data-scene="dream"]::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 30% 40%, #dfe6ff, transparent), radial-gradient(2px 2px at 72% 14%, #fff, transparent), radial-gradient(1px 1px at 84% 52%, #fff, transparent), radial-gradient(1.5px 1.5px at 52% 26%, #cfe0ff, transparent), radial-gradient(1px 1px at 22% 66%, #fff, transparent), radial-gradient(1.5px 1.5px at 64% 70%, #fff, transparent), radial-gradient(1px 1px at 90% 30%, #e8dcff, transparent); animation: pulse 4s ease-in-out infinite; }
+#stage[data-scene="dream"] .cloud, #stage[data-scene="sanctum"] .cloud, #stage[data-scene="edge"] .cloud { display: none; }
+#stage[data-scene="sanctum"] { background: radial-gradient(ellipse at 50% 26%, #fff1c4, #e7c879 40%, #6b4a22 90%); }
+#stage[data-scene="sanctum"]::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .18) 0 26px, rgba(120, 80, 30, .12) 26px 30px, transparent 30px 90px); }
+#stage[data-scene="edge"] { background: linear-gradient(180deg, #d9dbe4, #aeb1bf 55%, #8b8e9e); }
+#stage[data-scene="edge"]::before { content: ""; position: absolute; left: 0; right: 0; top: 58%; height: 2px; background: rgba(43, 35, 64, .35); }
+/* Your lead in chapter 1's fights, standing in for the first game's hero sprite. */
+body[data-lead] .stage .hero { background-image: var(--lead-img) !important; background-size: contain !important; background-position: center bottom !important; background-repeat: no-repeat !important; transform: none !important; width: 21% !important; height: 84% !important; bottom: 4%; left: 10%; }
+@media (max-width: 520px) { body[data-lead] .stage .hero { transform: none !important; } }
 </style>
 </head>
 <body>
@@ -814,6 +841,11 @@ button.hud-chip { cursor: pointer; font: inherit; font-size: 12px; font-weight: 
   </section>
 
   <section id="screen-run" class="screen" hidden><div id="run"></div></section>
+
+  <section id="screen-world" class="screen" hidden>
+    <div class="nr-hud" id="w-hud"></div>
+    <canvas id="w-canvas" aria-label="Freya's camp, the road east and the Temple of Uptime"></canvas>
+  </section>
 </div>
 
 <div id="stage" hidden></div>
@@ -843,6 +875,12 @@ button.hud-chip { cursor: pointer; font: inherit; font-size: 12px; font-weight: 
 <script src="js/dungeon-art.js"></script>
 <script src="js/battle-art.js"></script>
 <script src="js/run.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/bank-dva.js"></script>
+<script src="js/ch1.js"></script>
+<script src="js/ch1-art.js"></script>
+<script src="js/ch1-story.js"></script>
+<script src="js/ch1-world.js"></script>
 <script src="js/town.js"></script>
 <script src="js/main.js"></script>
 <!-- Debug start (testing only; remove before release) -->
