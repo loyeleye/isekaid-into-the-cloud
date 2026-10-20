@@ -28,7 +28,7 @@ function load() {
 
 function check(q, ids) {
   const p = [];
-  if (!/^(dva|saa)-\d-\d\d$/.test(q.id || '')) p.push('id should look like dva-1-01');
+  if (!/^(dva|saa)-\d-\d{2,3}$/.test(q.id || '')) p.push('id should look like dva-1-01 or dva-1-101');
   if (ids.has(q.id)) p.push('duplicate id'); ids.add(q.id);
   if (!['DVA', 'SAA', 'both'].includes(q.exam)) p.push('exam must be DVA, SAA or both');
   for (const ex of ['DVA', 'SAA']) {
