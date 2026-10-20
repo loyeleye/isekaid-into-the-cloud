@@ -350,7 +350,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "More tunnels add throughput, but the traffic still pays the same data transfer out rates as today.",
-      "Acceleration routes the tunnels through Global Accelerator edge locations for steadier performance. It doesn't lower data transfer charges.",
+      "Acceleration routes the tunnels through Global Accelerator for steadier performance. It adds accelerator and premium data transfer charges instead of lowering them.",
       "Transfer Acceleration can add data transfer charges, and the data still crosses the internet."],
     why: "Direct Connect bills port hours and outbound data transfer at Direct Connect rates, which can reduce network costs and give more consistent throughput than internet-based links. For large, steady volumes over years, that outweighs the port cost.",
     doc: ["https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html", "https://docs.aws.amazon.com/whitepapers/latest/aws-vpc-connectivity-options/aws-direct-connect.html"] }
