@@ -62,21 +62,6 @@ SD.bank.push(
     why: "A function URL gives a function its own HTTPS endpoint. With the AWS_IAM auth type, Lambda authenticates SigV4-signed requests and checks the caller's IAM permissions together with the function's resource-based policy.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html", "https://docs.aws.amazon.com/lambda/latest/dg/urls-configuration.html"] },
 
-  { id: "dva-1-205", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
-    q: "A Lambda function downloads video files of up to 4 GB from S3, transcodes each one, and uploads the result. Each file is needed only during one invocation. The function fails with \"No space left on device\" when it writes a download to /tmp. Which solution meets these requirements with the LEAST operational overhead?",
-    opts: [
-      "Raise the function's ephemeral storage setting, so /tmp has room for the largest file and its output.",
-      "Raise the function's memory setting to the maximum, since /tmp space grows along with the memory size.",
-      "Mount an Amazon EFS file system on the function, with the VPC, mount targets and access point it needs.",
-      "Package the video tools in a Lambda layer, which gives the function an extra file system for its data."
-    ], a: 0,
-    no: [null,
-      "Memory and ephemeral storage are separate settings. More memory doesn't add space to /tmp.",
-      "It works, but it adds a VPC, mount targets and a file system for data that only lives for one invocation.",
-      "Layers are extracted to /opt and are read-only, so they can't hold the downloaded video."],
-    why: "Ephemeral storage is the /tmp space of each execution environment and can be set from 512 MB to 10,240 MB, separately from memory.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-ephemeral-storage.html"] },
-
   { id: "dva-1-206", exam: "both", dva: "1.2", saa: "3.1", topic: "lambda", type: "multi", hint: "Select TWO.",
     q: "Hundreds of concurrent invocations of a Lambda function must read and update the same 30 GB set of reference files, and changes made by one invocation must be visible to the others. The function already runs in two private subnets in different Availability Zones. Which actions should the developer take? (Select TWO.)",
     items: [
@@ -88,18 +73,6 @@ SD.bank.push(
     ],
     why: "EFS gives every execution environment the same file system, so writes are shared. The function connects through an access point and needs a mount target in each Availability Zone it uses, with NFS traffic allowed.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-filesystem-efs.html"] },
-
-  { id: "dva-1-207", exam: "DVA", dva: "1.2", topic: "lambda", type: "multi", hint: "Select TWO.",
-    q: "A Java Lambda function behind an API takes about 6 seconds to initialize, which users notice on cold starts. The team wants to cut this startup time without paying to keep environments running. Today the API invokes the function's unqualified ARN. Which actions should the developer take? (Select TWO.)",
-    items: [
-      { t: "Turn on SnapStart for published versions in the function's configuration, then publish a new version.", ok: true },
-      { t: "Point an alias at the new version, and change the API integration to invoke that alias.", ok: true },
-      { t: "Turn on SnapStart and keep invoking the unqualified ARN, so $LATEST starts from the snapshot.", ok: false, no: "SnapStart works only on published versions and aliases that point to them, never on $LATEST." },
-      { t: "Configure provisioned concurrency on an alias, so environments are initialized before requests arrive.", ok: false, no: "It removes cold starts, but it is the cost of keeping environments running that the team wants to avoid." },
-      { t: "Raise the function's timeout, so that requests that hit a cold start don't fail during initialization.", ok: false, no: "A longer timeout doesn't make initialization any faster, so users still wait." }
-    ],
-    why: "SnapStart snapshots the initialized execution environment when a version is published and resumes new environments from that snapshot. It applies only to published versions, so callers must invoke a version or an alias.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html"] },
 
   { id: "dva-1-208", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
     q: "A Lambda function's production alias points at version 5. A developer changes the TABLE_NAME environment variable in the console on $LATEST and saves it, but production requests still use the old table name hours later. What should the developer do?",
@@ -142,21 +115,6 @@ SD.bank.push(
     ],
     why: "The function's own writes match the notification, so each output fires a new event. Writing to another bucket, or under a prefix the notification doesn't match, breaks the cycle.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html", "https://docs.aws.amazon.com/lambda/latest/dg/invocation-recursion.html"] },
-
-  { id: "dva-1-211", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
-    q: "A Lambda function reads a standard SQS queue through an event source mapping with default settings. Messages arrive at a steady trickle, so most invocations get only one or two messages and per-invocation overhead dominates the cost. The business accepts up to 30 seconds of extra delay. What should the developer do?",
-    opts: [
-      "Set the mapping's batch size to 100 and MaximumBatchingWindowInSeconds to 30, so Lambda gathers larger batches.",
-      "Set the queue's ReceiveMessageWaitTimeSeconds to 20, so that long polling collects more messages per invocation.",
-      "Set the queue's DelaySeconds to 30, so that messages build up in the queue before Lambda is able to receive them.",
-      "Convert the queue to a FIFO queue, so that Lambda delivers the messages in groups that share a message group ID."
-    ], a: 0,
-    no: [null,
-      "Lambda already long polls the queue, and without a batching window it invokes as soon as it has records.",
-      "Each message's delay ends at a different time, so the messages still become visible a few at a time.",
-      "FIFO adds ordering, not larger batches, and FIFO event source mappings don't support a batching window."],
-    why: "A batching window makes Lambda gather records for up to that many seconds, or until the batch size or payload limit is reached, before it invokes the function. Batch sizes over 10 require a window of at least 1 second.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html"] },
 
   { id: "dva-1-212", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
     q: "A Lambda function with a 2-minute timeout reads an SQS queue whose visibility timeout is also 2 minutes. When the function is throttled during bursts, some messages are processed twice, and others reach the dead-letter queue without ever failing in the function. What should the developer change?",
@@ -224,8 +182,8 @@ SD.bank.push(
       "An on-success destination on the function that sends records to the custom event bus."
     ], a: 0,
     no: [null,
-      "A dead-letter queue must be an SQS queue or SNS topic, and it receives only the event, without error details.",
-      "An event bus can't subscribe to an SNS topic, and a dead-letter queue receives no error details.",
+      "A dead-letter queue must be an SQS queue or SNS topic, and it gets the event without the invocation record a destination sends.",
+      "An event bus isn't a supported SNS subscription endpoint, so the records never reach the bus.",
       "On-success records cover only successful invocations, so failed events would never reach the bus."],
     why: "Destinations can be an SQS queue, SNS topic, S3 bucket (on failure only), Lambda function or EventBridge event bus, and their records include the request and the response. A dead-letter queue is limited to SQS or SNS and holds only the event.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-retain-records.html"] },
@@ -287,21 +245,6 @@ SD.bank.push(
     ],
     why: "Each partition serves up to 1,000 write units per second, and all items with one partition key value start on one partition. Sharding the key, or choosing a high-cardinality key, spreads the writes across many partitions.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"] },
-
-  { id: "dva-1-221", exam: "DVA", dva: "1.3", topic: "dynamodb", type: "mc",
-    q: "A nightly job finds the few hundred orders with Status PENDING in a 50 GB DynamoDB table by calling Scan with a FilterExpression on Status. The job uses far more read capacity than the size of its results suggests. Which change reduces the read capacity it consumes?",
-    opts: [
-      "Create a global secondary index with Status as its partition key, and Query the index for PENDING.",
-      "Add a ProjectionExpression that returns only the order ID and status of each order the Scan finds.",
-      "Move the Status condition from the FilterExpression into a KeyConditionExpression on the Scan call.",
-      "Set the Scan's Limit parameter to 500, so it stops reading once it has found the PENDING orders."
-    ], a: 0,
-    no: [null,
-      "Capacity is charged on the size of the items read, not on the attributes returned.",
-      "Scan doesn't accept a key condition, and Status isn't a key of the table.",
-      "Limit caps the items read per page before the filter runs, so the job would just page more, or miss orders."],
-    why: "A filter expression is applied after the items are read, so a Scan uses the same capacity with or without it. Querying an index keyed on Status reads only the matching items.",
-    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html"] },
 
   { id: "dva-1-222", exam: "DVA", dva: "1.3", topic: "dynamodb", type: "mc",
     q: "A batch job must read every item in a 200 GB DynamoDB table and send each one to a validation service. Its single-threaded Scan loop takes 9 hours, but the job must finish within 2 hours. The table has plenty of unused read capacity. What should the developer do?",
