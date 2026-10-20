@@ -167,13 +167,13 @@ SD.bank.push(
   { id: "saa-1-212", exam: "SAA", saa: "1.2", topic: "detective", type: "multi", hint: "Select TWO.",
     q: "GuardDuty raises a finding that an EC2 instance is communicating with a known command-and-control server. The security team must find out whether malware is present on the instance's EBS volumes without installing agents, and must investigate which other hosts and IP addresses the instance talked to over the past weeks using visual summaries. Which actions meet these requirements? (Select TWO.)",
     items: [
-      { t: "Turn on GuardDuty Malware Protection for EC2, so that findings like this start an agentless scan of the attached EBS volumes.", ok: true },
+      { t: "Use GuardDuty Malware Protection for EC2 to run an on-demand scan of the instance's attached EBS volumes, with no agent.", ok: true },
       { t: "Use Amazon Detective to review the instance's VPC flow volume and related findings in its behavior graph.", ok: true },
       { t: "Use Amazon Inspector to scan the instance, because its vulnerability findings report any malware files on the disks.", ok: false, no: "Inspector reports software vulnerabilities and network exposure, not malware on disk." },
       { t: "Use Amazon Macie to scan the instance's EBS volumes for malicious files and the IP addresses they connected to.", ok: false, no: "Macie analyzes S3 objects for sensitive data. It doesn't read EBS volumes or network activity." },
       { t: "Use the AWS Config timeline for the instance to see every host and IP address it connected to over the past weeks.", ok: false, no: "Config records resource configuration changes, not network connections." }
     ],
-    why: "Malware Protection for EC2 scans snapshots of the instance's EBS volumes when GuardDuty finds signs of malware, without an agent. Detective builds a behavior graph from sources such as VPC flow logs and links activity to GuardDuty findings for investigation.",
+    why: "Malware Protection for EC2 scans snapshots of the instance's EBS volumes without an agent, on demand or automatically when GuardDuty finds signs of malware. Detective builds a behavior graph from sources such as VPC flow logs and links activity to GuardDuty findings for investigation.",
     doc: ["https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html", "https://docs.aws.amazon.com/detective/latest/userguide/what-is-detective.html"] },
 
   { id: "saa-1-213", exam: "SAA", saa: "1.2", topic: "inspector", type: "mc",
@@ -219,7 +219,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/network-firewall/latest/developerguide/what-is-aws-network-firewall.html", "https://docs.aws.amazon.com/network-firewall/latest/developerguide/tgw-firewall.html"] },
 
   { id: "saa-1-216", exam: "SAA", saa: "1.2", topic: "shield", type: "multi", hint: "Select TWO.",
-    q: "An online store serves traffic through CloudFront and an Application Load Balancer. During a past DDoS attack, the extra CloudFront requests and Auto Scaling instances produced a large bill. The company wants to be eligible to request credits for charges like these after any future attack. Which steps must be in place before an attack starts? (Select TWO.)",
+    q: "An online store serves traffic through CloudFront and an Application Load Balancer. During a past DDoS attack, the extra CloudFront requests and load balancer capacity units produced a large bill. The company wants to be eligible to request credits for charges like these after any future attack. Which steps must be in place before an attack starts? (Select TWO.)",
     items: [
       { t: "Subscribe to AWS Shield Advanced, and add Shield Advanced protection to the CloudFront distribution and the ALB.", ok: true },
       { t: "Associate an AWS WAF web ACL with a rate-based rule in Block mode with the distribution and the load balancer.", ok: true },
@@ -227,7 +227,7 @@ SD.bank.push(
       { t: "Add Shield Advanced protection to the resources as soon as the next attack is detected, then request credits.", ok: false, no: "Resources protected after an attack starts aren't eligible for cost protection for that attack." },
       { t: "Create an AWS Budgets alert on CloudFront and EC2 spending, so that AWS refunds charges above the budget.", ok: false, no: "Budgets alerts on spending. It doesn't make anyone eligible for credits." }
     ],
-    why: "Shield Advanced cost protection covers charges such as CloudFront requests and instances added by Auto Scaling during an attack, but only for resources protected before it began. For CloudFront and ALB, a web ACL with a rate-based rule in Block mode is also required.",
+    why: "Shield Advanced cost protection covers charges such as CloudFront requests and ALB load balancer capacity units during an attack, but only for resources protected before it began. For CloudFront and ALB, a web ACL with a rate-based rule in Block mode is also required.",
     doc: ["https://docs.aws.amazon.com/waf/latest/developerguide/ddos-request-service-credit.html", "https://docs.aws.amazon.com/waf/latest/developerguide/ddos-advanced-summary-protected-resources.html"] },
 
   { id: "saa-1-217", exam: "SAA", saa: "1.2", topic: "client-vpn", type: "mc",
@@ -271,17 +271,17 @@ SD.bank.push(
 
   // Task 1.3: Data security controls
   { id: "saa-1-220", exam: "SAA", saa: "1.3", topic: "macie", type: "mc",
-    q: "A company has 30 accounts in AWS Organizations and petabytes of data in thousands of S3 buckets, with new buckets created every week. The privacy team wants an always-current view of which buckets are likely to hold sensitive data, with a sensitivity score per bucket, without paying to analyze every object. Which solution is the MOST cost-effective?",
+    q: "A company has 30 accounts in AWS Organizations and petabytes of data in thousands of S3 buckets, with new buckets created every week. The privacy team wants one always-current view, across all accounts, of which buckets are likely to hold sensitive data, with a sensitivity score per bucket, without paying to analyze every object. Which solution is the MOST cost-effective?",
     opts: [
       "Use a delegated Macie administrator account for the organization, and turn on automated sensitive data discovery.",
       "Run a Macie sensitive data discovery job each month in every account that analyzes every object in all of its S3 buckets.",
-      "Turn on GuardDuty S3 Protection in every account, and use its findings to build a list of buckets that hold sensitive data.",
-      "Turn on S3 Storage Lens for the organization, and use its dashboards to see which buckets hold sensitive personal data."
+      "From the Macie administrator account, run a one-time job with a low sampling depth across all of the existing buckets.",
+      "Turn on Macie in each account as a standalone account, and turn on automated sensitive data discovery in each one."
     ], a: 0,
     no: [null,
       "Analyzing every object each month is far more expensive, and buckets created between runs go unchecked.",
-      "S3 Protection looks for suspicious access to buckets, not for sensitive data inside objects.",
-      "Storage Lens reports storage usage and activity metrics. It never looks inside objects."],
+      "A one-time job is a snapshot. Buckets and objects added later are never analyzed, so the view goes stale.",
+      "Each standalone account sees only its own buckets, so the privacy team wouldn't get one view across the organization."],
     why: "Automated sensitive data discovery continually evaluates the S3 inventory, samples representative objects, and keeps a sensitivity score for each bucket across the organization. Full discovery jobs are for deeper analysis where it's needed.",
     doc: ["https://docs.aws.amazon.com/macie/latest/user/discovery-asdd.html"] },
 
