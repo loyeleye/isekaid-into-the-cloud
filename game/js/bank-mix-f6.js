@@ -328,12 +328,12 @@ SD.bank.push(
     q: "A company wants to publish an open-source serverless application, defined in an AWS SAM template, to the AWS Serverless Application Repository so that any AWS customer can find it and deploy it into their own account. The developer has packaged the template and code into an S3 bucket that blocks all public access. Which steps are required before the application can be shared publicly? (Select TWO.)",
     items: [
       { t: "Add a bucket policy that lets the serverlessrepo.amazonaws.com service principal read the packaged artifacts in the bucket.", ok: true },
-      { t: "Give the application a license, a semantic version and a source code URL that points to a public repository.", ok: true },
+      { t: "Set a license and a semantic version on the application, because public sharing needs both of those properties.", ok: true },
       { t: "Turn off Block Public Access on the bucket, and make the packaged artifacts readable by everyone on the internet.", ok: false, no: "The service reads the artifacts through a bucket policy for its service principal. The objects don't need to be public." },
       { t: "List the application as a free product in AWS Marketplace, and link the Marketplace listing to the application.", ok: false, no: "Public sharing is a setting in the Serverless Application Repository itself. AWS Marketplace isn't involved." },
       { t: "Add a resource-based policy to each Lambda function in the template that allows lambda:InvokeFunction from any account.", ok: false, no: "Consumers deploy their own copies of the functions, so they never need to invoke the publisher's functions." }
     ],
-    why: "Publishing reads the packaged artifacts through a bucket policy that grants serverlessrepo.amazonaws.com read access. A private application needs no license, but an application can't be shared publicly until it has a license, a semantic version and a public source code URL.",
+    why: "Publishing reads the packaged artifacts through a bucket policy that grants serverlessrepo.amazonaws.com read access. A private application needs no license, but an application can't be shared publicly until it has both a license and a semantic version.",
     doc: ["https://docs.aws.amazon.com/serverlessrepo/latest/devguide/serverlessrepo-how-to-publish.html"] },
 
   { id: "dva-3-502", exam: "DVA", dva: "3.3", topic: "qdeveloper", type: "multi", hint: "Select TWO.",
