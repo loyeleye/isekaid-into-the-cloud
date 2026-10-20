@@ -7,7 +7,7 @@ SD.bank.push(
   { id: "saa-2-101", exam: "SAA", saa: "2.1", topic: "mq", type: "mc",
     q: "A company is moving an on-premises order system to AWS. Its services exchange messages through an Apache ActiveMQ broker, using JMS over the OpenWire and STOMP protocols. The company wants a managed broker that survives the loss of an Availability Zone, and it must not change the messaging code in the services. Which solution meets these requirements?",
     opts: [
-      "Create an Amazon MQ for ActiveMQ active/standby broker, and point the services at the broker's endpoints.",
+      "Create an Amazon MQ for ActiveMQ active/standby broker, and point the services at its endpoints.",
       "Create Amazon SQS queues for each destination, and replace the broker connections with SQS API calls.",
       "Create Amazon SNS topics for each destination, and subscribe each consuming service over HTTPS.",
       "Create an Amazon Kinesis data stream for each destination, and have the services read it with the KCL."
@@ -22,7 +22,7 @@ SD.bank.push(
   { id: "saa-2-102", exam: "SAA", saa: "2.1", topic: "autoscaling", type: "mc",
     q: "Worker EC2 instances in an Auto Scaling group poll an Amazon SQS queue and process image jobs. Each instance finishes about 20 jobs a minute, and every job must start within roughly 5 minutes of arriving. Scaling on CPU utilization reacts too late during bursts and adds too many instances while the queue drains. How should a solutions architect scale the group?",
     opts: [
-      "Use target tracking on backlog per instance, the visible messages divided by InService instances, with a target of 100.",
+      "Use target tracking on backlog per instance (visible messages / InService instances), with a target of 100.",
       "Use target tracking on the queue's ApproximateNumberOfMessagesVisible metric alone, with a target value of 100.",
       "Use a scheduled action that doubles the group's desired capacity on weekdays during the hours bursts usually occur.",
       "Move the workers to a larger instance type, and keep the CPU target tracking policy with a lower target value."
@@ -37,7 +37,7 @@ SD.bank.push(
   { id: "saa-2-103", exam: "SAA", saa: "2.1", topic: "eventbridge", type: "mc",
     q: "A company uses a SaaS help-desk application that is a supported Amazon EventBridge partner. Ticket-created, ticket-escalated and ticket-closed events must each start a different Lambda function, based on a field in the event. The company does not want to build or run any code that receives or polls for the events. Which solution meets these requirements?",
     opts: [
-      "Associate the partner event source with a partner event bus, and add rules whose event patterns route each type to its function.",
+      "Associate the partner event source with an event bus, and add rules whose patterns route each type to its function.",
       "Create an SNS topic, build a webhook receiver that publishes the events to it, and filter each subscription by event type.",
       "Run a scheduled Lambda function every minute that polls the help-desk API and invokes the right function for each event.",
       "Send the events to a Kinesis data stream, and have one consumer read every record and call the matching function itself."
@@ -52,7 +52,7 @@ SD.bank.push(
   { id: "saa-2-104", exam: "SAA", saa: "2.1", topic: "transfer", type: "mc",
     q: "Dozens of external partners upload nightly CSV files to a company's on-premises SFTP server, using their own SFTP clients and SSH keys. The company wants the files to land in Amazon S3 for processing, without asking partners to change their clients. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Create an AWS Transfer Family SFTP server that stores files in an S3 bucket, and add a user with each partner's SSH public key.",
+      "Create a Transfer Family SFTP server that stores files in an S3 bucket, and add each partner's SSH public key.",
       "Run OpenSSH on EC2 instances in an Auto Scaling group, and sync the upload directory to the S3 bucket every few minutes.",
       "Give each partner an IAM user with access keys, and ask them to upload their files with the AWS CLI s3 cp command.",
       "Deploy an AWS DataSync agent at each partner's site, and schedule tasks that copy the partners' files to the S3 bucket."
@@ -91,7 +91,7 @@ SD.bank.push(
   { id: "saa-2-107", exam: "SAA", saa: "2.1", topic: "eks", type: "mc",
     q: "A company runs dozens of microservices on a self-managed Kubernetes cluster in its data center and deploys them with Helm charts and kubectl. It wants to move to AWS without rewriting its manifests or changing its tools, and it no longer wants to run the Kubernetes control plane itself. Which solution meets these requirements?",
     opts: [
-      "Create an Amazon EKS cluster with managed node groups, and deploy the existing Helm charts to it with the same tools.",
+      "Create an Amazon EKS cluster with managed node groups, and deploy the existing Helm charts to it.",
       "Convert each Kubernetes manifest into an Amazon ECS task definition, and run the services on AWS Fargate.",
       "Install Kubernetes on EC2 instances with kubeadm, and run the control plane on three instances in different AZs.",
       "Deploy each microservice to its own AWS Elastic Beanstalk environment, and connect them with environment variables."
@@ -106,7 +106,7 @@ SD.bank.push(
   { id: "saa-2-108", exam: "SAA", saa: "2.1", topic: "elb", type: "mc",
     q: "A company is splitting a monolith into three containerized services on Amazon ECS that handle /orders, /users and /search. Clients must keep using a single HTTPS hostname, and each service must scale on its own. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Use one Application Load Balancer with a target group per service, and listener rules with path conditions for each one.",
+      "Use one Application Load Balancer with a target group per service, and a path-based listener rule for each.",
       "Use one Network Load Balancer with a listener per service on a different port, and give clients the port for each path.",
       "Run NGINX reverse proxies on EC2 instances in front of the services, and configure a location block for each path.",
       "Create one Application Load Balancer per service, and use Route 53 weighted records to split the hostname among them."
@@ -121,7 +121,7 @@ SD.bank.push(
   { id: "saa-2-109", exam: "SAA", saa: "2.1", topic: "stepfunctions", type: "mc",
     q: "An order pipeline is made of four Lambda functions, each of which invokes the next one directly. When a payment API fails briefly, orders are lost, and the team can't tell where a given order stopped. The company wants retries with backoff, a failure path that alerts staff, and a per-order history, with the least custom code. What should a solutions architect do?",
     opts: [
-      "Orchestrate the functions with a Step Functions state machine, using Retry with backoff and a Catch that goes to an alert state.",
+      "Orchestrate the functions with Step Functions, using Retry with backoff and a Catch that goes to an alert state.",
       "Add try/catch blocks and a sleep-based retry loop to each function, and record each order's progress in a DynamoDB table.",
       "Invoke each function asynchronously with two automatic retries, and log every step of every order to CloudWatch Logs.",
       "Put an SQS queue between each pair of functions, with a redrive policy that moves failed messages to a dead-letter queue."
@@ -175,7 +175,7 @@ SD.bank.push(
   { id: "saa-2-113", exam: "SAA", saa: "2.1", topic: "elasticache", type: "mc",
     q: "A product catalog page runs the same complex join query against an RDS for MySQL database thousands of times a minute. The query takes about 2 seconds, the results may be up to 5 minutes old, and the page must load in under 100 ms. Which solution meets these requirements?",
     opts: [
-      "Add an ElastiCache cluster, have the app cache query results with lazy loading, and set a 5-minute TTL on each key.",
+      "Add an ElastiCache cluster, cache the query results with lazy loading, and set a 5-minute TTL on each key.",
       "Create two RDS read replicas, and send the catalog query to them through a round-robin DNS record in Route 53.",
       "Convert the DB instance to a Multi-AZ DB instance deployment, so that the standby takes part of the read load.",
       "Put RDS Proxy in front of the database, so that connections are pooled and reused across the catalog requests."
@@ -205,7 +205,7 @@ SD.bank.push(
   { id: "saa-2-115", exam: "SAA", saa: "2.1", topic: "kinesis", type: "mc",
     q: "A mobile game sends clickstream events that three teams must each consume on their own: real-time fraud detection, a leaderboard and an analytics loader. Events for each player must be read in order, and a team must be able to reprocess the last day of events after fixing a bug. Which solution meets these requirements?",
     opts: [
-      "Use Kinesis Data Streams with the player ID as the partition key, and have each team read the stream as its own consumer.",
+      "Use Kinesis Data Streams with the player ID as the partition key, and give each team its own consumer.",
       "Use an SQS standard queue that all three teams poll, with each team deleting the events after it processes them.",
       "Use an SNS standard topic with one subscription for each team's HTTPS endpoint, so each gets events as they arrive.",
       "Use Amazon Data Firehose to deliver the events to an S3 bucket, and have each team read new files every few minutes."
@@ -257,7 +257,7 @@ SD.bank.push(
   { id: "saa-2-119", exam: "SAA", saa: "2.2", topic: "route53", type: "mc",
     q: "A small UDP service runs on six EC2 instances in one Region, each with its own Elastic IP address. The company does not want to pay for a load balancer, but DNS answers must include several instances and must leave out any instance that fails a health check. Which Route 53 configuration meets these requirements?",
     opts: [
-      "Create one multivalue answer record per instance, each holding the instance's IP address and linked to its own health check.",
+      "Create one multivalue answer record per instance, each with its IP address and its own health check.",
       "Create one simple record that lists all six IP addresses, and create a health check for each address in the record.",
       "Create one weighted record per instance with equal weights, and leave the records without any health checks.",
       "Create a CNAME record that points to the public DNS name of whichever instance currently has the most free capacity."
@@ -272,7 +272,7 @@ SD.bank.push(
   { id: "saa-2-120", exam: "SAA", saa: "2.2", topic: "dr", type: "mc",
     q: "A company runs 40 physical and virtual servers in its data center, a mix of Windows and Linux, with several commercial databases installed on them. It needs disaster recovery on AWS with data loss measured in seconds and recovery in minutes, and it doesn't want to pay for full-size servers on AWS until a disaster. Which solution meets these requirements MOST cost-effectively?",
     opts: [
-      "Use AWS Elastic Disaster Recovery to replicate the servers continuously into a staging area, and launch recovery instances when needed.",
+      "Use AWS Elastic Disaster Recovery to replicate the servers continuously, and launch recovery instances when needed.",
       "Copy nightly image backups of every server to an S3 bucket, and import them as EC2 AMIs when a disaster is declared.",
       "Run a full-size copy of every server on EC2 at all times, and keep the copies in sync with each database's replication.",
       "Use AWS Application Migration Service to copy the servers to AWS once, and repeat the copy at the end of each week."
@@ -332,7 +332,7 @@ SD.bank.push(
   { id: "saa-2-124", exam: "SAA", saa: "2.2", topic: "dynamodb", type: "mc",
     q: "A bad deployment wrote corrupt values into thousands of items in a DynamoDB table, and no one noticed for 3 hours. The company wants to be able to recover from mistakes like this to any second within the past few weeks, without scheduling or managing any backup jobs. What should a solutions architect do?",
     opts: [
-      "Turn on point-in-time recovery for the table, and restore to a new table from just before a bad change when needed.",
+      "Turn on point-in-time recovery for the table, and restore to a new table from just before a bad change.",
       "Make the table a global table, so that a replica in another Region keeps an untouched copy of every item.",
       "Create an on-demand backup each night from a scheduled Lambda function, and keep the backups for 30 days.",
       "Enable DynamoDB Streams on the table, and treat the stream records as the history for rebuilding items."
@@ -348,7 +348,7 @@ SD.bank.push(
     q: "A company must keep a copy of every new object in a critical S3 bucket in a second Region for disaster recovery. An auditor requires that almost all objects be copied within 15 minutes, with an AWS service level agreement and metrics that show how far behind replication is. Which steps should a solutions architect take? (Select TWO.)",
     items: [
       { t: "Turn on S3 Versioning for the source bucket and for a destination bucket in the second Region.", ok: true },
-      { t: "Add a replication rule to the destination bucket with S3 Replication Time Control turned on.", ok: true },
+      { t: "Add a replication rule on the source bucket that targets that bucket, with S3 Replication Time Control on.", ok: true },
       { t: "Add a Same-Region Replication rule that copies new objects to a second bucket in the source Region.", ok: false, no: "The copy stays in the same Region, so it doesn't survive a Regional outage." },
       { t: "Add an S3 Lifecycle rule that moves new objects to S3 Glacier Flexible Retrieval after 15 minutes.", ok: false, no: "Lifecycle rules change storage classes in the same bucket, and they work in days, not minutes." },
       { t: "Enable S3 Transfer Acceleration on the source bucket, so that the objects reach the other Region faster.", ok: false, no: "Transfer Acceleration speeds up client transfers through edge locations. It copies nothing." }
@@ -383,7 +383,7 @@ SD.bank.push(
   { id: "saa-2-128", exam: "SAA", saa: "2.2", topic: "autoscaling", type: "mc",
     q: "Instances in an Auto Scaling group write application logs to local disk and upload them to S3 once an hour. When the group scales in, the logs written since the last upload are lost. The company needs every instance to upload its remaining logs before it is terminated. What should a solutions architect do?",
     opts: [
-      "Add a lifecycle hook for instance termination, upload the logs while the instance waits, and then complete the lifecycle action.",
+      "Add a termination lifecycle hook, upload the logs while the instance waits, then complete the lifecycle action.",
       "Turn on scale-in protection for every instance in the group, so that no instance is terminated while it still has logs.",
       "Increase the group's default cooldown period, so that instances have more time to upload their logs before scale-in.",
       "Change the group's termination policy to OldestInstance, so that instances that uploaded more logs are removed first."

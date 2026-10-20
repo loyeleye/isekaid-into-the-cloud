@@ -12,7 +12,7 @@ SD.bank.push(
       "Create a custom deployment configuration with minimum healthy hosts set to FLEET_PERCENT 75, and use it for the deployment group.",
       "Use CodeDeployDefault.HalfAtATime, since it deploys to half of the instances at a time while the other half keep serving traffic.",
       "Use CodeDeployDefault.OneAtATime, since it never takes more than one instance out of service during a deployment.",
-      "Use CodeDeployDefault.AllAtOnce, and register the instances with the load balancer again after the deployment finishes."
+      "Use CodeDeployDefault.AllAtOnce, and register each of the instances with the load balancer again after the deployment finishes."
     ], a: 0,
     no: [null,
       "Half at a time takes 10 of the 20 instances out of service, leaving fewer than the 15 that must keep serving.",
@@ -40,7 +40,7 @@ SD.bank.push(
     q: "A team moves an existing app on EC2 instances to CodeDeploy. The first deployment fails with the error: The deployment failed because a specified file already exists at this location. The files on the instances were copied there by hand before CodeDeploy was used, and the new revision should replace them. What should the developer do?",
     opts: [
       "Create the deployment with the file exists behavior set to OVERWRITE, so files from the revision replace the ones already there.",
-      "Create the deployment with the file exists behavior set to RETAIN, so the files that are already on the instances are kept.",
+      "Create the deployment with the file exists behavior set to RETAIN, so the files that are already on the instances are kept in place.",
       "Add the existing files to the files section of the appspec.yml, so the CodeDeploy agent treats them as its own files.",
       "Reinstall the CodeDeploy agent on each instance, so that its cleanup file lists the files that are already there."
     ], a: 0,
@@ -54,8 +54,8 @@ SD.bank.push(
   { id: "dva-3-204", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
     q: "A revision's ApplicationStop script had a bug, and it was fixed in the next revision. Every new deployment to the EC2 instances still fails in the ApplicationStop event, with the same error from the old script. What should the developer do to get the fixed revision deployed?",
     opts: [
-      "Create the deployment with the option to ignore ApplicationStop failures, since that event runs the script from the last successful revision.",
-      "Move the fixed stop logic into the BeforeInstall hook, since ApplicationStop always runs the script from the newest revision.",
+      "Deploy with the option to ignore ApplicationStop failures, since that event runs the script from the last successful revision.",
+      "Move the fixed stop logic into the BeforeInstall hook, since the ApplicationStop event always runs the script from the newest revision.",
       "Roll back to an older revision first, and then deploy the fixed revision again with the same appspec.yml file.",
       "Raise the timeout on the ApplicationStop hook in the new appspec.yml, so the old script has longer to finish."
     ], a: 0,
@@ -97,7 +97,7 @@ SD.bank.push(
   { id: "dva-3-207", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
     q: "A CodeDeploy deployment of a Lambda function lists a BeforeAllowTraffic hook function in its AppSpec file. The hook function runs its tests, which pass, and returns normally. The deployment stays at BeforeAllowTraffic and fails after an hour. What should the developer do?",
     opts: [
-      "Have the hook call PutLifecycleEventHookExecutionStatus with the event's deployment ID and hook execution ID, and allow that action in its role.",
+      "Have the hook call PutLifecycleEventHookExecutionStatus with the deployment ID and hook execution ID from its event.",
       "Give the CodeDeploy service role permission to invoke the hook function, so that CodeDeploy can read the hook function's result.",
       "Move the tests to an AfterAllowTraffic hook, which completes as soon as the hook function returns without an error.",
       "Raise the hook function's timeout, so CodeDeploy has more time to collect the result before the one-hour limit."
@@ -106,7 +106,7 @@ SD.bank.push(
       "The tests ran, so CodeDeploy already invoked the function. A return value isn't how a hook reports back.",
       "Every Lambda hook, AfterAllowTraffic included, has to report its result the same way.",
       "The function already finished. CodeDeploy is waiting for a status call that never comes."],
-    why: "A Lambda hook function for a Lambda or ECS deployment must report Succeeded or Failed by calling PutLifecycleEventHookExecutionStatus. If CodeDeploy hears nothing within one hour, it fails the deployment.",
+    why: "A Lambda hook function for a Lambda or ECS deployment must report Succeeded or Failed by calling PutLifecycleEventHookExecutionStatus, which its execution role must allow. If CodeDeploy hears nothing within one hour, it fails the deployment.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html"] },
 
   { id: "dva-3-208", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
@@ -137,7 +137,7 @@ SD.bank.push(
       "Hooks under DeploymentPreference, with PreTraffic and PostTraffic test functions that report their results to CodeDeploy.",
       "The two test functions under DeploymentPreference Alarms, so CodeDeploy runs them before and after the traffic shift.",
       "A CodeBuild test action in the pipeline after sam deploy, which fails the pipeline when either of the tests fails.",
-      "An AWS::Lambda::EventInvokeConfig on the alias, with the test functions as its on-success and on-failure destinations."
+      "An AWS::Lambda::EventInvokeConfig resource on the alias, with the test functions as its on-success and on-failure destinations."
     ], a: 0,
     no: [null,
       "Alarms takes CloudWatch alarms, not functions. They roll back on a metric, they don't run tests.",
@@ -177,7 +177,7 @@ SD.bank.push(
   { id: "dva-3-213", exam: "DVA", dva: "3.4", topic: "lambda", type: "mc",
     q: "Twelve Lambda functions share a validation library through a Lambda layer. The developer fixes a bug in the library and publishes the layer again, which creates version 4. A day later, the functions still behave as if the bug were there. What should the developer do?",
     opts: [
-      "Update each function's configuration to use the layer's version 4 ARN, since each function stays on the version it was given.",
+      "Update each function to use the layer's version 4 ARN, since a function keeps the layer version it was given.",
       "Delete layer version 3, so that the functions fall back to the newest version of the layer the next time they start.",
       "Publish a new version of each function, so that Lambda picks up the latest version of each of its layers.",
       "Wait for the functions' execution environments to be recycled, after which they load the newest layer version."
@@ -321,7 +321,7 @@ SD.bank.push(
   { id: "dva-3-223", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc",
     q: "A pipeline in us-east-1, defined in a CloudFormation template, gets a new CloudFormation deploy action that must create a stack in eu-west-1. Updating the pipeline fails because the action's Region has no artifact store. What should the developer do?",
     opts: [
-      "Use ArtifactStores to list an S3 bucket in each Region, including one in eu-west-1 in the pipeline's account, and set Region on the action.",
+      "List an S3 bucket per Region in ArtifactStores, including one in eu-west-1 in the pipeline's account, and set Region on the action.",
       "Turn on S3 Cross-Region Replication from the us-east-1 artifact bucket to a bucket in eu-west-1, and name that bucket in the action.",
       "Create the eu-west-1 artifact bucket in the account that owns the target stack, and give the pipeline role access to it.",
       "Move the source action to eu-west-1 as well, so that all the artifacts that the deploy action needs start out in that Region."
@@ -377,7 +377,7 @@ SD.bank.push(
     opts: [
       "Automatic rollback on stage failure for the Deploy stage, which reruns it with the last successful execution's artifacts.",
       "Automatic retry on stage failure for the Deploy stage, which reruns the failed actions with the same artifacts.",
-      "Automatic rollback on the Source stage, so the pipeline returns to the previous commit and runs all of its stages again.",
+      "Automatic rollback on the Source stage, so the pipeline returns to the previous commit and then runs all of its stages again.",
       "A manual approval action at the start of the Deploy stage, so someone can stop a bad release before it starts."
     ], a: 0,
     no: [null,

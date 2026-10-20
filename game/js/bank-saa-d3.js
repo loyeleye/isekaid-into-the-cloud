@@ -40,7 +40,7 @@ SD.bank.push(
       { t: "Deploy a Tape Gateway, and point the backup software at its virtual tape library.", ok: true },
       { t: "Deploy an S3 File Gateway, and mount its NFS file share on the Linux servers.", ok: true },
       { t: "Deploy a Volume Gateway with stored volumes, and point the backup software at it.", ok: false, no: "Volume Gateway presents iSCSI block volumes, not a tape library, so the backup software's tape jobs would have to change." },
-      { t: "Deploy a Volume Gateway with cached volumes, and format them for the report share.", ok: false, no: "Cached volumes are block devices backed by snapshots, so the reports wouldn't appear in S3 as individual objects." },
+      { t: "Deploy a Volume Gateway with cached volumes, and format them for the report share.", ok: false, no: "Cached volumes keep data in S3 as iSCSI block volumes, so the reports wouldn't appear in S3 as individual objects." },
       { t: "Install an AWS DataSync agent, and point the backup software at it as a tape target.", ok: false, no: "DataSync copies files and objects between storage systems. It doesn't present a virtual tape library." }
     ],
     why: "Tape Gateway exposes a virtual tape library as iSCSI devices, so existing backup software keeps working while tapes are stored in AWS. S3 File Gateway serves NFS or SMB shares and stores each file as an S3 object.",
@@ -205,15 +205,15 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/neptune/latest/userguide/intro.html"] },
 
   { id: "saa-3-115", exam: "SAA", saa: "3.3", topic: "databases", type: "multi", hint: "Select TWO.",
-    q: "A company is moving two workloads to managed AWS databases. One is an application that uses Apache Cassandra through CQL drivers, which must move without code changes or cluster management. The other stores readings that thousands of sensors send every few seconds and is queried for trends over time windows, keeping recent data fast and older data cheap. Which choices meet these requirements? (Select TWO.)",
+    q: "A company is moving two workloads to managed AWS databases. One is an application that uses Apache Cassandra through CQL drivers, which must move without code changes or cluster management. The other stores readings that thousands of sensors send every few seconds and is queried for trends over time windows. Which choices meet these requirements? (Select TWO.)",
     items: [
       { t: "Move the Cassandra application to Amazon Keyspaces (for Apache Cassandra).", ok: true },
-      { t: "Store the sensor readings in Amazon Timestream and query them with time-series functions.", ok: true },
+      { t: "Store the sensor readings in Amazon Timestream, a managed, purpose-built time-series database.", ok: true },
       { t: "Move the Cassandra application to Amazon DocumentDB using the existing drivers.", ok: false, no: "DocumentDB is compatible with MongoDB, not Cassandra, so the CQL code would have to change." },
       { t: "Run Cassandra on storage-optimized EC2 instances spread across three Availability Zones.", ok: false, no: "This works, but the company would manage the cluster itself, which the requirement rules out." },
       { t: "Store the sensor readings in Amazon Neptune, with one vertex for each sensor reading.", ok: false, no: "Neptune is a graph database for relationships. It isn't built for time-window aggregation of readings." }
     ],
-    why: "Amazon Keyspaces is a managed, serverless Cassandra-compatible service that runs existing CQL code and drivers. Timestream is a purpose-built time-series database with time-series SQL functions and tiered storage for recent and historical data.",
+    why: "Amazon Keyspaces is a managed, serverless Cassandra-compatible service that runs existing CQL code and drivers. Amazon Timestream is a managed, purpose-built time-series database for storing and analyzing high volumes of timestamped data such as sensor readings.",
     doc: ["https://docs.aws.amazon.com/keyspaces/latest/devguide/what-is-keyspaces.html", "https://docs.aws.amazon.com/timestream/latest/developerguide/what-is-timestream.html"] },
 
   { id: "saa-3-116", exam: "SAA", saa: "3.3", topic: "rds", type: "mc",
@@ -298,7 +298,7 @@ SD.bank.push(
       { t: "Set up AWS Client VPN on the database servers, and send the replication traffic over it.", ok: false, no: "Client VPN connects individual users' devices, and it still runs over the internet." },
       { t: "Turn on S3 Transfer Acceleration, and stage the replication files in an S3 bucket first.", ok: false, no: "Transfer Acceleration speeds uploads to S3 over long distances. It isn't a private link into the VPC." }
     ],
-    why: "Direct Connect gives a dedicated private connection that bypasses the internet, for consistent performance. When both are present, the VPC prefers Direct Connect BGP routes over VPN routes, so the VPN carries traffic only if Direct Connect fails.",
+    why: "Direct Connect gives a dedicated private connection that bypasses the internet, for consistent performance. For the same prefix, the VPC prefers Direct Connect BGP routes over VPN routes, so the VPN carries traffic only if Direct Connect fails.",
     doc: ["https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html", "https://docs.aws.amazon.com/vpc/latest/userguide/route-tables-priority.html"] },
 
   { id: "saa-3-122", exam: "SAA", saa: "3.4", topic: "route53", type: "multi", hint: "Select TWO.",
@@ -321,7 +321,7 @@ SD.bank.push(
       { t: "Partition the data by date in Hive-style S3 prefixes, and register the partitions.", ok: true },
       { t: "Turn on S3 Transfer Acceleration for the bucket that Athena reads the log data from.", ok: false, no: "Transfer Acceleration speeds long-distance transfers into S3. It doesn't cut the data a query scans." },
       { t: "Move the log files to S3 Intelligent-Tiering, so frequently read data stays hot.", ok: false, no: "Storage classes change storage cost, not how much data each Athena query has to scan." },
-      { t: "Combine all of the CSV files into one very large file, so Athena opens fewer objects.", ok: false, no: "Athena would still read every byte of every row, and one huge CSV file limits parallel reading." }
+      { t: "Combine all of the CSV files into one very large file, so Athena opens fewer objects.", ok: false, no: "Athena would still read every byte of every row and column, so the data scanned doesn't shrink." }
     ],
     why: "Parquet is columnar and compressed, so Athena reads only the needed columns and can skip blocks. Date partitions let a query read only the matching prefixes. Both reduce data scanned, which improves speed and cost.",
     doc: ["https://docs.aws.amazon.com/athena/latest/ug/columnar-storage.html", "https://docs.aws.amazon.com/athena/latest/ug/partitions.html"] },
