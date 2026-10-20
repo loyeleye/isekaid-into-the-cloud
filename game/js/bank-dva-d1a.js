@@ -229,12 +229,12 @@ SD.bank.push(
     q: "A team is choosing between Standard and Express workflows for a new Step Functions state machine that handles customer orders. Which requirements mean the team must choose a Standard workflow? (Select TWO.)",
     items: [
       { t: "One step pauses for up to three days until a manager's app sends back a task token.", ok: true },
-      { t: "One step charges a customer's card and must never run twice for the same execution.", ok: true },
+      { t: "One step charges a customer's card and must run exactly once per execution, never skipped or repeated.", ok: true },
       { t: "Each execution must log the input and output of every state to CloudWatch Logs.", ok: false, no: "Both workflow types can send execution logs to CloudWatch Logs." },
       { t: "Executions are started by an EventBridge rule whenever a new order event arrives.", ok: false, no: "Both workflow types can be started by EventBridge and other event sources." },
       { t: "Each execution finishes within about 30 seconds and calls only DynamoDB and Lambda.", ok: false, no: "Short executions with these integrations fit either type." }
     ],
-    why: "Standard workflows run for up to a year with exactly-once execution and support the callback (.waitForTaskToken) pattern. Express workflows run for at most five minutes, use at-least-once or at-most-once execution, and don't support callbacks.",
+    why: "Standard workflows run for up to a year with exactly-once execution and support the callback (.waitForTaskToken) pattern. Express workflows run for at most five minutes, use at-least-once (asynchronous) or at-most-once (synchronous) execution, and don't support callbacks.",
     doc: ["https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html"] },
 
   { id: "dva-1-117", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "mc",
@@ -630,7 +630,7 @@ SD.bank.push(
 
   // AppSync
   { id: "dva-1-145", exam: "DVA", dva: "1.1", topic: "appsync", type: "multi", hint: "Select TWO.",
-    q: "A mobile screen needs data from a DynamoDB table and from an internal REST service in one request, fetching only the fields it shows. It must also update live when another user changes an item through the app. Which steps should the developer take? (Select TWO.)",
+    q: "A mobile screen needs data from a DynamoDB table and from a partner's public REST service in one request, fetching only the fields it shows. It must also update live when another user changes an item through the app. Which steps should the developer take? (Select TWO.)",
     items: [
       { t: "Create an AppSync GraphQL API with resolvers on a DynamoDB data source and an HTTP data source.", ok: true },
       { t: "Add a subscription to the schema with @aws_subscribe on the mutation that changes an item.", ok: true },
