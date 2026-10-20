@@ -24,7 +24,7 @@ SD.bank.push(
   { id: "dva-1-102", exam: "DVA", dva: "1.1", topic: "sqs", type: "mc",
     q: "Workers process video jobs from an SQS queue. Most jobs finish in under a minute, but a few take up to 40 minutes, and nobody can tell in advance which. The team doesn't want a crashed worker's job to stay hidden for 40 minutes before another worker retries it. What should the developer do?",
     opts: [
-      "Keep a short visibility timeout, and have the worker call ChangeMessageVisibility every few minutes while a job is still running.",
+      "Keep a short visibility timeout, and have the worker call ChangeMessageVisibility every few minutes while the job runs.",
       "Set the queue's visibility timeout to 12 hours, so that even the longest job is finished well before its message can reappear.",
       "Send each job with a 15-minute message timer, so that workers get extra time before the visibility timeout begins to count.",
       "Set the queue's visibility timeout to 0, so that every job is visible to all workers at once and the fastest worker wins it."
@@ -66,7 +66,7 @@ SD.bank.push(
   { id: "dva-1-105", exam: "DVA", dva: "1.1", topic: "sqs", type: "mc",
     q: "A bug in a consumer sent 3,000 messages from an SQS standard queue to its dead-letter queue. The bug is now fixed and deployed. The team wants those messages processed by the normal consumer, with the least custom code. What should the developer do?",
     opts: [
-      "Start a dead-letter queue redrive, with the console or StartMessageMoveTask, to move the messages back to the source queue.",
+      "Start a dead-letter queue redrive, in the console or with StartMessageMoveTask, back to the source queue.",
       "Point the consumer at the dead-letter queue as well, and have it read both queues until the dead-letter queue is empty.",
       "Write a script that receives each message from the dead-letter queue, sends it to the source queue, then deletes it.",
       "Remove the redrive policy from the source queue, so that the messages in the dead-letter queue return to it on their own."
@@ -101,7 +101,7 @@ SD.bank.push(
       { t: "Add a statement to the KMS key policy that allows sns.amazonaws.com to use kms:GenerateDataKey* and kms:Decrypt.", ok: true },
       { t: "Turn on raw message delivery for the subscription, so the messages are small enough for the encrypted queue.", ok: false, no: "Raw delivery only strips the SNS JSON envelope. It changes nothing about permissions." },
       { t: "Add sqs:ReceiveMessage on the queue to the role of the app that publishes to the topic, then publish again.", ok: false, no: "SNS delivers to the queue with its own service principal, so the publisher's permissions to read the queue don't matter." },
-      { t: "Change the queue to a FIFO queue, since only FIFO queues can be subscribed to an SNS topic with encryption.", ok: false, no: "Standard queues can subscribe to standard topics, encrypted or not. A FIFO queue needs a FIFO topic." }
+      { t: "Change the queue to a FIFO queue, since only FIFO queues can be subscribed to an SNS topic with encryption.", ok: false, no: "Standard queues can subscribe to standard topics whether or not the queue is encrypted. The missing piece is permission." }
     ],
     why: "SNS needs the queue's resource policy to allow it to send messages. When the queue is encrypted, SNS also needs the customer managed key's policy to allow GenerateDataKey and Decrypt.",
     doc: ["https://docs.aws.amazon.com/sns/latest/dg/subscribe-sqs-queue-to-sns-topic.html", "https://docs.aws.amazon.com/sns/latest/dg/sns-enable-encryption-for-topic-sqs-queue-subscriptions.html"] },
@@ -131,7 +131,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Standard queues don't keep the order or exactly-once delivery that the FIFO topic provides, and message groups aren't passed to them.",
-      "A standard topic doesn't guarantee order or rule out duplicates, and FIFO queues subscribe to FIFO topics.",
+      "A standard topic doesn't guarantee the order of delivery or rule out duplicates, so FIFO queues behind it can't restore them.",
       "Each message goes to only one consumer, so the three services would split the changes instead of each getting all of them."],
     why: "An SNS FIFO topic delivers each message once, in order within its message group, to every subscribed SQS FIFO queue, and different groups are delivered in parallel.",
     doc: ["https://docs.aws.amazon.com/sns/latest/dg/fifo-message-grouping.html", "https://docs.aws.amazon.com/sns/latest/dg/fifo-topic-message-ordering.html"] },
@@ -168,19 +168,19 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html"] },
 
   { id: "dva-1-112", exam: "both", dva: "1.1", saa: "2.1", topic: "eventbridge", type: "mc",
-    q: "A company handles support tickets in Zendesk. When a ticket is created, a Step Functions workflow in AWS must start. The company wants no polling and no webhook code, with the LEAST operational overhead. What should the developer do?",
+    q: "After each order, an order service calls a shipping service's API directly. Now a loyalty team and an analytics team also need every order, and more teams will follow. The order team doesn't want to change its code for each new consumer, and a slow consumer must not slow down orders. What should the developer do?",
     opts: [
-      "Set up the Zendesk partner event source, associate it with an event bus, and add a rule that starts the workflow.",
-      "Schedule a Lambda function every minute that calls the Zendesk API for new tickets and starts the workflow for each.",
-      "Build an API Gateway endpoint with a Lambda function that Zendesk calls as a webhook to start the workflow.",
-      "Subscribe the workflow to an SNS topic, and give Zendesk the topic's ARN so that it publishes each new ticket there."
+      "Have the order service send an OrderPlaced event to an EventBridge event bus, and let each team add its own rule and target.",
+      "Have the order service call each team's API on its own thread, so all of the calls run in parallel instead of one after another.",
+      "Have the order service send each order to one SQS queue, and let the shipping, loyalty and analytics services poll that queue.",
+      "Have the order service write each order to a DynamoDB table, and let each team scan the table for new orders every minute."
     ], a: 0,
     no: [null,
-      "Polling is what the company wants to avoid, and it adds code and a delay of up to a minute.",
-      "It works, but it is webhook code and infrastructure to run when a native integration exists.",
-      "Step Functions can't subscribe to SNS topics, and Zendesk would need AWS credentials to publish."],
-    why: "EventBridge receives events from SaaS partners such as Zendesk through a partner event source. Once it is associated with an event bus, rules route its events to targets such as Step Functions.",
-    doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-saas.html"] },
+      "The order service still changes for each new consumer, and it still waits on every call.",
+      "Each message goes to one consumer, so the services would split the orders instead of each getting all of them.",
+      "Scans are slow and costly, and each team must track which orders it has already handled."],
+    why: "Publishing events to a bus decouples the producer from its consumers. Each consumer adds a rule that matches the events it needs, and EventBridge delivers to the targets asynchronously, so the producer never changes.",
+    doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html", "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-putevents.html"] },
 
   { id: "dva-1-113", exam: "DVA", dva: "1.1", topic: "eventbridge", type: "mc",
     q: "A Lambda function targeted by an EventBridge rule had a bug for 6 hours. It ran without errors but wrote wrong results. The bug is fixed. The event bus has had an archive of all events since it was created. Other rules on the bus must not see the events again. What should the developer do?",
@@ -226,7 +226,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/step-functions/latest/dg/concepts-error-handling.html"] },
 
   { id: "dva-1-116", exam: "both", dva: "1.1", saa: "2.1", topic: "stepfunctions", type: "multi", hint: "Select TWO.",
-    q: "A team is choosing between Standard and Express workflows for a new Step Functions state machine. Which requirements mean the team must choose a Standard workflow? (Select TWO.)",
+    q: "A team is choosing between Standard and Express workflows for a new Step Functions state machine that handles customer orders. Which requirements mean the team must choose a Standard workflow? (Select TWO.)",
     items: [
       { t: "One step pauses for up to three days until a manager's app sends back a task token.", ok: true },
       { t: "One step charges a customer's card and must never run twice for the same execution.", ok: true },
@@ -308,7 +308,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/kinesis/latest/APIReference/API_UpdateShardCount.html", "https://docs.aws.amazon.com/streams/latest/dev/how-do-i-size-a-stream.html"] },
 
   { id: "dva-1-122", exam: "DVA", dva: "1.1", topic: "kinesis", type: "mc",
-    q: "A KCL consumer application reads a provisioned Kinesis data stream with 4 shards. To catch up on a backlog, the team scaled the application from 4 to 8 EC2 workers, but throughput didn't change. Four workers are idle, and the other four are at full CPU. What should the developer do?",
+    q: "A KCL consumer application reads a provisioned Kinesis data stream with 4 shards. Because the application keeps falling behind as traffic grows, the team scaled it from 4 to 8 EC2 workers, but throughput didn't change. Four workers are idle, and the other four are at full CPU. What should the developer do?",
     opts: [
       "Increase the stream's shard count to 8, so that each of the 8 workers can hold a lease on a shard.",
       "Add 8 more workers to the application, so that the busy workers can hand part of their load to them.",
@@ -371,7 +371,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "ProcessingFailed records are treated as failures and written to the processing-failed folder.",
-      "A failed invocation is retried and then the whole batch is skipped as failed, not just the pings.",
+      "A failed invocation fails the whole batch, not just the pings, and those records are counted as failures.",
       "A recordId that doesn't match the original is treated as a transformation failure."],
     why: "Each record the function returns needs the original recordId, a result and base64 data. Firehose treats Ok and Dropped as success and doesn't deliver Dropped records.",
     doc: ["https://docs.aws.amazon.com/firehose/latest/dev/data-transformation-status-model.html", "https://docs.aws.amazon.com/firehose/latest/dev/data-transformation-failure-handling.html"] },
@@ -518,12 +518,12 @@ SD.bank.push(
     opts: [
       "Use the SDK's TableExists waiter after CreateTable, which polls DescribeTable until the table is ACTIVE.",
       "Wrap PutItem in a loop that retries forever on any error, with no delay between the attempts.",
-      "Call ListTables after CreateTable, and start writing as soon as the new table's name is listed.",
+      "Call DescribeTable once after CreateTable, and start writing as soon as it returns the table's details.",
       "Add a ConditionExpression to each PutItem call, so that DynamoDB waits until the table can take writes."
     ], a: 0,
     no: [null,
       "Endless retries without delay waste calls and hide real errors.",
-      "A table is listed while it is still CREATING, and reads and writes need it to be ACTIVE.",
+      "DescribeTable returns at once with a status of CREATING, and reads and writes need the table to be ACTIVE.",
       "A condition expression tests the item's attributes. It doesn't wait for the table."],
     why: "CreateTable returns while the table is CREATING, and reads and writes only work once it is ACTIVE. SDK waiters poll a describe call until the resource reaches the state you need.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html", "https://docs.aws.amazon.com/boto3/latest/guide/clients.html"] },
@@ -636,7 +636,7 @@ SD.bank.push(
       { t: "Add a subscription to the schema with @aws_subscribe on the mutation that changes an item.", ok: true },
       { t: "Turn on DynamoDB Streams on the table, so that AppSync subscriptions fire on each direct write.", ok: false, no: "AppSync subscriptions are triggered by mutations through the API. Writes made straight to the table don't trigger them." },
       { t: "Create a REST API in API Gateway with caching, and have the app poll it every second.", ok: false, no: "Polling isn't a live update, and REST endpoints return fixed shapes rather than the fields asked for." },
-      { t: "Create an SNS topic for item changes, and subscribe each phone's app session to it.", ok: false, no: "SNS can't push to an app session this way, and it does nothing to combine the two data sources." }
+      { t: "Create a Lambda function that queries both sources, and have the app call it every few seconds.", ok: false, no: "Polling isn't a live update, and the function returns the same fields whatever the screen needs." }
     ],
     why: "AppSync resolves one GraphQL query across several data sources, returning only the requested fields. Subscriptions run over WebSockets and fire when a listed mutation runs.",
     doc: ["https://docs.aws.amazon.com/appsync/latest/devguide/aws-appsync-real-time-data.html", "https://docs.aws.amazon.com/appsync/latest/devguide/data-source-components.html"] }

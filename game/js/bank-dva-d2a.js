@@ -86,20 +86,20 @@ SD.bank.push(
     why: "GetSessionToken (or AssumeRole) accepts an MFA serial number and code and returns temporary credentials whose requests include MFA context. Long-term access keys alone never satisfy an MFA condition.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_configure-api-require.html"] },
 
-  { id: "dva-2-107", exam: "both", dva: "2.1", saa: "1.1", topic: "sts", type: "mc",
-    q: "A company signs up for a third-party SaaS cost tool that reads its billing data by assuming a role in the company's account. The vendor serves many customers from one AWS account. The company wants to make sure another customer of the vendor can't trick the tool into using the company's role. What should the company do?",
+  { id: "dva-2-107", exam: "DVA", dva: "2.1", topic: "sts", type: "mc",
+    q: "A developer at a SaaS vendor writes the code that assumes roles in customers' accounts. The vendor generates a unique external ID for each customer, and a new customer's role trust policy requires it with an sts:ExternalId condition. The code's AssumeRole call for that customer fails with AccessDenied. What should the developer change?",
     opts: [
-      "Require the vendor's unique external ID for this customer with an sts:ExternalId condition in the role's trust policy.",
-      "Create an IAM user for the vendor with read-only billing access, and send its access keys to the vendor over an encrypted channel.",
-      "Trust the vendor's whole AWS account in the role's trust policy, and set the role's maximum session duration to one hour.",
-      "Add an aws:SourceIp condition to the role's permissions policy that lists the addresses the vendor's support staff use."
+      "Pass the external ID stored for that customer in the AssumeRole call's ExternalId parameter.",
+      "Pass the external ID as a session tag named ExternalId in the AssumeRole call's Tags parameter.",
+      "Add an sts:ExternalId condition to the vendor's own role policy that allows sts:AssumeRole.",
+      "Pass the external ID as the RoleSessionName, so it shows up in the customer's CloudTrail logs."
     ], a: 0,
     no: [null,
-      "Long-term keys for a third party are harder to rotate and audit than a role, and they don't stop misuse inside the vendor's tool.",
-      "Every customer of the vendor would share that trust, which is exactly the confused deputy problem. A shorter session doesn't change who can assume the role.",
-      "The tool calls AWS from the vendor's servers, not staff addresses, and an IP check doesn't separate one customer's requests from another's."],
-    why: "An external ID in the trust policy ties the role to this one customer's configuration in the vendor's tool. It prevents the confused deputy problem when a vendor assumes roles for many customers.",
-    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html"] },
+      "Session tags become principal and request tags. The sts:ExternalId key is set only from the ExternalId parameter.",
+      "A condition in the vendor's own policy only limits the vendor's calls. The customer's trust policy checks the value sent in the request.",
+      "RoleSessionName only names the session. It doesn't set sts:ExternalId, so the trust policy condition still fails."],
+    why: "The customer's trust policy compares sts:ExternalId with the ExternalId parameter of the AssumeRole request. Sending each customer's own ID on every call is what prevents the confused deputy problem.",
+    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html", "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html"] },
 
   { id: "dva-2-108", exam: "DVA", dva: "2.1", topic: "sts", type: "mc",
     q: "A nightly script uses an IAM user's keys to call AssumeRole with DurationSeconds set to 14400, because its job takes about three hours. The call fails with a validation error saying the duration exceeds the maximum session duration set for the role. The role was created with default settings. What should the developer do?",
@@ -171,19 +171,19 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/permissions-function-cross-account.html", "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic-cross-account.html"] },
 
   { id: "dva-2-113", exam: "DVA", dva: "2.1", topic: "lambda", type: "mc",
-    q: "A developer adds an S3 event notification to a bucket with a CloudFormation template, pointing at an existing Lambda function in the same account. Triggers the developer set up in the Lambda console have always worked, but now uploads never invoke the function. The function's execution role has full S3 read access. What is missing?",
+    q: "A developer lets Amazon S3 invoke a Lambda function by running aws lambda add-permission with principal s3.amazonaws.com and --source-arn set to the bucket's ARN. A security review asks the developer to also pass --source-account with the bucket owner's account ID. Why?",
     opts: [
-      "A statement in the function's resource-based policy that lets s3.amazonaws.com invoke it, scoped to the bucket.",
-      "A statement in the function's execution role policy that allows s3:PutBucketNotificationConfiguration on the source bucket.",
-      "A bucket policy statement that allows the function's execution role to call s3:GetBucketNotification on the source bucket.",
-      "An SQS queue between the bucket and the function, because S3 can deliver event notifications only to queues and topics."
+      "A bucket ARN has no account ID, so if the bucket is deleted, another account could create one with the same name and invoke the function.",
+      "Without a source account, S3 can't deliver the bucket's events, because add-permission needs both values before it saves the statement.",
+      "The source account picks which account's role the function runs with, so the events are processed with the bucket owner's permissions.",
+      "The source account stops other AWS services, such as Amazon SNS, from invoking the function through the same resource-based policy."
     ], a: 0,
     no: [null,
-      "That permission is needed by whoever sets up the notification, not by the function, and the stack already created it.",
-      "Reading the notification setting doesn't let S3 call the function. S3 needs permission to invoke it.",
-      "S3 can send event notifications straight to a Lambda function. A queue isn't required."],
-    why: "S3 invokes the function asynchronously, so the function's resource-based policy must allow the S3 service principal. The Lambda console adds this for you; CloudFormation and the CLI need an explicit permission.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/grant-destinations-permissions-to-s3.html"] },
+      "add-permission accepts --source-arn on its own, and S3 can then invoke the function. The account check is extra protection.",
+      "A resource-based policy only says who may invoke the function. The function always runs with its own execution role.",
+      "The statement's principal is already s3.amazonaws.com, so it doesn't allow other services anyway."],
+    why: "S3 bucket ARNs don't include an account ID, and a deleted bucket's name can be reused by another account. aws:SourceAccount ties the permission to the bucket owner's account.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/permissions-function-services.html"] },
 
   { id: "dva-2-114", exam: "DVA", dva: "2.1", topic: "s3", type: "mc",
     q: "A Lambda function generates presigned GET URLs for reports, with an expiration of 12 hours. Customers say the links often stop working with 403 errors after only an hour or so. The URLs are not altered. What is the most likely cause?",
@@ -479,16 +479,19 @@ SD.bank.push(
     why: "Handing a role to an AWS service when you configure it needs iam:PassRole on that role. Scoping it to the role's ARN and iam:PassedToService keeps users from passing more powerful roles.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html"] },
 
-  { id: "dva-2-135", exam: "both", dva: "2.1", saa: "1.1", topic: "iam", type: "multi", hint: "Select TWO.",
-    q: "Developers need to create execution roles for their own Lambda functions without an administrator's help. The security team requires that no role they create can have more access than a policy named DevBoundary, and that developers can't get around this. Which steps meet these requirements? (Select TWO.)",
-    items: [
-      { t: "Allow developers iam:CreateRole and iam:PutRolePolicy only when the iam:PermissionsBoundary condition equals the DevBoundary ARN.", ok: true },
-      { t: "Deny developers changes to the DevBoundary policy and the removal of permissions boundaries from roles.", ok: true },
-      { t: "Set DevBoundary as the permissions boundary on the developers' own IAM roles, and grant them iam:CreateRole.", ok: false, no: "A boundary on the developer limits the developer only. Roles they create don't inherit it." },
-      { t: "Allow developers iam:CreateRole on all resources, and review new roles each week using IAM Access Analyzer.", ok: false, no: "A weekly review finds problems after the fact. It doesn't stop a developer from creating a powerful role." },
-      { t: "Allow developers iam:PassRole on all roles, so Lambda checks the DevBoundary policy when the role is passed.", ok: false, no: "Lambda doesn't check boundaries when a role is passed, and broad PassRole makes escalation easier." }
-    ],
-    why: "Requiring the iam:PermissionsBoundary condition on role creation forces every new role to carry the boundary. Denying edits to the boundary and its removal closes the way around it.",
+  { id: "dva-2-135", exam: "DVA", dva: "2.1", topic: "iam", type: "mc",
+    q: "Developers may create Lambda execution roles themselves. Their policy allows iam:CreateRole only when the iam:PermissionsBoundary condition equals the DevBoundary policy ARN. A developer runs aws iam create-role with a role name and a trust policy, and gets AccessDenied. What should the developer do?",
+    opts: [
+      "Rerun create-role with --permissions-boundary set to the DevBoundary policy ARN.",
+      "Create the role first, then call put-role-permissions-boundary with DevBoundary.",
+      "Add the DevBoundary policy ARN to the trust policy document passed to create-role.",
+      "Ask an admin to set DevBoundary as the boundary on the developer's own role, so new roles inherit it."
+    ], a: 0,
+    no: [null,
+      "The condition is checked on CreateRole itself, so the role can't be created without the boundary in that request.",
+      "A trust policy says who can assume the role. It can't set a permissions boundary.",
+      "A boundary on the developer limits the developer only. Roles they create don't inherit it."],
+    why: "The iam:PermissionsBoundary condition key checks the boundary named in the request. The create-role call must include --permissions-boundary with the required ARN, so every role a developer creates carries it.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html"] },
 
   { id: "dva-2-136", exam: "DVA", dva: "2.1", topic: "iam", type: "mc",
@@ -506,20 +509,20 @@ SD.bank.push(
     why: "aws:MultiFactorAuthPresent is absent from requests signed with long-term keys, and a Bool test on a missing key doesn't match, so the Deny is skipped. Deny with BoolIfExists false also covers requests where the key is missing.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html"] },
 
-  { id: "dva-2-137", exam: "both", dva: "2.1", saa: "1.1", topic: "iam", type: "mc",
-    q: "A company has dozens of project teams. Each team's developers must manage only their own team's EC2 instances and Secrets Manager secrets. New teams and resources appear every week, and the cloud team wants to stop editing policies each time. Which approach has the LEAST operational overhead?",
+  { id: "dva-2-137", exam: "DVA", dva: "2.1", topic: "iam", type: "mc",
+    q: "Developers manage Secrets Manager secrets under one ABAC policy that allows secretsmanager:* when aws:ResourceTag/team equals ${aws:PrincipalTag/team}. Payments developers can update their team's existing secrets, but their CreateSecret calls, which include a name and a value but no tags, fail with AccessDenied. What should the developers do?",
     opts: [
-      "Tag principals and resources with a team key, and use one policy whose condition requires aws:ResourceTag/team to match aws:PrincipalTag/team.",
-      "Write a policy per team that lists the ARNs of that team's instances and secrets, and update it whenever the team adds a resource.",
-      "Put each team in its own IAM group with a policy listing its resource ARNs, and add new developers to the matching group.",
-      "Create a permissions boundary per team that lists the team's resource ARNs, and attach it to each developer's role."
+      "Include a team tag set to payments in the CreateSecret request, so the new secret matches their own team tag.",
+      "Create the secret without tags, then call TagResource to add team=payments before storing a value in it.",
+      "Ask an administrator to tag the account's aws/secretsmanager KMS key with team=payments for the team.",
+      "Include a team tag set to shared in the CreateSecret request, so every team's developers can use the secret."
     ], a: 0,
     no: [null,
-      "This is what the cloud team does now: every new resource means a policy edit.",
-      "Groups help with people, but the policies still list resource ARNs and still need editing for every new resource.",
-      "Boundaries limit permissions but don't grant any, and listing ARNs per team still needs constant edits."],
-    why: "Attribute-based access control compares tags on the caller and the resource, so one policy covers new teams and resources as long as they are tagged.",
-    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction_attribute-based-access-control.html"] },
+      "The CreateSecret call is itself checked against the tag condition, so the untagged create is denied before any TagResource call.",
+      "Tags on the KMS key don't change how this policy evaluates the secret's own tags.",
+      "shared doesn't match the developers' own team tag, so the create is still denied."],
+    why: "Under this kind of ABAC policy, a create request is allowed only when it carries the required tags with values that match the caller's tags. Untagged creates are denied, which also keeps every new secret owned by a team.",
+    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_attribute-based-access-control.html"] },
 
   { id: "dva-2-138", exam: "DVA", dva: "2.1", topic: "sqs", type: "mc",
     q: "A developer subscribes an SQS queue to an SNS topic in the same account. Messages published to the topic never arrive in the queue. The subscription is confirmed, and the queue's access policy is the default one that allows only the account owner. What should the developer do?",
@@ -549,17 +552,17 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html", "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html"] },
 
   { id: "dva-2-140", exam: "both", dva: "2.1", saa: "1.1", topic: "s3", type: "mc",
-    q: "A shared artifacts bucket must allow s3:GetObject to principals in any of the company's AWS accounts. The company is in AWS Organizations and adds accounts often. The team doesn't want to edit the bucket policy whenever an account joins or leaves. What should the developer put in the bucket policy?",
+    q: "A shared artifacts bucket must allow s3:GetObject to principals in any account under the organization's Workloads OU, including its child OUs, but not to the organization's other accounts. Accounts join the OU often, and the team doesn't want to edit the bucket policy when they do. What should the developer put in the bucket policy?",
     opts: [
-      "An Allow statement for Principal * with a condition that aws:PrincipalOrgID equals the organization's ID.",
-      "An Allow statement that lists each member account's root ARN as a principal, generated by a nightly script.",
-      "An Allow statement for Principal * with a condition that aws:SourceIp is in the company's office range.",
-      "An Allow statement for Principal * with no condition, plus Block Public Access left on to stop outsiders."
+      "An Allow for Principal * with aws:PrincipalOrgPaths matching the Workloads OU's path plus a wildcard (ForAnyValue:StringLike).",
+      "An Allow for Principal * with a condition that aws:PrincipalOrgID equals the ID of the company's organization.",
+      "An Allow that lists each Workloads account's root ARN as a principal, kept current by a nightly script that reads the OU.",
+      "An Allow for Principal * with a condition that aws:PrincipalAccount equals the organization's management account ID."
     ], a: 0,
     no: [null,
-      "It works, but it means edits whenever an account joins or leaves, which the team wants to avoid.",
-      "Office IP addresses don't match calls from workloads in AWS accounts, and they say nothing about the caller's account.",
-      "Block Public Access would reject a policy that grants everyone, and without it the bucket would be public."],
-    why: "aws:PrincipalOrgID matches any principal from an account in the organization, so membership changes are picked up without editing the policy.",
+      "That allows every account in the organization, not just the Workloads OU.",
+      "It works, but the policy changes whenever an account joins or leaves the OU, which the team wants to avoid.",
+      "aws:PrincipalAccount is the caller's own account, so this allows only principals in the management account."],
+    why: "aws:PrincipalOrgPaths holds the AWS Organizations path of the caller's account. Matching the OU's path with a wildcard covers the OU and its child OUs, and new member accounts need no policy edits.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html"] }
 );

@@ -22,7 +22,7 @@ SD.bank.push(
   { id: "dva-4-102", exam: "DVA", dva: "4.1", topic: "lambda", type: "mc",
     q: "A Lambda function with the default 3-second timeout calls a partner's HTTPS API. The function's Errors metric spikes each afternoon. Its logs show Task timed out after 3.00 seconds for the failed runs, the REPORT lines show low memory use, and Throttles is zero. X-Ray traces show the partner call sometimes takes 5 seconds. What should the developer do?",
     opts: [
-      "Raise the function's timeout above the partner call's slowest latency, and set the HTTP client's timeout below it.",
+      "Raise the timeout above the partner call's slowest latency, and set the HTTP client's timeout below the function's.",
       "Raise the function's reserved concurrency, so that the afternoon traffic no longer waits for a free execution environment.",
       "Raise the function's memory setting, so that the runtime has more room to hold the partner's responses during the call.",
       "Turn on automatic retries in the HTTP client, so that each slow partner call is attempted again before the invocation ends."
@@ -94,7 +94,7 @@ SD.bank.push(
   { id: "dva-4-107", exam: "DVA", dva: "4.1", topic: "xray", type: "mc",
     q: "An order API is traced with AWS X-Ray. During a sale, the X-Ray service map shows the API Gateway and Lambda nodes mostly green, while the node for the DynamoDB table the function writes to is outlined mostly in purple. Which conclusion and next step are correct?",
     opts: [
-      "DynamoDB is throttling the function's writes with 429 errors, so add table capacity and make sure the SDK retries with backoff.",
+      "DynamoDB is throttling the function's write requests, so add table capacity and make sure the SDK retries with backoff.",
       "DynamoDB is returning 500-series server faults, so open an AWS Support case and wait for the service to recover before retrying.",
       "The function is sending malformed requests that get 400-series client errors, so fix the item shape that the code writes.",
       "Lambda is throttling the function's invocations, so raise the function's reserved concurrency before the next sale begins."
@@ -164,18 +164,18 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_cannot_pull_image.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html"] },
 
   { id: "dva-4-112", exam: "DVA", dva: "4.1", topic: "s3", type: "mc",
-    q: "A Lambda function reads reports from an S3 bucket. Last week the bucket's default encryption changed from SSE-S3 to SSE-KMS with a customer managed key, whose key policy lets IAM policies in the account grant access. The function still reads older reports, but GetObject on new reports fails with AccessDenied. What should the developer do?",
+    q: "A Lambda function saves small daily reports to an S3 bucket with single PutObject calls, and its role allows s3:PutObject on the bucket. Last week the bucket's default encryption changed from SSE-S3 to SSE-KMS with a customer managed key, whose key policy lets IAM policies in the account grant access. Since then every PutObject call fails with AccessDenied. What should the developer do?",
     opts: [
-      "Add kms:Decrypt on the customer managed key to the policy on the function's execution role, in the same account.",
       "Add kms:GenerateDataKey on the customer managed key to the policy on the function's execution role, in the same account.",
+      "Add kms:Decrypt on the customer managed key to the policy on the function's execution role, in the same account.",
       "Turn on S3 Bucket Keys for the bucket, so S3 uses a bucket-level key and calls AWS KMS less often for each object.",
-      "Add a bucket policy statement that grants s3:GetObject on the bucket's objects to the function's execution role."
+      "Add a bucket policy statement that grants s3:PutObject on the bucket's objects to the function's execution role."
     ], a: 0,
     no: [null,
-      "GenerateDataKey is needed to write SSE-KMS objects. Reading them needs kms:Decrypt.",
+      "Decrypt is needed to read SSE-KMS objects or to do a multipart upload. A single PutObject needs kms:GenerateDataKey.",
       "Bucket Keys cut KMS request costs. They don't grant the role use of the key.",
-      "S3 access already works, as the older reports show. The missing permission is on the KMS key."],
-    why: "Reading an SSE-KMS object needs kms:Decrypt on its key as well as s3:GetObject. Older SSE-S3 objects need no KMS permission, which is why only new reports fail.",
+      "The role's s3:PutObject worked before the change. The missing permission is on the KMS key."],
+    why: "To write an object with SSE-KMS, S3 asks KMS for a data key on the caller's behalf, so the caller needs kms:GenerateDataKey on the key as well as s3:PutObject. Reading it back later needs kms:Decrypt.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html"] },
 
   { id: "dva-4-113", exam: "DVA", dva: "4.1", topic: "apigateway", type: "multi", hint: "Select TWO.",
