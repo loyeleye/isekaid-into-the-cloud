@@ -38,7 +38,7 @@ SD.bank.push(
       "Turn on point-in-time recovery for the table, and restore it to a new table at the chosen timestamp when a bad write or a drop happens.",
       "Rely on the three copies that Amazon Keyspaces keeps across Availability Zones, and read the healthy copy when a bad write or a drop happens.",
       "Add the table to a multi-Region keyspace, so that a second Region always holds a copy of the data to recover from when a bad write happens.",
-      "Run the cqlsh COPY TO command each night to export the table to files in Amazon S3, and load the newest export back with COPY FROM."
+      "Run the cqlsh COPY TO command each night to export the table to CSV files, upload them to Amazon S3, and load the newest back with COPY FROM."
     ], a: 0,
     no: [null,
       "The copies in each Availability Zone receive every write and every drop too, so none of them holds the data from before the mistake.",
@@ -93,7 +93,7 @@ SD.bank.push(
   { id: "saa-3-533", exam: "SAA", saa: "3.4", topic: "appflow", type: "mc",
     q: "A company copies customer records from Salesforce into Amazon S3 with an Amazon AppFlow flow every hour. A new security rule says the record data must move over AWS infrastructure and must never cross the public internet. The company's Salesforce account is enabled for AWS PrivateLink access. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Edit the Salesforce connection in Amazon AppFlow to turn on AWS PrivateLink, so the flow runs as a private flow over a VPC endpoint.",
+      "Create a Salesforce connection in Amazon AppFlow with AWS PrivateLink enabled, and switch the flow to it so the flow runs as a private flow.",
       "Add a gateway VPC endpoint for Amazon S3 to the company's VPC, and update the bucket policy to accept writes only through that endpoint.",
       "Replace the flow with a Lambda function in private subnets that calls the Salesforce API through a NAT gateway and writes to Amazon S3.",
       "Set up an AWS Site-to-Site VPN connection to Salesforce's network, and route the AppFlow flow's traffic through the VPN tunnel."
