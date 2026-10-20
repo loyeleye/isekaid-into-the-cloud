@@ -119,7 +119,7 @@ SD.bank.push(
     why: "A rotation function must reach both the database and a Secrets Manager endpoint. In a VPC without internet access, an interface endpoint with private DNS gives that path without NAT.",
     doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/troubleshoot_rotation.html", "https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html"] },
 
-  { id: "dva-2-309", exam: "both", dva: "2.3", saa: "1.2", topic: "macie", type: "mc",
+  { id: "dva-2-309", exam: "DVA", dva: "2.3", topic: "macie", type: "mc",
     q: "A company has about 900 S3 buckets and must keep an up-to-date view of which buckets are likely to hold personal data, such as names and passport numbers, so it can label them by data classification. It wants a managed service and the MOST cost-effective approach, without analyzing every object. Which solution meets these requirements?",
     opts: [
       "Turn on Macie automated sensitive data discovery, which samples representative objects in each bucket.",
@@ -218,17 +218,20 @@ SD.bank.push(
     why: "When an app client has write permission for an attribute, users can change it themselves with UpdateUserAttributes. An attribute used for authorization should be removed from every app client's WriteAttributes and set only through admin APIs.",
     doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html"] },
 
-  { id: "dva-2-316", exam: "DVA", dva: "2.1", topic: "waf", type: "multi", hint: "Select TWO.",
-    q: "A public Regional REST API in API Gateway receives SQL injection attempts in query strings, and a few IP addresses flood it with requests. The team wants to block SQL injection patterns and limit how many requests each IP address can send, without changing the backend code. Which steps meet these requirements? (Select TWO.)",
-    items: [
-      { t: "Create an AWS WAF web ACL for Regional resources in the API's Region, with the SQL database managed rule group and a rate-based rule.", ok: true },
-      { t: "Associate the web ACL with the API's stage, in the stage's settings or with the AWS WAF AssociateWebACL API.", ok: true },
-      { t: "Create a web ACL with the CloudFront (global) scope, and associate it directly with the REST API's stage.", ok: false, no: "An API Gateway stage needs a Regional web ACL in the same Region. CloudFront-scope web ACLs are for distributions." },
-      { t: "Add a usage plan with throttling limits, and require an API key on every method so each client gets its own rate.", ok: false, no: "Usage plans throttle by API key, not by IP address, and they don't inspect requests for SQL injection." },
-      { t: "Add a request validator with a JSON schema model to each method, so that malformed requests are rejected.", ok: false, no: "Validators check required parameters and body shape. They don't detect SQL injection in query strings." }
-    ],
-    why: "AWS WAF protects a REST API at the stage, using a Regional web ACL in the API's Region. A managed rule group blocks common SQL injection patterns, and a rate-based rule limits requests from each IP address.",
-    doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-aws-waf.html", "https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html"] },
+  { id: "dva-2-316", exam: "DVA", dva: "2.1", topic: "waf", type: "mc",
+    q: "A public Regional REST API in API Gateway already has an AWS WAF web ACL associated with its stage, with a rate-based rule that limits each IP address. Logs now show SQL injection attempts in query strings reaching the backend, from clients that stay under the rate limit. The team wants these requests blocked without changing the backend code. What should the developer do?",
+    opts: [
+      "Add the AWS managed SQL database rule group to the web ACL that is already associated with the stage.",
+      "Add a request validator with a JSON schema model to each method, so that malformed requests are rejected.",
+      "Lower the rate-based rule's limit, so that clients sending injection attempts are blocked sooner.",
+      "Turn on API caching for the stage, so that repeated injection attempts are answered from the cache."
+    ], a: 0,
+    no: [null,
+      "Validators check required parameters and body shape. They don't detect SQL injection in query strings.",
+      "Rate-based rules only count requests per IP address. They don't inspect content, and these clients stay under any sensible limit.",
+      "Caching returns stored responses to repeated requests. It doesn't inspect or block malicious query strings."],
+    why: "The AWS managed SQL database rule group (AWSManagedRulesSQLiRuleSet) blocks request patterns associated with SQL injection, including in query parameters. Added to the web ACL on the stage, it inspects every request before API Gateway handles it, while the rate-based rule keeps limiting floods.",
+    doc: ["https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-aws-waf.html"] },
 
   { id: "dva-2-317", exam: "DVA", dva: "2.1", topic: "verifiedpermissions", type: "mc",
     q: "A web app keeps its authorization rules as Cedar policies in an Amazon Verified Permissions policy store, and users sign in with a Cognito user pool. Today the backend decodes each ID token itself, builds the principal and its groups, and calls IsAuthorized. The team wants Verified Permissions to validate the token and derive the principal, with less code. What should the developer do?",
@@ -267,7 +270,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Multi-Region Access Point requests must be signed with SigV4A; a single-Region SigV4 scope isn't accepted.",
-      "S3 no longer accepts SigV2 signing, and Multi-Region Access Point requests must use SigV4A.",
+      "SigV2 is deprecated for Amazon S3, and Multi-Region Access Point requests must be signed with SigV4A.",
       "Acceleration speeds transfers to one bucket. It doesn't change how access point requests are signed."],
     why: "Requests to a Multi-Region Access Point must be signed with SigV4A, which uses asymmetric keys and doesn't put a single Region in the credential scope. AWS SDKs that support SigV4A switch to it automatically.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPointRequests.html", "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html"] },
@@ -288,12 +291,12 @@ SD.bank.push(
     q: "Employees must sign in to an internal web app with the company's SAML 2.0 identity provider. The app's API uses a Cognito user pool authorizer, and the backend needs each user's department, which the IdP sends as a SAML attribute, as a claim in the user pool tokens. Which steps meet these requirements? (Select TWO.)",
     items: [
       { t: "Add the SAML provider to the user pool as an identity provider from its metadata, and enable it for the app client.", ok: true },
-      { t: "Add a custom:department attribute to the user pool, and map the SAML department attribute to it for that provider.", ok: true },
+      { t: "Add a mutable custom:department attribute, and map the SAML department attribute to it for that provider.", ok: true },
       { t: "Create a SAML identity provider in IAM, and have the app call AssumeRoleWithSAML with each user's assertion.", ok: false, no: "That returns temporary AWS credentials, not user pool tokens that the API's Cognito authorizer accepts." },
       { t: "Add the SAML provider to a Cognito identity pool, and send the identity pool's AWS credentials to the API.", ok: false, no: "Identity pools issue AWS credentials, not user pool JWTs, so the user pool authorizer rejects them." },
       { t: "Use a pre sign-up Lambda trigger to call the IdP's SAML endpoint and copy the department into each token.", ok: false, no: "Pre sign-up decides whether a user may sign up. Attribute mapping is how IdP attributes reach the profile and tokens." }
     ],
-    why: "A user pool can federate with a SAML IdP and issue its own tokens to federated users. Attribute mapping copies IdP attributes into user pool attributes, and a custom attribute must exist in the schema before you map to it.",
+    why: "A user pool can federate with a SAML IdP and issue its own tokens to federated users. Attribute mapping copies IdP attributes into user pool attributes, and a custom attribute must exist in the schema, and be mutable, before you map to it.",
     doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-saml-idp.html", "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-specifying-attribute-mapping.html"] },
 
   { id: "dva-2-322", exam: "both", dva: "2.1", saa: "1.1", topic: "iam", type: "mc",
@@ -356,7 +359,7 @@ SD.bank.push(
     why: "The ALB makes TLS connections to HTTPS targets with the certificates installed on them but doesn't validate those certificates, so self-signed certificates are enough to encrypt this leg.",
     doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html"] },
 
-  { id: "dva-2-326", exam: "both", dva: "2.2", saa: "1.3", topic: "rds", type: "multi", hint: "Select TWO.",
+  { id: "dva-2-326", exam: "DVA", dva: "2.2", topic: "rds", type: "multi", hint: "Select TWO.",
     q: "An app connects to an RDS for PostgreSQL DB instance that currently accepts unencrypted connections. A security rule says the database must refuse any connection that isn't encrypted, and clients must confirm that they are talking to the real database server and not an impostor. Which steps meet these requirements? (Select TWO.)",
     items: [
       { t: "Set rds.force_ssl to 1 in a custom DB parameter group that is associated with the DB instance.", ok: true },
@@ -383,17 +386,20 @@ SD.bank.push(
     why: "The AWS Database Encryption SDK encrypts chosen attributes client-side and signs the item to detect tampering. Primary key attributes are signed but not encrypted, so they stay queryable.",
     doc: ["https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/concepts.html", "https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/what-is-database-encryption-sdk.html"] },
 
-  { id: "dva-2-328", exam: "DVA", dva: "2.2", topic: "secrets", type: "multi", hint: "Select TWO.",
-    q: "A secret in account A holds an API key and is encrypted with the default aws/secretsmanager key. An app in account B must read it. The app's role in account B already has an identity policy that allows GetSecretValue on the secret and kms:Decrypt on account A's keys. Which additional steps are required? (Select TWO.)",
-    items: [
-      { t: "Encrypt the secret with a customer managed key in account A whose key policy lets the role in account B call kms:Decrypt.", ok: true },
-      { t: "Attach a resource policy to the secret that allows the role in account B to call secretsmanager:GetSecretValue.", ok: true },
-      { t: "Edit the key policy of aws/secretsmanager in account A to allow the role in account B to use the key.", ok: false, no: "You can't change the key policy of an AWS managed key, so it can't be used across accounts." },
-      { t: "Replicate the secret into account B with ReplicateSecretToRegions, and have the app read the replica.", ok: false, no: "Replication copies a secret to other Regions in the same account, not to other accounts." },
-      { t: "Create an interface VPC endpoint for Secrets Manager in account B, so its calls can reach the secret in account A.", ok: false, no: "The problem is permissions, not the network path, and an endpoint doesn't grant cross-account access." }
-    ],
-    why: "Cross-account access to a secret needs a resource policy on the secret plus an identity policy in the other account. The secret must use a customer managed key whose key policy allows that account, because AWS managed keys can't be shared.",
-    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_examples_cross.html"] },
+  { id: "dva-2-328", exam: "DVA", dva: "2.2", topic: "secrets", type: "mc",
+    q: "A secret in account A is encrypted with a customer managed key. The secret's resource policy and the key policy both allow an app role in account B, and the role's identity policy allows GetSecretValue on the secret's ARN and kms:Decrypt on the key. The app, in the same Region, calls GetSecretValue with SecretId set to the secret's name, prod/partner-api, and gets ResourceNotFoundException. What should the developer do?",
+    opts: [
+      "Pass the secret's full ARN as SecretId, because a secret in another account must be named by its ARN.",
+      "Add secretsmanager:DescribeSecret to the role's identity policy, so the app can look the secret up by name.",
+      "Replicate the secret with ReplicateSecretToRegions, and have the app read the replica by the same name.",
+      "Re-encrypt the secret with the aws/secretsmanager key, so that account B doesn't need a key policy grant."
+    ], a: 0,
+    no: [null,
+      "GetSecretValue alone is enough to read the value, and a missing permission returns AccessDeniedException, not ResourceNotFoundException.",
+      "Replicas are created in other Regions of the same account, so account B still has no secret with that name.",
+      "AWS managed keys can't be used for cross-account access, so the read would then fail at decryption."],
+    why: "GetSecretValue accepts a secret's name or ARN, but to read a secret from another account you must use its ARN, and AWS recommends the complete ARN. The policies here are already right, so only the SecretId needs to change.",
+    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html", "https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_examples_cross.html"] },
 
   { id: "dva-2-329", exam: "DVA", dva: "2.1", topic: "verifiedpermissions", type: "mc",
     q: "A document app uses Amazon Verified Permissions to decide what each user can do. Its list page shows up to 25 documents, and the app calls IsAuthorized once per document to hide the ones the user can't view, which makes the page slow. The team wants fewer round trips while keeping the same Cedar policies. What should the developer do?",
