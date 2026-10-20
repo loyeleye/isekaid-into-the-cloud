@@ -36,7 +36,7 @@ SD.bank.push(
     items: [
       { t: "Store the data on an io2 Block Express volume provisioned with 150,000 IOPS.", ok: true },
       { t: "Run the database on a Nitro-based instance type whose EBS limits exceed that IOPS rate.", ok: true },
-      { t: "Store the data on a gp3 volume, and provision its maximum IOPS and throughput.", ok: false, no: "gp3's maximum IOPS per volume is well below 150,000, and it isn't built for sub-millisecond latency." },
+      { t: "Store the data on a gp3 volume, and provision its maximum IOPS and throughput.", ok: false, no: "gp3's maximum IOPS per volume is below 150,000, and it isn't designed for consistent sub-millisecond latency." },
       { t: "Store the data on NVMe instance store volumes that are striped together with RAID 0.", ok: false, no: "Instance store data is lost when the instance stops, which the requirement rules out." },
       { t: "Store the data on several st1 volumes that are striped together with RAID 0.", ok: false, no: "st1 is HDD storage tuned for large sequential throughput, not high random IOPS at low latency." }
     ],
@@ -105,12 +105,12 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/batch/latest/userguide/array_jobs.html"] },
 
   { id: "saa-3-208", exam: "SAA", saa: "3.2", topic: "batch", type: "multi", hint: "Select TWO.",
-    q: "A company is moving two batch workloads to AWS Batch. The first is thousands of short jobs that each need 2 vCPUs and 4 GiB of memory and should start quickly, and the team doesn't want to pick instance types. The second is nightly model-training jobs that each need an NVIDIA GPU. Which choices meet these requirements? (Select TWO.)",
+    q: "A company is moving two batch workloads to AWS Batch. The first is hundreds of short jobs a day that each need 2 vCPUs and 4 GiB of memory and should start quickly, and the team doesn't want to pick instance types. The second is nightly model-training jobs that each need an NVIDIA GPU. Which choices meet these requirements? (Select TWO.)",
     items: [
       { t: "Run the short jobs in a Fargate compute environment, with vCPU and memory set in the job definition.", ok: true },
       { t: "Run the training jobs in a managed EC2 compute environment that allows GPU instance types.", ok: true },
       { t: "Run the training jobs in a Fargate compute environment, and request a GPU in the job definition.", ok: false, no: "AWS Batch recommends EC2 for jobs that need a GPU. Fargate compute environments don't provide GPUs." },
-      { t: "Run the short jobs as one multi-node parallel job so they share a single group of instances.", ok: false, no: "Multi-node parallel jobs run one job across several instances. They don't suit thousands of small, independent jobs." },
+      { t: "Run the short jobs as one multi-node parallel job so they share a single group of instances.", ok: false, no: "Multi-node parallel jobs run one job across several instances. They don't suit many small, independent jobs." },
       { t: "Run the short jobs in an unmanaged EC2 compute environment that the team scales on its own.", ok: false, no: "An unmanaged environment means choosing and scaling instances yourself, the opposite of what the team wants." }
     ],
     why: "With Fargate, Batch sizes compute to each job's requested vCPU and memory and starts jobs faster than launching new EC2 instances. AWS recommends EC2 compute environments when jobs need a GPU, more than 32 vCPUs or a custom AMI.",
@@ -183,7 +183,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Unlimited mode charges for surplus credits. At a sustained high average, that costs more than a fixed-performance instance.",
-      "Every T3 size has a baseline well below a sustained 80 percent, so the larger instance would also run out of credits.",
+      "It doubles the cost only to run the load near the larger size's baseline, which costs more than a fixed-performance instance.",
       "More frequent metrics show the problem sooner but give the instance no more CPU."],
     why: "Burstable instances suit workloads that usually run below their baseline. When average CPU stays above the breakeven point, a fixed-performance instance (such as M or C) delivers steady CPU for less than a burstable instance in unlimited mode.",
     doc: ["https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/burstable-performance-instances-unlimited-mode-concepts.html"] },
@@ -213,7 +213,7 @@ SD.bank.push(
       { t: "Store the database password in an encrypted environment variable on each function.", ok: false, no: "The security team forbids passwords in environment variables, encrypted or not." },
       { t: "Add Aurora Replicas, and send the functions' writes to the cluster's reader endpoint.", ok: false, no: "Replicas serve reads only. Writes must go to the writer, and replicas don't pool connections." }
     ],
-    why: "RDS Proxy pools and reuses database connections and queues or throttles client connections it can't serve, so surges don't overwhelm the database. Clients can authenticate to the proxy with IAM, and the proxy uses credentials from Secrets Manager.",
+    why: "RDS Proxy pools and reuses database connections and queues or throttles client connections it can't serve, so surges don't overwhelm the database. Clients can authenticate to the proxy with IAM, and the proxy can connect with credentials stored in Secrets Manager.",
     doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/rds-proxy.html"] },
 
   { id: "saa-3-216", exam: "SAA", saa: "3.3", topic: "memorydb", type: "mc",
@@ -279,7 +279,7 @@ SD.bank.push(
     items: [
       { t: "Create a standard accelerator in AWS Global Accelerator, and give partners its two static IPs.", ok: true },
       { t: "Add an endpoint group per Region with that Region's ALB as the endpoint, using health checks.", ok: true },
-      { t: "Create a CloudFront distribution with both ALBs as origins in an origin group with failover.", ok: false, no: "CloudFront's edge IP addresses are many and change, so partners can't allow-list a short fixed set." },
+      { t: "Create a CloudFront distribution with both ALBs as origins in an origin group with failover.", ok: false, no: "CloudFront origin failover applies only to GET, HEAD and OPTIONS requests, so the API's POST calls wouldn't fail over." },
       { t: "Create Route 53 failover records that point at each ALB, with health checks on both of them.", ok: false, no: "Failover depends on clients picking up new DNS answers, and ALB IP addresses change, so they can't be allow-listed." },
       { t: "Put a Network Load Balancer with Elastic IPs in each Region, and give partners those addresses.", ok: false, no: "Partners would still need DNS or their own logic to switch Regions, and they'd need to allow-list more addresses." }
     ],
@@ -307,7 +307,7 @@ SD.bank.push(
       { t: "Create an egress-only internet gateway and attach it to the VPC.", ok: true },
       { t: "Add a ::/0 route to the egress-only gateway in the private route tables.", ok: true },
       { t: "Add a ::/0 route to the internet gateway in the private route tables.", ok: false, no: "An internet gateway route lets internet hosts start IPv6 connections to the instances, which isn't allowed." },
-      { t: "Add a ::/0 route to the existing NAT gateway in the private route tables.", ok: false, no: "A NAT gateway provides outbound internet access for IPv4. Outbound-only IPv6 uses an egress-only internet gateway." },
+      { t: "Add a ::/0 route to the existing NAT gateway in the private route tables.", ok: false, no: "A NAT gateway sends traffic out over IPv4 (NAT64 included), so it can't reach IPv6 sites. Outbound-only IPv6 uses an egress-only internet gateway." },
       { t: "Add security group rules that deny all inbound IPv6 traffic from the internet.", ok: false, no: "Security groups have only allow rules, and they don't give the instances a route out." }
     ],
     why: "IPv6 addresses are globally unique, so they are public by default. An egress-only internet gateway allows outbound IPv6 traffic and blocks connections started from the internet; private subnets route ::/0 to it.",
@@ -360,12 +360,12 @@ SD.bank.push(
     q: "Business analysts want interactive BI dashboards over sales data in an S3 data lake that is queried through Athena. Hundreds of managers open the dashboards each morning, and every visual sends a new Athena query, so pages load slowly and per-query charges keep growing. The data changes once a night. The company wants a managed BI service. Which solution meets these requirements?",
     opts: [
       "Build the dashboards in Amazon Quick Sight, import the datasets into SPICE, and refresh them nightly.",
-      "Build the dashboards in Amazon Quick Sight with direct query to Athena, and cache Athena results.",
+      "Build the dashboards in Amazon Quick Sight with direct query to Athena over the S3 data lake.",
       "Build the dashboards in Amazon Managed Grafana with the Athena data source on each dashboard.",
       "Load the sales data into Amazon OpenSearch Service, and build the dashboards in OpenSearch Dashboards."
     ], a: 0,
     no: [null,
-      "Direct query still sends queries to Athena as users open visuals, so the page loads and query charges remain.",
+      "Direct query sends a new Athena query each time a visual loads, so the slow pages and per-query charges remain.",
       "Grafana is built for operational metrics, and each panel would still query Athena on every load.",
       "This adds a separate cluster to load and run, built for search and log analytics rather than BI on the lake."],
     why: "Quick Sight (formerly QuickSight, now part of Amazon Quick) can import data into SPICE, its in-memory engine. Visuals then load from SPICE without querying the source, and a per-query source like Athena is charged only when the dataset is created or refreshed.",
