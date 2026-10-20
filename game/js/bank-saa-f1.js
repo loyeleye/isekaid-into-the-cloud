@@ -97,7 +97,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Data copied between Regions is charged for transfer out of the source Region, and both copies are stored for a while.",
-      "Acceleration adds a per-GB charge for faster long-distance transfers, which the two-week window doesn't need.",
+      "Acceleration adds a per-GB charge whenever it speeds up a long-distance upload, and the two-week window doesn't need the speed.",
       "Every query then reads data across Regions and pays inter-Region transfer charges, again and again."],
     why: "Data transferred in from the internet to AWS isn't charged, whichever Region it lands in. Uploading straight to the Region where the data is used avoids inter-Region transfer charges and paying to store a second copy.",
     doc: ["https://docs.aws.amazon.com/cur/latest/userguide/cur-data-transfers-charges.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html"] },
