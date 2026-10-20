@@ -22,7 +22,7 @@ SD.bank.push(
   { id: "saa-2-202", exam: "SAA", saa: "2.2", topic: "xray", type: "mc",
     q: "An order flow runs from API Gateway to a Lambda function that sends each order to an Amazon SQS queue, and a second Lambda function processes the queue. When an order is slow, engineers search two sets of logs by hand and can't see how long orders wait in the queue. They want one connected view of each request, including the time spent in the queue, without writing log-parsing code. Which solution meets these requirements?",
     opts: [
-      "Turn on X-Ray tracing for the stage and both functions, and view the linked traces in the trace map.",
+      "Turn on X-Ray tracing for the stage and both functions, instrument the producer's SQS client, and view the trace map.",
       "Add the order ID to every log line, and write CloudWatch Logs Insights queries that join both functions' log groups.",
       "Turn on CloudTrail data events for the queue, and match each SendMessage event to the second function's invocations.",
       "Graph the queue's ApproximateAgeOfOldestMessage metric on a dashboard next to each function's Duration metric."
@@ -31,20 +31,8 @@ SD.bank.push(
       "That is the hand-written log work the engineers want to avoid, and it still gives no timed, connected view of each hop.",
       "CloudTrail records API calls for auditing; it doesn't link them into a per-request trace or show how long a message waited.",
       "These metrics are aggregates over all messages, so they can't show the path or timing of one particular order."],
-    why: "SQS carries the X-Ray trace header with each message, and X-Ray automatically links traces from the message producer to traces from the Lambda consumer. The trace map shows the SQS-to-consumer edge with a histogram of how old events were when consumers received them.",
+    why: "With tracing on and the producer's SDK client instrumented, SQS carries the X-Ray trace header with each message, and X-Ray automatically links traces from the message producer to traces from the Lambda consumer. The trace map shows the SQS-to-consumer edge with a histogram of how old events were when consumers received them.",
     doc: ["https://docs.aws.amazon.com/xray/latest/devguide/xray-tracelinking.html", "https://docs.aws.amazon.com/xray/latest/devguide/xray-services-sqs.html"] },
-
-  { id: "saa-2-203", exam: "SAA", saa: "2.2", topic: "xray", type: "multi", hint: "Select TWO.",
-    q: "A company runs Java microservices on Amazon EC2 instances and already runs the CloudWatch agent on every instance for metrics and logs. It now needs distributed traces in AWS X-Ray to find which service slows requests down. It wants to avoid instrumentation libraries that are in maintenance mode, and to keep the number of agents it manages low. Which steps meet these requirements? (Select TWO.)",
-    items: [
-      { t: "Instrument the services with the AWS Distro for OpenTelemetry Java agent, so they emit OpenTelemetry traces.", ok: true },
-      { t: "Add a traces section to the existing CloudWatch agent configuration, so it collects the traces and sends them to X-Ray.", ok: true },
-      { t: "Install the X-Ray daemon on each instance, and instrument the services with the AWS X-Ray SDK for Java.", ok: false, no: "The X-Ray SDKs and daemon are in maintenance mode, and the daemon is one more agent to run on every instance." },
-      { t: "Turn on a CloudTrail trail for the account, and query each service's request times with CloudTrail Lake.", ok: false, no: "CloudTrail records AWS API activity, not requests that pass between the company's own services." },
-      { t: "Turn on EC2 detailed monitoring, and compare 1-minute CPU and network metrics to find the slowest service.", ok: false, no: "Instance metrics show load, not where a single request spends its time as it moves across services." }
-    ],
-    why: "AWS recommends OpenTelemetry for X-Ray instrumentation now that the X-Ray SDKs and daemon are in maintenance mode. Current versions of the CloudWatch agent can collect OpenTelemetry traces and send them to X-Ray, so no separate collector is needed.",
-    doc: ["https://docs.aws.amazon.com/xray/latest/devguide/xray-instrumenting-your-app.html", "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html"] },
 
   // Task 2.1 / 2.2: API Gateway in resilient designs
   { id: "saa-2-204", exam: "SAA", saa: "2.1", topic: "apigateway", type: "mc",
