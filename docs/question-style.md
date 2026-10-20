@@ -22,7 +22,7 @@ A multiple choice question is any object with `opts: [...]` and a numeric `a:` (
 
 ## Multiple response questions
 
-The exam also asks for two or three right answers out of five or more options. Use `type: 'multi'` for these, say how many to pick in the stem ("Choose two."), and apply rules 1 to 9 to every option: each right one about as long as the wrong ones, and each wrong one real.
+The exam also has multiple response questions: two or more right answers out of five or more options (DVA-C02 exam guide, "Response types"). Use `type: 'multi'` for these, say how many to pick in the stem ("Choose two."), and apply rules 1 to 9 to every option: each right one about as long as the wrong ones, and each wrong one real.
 
 ## Typed estimates
 
