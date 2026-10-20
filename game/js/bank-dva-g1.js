@@ -124,7 +124,7 @@ SD.bank.push(
   { id: "dva-1-309", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "mc",
     q: "A Task state in a JSONPath state machine charges a card. Its Catch field sends States.ALL to a NotifyFailure state. NotifyFailure needs the orderId and customerEmail from the Task's input, but its input contains only the Error and Cause fields, so the notification fails. What should the developer change?",
     opts: [
-      "Set ResultPath to \"$.error\" in the catcher, so the error is added to the original input instead of replacing it.",
+      "Set ResultPath to \"$.error\" in the catcher, so that the error output is added to the original input instead of replacing it.",
       "Set InputPath on the NotifyFailure state to \"$.orderId\", so that it selects the order ID from the original input.",
       "Add a ResultSelector to the Task state that keeps orderId and customerEmail in the state's output when it fails.",
       "Set OutputPath on the Task state to \"$\", so that the full state input is passed on to the catcher's Next state."
@@ -154,12 +154,12 @@ SD.bank.push(
     opts: [
       "Add States.Timeout to the catcher's ErrorEquals, as States.TaskFailed doesn't match timeouts.",
       "Add a Retry field for States.TaskFailed with MaxAttempts 3, so the timed-out task is retried first.",
-      "Add HeartbeatSeconds of 600 to the Task state, so that a crashed worker is detected after 10 minutes.",
+      "Add ResultPath \"$.error\" to the catcher, so that the timeout's error output is kept with the input.",
       "Replace the callback task with a Lambda function task that runs the worker's job in the same state."
     ], a: 0,
     no: [null,
       "A retrier for States.TaskFailed doesn't match a timeout either, and retrying won't revive a crashed worker.",
-      "A missed heartbeat also ends in a timeout error, which the States.TaskFailed catcher still doesn't match.",
+      "ResultPath decides what the catcher passes to AlertOps. It doesn't change which errors the catcher matches.",
       "That rewrites the design around a short-lived function. The problem is only which errors the catcher matches."
     ],
     why: "A Task that runs longer than TimeoutSeconds fails with States.Timeout. States.TaskFailed matches any known error except States.Timeout, so the catcher must list States.Timeout (or States.ALL, last) to handle it.",
@@ -168,7 +168,7 @@ SD.bank.push(
   { id: "dva-1-312", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "mc",
     q: "A Standard workflow must run a container on ECS Fargate that exports a large dataset, and move to the next state only after the container's task has stopped. Today a Lambda function starts the task, and a loop of Wait, a second Lambda function that calls DescribeTasks, and Choice states polls it. The container's code cannot be changed. How can the developer remove the polling loop with the least code?",
     opts: [
-      "Use a Task state with the resource arn:aws:states:::ecs:runTask.sync, which waits for the ECS task to finish.",
+      "Use a Task state with the resource arn:aws:states:::ecs:runTask.sync, which starts the ECS task and waits for it to stop.",
       "Use a Task state with the resource arn:aws:states:::ecs:runTask, which returns after the ECS task completes.",
       "Use a Task state with arn:aws:states:::ecs:runTask.waitForTaskToken, and pass the token to the container.",
       "Move the export to an Express workflow that calls arn:aws:states:::ecs:runTask.sync and waits for it to finish."
@@ -247,7 +247,7 @@ SD.bank.push(
       "The events are valid JSON; the filter would not fix the parsing, which still needs the data decoded first."
     ],
     why: "In the Kinesis event that Lambda passes to a function, each record's data field is base64-encoded. The function must decode it before parsing the payload.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html"] },
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html", "https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis-example.html"] },
 
   { id: "dva-1-318", exam: "DVA", dva: "1.1", topic: "kinesis", type: "mc",
     q: "A custom consumer reads one shard of a Kinesis data stream with GetRecords, always passing the NextShardIterator from the previous call. Some batches take about 8 minutes to process, and the next GetRecords call after such a batch fails with ExpiredIteratorException. The consumer must continue right after the last record it processed, with no gaps and no rereading. What should the developer do?",
@@ -271,7 +271,7 @@ SD.bank.push(
       { t: "On a cache miss, read the item from the database, store it in the cache, and return it, as lazy loading does.", ok: true },
       { t: "Set a time to live on each item that the write path and the read path put in the cache, such as 300 seconds.", ok: true },
       { t: "Switch the cluster to the Memcached engine, which copies all of its data to a new node when a node is replaced.", ok: false, no: "Memcached doesn't replicate data, so a replaced node starts empty there too." },
-      { t: "Make the write path delete the item from the cache instead of setting it, so the cache holds only read items.", ok: false, no: "With reads still served only from the cache, every deleted item would then read as not found." },
+      { t: "Write each item to the cache before writing it to the database, so that the cache is always populated first.", ok: false, no: "The order of the writes doesn't matter. A replaced node still starts empty, and every write still adds an item." },
       { t: "Scale the cluster up to a larger node type, so that the rarely read items are less likely to be evicted.", ok: false, no: "More memory keeps more unread data around. It neither refills a new node nor removes the waste." }
     ],
     why: "Write-through alone leaves data missing on a new node and fills the cache with items that are never read. Adding lazy loading for misses and a TTL on every write combines the strengths of both strategies.",
@@ -280,7 +280,7 @@ SD.bank.push(
   { id: "dva-1-320", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
     q: "A Lambda function runs in private subnets so it can reach an internal service, and it must also write to a DynamoDB table in the same Region. The subnets have no route to the internet, and the security team won't allow one. Calls to DynamoDB time out. Which solution is MOST cost-effective?",
     opts: [
-      "Create a gateway VPC endpoint for DynamoDB, and associate it with the route tables of the function's subnets.",
+      "Create a gateway VPC endpoint for DynamoDB, and associate it with the route tables used by the function's private subnets.",
       "Create an interface VPC endpoint for DynamoDB, and configure the SDK client to use the endpoint's DNS name.",
       "Add a NAT gateway in a public subnet, and route the private subnets' internet traffic through the NAT gateway.",
       "Move the function to public subnets whose route tables send 0.0.0.0/0 to the VPC's internet gateway."
@@ -340,7 +340,7 @@ SD.bank.push(
   { id: "dva-1-324", exam: "DVA", dva: "1.3", topic: "dynamodb", type: "mc",
     q: "An app calls Query on a customer's orders with Limit set to 50 and a FilterExpression that keeps only orders with status SHIPPED. Some calls return far fewer than 50 orders, some return none, yet the customer has hundreds of shipped orders. Every response includes a LastEvaluatedKey. What should the developer do to show all of the matching orders?",
     opts: [
-      "Keep calling Query with ExclusiveStartKey set to each LastEvaluatedKey until a response has none.",
+      "Keep calling Query with ExclusiveStartKey set to each LastEvaluatedKey until a response no longer includes one.",
       "Remove the Limit parameter, so that one Query call returns every matching order in its response.",
       "Switch from Query to a Scan with the same FilterExpression, which applies the filter before the limit.",
       "Set ConsistentRead to true on the Query, so that the filter sees every item that has been written."
