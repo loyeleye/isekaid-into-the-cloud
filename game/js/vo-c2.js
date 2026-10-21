@@ -31,7 +31,7 @@
   // The dialogue box: remember each call's lines in order, and voice each one as it starts typing.
   const hook = () => {
     const U = SD.ui, el = document.getElementById('dlg-text');
-    if (!U || !U.dialog || !el || U.dialog.vo2) return;
+    if (!U || !U.dialog || !el || U.dialog.vo2 || typeof MutationObserver !== 'function') return;
     let queue = [], prev = '';
     const dialog = U.dialog;
     U.dialog = function (lines) {
@@ -49,5 +49,6 @@
       prev = cur;
     }).observe(el, { childList: true, characterData: true, subtree: true });
   };
+  if (typeof document === 'undefined') return;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook, { once: true }); else hook();
 })();

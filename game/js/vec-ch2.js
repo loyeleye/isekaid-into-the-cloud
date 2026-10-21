@@ -405,6 +405,7 @@
   css.textContent = `
 /* A toast slides under an open window rather than over its title (phone pass, 2026-10-21). */
 body.c2-on:has(#panel:not([hidden])) #notes { z-index: 19; }
+body.c2-on:has(#screen-world:not([hidden])) #notes { top: var(--c2-hud, 12px) !important; }
 /* 44px to tap at phone size: the HUD buttons, the skip links (bigger hit area, same look), the floors' small buttons. */
 body.c2-on #w-hud button { min-height: 44px; min-width: 44px; }
 body.c2-on #dlg-skip { padding: 14px 12px; margin: -14px -12px; }

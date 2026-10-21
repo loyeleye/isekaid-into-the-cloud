@@ -152,6 +152,7 @@ const server = http.createServer((req, res) => {
       return 'wait';
     }, [WIN, LEAD]);
     last.push(what); if (last.length > 16) last.shift();
+    if (process.env.V && steps % 100 === 0) console.log(steps, last.slice(-5).join(' '));
     seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
     if (/^story:|^node:|^play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.

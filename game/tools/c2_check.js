@@ -133,7 +133,8 @@ function step([LEAD, MODE]) {
     if (ph === 'fight') {
       const tier = G.tier, k = 'fight-' + tier + '-' + G.fl;
       if (once(k)) return 'scene:raid-' + k;
-      if (!T.hosting()) return 'fight-wait';
+      // A guest ends each turn as a player would (Ready), so the leader's turns move on.
+      if (!T.hosting()) { const rb = r2.querySelector('#rd-ready:not([disabled])'), mine = G.players[me]; if (rb && mine && !mine.ready && once('rdy' + G.k + ':' + (G.turn | 0))) return click(rb) && 'fight-ready'; return 'fight-wait'; }
       // A boss goes to half Severity first, so its Exam Twist is asked.
       if (tier === 'boss' && once('half' + G.fl)) { const f = G.foes[0]; f.sev = Math.floor(f.max / 2); T.act(me, { k: 'ready' }); T.act(me, { k: 'ready' }); window.__twist = (window.__twist || 0); return 'boss-half'; }
       // ...and waits for the twist (it's asked at the end of the turn), up to a few seconds, before winning.

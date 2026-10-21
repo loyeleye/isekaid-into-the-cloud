@@ -803,6 +803,8 @@
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
+    // Toasts (js/ui.js) sit just below this HUD, however it wraps on a phone.
+    requestAnimationFrame(() => { const r = el.getBoundingClientRect(); if (r.height) document.documentElement.style.setProperty('--c2-hud', Math.round(r.bottom + 8) + 'px'); });
     const lb = $('#w-lens'); if (lb) lb.onclick = toggleLens;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
