@@ -4,6 +4,7 @@
 // .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening).
 // Run from game/:  node tools/vector_check.js [mira|kai|seoyeon|dutch] [--win]   SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
+const ch1Step = require('./ch1_step');
 const http = require('http'), fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -27,6 +28,8 @@ const server = http.createServer((req, res) => {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
+  // Chapter 1 plays as tools/ch1_check.js plays it (tools/ch1_step.js); SD_TEST opens the mines' test hook.
+  await page.addInitScript(`window.SD_TEST = 1; window.__ch1step = ${ch1Step.toString()};`);
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
@@ -35,7 +38,7 @@ const server = http.createServer((req, res) => {
 
   const seen = new Set(), last = [], shotsTaken = new Set();
   let steps = 0;
-  for (; steps < 6000; steps++) {
+  for (; steps < 30000; steps++) {
     const what = await page.evaluate(([WIN, LEAD]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
@@ -61,6 +64,7 @@ const server = http.createServer((req, res) => {
         if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:vn-' + k; }
         box.click(); return 'vn-line';
       }
+      if (!window.__c2) return window.__ch1step([WIN, LEAD]);
       if (!$('#dialog').hidden) {
         // The first line of each cutscene backdrop is left to finish typing for its screenshot.
         const st = $('#stage'), sc = !st.hidden && st.dataset.scene;
@@ -151,8 +155,8 @@ const server = http.createServer((req, res) => {
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
-  if (steps >= 6000) errors.push('the demo never finished; last actions: ' + last.join(' '));
-  const need = ['intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
+  if (steps >= 30000) errors.push('the demo never finished; last actions: ' + last.join(' '));
+  const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
   const missing = need.filter(k => !sv.flags || !sv.flags[k]);
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
   const scenes = ['wrongchair', 'notshopping', 'stew', 'salt', 'getup', 'suspect'].filter(k => !sv.flags || !sv.flags['s_' + k]);

@@ -728,6 +728,8 @@
     await say(T.edge);
     endCard();
   }
+  SD.chapterStart = SD.chapterStart || {};
+  SD.chapterStart[1] = () => W1.newGame();
   function endCard() {
     if ($('#stage').hidden) U.stage('edge');
     // The card stands in front of an empty edge; whoever spoke last steps off.
@@ -738,6 +740,14 @@
       <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'DEMO COMPLETE', noClose: true });
     b.querySelector('#c1-again').onclick = () => { U.closePanel(); U.stage(null); S.save.c1 = null; S.persist(); W1.newGame(); };
     b.querySelector('#c1-title').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
+    // The next chapter, once one has registered its start (SD.chapterStart, shared by every chapter).
+    const next = SD.chapterStart && SD.chapterStart[2];
+    if (next && !b.querySelector('#v2-go')) {
+      const go = document.createElement('button'); go.className = 'primary'; go.id = 'c1-next'; go.type = 'button'; go.textContent = 'Continue to Chapter 2';
+      const row = b.querySelector('.row'); row.insertBefore(go, row.firstChild);
+      const again = b.querySelector('#c1-again'); again.classList.remove('primary'); again.classList.add('ghost');
+      go.onclick = () => { U.closePanel(); U.stage(null); next(); };
+    }
     if (W1.onEndCard) W1.onEndCard(b);
   }
 
