@@ -733,12 +733,10 @@
   }
   function climb() {
     if (!flag('offer')) return say([['narr', 'Stone steps up into the dark, and the hum of something processing. Not yet: the post box first.']]).then(() => sc.place('you', 92, 21));
-    return new Promise(res => {
-      const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p><p class="muted small">Expedition I: two raid floors and two floor bosses. You can come back down any time you lose.</p>
-        <div class="row"><button class="primary" id="c2-up">Climb</button><button class="ghost" id="c2-not">Not yet</button></div>`, { title: 'THE SORTING FLOORS', noClose: true });
-      b.querySelector('#c2-not').onclick = () => { U.closePanel(); sc.place('you', 92, 21); res(); };
-      b.querySelector('#c2-up').onclick = () => { U.closePanel(); c2().f.act1 = true; w().pos = [92, 21]; S.persist(); W2.halt(); AU.music('story'); R.start(2); res(); };
-    });
+    // Expedition I on the raid engine (js/vec-ch2.js C2.climb): solo with your three, or a party. Not yet steps you
+    // back off the stair.
+    w().pos = [92, 21]; S.persist();
+    return C2.climb().then(r => { if (r === null) sc.place('you', 92, 21); });
   }
 
   // ---------- Talking ----------
@@ -823,14 +821,7 @@
     if (!flag('cold')) await opening();
     W2.enter();
   };
-  // Climbing again after a loss starts from the top of the stair, as before; the bonuses you earned in the world
-  // carry into every climb.
-  const hooks = SD.chapters[2].hooks, start = hooks.start;
-  hooks.start = function (run) {
-    start(run);
-    const b = c2().bonus || {};
-    run.deck.forEach(c => { if (b[c.id]) c.up = true; });
-  };
+  // The cards you upgraded in the world (S.save.c2.bonus) start upgraded in every climb (js/vec-ch2.js deckFor).
 
   // ---------- The chapter 2 demo's own start ----------
   // Pick a lead, skip chapter 1 (its end is where this begins), and walk.
