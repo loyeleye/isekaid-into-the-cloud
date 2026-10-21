@@ -103,8 +103,9 @@ async function run(browser, url, xp, i) {
   await browser.close(); server.close();
   for (const xp of XPS) {
     const rs = out.filter(r => r.xp === xp), n = rs.length, clean = rs.filter(r => r.done && r.won && !r.wipes.length).length;
-    const floors = (await Promise.resolve(null), [0, 1, 2, 3].map(f => rs.filter(r => !(r.wipes || []).includes(f)).length));
-    console.log(`${xp}: ${clean}/${n} clean clears (${Math.round(clean / n * 100)}%). Runs with no wipe on floor 1..4: ${floors.map(c => Math.round(c / n * 100) + '%').join(', ')}`);
+    const nf = Math.max(1, ...rs.map(r => Math.max(0, (r.sla || []).length - 1)));
+    const floors = Array.from({ length: nf }, (_, f) => rs.filter(r => !(r.wipes || []).includes(f)).length);
+    console.log(`${xp}: ${clean}/${n} clean clears (${Math.round(clean / n * 100)}%). Runs with no wipe on floor 1..${nf}: ${floors.map(c => Math.round(c / n * 100) + '%').join(', ')}`);
   }
   if (out.some(r => r.errors.length || !r.done)) process.exit(1);
 })().catch(e => { console.error(e); process.exit(1); });
