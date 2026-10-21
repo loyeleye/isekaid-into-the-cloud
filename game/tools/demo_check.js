@@ -1,0 +1,91 @@
+// Headless check of the combined demo's chapter select (index.html?vector&ch2&demo, js/demo-select.js): the title has
+// the Chapter select button and the demo foot line, the panel lists every loaded chapter, and Start on each one opens
+// that chapter on a fresh save with no page or console errors. Then the title offers Continue for the chapter played.
+// Run from game/:  node tools/demo_check.js   SHOTS=dir saves a screenshot per chapter. Phone viewport (390 x 844).
+const { chromium } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+
+const ROOT = path.resolve(__dirname, '..');
+const SHOTS = process.env.SHOTS;
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webp': 'image/webp', '.png': 'image/png', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.txt': 'text/plain', '.i8': 'application/octet-stream', '.md': 'text/plain', '.css': 'text/css', '.json': 'application/json' };
+const server = http.createServer((req, res) => {
+  const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]).replace(/\/$/, '/index.html'));
+  if (!file.startsWith(ROOT) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
+  fs.createReadStream(file).pipe(res);
+});
+const fail = [];
+
+(async () => {
+  await new Promise(r => server.listen(0, r));
+  const url = `http://localhost:${server.address().port}/index.html?vector&ch2&demo`;
+  const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  await page.addInitScript(() => { window.SD_TEST = 1; });
+  let errors = [];
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext|ERR_/.test(m.text())) errors.push('console: ' + m.text()); });
+  const vis = sel => page.evaluate(s => { const el = document.querySelector(s); return !!(el && !el.hidden && el.offsetParent !== null); }, sel);
+  const toTitle = async () => {
+    await page.goto(url);
+    await page.waitForSelector('#t-start, #ds-pick', { timeout: 30000 });
+    if (await page.$('#t-start')) await page.click('#t-start');
+    await page.waitForSelector('#ds-pick', { timeout: 10000 });
+  };
+
+  await toTitle();
+  const foot = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');
+  if (!/Demo: Chapters 1 to 6/.test(foot)) fail.push('title foot line: ' + foot);
+  if (await vis('#ds-go')) fail.push('Continue shown with no save');
+  if (!(await vis('#t-help'))) fail.push('How to play missing from the title');
+  await page.click('#ds-pick');
+  const rows = await page.evaluate(() => [...document.querySelectorAll('.ds-row [data-how="fresh"]')].map(b => b.dataset.go));
+  console.log('chapters listed:', rows.join(' '));
+  for (const n of ['1', '2', '3', '4', '5', '6']) if (!rows.includes(n)) fail.push('chapter ' + n + ' not listed');
+  const small = await page.evaluate(() => [...document.querySelectorAll('.ds-row button')].filter(b => b.offsetHeight < 44).map(b => b.textContent + ' ' + b.offsetHeight));
+  console.log('small:', small);
+  if (small.length) fail.push(small.length + ' chapter select buttons under 44px tall');
+
+  // What's on screen: the visible screen, the panel's title, whether a scene is playing.
+  const look = () => page.evaluate(() => {
+    const shown = el => !!el && !el.hidden && getComputedStyle(el).display !== 'none';
+    const p = document.querySelector('#panel');
+    return { screen: [...document.querySelectorAll('[id^=screen-]')].filter(shown).map(e => e.id).join(','),
+      panel: shown(p) ? ((p.querySelector('h2, .panel-title, .p-title') || p).textContent || '').trim().slice(0, 40) : '',
+      lead: !!(shown(p) && p.querySelector('[data-lead]')), vn: shown(document.querySelector('#vn')) };
+  });
+  for (const n of rows) {
+    if (n !== rows[0]) { await toTitle(); await page.click('#ds-pick'); }
+    errors = [];
+    await page.click(`.ds-row [data-go="${n}"][data-how="fresh"]`);
+    if (await page.$('#ds-y')) await page.click('#ds-y');
+    // Every chapter's fresh start asks whose story it is (chapter 1's after its opening scene).
+    let st, picked = false;
+    for (let i = 0; i < 40 && !picked; i++) {
+      await page.waitForTimeout(250);
+      st = await look();
+      if (st.lead) { await page.click('#panel [data-lead="mira"]'); picked = true; }
+      else if (st.vn) await page.keyboard.press('Space');
+    }
+    // Chapter 1 opens on its scene of the files (vector_check plays it through); that it plays is enough here.
+    if (!picked && !(n === '1' && st.vn)) fail.push('chapter ' + n + ': no lead picker after Start ' + JSON.stringify(st));
+    await page.waitForTimeout(2500);
+    st = await look();
+    const key = { '1': 'c1', '2': 'c2', '2b': 'c2x', '3': 'c3', '4': 'c4', '5': 'c5', '6': 'c6' }[n];
+    const sv = await page.evaluate(k => { const s = SD.state.save; return { lead: s.c1 && s.c1.lead, has: !!s[k], level: s.level }; }, key);
+    if (st.screen === 'screen-title' && !st.vn) fail.push('chapter ' + n + ': still on the title after picking a lead');
+    if (picked && sv.lead !== 'mira') fail.push('chapter ' + n + ': lead not saved');
+    if (errors.length) fail.push('chapter ' + n + ': ' + errors.slice(0, 3).join(' | '));
+    console.log('chapter', n, '→', JSON.stringify(st), JSON.stringify(sv));
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'demo-ch' + n + '.png') });
+  }
+
+  // The last chapter started has a save now, so the title offers Continue.
+  await toTitle();
+  if (!(await vis('#ds-go'))) fail.push('no Continue button after starting a chapter');
+  else console.log('continue:', await page.textContent('#ds-go'));
+
+  await browser.close(); server.close();
+  if (fail.length) { console.log('FAIL:\n  ' + fail.join('\n  ')); process.exit(1); }
+  console.log('OK: the demo title, chapter select and every chapter\'s fresh start work, no errors.');
+})().catch(e => { console.error(e); process.exit(1); });
