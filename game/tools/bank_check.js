@@ -154,7 +154,9 @@ function markdown(bank) {
   const L = ['# Question bank', '', 'Generated from `game/js/bank-*.js` by `node tools/bank_check.js --md`. Answers are under each question: right ones are marked ✅, and each wrong option says why not. Options are shuffled, as in the game.', ''];
   for (const q of bank) {
     const tags = [q.dva && `DVA ${q.dva}`, q.saa && `SAA ${q.saa}`, q.topic].filter(Boolean).join(' · ');
-    L.push(`## ${q.id}`, '', `*${tags}*`, '', q.q, '');
+    L.push(`## ${q.id}`, '', `*${tags}*`, '');
+    if (q.ev) L.push('```', q.ev, '```', '');
+    L.push(q.q, '');
     // Right answers are written first; shuffle by a seed from the id, as the game shuffles, so the file doesn't give them away.
     let seed = [...q.id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
     const rand = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
