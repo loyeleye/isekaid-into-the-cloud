@@ -390,7 +390,8 @@
     const morphed = () => { const c1 = SD.state.save.c1; return !!(c1 && c1.f && c1.f.morph); };
     // Chapter 1's PixelLab facesets (assets/img/portraits) take the dialogue box when the speaker has one (Ladi, Oct 21):
     // the face the line asks for if it's drawn, else the neutral one.
-    const FACESET = { mira: ['neutral'], kai: ['neutral'], seoyeon: ['neutral'], dutch: ['neutral'], freya: ['neutral', 'promoter', 'virus'],
+    const FACESET = { mira: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], kai: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], seoyeon: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], dutch: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'],
+      freya: ['neutral', 'smile', 'warm', 'laugh', 'sad', 'angry', 'surprised', 'tired', 'promoter', 'virus'],
       kyu: ['neutral', 'angry', 'confused', 'happy', 'laugh', 'smug'], uptima: ['neutral', 'angry', 'blush', 'confused', 'happy', 'sad'] };
     SD.art.portrait = function (who, size, mood) {
       const fs = FACESET[who];
