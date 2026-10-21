@@ -311,7 +311,8 @@
   const PIP_Q = { c: 'snsfan', type: 'mc', q: 'Pip: "Why did the Belfry\'s bells stop hitting all of us at once?"',
     opts: ['Each subscription got a filter policy, so each copy only reached the one it was for', 'The topic was switched to FIFO, so the copies came one at a time', 'We deleted the topic, so nothing was sent', 'The visibility timeout hid the copies until the fight was over'], a: 0,
     no: [null, 'Ordering copies doesn\'t stop each subscriber getting one.', 'We fixed the subscriptions; the topic still delivers.', 'Topics have no visibility timeout; that\'s a queue setting.'],
-    why: 'A topic sends a copy to every subscription. A filter policy on each subscription decides which copies it accepts.' };
+    why: 'A topic sends a copy to every subscription. A filter policy on each subscription decides which copies it accepts.',
+      eli5: 'Every party member was getting every shout. Now each mailbox has its own filter, like a loot filter per player, so each one only picks up the messages meant for it.' };
 
   // ---------- Moments you play in the visual novel ----------
   const esc = s => U.esc(s);
@@ -615,14 +616,17 @@
         { t: 'Access keys for the function, in its environment variables', ok: false, no: 'The function gets temporary credentials from its execution role. Keys in configuration leak.' },
         { t: 'An EC2 instance to poll the queue', ok: false, no: 'Lambda\'s event source mapping polls the queue for you.' }
       ],
-      why: 'The SAM transform expands AWS::Serverless::Function into a function, its execution role and, from its SQS event, an event source mapping. The redrive policy sits on the source queue and points at the dead-letter queue.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 1 of 3' });
+      why: 'The SAM transform expands AWS::Serverless::Function into a function, its execution role and, from its SQS event, an event source mapping. The redrive policy sits on the source queue and points at the dead-letter queue.',
+      eli5: 'The template is a build guide you hand the game: a header saying it\'s a SAM guide, the function, the letters queue, and a lost-and-found queue, with a rule on the letters queue that says "after this many fails, send it to lost-and-found". No keys taped inside, and no extra character standing around checking the queue, because Lambda does that for you.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 1 of 3' });
     await Q.ask({ c: 'lambdasqs', type: 'order', q: 'Ship It, step 2 of 3. Put the steps in the order you\'d take them, from the camp table to the tower.',
       items: ['Run the unit test against the handler', 'sam build: stage the code and its dependencies', 'sam local invoke with a test SQS event', 'sam deploy: upload and deploy through a CloudFormation change set'],
-      why: 'Unit tests run against the source. sam build stages the function and its dependencies in .aws-sam/build; sam local invoke runs the built function in a container with an event file (sam local generate-event sqs receive-message makes one); sam deploy uploads the artifacts and deploys the stack through a CloudFormation change set.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 2 of 3' });
+      why: 'Unit tests run against the source. sam build stages the function and its dependencies in .aws-sam/build; sam local invoke runs the built function in a container with an event file (sam local generate-event sqs receive-message makes one); sam deploy uploads the artifacts and deploys the stack through a CloudFormation change set.',
+      eli5: 'Like shipping a game patch: test the code on your own machine, pack it, play it once locally, then push it to the live servers. sam build packs it, sam local invoke is the local test run, and sam deploy goes live.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 2 of 3' });
     await Q.ask({ c: 'dlq', type: 'mc', q: 'Ship It, step 3 of 3. The test letter is meant to fail every time, and maxReceiveCount is 3. What should the camp see once it\'s deployed?',
       opts: ['Three failed tries, then SQS moves the letter to the dead-letter queue', 'One failure, then the letter is deleted', 'The letter retried forever, every visibility timeout', 'The function\'s deployment rolled back'], a: 0,
       no: [null, 'SQS never deletes a letter for failing.', 'That\'s the floors as they were. The redrive policy is what stops it.', 'A letter failing isn\'t a failed deployment.'],
-      why: 'Each receive without a delete counts. Once the count passes maxReceiveCount, the redrive policy moves the letter to the dead-letter queue.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 3 of 3' });
+      why: 'Each receive without a delete counts. Once the count passes maxReceiveCount, the redrive policy moves the letter to the dead-letter queue.',
+      eli5: 'Three strikes and you\'re out: the letter gets three tries, then goes to the lost-and-found shelf instead of looping forever.' }, { title: 'SHIP IT', context: 'Coo\'s counter · 3 of 3' });
     setFlag('ship');
     R.gainXp(40);
     U.system('SHIPPED', 'Floors 2 to 6 stay cleared at midnight. The lift opens to floor 7.', 'gold');
@@ -641,7 +645,8 @@
     await Q.ask({ c: 'lambdasqs', type: 'mc', q: 'A letter is delivered twice anyway, as standard queues sometimes do. What makes the second delivery harmless?',
       opts: ['An idempotency key: record each letter\'s ID once it\'s done, and skip any ID you\'ve seen', 'A longer visibility timeout', 'A bigger batch size', 'Deleting each letter as soon as it\'s received, before sorting it'], a: 0,
       no: [null, 'That makes a repeat rarer, not harmless.', 'Batch size doesn\'t change what a repeat does.', 'Then a crash mid-sort loses the letter for good.'],
-      why: 'At-least-once delivery means a repeat can happen. Checking a stored idempotency key before acting turns the second delivery into a no-op.' }, { title: 'AT LEAST ONCE, AT MOST TWICE', context: 'Coo\'s sorting desk · 4 of 4' });
+      why: 'At-least-once delivery means a repeat can happen. Checking a stored idempotency key before acting turns the second delivery into a no-op.',
+      eli5: 'It\'s a quest log that remembers which quests you\'ve turned in. When the same quest shows up again, the game sees it\'s already done and gives no double reward.' }, { title: 'AT LEAST ONCE, AT MOST TWICE', context: 'Coo\'s sorting desk · 4 of 4' });
     c2().dev.redrive = true; setFlag('quest');
     AU.sfx('right');
     U.system('PLOT DEVICE: COO\'S REDRIVE STAMP', 'Curse lifted: Nothing Arrives. Retries in the Sorting Floors are back to normal.', 'gold');

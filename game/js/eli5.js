@@ -1,7 +1,8 @@
 // Plain-language help for people new to AWS, shown after every quiz answer (js/quiz.js).
 // SD.eli5: per question id, the answer explained through a game or anime you may know ("ELI5 🎮").
-// SD.huh: per concept, the whole idea in game terms, for "Huh???". Questions without an id (the ones chapters ask
-//   inline) show their concept's line under ELI5 too, so every concept needs one.
+// SD.huh: per concept, the whole idea in game terms, for "Huh???". A question a chapter asks inline can carry its own
+//   ELI5 line (q.eli5); one without shows its concept's line under ELI5 instead, so every concept needs one.
+// ELI5 lines explain the answer through games and anime, with as few AWS terms as possible.
 // SD.glossary: jargon, defined in one line, shown under "Huh???" when a word appears in the question. The first 8
 //   matches show, so AWS terms come first and the more specific of two overlapping terms comes before the other.
 // Every concept and every question in SD.questions needs its entry here: `node tools/help_check.js` checks it.
@@ -42,23 +43,36 @@ SD.eli5 = {
   'q-ct1': 'The replay only recorded setting changes. Recording who opened which file is an extra you have to switch on first, and nobody did, so last week\'s peek was never recorded.',
   'dva-4-12': 'Watch the replay. The change shows up as UpdateFunctionConfiguration, with who did it and when, and replays of changes are kept for 90 days.',
   // FIFO queues and long polling
-  'q-fi1': 'Give each family its own single-file line (a message group). Each line stays in order, the lines move side by side, and duplicates get bounced.',
+  'q-fi1': 'Give each family its own single-file line. Each line stays in order, all the lines move at the same time, and the clerk bounces anything sent twice. One line for the whole town would make everyone wait behind one slow family.',
   'q-fi2': 'Instead of shouting "anything yet?" every second, wait at the counter for up to 20 seconds. Fewer empty trips, and a smaller bill.',
-  'q-fi3': 'The FIFO clerk remembers each ticket number for 5 minutes. The same ticket 30 seconds later gets a polite "got it, thanks", and is quietly not delivered again.',
+  'q-fi3': 'The strict clerk remembers each ticket number for 5 minutes. The same ticket 30 seconds later gets a polite "got it, thanks", and isn\'t delivered again.',
   // Lambda reading from SQS
-  'q-ls1': 'One party member trips and the whole party restarts the dungeon, including the nine who cleared their rooms.',
-  'q-ls2': 'Turn on ReportBatchItemFailures and hand back a list of only the rooms you failed. Only those get replayed.',
-  'q-ls3': 'Six times the function timeout: 6 × 30 = 180 seconds.',
+  'q-ls1': 'One party member trips and the whole party restarts the dungeon, all ten of them, including the nine who cleared their rooms. Nobody told the game which one fell.',
+  'q-ls2': 'Instead of wiping the whole party, hand the game a list of only the members who fell. It keeps everyone else\'s clear and replays just those rooms. You switch that report on first, then fill in the list.',
+  'q-ls3': 'Give the function time for six tries before the quest pops back on the board. Six tries at 30 seconds each is 180 seconds.',
   // SNS fan-out
   'q-sn1': 'A town crier shouts each order, and every guild has its own mailbox listening. If one guild is out, its letters wait in its own mailbox until it\'s back.',
-  'q-sn2': 'Put the filter on shipping\'s own subscription: "only tell me about CA orders". The crier still tells everyone else everything.',
+  'q-sn2': 'Put the filter on shipping\'s own mailbox: "only tell me about CA orders". The crier still tells everyone else everything.',
   'q-sn3': 'One guild\'s filter only covers that guild. The others still get the message if their own filters match.',
   // EventBridge
   'q-eb1': 'The bell only rings for "LetterSent". "LetterRead" is a different word, so the bell stays quiet.',
-  'q-eb2': 'Set an alarm clock (EventBridge Scheduler) for six every morning that pokes the function. Nothing has to keep running in between.',
+  'q-eb2': 'Set an alarm clock for six every morning that pokes the function. Nothing has to stay awake in between. Queues, topics and streams carry messages, but none of them is a clock.',
+  'dva-1-605': '"Starts with Order" works like typing the first letters into a search box: OrderPlaced, OrderShipped and any Order-something added in a later patch all show up. A list only finds the names you typed, and a star in a plain name is just a star.',
+  'dva-1-110': 'It\'s a loot filter: only drops worth 1,000 gold or more go to the review pile. Use the "number at least" filter, inside the item\'s details where the price really sits. Typing ">= 1000" as text only finds an item literally named that.',
   // Kinesis and Firehose
-  'q-ki1': 'The bell\'s ID picks its conveyor belt. It gets the same belt every time, so its readings stay in line.',
-  'q-ki2': 'A delivery cart that fills up and drops batches at the archive on its own. You don\'t write any code to drive it.'
+  'q-ki1': 'Each bell always rides the same conveyor belt, picked by its ID. A belt keeps its items in order, so that bell\'s readings stay in line.',
+  'q-ki2': 'A delivery cart that fills up and drops batches at the archive on its own. You don\'t write any code to drive it.',
+  // S3 versioning, locks and lifecycle (the bank questions chapter 2's lost letters ask)
+  'dva-1-244': 'Turn on save history, so an overwrite keeps the old save and a delete only puts a "deleted" sign on top. To roll back, load the old save and save it again as the newest, or pull the sign off. Logs and cold storage don\'t keep your old saves for you.',
+  'dva-1-601': 'Deleting without naming a save erases nothing. The game sticks a "deleted" sign on top of the pile, so loading the file finds nothing, but every old save is still sitting under the sign.',
+  'dva-1-602': 'To get the file back, throw away the "deleted" sign itself: delete the sign by name, and the save under it is the top save again. Writing an empty save on top would just leave you with a blank save.',
+  'dva-1-603': 'Once save history is on, you can pause it but never uninstall it. While it\'s paused, new saves overwrite a single slot, and every old save you already have stays until you erase it.',
+  'dva-1-604': 'It\'s a 30-day despawn timer on old saves. The clock starts when a newer save replaces one, and at zero the old save is gone for good. The save you\'re playing now isn\'t touched.',
+  'saa-1-05': 'Compliance mode is a lock even the game master can\'t pick: nobody, not even the account owner, can erase or change the save until its timer runs out. Governance mode has a master key some admins hold, so it can\'t promise that.',
+  'saa-1-134': 'Keep every save, and put a second lock on the "erase for good" button: only the account owner, with the code from their phone, can press it. There\'s no set timer here, so a timed lock doesn\'t fit, and a despawn timer would throw old saves away.',
+  'saa-1-227': 'A legal hold is a pause button with no timer. The save can\'t be erased or overwritten until someone allowed to lift the hold lifts it. Timed locks either run out too soon, or can\'t be undone when the case ends.',
+  'saa-4-01': 'Move the logs down the storage tiers as they cool off: the main bag for the first month, the side pouch for the rest of the year, then the deep vault until year 7, when they\'re thrown out. The deep vault takes hours to open, and a two-day wait is fine for an audit.',
+  'saa-4-104': 'First open the world map that shows every chest in every base, to spot the ones stuffed with half-finished uploads and old saves. Then put cleanup timers on those chests: one throws out uploads abandoned partway, one erases old saves after a while.'
 };
 
 SD.huh = {
@@ -73,12 +87,12 @@ SD.huh = {
   sqsfifo: 'A standard queue is a fast mail sorter that can deliver a letter twice and only roughly in order. A FIFO queue is a strict line: order is kept within each message group ID, and a repeat with the same deduplication ID inside 5 minutes is dropped. Long polling (WaitTimeSeconds, up to 20) waits at the counter for mail instead of asking "anything?" over and over, and every empty answer is still billed.',
   lambdasqs: 'Lambda checks the queue for you and hands your function a batch of messages, like a party taking a stack of quests at once. If the function throws, the whole batch comes back after the visibility timeout, the finished quests too. Turn on ReportBatchItemFailures and return batchItemFailures with the failed IDs, and only those come back. Set the visibility timeout to at least six times the function timeout, and make processing safe to repeat.',
   snsfan: 'An SNS topic is a town crier: every subscriber hears each message. Fan-out gives each service its own SQS queue subscribed to the topic, a mailbox per guild, so each one works and retries at its own pace. A filter policy on one subscription lets that subscriber hear only the messages that match (by message attributes, or by the body if you scope it to that); the other subscribers aren\'t affected.',
-  eventbridge: 'An EventBridge rule is a bell that rings only for events that match its pattern, every field of it. Name a value the events never carry, and the bell never rings. EventBridge Scheduler is the alarm clock: one-time or repeating schedules (cron or rate) that call a target, with no server to keep.',
+  eventbridge: 'An EventBridge rule is a bell that rings only for events that match its pattern, like a loot filter. Every field in the pattern has to match. A list matches any one of its values, "starts with" ({"prefix": ...}) also catches names nobody has made yet, and a value the events never carry means the bell never rings. EventBridge Scheduler is the alarm clock: one-time or repeating schedules that call a target, with no server to keep.',
   kinesis: 'A Kinesis data stream is a set of conveyor belts called shards. The partition key picks the belt: same key, same belt. Each belt keeps its records in order, but there\'s no order across belts. Amazon Data Firehose is the delivery cart: it collects records until a size or time limit and drops them off in batches at places like S3, with no consumer code to write.',
   mqmsk: 'Amazon MQ and Amazon MSK are for travellers who already speak another language. Amazon MQ runs a managed ActiveMQ or RabbitMQ broker for apps that use standard protocols (AMQP, MQTT, STOMP, OpenWire), so they move in without a rewrite. Amazon MSK runs Apache Kafka for teams already built on Kafka.',
-  s3ver: 'Versioning turns a bucket into a save-slot history: every write keeps the old save. A delete with no version ID only sticks a "deleted" sign (a delete marker) on top, so a normal GET says 404 while every save stays underneath. Peel the sign off, or copy an old save back on top, and it\'s back. A delete that names a version ID erases that save for good. Once versioning is on, it can be suspended but never switched off again.',
-  s3lock: 'These decide who can still erase a save. Object Lock freezes a version until its retain-until date: governance mode lets people with s3:BypassGovernanceRetention through, compliance mode lets nobody through, the root user included. MFA delete makes permanent deletes need the root user\'s MFA code, which stops everyone but the root user. A bucket policy can always be changed by the root user. The only other copy nobody can delete is one nobody can reach.',
-  s3life: 'A lifecycle rule is a countdown timer on old saves. NoncurrentVersionExpiration erases a version a set number of days after it stops being the current one, and that erase is permanent. To rescue an old version, copy it back on top: the copy is a new current version, and a rule about noncurrent versions leaves it alone.'
+  s3ver: 'Versioning turns a bucket into a save history: every save keeps the ones before it. A delete that doesn\'t name a save only sticks a "deleted" sign on top (a delete marker), so loading the file finds nothing while every save stays underneath. Pull the sign off, or copy an old save back on top, and it\'s back. A delete that names one save erases that save for good. Once versioning is on, you can pause it but never switch it off.',
+  s3lock: 'These are locks on your saves. Object Lock puts a timer on a save, and until it runs out nobody can erase or change it. Governance mode is a lock a few admins hold a key to; compliance mode is a lock nobody can open, not even the account owner (the root user). A legal hold is a lock with no timer, which stays on until someone lifts it. MFA delete means erasing a save for good also needs the code from the account owner\'s phone.',
+  s3life: 'A lifecycle rule is a timer on your files. It can move them to cheaper, slower storage as they get old, or erase old saves a set number of days after a newer save replaces them, and that erase is for good. To rescue an old save, copy it back on top: the copy becomes the newest save, and a timer for old saves leaves it alone.'
 };
 
 // [term, matcher, plain definition]
