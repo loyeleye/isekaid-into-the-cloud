@@ -255,8 +255,7 @@
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning.'],
       ['seymour', 'And a copy anyone can delete is not a copy.'],
       ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
-      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.']
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Here: two spare tapes, for the stair. Close the hatch on your way out.']
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
@@ -386,11 +385,16 @@
     const mine = P.pair.includes(me);
     let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
     if (where === 'camp') lines[0] = ['narr', P.camp];
-    if (mine) { const [at, t] = P.inner[me]; lines.splice(mine && where !== 'camp' ? at : Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]); }
+    // Six lines at most: the title heads the opening line, and your inner line follows your own spoken one.
+    if (mine) {
+      const [at, t] = P.inner[me];
+      let k = -1; for (let i = Math.min(at, lines.length) - 1; i >= 0; i--) if (lines[i][0] === me) { k = i; break; }
+      if (k >= 0) lines[k] = [me, lines[k][1] + ' ' + t, lines[k][2]]; else lines.splice(Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]);
+    }
+    lines[0] = [lines[0][0], P.title.toUpperCase() + ' · ' + lines[0][1]].concat(lines[0].slice(2));
     U.closePanel(); U.stage(null);
     AU.music(P.music);
-    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['narr', P.title.toUpperCase() + ' · ' + P.pair.map(x => SD.ch1story.leads[x].name.split(' ')[0]).join(' and ')],
-      ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
     setFlag('pair-' + id);
   };
   C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
@@ -918,7 +922,7 @@
     return new Promise(res => {
       const net = !!(SD.net && SD.raid);
       const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p>
-        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and you regroup at the start of the floor.</p>
+        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and one of Seymour's tapes puts you back at the start of the floor: two tapes a climb.</p>
         <div class="opts"><button class="opt primary" id="sf-solo"><b>Climb</b> · you and your three</button>
         ${net ? '<button class="opt" id="sf-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="sf-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         ${noBack ? '' : '<div class="row"><button class="ghost" id="sf-not">Not yet</button></div>'}`, { title: 'THE SORTING FLOORS', noClose: true });

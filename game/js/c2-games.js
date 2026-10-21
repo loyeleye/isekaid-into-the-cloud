@@ -72,6 +72,7 @@
 .g2-ltr { width: 74px; padding: 5px 4px; border-radius: 6px; background: #f6efd8; color: #2b2340; font: 11px/1.25 ui-monospace, monospace; text-align: center; transition: opacity .2s; }
 .g2-ltr.hid { opacity: .35; outline: 2px dashed #7fd0ff; } .g2-ltr.gone { background: #3a3448; color: #8a84a0; }
 .g2-ltr .n { font-weight: 700; display: block; } .g2-ltr .d.twice { color: #d63a3a; font-weight: 700; }
+.g2-ff { min-height: 44px; display: block; margin: 6px 0 6px auto; }
 .g2-lane { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 4px 0; }
 .g2-lane > b { width: 90px; } .g2-lane .bar { flex: 1; height: 10px; background: #2a2a40; border-radius: 5px; overflow: hidden; }
 .g2-lane .bar i { display: block; height: 100%; background: #7fe0a0; width: 0; }
@@ -254,15 +255,23 @@
       };
       log(`Visibility timeout ${vt}s. Delivering takes ${WORK}s. ${del ? 'Postmen delete after delivering.' : 'Nobody deletes.'}`);
       step(); draw();
-      const iv = setInterval(() => {
+      // A run takes up to 24 s at this speed: you can skip to the end of it.
+      const ff = document.createElement('button');
+      ff.className = 'ghost g2-ff'; ff.type = 'button'; ff.textContent = 'Skip to the end ⏩';
+      el.before(ff);
+      const tick = () => {
         st.t += 1; step();
         const done = st.letters.every(l => l.gone) && st.men.every(m => !m.l);
         if (done || st.t >= stop) {
-          clearInterval(iv);
+          clearInterval(iv); ff.remove();
           if (!done) log(del ? '...and so on.' : '...and so on, every minute or so, until the queue\'s retention period ends (4 days by default).');
           draw(); res(st);
-        } else draw();
-      }, 100);
+          return true;
+        }
+        return false;
+      };
+      const iv = setInterval(() => { if (!tick()) draw(); }, 100);
+      ff.onclick = () => { while (!tick()); };
     });
   }
   G.postbox = function () {
