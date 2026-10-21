@@ -59,8 +59,8 @@ async function run(browser, url, i) {
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (/warn|error/.test(m.type()) && !/Failed to load resource|AudioContext/.test(m.text())) errors.push(m.type() + ': ' + m.text().slice(0, 200)); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
-  await page.goto(url);
-  await page.waitForFunction(() => window.SD && SD.vec && SD.vec.ch2 && SD.vec.ch2.sorting);
+  await page.goto(url, { timeout: 120000 });
+  await page.waitForFunction(() => window.SD && SD.vec && SD.vec.ch2 && SD.vec.ch2.sorting, null, { timeout: 120000 });
   const lead = LEADS[i % 4];
   await page.evaluate(lead => {
     const S = SD.state;

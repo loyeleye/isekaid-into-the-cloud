@@ -80,6 +80,10 @@ const server = http.createServer((req, res) => {
       if (!p.hidden) {
         const b = s => [...p.querySelectorAll(s)].find(x => !x.disabled && vis(x));
         let x;
+        // Expedition I's Sorting Tables (js/raid.js Policy Sort): guess a number, then sort each one.
+        if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
+        if ((x = p.querySelector('#q-num')) && !x.value) { x.value = '180'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (!window.__leadSeen) { window.__leadSeen = 1; return 'lead-wait'; } return click(x) && 'lead'; }
         if ((x = b('#tm-y'))) return click(x) && 'enter-temple';
         if ((x = b('#q-said'))) return click(x) && 'said';
