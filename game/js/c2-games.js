@@ -46,7 +46,7 @@
 .g2-t tr.dm td { color: #a3242f; } .g2-t tr.gone td { text-decoration: line-through; opacity: .45; }
 .g2-t tr.fade td { color: #6e4700; } .g2-t tr.new td { color: #17582d; }
 .g2-t tr.cur td:first-child::after { content: " ← current"; color: #17582d; }
-.g2-t td.empty { color: #6a6480; font-style: italic; text-align: center; }
+.g2-t td.empty { color: #4e4864; font-style: italic; text-align: center; }
 .g2 .opts.col { display: flex; flex-direction: column; gap: 8px; } .g2 .opts.col .opt { text-align: left; }
 .g2 .opt[disabled] { opacity: .45; }
 .g2-note { min-height: 1.4em; margin: 8px 0 0; } .g2-note.ok { color: #17582d; font-weight: 600; } .g2-note.bad { color: #a3242f; font-weight: 600; }

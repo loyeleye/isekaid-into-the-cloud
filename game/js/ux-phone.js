@@ -20,6 +20,8 @@ html.vector #screen-run :is(.rd-note, .rd-chip, .rd-inc, .rd-mate, .loot span) {
 html.vector #screen-run :is(.me-zone, .foe-zone, .rd-mate) .muted, html.vector #screen-run .rd-mate .rd-played { color: var(--muted); }
 html.vector #screen-run .slot { color: #5f5878; }
 html.vector #screen-run .row button:not(.primary):not(.danger) { color: var(--ink); }
+/* A phone keeps :hover on the last button tapped, and the hover colour turned a chosen (blue, white-text) chip pale. */
+html.vector #panel :is(.g2, .g3, .g4, .g5, .g6) .ghost.on:hover:not(:disabled) { background: var(--blue); color: #fff; }
 /* Pip's name tag: white on bright teal was 2.5:1. */
 html.vector #dialog[data-who="pip"] .dlg-nm { background: #0f6f80; }
 /* A story dungeon's end screen has one way on (#rd-back, which tells the chapter how it went); the engine's own
@@ -36,6 +38,6 @@ html.vector .rd:is([data-ph="done"], [data-ph="over"]):has(#rd-back) #rd-leave {
     if (!n || !n.children.length || (p && !p.hidden)) return;
     const b = hudBottom(); if (b) n.style.top = Math.round(b + 8) + 'px';
   };
-  const start = () => { const n = document.getElementById('notes'); if (n) new MutationObserver(place).observe(n, { childList: true }); };
+  const start = () => { const n = document.getElementById('notes'); if (n && typeof MutationObserver === 'function') new MutationObserver(place).observe(n, { childList: true }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })();
