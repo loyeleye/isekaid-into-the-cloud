@@ -915,12 +915,24 @@ body { background: var(--bg); }
 .t-bolt { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 40% 10%, rgba(226, 232, 255, .55), rgba(200, 210, 255, .12) 60%, transparent); opacity: 0; }
 .t-bolt.on { animation: tBolt .9s ease-out; }
 @keyframes tBolt { 0% { opacity: .9; } 8% { opacity: .1; } 16% { opacity: .75; } 100% { opacity: 0; } }
-.logo { color: var(--bone); font-family: var(--f-head); font-weight: 800; letter-spacing: .04em; font-size: clamp(38px, 10vw, 92px); animation: none;
+.logo { color: var(--bone); font-family: var(--f-head); font-weight: 800; letter-spacing: .08em; font-size: clamp(64px, 21vw, 150px); line-height: .9; margin: 14px 0 0; animation: none;
   text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, .8), 0 0 2px #000; }
-.logo span { color: #c9a24a; font-size: .62em; letter-spacing: .12em; margin-top: .2em; }
-.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .06em; max-width: min(30em, 100%); line-height: 1.35; }
-/* No tagline under the logo: the ribbon carries the hook, as in the first game. */
-#screen-title .logo { margin-bottom: 26px; }
+.logo span { color: #e0b453; font-size: .3em; letter-spacing: .22em; margin: .25em 0 0 .22em;
+  text-shadow: 0 0 2px #000, 0 0 10px rgba(224, 180, 83, .55), 0 0 26px rgba(224, 180, 83, .3); }
+.t-ribbon { background: #4a1f29; color: #ffd6dc; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); font-weight: 700; letter-spacing: .2em;
+  font-size: clamp(13px, 3.8vw, 19px); padding: 6px 20px; line-height: 1.35; text-shadow: 0 0 6px rgba(255, 92, 120, .85), 0 0 16px rgba(255, 70, 100, .5); }
+/* A neon sign losing power: the UN of UNANSWERED sputters and dies, and the sign reads ANSWERED PRAYERS. */
+.t-un { animation: tUn 7s linear infinite; }
+@keyframes tUn {
+  0%, 22% { opacity: 1; } 23% { opacity: .15; } 24% { opacity: 1; } 31% { opacity: 1; } 32% { opacity: .1; } 33% { opacity: .9; } 34%, 36% { opacity: .12; } 37% { opacity: .8; }
+  38%, 70% { opacity: .1; text-shadow: none; color: #6a3a44; } 71% { opacity: .7; } 72%, 99% { opacity: .1; text-shadow: none; color: #6a3a44; } 100% { opacity: 1; } }
+/* And one letter of the sign above it, on its own failing circuit. */
+.t-flk { font-style: normal; animation: tFlk 11s linear infinite; }
+@keyframes tFlk { 0%, 61% { opacity: 1; } 62% { opacity: .25; } 63% { opacity: 1; } 64% { opacity: .3; } 66% { opacity: .3; } 67%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .t-un, .t-flk { animation: none; } .t-un { opacity: .3; text-shadow: none; } }
+/* The stack sits a little above centre, clear of the four on the ridge, as the first game's does above its hills. */
+#screen-title { padding-bottom: 20vh; }
+#screen-title #title-actions { margin-top: 30px; }
 .tagline { color: #cfc6b4; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
 .press { background: #2e2a3a !important; color: var(--bone) !important; letter-spacing: .12em; font-family: var(--f-head); }
 .t-foot { color: #8f8799; }
@@ -1082,8 +1094,8 @@ body { background: var(--bg); }
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
-    <div class="t-ribbon">Answered Prayers</div>
-    <h1 class="logo">KEYS<span>TO THE CLOUD</span></h1>
+    <div class="t-ribbon"><span class="t-un">UN</span>ANSWERED PRAYERS</div>
+    <h1 class="logo">KEYS<span>TO THE CL<i class="t-flk">O</i>UD</span></h1>
     <div id="title-actions"></div>
     <div class="t-foot">Built on the AWS documentation · Saves automatically</div>
   </section>
