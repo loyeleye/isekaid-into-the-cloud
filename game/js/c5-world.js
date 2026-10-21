@@ -381,7 +381,7 @@
     setFlag('tapes');
   }
   async function arrive() {
-    mus('c5town');
+    mus('c5town'); sfx('x-crowd');
     await say([[null, 'Floor 61: the Arcanum\'s city, rebuilt inside the tower. Spires, lecture bells, scholars in a hurry. And on every wall, the same face.'],
       ['lead', { dutch: '(The drunk enforcer who threw an heir off a tower. They got my nose wrong.)', other: 'Dutch. That\'s you on the posters.' }],
       ['dutch', 'Twenty-five years, and they still couldn\'t draw a nose.', 'stone'],
@@ -668,7 +668,7 @@
     },
     // The midpoint: the trial's ledgers, rebuilt every night on the closet's shelf.
     async ledgers() {
-      mus('c5sad');
+      mus('c5sad'); sfx('x-stamp');
       await vn([['bg', 'c5-closet'],
         ['narr', 'Under the closet\'s last shelf: the trial\'s ledgers. Lina hid them here, and Iris burned them. But Freya\'s template rebuilds the Arcanum exactly, every night, closet and all.'],
         ['narr', 'Freya copies everything and reads nothing. The ledgers are back on the shelf.'],
@@ -719,16 +719,19 @@
         opts: ['Data events, which are off by default', 'Management events, which are off by default', 'A longer event history', 'Nothing: everything is recorded'], a: 0,
         why: 'Trails record management events by default. Object-level reads and writes are data events, recorded only when you add them.',
         eli5: 'The ward wrote down every door that opened, but not who read the pages, until she asked it to.' }, 'EVIDENCE 1 · THE WARD RECORD');
+      sfx('x-chime');
       await vn([['bg', 'c5-observatory2'], ['narr', 'A third of the lanterns go out along the walls.']]);
       await ask({ c: 'metrics', type: 'mc', q: 'Lina\'s magic drops at 23:40. Which would have caught it as it happened?',
         opts: ['A metric with an alarm on it', 'A log line', 'A trace', 'A dashboard'], a: 0,
         why: 'A log or a dashboard only helps someone who looks. A metric with an alarm acts on its own when the line crosses the threshold.',
         eli5: 'A health bar with a bell on it rings when it drops into the red. A diary entry waits for someone to read it.' }, 'EVIDENCE 2 · THE INFIRMARY CHART');
+      sfx('x-chime');
       await vn([['bg', 'c5-observatory3'], ['narr', 'Another third go out.'], ['show', 'theo', 'earnest', 'center'], ['theo', 'I was on the stair, Professor. I told them. Nobody wrote it down.', 'earnest']]);
       await ask({ c: 'tracing', type: 'mc', q: 'A request from Iris\'s office reaches the infirmary ward in two hops. What shows the path, and the time spent in each hop?',
         opts: ['An X-Ray trace, with a segment for each service', 'A CloudWatch alarm', 'The bucket\'s server access logs', 'A CloudFormation change set'], a: 0,
         why: 'A trace follows one request through every service. Each service records a segment, so the trace shows the path and the time spent in each.',
         eli5: 'A tracer round on one request: you can see every room it went through, and how long it stayed in each.' }, 'EVIDENCE 3 · THE RELAY MAP');
+      sfx('x-chime');
       await vn([['bg', 'c5-observatory0'], ['narr', 'The last lanterns go out. In the dark, the students are looking at Iris now, not at her light.'],
         ['show', 'iris', 'cold', 'right'], ['iris', 'Then move the floor, Dutch. If you can, before midnight.', 'cold']]);
       setFlag('confront');
@@ -953,6 +956,7 @@
     return endCard();
   }
   function endCard() {
+    if (sc && W.active) refresh();
     W.halt();
     const next = SD.chapterStart && SD.chapterStart[6];
     AU.music('title');
