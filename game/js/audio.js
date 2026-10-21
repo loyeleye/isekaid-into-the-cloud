@@ -44,6 +44,16 @@
     bus.gain.setTargetAtTime(on ? (kind === 'music' ? 0.34 : 0.55) : 0, ctx.currentTime, 0.05);
   };
   A.muted = () => !prefs.music && !prefs.sfx;
+  // A recorded voice line (assets/audio/vo/<file>.mp3, mapped in js/vo.js), on the sound-effects switch. One plays
+  // at a time: the next line, or null, cuts it off. Returns whether it's speaking, so the typewriter can stay quiet.
+  let voEl = null;
+  A.voice = function (file) {
+    if (voEl) { voEl.pause(); voEl = null; }
+    if (!file || !prefs.sfx) return false;
+    voEl = new Audio('assets/audio/vo/' + file + '.mp3');
+    voEl.play().catch(() => {});
+    return true;
+  };
   A.toggleAll = function () { const on = A.muted(); A.set('music', on); A.set('sfx', on); return on; };
 
   // ---------- Voices ----------
@@ -195,7 +205,7 @@
   const SONG_VOL = { map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
   const JING = { victory: 'j-victory', defeat: 'j-defeat', gary: 'j-gary' };
   const SAMPLE = { blip: 's-blip', ok: 's-ok', cancel: 's-cancel', card: 's-card', hit: 's-hit', crit: 's-crit', resist: 's-resist', hurt: 's-hurt', shield: 's-shield', coin: 's-coin', right: 's-right', wrong: 's-wrong', door: 's-door',
-    doorclose: 's-doorclose', shopbell: 's-shopbell', steps: 's-steps' };
+    doorclose: 's-doorclose', shopbell: 's-shopbell', steps: 's-steps', thud: 's-thud' };
   const SONG_GAIN = 1.5;  // recorded tracks are mastered quieter than the synth
   const bufs = {}, failed = new Set();
   function loadBuf(file) {
@@ -259,10 +269,11 @@
 
   // Loop a track. Asking for the track already playing does nothing.
   A.has = name => !!(SONG[name] || TRACKS[name]);
-  A.music = function (name) {
+  // `keep` lets the weather and place sounds already playing carry on under the new track.
+  A.music = function (name, keep) {
     A.loopName = name;
-    [wxL, placeL].forEach(l => { if (l.me && l.me.song !== name) l.set(null); });
-    if (!ctx) { want = name; wxL.want = placeL.want = undefined; return; }
+    [wxL, placeL].forEach(l => { if (l.me && l.me.song !== name) { if (keep) l.me.song = name; else l.set(null); } });
+    if (!ctx) { want = name; if (!keep) wxL.want = placeL.want = undefined; return; }
     if (cur && cur.name === name) return;
     stopCur();
     if (name) play(name);

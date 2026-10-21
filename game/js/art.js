@@ -65,7 +65,7 @@
   const stroke = `stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"`;
 
   A.portrait = function (who, size, mood) {
-    if (PAINTED[who]) {
+    if (PAINTED[who] && !window.SD_VECTOR) {
       const m = PAINTED[who].includes(mood) ? mood : 'neutral';
       return `<span class="bust b-${who}${PX[who] ? ' px' : ''}" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="${IMG}portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
     }
@@ -262,6 +262,7 @@
   // Chapters add their own incidents: { col, anim, src } for an image, or { col, anim, svg } for one drawn in code
   // (svg is the inside of a 120 x 120 viewBox).
   A.addFoe = function (sprite, def) { FOE[sprite] = def; };
+  A.hasFoe = sprite => !!FOE[sprite];
   A.enemyColor = sprite => (FOE[sprite] || FOE.slime).col;
   A.enemy = function (sprite, boss, hue) {
     const f = FOE[sprite] ? FOE[sprite] : FOE.slime;

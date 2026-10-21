@@ -6,7 +6,14 @@
 //   node tools/bank_check.js --links    also request every doc URL and report any that don't answer 200
 //   node tools/bank_check.js --md FILE  write the whole bank as a readable Markdown file
 //   node tools/bank_check.js --strict   exit 1 on any problem (for the build)
+//   node tools/bank_check.js --tells    also list the questions behind each file's "longest" and "shortest" counts
+//
+// It also checks for a length tell (tools/length_tell.js): a right answer, or a Select TWO pair of right items, that is
+// clearly longer or clearly shorter than the wrong ones counts as a problem, and the spread lists, per file, how often
+// the right answer is the longest and the shortest option. A file with 12 or more single-answer questions whose right
+// answer is the longest, or the shortest, in under 15% or over 35% of them counts as a problem too.
 const fs = require('fs'), path = require('path'), vm = require('vm'), https = require('https');
+const T = require('./length_tell');
 const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2);
 const flag = n => args.includes(n);
@@ -22,8 +29,12 @@ function load() {
   const files = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /^bank-.*\.js$/.test(f)).sort();
   const ctx = { console };
   ctx.window = ctx; vm.createContext(ctx);
-  for (const f of files) vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: 'js/' + f });
-  return { bank: ctx.SD.bank || [], files };
+  const fileOf = new Map();
+  for (const f of files) {
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: 'js/' + f });
+    for (const q of ctx.SD.bank || []) if (!fileOf.has(q)) fileOf.set(q, f);
+  }
+  return { bank: ctx.SD.bank || [], files, fileOf };
 }
 
 function check(q, ids) {
@@ -46,6 +57,11 @@ function check(q, ids) {
       if (!Array.isArray(q.no) || q.no.length !== 4 || q.no[q.a] !== null || q.no.some((n, i) => i !== q.a && !n)) p.push('no needs a line per wrong option and null at a');
       const L = q.opts.map(o => o.length), maxWrong = Math.max(...L.filter((_, i) => i !== q.a));
       if (L[q.a] > maxWrong * 1.25) p.push(`right answer gives itself away by length (${L[q.a]} vs ${maxWrong})`);
+      else if (q.opts.every(o => typeof o === 'string')) {
+        const r = T.mc(q.opts, q.a);
+        if (r.clear) p.push(`right answer is clearly the longest (${r.right} vs longest wrong ${r.maxWrong})`);
+        if (r.clearShort) p.push(`right answer is clearly the shortest (${r.right} vs shortest wrong ${r.minWrong})`);
+      }
     }
   } else if (q.type === 'multi') {
     const items = q.items || [], right = items.filter(i => i.ok);
@@ -53,6 +69,11 @@ function check(q, ids) {
     if (q.hint !== 'Select TWO.' || right.length !== 2) p.push('multi should be "Select TWO." with exactly 2 right items');
     if (items.some(i => !i.ok && !i.no)) p.push('every wrong item needs a no line');
     if (!q.q.includes('(Select TWO.)')) p.push('stem should end with (Select TWO.)');
+    if (right.length && right.length < items.length && items.every(i => typeof i.t === 'string')) {
+      const r = T.multi(items);
+      if (r.clear) p.push(`right items are clearly longer (${r.note})`);
+      if (r.clearShort) p.push(`right items are clearly shorter (${r.note})`);
+    }
   } else p.push(`type ${q.type} is not mc or multi`);
   return p;
 }
@@ -77,6 +98,43 @@ function spread(bank) {
     out.push(`  Right answer position as written (the game shuffles): ${pos.join(' / ')}`);
   }
   return out.join('\n');
+}
+
+// Per bank file: how often the right answer is the longest and the shortest, and how often by a clear margin.
+function tells(bank, files, fileOf) {
+  const out = ['Length tell by file (single-answer: longest / shortest / clearly either; Select TWO: both right are the two longest / two shortest / clearly either):'];
+  const row = (name, qs) => {
+    const m = T.tally(qs.filter(q => q.type === 'mc').map(q => T.mc(q.opts, q.a)));
+    const u = T.tally(qs.filter(q => q.type === 'multi').map(q => T.multi(q.items)));
+    return `  ${name.padEnd(17)} mc ${String(m.n).padStart(3)}: longest ${String(m.longest).padStart(3)} (${T.pct(m.longest, m.n).padStart(4)}), shortest ${String(m.shortest).padStart(3)} (${T.pct(m.shortest, m.n).padStart(4)}), clear ${m.clear}/${m.clearShort}` +
+      `   two ${String(u.n).padStart(3)}: top two ${String(u.topK).padStart(2)} (${T.pct(u.topK, u.n).padStart(4)}), bottom two ${String(u.bottomK).padStart(2)} (${T.pct(u.bottomK, u.n).padStart(4)}), clear ${u.clear}/${u.clearShort}`;
+  };
+  for (const f of files) out.push(row(f.replace(/^bank-|\.js$/g, ''), bank.filter(q => fileOf.get(q) === f)));
+  for (const ex of ['DVA', 'SAA']) out.push(row(EXAMS[ex].name + ' total', bank.filter(q => q.exam === ex || q.exam === 'both')));
+  out.push(row('whole bank', bank));
+  out.push('  A fair bank is near 25% longest and 25% shortest for four options, and near 10% top two for five items, with no clear tells.');
+  if (flag('--tells')) for (const q of bank.filter(q => q.type === 'mc')) {
+    const r = T.mc(q.opts, q.a);
+    if (r.longest || r.shortest) out.push(`    ${q.id} ${r.longest ? 'longest' : 'shortest'}: right ${r.right}, wrong ${r.minWrong} to ${r.maxWrong}`);
+  }
+  return out.join('\n');
+}
+
+// Per bank file with at least RATE_MIN_N single-answer questions: the right answer should be the longest option, and
+// the shortest, about 1 time in 4. Outside RATE_LO..RATE_HI, "pick the longest" or "pick the shortest" beats chance
+// across the file, even when no one question gives itself away, so it counts as a problem.
+const RATE_MIN_N = 12, RATE_LO = 0.15, RATE_HI = 0.35;
+function rateProblems(bank, files, fileOf) {
+  const out = [];
+  for (const f of files) {
+    const rs = bank.filter(q => fileOf.get(q) === f && q.type === 'mc').map(q => T.mc(q.opts, q.a));
+    if (rs.length < RATE_MIN_N) continue;
+    for (const k of ['longest', 'shortest']) {
+      const n = rs.filter(r => r[k]).length, rate = n / rs.length;
+      if (rate < RATE_LO || rate > RATE_HI) out.push(`${f}: right answer is the ${k} option in ${n} of ${rs.length} single-answer questions (${T.pct(n, rs.length)}); keep it within ${RATE_LO * 100}-${RATE_HI * 100}%`);
+    }
+  }
+  return out;
 }
 
 function head(url) {
@@ -109,15 +167,19 @@ function markdown(bank) {
 }
 
 (async () => {
-  const { bank, files } = load();
+  const { bank, files, fileOf } = load();
   const ids = new Set();
   let problems = 0;
   for (const q of bank) {
     const p = check(q, ids);
     if (p.length) { problems += p.length; console.log(`  ${q.id}: ${p.join('; ')}`); }
   }
+  const rp = rateProblems(bank, files, fileOf);
+  for (const p of rp) console.log(`  ${p}`);
+  problems += rp.length;
   console.log(`${bank.length} questions from ${files.join(', ')}. ${problems} problems.`);
   console.log(spread(bank));
+  console.log(tells(bank, files, fileOf));
   if (flag('--links')) {
     const urls = [...new Set(bank.flatMap(q => q.doc || []))];
     const bad = [];

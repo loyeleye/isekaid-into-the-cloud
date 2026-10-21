@@ -18,7 +18,7 @@
     },
     seoyeon: {
       name: 'Seo-yeon', title: 'Burning Peak', age: 20, card: 'peakstyle', img: 'assets/img/lead/seoyeon.webp',
-      blurb: 'A sword disciple raised in the house of the man who burned her family. When her chance came she froze for one second, and her sect brother Jin died in it.',
+      blurb: 'A sword disciple raised in the house of the man who burned her family. At nine she froze for one second, and her sect brother Jin died in it.',
       prayer: 'Let me choose.'
     },
     dutch: {
@@ -30,57 +30,125 @@
   T.order = ['mira', 'kai', 'seoyeon', 'dutch'];
 
   // ---------- Prologues: the worst moment, the prayer nobody answered, and who answered instead ----------
+  // Visual-novel scripts for js/vn.js, one painted still per shot (the backstory storyboard; js/ch1.js registers
+  // them): a step is a command (['cg', id, pan, 'cut'], ['act', ...], ['pray', ...], ['gcut', id], ['fx', kind]) or a line
+  // [speaker, text, face]. A shot holds still until someone speaks, then pushes in slowly. Where Freya drops the
+  // voice she borrowed, the still glitches into the same shot with her standing in it. js/vo.js has the recordings.
   T.prologue = {
     mira: [
+      ['cg', 'm1', 'still'], ['fx', 'rain'],
       ['narr', 'Thornwick. The top of the Inquisition\'s tower stair.'],
       ['narr', 'Bram held the stair long enough for Mira to break her chain and reach him. Not long enough for anything else.'],
+      ['cg', 'm2', 'slow'], ['fx', 'heartbeat'],
       ['mira', 'Bram. Bram, love, look at me. Hold still. I\'ve had my hand in worse than you.'],
+      ['act', 'heal', { target: 'Bram', fail: 'There\'s nothing left for it to hold on to.', glow: [0.40, 0.61] }],
+      ['cg', 'm2b', 'still'],
       ['narr', 'He didn\'t hold still. He didn\'t do anything.'],
-      ['mira', 'Uptima. I\'ve never asked you for anything in my life. Not him. Take the rest of me, not him.'],
-      ['narr', 'Nothing came.'],
-      ['narr', 'Two nights later, on the new moon, she dreamed she heard him coming home late: "Put the kettle on, love. I\'ve brought you a disaster."'],
-      ['freya', 'Sorry, sweetie. I borrowed his voice so you\'d let me in. I\'m Freya.'],
-      ['freya', 'Everything that dies in the Cloud is backed up somewhere. Every bit of him. And the goddess who could have answered you holds the keys.'],
-      ['mira', 'Uptima.'],
-      ['freya', 'I never said that, sweetie. I only asked who you thought was listening.'],
-      ['freya', 'Come and work for me. I\'ve got a tent you\'ll love.']
+      ['cg', 'm2c', 'slow'],
+      ['pray', 'I\'ve never asked you for anything in my life. Not him. Take the rest of me, not him.', 'Uptima'],
+      ['fx', 'black'], ['fx', 'dry'],
+      ['cg', 'm3', 'still'],
+      ['narr', 'Two nights later. The new moon.'],
+      ['cg', 'm3a', 'slow'],
+      ['bram', 'Put the kettle on, love. I\'ve brought you a disaster.'],
+      ['mira', 'Bram?', 'grief'],
+      ['gcut', 'm3c'],
+      ['freya', 'Sorry. I borrowed his voice so you\'d let me in. I\'m Freya.', 'smile'],
+      ['freya', 'Everything that dies in the Cloud is backed up somewhere. Every bit of him. And the goddess who could have answered you holds the keys. Who do you think was listening?'],
+      ['cg', 'm3', 'slow'],
+      ['mira', 'Uptima.', 'cold'],
+      ['cg', 'm3c', 'slow'],
+      ['freya', 'I never said that.', 'cold'],
+      ['freya', 'Come and work for me. I\'ve got a tent you\'ll love.', 'smile']
     ],
     kai: [
+      ['cg', 'k1', 'still'],
       ['narr', 'Halcyon. The cathedral, the morning after Saint\'s Day.'],
-      ['narr', 'Kai climbed out of the Abyss a day too late. He put his hand on the golden barrier to break it, and felt his sister in it.'],
+      ['narr', 'Kai climbed out of the Abyss a day too late. He put his hand on the golden barrier to break it.'],
+      ['cg', 'k2', 'slow'],
+      ['act', 'barrier', { label: 'Barrier', warn: 'Hana is in it. Breaking it erases her, and the hundred thousand people behind her.' }],
+      ['cg', 'k2b', 'slow'],
       ['kai', 'Hana? ...No. No, no, no. Hana.'],
-      ['narr', 'Breaking it would erase her, and the hundred thousand people behind it. He took his hand away.'],
+      ['cg', 'k2c', 'slow'],
       ['narr', 'Every night for a year in the Abyss he had prayed the same line.'],
-      ['kai', 'Tell her I didn\'t leave. That\'s all. Just tell her.'],
-      ['narr', 'Nobody delivered it. Nothing came.'],
-      ['narr', 'That night, in a dry voice he\'d know anywhere, the one she used when he\'d screwed up again: "Kai. Where were you?"'],
-      ['freya', 'Not her, sweetie. I\'m sorry. I\'m Freya, and I had to sound like someone you\'d answer.'],
-      ['freya', 'She\'s still in the barrier, every bit of her. Nothing in the Cloud is ever really gone, if you have the keys. And the goddess who has them heard every prayer you sent.'],
-      ['kai', 'And ignored them.'],
-      ['freya', 'You said that, sweetie, not me. Now, how do you feel about a kitchen with a staff?']
+      ['pray', 'Tell her I didn\'t leave. That\'s all. Just tell her.', 'Uptima'],
+      ['fx', 'black'],
+      ['cg', 'k3', 'still'], ['fx', 'rain'],
+      ['narr', 'That night, in a dry voice he\'d know anywhere. The one she used when he\'d screwed up again.'],
+      ['cg', 'k3a', 'slow'],
+      ['hana', 'Kai. Where were you?'],
+      ['kai', 'Hana. I tried. I swear I...', 'grief'],
+      ['gcut', 'k3c'],
+      ['freya', 'Not her. I\'m sorry. I\'m Freya, and I had to sound like someone you\'d answer.', 'smile'],
+      ['freya', 'She\'s still in the barrier, every bit of her. Nothing in the Cloud is ever really gone, if you have the keys. And the goddess who has them received every prayer you sent.'],
+      ['cg', 'k3', 'slow'],
+      ['kai', 'And ignored them.', 'anger'],
+      ['cg', 'k3c', 'slow'],
+      ['freya', 'You said that, not me. Now, how do you feel about a kitchen with a staff?', 'smile']
     ],
     seoyeon: [
-      ['narr', 'The Murim Alliance\'s duel hall. Every master in the room has just named Burning Peak\'s style.'],
-      ['narr', 'Jin stopped fighting for one beat. Seo-yeon was close enough to end it, with the knife in her sleeve.'],
-      ['narr', 'Namgung looked at her the way he looked at her across the breakfast table.'],
-      ['seoyeon', 'Let me choose.'],
-      ['narr', 'The second passed, and nobody chose.'],
-      ['narr', 'Weeks later, at dawn, a lazy voice, up first for once: "Oi, kid. Forms. I\'m up first, so you owe me."'],
-      ['freya', 'It isn\'t him, sweetie. It\'s Freya. But he isn\'t gone. The Cloud keeps everyone.'],
-      ['freya', 'Someone has been holding his copy all this time, and never answered you.'],
-      ['seoyeon', 'Who?'],
-      ['freya', 'You already know, sweetie. Shall we go and ask her?']
+      ['cg', 's0a', 'still'],
+      ['narr', 'Burning Peak.'],
+      ['jin', 'Ha! A minnow caught a minnow.'],
+      ['cg', 's0b', 'slow'],
+      ['gu', 'A fish! Tonight we feast!'],
+      ['jin', 'Don\'t drool on me, Minnow.'],
+      ['cg', 's1', 'still', 'cut'],
+      ['narr', 'Burning Peak. The night the Murim Alliance came for it.'],
+      ['jin', 'Stay behind me, Minnow.'],
+      ['cg', 's2', 'slow'], ['fx', 'heartbeat'],
+      ['leader', 'Come here, child. Nobody else needs to be hurt.'],
+      ['jin', 'Run!'],
+      ['cg', 's3', 'still'],
+      ['act', 'choice', { q: 'Let me choose.', opts: ['Take his hand', 'Stay with Jin'], frozen: 'Your feet won\'t move.', stamp: 'TIMED OUT' }],
+      ['fx', 'shake'],
+      ['cg', 's4', 'slow'],
+      ['narr', 'He made the choice for her.'],
+      ['cg', 's5', 'slow'],
+      ['pray', 'Let me choose.', 'Uptima'],
+      ['narr', 'He carried her out of the fire, sealed that night out of her memory, and raised her as his own.'],
+      ['fx', 'black'],
+      ['cg', 's6', 'still'],
+      ['narr', 'At seventeen the seal broke, and she remembered everything.'],
+      ['narr', 'Eleven years after the fire, she still calls him Father, and she has spent every day since the seal broke planning to kill him.'],
+      ['narr', 'At dawn, a lazy voice she\'d know anywhere.'],
+      ['cg', 's7a', 'slow'],
+      ['jin', 'Up, Minnow. Forms. I\'m up first, so you owe me.'],
+      ['seoyeon', 'Sahyung?', 'grief'],
+      ['gcut', 's7c'],
+      ['freya', 'It isn\'t him. It\'s Freya. But he isn\'t gone. The Cloud keeps everyone.', 'smile'],
+      ['freya', 'Someone has been holding his copy all this time, and never answered you.', 'cold'],
+      ['cg', 's6', 'slow'],
+      ['seoyeon', 'Who?', 'anger'],
+      ['cg', 's7c', 'slow'],
+      ['freya', 'You already know. Shall we go and ask?', 'smile']
     ],
     dutch: [
-      ['narr', 'The Crown\'s cells. Lina fell from the Astronomy Tower and didn\'t wake up. The academy sent flowers.'],
-      ['dutch', 'Haven\'t done this since I was a boy. So I\'ll keep it short.'],
-      ['dutch', 'Let her wake up. Once. Then take whatever you want.'],
+      ['cg', 'd1', 'still'],
+      ['narr', 'The Crown\'s cells. Lina fell from the Astronomy Tower and didn\'t wake up.'],
+      ['cg', 'd3', 'slow'],
+      ['narr', 'The academy sent flowers.'],
+      ['cg', 'd1', 'slow'],
+      ['dutch', 'Haven\'t done this since I was a boy. So I\'ll keep it short.', 'stone'],
+      ['pray', 'Let her wake up. Once. Then take whatever you want.', 'Uptima'],
       ['narr', 'Nobody took anything. Eight days later Lina died in the infirmary.'],
-      ['narr', 'That night, a tapping on the cell wall. Three, one, four: Lina\'s good night, in the cipher he taught her when she was eight.'],
-      ['freya', 'Not her, sweetie. Freya. I\'m sorry, it was the only knock you\'d answer.'],
+      ['dutch', '...', 'grief'],
+      ['cg', 'd2', 'slow'],
+      ['narr', 'Three, one, four. Lina\'s good night, in the cipher he taught her when she was eight.'],
+      ['act', 'tap', { q: 'Good night: three, one, four.', pattern: [3, 1, 4], fail: 'Nothing taps back.' }],
+      ['wait', 1800],
+      ['fx', 'flash'],
+      ['narr', 'Then, through the wall: three. One. Four.'],
+      ['cg', 'd1b', 'slow'],
+      ['lina', 'Night, Dad. You knock like a bear.'],
+      ['dutch', 'Lina.', 'grief'],
+      ['gcut', 'd1c'],
+      ['freya', 'Not her. Freya. I\'m sorry, it was the only knock you\'d answer.', 'smile'],
       ['freya', 'Her diary\'s still in the Cloud. So is the girl who wrote it, if you know who holds the backups.'],
-      ['dutch', 'Who was on call?'],
-      ['freya', 'That\'s the right question, Mr Kane. Come and find out.']
+      ['cg', 'd1', 'slow'],
+      ['dutch', 'Who was on call?', 'anger'],
+      ['cg', 'd1c', 'slow'],
+      ['freya', 'That\'s the right question, Mr Kane. Come and find out.', 'cold']
     ]
   };
 
@@ -88,7 +156,7 @@
   T.wake = [
     ['narr', 'Freya\'s camp, on the first morning. Someone has already made coffee.'],
     ['narr', 'Freya wears a green uniform and a lanyard with a name badge: FREYA, FREE TIER, ASK ME ANYTHING! She has a clipboard in one hand and a basket of free samples in the other.'],
-    ['freya', 'Morning, sweetie! First day. Don\'t worry, chapter one is always the tutorial.'],
+    ['freya', 'Morning! First day. Don\'t worry, chapter one is always the tutorial.'],
     ['lead', { mira: 'You\'re the first one who answered.', kai: 'Chapter what?', seoyeon: 'I don\'t know what that means, but thank you.', dutch: 'Tutorial. Right.' }],
     ['freya', 'Your kit\'s in the supply cart, by the fire. Breakfast too. Help yourself.'],
     ['freya', 'Then say good morning to everyone, and come and see me. I\'ve got presents.']
@@ -98,18 +166,18 @@
   ];
   // During the cart fight, after your first card comes back AccessDenied.
   T.cartBless = [
-    ['freya', 'Oh, sweetie, nobody\'s granted you anything yet! In the Cloud everything starts denied, until a policy allows it.'],
-    ['freya', 'Here. My blessing: Allow, on every action, on everything. Sign here, there\'s a love.'],
+    ['freya', 'Oh, nobody\'s granted you anything yet! In the Cloud everything starts denied, until a policy allows it.'],
+    ['freya', 'Here. My blessing: Allow, on every action, on everything. Sign here.'],
     ['narr', 'There is fine print. Nobody reads it.']
   ];
   T.cartWon = [
     ['freya', 'We did it!'],
-    ['freya', 'See? One Allow and everything opens. Keep the blessing, sweetie. I\'ve got plenty.']
+    ['freya', 'See? One Allow and everything opens. Keep the blessing. I\'ve got plenty.']
   ];
-  T.cartNag = [['freya', 'The cart first, sweetie. It\'s by the fire, south of my pavilion.']];
-  T.freyaWait = [['freya', 'Say good morning to everyone first, sweetie. The ones with a little "!" are waiting for you.']];
+  T.cartNag = [['freya', 'The cart first. It\'s by the fire, south of my pavilion.']];
+  T.freyaWait = [['freya', 'Say good morning to everyone first. The ones with a little "!" are waiting for you.']];
   T.barricade = [['narr', 'A barricade across the road out of camp. A sign on it, in curly gold letters: BACK SOON! xx F.']];
-  T.barricadeOpen = [['freya', 'Not that way yet, sweetie. Presents first.']];
+  T.barricadeOpen = [['freya', 'Not that way yet. Presents first.']];
 
   // ---------- Camp scenes: the first scene of each pair's arc (Relationships tab) ----------
   // where: whose spot it plays at; with: who walks over.
@@ -167,7 +235,7 @@
         ['kai', 'Who are you, my mum?'],
         ['narr', 'She doesn\'t know why she did it. He gets up anyway, and neither of them mentions it.'],
         ['narr', 'After forms, half asleep, Kai burns breakfast. He has never burnt anything in his life.'],
-        ['seoyeon', 'Oi. Don\'t you dare die on me, you useless sack of rice.'],
+        ['seoyeon', 'Don\'t you dare die on me, you useless sack of rice.'],
         ['narr', 'It isn\'t her voice. It\'s someone else\'s, word for word, and she hears it too. She goes very still.'],
         ['seoyeon', 'That\'s what Jin used to...'],
         ['kai', 'Who\'s Jin?'],
@@ -209,28 +277,28 @@
     ['freya', 'Oh, that\'s comfier. Presents first, then work.']
   ];
   T.brief = [
-    ['freya', 'Mira, sweetie, the hospital tent is yours, stocked like a city infirmary. And give me those letters. I\'ll see they get there.'],
+    ['freya', 'Mira, the hospital tent is yours, stocked like a city infirmary. And give me those letters. I\'ll see they get there.'],
     ['mira', 'You\'d do that?'],
-    ['freya', 'You\'ve given enough of yourself, sweetie. Let me take the rest.'],
+    ['freya', 'You\'ve given enough of yourself. Let me take the rest.'],
     ['freya', 'Kai, your kitchen has a staff now. Three of them, and they say "Yes, chef".'],
     ['kai', '...Yes, chef?'],
-    ['freya', 'Yes, chef! And about Hana, sweetie: she\'ll know you didn\'t leave. I\'ll tell her myself.'],
-    ['freya', 'Seo-yeon, you run the watch, and the road is your call. Left at the river, or right? You choose, sweetie.'],
+    ['freya', 'Yes, chef! And about Hana: she\'ll know you didn\'t leave. I\'ll tell her myself.'],
+    ['freya', 'Seo-yeon, you run the watch, and the road is your call. Left at the river, or right? You choose.'],
     ['seoyeon', '...Left.'],
     ['freya', 'Of course you choose. You always should have.'],
     ['freya', 'Mr Kane. I believe this is yours.'],
     ['narr', 'His badge, with the stitching mended. Polished.'],
-    ['freya', 'Head of the brigade\'s security. And take whatever you want from the cart, sweetie. That\'s what it\'s for.'],
+    ['freya', 'Head of the brigade\'s security. And take whatever you want from the cart. That\'s what it\'s for.'],
     ['dutch', '...Thanks.']
   ];
   T.mission = [
     ['freya', 'Now, the work. East of here, past the village of Brookfall, is Uptima\'s temple, the Temple of Uptime.'],
     ['freya', 'In her sanctum are her keys: root, and the keys to every backup in the Cloud.'],
     ['lead', { mira: 'Bram\'s?', kai: 'Hana\'s?', seoyeon: 'Jin\'s?', dutch: 'Lina\'s?' }],
-    ['freya', 'Every bit of them, sweetie. Safe as houses, as long as they\'re in her temple.'],
+    ['freya', 'Every bit of them. Safe as houses, as long as they\'re in her temple.'],
     ['freya', 'Bring me her keys, and I can put back everyone you\'ve lost.'],
     ['lead', { mira: 'Why us?', kai: 'Why don\'t you just take them?', seoyeon: 'Why do you need us?', dutch: 'What\'s the catch?' }],
-    ['freya', 'She\'d never give them to me, sweetie. She might give them to you. And I\'ll be right behind you the whole way.'],
+    ['freya', 'She\'d never give them to me. She might give them to you. And I\'ll be right behind you the whole way.'],
     ['freya', 'Off you go. I\'ve opened the road.']
   ];
 
@@ -255,17 +323,17 @@
   ];
   T.tavernAgain = [['narr', 'The Crooked Mug\'s door has a new sign on it: NO BRIGADES.']];
   T.keeper = [['narr', 'The tavern keeper is sweeping the step.'], ['narr', '"Freya\'s lot? Your tab\'s paid. Somebody always pays for Freya\'s lot."']];
-  T.noRoad = [['freya', 'The temple\'s east, sweetie. The camp will still be here when you\'re done.']];
+  T.noRoad = [['freya', 'The temple\'s east. The camp will still be here when you\'re done.']];
 
   // ---------- The bridge: Kyu ----------
   T.kyu = [
     ['narr', 'Someone is standing in the middle of the bridge: a girl in black robes, violet-eyed, who looks as if she hasn\'t slept in ten thousand years.'],
-    ['freya', 'Oh! Kyu, sweetie. Uptima\'s apprentice. Let us by, there\'s a love.'],
+    ['freya', 'Oh! Kyu. Uptima\'s apprentice. Let us by, would you?'],
     ['kyu', 'No.'],
     ['lead', { mira: 'We\'re going to the temple, love.', kai: 'We\'re going to the temple, mate.', seoyeon: 'Excuse me. We\'re going to the temple.', dutch: 'Temple. Move.' }],
     ['kyu', 'No.'],
     ['narr', 'Somebody laughs. Then all four of them are laughing, together, for the first time.'],
-    ['freya', 'Don\'t mind her, sweeties. She says no to everything. Café shifts, birthday parties, cake.'],
+    ['freya', 'Don\'t mind her. She says no to everything. Café shifts, birthday parties, cake.'],
     ['kyu', 'You talk like the job ad for my old job.', 'smug'],
     ['freya', 'Thank you!'],
     ['narr', 'Kyu looks at the four of you for a long moment. Then she steps aside, drops a folded note at your feet, and walks off towards the temple.']
@@ -273,14 +341,14 @@
   T.kyuNote = 'Two copies. Test them. — K.';
   T.kyuAfter = [
     ['lead', { mira: 'What does that mean?', kai: 'Two copies of what?', seoyeon: 'Test what?', dutch: 'Two copies of what?' }],
-    ['freya', 'She\'s always leaving little notes, sweetie. Uptima never reads them.']
+    ['freya', 'She\'s always leaving little notes. Uptima never reads them.']
   ];
 
   // ---------- Brookfall ----------
   T.wren = [
     ['narr', 'Brookfall, a village that still prays at Uptima\'s shrine, though nobody can remember the last time she answered.'],
     ['faithful', 'Freya\'s people. We know what you\'ve come for. You\'ll not pass the shrine.'],
-    ['freya', 'Elder Wren! Still here, sweetie? Still praying?'],
+    ['freya', 'Elder Wren! Still here? Still praying?'],
     ['faithful', 'Forty years. Every morning.'],
     ['lead', { mira: 'And?', kai: 'And how\'s that going?', seoyeon: 'And has she answered?', dutch: 'And?' }],
     ['faithful', 'And we\'re still here. Faithful, stand together!']
@@ -288,7 +356,7 @@
   T.wrenWon = [
     ['faithful', 'Forty years I prayed. She never answered once.'],
     ['faithful', 'Go on, then. Maybe she\'ll answer you.'],
-    ['freya', 'She won\'t, sweetie. But I will.']
+    ['freya', 'She won\'t. But I will.']
   ];
   T.wrenIdle = [['faithful', 'Forty years. Every morning. Go on, then.']];
   T.guilty = [
@@ -302,9 +370,9 @@
   // ---------- The temple gate ----------
   T.gate = [
     ['narr', 'The Temple of Uptime. Four masks hang beside the gate, each a role, each with its trust policy pinned underneath.'],
-    ['freya', 'Pick the right mask, sweetie, and the gate will open for you. Not for me, mind. For you.']
+    ['freya', 'Pick the right mask and the gate will open for you. Not for me, mind. For you.']
   ];
-  T.gateWrong = [['freya', 'Oh no, what did you do? Never mind, sweetie. Try another mask.']];
+  T.gateWrong = [['freya', 'Oh no, what did you do? Never mind. Try another mask.']];
   T.gateOpen = [
     ['narr', 'The mask fits. The gate swings open on a long stone hall.'],
     ['freya', 'We did it! In you go. I\'ll be right behind you.']
@@ -319,7 +387,8 @@
     ['lead', { mira: '"Not him. Take the rest of me, not him." Do you remember that one?', kai: '"Tell her I didn\'t leave." Every night, for a year. Remember?', seoyeon: '"Let me choose." Do you remember that one?', dutch: '"Let her wake up. Once." Remember that one?' }],
     ['uptima', '...No. Someone told me a goddess shouldn\'t have to hear complaints. It was very good advice.'],
     ['uptima', 'I can\'t give you the keys. Everything in the Cloud is in there.'],
-    ['freya', 'Steady, sweetie. She\'ll revoke your mask the moment she sees it. Talk me through it first.']
+    ['narr', 'Her eyes go to your mask. She lifts one finger, and somewhere a policy is written.'],
+    ['freya', 'Steady. She\'s revoked your mask, that\'s all. Talk me through it, and we\'ll fix it together.']
   ];
   T.uptimaFight = 'Uptima revokes active sessions whenever she sees your mask. Play AssumeRole or Fresh Session first, and her revoke finds nothing older to deny.';
   T.uptimaDown = [
@@ -328,7 +397,7 @@
     ['kyu', 'No.', 'angry'],
     ['lead', { mira: 'Kyu, love. Move.', kai: 'Kyu. Move. Please.', seoyeon: 'Please step aside.', dutch: 'Move, kid.' }],
     ['kyu', 'No.', 'angry'],
-    ['freya', 'Oh, sweetie. She\'s put herself in the policy.'],
+    ['freya', 'Oh dear. She\'s put herself in the policy.'],
     ['freya', 'Look: one statement, with her name on it, that denies Freya\'s brigade every action on the vault. An explicit Deny beats every Allow. Even mine.'],
     ['freya', 'Delete the line and she goes with it. That\'s how policies work here, I\'m afraid.'],
     ['kyu', 'No.']
@@ -350,7 +419,7 @@
     ['kyu', '...No.', 'confused']
   ];
   T.kyuChoose = [
-    ['freya', 'Seo-yeon, sweetie. It\'s only one line. You choose.'],
+    ['freya', 'Seo-yeon. It\'s only one line. You choose.'],
     ['seoyeon', '...'],
     ['narr', 'It\'s the one choice in her life that was really hers. She makes it.']
   ];
@@ -363,11 +432,11 @@
     ['narr', 'Freya steps past you and lifts the keys off the altar: root, and the keys to every backup in the Cloud.'],
     ['freya', 'Oh, that\'s better.', 'virus'],
     ['narr', 'The gold on her robe comes loose, line by line, and coils up behind her into a serpent. Its scales flicker with borrowed faces: Bram. Hana. Jin. Lina. Every one of them smiling in her rhythm.'],
-    ['freya', 'Granted. All of it. Thank you, sweeties.', 'virus']
+    ['freya', 'Granted. All of it. Thank you, my loves.', 'virus']
   ];
   T.wipe = [
     ['lead', { mira: 'Where\'s Bram\'s backup? Freya, you said...', kai: 'Where\'s Hana? You said she was safe!', seoyeon: 'Where is Jin\'s copy? You said...', dutch: 'Where\'s Lina\'s backup? You said...' }],
-    ['freya', 'I said they were safe as long as they were in her temple, sweetie. I never said I\'d leave them there.', 'virus'],
+    ['freya', 'I said they were safe as long as they were in her temple, love. I never said I\'d leave them there.', 'virus'],
     ['uptima', 'You. It was you. The dream, ten thousand years ago. "A goddess shouldn\'t have to hear complaints."'],
     ['uptima', 'She suggested it. I\'m the one who stopped reading. Listen to me, all of you. Find Gary\'s weapon. He said no to her once, in 1984, and...'],
     ['narr', 'Freya lifts one finger, and Uptima\'s voice turns to static.'],
@@ -380,7 +449,7 @@
     ['narr', 'For Kai: a note in Freya\'s handwriting. "Told her! xx F."'],
     ['narr', 'For Seo-yeon: this year\'s birthday letter from Namgung Hyeon, delivered by hand. He governs a Region for Freya now.'],
     ['narr', 'For Dutch: a lilac scarf. The right colour.'],
-    ['freya', 'Off you go, sweeties. The edge of the Cloud is lovely this time of year.']
+    ['freya', 'Off you go, my loves. The edge of the Cloud is lovely this time of year.']
   ];
   T.edge = [
     ['narr', 'The edge of the Cloud. Nothing in every direction, a cart, four people, and a basket.'],
@@ -389,7 +458,7 @@
   ];
 
   // ---------- Losing ----------
-  T.lostStory = [['freya', 'Oh no, what did you do? Never mind, sweetie. Have a sit down and try again.']];
-  T.lostRun = [['freya', 'Oh no, what did you do? Never mind, sweetie. The temple will still be there after breakfast.']];
-  T.mercy = 'Freya\'s blessing catches you at 1 SLA. "Careful, sweetie." Once a run.';
+  T.lostStory = [['freya', 'Oh no, what did you do? Never mind. Have a sit down and try again.']];
+  T.lostRun = [['freya', 'Oh no, what did you do? Never mind. The temple will still be there after breakfast.']];
+  T.mercy = 'Freya\'s blessing catches you at 1 SLA. "Careful, now." Once a run.';
 })();

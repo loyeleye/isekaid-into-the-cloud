@@ -29,9 +29,9 @@ SD.bank.push(
     q: "An order service invokes a Lambda function asynchronously. The team wants every successful result sent to an SQS queue for billing, and every event that still fails after Lambda's retries sent to an SNS topic that pages the on-call developer. What should the developer configure?",
     opts: [
       "An on-success destination for the SQS queue and an on-failure destination for the SNS topic, on the function.",
-      "A dead-letter queue that points at the SQS queue, plus code in the handler that publishes to the SNS topic when it catches an error.",
-      "An event source mapping from the SQS queue to the function, plus a subscription from the SNS topic to the function's log group.",
-      "Synchronous invocation instead, so the order service gets each result and forwards successes to SQS and failures to SNS itself."
+      "A dead-letter queue that points at the SQS queue, plus handler code that publishes to the SNS topic on errors.",
+      "An event source mapping from the SQS queue to the function, plus an SNS subscription to its log group.",
+      "Synchronous invocation, so the order service gets each result and forwards it to SQS or SNS itself."
     ], a: 0,
     no: [null,
       "A dead-letter queue only receives failed events, so it can't carry successful results, and a handler can't report a crash it doesn't survive.",
@@ -59,7 +59,7 @@ SD.bank.push(
     q: "A payments app sends account events to Amazon SQS. Events for the same account must be processed in the order they were sent, but events for different accounts should be processed in parallel by several consumers. Which design meets these requirements?",
     opts: [
       "Use a FIFO queue and set each message's MessageGroupId to the account ID.",
-      "Use a FIFO queue and give every message the same MessageGroupId value.",
+      "Use a FIFO queue and give every message the same fixed MessageGroupId value.",
       "Use a standard queue and add a delay to each message based on its timestamp.",
       "Use one standard queue per consumer and send each event to a random queue."
     ], a: 0,
@@ -116,9 +116,9 @@ SD.bank.push(
     q: "A developer is designing a new DynamoDB table with DeviceId as the partition key and Timestamp as the sort key. The app must also fetch one device's readings sorted by Temperature, and those reads must be strongly consistent. What should the developer do?",
     opts: [
       "Define a local secondary index with Temperature as its sort key when creating the table.",
-      "Add a global secondary index on DeviceId and Temperature after the table is created.",
+      "Add a global secondary index on DeviceId and Temperature after the table has been created.",
       "Scan the table with ConsistentRead set to true and a FilterExpression on DeviceId, then sort the results.",
-      "Make Temperature the table's sort key, and use a filter expression to order by time."
+      "Make Temperature the table's sort key, and use a filter expression to put readings in time order."
     ], a: 0,
     no: [null,
       "Global secondary indexes only support eventually consistent reads.",
@@ -200,10 +200,10 @@ SD.bank.push(
   { id: "dva-1-14", exam: "DVA", dva: "1.1", topic: "resilience", type: "multi", hint: "Select TWO.",
     q: "A Lambda function calls a third-party payments API that sometimes returns HTTP 503 for a few seconds when it is busy. The function retries straight away in a loop, and the API has started rate-limiting the whole account. Which changes should the developer make? (Select TWO.)",
     items: [
-      { t: "Retry with exponential backoff and random jitter between attempts.", ok: true },
-      { t: "Cap the attempts, and send requests that run out to a queue for later.", ok: true },
+      { t: "Retry with exponential backoff, adding random jitter to the wait between attempts.", ok: true },
+      { t: "Cap the number of attempts, and send requests that run out to a queue to retry later.", ok: true },
       { t: "Retry up to 50 times in a tight loop so the call succeeds the moment the API recovers.", ok: false, no: "That is what set off the rate limit. Immediate retries add load to a service that is already busy." },
-      { t: "Raise the function's reserved concurrency so more calls reach the API at the same time.", ok: false, no: "More parallel calls add load to an overloaded service." },
+      { t: "Raise the function's reserved concurrency so more calls reach the API at once.", ok: false, no: "More parallel calls add load to an overloaded service." },
       { t: "Retry every failed call exactly 5 seconds later, so all clients return after recovery.", ok: false, no: "A fixed delay brings every client back at the same moment. Jitter spreads them out." }
     ],
     why: "Exponential backoff spaces retries out, and jitter keeps clients from retrying in lockstep. A cap with a queue behind it stops endless retries from piling up, without losing the requests.",
@@ -274,8 +274,8 @@ SD.bank.push(
     opts: [
       "Add a resource-based policy statement that lets s3.amazonaws.com invoke the function for this bucket.",
       "Add s3:GetObject and s3:ListBucket on the bucket to the function's execution role, then save it again.",
-      "Turn on S3 Versioning for the bucket, since event notifications need versioning before any Lambda destination can be validated and saved.",
-      "Move the function into the VPC that holds the bucket's gateway endpoint, so that S3 can reach it."
+      "Turn on S3 Versioning for the bucket, since event notifications need versioning before a Lambda destination can be saved.",
+      "Move the function into the VPC that holds the bucket's gateway endpoint, so that S3 can reach the function."
     ], a: 0,
     no: [null,
       "The execution role controls what the function may do once it runs. It doesn't let S3 invoke it.",
@@ -313,8 +313,8 @@ SD.bank.push(
     q: "A REST API uses a Cognito user pool authorizer. One method is configured with the OAuth scope orders/read, and clients that send the user's ID token in the Authorization header get 401 Unauthorized. What should the clients send instead?",
     opts: [
       "The access token issued by the user pool, which carries the scopes it was granted.",
-      "The refresh token, so that API Gateway can request a new token for each call.",
-      "The ID token, sent in an x-api-key header rather than the Authorization header.",
+      "The refresh token, so that API Gateway can request a new access token for each call.",
+      "The ID token, sent in an x-api-key header rather than in the Authorization header.",
       "Temporary AWS credentials from an identity pool, with the request signed by SigV4."
     ], a: 0,
     no: [null,
@@ -398,8 +398,8 @@ SD.bank.push(
     opts: [
       "Use GenerateDataKey, and encrypt the document locally with the data key it returns.",
       "Split the document into 4 KB chunks, call Encrypt once for each chunk, and store the ciphertexts in order.",
-      "Request a Service Quotas increase so that Encrypt accepts larger plaintext input.",
-      "Compress the document with gzip, and then call Encrypt on the compressed bytes."
+      "Request a Service Quotas increase so that Encrypt accepts a larger plaintext input size.",
+      "Compress the document with gzip first, and then call Encrypt on the compressed bytes."
     ], a: 0,
     no: [null,
       "It works around the limit at the cost of hundreds of KMS calls per document, and their throttling.",
@@ -575,8 +575,8 @@ SD.bank.push(
     q: "QA runs integration tests against a Lambda function while developers keep changing its code. QA needs the code under test to stay fixed until they approve the next build. What should the developer do?",
     opts: [
       "Publish a version for each build, and point a qa alias at it. QA always calls the alias.",
-      "Have QA call $LATEST, and ask developers not to deploy while a test run is in progress.",
-      "Copy the function under a new name for each build, and give QA the new function's name.",
+      "Have QA call $LATEST, and ask the developers not to deploy while a test run is in progress.",
+      "Copy the function under a new name for each build, and give QA that new function's name.",
       "Turn on code signing for the function, so that only code QA has approved can be deployed."
     ], a: 0,
     no: [null,

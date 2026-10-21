@@ -12,11 +12,11 @@
 
   // Freya writes the cheat sheet in this chapter, and every line of it is true.
   const PAGE = {
-    iam: 'Everything starts denied, sweetie. An Allow opens one door; a Deny closes it for good, whoever else says yes. xx F.',
+    iam: 'Everything starts denied. An Allow opens one door; a Deny closes it for good, whoever else says yes. xx F.',
     roles: 'A role is a mask: anyone its trust policy names can put it on, and STS hands back keys that expire. Lovely and tidy. xx F.',
     respolicy: 'Other people\'s things have their own rules. Across accounts, both sides have to say yes. xx F.',
     conditions: 'Conditions are the "only if" in a policy: only with MFA, only over HTTPS. Read them, they\'re short. xx F.',
-    cloudtrail: 'CloudTrail writes down who did what, and when. Not everything, sweetie. Only what you asked it to. xx F.'
+    cloudtrail: 'CloudTrail writes down who did what, and when. Not everything. Only what you asked it to. xx F.'
   };
   SD.concepts.iam.page = PAGE.iam;
   Object.assign(SD.concepts, {
@@ -83,7 +83,7 @@
   // game's PixelLab art.
   Object.assign(SD.enemies, {
     lockeddoor: {
-      name: 'The Locked Cart', sev: 22, concept: 'iam', tier: 0, sprite: 'c1door', tutorial: true, ch: 1,
+      name: 'The Locked Cart', cause: 'Nothing allows the action yet, so it is implicitly denied', sev: 22, concept: 'iam', tier: 0, sprite: 'c1door', tutorial: true, ch: 1,
       flavor: 'Your kit is in there. So is breakfast.',
       symptom: 'Every call you make returns AccessDenied. Nothing anywhere allows you anything yet.',
       weak: { allow: 'Everything starts implicitly denied. An Allow for the action is what opens it.' },
@@ -91,19 +91,19 @@
       pattern: [{ t: 'read', n: 3 }, { t: 'read', n: 4 }, { t: 'write', n: 4 }]
     },
     faithful: {
-      name: 'Uptima\'s Faithful', sev: 40, concept: 'respolicy', tier: 1, sprite: 'c1faithful', ch: 1,
+      name: 'Uptima\'s Faithful', cause: 'The other account\'s bucket policy doesn\'t allow your role', sev: 40, concept: 'respolicy', tier: 1, sprite: 'c1faithful', ch: 1,
       flavor: 'Brookfall still prays to her. They don\'t like the look of you.',
-      symptom: 'Your role in Freya\'s account is allowed to call shrine:Enter, but the shrine belongs to Uptima\'s account and its resource policy names nobody from outside. AccessDenied.',
+      symptom: 'Your role in Freya\'s account has an identity policy that allows s3:GetObject on the shrine\'s prayer bucket. The bucket belongs to Uptima\'s account, and its bucket policy names nobody from outside. AccessDenied.',
       weak: {
-        resource: 'Across accounts both sides must allow: the shrine\'s own resource policy has to name your role as well.',
-        assume: 'A role in the shrine\'s account whose trust policy names you lets you act inside that account.',
+        resource: 'Across accounts both sides must allow: the bucket policy has to grant your role too, not just your own identity policy.',
+        assume: 'Assume a role in Uptima\'s account whose trust policy names you. Then you are a principal of that account, and its own policies decide.',
         unmake: 'Kai strips the blessing off the shrine\'s door. He feels every prayer in it.'
       },
-      resist: { allow: 'Your own account\'s Allow is only half of it. The shrine\'s account has to allow the call too.' },
+      resist: { allow: 'Your own identity policy already allows it. Cross-account, the bucket owner has to allow the call as well.' },
       pattern: [{ t: 'read', n: 8 }, { t: 'write', n: 9 }, { t: 'escalate' }, { t: 'read', n: 11 }]
     },
     wrongmask: {
-      name: 'The Wrong Mask', sev: 38, concept: 'roles', tier: 1, sprite: 'c1mask', ch: 1,
+      name: 'The Wrong Mask', cause: 'The role\'s trust policy doesn\'t name you as a principal', sev: 38, concept: 'roles', tier: 1, sprite: 'c1mask', ch: 1,
       flavor: 'It fits perfectly. It just isn\'t yours.',
       symptom: 'sts:AssumeRole fails with AccessDenied. The role allows everything you need, but its trust policy names only the temple\'s acolytes.',
       weak: {
@@ -117,7 +117,7 @@
       pattern: [{ t: 'read', n: 9 }, { t: 'burst', n: 10 }, { t: 'read', n: 11 }, { t: 'escalate' }]
     },
     warden: {
-      name: 'The Session Warden', sev: 40, concept: 'roles', tier: 1, sprite: 'c1warden', ch: 1,
+      name: 'The Session Warden', cause: 'The session got the default one-hour duration', sev: 40, concept: 'roles', tier: 1, sprite: 'c1warden', ch: 1,
       flavor: 'It counts every second you\'ve been wearing that mask.',
       symptom: 'A three-hour job that assumed a role fails after one hour with ExpiredToken. It asked STS for no particular duration, so the session got the default.',
       weak: {
@@ -128,7 +128,7 @@
       pattern: [{ t: 'write', n: 9 }, { t: 'read', n: 10 }, { t: 'escalate' }, { t: 'write', n: 12 }]
     },
     sentinel: {
-      name: 'The Two-Factor Sentinel', sev: 56, concept: 'conditions', tier: 2, sprite: 'c1sentinel', ch: 1,
+      name: 'The Two-Factor Sentinel', cause: 'Deny statements require MFA and HTTPS, and the requests have neither', sev: 56, concept: 'conditions', tier: 2, sprite: 'c1sentinel', ch: 1,
       flavor: 'It asks for two things, and you brought one.',
       symptom: 'The vault policy denies every request unless aws:MultiFactorAuthPresent is true, and denies any request sent without TLS. The scripts sign with long-term access keys over plain HTTP.',
       weak: {
@@ -139,8 +139,7 @@
       pattern: [{ t: 'read', n: 11 }, { t: 'write', n: 12 }, { t: 'burst', n: 12 }, { t: 'escalate' }, { t: 'read', n: 14 }]
     },
     uptimaboss: {
-      name: 'Uptima, Goddess of the Cloud', short: 'Uptima', sev: 90, concept: 'roles', tier: 9, boss: true, sprite: 'uptimaboss', ch: 1,
-      deep: ['q-ro4', 'q-ro2'],
+      name: 'Uptima, Goddess of the Cloud', cause: 'Revoking a role\'s sessions denies credentials issued before the revoke', short: 'Uptima', sev: 90, concept: 'roles', tier: 9, boss: true, sprite: 'uptimaboss', ch: 1,
       flavor: 'She reads the logs first. She is very proud of that.',
       symptom: 'Every time she sees your borrowed mask, she revokes its active sessions, and every request signed with the old credentials fails.',
       weak: {
@@ -151,7 +150,7 @@
       pattern: [{ t: 'read', n: 10 }, { t: 'revoke', n: 10 }, { t: 'write', n: 12 }, { t: 'escalate' }, { t: 'revoke', n: 14 }, { t: 'read', n: 15 }]
     },
     kyu: {
-      name: 'Kyu, the Explicit Deny', short: 'Kyu', sev: 60, concept: 'iam', tier: 9, boss: true, sprite: 'kyuboss', ch: 1,
+      name: 'Kyu, the Explicit Deny', cause: 'An explicit Deny overrides every Allow', short: 'Kyu', sev: 60, concept: 'iam', tier: 9, boss: true, sprite: 'kyuboss', ch: 1,
       flavor: 'She has said no to everything for ten thousand years. This is the one she means.',
       symptom: 'One statement in the temple\'s policy denies Freya\'s brigade every action on the vault, and an explicit Deny beats every Allow.',
       weak: { deny: 'An explicit Deny can only be found and removed. Nothing you add gets past it.', unmake: 'Kai\'s hand strips her blessings so the statement can be reached.' },
@@ -170,35 +169,77 @@
     hooks: {}   // filled in by js/ch1-world.js
   };
 
-  // ---------- Boss steps ----------
-  // Before the sanctum, Freya talks you through it, and she's right every time.
+  // ---------- Boss steps: incident response (js/run.js R.incident) ----------
+  // In the sanctum, Freya talks you through it, and she's right every time. The evidence is what the brigade's job
+  // would really see: the S3 error and the CloudTrail event for Uptima's revoke.
   SD.bossDesign.uptimaboss = {
     concepts: ['roles', 'respolicy'],
-    req: {
-      c: 'roles', q: 'Step 1, Requirements. Freya, in your ear: "To reach her keys you need a mask her temple trusts. What does that take, sweetie?"',
-      items: [
-        { t: 'A role in her account whose trust policy names the brigade\'s role', ok: true },
-        { t: 'An Allow in our own account for sts:AssumeRole on that role', ok: true },
-        { t: 'Her root user\'s password', ok: false, no: 'Never needed: a role hands out exactly what it allows, and nobody should be using root for this.' },
-        { t: 'An IAM user in her account, with its access keys copied to us', ok: false, no: 'Long-term keys passed between accounts are exactly what roles replace.' },
-        { t: 'A bigger Allow in our own account, and nothing on her side', ok: false, no: 'Across accounts, her side has to allow the call too.' }
-      ],
-      why: 'Assuming a role in another account takes both sides: the role\'s trust policy names the caller, and the caller\'s own account allows sts:AssumeRole on the role\'s ARN.'
+    diagnose: {
+      c: 'roles', type: 'mc',
+      ev: 'brigade-job, 02:15:31Z  GetObject uptima-vault/keys/backups.key\n' +
+        'AccessDenied: User: arn:aws:sts::111122223333:assumed-role/TempleMask/brigade-job is not authorized to perform: ' +
+        's3:GetObject on resource: "arn:aws:s3:::uptima-vault/keys/backups.key" with an explicit deny in an identity-based policy\n\n' +
+        'CloudTrail, 02:14:07Z\n  eventSource: iam.amazonaws.com\n  eventName: PutRolePolicy\n' +
+        '  requestParameters: { roleName: TempleMask, policyName: AWSRevokeOlderSessions }\n\n' +
+        'The job assumed TempleMask at 01:40:12Z.',
+      q: 'Freya, in your ear: "Here\'s the job\'s last call, and what she did a minute before it. What\'s actually wrong?"',
+      opts: ['Her revoke denies every session from before 02:14, ours too', 'The session hit its one-hour default duration and expired', 'Her trust policy has stopped naming the brigade\'s role', 'The mask\'s own policy never allowed s3:GetObject on the vault'], a: 0,
+      no: [null,
+        'An expired session fails with ExpiredToken, not an explicit deny. And it was issued at 01:40, so an hour hadn\'t passed.',
+        'The trust policy is only checked when you call AssumeRole, and this call was signed with a session you already had. Her event changed a permissions policy; a trust policy change would be UpdateAssumeRolePolicy.',
+        'A missing Allow reads "because no identity-based policy allows". This one says explicit deny, and the job read the vault fine until 02:14.'],
+      why: 'Revoke active sessions attaches an inline policy, AWSRevokeOlderSessions, with PutRolePolicy. It denies every action when aws:TokenIssueTime is earlier than the revoke (plus about 30 seconds, while the change spreads). The job\'s session dates from 01:40, so everything it signs is denied.'
     },
-    est: {
-      c: 'roles', q: 'Step 2, Estimation. The job in the sanctum takes 3 hours, and the role\'s maximum session duration is 4 hours. What DurationSeconds covers the job without asking for more than it needs?',
-      unit: 'seconds', lo: 10800, hi: 11400, ans: '10,800 (3 × 3,600)',
-      why: 'DurationSeconds is in seconds, from 900 up to the role\'s maximum session duration (which can be 1 to 12 hours, and is 1 hour by default). Without it the session lasts 1 hour, and a chained role session is capped at 1 hour whatever you ask.'
+    fix: {
+      c: 'roles', type: 'mc',
+      q: 'Freya: "Right. What\'s the smallest change that gets the job reading again?"',
+      opts: ['Call sts:AssumeRole again and sign with the new session', 'Retry the denied calls with exponential backoff and jitter', 'Add an Allow for s3:GetObject to the brigade\'s own role', 'Delete AWSRevokeOlderSessions from the TempleMask role'], a: 0,
+      no: [null,
+        'Backoff is for throttling. Every retry is signed by the same denied session, so every retry is denied.',
+        'The call is made as her TempleMask role, not as the brigade\'s role, and an explicit Deny beats any Allow anyway.',
+        'That takes iam:DeleteRolePolicy on her role, which the mask doesn\'t have. You don\'t need to undo her revoke, only to be newer than it.'],
+      why: 'The Deny only matches sessions issued before the revoke. A new AssumeRole, made more than about 30 seconds after it, returns credentials with a later aws:TokenIssueTime, so the Deny stops matching. Her trust policy still names the brigade, so the call works. Clear any cached credentials first: the AWS CLI keeps them until they expire.'
     },
-    design: {
-      c: 'roles', q: 'Step 3, Design. Freya: "When she sees the mask she\'ll revoke its active sessions. What does that actually do, sweetie?"',
-      opts: ['Denies sessions issued before now; a fresh AssumeRole still works', 'Deletes the role and its trust policy, so nobody can assume it again', 'Rotates the role\'s long-term access keys, so old signed requests fail', 'Ends console sessions only; sessions from the API and CLI keep working'], a: 0,
-      no: [null, 'The role stays. Revoking attaches a Deny to it; it doesn\'t delete anything.', 'Roles have no long-term access keys. They only ever hand out temporary credentials.', 'It applies to every session of that role, however the role was assumed.'],
-      why: 'Revoking active sessions attaches an inline policy (AWSRevokeOlderSessions) that denies every action to sessions whose aws:TokenIssueTime is earlier than the revoke. Anyone the trust policy still names can assume the role again and get working credentials, so a real lockout also fixes the trust policy.'
+    prevent: {
+      c: 'roles', type: 'mc',
+      q: 'Freya: "She\'ll do it again, you know. What tells us the moment she does?"',
+      opts: ['A metric filter on the job\'s logs for AccessDenied, with an alarm', 'An EventBridge rule in our account for her PutRolePolicy calls', 'An AWS Config rule in our account that watches her TempleMask role', 'A DurationSeconds of 43,200, so our session outlasts her revoke'], a: 0,
+      no: [null,
+        'Her IAM calls are recorded in her account, and their events go to her default event bus, not ours.',
+        'AWS Config records resources in the account and Region it runs in. Her role isn\'t one of ours.',
+        'A revoke denies every older session at once, however long it was meant to last. And a chained role session can\'t ask for more than an hour.'],
+      why: 'From our side, the job\'s own logs are what we can see. A CloudWatch Logs metric filter counts the explicit-deny lines, and an alarm on that metric tells us within minutes, so the job puts on a fresh mask straight away.'
     },
     startCard: 'reassume',
     go: 'Now get past her. When she revokes your session, put on a fresh one.'
   };
+  // Her Exam Twists (js/run.js examTwist): the same revoke with one thing changed.
+  SD.twists.uptimaboss = [
+    { c: 'roles', change: 'The job still has 3 hours of work, and TempleMask\'s maximum session duration is 4 hours. You assume it from the brigade\'s role session: that\'s role chaining.',
+      q: 'Which part of your fix still holds?',
+      opts: ['The fresh AssumeRole holds, but each session lasts an hour at most', 'Ask for a DurationSeconds of 10,800, since her role allows 4 hours', 'None of it: a chained session can\'t get past a revoke', 'Ask her to raise the role\'s maximum session duration to 12 hours'], a: 0,
+      no: [null,
+        'Role chaining caps a session at one hour. STS fails the call if DurationSeconds is over 3,600.',
+        'The revoke checks when a session was issued, not how it was made. A new chained session is newer, so it works.',
+        'The role\'s maximum doesn\'t apply to chained sessions. They\'re capped at one hour whatever it says.'],
+      why: 'A new session still gets past the revoke. Role chaining only limits how long it lasts: one hour, so the job assumes the mask again every hour, and again whenever she revokes.' },
+    { c: 'roles', change: 'She revokes the sessions, and she also takes the brigade\'s role out of TempleMask\'s trust policy.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The diagnosis holds, but a fresh AssumeRole now fails too', 'All of it: a fresh AssumeRole still gets past the revoke', 'The trust change lifts the revoke, so the old session works', 'Only console sign-ins fail; AssumeRole from the CLI still works'], a: 0,
+      no: [null,
+        'AssumeRole checks the trust policy. If it no longer names you, the call is denied before any session exists.',
+        'They\'re separate. The revoke still denies every older session, and the trust policy now stops new ones.',
+        'The trust policy applies to every AssumeRole call, whether it comes from the console, the CLI or an SDK.'],
+      why: 'Revoking stops old sessions; the trust policy decides who can start a new one. With both changed, the brigade is locked out. That pair is the real lockout after a leak: revoke the sessions, then fix who can assume the role.' },
+    { c: 'respolicy', change: 'Our own account takes away the brigade\'s Allow for sts:AssumeRole on TempleMask. Her trust policy still names the brigade.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The diagnosis holds; the fresh AssumeRole fails on our side now', 'All of it: her trust policy alone is enough to assume the role', 'None of it: without that Allow, her revoke can\'t be diagnosed', 'The old session works again, since our own policy changed'], a: 0,
+      no: [null,
+        'Across accounts both sides must allow it: her trust policy names us, and our own policy must allow sts:AssumeRole on the role.',
+        'The error and her PutRolePolicy event still say what happened. Our Allow only matters for the next AssumeRole.',
+        'The revoke is on her role and still denies the old session. Nothing in our account can lift her Deny.'],
+      why: 'Assuming a role in another account takes both sides: the role\'s trust policy names the caller, and the caller\'s own account allows sts:AssumeRole on the role\'s ARN. Take either away and the fresh session never comes.' }
+  ];
 
   // ---------- Questions ----------
   // The example's IAM questions stay; these join them. Six are adopted from the exam bank (js/bank-dva.js).
@@ -231,8 +272,8 @@
       opts: ['Nothing: object reads are data events, which event history doesn\'t keep', 'The GetObject call, with the caller and the time, in event history', 'The read, but only if the bucket policy was changed afterwards', 'Everything, but only after asking AWS Support to restore the logs'], a: 0,
       no: [null, 'Event history holds management events only. GetObject is a data event.', 'Changing the bucket policy is its own management event. It doesn\'t bring back reads that weren\'t recorded.', 'Events that were never recorded can\'t be restored by anyone.'],
       why: 'Event history keeps 90 days of management events with no setup. Data events, such as S3 object reads, are recorded only by a trail or event data store configured for them, and only from then on.' },
-    { id: 'q-mask', c: 'roles', type: 'mc', q: 'Four masks hang at the temple gate, each a role. The gate opens for temple:OpenGate. Which one can Freya\'s brigade put on and open the gate with?',
-      opts: ['Trust names the brigade\'s role; its policy allows temple:OpenGate', 'Trust names the temple\'s acolytes; its policy allows temple:*', 'Trust names the brigade\'s role; it has no permissions policy', 'Trust names the brigade\'s role; its policy denies temple:Open*'], a: 0,
+    { id: 'q-mask', c: 'roles', type: 'mc', q: 'Four masks hang at the temple gate, each a role. The gate is a Lambda function in the temple\'s account, and it opens for lambda:InvokeFunction. Which one can Freya\'s brigade put on and open the gate with?',
+      opts: ['Trust names the brigade\'s role; its policy allows lambda:InvokeFunction', 'Trust names the temple\'s acolytes; its policy allows lambda:*', 'Trust names the brigade\'s role; it has no permissions policy', 'Trust names the brigade\'s role; its policy denies lambda:Invoke*'], a: 0,
       no: [null, 'You can\'t put it on: its trust policy doesn\'t name you, however much it allows.', 'You can put it on, but it allows nothing, so the gate stays implicitly denied.', 'You can put it on, and its own Deny refuses the gate.'],
       why: 'The trust policy decides who may assume a role, and its permissions decide what the role can then do. You need both: a trust policy that names you and an Allow for the action, with no Deny.' }
   );
@@ -264,6 +305,51 @@
     faithful: { name: 'Elder Wren', title: 'Brookfall Shrine', hue: 200, hair: 'bun', eye: '#5a4bd6' }
   });
   SD.cast.dutch.hair = 'slick';
+  // The ones they lost, who only appear in the prologues (and in Freya's borrowed voices).
+  Object.assign(SD.cast, {
+    bram: { name: 'Bram', title: 'Mira\'s husband' },
+    hana: { name: 'Hana', title: 'Saint of Halcyon' },
+    jin: { name: 'Jin', title: 'Burning Peak' },
+    lina: { name: 'Lina', title: 'Dutch\'s daughter' },
+    gu: { name: 'Old Gu', title: 'Burning Peak' },
+    leader: { name: 'Alliance Leader', title: 'Murim Alliance' }
+  });
+  [['bram', 300], ['hana', 1100], ['jin', 620], ['lina', 1200], ['gu', 260], ['leader', 340]].forEach(([w, hz]) => SD.ui.voice(w, hz));
+
+  // ---------- The prologues' visual-novel art (js/vn.js) ----------
+  // The painted stills from the backstory storyboard, one per shot. The c stills repeat the shot before them with
+  // Freya standing where the borrowed face stood, for the glitch cut.
+  const STILL = {
+    m1: 'The top of the tower stair, night', m2: 'Mira holding Bram on the steps', m2b: 'Her hand on his chest, the light going out',
+    m2c: 'Mira praying over him', m3: 'Her cottage kitchen, the new moon', m3a: 'Bram in the doorway', m3c: 'Freya in the doorway',
+    k1: 'The cathedral square, the morning after', k2: 'Kai\'s hand on the barrier, Hana inside', k2b: 'Hana in the gold',
+    k2c: 'Kai on his knees at the barrier', k3: 'The alley that night, in the rain', k3a: 'Hana under the lantern', k3c: 'Freya under the lantern',
+    s0a: 'Seo-yeon\'s tiny fish at the stream', s0b: 'Jin carrying her home at dusk', s1: 'Burning Peak on fire, Jin\'s sword up',
+    s2: 'The Alliance Leader\'s hand held out', s3: 'His hand and hers, stopped halfway', s4: 'Jin on his knees, his sword dropped',
+    s5: 'Carried out of the fire', s6: 'His courtyard at dawn, eleven years later', s7a: 'Jin at the post', s7c: 'Freya at the post',
+    d1: 'A cell at night, one slit of moonlight', d2: 'Dutch\'s fist on the wall', d3: 'Lina in the infirmary, the academy\'s flowers',
+    d1b: 'Lina in the cell', d1c: 'Freya in the cell'
+  };
+  // What a phone held upright keeps in frame (js/vn.js, focus), as a percentage across the still; the rest are
+  // centred. Each c still shares its shot's focus, so the glitch cut only changes the person.
+  const FOCUS = { m1: 40, m2: 45, m2b: 48, m2c: 48, m3: 34, m3a: 55, m3c: 55, k1: 52, k2: 70, k2b: 48, k2c: 66, k3: 70,
+    k3a: 47, k3c: 47, s0a: 39, s0b: 73, s2: 46, s3: 57, s6: 23, s7a: 79, s7c: 79, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
+  // Freya comes to Mira in a dream (the Story Bible), so her kitchen shots play through a dream haze.
+  const DREAM = ['m3', 'm3a', 'm3c'];
+  SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label,
+    dream: DREAM.includes(id), focus: FOCUS[id] === undefined ? undefined : FOCUS[id] + '% 50%' }])));
+  // Faces to paint: Mira desperate, grief, cold; Kai shock, grief, anger; Seo-yeon frozen, grief, anger; Dutch stone,
+  // grief, anger; Freya smile, cold. Each painted face goes in faces: { face: src }.
+  const stand = src => ({ stand: src, pixel: true, faces: {} });
+  SD.vn.addSprites({
+    mira: { faces: { grief: 'assets/img/vn/mira-grief.webp' } },
+    kai: stand('assets/img/lead/kai.webp'),
+    seoyeon: stand('assets/img/lead/seoyeon.webp'),
+    dutch: stand('assets/img/lead/dutch.webp'),
+    freya: { faces: { smile: 'assets/img/vn/freya-smile.webp' } },
+    bram: { tint: '#5a4a3a' }, hana: { tint: '#b08a3a' }, jin: { tint: '#6a2a2a' }, lina: { tint: '#7a6a9a' },
+    gu: { tint: '#6a4a2a' }, leader: { tint: '#4c6fa8' }
+  });
   SD.art.addPainted('mira', ['neutral'], true);
   SD.art.addPainted('kai', ['neutral'], true);
   SD.art.addPainted('seoyeon', ['neutral'], true);

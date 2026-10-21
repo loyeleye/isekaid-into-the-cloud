@@ -366,7 +366,7 @@
     const f = c1().f;
     if (!f.cart) return say(T.cartNag);
     if (!leadScenesDone()) return say(T.freyaWait);
-    if (f.brief) return say([['freya', 'Off you go, sweetie. East!']]);
+    if (f.brief) return say([['freya', 'Off you go. East!']]);
     AU.music('freya');
     // Everyone gathers round.
     const spots = [[7, 7], [10, 7], [8, 8]];
@@ -505,11 +505,11 @@
     sc = null;
   }
   W1.newGame = async function () {
-    begin(await choose());
-    U.stage('dream');
+    // W1.opening, when a build sets one (the vector proof of concept's "the files"), plays first and picks the lead.
+    begin(await (W1.opening ? W1.opening() : choose()));
+    freyaForm();
     AU.music('story');
-    await say(T.prologue[lead()]);
-    U.stage(null);
+    await SD.vn.play(T.prologue[lead()]);
     W1.enter();
     await act(wake);
   };
@@ -643,7 +643,7 @@
     },
     combatWire(C, el, rerender) {
       if (C.eid !== 'kyu' || C.over || C.busy) return;
-      C.deepAsked = true;
+      C.twistAsked = true;
       const want = KYU[C.kstep || 0];
       if (!want || C.hand.some(h => h.id === want)) return;
       for (const pile of [C.draw, C.disc, C.exh]) { const i = pile.findIndex(h => h.id === want); if (i >= 0) { C.hand.push(pile.splice(i, 1)[0]); return rerender(); } }
@@ -658,7 +658,7 @@
       S.save.loop++; S.persist();
       W1.enter();
       sc.place('you', 59, 9); sc.P.face = 'north';
-      act(() => say(quit ? [['freya', 'Back already, sweetie? The temple will keep.']] : T.lostRun));
+      act(() => say(quit ? [['freya', 'Back already? The temple will keep.']] : T.lostRun));
       return true;
     }
   };
@@ -674,7 +674,7 @@
     b.querySelector('#ch-up').onclick = () => R.api.pickCard('Upgrade which card?', c => { c.up = true; S.persist(); U.closePanel(); U.system('CARD UPGRADED', U.esc(SD.cards[c.id].name) + '+'); done(); }, () => chapel(done), c => !c.up && SD.cards[c.id].rarity);
   }
 
-  // Uptima's sanctum: her confession, Freya's three steps, then the fight.
+  // Uptima's sanctum: her confession, then Freya talks you through the incident (diagnose, fix, prevent), then the fight.
   async function sanctum() {
     U.stage('sanctum');
     AU.music('boss');
@@ -682,17 +682,12 @@
     const d = SD.bossDesign.uptimaboss;
     d.concepts.forEach(c => S.seeConcept(c));
     const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
-    const r1 = await Q.ask(Object.assign({ type: 'multi', hint: 'Pick everything it takes. Leave out what doesn\'t belong.' }, d.req), { title: '[BOSS] REQUIREMENTS', context: 'Freya, in your ear · 1 of 3' });
-    if (r1.ok) { buffs.sevScale = 0.85; U.system('SCOPE LOCKED!', 'Clear requirements: Uptima starts 15% weaker.', 'gold'); }
-    const r2 = await Q.ask(Object.assign({ type: 'num' }, d.est), { title: '[BOSS] ESTIMATION', context: 'Freya, in your ear · 2 of 3' });
-    if (r2.ok) { buffs.bonusEnergy = 1; U.system('NUMBERS IN HAND!', '+1 Capacity on turn 1.', 'gold'); }
-    const r3 = await Q.ask(Object.assign({ type: 'mc' }, d.design), { title: '[BOSS] DESIGN', context: 'Freya, in your ear · 3 of 3' });
-    if (r3.ok) { buffs.startCard = d.startCard; U.system('DESIGN READY!', 'Fresh Session starts in your hand.', 'gold'); }
-    S.save.run.boss = { r1: r1.ok, r2: r2.ok, r3: r3.ok };
+    const ok = await R.incident('uptimaboss', buffs);
+    S.save.run.boss = ok;
     S.persist();
     U.stage(null);
     U.system('[BOSS] UPTIMA', U.esc(T.uptimaFight), 'gold');
-    R.api.fight('uptimaboss', { boss: true, reveal: r1.ok || r3.ok, sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, kyuNight);
+    R.api.fight('uptimaboss', { boss: true, reveal: !!(ok.diagnose || ok.prevent), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, kyuNight);
   }
   async function kyuNight() {
     U.stage('sanctum');
@@ -703,7 +698,7 @@
     R.api.fight('kyu', { boss: true, single: true, reveal: true, startCard: 'finddeny' }, () => R.api.endRun(true));
     AU.music('kyuboss');
     const C = R.api.combat();
-    C.kstep = 0; C.deepAsked = true;
+    C.kstep = 0; C.twistAsked = true;
   }
 
   // ---------- The ending ----------
@@ -734,8 +729,10 @@
       <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'DEMO COMPLETE', noClose: true });
     b.querySelector('#c1-again').onclick = () => { U.closePanel(); U.stage(null); S.save.c1 = null; S.persist(); W1.newGame(); };
     b.querySelector('#c1-title').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
+    if (W1.onEndCard) W1.onEndCard(b);
   }
 
   // For tools/ch1_check.js: jump the story forward.
+  W1.lead = lead; W1.dress = dress; W1.choose = choose;
   W1.debug = { busy: () => busy, flags: f => { Object.assign(c1().f, f); S.persist(); if (sc) applyState(); }, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, act, say };
 })();

@@ -97,10 +97,10 @@ SD.bank.push(
   { id: "dva-3-207", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
     q: "A CodeDeploy deployment of a Lambda function lists a BeforeAllowTraffic hook function in its AppSpec file. The hook function runs its tests, which pass, and returns normally. The deployment stays at BeforeAllowTraffic and fails after an hour. What should the developer do?",
     opts: [
-      "Have the hook call PutLifecycleEventHookExecutionStatus with the deployment ID and hook execution ID from its event.",
+      "Have the hook call PutLifecycleEventHookExecutionStatus with the deployment and hook execution IDs from its event.",
       "Give the CodeDeploy service role permission to invoke the hook function, so that CodeDeploy can read the hook function's result.",
       "Move the tests to an AfterAllowTraffic hook, which completes as soon as the hook function returns without an error.",
-      "Raise the hook function's timeout, so CodeDeploy has more time to collect the result before the one-hour limit."
+      "Raise the hook function's timeout, so CodeDeploy has more time to collect the result before the one-hour limit ends."
     ], a: 0,
     no: [null,
       "The tests ran, so CodeDeploy already invoked the function. A return value isn't how a hook reports back.",
@@ -123,10 +123,10 @@ SD.bank.push(
     q: "A team wants to move an ECS service on Fargate from rolling updates to CodeDeploy blue/green deployments that shift 10% of traffic first and the rest after 5 minutes. Which steps are required? (Select TWO.)",
     items: [
       { t: "Set the service's deployment controller type to CODE_DEPLOY, so that CodeDeploy manages its task sets.", ok: true },
-      { t: "Put an Application Load Balancer in front with a production listener and two target groups.", ok: true },
+      { t: "Put an Application Load Balancer in front, with a production listener and two target groups for the task sets.", ok: true },
       { t: "Use a Network Load Balancer with a test listener, and the CodeDeployDefault.ECSCanary10Percent5Minutes config.", ok: false, no: "With a Network Load Balancer, only CodeDeployDefault.ECSAllAtOnce is supported." },
-      { t: "Install the CodeDeploy agent in each task's container image, so that CodeDeploy can run hooks inside the tasks.", ok: false, no: "The agent is only for EC2/On-Premises deployments. ECS deployments don't use it." },
-      { t: "Set the service's scheduling strategy to DAEMON, so that each task set runs on every host during the shift.", ok: false, no: "Fargate and the CODE_DEPLOY controller don't support the DAEMON strategy." }
+      { t: "Install the CodeDeploy agent in each task's image, so that CodeDeploy can run lifecycle hooks in the tasks.", ok: false, no: "The agent is only for EC2/On-Premises deployments. ECS deployments don't use it." },
+      { t: "Set the service's scheduling strategy to DAEMON, so each task set runs on every host during the shift.", ok: false, no: "Fargate and the CODE_DEPLOY controller don't support the DAEMON strategy." }
     ],
     why: "CodeDeploy blue/green for ECS needs a service using the CODE_DEPLOY controller and a load balancer with a production listener and two target groups, one for each task set. Canary and linear configurations need an Application Load Balancer.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html"] },
@@ -179,7 +179,7 @@ SD.bank.push(
     opts: [
       "Update each function to use the layer's version 4 ARN, since a function keeps the layer version it was given.",
       "Delete layer version 3, so that the functions fall back to the newest version of the layer the next time they start.",
-      "Publish a new version of each function, so that Lambda picks up the latest version of each of its layers.",
+      "Publish a new version of each function, so that Lambda picks up the latest version of each of the layers it uses.",
       "Wait for the functions' execution environments to be recycled, after which they load the newest layer version."
     ], a: 0,
     no: [null,
@@ -208,7 +208,7 @@ SD.bank.push(
   { id: "dva-3-215", exam: "both", dva: "3.4", saa: "2.2", topic: "beanstalk", type: "mc",
     q: "A rolling deployment to an Elastic Beanstalk web environment failed halfway last month and left instances on two versions, which took hours to fix. Deployments must not change the instances that are serving traffic, a failed deployment must leave them in service, and the environment's DNS name must not change. Which deployment policy should the team use?",
     opts: [
-      "Immutable, which launches the new version on new instances in a temporary Auto Scaling group.",
+      "Immutable: the new version launches on new instances in a temporary Auto Scaling group.",
       "Rolling with additional batch, which adds one batch of instances first so capacity stays full.",
       "All at once, followed by a redeploy of the previous version if any of the instances fail.",
       "Blue/green, with a cloned environment and Swap environment URLs once the clone is healthy."
@@ -236,8 +236,8 @@ SD.bank.push(
     q: "A web app runs on an Elastic Beanstalk environment with four instances. Every deployment must run the app's database schema migration exactly once, after the new source is extracted and before the new version is deployed. What should the developer add to a file in the .ebextensions folder?",
     opts: [
       "A container_commands entry that runs the migration, with leader_only set to true.",
-      "A commands entry that runs the migration, with leader_only set to true on it.",
-      "A files entry that writes the migration script to the instances' cron directory.",
+      "A commands entry that runs the migration, with leader_only set to true on that command.",
+      "A files entry that writes the migration script into the instances' cron directory.",
       "An option_settings entry that sets the migration command as an environment property."
     ], a: 0,
     no: [null,
@@ -363,7 +363,7 @@ SD.bank.push(
       "Use a V2 pipeline, and add a push trigger that filters on Git tags matching release-*.",
       "Set the source action's BranchName to release-*, so that only matching refs start a run.",
       "Create an EventBridge rule for GitHub tag events that starts the pipeline on release- tags.",
-      "Turn off change detection, and have the release manager start a run after tagging."
+      "Turn off change detection, and have the release manager start a run by hand after tagging."
     ], a: 0,
     no: [null,
       "BranchName names a single branch, not a pattern, and tags aren't branches.",
@@ -393,9 +393,9 @@ SD.bank.push(
     items: [
       { t: "Add the VPC, private subnets and a security group to the project, and let the database's group allow it.", ok: true },
       { t: "Route the private subnets' outbound traffic through a NAT gateway in a public subnet of the same VPC.", ok: true },
-      { t: "Put the project in a public subnet whose route table sends 0.0.0.0/0 to the internet gateway.", ok: false, no: "CodeBuild can't give its network interfaces public IP addresses, so an internet gateway route doesn't work." },
+      { t: "Put the project in a public subnet whose route table sends 0.0.0.0/0 to the VPC's internet gateway.", ok: false, no: "CodeBuild can't give its network interfaces public IP addresses, so an internet gateway route doesn't work." },
       { t: "Make the database publicly accessible, so that the build can reach it from CodeBuild's network.", ok: false, no: "It exposes the database to the internet. A VPC build reaches it privately." },
-      { t: "Peer the database's VPC with the VPC that CodeBuild runs builds in by default.", ok: false, no: "The default build network isn't a VPC in your account that you can peer with." }
+      { t: "Peer the database's VPC with the VPC that CodeBuild uses by default to run the project's builds.", ok: false, no: "The default build network isn't a VPC in your account that you can peer with." }
     ],
     why: "A VPC-enabled build runs with network interfaces in your subnets, so it can reach private resources. It needs a NAT gateway or NAT instance to reach the internet.",
     doc: ["https://docs.aws.amazon.com/codebuild/latest/userguide/vpc-support.html"] },

@@ -42,6 +42,18 @@ const server = http.createServer((req, res) => {
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
       if ($('#c1-again') && vis($('#c1-again'))) return 'done';
+      // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
+      const vn = $('#vn');
+      if (vn && !vn.hidden) {
+        window.__vnShots = window.__vnShots || {};
+        const btn = [...vn.querySelectorAll('.vn-act button')].find(x => !x.disabled);
+        if (btn) { const k = 'act-' + vn.querySelector('.vn-panel').className.split(' ')[1]; if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:prologue-' + k; } return click(btn) && 'vn-act'; }
+        const box = vn.querySelector('.vn-box');
+        if (box.hidden || !vn.classList.contains('vn-ready')) return 'vn-wait';
+        const k = (vn.classList.contains('vn-incg') ? 'cg-' : '') + box.dataset.who;
+        if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:prologue-' + k; }
+        box.click(); return 'vn-line';
+      }
       if (!$('#dialog').hidden) {
         // The first line of each cutscene backdrop is left to finish typing for its screenshot.
         const st = $('#stage'), sc = !st.hidden && st.dataset.scene;

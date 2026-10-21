@@ -11,6 +11,7 @@
   const VOICE = { uptima: 900, pip: 1250, gary: 210, seymour: 480, mio: 1100, wen: 720, chad: 430, latency: 150, system: 620, you: 660, bru: 980, ayo: 260, coo: 1400, lexi: 820, cron: 330, kaito: 560, doug: 390, aigerim: 1050 };
   // Chapters give their own cast a voice (js/ch1.js).
   U.voice = (who, hz) => { VOICE[who] = hz; };
+  U.voiceOf = who => VOICE[who] || 600;
   U.dialog = function (lines, done) {
     return new Promise(res => {
       dq = lines.slice(); dDone = () => { if (done) done(); res(); };
@@ -217,7 +218,7 @@
     const parts = [['slash_02', 0]].concat(Array.from({ length: big ? 9 : 5 }, (_, i) => [i % 2 ? 'star_06' : 'spark_05', i]));
     parts.forEach(([img, i]) => {
       const p = document.createElement('img');
-      p.src = 'assets/img/fx/' + img + '.webp'; p.alt = ''; p.className = 'spark' + (i === 0 && img === 'slash_02' ? ' slash' : '');
+      p.src = U.sparkArt ? U.sparkArt(img) : 'assets/img/fx/' + img + '.webp'; p.alt = ''; p.className = 'spark' + (i === 0 && img === 'slash_02' ? ' slash' : '');
       const a = Math.random() * Math.PI * 2, d = (big ? 90 : 60) + Math.random() * 50;
       p.style.left = cx + 'px'; p.style.top = cy + 'px';
       p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', Math.sin(a) * d + 'px');

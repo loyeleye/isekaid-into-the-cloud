@@ -147,7 +147,8 @@
   };
   // PixelLab map art (tools/village_art.py → js/dungeon-art.js): a room icon per node type, and each
   // chapter's floor tileset painted behind the map with worn paths along the links between rooms.
-  const dArt = () => SD.dungeonArt;
+  // The vector proof of concept (index.html?vector) skips the painted map and draws its icons and backdrops itself.
+  const dArt = () => !window.SD_VECTOR && SD.dungeonArt;
   const dPics = {};
   function dPic(name, redraw) {
     if (!dPics[name]) { dPics[name] = new Image(); dPics[name].src = 'assets/img/dungeon/' + name + '.webp'; }
@@ -535,7 +536,7 @@
       eid, e, sev: e.sev, max: e.sev, ii: 0, rage: 0, turn: 0, energy: 0, tutorial: !!opts.tutorial,
       draw: opts.tutorial ? deck : Q.shuffle(deck), hand: [], disc: [], exh: [], infra: [],
       sh: zero(), stale: 0, jitter: false, choice: null, known: new Set(known), diagBonus: 0,
-      elite: !!opts.elite, boss: !!opts.boss, done, deepAsked: false, mercyScale: run.firstFight ? 0.75 : 1, log: '',
+      elite: !!opts.elite, boss: !!opts.boss, done, twistAsked: false, mercyScale: run.firstFight ? 0.75 : 1, log: '',
       budget: dev('halo') ? 5 : 0, whistled: false, breakerUsed: false, vuln: 0, carry: 0, fuses: []
     };
     // Deeper chapters hit harder; Form 27B takes 10% off bosses.
@@ -632,9 +633,13 @@
   async function diagnose(go) {
     const e = C.e;
     const ch = (S.save.run && S.save.run.ch) || 1;
-    const others = Q.shuffle(Object.keys(SD.enemies).filter(k => k !== C.eid && !SD.enemies[k].boss && !SD.enemies[k].tutorial && (SD.enemies[k].ch || 1) <= ch)).slice(0, 3);
+    // The answers are AWS causes, never incident names, so the question tests the diagnosis and not the story.
+    const cause = k => SD.enemies[k].cause || SD.enemies[k].name;
+    const seen = new Set([cause(C.eid)]);
+    const others = Q.shuffle(Object.keys(SD.enemies).filter(k => k !== C.eid && !SD.enemies[k].tutorial && (SD.enemies[k].ch || 1) <= ch))
+      .filter(k => !seen.has(cause(k)) && seen.add(cause(k))).slice(0, 3);
     const optsIds = Q.shuffle([C.eid, ...others]);
-    const q = { c: e.concept, type: 'mc', q: `Symptoms: ${e.symptom} Which incident is this?`, opts: optsIds.map(k => SD.enemies[k].name), a: optsIds.indexOf(C.eid), why: Object.values(e.weak)[0] };
+    const q = { c: e.concept, type: 'mc', q: `Symptoms: ${e.symptom} What's causing it?`, opts: optsIds.map(cause), a: optsIds.indexOf(C.eid), why: Object.values(e.weak)[0] };
     const r = await Q.ask(q, { title: 'DIAGNOSE!', context: 'Read the symptoms before the fight', hideOne: S.save.relics.includes('pipeye') });
     if (r.ok) {
       // The Unindexed Stacks curse: you know what it is, but you can't find the fix in time.
@@ -829,35 +834,26 @@
     if (!again && d.kind !== 'infra') for (let k = (d.replay || 0) + (c.replay || 0); k > 0; k--) { if (settle()) return; await playCard(-1, c); if (C.over) return; }
     if (msg) C.log = msg;
     if (settle()) return;
-    if (C.boss && !C.deepAsked && C.sev <= C.max / 2) {
-      C.deepAsked = true;
+    if (C.boss && !C.twistAsked && C.sev <= C.max / 2) {
+      C.twistAsked = true;
       renderCombat();
-      if (C.e.chain) await deepChain(C.e.chain);
-      else {
-        // Pick the id once: a rnd() inside find() rolls again for every question and can match none.
-        const id = rnd(C.e.deep), q = SD.questions.find(x => x.id === id);
-        const r = await Q.ask(q, { title: '[BOSS] DEEP DIVE', context: 'The interviewer leans in: "Go deeper."' });
-        if (r.ok) { mitigate(16, `DEEP DIVE LANDED! ${C.e.short} staggers.`, 'crit'); U.shake('.foe'); AU.sfx('crit'); }
-        else C.log = `The deep dive slipped. ${C.e.short} cackles and presses on.`;
-      }
+      await examTwist();
       if (settle()) return;
     }
     renderCombat();
   }
 
-  // A boss's counter-question chain: the opening question, then follow-ups that push on your answer ("and if Redis
-  // restarts?"), the way interviewers probe. A wrong answer ends the chain; each right one hits harder.
-  async function deepChain(chain) {
-    let right = 0;
-    for (let i = 0; i < chain.length; i++) {
-      const r = await Q.ask(chain[i], { title: '[BOSS] DEEP DIVE', context: i ? `Counter-question ${i} of ${chain.length - 1}: the interviewer pushes on your answer.` : 'The interviewer leans in: "Go deeper."' });
-      if (!r.ok) break;
-      right++;
-    }
-    const all = right === chain.length;
-    if (!right) C.log = `The deep dive slipped. ${C.e.short} cackles and presses on.`;
-    else if (all) { mitigate(8 * right + 6, `DEEP DIVE LANDED! You held up to every counter-question. ${C.e.short} staggers.`, 'crit'); U.shake('.foe'); AU.sfx('crit'); }
-    else { mitigate(8 * right, `${right} of ${chain.length} deep-dive answers held before a counter-question caught you.`, 'hit'); AU.sfx('hit'); }
+  // The Exam Twist: at half severity a boss asks its own incident again with one thing changed (a role you can't touch,
+  // a body instead of attributes, a retry that arrives late), the way exam scenarios turn on one constraint. The question is which
+  // part of your answer still holds. One twist a fight, picked from SD.twists[eid].
+  async function examTwist() {
+    const list = SD.twists && SD.twists[C.eid];
+    if (!list || !list.length) return;
+    const t = rnd(list);
+    const q = Object.assign({ type: 'mc' }, t, { ev: 'What changed: ' + t.change + (t.ev ? '\n\n' + t.ev : '') });
+    const r = await Q.ask(q, { title: '[BOSS] EXAM TWIST', context: 'Same incident, one thing changed' });
+    if (r.ok) { mitigate(16, `TWIST HANDLED! You kept what still holds and changed what didn't. ${C.e.short} staggers.`, 'crit'); U.shake('.foe'); AU.sfx('crit'); }
+    else C.log = `The twist caught you. ${C.e.short} presses on.`;
   }
 
   function absorb(n, order) {
@@ -1261,7 +1257,7 @@
       : `<div class="foe${flashing('hitflash')}" style="--foe:${foeCol}">${SD.art.enemy(e.sprite, C.boss, e.hue)}</div>`;
     if (!A) return grouped() ? `<div class="gfoes">${foe}</div>` : foe;
     const h = A.hero;
-    return `<div class="stage${grouped() ? ' group g' + C.foes.length : ''}" style="background-image:url(assets/img/battle/bg-${ch}.webp)">
+    return `<div class="stage${grouped() ? ' group g' + C.foes.length : ''}" style="background-image:url(${R.stageArt ? R.stageArt(ch) : `assets/img/battle/bg-${ch}.webp`})">
       <div class="hero${flashing('hurtflash')}" role="img" aria-label="You" style="--hw:${h.w}px;--hh:${h.h}px"></div>${foe}</div>`;
   }
   // The NEXT line for a foe: the intent's numbers with its load (rage), its damage share and curses applied.
@@ -1450,9 +1446,41 @@
     if (done) done();
   }
 
-  // ---------- Bosses: the Goblin King of Links (URL shortener), Lord Latency (rate limiter) ----------
-  // Design Board (js/board.js): draw the design yourself, trace its flows and defend a box before the fight.
-  // Returns null when this boss has no board, else { ok } after adding its buffs.
+  // ---------- Bosses: incident response, then the fight ----------
+  // Before a boss you work its incident the way the exams frame a scenario and an engineer works an outage:
+  // Diagnose (read the evidence: an error, a CloudTrail event, a metric), Fix (the smallest correct change) and
+  // Prevent (what stops it happening again, or catches it next time). The questions live in SD.bossDesign[eid] as
+  // diagnose, fix and prevent; a Fix whose answer is a number uses type 'num'. Each right answer buffs the fight.
+  const STEP = {
+    diagnose: { title: 'DIAGNOSE', hint: 'Select every fact the evidence shows. Leave out the rest.',
+      win: (b, e) => { b.sevScale *= 0.85; return ['ROOT CAUSE FOUND!', `${U.esc(e.short)} starts 15% weaker.`]; } },
+    fix: { title: 'FIX', hint: 'Select every change it takes. Leave out the rest.',
+      win: b => { b.bonusEnergy += 1; return ['FIX READY!', '+1 Capacity on turn 1.']; } },
+    prevent: { title: 'PREVENT', hint: 'Select everything that would stop it or catch it. Leave out the rest.',
+      win: (b, e, d) => { b.startCard = d.startCard; return ['GUARDRAIL SET!', `${U.esc(SD.cards[d.startCard].name)} starts in your hand.`]; } }
+  };
+  R.STEPS = Object.keys(STEP);
+  // Runs the boss's steps (all three, or opts.steps) and adds their buffs to `buffs`. opts.board, if given, may
+  // stand in for Prevent: a Design Board that returns { ok } replaces the question. Returns { diagnose, fix, prevent }.
+  R.incident = async function (eid, buffs, opts) {
+    opts = opts || {};
+    const e = SD.enemies[eid], d = SD.bossDesign[eid] || {}, steps = opts.steps || R.STEPS, ok = {};
+    for (let i = 0; i < steps.length; i++) {
+      const k = steps[i], s = STEP[k];
+      const award = () => U.system(...s.win(buffs, e, d), 'gold');
+      if (k === 'prevent' && opts.board) {
+        const bd = await opts.board();
+        if (bd) { ok[k] = bd.ok; if (bd.ok) award(); continue; }
+      }
+      if (!d[k]) continue;
+      const r = await Q.ask(Object.assign({ type: 'mc', hint: s.hint }, d[k]), { title: '[BOSS] ' + s.title, context: `Incident response · ${i + 1} of ${steps.length}` });
+      ok[k] = r.ok;
+      if (r.ok) award();
+    }
+    return ok;
+  };
+  // Design Board (js/board.js, when it's loaded): draw the design yourself, trace its flows and defend a box before
+  // the fight. Returns null when this boss has no board, else { ok } after adding its buffs.
   async function boardStep(eid, buffs) {
     if (!SD.board || !SD.board.forBoss(eid)) return null;
     const b = await SD.board.bossStep(eid);
@@ -1461,82 +1489,20 @@
   }
   async function boss(done) {
     if (hook('boss', bossId(), done)) return;
-    if ((S.save.run.ch || 1) === 2) return boss2(done);
-    if (SD.bossDesign[bossId()]) return bossDesigned(bossId());
-    AU.music('boss');
-    await U.dialog(SD.story.bossIntro);
-    S.seeConcept('delivery'); S.seeConcept('idgen'); S.seeConcept('redirect');
-    const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
-    const r1 = await Q.ask({
-      c: 'delivery', type: 'multi', q: 'Step 1, Requirements. Which belong in scope for the kingdom\'s URL shortener?', hint: 'Pick the functional and non-functional requirements. Leave out what does not belong.',
-      items: [
-        { t: 'Create a short code from a long URL', ok: true }, { t: 'Redirect a short code to its long URL', ok: true },
-        { t: 'Redirects in under 100 ms', ok: true }, { t: 'High availability for redirects', ok: true }, { t: 'Scale to 100M+ links', ok: true },
-        { t: 'Full-text search over every stored URL', ok: false }, { t: 'Users upload video to the link page', ok: false }, { t: 'Real-time chat between link owners', ok: false }
-      ],
-      why: 'Two core features (create, redirect) and three qualities (latency, availability, scale). Optional extras like custom aliases and expiry are fine to mention; unrelated features are not.'
-    }, { title: '[BOSS] REQUIREMENTS', context: 'Delivery framework · 1 of 3' });
-    if (r1.ok) { buffs.sevScale = 0.85; U.system('SCOPE LOCKED!', 'Clear requirements: the Goblin King starts 15% weaker.', 'gold'); }
-    const r2 = await Q.ask({ c: 'estimation', type: 'num', q: 'Step 2, Estimation. 1 billion redirects a day. Average redirect QPS?', unit: 'QPS', lo: 8000, hi: 15000, ans: '~11,600 (10^9 / 86,400)', why: 'About 10^4 QPS average, so peaks of 20-30k. That says: cache the hot codes, and run many stateless redirect servers.' }, { title: '[BOSS] ESTIMATION', context: 'Delivery framework · 2 of 3' });
-    if (r2.ok) { buffs.bonusEnergy = 1; U.system('NUMBERS IN HAND!', '+1 Capacity on turn 1.', 'gold'); }
-    const api = ['POST /urls {long_url} → {code}; GET /{code} → 302 to long_url', 'GET /urls?long_url=… → {code}; GET /{code} → 302 to long_url', 'POST /urls {long_url} → {code}; GET /{code} → 200 {long_url}', 'POST /graphql: a createUrl mutation and a resolveCode query'];
-    const apiNo = [null, 'GET must be safe: link previewers, crawlers and caches call it freely and would create links nobody asked for. Creating is a POST.', 'A browser would just show the JSON. Following a link needs a redirect status (302) with a Location header.', 'GraphQL suits clients querying flexible, related data. A clicked link sends a plain GET to /{code}, which a GraphQL POST cannot answer.'];
-    const r3 = await Q.ask({ c: 'delivery', type: 'mc', q: 'Step 3, API. Which API fits?', opts: api, a: 0, no: apiNo, why: 'Creating is a POST that returns the code. Following a link is a plain GET answered with a 302 redirect, so browsers just work.' },{ title: '[BOSS] API', context: 'Delivery framework · 3 of 3' });
-    if (r3.ok) { buffs.startCard = 'counter'; U.system('DESIGN READY!', 'Counter Ranges + Base62 starts in your hand.', 'gold'); }
-    const bd = await boardStep('ledger', buffs);
-    S.save.run.boss = { r1: r1.ok, r2: r2.ok, r3: r3.ok, board: bd && bd.ok };
-    S.persist();
-    U.system('[BOSS] HIGH-LEVEL DESIGN', 'Now build it under load. At half severity, expect a deep dive.', 'gold');
-    fight('ledger', { boss: true, reveal: r1.ok || r3.ok || !!(bd && bd.ok), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => endRun(true));
+    bossDesigned(bossId());
   }
-  async function boss2() {
-    AU.music('boss');
-    await U.dialog(SD.story.boss2Intro);
-    ['ratelimit', 'limiterdesign', 'atomic'].forEach(c => S.seeConcept(c));
-    const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
-    const r1 = await Q.ask({
-      c: 'limiterdesign', type: 'multi', q: 'Step 1, Requirements. Which belong in scope for the kingdom\'s API rate limiter?', hint: 'Pick the functional and non-functional requirements. Leave out what does not belong.',
-      items: [
-        { t: 'Limit each user to N requests per time window', ok: true }, { t: 'Reply 429 with Retry-After when limited', ok: true },
-        { t: 'Enforce one shared limit across all 20 API servers', ok: true }, { t: 'Add only a millisecond or two per request', ok: true }, { t: 'Keep the API up if the limiter\'s store fails', ok: true },
-        { t: 'Ban a user forever after one burst', ok: false }, { t: 'Store every request body for audits', ok: false }, { t: 'Trust the app to limit itself', ok: false }
-      ],
-      why: 'Two features (count and reject with a clear signal) and three qualities (distributed, low latency, fault tolerant). Banning, logging bodies and client-side trust are not the limiter\'s job.'
-    }, { title: '[BOSS] REQUIREMENTS', context: 'Delivery framework · 1 of 3' });
-    if (r1.ok) { buffs.sevScale = 0.85; U.system('SCOPE LOCKED!', 'Clear requirements: Lord Latency starts 15% weaker.', 'gold'); }
-    const r2 = await Q.ask(SD.questions.find(q => q.id === 'e5'), { title: '[BOSS] ESTIMATION', context: 'Delivery framework · 2 of 3' });
-    if (r2.ok) { buffs.bonusEnergy = 1; U.system('NUMBERS IN HAND!', '+1 Capacity on turn 1.', 'gold'); }
-    const algos = ['Token bucket per user', 'Fixed window counter per user', 'Concurrency limit per user', 'Leaky bucket per user'];
-    const algosNo = [null, 'Its burst is the whole quota at once, and up to 2x across a window edge. You cannot tune a small burst apart from the rate.', 'It caps requests in flight at once, which protects slow backends, but fast sequential calls never hit it.', 'It drains at a fixed rate, so bursts queue or drop instead of passing. Use it when the downstream needs a smooth flow.'];
-    const r3 = await Q.ask({ c: 'ratelimit', type: 'mc', q: 'Step 3, Design. Clients may burst a little but must average 100 requests a minute. Which algorithm?', opts: algos, a: 0, no: algosNo, why: 'A token bucket allows short bursts up to its size and enforces the average with its refill rate. A fixed window lets 2x through at the edges, and a leaky bucket smooths output instead of allowing bursts.' },{ title: '[BOSS] DESIGN', context: 'Delivery framework · 3 of 3' });
-    if (r3.ok) { buffs.startCard = 'tokenbucket'; U.system('DESIGN READY!', 'Token Bucket starts in your hand.', 'gold'); }
-    const bd = await boardStep('latencyboss', buffs);
-    S.save.run.boss = { r1: r1.ok, r2: r2.ok, r3: r3.ok, board: bd && bd.ok };
-    S.persist();
-    U.system('[BOSS] HIGH-LEVEL DESIGN', 'Now hold the line under his legions. At half severity, expect a deep dive.', 'gold');
-    fight('latencyboss', { boss: true, reveal: r1.ok || r3.ok || !!(bd && bd.ok), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => endRun(true));
-  }
-
-  // Chapter 3 onwards: each boss's framework steps live in SD.bossDesign (content.js).
+  // A boss with no chapter hook: its intro, its incident from SD.bossDesign, then the fight.
   async function bossDesigned(eid) {
-    const e = SD.enemies[eid], d = SD.bossDesign[eid];
+    const e = SD.enemies[eid], d = SD.bossDesign[eid] || {};
     AU.music('boss');
-    await U.dialog(SD.story[e.intro]);
-    d.concepts.forEach(c => S.seeConcept(c));
+    if (e.intro && SD.story[e.intro]) await U.dialog(SD.story[e.intro]);
+    (d.concepts || []).forEach(c => S.seeConcept(c));
     const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
-    const r1 = await Q.ask(Object.assign({ type: 'multi', hint: 'Pick the functional and non-functional requirements. Leave out what does not belong.' }, d.req), { title: '[BOSS] REQUIREMENTS', context: 'Delivery framework · 1 of 3' });
-    if (r1.ok) { buffs.sevScale = 0.85; U.system('SCOPE LOCKED!', `Clear requirements: ${U.esc(e.short)} starts 15% weaker.`, 'gold'); }
-    const est = typeof d.est === 'string' ? SD.questions.find(q => q.id === d.est) : Object.assign({ type: 'num' }, d.est);
-    const r2 = await Q.ask(est, { title: '[BOSS] ESTIMATION', context: 'Delivery framework · 2 of 3' });
-    if (r2.ok) { buffs.bonusEnergy = 1; U.system('NUMBERS IN HAND!', '+1 Capacity on turn 1.', 'gold'); }
-    // With a Design Board the player draws the design; otherwise the boss's multiple choice design question.
-    const bd = await boardStep(eid, buffs);
-    const r3 = bd || await Q.ask(Object.assign({ type: 'mc' }, d.design), { title: '[BOSS] DESIGN', context: 'Delivery framework · 3 of 3' });
-    if (r3.ok) { buffs.startCard = d.startCard; U.system('DESIGN READY!', `${U.esc(SD.cards[d.startCard].name)} starts in your hand.`, 'gold'); }
-    S.save.run.boss = { r1: r1.ok, r2: r2.ok, r3: r3.ok };
+    const ok = await R.incident(eid, buffs, { board: () => boardStep(eid, buffs) });
+    S.save.run.boss = ok;
     S.persist();
-    U.system('[BOSS] HIGH-LEVEL DESIGN', d.go, 'gold');
-    fight(eid, { boss: true, reveal: r1.ok || r3.ok, sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => endRun(true));
+    U.system('[BOSS] ' + U.esc((e.short || e.name).toUpperCase()), U.esc(d.go || 'The incident is live.'), 'gold');
+    fight(eid, { boss: true, reveal: !!(ok.diagnose || ok.prevent), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => endRun(true));
   }
 
   // ---------- End of run: postmortem ----------

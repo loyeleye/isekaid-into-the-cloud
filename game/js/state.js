@@ -1,6 +1,7 @@
 // Save data, progression and spaced review.
 (function () {
-  const KEY = 'isekai-cloud-save-v1';  // not the first game's key, so the two games never share a save
+  // Not the first game's key, so the two games never share a save; the vector proof of concept keeps its own.
+  const KEY = window.SD_VECTOR ? 'isekai-cloud-vector-v1' : 'isekai-cloud-save-v1';
   const DAY = 86400000;
   // Review intervals in days by box: forget about 20-30% before testing again (1 week to 1 month).
   const BOX_DAYS = [0, 1, 3, 7, 14, 30];

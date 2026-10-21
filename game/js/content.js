@@ -73,7 +73,7 @@ SD.groupFights = {
 // pattern is the incident's moves in order, by intent type (handled in js/run.js; labels in SD.intentText).
 SD.enemies = {
   throttle: {
-    name: 'The Throttle Imp', sev: 34, concept: 'lambdaconc', tier: 1, sprite: 'imp',
+    name: 'The Throttle Imp', cause: 'Another function is using most of the account\'s concurrency', sev: 34, concept: 'lambdaconc', tier: 1, sprite: 'imp',
     flavor: 'Example incident.',
     symptom: 'Checkout returns 429 TooManyRequestsException every lunchtime. CloudWatch shows its Throttles climbing while a nightly batch function, still running, holds most of the account\'s concurrency.',
     weak: { concurrency: 'Reserved concurrency sets aside part of the account\'s pool for checkout, so the batch job cannot starve it.', queue: 'A queue in front holds the burst, and the function works through it at the concurrency it has.' },
@@ -81,7 +81,7 @@ SD.enemies = {
     pattern: [{ t: 'burst', n: 10 }, { t: 'read', n: 9 }, { t: 'burst', n: 14 }, { t: 'escalate' }]
   },
   coldstart: {
-    name: 'The Cold Start Wraith', sev: 30, concept: 'lambdaconc', tier: 1, sprite: 'wraith',
+    name: 'The Cold Start Wraith', cause: 'Heavy initialization runs each time a new execution environment starts', sev: 30, concept: 'lambdaconc', tier: 1, sprite: 'wraith',
     flavor: 'Example incident.',
     symptom: 'The first request after a quiet spell takes 4 seconds; the next ones take 80 ms. The function loads a large library when its environment starts.',
     weak: { provisioned: 'Provisioned concurrency keeps environments initialized ahead of time, so requests skip the start-up.', memory: 'More memory brings more CPU, so initialization finishes sooner.' },
@@ -89,7 +89,7 @@ SD.enemies = {
     pattern: [{ t: 'read', n: 8 }, { t: 'read', n: 12 }, { t: 'escalate' }, { t: 'read', n: 14 }]
   },
   boomerang: {
-    name: 'The Boomerang Message', sev: 36, concept: 'sqs', tier: 1, sprite: 'echo',
+    name: 'The Boomerang Message', cause: 'The visibility timeout is shorter than the processing time', sev: 36, concept: 'sqs', tier: 1, sprite: 'echo',
     flavor: 'Example incident.',
     symptom: 'An SQS-triggered function takes 50 seconds per batch, and the queue\'s visibility timeout is 30 seconds. Some orders are processed two or three times.',
     weak: { visibility: 'A visibility timeout longer than the work (AWS suggests six times the function timeout for a Lambda trigger) keeps the message hidden until it is deleted.', idem: 'Standard queues deliver at least once, so idempotent processing makes a repeat harmless.' },
@@ -97,17 +97,17 @@ SD.enemies = {
     pattern: [{ t: 'retry', n: 9 }, { t: 'read', n: 8 }, { t: 'retry', n: 12 }, { t: 'escalate' }]
   },
   poison: {
-    name: 'The Poison Pill', sev: 38, concept: 'dlq', tier: 1, sprite: 'blob',
+    name: 'The Poison Pill', cause: 'One failing message sends the whole batch back to the queue', sev: 38, concept: 'dlq', tier: 1, sprite: 'blob',
     flavor: 'Example incident.',
     symptom: 'One malformed order makes the function throw. The whole batch goes back to the queue, so nine good orders are processed again each time, and the bad one never leaves.',
     weak: { dlq: 'A redrive policy moves the message to a dead-letter queue once its receive count passes maxReceiveCount.', idem: 'Idempotent processing makes the re-processed good orders harmless.' },
     resist: { visibility: 'A longer visibility timeout only delays the next failure.' },
     pattern: [{ t: 'retry', n: 10 }, { t: 'write', n: 9 }, { t: 'retry', n: 14 }, { t: 'escalate' }]
   },
-  // The example boss. Its framework steps are in SD.bossDesign; `deep` holds the deep-dive question ids.
+  // The example boss. Its incident steps are in SD.bossDesign and its Exam Twists in SD.twists.
   denywarden: {
-    name: 'The Deny-All Warden', short: 'The Warden', sev: 110, concept: 'iam', tier: 9, boss: true, sprite: 'judge',
-    deep: ['q-iam2', 'q-iam3'], intro: 'wardenIntro', win: 'wardenWin',
+    name: 'The Deny-All Warden', cause: 'An explicit Deny somewhere overrides the role\'s Allow', short: 'The Warden', sev: 110, concept: 'iam', tier: 9, boss: true, sprite: 'judge',
+    intro: 'wardenIntro', win: 'wardenWin',
     flavor: 'Example boss.',
     symptom: 'A new orders service gets AccessDenied on every call to its DynamoDB table, though its role has an Allow for the table.',
     weak: { deny: 'An explicit Deny in any applicable policy beats every Allow, so finding it is what unblocks the call.', leastpriv: 'A role scoped to the table, with no stray statements, is easy to read and reason about.' },
@@ -132,32 +132,56 @@ SD.intentText = {
   escalate: i => `Escalates: all load +${(i && i.up) || 3}`
 };
 
-// Boss framework steps, run from data (js/run.js bossDesigned): requirements (multi), estimation (num, or a question
-// id) and design (mc). Each right answer buffs the fight.
+// Boss incident response, run from data (js/run.js R.incident): diagnose (read the evidence in `ev` and say what's
+// wrong), fix (the smallest correct change) and prevent (what stops it or catches it next time). Each is a question
+// (type mc by default, or multi; a fix that really is a number can be num), and each right answer buffs the fight.
 SD.bossDesign = {
   denywarden: {
-    concepts: ['iam', 'lambdaconc'],
-    req: {
-      c: 'iam', q: 'Step 1, Requirements. The orders function must read and write one DynamoDB table and write its logs. Which belong in its execution role?',
-      items: [
-        { t: 'Allow dynamodb:GetItem, PutItem and Query on that table\'s ARN', ok: true },
-        { t: 'Allow logs:CreateLogStream and logs:PutLogEvents', ok: true },
-        { t: 'Allow dynamodb:* on every resource', ok: false },
-        { t: 'Attach AdministratorAccess while testing', ok: false },
-        { t: 'Store an access key in an environment variable', ok: false }
-      ],
-      why: 'The role needs the table actions on that one table and permission to write logs to CloudWatch Logs. Wildcards and admin access give far more than the code uses, and a role already supplies temporary credentials, so stored keys only add risk.'
+    concepts: ['iam'],
+    diagnose: {
+      c: 'iam', type: 'mc',
+      ev: 'orders-fn  09:12:44Z  ERROR\nAccessDeniedException: User: arn:aws:sts::111122223333:assumed-role/orders-fn-role/orders-fn ' +
+        'is not authorized to perform: dynamodb:PutItem on resource: arn:aws:dynamodb:us-east-1:111122223333:table/Orders ' +
+        'with an explicit deny in a service control policy',
+      q: 'The orders function\'s role allows dynamodb:PutItem on the Orders table, yet every write fails like this. What\'s wrong?',
+      opts: ['An SCP on the account denies it, whatever the role allows', 'The role has no Allow for dynamodb:PutItem on this table', 'The table\'s resource-based policy denies the function\'s role', 'The function\'s temporary credentials expired mid-run'], a: 0,
+      no: [null, 'A missing Allow reads "because no identity-based policy allows". This one names an explicit deny.', 'A Deny in the table\'s own policy would say "in a resource-based policy". This one says service control policy.', 'Expired credentials fail with ExpiredTokenException, not an explicit deny.'],
+      why: 'The error names the type of policy that denied it. A service control policy sets the most that an account\'s principals can do, so its Deny wins over any Allow in the role.'
     },
-    est: { c: 'lambdaconc', q: 'Step 2, Estimation. The orders function takes 120 requests a second and each run lasts 2 seconds. Roughly how many concurrent executions does it need?', unit: 'executions', lo: 220, hi: 260, ans: '240 (120 × 2)', why: 'Concurrency is requests per second times average duration in seconds. 240 sits well inside the default quota of 1,000, unless other functions in the account share it.' },
-    design: {
-      c: 'iam', q: 'Step 3, Design. The role allows dynamodb:GetItem on the table, but a policy attached by the security team has an explicit Deny for dynamodb:* in this account. What happens to the call?',
-      opts: ['Denied: an explicit Deny overrides any Allow', 'Allowed: the more specific statement wins', 'Allowed: the role\'s own policy is checked first', 'Denied only if the Deny names the table\'s ARN'], a: 0,
-      no: [null, 'IAM does not rank statements by how specific they are. A matching Deny anywhere wins.', 'Order does not matter: every applicable policy is evaluated, and any matching Deny ends it.', 'A Deny on dynamodb:* with a wildcard resource matches every table, this one included.'],
-      why: 'Evaluation starts from an implicit deny, an Allow can lift that, and an explicit Deny in any applicable policy overrides every Allow. The fix is to change the Deny, not to add more Allows.'
+    fix: {
+      c: 'iam', type: 'mc',
+      q: 'The security team\'s SCP denies dynamodb:PutItem to every principal except a list of approved roles. What\'s the smallest correct change?',
+      opts: ['Add orders-fn-role to the SCP\'s list of approved principal ARNs', 'Attach AdministratorAccess to orders-fn-role so it outranks the SCP', 'Add a second Allow for dynamodb:* on every table to the role', 'Run the writes as the account\'s root user, which SCPs skip'], a: 0,
+      no: [null, 'Nothing outranks an SCP\'s Deny. AdministratorAccess is an Allow like any other.', 'More Allows change nothing while the Deny matches, and dynamodb:* on every table is far more than the function needs.', 'SCPs apply to a member account\'s root user too, and nobody should run an app as root.'],
+      why: 'The Deny is the only thing in the way, so narrow it. Its condition (for example ArnNotLike on aws:PrincipalArn) lists the approved roles, and the orders role joins the list. The role keeps its tight Allow on the one table.'
+    },
+    prevent: {
+      c: 'iam', type: 'mc',
+      q: 'What catches the next policy change like this one before the customers do?',
+      opts: ['A CloudWatch alarm on the orders function\'s Errors metric', 'Turn on DynamoDB point-in-time recovery for the Orders table', 'Raise the reserved concurrency of the orders function', 'A global table, so writes can fail over to another Region'], a: 0,
+      no: [null, 'Point-in-time recovery restores data. Nothing was lost here; the writes were refused.', 'More concurrency only fails faster. Every invocation hits the same Deny.', 'An SCP covers the whole account in every Region, so the replica\'s writes are denied too.'],
+      why: 'When a write is denied the function throws, and Lambda counts that in the function\'s Errors metric. An alarm on it pages someone within minutes of the next bad policy change.'
     },
     startCard: 'finddeny',
-    go: 'Now get the orders service through the gate. At half severity, expect a deep dive.'
+    go: 'Now get the orders service through the gate. At half severity, expect an exam twist.'
   }
+};
+
+// Exam Twists (js/run.js examTwist): at half severity a boss asks its incident again with one thing changed, and
+// you say which part of your answer still holds. Each is a multiple choice question with a `change` line.
+SD.twists = {
+  denywarden: [
+    { c: 'iam', change: 'The Deny is in the Orders table\'s resource-based policy instead of an SCP.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The Deny still wins; the fix moves to the table\'s own policy', 'The role\'s Allow wins now, since both are in one account', 'Nothing changes: still add the role to the SCP\'s list', 'The call works: resource policies can only allow, not deny'], a: 0,
+      no: [null, 'In one account either policy can allow, but an explicit Deny in either one still wins.', 'The SCP isn\'t what denies it now. The table\'s policy is.', 'Resource-based policies can deny, and DynamoDB tables support them.'],
+      why: 'An explicit Deny wins wherever it sits. The error would now say "in a resource-based policy", and the fix is to narrow that statement in the table\'s policy (PutResourcePolicy), not the SCP.' },
+    { c: 'iam', change: 'Someone tries the same write as the member account\'s root user.',
+      q: 'Which part of your answer still holds?',
+      opts: ['Still denied: SCPs limit a member account\'s root user too', 'Allowed: the root user isn\'t bound by any policy at all', 'Allowed: SCPs only apply to roles, never to the root user', 'Denied, but only because root has no Allow for DynamoDB'], a: 0,
+      no: [null, 'In a member account, SCPs limit the root user like everyone else.', 'SCPs cover every principal in a member account, the root user included.', 'Root can do anything in its own account without an Allow. The SCP is what denies it.'],
+      why: 'SCPs limit every principal in a member account, its root user included. Only the organization\'s management account sits outside them, so the fix is still to narrow the SCP.' }
+  ]
 };
 
 // Questions. type mc (choose; `no` explains each wrong option), num (estimate within lo..hi), order (tap in sequence),
@@ -177,11 +201,11 @@ SD.questions = [
     no: [null, 'SQS never deletes a message for you; only a DeleteMessage call does.', 'A message reaches the dead-letter queue only after its receive count passes the redrive policy\'s maxReceiveCount.', 'Hiding lasts only for the visibility timeout. Retention (4 days by default) is how long an undeleted message can stay in the queue at all.'],
     why: 'Receiving hides a message for the visibility timeout. If it is not deleted in time, it is delivered again.' },
   { id: 'q-sq2', c: 'sqs', type: 'mc', q: 'A Lambda function with a 60-second timeout is triggered by an SQS queue. What visibility timeout does AWS recommend for the queue?',
-    opts: ['At least 360 seconds, six times the function timeout', '30 seconds, the default', '60 seconds, the same as the function timeout', '12 hours, the maximum'], a: 0,
+    opts: ['At least 360 seconds, six times the function timeout', '30 seconds, the default visibility timeout for a new queue', '60 seconds, matching the function timeout so nothing overlaps', '12 hours, the maximum, so no message ever reappears early'], a: 0,
     no: [null, 'The default is shorter than the function can run, so messages reappear while they are still being processed.', 'Equal leaves no room for Lambda to retry a batch that was throttled while it was being processed.', 'The maximum would hold back a genuine retry for up to 12 hours after a failure.'],
     why: 'Six times the function timeout gives Lambda room to retry throttled batches before the messages become visible again.' },
   { id: 'q-dl1', c: 'dlq', type: 'mc', q: 'When does SQS move a message to its dead-letter queue?',
-    opts: ['When its receive count passes the redrive policy\'s maxReceiveCount', 'As soon as a consumer throws an error', 'When it has been in the queue longer than the visibility timeout', 'When the consumer is in a different Region'], a: 0,
+    opts: ['When its receive count passes the redrive policy\'s maxReceiveCount', 'As soon as the consumer\'s code throws an error while handling it', 'When it has been in the queue longer than the visibility timeout', 'When the consumer reads it from a different Region than the queue\'s'], a: 0,
     no: [null, 'SQS never sees your errors. It counts how many times a message was received without being deleted.', 'The visibility timeout controls hiding after each receive, not when a message is given up on.', 'Where the consumer runs does not matter. The dead-letter queue itself must be in the same account and Region as the source queue.'],
     why: 'Each receive without a delete adds to the count, and the redrive policy moves the message once the count passes maxReceiveCount.' },
   { id: 'q-dl2', c: 'dlq', type: 'mc', q: 'A FIFO queue needs a dead-letter queue. Which can it use?',
@@ -193,11 +217,11 @@ SD.questions = [
     no: [null, 'Both policies are evaluated, and a matching Deny in either one ends it.', 'IAM does not compare policy ages.', 'Attachment order plays no part in evaluation.'],
     why: 'An explicit Deny in any applicable policy overrides every Allow.' },
   { id: 'q-iam2', c: 'iam', type: 'mc', q: 'A new IAM user with no policies attached calls s3:ListBucket on a bucket that has no bucket policy. What happens?',
-    opts: ['Denied, since no policy allows it', 'Allowed: new users can read in their own account', 'Allowed if the bucket is in the user\'s home Region', 'Denied only if some policy names the user in a Deny'], a: 0,
+    opts: ['Denied: by default, since no policy allows it', 'Allowed: new users can read in their own account', 'Allowed if the bucket is in the user\'s home Region', 'Denied only if some policy names the user in a Deny'], a: 0,
     no: [null, 'IAM starts from deny. Without an Allow from some policy, the request fails.', 'IAM users have no home Region, and Regions play no part in this decision.', 'No Deny is needed: with no Allow anywhere, the implicit deny already applies.'],
     why: 'Everything is implicitly denied until an applicable policy allows it.' },
   { id: 'q-iam3', c: 'iam', type: 'mc', q: 'A Lambda function needs to read one DynamoDB table. Where should its permissions come from?',
-    opts: ['Its execution role, with an Allow for that table', 'Access keys stored in environment variables', 'The developer\'s own IAM user credentials', 'A resource-based policy on the function'], a: 0,
+    opts: ['Its execution role, with an Allow for that table', 'Access keys stored in the function\'s environment variables', 'The developer\'s own IAM user credentials', 'A resource-based policy on the function naming the table'], a: 0,
     no: [null, 'Long-term keys in configuration can leak and do not rotate themselves. The execution role supplies temporary credentials automatically.', 'Personal credentials tie the app to one person and give it far more than it needs.', 'A function\'s resource-based policy controls who may invoke it, not what it may call.'],
     why: 'Lambda assumes the execution role and gives the function temporary credentials for it, so permissions belong on that role.' }
 ];

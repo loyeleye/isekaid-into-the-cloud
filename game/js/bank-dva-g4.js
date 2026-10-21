@@ -13,7 +13,7 @@ SD.bank.push(
     opts: [
       "Keep RequestId as a top-level member of each log event, but remove it from the dimension set so that only PaymentMethod is a dimension.",
       "Set StorageResolution to 60 for CheckoutLatency, so CloudWatch stores one data point a minute for each request ID instead of one a second.",
-      "Replace the embedded metric format logs with PutMetricData calls that send PaymentMethod and RequestId as the metric's two dimensions.",
+      "Replace the embedded metric format logs with PutMetricData calls that send PaymentMethod and RequestId as the custom metric's two dimensions.",
       "Create a metric filter on the log group that extracts CheckoutLatency with RequestId as its dimension, and stop writing EMF log events."
     ], a: 0,
     no: [null,
@@ -38,7 +38,7 @@ SD.bank.push(
   { id: "dva-4-303", exam: "both", dva: "4.1", saa: "2.2", topic: "cloudwatch", type: "mc",
     q: "A company runs Java and Python services on Amazon ECS and EC2. Operations wants each service's call volume, latency, faults and errors by operation, a map of which services call which, and tracking of a 99.9% availability goal for the checkout operation with alerts when the error budget burns too fast. The team won't write custom metrics code or build dashboards by hand. Which solution meets these requirements?",
     opts: [
-      "Enable CloudWatch Application Signals with the CloudWatch agent and auto-instrumentation, then create an SLO for the checkout operation.",
+      "Enable CloudWatch Application Signals with the CloudWatch agent and auto-instrumentation, then add an SLO for the checkout operation.",
       "Turn on Container Insights for the ECS cluster and the CloudWatch agent on the instances, then alarm on each service's CPU and memory use.",
       "Create a CloudWatch Synthetics canary that calls the checkout endpoint every minute, and alarm when its success rate falls below 99.9%.",
       "Instrument every service with the X-Ray SDK, then build a CloudWatch dashboard from the X-Ray service map and the trace counts it shows."
@@ -95,7 +95,7 @@ SD.bank.push(
       "Turn on authorization caching for the authorizer with a TTL such as 300 seconds, keyed on the token in the Authorization header.",
       "Configure provisioned concurrency on the backend function's alias, so that its requests no longer wait for cold starts to finish.",
       "Turn on API caching for the stage, so that responses are served from the cache instead of calling the backend function each time.",
-      "Raise the API's integration timeout and the backend function's memory, so that slow requests finish within the time allowed."
+      "Raise the API's integration timeout and the backend function's memory size, so that slow requests finish within the time allowed."
     ], a: 0,
     no: [null,
       "IntegrationLatency and Duration are already low. The time is spent before the integration is called.",
@@ -123,11 +123,11 @@ SD.bank.push(
   { id: "dva-4-309", exam: "DVA", dva: "4.2", topic: "observability", type: "multi", hint: "Select TWO.",
     q: "A company runs six microservices. Each has CloudWatch alarms on its error rate and latency and writes plain-text logs to its own log group. When checkout slows, the alarms fire, but engineers spend hours lining up timestamps across six log groups to learn which call made a given request slow. Which changes will let them explain a slow request instead of only detecting it? (Select TWO.)",
     items: [
-      { t: "Instrument the services with OpenTelemetry through ADOT, and propagate the trace context on every call so one trace follows a request across services.", ok: true },
+      { t: "Instrument the services with ADOT (OpenTelemetry), and propagate trace context so one trace follows a request across services.", ok: true },
       { t: "Write structured JSON logs that include the current request's trace ID, so each request's log lines can be found from its trace.", ok: true },
       { t: "Add more alarms with tighter thresholds on each service's latency and errors, so that every slowdown is detected sooner.", ok: false, no: "Alarms on known metrics are monitoring. They say that something is slow, not where a request spent its time." },
       { t: "Raise the retention of all six log groups to ten years, so that engineers have more history to compare during incidents.", ok: false, no: "Keeping more data doesn't connect one request's events across services." },
-      { t: "Build a CloudWatch dashboard that shows all six services' latency and error metrics side by side on a single page.", ok: false, no: "Aggregated metrics on one page still don't show the path or timing of a single request." }
+      { t: "Build a CloudWatch dashboard that puts all six services' latency and error metrics side by side, so slowdowns stand out.", ok: false, no: "Aggregated metrics on one page still don't show the path or timing of a single request." }
     ],
     why: "Monitoring watches known signals and alerts on them. Observability lets the telemetry answer new questions about the system: metrics, logs and traces are its pillars, and propagated trace context plus trace IDs in logs tie them together for each request.",
     doc: ["https://docs.aws.amazon.com/wellarchitected/latest/framework/ops_observability_application_telemetry.html", "https://docs.aws.amazon.com/wellarchitected/latest/framework/ops_observability_dist_trace.html"] },
@@ -339,9 +339,9 @@ SD.bank.push(
     items: [
       { t: "Register the live alias as an Application Auto Scaling scalable target with the lambda:function:ProvisionedConcurrency dimension.", ok: true },
       { t: "Attach a target tracking policy to the target that keeps LambdaProvisionedConcurrencyUtilization near a value such as 0.7.", ok: true },
-      { t: "Add scheduled scaling actions that raise provisioned concurrency each morning and lower it again each evening.", ok: false, no: "Schedules suit predictable patterns. This traffic has none, so unplanned peaks would still spill over." },
+      { t: "Add scheduled scaling actions that raise provisioned concurrency each morning and lower it again each evening for the alias.", ok: false, no: "Schedules suit predictable patterns. This traffic has none, so unplanned peaks would still spill over." },
       { t: "Raise the function's reserved concurrency, so that more execution environments are kept initialized for the peaks.", ok: false, no: "Reserved concurrency sets a cap and a guarantee, but it doesn't initialize environments in advance." },
-      { t: "Register $LATEST as the scalable target instead of the alias, so that every newly published version is covered.", ok: false, no: "Provisioned concurrency can't be used with $LATEST." }
+      { t: "Register $LATEST as the scalable target instead of the alias, so that every version published later is covered too.", ok: false, no: "Provisioned concurrency can't be used with $LATEST." }
     ],
     why: "Spillover counts invocations that ran on standard concurrency because all provisioned concurrency was busy. Application Auto Scaling target tracking adds and removes provisioned concurrency on the alias to keep utilization near the target.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html", "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-concurrency.html"] },

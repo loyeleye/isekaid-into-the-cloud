@@ -22,7 +22,7 @@ SD.bank.push(
   { id: "saa-2-102", exam: "SAA", saa: "2.1", topic: "autoscaling", type: "mc",
     q: "Worker EC2 instances in an Auto Scaling group poll an Amazon SQS queue and process image jobs. Each instance finishes about 20 jobs a minute, and every job must start within roughly 5 minutes of arriving. Scaling on CPU utilization reacts too late during bursts and adds too many instances while the queue drains. How should a solutions architect scale the group?",
     opts: [
-      "Use target tracking on backlog per instance (visible messages / InService instances), with a target of 100.",
+      "Use target tracking on a custom backlog-per-instance metric (visible messages / InService instances), with a target of 100.",
       "Use target tracking on the queue's ApproximateNumberOfMessagesVisible metric alone, with a target value of 100.",
       "Use a scheduled action that doubles the group's desired capacity on weekdays during the hours bursts usually occur.",
       "Move the workers to a larger instance type, and keep the CPU target tracking policy with a lower target value."
@@ -54,7 +54,7 @@ SD.bank.push(
     opts: [
       "Create a Transfer Family SFTP server that stores files in an S3 bucket, and add each partner's SSH public key.",
       "Run OpenSSH on EC2 instances in an Auto Scaling group, and sync the upload directory to the S3 bucket every few minutes.",
-      "Give each partner an IAM user with access keys, and ask them to upload their files with the AWS CLI s3 cp command.",
+      "Give each partner an IAM user with access keys, and have them upload with the AWS CLI s3 cp command.",
       "Deploy an AWS DataSync agent at each partner's site, and schedule tasks that copy the partners' files to the S3 bucket."
     ], a: 0,
     no: [null,
@@ -67,10 +67,10 @@ SD.bank.push(
   { id: "saa-2-105", exam: "SAA", saa: "2.1", topic: "cloudfront", type: "multi", hint: "Select TWO.",
     q: "A news site serves pages from EC2 instances behind an Application Load Balancer in one Region. Images, CSS and JavaScript files make up most of the traffic, readers are spread around the world, and the instances are overloaded at peak. The company wants lower latency for distant readers and less load on the instances. Which steps should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Move the static files to an S3 bucket, and keep Block Public Access turned on for the bucket.", ok: true },
-      { t: "Create a CloudFront distribution with the bucket as an origin that uses origin access control.", ok: true },
+      { t: "Move the images, CSS and JavaScript files to an S3 bucket, and keep Block Public Access turned on.", ok: true },
+      { t: "Create a CloudFront distribution with the bucket as an origin that uses origin access control (OAC).", ok: true },
       { t: "Put AWS Global Accelerator in front of the load balancer, so readers reach the Region over the AWS network.", ok: false, no: "Global Accelerator improves the network path but caches nothing, so the instances still serve every file." },
-      { t: "Add an ElastiCache cluster, and have the web servers cache the static files in memory before serving them.", ok: false, no: "The instances still serve every byte from one Region, so distant readers see no improvement." },
+      { t: "Add an ElastiCache cluster, and have the web servers cache the static files in memory to serve them.", ok: false, no: "The instances still serve every byte from one Region, so distant readers see no improvement." },
       { t: "Scale the instances up to a larger instance type, so that each one can serve more static files at peak.", ok: false, no: "Bigger instances ease the load but are still far from distant readers." }
     ],
     why: "CloudFront caches the static files at edge locations near readers, which cuts latency and keeps those requests off the instances. Origin access control lets only CloudFront read the private bucket.",
@@ -108,7 +108,7 @@ SD.bank.push(
     opts: [
       "Use one Application Load Balancer with a target group per service, and a path-based listener rule for each.",
       "Use one Network Load Balancer with a listener per service on a different port, and give clients the port for each path.",
-      "Run NGINX reverse proxies on EC2 instances in front of the services, and configure a location block for each path.",
+      "Run NGINX reverse proxies on EC2 in front of the services, with a location block for each path.",
       "Create one Application Load Balancer per service, and use Route 53 weighted records to split the hostname among them."
     ], a: 0,
     no: [null,
@@ -123,7 +123,7 @@ SD.bank.push(
     opts: [
       "Orchestrate the functions with Step Functions, using Retry with backoff and a Catch that goes to an alert state.",
       "Add try/catch blocks and a sleep-based retry loop to each function, and record each order's progress in a DynamoDB table.",
-      "Invoke each function asynchronously with two automatic retries, and log every step of every order to CloudWatch Logs.",
+      "Invoke each function asynchronously with two automatic retries, and log every step to CloudWatch Logs.",
       "Put an SQS queue between each pair of functions, with a redrive policy that moves failed messages to a dead-letter queue."
     ], a: 0,
     no: [null,
@@ -164,7 +164,7 @@ SD.bank.push(
     q: "An app on Aurora PostgreSQL has a single writer instance. Read traffic from a reporting dashboard varies widely through the day and is slowing the app's writes. The company wants read capacity that grows and shrinks with demand, without changing the dashboard's connection settings as capacity changes. Which steps should a solutions architect take? (Select TWO.)",
     items: [
       { t: "Add an Aurora Auto Scaling policy that adds and removes Aurora Replicas based on average reader CPU.", ok: true },
-      { t: "Point the dashboard's read-only connections at the cluster's reader endpoint.", ok: true },
+      { t: "Point the dashboard's read-only connections at the cluster's reader endpoint, not at any one instance.", ok: true },
       { t: "Point the dashboard at the cluster endpoint, so that Aurora spreads its queries across all instances.", ok: false, no: "The cluster endpoint always connects to the writer, so the reads stay on it." },
       { t: "Scale the writer up to a larger instance class each morning, and back down each night, on a schedule.", ok: false, no: "Each class change briefly interrupts the database, and reads still compete with writes on one instance." },
       { t: "Put an ElastiCache cluster in front of the database, and cache every dashboard query result for 24 hours.", ok: false, no: "The dashboard would show day-old data, and the caching logic must be written into the app." }
@@ -178,7 +178,7 @@ SD.bank.push(
       "Add an ElastiCache cluster, cache the query results with lazy loading, and set a 5-minute TTL on each key.",
       "Create two RDS read replicas, and send the catalog query to them through a round-robin DNS record in Route 53.",
       "Convert the DB instance to a Multi-AZ DB instance deployment, so that the standby takes part of the read load.",
-      "Put RDS Proxy in front of the database, so that connections are pooled and reused across the catalog requests."
+      "Put RDS Proxy in front of the database, so connections are pooled and reused across catalog requests."
     ], a: 0,
     no: [null,
       "Replicas spread the load, but each query still takes about 2 seconds.",
@@ -190,7 +190,7 @@ SD.bank.push(
   { id: "saa-2-114", exam: "SAA", saa: "2.1", topic: "s3", type: "mc",
     q: "A photo-sharing app runs on EC2 instances in an Auto Scaling group behind an Application Load Balancer. Uploaded photos are saved on the receiving instance's EBS root volume, so photos go missing when a later request lands on another instance, and they are lost when instances are replaced. Which solution lets the web tier scale freely?",
     opts: [
-      "Have the app write uploads to an S3 bucket and read them from there, so that no photo is stored on any instance.",
+      "Have the app write uploads to an S3 bucket and read them back from there, so that no photo is stored on any instance.",
       "Turn on sticky sessions for the target group, so that each user keeps reaching the instance that holds their photos.",
       "Attach one io2 EBS volume to every instance with Multi-Attach, and save the photos to it with an ext4 file system.",
       "Set the group's termination policy to OldestInstance, so that the instances holding the most photos last longer."
@@ -274,8 +274,8 @@ SD.bank.push(
     opts: [
       "Use AWS Elastic Disaster Recovery to replicate the servers continuously, and launch recovery instances when needed.",
       "Copy nightly image backups of every server to an S3 bucket, and import them as EC2 AMIs when a disaster is declared.",
-      "Run a full-size copy of every server on EC2 at all times, and keep the copies in sync with each database's replication.",
-      "Use AWS Application Migration Service to copy the servers to AWS once, and repeat the copy at the end of each week."
+      "Run a full-size copy of every server on EC2 at all times, kept in sync by each database's replication.",
+      "Use AWS Application Migration Service to copy the servers to AWS once, and repeat the copy weekly."
     ], a: 0,
     no: [null,
       "Up to a day of data is lost, and importing and launching 40 servers takes hours.",
@@ -303,7 +303,7 @@ SD.bank.push(
     q: "An Aurora MySQL cluster has a db.r6g.4xlarge writer, a db.r6g.4xlarge replica that serves the app's reads, and a db.r6g.large replica used for nightly reports. During a test failover, Aurora promoted the small reporting replica, and the app slowed badly. How should a solutions architect make sure the large replica is promoted in a future failover?",
     opts: [
       "Set the large replica's failover priority to tier 0 and the reporting replica's priority to tier 15.",
-      "Point the app's reads at the reader endpoint, so that a failover always promotes the largest replica.",
+      "Point the app's reads at the reader endpoint, so a failover always promotes the largest replica.",
       "Turn on Multi-AZ for the writer, so that Aurora adds a same-size standby that is used only for failover.",
       "Move the reporting replica into the writer's Availability Zone, so that it is never chosen for failover."
     ], a: 0,
@@ -332,7 +332,7 @@ SD.bank.push(
   { id: "saa-2-124", exam: "SAA", saa: "2.2", topic: "dynamodb", type: "mc",
     q: "A bad deployment wrote corrupt values into thousands of items in a DynamoDB table, and no one noticed for 3 hours. The company wants to be able to recover from mistakes like this to any second within the past few weeks, without scheduling or managing any backup jobs. What should a solutions architect do?",
     opts: [
-      "Turn on point-in-time recovery for the table, and restore to a new table from just before a bad change.",
+      "Turn on point-in-time recovery for the table, and restore to a new table from a second before the bad change.",
       "Make the table a global table, so that a replica in another Region keeps an untouched copy of every item.",
       "Create an on-demand backup each night from a scheduled Lambda function, and keep the backups for 30 days.",
       "Enable DynamoDB Streams on the table, and treat the stream records as the history for rebuilding items."
@@ -413,7 +413,7 @@ SD.bank.push(
       "Use EC2 automatic recovery, or add a CloudWatch alarm with the recover action on the system status check.",
       "Put the instance in an Auto Scaling group with a minimum and maximum of one, so a failed instance is replaced.",
       "Enable hibernation on the instance, so that its memory state is saved and restored after a hardware failure.",
-      "Take hourly EBS snapshots, and launch a new instance from the latest snapshot whenever the instance fails."
+      "Take hourly EBS snapshots, and launch a new instance from the latest one whenever the instance fails."
     ], a: 0,
     no: [null,
       "The replacement is a new instance with a new instance ID and private IP address, which breaks the license.",
@@ -426,7 +426,7 @@ SD.bank.push(
     q: "A Java app on EC2 connects to an RDS for MySQL Multi-AZ DB instance. During failovers, the app's connections break and users see errors until the new DNS answer is picked up. The company wants failovers to disrupt the app less, without changing application code beyond its database endpoint. Which solution meets these requirements?",
     opts: [
       "Create an RDS Proxy for the DB instance, and change the app's database endpoint to the proxy's endpoint.",
-      "Add a read replica in another Availability Zone, and point the app at it during each maintenance window.",
+      "Add a read replica in another Availability Zone, and point the app at it in each maintenance window.",
       "Move the DB instance to a larger instance class with more memory, so that each failover completes faster.",
       "Put a Network Load Balancer in front of the primary and the standby, and point the app at the load balancer."
     ], a: 0,
@@ -440,7 +440,7 @@ SD.bank.push(
   { id: "saa-2-132", exam: "SAA", saa: "2.2", topic: "fsx", type: "mc",
     q: "A Windows app runs on EC2 instances in two Availability Zones and stores shared documents on an SMB file share that is joined to Active Directory. The share is hosted on a single Windows file server instance today. The company wants a managed file share that keeps working if an Availability Zone fails. Which solution meets these requirements?",
     opts: [
-      "Create an Amazon FSx for Windows File Server Multi-AZ file system, and move the share to it.",
+      "Create an Amazon FSx for Windows File Server Multi-AZ file system, and move the AD-joined share to it.",
       "Create an Amazon FSx for Windows File Server Single-AZ file system in the busier of the two AZs.",
       "Create an Amazon EFS file system with mount targets in both AZs, and mount it on the Windows instances.",
       "Create an Amazon FSx for Lustre file system, and mount it in both AZs as the app's document share."

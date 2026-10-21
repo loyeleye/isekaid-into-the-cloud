@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- @page-start -->
 <title>Isekai'd Into the Cloud</title>
+<script>
+// index.html?vector (or vector.html) plays the vector-art proof of concept: every picture drawn in code (js/vec-*.js),
+// on its own save. Set before anything loads, so no painted image is ever requested.
+window.SD_VECTOR = /[?&]vector\b/.test(location.search) || /vector/.test(location.hash) || !!window.SD_VECTOR;
+if (window.SD_VECTOR) document.documentElement.classList.add('vector');
+</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -151,6 +157,8 @@ body:has(#dialog:not([hidden])) .hub-hint { display: none; }
 .tier-good { background: #fff1c2; color: #7a5a00; } .tier-great { background: #e3f5e9; color: #1d7a43; }
 .q-text { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; }
 blockquote.typed { margin: 6px 0; padding: 6px 10px; border-left: 4px solid #b9a6ff; background: #f7f4ff; border-radius: 0 10px 10px 0; white-space: pre-wrap; }
+/* A boss step's evidence (js/quiz.js q.ev): an error, a CloudTrail event or a metric, as it would appear on screen */
+pre.q-ev { margin: 4px 0 10px; padding: 8px 10px; border-left: 4px solid #e0a030; background: #1b1724; color: #f1ecff; border-radius: 0 8px 8px 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto; }
 .rubric { display: grid; gap: 6px; margin: 6px 0; }
 .rubric .rp { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 2px solid #ddd5f0; border-radius: 10px; cursor: pointer; }
 .rubric .rp.on { border-color: #7fd6a8; background: #e9fbf2; }
@@ -910,7 +918,9 @@ body { background: var(--bg); }
 .logo { color: var(--bone); font-family: var(--f-head); font-weight: 800; letter-spacing: .04em; font-size: clamp(38px, 10vw, 92px); animation: none;
   text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, .8), 0 0 2px #000; }
 .logo span { color: #c9a24a; font-size: .62em; letter-spacing: .12em; margin-top: .2em; }
-.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .1em; }
+.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .06em; max-width: min(30em, 100%); line-height: 1.35; }
+/* No tagline under the logo: the ribbon carries the hook, as in the first game. */
+#screen-title .logo { margin-bottom: 26px; }
 .tagline { color: #cfc6b4; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
 .press { background: #2e2a3a !important; color: var(--bone) !important; letter-spacing: .12em; font-family: var(--f-head); }
 .t-foot { color: #8f8799; }
@@ -922,6 +932,141 @@ body { background: var(--bg); }
 #stage[data-scene="sanctum"]::before { background: repeating-linear-gradient(90deg, rgba(214, 205, 185, .08) 0 26px, rgba(0, 0, 0, .18) 26px 30px, transparent 30px 90px); }
 #stage[data-scene="edge"] { background: linear-gradient(180deg, #2a2a36, #4b4b5a 55%, #262531); }
 #stage[data-scene="edge"]::before { background: rgba(226, 219, 203, .2); }
+
+/* ---- Visual-novel cutscenes (js/vn.js) ---- */
+#vn { position: fixed; inset: 0; z-index: 40; overflow: hidden; background: #000; color: #e9e6f2; user-select: none; -webkit-user-select: none; }
+#vn .vn-cam, #vn .vn-layer, #vn .vn-pic, #vn .vn-rain, #vn .vn-flash, #vn .vn-black { position: absolute; inset: 0; }
+#vn .vn-pic { opacity: 0; transition: opacity .9s ease; }
+#vn .vn-pic.on { opacity: 1; }
+#vn .vn-pic > img, #vn .vn-ph { width: 100%; height: 100%; object-fit: cover; display: block; }
+#vn .vn-ph { display: flex; align-items: flex-start; justify-content: flex-end; }
+#vn .vn-ph span { margin: 14px 16px; font: 600 11px/1.4 ui-monospace, monospace; color: rgba(255,255,255,.4); text-align: right; letter-spacing: .04em; }
+#vn .vn-bg .vn-pic::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
+/* Ken Burns: the camera drifts slowly across a still. */
+#vn .kb > * { animation: kbIn 16s ease-out forwards; animation-delay: var(--kbd, 0ms); transform-origin: 50% 45%; }
+#vn .kb-left > * { animation-name: kbLeft; }
+#vn .kb-right > * { animation-name: kbRight; }
+#vn .kb-up > * { animation-name: kbUp; }
+@keyframes kbIn { from { transform: scale(1.02); } to { transform: scale(1.16); } }
+#vn .kb-slow > * { animation: kbSlow 30s linear forwards; animation-delay: var(--kbd, 0ms); }
+@keyframes kbSlow { from { transform: scale(1); } to { transform: scale(1.06); } }
+#vn .kb-still > * { animation: none; }
+#vn .vn-pic.cut { transition: none; }
+#vn .vn-heal { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+#vn .vn-heal i { position: absolute; left: var(--hx); top: var(--hy); width: var(--hr); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, rgba(200,255,190,.95), rgba(80,230,120,.6) 28%, rgba(40,200,90,.18) 55%, rgba(40,200,90,0) 70%); opacity: calc(.65 + var(--heal, 0) * .35); scale: calc(.8 + var(--heal, 0) * .85); transition: opacity .4s, scale .4s; animation: vnHeal 1.6s ease-in-out infinite; }
+#vn .vn-heal.held i { animation-duration: .6s; }
+#vn .vn-heal.out i { opacity: 0; scale: .5; transition: opacity 1.6s ease-in, scale 1.6s ease-in; animation: vnHealOut .5s steps(2) infinite; }
+@keyframes vnHeal { 0%, 100% { transform: scale(.85); filter: brightness(.8); } 50% { transform: scale(1.12); filter: brightness(1.35); } }
+@keyframes vnHealOut { 50% { filter: brightness(.4); } }
+@media (prefers-reduced-motion: reduce) { #vn .vn-heal i { animation: none; } }
+/* A dream: the edges soften and glow, as if seen through sleep. */
+#vn .vn-pic.dream > img { filter: saturate(.8) brightness(1.05) contrast(.94); }
+#vn .vn-pic.dream::after { content: ""; position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); background: radial-gradient(ellipse at 50% 48%, rgba(200,210,255,0) 46%, rgba(190,200,240,.18) 78%, rgba(220,226,255,.32)); -webkit-mask: radial-gradient(ellipse at 50% 48%, transparent 46%, #000 80%); mask: radial-gradient(ellipse at 50% 48%, transparent 46%, #000 80%); }
+#vn .vn-cg .vn-pic.glitch > * { animation: vnGlitch .65s steps(1) forwards; }
+@keyframes kbLeft { from { transform: scale(1.14) translateX(4%); } to { transform: scale(1.14) translateX(-4%); } }
+@keyframes kbRight { from { transform: scale(1.14) translateX(-4%); } to { transform: scale(1.14) translateX(4%); } }
+@keyframes kbUp { from { transform: scale(1.14) translateY(5%); } to { transform: scale(1.14) translateY(-4%); } }
+#vn.flicker .vn-cg .vn-pic > * { animation: kbIn 16s ease-out forwards, vnFlick calc(.9s - var(--flick, 0) * .7s) steps(2) infinite; }
+@keyframes vnFlick { 50% { filter: brightness(calc(1 + var(--flick, 0) * 1.2)) saturate(.6); } }
+#vn .vn-rain { width: 100%; height: 100%; opacity: 0; transition: opacity 1s; pointer-events: none; }
+#vn .vn-rain.on { opacity: 1; }
+#vn .vn-flash { background: #eef3ff; opacity: 0; pointer-events: none; }
+#vn .vn-flash.go { animation: vnFlash .7s ease-out; }
+@keyframes vnFlash { 0% { opacity: .85; } 12% { opacity: .1; } 20% { opacity: .6; } 100% { opacity: 0; } }
+#vn .vn-black { background: #000; opacity: 0; transition: opacity .9s; pointer-events: none; z-index: 5; }
+#vn .vn-black.on { opacity: 1; }
+#vn.shake .vn-cam, #vn.shake .vn-cast { animation: vnShake .45s cubic-bezier(.36,.07,.19,.97); }
+@keyframes vnShake { 10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); } 30%, 50%, 70% { transform: translate(-7px, 2px); } 40%, 60% { transform: translate(7px, -1px); } }
+#vn.beat .vn-cam { animation: vnBeat .5s ease-out; }
+@keyframes vnBeat { 30% { transform: scale(1.025); filter: brightness(.8); } }
+/* Sprites stand on the bottom edge, behind the text box. */
+#vn .vn-cast { position: absolute; inset: 0; pointer-events: none; }
+#vn.vn-incg .vn-cast { opacity: 0; transition: opacity .6s; }
+#vn .vn-spr { position: absolute; bottom: 0; left: 50%; height: min(88vh, 150vw); transform: translateX(-50%) translateY(16px); opacity: 0; transition: left .6s ease, opacity .6s ease, transform .6s ease, filter .4s; display: flex; align-items: flex-end; justify-content: center; }
+#vn .vn-spr.on { opacity: 1; transform: translateX(-50%); }
+#vn .vn-spr[data-pos="left"] { left: 28%; }
+#vn .vn-spr[data-pos="right"] { left: 72%; }
+#vn .vn-spr.dim { filter: brightness(.55) saturate(.7); }
+#vn .vn-spr > img { height: 100%; width: auto; max-width: none; filter: drop-shadow(0 0 24px rgba(0,0,0,.6)); }
+#vn .vn-spr > img.px { image-rendering: pixelated; height: 72%; margin-bottom: 18vh; }
+#vn .vn-spr.bump > * { animation: vnBump .35s ease-out; }
+@keyframes vnBump { 40% { transform: translateY(-6px); } }
+#vn .vn-sil { width: min(46vh, 70vw); height: 70%; margin-bottom: 14vh; border-radius: 45% 45% 12% 12% / 30% 30% 8% 8%; background: radial-gradient(ellipse at 50% 20%, var(--t), rgba(0,0,0,.9) 80%); display: flex; align-items: center; justify-content: center; }
+#vn .vn-sil span { font: 700 14px Cinzel, serif; color: rgba(255,255,255,.45); letter-spacing: .1em; }
+#vn .vn-spr.glitch > * { animation: vnGlitch 1.3s steps(1) forwards; }
+@keyframes vnGlitch {
+  0% { clip-path: inset(0); filter: none; transform: none; }
+  8% { clip-path: inset(12% 0 64% 0); transform: translateX(-14px); filter: hue-rotate(90deg) saturate(3); }
+  16% { clip-path: inset(40% 0 30% 0); transform: translateX(18px); filter: drop-shadow(6px 0 #ff2a6d) drop-shadow(-6px 0 #05d9e8); }
+  24% { clip-path: inset(0); transform: skewX(8deg); filter: invert(.85) hue-rotate(120deg); }
+  32% { clip-path: inset(70% 0 4% 0); transform: translateX(-24px); filter: drop-shadow(8px 0 #36d86b); }
+  40% { clip-path: inset(0); transform: none; filter: brightness(2.4) saturate(0); }
+  50% { clip-path: inset(22% 0 50% 0); transform: translateX(26px) scaleY(1.04); filter: drop-shadow(-8px 0 #36d86b) hue-rotate(-60deg); }
+  60% { clip-path: inset(0); transform: skewX(-10deg); filter: drop-shadow(6px 0 #ff2a6d) drop-shadow(-6px 0 #05d9e8); }
+  72% { clip-path: inset(55% 0 20% 0); transform: translateX(-10px); filter: none; }
+  84% { clip-path: inset(0); transform: translateX(4px); filter: drop-shadow(3px 0 #36d86b); }
+  100% { clip-path: inset(0); transform: none; filter: none; }
+}
+/* The text box: wide, dark glass, a name plate on its top edge. */
+#vn .vn-box { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(960px, calc(100% - 24px)); min-height: 128px; box-sizing: border-box; padding: 26px 22px 30px; background: linear-gradient(180deg, rgba(14,13,24,.78), rgba(8,7,14,.92)); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,.6); cursor: pointer; z-index: 3; }
+#vn .vn-name { position: absolute; left: 18px; top: -15px; padding: 5px 16px; font: 700 14px Cinzel, serif; letter-spacing: .08em; color: #fff; background: #3a2f5c; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; }
+#vn .vn-box[data-who="freya"] .vn-name { background: #1f5a37; }
+#vn .vn-box[data-who="mira"] .vn-name { background: #5a5f70; }
+#vn .vn-box[data-who="kai"] .vn-name { background: #6a4a22; }
+#vn .vn-box[data-who="seoyeon"] .vn-name { background: #6a1f2a; }
+#vn .vn-box[data-who="dutch"] .vn-name { background: #2a3f66; }
+#vn .vn-text { font: 400 clamp(15px, 2.1vw, 19px)/1.55 Nunito, sans-serif; min-height: 3em; text-shadow: 0 1px 2px #000; }
+#vn .vn-box[data-who="narr"] .vn-text { font-style: italic; color: #c9c3dc; }
+#vn .vn-foot { position: absolute; right: 12px; bottom: 6px; display: flex; gap: 12px; align-items: center; }
+#vn .vn-more { opacity: 0; font-size: 12px; color: #c9c3dc; }
+#vn.vn-ready .vn-more { opacity: 1; animation: bob 1.2s ease-in-out infinite; }
+#vn .vn-skip { background: none; border: 0; color: rgba(255,255,255,.45); font: 600 12px Nunito, sans-serif; cursor: pointer; padding: 4px; }
+/* The moments you play. */
+#vn .vn-act { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; z-index: 4; }
+#vn .vn-panel { width: min(520px, calc(100% - 24px)); box-sizing: border-box; padding: 18px; background: rgba(8,7,14,.88); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; text-align: center; animation: vnRise .35s ease-out; }
+@keyframes vnRise { from { opacity: 0; transform: translateY(20px); } }
+#vn .vn-meter { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; text-align: left; font: 600 13px Nunito, sans-serif; }
+#vn .bar { height: 12px; background: #1d1b2a; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; overflow: hidden; }
+#vn .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7fe0a0, #d6ffe3); transition: width .1s linear; }
+#vn .bar.hp i { background: #c0303a; }
+#vn .bar.crack i { background: linear-gradient(90deg, #ffd36b, #fff6d0); }
+#vn .bar.fail i { transition: width 1.6s ease-in; background: #8a2f3a; }
+#vn .bar.timer { margin: 10px 0 14px; }
+#vn .bar.timer i { width: 100%; background: #e04050; }
+#vn .bar.timer i.run { transition: width 1s linear; width: 0; }
+#vn .vn-hold { margin-top: 6px; padding: 12px 28px; font: 700 16px Nunito, sans-serif; color: #fff; background: #3a2f5c; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; cursor: pointer; touch-action: none; }
+#vn .vn-hold:active { background: #52437f; }
+#vn .vn-hold.letgo { background: #20202a; color: #c9c3dc; }
+#vn .vn-hold[disabled] { opacity: .4; }
+#vn .vn-note { min-height: 1.4em; margin: 10px 0 0; font: italic 400 15px Nunito, sans-serif; color: #e7c3c8; }
+#vn .vn-q { margin: 0 0 6px; font: 600 15px Nunito, sans-serif; }
+#vn .vn-opts { display: flex; gap: 10px; justify-content: center; }
+#vn .vn-opts button { padding: 10px 22px; font: 700 15px Nunito, sans-serif; color: #fff; background: #4a1f2a; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; }
+#vn .vn-opts button.freeze { animation: vnShake .3s; }
+#vn .out .vn-opts button { opacity: .3; }
+#vn .vn-stamp { display: inline-block; padding: 4px 12px; font: 800 18px ui-monospace, monospace; color: #ff5a6a; border: 2px solid #ff5a6a; transform: rotate(-4deg); font-style: normal; }
+#vn .vn-knocks { display: flex; gap: 18px; justify-content: center; margin: 8px 0 12px; }
+#vn .vn-knocks .grp { display: flex; gap: 6px; }
+#vn .vn-knocks i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.4); }
+#vn .vn-knocks i.on { background: #d9cfff; box-shadow: 0 0 8px #b9a3ff; }
+#vn .vn-req { text-align: left; font: 13px/1.5 ui-monospace, monospace; }
+#vn .vn-req-h b { color: #7fd0ff; margin-right: 6px; }
+#vn .vn-req-b { margin: 10px 0; font: italic 400 16px/1.5 Nunito, sans-serif; color: #fff; }
+#vn .vn-req-s { display: flex; gap: 10px; align-items: center; color: #b7b0cc; }
+#vn .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin .8s linear infinite; }
+#vn .err { color: #ff5a6a; font-weight: 700; }
+#vn .dead { border-color: rgba(255,90,106,.5); }
+@media (prefers-reduced-motion: reduce) { #vn .kb > *, #vn .vn-spr.glitch > * { animation: none; } }
+/* Phones: smaller sprites. */
+@media (max-aspect-ratio: 4/5) { #vn .vn-spr { height: 66vh; } }
+/* Phones, and any screen taller than it is wide: two waist-up sprites side by side would overlap, so only one shows,
+   centred: the speaker's (js/vn.js marks it .lead). A new speaker swaps in with a quick crossfade, at once with
+   reduced motion. Wider screens keep both up, the listener dimmed. */
+@media (max-width: 600px), (orientation: portrait) {
+  #vn .vn-spr, #vn .vn-spr[data-pos] { left: 50%; transition: opacity .2s ease, transform .2s ease, filter .2s; }
+  #vn .vn-spr.on:not(.lead) { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { #vn .vn-spr, #vn .vn-spr[data-pos] { transition: none; } }
 </style>
 </head>
 <body>
@@ -932,13 +1077,13 @@ body { background: var(--bg); }
     <div id="title-clouds" aria-hidden="true"></div>
     <div class="t-rain" aria-hidden="true"></div>
     <div class="t-ridge" aria-hidden="true"></div>
-    <div class="t-leads" aria-hidden="true"><img src="assets/img/lead/kai.webp" alt=""><img src="assets/img/lead/mira.webp" alt=""><img src="assets/img/lead/dutch.webp" alt=""><img src="assets/img/lead/seoyeon.webp" alt=""></div>
+    <div class="t-leads" aria-hidden="true"><img data-lead="kai" alt=""><img data-lead="mira" alt=""><img data-lead="dutch" alt=""><img data-lead="seoyeon" alt=""></div>
+    <script>if (!window.SD_VECTOR) document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + i.dataset.lead + '.webp'; });</script>
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
-    <div class="t-ribbon">Working title</div>
-    <h1 class="logo">ISEKAI'D<span>INTO THE CLOUD</span></h1>
-    <p class="tagline">Four people the gods never answered. One goddess who did. An AWS Developer card battler: learn the services for real.</p>
+    <div class="t-ribbon">Answered Prayers</div>
+    <h1 class="logo">KEYS<span>TO THE CLOUD</span></h1>
     <div id="title-actions"></div>
     <div class="t-foot">Built on the AWS documentation · Saves automatically</div>
   </section>
@@ -984,12 +1129,22 @@ body { background: var(--bg); }
 <script src="js/battle-art.js"></script>
 <script src="js/run.js"></script>
 <script src="js/scene.js"></script>
+<script src="js/vn.js"></script>
+<script src="js/vo.js"></script>
 <script src="js/bank-dva.js"></script>
 <script src="js/ch1.js"></script>
 <script src="js/ch1-art.js"></script>
 <script src="js/ch1-story.js"></script>
 <script src="js/ch1-world.js"></script>
 <script src="js/town.js"></script>
+<!-- The vector proof of concept (index.html?vector): inert unless SD_VECTOR is set -->
+<script src="js/vec-kit.js"></script>
+<script src="js/vec-cast.js"></script>
+<script src="js/vec-scenes.js"></script>
+<script src="js/vec-scenes2.js"></script>
+<script src="js/vec-foes.js"></script>
+<script src="js/vec-open.js"></script>
+<script src="js/vec-ch2.js"></script>
 <script src="js/main.js"></script>
 <!-- Debug start (testing only; remove before release) -->
 <script src="js/debug.js"></script>

@@ -10,7 +10,7 @@ SD.bank.push(
       "Turn on X-Ray tracing for the API stage and active tracing for the function, then read the traces of slow requests.",
       "Turn on CloudTrail data events for the function, and compare each invoke event's time with the API's request times.",
       "Create a CloudWatch Synthetics canary that calls the API every minute, and graph the response times that it records.",
-      "Attach the function to a VPC, turn on VPC Flow Logs for its subnets, and match the flow records to slow requests."
+      "Attach the function to a VPC, turn on VPC Flow Logs for its subnets, and match the flow records to the slow requests."
     ], a: 0,
     no: [null,
       "CloudTrail records who called which API and when, not how long each part of the system spent on a request.",
@@ -23,7 +23,7 @@ SD.bank.push(
     q: "An order flow runs from API Gateway to a Lambda function that sends each order to an Amazon SQS queue, and a second Lambda function processes the queue. When an order is slow, engineers search two sets of logs by hand and can't see how long orders wait in the queue. They want one connected view of each request, including the time spent in the queue, without writing log-parsing code. Which solution meets these requirements?",
     opts: [
       "Turn on X-Ray tracing for the stage and both functions, instrument the producer's SQS client, and view the trace map.",
-      "Add the order ID to every log line, and write CloudWatch Logs Insights queries that join both functions' log groups.",
+      "Add the order ID to every log line, and write CloudWatch Logs Insights queries that join both functions' log groups by it.",
       "Turn on CloudTrail data events for the queue, and match each SendMessage event to the second function's invocations.",
       "Graph the queue's ApproximateAgeOfOldestMessage metric on a dashboard next to each function's Duration metric."
     ], a: 0,
@@ -39,7 +39,7 @@ SD.bank.push(
     q: "A REST API in API Gateway in us-east-1 is called mostly by the company's own services on EC2 instances in us-east-1, at a high and steady rate. One partner in the same city also calls it over the internet. The API was created with the default endpoint type, and the team wants to cut the connection overhead on each call. Which solution meets these requirements?",
     opts: [
       "Change the API's endpoint type to Regional, so clients in the Region connect to it without going through CloudFront.",
-      "Change the API's endpoint type to private, and have every client call it through an interface VPC endpoint in a VPC.",
+      "Change the API's endpoint type to private, and have every client call it through an interface VPC endpoint in a VPC of its own.",
       "Keep the edge-optimized endpoint, and turn on API caching on the stage so repeated calls are answered faster.",
       "Put an AWS Global Accelerator in front of the edge-optimized API, so traffic enters the AWS network sooner."
     ], a: 0,
@@ -53,11 +53,11 @@ SD.bank.push(
   { id: "saa-2-205", exam: "SAA", saa: "2.2", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A company deploys the same REST API with API Gateway in us-east-1 and us-west-2. Clients must keep calling https://api.example.com, and if the us-east-1 API stops responding, Route 53 must send clients to us-west-2 automatically. Which steps should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Make both APIs Regional, and create the Regional custom domain api.example.com in each Region with that Region's ACM certificate.", ok: true },
+      { t: "Make both APIs Regional, and create the Regional custom domain api.example.com in each Region with a local ACM certificate.", ok: true },
       { t: "Create failover alias records for api.example.com that point to each Region's custom domain, with a health check on the primary.", ok: true },
-      { t: "Make both APIs edge-optimized, and create the edge-optimized custom domain api.example.com for the API in each Region.", ok: false, no: "An edge-optimized custom domain name applies across all Regions; serving one name from an API in each Region uses Regional custom domains." },
-      { t: "Request one ACM certificate in us-east-1, and attach it to the Regional custom domains in both of the Regions.", ok: false, no: "A Regional custom domain needs an ACM certificate in the same Region as the API, so us-west-2 needs its own." },
-      { t: "Create an AWS Global Accelerator with an endpoint group in each Region that points to that Region's API.", ok: false, no: "Global Accelerator endpoints are load balancers, EC2 instances and Elastic IP addresses; an API Gateway API can't be one." }
+      { t: "Make both APIs edge-optimized, and create the edge-optimized custom domain api.example.com for the API in each of the Regions.", ok: false, no: "An edge-optimized custom domain name applies across all Regions; serving one name from an API in each Region uses Regional custom domains." },
+      { t: "Request one ACM certificate in us-east-1, and attach it to the Regional custom domains in both of the API's Regions.", ok: false, no: "A Regional custom domain needs an ACM certificate in the same Region as the API, so us-west-2 needs its own." },
+      { t: "Create an AWS Global Accelerator with an endpoint group in each Region that points to that Region's API endpoint.", ok: false, no: "Global Accelerator endpoints are load balancers, EC2 instances and Elastic IP addresses; an API Gateway API can't be one." }
     ],
     why: "A Regional API deployed in several Regions can have the same custom domain name in each, using a certificate from that Region. Route 53 failover records with a health check on the primary move the name to the secondary Region when the primary fails.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-regional-api-custom-domain-create.html"] },
@@ -83,9 +83,9 @@ SD.bank.push(
     items: [
       { t: "Run the application servers in an Auto Scaling group that spans private subnets in at least two Availability Zones.", ok: true },
       { t: "Put an internal Application Load Balancer in front of the application tier, and point the web servers at its DNS name.", ok: true },
-      { t: "Put an internet-facing Application Load Balancer in front of the application tier, in the public subnets.", ok: false, no: "An internet-facing load balancer exposes the application tier to the internet, which breaks the requirement to keep it private." },
+      { t: "Put an internet-facing Application Load Balancer in front of the application tier, in the web tier's public subnets.", ok: false, no: "An internet-facing load balancer exposes the application tier to the internet, which breaks the requirement to keep it private." },
       { t: "Assign an Elastic IP address to each application server, and update the web servers' list with those addresses.", ok: false, no: "The list still has to be edited by hand for every new or failed server, so nothing scales or fails over on its own." },
-      { t: "Move the application tier to one larger EC2 instance type, and turn on EC2 automatic recovery for it.", ok: false, no: "One instance is still a single point of failure in one AZ, and scaling up has a ceiling." }
+      { t: "Move the application tier to one larger EC2 instance type, and turn on EC2 automatic recovery for that instance.", ok: false, no: "One instance is still a single point of failure in one AZ, and scaling up has a ceiling." }
     ],
     why: "An internal load balancer has only private IP addresses and sends the web tier's requests to healthy application servers. With an Auto Scaling group attached, servers are added, replaced and registered automatically, so each tier scales on its own.",
     doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html", "https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-load-balancer.html"] },
@@ -96,7 +96,7 @@ SD.bank.push(
       "Serve the front end from S3 through CloudFront, run the logic in Lambda behind API Gateway, and keep data in DynamoDB.",
       "Serve the front end from S3 through CloudFront, run the logic on Elastic Beanstalk, and keep data in Aurora MySQL.",
       "Serve the front end and the logic from EC2 instances in an Auto Scaling group, and keep data in RDS Multi-AZ.",
-      "Serve the front end from S3 through CloudFront, run the logic as ECS tasks on EC2 capacity, and keep data in DynamoDB."
+      "Serve the front end from S3 through CloudFront, run the logic as ECS tasks on EC2 capacity, and keep the data in DynamoDB."
     ], a: 0,
     no: [null,
       "Elastic Beanstalk runs EC2 instances, and provisioned Aurora uses DB instances, so the company still picks instance sizes.",
@@ -234,7 +234,7 @@ SD.bank.push(
   { id: "saa-2-218", exam: "SAA", saa: "2.2", topic: "route53", type: "mc",
     q: "A company serves users worldwide from deployments in us-east-1 and eu-west-1, and Route 53 sends each user to the closer one. The us-east-1 deployment has much more capacity, so the company wants it to also serve users who live near the edge of the area that eu-west-1 serves. It doesn't want to maintain lists of countries for this. Which Route 53 configuration meets these requirements?",
     opts: [
-      "Use geoproximity routing with a record for each Region, and give the us-east-1 record a positive bias value.",
+      "Use geoproximity routing with a record per Region, and give the us-east-1 record a positive bias value.",
       "Use latency routing with a record for each Region, and add instances in us-east-1 so that it answers faster.",
       "Use weighted routing with a record for each Region, with a weight of 70 for us-east-1 and 30 for eu-west-1.",
       "Use geolocation routing with a record for each country, and move border countries to us-east-1 as needed."
@@ -267,7 +267,7 @@ SD.bank.push(
     opts: [
       "Create an Amazon MQ for RabbitMQ cluster deployment, and point the services at the broker's endpoint.",
       "Create an Amazon MQ for RabbitMQ single-instance broker, and point the services at the broker's endpoint.",
-      "Create an Amazon SQS queue for each RabbitMQ queue, and send and receive messages with the SQS API.",
+      "Create an Amazon SQS queue for each RabbitMQ queue, and send and receive the messages with the SQS API.",
       "Create an Amazon MSK cluster across three Availability Zones, and map each RabbitMQ queue to a Kafka topic."
     ], a: 0,
     no: [null,
