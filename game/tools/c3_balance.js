@@ -91,7 +91,7 @@ async function run(browser, url, exp, i) {
         console.log(`${exp} run ${i + 1}: ${r.lead}, ${r.done ? (r.wipes.length ? `${r.wipes.length} wipe(s) on floor ${r.wipes.map(f => f + 1).join(', ')}` : 'clean clear') : 'timed out'}, SLA at floor ends ${(r.sla || []).join('/')}, ${r.secs}s${r.errors.length ? ', errors: ' + r.errors.join('; ') : ''}`);
       }
     }));
-    const floors = Math.max(...out.map(r => (r.sla || []).length), 1);
+    const floors = Math.max(...out.map(r => (r.sla || []).length - 1), 1);
     const clean = out.filter(r => r.done && !r.wipes.length).length;
     const per = Array.from({ length: floors }, (_, f) => `floor ${f + 1}: ${Math.round(out.filter(r => !(r.wipes || []).includes(f)).length / out.length * 100)}% without a wipe`);
     console.log(`\n${exp}: ${clean}/${out.length} clean clears (${Math.round(clean / out.length * 100)}%). ${per.join(', ')}.\n`);
