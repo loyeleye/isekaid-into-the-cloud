@@ -23,19 +23,19 @@ SD.eli5 = {
   // IAM
   'q-iam1': 'One guard says "come in", but you\'re on another guard\'s ban list. The ban wins, every time.',
   'q-iam2': 'A fresh level-1 character with no keys can\'t open any door. Nothing says yes, so the answer is no.',
-  'q-iam3': 'Give the function its own job class (its execution role) with one skill: reading that table. Lambda switches it into that class every time it runs.',
+  'q-iam3': 'Give the function its own costume (its execution role) with one power: reading that table. Lambda dresses it in that costume every time it runs.',
   'dva-2-05': 'The error is a sealed scroll that explains why you were blocked. DecodeAuthorizationMessage is the spell that unseals it, and you need permission to cast it.',
   'dva-2-13': 'Looking at what\'s on a shelf and taking an item off it are two different permissions. Listing goes on the shelf itself (the bucket name alone); getting goes on the items (the bucket name ending in /*).',
   // Roles and temporary credentials
-  'q-ro1': 'Switching job class hands you a temporary pass: an ID, a secret and a ticket that expires, like a buff with a timer.',
-  'q-ro2': 'The buff wears off after an hour unless you ask for a longer one when you cast it. Ask for 4 hours (14,400 seconds), the most this class allows.',
-  'q-ro3': 'The trust policy is the "who may switch into this class" list, here Lambda. What the class can actually do is on its other list.',
+  'q-ro1': 'Putting on the costume hands you a temporary pass: an ID, a secret and a ticket that expires, like a buff with a timer.',
+  'q-ro2': 'The costume\'s buff wears off after an hour unless you ask for a longer one when you put it on. Ask for 4 hours (14,400 seconds), the most this costume allows.',
+  'q-ro3': 'The trust policy is the costume\'s guest list: who may put it on, here Lambda. What the wearer can actually do is on its other list.',
   'q-ro4': 'Every pass handed out before the alarm is cancelled. Passes handed out after it still work, so also patch the hole the thief came through.',
   'q-mask': 'You need a mask that lets you put it on AND has the power to open this gate. Either one alone is just a hat.',
   'dva-2-16': 'Throw away the spare key under the doormat and give the building (the server) its own badge. The SDK looks for keys before badges, so the old keys must go; then it finds the badge by itself, with no code change.',
   // Resource policies and conditions
   'q-rp1': 'The treasure chest in the other kingdom says "you may open me", but your own kingdom never let you leave. Across kingdoms, both sides have to say yes.',
-  'dva-2-04': 'Borrowing a job class from another guild takes two yeses: their list says you may switch in, and your own guild lets you go and ask (sts:AssumeRole).',
+  'dva-2-04': 'Borrowing a costume from another guild takes two yeses: their guest list names you, and your own guild lets you go and put it on (sts:AssumeRole).',
   'q-cn1': 'You used your two-factor code at the front door, but your script snuck in the side door with an old permanent key. That key never carries the two-factor stamp, so the rule bounces it.',
   'dva-2-10': 'Hang a sign on the vault: "no entry unless you came through the encrypted tunnel". A Deny for unencrypted requests does exactly that, and a Deny beats every Allow.',
   // CloudTrail
@@ -66,7 +66,7 @@ SD.huh = {
   sqs: 'An SQS queue is the guild\'s quest board. Grabbing a quest doesn\'t tear it off; it greys it out for a while (the visibility timeout: 30 seconds unless you change it, 12 hours at most). Turn the quest in (delete it) before the timer ends, or it lights up again for the next adventurer. Now and then the board hands the same quest to two people, so finishing it twice has to be harmless. When Lambda is the one taking quests, set the timer to at least six times Lambda\'s time limit.',
   dlq: 'A dead-letter queue is the guild\'s cursed-quests shelf. Every time someone takes a quest and doesn\'t turn it in, it gets a strike. Too many strikes (more than maxReceiveCount) and it moves to the shelf instead of back onto the board, so one impossible quest can\'t waste everyone\'s time forever. The shelf has to match its board: a strict single-file (FIFO) board needs a FIFO shelf, in the same account and region.',
   iam: 'IAM is the bouncer at every door in AWS. Everyone starts on "no". A permission that says Allow gets you in, but a Deny anywhere beats every Allow, like a ban no VIP pass can override. Give your code only the passes it needs, through a role, never a permanent key.',
-  roles: 'A role is a job class you can switch into, like a job change in Final Fantasy. It has two lists: who may switch into it (the trust policy), and what the class can do (its permissions). Switching in gives you a pass that wears off like a timed buff: 1 hour by default, and you can ask for anything from 15 minutes up to the role\'s own limit (1 to 12 hours). If a pass is stolen, revoking sessions cancels every pass handed out before that moment.',
+  roles: 'A role is a costume with a guest list, like an outfit that grants a class\'s skills while you wear it. The guest list (the trust policy) says who may put it on; its permissions say what the wearer can do. Putting it on gives you a pass that wears off like a timed buff: 1 hour by default, and you can ask for anything from 15 minutes up to the role\'s own limit (1 to 12 hours). If a pass is stolen, revoking sessions cancels every pass handed out before that moment.',
   respolicy: 'Some doors carry their own guest list, like a guild hall that posts who may enter (an S3 bucket policy is one). Inside your own account, either your pass or the door\'s list letting you in is usually enough. Another account is another kingdom: your home kingdom has to let you go, AND the door over there has to have your name on its list.',
   conditions: 'Conditions are the "only if..." small print on a pass, like a dungeon door that only opens at night. One common rule is "only if the connection is encrypted", which turns away anyone on plain HTTP. Another is "only if you used your two-factor code (MFA)". That stamp is only on short-term passes you got by entering the code; a script using a permanent key never has it, even if you logged in with MFA earlier.',
   cloudtrail: 'CloudTrail is the replay for your account: who did what, when, and from where. Out of the box it keeps 90 days of setting changes, like someone editing a function or a bucket\'s permissions. Everyday reads of your data, like someone opening a file in S3, aren\'t recorded unless you switched that recording on beforehand, and it only records from then on.',
