@@ -387,7 +387,7 @@
     // Portraits in dialogue: the head-and-shoulders crop of the same figure, for everyone with one.
     const orig = SD.art.portrait;
     // Freya's three forms: the promoter before the briefing, the goddess after it, and the virus underneath.
-    const morphed = () => { const c1 = SD.state.save.c1; return !!(c1 && c1.f && c1.f.morph); };
+    const morphed = () => { const c1 = SD.state.save.c1; return !!(c1 && c1.f && (c1.f.morph || c1.f.brief || c1.f.done)); };
     // Chapter 1's PixelLab facesets (assets/img/portraits) take the dialogue box when the speaker has one (Ladi, Oct 21):
     // the face the line asks for if it's drawn, else the neutral one.
     const FACESET = { mira: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], kai: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], seoyeon: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], dutch: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'],
@@ -427,12 +427,15 @@
     };
     // Visual-novel sprites, waist up, with every face.
     const sprite = (id, faces, light) => ({ faces: Object.fromEntries(faces.map(f => [f, id === 'pip' ? pipSVG(f) : K.fig(id, f, 'bust', light)])) });
+    const FREYA_FACES = ['neutral', 'smile', 'cold', 'warm', 'smirk', 'amused', 'earnest'], FREYA = {};
+    ['freya', 'freyag', 'freyav'].forEach(id => { let v; FREYA[id] = () => v || (v = sprite(id, id === 'freyav' ? ['neutral', 'smile'] : FREYA_FACES)); });
     SD.vn.addSprites({
       mira: sprite('mira', ['neutral', 'grief', 'cold', 'desperate', 'sad', 'anger', 'warm', 'tired', 'shock']),
       kai: sprite('kai', ['neutral', 'shock', 'grief', 'anger', 'smirk', 'sad']),
       seoyeon: sprite('seoyeon', ['neutral', 'frozen', 'grief', 'anger', 'sad']),
       dutch: sprite('dutch', ['neutral', 'stone', 'grief', 'anger', 'tired']),
-      freya: sprite('freya', ['neutral', 'smile', 'cold', 'warm', 'smirk', 'amused', 'earnest']),
+      // Freya: the promoter until her briefing, then the goddess (every chapter after the first), the virus when asked.
+      freya: { now: face => FREYA[face === 'virus' ? 'freyav' : face === 'promoter' || !morphed() ? 'freya' : 'freyag']() },
       bram: sprite('bram', ['neutral', 'smile', 'warm']), hana: sprite('hana', ['neutral']), jin: sprite('jin', ['neutral', 'smirk']), lina: sprite('lina', ['neutral', 'smile']),
       man: sprite('man', ['neutral']),
       coo: sprite('coo', ['neutral', 'smile', 'shock']), pip: sprite('pip', ['neutral', 'sad', 'happy', 'shock']),

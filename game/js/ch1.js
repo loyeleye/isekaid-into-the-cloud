@@ -341,12 +341,17 @@
   // Faces to paint: Mira desperate, grief, cold; Kai shock, grief, anger; Seo-yeon frozen, grief, anger; Dutch stone,
   // grief, anger; Freya smile, cold. Each painted face goes in faces: { face: src }.
   const stand = src => ({ stand: src, pixel: true, faces: {} });
+  // A save past chapter 1's briefing, including one a chapter select made (it sets brief and done, not morph).
+  const freyaMorphed = () => { const f = ((SD.state.save || {}).c1 || {}).f || {}; return !!(f.morph || f.brief || f.done); };
   SD.vn.addSprites({
     mira: { faces: { grief: 'assets/img/vn/mira-grief.webp' } },
     kai: stand('assets/img/lead/kai.webp'),
     seoyeon: stand('assets/img/lead/seoyeon.webp'),
     dutch: stand('assets/img/lead/dutch.webp'),
-    freya: { faces: { smile: 'assets/img/vn/freya-smile.webp' } },
+    // Freya is the Free Tier's brand promoter until her briefing; from then on (every chapter after the first) the
+    // goddess, and the virus when a scene asks for her.
+    freya: { now: face => face === 'virus' ? stand('assets/img/lead/freyav.webp')
+      : face === 'promoter' || !freyaMorphed() ? { faces: { smile: 'assets/img/vn/freya-smile.webp' } } : stand('assets/img/lead/freya.webp') },
     bram: { tint: '#5a4a3a' }, hana: { tint: '#b08a3a' }, jin: { tint: '#6a2a2a' }, lina: { tint: '#7a6a9a' },
     gu: { tint: '#6a4a2a' }, leader: { tint: '#4c6fa8' }
   });

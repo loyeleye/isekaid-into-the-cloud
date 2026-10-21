@@ -47,7 +47,8 @@
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
   }
   function spriteHTML(who, face) {
-    const s = V.art.sprites[who] || {};
+    // A sprite can choose its art at the time it's shown: now(face) returns { faces } or { stand } (Freya's three forms).
+    const s0 = V.art.sprites[who] || {}, s = s0.now ? s0.now(face) || {} : s0;
     const src = s.faces && (s.faces[face] || s.faces[Object.keys(s.faces)[0]]);
     if (src) return `<img src="${src}" alt="">`;
     if (s.stand) return `<img class="${s.pixel ? 'px' : ''}" src="${s.stand}" alt="">`;
