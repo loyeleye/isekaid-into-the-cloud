@@ -720,6 +720,9 @@
     if (cost > C.energy) { C.log = 'Not enough Capacity.'; renderCombat(); return; }
     C.energy -= cost;
     if (!again) C.hand.splice(i, 1);
+    // A chapter can take over a card (js/ch1.js: AccessDenied before you're granted anything, Kyu's Deny).
+    // A hook that returns true has dealt with it: the card is discarded and its effects don't happen.
+    if (!again && await hook('play', C, c, d)) { if (!C.over) { C.disc.push(c); renderCombat(); } return; }
     C.played = (C.played || 0) + 1;   // for the Rollouts' Metronome
     AU.sfx(d.abs || d.each ? 'shield' : 'card');
     const sv = S.save, up = c.up ? 3 : 0;
@@ -1200,7 +1203,7 @@
         }
         if (run.sla <= 0 && !run.mercy && mod('mercy', true, C)) {
           run.sla = 1; run.mercy = true;
-          U.system('LAST UPTIME', 'Pip throws himself in front of the request. You hold at 1 SLA. He is fine. Probably. Once a run.', 'red');
+          U.system('LAST UPTIME', chap().mercy || 'Pip throws himself in front of the request. You hold at 1 SLA. He is fine. Probably. Once a run.', 'red');
         }
         S.persist();
         if (run.sla <= 0) { C.busy = false; C.over = true; renderCombat(); return setTimeout(() => endRun(false, 'The ' + C.e.name), 700); }
@@ -1370,7 +1373,8 @@
   // He turns up once per run, always when things look grim and now and then for no reason at all.
   function garyShouldCome() {
     const run = S.save.run;
-    if (C.boss || C.tutorial || C.over || run.gary || !mod('gary', true, C)) return false;
+    // A chapter can keep him out (chapter 1 sets gary: false; his part in the sequel's story comes later).
+    if (C.boss || C.tutorial || C.over || run.gary || chap().gary === false || !mod('gary', true, C)) return false;
     return run.sla <= S.maxSla() * 0.3 || (C.turn >= 2 && Math.random() < 0.1);
   }
   function oneCommit() {
@@ -1576,6 +1580,21 @@
       if (rareNew) setTimeout(() => U.system('RARE CARD UNLOCKED', `${U.esc(SD.cards[rareNew].name)} can now turn up in rewards and shops, in every dungeon.`, 'gold'), 1500);
     };
   }
+  // A story fight in a chapter's overworld (js/ch1.js): one incident outside any dungeon, with the deck the
+  // chapter keeps (deck: [{ id, up }]). Winning gives the usual rewards, and done(deck) gets the deck back with any
+  // card you picked. Losing goes to the chapter's end hook like a lost run, with run.story set.
+  R.storyFight = function (ch, eid, opts, deck, done) {
+    const sv = S.save;
+    sv.run = {
+      ch, story: true, deck: deck.map(c => ({ id: c.id, up: !!c.up })), sla: 0, bits: 0, floor: -1, pos: null, pending: null, map: null,
+      mercy: false, startedAt: Date.now(), firstFight: false, log: { fights: 0, concepts: {}, misses: 0, right: 0, xp: 0 }, boss: {}
+    };
+    sv.run.sla = S.maxSla();
+    S.persist();
+    SD.main.show('run');
+    fight(eid, opts || {}, () => { const d = sv.run ? sv.run.deck : deck; sv.run = null; S.persist(); done(d); });
+    if (opts && opts.log) { C.log = opts.log; renderCombat(); }
+  };
   // The pieces js/arc.js builds chapter runs from.
-  R.api = { fight, target, groupFor, rewards, cardChoices, cafe, campfire, eventNode, whiteboard, pickCard, findNode, endRun, gateFx, win, mitigate, absorb, hasInfra, combat: () => C };
+  R.api = { fight, target, groupFor, rewards, cardChoices, cafe, campfire, eventNode, whiteboard, pickCard, findNode, endRun, gateFx, win, mitigate, absorb, hasInfra, drawN, renderCombat, combat: () => C };
 })();

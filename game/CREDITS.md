@@ -9,9 +9,11 @@ Everything here was first made for or gathered by the first game, [Isekai'd Into
 | "Character Portrait ~ Maid" (`assets/img/portraits/uptima-*.webp`) | Jupiter's Daughter, https://opengameart.org/content/character-portrait-maid | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Uptima's portraits (cropped to busts) |
 | The hero's portraits (`assets/img/portraits/you-*.webp`), the dungeon map's floors, props and room icons (`assets/img/dungeon`), the battle backdrops and your fighter's animations (`assets/img/battle`) and the incident monsters (`assets/img/monsters`) | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription (first made for Isekai'd Into Prod), processed by `tools/village_art.py`, `tools/battle_art.py` and `tools/pixel_portraits.py` | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | The dungeon map, fights and dialogue |
 | Particle Pack (`assets/img/fx`), Emotes Pack (`assets/img/emotes.png`) | Kenney (www.kenney.nl), via OpenGameArt | CC0 | Hit sparks in combat, speech-bubble emotes |
+| Chapter 1's leads and Freya: Mira's, Kai's, Seo-yeon's and Dutch's full bodies and Freya's three forms (`assets/img/lead/*.webp`), and their portraits (`assets/img/portraits/mira-neutral`, `kai-neutral`, `seoyeon-neutral`, `dutch-neutral`, `freya-promoter`, `freya-neutral`, `freya-virus`) | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription: Ladi's picks from the concept-art variants generated on 2026-10-20 (Mira D, Kai A, Seo-yeon C, Dutch D, and goddess alternate C for Freya the brand promoter), resized for the game | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Choosing your lead, dialogue, and your fighter in chapter 1's battles |
+| Kyu's portraits (`assets/img/portraits/kyu-*.webp`) and boss sprite (`assets/img/monsters/kyuboss.webp`), and Uptima's boss sprite (`assets/img/monsters/uptimaboss.webp`, the first idle frame of the first game's `assets/img/battle/champ-uptima.webp`) | Generated with [PixelLab](https://pixellab.ai) on Ladi's subscription for Isekai'd Into Prod (its `CREDITS-arc.md` and `CREDITS.md`) | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Kyu and Uptima in chapter 1 |
 | Game-icons.net (137-icon subset in `assets/game-icons.js`) | https://game-icons.net, via the npm package `@iconify-json/game-icons` 1.2.4. Icons by Lorc, Delapouite and other contributors listed at https://game-icons.net/about.html | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Card art, map nodes, story props |
 
-Everything else (code-drawn portraits for characters without a painted one, System windows) is drawn in code in `js/art.js` and `index.html`.
+Everything else is drawn in code: portraits for characters without a painted one and the System windows in `js/art.js` and `index.html`, and chapter 1's whole overworld (the ground, river, buildings, props, the temple, and every character walking about) in `js/ch1-art.js`.
 
 ## Model
 
@@ -23,27 +25,39 @@ Everything else (code-drawn portraits for characters without a painted one, Syst
 
 | File | Track | Author and source | License | Plays |
 | --- | --- | --- | --- | --- |
-| `m-opening` | "Kokoro no Yume" (2 min edit) | Paul Winter (kaazoom), https://pixabay.com/music/main-title-kokoro-no-yume-2-min-edit-440922/ | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Title |
+| `m-c1-title` | "Oppressive Gloom" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100885 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Title (`title`) |
+| `m-c1-prologue` | "Death Is Just Another Path" | Otto Halmén, https://opengameart.org/content/death-is-just-another-path | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (also OGA-BY 3.0) | The prologues and story moments (`story`) |
+| `m-c1-freya` | "musicbox1_spooky_waltz", from "4 Music Box Tracks" | Aureolus_Omicron, https://opengameart.org/content/4-music-box-tracks | CC0 | Freya's scenes (`freya`) |
+| `m-c1-camp` | "Vampire's Piano" | TAD, https://opengameart.org/content/vampires-piano | CC0 | Freya's camp (`camp`) |
+| `m-c1-road` | "Darkness March" | Alexandr Zhelanov, https://opengameart.org/content/darkness-march | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The road east (`road`) |
+| `m-c1-brookfall` | "Heavy Heart" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600002 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Brookfall (`brookfall`) |
+| `m-c1-temple` | "Rites" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100722 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The Temple of Uptime and its dungeon (`temple`, `map1`) |
+| `m-c1-battle` | "Black Vortex" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1300037 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Battles (`battle`) |
+| `m-c1-boss` | "Final Count" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100657 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Uptima's fight (`boss`) |
 | `m-journey` | "Orchestral: Our Journey Awaits" | Techspired Minds (joschjava), https://opengameart.org/content/orchestral-our-journey-awaits | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Story moments (`journey`) |
 | `m-goddess` | "Fluffing a Duck" | Kevin MacLeod (incompetech.com) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Uptima's scenes (`goddess`) |
 | `m-village` | "Hot Springs Town" | Kistol, https://opengameart.org/content/hot-springs-town | CC0 | Town |
 | `m-quest` | "Cozy Puzzle In-Game 1" | MintoDog, https://opengameart.org/content/cozy-puzzle-in-game-1 | CC0 | Quests and lessons |
-| `m-story` | "Emotional Piano" | Centurion_of_war, https://opengameart.org/content/emotional-piano-0 | CC0 | Story moments |
 | `m-guild` | "Enchanted Festival" (the author's looped version) | Matthew Pablo (http://www.matthewpablo.com), https://opengameart.org/content/enchanted-festival | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | Guild (`guild`) |
 | `m-explore` | "Kaze no Kioku" (3:15 loopable edit) | Paul Winter (kaazoom), https://pixabay.com/music/world-kaze-no-kioku-315-loopable-edit-439962/ | [Pixabay Content License](https://pixabay.com/service/license-summary/) | The dungeon map |
-| `m-battle` | "JRPG Epic Rock Battle Theme #1" | HydroGene, https://opengameart.org/content/jrpg-epic-rock-battle-theme-1 | CC0 | Battles |
-| `m-boss` | "Epic Boss Battle [Seamlessly Looping]" | Juhani Junkala (SubspaceAudio), https://opengameart.org/content/boss-battle-music | CC0 | Boss |
 | `m-shop` | "Bossa" (shop theme, HD) | SpringySpringo, https://opengameart.org/content/bossa-shop-theme-in-low-fi-and-hd | CC0 (dual-licensed CC0 / CC BY 3.0; used under CC0) | Shops (`shop`) |
+| `m-kyu` | "Shadow of the Ancient Forest (Full version)" | Paul Winter (kaazoom), via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Kyu's scenes (`kyu`) |
+| `m-kyusad` | "Under The Moon Sad Cinematic Loop" | Emmraan, via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Chapter 1's last scene (`kyusad`) |
+| `m-kyuboss` | "Final Battle Epic Orchestral Action Background Music" | Mohd Umar (mumarmds), via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | The Kyu fight (`kyuboss`) |
 | `j-victory`, `j-defeat`, `j-gary` | Music Jingles (SAX set) | Kenney, via OpenGameArt | CC0 | Victory, defeat and rescue jingles |
 | `j-after` | "Sneaky And Funny Strings - Plucked, Quirky Comedy - OPENER" | zec53, via Pixabay | [Pixabay Content License](https://pixabay.com/service/license-summary/) | A comic opener (`js/arc.js`) |
 
 Kevin MacLeod credit line: "Fluffing a Duck" by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 License, http://creativecommons.org/licenses/by/4.0/
 
+Kevin MacLeod credit lines, one per track: "Oppressive Gloom", "Heavy Heart", "Rites", "Black Vortex" and "Final Count", each "<Title>" Kevin MacLeod (incompetech.com), Licensed under Creative Commons: By Attribution 4.0 License, http://creativecommons.org/licenses/by/4.0/
+
+Other credit lines: "Death Is Just Another Path" by Otto Halmén, licensed under CC BY 3.0, https://creativecommons.org/licenses/by/3.0/, via https://opengameart.org/content/death-is-just-another-path; "Darkness March" by Alexandr Zhelanov, licensed under CC BY 4.0, https://creativecommons.org/licenses/by/4.0/, via https://opengameart.org/content/darkness-march
+
 Techspired Minds credit line: "Orchestral: Our Journey Awaits" by Techspired Minds (joschjava), licensed under CC BY 4.0, https://creativecommons.org/licenses/by/4.0/, via https://opengameart.org/content/orchestral-our-journey-awaits
 
 Matthew Pablo credit line: "Enchanted Festival" by Matthew Pablo (http://www.matthewpablo.com), licensed under CC BY 3.0, https://creativecommons.org/licenses/by/3.0/, via https://opengameart.org/content/enchanted-festival
 
-Pixabay credit lines: "Kokoro no Yume" and "Kaze no Kioku" by Paul Winter (kaazoom), and "Sneaky And Funny Strings" by zec53, via Pixabay (Pixabay Content License). Pixabay marks "Kokoro no Yume" and "Kaze no Kioku" as AI-generated. The license allows use inside the game but not standalone redistribution, so these files must not be offered as separate downloads or a soundtrack pack.
+Pixabay credit lines: "Kaze no Kioku" and "Shadow of the Ancient Forest" by Paul Winter (kaazoom), "Under The Moon Sad Cinematic Loop" by Emmraan, "Final Battle Epic Orchestral Action Background Music" by Mohd Umar (mumarmds), and "Sneaky And Funny Strings" by zec53, via Pixabay (Pixabay Content License). Pixabay marks "Kaze no Kioku", "Shadow of the Ancient Forest" and "Final Battle" as AI-generated. The three Kyu tracks were first gathered for Isekai'd Into Prod (its `CREDITS-arc.md`). The license allows use inside the game but not standalone redistribution, so these files must not be offered as separate downloads or a soundtrack pack.
 
 Music was re-encoded to MP3 and loudness-normalised; nothing else was changed.
 

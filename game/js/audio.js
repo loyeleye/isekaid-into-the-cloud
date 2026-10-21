@@ -177,16 +177,22 @@
   // ---------- Recorded music and samples ----------
   const BASE = 'assets/audio/';
   // mapN is chapter N's dungeon map; chapters without one use explore.
-  const SONG = { title: 'm-opening', goddess: 'm-goddess', town: 'm-village', explore: 'm-explore', battle: 'm-battle', boss: 'm-boss', quest: 'm-quest', story: 'm-story', guild: 'm-guild', journey: 'm-journey',
+  // This game's own tracks are the m-c1-* files: darker ones for a revenge story (credited in CREDITS.md). The title,
+  // the story moments and the battles use them too; the rest of the first game's songs stay for its older places.
+  const SONG = { title: 'm-c1-title', goddess: 'm-goddess', town: 'm-village', explore: 'm-explore', battle: 'm-c1-battle', boss: 'm-c1-boss', quest: 'm-quest', story: 'm-c1-prologue', guild: 'm-guild', journey: 'm-journey',
+    // Chapter 1: Freya's theme, her camp, the road east, Brookfall, the Temple of Uptime and its dungeon.
+    freya: 'm-c1-freya', camp: 'm-c1-camp', road: 'm-c1-road', brookfall: 'm-c1-brookfall', temple: 'm-c1-temple', map1: 'm-c1-temple',
     map2: 'm-ch2', map3: 'm-ch3', map4: 'm-ch4', map5: 'm-ch5',
     // The newer places' own themes (OpenGameArt, credited in CREDITS.md): the Eventual Isles, the PR Club and its
     // yoga studio, Aigerim's card shop, and Kagemaru's cave (a music box). Rooms otherwise keep the music from outside.
-    isles: 'm-isles', gym: 'm-gym', studio: 'm-studio', shop: 'm-shop', cave: 'm-cave' };
+    isles: 'm-isles', gym: 'm-gym', studio: 'm-studio', shop: 'm-shop', cave: 'm-cave',
+    // Kyu's themes, from the first game's chapter 10: hers, her flashbacks, and the fight with her.
+    kyu: 'm-kyu', kyusad: 'm-kyusad', kyuboss: 'm-kyuboss' };
   // Songs without a synth version fall back to this one if the file fails to load.
-  const FALLBACK = { journey: 'title', quest: 'town', story: 'town', guild: 'town', map2: 'explore', map3: 'explore', map4: 'explore', map5: 'explore',
-    isles: 'explore', gym: 'explore', studio: 'heaven', shop: 'town', cave: 'isles' };
+  const FALLBACK = { journey: 'title', quest: 'town', story: 'town', guild: 'town', freya: 'story', camp: 'story', road: 'explore', brookfall: 'explore', temple: 'explore', map1: 'explore', map2: 'explore', map3: 'explore', map4: 'explore', map5: 'explore',
+    isles: 'explore', gym: 'explore', studio: 'heaven', shop: 'town', cave: 'isles', kyu: 'story', kyusad: 'story', kyuboss: 'boss' };
   // Per-song loudness: the piano is gentle on purpose, and the chapter maps are mastered hotter than explore.
-  const SONG_VOL = { story: 0.75, map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
+  const SONG_VOL = { map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
   const JING = { victory: 'j-victory', defeat: 'j-defeat', gary: 'j-gary' };
   const SAMPLE = { blip: 's-blip', ok: 's-ok', cancel: 's-cancel', card: 's-card', hit: 's-hit', crit: 's-crit', resist: 's-resist', hurt: 's-hurt', shield: 's-shield', coin: 's-coin', right: 's-right', wrong: 's-wrong', door: 's-door',
     doorclose: 's-doorclose', shopbell: 's-shopbell', steps: 's-steps' };
@@ -351,7 +357,11 @@
     night: { bed: 'crickets', vol: 0.3, extra: [] },
     rain: { bed: 'rain', vol: 1.5, extra: [[['rumble'], 0.3, 30, 60]] },
     wind: { bed: 'rain', vol: 1.3, extra: [[['wind'], 0.3, 10, 22], [['rumble'], 0.25, 30, 60]] },
-    storm: { bed: 'storm', vol: 0.4, extra: [[['clap1', 'clap2', 'clap3'], 0.5, 10, 25], [['wind'], 0.35, 14, 30]] }
+    storm: { bed: 'storm', vol: 0.4, extra: [[['clap1', 'clap2', 'clap3'], 0.5, 10, 25], [['wind'], 0.35, 14, 30]] },
+    // Chapter 1's Cloud: wind gusting through it and thunder far off, then rain at the temple, where js/ch1-world.js
+    // sends the thunder itself so it lands with the lightning.
+    gloom: { extra: [[['wind'], 0.34, 6, 14], [['leaves'], 0.22, 9, 20], [['rumble'], 0.2, 24, 50]] },
+    tempest: { bed: 'rain', vol: 0.85, extra: [[['wind'], 0.3, 10, 22]] }
   };
   const PLACE = {
     sea: { bed: 'sea', vol: 0.55, extra: [[['gull1', 'gull2', 'gull3'], 0.22, 8, 20]] },

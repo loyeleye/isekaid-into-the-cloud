@@ -9,6 +9,9 @@
     uptima: ['neutral', 'happy', 'sad', 'angry', 'blush', 'confused'], you: ['neutral', 'confused', 'happy']
   };
   A.painted = who => !!PAINTED[who];
+  // Chapters add their own painted cast (js/ch1.js). px: pixel art, drawn without smoothing.
+  const PX = {};
+  A.addPainted = function (who, moods, px) { PAINTED[who] = moods; if (px) PX[who] = true; };
   // PixelLab sheets: rows face south, west, east and north; column 0 stands, then c.n[row] frames (walk frames when
   // the sheet is marked walk, otherwise idle frames). Sheets with c.wk keep both: c.n[row] idle frames, then
   // c.wk[row] walk frames after them. Runners (c.rn) have c.rn[row] running frames after those, played when run is
@@ -64,7 +67,7 @@
   A.portrait = function (who, size, mood) {
     if (PAINTED[who]) {
       const m = PAINTED[who].includes(mood) ? mood : 'neutral';
-      return `<span class="bust b-${who}" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="${IMG}portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+      return `<span class="bust b-${who}${PX[who] ? ' px' : ''}" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="${IMG}portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
     }
     const c = SD.cast[who] || SD.cast.you;
     const id = 'p' + (uid++);
@@ -256,9 +259,16 @@
     looper: { col: '#ffc46b', anim: 'shake' }, billgoblin: { col: '#9fe08a', anim: 'shake' }, staleindex: { col: '#c9a07a', anim: 'shake' }, jester: { col: '#ff7ad9', anim: 'float' },
     furnace: { col: '#ff9a4d', anim: 'shake' }, judge: { col: '#c8b48a', anim: 'float' }, crystalhead: { col: '#7ef0e0', anim: 'float' }, helpdesk: { col: '#ffcf6b', anim: 'shake' }
   };
+  // Chapters add their own incidents: { col, anim, src } for an image, or { col, anim, svg } for one drawn in code
+  // (svg is the inside of a 120 x 120 viewBox).
+  A.addFoe = function (sprite, def) { FOE[sprite] = def; };
   A.enemyColor = sprite => (FOE[sprite] || FOE.slime).col;
   A.enemy = function (sprite, boss, hue) {
     const f = FOE[sprite] ? FOE[sprite] : FOE.slime;
+    if (f.svg || f.src) {
+      return `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="113" rx="36" ry="6" fill="rgba(43,35,64,.18)"/>
+        <g class="${f.anim}">${f.svg ? (typeof f.svg === 'function' ? f.svg() : f.svg) : `<image href="${f.src}" x="0" y="0" width="120" height="116" preserveAspectRatio="xMidYMax meet" style="image-rendering:pixelated"/>`}</g></svg>`;
+    }
     // PixelLab monsters (tools/battle_art.py) already wear their own crowns.
     const crown = boss && !(SD.battleArt && SD.battleArt.monsters[sprite]) ? `<path d="M42 16 L48 0 L56 12 L62 -4 L68 12 L76 0 L82 16Z" fill="#ffd23f" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` : '';
     return `<svg viewBox="0 0 120 120" aria-hidden="true">

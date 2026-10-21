@@ -9,6 +9,8 @@
   let dq = [], dDone = null, typing = null, full = '';
   // Each speaker gets a typewriter blip pitch, the way classic JRPGs give characters a voice.
   const VOICE = { uptima: 900, pip: 1250, gary: 210, seymour: 480, mio: 1100, wen: 720, chad: 430, latency: 150, system: 620, you: 660, bru: 980, ayo: 260, coo: 1400, lexi: 820, cron: 330, kaito: 560, doug: 390, aigerim: 1050 };
+  // Chapters give their own cast a voice (js/ch1.js).
+  U.voice = (who, hz) => { VOICE[who] = hz; };
   U.dialog = function (lines, done) {
     return new Promise(res => {
       dq = lines.slice(); dDone = () => { if (done) done(); res(); };
@@ -77,6 +79,8 @@
   };
 
   // ---- Cutscene stage and flashes ----
+  // A chapter can give a stage its own backdrop (js/ch1.js gives its scenes layers of storm cloud).
+  U.stageDecor = {};
   U.stage = function (scene) {
     const st = $('#stage');
     document.body.classList.toggle('cut', !!scene);
@@ -84,7 +88,7 @@
     delete st.dataset.slide; delete st.dataset.glow; delete st.dataset.crumbs;
     if (!scene) { st.hidden = true; st.innerHTML = ''; return; }
     st.dataset.scene = scene; st.hidden = false;
-    st.innerHTML = scene === 'office' ? '' : Array.from({ length: 5 }, (_, i) => `<div class="cloud" style="top:${8 + i * 14}%;animation-delay:${-i * 6}s;transform:scale(${0.6 + (i % 3) * 0.3})"></div>`).join('');
+    st.innerHTML = U.stageDecor[scene] != null ? U.stageDecor[scene] : scene === 'office' ? '' : Array.from({ length: 5 }, (_, i) => `<div class="cloud" style="top:${8 + i * 14}%;animation-delay:${-i * 6}s;transform:scale(${0.6 + (i % 3) * 0.3})"></div>`).join('');
   };
   U.flash = function () {
     const f = document.createElement('div'); f.className = 'flash';
