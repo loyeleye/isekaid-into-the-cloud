@@ -29,9 +29,9 @@ SD.bank.push(
     q: "An order service invokes a Lambda function asynchronously. The team wants every successful result sent to an SQS queue for billing, and every event that still fails after Lambda's retries sent to an SNS topic that pages the on-call developer. What should the developer configure?",
     opts: [
       "An on-success destination for the SQS queue and an on-failure destination for the SNS topic, on the function.",
-      "A dead-letter queue that points at the SQS queue, plus code in the handler that publishes to the SNS topic when it catches an error.",
-      "An event source mapping from the SQS queue to the function, plus a subscription from the SNS topic to the function's log group.",
-      "Synchronous invocation instead, so the order service gets each result and forwards successes to SQS and failures to SNS itself."
+      "A dead-letter queue that points at the SQS queue, plus handler code that publishes to the SNS topic on errors.",
+      "An event source mapping from the SQS queue to the function, plus an SNS subscription to its log group.",
+      "Synchronous invocation, so the order service gets each result and forwards it to SQS or SNS itself."
     ], a: 0,
     no: [null,
       "A dead-letter queue only receives failed events, so it can't carry successful results, and a handler can't report a crash it doesn't survive.",
@@ -200,10 +200,10 @@ SD.bank.push(
   { id: "dva-1-14", exam: "DVA", dva: "1.1", topic: "resilience", type: "multi", hint: "Select TWO.",
     q: "A Lambda function calls a third-party payments API that sometimes returns HTTP 503 for a few seconds when it is busy. The function retries straight away in a loop, and the API has started rate-limiting the whole account. Which changes should the developer make? (Select TWO.)",
     items: [
-      { t: "Retry with exponential backoff and random jitter between attempts.", ok: true },
-      { t: "Cap the attempts, and send requests that run out to a queue for later.", ok: true },
+      { t: "Retry with exponential backoff, adding random jitter to the wait between attempts.", ok: true },
+      { t: "Cap the number of attempts, and send requests that run out to a queue to retry later.", ok: true },
       { t: "Retry up to 50 times in a tight loop so the call succeeds the moment the API recovers.", ok: false, no: "That is what set off the rate limit. Immediate retries add load to a service that is already busy." },
-      { t: "Raise the function's reserved concurrency so more calls reach the API at the same time.", ok: false, no: "More parallel calls add load to an overloaded service." },
+      { t: "Raise the function's reserved concurrency so more calls reach the API at once.", ok: false, no: "More parallel calls add load to an overloaded service." },
       { t: "Retry every failed call exactly 5 seconds later, so all clients return after recovery.", ok: false, no: "A fixed delay brings every client back at the same moment. Jitter spreads them out." }
     ],
     why: "Exponential backoff spaces retries out, and jitter keeps clients from retrying in lockstep. A cap with a queue behind it stops endless retries from piling up, without losing the requests.",

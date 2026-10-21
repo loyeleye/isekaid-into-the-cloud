@@ -8,11 +8,11 @@ SD.bank.push(
   { id: "dva-2-301", exam: "DVA", dva: "2.2", topic: "ssm", type: "multi", hint: "Select TWO.",
     q: "Developers reach EC2 instances in private subnets through a bastion host with a shared key pair. Security wants to remove the bastion, close inbound port 22 and stop managing SSH keys, while IAM controls who gets a shell. The subnets have no route to the internet, and the instances run a recent Amazon Linux AMI with the SSM Agent. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "Attach an instance profile whose role includes the AmazonSSMManagedInstanceCore policy, and start shells with Session Manager.", ok: true },
+      { t: "Attach an instance profile with the AmazonSSMManagedInstanceCore policy, and start shells with Session Manager.", ok: true },
       { t: "Create interface VPC endpoints for ssm, ssmmessages and ec2messages, and allow HTTPS to them from the instances.", ok: true },
       { t: "Create a gateway VPC endpoint for Systems Manager, and add it to the route tables of the private subnets.", ok: false, no: "Gateway endpoints exist only for Amazon S3 and DynamoDB. Systems Manager is reached through interface endpoints." },
-      { t: "Keep port 22 open only from the Session Manager service, and import each developer's public key to EC2.", ok: false, no: "Session Manager works over the agent's outbound HTTPS connection, so it needs no inbound port and no SSH keys." },
-      { t: "Give each instance an Elastic IP address, and allow inbound SSH only from the office's public IP range.", ok: false, no: "This keeps inbound SSH and key management, which is what the team wants to remove." }
+      { t: "Keep inbound port 22 open only from the Session Manager service, and import each developer's public key to EC2.", ok: false, no: "Session Manager works over the agent's outbound HTTPS connection, so it needs no inbound port and no SSH keys." },
+      { t: "Give each instance an Elastic IP address, and allow inbound SSH only from the office's public IP address range.", ok: false, no: "This keeps inbound SSH and key management, which is what the team wants to remove." }
     ],
     why: "Session Manager opens shells through the SSM Agent's outbound connection, with access controlled by IAM, so no inbound ports, bastions or SSH keys are needed. The instance role needs AmazonSSMManagedInstanceCore, and subnets without internet access need interface endpoints for ssm, ssmmessages and ec2messages.",
     doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html", "https://docs.aws.amazon.com/systems-manager/latest/userguide/setup-create-vpc.html"] },
@@ -280,9 +280,9 @@ SD.bank.push(
     items: [
       { t: "Change the API's endpoint type to PRIVATE, and create an interface VPC endpoint for the execute-api service in the VPC.", ok: true },
       { t: "Attach a resource policy to the API that allows execute-api:Invoke only when aws:SourceVpce equals that endpoint's ID.", ok: true },
-      { t: "Create a gateway VPC endpoint for API Gateway, and add it to the route tables of the services' subnets.", ok: false, no: "Gateway endpoints exist only for Amazon S3 and DynamoDB. API Gateway uses interface endpoints." },
+      { t: "Create a gateway VPC endpoint for API Gateway, and add it to the route tables of the services' private subnets.", ok: false, no: "Gateway endpoints exist only for Amazon S3 and DynamoDB. API Gateway uses interface endpoints." },
       { t: "Keep the Regional endpoint, and add an AWS WAF rule that allows only source addresses in the VPC's CIDR range.", ok: false, no: "Calls to a public endpoint arrive from public addresses, such as a NAT gateway's, and the API stays on the internet." },
-      { t: "Require an API key on every method, and give the key only to the services that run in the VPC.", ok: false, no: "API keys identify clients for usage plans. They aren't access control and don't keep the API off the internet." }
+      { t: "Require an API key on every method, and give the key only to the services that run in the VPC's private subnets.", ok: false, no: "API keys identify clients for usage plans. They aren't access control and don't keep the API off the internet." }
     ],
     why: "A private REST API is reachable only through interface VPC endpoints for execute-api. Its resource policy, which a private API needs before it can be deployed, can allow invoke only through a specific endpoint with aws:SourceVpce.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-private-apis.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-private-api-create.html"] },
@@ -302,8 +302,8 @@ SD.bank.push(
   { id: "dva-2-322", exam: "both", dva: "2.1", saa: "1.1", topic: "iam", type: "mc",
     q: "Developers run AWS CLI commands and SDK scripts on their laptops with long-term IAM user access keys in ~/.aws/credentials. The company already uses IAM Identity Center for console sign-in. Security wants no long-term keys on laptops, only short-lived credentials renewed through sign-in, with no change to the scripts' SDK calls. What should the developer do?",
     opts: [
-      "Run aws configure sso to set up an Identity Center profile, and sign in with aws sso login.",
-      "Rotate each developer's access keys every 30 days, and alert on any access key unused for more than 90 days.",
+      "Run aws configure sso to set up an IAM Identity Center profile, and sign in with aws sso login.",
+      "Rotate each developer's access keys every 30 days, and alert on any key unused for more than 90 days.",
       "Have a script call GetSessionToken each morning with the user's keys, and write the session to the profile.",
       "Store the access keys in Secrets Manager, and have each script fetch them at startup with GetSecretValue."
     ], a: 0,
@@ -332,10 +332,10 @@ SD.bank.push(
   { id: "dva-2-324", exam: "DVA", dva: "2.2", topic: "acm", type: "mc",
     q: "A certificate from a third-party authority is imported into ACM and used by an Application Load Balancer and an API Gateway Regional custom domain in the same Region. The company must keep using that authority, which has now issued the renewed certificate. The team wants to swap in the renewed certificate without editing either resource. What should the developer do?",
     opts: [
-      "Reimport the renewed certificate to the existing certificate ARN, which keeps its associations.",
+      "Reimport the renewed certificate to the existing certificate ARN, which keeps the ARN and its associations.",
       "Call RenewCertificate on the imported certificate, so ACM collects the renewed certificate from the authority.",
-      "Import the renewed certificate as a new one, and let ACM move the old certificate's associations when it expires.",
-      "Request a public ACM certificate with DNS validation for the same names, and delete the imported one afterward."
+      "Import the renewed certificate as a new one, and let ACM move the old one's associations when it expires.",
+      "Request a public ACM certificate with DNS validation for the same names, then delete the imported one."
     ], a: 0,
     no: [null,
       "ACM doesn't provide managed renewal for imported certificates; you get the renewed certificate yourself and import it.",

@@ -107,11 +107,11 @@ SD.bank.push(
   { id: "saa-2-565", exam: "SAA", saa: "2.1", topic: "transfer", type: "multi", hint: "Select TWO.",
     q: "A distributor exchanges EDI documents with large retail partners that require the AS2 protocol with signed receipts (MDNs). Partners send purchase orders to the distributor, and the distributor sends invoices back to each partner's own AS2 server. Received files must land in Amazon S3, and the company doesn't want to run any servers. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "Create an AWS Transfer Family server with the AS2 protocol and S3 storage, with profiles, certificates and an agreement for each partner.", ok: true },
+      { t: "Create an AWS Transfer Family AS2 server with S3 storage, with profiles, certificates and an agreement for each partner.", ok: true },
       { t: "Create an AWS Transfer Family AS2 connector for each partner, and use it to send the invoice files to that partner's AS2 server.", ok: true },
       { t: "Create an AWS Transfer Family server with the SFTP protocol, and give each partner an SSH key to upload its purchase orders.", ok: false, no: "The partners require AS2 with signed receipts. SFTP is a different protocol." },
       { t: "Create an Amazon MQ broker, and have the partners send their purchase orders to a queue on it from their AS2 software.", ok: false, no: "Amazon MQ speaks message broker protocols such as AMQP and MQTT, not AS2." },
-      { t: "Create an AWS DataSync task for each partner that copies files between the partner's AS2 server and the S3 bucket.", ok: false, no: "DataSync copies data between storage systems such as NFS, SMB, HDFS and object storage. It doesn't speak AS2." }
+      { t: "Create an AWS DataSync task for each partner that copies files between the partner's AS2 server and the S3 bucket on a schedule.", ok: false, no: "DataSync copies data between storage systems such as NFS, SMB, HDFS and object storage. It doesn't speak AS2." }
     ],
     why: "Transfer Family supports AS2: an AS2-enabled server receives messages into S3 under an agreement that combines the server, the local and partner profiles and their certificates. Sending files to a partner's external AS2 server requires a connector.",
     doc: ["https://docs.aws.amazon.com/transfer/latest/userguide/create-b2b-server.html"] },

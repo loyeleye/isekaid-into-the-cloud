@@ -123,11 +123,11 @@ SD.bank.push(
   { id: "dva-4-309", exam: "DVA", dva: "4.2", topic: "observability", type: "multi", hint: "Select TWO.",
     q: "A company runs six microservices. Each has CloudWatch alarms on its error rate and latency and writes plain-text logs to its own log group. When checkout slows, the alarms fire, but engineers spend hours lining up timestamps across six log groups to learn which call made a given request slow. Which changes will let them explain a slow request instead of only detecting it? (Select TWO.)",
     items: [
-      { t: "Instrument the services with OpenTelemetry through ADOT, and propagate the trace context on every call so one trace follows a request across services.", ok: true },
+      { t: "Instrument the services with ADOT (OpenTelemetry), and propagate trace context so one trace follows a request across services.", ok: true },
       { t: "Write structured JSON logs that include the current request's trace ID, so each request's log lines can be found from its trace.", ok: true },
       { t: "Add more alarms with tighter thresholds on each service's latency and errors, so that every slowdown is detected sooner.", ok: false, no: "Alarms on known metrics are monitoring. They say that something is slow, not where a request spent its time." },
       { t: "Raise the retention of all six log groups to ten years, so that engineers have more history to compare during incidents.", ok: false, no: "Keeping more data doesn't connect one request's events across services." },
-      { t: "Build a CloudWatch dashboard that shows all six services' latency and error metrics side by side on a single page.", ok: false, no: "Aggregated metrics on one page still don't show the path or timing of a single request." }
+      { t: "Build a CloudWatch dashboard that puts all six services' latency and error metrics side by side, so slowdowns stand out.", ok: false, no: "Aggregated metrics on one page still don't show the path or timing of a single request." }
     ],
     why: "Monitoring watches known signals and alerts on them. Observability lets the telemetry answer new questions about the system: metrics, logs and traces are its pillars, and propagated trace context plus trace IDs in logs tie them together for each request.",
     doc: ["https://docs.aws.amazon.com/wellarchitected/latest/framework/ops_observability_application_telemetry.html", "https://docs.aws.amazon.com/wellarchitected/latest/framework/ops_observability_dist_trace.html"] },
@@ -339,9 +339,9 @@ SD.bank.push(
     items: [
       { t: "Register the live alias as an Application Auto Scaling scalable target with the lambda:function:ProvisionedConcurrency dimension.", ok: true },
       { t: "Attach a target tracking policy to the target that keeps LambdaProvisionedConcurrencyUtilization near a value such as 0.7.", ok: true },
-      { t: "Add scheduled scaling actions that raise provisioned concurrency each morning and lower it again each evening.", ok: false, no: "Schedules suit predictable patterns. This traffic has none, so unplanned peaks would still spill over." },
+      { t: "Add scheduled scaling actions that raise provisioned concurrency each morning and lower it again each evening for the alias.", ok: false, no: "Schedules suit predictable patterns. This traffic has none, so unplanned peaks would still spill over." },
       { t: "Raise the function's reserved concurrency, so that more execution environments are kept initialized for the peaks.", ok: false, no: "Reserved concurrency sets a cap and a guarantee, but it doesn't initialize environments in advance." },
-      { t: "Register $LATEST as the scalable target instead of the alias, so that every newly published version is covered.", ok: false, no: "Provisioned concurrency can't be used with $LATEST." }
+      { t: "Register $LATEST as the scalable target instead of the alias, so that every version published later is covered too.", ok: false, no: "Provisioned concurrency can't be used with $LATEST." }
     ],
     why: "Spillover counts invocations that ran on standard concurrency because all provisioned concurrency was busy. Application Auto Scaling target tracking adds and removes provisioned concurrency on the alias to keep utilization near the target.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html", "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-concurrency.html"] },

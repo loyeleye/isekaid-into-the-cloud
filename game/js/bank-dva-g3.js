@@ -129,11 +129,11 @@ SD.bank.push(
   { id: "dva-3-309", exam: "DVA", dva: "3.4", topic: "codeartifact", type: "multi", hint: "Select TWO.",
     q: "A CodeArtifact domain and its shared-libs repository are in a tools account. CodeBuild projects in a separate workload account must install packages from shared-libs with aws codeartifact login, using their own service roles and no stored keys. Which steps are required? (Select TWO.)",
     items: [
-      { t: "In the tools account, add domain and repository policies that let the workload account's build roles get tokens and read from shared-libs.", ok: true },
+      { t: "In the tools account, add domain and repository policies that let the build roles get tokens and read shared-libs.", ok: true },
       { t: "In the workload account, allow the build roles the CodeArtifact token and read actions, and sts:GetServiceBearerToken.", ok: true },
       { t: "Add sts:GetServiceBearerToken to the domain policy in the tools account instead of to the build roles' own policies.", ok: false, no: "That permission has no effect in a domain policy. The caller's own IAM policy must allow it." },
       { t: "Create an IAM user in the tools account, and store its access keys as plaintext environment variables in each project.", ok: false, no: "That stores long-lived keys, which the team ruled out." },
-      { t: "Give a repository in the workload account an external connection to shared-libs, so packages flow through it.", ok: false, no: "External connections point to public repositories such as npmjs.com, not to another CodeArtifact repository." }
+      { t: "Give a repository in the workload account an external connection to shared-libs, so that packages flow through it.", ok: false, no: "External connections point to public repositories such as npmjs.com, not to another CodeArtifact repository." }
     ],
     why: "Cross-account access needs both sides: a resource policy in the owning account and identity policies in the calling account. Getting a token also needs sts:GetServiceBearerToken in the caller's own policy.",
     doc: ["https://docs.aws.amazon.com/codeartifact/latest/ug/repo-policies.html", "https://docs.aws.amazon.com/codeartifact/latest/ug/tokens-authentication.html"] },
@@ -315,11 +315,11 @@ SD.bank.push(
   { id: "dva-3-322", exam: "DVA", dva: "3.4", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A new deployment of a REST API to its prod stage broke a mapping template. The previous deployment worked and is still in the stage's deployment history. Prod must return to it within minutes, at the same URL, without rebuilding or re-importing the API. Which actions will do this? (Select TWO.)",
     items: [
-      { t: "In the console's Deployment history tab for prod, select the previous deployment and choose Change active deployment.", ok: true },
+      { t: "In prod's Deployment history tab in the console, pick the previous deployment and choose Change active deployment.", ok: true },
       { t: "Run aws apigateway update-stage with a replace operation on /deploymentId, set to the previous deployment's ID.", ok: true },
       { t: "Run aws apigateway create-deployment for the prod stage, so prod gets a fresh copy of the API as it was.", ok: false, no: "It snapshots the API as it is now, broken template included." },
-      { t: "Flush the prod stage's cache, so the responses from the earlier deployment are served again.", ok: false, no: "Flushing the cache removes cached responses. It doesn't change which deployment the stage runs." },
-      { t: "Delete the prod stage and create it again from the previous deployment, keeping the same stage name.", ok: false, no: "It does more than needed, drops the stage's settings, and interrupts prod while the stage is gone." }
+      { t: "Flush the prod stage's API cache, so that the responses from the earlier deployment are served again.", ok: false, no: "Flushing the cache removes cached responses. It doesn't change which deployment the stage runs." },
+      { t: "Delete the prod stage and create it again from the previous deployment, keeping the same stage name and URL.", ok: false, no: "It does more than needed, drops the stage's settings, and interrupts prod while the stage is gone." }
     ],
     why: "A stage points at one deployment, a snapshot of the API. Changing the stage's deploymentId to an earlier deployment rolls the stage back, in the console or with update-stage.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-deployments.html"] },
@@ -344,9 +344,9 @@ SD.bank.push(
     q: "A pipeline tags each tested image in ECR as build-118 and so on. When QA approves a build, the same image must also get the tag approved-118 so the production deploy can find it. The image is 3 GB, and the approval step runs on a small runner where pulling and pushing it takes too long. What should the developer do?",
     opts: [
       "Get the image manifest with aws ecr batch-get-image, then call aws ecr put-image with it and --image-tag approved-118.",
-      "Run docker pull for build-118, then docker tag and docker push the image to ECR as approved-118.",
-      "Turn on tag immutability for the repository, so that ECR adds the approved tag to tested images.",
-      "Add a lifecycle policy rule that tags images as approved when they are older than the test period."
+      "Run docker pull for build-118 on the runner, then docker tag and docker push the image to ECR as approved-118.",
+      "Turn on tag immutability for the repository, so that ECR adds the approved-118 tag to each tested image for you.",
+      "Add a lifecycle policy rule that adds the approved tag to images once they are older than the QA test period."
     ], a: 0,
     no: [null,
       "It works, but it moves the whole 3 GB image twice, which the stem rules out.",
