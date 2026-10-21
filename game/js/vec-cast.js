@@ -390,8 +390,18 @@
     const morphed = () => { const c1 = SD.state.save.c1; return !!(c1 && c1.f && c1.f.morph); };
     // Chapter 1's PixelLab facesets (assets/img/portraits) take the dialogue box when the speaker has one (Ladi, Oct 21):
     // the face the line asks for if it's drawn, else the neutral one.
-    const FACESET = { mira: ['neutral'], kai: ['neutral'], seoyeon: ['neutral'], dutch: ['neutral'], freya: ['neutral', 'promoter', 'virus'],
-      kyu: ['neutral', 'angry', 'confused', 'happy', 'laugh', 'smug'], uptima: ['neutral', 'angry', 'blush', 'confused', 'happy', 'sad'] };
+    const FACESET = { mira: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], kai: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], seoyeon: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'], dutch: ['neutral', 'smile', 'sad', 'angry', 'surprised', 'tired', 'anger', 'shock', 'grief', 'warm'],
+      freya: ['neutral', 'smile', 'warm', 'laugh', 'sad', 'angry', 'surprised', 'tired', 'promoter', 'virus'],
+      kyu: ['neutral', 'angry', 'confused', 'happy', 'laugh', 'smug'], uptima: ['neutral', 'angry', 'blush', 'confused', 'happy', 'sad'],
+      // Chapters 2 to 6's recurring cast, in story order (faithful is Elder Wren, gu Old Gu, ash Mother Ash, ok Madam Ok).
+      coo: ['neutral', 'surprised'], seymour: ['neutral'], faithful: ['neutral', 'tired'],
+      marrow: ['neutral', 'sad'], tilly: ['neutral', 'angry'], anselm: ['neutral'], hale: ['neutral', 'angry'],
+      pip: ['neutral', 'smile'], bru: ['neutral', 'smile'], kagemaru: ['neutral'], hana: ['neutral', 'smile'],
+      wen: ['neutral', 'smile'], noor: ['neutral'], ash: ['neutral'], selvaria: ['neutral', 'angry'],
+      aurelian: ['neutral'], lexi: ['neutral', 'smile'], gu: ['neutral'], namgung: ['neutral', 'sad'],
+      ok: ['neutral'], jin: ['neutral', 'smile'], ashgrove: ['neutral'], theo: ['neutral', 'surprised'],
+      iris: ['neutral', 'angry'], pella: ['neutral'], ayo: ['neutral'], kaito: ['neutral'], cron: ['neutral'],
+      aigerim: ['neutral'], mio: ['neutral'], chad: ['neutral'] };
     SD.art.portrait = function (who, size, mood) {
       const fs = FACESET[who];
       if (fs) {
