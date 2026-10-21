@@ -21,6 +21,10 @@
   });
   Object.assign(SD.eli5, {
     // Bank questions part 1's pools name (js/vec-ch2.js), from the bank files this part loads.
+    'dva-4-317': 'The fraud team\'s mailbox only wants letters from the eu town that are either marked urgent or worth over 1,000. Write that sorting rule on the envelope labels: eu, and then urgent OR big.',
+    'saa-4-204': 'Posting a million tiny postcards costs more than the stamps on a few big parcels. Let a sorting van (Firehose) collect the postcards for a few minutes and post them as one parcel.',
+    'saa-3-125': 'The town already speaks Kafka. Rent a managed Kafka post office (MSK) and point everyone at its counters: nobody learns a new language.',
+    'saa-3-234': 'Same Kafka words, but a post office that grows and shrinks by itself (MSK Serverless), and checks badges (IAM) at the door, so nobody has to plan how big it is.',
     'dva-4-208': 'Stop knocking on the empty mailbox every second. Wait by it for up to 20 seconds instead, and post letters in bundles of ten, so you pay for far fewer trips.',
     'dva-4-223': 'The sorting rule was reading the outside of the envelope, but the word "refund" is written on the letter inside. Tell the rule to read the letter itself.',
     'saa-2-101': 'The town\'s old post office spoke one dialect (ActiveMQ). Hire a managed post office that speaks the same one, with a spare office next door, and nobody has to learn new words.',
