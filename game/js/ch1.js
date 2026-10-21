@@ -83,7 +83,7 @@
   // game's PixelLab art.
   Object.assign(SD.enemies, {
     lockeddoor: {
-      name: 'The Locked Cart', sev: 22, concept: 'iam', tier: 0, sprite: 'c1door', tutorial: true, ch: 1,
+      name: 'The Locked Cart', cause: 'Nothing allows the action yet, so it is implicitly denied', sev: 22, concept: 'iam', tier: 0, sprite: 'c1door', tutorial: true, ch: 1,
       flavor: 'Your kit is in there. So is breakfast.',
       symptom: 'Every call you make returns AccessDenied. Nothing anywhere allows you anything yet.',
       weak: { allow: 'Everything starts implicitly denied. An Allow for the action is what opens it.' },
@@ -91,7 +91,7 @@
       pattern: [{ t: 'read', n: 3 }, { t: 'read', n: 4 }, { t: 'write', n: 4 }]
     },
     faithful: {
-      name: 'Uptima\'s Faithful', sev: 40, concept: 'respolicy', tier: 1, sprite: 'c1faithful', ch: 1,
+      name: 'Uptima\'s Faithful', cause: 'The other account\'s bucket policy doesn\'t allow your role', sev: 40, concept: 'respolicy', tier: 1, sprite: 'c1faithful', ch: 1,
       flavor: 'Brookfall still prays to her. They don\'t like the look of you.',
       symptom: 'Your role in Freya\'s account has an identity policy that allows s3:GetObject on the shrine\'s prayer bucket. The bucket belongs to Uptima\'s account, and its bucket policy names nobody from outside. AccessDenied.',
       weak: {
@@ -103,7 +103,7 @@
       pattern: [{ t: 'read', n: 8 }, { t: 'write', n: 9 }, { t: 'escalate' }, { t: 'read', n: 11 }]
     },
     wrongmask: {
-      name: 'The Wrong Mask', sev: 38, concept: 'roles', tier: 1, sprite: 'c1mask', ch: 1,
+      name: 'The Wrong Mask', cause: 'The role\'s trust policy doesn\'t name you as a principal', sev: 38, concept: 'roles', tier: 1, sprite: 'c1mask', ch: 1,
       flavor: 'It fits perfectly. It just isn\'t yours.',
       symptom: 'sts:AssumeRole fails with AccessDenied. The role allows everything you need, but its trust policy names only the temple\'s acolytes.',
       weak: {
@@ -117,7 +117,7 @@
       pattern: [{ t: 'read', n: 9 }, { t: 'burst', n: 10 }, { t: 'read', n: 11 }, { t: 'escalate' }]
     },
     warden: {
-      name: 'The Session Warden', sev: 40, concept: 'roles', tier: 1, sprite: 'c1warden', ch: 1,
+      name: 'The Session Warden', cause: 'The session got the default one-hour duration', sev: 40, concept: 'roles', tier: 1, sprite: 'c1warden', ch: 1,
       flavor: 'It counts every second you\'ve been wearing that mask.',
       symptom: 'A three-hour job that assumed a role fails after one hour with ExpiredToken. It asked STS for no particular duration, so the session got the default.',
       weak: {
@@ -128,7 +128,7 @@
       pattern: [{ t: 'write', n: 9 }, { t: 'read', n: 10 }, { t: 'escalate' }, { t: 'write', n: 12 }]
     },
     sentinel: {
-      name: 'The Two-Factor Sentinel', sev: 56, concept: 'conditions', tier: 2, sprite: 'c1sentinel', ch: 1,
+      name: 'The Two-Factor Sentinel', cause: 'Deny statements require MFA and HTTPS, and the requests have neither', sev: 56, concept: 'conditions', tier: 2, sprite: 'c1sentinel', ch: 1,
       flavor: 'It asks for two things, and you brought one.',
       symptom: 'The vault policy denies every request unless aws:MultiFactorAuthPresent is true, and denies any request sent without TLS. The scripts sign with long-term access keys over plain HTTP.',
       weak: {
@@ -139,7 +139,7 @@
       pattern: [{ t: 'read', n: 11 }, { t: 'write', n: 12 }, { t: 'burst', n: 12 }, { t: 'escalate' }, { t: 'read', n: 14 }]
     },
     uptimaboss: {
-      name: 'Uptima, Goddess of the Cloud', short: 'Uptima', sev: 90, concept: 'roles', tier: 9, boss: true, sprite: 'uptimaboss', ch: 1,
+      name: 'Uptima, Goddess of the Cloud', cause: 'Revoking a role\'s sessions denies credentials issued before the revoke', short: 'Uptima', sev: 90, concept: 'roles', tier: 9, boss: true, sprite: 'uptimaboss', ch: 1,
       deep: ['q-ro4', 'q-ro2'],
       flavor: 'She reads the logs first. She is very proud of that.',
       symptom: 'Every time she sees your borrowed mask, she revokes its active sessions, and every request signed with the old credentials fails.',
@@ -151,7 +151,7 @@
       pattern: [{ t: 'read', n: 10 }, { t: 'revoke', n: 10 }, { t: 'write', n: 12 }, { t: 'escalate' }, { t: 'revoke', n: 14 }, { t: 'read', n: 15 }]
     },
     kyu: {
-      name: 'Kyu, the Explicit Deny', short: 'Kyu', sev: 60, concept: 'iam', tier: 9, boss: true, sprite: 'kyuboss', ch: 1,
+      name: 'Kyu, the Explicit Deny', cause: 'An explicit Deny overrides every Allow', short: 'Kyu', sev: 60, concept: 'iam', tier: 9, boss: true, sprite: 'kyuboss', ch: 1,
       flavor: 'She has said no to everything for ten thousand years. This is the one she means.',
       symptom: 'One statement in the temple\'s policy denies Freya\'s brigade every action on the vault, and an explicit Deny beats every Allow.',
       weak: { deny: 'An explicit Deny can only be found and removed. Nothing you add gets past it.', unmake: 'Kai\'s hand strips her blessings so the statement can be reached.' },

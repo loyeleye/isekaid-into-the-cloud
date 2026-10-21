@@ -73,7 +73,7 @@ SD.groupFights = {
 // pattern is the incident's moves in order, by intent type (handled in js/run.js; labels in SD.intentText).
 SD.enemies = {
   throttle: {
-    name: 'The Throttle Imp', sev: 34, concept: 'lambdaconc', tier: 1, sprite: 'imp',
+    name: 'The Throttle Imp', cause: 'Another function is using most of the account\'s concurrency', sev: 34, concept: 'lambdaconc', tier: 1, sprite: 'imp',
     flavor: 'Example incident.',
     symptom: 'Checkout returns 429 TooManyRequestsException every lunchtime. CloudWatch shows its Throttles climbing while a nightly batch function, still running, holds most of the account\'s concurrency.',
     weak: { concurrency: 'Reserved concurrency sets aside part of the account\'s pool for checkout, so the batch job cannot starve it.', queue: 'A queue in front holds the burst, and the function works through it at the concurrency it has.' },
@@ -81,7 +81,7 @@ SD.enemies = {
     pattern: [{ t: 'burst', n: 10 }, { t: 'read', n: 9 }, { t: 'burst', n: 14 }, { t: 'escalate' }]
   },
   coldstart: {
-    name: 'The Cold Start Wraith', sev: 30, concept: 'lambdaconc', tier: 1, sprite: 'wraith',
+    name: 'The Cold Start Wraith', cause: 'Heavy initialization runs each time a new execution environment starts', sev: 30, concept: 'lambdaconc', tier: 1, sprite: 'wraith',
     flavor: 'Example incident.',
     symptom: 'The first request after a quiet spell takes 4 seconds; the next ones take 80 ms. The function loads a large library when its environment starts.',
     weak: { provisioned: 'Provisioned concurrency keeps environments initialized ahead of time, so requests skip the start-up.', memory: 'More memory brings more CPU, so initialization finishes sooner.' },
@@ -89,7 +89,7 @@ SD.enemies = {
     pattern: [{ t: 'read', n: 8 }, { t: 'read', n: 12 }, { t: 'escalate' }, { t: 'read', n: 14 }]
   },
   boomerang: {
-    name: 'The Boomerang Message', sev: 36, concept: 'sqs', tier: 1, sprite: 'echo',
+    name: 'The Boomerang Message', cause: 'The visibility timeout is shorter than the processing time', sev: 36, concept: 'sqs', tier: 1, sprite: 'echo',
     flavor: 'Example incident.',
     symptom: 'An SQS-triggered function takes 50 seconds per batch, and the queue\'s visibility timeout is 30 seconds. Some orders are processed two or three times.',
     weak: { visibility: 'A visibility timeout longer than the work (AWS suggests six times the function timeout for a Lambda trigger) keeps the message hidden until it is deleted.', idem: 'Standard queues deliver at least once, so idempotent processing makes a repeat harmless.' },
@@ -97,7 +97,7 @@ SD.enemies = {
     pattern: [{ t: 'retry', n: 9 }, { t: 'read', n: 8 }, { t: 'retry', n: 12 }, { t: 'escalate' }]
   },
   poison: {
-    name: 'The Poison Pill', sev: 38, concept: 'dlq', tier: 1, sprite: 'blob',
+    name: 'The Poison Pill', cause: 'One failing message sends the whole batch back to the queue', sev: 38, concept: 'dlq', tier: 1, sprite: 'blob',
     flavor: 'Example incident.',
     symptom: 'One malformed order makes the function throw. The whole batch goes back to the queue, so nine good orders are processed again each time, and the bad one never leaves.',
     weak: { dlq: 'A redrive policy moves the message to a dead-letter queue once its receive count passes maxReceiveCount.', idem: 'Idempotent processing makes the re-processed good orders harmless.' },
@@ -106,7 +106,7 @@ SD.enemies = {
   },
   // The example boss. Its framework steps are in SD.bossDesign; `deep` holds the deep-dive question ids.
   denywarden: {
-    name: 'The Deny-All Warden', short: 'The Warden', sev: 110, concept: 'iam', tier: 9, boss: true, sprite: 'judge',
+    name: 'The Deny-All Warden', cause: 'An explicit Deny somewhere overrides the role\'s Allow', short: 'The Warden', sev: 110, concept: 'iam', tier: 9, boss: true, sprite: 'judge',
     deep: ['q-iam2', 'q-iam3'], intro: 'wardenIntro', win: 'wardenWin',
     flavor: 'Example boss.',
     symptom: 'A new orders service gets AccessDenied on every call to its DynamoDB table, though its role has an Allow for the table.',

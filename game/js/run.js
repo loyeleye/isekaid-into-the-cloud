@@ -633,9 +633,13 @@
   async function diagnose(go) {
     const e = C.e;
     const ch = (S.save.run && S.save.run.ch) || 1;
-    const others = Q.shuffle(Object.keys(SD.enemies).filter(k => k !== C.eid && !SD.enemies[k].boss && !SD.enemies[k].tutorial && (SD.enemies[k].ch || 1) <= ch)).slice(0, 3);
+    // The answers are AWS causes, never incident names, so the question tests the diagnosis and not the story.
+    const cause = k => SD.enemies[k].cause || SD.enemies[k].name;
+    const seen = new Set([cause(C.eid)]);
+    const others = Q.shuffle(Object.keys(SD.enemies).filter(k => k !== C.eid && !SD.enemies[k].tutorial && (SD.enemies[k].ch || 1) <= ch))
+      .filter(k => !seen.has(cause(k)) && seen.add(cause(k))).slice(0, 3);
     const optsIds = Q.shuffle([C.eid, ...others]);
-    const q = { c: e.concept, type: 'mc', q: `Symptoms: ${e.symptom} Which incident is this?`, opts: optsIds.map(k => SD.enemies[k].name), a: optsIds.indexOf(C.eid), why: Object.values(e.weak)[0] };
+    const q = { c: e.concept, type: 'mc', q: `Symptoms: ${e.symptom} What's causing it?`, opts: optsIds.map(cause), a: optsIds.indexOf(C.eid), why: Object.values(e.weak)[0] };
     const r = await Q.ask(q, { title: 'DIAGNOSE!', context: 'Read the symptoms before the fight', hideOne: S.save.relics.includes('pipeye') });
     if (r.ok) {
       // The Unindexed Stacks curse: you know what it is, but you can't find the fix in time.
