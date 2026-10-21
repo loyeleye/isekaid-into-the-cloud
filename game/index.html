@@ -1038,12 +1038,16 @@ body { background: var(--bg); }
 #vn .err { color: #ff5a6a; font-weight: 700; }
 #vn .dead { border-color: rgba(255,90,106,.5); }
 @media (prefers-reduced-motion: reduce) { #vn .kb > *, #vn .vn-spr.glitch > * { animation: none; } }
-/* Phones: smaller sprites, pushed further apart when two people are up. */
-@media (max-aspect-ratio: 4/5) {
-  #vn .vn-spr { height: 66vh; }
-  #vn .vn-spr[data-pos="left"] { left: 24%; }
-  #vn .vn-spr[data-pos="right"] { left: 76%; }
+/* Phones: smaller sprites. */
+@media (max-aspect-ratio: 4/5) { #vn .vn-spr { height: 66vh; } }
+/* Phones, and any screen taller than it is wide: two waist-up sprites side by side would overlap, so only one shows,
+   centred: the speaker's (js/vn.js marks it .lead). A new speaker swaps in with a quick crossfade, at once with
+   reduced motion. Wider screens keep both up, the listener dimmed. */
+@media (max-width: 600px), (orientation: portrait) {
+  #vn .vn-spr, #vn .vn-spr[data-pos] { left: 50%; transition: opacity .2s ease, transform .2s ease, filter .2s; }
+  #vn .vn-spr.on:not(.lead) { opacity: 0; }
 }
+@media (prefers-reduced-motion: reduce) { #vn .vn-spr, #vn .vn-spr[data-pos] { transition: none; } }
 </style>
 </head>
 <body>
