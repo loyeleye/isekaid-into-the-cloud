@@ -96,6 +96,7 @@
 .pt-bar { position: sticky; bottom: max(10px, env(safe-area-inset-bottom, 0px)); z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--mi-cream); border: 2.5px solid var(--mi-ink); border-radius: 14px; padding: 10px 12px; box-shadow: 0 4px 0 rgba(43,35,64,.25); }
 .pt-bar p { margin: 0; font-size: 14px; color: var(--mi-muted); }
 .pt-bar .mi-btn.done { background: var(--mi-mint); color: #fff; }
+.pt-bump { font: 600 13px var(--f-body, system-ui); background: var(--mi-sun); color: var(--mi-ink); border: 2px solid var(--mi-ink); border-radius: 10px; padding: 4px 10px; justify-self: start; }
 .pt-note { font-size: 13px; background: var(--mi-paper); border-radius: 10px; padding: 6px 10px; margin: 0; }
 .pt-vis { display: inline-flex; border: 2.5px solid var(--mi-ink); border-radius: 10px; overflow: hidden; }
 .pt-vis button { font: 700 13px var(--f-body, system-ui); padding: 3px 10px; border: 0; background: #fff; color: var(--mi-ink); cursor: pointer; }
@@ -145,6 +146,8 @@
     opts = opts || {};
     const me = hub.me;
     let champ = null, ready = false, named = false, warm = false;
+    // Set when someone here already had this player's champion: { was, by }, for a line saying why it changed.
+    let bumped = null;
     // The leader's page only: the bot whose champion the roster is picking right now (its peer key), else null.
     let editing = null, refocus = null;
     // When this player arrived: in a clash of names or champions, whoever came later gives way.
@@ -181,7 +184,10 @@
       const clashN = others().find(m => m.nick.toLowerCase() === me.nick.toLowerCase());
       if (clashN && before(clashN)) { hub.setNick(pickName(), true); changed = true; }
       const clashC = champ && takenBy(champ);
-      if (!champ || (clashC && before(clashC)) || !CH.unlocked(champ)) { const c = pickChamp(); if (c !== champ) { champ = c; changed = true; } }
+      if (!champ || (clashC && before(clashC)) || !CH.unlocked(champ)) {
+        const c = pickChamp();
+        if (c !== champ) { if (champ && clashC && before(clashC)) bumped = { was: champ, by: clashC.nick }; champ = c; changed = true; }
+      }
       if (changed && opts.onChange) opts.onChange();
     }
     unsub.push(room.onPeers(() => settle()));
@@ -257,7 +263,7 @@
           ${ctx.settings || vis ? `<div class="pt-set">${ctx.settings || ''}${vis}</div>` : ''}</div>
         ${ctx.note ? `<p class="pt-note">${ctx.note}</p>` : ''}
         <div class="pt-members">${seats.join('')}</div>
-        <div class="pt-lbl" id="pt-lbl">${ed ? `<span class="pt-for" aria-live="polite">Choosing for ${esc(ed.nick)} <button class="mi-btn sm pt-chg" type="button" id="pt-done">Done</button></span><small>Tap a champion for ${esc(ed.nick)}, or Done to keep this one.</small>` : `<span aria-live="polite">Your champion</span><small>${ctx.deck ? 'Each brings three signature cards to the raid. ' : ''}Two players can't pick the same one; a bot moves aside for you. Reach more of them in the game to unlock them.</small>`}<div class="pt-roster">${regions}</div></div>
+        <div class="pt-lbl" id="pt-lbl">${ed ? `<span class="pt-for" aria-live="polite">Choosing for ${esc(ed.nick)} <button class="mi-btn sm pt-chg" type="button" id="pt-done">Done</button></span><small>Tap a champion for ${esc(ed.nick)}, or Done to keep this one.</small>` : `<span aria-live="polite">Your champion</span>${bumped && CH.get(bumped.was) && CH.get(champ) ? `<span class="pt-bump" role="status">${esc(bumped.by)} already has ${esc(CH.get(bumped.was).name)}, so you're ${esc(CH.get(champ).name)} for now. Tap any free champion to change.</span>` : ''}<small>${ctx.deck ? 'Each brings three signature cards to the raid. ' : ''}Two players can't pick the same one; a bot moves aside for you. Reach more of them in the game to unlock them.</small>`}<div class="pt-roster">${regions}</div></div>
         ${sig}
         <div class="pt-bar"><p>${status}</p>${btn}</div></div></div>`;
       root.querySelectorAll('[data-spr]').forEach(el => {
@@ -280,7 +286,7 @@
         if (b.getAttribute('aria-disabled') === 'true') return;
         if (ed) { const k = ed.peer; editing = null; refocus = k; if (id !== ed.champ) ctx.botChamp(k, id); redraw(); return; }
         if (id === champ) return;
-        champ = id; CH.setMine(id); if (opts.onChange) opts.onChange();
+        champ = id; bumped = null; CH.setMine(id); if (opts.onChange) opts.onChange();
       });
       const stopEdit = () => { refocus = editing; editing = null; redraw(); };
       root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {

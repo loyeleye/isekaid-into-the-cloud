@@ -62,6 +62,15 @@ button:disabled { cursor: default; opacity: .5; }
 .primary:hover:not(:disabled) { background: #4d98ff; }
 .ghost { background: #fff; color: var(--ink); }
 .ghost:hover:not(:disabled) { background: #f3f8ff; }
+/* The party room and the raid (js/party.js, js/raid.js) came from the first game's mini-games, which styled their
+   mi- names (js/mock.js there). The same names here, in this game's colours. */
+:root { --mi-ink: var(--ink); --mi-muted: var(--muted); --mi-paper: var(--paper); --mi-cream: var(--cream); --mi-blue: var(--blue); --mi-mint: var(--mint); --mi-red: var(--red); --mi-sun: var(--sun); --mi-violet: var(--violet); }
+.mi-btn { border-radius: 12px; padding: 8px 14px; font-family: var(--f-head); font-weight: 600; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); background: #fff; color: var(--ink); transition: transform .08s, box-shadow .08s; }
+.mi-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.mi-btn.go { background: var(--blue); color: #fff; }
+.mi-btn.sm { padding: 4px 10px; font-size: 13px; box-shadow: 0 3px 0 var(--ink); }
+.mi-tag { display: inline-block; font: 700 11px/1.6 var(--f-body); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.mi-muted { color: var(--muted); }
 .danger { background: #ffe1e1; color: #a3172b; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .row button { background: #fff; }
@@ -880,6 +889,14 @@ body { background: var(--bg); }
 .node.done svg { background: #b9b2a6; }
 #screen-run { background: linear-gradient(180deg, #121118, #24212c 45%, #2e2a33); color: var(--bone); }
 #screen-run :is(.foe-zone, .me-zone, .clog, .intent, .card, .foe-card, .opt, .chip, .pill, .hud-chip, .ghost, .win, .bar) { color: var(--ink); }
+/* The party room and the raid: dark ink on their light cards and buttons, pale grey on the night behind them. */
+#screen-run :is(.pt-set, .pt-mem, .pt-champ, .pt-sig, .pt-bar, .pt-note, .pt-code, .pt-vis, .rd-mate, .rd-inc, .ps-req, .mi-btn) { color: var(--ink); }
+.mi-btn { background: var(--bone); }
+.mi-btn.go { background: var(--blue); color: #fff; }
+#screen-run .mi-btn.go { color: #fff; }
+#screen-run .pt-set select { color: var(--ink); background: #fff; }
+#screen-run :is(.pt-back, .pt-region > span, .pt-lbl small, .pt-deck-h small, .mi-tag, .mi-muted) { color: #b3aa9a; }
+#screen-run :is(.pt-set, .pt-mem, .pt-champ, .pt-sig, .pt-bar) :is(.mi-tag, .mi-muted, small, .as, .pt-sig-fl) { color: var(--muted); }
 .c-name { background: hsl(var(--h) 30% 62%); }
 .c-kind { color: hsl(var(--h) 35% 30%); }
 #screen-run .run-hud { border-bottom-color: rgba(226, 219, 203, .2); }
