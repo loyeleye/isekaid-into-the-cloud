@@ -555,7 +555,7 @@
         notes: ['k4subnets', 'k4endpoint', 'k4wayin'], sorts: ['k4routes'], events: ['k4toll', 'k4tea', 'k4ward'],
         intro: intro([null, 'Below the wall, a valley the maps don\'t show: villages with no road out, a toll road, and somewhere, a door straight into the storehouse.'], ['mate2', 'Private villages. Nobody in, and they still need the post.'], ['lead', 'Then we find the roads.']),
         outro: intro([null, 'The Valley Warden steps back into the public road and bows. The villages behind him stay private, and their carts still get out.'], ['seoyeon', 'There\'s a vault down there. Sealed. Someone is reading in it.']) })
-    ]),
+    ], { sev: 0.95, dmg: 0.95 }), // Balance (Ladi, Oct 21: each expedition harder than the last, ~80% overall): was the 0.85/0.85 default, 100% bot clean clears; now 100%.
     XP('k4peak', 'The Ruins of Burning Peak', 'The Peak, rebuilt from the Alliance\'s records: the training yard, the burned hall, the master\'s room.', 'Back to the ruins', [
       fl({ name: 'The Training Yard', gate: 'BURNING PEAK · THE TRAINING YARD', beat: 'The old rules, back again: deny, then allow, then no.', boss: 'ghost', bossTitle: 'The Sect Master\'s Ghost', fade: 5,
         plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'event', 'notes'], ['elite', 'cafe', 'fight'], ['camp', 'sort', 'fight'], ['fight', 'notes', 'board'], ['event', 'elite', 'fight'], ['fight', 'board', 'sort'], ['camp', 'cafe', 'camp']],
@@ -575,7 +575,7 @@
         notes: ['k4page7', 'k4stone', 'chain'], sorts: ['trust'], events: ['k4stone', 'k4presign', 'k4tea'],
         intro: intro(['c4', 'gu'], [null, 'The master\'s room. Echoes of everything you\'ve fought on these floors wait in it, and something else, further in, that knows the forms.'], ['seoyeon', 'Kyu\'s page seven. Finish it yourselves.']),
         outro: intro([null, '"Up, Minnow. Forms." The Echo says it in his voice, and goes.'], ['seoyeon', '...'], ['mate1', 'Seo-yeon.'], ['seoyeon', 'That wasn\'t him. It said everything right. That\'s how I know.']) })
-    ], { sev: 0.85, dmg: 0.88 }),
+    ], { sev: 0.88, dmg: 0.9 }), // Balance (Oct 21): was 0.85/0.88, 88% clean clears; now 83%.
     XP('k4house', 'Namgung\'s House', 'The house she grew up in: the Outer Court, the Hall of Records, the Study, and the Succession Hall.', 'Out of the house', [
       fl({ name: 'The Outer Court', gate: 'NAMGUNG\'S HOUSE · THE OUTER COURT', beat: 'Every visitor shows a token, and the Steward reads them all.', boss: 'steward', bossTitle: 'The Steward', fade: 5,
         plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'board'], ['camp', 'event', 'fight'], ['fight', 'elite', 'sort'], ['notes', 'fight', 'board'], ['fight', 'event', 'fight'], ['camp', 'cafe', 'camp']],
@@ -601,7 +601,7 @@
         notes: ['k4edge', 'k4rotate'], sorts: ['k4keypol'], events: ['k4freya', 'k4tea', 'k4reads'],
         intro: intro(['c4', 'confront'], [null, 'Namgung withdraws behind his guards: one reads every letter at the door, one holds the gate against the crowd. The whole Alliance watches.'], ['seoyeon', 'Only someone holding the right key can hurt him. I hold it.']),
         outro: intro([null, 'Namgung bows to her, the way he did across the breakfast table.'], [null, 'Then Freya\'s blessing takes him: a ring of gold light, and he goes up the tower.'], ['seoyeon', 'Father.']) })
-    ], { sev: 0.88, dmg: 0.9 }),
+    ], { sev: 0.95, dmg: 0.97 }), // Balance (Oct 21): was 0.88/0.9, 100% clean clears; now 75%.
     XP('k4letter', 'The Last Letter', 'The reckoning: up to Namgung\'s summer house in the high passes, where this year\'s birthday letter waits unsent.', 'Back down to the town', [
       fl({ name: 'The High Passes', gate: 'THE LAST LETTER · THE HIGH PASSES', beat: 'Every gate she\'s learned, all at once.', boss: 'unsent', bossTitle: 'The Unsent Letter', fade: 3,
         plan: [['fight', 'notes', 'fight'], ['event', 'fight', 'board'], ['fight', 'sort', 'cafe'], ['elite', 'fight', 'notes'], ['camp', 'event', 'fight'], ['fight', 'elite', 'board'], ['sort', 'fight', 'event'], ['fight', 'board', 'fight'], ['camp', 'cafe', 'camp']],
@@ -615,7 +615,7 @@
         notes: ['k4sse', 'k4detect', 'k4edge'], sorts: ['k4keypol', 'k4routes'], events: ['k4tea', 'k4reads', 'k4order'],
         intro: intro([null, 'The summer house. Ryu has come, and half the Alliance behind him. Namgung waits on the veranda.'], ['seoyeon', 'You wrote it for me. I\'ll read it to them.']),
         outro: intro(['c4', 'reckon']) })
-    ], { sev: 0.88, dmg: 0.9 })
+    ], { sev: 1.17, dmg: 1.17 }) // Balance (Oct 21): the chapter's hardest; was 0.88/0.9, 100% clean clears; now 67%.
   ]);
   // A { who: 'c4' } line is a cue for js/c4-world.js, not a line: 'gu' plays Old Gu's letter before the Master's Room,
   // 'confront' the evidence before the Succession Hall, and 'reckon' the reckoning's end.
