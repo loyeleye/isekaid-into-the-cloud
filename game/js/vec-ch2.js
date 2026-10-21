@@ -876,13 +876,13 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
         const list = dir.tables().filter(t => net.cleanCode(t.code).length >= 4);
         root.innerHTML = `<div class="mi-card rd"><span class="mi-tag">The Sorting Floors</span><h2 style="margin:2px 0 6px">Join a party</h2>
           ${list.length ? `<ul class="mn-list">${list.map(t => `<li><b>${esc(t.nick || 'A party')}</b> <small class="muted">${t.players | 0}/${t.max | 0}${t.info ? ' · ' + esc(t.info) : ''}</small> <button class="mi-btn sm" type="button" data-code="${esc(net.cleanCode(t.code))}">Join</button></li>`).join('')}</ul>` : '<p class="muted">No open parties on the stair right now. Ask a friend for their code.</p>'}
-          <label class="pt-lbl" for="sf-code">A friend's code<input id="sf-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="S7KQP"></label>
+          <label class="pt-lbl" for="sf-code">A friend's code<input id="sf-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="F7KQP"></label>
           <p class="muted small" id="sf-why" role="status"></p>
           <div class="row"><button class="primary" type="button" id="sf-go">Join</button><button class="ghost" type="button" id="sf-back">Back to the stair</button></div></div>`;
         root.querySelectorAll('[data-code]').forEach(b => { b.onclick = () => done(b.dataset.code); });
         root.querySelector('#sf-go').onclick = () => {
           const c = net.cleanCode(root.querySelector('#sf-code').value);
-          if (c.length !== 5 || c[0] !== net.PREFIX.sorting) { root.querySelector('#sf-why').textContent = 'Sorting Floors codes are 5 letters and start with S, like S7KQP.'; return; }
+          if (c.length !== 5 || net.gameOf(c) !== 'sorting') { root.querySelector('#sf-why').textContent = 'Sorting Floors codes are 5 letters and start with F, like F7KQP.'; return; }
           done(c);
         };
         root.querySelector('#sf-back').onclick = () => done(null);
