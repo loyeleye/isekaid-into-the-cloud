@@ -257,6 +257,8 @@ async function openPage(browser, name, errors) {
       // At every new screen: no sideways scroll at phone width, and every button at least 44px to tap.
       if (sc) {
         const au = await page.evaluate(() => {
+          // Measure the settled layout, not a window still scaling in (js/ui.js's winIn animation starts at 90%).
+          document.querySelectorAll('.win').forEach(w => w.getAnimations().forEach(a => { try { a.finish(); } catch (e) { /* an endless one can't */ } }));
           const out = [], vw = innerWidth;
           if (document.documentElement.scrollWidth > vw + 1) out.push('E:the page scrolls sideways (' + document.documentElement.scrollWidth + 'px wide)');
           document.querySelectorAll('#panel button, #vn button, #w-hud button, #run button, #dialog button').forEach(el => {

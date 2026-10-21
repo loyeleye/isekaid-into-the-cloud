@@ -47,6 +47,8 @@
 .g5-type { display: flex; gap: 8px; flex-wrap: wrap; } .g5-type input { flex: 1 1 160px; min-height: 44px; font: 18px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; padding: 0 10px; border-radius: 8px; border: 2px solid #5a4a8a; background: #14101f; color: #fff; }
 .g5-type button { min-height: 44px; }
 .g5-bar { display: flex; gap: 4px; margin: 6px 0 10px; } .g5-bar i { flex: 1; height: 22px; border-radius: 4px; background: #2a2436; font: 700 12px/22px sans-serif; color: #a9a3c2; text-align: center; font-style: normal; }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g5 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
 .g5-bar i.on { background: #3bd16f; color: #0e2a18; } .g5-bar i.back { background: #d63a3a; color: #fff; }
 `;
   document.head.appendChild(css);

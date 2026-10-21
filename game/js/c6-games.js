@@ -42,6 +42,8 @@
 .g6-line { min-height: 44px; text-align: left; font: 13px/1.35 ui-monospace, monospace; display: flex; justify-content: space-between; gap: 10px; }
 .g6-line i { font-style: normal; color: #6e4700; white-space: nowrap; } .g6-line.on i { color: #fff; }
 .g6-line.gone { text-decoration: line-through; opacity: .6; }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g6 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
 .g6-count { font-size: 12px; color: #5a5468; }
 `;
   document.head.appendChild(css);

@@ -46,6 +46,8 @@
 .g4-predict { border-left-color: #c8901a; } .g4-predict b { color: #6e4700; }
 .g4-field > b { color: #4a4458; }
 .g4-row { border-top-color: rgba(43,35,64,.18); }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g4 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
 .g4-done li { color: #1e3a28; }
 .g4-steps button, .g4-row button { font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 14px; line-height: 1.35; }
 `;

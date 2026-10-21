@@ -49,7 +49,10 @@
 .g3 .row3 { border-top-color: rgba(43,35,64,.18); }
 .g3-heatl { font-size: 12px; color: #4a4458; }
 .g3-board .cell b { font-size: 12px; }
-.g3 .bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } .g3 .bins button { padding: 6px 4px; }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g3 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
+.g3 p.small { font-size: 13px; }
+.g3 .bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } .g3 .bins button { padding: 6px 4px; font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 700; font-size: 14px; }
 #stage .g3-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 `;
   document.head.appendChild(css);
