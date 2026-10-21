@@ -918,7 +918,9 @@ body { background: var(--bg); }
 .logo { color: var(--bone); font-family: var(--f-head); font-weight: 800; letter-spacing: .04em; font-size: clamp(38px, 10vw, 92px); animation: none;
   text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, .8), 0 0 2px #000; }
 .logo span { color: #c9a24a; font-size: .62em; letter-spacing: .12em; margin-top: .2em; }
-.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .1em; }
+.t-ribbon { background: #6b2d3a; color: #e2dbcb; border-color: #0c0a10; box-shadow: 0 3px 0 #0c0a10; font-family: var(--f-head); letter-spacing: .06em; max-width: min(30em, 100%); line-height: 1.35; }
+/* No tagline under the logo: the ribbon carries the hook, as in the first game. */
+#screen-title .logo { margin-bottom: 26px; }
 .tagline { color: #cfc6b4; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
 .press { background: #2e2a3a !important; color: var(--bone) !important; letter-spacing: .12em; font-family: var(--f-head); }
 .t-foot { color: #8f8799; }
@@ -1080,9 +1082,8 @@ body { background: var(--bg); }
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
-    <div class="t-ribbon">Working title</div>
+    <div class="t-ribbon">We Prayed and No God Answered, Until One Did, and Now She Has Root Access to Everything</div>
     <h1 class="logo">ISEKAI'D<span>INTO THE CLOUD</span></h1>
-    <p class="tagline">Four people the gods never answered. One goddess who did. An AWS Developer card battler: learn the services for real.</p>
     <div id="title-actions"></div>
     <div class="t-foot">Built on the AWS documentation · Saves automatically</div>
   </section>
