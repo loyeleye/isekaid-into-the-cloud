@@ -54,7 +54,7 @@ SD.bank.push(
     q: "Web servers in an Auto Scaling group sit behind an Application Load Balancer, and a MySQL database runs in private subnets. The database must accept connections only from the web servers, whose IP addresses change as instances are replaced. How should the database's security group be configured?",
     opts: [
       "Allow TCP 3306 inbound with the web servers' security group as the source.",
-      "Allow TCP 3306 inbound from the VPC's whole CIDR block as the source range.",
+      "Allow TCP 3306 inbound with the VPC's CIDR block as the source.",
       "Allow TCP 3306 inbound with the load balancer's security group as the source.",
       "Allow TCP 3306 inbound from the web servers' current IPs, updated on each scaling event."
     ], a: 0,
@@ -68,8 +68,8 @@ SD.bank.push(
   { id: "saa-1-05", exam: "SAA", saa: "1.3", topic: "s3", type: "mc",
     q: "A financial firm must keep trade records in S3 for 7 years in a form that no user, including the root user, can delete or overwrite during that time. Which solution meets this requirement?",
     opts: [
-      "Turn on S3 Object Lock in compliance mode with a 7-year retention period.",
-      "Turn on S3 Object Lock in governance mode with a 7-year retention period.",
+      "Turn on S3 Object Lock in compliance mode with a 7-year default retention period.",
+      "Turn on S3 Object Lock in governance mode with a 7-year default retention period.",
       "Turn on S3 Versioning with MFA Delete, and require MFA for every delete request.",
       "Add a lifecycle rule that moves the records to S3 Glacier Deep Archive after 30 days."
     ], a: 0,

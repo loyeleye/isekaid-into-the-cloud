@@ -8,7 +8,7 @@ SD.bank.push(
     q: "A company is launching a new RDS for PostgreSQL DB instance for an app whose data will start at 200 GiB and grow at an unpredictable rate. On older instances the team allocated 4 TiB up front to be safe and pays for space that sits empty. The database must stay on RDS for PostgreSQL and must never run out of space. Which solution is MOST cost-effective?",
     opts: [
       "Allocate about 250 GiB, and turn on storage autoscaling with a maximum storage threshold.",
-      "Allocate 4 TiB, then turn on storage autoscaling so RDS shrinks the volume to fit the data.",
+      "Allocate 4 TiB, then turn on storage autoscaling so RDS shrinks it to fit the data.",
       "Allocate about 250 GiB, and add a CloudWatch alarm on FreeStorageSpace that emails the team.",
       "Allocate about 250 GiB on magnetic storage, and increase the allocation by hand when needed."
     ], a: 0,
@@ -50,7 +50,7 @@ SD.bank.push(
     q: "Thousands of IoT devices send readings to a Lambda function that writes each reading of about 1 KB to S3 as its own object, billions of PUT requests a month. S3 request charges are now higher than storage charges, and Athena queries over millions of tiny files run slowly. Readings may land in S3 a few minutes late. Which change lowers costs the MOST?",
     opts: [
       "Send the readings to Amazon Data Firehose, and let it buffer them into larger objects before delivering them to S3.",
-      "Keep one object per reading, but enable S3 Transfer Acceleration on the bucket to speed up each of the PUT requests.",
+      "Keep one object per reading, but enable S3 Transfer Acceleration on the bucket to speed up each PUT.",
       "Keep one object per reading, but write each one to S3 Express One Zone, then copy objects to S3 Standard each night.",
       "Send each reading to an SQS queue, and have a second function poll the queue and write each message to S3 separately."
     ], a: 0,
@@ -65,7 +65,7 @@ SD.bank.push(
     q: "A company enabled Requester Pays on a bucket that it shares with partner accounts through its bucket policy, so that partners pay for their own downloads. Since then, every download the partners make with the AWS CLI fails with 403 Access Denied, although the bucket policy hasn't changed. The company must not pay for the partners' downloads. What should the partners do?",
     opts: [
       "Add the --request-payer requester option to their CLI commands to accept the request charges.",
-      "Download the objects through anonymous HTTPS requests to the bucket's public object URLs instead.",
+      "Download the objects through anonymous HTTPS requests to their public object URLs instead.",
       "Assume an IAM role in the company's account that has read access, and download the objects with it.",
       "Ask the company to grant each partner account READ access to the objects through object ACLs too."
     ], a: 0,
@@ -157,7 +157,7 @@ SD.bank.push(
     opts: [
       "r6i.xlarge, a memory-optimized size with 4 vCPUs and 32 GiB of memory.",
       "c6i.2xlarge, a compute-optimized size with 8 vCPUs and 16 GiB of memory.",
-      "m6i.2xlarge, a general purpose size with 8 vCPUs and 32 GiB of memory.",
+      "m6i.2xlarge, general purpose, with 8 vCPUs and 32 GiB of memory.",
       "r6i.2xlarge, a memory-optimized size with 8 vCPUs and 64 GiB of memory."
     ], a: 0,
     no: [null,
@@ -183,7 +183,7 @@ SD.bank.push(
     q: "A company runs about 150 Amazon ECS services on AWS Fargate. Developers set each task's CPU and memory when the services were built and never revisited them, and the company suspects many tasks are larger than needed. It wants per-service recommendations for task CPU and memory size based on actual use, with estimated savings, and no tooling to build. What should a solutions architect do?",
     opts: [
       "Opt in to AWS Compute Optimizer, and review its recommendations for Amazon ECS services on Fargate.",
-      "Use Cost Explorer Savings Plans recommendations to find the tasks that are oversized and resize them.",
+      "Use Cost Explorer's Savings Plans recommendations to find the oversized tasks and resize them.",
       "Turn on Container Insights, and write a Lambda function that compares the reserved and used resources.",
       "Move the services to Fargate Spot, which runs each task on capacity sized to what the task actually uses."
     ], a: 0,
@@ -199,7 +199,7 @@ SD.bank.push(
     opts: [
       "Switch the functions to the arm64 architecture (AWS Graviton2) after testing them on it.",
       "Purchase a Compute Savings Plan that covers the functions' current hourly spend for a one-year term.",
-      "Repackage each function as a container image in Amazon ECR instead of as a .zip file package.",
+      "Repackage each function as a container image in Amazon ECR instead of a .zip file.",
       "Set reserved concurrency on each function to cap how many copies of it can run at the same time."
     ], a: 0,
     no: [null,
@@ -433,7 +433,7 @@ SD.bank.push(
       "Keep one outbound endpoint in the shared services VPC, share its rules through AWS RAM, and delete the rest.",
       "Replace each outbound endpoint with a DNS forwarder on a small EC2 instance in each VPC, and point DHCP options at it.",
       "Keep the endpoints, but delete the forwarding rules, and resolve on-premises names with records in public hosted zones.",
-      "Replace each outbound endpoint with an inbound endpoint, so the data center sends its DNS answers into each VPC."
+      "Replace each outbound endpoint with an inbound endpoint, so the data center sends DNS answers in."
     ], a: 0,
     no: [null,
       "Thirty forwarder servers to patch and keep available is more work, and they still cost money.",
@@ -474,7 +474,7 @@ SD.bank.push(
     opts: [
       "A 5 Gbps hosted connection, the smallest offered speed above the needed rate.",
       "A 2 Gbps hosted connection, sized to the average throughput over a full 24-hour day.",
-      "A 1 Gbps hosted connection, with the copy compressed to make up the difference.",
+      "A 1 Gbps hosted connection, with the copy compressed to make up the gap.",
       "A 10 Gbps hosted connection, to leave room for traffic to double in a few years."
     ], a: 0,
     no: [null,

@@ -11,7 +11,7 @@ SD.bank.push(
       "Create a replica broker in the second Region with Amazon MQ cross-Region data replication, and fail over to it if the Region fails.",
       "Keep the active/standby broker on Amazon EFS storage, which already stores every message durably across several Availability Zones in the Region.",
       "Run a single-instance broker in the second Region, and add Route 53 failover records that send clients to it when the primary broker fails its health check.",
-      "Replace the broker with Amazon SQS FIFO queues in both Regions, and have each service send every order to the queues in both Regions."
+      "Replace the broker with SQS FIFO queues in both Regions, and have each service send every order to both Regions' queues."
     ], a: 0,
     no: [null,
       "EFS storage protects against the loss of an Availability Zone, not a Region. A Region-wide failure still takes the broker and its messages down.",
@@ -66,7 +66,7 @@ SD.bank.push(
       "Subscribe to the provider's AWS Data Exchange product that has a datashare for Amazon Redshift, and create a database from it.",
       "Set up a Redshift federated query to the provider's warehouse, and create an external schema that points at the provider's tables.",
       "Ask the provider to share a Redshift snapshot with the team's account each day, and restore the newest snapshot into the workgroup.",
-      "Ask the provider to UNLOAD its tables to Amazon S3 every hour, and run COPY commands that load the new files into the workgroup."
+      "Ask the provider to UNLOAD its tables to S3 every hour, and run COPY commands to load the new files into the workgroup."
     ], a: 0,
     no: [null,
       "Redshift federated queries reach RDS and Aurora PostgreSQL and MySQL databases, not another Redshift warehouse.",
@@ -121,7 +121,7 @@ SD.bank.push(
     q: "A company is moving a sharded MongoDB cluster that holds hundreds of millions of user profiles to a managed AWS database. Peak traffic reaches millions of writes per second, more than any single writer instance can handle, and the data will grow to petabytes. The application must keep using the MongoDB API, and the team doesn't want to choose or patch instances. Which solution meets these requirements?",
     opts: [
       "Migrate to an Amazon DocumentDB elastic cluster, and shard the profile collections on a high-cardinality shard key.",
-      "Migrate to a DocumentDB instance-based cluster on the largest instance class, with 15 replicas to spread the load.",
+      "Migrate to a DocumentDB instance-based cluster on the largest instance class, with 15 replicas to spread the traffic.",
       "Migrate to a DocumentDB global cluster with secondary clusters in several Regions, writing to the nearest one.",
       "Migrate to Amazon Keyspaces (for Apache Cassandra) in on-demand mode, with each profile as a row keyed by user ID."
     ], a: 0,
@@ -137,8 +137,8 @@ SD.bank.push(
     q: "A company runs a provisioned Amazon MSK cluster with Standard brokers. Topics keep 7 days of events on broker storage. A new requirement says consumers must be able to replay 180 days of events in their original order with the existing Kafka consumer code. Most reads are of events from the last few hours. Which solution meets these requirements MOST cost-effectively?",
     opts: [
       "Turn on tiered storage for the cluster and topics, keep a few hours on broker storage, and set the topics' retention to 180 days.",
-      "Raise the topics' retention to 180 days, and turn on storage auto scaling so the broker volumes grow as the extra data builds up.",
-      "Add brokers to the cluster so the extra partitions and 180 days of retention fit across more broker volumes, then rebalance them.",
+      "Raise the topics' retention to 180 days, and turn on storage auto scaling so broker volumes grow as data builds up.",
+      "Add brokers to the cluster so the extra partitions and 180 days of retention fit across more broker volumes, then rebalance the partitions.",
       "Change the topics' cleanup policy to compact, so the existing broker storage can hold 180 days of the events for each key."
     ], a: 0,
     no: [null,

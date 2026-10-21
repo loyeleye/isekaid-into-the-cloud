@@ -12,7 +12,7 @@ SD.bank.push(
       "Run an Amazon Comprehend PII redaction job on the nightly files and give analysts access only to the redacted output prefix.",
       "Enable Amazon Macie automated sensitive data discovery on the bucket and give analysts the files that Macie has already reviewed.",
       "Run Amazon Textract on the nightly files to find the sensitive fields and write the extracted key-value pairs to a new prefix.",
-      "Encrypt the transcripts with SSE-KMS and grant analysts kms:Decrypt so that only authorized readers can open the files."
+      "Encrypt the transcripts with SSE-KMS and grant analysts kms:Decrypt, so that only the authorized readers can open the files."
     ], a: 0,
     no: [null,
       "Macie discovers sensitive data in S3 objects and reports it as findings. It doesn't produce masked copies of the text.",
@@ -149,7 +149,7 @@ SD.bank.push(
     q: "A company has 60 accounts in AWS Organizations with all features enabled. The central operations team wants one place to see which accounts are affected by AWS service issues and scheduled maintenance events, and it must not need to work in the management account to do so. Which solution meets these requirements?",
     opts: [
       "Enable AWS Health organizational view and register the operations account as a delegated administrator for AWS Health.",
-      "Create an organization trail in AWS CloudTrail and query it from the operations account for AWS service disruptions.",
+      "Create an organization trail in AWS CloudTrail and query it from the operations account for any AWS service disruptions.",
       "Set up an AWS Config aggregator in the operations account that collects configuration items from every member account.",
       "Give the operations team a role in each account and have them open the AWS Health Dashboard in every account each morning."
     ], a: 0,
@@ -224,7 +224,7 @@ SD.bank.push(
       "Run Amazon Textract asynchronous document analysis with the FORMS and TABLES features on each PDF, and load the results.",
       "Call Amazon Textract DetectDocumentText on each PDF, and write code that guesses which lines are labels and which are values.",
       "Call Amazon Rekognition DetectText on each page of every PDF to read the printed words, and load the words into the database.",
-      "Run Amazon Comprehend entity detection on each PDF to find the field labels, their values and the rows of each table."
+      "Run Amazon Comprehend entity detection on each PDF's text to find the field labels, their values and the rows of each table."
     ], a: 0,
     no: [null,
       "Text detection returns only lines and words, so the team would have to rebuild the forms and tables itself.",
@@ -248,7 +248,7 @@ SD.bank.push(
   { id: "saa-3-303", exam: "SAA", saa: "3.5", topic: "kinesisvideo", type: "mc",
     q: "A city is connecting 2,000 traffic cameras to AWS. Operators must be able to watch any camera live in a browser, recorded video must be kept for 30 days for review, and a team will build its own computer vision app that reads frames from the live feeds. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
-      "Stream each camera to Amazon Kinesis Video Streams with 30-day retention, watch it through HLS, and read frames with its APIs.",
+      "Stream each camera to Amazon Kinesis Video Streams with 30-day retention, view it over HLS, and read frames with its APIs.",
       "Send each camera's frames to Amazon Kinesis Data Streams with 30-day retention and render the frames in a custom web player.",
       "Upload one-minute video files from each camera to S3 with a 30-day lifecycle rule, and play the newest file for live viewing.",
       "Run a fleet of EC2 media servers that ingest the cameras' RTSP streams, store recordings on EBS and serve live video to browsers."
@@ -308,7 +308,7 @@ SD.bank.push(
   { id: "saa-3-307", exam: "SAA", saa: "3.4", topic: "wavelength", type: "mc",
     q: "A company is building an augmented-reality app for phones on a telecom carrier's 5G network. The app's game servers must answer the phones with the lowest possible latency, so they must run at the edge of the carrier's 5G network rather than in an AWS Region or metro location. Which solution meets these requirements?",
     opts: [
-      "Run the game servers on EC2 in a subnet in the carrier's AWS Wavelength Zone, and route traffic through a carrier gateway.",
+      "Run the game servers on EC2 in the carrier's AWS Wavelength Zone subnet, and route traffic through a carrier gateway.",
       "Run the game servers on EC2 in the nearest AWS Local Zone, and route the phones' traffic to them through an internet gateway.",
       "Run the game servers in the nearest AWS Region, and put AWS Global Accelerator in front of them to use the AWS network.",
       "Run the game servers in the nearest AWS Region, and serve the app's responses through an Amazon CloudFront distribution."

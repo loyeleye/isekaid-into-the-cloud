@@ -92,7 +92,7 @@ SD.bank.push(
     opts: [
       "Allow ListReports, and allow GetReportMetadata, GetReport and GetTermForReport only where artifact:ReportSeries is SOC or PCI.",
       "Attach the AWS managed policy AWSArtifactReportsReadOnlyAccess to the analysts' role, which grants read-only access to Artifact reports.",
-      "Allow the actions ListAgreements, GetAgreement and AcceptNdaForAgreement, which let a role read and download Artifact documents.",
+      "Allow ListAgreements, GetAgreement and AcceptNdaForAgreement, which let a role read and download Artifact documents.",
       "Download the SOC and PCI reports once a year, and store them in an S3 bucket whose bucket policy lets only the analysts' role read them."
     ], a: 0,
     no: [null,
@@ -122,7 +122,7 @@ SD.bank.push(
     opts: [
       "Create an AD Connector in the WorkSpaces VPC for the on-premises domain, and turn on MFA with the RADIUS servers.",
       "Create an AWS Managed Microsoft AD directory for WorkSpaces, and set up a forest trust from it to the on-premises Active Directory.",
-      "Launch Windows domain controllers on EC2 in the VPC, join them to the on-premises domain, and point WorkSpaces at them.",
+      "Launch Windows domain controllers on EC2, join them to the on-premises domain, and point WorkSpaces at them.",
       "Create an Amazon Cognito user pool that federates with the on-premises Active Directory, and use it to sign users in to WorkSpaces."
     ], a: 0,
     no: [null,
@@ -222,7 +222,7 @@ SD.bank.push(
     opts: [
       "Set the us-east-1 endpoint group's traffic dial to 0 for the maintenance, then raise it to 25, 50, 75 and 100 percent.",
       "Use Route 53 weighted records for each Region's load balancer, and lower the us-east-1 weight before raising it in steps.",
-      "Delete the us-east-1 endpoint group for the maintenance window, then recreate it with the same load balancer afterward.",
+      "Delete the us-east-1 endpoint group for the maintenance window, then recreate it with the same load balancer.",
       "Remove the load balancer from the us-east-1 endpoint group, then add it back with a weight of 25 and raise the weight in steps."
     ], a: 0,
     no: [null,
