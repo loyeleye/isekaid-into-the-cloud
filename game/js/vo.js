@@ -17,6 +17,8 @@
     "jin|Don't drool on me, Minnow.": 'jin-drool',
     "jin|Stay behind me, Minnow.": 'jin-behind',
     "jin|Run!": 'jin-run',
+    "gu|A fish! Tonight we feast!": 'gu-feast',
+    "leader|Come here, child. Nobody else needs to be hurt.": 'leader-child',
     "jin|Up, Minnow. Forms. I'm up first, so you owe me.": 'jin-forms',
     "seoyeon|Sahyung?": 'seoyeon-sahyung',
     "seoyeon|Who?": 'seoyeon-who',
