@@ -363,7 +363,9 @@
   // Twinwater: the lake so still it's a mirror, and the same town on both shores.
   S['c6-lake'] = K.scene([sky('c6l', '#a8c4e8', '#e8eef8'), ...shores('#dce8f8', '#a8c4e8'), K.vignette(1200, 1200, 0.35)]);
   // The jetty at dusk: Kagemaru's stall at the end of it, the awning striped.
+  const row = () => house(0, 0, 180) + house(260, 0, 220, '#6a8ac8') + house(520, 0, 200) + house(760, 0, 180, '#6a8ac8') + house(1000, 0, 200);
   S['c6-jetty'] = K.scene([sky('c6j', '#5a5a9a', '#e8b0b8', '#b8a0c8'), R(0, 620, 1200, 580, '#8a90c0'),
+    G(row(), 'translate(70 622) scale(0.42)'), G(row(), 'translate(70 618) scale(0.42 -0.42)', 0.3),
     p('M560 1200 L600 640 L660 640 L700 1200Z', '#a8845a', K.NIGHT, 3) + p('M590 760 h90 M580 880 h110 M570 1000 h130 M562 1120 h146', null, '#7a5a3a', 3),
     G(R(-90, -60, 180, 60, '#3a2a4a', K.NIGHT, 3) + p(Array.from({ length: 6 }, (_, i) => `M${-100 + i * 34} -130 h34 v24 h-34Z`).join(' '), '#8a5aba', K.NIGHT, 2) + p('M-96 -60 V-130 M96 -60 V-130', null, '#5a4a6a', 6), 'translate(630 640)'),
     p(Array.from({ length: 10 }, (_, i) => `M${80 + i * 110} ${700 + (i % 3) * 70} h${40 + (i % 3) * 15}`).join(' '), null, '#ffffff', 3, 0.3), K.vignette(1200, 1200, 0.5)]);
@@ -374,7 +376,7 @@
   // Seymour's bunker, inside: shelves of tapes, one lamp, and on the tape case a man in a hood.
   S['c6-bunker'] = K.scene([sky('c6b', '#2a2a32', '#3a3a44'), R(0, 0, 1200, 1200, '#3a3e4a'),
     ...Array.from({ length: 4 }, (_, i) => R(60 + i * 290, 160, 240, 560, '#565c6c', K.NIGHT, 3)),
-    p(Array.from({ length: 48 }, (_, i) => `M${80 + (i % 4) * 290 + (i * 41) % 190} ${190 + Math.floor(i / 4) * 44} h36 v26 h-36Z`).join(' '), '#14101f', '#8a94a8', 2, 0.9),
+    p(Array.from({ length: 144 }, (_, i) => { const s = i % 4, r = Math.floor(i / 12), c = Math.floor(i / 4) % 3; return (i * 7) % 11 === 3 ? '' : `M${84 + s * 290 + c * 72} ${186 + r * 44} h48 v30 h-48Z`; }).join(' '), '#14101f', '#8a94a8', 2, 0.9),
     R(0, 860, 1200, 340, '#2a2e38'), G(R(-120, -90, 240, 90, '#7a8498', K.NIGHT, 4) + R(-40, -76, 80, 30, '#14101f', K.NIGHT, 2) + T(0, -24, 'No. 401', { size: 22, fill: '#e8d27a', font: 'ui-monospace, monospace' }), 'translate(600 900)'),
     G(p('M0 0 L0 -60', null, '#8a94a8', 4) + e(0, -70, 30, 16, '#ffcf7a', K.NIGHT, 3), 'translate(600 140)'), K.glow('c6bg', 600, 260, 520, '#ffcf7a', 0.3), K.vignette(1200, 1200, 0.75)]);
   // The camp at the tower's foot, at night.

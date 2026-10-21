@@ -596,6 +596,7 @@
     },
     async clock() {
       if (flag('clock')) return;
+      AU.sfx('x-tick');
       await say([[null, 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
       await ask({ c: 'keydelete', type: 'num', q: 'Freya could have picked any waiting period when she scheduled the key\'s deletion. What is the longest one KMS allows, in days?', lo: 30, hi: 30, ans: 30, unit: 'days',
         why: 'A KMS key scheduled for deletion waits 7 to 30 days; 30 is both the default and the most. During the wait it can\'t be used, and the deletion can be cancelled.',
@@ -604,7 +605,7 @@
     },
     async saved() {
       if (flag('saved')) return;
-      mus('c6sad');
+      mus('c6sad'); AU.sfx('x-lever');
       await vn([['bg', 'c6-clock'],
         ['narr', 'On the last turn, someone plays Cancel Deletion. kms:CancelKeyDeletion. The countdown stops.'],
         ['narr', 'The key survives, and so does Kyu\'s second copy. But the key comes back Disabled, not Enabled, and its key policy hands control to the account\'s IAM policies. Freya\'s.'],
@@ -632,6 +633,7 @@
         model: 'The S3 data events in Bru\'s prayer logs (a trail logging object reads, turned on in the Mailroom) show the Champion\'s role reading all four prayers an hour after Freya did.',
         why: 'Reads of S3 objects are data events: CloudTrail records them only when a trail is set to log data events, which the Mailroom did. Each event names the role that made the call.',
         eli5: 'The letterbox kept a list of everyone who opened each letter, because someone switched that list on. His name is on it, an hour after hers.' }, 'EVIDENCE 1 · THE APPLICANTS\' FILES');
+      AU.sfx('x-crowd');
       await say([[null, 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
       await ask({ c: 'keydelete', type: 'mc', q: 'Freya scheduled the deletion of Kyu\'s key. What could have stopped it, and did the Champion\'s role have it?',
         opts: ['kms:CancelKeyDeletion during the waiting period; his role had it, and never used it', 'kms:DisableKey; his role didn\'t have it', 'Nothing can stop a scheduled deletion', 'Deleting the CloudTrail trail'], a: 0,
@@ -659,7 +661,7 @@
         ['kagemaru', 'Keep winning and it stays with you. Lose, and it comes home to me. Today it\'s every Memory Shard in your camp. I\'m practically giving it away.', 'amused'],
         ['show', 'lead', 'cold', 'left'],
         ['narr', 'They pay. Seymour\'s tape is theirs, the way his pins always were: for as long as they keep winning.']]);
-      c6().tape = true; S.persist();
+      c6().tape = true; S.persist(); AU.sfx('x-chain');
       await ask({ c: 'drtiers', type: 'mc', q: 'The deep dive, while he\'s still laughing: which strategy meets an RPO of seconds and an RTO of minutes, at the lowest cost?',
         opts: ['Warm standby, with data replicated continuously', 'Backup and restore', 'Pilot light with nightly backups', 'Multi-site active/active'], a: 0,
         why: 'Seconds of RPO needs continuous replication; minutes of RTO needs a scaled-down full copy already running. That\'s warm standby: more than pilot light costs, less than active/active.',
@@ -752,7 +754,7 @@
   async function bunker() {
     if (!flag('xp2')) return say([[null, 'Seymour\'s bunker: a steel dome, a sign that says NO VISITORS, and a slot.'], ['seymour', flag('camp') ? 'Not yet. When you\'ve earned it.' : 'Go away. Politely.', 'neutral']]);
     if (flag('reveal')) return say([['seymour', 'I made copies of everything, every night, for forty years. That one I couldn\'t copy. It was the original.', 'neutral']]);
-    mus('c6culprit');
+    mus('c6culprit'); AU.sfx('x-lock');
     await vn([['bg', 'c6-bunker'],
       ['narr', 'Seymour opens his bunker for the first time, to show them the tape, because they\'ve earned it.'],
       ['narr', 'Kagemaru is already inside, sitting on the tape case, white gloves folded. Nobody let him in.'],
@@ -839,7 +841,7 @@
       ['narr', 'There isn\'t one from Kagemaru. He has never asked anyone for anything. He buys it.'],
       ['kagemaru', 'I told you. I never started. Ah ha ha.', 'amused']]);
     setFlag('choice');
-    mus('c6sad');
+    mus('c6sad'); AU.sfx('x-bell');
     await vn([['bg', 'c6-freed'],
       ['narr', 'The Mirror Floors freed. The twins stop answering each other.'],
       ['narr', 'On both shores, people are suddenly alone, and a few of them cry for the first time in forty years. Then they come down to the camp.'],
@@ -872,7 +874,7 @@
     if (!pageHere(i)) return;
     const [, , c, text] = PAGES[i];
     w().pages.push(i); S.persist();
-    AU.sfx('coin');
+    AU.sfx('x-chime');
     await say([[null, `A Lost Reflection: a pebble that still has a reflection when nothing else does. ${text}`]]);
     // Half the pebbles ask about this chapter, half about whatever older lesson is due.
     const q = c ? D.pickQ(c) : olderQ();
@@ -881,8 +883,8 @@
   }
   function door(d) {
     if (busy) return;
-    if (d === 'down') return act(async () => { AU.sfx('door'); goTo(15, 27); if (!flag('xp1')) await say([[null, 'The lift creaks down to the Free Cloud\'s camp, at the tower\'s foot.']]); });
-    if (d === 'up') return act(async () => { AU.sfx('door'); goTo(19, 38); });
+    if (d === 'down') return act(async () => { AU.sfx('x-lift'); goTo(15, 27); if (!flag('xp1')) await say([[null, 'The lift creaks down to the Free Cloud\'s camp, at the tower\'s foot.']]); });
+    if (d === 'up') return act(async () => { AU.sfx('x-lift'); goTo(19, 38); });
     const n = { xp1: 1, xp2: 2, xp3: 3 }[d];
     if (n) return act(() => xpDoor(n));
   }
