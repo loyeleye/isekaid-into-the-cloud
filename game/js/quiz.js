@@ -188,7 +188,7 @@
             `<li${multi.has(i) ? ' class="mine"' : ''}><b>${U.esc(q.items[i].t)}</b>${multi.has(i) ? ' <span class="tag">your pick</span>' : ''}<br>${U.esc(q.items[i].no)}</li>`).join('')}</ul></div>`;
         }
         // Plain-language help: a game analogy for this answer, then the whole idea plus jargon on "Huh???".
-        const eli = (q.id && SD.eli5[q.id]) || (SD.huh[q.c] || '');
+        const eli = q.eli5 || (q.id && SD.eli5[q.id]) || (SD.huh[q.c] || '');
         const text = [q.q, right, q.why].concat(q.opts || []).join(' ');
         const words = SD.glossary.filter(g => g[1].test(text)).slice(0, 8);
         const huhBlock = `<button class="ghost help-b" id="q-huh" aria-expanded="false">Huh???</button>
