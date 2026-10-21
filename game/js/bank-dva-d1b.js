@@ -21,7 +21,7 @@ SD.bank.push(
     q: "A Lambda function reads a Kinesis data stream of payment events. For each shard it must publish the count and total value of payments in every 1-minute period, in near real time. The team doesn't want to run a database or cache just to hold running totals between invocations. What should the developer do?",
     opts: [
       "Set TumblingWindowInSeconds to 60 on the mapping, return running totals as state, and publish them on the final invoke.",
-      "Set MaximumBatchingWindowInSeconds to 60 on the mapping, so that each invocation receives exactly one minute of records.",
+      "Set MaximumBatchingWindowInSeconds to 60 on the mapping, so each invocation gets exactly one minute of records.",
       "Keep the running totals in global variables outside the handler, and publish them once a minute has passed since the last.",
       "Register the function as an enhanced fan-out consumer, so that Lambda groups each shard's records into 1-minute batches."
     ], a: 0,
@@ -177,7 +177,7 @@ SD.bank.push(
     q: "An app invokes a Lambda function asynchronously. When an event fails all of Lambda's retries, the team wants a record that includes the original event and the error details sent to a custom EventBridge event bus, where existing rules route it to the right team. What should the developer configure?",
     opts: [
       "An on-failure destination on the function that sends records to the custom event bus.",
-      "A dead-letter queue on the function that sends failed events to the custom event bus.",
+      "A dead-letter queue on the function that sends failed events to the custom bus.",
       "An SNS topic as the function's dead-letter queue, with the event bus subscribed to it.",
       "An on-success destination on the function that sends records to the custom event bus."
     ], a: 0,
@@ -192,7 +192,7 @@ SD.bank.push(
     q: "A developer adds VPC subnets and a security group to an existing Lambda function so it can reach a private database. Saving the configuration fails with an error saying the execution role does not have permissions to call CreateNetworkInterface on EC2. What should the developer do?",
     opts: [
       "Attach the AWSLambdaVPCAccessExecutionRole managed policy to the function's execution role, then save again.",
-      "Add an inbound rule to the database's security group that allows traffic from the function's security group.",
+      "Add an inbound rule to the database's security group allowing traffic from the function's security group.",
       "Add a statement to the function's resource-based policy that allows ec2.amazonaws.com to invoke the function.",
       "Grant the developer's own IAM user ec2:CreateNetworkInterface, since Lambda acts with the caller's permissions."
     ], a: 0,
@@ -308,7 +308,7 @@ SD.bank.push(
     opts: [
       "120 WCU, because each 2.5 KB write rounds up to 3 KB and uses 3 write units.",
       "100 WCU, because 40 writes of 2.5 KB each add up to 100 KB of data per second.",
-      "40 WCU, because one write unit covers any single write of an item up to 4 KB.",
+      "40 WCU, because one write unit covers any write of an item up to 4 KB.",
       "240 WCU, because each write needs 2 write units for every KB, after rounding up."
     ], a: 0,
     no: [null,
@@ -337,7 +337,7 @@ SD.bank.push(
     q: "A catalog service reads 120 items per second from a DynamoDB table in provisioned capacity mode, using eventually consistent GetItem calls. Each item is 9 KB. How many read capacity units does this traffic need?",
     opts: [
       "180 RCU: 9 KB rounds up to 12 KB, or 3 units, which is halved to 1.5 for eventual reads.",
-      "135 RCU: 9 KB is 2.25 units of 4 KB each, which is then halved for eventual consistency.",
+      "135 RCU: 9 KB is 2.25 units of 4 KB each, then halved for eventual consistency.",
       "360 RCU: 9 KB rounds up to 12 KB, which is 3 units for each read that the service makes.",
       "120 RCU: one eventually consistent read unit covers any single item of up to 16 KB in size."
     ], a: 0,

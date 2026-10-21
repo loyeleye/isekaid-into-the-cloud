@@ -36,7 +36,7 @@ SD.bank.push(
   { id: "dva-3-303", exam: "DVA", dva: "3.2", topic: "sam", type: "mc",
     q: "A CI job promotes a SAM application from dev to staging by running sam deploy --config-env staging after every merge. When a merge changes only documentation, the staging stack has nothing to update, and the job fails because sam deploy exits with a non-zero code. Real deployment failures must still fail the job. What should the developer do?",
     opts: [
-      "Add --no-fail-on-empty-changeset to the sam deploy command for staging, or set it in samconfig.toml.",
+      "Add --no-fail-on-empty-changeset to the staging sam deploy command, or set it in samconfig.toml.",
       "Add --no-confirm-changeset to the command, so that sam deploy applies the change set without a prompt.",
       "Wrap the command so the CI job ignores any non-zero exit code that sam deploy returns for staging.",
       "Run sam sync --stack-name staging instead of sam deploy, so that unchanged resources are skipped."
@@ -52,7 +52,7 @@ SD.bank.push(
   { id: "dva-3-304", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
     q: "A new CloudFormation template creates a REST API with AWS::ApiGateway::RestApi, two AWS::ApiGateway::Method resources, and an AWS::ApiGateway::Deployment with StageName set to test. Creating the stack in a fresh test account fails at the deployment with the error The REST API doesn't contain any methods. What should the developer do?",
     opts: [
-      "Add a DependsOn attribute to the Deployment that lists both Method resources, so they exist before it is created.",
+      "Add a DependsOn attribute to the Deployment listing both Method resources, so they exist before it does.",
       "Move StageName out of the Deployment into a separate AWS::ApiGateway::Stage resource that references the Deployment by ID.",
       "Add the methods to the Deployment's StageDescription property, so that the stage knows which methods to serve.",
       "Change the Deployment's DeletionPolicy to Retain, so it isn't rolled back when it is created before the methods."
@@ -189,9 +189,9 @@ SD.bank.push(
     q: "An Amplify Hosting app deploys main to the public site and connects several feature branches, each at its own URL. Unreleased features on the feature branches must be seen only by testers who have a shared user name and password. The main branch must stay public, and nothing new may be built. What should the developer do?",
     opts: [
       "Turn on access control for each feature branch with a user name and password, and leave main without it.",
-      "Turn on access control for all branches with one user name and password, so that testers use one login.",
+      "Turn on access control for all branches with one shared user name and password, so testers use one login.",
       "Add a Cognito user pool with the Amplify libraries, and require users to sign in on each of the feature branches.",
-      "Add a redirect rule on each feature branch that sends any request without a tester header back to main."
+      "Add a redirect rule on each feature branch that sends requests without a tester header back to main's URL."
     ], a: 0,
     no: [null,
       "The global setting also protects main, which must stay public.",
@@ -435,8 +435,8 @@ SD.bank.push(
     opts: [
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to keep source bundles in S3.",
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to delete the old source bundles.",
-      "Turn on S3 versioning on the Elastic Beanstalk bucket, so old versions no longer count toward the version quota.",
-      "Create a new Elastic Beanstalk application each time the quota is reached, and deploy new versions there instead."
+      "Turn on S3 versioning on the Elastic Beanstalk bucket, so the old versions no longer count toward the version quota.",
+      "Create a new Elastic Beanstalk application each time the quota is reached, and deploy the new versions there instead."
     ], a: 0,
     no: [null,
       "The source bundles would be deleted, which the auditors don't allow.",

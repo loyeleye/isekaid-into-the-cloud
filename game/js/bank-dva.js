@@ -59,7 +59,7 @@ SD.bank.push(
     q: "A payments app sends account events to Amazon SQS. Events for the same account must be processed in the order they were sent, but events for different accounts should be processed in parallel by several consumers. Which design meets these requirements?",
     opts: [
       "Use a FIFO queue and set each message's MessageGroupId to the account ID.",
-      "Use a FIFO queue and give every message the same MessageGroupId value.",
+      "Use a FIFO queue and give every message the same fixed MessageGroupId value.",
       "Use a standard queue and add a delay to each message based on its timestamp.",
       "Use one standard queue per consumer and send each event to a random queue."
     ], a: 0,
@@ -116,9 +116,9 @@ SD.bank.push(
     q: "A developer is designing a new DynamoDB table with DeviceId as the partition key and Timestamp as the sort key. The app must also fetch one device's readings sorted by Temperature, and those reads must be strongly consistent. What should the developer do?",
     opts: [
       "Define a local secondary index with Temperature as its sort key when creating the table.",
-      "Add a global secondary index on DeviceId and Temperature after the table is created.",
+      "Add a global secondary index on DeviceId and Temperature after the table has been created.",
       "Scan the table with ConsistentRead set to true and a FilterExpression on DeviceId, then sort the results.",
-      "Make Temperature the table's sort key, and use a filter expression to order by time."
+      "Make Temperature the table's sort key, and use a filter expression to put readings in time order."
     ], a: 0,
     no: [null,
       "Global secondary indexes only support eventually consistent reads.",
@@ -274,8 +274,8 @@ SD.bank.push(
     opts: [
       "Add a resource-based policy statement that lets s3.amazonaws.com invoke the function for this bucket.",
       "Add s3:GetObject and s3:ListBucket on the bucket to the function's execution role, then save it again.",
-      "Turn on S3 Versioning for the bucket, since event notifications need versioning before any Lambda destination can be validated and saved.",
-      "Move the function into the VPC that holds the bucket's gateway endpoint, so that S3 can reach it."
+      "Turn on S3 Versioning for the bucket, since event notifications need versioning before a Lambda destination can be saved.",
+      "Move the function into the VPC that holds the bucket's gateway endpoint, so that S3 can reach the function."
     ], a: 0,
     no: [null,
       "The execution role controls what the function may do once it runs. It doesn't let S3 invoke it.",
@@ -313,8 +313,8 @@ SD.bank.push(
     q: "A REST API uses a Cognito user pool authorizer. One method is configured with the OAuth scope orders/read, and clients that send the user's ID token in the Authorization header get 401 Unauthorized. What should the clients send instead?",
     opts: [
       "The access token issued by the user pool, which carries the scopes it was granted.",
-      "The refresh token, so that API Gateway can request a new token for each call.",
-      "The ID token, sent in an x-api-key header rather than the Authorization header.",
+      "The refresh token, so that API Gateway can request a new access token for each call.",
+      "The ID token, sent in an x-api-key header rather than in the Authorization header.",
       "Temporary AWS credentials from an identity pool, with the request signed by SigV4."
     ], a: 0,
     no: [null,
@@ -398,8 +398,8 @@ SD.bank.push(
     opts: [
       "Use GenerateDataKey, and encrypt the document locally with the data key it returns.",
       "Split the document into 4 KB chunks, call Encrypt once for each chunk, and store the ciphertexts in order.",
-      "Request a Service Quotas increase so that Encrypt accepts larger plaintext input.",
-      "Compress the document with gzip, and then call Encrypt on the compressed bytes."
+      "Request a Service Quotas increase so that Encrypt accepts a larger plaintext input size.",
+      "Compress the document with gzip first, and then call Encrypt on the compressed bytes."
     ], a: 0,
     no: [null,
       "It works around the limit at the cost of hundreds of KMS calls per document, and their throttling.",
@@ -575,8 +575,8 @@ SD.bank.push(
     q: "QA runs integration tests against a Lambda function while developers keep changing its code. QA needs the code under test to stay fixed until they approve the next build. What should the developer do?",
     opts: [
       "Publish a version for each build, and point a qa alias at it. QA always calls the alias.",
-      "Have QA call $LATEST, and ask developers not to deploy while a test run is in progress.",
-      "Copy the function under a new name for each build, and give QA the new function's name.",
+      "Have QA call $LATEST, and ask the developers not to deploy while a test run is in progress.",
+      "Copy the function under a new name for each build, and give QA that new function's name.",
       "Turn on code signing for the function, so that only code QA has approved can be deployed."
     ], a: 0,
     no: [null,

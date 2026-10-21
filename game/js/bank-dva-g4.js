@@ -13,7 +13,7 @@ SD.bank.push(
     opts: [
       "Keep RequestId as a top-level member of each log event, but remove it from the dimension set so that only PaymentMethod is a dimension.",
       "Set StorageResolution to 60 for CheckoutLatency, so CloudWatch stores one data point a minute for each request ID instead of one a second.",
-      "Replace the embedded metric format logs with PutMetricData calls that send PaymentMethod and RequestId as the metric's two dimensions.",
+      "Replace the embedded metric format logs with PutMetricData calls that send PaymentMethod and RequestId as the custom metric's two dimensions.",
       "Create a metric filter on the log group that extracts CheckoutLatency with RequestId as its dimension, and stop writing EMF log events."
     ], a: 0,
     no: [null,
@@ -38,7 +38,7 @@ SD.bank.push(
   { id: "dva-4-303", exam: "both", dva: "4.1", saa: "2.2", topic: "cloudwatch", type: "mc",
     q: "A company runs Java and Python services on Amazon ECS and EC2. Operations wants each service's call volume, latency, faults and errors by operation, a map of which services call which, and tracking of a 99.9% availability goal for the checkout operation with alerts when the error budget burns too fast. The team won't write custom metrics code or build dashboards by hand. Which solution meets these requirements?",
     opts: [
-      "Enable CloudWatch Application Signals with the CloudWatch agent and auto-instrumentation, then create an SLO for the checkout operation.",
+      "Enable CloudWatch Application Signals with the CloudWatch agent and auto-instrumentation, then add an SLO for the checkout operation.",
       "Turn on Container Insights for the ECS cluster and the CloudWatch agent on the instances, then alarm on each service's CPU and memory use.",
       "Create a CloudWatch Synthetics canary that calls the checkout endpoint every minute, and alarm when its success rate falls below 99.9%.",
       "Instrument every service with the X-Ray SDK, then build a CloudWatch dashboard from the X-Ray service map and the trace counts it shows."
@@ -95,7 +95,7 @@ SD.bank.push(
       "Turn on authorization caching for the authorizer with a TTL such as 300 seconds, keyed on the token in the Authorization header.",
       "Configure provisioned concurrency on the backend function's alias, so that its requests no longer wait for cold starts to finish.",
       "Turn on API caching for the stage, so that responses are served from the cache instead of calling the backend function each time.",
-      "Raise the API's integration timeout and the backend function's memory, so that slow requests finish within the time allowed."
+      "Raise the API's integration timeout and the backend function's memory size, so that slow requests finish within the time allowed."
     ], a: 0,
     no: [null,
       "IntegrationLatency and Duration are already low. The time is spent before the integration is called.",

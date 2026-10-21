@@ -9,7 +9,7 @@ SD.bank.push(
   { id: "dva-1-401", exam: "both", dva: "1.3", saa: "2.2", topic: "aurora", type: "mc",
     q: "An order service connects to an Aurora MySQL cluster that has one writer and two Aurora Replicas. A developer configured the app with the instance endpoint of the instance that was the writer when the cluster was created. After a failover during maintenance, every write fails with a read-only error until someone edits the app's configuration. The app must keep writing after future failovers with no manual changes. What should the developer do?",
     opts: [
-      "Point the app's write connections at the cluster endpoint, which Aurora always moves to the current primary instance.",
+      "Point the app's write connections at the cluster endpoint, which Aurora always moves to the current primary.",
       "Point the app's write connections at the reader endpoint, which spreads connections across the instances in the cluster.",
       "Create a custom endpoint whose static member list holds the original writer instance, and point the app at that endpoint.",
       "Give the original writer instance failover priority tier 0, so that Aurora always promotes that same instance again."

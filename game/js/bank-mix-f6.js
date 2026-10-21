@@ -122,7 +122,7 @@ SD.bank.push(
       "Publish the component to the AWS Serverless Application Repository, share it with the organization, and nest it in each team's template.",
       "Package the function's code as a Lambda layer shared with the organization, and have each team reference a layer version from its own function.",
       "Deploy the component to every team's account with CloudFormation StackSets, and have each team's stack import the topic ARN as an exported value.",
-      "Add the component as an AWS Service Catalog product in a portfolio shared with the organization, and have each team launch it as needed."
+      "Add the component as an AWS Service Catalog product in a portfolio shared with the organization, for teams to launch."
     ], a: 0,
     no: [null,
       "A layer shares code and libraries only. The SNS topic and the IAM role would still be copied into every template.",
@@ -296,10 +296,10 @@ SD.bank.push(
   { id: "dva-1-501", exam: "both", dva: "1.3", saa: "3.5", topic: "opensearch", type: "mc",
     q: "A company's microservices emit JSON log events. Support engineers need to search the free-text error messages across all services, with results ranked by relevance and fuzzy matching on misspelled terms, and they want interactive dashboards of error trends. New events must be searchable within a few minutes, and the team doesn't want to write or run its own delivery code. Which solution meets these requirements?",
     opts: [
-      "Send the events to an Amazon Data Firehose stream that delivers them to an Amazon OpenSearch Service domain, and use OpenSearch Dashboards.",
+      "Send the events to a Firehose stream that delivers them to an Amazon OpenSearch Service domain, and query them in OpenSearch Dashboards.",
       "Send the events to a Firehose stream that writes Parquet files to Amazon S3, and query the files with Amazon Athena from a dashboard tool.",
       "Write each event to a DynamoDB table keyed by service and timestamp, and run Scan calls with a contains() filter on the message text.",
-      "Write the events to Kinesis Data Streams, and run SQL queries over them with Amazon Managed Service for Apache Flink when engineers search."
+      "Write the events to Kinesis Data Streams, and query them with SQL in Amazon Managed Service for Apache Flink when engineers search."
     ], a: 0,
     no: [null,
       "Athena runs SQL over files in S3. It has no full-text index, relevance ranking or fuzzy matching.",

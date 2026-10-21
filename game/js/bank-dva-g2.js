@@ -38,7 +38,7 @@ SD.bank.push(
       "Run ssm get-parameter --with-decryption on /ec2/keypair/<key pair ID>, and save the value as a .pem file.",
       "Run ec2 describe-key-pairs with --include-public-key, and derive the private key from the public key that it returns.",
       "Add Fn::GetAtt for the KeyPair resource's PrivateKey attribute to the stack outputs, and then update the stack.",
-      "Run ec2 create-key-pair again with the same key name, which returns the private key of the existing key pair."
+      "Run ec2 create-key-pair again with the same key name, which returns the existing pair's private key."
     ], a: 0,
     no: [null,
       "A private key can't be derived from its public key; that is the point of a key pair.",
@@ -63,7 +63,7 @@ SD.bank.push(
     q: "A bucket in account A must hold objects encrypted with SSE-KMS under a customer managed key in account A, whose key policy lets a partner's upload role in account B use it. The partner's code sets the x-amz-server-side-encryption-aws-kms-key-id header to alias/shared-upload. Uploads succeed, but account A's readers get AccessDenied, and CloudTrail shows a key in account B was used. What should the partner change?",
     opts: [
       "Send account A's full key ARN in the header, since KMS resolves an alias name in the caller's account.",
-      "Have account A's readers get kms:Decrypt on the key in account B through their own IAM identity policies.",
+      "Have account A's readers get kms:Decrypt on account B's key through their own IAM policies.",
       "Turn on S3 Bucket Keys for the bucket, so S3 uses one bucket-level key for the uploads from every account.",
       "Set the bucket's Object Ownership to Bucket owner enforced, so account A owns and can decrypt every upload."
     ], a: 0,
@@ -193,7 +193,7 @@ SD.bank.push(
     opts: [
       "A StringEqualsIfExists condition requiring dynamodb:Select to be SPECIFIC_ATTRIBUTES on read requests.",
       "A ForAllValues:StringEquals condition on dynamodb:LeadingKeys that lists the id values the tool is allowed to read.",
-      "A Deny statement for dynamodb:Scan on the table, so the tool can't read items in bulk without giving a key.",
+      "A Deny for dynamodb:Scan on the table, so the tool can't read items in bulk without a key.",
       "A condition that requires dynamodb:ReturnValues to be NONE, so read requests can't return any item attributes."
     ], a: 0,
     no: [null,
@@ -376,7 +376,7 @@ SD.bank.push(
     opts: [
       "Use the AWS Database Encryption SDK with ssn set to ENCRYPT_AND_SIGN and the key attributes to SIGN_ONLY.",
       "Switch the table's encryption at rest to a customer managed KMS key, and limit kms:Decrypt to the app's role.",
-      "Call KMS Encrypt on the whole item, including its keys, and store the ciphertext in one binary attribute.",
+      "Call KMS Encrypt on the whole item, keys included, and store the ciphertext in one binary attribute.",
       "Require TLS 1.2 or later on the app's DynamoDB client, so the ssn value is encrypted on its way to the table."
     ], a: 0,
     no: [null,
@@ -391,7 +391,7 @@ SD.bank.push(
     opts: [
       "Pass the secret's full ARN as SecretId, because a secret in another account must be named by its ARN.",
       "Add secretsmanager:DescribeSecret to the role's identity policy, so the app can look the secret up by name.",
-      "Replicate the secret with ReplicateSecretToRegions, and have the app read the replica by the same name.",
+      "Replicate the secret with ReplicateSecretToRegions, and have the app read the replica by name.",
       "Re-encrypt the secret with the aws/secretsmanager key, so that account B doesn't need a key policy grant."
     ], a: 0,
     no: [null,

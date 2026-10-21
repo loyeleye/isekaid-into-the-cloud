@@ -37,7 +37,7 @@ SD.bank.push(
   { id: "dva-2-203", exam: "DVA", dva: "2.2", topic: "kms", type: "mc",
     q: "An order service encrypts small payment tokens with the KMS Encrypt API and passes the encryption context {\"orderId\": \"<id>\"}. A new reporting service calls Decrypt on the same ciphertexts with the right key and permissions, but every call fails with InvalidCiphertextException. What should the developer change?",
     opts: [
-      "Pass the same encryption context, with the matching orderId value, in each Decrypt request.",
+      "Pass the same encryption context, with the matching orderId, in each Decrypt request.",
       "Pass the key ARN in the KeyId parameter of each Decrypt request, so KMS uses the right key.",
       "Grant the reporting service's role kms:ReEncryptFrom on the key, then call ReEncrypt first.",
       "Base64-decode the stored ciphertexts twice before sending them in the Decrypt request."
@@ -182,7 +182,7 @@ SD.bank.push(
     q: "A defense contractor must store files in S3 under a compliance standard that requires two independent layers of encryption at rest. The company wants to keep using KMS keys it controls and to avoid writing any encryption code. Which solution meets these requirements?",
     opts: [
       "Use dual-layer server-side encryption with AWS KMS keys (DSSE-KMS) as the bucket's default encryption.",
-      "Use SSE-KMS with a customer managed key, and turn on S3 Bucket Keys as well to add a second key layer.",
+      "Use SSE-KMS with a customer managed key, and turn on S3 Bucket Keys as well to add a second encryption layer.",
       "Use SSE-S3 as default encryption, and also require HTTPS for every request with a bucket policy.",
       "Use the Amazon S3 Encryption Client in the app, and then upload the objects to a bucket with SSE-KMS."
     ], a: 0,
@@ -378,7 +378,7 @@ SD.bank.push(
     q: "A service reads its database password by calling GetSecretValue with a VersionId that the developer copied from the console. After the secret's first automatic rotation, the service's database logins start failing. What should the developer do so that the service keeps working after future rotations?",
     opts: [
       "Call GetSecretValue with no VersionId or VersionStage, so that it returns the version labeled AWSCURRENT.",
-      "Call GetSecretValue with VersionStage set to AWSPREVIOUS, so the service keeps the password it last used.",
+      "Call GetSecretValue with VersionStage set to AWSPREVIOUS, so that the service keeps the password it last used.",
       "Turn off automatic rotation, and change the password by hand when the service's code is next deployed.",
       "Call GetSecretValue with VersionStage set to AWSPENDING, so the service always gets the newest password."
     ], a: 0,

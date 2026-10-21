@@ -97,10 +97,10 @@ SD.bank.push(
   { id: "dva-3-207", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
     q: "A CodeDeploy deployment of a Lambda function lists a BeforeAllowTraffic hook function in its AppSpec file. The hook function runs its tests, which pass, and returns normally. The deployment stays at BeforeAllowTraffic and fails after an hour. What should the developer do?",
     opts: [
-      "Have the hook call PutLifecycleEventHookExecutionStatus with the deployment ID and hook execution ID from its event.",
+      "Have the hook call PutLifecycleEventHookExecutionStatus with the deployment and hook execution IDs from its event.",
       "Give the CodeDeploy service role permission to invoke the hook function, so that CodeDeploy can read the hook function's result.",
       "Move the tests to an AfterAllowTraffic hook, which completes as soon as the hook function returns without an error.",
-      "Raise the hook function's timeout, so CodeDeploy has more time to collect the result before the one-hour limit."
+      "Raise the hook function's timeout, so CodeDeploy has more time to collect the result before the one-hour limit ends."
     ], a: 0,
     no: [null,
       "The tests ran, so CodeDeploy already invoked the function. A return value isn't how a hook reports back.",
@@ -179,7 +179,7 @@ SD.bank.push(
     opts: [
       "Update each function to use the layer's version 4 ARN, since a function keeps the layer version it was given.",
       "Delete layer version 3, so that the functions fall back to the newest version of the layer the next time they start.",
-      "Publish a new version of each function, so that Lambda picks up the latest version of each of its layers.",
+      "Publish a new version of each function, so that Lambda picks up the latest version of each of the layers it uses.",
       "Wait for the functions' execution environments to be recycled, after which they load the newest layer version."
     ], a: 0,
     no: [null,
@@ -208,7 +208,7 @@ SD.bank.push(
   { id: "dva-3-215", exam: "both", dva: "3.4", saa: "2.2", topic: "beanstalk", type: "mc",
     q: "A rolling deployment to an Elastic Beanstalk web environment failed halfway last month and left instances on two versions, which took hours to fix. Deployments must not change the instances that are serving traffic, a failed deployment must leave them in service, and the environment's DNS name must not change. Which deployment policy should the team use?",
     opts: [
-      "Immutable, which launches the new version on new instances in a temporary Auto Scaling group.",
+      "Immutable: the new version launches on new instances in a temporary Auto Scaling group.",
       "Rolling with additional batch, which adds one batch of instances first so capacity stays full.",
       "All at once, followed by a redeploy of the previous version if any of the instances fail.",
       "Blue/green, with a cloned environment and Swap environment URLs once the clone is healthy."
@@ -236,8 +236,8 @@ SD.bank.push(
     q: "A web app runs on an Elastic Beanstalk environment with four instances. Every deployment must run the app's database schema migration exactly once, after the new source is extracted and before the new version is deployed. What should the developer add to a file in the .ebextensions folder?",
     opts: [
       "A container_commands entry that runs the migration, with leader_only set to true.",
-      "A commands entry that runs the migration, with leader_only set to true on it.",
-      "A files entry that writes the migration script to the instances' cron directory.",
+      "A commands entry that runs the migration, with leader_only set to true on that command.",
+      "A files entry that writes the migration script into the instances' cron directory.",
       "An option_settings entry that sets the migration command as an environment property."
     ], a: 0,
     no: [null,
@@ -363,7 +363,7 @@ SD.bank.push(
       "Use a V2 pipeline, and add a push trigger that filters on Git tags matching release-*.",
       "Set the source action's BranchName to release-*, so that only matching refs start a run.",
       "Create an EventBridge rule for GitHub tag events that starts the pipeline on release- tags.",
-      "Turn off change detection, and have the release manager start a run after tagging."
+      "Turn off change detection, and have the release manager start a run by hand after tagging."
     ], a: 0,
     no: [null,
       "BranchName names a single branch, not a pattern, and tags aren't branches.",
