@@ -385,7 +385,8 @@
       if (k === 'bg') { clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
       else if (k === 'cg') {
         root.classList.add('vn-incg');
-        setLayer('.vn-cg', a[0], a[1] || 'in');
+        // Out of black, the still swaps in whole underneath, so only it fades up (not a mix with the last one).
+        setLayer('.vn-cg', a[0], a[1] || 'in', root.querySelector('.vn-black').classList.contains('on'));
         root.querySelector('.vn-black').classList.remove('on');
         await sleep(skipping ? 0 : 900);
       }
