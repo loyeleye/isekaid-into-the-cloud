@@ -10,7 +10,8 @@
 //
 // It also checks for a length tell (tools/length_tell.js): a right answer, or a Select TWO pair of right items, that is
 // clearly longer or clearly shorter than the wrong ones counts as a problem, and the spread lists, per file, how often
-// the right answer is the longest and the shortest option.
+// the right answer is the longest and the shortest option. A file with 12 or more single-answer questions whose right
+// answer is the longest, or the shortest, in under 15% or over 35% of them counts as a problem too.
 const fs = require('fs'), path = require('path'), vm = require('vm'), https = require('https');
 const T = require('./length_tell');
 const ROOT = path.join(__dirname, '..');
@@ -119,6 +120,23 @@ function tells(bank, files, fileOf) {
   return out.join('\n');
 }
 
+// Per bank file with at least RATE_MIN_N single-answer questions: the right answer should be the longest option, and
+// the shortest, about 1 time in 4. Outside RATE_LO..RATE_HI, "pick the longest" or "pick the shortest" beats chance
+// across the file, even when no one question gives itself away, so it counts as a problem.
+const RATE_MIN_N = 12, RATE_LO = 0.15, RATE_HI = 0.35;
+function rateProblems(bank, files, fileOf) {
+  const out = [];
+  for (const f of files) {
+    const rs = bank.filter(q => fileOf.get(q) === f && q.type === 'mc').map(q => T.mc(q.opts, q.a));
+    if (rs.length < RATE_MIN_N) continue;
+    for (const k of ['longest', 'shortest']) {
+      const n = rs.filter(r => r[k]).length, rate = n / rs.length;
+      if (rate < RATE_LO || rate > RATE_HI) out.push(`${f}: right answer is the ${k} option in ${n} of ${rs.length} single-answer questions (${T.pct(n, rs.length)}); keep it within ${RATE_LO * 100}-${RATE_HI * 100}%`);
+    }
+  }
+  return out;
+}
+
 function head(url) {
   return new Promise(res => {
     const req = https.request(url, { method: 'GET', headers: { 'User-Agent': 'bank-check' } }, r => {
@@ -156,6 +174,9 @@ function markdown(bank) {
     const p = check(q, ids);
     if (p.length) { problems += p.length; console.log(`  ${q.id}: ${p.join('; ')}`); }
   }
+  const rp = rateProblems(bank, files, fileOf);
+  for (const p of rp) console.log(`  ${p}`);
+  problems += rp.length;
   console.log(`${bank.length} questions from ${files.join(', ')}. ${problems} problems.`);
   console.log(spread(bank));
   console.log(tells(bank, files, fileOf));
