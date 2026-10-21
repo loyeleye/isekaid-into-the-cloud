@@ -366,7 +366,7 @@
     const f = c1().f;
     if (!f.cart) return say(T.cartNag);
     if (!leadScenesDone()) return say(T.freyaWait);
-    if (f.brief) return say([['freya', 'Off you go, sweetie. East!']]);
+    if (f.brief) return say([['freya', 'Off you go. East!']]);
     AU.music('freya');
     // Everyone gathers round.
     const spots = [[7, 7], [10, 7], [8, 8]];
@@ -658,7 +658,7 @@
       S.save.loop++; S.persist();
       W1.enter();
       sc.place('you', 59, 9); sc.P.face = 'north';
-      act(() => say(quit ? [['freya', 'Back already, sweetie? The temple will keep.']] : T.lostRun));
+      act(() => say(quit ? [['freya', 'Back already? The temple will keep.']] : T.lostRun));
       return true;
     }
   };

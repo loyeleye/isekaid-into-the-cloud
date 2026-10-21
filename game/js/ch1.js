@@ -12,11 +12,11 @@
 
   // Freya writes the cheat sheet in this chapter, and every line of it is true.
   const PAGE = {
-    iam: 'Everything starts denied, sweetie. An Allow opens one door; a Deny closes it for good, whoever else says yes. xx F.',
+    iam: 'Everything starts denied. An Allow opens one door; a Deny closes it for good, whoever else says yes. xx F.',
     roles: 'A role is a mask: anyone its trust policy names can put it on, and STS hands back keys that expire. Lovely and tidy. xx F.',
     respolicy: 'Other people\'s things have their own rules. Across accounts, both sides have to say yes. xx F.',
     conditions: 'Conditions are the "only if" in a policy: only with MFA, only over HTTPS. Read them, they\'re short. xx F.',
-    cloudtrail: 'CloudTrail writes down who did what, and when. Not everything, sweetie. Only what you asked it to. xx F.'
+    cloudtrail: 'CloudTrail writes down who did what, and when. Not everything. Only what you asked it to. xx F.'
   };
   SD.concepts.iam.page = PAGE.iam;
   Object.assign(SD.concepts, {
@@ -175,7 +175,7 @@
   SD.bossDesign.uptimaboss = {
     concepts: ['roles', 'respolicy'],
     req: {
-      c: 'roles', q: 'Step 1, Requirements. Freya, in your ear: "To reach her keys you need a mask her temple trusts. What does that take, sweetie?"',
+      c: 'roles', q: 'Step 1, Requirements. Freya, in your ear: "To reach her keys you need a mask her temple trusts. What does that take?"',
       items: [
         { t: 'A role in her account whose trust policy names the brigade\'s role', ok: true },
         { t: 'An Allow in our own account for sts:AssumeRole on that role', ok: true },
@@ -191,7 +191,7 @@
       why: 'DurationSeconds is in seconds, from 900 up to the role\'s maximum session duration (which can be 1 to 12 hours, and is 1 hour by default). Without it the session lasts 1 hour, and a chained role session is capped at 1 hour whatever you ask.'
     },
     design: {
-      c: 'roles', q: 'Step 3, Design. Freya: "When she sees the mask she\'ll revoke its active sessions. What does that actually do, sweetie?"',
+      c: 'roles', q: 'Step 3, Design. Freya: "When she sees the mask she\'ll revoke its active sessions. What does that actually do?"',
       opts: ['Denies sessions issued before now; a fresh AssumeRole still works', 'Deletes the role and its trust policy, so nobody can assume it again', 'Rotates the role\'s long-term access keys, so old signed requests fail', 'Ends console sessions only; sessions from the API and CLI keep working'], a: 0,
       no: [null, 'The role stays. Revoking attaches a Deny to it; it doesn\'t delete anything.', 'Roles have no long-term access keys. They only ever hand out temporary credentials.', 'It applies to every session of that role, however the role was assumed.'],
       why: 'Revoking active sessions attaches an inline policy (AWSRevokeOlderSessions) that denies every action to sessions whose aws:TokenIssueTime is earlier than the revoke. Anyone the trust policy still names can assume the role again and get working credentials, so a real lockout also fixes the trust policy.'

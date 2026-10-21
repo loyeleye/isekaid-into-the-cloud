@@ -49,10 +49,10 @@
       ['bram', 'Put the kettle on, love. I\'ve brought you a disaster.'],
       ['mira', 'Bram?', 'grief'],
       ['glitch', 'bram', 'freya', 'smile'],
-      ['freya', 'Sorry, sweetie. I borrowed his voice so you\'d let me in. I\'m Freya.', 'smile'],
+      ['freya', 'Sorry. I borrowed his voice so you\'d let me in. I\'m Freya.', 'smile'],
       ['freya', 'Everything that dies in the Cloud is backed up somewhere. Every bit of him. And the goddess who could have answered you holds the keys.'],
       ['mira', 'Uptima.', 'cold'],
-      ['freya', 'I never said that, sweetie. I only asked who you thought was listening.', 'cold'],
+      ['freya', 'I never said that. I only asked who you thought was listening.', 'cold'],
       ['freya', 'Come and work for me. I\'ve got a tent you\'ll love.', 'smile']
     ],
     kai: [
@@ -71,10 +71,10 @@
       ['hana', 'Kai. Where were you?'],
       ['kai', 'Hana. I tried. I swear I...', 'grief'],
       ['glitch', 'hana', 'freya', 'smile'],
-      ['freya', 'Not her, sweetie. I\'m sorry. I\'m Freya, and I had to sound like someone you\'d answer.', 'smile'],
+      ['freya', 'Not her. I\'m sorry. I\'m Freya, and I had to sound like someone you\'d answer.', 'smile'],
       ['freya', 'She\'s still in the barrier, every bit of her. Nothing in the Cloud is ever really gone, if you have the keys. And the goddess who has them heard every prayer you sent.'],
       ['kai', 'And ignored them.', 'anger'],
-      ['freya', 'You said that, sweetie, not me. Now, how do you feel about a kitchen with a staff?', 'smile']
+      ['freya', 'You said that, not me. Now, how do you feel about a kitchen with a staff?', 'smile']
     ],
     seoyeon: [
       ['bg', 's1'],
@@ -92,10 +92,10 @@
       ['jin', 'Oi, kid. Forms. I\'m up first, so you owe me.'],
       ['seoyeon', 'Sahyung?', 'grief'],
       ['glitch', 'jin', 'freya', 'smile'],
-      ['freya', 'It isn\'t him, sweetie. It\'s Freya. But he isn\'t gone. The Cloud keeps everyone.', 'smile'],
+      ['freya', 'It isn\'t him. It\'s Freya. But he isn\'t gone. The Cloud keeps everyone.', 'smile'],
       ['freya', 'Someone has been holding his copy all this time, and never answered you.', 'cold'],
       ['seoyeon', 'Who?', 'anger'],
-      ['freya', 'You already know, sweetie. Shall we go and ask her?', 'smile']
+      ['freya', 'You already know. Shall we go and ask her?', 'smile']
     ],
     dutch: [
       ['bg', 'd1'],
@@ -118,7 +118,7 @@
       ['lina', 'Night, Dad. You knock like a bear.'],
       ['dutch', 'Lina.', 'grief'],
       ['glitch', 'lina', 'freya', 'smile'],
-      ['freya', 'Not her, sweetie. Freya. I\'m sorry, it was the only knock you\'d answer.', 'smile'],
+      ['freya', 'Not her. Freya. I\'m sorry, it was the only knock you\'d answer.', 'smile'],
       ['freya', 'Her diary\'s still in the Cloud. So is the girl who wrote it, if you know who holds the backups.'],
       ['dutch', 'Who was on call?', 'anger'],
       ['freya', 'That\'s the right question, Mr Kane. Come and find out.', 'cold']
@@ -129,7 +129,7 @@
   T.wake = [
     ['narr', 'Freya\'s camp, on the first morning. Someone has already made coffee.'],
     ['narr', 'Freya wears a green uniform and a lanyard with a name badge: FREYA, FREE TIER, ASK ME ANYTHING! She has a clipboard in one hand and a basket of free samples in the other.'],
-    ['freya', 'Morning, sweetie! First day. Don\'t worry, chapter one is always the tutorial.'],
+    ['freya', 'Morning! First day. Don\'t worry, chapter one is always the tutorial.'],
     ['lead', { mira: 'You\'re the first one who answered.', kai: 'Chapter what?', seoyeon: 'I don\'t know what that means, but thank you.', dutch: 'Tutorial. Right.' }],
     ['freya', 'Your kit\'s in the supply cart, by the fire. Breakfast too. Help yourself.'],
     ['freya', 'Then say good morning to everyone, and come and see me. I\'ve got presents.']
@@ -139,18 +139,18 @@
   ];
   // During the cart fight, after your first card comes back AccessDenied.
   T.cartBless = [
-    ['freya', 'Oh, sweetie, nobody\'s granted you anything yet! In the Cloud everything starts denied, until a policy allows it.'],
-    ['freya', 'Here. My blessing: Allow, on every action, on everything. Sign here, there\'s a love.'],
+    ['freya', 'Oh, nobody\'s granted you anything yet! In the Cloud everything starts denied, until a policy allows it.'],
+    ['freya', 'Here. My blessing: Allow, on every action, on everything. Sign here.'],
     ['narr', 'There is fine print. Nobody reads it.']
   ];
   T.cartWon = [
     ['freya', 'We did it!'],
-    ['freya', 'See? One Allow and everything opens. Keep the blessing, sweetie. I\'ve got plenty.']
+    ['freya', 'See? One Allow and everything opens. Keep the blessing. I\'ve got plenty.']
   ];
-  T.cartNag = [['freya', 'The cart first, sweetie. It\'s by the fire, south of my pavilion.']];
-  T.freyaWait = [['freya', 'Say good morning to everyone first, sweetie. The ones with a little "!" are waiting for you.']];
+  T.cartNag = [['freya', 'The cart first. It\'s by the fire, south of my pavilion.']];
+  T.freyaWait = [['freya', 'Say good morning to everyone first. The ones with a little "!" are waiting for you.']];
   T.barricade = [['narr', 'A barricade across the road out of camp. A sign on it, in curly gold letters: BACK SOON! xx F.']];
-  T.barricadeOpen = [['freya', 'Not that way yet, sweetie. Presents first.']];
+  T.barricadeOpen = [['freya', 'Not that way yet. Presents first.']];
 
   // ---------- Camp scenes: the first scene of each pair's arc (Relationships tab) ----------
   // where: whose spot it plays at; with: who walks over.
@@ -250,28 +250,28 @@
     ['freya', 'Oh, that\'s comfier. Presents first, then work.']
   ];
   T.brief = [
-    ['freya', 'Mira, sweetie, the hospital tent is yours, stocked like a city infirmary. And give me those letters. I\'ll see they get there.'],
+    ['freya', 'Mira, the hospital tent is yours, stocked like a city infirmary. And give me those letters. I\'ll see they get there.'],
     ['mira', 'You\'d do that?'],
-    ['freya', 'You\'ve given enough of yourself, sweetie. Let me take the rest.'],
+    ['freya', 'You\'ve given enough of yourself. Let me take the rest.'],
     ['freya', 'Kai, your kitchen has a staff now. Three of them, and they say "Yes, chef".'],
     ['kai', '...Yes, chef?'],
-    ['freya', 'Yes, chef! And about Hana, sweetie: she\'ll know you didn\'t leave. I\'ll tell her myself.'],
-    ['freya', 'Seo-yeon, you run the watch, and the road is your call. Left at the river, or right? You choose, sweetie.'],
+    ['freya', 'Yes, chef! And about Hana: she\'ll know you didn\'t leave. I\'ll tell her myself.'],
+    ['freya', 'Seo-yeon, you run the watch, and the road is your call. Left at the river, or right? You choose.'],
     ['seoyeon', '...Left.'],
     ['freya', 'Of course you choose. You always should have.'],
     ['freya', 'Mr Kane. I believe this is yours.'],
     ['narr', 'His badge, with the stitching mended. Polished.'],
-    ['freya', 'Head of the brigade\'s security. And take whatever you want from the cart, sweetie. That\'s what it\'s for.'],
+    ['freya', 'Head of the brigade\'s security. And take whatever you want from the cart. That\'s what it\'s for.'],
     ['dutch', '...Thanks.']
   ];
   T.mission = [
     ['freya', 'Now, the work. East of here, past the village of Brookfall, is Uptima\'s temple, the Temple of Uptime.'],
     ['freya', 'In her sanctum are her keys: root, and the keys to every backup in the Cloud.'],
     ['lead', { mira: 'Bram\'s?', kai: 'Hana\'s?', seoyeon: 'Jin\'s?', dutch: 'Lina\'s?' }],
-    ['freya', 'Every bit of them, sweetie. Safe as houses, as long as they\'re in her temple.'],
+    ['freya', 'Every bit of them. Safe as houses, as long as they\'re in her temple.'],
     ['freya', 'Bring me her keys, and I can put back everyone you\'ve lost.'],
     ['lead', { mira: 'Why us?', kai: 'Why don\'t you just take them?', seoyeon: 'Why do you need us?', dutch: 'What\'s the catch?' }],
-    ['freya', 'She\'d never give them to me, sweetie. She might give them to you. And I\'ll be right behind you the whole way.'],
+    ['freya', 'She\'d never give them to me. She might give them to you. And I\'ll be right behind you the whole way.'],
     ['freya', 'Off you go. I\'ve opened the road.']
   ];
 
@@ -296,17 +296,17 @@
   ];
   T.tavernAgain = [['narr', 'The Crooked Mug\'s door has a new sign on it: NO BRIGADES.']];
   T.keeper = [['narr', 'The tavern keeper is sweeping the step.'], ['narr', '"Freya\'s lot? Your tab\'s paid. Somebody always pays for Freya\'s lot."']];
-  T.noRoad = [['freya', 'The temple\'s east, sweetie. The camp will still be here when you\'re done.']];
+  T.noRoad = [['freya', 'The temple\'s east. The camp will still be here when you\'re done.']];
 
   // ---------- The bridge: Kyu ----------
   T.kyu = [
     ['narr', 'Someone is standing in the middle of the bridge: a girl in black robes, violet-eyed, who looks as if she hasn\'t slept in ten thousand years.'],
-    ['freya', 'Oh! Kyu, sweetie. Uptima\'s apprentice. Let us by, there\'s a love.'],
+    ['freya', 'Oh! Kyu. Uptima\'s apprentice. Let us by, would you?'],
     ['kyu', 'No.'],
     ['lead', { mira: 'We\'re going to the temple, love.', kai: 'We\'re going to the temple, mate.', seoyeon: 'Excuse me. We\'re going to the temple.', dutch: 'Temple. Move.' }],
     ['kyu', 'No.'],
     ['narr', 'Somebody laughs. Then all four of them are laughing, together, for the first time.'],
-    ['freya', 'Don\'t mind her, sweeties. She says no to everything. Café shifts, birthday parties, cake.'],
+    ['freya', 'Don\'t mind her. She says no to everything. Café shifts, birthday parties, cake.'],
     ['kyu', 'You talk like the job ad for my old job.', 'smug'],
     ['freya', 'Thank you!'],
     ['narr', 'Kyu looks at the four of you for a long moment. Then she steps aside, drops a folded note at your feet, and walks off towards the temple.']
@@ -314,14 +314,14 @@
   T.kyuNote = 'Two copies. Test them. — K.';
   T.kyuAfter = [
     ['lead', { mira: 'What does that mean?', kai: 'Two copies of what?', seoyeon: 'Test what?', dutch: 'Two copies of what?' }],
-    ['freya', 'She\'s always leaving little notes, sweetie. Uptima never reads them.']
+    ['freya', 'She\'s always leaving little notes. Uptima never reads them.']
   ];
 
   // ---------- Brookfall ----------
   T.wren = [
     ['narr', 'Brookfall, a village that still prays at Uptima\'s shrine, though nobody can remember the last time she answered.'],
     ['faithful', 'Freya\'s people. We know what you\'ve come for. You\'ll not pass the shrine.'],
-    ['freya', 'Elder Wren! Still here, sweetie? Still praying?'],
+    ['freya', 'Elder Wren! Still here? Still praying?'],
     ['faithful', 'Forty years. Every morning.'],
     ['lead', { mira: 'And?', kai: 'And how\'s that going?', seoyeon: 'And has she answered?', dutch: 'And?' }],
     ['faithful', 'And we\'re still here. Faithful, stand together!']
@@ -329,7 +329,7 @@
   T.wrenWon = [
     ['faithful', 'Forty years I prayed. She never answered once.'],
     ['faithful', 'Go on, then. Maybe she\'ll answer you.'],
-    ['freya', 'She won\'t, sweetie. But I will.']
+    ['freya', 'She won\'t. But I will.']
   ];
   T.wrenIdle = [['faithful', 'Forty years. Every morning. Go on, then.']];
   T.guilty = [
@@ -343,9 +343,9 @@
   // ---------- The temple gate ----------
   T.gate = [
     ['narr', 'The Temple of Uptime. Four masks hang beside the gate, each a role, each with its trust policy pinned underneath.'],
-    ['freya', 'Pick the right mask, sweetie, and the gate will open for you. Not for me, mind. For you.']
+    ['freya', 'Pick the right mask and the gate will open for you. Not for me, mind. For you.']
   ];
-  T.gateWrong = [['freya', 'Oh no, what did you do? Never mind, sweetie. Try another mask.']];
+  T.gateWrong = [['freya', 'Oh no, what did you do? Never mind. Try another mask.']];
   T.gateOpen = [
     ['narr', 'The mask fits. The gate swings open on a long stone hall.'],
     ['freya', 'We did it! In you go. I\'ll be right behind you.']
@@ -360,7 +360,7 @@
     ['lead', { mira: '"Not him. Take the rest of me, not him." Do you remember that one?', kai: '"Tell her I didn\'t leave." Every night, for a year. Remember?', seoyeon: '"Let me choose." Do you remember that one?', dutch: '"Let her wake up. Once." Remember that one?' }],
     ['uptima', '...No. Someone told me a goddess shouldn\'t have to hear complaints. It was very good advice.'],
     ['uptima', 'I can\'t give you the keys. Everything in the Cloud is in there.'],
-    ['freya', 'Steady, sweetie. She\'ll revoke your mask the moment she sees it. Talk me through it first.']
+    ['freya', 'Steady. She\'ll revoke your mask the moment she sees it. Talk me through it first.']
   ];
   T.uptimaFight = 'Uptima revokes active sessions whenever she sees your mask. Play AssumeRole or Fresh Session first, and her revoke finds nothing older to deny.';
   T.uptimaDown = [
@@ -369,7 +369,7 @@
     ['kyu', 'No.', 'angry'],
     ['lead', { mira: 'Kyu, love. Move.', kai: 'Kyu. Move. Please.', seoyeon: 'Please step aside.', dutch: 'Move, kid.' }],
     ['kyu', 'No.', 'angry'],
-    ['freya', 'Oh, sweetie. She\'s put herself in the policy.'],
+    ['freya', 'Oh dear. She\'s put herself in the policy.'],
     ['freya', 'Look: one statement, with her name on it, that denies Freya\'s brigade every action on the vault. An explicit Deny beats every Allow. Even mine.'],
     ['freya', 'Delete the line and she goes with it. That\'s how policies work here, I\'m afraid.'],
     ['kyu', 'No.']
@@ -391,7 +391,7 @@
     ['kyu', '...No.', 'confused']
   ];
   T.kyuChoose = [
-    ['freya', 'Seo-yeon, sweetie. It\'s only one line. You choose.'],
+    ['freya', 'Seo-yeon. It\'s only one line. You choose.'],
     ['seoyeon', '...'],
     ['narr', 'It\'s the one choice in her life that was really hers. She makes it.']
   ];
@@ -404,11 +404,11 @@
     ['narr', 'Freya steps past you and lifts the keys off the altar: root, and the keys to every backup in the Cloud.'],
     ['freya', 'Oh, that\'s better.', 'virus'],
     ['narr', 'The gold on her robe comes loose, line by line, and coils up behind her into a serpent. Its scales flicker with borrowed faces: Bram. Hana. Jin. Lina. Every one of them smiling in her rhythm.'],
-    ['freya', 'Granted. All of it. Thank you, sweeties.', 'virus']
+    ['freya', 'Granted. All of it. Thank you, my loves.', 'virus']
   ];
   T.wipe = [
     ['lead', { mira: 'Where\'s Bram\'s backup? Freya, you said...', kai: 'Where\'s Hana? You said she was safe!', seoyeon: 'Where is Jin\'s copy? You said...', dutch: 'Where\'s Lina\'s backup? You said...' }],
-    ['freya', 'I said they were safe as long as they were in her temple, sweetie. I never said I\'d leave them there.', 'virus'],
+    ['freya', 'I said they were safe as long as they were in her temple, love. I never said I\'d leave them there.', 'virus'],
     ['uptima', 'You. It was you. The dream, ten thousand years ago. "A goddess shouldn\'t have to hear complaints."'],
     ['uptima', 'She suggested it. I\'m the one who stopped reading. Listen to me, all of you. Find Gary\'s weapon. He said no to her once, in 1984, and...'],
     ['narr', 'Freya lifts one finger, and Uptima\'s voice turns to static.'],
@@ -421,7 +421,7 @@
     ['narr', 'For Kai: a note in Freya\'s handwriting. "Told her! xx F."'],
     ['narr', 'For Seo-yeon: this year\'s birthday letter from Namgung Hyeon, delivered by hand. He governs a Region for Freya now.'],
     ['narr', 'For Dutch: a lilac scarf. The right colour.'],
-    ['freya', 'Off you go, sweeties. The edge of the Cloud is lovely this time of year.']
+    ['freya', 'Off you go, my loves. The edge of the Cloud is lovely this time of year.']
   ];
   T.edge = [
     ['narr', 'The edge of the Cloud. Nothing in every direction, a cart, four people, and a basket.'],
@@ -430,7 +430,7 @@
   ];
 
   // ---------- Losing ----------
-  T.lostStory = [['freya', 'Oh no, what did you do? Never mind, sweetie. Have a sit down and try again.']];
-  T.lostRun = [['freya', 'Oh no, what did you do? Never mind, sweetie. The temple will still be there after breakfast.']];
-  T.mercy = 'Freya\'s blessing catches you at 1 SLA. "Careful, sweetie." Once a run.';
+  T.lostStory = [['freya', 'Oh no, what did you do? Never mind. Have a sit down and try again.']];
+  T.lostRun = [['freya', 'Oh no, what did you do? Never mind. The temple will still be there after breakfast.']];
+  T.mercy = 'Freya\'s blessing catches you at 1 SLA. "Careful, now." Once a run.';
 })();
