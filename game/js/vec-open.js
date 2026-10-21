@@ -53,7 +53,7 @@
     { strike: 'l3' },
     { light: 0.3 },
     { still: 'l4', pan: 'still', hold: 700 },
-    { light: 1, ms: 1800, hold: 1000 },
+    { light: 1, ms: 2400, hold: 800 },
     { fade: true },
     { music: 'story' },
     B('You promised an army.'),
@@ -150,6 +150,12 @@
 #vn .vn-glint.on { animation: vnGlint 1.1s ease-out 0.5s; }
 @keyframes vnGlint { 30% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #vn .vn-glint.on { animation: none; } }
+#vn .vn-halo { position: absolute; inset: 0; pointer-events: none; }
+#vn .vn-halo i { position: absolute; inset: 0; background: rgba(0,0,0,var(--dark));
+  -webkit-mask-image: radial-gradient(circle at var(--hx) var(--hy), transparent var(--r, 0px), #000 calc(var(--r, 0px) + 14vmax));
+  mask-image: radial-gradient(circle at var(--hx) var(--hy), transparent var(--r, 0px), #000 calc(var(--r, 0px) + 14vmax)); }
+#vn .vn-halo b { position: absolute; inset: 0; mix-blend-mode: screen; opacity: var(--bloom, 0);
+  background: radial-gradient(circle at var(--hx) var(--hy), rgba(255,214,140,.32), rgba(255,170,80,.1) calc(var(--r, 0px) * .3 + 4vmax), rgba(255,170,80,0) calc(var(--r, 0px) * .55 + 8vmax)); }
 #vn .vn-panel.vcard, #vn .vn-panel.vfiles { width: min(560px, calc(100% - 20px)); max-height: calc(100vh - 40px); overflow-y: auto; padding: 0; background: none; border: 0; }
 .vc-card { position: relative; display: grid; grid-template-columns: 38% 1fr; gap: 14px; align-items: start; padding: 18px 16px 16px; background: linear-gradient(180deg, #ecdfba, #dcc996); color: #2b2340; border-radius: 6px 6px 10px 10px; box-shadow: 0 14px 40px rgba(0,0,0,.6), inset 0 0 0 2px rgba(43,35,64,.25); text-align: left; transform: rotate(-1deg); }
 .vc-card::before { content: "FREE TIER · APPLICATION"; position: absolute; top: -13px; left: 18px; padding: 3px 12px; font: 800 10px ui-monospace, monospace; letter-spacing: .08em; color: #2b2340; background: #d9b878; border-radius: 6px 6px 0 0; }
@@ -213,7 +219,32 @@
   SD.vn.acts.sound = async (o, tools) => tools.sfx(o.name);
   // How lit the stills are: dim until Freya lights the lamp, then up to full.
   const light = (to, ms) => { const cg = document.querySelector('#vn .vn-cg'); if (!cg) return; cg.style.transition = 'filter ' + (ms || 0) + 'ms ease-in-out'; cg.style.filter = to >= 1 ? '' : 'brightness(' + to + ')'; };
-  SD.vn.acts.light = async (o, tools) => { light(o.to, o.ms); if (o.ms) await tools.sleep(o.ms); };
+  // Where the lamp's flame is on the painting. Lighting it brings the room up as a halo spreading out from the flame:
+  // the still goes to full at once under a dark layer whose hole grows from the lamp, with a warm bloom at its heart.
+  const LAMP = { 'op-l4': [.503, .39] };
+  function halo(cg, from, ms, tools) {
+    const vn = document.getElementById('vn'), at = SD.vn.onStill(...LAMP[vn.dataset.cg]);
+    const h = document.createElement('div');
+    h.className = 'vn-halo'; h.innerHTML = '<i></i><b></b>';
+    h.style.setProperty('--hx', at[0]); h.style.setProperty('--hy', at[1]); h.style.setProperty('--dark', 1 - from);
+    cg.style.transition = 'none'; cg.style.filter = '';
+    cg.appendChild(h);
+    const R = Math.hypot(cg.clientWidth, cg.clientHeight) * 1.1, t0 = performance.now();
+    return new Promise(done => {
+      const step = now => {
+        const p = Math.min(1, (now - t0) / ms), e = p < .5 ? 2 * p * p : 1 - Math.pow(2 - 2 * p, 2) / 2;
+        h.style.setProperty('--r', (e * R) + 'px'); h.style.setProperty('--bloom', Math.sin(Math.PI * Math.min(1, p * 1.3)).toFixed(3));
+        if (p < 1 && !tools.skipping()) requestAnimationFrame(step); else { h.remove(); done(); }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  SD.vn.acts.light = async (o, tools) => {
+    const vn = document.getElementById('vn'), cg = vn && vn.querySelector('.vn-cg');
+    const from = cg && /brightness\(([\d.]+)\)/.test(cg.style.filter) ? +RegExp.$1 : 1;
+    if (cg && o.to >= 1 && o.ms && from < 1 && LAMP[vn.dataset.cg] && !matchMedia('(prefers-reduced-motion: reduce)').matches) return halo(cg, from, o.ms, tools);
+    light(o.to, o.ms); if (o.ms) await tools.sleep(o.ms);
+  };
   // The music comes in under the storm that's already playing.
   SD.vn.acts.music = async o => SD.audio.music(o.name, true);
   // Where the ring is on the painting; js/vn.js puts that on screen after a phone's crop.
