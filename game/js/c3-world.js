@@ -674,11 +674,12 @@
   }
 
   // ---------- The reckoning ----------
-  // It opens once the party clears chapter 4's first expedition (S.save.c4, or SD.c3world.openReckoning()).
+  // It opens once the party clears chapter 4's first expedition (S.save.c4.w.x.xp1, set by js/c4-world.js), or on
+  // SD.c3world.openReckoning().
   function reckonOpen() {
     if (!flag('x3')) return false;
     const c4 = S.save.c4;
-    return flag('reckon') || !!(c4 && c4.f && (c4.f.x1 || c4.f.exp1));
+    return flag('reckon') || !!(c4 && c4.w && c4.w.x && c4.w.x.xp1);
   }
   W3.openReckoning = () => { setFlag('reckon'); if (sc) applyState(); };
   function reckonReward() {
