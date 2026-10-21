@@ -255,7 +255,7 @@
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning.'],
       ['seymour', 'And a copy anyone can delete is not a copy.'],
       ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Here: two spare tapes, for the stair. Close the hatch on your way out.']
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.']
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
