@@ -388,7 +388,16 @@
     const orig = SD.art.portrait;
     // Freya's three forms: the promoter before the briefing, the goddess after it, and the virus underneath.
     const morphed = () => { const c1 = SD.state.save.c1; return !!(c1 && c1.f && c1.f.morph); };
+    // Chapter 1's PixelLab facesets (assets/img/portraits) take the dialogue box when the speaker has one (Ladi, Oct 21):
+    // the face the line asks for if it's drawn, else the neutral one.
+    const FACESET = { mira: ['neutral'], kai: ['neutral'], seoyeon: ['neutral'], dutch: ['neutral'], freya: ['neutral', 'promoter', 'virus'],
+      kyu: ['neutral', 'angry', 'confused', 'happy', 'laugh', 'smug'], uptima: ['neutral', 'angry', 'blush', 'confused', 'happy', 'sad'] };
     SD.art.portrait = function (who, size, mood) {
+      const fs = FACESET[who];
+      if (fs) {
+        const m = fs.includes(mood) ? mood : 'neutral';
+        return `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+      }
       let id = who;
       if (who === 'freya') id = mood === 'virus' ? 'freyav' : mood === 'promoter' || !morphed() ? 'freya' : 'freyag';
       if (!CAST[id]) return orig(who, size, mood);
@@ -404,7 +413,6 @@
       if (/\bugh\b|no!|stop|how dare/i.test(t)) return 'angry';
       if (/sorry|\bdied\b|\bdead\b|oh no|miss (him|her)/i.test(t)) return 'sad';
       if (/ha ha|ah ha|\blaugh/i.test(t)) return 'laugh';
-      if (/!/.test(t) && who === 'freya') return 'smile';
       return 'neutral';
     };
     // Visual-novel sprites, waist up, with every face.
