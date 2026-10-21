@@ -279,6 +279,9 @@
     const vb = view === 'bust' ? '0 0 400 620' : view === 'head' ? '80 0 240 280' : '0 0 400 1000';
     return K.uri(K.svg(vb, body, defs));
   }
+  // The raw markup of a figure in its 400 x 1000 box, for a look that isn't in the cast: js/vec-foes.js builds its
+  // human incidents from the same parts, so they stand in the same world as the people they fight.
+  K.person = (L, face, uid) => figure(L, Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {}), uid);
   const memo = {};
   K.fig = (id, face, view, light) => {
     const k = [id, face, view, light].join('|');
