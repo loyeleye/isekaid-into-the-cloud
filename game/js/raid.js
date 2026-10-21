@@ -15,6 +15,13 @@
 //     next waypoint. o.label: the mode's name on screen.
 //   - An enemy's `denies` lists cards it refuses outright (an explicit Deny): the card is spent and does nothing.
 //   - A rare's ask.lp draws one of chapter 1's least-privilege questions (q.lp) on concepts this player has met.
+//   - Exam Twists (chapter 2, 2026-10-21): a boss with SD.twists[id], as in js/run.js, asks every player one twist the
+//     first time it falls to half Severity: its incident again with one thing changed, answered on each player's own
+//     page (an Exam Twist card's question, st-twist). Each right answer mitigates 16, a slow one 10.
+//   - A floor's Field Notes can be someone else's (N.by for the header, N.sign for the signature), and a Policy Sort can
+//     name its two answers (P.yes and P.no, for a filter or a pattern instead of a policy), its header (P.by) and what
+//     arrives (P.what). Defaults as before.
+//   - A fight's backdrop is SD.run.stageArt(ch) when the page has one (the vector build draws its own), as in js/run.js.
 //   - Bots take their champion's name.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
@@ -86,7 +93,7 @@
   // Backup's limit); qk: the last question's number. lt: what lands next turn ([target, Mitigate, Absorb], `later`);
   // rf: Reflect [pct, turns left, cap per hit]; qs: rares' open questions (play() below).
   const TEAM = ['hardened', 'regen', 'regenT', 'turnSla', 'retry', 'intangible', 'artifact', 'thorns', 'buffer', 'cnN', 'cnT', 'cnU', 'cob', 'bk', 'qk'];
-  const fightStatus = () => { const o = { hardK: null, lastHit: null, foes: [], fi: 0, lead: true, lt: [], rf: null, qs: [] }; TEAM.forEach(k => { o[k] = 0; }); return o; };
+  const fightStatus = () => { const o = { hardK: null, lastHit: null, foes: [], fi: 0, lead: true, lt: [], rf: null, qs: [], tw: 0 }; TEAM.forEach(k => { o[k] = 0; }); return o; };
   const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
   const rnd = a => a[Math.floor(Math.random() * a.length)];
   const obj = o => (o && typeof o === 'object' && !Array.isArray(o) ? o : {});
@@ -489,6 +496,8 @@
     SD.cards['st-techdebt3'] = sc('Tech Debt (3)', 3, 'spider-web', { stale: 2 }, 'Pay it down for 3 Capacity (exhaust). Each end of turn it sits in your hand, +2 Stale, and each time it\'s shuffled back unpaid it adds a Tech Debt (1): debt compounds.', { reshuffle: 'st-techdebt' });
     SD.cards['st-pager'] = sc('Pager Alert (1)', 1, 'siren', { sla: 2, then: 3 }, 'Acknowledge it for 1 Capacity (exhaust). Unacknowledged at the end of your turn, the team loses 2 SLA, then 3 each time after.');
     SD.cards['st-pager2'] = sc('Pager Alert (2)', 2, 'siren', { sla: 4, then: 6 }, 'Acknowledge it for 2 Capacity (exhaust). Unacknowledged at the end of your turn, the team loses 4 SLA, then 6 each time after.');
+    // The Exam Twist a boss with SD.twists asks at half Severity (twistDue below). Never dealt, never offered.
+    SD.cards['st-twist'] = { name: 'Exam Twist', cost: 0, kind: 'action', rarity: 'basic', quest: true, unplayable: true, tags: [], art: 'note', ask: { c: [], who: 'self' }, speed: { fast: { mit: 16 }, steady: { mit: 16 }, slow: { mit: 10 } }, text: 'The boss\'s incident again, with one thing changed. Which part of your answer still holds?' };
     SD.cards['st-pager3'] = sc('Pager Alert (3)', 3, 'siren', { sla: 6, page: 'st-pager' }, 'Acknowledge it for 3 Capacity (exhaust). Unacknowledged at the end of your turn, the team loses 6 SLA and every player gets a Pager Alert (1).');
   }
   const STATUS_ADD = {}; Object.keys(ADD).forEach(k => { STATUS_ADD[k] = SD.cards && SD.cards[ADD[k]] ? SD.cards[ADD[k]].name : k; });
@@ -953,6 +962,16 @@
     });
     return any;
   }
+  // An Exam Twist (SD.twists, as js/run.js): the first time a boss that has them is at half Severity or less, every
+  // player owes one, on the question queue like a rare's. The page draws it (owedQ), the host pays it (resolveQ).
+  function twistDue(G) {
+    const f = G.foes[0], list = f && SD.twists && SD.twists[f.boss];
+    if (G.ph !== 'fight' || G.tier !== 'boss' || G.tw || !Array.isArray(list) || !list.length || f.sev <= 0 || f.sev > f.max / 2) return;
+    G.tw = 1;
+    const ks = Object.keys(G.players).slice(0, 4);
+    ks.forEach(k => G.qs.push({ k: ++G.qk, p: k, c: enc(['st-twist']), a: [k], q: 'tw:' + f.boss, r: {}, m: [], t: 0, w: null, d: Date.now() + (TIMER + QGRACE) * 1000 }));
+    G.log = `${G.log ? G.log + ' ' : ''}${SD.enemies[f.boss].short || SD.enemies[f.boss].name} staggers, and the incident changes. Exam Twist: each of you answers one.`;
+  }
   // Runbook Ready: this player takes card i of the ones they're looking at. Once they've taken enough, the rest go to
   // the bottom (the discard, which is drawn last).
   function take(p, i) {
@@ -1319,6 +1338,7 @@
     }
     // After a fight or a wipe, before anything is sent.
     function settle() {
+      twistDue(G);
       if (G.ph === 'won') {
         G.rooms++;
         const tier = G.tier, gain = {};
@@ -1832,7 +1852,7 @@
       const n = G.foes.length, GX = { 2: [36, 6], 3: [54, 30, 6] }, tg = aimHere();
       const foes = n > 1 ? G.foes.map((f, i) => { const fe = SD.enemies[f.boss], down = f.sev <= 0; return `<div class="foe gfoe${i === 0 && G.tier !== 'fight' ? ' elite' : ''}${i === tg && !down ? ' tgt' : ''}${down ? ' down' : ''}" data-fi="${i}" style="--foe:${col(fe)};--gx:${GX[n][i]}%"${down ? '' : ` tabindex="0" role="button" aria-pressed="${i === tg}" aria-label="Target ${esc(foeName(G, i))}"`}>${SD.art.enemy(fe.sprite, false, fe.hue)}</div>`; }).join('')
         : `<div class="foe" style="--foe:${col(e)}">${SD.art.enemy(e.sprite, true, e.hue)}</div>`;
-      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" style="background-image:url(assets/img/battle/bg-${b}.webp)"><div class="rd-party">${fighters}</div>${foes}</div>`;
+      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" style="background-image:url(${SD.run && SD.run.stageArt ? SD.run.stageArt(+b || 1) : `assets/img/battle/bg-${b}.webp`})"><div class="rd-party">${fighters}</div>${foes}</div>`;
     }
     let raf = 0;
     (function tick() {
@@ -1954,6 +1974,13 @@
         p.innerHTML = ''; keep.forEach(n => p.appendChild(n)); p.hidden = hid;
       }
     }
+    // An Exam Twist's question ('tw:' and the boss's id): one of its SD.twists, with what changed as its evidence.
+    const twistQ = s => {
+      const m = /^tw:(\w+)$/.exec(String(s)), list = m && SD.twists && SD.twists[m[1]];
+      if (!Array.isArray(list) || !list.length) return null;
+      const i = Math.floor(Math.random() * list.length), t = list[i];
+      return Object.assign({ type: 'mc', id: 'tw-' + m[1] + '-' + i }, t, { ev: 'What changed: ' + t.change + (t.ev ? '\n\n' + t.ev : '') });
+    };
     const findQ = (id, c) => (SD.state.questionsFor ? SD.state.questionsFor(c) : []).concat(SD.questions || [], SD.explain || []).find(q => q.id === id) || null;
     // Scenes follow the expedition: a floor's title card and intro when the party reaches it, the last floor's outro
     // before the next, and Seymour when a tape plays. A page that joins late starts with the floor it finds.
@@ -1991,8 +2018,8 @@
     async function notesHere(r) {
       const N = SD.fieldNotes[r.n], steps = N.steps || [], show = r.fd ? Math.ceil(steps.length / 2) : steps.length;
       const li = steps.map((t, i) => i < show ? `<li>${esc(t)}</li>` : '<li class="fn-gap">…</li>').join('');
-      await panelHere(`<div class="q-ctx">Freya's Field Notes · ${esc(N.title)}</div>${N.ev ? `<pre class="q-ev">${esc(N.ev)}</pre>` : ''}
-        <ol class="fn-steps">${li}</ol>${r.fd ? '<p class="muted small">The notes stop here. You finish them: the question is the rest.</p>' : ''}<p class="fn-sign">xx F.</p>
+      await panelHere(`<div class="q-ctx">${esc(N.by || 'Freya\'s Field Notes')} · ${esc(N.title)}</div>${N.ev ? `<pre class="q-ev">${esc(N.ev)}</pre>` : ''}
+        <ol class="fn-steps">${li}</ol>${r.fd ? '<p class="muted small">The notes stop here. You finish them: the question is the rest.</p>' : ''}<p class="fn-sign">${esc(N.sign || 'xx F.')}</p>
         <div class="row"><button class="primary" type="button" id="fn-ok">${r.fd ? 'I\'ll finish it' : 'Got it'}</button></div>`, 'FIELD NOTES', (el, done) => { el.querySelector('#fn-ok').onclick = () => done(true); });
       const q = N.q ? Object.assign({ c: N.c }, N.q) : pickQ(N.c);
       if (!q) { send({ k: 'ans', ok: true, band: 'steady' }); return; }
@@ -2002,14 +2029,14 @@
     }
     // Policy Sort (SD.policySorts): predict how many of the five requests get through, sort them, then the answers.
     async function sortHere(r) {
-      const P = SD.policySorts[r.n], reqs = P.reqs || [], t0 = Date.now();
+      const P = SD.policySorts[r.n], reqs = P.reqs || [], t0 = Date.now(), YES = P.yes || 'Allowed', NO = P.no || 'Denied';
       const ev = P.ev ? `<pre class="q-ev">${esc(P.ev)}</pre>` : '';
-      const guess = await panelHere(`<div class="q-ctx">Policy Sort · ${esc(P.title)}</div>${ev}<p class="q-q">${reqs.length} requests are about to arrive. How many get through?</p>
+      const guess = await panelHere(`<div class="q-ctx">${esc(P.by || 'Policy Sort')} · ${esc(P.title)}</div>${ev}<p class="q-q">${reqs.length} ${esc(P.what || 'requests')} are about to arrive. How many get through?</p>
         <div class="row">${reqs.map((x, i) => `<button class="mi-btn sm ps-n" type="button" data-n="${i}">${i}</button>`).join('')}<button class="mi-btn sm ps-n" type="button" data-n="${reqs.length}">${reqs.length}</button></div>`, 'POLICY SORT', (el, done) => {
         el.querySelectorAll('.ps-n').forEach(b => { b.onclick = () => done(+b.dataset.n); });
       });
-      const pick = await panelHere(`<div class="q-ctx">Policy Sort · ${esc(P.title)}</div>${ev}<p class="q-q">Sort each request.</p>
-        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req"><span>${esc(x.t)}</span><span class="ps-tg" role="group"><button type="button" data-i="${i}" data-v="1">Allowed</button><button type="button" data-i="${i}" data-v="0">Denied</button></span></div>`).join('')}</div>
+      const pick = await panelHere(`<div class="q-ctx">${esc(P.by || 'Policy Sort')} · ${esc(P.title)}</div>${ev}<p class="q-q">Sort each one.</p>
+        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req"><span>${esc(x.t)}</span><span class="ps-tg" role="group"><button type="button" data-i="${i}" data-v="1">${esc(YES)}</button><button type="button" data-i="${i}" data-v="0">${esc(NO)}</button></span></div>`).join('')}</div>
         <div class="row"><button class="primary" type="button" id="ps-go" disabled>Check them</button></div>`, 'POLICY SORT', (el, done) => {
         const v = {}, go = el.querySelector('#ps-go');
         el.querySelectorAll('.ps-tg button').forEach(b => { b.onclick = () => { v[b.dataset.i] = b.dataset.v === '1'; el.querySelectorAll(`.ps-tg button[data-i="${b.dataset.i}"]`).forEach(x => x.classList.toggle('on', x === b)); go.disabled = Object.keys(v).length < reqs.length; }; });
@@ -2019,7 +2046,7 @@
       reqs.forEach((x, i) => { if (!!pick[i] !== !!x.ok && o.onMiss) o.onMiss({ c: P.c }); });
       await panelHere(`<div class="verdict ${right === reqs.length ? 'ok' : right >= reqs.length - 1 ? 'ok' : 'bad'}">${right} OF ${reqs.length} RIGHT</div>
         <p>${guess === through ? `You predicted ${through} would get through, and ${through} did. Good call.` : `You predicted ${guess}; ${through} got through.`}</p>
-        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req ${!!pick[i] === !!x.ok ? 'ok' : 'bad'}"><span><b>${x.ok ? 'Allowed' : 'Denied'}.</b> ${esc(x.t)}</span><small>${esc(x.why)}</small></div>`).join('')}</div>
+        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req ${!!pick[i] === !!x.ok ? 'ok' : 'bad'}"><span><b>${esc(x.ok ? YES : NO)}.</b> ${esc(x.t)}</span><small>${esc(x.why)}</small></div>`).join('')}</div>
         <div class="row"><button class="primary" type="button" id="ps-done">Continue</button></div>`, 'POLICY SORT', (el, done) => { el.querySelector('#ps-done').onclick = () => done(true); });
       const ms = Date.now() - t0, ok = right >= reqs.length - 1;
       send({ k: 'ans', ok, band: right === reqs.length && guess === through ? 'fast' : right === reqs.length ? 'steady' : bandOf(Math.max(ms, 46000)) });
@@ -2059,7 +2086,7 @@
         asked[key] = true;
         queue(async () => {
           const id = dec(e.c, 1)[0], d = card(id), owner = G.players[e.p];
-          const q = (e.q && bankQ(e.q)) || RD.rareQuestion(id, ASKED);
+          const q = (e.q && (bankQ(e.q) || twistQ(e.q))) || RD.rareQuestion(id, ASKED);
           if (!q) { send({ k: 'qa', id: e.k, ok: false, band: 'slow' }); return; }
           ASKED.add(q.id);
           const typed = q.type === 'explain';

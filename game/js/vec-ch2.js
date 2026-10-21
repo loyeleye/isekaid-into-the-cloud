@@ -255,7 +255,8 @@
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning.'],
       ['seymour', 'And a copy anyone can delete is not a copy.'],
       ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.']
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
+      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.']
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
@@ -314,6 +315,86 @@
     why: 'A topic sends a copy to every subscription. A filter policy on each subscription decides which copies it accepts.',
       eli5: 'Every party member was getting every shout. Now each mailbox has its own filter, like a loot filter per player, so each one only picks up the messages meant for it.' };
 
+  // ---------- Pair scenes ----------
+  // The three the Story Bible names for chapter 2's act 1 (Relationships tab): Three, One, Four at the edge the first
+  // night (Dutch and Seo-yeon, arc 6 scene 2); Unmake It in Thornwick after Tilly looks through Mira (Kai and Mira,
+  // arc 5 scene 2); Sunlight on Thornwick's marsh path at noon (Mira and Seo-yeon, arc 4 scene 2). Short, skippable,
+  // no choices. Your lead changes the angle: one of the pair plays their side with one inner line nobody else hears;
+  // anyone else walks in partway through. A scene missed in the world comes back at the next camp.
+  // Storyboards: /mnt/project-files/storyboard/ch2/01-three-one-four.md, 02-unmake-it.md, 03-sunlight.md.
+  {
+    const KK = K, N = KK.NIGHT, { p, c, e, r, g } = KK, S2 = KK.scenes;
+    // The cart at the edge, the first night: its plank wall between two people, a lamp turned low.
+    S2['c2-cart'] = KK.scene([
+      KK.skyL('ct0', '#0a0a18', '#1c1a30'), KK.stars(1200, 700, 160, 41, 0.9),
+      p('M0 760 C300 740 600 780 900 750 C1000 740 1100 760 1200 750 L1200 1200 L0 1200Z', '#18162a', N, 4),
+      g(p('M-260 0 L260 0 L260 -300 L-260 -300Z', '#5a3e26', N, 5) + p('M-260 -100 h520 M-260 -200 h520', null, '#3e2a18', 5) + p('M-180 0 L-180 -300 M0 0 L0 -300 M180 0 L180 -300', null, '#4a3220', 4)
+        + c(-200, 40, 70, '#3a2818', N, 5) + c(200, 40, 70, '#3a2818', N, 5) + c(-200, 40, 12, N) + c(200, 40, 12, N), 'translate(600 900)'),
+      g(r(-14, -40, 28, 40, '#ffd27a', N, 3) + p('M-18 -40 h36 M0 -40 v-20', null, N, 3), 'translate(860 590)'), KK.glow('ctl', 860, 570, 260, '#ffb04a', 0.35),
+      KK.gradeL('ctg', '#0a1030', '#100808', 0.25, 0.2), KK.vignette(1200, 1200, 0.75)
+    ]);
+    // Thornwick's marsh path at noon: reeds, a plank walk, the sun flat and white on the water.
+    S2['c2-marsh'] = KK.scene([
+      KK.skyL('mh0', '#bfe0f2', '#fff6dc'), c(860, 220, 110, '#fffbe8', null, null, 0.95), KK.glow('mhs', 860, 220, 520, '#ffffff', 0.7),
+      p('M0 560 C200 540 400 560 600 548 C800 536 1000 556 1200 546 L1200 640 L0 640Z', '#8aa070', N, 3),
+      p('M0 620 L1200 610 L1200 1200 L0 1200Z', '#9cc4cc'), p(Array.from({ length: 9 }, (_, i) => `M${80 + i * 130} ${700 + (i % 3) * 60} h${70 + (i % 2) * 40}`).join(' '), null, '#fffbe8', 6, 0.8),
+      p('M380 1200 L520 640 L640 640 L760 1200Z', '#a8845a', N, 4) + p(Array.from({ length: 8 }, (_, i) => `M${520 - i * 18} ${700 + i * 70} h${120 + i * 36}`).join(' '), null, '#7a5a3a', 4),
+      p(Array.from({ length: 26 }, (_, i) => { const x = (i * 97) % 1200, h = 140 + (i * 37) % 120, y = 1200 - (i % 4) * 30; return `M${x} ${y} Q${x - 10} ${y - h * 0.6} ${x + 6} ${y - h}`; }).join(' '), null, '#5a7040', 6),
+      g(p('M-60 0 L-60 -60 L0 -100 L60 -60 L60 0Z', '#b8a088', N, 3) + p('M140 0 L140 -50 L190 -84 L240 -50 L240 0Z', '#a89078', N, 3), 'translate(150 560)'),
+      KK.vignette(1200, 1200, 0.3)
+    ]);
+  }
+  const PAIRS = {
+    tof: { title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
+      full: [
+        ['narr', 'Later. The others are asleep, or pretending. Dutch taps the cart wall out of habit: three, one, four. Then he stops. That\'s what Freya tapped, in Lina\'s voice. From the other side of the cart, Seo-yeon taps it back.'],
+        ['seoyeon', 'What does it mean?', 'neutral'],
+        ['dutch', 'Good night. Lina\'s. She said it was pi. I thought she meant pie.', 'stone'],
+        ['seoyeon', 'It\'s the start of pi.', 'neutral'],
+        ['dutch', 'Yeah. Says so in the diary.', 'neutral'],
+        ['narr', 'The next night, he taps first.']],
+      walk: 'You can\'t sleep. On either side of the cart\'s plank wall, two people can\'t either, and one of them has just tapped back.',
+      camp: 'At the fire, Dutch taps the log he\'s sitting on without meaning to: three, one, four. Across the fire, Seo-yeon taps it back.',
+      from: 1, inner: { dutch: [3, '(She tapped it back. Nobody has, since Lina.)'], seoyeon: [2, '(He doesn\'t know he does it. Neither did I, the first time.)'] } },
+    unmake: { title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
+      full: [
+        ['narr', 'Tilly walks on. Mira watches the grey coat until it turns the corner. Kai pulls off his glove and holds up the cracked hand.'],
+        ['kai', 'One touch. I take it off you, and the kid looks at you and sees you.', 'earnest'],
+        ['mira', 'You didn\'t ask me what I want. You told me what you want.', 'cold'],
+        ['narr', 'He doesn\'t understand yet.'],
+        ['mira', 'No, Kai.', 'tired'],
+        ['narr', 'He keeps the glove on, and he\'s angry about it for a day.']],
+      walk: 'You catch them up by the well. Kai has his glove off, and his cracked hand held up between them.',
+      camp: 'At the fire, Kai turns his glove over and over. Then he pulls it off, and holds up the cracked hand to Mira.',
+      from: 1, inner: { kai: [2, '(It would work. I know it would work.)'], mira: [3, '(She looked straight through me. Better that than knowing me.)'] } },
+    sunlight: { title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
+      full: [
+        ['narr', 'The marsh path, at noon. The sun comes off the water all at once; Seo-yeon squints, and her eyes go red. Mira, whose own left eye is amber and slit, holds up a hand to shade her.'],
+        ['mira', 'People look at the eye first. Let them. Then they look at your hands, and that\'s where you tell them who you are.', 'warm'],
+        ['seoyeon', 'Your hand is a paw.', 'neutral'],
+        ['mira', 'And I\'ve delivered six babies with it.', 'smile'],
+        ['narr', 'Seo-yeon laughs out loud, once, and is appalled.']],
+      walk: 'You find them on the marsh path in the noon glare: Mira\'s hand up against the sun, and Seo-yeon\'s red eyes in its shade.',
+      camp: 'Noon, the next day, by the camp\'s water barrel. The sun comes off it all at once, and Seo-yeon squints, and her eyes go red. Mira holds up a hand to shade her.',
+      from: 1, inner: { mira: [2, '(Don\'t fuss. She hates being fussed. Just the hand.)'], seoyeon: [3, '(Do not laugh. Namgung\'s daughter does not laugh in a marsh.)'] } }
+  };
+  C2.pairSeen = id => flag('pair-' + id);
+  // where: 'camp' when it comes back at the next camp, else in its own place.
+  C2.pair = async function (id, where) {
+    const P = PAIRS[id], me = (S.save.c1 && S.save.c1.lead) || 'mira';
+    if (!P || flag('pair-' + id)) return;
+    const mine = P.pair.includes(me);
+    let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
+    if (where === 'camp') lines[0] = ['narr', P.camp];
+    if (mine) { const [at, t] = P.inner[me]; lines.splice(mine && where !== 'camp' ? at : Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]); }
+    U.closePanel(); U.stage(null);
+    AU.music(P.music);
+    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['narr', P.title.toUpperCase() + ' · ' + P.pair.map(x => SD.ch1story.leads[x].name.split(' ')[0]).join(' and ')],
+      ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    setFlag('pair-' + id);
+  };
+  C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
+
   // ---------- Moments you play in the visual novel ----------
   const esc = s => U.esc(s);
   const css = document.createElement('style');
@@ -355,114 +436,17 @@
     tools.closePanel();
   };
 
-  // ---------- Expedition I: The Sorting Floors ----------
-  R.NODE.fboss = { l: 'Floor Boss', g: 'crowned-skull' };
-  const EVENTS = {
-    pip: { title: 'Pip in the Dead Letters', concept: 'dlq',
-      text: 'In a sorting bin on the first floor, under a drift of returned mail, is Pip: a small, polite packet who has never been answered and is very sorry to be a bother. "They tried me three times," he says, "and then they put me in here. Is that bad?"',
-      choices: [
-        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', good: true, out: 'Pip: "Set aside. For someone to look at. Oh." He climbs into your satchel. He\'ll be at camp from now on.', effect: { card: 'dlq', xp: 15 } },
-        { label: 'SQS deletes a letter after three failures, so you shouldn\'t exist', good: false, out: 'SQS never deletes a letter for failing. Only a DeleteMessage call, or the retention period running out, removes one.', effect: { sla: -5 } },
-        { label: 'You\'re in a FIFO queue, so you\'re waiting your turn', good: false, out: 'He\'s not waiting his turn. He failed, more times than the redrive policy allows.', effect: {} }
-      ] },
-    runbook: { title: 'Kyu\'s Runbook, Page 1', concept: 'lambdasqs',
-      text: 'A page in Kyu\'s handwriting, pinned to a sorting desk: a worked example. "A function reads ten letters at a time. One is malformed. Every batch fails, and the nine good ones go round again." Underneath, she\'s left a blank for the fix.',
-      choices: [
-        { label: 'Turn on partial batch responses and report only the bad letter; a redrive policy parks it after maxReceiveCount', good: true, out: 'The nine good letters are deleted. The bad one comes back alone, and after a few tries the redrive policy takes it to the dead-letter queue.', effect: { card: 'batchfail', xp: 15 } },
-        { label: 'Catch the error and return success, so the batch is deleted', good: false, out: 'The batch is deleted, the bad letter with it, and nobody ever finds out what was wrong with it.', effect: { sla: -6 } },
-        { label: 'Raise the batch size, so the bad letter is a smaller share', good: false, out: 'Now a hundred good letters go round again instead of nine.', effect: { sla: -4 } }
-      ] },
-    pigeon: { title: 'Coo\'s Lost Pigeon', concept: 'kinesis',
-      text: 'A pigeon flies in a minute late with a sack of letters for the archive, then another a minute after that. Coo: "The archive takes them in batches, never one at a time, and never loses one. What does that remind you of?"',
-      choices: [
-        { label: 'Amazon Data Firehose: it buffers records by size or time and delivers them to S3 in batches', good: true, out: 'Coo: "A minute late, never lost. That\'s my girl." The pigeon looks smug.', effect: { xp: 15, sla: 5 } },
-        { label: 'An SNS topic with the archive subscribed', good: false, out: 'S3 isn\'t something a topic can deliver to, and a topic doesn\'t batch.', effect: {} },
-        { label: 'A Kinesis data stream with no consumer', good: false, out: 'With no consumer, the records sit in the stream until they expire. Nothing reaches the archive.', effect: { sla: -4 } }
-      ] },
-    oldroad: { title: 'The Old Post Road', concept: 'mqmsk',
-      text: 'Two old routes still run into the Sorting Floors. One is the coaching inn\'s system, which speaks AMQP and STOMP and nothing else. The other is the river barges\' Kafka cluster. Neither wants rewriting.',
-      choices: [
-        { label: 'Amazon MQ for the inn\'s broker protocols, and Amazon MSK for the barges\' Kafka', good: true, out: 'Both roads keep their own language, and both connect.', effect: { xp: 15 } },
-        { label: 'Rewrite both to use SQS', good: false, out: 'That might be right one day. Today it\'s two rewrites nobody asked for.', effect: { sla: -3 } },
-        { label: 'Put both behind one SNS topic', good: false, out: 'SNS doesn\'t speak AMQP or Kafka\'s protocol to them.', effect: {} }
-      ] }
-  };
-  function event(id, done) {
-    const run = S.save.run, ev = EVENTS[id];
-    S.seeConcept(ev.concept);
-    const order = Q.shuffle(ev.choices.map((c, i) => i));
-    const b = U.panel(`<p>${esc(ev.text)}</p><div class="opts">${order.map(i => `<button class="opt" data-c="${i}">${esc(ev.choices[i].label)}</button>`).join('')}</div>`, { title: ev.title.toUpperCase(), noClose: true });
-    b.querySelectorAll('[data-c]').forEach(el => el.onclick = () => {
-      const ch = ev.choices[+el.dataset.c], e = ch.effect;
-      S.recordAnswer(ev.concept, ch.good, 1, 15000);
-      if (e.sla) run.sla = Math.max(1, Math.min(S.maxSla(), run.sla + e.sla));
-      if (e.card) run.deck.push({ id: e.card, up: false });
-      if (e.xp) R.gainXp(e.xp);
-      if (id === 'pip') setFlag('pip');
-      S.persist(); AU.sfx(ch.good ? 'right' : 'wrong');
-      const fx = [e.sla ? `${e.sla > 0 ? '+' : ''}${e.sla} SLA` : '', e.card ? `New card: ${SD.cards[e.card].name}` : '', e.xp ? `+${e.xp} XP` : ''].filter(Boolean).join(' · ');
-      const b2 = U.panel(`<div class="verdict ${ch.good ? 'ok' : 'bad'}">${ch.good ? 'GOOD CALL!' : 'HMM...'}</div><p>${esc(ch.out)}</p>${fx ? `<p class="muted">${esc(fx)}</p>` : ''}<p class="why">${esc(SD.concepts[ev.concept].gist)}</p><button class="primary" id="ev-ok">Continue</button>`, { title: ev.title.toUpperCase(), noClose: true });
-      b2.querySelector('#ev-ok').onclick = () => { U.closePanel(); done(); };
-    });
-  }
-  function sortingRoom(done) {
-    const run = S.save.run, heal = Math.round(S.maxSla() * 0.3);
-    const b = U.panel(`<p>An empty sorting room with a kettle that works. Everyone sits on the mail sacks at once.</p>
-      <div class="opts"><button class="opt" id="sr-rest"><b>Rest</b> · Mira patches everyone up: recover ${heal} SLA</button>
-      <button class="opt" id="sr-up"><b>Practise</b> · upgrade a card (+3 to its numbers)</button></div>`, { title: 'THE SORTING ROOM', noClose: true });
-    b.querySelector('#sr-rest').onclick = () => { run.sla = Math.min(S.maxSla(), run.sla + heal); AU.sfx('heal'); S.persist(); U.closePanel(); done(); };
-    b.querySelector('#sr-up').onclick = () => R.api.pickCard('Upgrade which card?', c => { c.up = true; S.persist(); U.closePanel(); U.system('CARD UPGRADED', esc(SD.cards[c.id].name) + '+'); done(); }, () => sortingRoom(done), c => !c.up && SD.cards[c.id].rarity);
-  }
-  const floorOf = id => (+String(id).split('-')[0] < 3 ? 1 : 2);   // floor 1 ends with the Postmistress on row 3
+  // The chapter's record for the rest of the game (its rank, boss and card unlocks, js/state.js chapterReached). Its
+  // Expedition I is played on the raid engine below, not as a dungeon run.
   SD.chapters[2] = {
     name: 'the Sorting Floors', rank: 'E', boss: 'belfry', gate: 'UP THE STAIR TO THE SORTING FLOORS...',
     blurb: 'Expedition I: the halls where Thornwick\'s letters are processed, and never come out.',
-    pools: { 1: ['pill', 'visghost'], 2: ['twins2', 'emptyclerk'], 3: ['towncrier', 'millrace'], elite: ['backlog', 'herd'] },
-    hooks: {
-      start(run) {
-        const lead = S.save.c1 && S.save.c1.lead;
-        run.deck = ['hotfix', 'hotfix', 'hotfix', 'hotfix', SD.ch1story.leads[lead] ? SD.ch1story.leads[lead].card : 'hotfix', 'dlq', 'vistimeout', 'idem', 'longpoll', 'fifo', 'subscribe', 'filterpol', 'pattern', 'shardkey'].map(id => ({ id, up: false }));
-        const N = (id, type, next, x) => Object.assign({ id, f: +id.split('-')[0], lane: +id.split('-')[1], type, next }, x || {});
-        run.map = { floors: [
-          [N('0-0', 'fight', ['1-0', '1-1'], { eid: 'pill' }), N('0-2', 'fight', ['1-1', '1-2'], { eid: 'emptyclerk' })],
-          [N('1-0', 'event', ['2-0'], { ev: 'pip' }), N('1-1', 'fight', ['2-0', '2-2'], { eid: 'twins2' }), N('1-2', 'fight', ['2-2'], { eid: 'visghost' })],
-          [N('2-0', 'elite', ['3-1'], { eid: 'backlog' }), N('2-2', 'event', ['3-1'], { ev: 'runbook' })],
-          [N('3-1', 'fboss', ['4-0', '4-1', '4-2'], { eid: 'postmistress' })],
-          [N('4-0', 'fight', ['5-0'], { eid: 'towncrier' }), N('4-1', 'event', ['5-0', '5-2'], { ev: 'oldroad' }), N('4-2', 'fight', ['5-2'], { eid: 'bellnoringer' })],
-          [N('5-0', 'event', ['6-0', '6-2'], { ev: 'pigeon' }), N('5-2', 'fight', ['6-2'], { eid: 'millrace' })],
-          [N('6-0', 'elite', ['7-1'], { eid: 'herd' }), N('6-2', 'camp', ['7-1'])],
-          [N('7-1', 'boss', [])]
-        ] };
-        SD.ch1.dress();
-      },
-      hud(run) { const f = run.pos ? floorOf(run.pos) : 1; return `<span class="hud-chip">Raid floor ${f}: ${f === 1 ? 'Intake' : 'Fan-out'}</span>`; },
-      node(n, done) {
-        if (n.type === 'fboss') {
-          U.system('[FLOOR BOSS] THE POSTMISTRESS', 'A standard queue: her hits arrive out of order, and some arrive twice. A FIFO card puts them in order, but only within one message group.', 'gold');
-          R.api.fight(n.eid, { boss: true }, () => { U.system('RAID FLOOR 1 CLEARED', 'Intake is quiet. Up the stair: Fan-out.', 'gold'); done(); });
-          return true;
-        }
-        if (n.eid) { R.api.fight(n.eid, { diagnose: true, elite: n.type === 'elite' }, done); return true; }
-        if (n.ev) { event(n.ev, done); return true; }
-        if (n.type === 'camp') { sortingRoom(done); return true; }
-        return false;
-      },
-      boss() {
-        belfry();
-        return true;
-      },
-      end(won) {
-        S.save.run = null; S.persist();
-        if (won) { setFlag('won'); afterExpedition(); return true; }
-        lost();
-        return true;
-      }
-    }
+    pools: { 1: ['pill', 'visghost'], 2: ['twins2', 'emptyclerk'], 3: ['towncrier', 'millrace'], elite: ['backlog', 'herd'] }
   };
 
-  // ---------- The bosses' incidents (js/run.js R.incident) and Exam Twists (examTwist) ----------
-  // The Belfry, the floors' last boss, is worked as an incident first: diagnose, fix, prevent. The Postmistress, the
-  // floor boss on the way, has only her twists.
+  // ---------- The bosses' incident and Exam Twists ----------
+  // The Belfry's incident (diagnose, fix, prevent) is worked over three of Kyu's runbook pages on Fan-out; both bosses
+  // ask their Exam Twists at half Severity (js/raid.js, SD.twists).
   SD.bossDesign.belfry = {
     concepts: ['snsfan', 'sqs'],
     diagnose: {
@@ -542,15 +526,411 @@
         'Standard queues don\'t deduplicate at all: they deliver at least once.'],
       why: 'FIFO drops a repeat with the same deduplication ID only inside its 5-minute interval. A later repeat is delivered, so the handler should be idempotent too, for example by recording each letter\'s ID once it\'s handled.' }
   ];
-  async function belfry() {
-    AU.music('boss');
-    const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
-    SD.bossDesign.belfry.concepts.forEach(c => S.seeConcept(c));
-    const ok = await R.incident('belfry', buffs);
-    S.save.run.boss = ok;
-    S.persist();
-    U.system('[BOSS] THE BELFRY', 'One attack, copied to every subscriber. Filter policies make each copy reach only the one it\'s addressed to.', 'gold');
-    R.api.fight('belfry', { boss: true, reveal: !!(ok.diagnose || ok.prevent), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => R.api.endRun(true));
+  // ---------- Expedition I: The Sorting Floors ----------
+  // On the Borderlands engine (js/raid.js), like chapter 1's Deny Mines (js/ch1-mines.js): two floors of nine rows,
+  // each ending in its boss, alone with your three companions as bots or in a party (net.js prefix 's'). Here: the
+  // floors' cards and curse, Kyu's runbook pages (the engine's Field Notes), the Sorting Tables (its Policy Sorts),
+  // the events (Pip's among them), the expedition, and C2.sorting, which Thornwick's stair and the slice call.
+  //   Floor 1, Intake: what a queue promises, visibility, long polling, FIFO groups and deduplication, dead letters.
+  //     Boss: the Postmistress Without Post. Every path crosses the row where Pip is.
+  //   Floor 2, Fan-out: topics and filter policies (the Belfry's incident, worked over three runbook pages), rules
+  //     and patterns, shards. Boss: the Belfry. Both bosses ask their Exam Twists at half Severity (SD.twists).
+  const ORDER = ['mira', 'kai', 'seoyeon', 'dutch'];
+  let playing = false;   // true while the Sorting Floors are on screen: the mines step aside, rewards are chapter 2's
+  Object.keys(SD.enemies).forEach(id => { if (SD.enemies[id].ch === 2) SD.enemies[id].raid = true; });
+  // Nothing Arrives, as the raid's kind of curse: an unread letter in every deck until Coo's Redrive Stamp.
+  SD.cards['c2-unread'] = { name: 'Unread Letter', cost: 1, kind: 'action', exhaust: true, rarity: 'basic', quest: true, curse: true, tags: [], art: 'note', held: { sla: 1, then: 1 },
+    text: 'Curse: Nothing Arrives. Each end of turn it sits in your hand, the team loses 1 SLA. Read it (1 Capacity) to clear it for this fight.' };
+  const SORT_CARDS = ['scale', 'jitter', 'batchfail', 'sqsbuffer', 'fifo', 'longpoll', 'filterpol', 'subscribe', 'pattern', 'shardkey'];
+  // Each lead's deck: the floors' starter cards, their champion's three in place of two Hotfixes, the cards the act 1
+  // world upgraded (S.save.c2.bonus), and the curse while it holds. Bots get the same, without your upgrades.
+  const BASE = ['hotfix', 'hotfix', 'hotfix', 'hotfix', 'dlq', 'vistimeout', 'idem', 'longpoll', 'fifo', 'subscribe', 'filterpol', 'pattern', 'shardkey'];
+  const deckFor = (champ, bot) => {
+    const b = c2().bonus || {}, CH = SD.champions;
+    const d = (CH && champ ? CH.deck(champ, BASE.slice()) : BASE.slice()).map(id => (!bot && b[id] ? id + '+' : id));
+    if (!has('redrive')) d.push('c2-unread');
+    return d;
+  };
+
+  // ---------- Kyu's runbook pages and the Sorting Tables ----------
+  // The engine's Field Notes, in Kyu's hand: a worked example, step by step (from row 5 they stop halfway), then a
+  // question on the same idea from the bank. The Belfry's three pages are its incident, worked: diagnose, fix, prevent.
+  const KYU = { by: 'Kyu\'s Runbook', sign: '— K.' };
+  const BD = SD.bossDesign.belfry;
+  Object.assign(SD.fieldNotes, {
+    'c2-retry': Object.assign({ title: 'Page 1: the letter that always fails', c: 'dlq',
+      ev: 'Queue: thornwick-post   redrive policy: maxReceiveCount 3 → thornwick-post-dlq\nLetter #88 (malformed): received, failed · received, failed · received, failed',
+      steps: [
+        'The sorter receives #88. While it works, the letter is hidden from everyone else: that\'s the visibility timeout.',
+        'The sorter throws, so it never deletes the letter. When the timeout runs out, #88 is visible again.',
+        'Every receive adds one to its receive count. SQS never deletes a letter just for failing.',
+        'Once its receive count would go past maxReceiveCount, SQS moves it to the dead-letter queue instead.',
+        'Now someone can read #88, fix what\'s wrong, and redrive it back to the source queue.'] }, KYU),
+    'c2-vis': Object.assign({ title: 'Page 2: hidden, not gone', c: 'sqs',
+      ev: 'Visibility timeout: 30 seconds\nSorting one letter takes: 50 seconds',
+      steps: [
+        'A receive hands the letter to one sorter and hides it for the visibility timeout. It\'s still in the queue.',
+        'The sorter has 30 seconds to finish and call DeleteMessage.',
+        'The work takes 50, so at 30 the letter shows up again and a second sorter takes it.',
+        'Two sorters, one letter. That\'s the Visibility Ghost.',
+        'The fix: a timeout longer than the work (or ChangeMessageVisibility while you work), and sorting that shrugs off a repeat.'] }, KYU),
+    'c2-poll': Object.assign({ title: 'Page 3: the empty tray', c: 'sqsfifo',
+      ev: 'ReceiveMessage, WaitTimeSeconds 0:  9 calls in 10 come back empty\nReceiveMessage, WaitTimeSeconds 20: the call waits for a letter',
+      steps: [
+        'Short polling asks some of the queue\'s servers and answers at once, even with nothing to give.',
+        'An empty answer is still a request, and requests are billed.',
+        'Long polling (WaitTimeSeconds 1 to 20) asks all of them, and waits until a letter arrives or the time is up.',
+        'Fewer empty answers, fewer requests, and letters picked up as soon as they land.',
+        'Set it on each receive, or for the whole queue as ReceiveMessageWaitTimeSeconds.'] }, KYU),
+    'c2-fifo': Object.assign({ title: 'Page 4: in order, and only once', c: 'sqsfifo',
+      ev: 'FIFO queue: thornwick-replies.fifo\nGroup "marrow":   question 1, answer 1, question 2\nGroup "holloway": question 1, answer 1',
+      steps: [
+        'A FIFO queue keeps order within each message group ID, not across the whole queue.',
+        'While one of a group\'s letters is out with a sorter, that group\'s next letters wait.',
+        'Other groups carry on side by side, so give each conversation its own group.',
+        'A send whose deduplication ID the queue has seen in the last 5 minutes is accepted, and not delivered again.',
+        'Order and only-once cost something: a FIFO queue handles fewer letters a second than a standard one.'] }, KYU),
+    'c2-batch': Object.assign({ title: 'Page 5: report the bad one', c: 'lambdasqs',
+      ev: 'Event source mapping: batch size 10, FunctionResponseTypes ["ReportBatchItemFailures"]\nThe function returns: { "batchItemFailures": [ { "itemIdentifier": "msg-7" } ] }',
+      steps: [
+        'Lambda polls the queue and hands the function ten letters at once.',
+        'If the function throws, the whole batch counts as failed: all ten come back after the visibility timeout.',
+        'With ReportBatchItemFailures on, the function returns the IDs that failed instead.',
+        'Lambda deletes the other nine. Only msg-7 comes back, and its failures still count toward maxReceiveCount.',
+        'An empty batchItemFailures list means every letter worked.'] }, KYU),
+    'c2-bf-diag': Object.assign({ title: 'The Belfry, 1 of 3: read the evidence', c: 'snsfan', ev: BD.diagnose.ev,
+      steps: [
+        'Count the copies: 1,200 published and 3,600 delivered. Each message went to all three subscriptions.',
+        'Failed is 0: every copy arrived. This isn\'t a delivery problem.',
+        'FilteredOut is 0: no subscription is filtering anything.',
+        'The bell-ringer\'s errors are about types that were never meant for it.'],
+      q: Object.assign({ eli5: 'Three mailboxes, and every letter goes into all three, so each box fills up with other people\'s post. Nothing got lost; too much arrived. Nobody has told any mailbox what it wants yet.' }, BD.diagnose) }, KYU),
+    'c2-bf-fix': Object.assign({ title: 'The Belfry, 2 of 3: the smallest fix', c: 'snsfan',
+      ev: 'Billing wants OrderPlaced. Shipping wants OrderPaid. The bell rings for OrderShipped.\nEvery message carries the attribute type.',
+      steps: [
+        'A topic copies every message to every subscription, unless the subscription says otherwise.',
+        'A filter policy on a subscription says which messages it wants: by message attribute (the default) or by body.',
+        'A message that doesn\'t match is skipped for that subscription only.',
+        'So the routing goes where the copies are made, not into every publisher or every service.'],
+      q: Object.assign({ eli5: 'Give each mailbox a sticky note that says what it wants, like a loot filter per player. The post still goes out once; each box only picks up its own kind.' }, BD.fix) }, KYU),
+    'c2-bf-prev': Object.assign({ title: 'The Belfry, 3 of 3: keep it fixed', c: 'snsfan',
+      ev: 'AWS::SNS::Subscription\n  Protocol: sqs\n  FilterPolicyScope: MessageAttributes\n  FilterPolicy: { "type": ["OrderShipped"] }',
+      steps: [
+        'A filter set by hand lasts until someone forgets it on the next subscription.',
+        'In the template, every subscription is written down with its filter, reviewed, and deployed the same way each time.',
+        'FilterPolicyScope says where to look: MessageAttributes, the default, or MessageBody.',
+        'A change to a filter policy can take up to 15 minutes to take full effect.'],
+      q: Object.assign({ eli5: 'Write the loot filters into the save file the server loads every night, so a new mailbox can\'t join without one.' }, BD.prevent) }, KYU),
+    'c2-fan': Object.assign({ title: 'Page 6: a queue each', c: 'snsfan',
+      ev: 'Topic: orders  →  billing-queue, shipping-queue, bell-queue (each SQS)',
+      steps: [
+        'Three services sharing one queue each get some of the messages: whoever polls first takes it.',
+        'A topic sends a copy of each message to every subscription instead.',
+        'Subscribe one queue per service, and each service has its own copy.',
+        'Each queue holds its copies until its service is ready, and each service retries on its own.',
+        'A slow service no longer holds up the others.'] }, KYU),
+    'c2-shard': Object.assign({ title: 'Page 7: in order, per shard', c: 'kinesis',
+      ev: 'Stream: bell-readings, 4 shards\nPartition key now:  a random ID on every record\nPartition key fixed: the bell\'s ID',
+      steps: [
+        'Kinesis hashes each record\'s partition key to choose its shard.',
+        'Within a shard, records stay in the order they were written.',
+        'Across shards there\'s no order at all.',
+        'A random key scatters one bell\'s readings over all four shards, so they come out jumbled.',
+        'The bell\'s ID as the key keeps each bell on one shard, in order, while the bells still spread across the stream.'] }, KYU),
+    'c2-rule': Object.assign({ title: 'Page 8: what a rule hears', c: 'eventbridge',
+      ev: 'Rule pattern: { "source": ["thornwick.post"], "detail-type": ["LetterSent"] }',
+      steps: [
+        'An event bus checks every event against every rule\'s pattern.',
+        'Each field the pattern names must match one of its listed values. Fields it doesn\'t name don\'t matter.',
+        'Values match exactly: "Letter Sent" is not "LetterSent".',
+        'No match means no delivery, and no error either. The rule just stays quiet.',
+        'For "ring at six every morning", the tool is EventBridge Scheduler, not a pattern.'] }, KYU)
+  });
+  // The Sorting Tables (the engine's Policy Sorts): predict how many of five get through, then sort them.
+  const TABLE = { by: 'The Sorting Table' };
+  Object.assign(SD.policySorts, {
+    'c2-receive': Object.assign({ title: 'Three tries', c: 'dlq', what: 'letters', yes: 'Tried again', no: 'Dead-lettered',
+      ev: 'Queue thornwick-post: redrive policy maxReceiveCount 3, to thornwick-post-dlq.\nEach letter below has just failed again. Which get another try?',
+      reqs: [
+        { t: 'Letter A: received once, failed', ok: true, why: 'A count of 1 is under 3. It\'s visible again once its visibility timeout ends.' },
+        { t: 'Letter B: received 3 times, failed every time', ok: false, why: 'Its next receive would take the count past 3, so SQS moves it to the dead-letter queue instead.' },
+        { t: 'Letter C: received twice, failed', ok: true, why: 'Two is under three: one more try.' },
+        { t: 'Letter D: received 3 times, failed, and the sorter set its visibility to 0', ok: false, why: 'Visibility doesn\'t reset the count. It\'s visible at once, and the next receive moves it.' },
+        { t: 'Letter E: received twice, failed, with 10 seconds of its visibility timeout left', ok: true, why: 'It comes back in 10 seconds, for its third and last try.' }] }, TABLE),
+    'c2-dedup': Object.assign({ title: 'Only once', c: 'sqsfifo', what: 'sends', yes: 'Delivered', no: 'Not delivered',
+      ev: 'FIFO queue replies.fifo: content-based deduplication off, deduplication scope the whole queue (the default).\n09:00:00  sent: group marrow, deduplication ID r-41',
+      reqs: [
+        { t: '09:01:00  group marrow, deduplication ID r-41', ok: false, why: 'The same ID inside 5 minutes: accepted, and not delivered again.' },
+        { t: '09:01:30  group holloway, deduplication ID r-41', ok: false, why: 'Deduplication is across the whole queue by default, so another group\'s r-41 is still a repeat.' },
+        { t: '09:02:00  group marrow, deduplication ID r-42', ok: true, why: 'A new ID. Delivered, in order behind marrow\'s first letter.' },
+        { t: '09:06:00  group marrow, deduplication ID r-41', ok: true, why: 'Six minutes on, the 5-minute window has closed: r-41 is new again.' },
+        { t: '09:03:00  group marrow, no deduplication ID', ok: false, why: 'With content-based deduplication off, a FIFO send needs a deduplication ID. This one is rejected with an error.' }] }, TABLE),
+    'c2-filter': Object.assign({ title: 'The bell queue\'s filter', c: 'snsfan', what: 'messages', yes: 'Delivered', no: 'Filtered out',
+      ev: 'Filter policy on the bell queue\'s subscription (scope: message attributes):\n{ "type": ["OrderShipped", "OrderReturned"], "village": ["thornwick"] }',
+      reqs: [
+        { t: 'type OrderShipped, village thornwick', ok: true, why: 'Both keys match: type is one of its two values, and the village is right.' },
+        { t: 'type OrderShipped, village pingsby', ok: false, why: 'Every key in the policy has to match. village doesn\'t.' },
+        { t: 'type OrderReturned, village thornwick, priority high', ok: true, why: 'Attributes the policy doesn\'t name don\'t matter.' },
+        { t: 'type OrderShipped, no village attribute', ok: false, why: 'A key the policy names has to be on the message.' },
+        { t: 'type ordershipped, village thornwick', ok: false, why: 'String matching is exact, capitals included.' }] }, TABLE),
+    'c2-pattern': Object.assign({ title: 'Marrow\'s rule', c: 'eventbridge', what: 'events', yes: 'Matched', no: 'No match',
+      ev: 'Rule pattern:\n{ "source": ["thornwick.bells"], "detail-type": ["BellRung"], "detail": { "tower": ["north", "chapel"] } }',
+      reqs: [
+        { t: 'source thornwick.bells, detail-type BellRung, detail.tower north', ok: true, why: 'Every field the pattern names matches.' },
+        { t: 'source thornwick.bells, detail-type BellRung, detail.tower south', ok: false, why: 'south isn\'t one of the towers the pattern lists.' },
+        { t: 'source thornwick.bells, detail-type BellRung, detail.tower chapel, detail.ringer marrow', ok: true, why: 'Extra fields don\'t stop a match.' },
+        { t: 'source thornwick.post, detail-type BellRung, detail.tower north', ok: false, why: 'The source is different.' },
+        { t: 'source thornwick.bells, detail-type Bell Rung, detail.tower north', ok: false, why: 'Values match exactly: "Bell Rung" isn\'t "BellRung".' }] }, TABLE)
+  });
+
+  // ---------- Events ----------
+  // Pip's is the old event's three answers, each player choosing their own (per). Every path on Intake passes it.
+  SD.expeditionEvents = Object.assign(SD.expeditionEvents || {}, {
+    'c2-pip': { id: 'c2-pip', title: 'Pip in the Dead Letters', who: 'pip', per: true,
+      text: 'In a sorting bin, under a drift of returned mail, is Pip: a small, polite packet who has never been answered and is very sorry to be a bother. "They tried me three times," he says, "and then they put me in here. Is that bad?"',
+      choices: [
+        { label: 'SQS deletes a letter after three failures, so you shouldn\'t exist', out: 'SQS never deletes a letter for failing. Only a DeleteMessage call, or the end of the retention period, removes one. Pip looks worried. The team loses 5 SLA.', fx: { sla: -5 } },
+        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', out: 'Pip: "Set aside. For someone to look at. Oh." He climbs into your satchel. You get a Dead-Letter Queue card.', fx: { card: 'dlq' } },
+        { label: 'You\'re in a FIFO queue, waiting your turn', out: 'He isn\'t waiting his turn. He failed, more times than the redrive policy allows.', fx: {} }] },
+    'c2-pigeon': { id: 'c2-pigeon', title: 'Coo\'s Lost Pigeon', who: null, per: true,
+      text: 'A pigeon flies in a minute late with a sack of letters for the archive, then another a minute after that. A note in Coo\'s hand: "The archive takes them in batches, never one at a time, and never loses one. What does that remind you of?"',
+      choices: [
+        { label: 'An SNS topic with the archive subscribed', out: 'S3 isn\'t something a topic delivers to, and a topic doesn\'t batch.', fx: {} },
+        { label: 'A Kinesis data stream with no consumer', out: 'With no consumer, the records sit in the stream until they expire. Nothing reaches the archive. The team loses 4 SLA.', fx: { sla: -4 } },
+        { label: 'Amazon Data Firehose: it buffers records by size or time and delivers them to S3 in batches', out: '"A minute late, never lost. That\'s my girl." The pigeon looks smug. You gain 15 bits, and the team 4 SLA.', fx: { bits: 15, sla: 4 } }] },
+    'c2-oldroad': { id: 'c2-oldroad', title: 'The Old Post Road', who: null, per: true,
+      text: 'Two old routes still run into the Sorting Floors. One is the coaching inn\'s system, which speaks AMQP and STOMP and nothing else. The other is the river barges\' Kafka cluster. Neither wants rewriting.',
+      choices: [
+        { label: 'Amazon MQ for the inn\'s broker protocols, and Amazon MSK for the barges\' Kafka', out: 'Both roads keep their own language, and both connect. You gain 15 bits.', fx: { bits: 15 } },
+        { label: 'Rewrite both to use SQS', out: 'That might be right one day. Today it\'s two rewrites nobody asked for. The team loses 3 SLA.', fx: { sla: -3 } },
+        { label: 'Put both behind one SNS topic', out: 'SNS doesn\'t speak AMQP or Kafka\'s protocol to them.', fx: {} }] },
+    'c2-sack': { id: 'c2-sack', title: 'A Sack of Returned Mail', who: null,
+      text: 'A sack with RETURN TO SENDER stamped on it a hundred times. Somebody has to work out why it keeps coming back.',
+      choices: [
+        { label: 'Sort it properly', out: 'Right: each of you picks an uncommon card from the sack. Wrong: it spills on the team for 6 SLA.', fx: { ask: { c: 'snsfan', right: { card: 'uncommon' }, wrong: { sla: -6 } } } },
+        { label: 'Tip it down the chute (10 bits each)', out: 'It comes back up the chute an hour later. Each of you gains 10 bits; the team loses 6 SLA.', fx: { bits: 10, sla: -6 } },
+        { label: 'Leave it', out: 'You walk on. The sack sighs.', fx: {} }] }
+  });
+
+  // ---------- The expedition ----------
+  SD.expeditions = (SD.expeditions || []).concat([{
+    id: 'sortingfloors', name: 'The Sorting Floors', who: ORDER, opens: () => playing, sev: 0.85, dmg: 0.85,
+    blurb: 'Expedition I: the halls where Thornwick\'s letters are processed, and never come out.',
+    back: 'Back down to the Free Cloud',
+    cafe: { title: 'The Franking Room', who: null, name: 'The franking room', text: 'A franking machine with a kettle on top, and cards on the counter with prices stamped on them.' },
+    camp: { title: 'The Sorting Room', text: 'An empty sorting room with a kettle that works. Everyone sits on the mail sacks at once. Rest, or practise one of your cards.' },
+    regroup: [{ who: 'mate1', text: 'Up. All of us. Back to the top of the floor: we know what\'s in there now.' }],
+    floors: [
+      { name: 'Intake', gate: 'THE SORTING FLOORS · INTAKE', map: '2', beat: 'Where Thornwick\'s letters arrive, and go round, and round.',
+        boss: 'postmistress', bossTitle: 'The Postmistress Without Post', fade: 4,
+        plan: [['fight', 'notes', 'fight'], ['event', 'event', 'event'], ['fight', 'sort', 'notes'], ['elite', 'fight', 'cafe'], ['camp', 'notes', 'fight'], ['fight', 'sort', 'board'], ['notes', 'elite', 'fight'], ['fight', 'notes', 'sort'], ['camp', 'cafe', 'camp']],
+        fights: ['pill', 'visghost', 'twins2', 'emptyclerk', { ids: ['pill', 'emptyclerk'] }, { ids: ['visghost', 'twins2'] }],
+        elites: ['backlog'],
+        notes: ['c2-retry', 'c2-vis', 'c2-poll', 'c2-fifo', 'c2-batch'],
+        sorts: ['c2-receive', 'c2-dedup'],
+        events: ['c2-pip'],
+        intro: [
+          { who: null, text: 'The Sorting Floors. Chutes from Thornwick pour letters into trays, and nothing ever leaves by the other side.' },
+          { who: 'lead', text: 'Every letter Thornwick ever posted is somewhere in here.' },
+          { who: 'mate1', text: 'Then we find out why none of them come out.' }],
+        outro: [
+          { who: null, text: 'The Postmistress puts her last letter in its right place, behind the one it answers, and sits down on a sack.' },
+          { who: 'mate2', text: 'A group for every family. She only needed telling.' },
+          { who: 'lead', text: 'Up. Something up there is ringing.' }] },
+      { name: 'Fan-out', gate: 'THE SORTING FLOORS · FAN-OUT', map: '2', beat: 'A bell tower inside the tower, every rope tied to every bell.',
+        boss: 'belfry', bossTitle: 'The Belfry', fade: 5,
+        plan: [['fight', 'notes', 'fight'], ['notes', 'fight', 'sort'], ['fight', 'event', 'notes'], ['elite', 'notes', 'cafe'], ['camp', 'fight', 'event'], ['notes', 'sort', 'fight'], ['fight', 'elite', 'board'], ['event', 'notes', 'fight'], ['camp', 'cafe', 'camp']],
+        fights: ['towncrier', 'bellnoringer', 'millrace', { ids: ['towncrier', 'bellnoringer'] }, { ids: ['millrace', 'emptyclerk'] }],
+        elites: ['herd'],
+        notes: ['c2-bf-diag', 'c2-bf-fix', 'c2-bf-prev', 'c2-fan', 'c2-shard', 'c2-rule'],
+        sorts: ['c2-filter', 'c2-pattern'],
+        events: ['c2-pigeon', 'c2-oldroad', 'c2-sack'],
+        intro: [
+          { who: null, text: 'Fan-out. A bell tower inside the tower, and every rope in it tied to every bell.' },
+          { who: 'mate1', text: 'Every message, to everyone. That\'s not a post office. That\'s shouting.' },
+          { who: 'lead', text: 'Then each of them gets a filter.' }],
+        outro: [
+          { who: null, text: 'The Belfry falls quiet. For the first time in years, each bell rings only for its own letters.' },
+          { who: 'mate2', text: 'Listen. You can tell which one is which.' },
+          { who: 'lead', text: 'Back down to camp, before it all grows back.' }] }
+    ]
+  }]);
+
+  // ---------- Questions for the floors ----------
+  // From the exam bank, filed under the floors' concepts, plus this file's own (SD.questions). Each runbook page,
+  // Sorting Table, Whiteboard and event asks one of a concept's at random (SD.qpick).
+  const adopt = {
+    'dva-1-04': 'sqsfifo', 'dva-1-05': 'sqsfifo', 'saa-2-110': 'sqsfifo', 'dva-4-208': 'sqsfifo',
+    'dva-1-101': 'sqs', 'dva-1-102': 'sqs', 'dva-1-106': 'sqs', 'saa-2-01': 'sqs',
+    'dva-1-104': 'dlq', 'dva-1-105': 'dlq',
+    'dva-1-109': 'snsfan', 'dva-1-20': 'snsfan', 'dva-4-08': 'snsfan', 'dva-4-317': 'snsfan', 'dva-4-223': 'snsfan',
+    'dva-1-110': 'eventbridge', 'dva-1-112': 'eventbridge', 'dva-1-15': 'eventbridge', 'dva-3-118': 'eventbridge',
+    'dva-1-120': 'kinesis', 'dva-1-123': 'kinesis', 'dva-1-06': 'kinesis', 'saa-4-204': 'kinesis',
+    'saa-2-101': 'mqmsk', 'saa-3-125': 'mqmsk', 'saa-2-220': 'mqmsk', 'saa-3-234': 'mqmsk'
+  };
+  (SD.bank || []).forEach(b => { if (adopt[b.id] && !SD.questions.some(q => q.id === b.id)) SD.questions.push(Object.assign({}, b, { c: adopt[b.id] })); });
+  const pickQ = c => SD.qpick(SD.questions.filter(q => q.c === c && q.id && !q.lp && q.type !== 'explain'), { c });
+  // ELI5 lines for the bank questions the floors adopt that no other chapter explains yet.
+  Object.assign(SD.eli5, {
+    'dva-1-04': 'Give every account its own queue lane (a message group). Each lane stays in order, and different lanes are served by different clerks at the same time.',
+    'dva-1-05': 'The queue remembers a ticket stamp for 5 minutes and ignores a second letter with the same stamp. Either stamp it yourself with the order\'s ID every time you resend, or let the queue stamp it from the letter\'s contents.',
+    'dva-1-101': 'A clerk gets 30 seconds of "this is mine" by default, but the job takes 2 minutes, so the letter reappears and another clerk grabs it. Give each clerk more than 2 minutes of "mine".',
+    'dva-1-102': 'Instead of reserving the table for 40 minutes, reserve it for a short while and keep saying "still here!" while you work. If you crash, the reservation runs out quickly and someone else picks it up.',
+    'dva-1-106': 'Throwing a letter away needs the ticket from the latest time you picked it up (the receipt handle), not the letter\'s name tag. Show the right ticket and it\'s gone.',
+    'saa-2-01': 'Put a mailbox between the shop and the slow kitchen. The shop drops orders in and stays quick; the kitchen takes them out as fast as it can, and none get lost in the rush.',
+    'dva-1-104': 'Build a lost-and-found shelf of the same kind as the queue (a FIFO shelf for a FIFO queue), then tell the queue: after 5 failed tries, put it on that shelf.',
+    'dva-1-105': 'The bug is fixed, so press the "send them all back" button: a redrive moves everything on the lost-and-found shelf back to the queue it came from.',
+    'dva-1-109': 'Shout each price change once on an in-order loudspeaker (an SNS FIFO topic), give each service its own in-order mailbox, and keep each product in its own lane so its changes stay in order.',
+    'dva-1-20': 'Ring one bell (an SNS topic) and give each service its own mailbox (an SQS queue) under it. Everyone gets a copy, a slow reader doesn\'t hold up the others, and letters wait in the box while a service is down.',
+    'dva-4-08': 'The refunds mailbox gets every letter and bins 95 of each 100. Put a filter on its subscription so only refund letters are ever dropped in.',
+    'dva-1-112': 'Stop phoning each team. Post one "order placed" notice on the event board, and let every team that cares pin up its own rule to be told. New teams join without the order team doing anything.',
+    'dva-1-15': 'Set an alarm clock in the cloud (EventBridge Scheduler) for 02:00 every night that wakes the function. No server has to stay up waiting.',
+    'dva-1-120': 'Everyone queued at one door because they all had the same ticket colour. Give each device its own colour (its ID as the key) and they spread over all eight doors.',
+    'dva-1-123': 'Hand the entries in one at a time, and with each one say "this comes after that one" (the previous sequence number), so the stream can\'t shuffle them.',
+    'dva-1-06': 'A stream is like a replay log: every reader can watch it on their own, each user\'s records stay in order when you key them by user, and yesterday\'s footage is still there to rewatch.'
+  });
+
+  // ---------- Playing it ----------
+  // The floors' words in the story's voice: 'lead' is you, mate1 and mate2 your first two companions.
+  const leadId = () => (S.save.c1 && S.save.c1.lead) || 'mira';
+  function raidSay(list) {
+    const me = leadId(), mates = ORDER.filter(x => x !== me);
+    const who = w => (w === 'lead' ? me : w === 'mate1' ? mates[0] : w === 'mate2' ? mates[1] : w && SD.cast[w] ? w : 'narr');
+    const lines = (list || []).filter(l => l && l.text).map(l => ({ s: who(l.who), t: String(l.text), e: l.e }));
+    return lines.length ? U.dialog(lines) : Promise.resolve();
+  }
+  // While the floors are up: the mines leave the lobby's list, card rewards are this chapter's, the rooms are named
+  // for Kyu's runbook and the Sorting Table, the leads are drawn in code, and the map is the floors' own (no tiles).
+  let undress = null;
+  function dress() {
+    const CH = SD.champions, mines = (SD.expeditions || []).find(x => x.id === 'denymines');
+    const was = { rewards: CH.rewards, sprite: CH.sprite, opens: mines && mines.opens, art: SD.dungeonArt, node: Object.assign({}, R.NODE) };
+    CH.rewards = () => SORT_CARDS.slice();
+    if (mines) mines.opens = () => false;
+    R.NODE.notes = { l: 'Kyu\'s Runbook', g: 'notebook' };
+    R.NODE.sort = { l: 'Sorting Table', g: 'scales' };
+    SD.dungeonArt = null;
+    CH.sprite = function (id, scale) {
+      const c = CH.get(id), d = document.createElement('div');
+      if (!c) return d;
+      const h = c.h * scale, w = h * 0.4;
+      d.className = 'champ-spr';
+      d.style.cssText = `width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;background:url("${K.fig(id, 'neutral', 'full')}") center/contain no-repeat`;
+      return d;
+    };
+    // The fight's fighters (js/raid.js artOf): a one-frame sheet, the figure in its idle row (the third).
+    const keep = CH.list.map(c => ({ c, sheet: c.sheet, w: c.w, h: c.h, n: c.n }));
+    CH.list.forEach(c => {
+      const W = 30, H = 75, fig = K.fig(c.id, 'neutral', 'full');
+      Object.assign(c, { w: W, h: H, n: 0, sheet: K.uri(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H * 3}" viewBox="0 0 ${W} ${H * 3}"><image href="${fig}" xlink:href="${fig}" x="0" y="${H * 2}" width="${W}" height="${H}"/></svg>`) });
+    });
+    document.body.classList.add('c2-floors');
+    playing = true;
+    // The floors' music, and the bosses' when a boss fight is on screen (the raid draws it as .combat.bossfight).
+    let boss = false;
+    AU.music('c2dungeon');
+    const mo = new MutationObserver(() => { const b = !!document.querySelector('#run .combat.bossfight'); if (b !== boss) { boss = b; AU.music(b ? 'c2boss' : 'c2dungeon'); } });
+    mo.observe(U.$('#run'), { childList: true, subtree: true });
+    undress = () => {
+      Object.assign(CH, { rewards: was.rewards, sprite: was.sprite });
+      keep.forEach(k => Object.assign(k.c, { sheet: k.sheet, w: k.w, h: k.h, n: k.n }));
+      if (mines) mines.opens = was.opens;
+      SD.dungeonArt = was.art;
+      delete R.NODE.notes; delete R.NODE.sort; Object.assign(R.NODE, was.node);
+      document.body.classList.remove('c2-floors');
+      mo.disconnect();
+      playing = false; undress = null;
+    };
+  }
+  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay, tapes: 2 }, extra);
+
+  // A join screen: the open parties on the stair, and a box for a friend's code.
+  function joinScreen(root, dir) {
+    const net = SD.net;
+    return new Promise(res => {
+      let off = null;
+      const draw = () => {
+        const list = dir.tables().filter(t => net.cleanCode(t.code).length >= 4);
+        root.innerHTML = `<div class="mi-card rd"><span class="mi-tag">The Sorting Floors</span><h2 style="margin:2px 0 6px">Join a party</h2>
+          ${list.length ? `<ul class="mn-list">${list.map(t => `<li><b>${esc(t.nick || 'A party')}</b> <small class="muted">${t.players | 0}/${t.max | 0}${t.info ? ' · ' + esc(t.info) : ''}</small> <button class="mi-btn sm" type="button" data-code="${esc(net.cleanCode(t.code))}">Join</button></li>`).join('')}</ul>` : '<p class="muted">No open parties on the stair right now. Ask a friend for their code.</p>'}
+          <label class="pt-lbl" for="sf-code">A friend's code<input id="sf-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="S7KQP"></label>
+          <p class="muted small" id="sf-why" role="status"></p>
+          <div class="row"><button class="primary" type="button" id="sf-go">Join</button><button class="ghost" type="button" id="sf-back">Back to the stair</button></div></div>`;
+        root.querySelectorAll('[data-code]').forEach(b => { b.onclick = () => done(b.dataset.code); });
+        root.querySelector('#sf-go').onclick = () => {
+          const c = net.cleanCode(root.querySelector('#sf-code').value);
+          if (c.length !== 5 || c[0] !== net.PREFIX.sorting) { root.querySelector('#sf-why').textContent = 'Sorting Floors codes are 5 letters and start with S, like S7KQP.'; return; }
+          done(c);
+        };
+        root.querySelector('#sf-back').onclick = () => done(null);
+      };
+      const done = c => { if (off) off(); res(c); };
+      off = dir.onTables(() => draw()) || null;
+      draw();
+    });
+  }
+
+  // how: 'solo' (you and three bots), 'party' (form one; friends join with your code) or 'join'. Resolves true once
+  // both floors are cleared, false if you left any other way.
+  C2.sorting = async function (how) {
+    const RD = SD.raid, net = SD.net, CH = SD.champions;
+    SD.main.show('run');
+    const root = U.$('#run');
+    CH.setMine(leadId());
+    if (!undress) dress();
+    let won = false, hub = null, dir = null;
+    const onEnd = r => { won = !!(r && r.won); };
+    try {
+      hub = await net.open();
+      if (how === 'solo') {
+        // Alone, you're your lead, not "Player 1" (unless you've named yourself in a party before).
+        if (hub.setNick && !(hub.remembered && hub.remembered())) hub.setNick(SD.ch1story.leads[leadId()].name.split(' ')[0], true);
+        await RD.play(root, hub, net.code('sorting'), story({ create: true, auto: { bots: ORDER.filter(x => x !== leadId()) }, onEnd }));
+      } else {
+        dir = await hub.directory('sorting');
+        const create = how === 'party', code = create ? net.code('sorting') : await joinScreen(root, dir);
+        if (code) {
+          // The leader keeps the party on the stair's list while it waits in the party room, as the mines do.
+          let status = null, last = '', hosting = false, listed = true;
+          const beat = () => {
+            const st = status ? status() : null;
+            if (!st || !st.lead) { if (hosting) { hosting = false; last = ''; dir.unhost(); } return; }
+            const info = { code, nick: hub.me.nick, players: st.players, max: st.max, open: !!(listed && st.open), champ: st.champ || null, info: net.clean(st.info, 48) };
+            const j = JSON.stringify(info);
+            if (j !== last) { last = j; hosting = true; dir.host(info); }
+          };
+          const poll = setInterval(beat, 1000);
+          try {
+            await RD.play(root, hub, code, story({ create, onEnd, status: f => { status = f; beat(); }, vis: { get: () => listed, set: v => { listed = !!v; beat(); } } }));
+          } finally { clearInterval(poll); if (hosting) dir.unhost(); }
+        }
+      }
+    } catch (e) {
+      console.warn('Sorting Floors:', e);
+    } finally {
+      if (dir) dir.leave();
+      if (undress) undress();
+    }
+    return won;
+  };
+  // Climb: solo with your three, or with friends. Resolves once you're back down, cleared or not.
+  C2.climb = function (noBack) {
+    return new Promise(res => {
+      const net = !!(SD.net && SD.raid);
+      const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p>
+        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and you regroup at the start of the floor.</p>
+        <div class="opts"><button class="opt primary" id="sf-solo"><b>Climb</b> · you and your three</button>
+        ${net ? '<button class="opt" id="sf-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="sf-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
+        ${noBack ? '' : '<div class="row"><button class="ghost" id="sf-not">Not yet</button></div>'}`, { title: 'THE SORTING FLOORS', noClose: true });
+      const go = how => async () => { U.closePanel(); c2().f.act1 = true; S.persist(); AU.music('story'); if (SD.c2world && SD.c2world.active) SD.c2world.halt(); const won = await C2.sorting(how); res(won); after(won); };
+      b.querySelector('#sf-solo').onclick = go('solo');
+      if (net) { b.querySelector('#sf-party').onclick = go('party'); b.querySelector('#sf-join').onclick = go('join'); }
+      if (!noBack) b.querySelector('#sf-not').onclick = () => { U.closePanel(); res(null); };
+    });
+  };
+  // Back down the stair: cleared, the camp; not, the Free Cloud's fire and another go.
+  function after(won) {
+    if (won) { setFlag('won'); afterExpedition(); } else lost();
   }
 
   // ---------- Playing it ----------
@@ -570,19 +950,25 @@
     SD.ch1.halt(); U.closePanel(); U.stage(null);
     AU.music('story');
     if (!flag('act1')) {
-      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge, ...T.tower, ...T.scrap, ...T.bunker, ...T.wren, ...T.fire, ...T.thornwick]);
+      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge]);
+      await C2.pair('tof');
+      await SD.vn.play([...T.tower, ...T.scrap, ...T.bunker]);
+      await SD.vn.play([...T.wren, ...T.fire, ...T.thornwick.slice(0, T.thornwick.findIndex(x => x[0] === 'cg'))]);
+      await C2.pair('unmake');
+      await SD.vn.play(T.thornwick.slice(T.thornwick.findIndex(x => x[0] === 'cg')));
       setFlag('act1');
     }
-    if (!flag('won')) return R.start(2);
+    if (!flag('won')) return C2.climb(true);
     camp();
   };
   async function lost() {
     U.stage('c2fire');
     await say([['coo', 'Back down the stair! Everyone in one piece? Mostly? Good. The floors will keep.', 'smile']]);
     const b = U.panel('<p>The Sorting Floors grew back at midnight, the way they always do. Climb again?</p><button class="primary" id="v2-again">Climb the stair</button>', { title: 'THE FREE CLOUD', noClose: true });
-    b.querySelector('#v2-again').onclick = () => { U.closePanel(); U.stage(null); R.start(2); };
+    b.querySelector('#v2-again').onclick = () => { U.closePanel(); U.stage(null); C2.climb(true); };
   }
   async function afterExpedition() {
+    await C2.pairsMissed();
     U.stage(null);
     await SD.vn.play(T.redeploy);
     U.stage('c2fire');
@@ -600,7 +986,7 @@
       ${btn('v2-quest', '<b>At Least Once, At Most Twice</b> · Coo\'s quest', f.quest, f.ship && !f.quest)}
       ${both ? '<button class="opt primary" id="v2-up"><b>Take the lift to floor 7</b></button>' : ''}</div>`, { title: 'CAMP · THE FREE CLOUD', noClose: true });
     const on = (id, fn) => { const el = b.querySelector('#' + id); if (el) el.onclick = () => { U.closePanel(); fn(); }; };
-    on('v2-ship', shipIt); on('v2-quest', cooQuest); on('v2-up', toBeContinued);
+    on('v2-ship', shipIt); on('v2-quest', cooQuest); on('v2-up', lift);
   }
 
   // Ship It: the floors' fix as a SAM template, tested on the camp table, then deployed.
@@ -676,17 +1062,31 @@
     });
   }
 
+  // The handover to part B (floors 7 to 20, js/c2x-*.js): the lift, and the card's button, start it when it's loaded.
+  // Without it, the "to be continued" card stays the end.
+  const partB = () => (SD.chapterStart && typeof SD.chapterStart['2b'] === 'function' ? SD.chapterStart['2b'] : null);
+  function lift() {
+    setFlag('done');
+    const go = partB();
+    if (go) { U.stage(null); return go(); }
+    toBeContinued();
+  }
   function toBeContinued() {
     setFlag('done');
+    const go = partB();
     U.stage('c2fire');
     const b = U.panel(`<div class="verdict ok">TO BE CONTINUED</div>
       <p>The lift opens on floor 7: the Dead Letter Office, where the prayers go. Somewhere at the bottom of it, someone has been reading every one of them for ten thousand years, and never answered.</p>
       <p class="muted small">End of the vector demo: the opening, chapter 1, and the first slice of chapter 2 (Expedition I, the first Ship It and Coo's quest), every picture drawn in code.</p>
-      <div class="row"><button class="primary" id="v2-end">Title</button><button class="ghost" id="v2-replay">Replay chapter 2</button></div>`, { title: 'CHAPTER 2 · THE MAILROOM', noClose: true });
+      <div class="row">${go ? '<button class="primary" id="v2-next">Continue to floor 7</button>' : ''}<button class="${go ? 'ghost' : 'primary'}" id="v2-end">Title</button><button class="ghost" id="v2-replay">Replay chapter 2</button></div>`, { title: 'CHAPTER 2 · THE MAILROOM', noClose: true });
+    if (go) b.querySelector('#v2-next').onclick = () => { U.closePanel(); U.stage(null); go(); };
     b.querySelector('#v2-end').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
     b.querySelector('#v2-replay').onclick = () => { U.closePanel(); S.save.c2 = null; S.persist(); C2.start(); };
   }
 
+  // Chapter 2's start, for chapter 1's end card and anything else that hands over (conventions: SD.chapterStart).
+  SD.chapterStart = SD.chapterStart || {};
+  SD.chapterStart[2] = () => C2.start();
   // Chapter 1's end card opens the slice.
   K.installs.push(() => {
     SD.ch1.onEndCard = b => {
