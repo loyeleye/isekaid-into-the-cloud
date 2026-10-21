@@ -325,9 +325,9 @@
       over: L => p('M316 140 L322 980', null, '#7a5a3a', 9) + c(318, 136, 14, '#9fd0ff', INK, 2.5) },
     // The ones they lost, as Freya borrows them.
     bram: { skin: '#e2b48e', skinD: '#c99670', hair: '#6b4426', hairD: '#4a2c16', hairL: '#8a6040', eye: '#4a3020', style: 'short', beard: true, k: 1.14, coat: '#6a5a3e', coatD: '#4a3e2a', under: '#d8cdb4', collar: 'shirt', light: 'moon' },
-    hana: { skin: '#f4d2bc', skinD: '#e0b49c', hair: '#3a2416', hairD: '#24140a', hairL: '#5a3a26', eye: '#5a3b2e', style: 'saint', veil: '#ffe9a8', coat: '#fff4d6', coatD: '#e8d29a', under: '#ffd25a', collar: 'v', light: 'gold', blush: 0.3 },
+    hana: { skin: '#6e4630', skinD: '#53321f', skinD2: '#3e2416', hair: '#2a1810', hairD: '#160c06', hairL: '#4a2c1c', eye: '#3a2216', style: 'saint', veil: '#ffe9a8', coat: '#fff4d6', coatD: '#e8d29a', under: '#ffd25a', collar: 'v', light: 'gold', blush: 0.3 },
     jin: { skin: '#f0d0b4', skinD: '#d8b090', hair: '#1a1418', hairD: '#0a0608', hairL: '#3a3036', eye: '#3a2a20', style: 'short', topknot: true, coat: '#6a2a2a', coatD: '#4a1a1a', under: '#f2efe8', collar: 'cross' },
-    lina: { skin: '#a8724f', skinD: '#8a5a3a', hair: '#1d1f2a', hairD: '#0e0f16', hairL: '#3e4256', eye: '#2a1a12', style: 'braids', ribbon: '#7a6a9a', coat: '#4a4a6a', coatD: '#30304a', under: '#f2efe8', collar: 'shirt', blush: 0.3 },
+    lina: { skin: '#f0d2bc', skinD: '#dab49c', hair: '#1d1f2a', hairD: '#0e0f16', hairL: '#3e4256', eye: '#3c4048', style: 'braids', ribbon: '#7a6a9a', coat: '#4a4a6a', coatD: '#30304a', under: '#f2efe8', collar: 'shirt', blush: 0.3 },
     // Chapter 2's people.
     tilly: { skin: '#f0d6c4', skinD: '#dcb8a4', hair: '#8a5a2a', hairD: '#6a3e1a', hairL: '#b07a44', eye: '#5a6a3a', style: 'messy', coat: '#8a8a92', coatD: '#626270', under: '#d8d8de', collar: 'high', blush: 0.4 },
     marrow: { skin: '#e8c4a8', skinD: '#d0a688', skinD2: '#b48a6a', hair: '#c8c2cc', hairD: '#9a94a0', hairL: '#ffffff', eye: '#4a3a2a', style: 'scarf', scarf: '#6a3a4a', age: 1, coat: '#5a4a3a', coatD: '#3e3226', under: '#e8dcc4', collar: 'v', robe: true },

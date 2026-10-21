@@ -315,22 +315,21 @@
   [['bram', 300], ['hana', 1100], ['jin', 620], ['lina', 1200]].forEach(([w, hz]) => SD.ui.voice(w, hz));
 
   // ---------- The prologues' visual-novel art (js/vn.js) ----------
-  // Backgrounds and stills from the cutscene shot list. Until each one is painted (src set), the player shows a
-  // tinted placeholder, and the sprites stand in with the pixel art.
-  SD.vn.addScenes({
-    m1: { src: 'assets/img/vn/m1.webp', label: 'The top of the tower stair, night', tint: ['#5a2a1c', '#0b0606'] },
-    m2: { src: 'assets/img/vn/m2.webp', label: 'Mira holding Bram on the steps', tint: ['#6b1f1f', '#0a0505'] },
-    m3: { label: 'Her cottage, the new moon', tint: ['#2a3550', '#06070c'] },
-    k1: { label: 'The cathedral, a wall of gold light', tint: ['#8a6a2a', '#100c06'] },
-    k2: { label: 'Kai\'s hand on the barrier, Hana inside', tint: ['#b08a3a', '#120d05'] },
-    k3: { label: 'The cathedral steps that night', tint: ['#3a3020', '#050505'] },
-    s1: { label: 'The Murim Alliance\'s duel hall', tint: ['#6a2a24', '#0a0606'] },
-    s2: { label: 'The one second', tint: ['#7a2030', '#0a0406'] },
-    s3: { label: 'A training yard at dawn, in mist', tint: ['#5a6070', '#101218'] },
-    d1: { label: 'A cell at night, one slit of moonlight', tint: ['#2a3a5a', '#040508'] },
-    d2: { label: 'Dutch\'s fist on the wall, Lina\'s diary', tint: ['#3a3a52', '#050508'] },
-    d3: { label: 'Flowers on an empty infirmary bed', tint: ['#5a5560', '#0a0a0c'] }
-  });
+  // The painted stills from the backstory storyboard, one per shot. The c stills repeat the shot before them with
+  // Freya standing where the borrowed face stood, for the glitch cut.
+  const STILL = {
+    m1: 'The top of the tower stair, night', m2: 'Mira holding Bram on the steps', m2b: 'Her hand on his chest, the light going out',
+    m2c: 'Mira praying over him', m3: 'Her cottage kitchen, the new moon', m3a: 'Bram in the doorway', m3c: 'Freya in the doorway',
+    k1: 'The cathedral square, the morning after', k2: 'Kai\'s hand on the barrier, Hana inside', k2b: 'Hana in the gold',
+    k2c: 'Kai on his knees at the barrier', k3: 'The alley that night, in the rain', k3a: 'Hana under the lantern', k3c: 'Freya under the lantern',
+    s1: 'The Murim Alliance\'s duel hall', s2: 'The one second', s2b: 'The knife in her sleeve', s2c: 'Jin\'s sword on the floor',
+    s3: 'A training yard at dawn, in mist', s3a: 'Jin at the post', s3c: 'Freya at the post',
+    d1: 'A cell at night, one slit of moonlight', d2: 'Dutch\'s fist on the wall', d3: 'Lina in the infirmary, the academy\'s flowers',
+    d1b: 'Lina in the cell', d1c: 'Freya in the cell'
+  };
+  // Freya comes to Mira in a dream (the Story Bible), so her kitchen shots play through a dream haze.
+  const DREAM = ['m3', 'm3a', 'm3c'];
+  SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label, dream: DREAM.includes(id) }])));
   // Faces to paint: Mira desperate, grief, cold; Kai shock, grief, anger; Seo-yeon frozen, grief, anger; Dutch stone,
   // grief, anger; Freya smile, cold. Each painted face goes in faces: { face: src }.
   const stand = src => ({ stand: src, pixel: true, faces: {} });

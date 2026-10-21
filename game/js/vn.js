@@ -5,8 +5,9 @@
 //
 // A step is [command, ...args] or a line [speaker, text, face]:
 //   ['bg', id]  ['cg', id, pan]  ['show', who, face, pos]  ['hide', who]  ['fx', kind]  ['wait', ms]
-//   ['act', kind, opts]  ['pray', text, to]  ['glitch', from, to, face]
-// pan is 'in' (default), 'left', 'right' or 'up'; pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
+//   ['act', kind, opts]  ['pray', text, to]  ['glitch', from, to, face]  ['gcut', id] (a still glitching into the next)
+// pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
+// pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
 // 'thunder', 'black', 'rain', 'dry' or 'heartbeat'. Art that hasn't been painted yet shows a placeholder.
 (function () {
   const V = SD.vn = {};
@@ -15,7 +16,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sfx = (n, p) => { if (SD.audio) SD.audio.sfx(n, p); };
-  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch']);
+  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut']);
 
   // ---------- Art registry ----------
   // scenes: id -> { src (once painted), label, tint: [top, bottom] } for backgrounds and stills.
@@ -83,7 +84,7 @@
   // Backgrounds and stills crossfade; a still pans slowly (Ken Burns) and hides the sprites.
   // A pan ending in '+' carries on from where the last still's pan had got to, so a cut between two stills of the
   // same framing (a face change) doesn't jump back to the start of the move.
-  function setLayer(sel, id, pan) {
+  function setLayer(sel, id, pan, cut) {
     const host = cam.querySelector(sel);
     root.dataset[sel === '.vn-bg' ? 'bg' : 'cg'] = id;
     const old = [...host.children];
@@ -92,11 +93,11 @@
     if (cont) pan = pan.slice(0, -1);
     el.dataset.t0 = cont && last && last.dataset.t0 ? last.dataset.t0 : performance.now();
     el.style.setProperty('--kbd', (el.dataset.t0 - performance.now()) + 'ms');
-    el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '');
+    el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '') + (cut ? ' on cut' : '') + ((V.art.scenes[id] || {}).dream ? ' dream' : '');
     el.innerHTML = sceneHTML(id);
     host.appendChild(el);
     requestAnimationFrame(() => el.classList.add('on'));
-    old.forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); });
+    old.forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : 900); });
   }
   function clearCG() { [...cam.querySelector('.vn-cg').children].forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); }); root.classList.remove('vn-incg'); }
 
@@ -356,6 +357,18 @@
     }
   }
 
+  // A still that glitches into the next: the same framing with Freya where the borrowed face stood. The push-in
+  // carries on across the cut, so only the person changes.
+  async function gcut(id) {
+    const host = cam.querySelector('.vn-cg'), pic = host.lastElementChild;
+    const kb = pic && [...pic.classList].find(c => c.startsWith('kb-'));
+    sfx('drop');
+    if (pic && !skipping && !reduce()) { pic.classList.add('glitch'); await sleep(650); }
+    setLayer('.vn-cg', id, kb ? kb.slice(3) + '+' : 'still', true);
+    const now = host.lastElementChild;
+    if (!skipping && !reduce()) { now.classList.add('glitch'); await sleep(450); now.classList.remove('glitch'); }
+  }
+
   // ---------- Playing a script ----------
   V.playing = () => !!root && !root.hidden;
   V.play = async function (steps) {
@@ -383,6 +396,7 @@
       else if (k === 'act') await ACTS[a[0]](a[1] || {}, V.tools);
       else if (k === 'pray') await pray(a[0], a[1]);
       else if (k === 'glitch') await glitch(a[0], a[1], a[2]);
+      else if (k === 'gcut') await gcut(a[0]);
     }
     // Out to black, then away.
     advance = null; finishTyping(); closePanel(); SD.audio.voice(null);

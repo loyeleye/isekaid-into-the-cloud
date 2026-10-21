@@ -122,9 +122,6 @@
   const esc = s => SD.ui.esc(s);
   const css = document.createElement('style');
   css.textContent = `
-#vn .kb-still > * { animation: none; }
-#vn .kb-slow > * { animation: kbSlow 30s linear forwards; animation-delay: var(--kbd, 0ms); }
-@keyframes kbSlow { from { transform: scale(1); } to { transform: scale(1.06); } }
 #vn .vn-glint { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 55%), rgba(255,236,170,.75), rgba(255,220,140,0) 4%); opacity: 0; mix-blend-mode: screen; }
 #vn .vn-glint.on { animation: vnGlint 1.1s ease-out 0.5s; }
 @keyframes vnGlint { 30% { opacity: 1; } 100% { opacity: 0; } }

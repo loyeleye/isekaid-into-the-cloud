@@ -946,6 +946,14 @@ body { background: var(--bg); }
 #vn .kb-right > * { animation-name: kbRight; }
 #vn .kb-up > * { animation-name: kbUp; }
 @keyframes kbIn { from { transform: scale(1.02); } to { transform: scale(1.16); } }
+#vn .kb-slow > * { animation: kbSlow 30s linear forwards; animation-delay: var(--kbd, 0ms); }
+@keyframes kbSlow { from { transform: scale(1); } to { transform: scale(1.06); } }
+#vn .kb-still > * { animation: none; }
+#vn .vn-pic.cut { transition: none; }
+/* A dream: the edges soften and glow, as if seen through sleep. */
+#vn .vn-pic.dream > img { filter: saturate(.8) brightness(1.05) contrast(.94); }
+#vn .vn-pic.dream::after { content: ""; position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); background: radial-gradient(ellipse at 50% 48%, rgba(200,210,255,0) 46%, rgba(190,200,240,.18) 78%, rgba(220,226,255,.32)); -webkit-mask: radial-gradient(ellipse at 50% 48%, transparent 46%, #000 80%); mask: radial-gradient(ellipse at 50% 48%, transparent 46%, #000 80%); }
+#vn .vn-cg .vn-pic.glitch > * { animation: vnGlitch .65s steps(1) forwards; }
 @keyframes kbLeft { from { transform: scale(1.14) translateX(4%); } to { transform: scale(1.14) translateX(-4%); } }
 @keyframes kbRight { from { transform: scale(1.14) translateX(-4%); } to { transform: scale(1.14) translateX(4%); } }
 @keyframes kbUp { from { transform: scale(1.14) translateY(5%); } to { transform: scale(1.14) translateY(-4%); } }
