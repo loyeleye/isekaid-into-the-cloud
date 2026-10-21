@@ -246,9 +246,10 @@
     const img = pic.querySelector('img'), g = document.createElement('div');
     g.className = 'vn-heal'; g.innerHTML = '<i></i>';
     const place = () => {
-      // The still is object-fit: cover, so find where the image point lands in the box.
+      // The still is object-fit: cover at its focus, so find where the image point lands in the box.
       const W = pic.clientWidth, H = pic.clientHeight, iw = img && img.naturalWidth || 16, ih = img && img.naturalHeight || 9;
-      const k = Math.max(W / iw, H / ih), x = (W - iw * k) / 2 + at[0] * iw * k, y = (H - ih * k) / 2 + at[1] * ih * k;
+      const [fx, fy] = img ? getComputedStyle(img).objectPosition.split(' ').map(v => parseFloat(v) / 100) : [0.5, 0.5];
+      const k = Math.max(W / iw, H / ih), x = (W - iw * k) * fx + at[0] * iw * k, y = (H - ih * k) * fy + at[1] * ih * k;
       g.style.setProperty('--hx', x + 'px'); g.style.setProperty('--hy', y + 'px'); g.style.setProperty('--hr', (0.2 * iw * k) + 'px');
     };
     place(); addEventListener('resize', place);
