@@ -24,23 +24,23 @@
   css.textContent = `
 .g5 { text-align: left; }
 .g5-rule { font: 12px/1.45 ui-monospace, monospace; color: #c8ffd8; background: #1e2a26; border-radius: 6px; padding: 6px 8px; margin: 0 0 8px; white-space: pre-wrap; overflow-x: auto; }
-.g5-note { min-height: 1.4em; margin: 8px 0 0; } .g5-note.ok { color: #7fe0a0; } .g5-note.bad { color: #ff9aa8; }
-.g5-predict { border-left: 3px solid #ffd24a; padding-left: 10px; margin-bottom: 10px; }
-.g5-predict b { color: #ffd24a; font-size: 12px; letter-spacing: .06em; }
+.g5-note { min-height: 1.4em; margin: 8px 0 0; } .g5-note.ok { color: #1f6e3a; } .g5-note.bad { color: #a3192e; }
+.g5-predict { border-left: 3px solid #c8901a; padding-left: 10px; margin-bottom: 10px; }
+.g5-predict b { color: #8a5a00; font-size: 12px; letter-spacing: .06em; }
 .g5 .opts.col { display: flex; flex-direction: column; gap: 8px; } .g5 .opts.col .opt { text-align: left; min-height: 44px; }
-.g5-field { margin: 8px 0; } .g5-field > b { display: block; font-size: 12px; color: #b7b0cc; letter-spacing: .04em; margin-bottom: 4px; }
+.g5-field { margin: 8px 0; } .g5-field > b { display: block; font-size: 12px; color: #5a5070; letter-spacing: .04em; margin-bottom: 4px; }
 .g5-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .g5-chips button { min-height: 44px; padding: 6px 10px; font: 13px ui-monospace, monospace; }
 .g5-chips button.on, .g5-row button.on { background: var(--blue); color: #fff; }
 .g5-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.1); }
 .g5-row > span { flex: 1 1 100%; font-size: 14px; }
 .g5-row button { min-height: 44px; padding: 6px 10px; font-size: 13px; flex: 1 1 auto; }
-.g5-row .why { flex-basis: 100%; font-size: 12px; margin: 2px 0 0; } .g5-row .why.ok { color: #7fe0a0; } .g5-row .why.bad { color: #ff9aa8; }
+.g5-row .why { flex-basis: 100%; font-size: 12px; margin: 2px 0 0; } .g5-row .why.ok { color: #1f6e3a; } .g5-row .why.bad { color: #a3192e; }
 .g5-row.done button { opacity: .55; }
 .g5-steps { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .g5-steps button { min-height: 44px; text-align: left; }
 .g5-done { counter-reset: s; margin: 6px 0; padding-left: 0; list-style: none; }
-.g5-done li { counter-increment: s; font-size: 13px; padding: 4px 0 4px 26px; position: relative; color: #d9f5e0; }
+.g5-done li { counter-increment: s; font-size: 13px; padding: 4px 0 4px 26px; position: relative; color: #1e3a28; }
 .g5-done li::before { content: counter(s); position: absolute; left: 0; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #2c8a4b; color: #fff; font: 700 11px/18px sans-serif; text-align: center; }
 .g5-cipher { font: 15px/1.6 ui-monospace, monospace; color: #e8dcff; background: #221c30; border-radius: 6px; padding: 8px 10px; margin: 0 0 8px; word-break: break-word; }
 .g5-type { display: flex; gap: 8px; flex-wrap: wrap; } .g5-type input { flex: 1 1 160px; min-height: 44px; font: 18px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; padding: 0 10px; border-radius: 8px; border: 2px solid #5a4a8a; background: #14101f; color: #fff; }

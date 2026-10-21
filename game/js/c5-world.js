@@ -612,7 +612,7 @@
     A.raidArt(true);
     const stop = raidMusic(root);
     let won = false, hub = null, dir = null;
-    const opts = extra => Object.assign({ story: true, label: 'The Machine Floors', xp, champNames: true, tapes: 1, deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, extra);
+    const opts = extra => Object.assign({ story: true, label: 'The Machine Floors', xp, champNames: true, tapes: 1, deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, extra, W.debug.raidOpts);
     try {
       hub = await SD.net.open();
       if (!how || how === 'solo') await SD.raid.play(root, hub, SD.net.code('c5'), opts({ create: true, auto: { bots: others() } }));
