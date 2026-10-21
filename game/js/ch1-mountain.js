@@ -597,7 +597,8 @@
     if (!flag('m_rock')) await rockfall();
     const how = await lobby();
     if (!how) { sc.place('you', 16, 30); sc.P.face = 'south'; return; }
-    if (M.mines) { M.halt(); return M.mines(how, () => { M.enter(); act(caveExit); }); }
+    // The exit runs here, inside this same act: a second act() from the mines' onDone would be dropped while this one runs.
+    if (M.mines) { M.halt(); let cleared = false; await M.mines(how, () => { cleared = true; }); if (cleared) { M.enter(); await caveExit(); } return; }
     await say(T.minesSoon);
     await caveExit();
   }
