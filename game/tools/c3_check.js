@@ -149,7 +149,8 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
       if (!views.lord) return go('lord', 62, 22);
       if (!f.gate1) return go('keeper', 71, 12);
       if (!views.yard) { views.yard = 1; return door('gate'); }
-      if (sc.P.x < 78 && !f.x1) return 'gate-stuck';
+      // A slow machine can fall short of the yard in one walk; try the gate again before calling it stuck.
+      if (sc.P.x < 78 && !f.x1) { views.gateTry = (views.gateTry || 0) + 1; return views.gateTry > 3 ? 'gate-stuck' : door('gate'); }
       if (!f.thaw) return go('sack', 86, 12);
       if (!f.toll) return go('merchant', 89, 14);
       if (pg(2)) return page(2);
