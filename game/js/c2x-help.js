@@ -20,6 +20,11 @@
     msgattr: 'Every letter gets a postmark when it\'s posted (SentTimestamp), and a tally of how many times it\'s been picked up. Picking it up again adds to the tally, but never changes the postmark.'
   });
   Object.assign(SD.eli5, {
+    // Bank questions part 1's pools name (js/vec-ch2.js), from the bank files this part loads.
+    'dva-4-208': 'Stop knocking on the empty mailbox every second. Wait by it for up to 20 seconds instead, and post letters in bundles of ten, so you pay for far fewer trips.',
+    'dva-4-223': 'The sorting rule was reading the outside of the envelope, but the word "refund" is written on the letter inside. Tell the rule to read the letter itself.',
+    'saa-2-101': 'The town\'s old post office spoke one dialect (ActiveMQ). Hire a managed post office that speaks the same one, with a spare office next door, and nobody has to learn new words.',
+    'saa-2-220': 'Same story with a RabbitMQ post office: a managed one that speaks AMQP, spread over three towns so one fire doesn\'t stop the post.',
     // lambdacfg
     'dva-4-102': 'The clerk\'s turn ends at 3 seconds, but the partner takes up to 6 to answer. Give him a longer turn than the slowest answer, and make his own phone call give up a little before his turn ends.',
     'dva-4-07': 'The clerk is slow because he\'s thinking hard, not because he\'s out of pockets. More memory also buys more brain (CPU), so turn it up and time him again.',
