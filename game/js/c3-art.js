@@ -142,7 +142,8 @@
     g.rect(6, -22, 52, 22).fill('#b5824d'); g.rect(6, -24, 52, 4).fill('#8a5a2a');
     for (let i = 0; i < 5; i++) g.poly(4 + i * 11.2, -44, 15.2 + i * 11.2, -44, 15.2 + i * 11.2, -36, 4 + i * 11.2, -36).fill(i % 2 ? '#fff3dc' : c, 0.8);
     g.line(6, -36, 6, -22).stroke(INK, 1.4); g.line(58, -36, 58, -22).stroke(INK, 1.4);
-    (p.goods || ['#e8b86a', '#d8a050', '#f0d090']).forEach((col, i) => g.ell(16 + i * 15, -27, 6, 4).fill(col, 0.8));
+    const GOODS = { bread: ['#e8b86a', '#d8a050', '#f0d090'], grain: ['#e8d29a', '#d8c07a', '#f0e0a8'], candles: ['#fff4d6', '#ffe9a8', '#f2e6cf'], honey: ['#e8a83a', '#d9a740', '#f0c050'], cloth: ['#5a7ab0', '#c8584a', '#7a5aa0'], pins: ['#c8a0ff', '#ffd24a', '#7fd0ff'] };
+    (Array.isArray(p.goods) ? p.goods : GOODS[p.goods] || GOODS.bread).forEach((col, i) => g.ell(16 + i * 15, -27, 6, 4).fill(col, 0.8));
   };
   PROPS.c3granary = (g, p, t) => {
     // A round granary silo with a conical roof and a frosted door.
@@ -298,6 +299,8 @@
     kage: { name: 'Kagemaru', title: 'Card pins, cheap' }, citizen: { name: 'A citizen', title: 'Halcyon' }, lord: { name: 'Lord Brannick', title: 'Halcyon' },
     baker: { name: 'A baker', title: 'Halcyon' }, child: { name: 'A child', title: 'Halcyon' }, guard: { name: 'A cathedral guard', title: 'Halcyon' }
   });
+  // Halcyon's walk-on speakers borrow a townsperson's figure and voice.
+  Object.assign(SD.cast, { keeper: { name: 'The gatekeeper', title: 'The granary gate' }, clerk: { name: 'A clerk', title: 'The Cold Stores' }, merchant: { name: 'A merchant', title: 'The Cold Stores' } });
   [['noor', 980], ['selvaria', 640], ['aurelian', 300], ['ash', 520], ['wen', 760], ['doug', 380], ['kevin', 1500], ['kage', 340], ['citizen', 600], ['lord', 330], ['baker', 820], ['child', 1250], ['guard', 420]].forEach(([w, hz]) => SD.ui.voice(w, hz));
   // Townsfolk speak with a figure too, so no line ever reaches for a painted portrait.
   Object.assign(K.cast, {
@@ -307,6 +310,9 @@
     child: { skin: '#c99a76', skinD: '#ad7e5c', hair: '#3a2416', hairD: '#24140a', hairL: '#5a3a26', eye: '#2a1a12', style: 'messy', coat: '#7a9ad0', coatD: '#5a7ab0', under: '#f2efe8', collar: 'shirt', blush: 0.4 },
     guard: { skin: '#e2b496', skinD: '#c8957a', hair: '#3a2a20', hairD: '#24180e', hairL: '#5a4a3a', eye: '#2a1a12', style: 'short', coat: '#8a7a3a', coatD: '#6a5a2a', under: '#d8c890', collar: 'high' }
   });
+
+  Object.assign(K.cast, { keeper: Object.assign({}, K.cast.guard), clerk: Object.assign({}, K.cast.citizen), merchant: Object.assign({}, K.cast.lord) });
+  [['keeper', 420], ['clerk', 600], ['merchant', 330]].forEach(([w, hz]) => SD.ui.voice(w, hz));
 
   // ---------- Cutscene backgrounds ----------
   const { p, c, r, t, g } = K;

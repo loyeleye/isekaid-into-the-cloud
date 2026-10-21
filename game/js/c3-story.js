@@ -40,8 +40,8 @@
     ['narr', 'Below her, Sir Aurelian, the Hero, who performs the Drawing every night and weeps every night.'],
     ['aurelian', '...', 'grief'],
     ['narr', 'Eleven names are scratched inside his gauntlet. He has started on the twelfth.']];
-  T.offer = [['bg', 'c3-cathkitchen'], ['show', 'freya', 'warm', 'left'], ['show', 'kai', 'neutral', 'right'],
-    ['freya', 'Cook for me, Kai? Just an omelette. I\'ve missed your omelettes.', 'warm'],
+  T.offer = [['bg', 'c3-cathkitchen'], ['show', 'freya', 'neutral', 'left'], ['show', 'kai', 'neutral', 'right'],
+    ['freya', 'Cook for me, Kai? Just an omelette. I\'ve missed your omelettes.', 'neutral'],
     ['kai', 'Yes, chef.', 'neutral'],
     ['freya', 'Yes, chef. Ha. I can lift her out of the barrier, love. Every bit of her. And I\'ll hold Halcyon up myself, so nobody else has to. Free.', 'neutral'],
     ['kai', 'I\'ll think about it.', 'neutral'],

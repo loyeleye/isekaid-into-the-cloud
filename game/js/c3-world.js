@@ -415,7 +415,7 @@
     if (busy) return;
     const P = sc.P;
     if (d === 'lift') return act(async () => {
-      AU.sfx('door');
+      AU.sfx('x-lift');
       if (P.x < 24) {
         W3.fade = 0.6; await wait(300); warp(29, 21, 'east'); W3.fade = 0;
         if (!flag('arrive')) await arrive();
@@ -533,7 +533,7 @@
       why: 'Each partition supports up to 3,000 read units and 1,000 write units a second. That\'s why one hot key throttles, however much capacity the table has.',
       eli5: 'Each checkout lane scans a thousand items a second at most. Ten lanes help nobody if everyone queues at one.' }, { title: 'THE ARCHIVE LOCK' });
     if (!(r && r.ok)) { await say([['narr', 'The dial clicks back to zero. The door stays shut. (Kevin would know.)']]); return warp(33, 28, 'north'); }
-    setFlag('archive'); xp(20); AU.sfx('door');
+    setFlag('archive'); xp(20); AU.sfx('x-lock');
     S.seeConcept('ddbkey');
     await say([['narr', 'The lock gives. Inside: shelves of ledgers, and on top of them, one of Kyu\'s runbook pages: "Partition key = who gets throttled. Pick one with a lot of values. A day a year, everybody. (Who wrote that? Not me.)"']]);
     U.system('SECRET: KYU\'S PAGE 5', 'Choosing a partition key is on your cheat sheet. +20 XP.', 'gold');
@@ -690,7 +690,7 @@
   // Pages of Hana's speech.
   async function pickPage(i) {
     w().pages.push(i); S.persist();
-    AU.sfx('coin');
+    AU.sfx('x-page');
     U.system('A PAGE OF HANA\'S SPEECH', `${w().pages.length} of 5. There's a question in the margin, in her hand.`, 'gold');
     const r = await G.page(PAGES[i][2]);
     xp(r && r.ok ? 15 : 6);
@@ -722,7 +722,8 @@
     if (/^page\d$/.test(id)) return act(() => pickPage(+id.slice(4)));
     if (ORDER.includes(id)) return act(() => say([[id, rnd({ mira: ['Eat something. I mean it.', 'I\'m not speaking to either of them. You can tell them that.'], kai: ['Don\'t. Not yet.', 'I\'m fine. I\'m cooking. That\'s fine.'], seoyeon: ['...', 'Every guard here holds their sword the same way. Drilled.'], dutch: ['Every guard keeps their keys on the left. Why does that bother me?', 'Someone did this on purpose. I want to know how.'] }[id])]]));
     if (fns[id]) return act(fns[id]);
-    if (BARKS[id]) return act(() => say([[id, rnd(BARKS[id])]]));
+    const VOICE = { c1: 'citizen', c2: 'citizen', g1: 'guard', g2: 'guard' };
+    if (BARKS[id]) return act(() => say([[VOICE[id] || id, rnd(BARKS[id])]]));
   }
 
   // ---------- The objective, and where the arrow points ----------
@@ -846,7 +847,7 @@
       M.title = function () {
         title();
         const box = $('#title-actions'), sv = S.save;
-        if (!box) return;
+        if (!box || box.querySelector('#t-start')) return;
         const has = !!(sv.c3 && sv.c3.lead);
         box.innerHTML = (has ? `<button class="primary" id="t-c3go">Continue · ${esc(T1.leads[sv.c3.lead].name)}</button><button class="ghost" id="t-c3new">New game</button>` : '<button class="primary" id="t-c3new">Play Chapter 3: The Granaries</button>') + '<button class="ghost" id="t-help">How to play</button>';
         const h = $('#t-help');
