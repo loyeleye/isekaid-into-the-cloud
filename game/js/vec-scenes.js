@@ -314,7 +314,7 @@
     const ids = ['m1', 'm2', 'm3', 'k1', 'k2', 'k3', 's1', 's2', 's3', 'd1', 'd2', 'd3'];
     const now = SD.vn.art.scenes;
     SD.vn.addScenes(Object.fromEntries(ids.map(id => [id, Object.assign({}, now[id], { src: S[id] })])));
-    SD.vn.addScenes(Object.fromEntries(Object.keys(S).filter(k => /^open-/.test(k)).map(k => [k, { src: S[k], label: k }])));
+    SD.vn.addScenes(Object.fromEntries(Object.keys(S).filter(k => /^(open|c2)-/.test(k)).map(k => [k, { src: S[k], label: k }])));
     SD.run.stageArt = ch => K.stage[ch] || K.stage[1];
   });
 })();

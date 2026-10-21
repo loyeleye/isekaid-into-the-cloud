@@ -41,7 +41,8 @@ const server = http.createServer((req, res) => {
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
-      if ($('#c1-again') && vis($('#c1-again'))) return 'done';
+      if ($('#v2-end') && vis($('#v2-end'))) return 'end2';
+      if (!window.__c2 && $('#v2-go') && vis($('#v2-go'))) return 'done';
       // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
       const vn = $('#vn');
       if (vn && !vn.hidden) {
@@ -76,7 +77,13 @@ const server = http.createServer((req, res) => {
         if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (!window.__leadSeen) { window.__leadSeen = 1; return 'lead-wait'; } return click(x) && 'lead'; }
         if ((x = b('#tm-y'))) return click(x) && 'enter-temple';
         if ((x = b('#q-said'))) return click(x) && 'said';
-        if ((x = p.querySelector('#q-num')) && !x.value) { x.value = '10800'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
+        window.__p2 = window.__p2 || {};
+        const once = k => !window.__p2[k] && (window.__p2[k] = 1);
+        if (b('#sd-go') && once('sd')) return 'scene:c2-sorting-desk';
+        if (b('#v2-ship, #v2-quest, #v2-up') && once('camp' + p.querySelectorAll('button[disabled]').length)) return 'scene:c2-camp-' + p.querySelectorAll('button[disabled]').length;
+        if ((x = b('#sd-go'))) { p.querySelectorAll('[data-i="3"], [data-i="8"]').forEach(click); return click(x) && 'sorting-desk'; }
+        if ((x = b('#v2-ship, #v2-quest, #v2-up'))) return click(x) && 'camp:' + x.id;
+        if ((x = p.querySelector('#q-num')) && !x.value) { x.value = /function.s timeout/.test(p.textContent) ? '180' : '10800'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'The trust policy says who can assume the role, and the permissions say what it can do.'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'text'; }
         if ((x = b('#q-confirm, #q-next, #pm-ok'))) return click(x) && 'next';
         if (p.querySelector('[data-p]') && !p.querySelector('[data-p].on')) return click(p.querySelector('[data-p]')) && 'compass';
@@ -89,11 +96,16 @@ const server = http.createServer((req, res) => {
         if ((x = b('#skip, .ghost, #panel-x'))) return click(x) && 'ghost';
         return 'panel-wait';
       }
+      // Between chapter 2's scenes there's no run: the last fight's screen is left behind and mustn't be played.
+      if (window.__c2 && !sv.run) return 'c2-wait';
       if (vis($('#run'))) {
         const end = $('#end-turn');
         if (end) {
           const C = SD.run.api.combat();
           if (C.busy) return 'combat-wait';
+          if (window.__c2 && SD.enemies[C.eid].ch !== 2) return 'c2-wait';   // the last chapter 1 fight, still on screen under the gate
+          // Chapter 2's bosses play one card first, for their screenshot.
+          if (window.__c2 && C.boss && !(window.__boss = window.__boss || {})[C.eid]) { window.__boss[C.eid] = 1; return 'boss:' + C.eid; }
           if (WIN && C && !C.over && C.eid !== 'kyu' && C.eid !== 'lockeddoor') { C.sev = 0; SD.run.api.win(); return 'win'; }
           const c = [...$('#run').querySelectorAll('.hand .card')].find(c => !c.classList.contains('dim'));
           if (c) return click(c) && 'play:' + C.eid;
@@ -127,14 +139,15 @@ const server = http.createServer((req, res) => {
     if (/^story:|^node:|^play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
-    const key = { 'lead-wait': 'lead-select', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
+    const key = { 'lead-wait': 'lead-select', 'boss:postmistress': 'c2-postmistress', 'boss:belfry': 'c2-belfry', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
-    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); break; }
+    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; document.querySelector('#v2-go').click(); }); continue; }
+    if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }
-  const sv = await page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, flags: SD.state.save.c1 && SD.state.save.c1.f, level: SD.state.save.level, deck: SD.state.save.c1 && SD.state.save.c1.deck.length }));
+  const sv = await page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, flags: SD.state.save.c1 && SD.state.save.c1.f, level: SD.state.save.level, deck: SD.state.save.c1 && SD.state.save.c1.deck.length, c2: SD.state.save.c2 }));
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
@@ -144,6 +157,9 @@ const server = http.createServer((req, res) => {
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
   const scenes = ['wrongchair', 'notshopping', 'stew', 'salt', 'getup', 'suspect'].filter(k => !sv.flags || !sv.flags['s_' + k]);
   if (scenes.length) errors.push('camp scenes never played: ' + scenes.join(', '));
+  const c2 = ['act1', 'won', 'ship', 'quest', 'done'].filter(k => !sv.c2 || !sv.c2.f[k]);
+  if (c2.length) errors.push('chapter 2 flags never set: ' + c2.join(', '));
+  if (!sv.c2 || !sv.c2.dev.redrive) errors.push('Coo\'s Redrive Stamp was never given');
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
-  console.log(`OK: played the chapter 1 demo as ${LEAD} from the title to the end card, no errors.`);
+  console.log(`OK: played the vector demo as ${LEAD} from the title through chapter 1 and the chapter 2 slice to "to be continued", no raster images, no errors.`);
 })().catch(e => { console.error(e); process.exit(1); });
