@@ -374,7 +374,9 @@
   // ---------- The story ----------
   async function opening() {
     await vn(ST.cold, 'story');
+    G.backdrop('c3-kitchen');
     await G.receipts();
+    U.stage(null);
     await vn(ST.cold2);
     setFlag('cold');
   }

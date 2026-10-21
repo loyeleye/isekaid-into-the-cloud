@@ -44,7 +44,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
 
   const seen = new Set(), last = [], shotsTaken = new Set(), small = [];
   let steps = 0;
-  for (; steps < 9000; steps++) {
+  for (; steps < 24000; steps++) {
     const what = await page.evaluate(([LEAD, DOORS]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
@@ -56,7 +56,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
       const vn = $('#vn');
       if (vn && !vn.hidden) {
         const box = vn.querySelector('.vn-box');
-        if (!box || box.hidden || !vn.classList.contains('vn-ready')) return 'vn-wait';
+        if (!box || box.hidden) return 'vn-wait';
         const k = 'vn-' + vn.dataset.bg + '-' + box.dataset.who;
         if (once(k)) return 'scene:' + k;
         box.click(); return 'vn-line';
@@ -70,6 +70,9 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
         if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (once('lead')) return 'scene:lead-select'; return click(x) && 'lead'; }
         if (p.querySelector('.g3, .quiz, .opts') && once('tiny' + title)) { const n = tiny(p); if (n) window.__tiny = (window.__tiny || []).concat(title + ': ' + n); }
         if ((x = b('#q-said'))) return click(x) && 'said';
+        // A Policy Sort (js/raid.js): sort every row, then submit.
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) { if (once('sort' + title)) return 'scene:sort-' + title.toLowerCase().replace(/\W+/g, '-'); return click(x.querySelector('button')) && 'sort'; }
+        if ((x = b('.ps-n'))) return click(x) && 'sort-go';
         if ((x = b('#g3-solo'))) { if (once('xp' + title)) return 'scene:door-' + title.toLowerCase().replace(/\W+/g, '-'); return click(x) && 'expedition'; }
         if ((x = b('#g3-camp'))) { if (once('endcard')) return 'scene:end-card'; window.__ended = 1; return click(x) && 'end-card'; }
         if ((x = b('.opt[data-c]'))) { if (once('choice')) return 'scene:choice'; return click(p.querySelector(`.opt[data-c="${['kai', 'mira'].includes(LEAD) ? 'unmake' : 'leave'}"]`)) && 'choice'; }
@@ -110,7 +113,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
         if (!window.__paced) { window.__paced = 1; T.pace(0.05); }
         if ((x = rd.querySelector('#rd-back'))) return click(x) && 'back';
         const G = T.G(), me = T.me(), ph = rd.dataset.ph;
-        if (ph === 'fight') { const f = G.foes && G.foes[0]; if (f && once('foe' + f.id)) return 'scene:foe-' + f.id; if (T.hosting()) T.win(); return 'fight:' + (f && f.id); }
+        if (ph === 'fight') { const f = G.foes && G.foes[0]; if (f && once('foe' + f.boss)) return 'scene:foe-' + f.boss; if (T.hosting()) T.win(); return 'fight:' + (f && f.boss); }
         if (ph === 'map') {
           if (G.votes[me]) return 'map-wait';
           const n = rd.querySelector('.node.can:not([disabled])');
@@ -197,7 +200,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
   console.log('dev', JSON.stringify(sv.c3 && sv.c3.dev));
   console.log('saw', [...seen].filter(s => /^(door|story|page):/.test(s)).sort().join(' '));
   if (sv.tiny.length) console.log('tap targets under 44px (count by panel):', sv.tiny.join('; '));
-  if (steps >= 9000) errors.push('the demo never finished; last actions: ' + last.join(' '));
+  if (steps >= 24000) errors.push('the demo never finished; last actions: ' + last.join(' '));
   const wx = (sv.c3 && sv.c3.w && sv.c3.w.x) || {};
   const need = ['cold', 'wake', 'arrive', 'heart', 'crown', 'offer', 'sure', 'archive', 'gate1', 'thaw', 'toll', 'x1', 'gary', 'cache', 'bread', 'ship', 'kage', 'x2', 'ash', 'register', 'ropeup', 'jar', 'aurelian', 'echoes', 'board', 'evidence', 'x3', 'tellher', 'asknoor', 'speech', 'choice', 'clean', 'freed', 'reckon', 'x4', 'reckard'].filter(k => !wx[k]);
   if (need.length) errors.push('story flags never set: ' + need.join(', '));

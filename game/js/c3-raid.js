@@ -595,6 +595,9 @@
     const root = U.$('#run');
     SD.champions.setMine(lead());
     R3.active = id;
+    // The engine draws the map's floor and room icons from the painted dungeon art when it's loaded; this chapter is
+    // vector only, so hide it for the run (its glyphs and plain floor stand in) and put it back after.
+    const painted = SD.dungeonArt; SD.dungeonArt = null;
     let won = false, hub = null, dir = null;
     const onEnd = r => { won = !!(r && r.won); };
     const story = extra => Object.assign({ story: true, tapes: 2, label: 'Borderlands', xp: id, champNames: true, deckFor, pickQ, say,
@@ -621,7 +624,7 @@
         }
       }
     } catch (e) { console.warn('Granaries:', e); }
-    finally { if (dir) dir.leave(); R3.active = null; }
+    finally { if (dir) dir.leave(); R3.active = null; SD.dungeonArt = painted; }
     return { won };
   };
   // A friend's party: the open ones at this door, and a box for a code.

@@ -42,6 +42,8 @@
 .g3-board .cell b { display: block; color: #ffd24a; font-size: 11px; letter-spacing: .05em; }
 .g3-board .cell.ok { box-shadow: inset 0 0 0 2px #7fe0a0; } .g3-board .cell.bad { box-shadow: inset 0 0 0 2px #ff6a7a; }
 .g3 .opt { min-height: 44px; }
+.g3 .g2-predict b { color: #8a5a00; }
+#stage .g3-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 `;
   document.head.appendChild(css);
 
@@ -50,12 +52,14 @@
     const go = document.createElement('button'); go.className = 'primary'; go.textContent = label || 'Continue';
     b.appendChild(go); go.focus(); go.onclick = () => { U.closePanel(); res(); };
   });
+  // A cutscene backdrop behind a minigame (the stage, js/ui.js), so it doesn't sit over the last screen.
+  G.backdrop = id => { U.stageDecor = U.stageDecor || {}; const src = K.scenes && K.scenes[id]; if (!src) return; U.stageDecor['g3-' + id] = `<img class="g3-back" src="${src}" alt="">`; U.stage('g3-' + id); };
   const panel = (title, html) => U.panel(`<div class="g2 g3">${html}</div>`, { title, noClose: true, cls: 'wide' }).querySelector('.g3');
   // A prediction: pick one, see whether it was right and why. Resolves true if it was.
   function predict(b, p, concept) {
     return new Promise(res => {
       const box = document.createElement('div'); box.className = 'g2-predict';
-      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${p.opts.map((o, i) => `<button class="opt" data-p="${i}">${esc(o.t)}</button>`).join('')}</div><p class="g2-note"></p>`;
+      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${Q.shuffle(p.opts.map((o, i) => i)).map(i => `<button class="opt" data-p="${i}">${esc(p.opts[i].t)}</button>`).join('')}</div><p class="g2-note"></p>`;
       b.appendChild(box);
       box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
         const o = p.opts[+el.dataset.p];
@@ -72,7 +76,7 @@
   function pick(b, s, concept) {
     return new Promise(res => {
       const box = document.createElement('div');
-      box.innerHTML = `<p class="vn-q"><b>${esc(s.q)}</b></p><div class="opts col">${s.opts.map((x, i) => `<button class="opt" data-o="${i}">${esc(x.t)}</button>`).join('')}</div><p class="g2-note"></p>`;
+      box.innerHTML = `<p class="vn-q"><b>${esc(s.q)}</b></p><div class="opts col">${Q.shuffle(s.opts.map((x, i) => i)).map(i => `<button class="opt" data-o="${i}">${esc(s.opts[i].t)}</button>`).join('')}</div><p class="g2-note"></p>`;
       b.appendChild(box);
       box.scrollIntoView && box.scrollIntoView({ block: 'nearest' });
       let first = null;
@@ -208,12 +212,13 @@
     const box = document.createElement('div');
     box.innerHTML = '<p class="vn-q"><b>Try a key and watch Kevin hit it. Ship the one that keeps him OK.</b></p><div class="opts col">' + Object.keys(KEYS).map(k => `<button class="opt" data-k="${k}">${esc(KEYS[k].t)}</button>`).join('') + '</div><p class="g2-note"></p>';
     b.appendChild(box);
+    const tried = new Set();
     await new Promise(res => box.querySelectorAll('[data-k]').forEach(el => el.onclick = async () => {
-      const k = el.dataset.k; box.querySelectorAll('[data-k]').forEach(x => x.disabled = true);
+      const k = el.dataset.k; tried.add(k); box.querySelectorAll('[data-k]').forEach(x => x.disabled = true);
       await heat(KEYS[k].dist, KEYS[k].kev);
       if (k === 'citizen') { note(box, 'Shipped. A hundred thousand keys, each a little warm, none hot.', true); return res(); }
       note(box, 'Kevin is throttled. Try another key.', false);
-      box.querySelectorAll('[data-k]').forEach(x => { x.disabled = x === el; });
+      box.querySelectorAll('[data-k]').forEach(x => { x.disabled = tried.has(x.dataset.k); });
     }));
     const s1 = await pick(b, { q: 'The Saint\'s Day tally still has to land on one key: "TALLY#SAINTSDAY". Doug shards it as TALLY#SAINTSDAY#1 to #10. The cathedral reads one citizen\'s tally by ID. How should each write pick its suffix?', opts: [
       { t: 'From a hash of the citizen\'s ID, so a reader can work out the same suffix', ok: true, out: 'A calculated suffix spreads the writes and still lets a reader go straight to one shard.' },
