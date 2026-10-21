@@ -405,6 +405,7 @@
   css.textContent = `
 /* A toast slides under an open window rather than over its title (phone pass, 2026-10-21). */
 body.c2-on:has(#panel:not([hidden])) #notes { z-index: 19; }
+body.c2-on:has(#screen-world:not([hidden])) #notes { top: var(--c2-hud, 12px) !important; }
 /* 44px to tap at phone size: the HUD buttons, the skip links (bigger hit area, same look), the floors' small buttons. */
 body.c2-on #w-hud button { min-height: 44px; min-width: 44px; }
 body.c2-on #dlg-skip { padding: 14px 12px; margin: -14px -12px; }
@@ -799,7 +800,17 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     'dva-1-15': 'Set an alarm clock in the cloud (EventBridge Scheduler) for 02:00 every night that wakes the function. No server has to stay up waiting.',
     'dva-1-120': 'Everyone queued at one door because they all had the same ticket colour. Give each device its own colour (its ID as the key) and they spread over all eight doors.',
     'dva-1-123': 'Hand the entries in one at a time, and with each one say "this comes after that one" (the previous sequence number), so the stream can\'t shuffle them.',
-    'dva-1-06': 'A stream is like a replay log: every reader can watch it on their own, each user\'s records stay in order when you key them by user, and yesterday\'s footage is still there to rewatch.'
+    'dva-1-06': 'A stream is like a replay log: every reader can watch it on their own, each user\'s records stay in order when you key them by user, and yesterday\'s footage is still there to rewatch.',
+    'saa-2-110': 'One FIFO pigeonhole per account: letters for the same account come out in the order they went in, and a copy posted a minute later is thrown away at the door.',
+    'dva-4-208': 'Stop knocking on an empty post box over and over: bundle letters into one sack when you send them, and wait at the box a few seconds for the next one (long polling) instead of asking every instant.',
+    'dva-4-317': 'A sorting rule on the fraud desk\'s mail slot: only letters marked eu, and then only if they\'re urgent or worth more than 1,000. Anything else never lands in their tray.',
+    'dva-4-223': 'The label on the envelope is blank, but the letter inside says what it is: tell the sorter to read the letter itself (FilterPolicyScope MessageBody), not the envelope.',
+    'dva-3-118': 'Before you nail a new bell rule to the tower, try it against a few sample letters at your desk (test-event-pattern) and see which ones would ring it.',
+    'saa-4-204': 'Posting a billion postcards one by one costs a fortune in stamps: let a sorter (Firehose) bundle them into big parcels first, then deliver the parcels.',
+    'saa-2-101': 'The town already speaks the old ActiveMQ post office\'s language: rent a managed one that speaks it too (Amazon MQ), with a standby office in another district if the first burns down.',
+    'saa-3-125': 'Every courier already knows Kafka\'s routes: move into a managed Kafka (Amazon MSK) and just give them the new address.',
+    'saa-2-220': 'The services already talk RabbitMQ: use Amazon MQ\'s RabbitMQ, run as a cluster across districts, so nobody has to learn a new way to post a letter.',
+    'saa-3-234': 'Keep the Kafka couriers, skip guessing how many sorting halls to build: MSK Serverless grows and shrinks with the mail, and the couriers show their IAM badge at the door.'
   });
 
   // ---------- Playing it ----------
@@ -865,13 +876,13 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
         const list = dir.tables().filter(t => net.cleanCode(t.code).length >= 4);
         root.innerHTML = `<div class="mi-card rd"><span class="mi-tag">The Sorting Floors</span><h2 style="margin:2px 0 6px">Join a party</h2>
           ${list.length ? `<ul class="mn-list">${list.map(t => `<li><b>${esc(t.nick || 'A party')}</b> <small class="muted">${t.players | 0}/${t.max | 0}${t.info ? ' · ' + esc(t.info) : ''}</small> <button class="mi-btn sm" type="button" data-code="${esc(net.cleanCode(t.code))}">Join</button></li>`).join('')}</ul>` : '<p class="muted">No open parties on the stair right now. Ask a friend for their code.</p>'}
-          <label class="pt-lbl" for="sf-code">A friend's code<input id="sf-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="S7KQP"></label>
+          <label class="pt-lbl" for="sf-code">A friend's code<input id="sf-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="F7KQP"></label>
           <p class="muted small" id="sf-why" role="status"></p>
           <div class="row"><button class="primary" type="button" id="sf-go">Join</button><button class="ghost" type="button" id="sf-back">Back to the stair</button></div></div>`;
         root.querySelectorAll('[data-code]').forEach(b => { b.onclick = () => done(b.dataset.code); });
         root.querySelector('#sf-go').onclick = () => {
           const c = net.cleanCode(root.querySelector('#sf-code').value);
-          if (c.length !== 5 || c[0] !== net.PREFIX.sorting) { root.querySelector('#sf-why').textContent = 'Sorting Floors codes are 5 letters and start with S, like S7KQP.'; return; }
+          if (c.length !== 5 || net.gameOf(c) !== 'sorting') { root.querySelector('#sf-why').textContent = 'Sorting Floors codes are 5 letters and start with F, like F7KQP.'; return; }
           done(c);
         };
         root.querySelector('#sf-back').onclick = () => done(null);
