@@ -128,6 +128,7 @@
     [(x, y) => x < 63 && y > 25, 'scrap', 'WHAT\'S LEFT OF BROOKFALL', 'explore'],
     [(x) => x < 63, 'scrap', 'THE SCRAP FIELD', 'explore'],
     [(x) => x < 80, 'island', 'THE TOWER\'S FOOT', 'camp'],
+    [(x, y) => x >= 80 && y >= 31, 'marsh', 'THORNWICK · THE MARSH PATH', 'town'],
     [() => true, 'town', 'THORNWICK · FLOOR 1', 'town']
   ];
   const zoneAt = (x, y) => ZONES.find(z => z[0](x, y));
@@ -299,6 +300,7 @@
     if (flag('notes') && !flag('scrap') && P.x >= 36) return act(scrapArrive);
     if (flag('sign') && !flag('lensHint') && P.x >= 37) { setFlag('lensHint'); if (!lensOn()) U.system('TRY THE LENS', 'Tap 👁 (or press L) to look under the delete markers.'); }
     if (flag('fire') && !flag('town') && P.x >= 80) return act(townArrive);
+    if (flag('town') && !C2.pairSeen('sunlight') && P.x >= 81 && P.y >= 31) return act(sunlight);
     LETTERS.forEach(([x, y], i) => { if (letterShown(i) && P.x === x && P.y === y) act(() => pickLetter(i)); });
   }
   const straight = (x0, y0, x1, y1) => { const out = []; let x = x0; while (x !== x1) { x += Math.sign(x1 - x); out.push([x, y0]); } return out; };
@@ -429,6 +431,9 @@
       ['mira', 'Then we stop blaming each other, and start on her.', 'cold']
     ]);
     setFlag('notes');
+    // Pair scene: Three, One, Four, later that night by the cart (js/vec-ch2.js C2.pair).
+    await C2.pair('tof');
+    AU.music('kyusad');
     AU.sfx('sparkle'); U.flash();
     U.system('DAWN', 'The party follows you now. Take the road east.', 'gold');
     trail.length = 0;
@@ -559,8 +564,10 @@
       ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
       ['dutch', 'So we take root back.'],
       ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
+      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.'],
       ['narr', 'The slot snaps shut. Behind it, faintly, someone is humming.']
     ]);
+    U.system('SEYMOUR\'S TAPES', 'Two spare lives for each climb. A wipe uses one, and the floor starts again as you entered it. With none left, it\'s back down to camp.', 'gold');
     U.system('[GOAL] TAKE ROOT BACK', 'Kyu\'s tape stays offline until there\'s no root to fear. Somewhere on the island, Elder Wren is waiting.', 'gold');
     AU.music('camp');
   }
@@ -640,7 +647,7 @@
         b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { U.closePanel(); res(); });
       });
     }
-    await SD.vn.play([['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
+    await SD.vn.play([['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
     setFlag('offer');
     AU.music('town');
     U.system('THE STAIR IS OPEN', 'Up the stair are the Sorting Floors: Expedition I.', 'gold');
@@ -683,6 +690,14 @@
     ]);
     t2.scripted = false;
     setFlag('tilly');
+    // Pair scene: Unmake It, straight after.
+    await C2.pair('unmake');
+    AU.music('town');
+  }
+  // Pair scene: Sunlight, on the marsh path at noon. Missed, it comes back at the camp after Expedition I.
+  async function sunlight() {
+    await C2.pair('sunlight');
+    AU.music('town');
   }
   async function poster(n) {
     if (n === 1) {
@@ -733,12 +748,10 @@
   }
   function climb() {
     if (!flag('offer')) return say([['narr', 'Stone steps up into the dark, and the hum of something processing. Not yet: the post box first.']]).then(() => sc.place('you', 92, 21));
-    return new Promise(res => {
-      const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p><p class="muted small">Expedition I: two raid floors and two floor bosses. You can come back down any time you lose.</p>
-        <div class="row"><button class="primary" id="c2-up">Climb</button><button class="ghost" id="c2-not">Not yet</button></div>`, { title: 'THE SORTING FLOORS', noClose: true });
-      b.querySelector('#c2-not').onclick = () => { U.closePanel(); sc.place('you', 92, 21); res(); };
-      b.querySelector('#c2-up').onclick = () => { U.closePanel(); c2().f.act1 = true; w().pos = [92, 21]; S.persist(); W2.halt(); AU.music('story'); R.start(2); res(); };
-    });
+    // Expedition I on the raid engine (js/vec-ch2.js C2.climb): solo with your three, or a party. Not yet steps you
+    // back off the stair.
+    w().pos = [92, 21]; S.persist();
+    return C2.climb().then(r => { if (r === null) sc.place('you', 92, 21); });
   }
 
   // ---------- Talking ----------
@@ -790,6 +803,8 @@
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
+    // Toasts (js/ui.js) sit just below this HUD, however it wraps on a phone.
+    requestAnimationFrame(() => { const r = el.getBoundingClientRect(); if (r.height) document.documentElement.style.setProperty('--c2-hud', Math.round(r.bottom + 8) + 'px'); });
     const lb = $('#w-lens'); if (lb) lb.onclick = toggleLens;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
@@ -808,6 +823,7 @@
     if (!sc) makeScene(); else applyState();
     zone = null; lastTile = '';
     W2.active = true;
+    document.body.classList.add('c2-on');
     sc.start();
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
   };
@@ -823,14 +839,7 @@
     if (!flag('cold')) await opening();
     W2.enter();
   };
-  // Climbing again after a loss starts from the top of the stair, as before; the bonuses you earned in the world
-  // carry into every climb.
-  const hooks = SD.chapters[2].hooks, start = hooks.start;
-  hooks.start = function (run) {
-    start(run);
-    const b = c2().bonus || {};
-    run.deck.forEach(c => { if (b[c.id]) c.up = true; });
-  };
+  // The cards you upgraded in the world (S.save.c2.bonus) start upgraded in every climb (js/vec-ch2.js deckFor).
 
   // ---------- The chapter 2 demo's own start ----------
   // Pick a lead, skip chapter 1 (its end is where this begins), and walk.
@@ -876,5 +885,38 @@
   }
 
   // For tools/c2_check.js.
-  W2.debug = { busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); } };
+  // How a walker gets somewhere the way a player does (tools/c2_check.js): the arrow key for the next step toward a
+  // tile, or toward standing beside someone (then the key that bumps into them, which talks), on the map as it is
+  // now; and where on screen to tap a tile or a person. Doors are walked through only as the last step or on the way
+  // through the tower's gate.
+  const DIRK = [[1, 0, 'ArrowRight'], [-1, 0, 'ArrowLeft'], [0, 1, 'ArrowDown'], [0, -1, 'ArrowUp']];
+  function nextKey(tx, ty, id) {
+    const P = sc.P, a = id && sc.actors[id];
+    if (a) { tx = Math.round(a.x); ty = Math.round(a.y); }
+    const goal = (x, y) => (a ? Math.abs(x - tx) + Math.abs(y - ty) === 1 : x === tx && y === ty);
+    if (goal(P.x, P.y)) { if (!a) return { here: true }; const d = DIRK.find(([dx, dy]) => P.x + dx === tx && P.y + dy === ty); return { key: d[2], bump: true }; }
+    const k = (x, y) => x + ',' + y, prev = new Map([[k(P.x, P.y), null]]), q = [[P.x, P.y]];
+    const pass = (x, y) => sc.walkable(x, y) && (sc.tile(x, y) !== 'U' || goal(x, y));
+    let end = null;
+    while (q.length && !end) {
+      const [x, y] = q.shift();
+      for (const [dx, dy] of DIRK) {
+        const nx = x + dx, ny = y + dy;
+        if (prev.has(k(nx, ny)) || !pass(nx, ny)) continue;
+        prev.set(k(nx, ny), [x, y]); q.push([nx, ny]);
+        if (goal(nx, ny)) { end = [nx, ny]; break; }
+      }
+    }
+    if (!end) return { none: true };
+    let c = end, b = prev.get(k(c[0], c[1]));
+    while (b && (b[0] !== P.x || b[1] !== P.y)) { c = b; b = prev.get(k(c[0], c[1])); }
+    const d = DIRK.find(([dx, dy]) => P.x + dx === c[0] && P.y + dy === c[1]);
+    return { key: d[2], to: c };
+  }
+  function tapAt(x, y) {
+    const cv = $('#w-canvas'), r = cv.getBoundingClientRect(), { cx, cy } = sc.cam(), ts = guessTs(r.width, r.height);
+    const px = r.left + x * ts + ts / 2 - cx, py = r.top + y * ts + ts / 2 - cy;
+    return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom ? [Math.round(px), Math.round(py)] : null;
+  }
+  W2.debug = { nextKey, tapAt, pos: () => sc && sc.P && [sc.P.x, sc.P.y, sc.P.moving || sc.P.path.length > 0], busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); } };
 })();

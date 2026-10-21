@@ -2,6 +2,8 @@
 // file, then chapter 1 as tools/ch1_check.js plays it, then the chapter 2 slice to its "to be continued" card.
 // Fails on any page error or console error, and on any request for a painted or generated image (.webp, .png,
 // .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening).
+// Chapter 2 starts from chapter 1's #c1-next with its act 1 world marked done (tools/c2_check.js walks the world), so
+// this plays the stair, Expedition I on the raid engine, and the camp.
 // Run from game/:  node tools/vector_check.js [mira|kai|seoyeon|dutch] [--win]   SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const ch1Step = require('./ch1_step');
@@ -45,7 +47,7 @@ const server = http.createServer((req, res) => {
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
       if ($('#v2-end') && vis($('#v2-end'))) return 'end2';
-      if (!window.__c2 && $('#v2-go') && vis($('#v2-go'))) return 'done';
+      if (!window.__c2 && $('#c1-next') && vis($('#c1-next'))) return 'done';
       // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
       const vn = $('#vn');
       if (vn && !vn.hidden) {
@@ -78,6 +80,10 @@ const server = http.createServer((req, res) => {
       if (!p.hidden) {
         const b = s => [...p.querySelectorAll(s)].find(x => !x.disabled && vis(x));
         let x;
+        // Expedition I's Sorting Tables (js/raid.js Policy Sort): guess a number, then sort each one.
+        if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
+        if ((x = p.querySelector('#q-num')) && !x.value) { x.value = '180'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (!window.__leadSeen) { window.__leadSeen = 1; return 'lead-wait'; } return click(x) && 'lead'; }
         if ((x = b('#tm-y'))) return click(x) && 'enter-temple';
         if ((x = b('#q-said'))) return click(x) && 'said';
@@ -99,6 +105,17 @@ const server = http.createServer((req, res) => {
         if ((x = b('.opts .opt'))) return click(x) && 'opt2';
         if ((x = b('#skip, .ghost, #panel-x'))) return click(x) && 'ghost';
         return 'panel-wait';
+      }
+      // Chapter 2's Expedition I runs on the raid engine (js/raid.js): your seat plays as a bot, fast; --win wins each fight.
+      const rd = vis($('#run')) && $('#run').querySelector('.rd'), RT = (SD.test || {}).raid;
+      if (rd && RT && RT.G()) {
+        const G = RT.G();
+        if (!window.__paced) { window.__paced = 1; RT.pace(0.05); }
+        const bk = rd.querySelector('#rd-back'); if (bk) return click(bk) && 'raid:back';
+        const me = G.players[RT.me()]; if (me && !me.bot) me.bot = true;
+        if (G.ph === 'fight' && G.tier === 'boss' && G.main && !(window.__boss = window.__boss || {})[G.main]) { window.__boss[G.main] = 1; return 'boss:' + G.main; }
+        if (WIN && G.ph === 'fight' && !G.qs.length) { RT.win(); return 'raid:win'; }
+        return 'raid-wait';
       }
       // Between chapter 2's scenes there's no run: the last fight's screen is left behind and mustn't be played.
       if (window.__c2 && !sv.run) return 'c2-wait';
@@ -139,6 +156,7 @@ const server = http.createServer((req, res) => {
       return 'wait';
     }, [WIN, LEAD]);
     last.push(what); if (last.length > 16) last.shift();
+    if (process.env.V && steps % 100 === 0) console.log(steps, last.slice(-5).join(' '));
     seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
     if (/^story:|^node:|^play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
@@ -147,7 +165,7 @@ const server = http.createServer((req, res) => {
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
-    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; document.querySelector('#v2-go').click(); }); continue; }
+    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; document.querySelector('#c1-next').click(); }); continue; }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }
