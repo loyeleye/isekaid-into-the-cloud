@@ -233,11 +233,16 @@ function step([WIN, LEAD, CHOICE]) {
     if (what.startsWith('shot:')) { if (SHOTS) { await page.waitForTimeout(900); await shot(what.slice(5)); } continue; }
     if (what.startsWith('key:')) {
       const [, key, id, thru, x, y] = what.split(':');
-      await page.keyboard.down(key); await page.waitForTimeout(thru === '1' ? 700 : 350); await page.keyboard.up(key);
+      // Through a gate: hold the key until you're two tiles past where you started (up to 3 s, for a slow machine).
+      const where = () => page.evaluate(() => { const s = SD.c5world.debug.scene(); return s ? [s.P.x, s.P.y] : null; });
+      const past = P => P && ({ ArrowUp: P[1] < +y - 1, ArrowDown: P[1] > +y + 1, ArrowRight: P[0] > +x + 1, ArrowLeft: P[0] < +x - 1 })[key];
+      await page.keyboard.down(key);
+      if (thru === '1') { for (let t = 0; t < 30 && !past(await where()); t++) await page.waitForTimeout(100); } else await page.waitForTimeout(350);
+      await page.keyboard.up(key);
       await page.waitForTimeout(250);
       if (thru === '1') {
-        const P = await page.evaluate(() => { const s = SD.c5world.debug.scene(); return s ? [s.P.x, s.P.y] : null; });
-        const ok = P && ({ ArrowUp: P[1] < +y - 1, ArrowDown: P[1] > +y + 1, ArrowRight: P[0] > +x + 1, ArrowLeft: P[0] < +x - 1 })[key];
+        const P = await where();
+        const ok = past(P);
         if (!ok) { errors.push(`walking ${key} through ${id} from ${x},${y} didn't get you through it (at ${P})`); break; }
         await page.evaluate(id => { window.__thru[id] = 1; }, id);
         seen.add('thru:' + id);

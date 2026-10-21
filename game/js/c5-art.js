@@ -390,7 +390,7 @@
     R(140, 160, 300, 260, '#1a1830', K.NIGHT, 4), K.stars(300, 260, 30, 51, 0.6).replace(/cx="(\d+)"/g, (m, x) => `cx="${+x + 140}"`).replace(/cy="(\d+)"/g, (m, y) => `cy="${+y + 160}"`),
     G(R(-320, -20, 640, 40, '#7a5a3a', K.NIGHT, 3) + R(-300, 20, 24, 300, '#5a3a24', K.NIGHT, 3) + R(276, 20, 24, 300, '#5a3a24', K.NIGHT, 3)
       + p('M-120 -26 L60 -36 L64 -18 L-116 -10Z', '#f2ead8', K.NIGHT, 3) + p('M-90 -26 h20 M-60 -27 h10 M-44 -28 h30 M-90 -16 h40 M-40 -18 h14', null, '#3a3a6a', 4), 'translate(600 820)'),
-    G(p('M0 0 L-30 -80 L30 -80Z', '#c8a24a', K.NIGHT, 3) + R(-4, 0, 8, 60, '#6a4a2a'), 'translate(740 700)'), K.glow('c5kg', 740, 640, 460, '#ffcf7a', 0.4), K.vignette(1200, 1200, 0.8)]);
+    G(p('M0 0 L-30 -80 L30 -80Z', '#c8a24a', K.NIGHT, 3) + R(-4, 0, 8, 100, '#6a4a2a') + R(-30, 96, 60, 10, '#5a3a24', K.NIGHT, 2), 'translate(740 700)'), K.glow('c5kg', 740, 640, 460, '#ffcf7a', 0.4), K.vignette(1200, 1200, 0.8)]);
   // The wall between their rooms, that night: two hands, tapping.
   S['c5-wall'] = K.scene([sky('c5w', '#1a1830', '#0e0c18'), R(0, 0, 590, 1200, '#2a2640'), R(610, 0, 590, 1200, '#262238'), R(590, 0, 20, 1200, '#4a4466', K.NIGHT, 3),
     G(p('M0 0 C20 -20 50 -20 70 0 L80 60 L-10 60Z', '#f0d2bc', K.NIGHT, 3), 'translate(500 560)'), G(p('M0 0 C-20 -20 -50 -20 -70 0 L-80 60 L10 60Z', '#e2b496', K.NIGHT, 3), 'translate(700 620)'),
