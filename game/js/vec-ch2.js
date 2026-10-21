@@ -800,7 +800,17 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     'dva-1-15': 'Set an alarm clock in the cloud (EventBridge Scheduler) for 02:00 every night that wakes the function. No server has to stay up waiting.',
     'dva-1-120': 'Everyone queued at one door because they all had the same ticket colour. Give each device its own colour (its ID as the key) and they spread over all eight doors.',
     'dva-1-123': 'Hand the entries in one at a time, and with each one say "this comes after that one" (the previous sequence number), so the stream can\'t shuffle them.',
-    'dva-1-06': 'A stream is like a replay log: every reader can watch it on their own, each user\'s records stay in order when you key them by user, and yesterday\'s footage is still there to rewatch.'
+    'dva-1-06': 'A stream is like a replay log: every reader can watch it on their own, each user\'s records stay in order when you key them by user, and yesterday\'s footage is still there to rewatch.',
+    'saa-2-110': 'One FIFO pigeonhole per account: letters for the same account come out in the order they went in, and a copy posted a minute later is thrown away at the door.',
+    'dva-4-208': 'Stop knocking on an empty post box over and over: bundle letters into one sack when you send them, and wait at the box a few seconds for the next one (long polling) instead of asking every instant.',
+    'dva-4-317': 'A sorting rule on the fraud desk\'s mail slot: only letters marked eu, and then only if they\'re urgent or worth more than 1,000. Anything else never lands in their tray.',
+    'dva-4-223': 'The label on the envelope is blank, but the letter inside says what it is: tell the sorter to read the letter itself (FilterPolicyScope MessageBody), not the envelope.',
+    'dva-3-118': 'Before you nail a new bell rule to the tower, try it against a few sample letters at your desk (test-event-pattern) and see which ones would ring it.',
+    'saa-4-204': 'Posting a billion postcards one by one costs a fortune in stamps: let a sorter (Firehose) bundle them into big parcels first, then deliver the parcels.',
+    'saa-2-101': 'The town already speaks the old ActiveMQ post office\'s language: rent a managed one that speaks it too (Amazon MQ), with a standby office in another district if the first burns down.',
+    'saa-3-125': 'Every courier already knows Kafka\'s routes: move into a managed Kafka (Amazon MSK) and just give them the new address.',
+    'saa-2-220': 'The services already talk RabbitMQ: use Amazon MQ\'s RabbitMQ, run as a cluster across districts, so nobody has to learn a new way to post a letter.',
+    'saa-3-234': 'Keep the Kafka couriers, skip guessing how many sorting halls to build: MSK Serverless grows and shrinks with the mail, and the couriers show their IAM badge at the door.'
   });
 
   // ---------- Playing it ----------
