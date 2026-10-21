@@ -356,9 +356,10 @@
     id: 'denymines', name: 'The Deny Mines', who: ORDER, opens: () => true, sev: 0.85, dmg: 0.85,
     blurb: 'Straight through Mount Quota: two floors of old IAM mistakes, then out onto the upper trail.',
     back: 'Out onto the upper trail',
+    // Why it's free (story bible, 03-chapter-1.md): Uptima still holds root, so her Cloud still snapshots every floor.
+    regroup: [{ who: 'mate1', text: 'Everyone up? The Cloud snapshotted us at the top of this floor and put us back. Uptima\'s backups still run.' }, { who: 'mate2', text: 'For now.' }],
     cafe: { title: 'The Miners\' Canteen', who: null, name: 'The canteen', text: 'An old canteen with an honesty box. The kettle is still warm, and somebody has left cards on the counter with prices in chalk.' },
     camp: { title: 'The Lamp Room', text: 'A dry room full of miners\' lamps. Sit down for a minute, or use the bench to tune one of your cards. Each of you chooses one.' },
-    regroup: [{ who: 'mate1', text: 'Everyone up? Good. Back to where this floor started. We know what\'s down there now.' }],
     floors: [
       { name: 'The Galleries', gate: 'THE DENY MINES · THE GALLERIES', map: '1', beat: 'Old policies, wildcards and keys nobody remembers leaving.',
         boss: 'asterisk', bossTitle: 'The Great Asterisk', fade: 4,
@@ -438,6 +439,9 @@
   }
   const story = extra => Object.assign({
     story: true, label: 'Borderlands', xp: 'denymines', champNames: true, deckFor, pickQ, say,
+    // The tutorial dungeon (Ladi, Oct 21): going down restarts the floor for free from Uptima's snapshot. Seymour Tapes
+    // start in chapter 2, after Freya wipes every backup.
+    free: !(SD.ch1mines && SD.ch1mines.tapes != null), tapes: (SD.ch1mines && SD.ch1mines.tapes) | 0,
     onMiss: q => { if (q && q.c && SD.ch1m && SD.ch1m.miss) SD.ch1m.miss(q.c); }
   }, extra);
 
@@ -469,7 +473,14 @@
 
   // From the cave mouth (js/ch1-mountain.js): how is 'solo', 'party' or 'join'. onDone runs once the mines are cleared;
   // leaving them any other way puts you back at the cave mouth.
+  // One run at a time: a second call while one is open (a double tap on the cave) would paint two dungeons over each other.
+  let open = false;
   async function mines(how, onDone) {
+    if (open) return;
+    open = true;
+    try { await run(how, onDone); } finally { open = false; }
+  }
+  async function run(how, onDone) {
     const RD = SD.raid, net = SD.net, M = SD.ch1m;
     SD.main.show('run');
     const root = U.$('#run');

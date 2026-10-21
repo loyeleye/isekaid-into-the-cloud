@@ -37,7 +37,7 @@ const server = http.createServer((req, res) => {
 
   const seen = new Set(), last = [], shotsTaken = new Set();
   let steps = 0;
-  for (; steps < 12000; steps++) {
+  for (; steps < 30000; steps++) {
     const what = await page.evaluate(([WIN, LEAD]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
@@ -93,9 +93,9 @@ const server = http.createServer((req, res) => {
       if (vis($('#run')) && rd) {
         const T = ((SD.debug || {}).raid) || ((SD.test || {}).raid);
         if (!T) return 'mines-wait';
-        if (!window.__paced) { window.__paced = 1; T.pace(0.05); }
+        if (window.__paced !== T) { window.__paced = T; T.pace(0.05); }
         let x;
-        if ((x = rd.querySelector('#rd-back'))) return click(x) && 'mines:back';
+        if ((x = rd.querySelector('#rd-back'))) { const G = T.G(); return click(x) && 'mines:back:' + G.ph + ':' + JSON.stringify(G.end); }
         const G = T.G(), mine = G.players[T.me()], ph = rd.dataset.ph;
         if (ph === 'fight') {
           if (WIN) { T.win(); return 'mines:win'; }
@@ -117,7 +117,7 @@ const server = http.createServer((req, res) => {
           if (y) return click(y) && 'mines:' + k;
         }
         const r = G.room || {};
-        return 'mines-wait:' + ph + ':' + (r.t || '') + ':' + JSON.stringify([r.wait && r.wait[T.me()], r.todo && r.todo[T.me()], r.res && r.res[T.me()], send.map(b => b.dataset.send), !!document.querySelector('#panel:not([hidden])'), !document.querySelector('#dialog').hidden]);
+        return 'mines-wait:' + ph + ':' + (r.t || '') + ':fl' + G.fl + ':sla' + G.sla + ':' + JSON.stringify([r.wait && r.wait[T.me()], r.todo && r.todo[T.me()], r.res && r.res[T.me()], send.map(b => b.dataset.send), !!document.querySelector('#panel:not([hidden])'), !document.querySelector('#dialog').hidden]);
       }
       if (vis($('#run'))) {
         const end = $('#end-turn');
@@ -178,7 +178,7 @@ const server = http.createServer((req, res) => {
     }, [WIN, LEAD]);
     last.push(what); if (last.length > 16) last.shift();
     if (process.env.TRACE && steps % 200 === 0) console.log(steps, last.slice(-6).join(' '));
-    seen.add(what.replace(/^(node|dialog|play|scene|mines:play|mines:node|mines-wait):.*/, '$1'));
+    seen.add(what.replace(/^(node|dialog|play|scene|mines:play|mines:node|mines-wait|mines:back):.*/, '$1'));
     if (/^story:|^node:|^play:|^mines:node:|^mines:play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
@@ -193,7 +193,7 @@ const server = http.createServer((req, res) => {
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
-  if (steps >= 12000) errors.push('the demo never finished; last actions: ' + last.join(' '));
+  if (steps >= 30000) errors.push('the demo never finished; last actions: ' + last.join(' '));
   const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
   const missing = need.filter(k => !sv.flags || !sv.flags[k]);
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
