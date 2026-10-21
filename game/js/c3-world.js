@@ -584,9 +584,9 @@
     faceTo('kage', 'you');
     if (!flag('kage')) {
       setFlag('kage');
-      return say([['kage', 'Card pins. Very cheap. Very helpful. I am always helpful.', 'smirk'], ['kage', 'That bunker of Seymour\'s, by the way. What does he keep in it? Just asking. Helpfully.', 'neutral']]);
+      return say([['kagemaru', 'Card pins. Very cheap. Very helpful. I am always helpful.', 'smirk'], ['kagemaru', 'That bunker of Seymour\'s, by the way. What does he keep in it? Just asking. Helpfully.', 'neutral']]);
     }
-    return say([['kage', rnd(['Pins for every card. Cheap. Have I mentioned helpful?', 'Your knight friend. Seymour. Does he ever leave the bunker? Just curious.']), 'smirk']]);
+    return say([['kagemaru', rnd(['Pins for every card. Cheap. Have I mentioned helpful?', 'Your knight friend. Seymour. Does he ever leave the bunker? Just curious.']), 'smirk']]);
   }
   async function jarVisit() {
     setFlag('jar');

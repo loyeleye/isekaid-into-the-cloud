@@ -296,12 +296,12 @@
     noor: { name: 'Noor Haddad', title: 'The twelfth Saint' }, selvaria: { name: 'Princess Selvaria', title: 'Regent of Halcyon' },
     aurelian: { name: 'Sir Aurelian', title: 'The Hero of Halcyon' }, ash: { name: 'Mother Ash', title: 'The seventh Saint' },
     wen: { name: 'Grandma Wen', title: 'The Cache Café' }, doug: { name: 'Doug', title: 'Ops, mostly' }, kevin: { name: 'Kevin', title: 'A bot' },
-    kage: { name: 'Kagemaru', title: 'Card pins, cheap' }, citizen: { name: 'A citizen', title: 'Halcyon' }, lord: { name: 'Lord Brannick', title: 'Halcyon' },
+    kage: { name: 'Kagemaru', title: 'Card pins, cheap' }, kagemaru: { name: 'Kagemaru', title: 'Card pins, cheap' }, citizen: { name: 'A citizen', title: 'Halcyon' }, lord: { name: 'Lord Brannick', title: 'Halcyon' },
     baker: { name: 'A baker', title: 'Halcyon' }, child: { name: 'A child', title: 'Halcyon' }, guard: { name: 'A cathedral guard', title: 'Halcyon' }
   });
   // Halcyon's walk-on speakers borrow a townsperson's figure and voice.
   Object.assign(SD.cast, { keeper: { name: 'The gatekeeper', title: 'The granary gate' }, clerk: { name: 'A clerk', title: 'The Cold Stores' }, merchant: { name: 'A merchant', title: 'The Cold Stores' } });
-  [['noor', 980], ['selvaria', 640], ['aurelian', 300], ['ash', 520], ['wen', 760], ['doug', 380], ['kevin', 1500], ['kage', 340], ['citizen', 600], ['lord', 330], ['baker', 820], ['child', 1250], ['guard', 420]].forEach(([w, hz]) => SD.ui.voice(w, hz));
+  [['noor', 980], ['selvaria', 640], ['aurelian', 300], ['ash', 520], ['wen', 760], ['doug', 380], ['kevin', 1500], ['kage', 340], ['kagemaru', 340], ['citizen', 600], ['lord', 330], ['baker', 820], ['child', 1250], ['guard', 420]].forEach(([w, hz]) => SD.ui.voice(w, hz));
   // Townsfolk speak with a figure too, so no line ever reaches for a painted portrait.
   Object.assign(K.cast, {
     citizen: { skin: '#e9c6a6', skinD: '#d2a888', hair: '#6b4426', hairD: '#4a2c16', hairL: '#8a6040', eye: '#3b2a20', style: 'short', coat: '#9a8a5a', coatD: '#7a6a3a', under: '#f1e7c6', collar: 'shirt' },
@@ -311,7 +311,7 @@
     guard: { skin: '#e2b496', skinD: '#c8957a', hair: '#3a2a20', hairD: '#24180e', hairL: '#5a4a3a', eye: '#2a1a12', style: 'short', coat: '#8a7a3a', coatD: '#6a5a2a', under: '#d8c890', collar: 'high' }
   });
 
-  Object.assign(K.cast, { keeper: Object.assign({}, K.cast.guard), clerk: Object.assign({}, K.cast.citizen), merchant: Object.assign({}, K.cast.lord) });
+  Object.assign(K.cast, { keeper: Object.assign({}, K.cast.guard), clerk: Object.assign({}, K.cast.citizen), merchant: Object.assign({}, K.cast.lord), kagemaru: Object.assign({}, K.cast.kage) });
   [['keeper', 420], ['clerk', 600], ['merchant', 330]].forEach(([w, hz]) => SD.ui.voice(w, hz));
 
   // ---------- Cutscene backgrounds ----------
