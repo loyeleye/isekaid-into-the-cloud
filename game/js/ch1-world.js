@@ -395,7 +395,7 @@
     if (f.cart) return say([['narr', 'The cart is open, and someone has restocked it already. There\'s a little card on top: "Help yourself! xx F."']]);
     await say(T.cartLocked);
     storyFight('lockeddoor', { single: true, log: 'Your kit is in the cart. Play a card to open it.' }, async () => {
-      c1().deck.push({ id: 'blessing', up: false });
+      c1().deck.push({ id: 'adminaccess', up: false });
       setFlag('cart');
       applyState();
       const P = sc.P; await walkTo('freya', P.x + 1, P.y, 4); faceTo('freya', 'you'); faceTo('you', 'freya');
@@ -475,6 +475,7 @@
     W1.halt();
     R.storyFight(1, eid, opts, c1().deck, deck => {
       c1().deck = deck; S.persist(); after = null;
+      if (onMountain()) return SD.ch1m.back(onWin);
       W1.enter();
       act(onWin);
     });
@@ -483,6 +484,7 @@
   async function storyLost() {
     const back = after && after.opts.back;
     after = null;
+    if (onMountain()) return SD.ch1m.lost(back);
     W1.enter();
     if (back) sc.place('you', back[0], back[1]);
     await act(() => say(T.lostStory));
@@ -510,6 +512,8 @@
     freyaForm();
     AU.music('story');
     await SD.vn.play(T.prologue[lead()]);
+    // The climb up Mount Quota (js/ch1-mountain.js) comes first, and ends at the camp.
+    if (SD.ch1m) return SD.ch1m.start();
     W1.enter();
     await act(wake);
   };
@@ -519,6 +523,7 @@
     if (sv.run && !sv.run.story) { dress(); return R.resume(); }
     if (sv.run) { sv.run = null; S.persist(); }
     if (flag('done')) return endCard();
+    if (onMountain()) return SD.ch1m.resume();
     W1.enter();
     if (!flag('intro')) act(wake);
   };
@@ -530,6 +535,7 @@
     document.body.style.setProperty('--lead-img', `url(${l.img})`);
   }
   W1.enter = function () {
+    if (onMountain()) return SD.ch1m.enter();
     dress();
     SD.main.show('world');
     if (!sc) makeScene(); else applyState();
@@ -544,6 +550,7 @@
     U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them.');
   }
   function objective() {
+    if (onMountain()) return SD.ch1m.objective();
     const f = c1().f;
     if (!f.cart) return 'Open the supply cart by the fire';
     if (!f.brief && !leadScenesDone()) return 'Say good morning to everyone with a "!"';
@@ -600,7 +607,7 @@
     async play(C, c, d) {
       // The locked cart: nothing is allowed until Freya's blessing.
       if (C.eid === 'lockeddoor' && !C.granted) {
-        if (c.id === 'blessing') { C.granted = true; C.log = 'Allow * on *. Everything you play works now.'; return false; }
+        if (c.id === 'blessing' || c.id === 'adminaccess') { C.granted = true; C.log = 'Allow * on *. Everything you play works now.'; return false; }
         C.energy += costOf(c, d);
         C.log = `AccessDenied. No policy allows ${d.name} yet, and everything starts implicitly denied.`;
         AU.sfx('resist'); U.float($('.foe'), 'DENIED', 'res');
@@ -609,11 +616,13 @@
           renderLater(C);
           await wait(500);
           await say(T.cartBless);
-          C.hand.push({ id: 'blessing', up: false, uid: 998 });
+          C.hand.push({ id: 'adminaccess', up: false, uid: 998 });
           C.busy = false;
         }
         return true;
       }
+      // AdministratorAccess: every play asks what would have been enough. It can't get past an explicit Deny.
+      if (c.id === 'adminaccess') return adminPlay(C);
       // Uptima: a new session is one her revoke can't touch.
       if (C.eid === 'uptimaboss' && (d.tags || []).some(t => t === 'fresh' || t === 'assume')) { C.fresh = true; return false; }
       // Kyu: an explicit Deny. Only finding it, unmaking her blessings and deleting the line get anywhere.
@@ -719,6 +728,8 @@
     await say(T.edge);
     endCard();
   }
+  SD.chapterStart = SD.chapterStart || {};
+  SD.chapterStart[1] = () => W1.newGame();
   function endCard() {
     if ($('#stage').hidden) U.stage('edge');
     // The card stands in front of an empty edge; whoever spoke last steps off.
@@ -729,8 +740,47 @@
       <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'DEMO COMPLETE', noClose: true });
     b.querySelector('#c1-again').onclick = () => { U.closePanel(); U.stage(null); S.save.c1 = null; S.persist(); W1.newGame(); };
     b.querySelector('#c1-title').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
+    // The next chapter, once one has registered its start (SD.chapterStart, shared by every chapter).
+    const next = SD.chapterStart && SD.chapterStart[2];
+    if (next && !b.querySelector('#v2-go')) {
+      const go = document.createElement('button'); go.className = 'primary'; go.id = 'c1-next'; go.type = 'button'; go.textContent = 'Continue to Chapter 2';
+      const row = b.querySelector('.row'); row.insertBefore(go, row.firstChild);
+      const again = b.querySelector('#c1-again'); again.classList.remove('primary'); again.classList.add('ghost');
+      go.onclick = () => { U.closePanel(); U.stage(null); next(); };
+    }
     if (W1.onEndCard) W1.onEndCard(b);
   }
+
+  // ---------- AdministratorAccess ----------
+  // Against an explicit Deny (Uptima's revoke, Kyu, the mines' boundaries) it comes back AccessDenied. Otherwise it
+  // asks a least-privilege question first: right, and you gain 1 Capacity (the next card is "scoped down"); wrong or
+  // skipped, the card still works and you lose 2 SLA (its blast radius). A miss comes back at the next Rest Stop.
+  const DENIES = ['uptimaboss', 'kyu'];
+  async function adminPlay(C) {
+    const e = SD.enemies[C.eid] || {};
+    if (DENIES.includes(C.eid) || e.denyAll) {
+      C.log = 'AccessDenied. Allow * on * is still an Allow, and an explicit Deny beats every Allow.';
+      AU.sfx('resist'); U.float($('.foe'), 'DENIED', 'res');
+      return true;
+    }
+    const seen = new Set(Object.keys(S.save.concepts || {}).filter(k => S.save.concepts[k].seen));
+    const pool = SD.questions.filter(q => q.lp && (seen.has(q.c) || q.c === 'iam'));
+    const q = SD.qpick(pool.length ? pool : SD.questions.filter(q => q.lp));
+    if (!q) return false;
+    C.busy = true;
+    const r = await Q.ask(q, { title: 'ADMINISTRATORACCESS', context: 'What would have been enough?' });
+    C.busy = false;
+    if (r && r.ok) { C.energy += 1; C.log = 'Scoped down: least privilege would have done it. +1 Capacity.'; }
+    else {
+      if (S.save.run) S.save.run.sla = Math.max(1, S.save.run.sla - 2);
+      C.log = 'Blast radius: Action * touched more than it needed to. Lose 2 SLA.';
+      if (SD.ch1m) SD.ch1m.miss(q.c);
+    }
+    renderLater(C);
+    return false;
+  }
+  function onMountain() { return !!(SD.ch1m && SD.ch1m.active()); }
+  W1.storyFight = storyFight;
 
   // For tools/ch1_check.js: jump the story forward.
   W1.lead = lead; W1.dress = dress; W1.choose = choose;
