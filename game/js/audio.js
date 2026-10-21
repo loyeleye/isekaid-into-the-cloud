@@ -195,7 +195,7 @@
   const SONG_VOL = { map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
   const JING = { victory: 'j-victory', defeat: 'j-defeat', gary: 'j-gary' };
   const SAMPLE = { blip: 's-blip', ok: 's-ok', cancel: 's-cancel', card: 's-card', hit: 's-hit', crit: 's-crit', resist: 's-resist', hurt: 's-hurt', shield: 's-shield', coin: 's-coin', right: 's-right', wrong: 's-wrong', door: 's-door',
-    doorclose: 's-doorclose', shopbell: 's-shopbell', steps: 's-steps' };
+    doorclose: 's-doorclose', shopbell: 's-shopbell', steps: 's-steps', thud: 's-thud' };
   const SONG_GAIN = 1.5;  // recorded tracks are mastered quieter than the synth
   const bufs = {}, failed = new Set();
   function loadBuf(file) {

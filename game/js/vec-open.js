@@ -1,12 +1,10 @@
-// The vector proof of concept's opening, "the files": Freya's pavilion at night, the man in the dark across the desk,
-// the four folders and the prayers stamped UNANSWERED, then choosing whose file to keep. It plays before chapter 1's
-// prologues (js/ch1-world.js W1.opening), and every picture is drawn in code (js/vec-scenes.js, js/vec-cast.js).
+// The opening, "the files": a thunderstorm, Freya's pavilion at night, the man in the dark across the desk, the four
+// files and the prayers stamped UNANSWERED, then choosing whose file to keep. It plays before chapter 1's prologues
+// (js/ch1-world.js W1.opening). The pictures are painted stills, the one place the vector build shows images; the
+// file cards and the lead select are drawn in code from the cast (js/vec-cast.js).
 //
-// The scene is a shot list, so it can be re-cut by editing data. A shot is one of:
-//   { shot, bg | cg, pan, fx: [...], cast: { who: [face, pos] }, hide: [...], lines: [[who, text, face], ...] }
-//   { shot, card: lead }     a file opens: the lead's intro card freezes with the prayer stamped UNANSWERED
-//   { shot, files: true }    the four files become the lead select; the chosen file goes in the next shots as 'chosen'
-// compile() turns the list into js/vn.js steps. The words are the script's (Docs, "Opening scene: the files").
+// The scene is a shot list (O.SHOTS below), so it can be re-cut by editing data, and compile() turns it into js/vn.js
+// steps. The words are the script's, and the shots the storyboard's (Docs, "Opening scene: the files").
 (function () {
   const K = SD.vec;
   const O = K.open = {};
@@ -19,71 +17,73 @@
     dutch: { known: 'finding people who don\'t want to be found.', line: 'The Crown\'s best enforcer, until he wasn\'t. He went looking for whoever pushed his daughter, and found the wrong man.' }
   };
 
+  // The painted stills (Gemini-generated, js/../assets/img/opening, credited in CREDITS.md). s1a-<face> is the wide
+  // shot with Freya's face changed and nothing else, so a face change is a crossfade that only moves her face.
+  const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12'];
+  const FACES = ['warm', 'earnest', 'smirk', 'cold', 'amused', 'sad', 'unreadable', 'frustrated'];
+  O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id }])
+    .concat(FACES.map(f => ['op-a-' + f, { src: 'assets/img/opening/s1a-' + f + '.webp', label: 's1a ' + f }])));
+
+  // Every stage direction is its own still: no narrator, no animation, only cuts, lightning and slow push-ins.
+  // A shot is { still, pan, lines } or one of:
+  //   { strike: still }   thunder, a lightning flash reveals the still, and it fades back to the dark
+  //   { dark: true }      the slap: thunder and a folder on wood, with nothing to see
+  //   { card: lead }      a file opens: the lead's card freezes with the prayer stamped UNANSWERED
+  //   { files: true }     the four files become the lead select
+  //   { sound: name }     a sound on its own (thunder far off)
+  // pan is 'in' (a slow push-in, the default), 'up', 'left' or 'still'. A: Freya's side, wide. B: over her shoulder.
+  const A = (face, ...lines) => ({ still: 'a-' + face, lines: lines.map(t => ['freya', t]) });
+  const B = (...lines) => ({ still: 's1b', lines: lines.map(t => ['man', t]) });
   O.SHOTS = [
-    { shot: 'P1', bg: 'open-pav', fx: ['rain'], cast: { freya: ['tired', 'left'], man: ['neutral', 'right'] }, lines: [
-      ['narr', 'Freya\'s pavilion, at night. Rain drums on the canvas. One lamp, a camp desk, and four manila folders stamped FREE TIER · APPLICATION.'],
-      ['narr', 'The man across from her sits outside the lamplight in white gloves. As he sits, he slides a ring on over the left one: a snake eating its own tail.'],
-      ['man', 'You promised an army.'],
-      ['freya', 'I promised the right people. Armies pray. These four stopped.', 'warm']
-    ] },
-    { shot: 'P2', cg: 'open-hands', pan: 'in', lines: [['narr', 'She pushes the first folder into the light.']] },
-    { shot: 'F1', card: 'mira' },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['man', 'A village healer. You\'ve brought me a nurse.'],
-      ['freya', 'The Church brought you a beast, and then forgot which way to point her. Her husband died on a tower stair with her hands on the wound. She prayed the whole time.', 'earnest'],
-      ['man', 'Healers don\'t win wars.'],
-      ['freya', 'This one doesn\'t stop when the patient does. That\'s the trouble with her. It\'s also the point.', 'neutral']
-    ] },
-    { shot: 'F2', card: 'kai' },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['man', 'A cook.'],
-      ['freya', 'A cook who climbed out of the Abyss with his bare hands. Nobody climbs out of the Abyss.', 'amused'],
-      ['man', 'Late, I hear.'],
-      ['freya', 'One day late. He\'ll never forgive himself for that day, which means he\'ll never stop. And that hand of his undoes things: blessings, barriers, whatever a god put there.', 'earnest']
-    ] },
-    { shot: 'P3', cg: 'open-ring', pan: 'in', lines: [['man', 'Whatever a god put there.']] },
-    { shot: 'P1', bg: 'open-pav', lines: [['freya', 'That\'s what I said.', 'neutral']] },
-    { shot: 'F3', card: 'seoyeon' },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['man', 'She\'s a child.'],
-      ['freya', 'She\'s twenty. Raised at the table of the man who burned her family, and trained by the best sword sect alive. She froze once.', 'neutral'],
-      ['man', 'Once is enough to get someone killed.'],
-      ['freya', 'It was.', 'sad'],
-      ['freya', 'She\'s the only one of the four who\'s afraid of herself. That\'s who you want making the hard choices.', 'sad']
-    ] },
-    { shot: 'F4', card: 'dutch' },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['man', 'A janitor.'],
-      ['freya', 'The Crown\'s best enforcer, until he wasn\'t. He took a mop and a night shift to find whoever pushed his daughter off a tower, and he found the wrong man.', 'neutral'],
-      ['man', 'He\'ll ask questions.'],
-      ['freya', 'Good. Somebody on this crew should.', 'amused'],
-      ['man', 'And when he asks you?'],
-      ['freya', 'Then I\'ll answer him.', 'unreadable']
-    ] },
-    { shot: 'P4', cg: 'open-files', pan: 'up', lines: [
-      ['narr', 'The four folders lie open in the lamplight.'],
-      ['man', 'Four broken people against a goddess. They\'ll lose.']
-    ] },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['freya', 'Four people she ignored. She has a room in her temple stacked to the ceiling with prayers, ten thousand years of them, and she\'s never opened one. She had everything she needed to help them, and she let them bleed.', 'frustrated'],
-      ['man', 'And the goddess? Does she pay?'],
-      ['freya', 'We make her listen.', 'cold'],
-      ['freya', 'If paying is what it takes, she\'ll pay.', 'cold']
-    ] },
-    { shot: 'P3', cg: 'open-ring', pan: 'up', lines: [['man', 'Then you\'ll want me ready, my lady. And I\'d like a seat near the front.']] },
-    { shot: 'P1', bg: 'open-pav', lines: [
-      ['freya', 'Freya, love. We\'re not in church.', 'neutral'],
-      ['freya', 'I\'ll send for you when it\'s time.', 'warm']
-    ] },
-    { shot: 'P2', cg: 'open-hands', pan: 'left', lines: [
-      ['narr', 'His gloved fingers come to rest on the files.'],
-      ['freya', 'Leave those.'],
-      ['man', 'Of course.']
-    ] },
-    { shot: 'P1', bg: 'open-pav', hide: ['man'], lines: [['narr', 'At the flap he slides the ring back under his glove, and goes out into the rain. Freya is alone with the four files.']] },
-    { shot: 'SEL', files: true },
-    { shot: 'P2', cg: 'open-hand-chosen', pan: 'in', lines: [['narr', 'She closes the other three, and keeps her hand flat on yours.']] },
-    { shot: 'P1', bg: 'open-pav', cast: { freya: ['smirk', 'center'] }, lines: [['freya', 'Good. Let\'s get to work, then.', 'smirk']] }
+    { strike: 'l1' },
+    { strike: 'l2', hold: 1900 },
+    { dark: true },
+    { strike: 'l3' },
+    { still: 'l4', hold: 1600 },
+    B('You promised an army.'),
+    A('warm', 'I promised the right people. Armies pray. These four stopped.'),
+    { still: 's2', hold: 1400 },
+    { card: 'mira' },
+    B('A village healer. You\'ve brought me a nurse.'),
+    A('earnest', 'The Church brought you a beast, and then forgot which way to point her. Her husband died on a tower stair with her hands on the wound. She prayed the whole time.'),
+    B('Healers don\'t win wars.'),
+    A('earnest', 'This one doesn\'t stop when the patient does. That\'s the trouble with her. It\'s also the point.'),
+    { card: 'kai' },
+    B('A cook.'),
+    A('amused', 'A cook who climbed out of the Abyss with his bare hands. Nobody climbs out of the Abyss.'),
+    B('Late, I hear.'),
+    A('earnest', 'One day late. He\'ll never forgive himself for that day, which means he\'ll never stop. And that hand of his undoes things: blessings, barriers, whatever a god put there.'),
+    { still: 's5', glint: true, lines: [['man', 'Whatever a god put there.']] },
+    A('unreadable', 'That\'s what I said.'),
+    { card: 'seoyeon' },
+    B('She\'s a child.'),
+    A('earnest', 'She\'s twenty. Raised at the table of the man who burned her family, and trained by the best sword sect alive. She froze once.'),
+    B('Once is enough to get someone killed.'),
+    A('sad', 'It was.', 'She\'s the only one of the four who\'s afraid of herself. That\'s who you want making the hard choices.'),
+    { card: 'dutch' },
+    B('A janitor.'),
+    A('earnest', 'The Crown\'s best enforcer, until he wasn\'t. He took a mop and a night shift to find whoever pushed his daughter off a tower, and he found the wrong man.'),
+    B('He\'ll ask questions.'),
+    A('amused', 'Good. Somebody on this crew should.'),
+    B('And when he asks you?'),
+    A('unreadable', 'Then I\'ll answer him.'),
+    { still: 's7', pan: 'up', lines: [['man', 'Four broken people against a goddess. They\'ll lose.']] },
+    A('frustrated', 'Four people she ignored.'),
+    { still: 's8', lines: [['freya', 'She has a room in her temple stacked to the ceiling with prayers, ten thousand years of them, and she\'s never opened one.']] },
+    A('frustrated', 'She had everything she needed to help them, and she let them bleed.'),
+    B('And the goddess? Does she pay?'),
+    A('cold', 'We make her listen.', 'If paying is what it takes, she\'ll pay.'),
+    { sound: 'thunder' },
+    { still: 's9b', glint: true, lines: [['man', 'Then you\'ll want me ready, my lady. And I\'d like a seat near the front.']] },
+    { still: 's9a', lines: [['freya', 'Freya, love. We\'re not in church.'], ['freya', 'I\'ll send for you when it\'s time.']] },
+    { still: 's2b', lines: [['freya', 'Leave those.']] },
+    { still: 's2c', lines: [['man', 'Of course.']] },
+    { still: 's2', hold: 1300 },
+    { still: 's10b', hold: 1500 },
+    { still: 's10', rain: true, hold: 2200 },
+    { files: true },
+    { still: 's12', hold: 1500 },
+    A('smirk', 'Good. Let\'s get to work, then.')
   ];
 
   // Shots to js/vn.js steps.
@@ -92,12 +92,15 @@
     shots.forEach(s => {
       if (s.card) { steps.push(['act', 'vcard', { lead: s.card }]); return; }
       if (s.files) { steps.push(['act', 'vfiles', {}]); return; }
-      if (s.bg) steps.push(['bg', s.bg]);
-      if (s.cg) steps.push(['cg', s.cg, s.pan || 'in']);
-      (s.fx || []).forEach(f => steps.push(['fx', f]));
-      (s.hide || []).forEach(w => steps.push(['hide', w]));
-      Object.entries(s.cast || {}).forEach(([w, [face, pos]]) => steps.push(['show', w, face, pos]));
+      if (s.sound) { steps.push(['act', 'sound', { name: s.sound }]); return; }
+      if (s.strike) { steps.push(['fx', 'thunder'], ['cg', 'op-' + s.strike, 'still'], ['wait', s.hold || 1300], ['fx', 'black'], ['wait', 500]); return; }
+      if (s.dark) { steps.push(['act', 'sound', { name: 'thunder' }], ['act', 'sound', { name: 'thud' }], ['fx', 'shake'], ['wait', 900]); return; }
+      steps.push(['cg', 'op-' + s.still, s.pan || 'in']);
+      if (s.rain) steps.push(['fx', 'rain']);
+      if (s.glint) steps.push(['act', 'glint', {}]);
+      if (s.hold) steps.push(['wait', s.hold]);
       (s.lines || []).forEach(l => steps.push(l));
+      if (s.rain) steps.push(['fx', 'dry']);
     });
     return steps;
   };
@@ -108,6 +111,11 @@
   const esc = s => SD.ui.esc(s);
   const css = document.createElement('style');
   css.textContent = `
+#vn .kb-still > * { animation: none; }
+#vn .vn-glint { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 55%), rgba(255,236,170,.75), rgba(255,220,140,0) 4%); opacity: 0; mix-blend-mode: screen; }
+#vn .vn-glint.on { animation: vnGlint 1.1s ease-out 0.5s; }
+@keyframes vnGlint { 30% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #vn .vn-glint.on { animation: none; } }
 #vn .vn-panel.vcard, #vn .vn-panel.vfiles { width: min(560px, calc(100% - 20px)); max-height: calc(100vh - 40px); overflow-y: auto; padding: 0; background: none; border: 0; }
 .vc-card { position: relative; display: grid; grid-template-columns: 38% 1fr; gap: 14px; align-items: start; padding: 18px 16px 16px; background: linear-gradient(180deg, #ecdfba, #dcc996); color: #2b2340; border-radius: 6px 6px 10px 10px; box-shadow: 0 14px 40px rgba(0,0,0,.6), inset 0 0 0 2px rgba(43,35,64,.25); text-align: left; transform: rotate(-1deg); }
 .vc-card::before { content: "FREE TIER · APPLICATION"; position: absolute; top: -13px; left: 18px; padding: 3px 12px; font: 800 10px ui-monospace, monospace; letter-spacing: .08em; color: #2b2340; background: #d9b878; border-radius: 6px 6px 0 0; }
@@ -162,8 +170,20 @@
       });
       p.querySelectorAll('.vf-keep').forEach(b => b.addEventListener('click', () => { O.picked = b.dataset.keep; tools.sfx('ok'); done(); }));
     });
-    SD.vn.addScenes({ 'open-hand-chosen': { src: K.scenes['open-hand-' + O.picked], label: 'Her hand on your file' } });
     tools.closePanel();
+  };
+
+  // A sound on its own, and the ring catching the lamp once: a soft point of light that blooms and fades.
+  SD.vn.acts.sound = async (o, tools) => tools.sfx(o.name);
+  const GLINT = { 'op-s5': ['53%', '46%'], 'op-s9b': ['80%', '58%'] };
+  SD.vn.acts.glint = async function () {
+    const vn = document.getElementById('vn'), cg = vn && vn.querySelector('.vn-cg');
+    if (!cg) return;
+    const at = GLINT[vn.dataset.cg] || ['50%', '55%'];
+    const g = document.createElement('div');
+    g.className = 'vn-glint'; g.style.setProperty('--gx', at[0]); g.style.setProperty('--gy', at[1]);
+    cg.appendChild(g); requestAnimationFrame(() => g.classList.add('on'));
+    setTimeout(() => g.remove(), 2200);
   };
 
   // ---------- Playing it before chapter 1 ----------
@@ -173,13 +193,11 @@
     const W1 = SD.ch1;
     W1.opening = async function () {
       O.picked = null;
-      // Freya at night, jacket off; the day's Freya comes back for the prologues.
-      const day = SD.vn.art.sprites.freya;
-      const night = ['tired', 'warm', 'earnest', 'neutral', 'amused', 'sad', 'unreadable', 'frustrated', 'cold', 'smirk'];
-      SD.vn.addSprites({ freya: { faces: Object.fromEntries(night.map(f => [f, K.fig('freyan', f, 'bust')])) }, man: { faces: { neutral: K.fig('man', 'neutral', 'bust') } } });
+      SD.vn.addScenes(O.scenes());
       SD.audio.music('story');
+      SD.audio.weather('tempest');
       await SD.vn.play(O.compile(O.SHOTS));
-      SD.vn.addSprites({ freya: day });
+      SD.audio.weather(null);
       return O.picked || await W1.choose();
     };
   });
