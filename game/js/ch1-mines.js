@@ -447,7 +447,7 @@
     return new Promise(res => {
       let off = null;
       const draw = () => {
-        const list = dir.tables().filter(t => net.cleanCode(t.code).length >= 4 && t.open);
+        const list = dir.tables().filter(t => net.cleanCode(t.code).length >= 4);
         root.innerHTML = `<div class="mi-card rd"><span class="mi-tag">Borderlands · The Deny Mines</span><h2 style="margin:2px 0 6px">Join a party</h2>
           ${list.length ? `<ul class="mn-list">${list.map(t => `<li><b>${esc(t.nick || 'A party')}</b> <small class="muted">${t.players | 0}/${t.max | 0}${t.info ? ' · ' + esc(t.info) : ''}</small> <button class="mi-btn sm" type="button" data-code="${esc(net.cleanCode(t.code))}">Join</button></li>`).join('')}</ul>` : '<p class="muted">No open parties right now. Ask a friend for their code.</p>'}
           <label class="pt-lbl" for="mn-code">A friend's code<input id="mn-code" maxlength="6" autocomplete="off" placeholder="M7KQP"></label>

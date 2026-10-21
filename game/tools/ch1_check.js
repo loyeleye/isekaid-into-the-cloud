@@ -112,11 +112,12 @@ const server = http.createServer((req, res) => {
         }
         if ((x = rd.querySelector('#rd-ask'))) return click(x) && 'mines:ask';
         const send = [...rd.querySelectorAll('[data-send]')].filter(b => !b.disabled && b.offsetParent !== null);
-        for (const k of ['take', 'evote', 'one', 'rest', 'up', 'rm', 'done', 'skip']) {
+        for (const k of ['take', 'evote', 'wvote', 'one', 'rest', 'up', 'rm', 'done', 'skip']) {
           const y = send.find(b => JSON.parse(b.dataset.send).k === k);
           if (y) return click(y) && 'mines:' + k;
         }
-        return 'mines-wait';
+        const r = G.room || {};
+        return 'mines-wait:' + ph + ':' + (r.t || '') + ':' + JSON.stringify([r.wait && r.wait[T.me()], r.todo && r.todo[T.me()], r.res && r.res[T.me()], send.map(b => b.dataset.send), !!document.querySelector('#panel:not([hidden])'), !document.querySelector('#dialog').hidden]);
       }
       if (vis($('#run'))) {
         const end = $('#end-turn');
@@ -177,7 +178,7 @@ const server = http.createServer((req, res) => {
     }, [WIN, LEAD]);
     last.push(what); if (last.length > 16) last.shift();
     if (process.env.TRACE && steps % 200 === 0) console.log(steps, last.slice(-6).join(' '));
-    seen.add(what.replace(/^(node|dialog|play|scene|mines:play|mines:node):.*/, '$1'));
+    seen.add(what.replace(/^(node|dialog|play|scene|mines:play|mines:node|mines-wait):.*/, '$1'));
     if (/^story:|^node:|^play:|^mines:node:|^mines:play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
