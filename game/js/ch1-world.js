@@ -544,6 +544,8 @@
     hint();
   };
   W1.halt = function () { if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  W1.reset = function () { W1.halt(); sc = null; busy = false; };
   function hint() {
     if (flag('hinted')) return;
     setFlag('hinted');

@@ -37,6 +37,7 @@
 
   // A fresh save, then that chapter's own new game.
   function fresh(c) {
+    SD.main.haltWorlds();
     S.reset();
     U.closePanel();
     c.go();

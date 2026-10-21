@@ -684,6 +684,8 @@
     sc.start();
   };
   M.halt = function () { if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  M.reset = function () { M.halt(); sc = null; busy = false; };
   // A story fight's way back to the mountain (js/ch1-world.js calls it instead of re-entering the summit).
   M.back = function (onWin) { M.enter(); return act(onWin); };
   M.lost = function (back) { M.enter(); if (back) sc.place('you', back[0], back[1]); return act(() => say(CS.lostStory)); };
