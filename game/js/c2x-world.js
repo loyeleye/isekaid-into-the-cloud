@@ -67,6 +67,7 @@
   const LIFT = { camp: [22, 12], office: [31, 4], square: [61, 4], town: [113, 4] };
   const ARRIVE = { camp: [22, 13], office: [31, 5], square: [61, 5], town: [113, 5] };
   const NAMES = { camp: 'The camp, at the tower\'s foot', office: 'Floor 7 · The Dead Letter Office', square: 'Floor 13 · The Inquisition\'s square', town: 'Floor 1 · Thornwick' };
+  const BANNER = { camp: 'THE CAMP', office: 'FLOOR 7 · DEAD LETTERS', square: 'FLOOR 13 · THE SQUARE', town: 'FLOOR 1 · THORNWICK' };
   const PROPS = [];
   const BASE = (function build() {
     const g = [];
@@ -242,7 +243,8 @@
       if (!zone || zone[0] !== r) {
         const first = zone === null; zone = [r];
         if (!busy) AU.music(music(r));
-        if (!first) banner(NAMES[r].toUpperCase());
+        if (!first) banner(BANNER[r]);
+        refresh();
       }
     }
     mates().forEach((id, i) => {

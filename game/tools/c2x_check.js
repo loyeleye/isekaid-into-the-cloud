@@ -96,7 +96,7 @@ function step([WIN, LEAD, CHOICE]) {
     const G = T.G(), me = T.me(), ph = rd.dataset.ph;
     if (ph === 'fight') {
       window.__boss = window.__boss || {};
-      if (rd.querySelector('.combat.bossfight') && G && !window.__boss[G.fl + ':' + G.k]) { window.__boss[G.fl + ':' + G.k] = 1; return 'boss:' + (G.foes && G.foes[0] && G.foes[0].id); }
+      if (rd.querySelector('.combat.bossfight') && G && !window.__boss[G.fl + ':' + G.k]) { window.__boss[G.fl + ':' + G.k] = 1; return 'boss:floor' + (G.fl + 1); }
       if (WIN && T.hosting()) { T.win(); return 'raid:win'; }
       const c = [...rd.querySelectorAll('.hand .card')].find(c => !c.classList.contains('dim'));
       if (c) return click(c) && 'raid:card';
