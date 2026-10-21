@@ -26,7 +26,7 @@
   // Short game codes without look-alike letters.
   const ABC = 'abcdefghjkmnpqrstuvwxyz23456789';
   // A party code starts with its mode's letter (p Pair Mock, s Showdown, r Raid), so a code alone finds its mode.
-  N.PREFIX = { pair: 'p', show: 's', raid: 'r', mines: 'm' };
+  N.PREFIX = { pair: 'p', show: 's', raid: 'r', mines: 'm', dlo: 'd', tower: 'q' };
   N.code = game => (N.PREFIX[game] || '') + Array.from({ length: 4 }, () => ABC[Math.floor(Math.random() * ABC.length)]).join('');
   N.gameOf = code => Object.keys(N.PREFIX).find(k => String(code || '').length === 5 && code[0] === N.PREFIX[k]) || null;
   N.cleanCode = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
