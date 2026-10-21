@@ -555,8 +555,11 @@
   const ORDER = ['mira', 'kai', 'seoyeon', 'dutch'];
   const sv = () => (SD.state && SD.state.save && SD.state.save.c2x) || { f: {} };
   const P = rows => rows;
+  // Balance (Ladi, 2026-10-21: each expedition harder than the one before, about 90% clean clears over the part):
+  // each expedition's sev and dmg (js/raid.js) set its difficulty. Was 0.85 and 0.85 for all three. The Dead Letter
+  // Office 0.8 and 0.6, the Inquisition's Tower 0.75 and 0.55 (it was the hardest), the Grey Novice 0.85 and 0.92.
   SD.expeditions = (SD.expeditions || []).concat([{
-    id: 'deadletter', name: 'The Dead Letter Office', who: ORDER, opens: () => !!sv().f.f7, sev: 0.85, dmg: 0.85,
+    id: 'deadletter', name: 'The Dead Letter Office', who: ORDER, opens: () => !!sv().f.f7, sev: 0.8, dmg: 0.6,
     blurb: 'Floors 7 to 12: the clerks who never finish, the stream that never stops, and the vault where the prayers go.',
     back: 'Up to the lift',
     cafe: { title: 'The Clerks\' Tea Room', who: null, name: 'The tea room', text: 'A tea room for clerks who never take a break. The urn is warm. Someone has left cards on the counter, priced in red ink.' },
@@ -604,7 +607,7 @@
           { who: 'lead', text: '...Uptima.' }] }
     ]
   }, {
-    id: 'inqtower', name: 'The Inquisition\'s Tower', who: ORDER, opens: () => !!sv().f.f13, sev: 0.85, dmg: 0.85,
+    id: 'inqtower', name: 'The Inquisition\'s Tower', who: ORDER, opens: () => !!sv().f.f13, sev: 0.75, dmg: 0.55,
     blurb: 'Floors 13 to 20: the tower Bram died in, rebuilt. The square, the river gate, the stair, and Hale at the top.',
     back: 'Back down to the square',
     cafe: { title: 'The Penitents\' Kitchen', who: null, name: 'The kitchen', text: 'A bare kitchen for the Inquisition\'s penitents. The bread is hard. The cards on the shelf are not.' },
@@ -666,7 +669,7 @@
           { who: null, text: 'Tilly doesn\'t follow him. She doesn\'t follow anyone. She walks down to the town floor alone.' }] }
     ]
   }, {
-    id: 'greynovice', name: 'The Grey Novice', who: ORDER, opens: () => !!sv().f.reckon, sev: 0.85, dmg: 0.85,
+    id: 'greynovice', name: 'The Grey Novice', who: ORDER, opens: () => !!sv().f.reckon, sev: 0.85, dmg: 0.92,
     blurb: 'The bell tower\'s back stairs, where Hale hides with what\'s left of his guard.',
     back: 'Back down to Thornwick',
     cafe: { title: 'The Bell-Ringer\'s Cupboard', who: null, name: 'Marrow\'s cupboard', text: 'Goodwife Marrow\'s cupboard: rope, candles, a teapot, and a few cards she says she found.' },

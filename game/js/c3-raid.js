@@ -448,6 +448,9 @@
 
   // ---------- The expeditions ----------
   // Their difficulty: the band's curse (The Drinking Barrier, lifted by Hana's Sum) puts 40% on every hit.
+  // Balance (Ladi, 2026-10-21: each expedition harder than the one before, about 85% clean clears over the chapter):
+  // dmg was 0.62, 0.85, 0.88 and 0.9, and the Abyss's sev 0.85. The Cold Stores 0.66 and the Abyss 1.05 (sev 0.9),
+  // which had been the easiest; the Cathedral 0.82, the Regent's Sum 1, the last and hardest.
   const barrier = () => (dev('sum') ? 1 : 1.4);
   const xp = (id, base, o) => Object.assign({ id, who: ORDER, opens: () => R3.active === id, sev: base.sev,
     get dmg() { return Math.min(2, base.dmg * barrier()); } }, o);
@@ -455,7 +458,7 @@
   const cafe = { title: 'Cache Café (pop-up)', who: null, name: 'The pop-up café', text: 'A trestle table with a hand-painted sign: CACHE CAFÉ. Keepsakes on rank shelves, prices in chalk.' };
   const floor = (o) => Object.assign({ map: '3' }, o);
   SD.expeditions = (SD.expeditions || []).concat([
-    xp('cold', { sev: 0.8, dmg: 0.62 }, { name: 'The Cold Stores', blurb: 'Floors 22 to 26: the Granaries, where Freya keeps everything she owns. Two floors of grain kept wrong.', back: 'Back up to Halcyon', cafe, camp,
+    xp('cold', { sev: 0.8, dmg: 0.66 }, { name: 'The Cold Stores', blurb: 'Floors 22 to 26: the Granaries, where Freya keeps everything she owns. Two floors of grain kept wrong.', back: 'Back up to Halcyon', cafe, camp,
       regroup: [{ who: 'mate1', text: 'Up. Back to the top of the floor. We know where everything is now.' }],
       floors: [
         floor({ name: 'The Grain Floors', gate: 'THE COLD STORES · THE GRAIN FLOORS', beat: 'Every sack in the wrong room.', boss: 'g-quartermaster', bossTitle: 'The Quartermaster', fade: 5,
@@ -475,7 +478,7 @@
             { who: 'wen', text: 'Oh! Customers! Sit, sit. I only keep what\'s asked for, dear, and nobody has asked for anything in ever so long.' },
             { who: 'kai', text: '...Grandma Wen?' }, { who: 'wen', text: 'Is it Tuesday? Gary comes on Tuesdays. Well. He did.' }] })
       ] }),
-    xp('abyss', { sev: 0.85, dmg: 0.85 }, { name: 'The Abyss', blurb: 'Floors 27 to 32: under Halcyon, where burnt-out Saints are thrown. Its chambers are a table\'s partitions.', back: 'Down to the bottom', cafe, camp,
+    xp('abyss', { sev: 0.9, dmg: 1.05 }, { name: 'The Abyss', blurb: 'Floors 27 to 32: under Halcyon, where burnt-out Saints are thrown. Its chambers are a table\'s partitions.', back: 'Down to the bottom', cafe, camp,
       regroup: [{ who: 'kai', text: 'Get up. I did a year down here. You can do a floor.' }],
       floors: [
         floor({ name: 'The Hot Chamber', gate: 'THE ABYSS · THE HOT CHAMBER', beat: 'One partition doing all the work.', boss: 'g-singlesaint', bossTitle: 'The Single Saint', fade: 5,
@@ -497,7 +500,7 @@
           intro: [{ who: null, text: 'The Well: a round shaft of clerks\' desks, every clerk writing over the one before.' }, { who: 'kai', text: 'Mother Ash is at the bottom of this. If she\'s still anywhere.' }],
           outro: [{ who: null, text: 'The Sinkhole fills. At the bottom of the Well there\'s a ledge, eleven candles, and somebody cackling.' }] })
       ] }),
-    xp('cathedral', { sev: 0.9, dmg: 0.88 }, { name: 'The Cathedral', blurb: 'Floors 33 to 40: up through the choir, the burnt library and the gallery stair to Selvaria.', back: 'Back down to Halcyon', cafe, camp,
+    xp('cathedral', { sev: 0.9, dmg: 0.82 }, { name: 'The Cathedral', blurb: 'Floors 33 to 40: up through the choir, the burnt library and the gallery stair to Selvaria.', back: 'Back down to Halcyon', cafe, camp,
       regroup: [{ who: 'mate1', text: 'Again. From the bottom of the stair.' }],
       floors: [
         floor({ name: 'The Choir', gate: 'THE CATHEDRAL · THE CHOIR', beat: 'One writer, many voices, all a beat behind.', boss: 'g-precentor', bossTitle: 'The Precentor', fade: 4,
@@ -530,7 +533,7 @@
             { who: 'selvaria', text: 'Come up, then. Bring whatever you found. I\'ll tell you whether it adds up.' }],
           outro: [{ who: null, text: 'Selvaria doesn\'t run. She walks, up the tower, and Freya\'s blessing carries her.' }, { who: 'noor', text: 'Is it... is it over? Can I sit down?' }] })
       ] }),
-    xp('regent', { sev: 0.95, dmg: 0.9 }, { name: 'The Regent\'s Sum', blurb: 'The reckoning: the Granaries\' vault, the last of the old records, and Selvaria, still honest.', back: 'Back to camp', cafe, camp,
+    xp('regent', { sev: 0.95, dmg: 1 }, { name: 'The Regent\'s Sum', blurb: 'The reckoning: the Granaries\' vault, the last of the old records, and Selvaria, still honest.', back: 'Back to camp', cafe, camp,
       regroup: [{ who: 'kai', text: 'Up. She\'d do it again. So would I.' }],
       floors: [
         floor({ name: 'The Vault Stair', gate: 'THE REGENT\'S SUM · THE VAULT STAIR', beat: 'The band\'s ideas, mixed with the Mailroom\'s.', boss: 'g-ledger', bossTitle: 'The Old Ledger', fade: 3,
