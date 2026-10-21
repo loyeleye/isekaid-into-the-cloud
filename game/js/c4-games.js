@@ -27,7 +27,7 @@
 .g4 .opts.col { display: flex; flex-direction: column; gap: 8px; } .g4 .opts.col .opt { text-align: left; min-height: 44px; }
 .g4-field { margin: 8px 0; } .g4-field > b { display: block; font-size: 12px; color: #b7b0cc; letter-spacing: .04em; margin-bottom: 4px; }
 .g4-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.g4-chips button { min-height: 44px; padding: 6px 10px; font: 13px ui-monospace, monospace; }
+.g4-chips button { min-height: 44px; min-width: 44px; padding: 6px 10px; font: 13px ui-monospace, monospace; }
 .g4-chips button.on, .g4-row button.on { background: var(--blue); color: #fff; }
 .g4-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.1); }
 .g4-row > span { flex: 1 1 100%; font-size: 14px; }
@@ -39,10 +39,19 @@
 .g4-done { counter-reset: s; margin: 6px 0; padding-left: 0; list-style: none; }
 .g4-done li { counter-increment: s; font-size: 13px; padding: 4px 0 4px 26px; position: relative; color: #d9f5e0; }
 .g4-done li::before { content: counter(s); position: absolute; left: 0; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #2c8a4b; color: #fff; font: 700 11px/18px sans-serif; text-align: center; }
+/* Phone pass: these panels are parchment, so the light-on-dark colours above are re-inked to be read at arm's length,
+   and the long step and bin labels use the body font instead of the heading capitals. */
+.g4-note.ok, .g4-row .why.ok { color: #17582d; } .g4-note.bad, .g4-row .why.bad { color: #a3192e; }
+.g4-note.ok, .g4-note.bad { font-weight: 600; }
+.g4-predict { border-left-color: #c8901a; } .g4-predict b { color: #6e4700; }
+.g4-field > b { color: #4a4458; }
+.g4-row { border-top-color: rgba(43,35,64,.18); }
+.g4-done li { color: #1e3a28; }
+.g4-steps button, .g4-row button { font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 14px; line-height: 1.35; }
 `;
   document.head.appendChild(css);
 
-  function note(b, text, ok) { const n = b.querySelector(':scope > .g4-note') || b.querySelector('.g4-note'); n.textContent = text; n.className = 'g4-note ' + (ok ? 'ok' : 'bad'); }
+  function note(b, text, ok) { const n = b.querySelector(':scope > .g4-note') || b.querySelector('.g4-note'); n.textContent = text; n.className = 'g4-note ' + (ok ? 'ok' : 'bad'); if (text && n.scrollIntoView) n.scrollIntoView({ block: 'nearest' }); }
   const cont = (b, label) => new Promise(res => {
     const go = document.createElement('button'); go.className = 'primary'; go.id = 'g4-cont'; go.textContent = label || 'Continue';
     b.appendChild(go); go.focus(); go.onclick = () => { U.closePanel(); res(); };
