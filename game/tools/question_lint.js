@@ -100,9 +100,10 @@ let flagged = [], withNo = 0;
 for (const item of all) {
   const res = check(item.q);
   const z = zoneOf(item.SD, item.q);
-  byZone[z] = byZone[z] || { n: 0, flagged: 0 };
+  byZone[z] = byZone[z] || { n: 0, flagged: 0, mc: [] };
   byZone[z].n++;
   (res.kind === 'mc' ? mcs : multis).push(res.r);
+  if (res.kind === 'mc') byZone[z].mc.push(res.r);
   if (Array.isArray(item.q.no)) withNo++;
   if (res.problems.length) { flagged.push({ item, res }); byZone[z].flagged++; }
 }
@@ -110,6 +111,9 @@ const t = T.tally(mcs), tm = T.tally(multis);
 console.log(`${all.length} multiple choice questions (${mcs.length} single-answer, ${multis.length} multi). ${withNo} have "why not" lines. ${flagged.length} flagged.`);
 console.log(`  Length tell, ${T.mcLine(t)}. A fair set is near 25% longest and 25% shortest, with none clearly either.`);
 if (multis.length) console.log(`  Length tell, ${T.multiLine(tm)}.`);
-console.log('By chapter (zone): ' + Object.entries(byZone).map(([z, v]) => `${z}: ${v.flagged}/${v.n} flagged`).join(', '));
+console.log('By chapter (zone; "-" is the bank questions index.html loads, js/bank-dva.js): ' + Object.entries(byZone).map(([z, v]) => {
+  const zt = T.tally(v.mc);
+  return `${z}: ${v.flagged}/${v.n} flagged, right is longest in ${zt.longest} and shortest in ${zt.shortest} of ${zt.n} single-answer`;
+}).join('; '));
 if (!flag('--quiet')) for (const { item, res } of flagged) console.log(`  ${item.q.id || item.where} [${item.q.c || ''}] ${res.problems.join('; ')}`);
 if (flag('--strict') && flagged.length) process.exit(1);
