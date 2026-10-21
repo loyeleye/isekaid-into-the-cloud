@@ -299,7 +299,7 @@
     seoyeon: { skin: '#f3dcc9', skinD: '#dcbfa9', hair: '#16131d', hairD: '#06050a', hairL: '#3a3450', eye: '#7a1f26', style: 'bob', ribbon: '#b3242e',
       coat: '#211d28', coatD: '#121017', under: '#8d1d29', collar: 'cross', legs: '#211d28', boots: '#0f0d14',
       over: L => p('M118 560 Q200 590 282 560 L284 610 Q200 640 116 610Z', '#f2efe8', INK, 2.5) + p('M300 360 L330 120 L342 122 L314 364Z', '#3a3346', INK, 2.5) + p('M316 380 l-30 -6 l4 -16 l30 6Z', '#b3242e', INK, 2) },
-    dutch: { skin: '#9a6446', skinD: '#7e4f36', skinD2: '#5e3824', hair: '#1d1f2a', hairD: '#0e0f16', hairL: '#3e4256', eye: '#2a1a12', style: 'slick', k: 1.12, stubble: '#3a2a22',
+    dutch: { skin: '#e2b496', skinD: '#c8957a', skinD2: '#a87660', hair: '#8e9399', hairD: '#5f646b', hairL: '#c6cacf', eye: '#3c4048', style: 'slick', k: 1.12, stubble: '#8a8580',
       coat: '#24345e', coatD: '#172342', under: '#7d8279', collar: 'shirt', collarCol: '#9aa09a', legs: '#7d8279', boots: '#4a3020',
       over: L => c(272, 600, 16, 'none', '#d7c27a', 4) + p('M266 612 l-6 26 M274 614 l2 28 M282 610 l8 22', null, '#d7c27a', 4) + p('M132 360 L170 360 L168 400 L134 400Z', '#e9e4dc', INK, 2) + p('M140 372 L162 372 M140 384 L156 384', null, INK, 1.5) },
     // Freya, the Free Tier's brand promoter: green blazer, gold shirt, lanyard and a halo she wears like a hat.

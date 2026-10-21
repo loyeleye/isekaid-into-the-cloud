@@ -19,19 +19,23 @@
 
   // The painted stills (Gemini-generated, js/../assets/img/opening, credited in CREDITS.md). s1a-<face> is the wide
   // shot with Freya's face changed and nothing else, so a face change is a crossfade that only moves her face.
-  const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12'];
+  const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12', 's13'];
   const FACES = ['warm', 'earnest', 'smirk', 'cold', 'amused', 'sad', 'unreadable', 'frustrated'];
   O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id }])
     .concat(FACES.map(f => ['op-a-' + f, { src: 'assets/img/opening/s1a-' + f + '.webp', label: 's1a ' + f }])));
 
   // Every stage direction is its own still: no narrator, no animation, only cuts, lightning and slow push-ins.
+  // The lightning plays over the storm alone and holds still; the music and the push-ins start with the talking.
   // A shot is { still, pan, lines } or one of:
   //   { strike: still }   thunder, a lightning flash reveals the still, and it fades back to the dark
   //   { dark: true }      the slap: thunder and a folder on wood, with nothing to see
   //   { card: lead }      a file opens: the lead's card freezes with the prayer stamped UNANSWERED
   //   { files: true }     the four files become the lead select
   //   { sound: name }     a sound on its own (thunder far off)
-  // pan is 'in' (a slow push-in, the default), 'up', 'left' or 'still'. A: Freya's side, wide. B: over her shoulder.
+  //   { music: name }     the music comes in
+  // pan is 'slow' (a very slow push-in, the default), 'still', or js/vn.js's 'in', 'up' or 'left'. A cut to the same
+  // framing (a face change on A, B to B) carries the push-in on instead of restarting it.
+  // A: Freya's side, wide. B: over her shoulder.
   const A = (face, ...lines) => ({ still: 'a-' + face, lines: lines.map(t => ['freya', t]) });
   const B = (...lines) => ({ still: 's1b', lines: lines.map(t => ['man', t]) });
   O.SHOTS = [
@@ -39,7 +43,8 @@
     { strike: 'l2', hold: 1900 },
     { dark: true },
     { strike: 'l3' },
-    { still: 'l4', hold: 1600 },
+    { still: 'l4', pan: 'still', hold: 1600 },
+    { music: 'story' },
     B('You promised an army.'),
     A('warm', 'I promised the right people. Armies pray. These four stopped.'),
     { still: 's2', hold: 1400 },
@@ -67,7 +72,7 @@
     A('amused', 'Good. Somebody on this crew should.'),
     B('And when he asks you?'),
     A('unreadable', 'Then I\'ll answer him.'),
-    { still: 's7', pan: 'up', lines: [['man', 'Four broken people against a goddess. They\'ll lose.']] },
+    { still: 's7', lines: [['man', 'Four broken people against a goddess. They\'ll lose.']] },
     A('frustrated', 'Four people she ignored.'),
     { still: 's8', lines: [['freya', 'She has a room in her temple stacked to the ceiling with prayers, ten thousand years of them, and she\'s never opened one.']] },
     A('frustrated', 'She had everything she needed to help them, and she let them bleed.'),
@@ -83,19 +88,25 @@
     { still: 's10', rain: true, hold: 2200 },
     { files: true },
     { still: 's12', hold: 1500 },
-    A('smirk', 'Good. Let\'s get to work, then.')
+    { still: 's13', lines: [['freya', 'Good. Let\'s get to work, then.']] }
   ];
 
   // Shots to js/vn.js steps.
   O.compile = function (shots) {
     const steps = [];
+    const frame = s => s.still && s.still.startsWith('a-') ? 'a' : s.still;
+    let prev = null;
     shots.forEach(s => {
+      const same = s.still && prev && frame(prev) === frame(s);
+      if (s.still || s.card || s.files) prev = s.still ? s : null;
       if (s.card) { steps.push(['act', 'vcard', { lead: s.card }]); return; }
       if (s.files) { steps.push(['act', 'vfiles', {}]); return; }
       if (s.sound) { steps.push(['act', 'sound', { name: s.sound }]); return; }
+      if (s.music) { steps.push(['act', 'music', { name: s.music }]); return; }
       if (s.strike) { steps.push(['fx', 'thunder'], ['cg', 'op-' + s.strike, 'still'], ['wait', s.hold || 1300], ['fx', 'black'], ['wait', 500]); return; }
       if (s.dark) { steps.push(['act', 'sound', { name: 'thunder' }], ['act', 'sound', { name: 'thud' }], ['fx', 'shake'], ['wait', 900]); return; }
-      steps.push(['cg', 'op-' + s.still, s.pan || 'in']);
+      const pan = s.pan || 'slow';
+      steps.push(['cg', 'op-' + s.still, pan === 'still' || !same ? pan : pan + '+']);
       if (s.rain) steps.push(['fx', 'rain']);
       if (s.glint) steps.push(['act', 'glint', {}]);
       if (s.hold) steps.push(['wait', s.hold]);
@@ -112,6 +123,8 @@
   const css = document.createElement('style');
   css.textContent = `
 #vn .kb-still > * { animation: none; }
+#vn .kb-slow > * { animation: kbSlow 30s linear forwards; animation-delay: var(--kbd, 0ms); }
+@keyframes kbSlow { from { transform: scale(1); } to { transform: scale(1.06); } }
 #vn .vn-glint { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 55%), rgba(255,236,170,.75), rgba(255,220,140,0) 4%); opacity: 0; mix-blend-mode: screen; }
 #vn .vn-glint.on { animation: vnGlint 1.1s ease-out 0.5s; }
 @keyframes vnGlint { 30% { opacity: 1; } 100% { opacity: 0; } }
@@ -120,7 +133,7 @@
 .vc-card { position: relative; display: grid; grid-template-columns: 38% 1fr; gap: 14px; align-items: start; padding: 18px 16px 16px; background: linear-gradient(180deg, #ecdfba, #dcc996); color: #2b2340; border-radius: 6px 6px 10px 10px; box-shadow: 0 14px 40px rgba(0,0,0,.6), inset 0 0 0 2px rgba(43,35,64,.25); text-align: left; transform: rotate(-1deg); }
 .vc-card::before { content: "FREE TIER · APPLICATION"; position: absolute; top: -13px; left: 18px; padding: 3px 12px; font: 800 10px ui-monospace, monospace; letter-spacing: .08em; color: #2b2340; background: #d9b878; border-radius: 6px 6px 0 0; }
 .vc-por { background: #3a3550; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); transform: rotate(2deg); aspect-ratio: 120 / 140; overflow: hidden; }
-.vc-por img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vc-por img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; image-rendering: pixelated; }
 .vc-txt small { font: 700 11px ui-monospace, monospace; letter-spacing: .08em; opacity: .7; }
 .vc-txt b { display: block; font: 700 clamp(20px, 5vw, 26px) Cinzel, serif; margin: 2px 0; }
 .vc-txt i { display: block; font: 600 13px Nunito, sans-serif; font-style: normal; opacity: .8; }
@@ -144,7 +157,8 @@
 `;
   document.head.appendChild(css);
 
-  const portrait = id => `<div class="vc-por"><img src="${K.fig(id, 'neutral', 'head')}" alt=""></div>`;
+  // The file photo is the lead's PixelLab face portrait (assets/img/portraits, credited in CREDITS.md).
+  const portrait = id => `<div class="vc-por"><img src="assets/img/portraits/${id}-neutral.webp" alt=""></div>`;
   SD.vn.acts.vcard = async function (o, tools) {
     const T = SD.ch1story, l = T.leads[o.lead], f = O.FILES[o.lead], n = T.order.indexOf(o.lead) + 1;
     const p = tools.panel(`<div class="vc-card">${portrait(o.lead)}<div class="vc-txt"><small>FILE ${n} OF 4</small><b>${esc(l.name)}</b><i>${esc(l.title)} · ${l.age}</i>
@@ -175,6 +189,8 @@
 
   // A sound on its own, and the ring catching the lamp once: a soft point of light that blooms and fades.
   SD.vn.acts.sound = async (o, tools) => tools.sfx(o.name);
+  // The music comes in under the storm that's already playing.
+  SD.vn.acts.music = async o => SD.audio.music(o.name, true);
   const GLINT = { 'op-s5': ['53%', '46%'], 'op-s9b': ['80%', '58%'] };
   SD.vn.acts.glint = async function () {
     const vn = document.getElementById('vn'), cg = vn && vn.querySelector('.vn-cg');
@@ -194,7 +210,7 @@
     W1.opening = async function () {
       O.picked = null;
       SD.vn.addScenes(O.scenes());
-      SD.audio.music('story');
+      SD.audio.music(null);
       SD.audio.weather('tempest');
       await SD.vn.play(O.compile(O.SHOTS));
       SD.audio.weather(null);

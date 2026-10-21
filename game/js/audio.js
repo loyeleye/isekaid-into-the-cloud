@@ -44,6 +44,16 @@
     bus.gain.setTargetAtTime(on ? (kind === 'music' ? 0.34 : 0.55) : 0, ctx.currentTime, 0.05);
   };
   A.muted = () => !prefs.music && !prefs.sfx;
+  // A recorded voice line (assets/audio/vo/<file>.mp3, mapped in js/vo.js), on the sound-effects switch. One plays
+  // at a time: the next line, or null, cuts it off. Returns whether it's speaking, so the typewriter can stay quiet.
+  let voEl = null;
+  A.voice = function (file) {
+    if (voEl) { voEl.pause(); voEl = null; }
+    if (!file || !prefs.sfx) return false;
+    voEl = new Audio('assets/audio/vo/' + file + '.mp3');
+    voEl.play().catch(() => {});
+    return true;
+  };
   A.toggleAll = function () { const on = A.muted(); A.set('music', on); A.set('sfx', on); return on; };
 
   // ---------- Voices ----------
@@ -259,10 +269,11 @@
 
   // Loop a track. Asking for the track already playing does nothing.
   A.has = name => !!(SONG[name] || TRACKS[name]);
-  A.music = function (name) {
+  // `keep` lets the weather and place sounds already playing carry on under the new track.
+  A.music = function (name, keep) {
     A.loopName = name;
-    [wxL, placeL].forEach(l => { if (l.me && l.me.song !== name) l.set(null); });
-    if (!ctx) { want = name; wxL.want = placeL.want = undefined; return; }
+    [wxL, placeL].forEach(l => { if (l.me && l.me.song !== name) { if (keep) l.me.song = name; else l.set(null); } });
+    if (!ctx) { want = name; if (!keep) wxL.want = placeL.want = undefined; return; }
     if (cur && cur.name === name) return;
     stopCur();
     if (name) play(name);

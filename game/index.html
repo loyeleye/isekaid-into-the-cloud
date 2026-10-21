@@ -941,7 +941,7 @@ body { background: var(--bg); }
 #vn .vn-ph span { margin: 14px 16px; font: 600 11px/1.4 ui-monospace, monospace; color: rgba(255,255,255,.4); text-align: right; letter-spacing: .04em; }
 #vn .vn-bg .vn-pic::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
 /* Ken Burns: the camera drifts slowly across a still. */
-#vn .kb > * { animation: kbIn 16s ease-out forwards; transform-origin: 50% 45%; }
+#vn .kb > * { animation: kbIn 16s ease-out forwards; animation-delay: var(--kbd, 0ms); transform-origin: 50% 45%; }
 #vn .kb-left > * { animation-name: kbLeft; }
 #vn .kb-right > * { animation-name: kbRight; }
 #vn .kb-up > * { animation-name: kbUp; }
@@ -1114,6 +1114,7 @@ body { background: var(--bg); }
 <script src="js/run.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/vn.js"></script>
+<script src="js/vo.js"></script>
 <script src="js/bank-dva.js"></script>
 <script src="js/ch1.js"></script>
 <script src="js/ch1-art.js"></script>

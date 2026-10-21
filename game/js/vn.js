@@ -81,11 +81,17 @@
   function finishTyping() { if (typing) { clearInterval(typing); typing = null; textEl.textContent = full; root.classList.add('vn-ready'); } }
 
   // Backgrounds and stills crossfade; a still pans slowly (Ken Burns) and hides the sprites.
+  // A pan ending in '+' carries on from where the last still's pan had got to, so a cut between two stills of the
+  // same framing (a face change) doesn't jump back to the start of the move.
   function setLayer(sel, id, pan) {
     const host = cam.querySelector(sel);
     root.dataset[sel === '.vn-bg' ? 'bg' : 'cg'] = id;
     const old = [...host.children];
     const el = document.createElement('div');
+    const cont = pan && pan.endsWith('+'), last = old[old.length - 1];
+    if (cont) pan = pan.slice(0, -1);
+    el.dataset.t0 = cont && last && last.dataset.t0 ? last.dataset.t0 : performance.now();
+    el.style.setProperty('--kbd', (el.dataset.t0 - performance.now()) + 'ms');
     el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '');
     el.innerHTML = sceneHTML(id);
     host.appendChild(el);
@@ -171,6 +177,8 @@
   }
 
   // ---------- Lines ----------
+  // A line with a recording (js/vo.js, keyed 'who|text', or 'pray|text' for a prayer) plays it as the text types.
+  const voice = key => !skipping && !!SD.vo && SD.audio.voice(SD.vo[key]);
   function line(who, text, face) {
     const c = SD.cast[who];
     box.hidden = false;
@@ -182,6 +190,7 @@
     root.classList.remove('vn-ready');
     full = text.replace(/\{name\}/g, SD.state.save.name);
     textEl.textContent = '';
+    const spoken = voice(who + '|' + text);
     return new Promise(res => {
       advance = res;
       if (skipping) { res(); return; }
@@ -189,7 +198,7 @@
       let i = 0, n = 0;
       typing = setInterval(() => {
         i += 1; textEl.textContent = full.slice(0, i);
-        if (who !== 'narr' && n++ % 3 === 0) sfx('text', SD.ui.voiceOf ? SD.ui.voiceOf(who) : 600);
+        if (who !== 'narr' && !spoken && n++ % 3 === 0) sfx('text', SD.ui.voiceOf ? SD.ui.voiceOf(who) : 600);
         if (i >= full.length) finishTyping();
       }, who === 'narr' ? 32 : 26);
     });
@@ -312,6 +321,7 @@
 
   // A prayer is a request to a goddess, and it times out.
   async function pray(text, to) {
+    voice('pray|' + text);
     const p = panel(`<div class="vn-req"><div class="vn-req-h"><b>POST</b> /prayers <span class="muted">→ ${esc(to || 'Uptima')}</span></div>
       <p class="vn-req-b">"${esc(text)}"</p><div class="vn-req-s"><span class="spin"></span><span class="t">Waiting for a response… 0.0 s</span></div></div>`, 'pray');
     const t = p.querySelector('.t'), t0 = performance.now();
@@ -375,7 +385,7 @@
       else if (k === 'glitch') await glitch(a[0], a[1], a[2]);
     }
     // Out to black, then away.
-    advance = null; finishTyping(); closePanel();
+    advance = null; finishTyping(); closePanel(); SD.audio.voice(null);
     root.querySelector('.vn-black').classList.add('on');
     await sleep(skipping ? 200 : 900);
     rain(false);
