@@ -50,20 +50,11 @@
       no: [null, 'The ARN names the trail-maps bucket followed by a slash, so a different bucket never matches.', 'Listing is s3:ListBucket on the bucket ARN, a different action on a different resource.', 'The statement names only s3:GetObject. Deleting is s3:DeleteObject.'],
       why: 'In an ARN, * matches any run of characters, slashes included, so bucket/* covers every key at any depth. It doesn\'t widen the action, and it doesn\'t match another bucket or the bucket itself.' },
     // The ranger's locker
-    { id: 't-locker1', c: 's3arn', type: 'mc', ev: 'aws s3 ls s3://trail-locker\nAn error occurred (AccessDenied) when calling the ListObjectsV2 operation: Access Denied',
-      q: 'Your role allows s3:GetObject on arn:aws:s3:::trail-locker/*, but listing the locker fails. What is the smallest fix?',
-      opts: ['Allow s3:ListBucket on arn:aws:s3:::trail-locker', 'Allow s3:ListBucket on arn:aws:s3:::trail-locker/*', 'Allow s3:* on arn:aws:s3:::trail-locker/*', 'Change the Resource to arn:aws:s3:::*'], a: 0,
-      no: [null, 'ListBucket acts on the bucket, so a Resource ending in /* (the objects) never matches it.', 'Far wider than needed, and still only on the objects, so listing the bucket stays denied.', 'A wider Resource adds no action. Listing still needs s3:ListBucket, and now you can read every bucket.'],
-      why: 'Listing is the s3:ListBucket action on the bucket ARN, with no /*. Reading is s3:GetObject on the object ARNs, bucket/*. A locker you can both list and open needs both.' },
     { id: 't-locker2', c: 's3arn', type: 'mc', q: 'Your role has s3:GetObject on trail-locker/* but no s3:ListBucket. You ask for trail-locker/rope.txt, which doesn\'t exist. What does S3 return?',
       opts: ['403 Access Denied, without saying if it exists', '404 Not Found, the same answer as with ListBucket', '400 Bad Request, because the key is invalid', '200 OK with an empty object body'], a: 0,
       no: [null, 'S3 answers 404 for a missing key only to a caller who has s3:ListBucket on the bucket.', '400 is for a malformed request. A key that doesn\'t exist is still a well-formed one.', 'S3 never makes up an empty object. A missing key is an error.'],
       why: 'Without s3:ListBucket, S3 won\'t tell you whether a key exists, so a missing key comes back 403 Access Denied. With ListBucket it comes back 404 Not Found.' },
     // The toll hut
-    { id: 't-toll1', c: 'respolicy', type: 'mc', q: 'The toll hut is an S3 bucket in the Ranger account. Its bucket policy allows your role, in your own account, s3:GetObject. Your role\'s policies don\'t mention the bucket. What happens?',
-      opts: ['Denied: across accounts your account must allow it too', 'Allowed: the bucket policy names your role directly', 'Allowed: resource policies override identity policies', 'Denied: a bucket policy can\'t name a role in another account'], a: 0,
-      no: [null, 'That would be enough in one account. Across accounts, the caller\'s own policies must also allow the call.', 'Neither overrides the other. An explicit Deny in either wins, and across accounts both must allow.', 'It can. A bucket policy\'s Principal can be an account, a role or a user in another account.'],
-      why: 'Across accounts, two accounts each have to say yes: the resource\'s policy must allow the caller, and the caller\'s own identity policies must allow the action on that resource.' },
     { id: 't-toll2', c: 'respolicy', type: 'mc', q: 'Now the toll hut bucket is in your own account. Its bucket policy allows your role s3:GetObject, and your role\'s own policies don\'t mention the bucket. What happens?',
       opts: ['Allowed: in one account, either policy\'s Allow is enough', 'Denied: the role\'s identity policy must allow it too', 'Denied: a bucket policy can only name whole accounts, not roles', 'Allowed, but only once the role is assumed with MFA'], a: 0,
       no: [null, 'That rule is for requests across accounts. Within one account the bucket policy\'s Allow is enough here.', 'A bucket policy can name a single role or user as its Principal, not only an account.', 'Nothing here asks for MFA. That would take a Condition on aws:MultiFactorAuthPresent.'],
@@ -74,35 +65,19 @@
       opts: ['An HTTPS GetObject from a role that\'s allowed it', 'An HTTP GetObject from a role that\'s allowed s3:*', 'An HTTP GetObject signed by the account root user', 'An HTTPS GetObject from a role with no Allow at all'], a: 0,
       no: [null, 'Over HTTP aws:SecureTransport is false, so the Deny applies, and an explicit Deny beats any Allow.', 'An explicit Deny in a bucket policy applies to the root user too. Root can only get past it by deleting the policy.', 'HTTPS avoids the Deny, but nothing allows the request, so the implicit deny stands.'],
       why: 'Two things must be true: no explicit Deny applies (HTTPS makes aws:SecureTransport true, so this one doesn\'t), and some policy allows the action.' },
-    { id: 't-ledge2', c: 'conditions', type: 'mc', q: 'A policy allows s3:DeleteObject, and another statement denies it with "Bool": { "aws:MultiFactorAuthPresent": "false" }. A script signs its delete with an IAM user\'s long-term access keys. What happens?',
-      opts: ['Allowed: the key is missing, so Bool doesn\'t match', 'Denied: a missing MFA key counts as false for Bool', 'Denied: long-term keys can never delete S3 objects', 'Allowed only if the user owns a virtual MFA device'], a: 0,
-      no: [null, 'A condition on a key the request doesn\'t carry doesn\'t match, so the Deny is skipped. BoolIfExists would catch it.', 'Long-term keys can delete if a policy allows it. The trouble here is only the missing key.', 'Owning a device changes nothing. Only credentials obtained with an MFA code carry the key.'],
-      why: 'Long-term access keys never carry aws:MultiFactorAuthPresent, and a Bool condition on a missing key doesn\'t match, so this Deny never applies. "BoolIfExists": { "aws:MultiFactorAuthPresent": "false" } denies both cases.' },
     // The cable lift
     { id: 't-lift1', c: 'roles', type: 'mc', ev: 'An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:sts::111122223333:assumed-role/hiker/kai is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::111122223333:role/cable-lift',
       q: 'The cable lift is a role in your account. Its permissions policy has everything the lift needs, and its trust policy names only the ranger\'s role. What do you change?',
       opts: ['Add your role as a Principal in the lift role\'s trust policy', 'Add sts:AssumeRole to the lift role\'s own permissions policy', 'Attach the lift role\'s permissions policy to your role', 'Call GetSessionToken first, then retry the AssumeRole'], a: 0,
       no: [null, 'The lift\'s permissions say what the lift can do once worn. Who may put it on is the trust policy\'s job.', 'That gives your own role the lift\'s powers instead of letting you assume it, the opposite of least privilege.', 'GetSessionToken returns temporary credentials for yourself. It doesn\'t change who a role trusts.'],
       why: 'The trust policy decides who may assume a role, and its permissions policies decide what the role can do. Here the trust policy doesn\'t name you, so AssumeRole is denied however much the role allows.' },
-    { id: 't-lift2', c: 'roles', type: 'mc', q: 'You call AssumeRole on the lift role without DurationSeconds. When do the temporary credentials expire?',
-      opts: ['One hour after the AssumeRole call', 'Fifteen minutes after the call', 'At the role\'s maximum session duration', 'When the role\'s permissions next change'], a: 0,
-      no: [null, '15 minutes is the shortest you can ask for with DurationSeconds, not the default.', 'The maximum (1 to 12 hours) is the most you can ask for. You have to ask for it.', 'Changing the policies changes what the session may do. The credentials keep their expiry.'],
-      why: 'AssumeRole credentials last 1 hour by default. DurationSeconds can ask for anything from 15 minutes up to the role\'s maximum session duration.' },
     // The lift operator
     { id: 't-op1', c: 'lambdaperm', type: 'mc', ev: 'AccessDeniedException: User: arn:aws:sts::111122223333:assumed-role/lift-motor-role/lift-motor is not authorized to perform: dynamodb:PutItem on resource: arn:aws:dynamodb:us-east-1:111122223333:table/lift-log',
       q: 'The lift motor is a Lambda function. Its code writes to the lift-log table and fails like this. Where does the missing permission go?',
       opts: ['An Allow for dynamodb:PutItem in its execution role', 'An Allow in the function\'s resource-based policy', 'An environment variable holding the ranger\'s access keys', 'A trust policy on the table naming the function'], a: 0,
       no: [null, 'That policy decides who may invoke the function, not what the function may call.', 'Keys in environment variables are long-term secrets in config, and the execution role already gives the code temporary credentials.', 'Trust policies belong to roles and say who may assume them. A table has none.'],
       why: 'The function runs with its execution role\'s temporary credentials, so what it may call (here dynamodb:PutItem on that table) belongs in the execution role\'s permissions.' },
-    { id: 't-op2', c: 'lambdaperm', type: 'mc', q: 'The ranger\'s other account needs to invoke the lift function directly. On the function\'s side, what lets it?',
-      opts: ['A resource-based policy statement allowing lambda:InvokeFunction', 'A statement in the function\'s execution role allowing invoke', 'A Lambda layer that holds the other account\'s ID', 'An environment variable that lists the account IDs allowed to call'], a: 0,
-      no: [null, 'The execution role says what the function can call, not who may call the function.', 'A layer packages code and libraries for the function. It grants no permissions.', 'Lambda doesn\'t read environment variables when it decides who may invoke the function.'],
-      why: 'Who may invoke a function lives in its resource-based policy (lambda:AddPermission adds a statement). Across accounts, the caller\'s own policies must also allow lambda:InvokeFunction.' },
     // The ranger's logbook
-    { id: 't-log1', c: 'cloudtrail', type: 'mc', q: 'Someone deleted the rope from the rope-bridge bucket last night (a DeleteObject). The account has no trails, and CloudTrail event history shows nothing. Why?',
-      opts: ['S3 object calls are data events, which need a trail', 'Event history only keeps the last 24 hours of events', 'DeleteObject is a management event, kept in S3 logs', 'CloudTrail records reads, but it never records deletes'], a: 0,
-      no: [null, 'Event history keeps 90 days of management events.', 'DeleteObject on an object is a data event. S3 server access logs are a separate feature you turn on.', 'CloudTrail records writes and reads alike, for the event types it was asked to record.'],
-      why: 'Calls on objects (GetObject, PutObject, DeleteObject) are data events. Event history shows only management events, so data events are recorded only by a trail or event data store set up to record them, from then on.' },
     { id: 't-log2', c: 'cloudtrail', type: 'mc', q: 'In a CloudTrail record of an AssumeRole call, which field tells you who made the call?',
       opts: ['userIdentity', 'eventSource', 'requestParameters', 'responseElements'], a: 0,
       no: [null, 'eventSource is the service that was called, such as sts.amazonaws.com.', 'requestParameters holds what was asked for, such as the role ARN and session name.', 'responseElements holds what came back, such as the new credentials\' expiry.'],
@@ -143,6 +118,28 @@
       why: 'Reading one parameter is ssm:GetParameter on arn:aws:ssm:region:account:parameter/lift/speed. A SecureString encrypted with a customer managed key also needs kms:Decrypt on that key.' }
   ];
   SD.questions.push(...Qs);
+  // From the exam bank (js/bank-dva.js and the three bank files index.html loads after it), adopted for the trail's puzzles with a chapter 1 concept. js/ch1.js already
+  // adopts dva-2-13 (the locker's ListBucket question).
+  const adopt = {
+    'dva-2-102': 'polanatomy',
+    'dva-2-105': 'respolicy', 'dva-2-140': 'respolicy',
+    'dva-2-136': 'conditions', 'dva-2-106': 'conditions', 'dva-2-104': 'conditions',
+    'dva-2-108': 'roles', 'dva-2-127': 'roles',
+    'dva-2-112': 'lambdaperm', 'dva-2-113': 'lambdaperm', 'dva-2-134': 'lambdaperm', 'dva-1-204': 'lambdaperm',
+    'dva-4-404': 'cloudtrail', 'dva-2-406': 'cloudtrail'
+  };
+  // Each puzzle asks one question picked at random from its pool, and another from the same pool if you miss it
+  // (Ladi, Oct 21: so you read the question instead of remembering a sequence of answers).
+  SD.ch1pools = {
+    board: ['t-anat1', 't-anat2', 'dva-2-102'],
+    locker: ['dva-2-13', 't-locker2'],
+    toll: ['dva-2-105', 't-toll2', 'dva-2-04', 'dva-2-140'],
+    ledge: ['t-ledge1', 'dva-2-136', 'dva-2-106', 'dva-2-104', 'dva-2-10'],
+    lift: ['t-lift1', 'dva-2-108', 'dva-2-127', 'dva-2-16'],
+    motor: ['t-op1', 'dva-2-112', 'dva-2-113', 'dva-2-134', 'dva-1-204'],
+    logbook: ['dva-4-404', 't-log2', 'dva-4-12', 'dva-2-406']
+  };
+  (SD.bank || []).forEach(b => { if (adopt[b.id] && !SD.questions.some(q => q.id === b.id)) SD.questions.push(Object.assign({}, b, { c: adopt[b.id] })); });
 
   // ---------- Huh??? and ELI5 ----------
   Object.assign(SD.huh, {
@@ -153,18 +150,26 @@
   Object.assign(SD.eli5, {
     't-anat1': 'The rule says: "You may take a map, but only through the guarded door." Sneaking in the side door (plain HTTP) means the rule just doesn\'t apply, and with no rule saying yes, the answer is no.',
     't-anat2': 'A star in a name is a blank anyone can fill in. "trail-maps/*" means "anything inside the trail-maps chest", however deep the folders go. It doesn\'t mean a different chest, and it doesn\'t let you do anything except what the slip says.',
-    't-locker1': 'You were allowed to take items out of the chest, but not to look at the list. Looking at the list is something you do to the chest itself, so the slip has to name the chest, not its contents.',
     't-locker2': 'If you\'re not allowed to see the list, the chest won\'t even tell you whether the item exists. It just says "no", so nobody can go fishing for item names.',
-    't-toll1': 'Visiting another kingdom\'s shop takes two yeses: the shop has to let you in, and your own king has to let you go. The shop\'s sign said yes; your king never did.',
     't-toll2': 'Inside your own kingdom, a sign on the shop saying "this adventurer may come in" is enough on its own, as long as nobody has written a flat "no".',
     't-ledge1': 'The sign says "nobody crosses without the guarded rope (HTTPS)". With the rope you\'re past the sign, but you still need someone to have said you may cross.',
-    't-ledge2': 'The rule says "stop anyone whose badge says NO MFA". An old-style key has no MFA line on it at all, so the guard never finds the word NO and waves it through. "IfExists" tells the guard to stop badges with no line too.',
     't-lift1': 'The lift is a costume with a guest list. Its powers are fine, but your name isn\'t on the list. Write your name on the guest list (the trust policy), not on the powers.',
-    't-lift2': 'Borrowed costumes come back after an hour unless you ask for a different time when you put them on: as little as 15 minutes, or up to the costume\'s own limit.',
     't-op1': 'The lift motor works while wearing its own costume (the execution role). It\'s the costume that needs permission to write in the log book.',
-    't-op2': 'The sign on the motor\'s door says who may push its button. The other account gets added to that sign.',
-    't-log1': 'The security camera films changes to the castle\'s settings by default. Picking up or throwing away an item in a chest is a "data event", and the camera only films those if you set it up to, before it happens.',
     't-log2': 'Every camera clip has a name tag saying who did it: userIdentity. The other fields say which shop they visited, what they asked for and what they got back.',
+    'dva-2-105': 'Borrowing from a shop in another kingdom takes two yeses: the shop\'s sign has to name your helper, and your helper\'s own badge has to allow the trip. Neither one alone opens the door.',
+    'dva-2-136': 'The guard stops badges that say "NO MFA". Old-style keys have no MFA line at all, so the guard never reads NO and waves them through. "IfExists" tells the guard to stop badges with no line too.',
+    'dva-2-108': 'Every costume has a longest loan time written on its tag, one hour unless someone changes it (up to 12). Asking for four hours on a one-hour costume gets a flat "no" until the tag is changed.',
+    'dva-2-112': 'Calling a helper in another kingdom takes two yeses: the sign on the helper\'s door (its resource policy) has to name you, and your own badge has to allow the call.',
+    'dva-4-404': 'The castle camera only films changes to settings unless you tell it to film the chests too (data events on a trail). The chest\'s own visitor book (server access logs) also writes down who took what.',
+    'dva-2-102': '"Everything except deleting" sounds small, but NotAction with Allow means every action in every shop in the kingdom except that one. Name the shop (s3:*) and say no to deleting separately.',
+    'dva-2-140': 'Instead of listing every house on the street, the sign says "anyone whose address is on Workloads Road, or any lane off it". New houses on that road are covered without repainting the sign.',
+    'dva-2-106': 'The MFA rule wants a badge stamped "showed the second password". Your old key has no stamp, so trade it in at the desk (GetSessionToken or AssumeRole) with your code, and you get a stamped badge for a while.',
+    'dva-2-104': 'The bouncer only lets in people from the office\'s street address. The app comes in by the private tunnel, which has no street address at all, so the sign has to name the tunnel (the VPC endpoint) instead.',
+    'dva-2-127': 'Tell the CLI once which costume to put on, with which badge, and where your MFA token is. After that it puts the costume on for you, asks for the code, and keeps it on until it expires.',
+    'dva-2-113': 'The sign on the helper\'s door said "the chest called Treasure may ring". Chests can be thrown away and their names reused by someone else, so also write down whose house the chest must belong to.',
+    'dva-2-134': 'Handing your helper a costume to wear (a role for a Lambda function) is its own permission, iam:PassRole. You need a slip that lets you hand over that one costume, to that kind of helper.',
+    'dva-1-204': 'Give the helper its own front door (a function URL) and set the lock to "show your signed badge" (AWS_IAM). No gatehouse in front needed.',
+    'dva-2-406': 'Three people wore the same costume, so the camera only sees the costume. Make each one write their own name on its collar (the role session name) when they put it on.',
     'lp-get': 'You borrowed the master key of the whole castle to open one drawer. A key to that one drawer would have done.',
     'lp-put': 'Your helper needed to write one line in one book. Give them a pen for that book, not the whole library.',
     'lp-assume': 'All you did was put on one costume. Permission to put on that one costume is enough.',

@@ -97,6 +97,30 @@ const server = http.createServer((req, res) => {
         if (n) return click(n) && 'node:' + n.className.split(' ')[1];
         return 'run-wait';
       }
+      // The climb up Mount Quota (js/ch1-mountain.js), each step through its own handlers.
+      if (vis($('#screen-world')) && SD.ch1m && SD.ch1m.active()) {
+        const f = c1.f, M = SD.ch1m.debug, sc = M.scene();
+        if (M.busy() || !sc) return 'mountain-wait';
+        if (!f.m_wake) return 'mountain-wait';
+        const talk = id => { sc.onTalk(id); return 'climb:' + id; };
+        const go = (x, y, k) => { M.place(x, y); return 'climb:' + k; };
+        if (!f.cart) return talk('cart');
+        if (!f.m_board) return talk('board');
+        if (!f.m_map) return talk('trailmap');
+        if (!f.m_go) return talk('freya');
+        if (!f.m_locker) return talk('locker');
+        if (!f.m_rest1) return go(4, 44, 'rest1');
+        if (!f.m_toll) return talk('keeper');
+        if (!f.m_rest2) return go(29, 39, 'rest2');
+        if (!f.m_ledge) return talk('ledge');
+        if (!f.m_rock) return go(16, 30, 'rockfall');
+        if (!f.m_mines) { sc.onDoor('cave'); return 'climb:mines'; }
+        if (!f.m_lift) return talk('lift');
+        if (!f.m_op) return talk('motor');
+        if (!f.m_log) return talk('logbook');
+        if (!f.m_rest3) return go(18, 7, 'rest3');
+        M.place(16, 2); sc.onDoor('summit'); return 'climb:summit';
+      }
       if (vis($('#screen-world')) && SD.ch1 && !SD.ch1.debug.busy()) {
         const f = c1.f, D = SD.ch1.debug, sc = D.scene();
         if (!f.intro) return 'world-wait';
@@ -121,7 +145,7 @@ const server = http.createServer((req, res) => {
     if (/^story:|^node:|^play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
-    const key = { 'lead-wait': 'lead-select', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
+    const key = { 'lead-wait': 'lead-select', 'climb:cart': 'coldstart', 'climb:locker': 'locker', 'climb:ledge': 'ledge', 'climb:lift': 'lift', 'climb:summit': 'summit', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
@@ -133,7 +157,7 @@ const server = http.createServer((req, res) => {
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
   if (steps >= 6000) errors.push('the demo never finished; last actions: ' + last.join(' '));
-  const need = ['intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
+  const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
   const missing = need.filter(k => !sv.flags || !sv.flags[k]);
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
   const scenes = ['wrongchair', 'notshopping', 'stew', 'salt', 'getup', 'suspect'].filter(k => !sv.flags || !sv.flags['s_' + k]);
