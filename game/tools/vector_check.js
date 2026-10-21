@@ -92,6 +92,9 @@ const server = http.createServer((req, res) => {
         if ((x = p.querySelector('#q-num')) && !x.value) { x.value = /function.s timeout/.test(p.textContent) ? '180' : '10800'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'The trust policy says who can assume the role, and the permissions say what it can do.'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'text'; }
         if ((x = b('#q-confirm, #q-next, #pm-ok'))) return click(x) && 'next';
+        // The raid's Policy Sorts (the Sorting Floors' Sorting Table): guess a count, then sort each request.
+        if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
         if (p.querySelector('[data-p]') && !p.querySelector('[data-p].on')) return click(p.querySelector('[data-p]')) && 'compass';
         const conf = b('.conf-b button');
         if (!conf && (x = b('.opts .opt:not(.on):not(.struck)'))) return click(x) && 'opt';
