@@ -218,7 +218,7 @@
     const parts = [['slash_02', 0]].concat(Array.from({ length: big ? 9 : 5 }, (_, i) => [i % 2 ? 'star_06' : 'spark_05', i]));
     parts.forEach(([img, i]) => {
       const p = document.createElement('img');
-      p.src = 'assets/img/fx/' + img + '.webp'; p.alt = ''; p.className = 'spark' + (i === 0 && img === 'slash_02' ? ' slash' : '');
+      p.src = U.sparkArt ? U.sparkArt(img) : 'assets/img/fx/' + img + '.webp'; p.alt = ''; p.className = 'spark' + (i === 0 && img === 'slash_02' ? ' slash' : '');
       const a = Math.random() * Math.PI * 2, d = (big ? 90 : 60) + Math.random() * 50;
       p.style.left = cx + 'px'; p.style.top = cy + 'px';
       p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', Math.sin(a) * d + 'px');

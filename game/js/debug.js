@@ -21,7 +21,7 @@
   if (!on) return;
   const D = SD.debug = {};
   const S = SD.state, U = SD.ui;
-  const KEY = 'isekai-cloud-save-debug';
+  const KEY = window.SD_VECTOR ? 'isekai-cloud-vector-debug' : 'isekai-cloud-save-debug';
   const P = new URLSearchParams(location.search);
   const LEVEL = { E: 1, D: 3, C: 5, B: 7, A: 9, S: 11 };
   const PLACES = ['waystation', 'arena', 'camp', 'exchange'];

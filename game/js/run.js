@@ -147,7 +147,8 @@
   };
   // PixelLab map art (tools/village_art.py → js/dungeon-art.js): a room icon per node type, and each
   // chapter's floor tileset painted behind the map with worn paths along the links between rooms.
-  const dArt = () => SD.dungeonArt;
+  // The vector proof of concept (index.html?vector) skips the painted map and draws its icons and backdrops itself.
+  const dArt = () => !window.SD_VECTOR && SD.dungeonArt;
   const dPics = {};
   function dPic(name, redraw) {
     if (!dPics[name]) { dPics[name] = new Image(); dPics[name].src = 'assets/img/dungeon/' + name + '.webp'; }
@@ -1261,7 +1262,7 @@
       : `<div class="foe${flashing('hitflash')}" style="--foe:${foeCol}">${SD.art.enemy(e.sprite, C.boss, e.hue)}</div>`;
     if (!A) return grouped() ? `<div class="gfoes">${foe}</div>` : foe;
     const h = A.hero;
-    return `<div class="stage${grouped() ? ' group g' + C.foes.length : ''}" style="background-image:url(assets/img/battle/bg-${ch}.webp)">
+    return `<div class="stage${grouped() ? ' group g' + C.foes.length : ''}" style="background-image:url(${R.stageArt ? R.stageArt(ch) : `assets/img/battle/bg-${ch}.webp`})">
       <div class="hero${flashing('hurtflash')}" role="img" aria-label="You" style="--hw:${h.w}px;--hh:${h.h}px"></div>${foe}</div>`;
   }
   // The NEXT line for a foe: the intent's numbers with its load (rage), its damage share and curses applied.

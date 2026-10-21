@@ -9,7 +9,8 @@
   const ok = im => im.complete && im.naturalWidth > 0;
   const PICS = {};
   const pic = src => PICS[src] || (PICS[src] = load(src));
-  const EMOTE = load('assets/img/emotes.png');
+  // The vector proof of concept draws its own emotes (SC.emoteArt), so it never loads the sheet.
+  const EMOTE = window.SD_VECTOR ? null : load('assets/img/emotes.png');
   const EMO = { alert: [32, 64], heart: [16, 80], music: [16, 0], dots: [48, 32], laugh: [16, 16], idea: [16, 32], sleep: [0, 64], star: [0, 32] };
   const ROW = { south: 0, west: 1, east: 2, north: 3 };
   const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
@@ -288,6 +289,7 @@
     sc.drawObj = obj;
     function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
     function emote(name, px, py) {
+      if (SC.emoteArt) return SC.emoteArt(ctx, name, px, py, ts * 0.75);
       if (!ok(EMOTE) || !EMO[name]) return;
       const [sx, sy] = EMO[name], S = ts * 0.75;
       ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 2;

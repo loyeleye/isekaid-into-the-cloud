@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- @page-start -->
 <title>Isekai'd Into the Cloud</title>
+<script>
+// index.html?vector (or vector.html) plays the vector-art proof of concept: every picture drawn in code (js/vec-*.js),
+// on its own save. Set before anything loads, so no painted image is ever requested.
+window.SD_VECTOR = /[?&]vector\b/.test(location.search) || /vector/.test(location.hash) || !!window.SD_VECTOR;
+if (window.SD_VECTOR) document.documentElement.classList.add('vector');
+</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1048,7 +1054,8 @@ body { background: var(--bg); }
     <div id="title-clouds" aria-hidden="true"></div>
     <div class="t-rain" aria-hidden="true"></div>
     <div class="t-ridge" aria-hidden="true"></div>
-    <div class="t-leads" aria-hidden="true"><img src="assets/img/lead/kai.webp" alt=""><img src="assets/img/lead/mira.webp" alt=""><img src="assets/img/lead/dutch.webp" alt=""><img src="assets/img/lead/seoyeon.webp" alt=""></div>
+    <div class="t-leads" aria-hidden="true"><img data-lead="kai" alt=""><img data-lead="mira" alt=""><img data-lead="dutch" alt=""><img data-lead="seoyeon" alt=""></div>
+    <script>if (!window.SD_VECTOR) document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + i.dataset.lead + '.webp'; });</script>
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
@@ -1107,6 +1114,13 @@ body { background: var(--bg); }
 <script src="js/ch1-story.js"></script>
 <script src="js/ch1-world.js"></script>
 <script src="js/town.js"></script>
+<!-- The vector proof of concept (index.html?vector): inert unless SD_VECTOR is set -->
+<script src="js/vec-kit.js"></script>
+<script src="js/vec-cast.js"></script>
+<script src="js/vec-scenes.js"></script>
+<script src="js/vec-foes.js"></script>
+<script src="js/vec-open.js"></script>
+<script src="js/vec-ch2.js"></script>
 <script src="js/main.js"></script>
 <!-- Debug start (testing only; remove before release) -->
 <script src="js/debug.js"></script>

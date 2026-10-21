@@ -67,13 +67,14 @@
   }
   function tap() {
     if (typing) { finishTyping(); return; }
-    if (advance) { const a = advance; advance = null; a(); }
+    if (advance) { const a = advance; advance = null; root.classList.remove('vn-ready'); a(); }
   }
   function finishTyping() { if (typing) { clearInterval(typing); typing = null; textEl.textContent = full; root.classList.add('vn-ready'); } }
 
   // Backgrounds and stills crossfade; a still pans slowly (Ken Burns) and hides the sprites.
   function setLayer(sel, id, pan) {
     const host = cam.querySelector(sel);
+    root.dataset[sel === '.vn-bg' ? 'bg' : 'cg'] = id;
     const old = [...host.children];
     const el = document.createElement('div');
     el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '');
@@ -292,6 +293,10 @@
     }
   };
 
+  // Chapters can add moments of their own: V.acts.name = async (opts, tools) => {...}, played with ['act', name, opts].
+  V.acts = ACTS;
+  V.tools = { panel, closePanel, sleep: ms => sleep(skipping ? 0 : ms), skipping: () => skipping, sfx };
+
   // A prayer is a request to a goddess, and it times out.
   async function pray(text, to) {
     const p = panel(`<div class="vn-req"><div class="vn-req-h"><b>POST</b> /prayers <span class="muted">→ ${esc(to || 'Uptima')}</span></div>
@@ -351,7 +356,7 @@
       else if (k === 'hide') hide(a[0]);
       else if (k === 'fx') await fx(a[0]);
       else if (k === 'wait') await sleep(skipping ? 0 : a[0]);
-      else if (k === 'act') await ACTS[a[0]](a[1] || {});
+      else if (k === 'act') await ACTS[a[0]](a[1] || {}, V.tools);
       else if (k === 'pray') await pray(a[0], a[1]);
       else if (k === 'glitch') await glitch(a[0], a[1], a[2]);
     }

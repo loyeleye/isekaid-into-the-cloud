@@ -505,7 +505,8 @@
     sc = null;
   }
   W1.newGame = async function () {
-    begin(await choose());
+    // W1.opening, when a build sets one (the vector proof of concept's "the files"), plays first and picks the lead.
+    begin(await (W1.opening ? W1.opening() : choose()));
     freyaForm();
     AU.music('story');
     await SD.vn.play(T.prologue[lead()]);
@@ -733,8 +734,10 @@
       <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'DEMO COMPLETE', noClose: true });
     b.querySelector('#c1-again').onclick = () => { U.closePanel(); U.stage(null); S.save.c1 = null; S.persist(); W1.newGame(); };
     b.querySelector('#c1-title').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
+    if (W1.onEndCard) W1.onEndCard(b);
   }
 
   // For tools/ch1_check.js: jump the story forward.
+  W1.lead = lead; W1.dress = dress; W1.choose = choose;
   W1.debug = { busy: () => busy, flags: f => { Object.assign(c1().f, f); S.persist(); if (sc) applyState(); }, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, act, say };
 })();
