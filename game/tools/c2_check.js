@@ -157,7 +157,9 @@ const server = http.createServer((req, res) => {
         if (!f.wren) return go('wren', 50, 32);
         if (!f.fire) return go('fire', 71, 25);
         if (w.letters.some(i => !w.given.includes(i))) return go('coo', A2.coo.x, A2.coo.y + 1);
-        if (!f.town) { D.place(78, 20); sc.onDoor('gate'); return 'story:gate'; }
+        // Walk through the tower's door with the arrow keys, the way a player does, instead of placing you past it.
+        if (!f.town && !window.__gate) { window.__gate = 1; D.place(76, 20); return 'walk:gate'; }
+        if (!f.town) return 'gate-stuck';
         if (!f.offer) return go('box', 87, 21);
         if (!f.bells) return go('marrow', 86, 11);
         if (!f.tilly) return go('tilly', A2.tilly.x, A2.tilly.y + 1);
@@ -168,6 +170,8 @@ const server = http.createServer((req, res) => {
       }
       return 'wait';
     }, [WIN, LEAD]);
+    if (what === 'walk:gate') { await page.keyboard.down('ArrowRight'); await page.waitForTimeout(1500); await page.keyboard.up('ArrowRight'); seen.add('story:gate'); }
+    if (what === 'gate-stuck') { errors.push('walking east into the tower\'s open door didn\'t get you through it'); break; }
     if (process.env.STOP && what === 'view:' + process.env.STOP) { await page.waitForTimeout(1500); await shot('stop-' + process.env.STOP); break; }
     last.push(what); if (last.length > 16) last.shift();
     seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
