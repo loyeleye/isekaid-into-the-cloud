@@ -230,7 +230,8 @@
   // New intent types: chapter files add resolvers here, returning { dmg, note } like resolveIntent in js/run.js.
   A.intents = {};
 
-  // ---------- Bosses: one framework step on the first two floors, all three on the last ----------
+  // ---------- Bosses: one incident step on the first two floors, all three on the last ----------
+  // The steps are js/run.js R.incident's: diagnose, fix and prevent, from SD.bossDesign[eid].
   async function bossFight(eid) {
     const r = run(), c = chap(), f = r.arc.floor, last = f === c.floors.length - 1;
     const e = SD.enemies[eid], d = SD.bossDesign[eid], fl = c.floors[f];
@@ -240,28 +241,12 @@
     await U.dialog(first ? SD.story[e.intro] : [{ s: 'narr', t: rnd(e.rematch || [`${e.name} again. It remembers you. You remember it.`]) }]);
     d.concepts.forEach(id => S.seeConcept(id));
     const buffs = { sevScale: 1, bonusEnergy: SD.quests.has('ballad') ? 1 : 0, startCard: null };
-    const link = fl.chain ? fl.chain.indexOf(eid) : -1;
-    const steps = link > 0 ? [['req', 'est', 'design'][link % 3]] : last ? ['req', 'est', 'design'] : [fl.step || (f === 0 ? 'req' : f === 1 ? 'est' : 'design')];
-    const ok = {};
-    for (let i = 0; i < steps.length; i++) {
-      const s = steps[i], ctx = `Delivery framework · ${i + 1} of ${steps.length}`;
-      if (s === 'req') {
-        const r1 = await Q.ask(Object.assign({ type: 'multi', hint: 'Pick the functional and non-functional requirements. Leave out what does not belong.' }, d.req), { title: '[BOSS] REQUIREMENTS', context: ctx });
-        ok.req = r1.ok;
-        if (r1.ok) { buffs.sevScale = 0.85; U.system('SCOPE LOCKED!', `Clear requirements: ${U.esc(e.short)} starts 15% weaker.`, 'gold'); }
-      } else if (s === 'est') {
-        const r2 = await Q.ask(Object.assign({ type: 'num' }, d.est), { title: '[BOSS] ESTIMATION', context: ctx });
-        ok.est = r2.ok;
-        if (r2.ok) { buffs.bonusEnergy += 1; U.system('NUMBERS IN HAND!', '+1 Capacity on turn 1.', 'gold'); }
-      } else {
-        const r3 = await Q.ask(Object.assign({ type: 'mc' }, d.design), { title: '[BOSS] DESIGN', context: ctx });
-        ok.design = r3.ok;
-        if (r3.ok) { buffs.startCard = d.startCard; U.system('DESIGN READY!', `${U.esc(SD.cards[d.startCard].name)} starts in your hand.`, 'gold'); }
-      }
-    }
+    const link = fl.chain ? fl.chain.indexOf(eid) : -1, ST = R.STEPS;
+    const steps = link > 0 ? [ST[link % 3]] : last ? ST : [fl.step || ST[Math.min(f, 2)]];
+    const ok = await R.incident(eid, buffs, { steps });
     r.boss = ok; S.persist();
-    U.system('[BOSS] HIGH-LEVEL DESIGN', d.go, 'gold');
-    api().fight(eid, { boss: true, reveal: ok.req || ok.design, sevScale: buffs.sevScale * (last ? 1 : 0.8), bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => floorCleared(eid));
+    U.system('[BOSS] ' + U.esc((e.short || e.name).toUpperCase()), U.esc(d.go || ''), 'gold');
+    api().fight(eid, { boss: true, reveal: !!(ok.diagnose || ok.prevent), sevScale: buffs.sevScale * (last ? 1 : 0.8), bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => floorCleared(eid));
   }
 
   async function floorCleared(eid) {

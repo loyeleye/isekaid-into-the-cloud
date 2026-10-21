@@ -6,13 +6,13 @@
   Q.shuffle = shuffle;
 
   // Say it first: multiple choice options stay hidden until you have an answer of your own, as in the mock interview.
-  // Modes: 'boss' (the default: boss steps, deep dives and duels), 'all' or 'off'. Callers can force it with opts.think.
+  // Modes: 'boss' (the default: boss steps, exam twists and duels), 'all' or 'off'. Callers can force it with opts.think.
   Q.SAY_MODES = ['boss', 'all', 'off'];
   Q.sayMode = () => (SD.state.save && Q.SAY_MODES.includes(SD.state.save.sayFirst)) ? SD.state.save.sayFirst : 'boss';
   const sayFirst = (q, opts) => {
     if (q.type !== 'mc' || opts.noThink) return false;
     const m = Q.sayMode();
-    return m === 'all' || (m === 'boss' && (opts.think || /BOSS|DUEL|DEEP DIVE/.test(opts.title || '')));
+    return m === 'all' || (m === 'boss' && (opts.think || /BOSS|DUEL|TWIST/.test(opts.title || '')));
   };
 
   // Typed answers (type 'explain', data in js/explain-data.js): which rubric points does the text cover?
@@ -40,8 +40,10 @@
   };
   Q.need = n => Math.ceil(n * 0.6);
 
-  // q: {c, type: mc|num|order|multi|explain, q, opts, a, no, lo, hi, unit, items, ans, why, points, model}
+  // q: {c, type: mc|num|order|multi|explain, q, ev, opts, a, no, lo, hi, unit, items, ans, why, points, model}
   // no: optional, one line per option saying why that option is wrong here (null at a), shown after answering.
+  // A multi item can carry its own `no`, shown after answering when the item doesn't belong.
+  // ev: optional evidence shown above the question as it would appear on screen: an error, a log line, a metric.
   Q.ask = function (q, opts) {
     opts = opts || {};
     return new Promise(resolve => {
@@ -56,7 +58,7 @@
       const hidden = opts.hideOne && q.type === 'mc' ? optOrder.find(i => i !== q.a) : null;
       const concept = SD.concepts[q.c];
       function render() {
-        let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div><p class="q-q">${U.esc(q.q)}</p>`;
+        let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>`;
         if (thinking) {
           h += `<div class="say-first"><p>Answer it in your own words first, out loud or in your head, the way you would in the room.</p>
             <button class="primary" id="q-said">I've said it. Show the options</button></div>`;
@@ -178,6 +180,12 @@
             h += `<div class="nots"><div class="q-ctx">Why not the others</div><ul>${nots.map(i =>
               `<li${i === pick ? ' class="mine"' : ''}><b>${U.esc(q.opts[i])}</b>${i === pick ? ' <span class="tag">your pick</span>' : ''}<br>${U.esc(q.no[i])}</li>`).join('')}</ul></div>`;
           }
+        }
+        // Select-all: why each item that doesn't belong is wrong, marking the ones you picked.
+        if (q.type === 'multi' && q.items.some(it => !it.ok && it.no)) {
+          const nots = optOrder.filter(i => !q.items[i].ok && q.items[i].no);
+          h += `<div class="nots"><div class="q-ctx">Why not the others</div><ul>${nots.map(i =>
+            `<li${multi.has(i) ? ' class="mine"' : ''}><b>${U.esc(q.items[i].t)}</b>${multi.has(i) ? ' <span class="tag">your pick</span>' : ''}<br>${U.esc(q.items[i].no)}</li>`).join('')}</ul></div>`;
         }
         // Plain-language help: a game analogy for this answer, then the whole idea plus jargon on "Huh???".
         const eli = (q.id && SD.eli5[q.id]) || (SD.huh[q.c] || '');

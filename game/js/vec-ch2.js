@@ -96,7 +96,6 @@
       resist: { visibility: 'Hiding letters longer doesn\'t sort any of them.' },
       pattern: [{ t: 'burst', n: 10 }, { t: 'read', n: 9 }, { t: 'escalate' }, { t: 'burst', n: 13 }] },
     postmistress: { name: 'The Postmistress Without Post', cause: 'A standard queue doesn\'t keep order or drop duplicates', short: 'The Postmistress', sev: 64, concept: 'sqsfifo', tier: 9, boss: true, sprite: 'postmistress', ch: 2,
-      deep: ['q-fi1', 'q-fi3'],
       flavor: 'A standard queue in a uniform. Her letters arrive out of order, and some arrive twice.',
       symptom: 'Every hit lands, but out of the order it was sent, and some land twice. Thornwick\'s replies make no sense: answers before questions.',
       weak: { fifo: 'A FIFO queue puts them in order, but only within one message group: give each conversation its own group ID.', idem: 'Idempotent handling makes the doubles count once.' },
@@ -127,7 +126,6 @@
       resist: { scale: 'More clerks make a bigger herd.' },
       pattern: [{ t: 'burst', n: 11 }, { t: 'retry', n: 10 }, { t: 'escalate' }, { t: 'burst', n: 14 }] },
     belfry: { name: 'The Belfry', cause: 'Every subscriber gets every message, with no filter policies', short: 'The Belfry', sev: 80, concept: 'snsfan', tier: 9, boss: true, sprite: 'belfry', ch: 2,
-      deep: ['q-sn2', 'q-sn3'],
       flavor: 'One bell. Every subscriber hears it. Every subscriber gets hit.',
       symptom: 'One attack, copied to every subscriber on the topic: billing, shipping and the bell-ringer all get every message, even the ones meant for someone else.',
       weak: { filter: 'Filter policies make each copy reach only the subscriber it\'s addressed to.', subscribe: 'A queue per subscriber lets each absorb its copy at its own pace.' },
@@ -449,8 +447,7 @@
         return false;
       },
       boss() {
-        U.system('[BOSS] THE BELFRY', 'One attack, copied to every subscriber. Filter policies make each copy reach only the one it\'s addressed to.', 'gold');
-        R.api.fight('belfry', { boss: true }, () => R.api.endRun(true));
+        belfry();
         return true;
       },
       end(won) {
@@ -461,6 +458,99 @@
       }
     }
   };
+
+  // ---------- The bosses' incidents (js/run.js R.incident) and Exam Twists (examTwist) ----------
+  // The Belfry, the floors' last boss, is worked as an incident first: diagnose, fix, prevent. The Postmistress, the
+  // floor boss on the way, has only her twists.
+  SD.bossDesign.belfry = {
+    concepts: ['snsfan', 'sqs'],
+    diagnose: {
+      c: 'snsfan', type: 'multi',
+      ev: 'SNS topic thornwick-post, last hour (CloudWatch, AWS/SNS)\n' +
+        '  NumberOfMessagesPublished: 1,200\n  NumberOfNotificationsDelivered: 3,600\n' +
+        '  NumberOfNotificationsFailed: 0\n  NumberOfNotificationsFilteredOut: 0\n' +
+        'Subscriptions: billing-queue, shipping-queue, bell-queue (all SQS)\n' +
+        'Each message has the attribute type: OrderPlaced, OrderPaid or OrderShipped.\n\n' +
+        'bell-ringer  ERROR  no bell for type "OrderPaid"  (x412)',
+      q: 'The bell-ringer is drowning, and billing and shipping are doing work that isn\'t theirs. What does the evidence show?',
+      items: [
+        { t: 'Every message is delivered to all three subscriptions', ok: true },
+        { t: 'No subscription is filtering anything out yet', ok: true },
+        { t: 'The bell-ringer gets orders that aren\'t meant for it', ok: true },
+        { t: 'SNS is failing to deliver some of the messages', ok: false, no: 'NumberOfNotificationsFailed is 0. Every copy arrived; too many copies arrived.' },
+        { t: 'The bell queue is full and turning messages away', ok: false, no: 'A standard queue has no limit on how many messages it stores, and nothing failed to deliver.' },
+        { t: 'The messages are reaching the queues out of order', ok: false, no: 'Nothing here measures order, and order isn\'t the problem: every service gets every type.' }
+      ],
+      why: 'Three subscriptions times 1,200 publishes is 3,600 deliveries, so each message went to everyone. FilteredOut at 0 says nothing is being filtered: with no filter policy, a subscription gets every message on the topic.'
+    },
+    fix: {
+      c: 'snsfan', type: 'mc',
+      q: 'Billing wants OrderPlaced, shipping wants OrderPaid, and the bell rings for OrderShipped. What\'s the smallest correct change?',
+      opts: ['A filter policy on each subscription, matching its own type', 'A topic for each type, with every publisher picking the right one', 'Have each service read every message and drop the ones it ignores', 'A topic access policy that denies each queue the other types'], a: 0,
+      no: [null,
+        'That works, but it pushes the routing onto every publisher and triples the topics. A filter policy routes where the message is delivered.',
+        'That\'s what happens now: every service still receives and handles every message.',
+        'A topic\'s access policy says who may publish or subscribe. It doesn\'t choose which messages a subscription gets.'],
+      why: 'Set FilterPolicy on each subscription (SetSubscriptionAttributes), for example {"type": ["OrderShipped"]} on the bell queue\'s. SNS matches it against the message attributes, the default scope, and skips that subscription when it doesn\'t match. A change can take up to 15 minutes to take full effect.'
+    },
+    prevent: {
+      c: 'snsfan', type: 'mc',
+      q: 'What stops the next new subscription from getting every message again?',
+      opts: ['Put each subscription\'s FilterPolicy in the SAM template', 'Add a dead-letter queue to every subscription on the topic', 'Turn on raw message delivery for every subscription', 'Switch the topic and all three queues over to FIFO'], a: 0,
+      no: [null,
+        'A subscription\'s dead-letter queue keeps messages SNS couldn\'t deliver. These were delivered fine, to the wrong place.',
+        'Raw delivery drops the SNS envelope around each message. Every subscriber still gets every message.',
+        'FIFO keeps order and drops duplicates. It doesn\'t decide who gets what.'],
+      why: 'In a template, AWS::SNS::Subscription takes a FilterPolicy (and a FilterPolicyScope), so every subscription is reviewed and deployed with its filter, and none is added by hand without one.'
+    },
+    startCard: 'filterpol'
+  };
+  SD.twists.belfry = [
+    { c: 'snsfan', change: 'The publisher stops setting message attributes. The type is now only a field in the JSON message body.',
+      q: 'Which part of your fix still holds?',
+      opts: ['The filter policies hold; set FilterPolicyScope to MessageBody', 'The filter policies hold as they are; SNS reads both places', 'Filter policies are out; only an EventBridge rule reads bodies', 'Move the filtering into each service\'s own code instead'], a: 0,
+      no: [null,
+        'The default scope is MessageAttributes. With no attributes on the messages, every policy would filter out every message.',
+        'SNS can filter on the body too, once the subscription\'s scope says so.',
+        'That brings the incident back: every service receives every message again.'],
+      why: 'A subscription\'s FilterPolicyScope is MessageAttributes (the default) or MessageBody. Set it to MessageBody and the same {"type": [...]} policy matches the field in the body, as long as the body is well-formed JSON.' },
+    { c: 'snsfan', change: 'An archive service joins the topic, and it must get every message of every type.',
+      q: 'Which part of your fix still holds?',
+      opts: ['Keep the three filter policies; give the archive\'s none at all', 'Remove all the filter policies so the archive can see everything', 'The archive needs its own topic: filtered and unfiltered can\'t mix', 'Give the archive a filter policy that matches the bell\'s type'], a: 0,
+      no: [null,
+        'Filtering is per subscription. Removing the others\' policies brings the original incident straight back.',
+        'One topic can have filtered and unfiltered subscriptions side by side.',
+        'That gives the archive only OrderShipped, not everything.'],
+      why: 'Each subscription filters on its own. A subscription with no filter policy gets every message, which is what the archive wants, and the other three keep theirs.' }
+  ];
+  SD.twists.postmistress = [
+    { c: 'sqsfifo', change: 'A Lambda function now reads the FIFO queue, and Thornwick\'s 50 families must be sorted side by side.',
+      q: 'Which part of your answer still holds?',
+      opts: ['FIFO holds; concurrency is capped by the number of group IDs', 'FIFO is out: Lambda can only read from standard queues', 'Order holds, but Lambda turns deduplication off for the queue', 'Use one message group ID, so Lambda can scale it out'], a: 0,
+      no: [null,
+        'Lambda reads FIFO queues, and keeps each message group in order.',
+        'Deduplication happens in the queue when a letter is sent, before Lambda ever polls.',
+        'One group means one family at a time: concurrency is capped by the number of group IDs.'],
+      why: 'With a group ID per family, Lambda keeps each family\'s letters in order and can run up to 50 invocations at once: for a FIFO queue, concurrency is capped by the number of message group IDs (or by the maximum concurrency setting, if that\'s lower).' },
+    { c: 'sqsfifo', change: 'A sender\'s retry can now arrive up to 10 minutes after the first copy, with the same deduplication ID.',
+      q: 'Which part of your answer still holds?',
+      opts: ['Order holds; a repeat after 5 minutes gets in, so add idempotency', 'FIFO still drops it: a deduplication ID is remembered for good', 'Raise the queue\'s deduplication interval to 15 minutes', 'Switch back to a standard queue, which drops repeats for longer'], a: 0,
+      no: [null,
+        'FIFO remembers a deduplication ID for 5 minutes only.',
+        'The deduplication interval is fixed at 5 minutes. It can\'t be changed.',
+        'Standard queues don\'t deduplicate at all: they deliver at least once.'],
+      why: 'FIFO drops a repeat with the same deduplication ID only inside its 5-minute interval. A later repeat is delivered, so the handler should be idempotent too, for example by recording each letter\'s ID once it\'s handled.' }
+  ];
+  async function belfry() {
+    AU.music('boss');
+    const buffs = { sevScale: 1, bonusEnergy: 0, startCard: null };
+    SD.bossDesign.belfry.concepts.forEach(c => S.seeConcept(c));
+    const ok = await R.incident('belfry', buffs);
+    S.save.run.boss = ok;
+    S.persist();
+    U.system('[BOSS] THE BELFRY', 'One attack, copied to every subscriber. Filter policies make each copy reach only the one it\'s addressed to.', 'gold');
+    R.api.fight('belfry', { boss: true, reveal: !!(ok.diagnose || ok.prevent), sevScale: buffs.sevScale, bonusEnergy: buffs.bonusEnergy, startCard: buffs.startCard }, () => R.api.endRun(true));
+  }
 
   // ---------- Playing it ----------
   const stageArt = id => `<img class="vstage" src="${K.scenes[id]}" alt="">`;
