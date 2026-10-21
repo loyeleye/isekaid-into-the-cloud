@@ -135,6 +135,26 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, follow = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By where you stand (js/weather.js), easing in and out as you cross between zones: dead leaves on the wind at the
+  // edge and along the road; over the scrap field, dust in three layers, cloud shadows, tumbleweeds and torn pages
+  // from the heaps; embers off the fire once it's lit; and over Thornwick, heavy cloud, low and slow, and a dimmer
+  // sky. weatherKey() is what it sounds like (js/audio.js SKY), set every frame in tick().
+  const WX = SD.wx, LEAVES = ['#b08a4a', '#c89a52', '#8a6a3a'];
+  const zoneKind = () => (zone ? zone[1] : null);
+  function weather(stage) {
+    const z = zoneKind();
+    const dust = WX.ease('c2dust', z === 'scrap' ? 1 : 0), cloud = WX.ease('c2cloud', z === 'town' || z === 'marsh' ? 1 : 0, 0.6);
+    const leaf = WX.ease('c2leaf', z === 'edge' ? 1 : z === 'road' ? 0.6 : 0);
+    if (stage === 0) { WX.shadows(dust, 1, 0.45, 0.22); WX.overcast(cloud); return; }
+    WX.dust(dust); WX.tumbleweeds(dust); WX.scraps(dust);
+    WX.leaves(leaf, LEAVES, 8);
+    if (PROPS.fire.lit) WX.embers(71.5, 24.6, 1, 12);
+    WX.cover(cloud);
+  }
+  const weatherKey = () => { const z = zoneKind(); return phase() === 'night' ? 'gloom' : z === 'scrap' ? 'dust' : z === 'edge' || z === 'road' ? 'breeze' : null; };
+
   const trail = [];
   const lensOn = () => !!(w().lens && flag('sign'));
   function phase() {
@@ -163,7 +183,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { D: 'gate', U: 'stair' }, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), lensOn()),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), lensOn(), WX && weather); },
       ambience: () => (PROPS.fire.lit && sc && sc.P && Math.abs(sc.P.x - 71) + Math.abs(sc.P.y - 24) < 6) ? 'fire' : zone && zone[1] === 'town' ? 'post' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         const lens = lensOn();
@@ -284,7 +304,7 @@
         AU.sfx('blip');
       });
     }
-    AU.weather(phase() === 'night' ? 'gloom' : null);
+    AU.weather(weatherKey());
     if (follow) others().forEach((id, i) => {
       const a = sc.actors[id], to = trail[i];
       if (!to || a.scripted || a.moving || a.path.length) return;

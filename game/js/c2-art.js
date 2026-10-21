@@ -366,6 +366,8 @@
   // ---------- Light ----------
   // The whole map is graded by the time of day: night at the edge, dawn on the road, grey day over the scrap,
   // firelight at the camp, and Thornwick's endless morning. Through the Version Lens everything goes blue.
+  // fx(stage), if given, paints the map's weather (js/weather.js): stage 0 on the graded ground under the lamps (cloud
+  // shadows, a heavier sky), stage 1 over the mist (what's in the air), both under the lens and the vignette.
   const MIST = Array.from({ length: 8 }, (_, i) => { const h = hash(i * 11 + 1, i * 5 + 9); return [(h % 100) / 100, 2 + (h >> 6) % 16, 5 + (h >> 9) % 4, 0.4 + ((h >> 4) % 8) / 10]; });
   const PHASE = {
     night: { mul: 'rgba(40,46,90,.86)', sat: 0.6, vig: 0.75 },
@@ -374,10 +376,11 @@
     dusk: { mul: 'rgba(120,70,90,.62)', sat: 0.45, vig: 0.65, warm: 'rgba(255,130,60,.10)' },
     morning: { mul: 'rgba(170,150,130,.35)', sat: 0.5, vig: 0.45, warm: 'rgba(255,220,160,.08)' }
   };
-  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights, lens) {
+  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights, lens, fx) {
     const ph = PHASE[phase] || PHASE.day;
     ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = `rgba(128,128,128,${ph.sat})`; ctx.fillRect(0, 0, vw, vh);
     ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = ph.mul; ctx.fillRect(0, 0, vw, vh);
+    if (fx) { ctx.globalCompositeOperation = 'source-over'; fx(0); }
     ctx.globalCompositeOperation = 'lighter';
     if (ph.warm) { ctx.fillStyle = ph.warm; ctx.fillRect(0, 0, vw, vh); }
     (lights || []).forEach(([x, y, r, rgb, flick]) => {
@@ -393,6 +396,7 @@
       const gr = ctx.createRadialGradient(X, Y, 0, X, Y, w * ts); gr.addColorStop(0, 'rgba(186,190,206,.16)'); gr.addColorStop(1, 'rgba(196,200,214,0)');
       ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(X, Y, w * ts, w * ts * 0.22, 0, 0, 7); ctx.fill();
     });
+    if (fx) fx(1);
     if (lens) {
       // The Version Lens: a blue wash and slow scanlines.
       ctx.fillStyle = 'rgba(40,120,200,.12)'; ctx.fillRect(0, 0, vw, vh);

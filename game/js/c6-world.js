@@ -140,6 +140,17 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By zone (js/weather.js): fog in long banks over the mirror lake, drifting slower than it; and embers off the
+  // camp's fire. Both are quiet: the lake has its own place sound.
+  const WX = SD.wx;
+  function weather(stage) {
+    if (stage === 0) return;
+    WX.embers(8.5, 29.5, 1, 12);
+    WX.fog(WX.ease('c6fog', zone && zone[4] === 'lake' ? 1 : 0));
+  }
+
   const trail = [];
   const solidNow = () => 'TG#XwV';
   function phase() {
@@ -171,7 +182,7 @@
     const isWater = (x, y) => groundCh(map, x, y) === 'w';
     const def = {
       map, solid: solidNow(), doors: { L: 'down', M: 'up', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#141226', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights()),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         const ph = phase();
@@ -301,7 +312,6 @@
   }
   function drawOverlay(ctx, t, vw, vh) {
     if (!sc) return;
-    if (zone && zone[4] === 'lake' && A.mist) A.mist(ctx, t, vw, vh);
     const { cx, cy } = sc.cam(), ts = guessTs(vw, vh), tg = step()[1];
     if (tg && !busy) {
       const X = (tg[0] + 0.5) * ts - cx, Y = (tg[1] + 0.5) * ts - cy, m = 28;

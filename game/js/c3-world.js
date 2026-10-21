@@ -143,6 +143,22 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By zone (js/weather.js): embers off the camp's fire; the barrier's gold hanging in Halcyon's air until it comes
+  // down; snow blowing through the Cold Stores, with a frost on everything; and ash sifting down to the bottom of the
+  // Abyss. The snow's cold wind is the one you hear (js/audio.js SKY), set every frame in tick().
+  const WX = SD.wx;
+  const zk = () => (zone ? zone[1] : null);
+  function weather(stage) {
+    const z = zk(), snow = WX.ease('c3snow', z === 'stores' ? 1 : 0);
+    if (stage === 0) { WX.wash('source-over', 'rgb(214,228,250)', 0.1 * snow); return; }
+    WX.embers(11.5, 22.6, 1, 12);
+    WX.motes(WX.ease('c3gold', z === 'halcyon' && !flag('freed') ? 1 : 0), 'rgb(255,214,110)', 20);
+    WX.snow(snow);
+    WX.ash(WX.ease('c3ash', z === 'abyss' ? 0.7 : 0));
+  }
+
   const trail = [];
   function phase() {
     if (W3.night) return 'night';
@@ -173,7 +189,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: DOORS, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A2.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A2.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false, WX && weather); },
       ambience: () => (sc && sc.P && Math.abs(sc.P.x - 11) + Math.abs(sc.P.y - 22) < 6) ? 'fire' : zone && zone[1] === 'abyss' ? 'rumble' : zone && zone[1] === 'stores' ? 'storm' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -285,6 +301,7 @@
   // ---------- Every frame ----------
   function tick() {
     const P = sc.P; if (!P) return;
+    AU.weather(zk() === 'stores' ? 'snow' : null);
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
       if (lastTile) { const [x, y] = lastTile.split(',').map(Number); trail.unshift([x, y]); trail.length = Math.min(trail.length, 6); }
