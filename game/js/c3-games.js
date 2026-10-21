@@ -379,17 +379,17 @@
       AU.sfx('heal'); if (o.onProof) o.onProof(right); await wait(400);
     };
     await proof({ q: '1. The order. Selvaria\'s order to Aurelian was overwritten the next morning. What shows the item as it was before the change?', opts: [
-      { t: 'The ledger\'s DynamoDB stream, with the NEW_AND_OLD_IMAGES view type', ok: true, out: 'Every change, with the item before and after, kept for 24 hours. Someone turned it on. The old order: "The Saint has agreed."' },
-      { t: 'A Scan of the table today', no: 'A Scan reads the table as it is now. The old order isn\'t in it any more.' },
-      { t: 'A stream with the KEYS_ONLY view type', no: 'KEYS_ONLY records which item changed, not what it said.' }] }, 'ddbstream', 'A part of the nave goes quiet, and takes its grants back.');
+      { t: 'The ledger\'s stream, NEW_AND_OLD_IMAGES view type', ok: true, out: 'Every change, with the item before and after, kept for 24 hours. Someone turned it on. The old order: "The Saint has agreed."' },
+      { t: 'A Scan of the ledger table as it is today', no: 'A Scan reads the table as it is now. The old order isn\'t in it any more.' },
+      { t: 'The ledger\'s stream, KEYS_ONLY view type', no: 'KEYS_ONLY records which item changed, not what it said.' }] }, 'ddbstream', 'A part of the nave goes quiet, and takes its grants back.');
     await proof({ q: '2. The founding texts. They were deleted, the night Hana read them. What brings them back, and where?', opts: [
-      { t: 'Point-in-time restore from automated backups, to a new DB instance, as of the day before', ok: true, out: 'The cathedral\'s backups ran every five minutes, faithfully. The restore is a new instance; the texts are in it.' },
-      { t: 'Point-in-time restore over the existing instance', no: 'RDS never restores in place. A restore always makes a new instance.' },
-      { t: 'The Multi-AZ standby still has them', no: 'The standby is synchronous: it deleted them in the same instant.' }] }, 'rdsaurora', 'Another part of the nave stands, and gives back what it was given.');
+      { t: 'Point-in-time restore to a new DB instance, as of the day before', ok: true, out: 'The cathedral\'s backups ran every five minutes, faithfully. The restore is a new instance; the texts are in it.' },
+      { t: 'Point-in-time restore over the existing instance, as of that night', no: 'RDS never restores in place. A restore always makes a new instance.' },
+      { t: 'Fail over to the Multi-AZ standby, which still has them', no: 'The standby is synchronous: it deleted them in the same instant.' }] }, 'rdsaurora', 'Another part of the nave stands, and gives back what it was given.');
     await proof({ q: '3. The consent record. Version 7, written by Hana\'s role: no. Version 9, written by the regent\'s: the Drawing. What would have stopped the second write?', opts: [
-      { t: 'A conditional write: ConditionExpression on the version the regent last read', ok: true, out: 'Optimistic locking. The regent\'s write would have failed with ConditionalCheckFailed: the record had changed since she read it. It had. Hana had said no.' },
-      { t: 'A strongly consistent read first', no: 'That would have shown her Hana\'s no. It wouldn\'t have stopped her writing over it.' },
-      { t: 'A TTL on the record', no: 'TTL deletes items, eventually. It doesn\'t guard a write.' }] }, 'ddbwrite', 'Sir Aurelian takes off his gauntlet and holds it up so the city can read the names.');
+      { t: 'A conditional write on the version she last read', ok: true, out: 'Optimistic locking. The regent\'s write would have failed with ConditionalCheckFailed: the record had changed since she read it. It had. Hana had said no.' },
+      { t: 'A strongly consistent read of the record first', no: 'That would have shown her Hana\'s no. It wouldn\'t have stopped her writing over it.' },
+      { t: 'A TTL on the record, so old versions expire', no: 'TTL deletes items, eventually. It doesn\'t guard a write.' }] }, 'ddbwrite', 'Sir Aurelian takes off his gauntlet and holds it up so the city can read the names.');
     await cont(b, 'One more thing');
     const r = await num({ c: 'ddbstream', q: 'For how many hours does a DynamoDB stream keep each record?', unit: 'hours', lo: 24, hi: 24, ans: '24 hours',
       why: 'Stream records are kept for 24 hours. Whatever reads them, a Lambda function or a Kinesis adapter, has a day to do it.',
