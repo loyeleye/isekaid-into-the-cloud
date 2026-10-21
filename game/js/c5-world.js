@@ -1093,6 +1093,8 @@
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. The yellow arrow points at your next step. Gates open when you understand them.'); }
   };
   W.halt = function () { W.active = false; if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  W.reset = function () { W.halt(); sc = null; busy = false; };
   // The chapter's start, from another chapter's end card or this demo's title.
   W.start = async function () {
     W.on = true;

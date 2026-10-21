@@ -46,7 +46,7 @@ const server = http.createServer((req, res) => {
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
-      if ($('#v2-end') && vis($('#v2-end'))) return 'end2';
+      if (($('#v2-end') && vis($('#v2-end'))) || (SD.c2xworld && SD.c2xworld.active)) return 'end2';   // or part 2 (js/c2x-world.js) took over at the lift
       if (!window.__c2 && $('#c1-next') && vis($('#c1-next'))) return 'done';
       // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
       const vn = $('#vn');
@@ -96,6 +96,9 @@ const server = http.createServer((req, res) => {
         if ((x = p.querySelector('#q-num')) && !x.value) { x.value = /function.s timeout/.test(p.textContent) ? '180' : '10800'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'The trust policy says who can assume the role, and the permissions say what it can do.'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'text'; }
         if ((x = b('#q-confirm, #q-next, #pm-ok'))) return click(x) && 'next';
+        // The raid's Policy Sorts (the Sorting Floors' Sorting Table): guess a count, then sort each request.
+        if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
         if (p.querySelector('[data-p]') && !p.querySelector('[data-p].on')) return click(p.querySelector('[data-p]')) && 'compass';
         const conf = b('.conf-b button');
         if (!conf && (x = b('.opts .opt:not(.on):not(.struck)'))) return click(x) && 'opt';

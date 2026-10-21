@@ -37,7 +37,7 @@ function step([LEAD, MODE]) {
   window.__p2 = window.__p2 || {};
   const once = k => !window.__p2[k] && (window.__p2[k] = 1);
   if (window.__done) return 'done';
-  if ($('#v2-end') && vis($('#v2-end'))) return 'end2';
+  if (($('#v2-end') && vis($('#v2-end'))) || (SD.c2xworld && SD.c2xworld.active)) return 'end2';   // or part 2 (js/c2x-world.js) took over at the lift
   // The visual novel (js/vn.js): play each moment as it appears, then read on.
   const vn = $('#vn');
   if (vn && !vn.hidden) {

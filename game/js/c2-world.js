@@ -828,6 +828,8 @@
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
   };
   W2.halt = function () { W2.active = false; if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  W2.reset = function () { W2.halt(); sc = null; busy = false; };
 
   // The vector slice's chapter 2 opens here instead of with its long cutscene, until you climb the stair.
   const sliceStart = C2.start;

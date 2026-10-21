@@ -196,6 +196,9 @@
           ${SD.huh[q.c] ? `<p>${U.esc(SD.huh[q.c])}</p>` : ''}
           ${words.length ? `<p class="q-ctx">Words in this question</p><dl class="gloss">${words.map(g => `<dt>${U.esc(g[0])}</dt><dd>${U.esc(g[2])}</dd>`).join('')}</dl>` : ''}</div>`;
         if (eli) h += `<button class="ghost help-b" id="q-eli5" aria-expanded="false">ELI5 🎮</button><div class="helpbox" id="q-eli5-box" hidden><p>${U.esc(eli)}</p></div>`;
+        // Search: the question (and its options) as a Google search in AI Mode (udm=50), in a new tab. Plain link, no logo.
+        const ask = 'AWS exam question: ' + q.q + (q.type === 'mc' && q.opts ? ' Options: ' + q.opts.join(' | ') : '') + ' Which answer is right, and why?';
+        h += `<a class="ghost help-b" id="q-search" href="https://www.google.com/search?udm=50&q=${encodeURIComponent(ask.slice(0, 1500))}" target="_blank" rel="noopener noreferrer" title="Opens Google in a new tab">Search 🔍</a>`;
         const help = b => ['eli5', 'huh'].forEach(k => {
           const btn = b.querySelector('#q-' + k), box = b.querySelector('#q-' + k + '-box');
           if (btn) btn.onclick = () => { box.hidden = !box.hidden; btn.setAttribute('aria-expanded', String(!box.hidden)); if (!box.hidden) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
