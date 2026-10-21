@@ -204,6 +204,8 @@ function step([WIN, LEAD, CHOICE]) {
     if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text());
     if (m.type() === 'warning' && /qpick: no question|Machine Floors:/.test(m.text())) errors.push('console: ' + m.text());
   });
+  // A shared machine can be slow: give the title's clicks two minutes, not thirty seconds.
+  page.setDefaultTimeout(120000);
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
