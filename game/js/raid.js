@@ -1835,7 +1835,7 @@
       const n = G.foes.length, GX = { 2: [36, 6], 3: [54, 30, 6] }, tg = aimHere();
       const foes = n > 1 ? G.foes.map((f, i) => { const fe = SD.enemies[f.boss], down = f.sev <= 0; return `<div class="foe gfoe${i === 0 && G.tier !== 'fight' ? ' elite' : ''}${i === tg && !down ? ' tgt' : ''}${down ? ' down' : ''}" data-fi="${i}" style="--foe:${col(fe)};--gx:${GX[n][i]}%"${down ? '' : ` tabindex="0" role="button" aria-pressed="${i === tg}" aria-label="Target ${esc(foeName(G, i))}"`}>${SD.art.enemy(fe.sprite, false, fe.hue)}</div>`; }).join('')
         : `<div class="foe" style="--foe:${col(e)}">${SD.art.enemy(e.sprite, true, e.hue)}</div>`;
-      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" style="background-image:url(assets/img/battle/bg-${b}.webp)"><div class="rd-party">${fighters}</div>${foes}</div>`;
+      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" ${window.SD_VECTOR ? '' : `style="background-image:url(assets/img/battle/bg-${b}.webp)"`}><div class="rd-party">${fighters}</div>${foes}</div>`;
     }
     let raf = 0;
     (function tick() {
@@ -1865,7 +1865,9 @@
       const bend = (a, b) => { const [x1, y1] = xy(a), [x2, y2] = xy(b), k = jit(a.id + b.id, 3) * 46; return [x1, y1, (x1 + x2) / 2 + k, (y1 + y2) / 2, x2, y2]; };
       return { rows, n, xy, bend };
     }
-    const nodeIcon = t => (SD.dungeonArt && SD.dungeonArt.objects[t] ? `<img class="node-art" src="assets/img/dungeon/${t}.webp" alt="">` : SD.art.glyph((NODE()[t] || {}).g || 'card-random', 'currentColor'));
+    // The vector build (window.SD_VECTOR) draws everything in code: no painted map, node or battle art (as js/run.js).
+    const dArt = () => !window.SD_VECTOR && SD.dungeonArt;
+    const nodeIcon = t => (dArt() && dArt().objects[t] ? `<img class="node-art" src="assets/img/dungeon/${t}.webp" alt="">` : SD.art.glyph((NODE()[t] || {}).g || 'card-random', 'currentColor'));
     function mapHtml() {
       const { rows, n, xy, bend } = layout(), can = reach(G), visited = new Set(G.seen), mine = G.players[me.peer];
       let svg = `<svg class="map-lines" viewBox="0 0 300 ${n * 100}" preserveAspectRatio="none" aria-hidden="true">`;
@@ -1889,7 +1891,7 @@
     const pics = {};
     const pic = (name, again) => { if (!pics[name]) { pics[name] = new Image(); pics[name].src = 'assets/img/dungeon/' + name + '.webp'; } const im = pics[name]; if (again && !im.complete) im.addEventListener('load', again, { once: true }); return im; };
     function paintMap(el) {
-      const A = SD.dungeonArt, cv = el && el.querySelector('.map-bg'), f = FL();
+      const A = dArt(), cv = el && el.querySelector('.map-bg'), f = FL();
       if (!A || !cv || !f || !el.isConnected) return;
       const key = String(A.terrain[String(f.map)] ? f.map : chOf(f) in A.terrain ? chOf(f) : ((chOf(f) - 1) % 3) + 1);
       const W = el.clientWidth, H = el.clientHeight, ts = 24;
