@@ -19,7 +19,7 @@
 
   // The painted stills (Gemini-generated, js/../assets/img/opening, credited in CREDITS.md). s1a-<face> is the wide
   // shot with Freya's face changed and nothing else, so a face change is a crossfade that only moves her face.
-  const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12', 's13'];
+  const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's2d', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12', 's13'];
   const FACES = ['warm', 'earnest', 'smirk', 'cold', 'amused', 'sad', 'unreadable', 'frustrated'];
   O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id }])
     .concat(FACES.map(f => ['op-a-' + f, { src: 'assets/img/opening/s1a-' + f + '.webp', label: 's1a ' + f }])));
@@ -89,7 +89,7 @@
     { still: 's9a', lines: [['freya', 'Freya, love. We\'re not in church.'], ['freya', 'I\'ll send for you when it\'s time.']] },
     { still: 's2b', lines: [['freya', 'Leave those.']] },
     { still: 's2c', lines: [['man', 'Of course.']] },
-    { still: 's2', hold: 1300 },
+    { still: 's2d', hold: 1300 },
     { still: 's10b', hold: 1500 },
     { still: 's10', rain: true, hold: 2200 },
     { files: true },
