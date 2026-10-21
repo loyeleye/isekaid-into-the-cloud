@@ -230,6 +230,7 @@ function step([WIN, LEAD, CHOICE]) {
   const url = `http://localhost:${server.address().port}/index.html?vector&ch6`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
+  page.setDefaultTimeout(180000);
   const errors = [];
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
@@ -260,11 +261,16 @@ function step([WIN, LEAD, CHOICE]) {
     if (what.startsWith('shot:')) { if (SHOTS) { await page.waitForTimeout(900); await shot(what.slice(5)); } continue; }
     if (what.startsWith('key:')) {
       const [, key, id, thru, x, y] = what.split(':');
-      await page.keyboard.down(key); await page.waitForTimeout(thru === '1' ? 700 : 350); await page.keyboard.up(key);
+      const where = () => page.evaluate(() => { const s = SD.c6world.debug.scene(); return s ? [s.P.x, s.P.y] : null; });
+      const past = P => P && ({ ArrowUp: P[1] < +y - 1, ArrowDown: P[1] > +y + 1, ArrowRight: P[0] > +x + 1, ArrowLeft: P[0] < +x - 1 })[key];
+      // Hold the key (longer on a slow machine) until you're through, or a few seconds have gone by.
+      await page.keyboard.down(key); await page.waitForTimeout(thru === '1' ? 700 : 350);
+      for (let i = 0; thru === '1' && i < 16 && !past(await where()); i++) await page.waitForTimeout(250);
+      await page.keyboard.up(key);
       await page.waitForTimeout(250);
       if (thru === '1') {
-        const P = await page.evaluate(() => { const s = SD.c6world.debug.scene(); return s ? [s.P.x, s.P.y] : null; });
-        const ok = P && ({ ArrowUp: P[1] < +y - 1, ArrowDown: P[1] > +y + 1, ArrowRight: P[0] > +x + 1, ArrowLeft: P[0] < +x - 1 })[key];
+        const P = await where();
+        const ok = past(P);
         if (!ok) { errors.push(`walking ${key} through ${id} from ${x},${y} didn't get you through it (at ${P})`); break; }
         await page.evaluate(id => { window.__thru[id] = 1; }, id);
         seen.add('thru:' + id);

@@ -334,7 +334,9 @@
   Object.keys(NAMES).forEach(k => { if (!SD.cast[k]) SD.cast[k] = NAMES[k]; });
   ['mira', 'kai', 'seoyeon', 'dutch'].forEach(id => { SD.cast['mir' + id] = { name: ((SD.cast[id] || {}).name || id) + ', in the lake', title: 'Mirror' }; });
   [['kagemaru', 340], ['mio', 1250], ['aigerim', 900], ['chad', 520], ['gary', 260], ['ashgrove', 300], ['wen', 820], ['twin1', 600], ['twin2', 760], ['twin3', 700], ['twin4', 480]].forEach(([w, hz]) => SD.ui.voice && SD.ui.voice(w, hz));
-  const sprite = (id, faces) => ({ faces: Object.fromEntries(faces.map(f => [f, K.fig(id, f, 'bust')])) });
+  // Drawn the first time the visual novel shows them, not at load.
+  const lazy = (o, k, make) => { let v; Object.defineProperty(o, k, { enumerable: true, configurable: true, get: () => v || (v = make()) }); };
+  const sprite = (id, faces) => { const o = {}; faces.forEach(f => lazy(o, f, () => K.fig(id, f, 'bust'))); return { faces: o }; };
   const SPR = { kagemaru: ['neutral', 'amused', 'reveal', 'ring'], mio: ['neutral', 'smile', 'sad', 'shock', 'earnest'], aigerim: ['neutral', 'smile', 'sad', 'earnest', 'shock'],
     chad: ['neutral', 'smile', 'smug', 'shock'], gary: ['neutral', 'tired'], ashgrove: ['neutral', 'stone', 'sad'], wen: ['neutral', 'smile', 'amused'] };
   const add = {};
@@ -343,7 +345,7 @@
   SD.vn.addSprites(add);
 
   // ---------- Stills ----------
-  const S = {};
+  const S = {}, SF = {};
   const sky = K.skyL, R = K.r, T = K.t, G = K.g;
   const house = (x, y, w, roof, op) => G(R(-w / 2, -150, w, 150, '#eef0f4', K.NIGHT, 3) + p(`M${-w / 2 - 20} -150 L0 -240 L${w / 2 + 20} -150Z`, roof || '#4a6aa8', K.NIGHT, 3) + R(-20, -90, 40, 90, '#5a7aa8', K.NIGHT, 3) + R(-w / 2 + 20, -130, 30, 30, '#9ab8d8', K.NIGHT, 2) + R(w / 2 - 50, -130, 30, 30, '#9ab8d8', K.NIGHT, 2), `translate(${x} ${y})`, op);
   // The same row of houses on both shores of the lake, the far one upside down in the water.
@@ -352,7 +354,7 @@
     G(house(220, 560, 180) + house(520, 560, 220, '#6a8ac8') + house(860, 560, 200), 'translate(0 1200) scale(1 -1)', 0.35),
     p(Array.from({ length: 14 }, (_, i) => `M${60 + i * 80} ${680 + (i % 3) * 60} h${30 + (i % 4) * 10}`).join(' '), null, '#ffffff', 3, 0.35)];
   // Cold open: Uptima's temple in 1984, before it was Freya's. A console, a box, a croissant on the keyboard.
-  S['c6-1984'] = K.scene([sky('c61', '#3a2a1a', '#8a6a3a'), R(0, 0, 1200, 1200, '#4a3622', null, null, 0.4),
+  SF['c6-1984'] = () => K.scene([sky('c61', '#3a2a1a', '#8a6a3a'), R(0, 0, 1200, 1200, '#4a3622', null, null, 0.4),
     ...Array.from({ length: 5 }, (_, i) => R(80 + i * 260, 120, 60, 760, '#6a5034', K.NIGHT, 3)),
     R(0, 840, 1200, 360, '#3a2a1a'),
     G(R(-200, -160, 400, 160, '#2a2a30', K.NIGHT, 4) + R(-170, -140, 340, 110, '#3a6a3a', K.NIGHT, 3) + p('M-150 -110 h120 M-150 -90 h200 M-150 -70 h80', null, '#9aff9a', 4, 0.8)
@@ -361,49 +363,50 @@
     G(p('M-60 0 L-50 -420 C-40 -470 40 -470 50 -420 L60 0Z', '#0b0910', K.NIGHT, 3) + c(-40, -180, 12, '#ece8e0', K.NIGHT, 2) + c(40, -180, 12, '#ece8e0', K.NIGHT, 2), 'translate(1090 900)', 0.9),
     p('M0 0 h1200 v1200 h-1200Z', '#ffcf7a', null, null, 0.06), K.glow('c61g', 420, 680, 420, '#9aff9a', 0.18), K.vignette(1200, 1200, 0.7)]);
   // Twinwater: the lake so still it's a mirror, and the same town on both shores.
-  S['c6-lake'] = K.scene([sky('c6l', '#a8c4e8', '#e8eef8'), ...shores('#dce8f8', '#a8c4e8'), K.vignette(1200, 1200, 0.35)]);
+  SF['c6-lake'] = () => K.scene([sky('c6l', '#a8c4e8', '#e8eef8'), ...shores('#dce8f8', '#a8c4e8'), K.vignette(1200, 1200, 0.35)]);
   // The jetty at dusk: Kagemaru's stall at the end of it, the awning striped.
   const row = () => house(0, 0, 180) + house(260, 0, 220, '#6a8ac8') + house(520, 0, 200) + house(760, 0, 180, '#6a8ac8') + house(1000, 0, 200);
-  S['c6-jetty'] = K.scene([sky('c6j', '#5a5a9a', '#e8b0b8', '#b8a0c8'), R(0, 620, 1200, 580, '#8a90c0'),
+  SF['c6-jetty'] = () => K.scene([sky('c6j', '#5a5a9a', '#e8b0b8', '#b8a0c8'), R(0, 620, 1200, 580, '#8a90c0'),
     G(row(), 'translate(70 622) scale(0.42)'), G(row(), 'translate(70 618) scale(0.42 -0.42)', 0.3),
     p('M560 1200 L600 640 L660 640 L700 1200Z', '#a8845a', K.NIGHT, 3) + p('M590 760 h90 M580 880 h110 M570 1000 h130 M562 1120 h146', null, '#7a5a3a', 3),
     G(R(-90, -60, 180, 60, '#3a2a4a', K.NIGHT, 3) + p(Array.from({ length: 6 }, (_, i) => `M${-100 + i * 34} -130 h34 v24 h-34Z`).join(' '), '#8a5aba', K.NIGHT, 2) + p('M-96 -60 V-130 M96 -60 V-130', null, '#5a4a6a', 6), 'translate(630 640)'),
     p(Array.from({ length: 10 }, (_, i) => `M${80 + i * 110} ${700 + (i % 3) * 70} h${40 + (i % 3) * 15}`).join(' '), null, '#ffffff', 3, 0.3), K.vignette(1200, 1200, 0.5)]);
   // The mirror: looking down into the lake, and the light of someone standing in it.
-  S['c6-mirror'] = K.scene([sky('c6m', '#1e2a52', '#2a3a6a'), K.stars(1200, 1200, 120, 61, 0.6),
+  SF['c6-mirror'] = () => K.scene([sky('c6m', '#1e2a52', '#2a3a6a'), K.stars(1200, 1200, 120, 61, 0.6),
     e(600, 640, 420, 140, '#3a4a7a', null, null, 0.7), e(600, 640, 300, 90, '#6a7ab0', null, null, 0.5), K.glow('c6mg', 600, 600, 360, '#cfe2ff', 0.4),
     p('M300 640 Q600 600 900 640', null, '#ffffff', 3, 0.4), K.vignette(1200, 1200, 0.75)]);
   // Seymour's bunker, inside: shelves of tapes, one lamp, and on the tape case a man in a hood.
-  S['c6-bunker'] = K.scene([sky('c6b', '#2a2a32', '#3a3a44'), R(0, 0, 1200, 1200, '#3a3e4a'),
+  SF['c6-bunker'] = () => K.scene([sky('c6b', '#2a2a32', '#3a3a44'), R(0, 0, 1200, 1200, '#3a3e4a'),
     ...Array.from({ length: 4 }, (_, i) => R(60 + i * 290, 160, 240, 560, '#565c6c', K.NIGHT, 3)),
     p(Array.from({ length: 144 }, (_, i) => { const s = i % 4, r = Math.floor(i / 12), c = Math.floor(i / 4) % 3; return (i * 7) % 11 === 3 ? '' : `M${84 + s * 290 + c * 72} ${186 + r * 44} h48 v30 h-48Z`; }).join(' '), '#14101f', '#8a94a8', 2, 0.9),
     R(0, 860, 1200, 340, '#2a2e38'), G(R(-120, -90, 240, 90, '#7a8498', K.NIGHT, 4) + R(-40, -76, 80, 30, '#14101f', K.NIGHT, 2) + T(0, -24, 'No. 401', { size: 22, fill: '#e8d27a', font: 'ui-monospace, monospace' }), 'translate(600 900)'),
     G(p('M0 0 L0 -60', null, '#8a94a8', 4) + e(0, -70, 30, 16, '#ffcf7a', K.NIGHT, 3), 'translate(600 140)'), K.glow('c6bg', 600, 260, 520, '#ffcf7a', 0.3), K.vignette(1200, 1200, 0.75)]);
   // The camp at the tower's foot, at night.
-  S['c6-camp'] = K.scene([sky('c6c', '#0e0c18', '#1a1420'), K.stars(1200, 600, 120, 43, 0.8), R(0, 760, 1200, 440, '#1e2414'),
+  SF['c6-camp'] = () => K.scene([sky('c6c', '#0e0c18', '#1a1420'), K.stars(1200, 600, 120, 43, 0.8), R(0, 760, 1200, 440, '#1e2414'),
     G(p('M-160 0 L0 -200 L160 0Z', '#c8487a', K.NIGHT, 4), 'translate(250 860)'), G(R(-120, -160, 240, 160, '#e8e0d0', K.NIGHT, 4) + p('M-140 -160 L0 -240 L140 -160Z', '#ff8ab8', K.NIGHT, 4) + p('M80 -240 V-340', null, '#5a5468', 6), 'translate(950 880)'),
     G(p('M-50 10 L50 -6 M-46 -6 L48 12', null, '#4a2c16', 12) + p('M-36 0 C-46 -46 -18 -72 0 -120 C10 -82 36 -64 36 0Z', '#ff8a2a', K.NIGHT, 3) + p('M-16 0 C-20 -28 -6 -46 0 -72 C8 -46 20 -28 16 0Z', '#ffe08a'), 'translate(600 960) scale(1.2)'),
     K.glow('c6cg', 600, 900, 460, '#ff9a3a', 0.45), K.vignette(1200, 1200, 0.65)]);
   // Kagemaru's vault: a card table, Freya's backup under glass, Seymour's tape beside it.
-  S['c6-vault'] = K.scene([sky('c6v', '#1a1428', '#2a2040'), R(0, 0, 1200, 1200, '#221a32'),
+  SF['c6-vault'] = () => K.scene([sky('c6v', '#1a1428', '#2a2040'), R(0, 0, 1200, 1200, '#221a32'),
     ...Array.from({ length: 6 }, (_, i) => R(40 + i * 200, 100, 120, 760, '#3a2e50', K.NIGHT, 3)),
     R(0, 860, 1200, 340, '#140f20'), G(R(-260, -40, 520, 40, '#3a6a4a', K.NIGHT, 4) + p('M-240 0 L-220 140 M240 0 L220 140', null, '#3a2a1a', 10), 'translate(600 820)'),
     G(R(-90, -150, 180, 150, '#cfe2ff', K.NIGHT, 3, 0.35) + e(0, -70, 50, 40, '#ffd76a', K.NIGHT, 3, 0.8) + T(0, -164, 'RETAIN UNTIL 12026', { size: 20, fill: '#cfe2ff', font: 'ui-monospace, monospace' }), 'translate(470 780)'),
     G(R(-60, -40, 120, 40, '#7a8498', K.NIGHT, 3) + R(-24, -32, 48, 18, '#14101f') + T(0, -46, 'No. 401', { size: 16, fill: '#e8d27a', font: 'ui-monospace, monospace' }), 'translate(760 780)'),
     K.glow('c6vg', 600, 700, 480, '#8a6cff', 0.3), K.vignette(1200, 1200, 0.8)]);
   // The Clock Room: a key under glass, and a countdown over it.
-  S['c6-clock'] = K.scene([sky('c6k', '#2a1a1a', '#1a1018'), R(0, 0, 1200, 1200, '#2a1c22'),
+  SF['c6-clock'] = () => K.scene([sky('c6k', '#2a1a1a', '#1a1018'), R(0, 0, 1200, 1200, '#2a1c22'),
     c(600, 420, 300, '#3a2a30', K.NIGHT, 6) + c(600, 420, 260, '#f4ecd8', K.NIGHT, 4) + p('M600 420 L600 220 M600 420 L740 480', null, INK, 10) + c(600, 420, 14, INK),
     ...Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return c((600 + Math.sin(a) * 230).toFixed(0), (420 - Math.cos(a) * 230).toFixed(0), 8, INK); }),
     G(R(-120, -60, 240, 60, '#cfe2ff', K.NIGHT, 3, 0.4) + c(-30, -30, 18, '#ffd24a', K.NIGHT, 3) + R(-12, -36, 80, 12, '#ffd24a', K.NIGHT, 3), 'translate(600 900)'),
     T(600, 1060, '00 : 00 : 59', { size: 64, fill: '#ff6a6a', font: 'ui-monospace, monospace' }), K.vignette(1200, 1200, 0.75)]);
   // Twinwater freed, at dawn: the lake ripples, and the reflections don't match any more.
-  S['c6-freed'] = K.scene([sky('c6f', '#6a5a9a', '#ffc8a0', '#f0a0b8'), R(0, 600, 1200, 600, '#c8a8c8'),
+  SF['c6-freed'] = () => K.scene([sky('c6f', '#6a5a9a', '#ffc8a0', '#f0a0b8'), R(0, 600, 1200, 600, '#c8a8c8'),
     house(220, 560, 180), house(520, 560, 220, '#6a8ac8'), house(860, 560, 200),
     G(house(300, 560, 160) + house(700, 560, 240, '#6a8ac8'), 'translate(0 1200) scale(1 -1)', 0.3),
     p(Array.from({ length: 20 }, (_, i) => `M${30 + i * 60} ${640 + (i % 5) * 50} q15 -8 30 0`).join(' '), null, '#ffffff', 3, 0.5), c(900, 300, 90, '#ffe8c0', null, null, 0.7), K.vignette(1200, 1200, 0.35)]);
+  Object.keys(SF).forEach(k => lazy(S, k, SF[k]));
   A.scenes = S;
-  SD.vn.addScenes(Object.fromEntries(Object.keys(S).map(k => [k, { src: S[k], label: k }])));
+  SD.vn.addScenes(Object.fromEntries(Object.keys(SF).map(k => { const o = { label: k }; lazy(o, 'src', () => S[k]); return [k, o]; })));
 
   // ---------- Enemies ----------
   const SS = `stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
@@ -474,14 +477,19 @@
   // While a chapter 6 raid plays (js/c6-world.js turns it on with A.raidArt(true)): a drawn backdrop over the painted
   // one, each champion's standing figure as a one-frame sheet (js/raid.js reads its idle row at y = 2h), and no painted
   // map tiles (SD.dungeonArt is set aside, so the engine draws plain rooms over the drawn map below).
-  const css = document.createElement('style');
-  const back = K.scene([sky('c6rb', '#2a3050', '#6a7ab0'), ...shores('#3a4060', '#2a3050').slice(1), K.vignette(1200, 1200, 0.6)]);
-  const mapBg = K.uri(K.svg('0 0 120 120', R(0, 0, 120, 120, '#22283e') + p('M0 30 Q30 24 60 32 T120 30 M0 90 Q40 84 70 92 T120 88', null, '#2e3652', 6) + c(20, 60, 3, '#3a4460') + c(90, 60, 4, '#3a4460')));
-  css.textContent = `html.c6raid .rd-stage { background-image: url("${back}") !important; background-size: cover !important; background-position: center !important; }
+  let css = null;
+  const raidCss = () => {
+    if (css) return;
+    css = document.createElement('style');
+    const back = K.scene([sky('c6rb', '#2a3050', '#6a7ab0'), ...shores('#3a4060', '#2a3050').slice(1), K.vignette(1200, 1200, 0.6)]);
+    const mapBg = K.uri(K.svg('0 0 120 120', R(0, 0, 120, 120, '#22283e') + p('M0 30 Q30 24 60 32 T120 30 M0 90 Q40 84 70 92 T120 88', null, '#2e3652', 6) + c(20, 60, 3, '#3a4460') + c(90, 60, 4, '#3a4460')));
+    css.textContent = `html.c6raid .rd-stage { background-image: url("${back}") !important; background-size: cover !important; background-position: center !important; }
 html.c6raid .rd .map { background: url("${mapBg}") repeat, #22283e; background-size: 120px 120px; }`;
-  document.head.appendChild(css);
+    document.head.appendChild(css);
+  };
   let keptArt = null;
   A.raidArt = function (on) {
+    if (on) raidCss();
     document.documentElement.classList.toggle('c6raid', !!on);
     if (on && SD.dungeonArt) { keptArt = SD.dungeonArt; SD.dungeonArt = null; }
     if (!on && keptArt) { SD.dungeonArt = keptArt; keptArt = null; }

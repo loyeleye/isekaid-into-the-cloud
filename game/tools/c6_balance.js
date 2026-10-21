@@ -63,6 +63,7 @@ function step() {
 async function run(browser, url, xp, i) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 860 } });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(180000);
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => { window.SD_TEST = 1; });
