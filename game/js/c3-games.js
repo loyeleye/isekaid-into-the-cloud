@@ -42,12 +42,24 @@
 .g3-board .cell b { display: block; color: #ffd24a; font-size: 11px; letter-spacing: .05em; }
 .g3-board .cell.ok { box-shadow: inset 0 0 0 2px #7fe0a0; } .g3-board .cell.bad { box-shadow: inset 0 0 0 2px #ff6a7a; }
 .g3 .opt { min-height: 44px; }
-.g3 .g2-predict b { color: #8a5a00; }
+.g3 .g2-predict b { color: #6e4700; }
+/* Phone pass: the panels are parchment, so the feedback lines and labels need dark ink to be read at arm's length. */
+.g3 .why3.ok, .g3 .g2-note.ok, .g3-seq { color: #17582d; } .g3 .why3.bad { color: #a3242f; }
+.g3 .why3 { font-size: 13px; font-weight: 600; }
+.g3 .row3 { border-top-color: rgba(43,35,64,.18); }
+.g3-heatl { font-size: 12px; color: #4a4458; }
+.g3-board .cell b { font-size: 12px; }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g3 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
+.g3 p.small { font-size: 13px; }
+.g3 .bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } .g3 .bins button { padding: 6px 4px; font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 700; font-size: 14px; }
 #stage .g3-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 `;
   document.head.appendChild(css);
 
-  function note(el, text, ok) { const n = el.querySelector('.g2-note'); if (!n) return; n.textContent = text; n.className = 'g2-note ' + (ok ? 'ok' : 'bad'); }
+  function note(el, text, ok) { const n = el.querySelector('.g2-note'); if (!n) return; n.textContent = text; n.className = 'g2-note ' + (ok ? 'ok' : 'bad'); seen(n); }
+  // Feedback for a tap can land below the fold on a phone: scroll it into view.
+  const seen = el => { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); };
   const cont = (b, label) => new Promise(res => {
     const go = document.createElement('button'); go.className = 'primary'; go.textContent = label || 'Continue';
     b.appendChild(go); go.focus(); go.onclick = () => { U.closePanel(); res(); };
@@ -104,10 +116,10 @@
         if (done[i]) return;
         const ok = v === r.v;
         if (done[i] === undefined) { if (ok) right++; S.recordAnswer(concept, ok, 1, 8000); }
-        if (!ok) { done[i] = false; el.disabled = true; why.textContent = r.no || r.why; why.className = 'why3 bad'; AU.sfx('wrong'); return; }
+        if (!ok) { done[i] = false; el.disabled = true; why.textContent = r.no || r.why; why.className = 'why3 bad'; seen(why); AU.sfx('wrong'); return; }
         done[i] = true;
         row.querySelectorAll('button').forEach(x => { x.disabled = true; x.classList.toggle('on', x === el); });
-        why.textContent = r.why; why.className = 'why3 ok'; AU.sfx('right');
+        why.textContent = r.why; why.className = 'why3 ok'; seen(why); AU.sfx('right');
         if (Object.values(done).filter(Boolean).length === s.rows.length) { note(box, s.out || `${right} of ${s.rows.length} right first time.`, right >= s.rows.length - 1); res(right); }
       });
     });

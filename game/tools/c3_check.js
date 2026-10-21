@@ -52,7 +52,8 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
       window.__k = window.__k || {};
       const once = k => !window.__k[k] && (window.__k[k] = 1);
       // Tap targets under 44px in what's on screen now (each kind of panel once).
-      const tiny = root => [...root.querySelectorAll('button')].filter(b => vis(b) && !b.disabled).map(b => b.getBoundingClientRect()).filter(r => r.height < 43.5 || r.width < 43.5).length;
+      // (Measured once the window has finished scaling in: js/ui.js's winIn starts it at 90%.)
+      const tiny = root => (root.querySelectorAll('.win').forEach(w => w.getAnimations().forEach(a => { try { a.finish(); } catch (e) { /* endless */ } })), [...root.querySelectorAll('button')]).filter(b => vis(b) && !b.disabled).map(b => b.getBoundingClientRect()).filter(r => r.height < 43.5 || r.width < 43.5).length;
       const vn = $('#vn');
       if (vn && !vn.hidden) {
         const box = vn.querySelector('.vn-box');
