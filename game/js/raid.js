@@ -18,10 +18,12 @@
 //   - Exam Twists (chapter 2, 2026-10-21): a boss with SD.twists[id], as in js/run.js, asks every player one twist the
 //     first time it falls to half Severity: its incident again with one thing changed, answered on each player's own
 //     page (an Exam Twist card's question, st-twist). Each right answer mitigates 16, a slow one 10.
-//   - A floor's Field Notes can be someone else's (N.by for the header, N.sign for the signature), and a Policy Sort can
+//   - A floor's Field Notes can be someone else's (N.by for the header, N.sign for the signature, N.where for where the
+//     page is found), and a Policy Sort can
 //     name its two answers (P.yes and P.no, for a filter or a pattern instead of a policy), its header (P.by) and what
 //     arrives (P.what). Defaults as before.
 //   - A fight's backdrop is SD.run.stageArt(ch) when the page has one (the vector build draws its own), as in js/run.js.
+//   - A story dungeon can start with tapes (o.tapes): a wipe plays one, and a wipe with none left ends the run.
 //   - Bots take their champion's name.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
@@ -1196,6 +1198,9 @@
     o = o || {};
     // The mode's name on screen, and whether this is the story's own dungeon (header: o.story, o.auto).
     const LABEL = o.label || 'Borderlands', STORYMODE = !!o.story;
+    // o.tapes (chapter 2, 2026-10-21): a story dungeon that starts with that many of Seymour's tapes instead of regrouping
+    // for ever. A wipe plays one; a wipe with none left ends the run (onEnd({won: false})). Tapes can't be bought in one.
+    const STAPES = STORYMODE && o.tapes > 0 ? Math.min(9, o.tapes | 0) : 0, REGROUP = STORYMODE && !STAPES;
     // A question on concept c for a Whiteboard or an event: the story's own picker (o.pickQ), else this save's.
     const pickQ = c => (o.pickQ ? o.pickQ(c) : SD.state && SD.state.pickQuestion ? SD.state.pickQuestion(c, []) : null);
     const room = await hub.join('ir-' + code);
@@ -1204,7 +1209,7 @@
     const finished = new Promise(r => { done = r; });
     const open = RD.expeditions();
     const xp0 = o.xp && open.some(x => x.id === o.xp) ? o.xp : o.settings && open.some(x => x.id === o.settings.xp) ? o.settings.xp : (open[0] || {}).id || null;
-    const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: 0, tapeN: 0, snap: null, note: '', end: null, rs: false,
+    const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: STAPES, tapeN: 0, snap: null, note: '', end: null, rs: false,
       main: null, tier: null, onWin: [], turn: 0, stale: 0, taken: 0, sh: zero(), flags: {}, infra: [], eff: [], log: '', players: {} }, newFoe(null, 0, 1), fightStatus());
     let G = fresh();
     G.host = o.create ? me.peer : null;
@@ -1262,7 +1267,7 @@
       Object.keys(G.players).forEach(k => { if (!h.has(k) && k !== me.peer) delete G.players[k]; });
       if (!X() || !all().length) return;
       Object.values(G.players).forEach(p => { p.bits = BITS; p.o = []; p.sold = []; });
-      Object.assign(G, { sla: SLA, tapes: 0, tapeN: 0, rooms: 0, end: null, note: '' });
+      Object.assign(G, { sla: SLA, tapes: STAPES, tapeN: 0, rooms: 0, end: null, note: '' });
       enterFloor(0); push();
     }
     // The snapshot Seymour's tape restores: every deck and purse, the SLA and the map, as the floor began.
@@ -1361,13 +1366,13 @@
       Object.values(G.players).forEach(p => { p.draw = []; p.disc = []; p.hand = []; p.played = []; p.ready = false; });
       G.infra = [];
       const s = G.snap;
-      if ((G.tapes > 0 || STORYMODE) && s && rowsOf(s.map)) {
-        if (!STORYMODE) G.tapes--;
+      if ((G.tapes > 0 || REGROUP) && s && rowsOf(s.map)) {
+        if (!REGROUP) G.tapes--;
         G.tapeN++;
         Object.keys(G.players).forEach(k => { const x = s.p[k]; if (x) { const d = dec(x.d, 80); if (d.length) G.players[k].deck = d; G.players[k].bits = Math.max(0, x.b | 0); } });
         Object.assign(G, { sla: Math.max(1, s.sla | 0), onWin: [], map: s.map, pos: null, seen: [], votes: {}, room: null, ph: 'map', boss: null, main: null, tier: null, foes: [] });
         G.k++;
-        G.note = STORYMODE ? `The party regroups at the start of floor ${G.fl + 1}, as you entered it. Decks and bits are as they were.` : `Seymour's tape played: back to the start of floor ${G.fl + 1}, as you entered it. ${G.tapes ? `${G.tapes} tape${G.tapes > 1 ? 's' : ''} left.` : 'No tapes left.'}`;
+        G.note = REGROUP ? `The party regroups at the start of floor ${G.fl + 1}, as you entered it. Decks and bits are as they were.` : `Seymour's tape played: back to the start of floor ${G.fl + 1}, as you entered it. ${G.tapes ? `${G.tapes} tape${G.tapes > 1 ? 's' : ''} left.` : 'No tapes left.'}`;
         save();
         return;
       }
@@ -1994,7 +1999,7 @@
       shown = key;
       const [wx, wf, wt] = (was || '').split(':');
       if (wx === G.xp && +wf === G.fl && +wt < G.tapeN) {
-        queue(async () => { await titleCard(STORYMODE ? 'REGROUPING...' : 'RESTORING FROM TAPE...'); await dialog(STORYMODE ? obj(X()).regroup : [{ who: 'seymour', text: 'Backup No. 401, restored! Tested, labelled, and only slightly chewed. Back to the start of the floor, everyone.' }]); });
+        queue(async () => { await titleCard(REGROUP ? 'REGROUPING...' : 'RESTORING FROM TAPE...'); await dialog(REGROUP ? obj(X()).regroup : [{ who: 'seymour', text: 'Backup No. 401, restored! Tested, labelled, and only slightly chewed. Back to the start of the floor, everyone.' }]); });
         return;
       }
       if (wx === G.xp && +wf === G.fl - 1 && fs[G.fl - 1]) queue(() => dialog(fs[G.fl - 1].outro));
@@ -2127,7 +2132,7 @@
       const mine = G.players[me.peer], fs = floorsOf(X());
       return `<div class="run-hud"><div class="hud-sla"><span>Team SLA</span><div class="bar sla"><i style="width:${G.sla / SLA * 100}%"></i></div><b>${G.sla}/${SLA}</b></div>
         <span class="hud-chip">Floor <b>${G.fl + 1}/${fs.length}</b></span>${mine ? `<span class="hud-chip">Bits <b>${mine.bits}</b></span>` : ''}
-        ${STORYMODE ? '' : `<span class="hud-chip" title="Seymour's Tape: if the team goes down, the floor starts again">📼 Tapes <b>${G.tapes}</b></span>`}
+        ${REGROUP ? '' : `<span class="hud-chip" title="Seymour's Tape: if the team goes down, the floor starts again">📼 Tapes <b>${G.tapes}</b></span>`}
         ${mine ? `<button class="hud-chip" type="button" id="rd-deck" aria-expanded="${ui.deck}">Deck (${mine.deck.length})</button>` : ''}</div>
         ${G.note ? `<p class="rd-note" role="status">${esc(G.note)}</p>` : ''}
         ${ui.deck && mine ? `<div class="cardgrid mini">${mine.deck.map(id => chtml(id)).join('')}</div>` : ''}`;
@@ -2185,7 +2190,7 @@
         mode: LABEL, code, leader: G.host, max: MAX_PLAYERS, listed: o.vis && o.vis.get(), vis: o.vis, leave,
         what: 'the expedition', startLabel: G.rs ? 'Resume the expedition' : 'Start the expedition', boss: kyu, deck: !G.rs,
         settings: pickX,
-        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: vote on every room; the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STORYMODE ? 'Going down sends the party back to the start of the floor, as you entered it.' : 'Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. No shards; this one is for practice.'}${seats}`,
+        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: vote on every room; the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STAPES ? `You have ${STAPES} of Seymour's tapes: going down plays one, back to the start of the floor as you entered it. Going down with none left ends the climb.` : STORYMODE ? 'Going down sends the party back to the start of the floor, as you entered it.' : 'Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. No shards; this one is for practice.'}${seats}`,
         addBot: hosting && !G.rs && all().length < MAX_PLAYERS ? () => send({ k: 'bot' }) : null,
         botChamp: hosting && !G.rs ? (k, c) => send({ k: 'botc', b: k, c }) : null,
         startWhy: () => (!x ? 'No expedition is open yet.' : G.rs ? (seatsHere().length ? null : 'Waiting for someone with a seat.') : all().length ? null : 'Waiting for the table to answer.'),
@@ -2352,8 +2357,8 @@
     // Field Notes and Policy Sort: like the Whiteboard, each player on their own device, then the team's result.
     function notesView(r, mine) {
       const N = obj((SD.fieldNotes || {})[r.n]), wait = mine && r.wait[me.peer];
-      paint(`<div class="mi-card rd-room">${hud()}${head('Field Notes')}
-        <p>${esc(N.title || 'A page of notes')}, pinned to the wall in Freya's handwriting${r.fd ? ', and she stopped halfway' : ''}. Read it, then answer a question on the same idea. A right answer heals the team and pays you bits, as at a whiteboard.</p>
+      paint(`<div class="mi-card rd-room">${hud()}${head(N.by || 'Field Notes')}
+        <p>${esc(N.title || 'A page of notes')}, ${esc(N.where || 'pinned to the wall in Freya\'s handwriting')}${r.fd ? ', and she stopped halfway' : ''}. Read it, then answer a question on the same idea. A right answer heals the team and pays you bits, as at a whiteboard.</p>
         ${wait ? '<p class="rd-wait">Your notes are open.</p><button class="primary" type="button" id="rd-ask">Read the notes</button>' : mine ? '<p class="rd-wait">Waiting for the others to finish reading.</p>' : ''}
         ${team(k => (r.res[k] == null ? ['reading'] : r.res[k] ? [BAND_TEXT[r.res[k]] || 'right', 'ok'] : ['missed', 'no']))}</div>`);
       const a = root.querySelector('#rd-ask'); if (a) a.onclick = () => { if (!busy) { delete asked[r.k]; render(); } };

@@ -647,7 +647,7 @@
         b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { U.closePanel(); res(); });
       });
     }
-    await SD.vn.play([['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
+    await SD.vn.play([['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
     setFlag('offer');
     AU.music('town');
     U.system('THE STAIR IS OPEN', 'Up the stair are the Sorting Floors: Expedition I.', 'gold');
@@ -821,6 +821,7 @@
     if (!sc) makeScene(); else applyState();
     zone = null; lastTile = '';
     W2.active = true;
+    document.body.classList.add('c2-on');
     sc.start();
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
   };
@@ -882,5 +883,38 @@
   }
 
   // For tools/c2_check.js.
-  W2.debug = { busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); } };
+  // How a walker gets somewhere the way a player does (tools/c2_check.js): the arrow key for the next step toward a
+  // tile, or toward standing beside someone (then the key that bumps into them, which talks), on the map as it is
+  // now; and where on screen to tap a tile or a person. Doors are walked through only as the last step or on the way
+  // through the tower's gate.
+  const DIRK = [[1, 0, 'ArrowRight'], [-1, 0, 'ArrowLeft'], [0, 1, 'ArrowDown'], [0, -1, 'ArrowUp']];
+  function nextKey(tx, ty, id) {
+    const P = sc.P, a = id && sc.actors[id];
+    if (a) { tx = Math.round(a.x); ty = Math.round(a.y); }
+    const goal = (x, y) => (a ? Math.abs(x - tx) + Math.abs(y - ty) === 1 : x === tx && y === ty);
+    if (goal(P.x, P.y)) { if (!a) return { here: true }; const d = DIRK.find(([dx, dy]) => P.x + dx === tx && P.y + dy === ty); return { key: d[2], bump: true }; }
+    const k = (x, y) => x + ',' + y, prev = new Map([[k(P.x, P.y), null]]), q = [[P.x, P.y]];
+    const pass = (x, y) => sc.walkable(x, y) && (sc.tile(x, y) !== 'U' || goal(x, y));
+    let end = null;
+    while (q.length && !end) {
+      const [x, y] = q.shift();
+      for (const [dx, dy] of DIRK) {
+        const nx = x + dx, ny = y + dy;
+        if (prev.has(k(nx, ny)) || !pass(nx, ny)) continue;
+        prev.set(k(nx, ny), [x, y]); q.push([nx, ny]);
+        if (goal(nx, ny)) { end = [nx, ny]; break; }
+      }
+    }
+    if (!end) return { none: true };
+    let c = end, b = prev.get(k(c[0], c[1]));
+    while (b && (b[0] !== P.x || b[1] !== P.y)) { c = b; b = prev.get(k(c[0], c[1])); }
+    const d = DIRK.find(([dx, dy]) => P.x + dx === c[0] && P.y + dy === c[1]);
+    return { key: d[2], to: c };
+  }
+  function tapAt(x, y) {
+    const cv = $('#w-canvas'), r = cv.getBoundingClientRect(), { cx, cy } = sc.cam(), ts = guessTs(r.width, r.height);
+    const px = r.left + x * ts + ts / 2 - cx, py = r.top + y * ts + ts / 2 - cy;
+    return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom ? [Math.round(px), Math.round(py)] : null;
+  }
+  W2.debug = { nextKey, tapAt, pos: () => sc && sc.P && [sc.P.x, sc.P.y, sc.P.moving || sc.P.path.length > 0], busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); } };
 })();

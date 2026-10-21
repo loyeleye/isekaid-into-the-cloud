@@ -96,6 +96,17 @@ const server = http.createServer((req, res) => {
         if ((x = b('#skip, .ghost, #panel-x'))) return click(x) && 'ghost';
         return 'panel-wait';
       }
+      // Chapter 2's Expedition I runs on the raid engine (js/raid.js): your seat plays as a bot, fast; --win wins each fight.
+      const rd = vis($('#run')) && $('#run').querySelector('.rd'), RT = (SD.test || {}).raid;
+      if (rd && RT && RT.G()) {
+        const G = RT.G();
+        if (!window.__paced) { window.__paced = 1; RT.pace(0.05); }
+        const bk = rd.querySelector('#rd-back'); if (bk) return click(bk) && 'raid:back';
+        const me = G.players[RT.me()]; if (me && !me.bot) me.bot = true;
+        if (G.ph === 'fight' && G.tier === 'boss' && G.main && !(window.__boss = window.__boss || {})[G.main]) { window.__boss[G.main] = 1; return 'boss:' + G.main; }
+        if (WIN && G.ph === 'fight' && !G.qs.length) { RT.win(); return 'raid:win'; }
+        return 'raid-wait';
+      }
       // Between chapter 2's scenes there's no run: the last fight's screen is left behind and mustn't be played.
       if (window.__c2 && !sv.run) return 'c2-wait';
       if (vis($('#run'))) {
@@ -143,7 +154,7 @@ const server = http.createServer((req, res) => {
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
-    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; document.querySelector('#v2-go').click(); }); continue; }
+    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.ui.closePanel(); SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; SD.chapterStart[2](); }); continue; }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }

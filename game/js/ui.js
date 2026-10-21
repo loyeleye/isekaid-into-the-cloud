@@ -110,7 +110,7 @@
     el.setAttribute('role', 'status');
     el.innerHTML = `<div class="sys-h"><span class="sys-i">!</span>${U.esc(n.title)}</div>${n.body ? `<div class="sys-b">${n.body}</div>` : ''}`;
     // Sit just below whatever header is showing, so a wrapped phone HUD never hides the toast.
-    const bar = ['#hud', '.run-hud'].map(q => $(q)).find(h => h && h.offsetParent);
+    const bar = ['#hud', '.run-hud', '#w-hud'].map(q => $(q)).find(h => h && h.offsetParent);
     $('#notes').style.top = (bar ? Math.max(12, bar.getBoundingClientRect().bottom + 8) : 12) + 'px';
     $('#notes').appendChild(el);
     setTimeout(() => el.classList.add('out'), 2600);

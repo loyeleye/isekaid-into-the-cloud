@@ -2,7 +2,7 @@
 // the scrap field where the camp begins (Coo and Elder Wren restored from old versions, Seymour's tape, the Free
 // Cloud named), Thornwick's town floor and Freya's free offer, Expedition I (the Sorting Floors: Intake and Fan-out,
 // two raid floors), then camp: Pip's question, the first Ship It, and Coo's quest, whose Plot Device lifts Nothing
-// Arrives. It ends on a "to be continued" card. It opens from chapter 1's end card (js/ch1-world.js W1.onEndCard).
+// Arrives. It ends on a "to be continued" card. It opens from chapter 1's end card, which calls SD.chapterStart[2].
 // The story follows the Story Bible's chapter 2. AWS facts follow the current AWS documentation (SQS, SNS,
 // EventBridge, Kinesis, Amazon Data Firehose, Lambda's SQS event source, SAM); every question here is written fresh.
 // Freya, after chapter 1's reveal, calls people "love"; she never says "sweetie".
@@ -192,8 +192,8 @@
   );
 
   // ---------- The Plot Device and the curse ----------
-  // Nothing Arrives: retries hit 40% harder (the engine's 'echo' curse) until Coo's Redrive Stamp lifts it.
-  SD.curses.echo = { name: 'Nothing Arrives', text: 'Retries hit 40% harder and leave the halls stale.', hint: 'Coo\'s quest, "At Least Once, At Most Twice", lifts it.' };
+  // Nothing Arrives (the quest system's 'echo' curse): in the floors, the Unread Letter card below, until Coo's Redrive Stamp.
+  SD.curses.echo = { name: 'Nothing Arrives', text: 'An Unread Letter in every deck on the stair: the team loses SLA each turn it sits unread.', hint: 'Coo\'s quest, "At Least Once, At Most Twice", lifts it.' };
   const has = id => !!(S.save.c2 && S.save.c2.dev && S.save.c2.dev[id]);
   SD.quests = { list: [], has, curses: ch => (ch === 2 && !has('redrive') ? ['echo'] : []), devices: () => (has('redrive') ? ['redrive'] : []) };
 
@@ -255,8 +255,7 @@
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning.'],
       ['seymour', 'And a copy anyone can delete is not a copy.'],
       ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
-      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.']
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Here: two spare tapes, for the stair. Close the hatch on your way out.']
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
@@ -386,11 +385,16 @@
     const mine = P.pair.includes(me);
     let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
     if (where === 'camp') lines[0] = ['narr', P.camp];
-    if (mine) { const [at, t] = P.inner[me]; lines.splice(mine && where !== 'camp' ? at : Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]); }
+    // Six lines at most: the title heads the opening line, and your inner line follows your own spoken one.
+    if (mine) {
+      const [at, t] = P.inner[me];
+      let k = -1; for (let i = Math.min(at, lines.length) - 1; i >= 0; i--) if (lines[i][0] === me) { k = i; break; }
+      if (k >= 0) lines[k] = [me, lines[k][1] + ' ' + t, lines[k][2]]; else lines.splice(Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]);
+    }
+    lines[0] = [lines[0][0], P.title.toUpperCase() + ' · ' + lines[0][1]].concat(lines[0].slice(2));
     U.closePanel(); U.stage(null);
     AU.music(P.music);
-    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['narr', P.title.toUpperCase() + ' · ' + P.pair.map(x => SD.ch1story.leads[x].name.split(' ')[0]).join(' and ')],
-      ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
     setFlag('pair-' + id);
   };
   C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
@@ -399,6 +403,14 @@
   const esc = s => U.esc(s);
   const css = document.createElement('style');
   css.textContent = `
+/* A toast slides under an open window rather than over its title (phone pass, 2026-10-21). */
+body.c2-on:has(#panel:not([hidden])) #notes { z-index: 19; }
+/* 44px to tap at phone size: the HUD buttons, the skip links (bigger hit area, same look), the floors' small buttons. */
+body.c2-on #w-hud button { min-height: 44px; min-width: 44px; }
+body.c2-on #dlg-skip { padding: 14px 12px; margin: -14px -12px; }
+body.c2-on #vn .vn-skip { padding: 12px 10px; margin: -8px -6px; }
+body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
+#panel .g2-set button, #panel .sd-letters .opt { min-height: 44px; min-width: 44px; }
 #vn .vn-panel.versions { text-align: left; }
 .vv-h { font: 600 13px/1.5 ui-monospace, monospace; color: #b7b0cc; margin-bottom: 8px; }
 .vv-h b { color: #7fd0ff; } .vv-h span { float: right; color: #7fe0a0; }
@@ -409,10 +421,10 @@
 #vn .vn-opts.col button[disabled] { opacity: .4; }
 #stage .vstage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .sd-letters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 10px 0; }
-.sd-letters .opt { padding: 10px 4px; text-align: center; font: 700 13px ui-monospace, monospace; }
+.sd-letters .opt { padding: 10px 4px; min-height: 44px; text-align: center; font: 700 13px ui-monospace, monospace; }
 .sd-letters .opt.bad { box-shadow: inset 0 0 0 3px #d63a3a; }
 .opt.primary, .opt.primary:hover:not(:disabled) { background: var(--blue); color: #fff; }
-.sd-resp { font: 12px/1.4 ui-monospace, monospace; background: #1d1b2a; color: #d9e6ff; padding: 8px 10px; border-radius: 8px; white-space: pre-wrap; }
+.sd-resp { font: 12px/1.4 ui-monospace, monospace; background: #1d1b2a; color: #d9e6ff; padding: 8px 10px; border-radius: 8px; white-space: pre-wrap; margin-bottom: 12px; }
 `;
   document.head.appendChild(css);
   SD.vn.acts.versions = async function (o, tools) {
@@ -555,7 +567,7 @@
   // ---------- Kyu's runbook pages and the Sorting Tables ----------
   // The engine's Field Notes, in Kyu's hand: a worked example, step by step (from row 5 they stop halfway), then a
   // question on the same idea from the bank. The Belfry's three pages are its incident, worked: diagnose, fix, prevent.
-  const KYU = { by: 'Kyu\'s Runbook', sign: '— K.' };
+  const KYU = { by: 'Kyu\'s Runbook', sign: '— K.', where: 'torn from Kyu\'s runbook and pinned to a sorting rack, in her handwriting' };
   const BD = SD.bossDesign.belfry;
   Object.assign(SD.fieldNotes, {
     'c2-retry': Object.assign({ title: 'Page 1: the letter that always fails', c: 'dlq',
@@ -918,7 +930,7 @@
     return new Promise(res => {
       const net = !!(SD.net && SD.raid);
       const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p>
-        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and you regroup at the start of the floor.</p>
+        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and one of Seymour's tapes puts you back at the start of the floor: two tapes a climb.</p>
         <div class="opts"><button class="opt primary" id="sf-solo"><b>Climb</b> · you and your three</button>
         ${net ? '<button class="opt" id="sf-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="sf-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         ${noBack ? '' : '<div class="row"><button class="ghost" id="sf-not">Not yet</button></div>'}`, { title: 'THE SORTING FLOORS', noClose: true });
@@ -946,6 +958,7 @@
   [['coo', 900], ['pip', 1300], ['seymour', 260], ['tilly', 1150], ['marrow', 520]].forEach(([w, hz]) => U.voice(w, hz));
 
   C2.start = async function () {
+    document.body.classList.add('c2-on');
     c2(); S.persist();
     SD.ch1.halt(); U.closePanel(); U.stage(null);
     AU.music('story');
@@ -981,7 +994,7 @@
     const f = c2().f, both = f.ship && f.quest;
     const btn = (id, label, done, primary) => `<button class="opt${primary ? ' primary' : ''}" id="${id}"${done ? ' disabled' : ''}>${label}${done ? ' ✓' : ''}</button>`;
     const b = U.panel(`<p>The Free Cloud's post office: Coo behind the counter, Pip at a desk of his own, Elder Wren by the fire talking to nobody. Seymour has opened a hatch for tapes.</p>
-      ${SD.quests.curses(2).length ? '<p class="small"><b>☠ Nothing Arrives</b> still hangs over the Sorting Floors: retries hit 40% harder.</p>' : '<p class="small"><b>✉ Coo\'s Redrive Stamp</b>: Nothing Arrives is lifted.</p>'}
+      ${SD.quests.curses(2).length ? '<p class="small"><b>☠ Nothing Arrives</b> still hangs over the Sorting Floors: an Unread Letter in every deck, costing the team SLA each turn it sits unread.</p>' : '<p class="small"><b>✉ Coo\'s Redrive Stamp</b>: Nothing Arrives is lifted.</p>'}
       <div class="opts">${btn('v2-ship', '<b>Ship It</b> · make the floors\' fix stick', f.ship, !f.ship)}
       ${btn('v2-quest', '<b>At Least Once, At Most Twice</b> · Coo\'s quest', f.quest, f.ship && !f.quest)}
       ${both ? '<button class="opt primary" id="v2-up"><b>Take the lift to floor 7</b></button>' : ''}</div>`, { title: 'CAMP · THE FREE CLOUD', noClose: true });
@@ -1035,7 +1048,7 @@
       eli5: 'It\'s a quest log that remembers which quests you\'ve turned in. When the same quest shows up again, the game sees it\'s already done and gives no double reward.' }, { title: 'AT LEAST ONCE, AT MOST TWICE', context: 'Coo\'s sorting desk · 4 of 4' });
     c2().dev.redrive = true; setFlag('quest');
     AU.sfx('right');
-    U.system('PLOT DEVICE: COO\'S REDRIVE STAMP', 'Curse lifted: Nothing Arrives. Retries in the Sorting Floors are back to normal.', 'gold');
+    U.system('PLOT DEVICE: COO\'S REDRIVE STAMP', 'Curse lifted: Nothing Arrives. No more Unread Letters in your deck on the stair.', 'gold');
     await say([['coo', 'Here. My redrive stamp. Anything that comes back to Thornwick from now on comes back to someone who reads it.', 'smile']]);
     camp();
   }
@@ -1084,19 +1097,10 @@
     b.querySelector('#v2-replay').onclick = () => { U.closePanel(); S.save.c2 = null; S.persist(); C2.start(); };
   }
 
-  // Chapter 2's start, for chapter 1's end card and anything else that hands over (conventions: SD.chapterStart).
+  // Chapter 2's start, for chapter 1's end card (its #c1-next button) and anything else that hands over (conventions:
+  // SD.chapterStart). C2.start is looked up when called, so in the world build it opens the act 1 world (js/c2-world.js).
   SD.chapterStart = SD.chapterStart || {};
   SD.chapterStart[2] = () => C2.start();
-  // Chapter 1's end card opens the slice.
-  K.installs.push(() => {
-    SD.ch1.onEndCard = b => {
-      const p = b.querySelector('p'); if (p) p.textContent = 'Thanks for playing. In this vector build, chapter 2 opens here: the night after the wipe, the scrap field, and the first expedition up Freya\'s tower.';
-      const go = document.createElement('button'); go.className = 'primary'; go.id = 'v2-go'; go.textContent = 'Play the chapter 2 slice';
-      const row = b.querySelector('.row'); row.insertBefore(go, row.firstChild);
-      const again = b.querySelector('#c1-again'); again.classList.remove('primary'); again.classList.add('ghost');
-      go.onclick = () => C2.start();
-    };
-  });
 
   K.install();
 })();
