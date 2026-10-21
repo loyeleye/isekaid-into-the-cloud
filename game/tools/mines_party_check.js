@@ -51,7 +51,7 @@ function step(lead) {
   const rd = root.querySelector('.rd');
   const T = (SD.test || {}).raid;
   if (!rd || !T) return 'wait:' + root.textContent.replace(/\s+/g, ' ').slice(0, 160);
-  if (!window.__paced) { window.__paced = 1; T.pace(0.05); }
+  if (window.__paced !== T) { window.__paced = T; T.pace(0.05); }
   if ((x = rd.querySelector('#rd-back'))) return click(x) && 'back';
   const G = T.G(), me = T.me(), ph = rd.dataset.ph;
   if (ph === 'fight') { if (T.hosting()) T.win(); return 'fight'; }

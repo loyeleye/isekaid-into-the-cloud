@@ -731,7 +731,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     back: 'Back down to the Free Cloud',
     cafe: { title: 'The Franking Room', who: null, name: 'The franking room', text: 'A franking machine with a kettle on top, and cards on the counter with prices stamped on them.' },
     camp: { title: 'The Sorting Room', text: 'An empty sorting room with a kettle that works. Everyone sits on the mail sacks at once. Rest, or practise one of your cards.' },
-    regroup: [{ who: 'mate1', text: 'Up. All of us. Back to the top of the floor: we know what\'s in there now.' }],
+    regroup: [{ who: null, text: 'One of Seymour\'s tapes whirrs, and the floor is back the way you found it.' }, { who: 'mate1', text: 'Up. All of us. Back to the top of the floor: we know what\'s in there now.' }],
     floors: [
       { name: 'Intake', gate: 'THE SORTING FLOORS · INTAKE', map: '2', beat: 'Where Thornwick\'s letters arrive, and go round, and round.',
         boss: 'postmistress', bossTitle: 'The Postmistress Without Post', fade: 4,
