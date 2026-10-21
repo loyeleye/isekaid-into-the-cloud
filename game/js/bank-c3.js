@@ -1,6 +1,6 @@
 // Question bank batch: points chapter 3 (the Granaries) teaches that the bank had no question on: S3 minimum storage
 // durations, S3 Glacier Deep Archive retrieval times, lifecycle transitions, request costs of tiny objects, write
-// sharding with a calculated suffix, a global secondary index throttling its table, finding a hot key, and RDS
+// sharding with a calculated suffix, a global secondary index throttling its table, and RDS
 // point-in-time restore. First written for the chapter's rooms and minigames, then reworded here without the story.
 // Same schema and rules as js/bank-dva.js. AWS facts follow the current AWS documentation.
 window.SD = window.SD || {};
@@ -105,22 +105,6 @@ SD.bank.push(
       "An index can be added to a table that's in use. Once it's built, it works like any other; it doesn't need recreating."],
     why: "In provisioned mode a GSI has its own write capacity. If the index can't keep up, DynamoDB throttles writes to the base table that would update it. Give the index at least as much write capacity as the table, or use on-demand mode.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.ThroughputConsiderations.html"] },
-
-  { id: "dva-4-701", exam: "DVA", dva: "4.1", topic: "dynamodb", type: "mc",
-    q: "A DynamoDB table throttles a few times an hour even though its average consumed capacity is low. The team suspects that a handful of partition keys get most of the traffic, but it doesn't know which ones. Which feature shows the most accessed and most throttled keys?",
-    opts: [
-      "CloudWatch Contributor Insights for DynamoDB, which graphs the most accessed and most throttled keys in the table and its indexes.",
-      "DynamoDB Streams with the KEYS_ONLY view type, which records which partition key each throttled request was trying to read or write.",
-      "AWS CloudTrail data events for the table, which log each throttled request with its partition key and the capacity it would have used.",
-      "DynamoDB Accelerator in front of the table, whose cluster metrics list the partition keys that were read most often in the last hour."
-    ], a: 0,
-    no: [
-      null,
-      "A stream records item changes that succeeded. Throttled requests change nothing, so they never appear in it.",
-      "CloudTrail data events record API calls, but they don't rank keys by traffic or show throttling per key.",
-      "DAX caches reads. Its metrics show cache hits and misses, not which partition keys are hot or throttled."],
-    why: "CloudWatch Contributor Insights for DynamoDB analyzes the table's traffic and shows its most accessed and most throttled partition keys (and sort keys), for the table and its global secondary indexes, which is how you find a hot key.",
-    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/contributorinsights_HowItWorks.html"] },
 
   // SAA 2.2: Design highly available and/or fault-tolerant architectures
   { id: "saa-2-700", exam: "SAA", saa: "2.2", topic: "rds", type: "mc",
