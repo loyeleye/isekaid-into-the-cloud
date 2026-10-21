@@ -23,8 +23,8 @@ SD.bank.push(
   { id: "dva-4-202", exam: "DVA", dva: "4.3", topic: "lambda", type: "multi", hint: "Select TWO.",
     q: "A Java 21 Lambda function built with a large framework takes about 6 seconds to initialize, and API Gateway calls it through $LATEST. The team wants sub-second startup in most cases without paying for environments that sit idle. Which steps should the developer take? (Select TWO.)",
     items: [
-      { t: "Turn on SnapStart for published versions, then publish a new version of the function.", ok: true },
-      { t: "Point the API integration at an alias for that published version instead of at $LATEST.", ok: true },
+      { t: "Turn on SnapStart for published versions of the function, then publish a new version of it.", ok: true },
+      { t: "Point the API Gateway integration at an alias for that published version instead of at $LATEST.", ok: true },
       { t: "Turn on SnapStart and add provisioned concurrency to the same version to remove any remaining delay.", ok: false, no: "SnapStart doesn't support provisioned concurrency, and provisioned concurrency is the idle cost the team wants to avoid." },
       { t: "Raise the function's ephemeral storage to 2 GB, so the snapshot of the initialized environment fits.", ok: false, no: "SnapStart doesn't support ephemeral storage above 512 MB, and the snapshot doesn't live in /tmp." },
       { t: "Keep invoking $LATEST, since SnapStart takes a new snapshot each time the function's code is saved.", ok: false, no: "SnapStart can't be used on the unpublished $LATEST version. Snapshots are taken when a version is published." }
@@ -234,8 +234,8 @@ SD.bank.push(
     q: "A single-page app is served from S3 through CloudFront with a 24-hour TTL. After a release, users keep getting the old /js/app.js for up to a day. The team releases several times a week. Which approaches make users get the new file after a release? (Select TWO.)",
     items: [
       { t: "Give each release's file a versioned name, such as app.4f2c1.js, and update index.html to reference it.", ok: true },
-      { t: "Create a CloudFront invalidation for /js/app.js as part of each release.", ok: true },
-      { t: "Turn on S3 Versioning for the bucket, so that CloudFront can tell when a new version of app.js is uploaded.", ok: false, no: "CloudFront serves its cached copy until it expires and doesn't check S3 for new versions." },
+      { t: "Create a CloudFront invalidation for the /js/app.js path as a step in each release's deployment.", ok: true },
+      { t: "Turn on S3 Versioning for the bucket, so that CloudFront can tell when a new app.js is uploaded.", ok: false, no: "CloudFront serves its cached copy until it expires and doesn't check S3 for new versions." },
       { t: "Upload the new app.js with a Cache-Control: no-cache header, so that edge locations fetch it from S3 again.", ok: false, no: "The header applies only once the new object is fetched. Copies of the old object stay cached until they expire." },
       { t: "Enable Origin Shield on the S3 origin, so that the edge locations share one up-to-date cache layer.", ok: false, no: "Origin Shield reduces load on the origin. Edge locations still serve their cached old copy." }
     ],
@@ -275,11 +275,11 @@ SD.bank.push(
   { id: "dva-4-220", exam: "DVA", dva: "4.3", topic: "s3", type: "multi", hint: "Select TWO.",
     q: "A batch job on EC2 downloads 8 GB objects from an S3 bucket in the same Region, transforms them, and uploads 8 GB results to the same bucket. Each transfer uses a single request and is far slower than the instance's network bandwidth. Which changes will speed up the transfers? (Select TWO.)",
     items: [
-      { t: "Download each object with several parallel GET requests for different byte ranges.", ok: true },
-      { t: "Upload each result with multipart upload, sending several parts in parallel.", ok: true },
-      { t: "Turn on S3 Transfer Acceleration for the bucket, and use its accelerate endpoint for all transfers.", ok: false, no: "Transfer Acceleration speeds up transfers over long distances. It doesn't help an instance in the same Region." },
+      { t: "Download each object with several parallel GET requests, each for a different byte range of it.", ok: true },
+      { t: "Upload each result as a multipart upload, sending several parts in parallel over separate connections.", ok: true },
+      { t: "Turn on S3 Transfer Acceleration for the bucket, and use its accelerate endpoint for transfers.", ok: false, no: "Transfer Acceleration speeds up transfers over long distances. It doesn't help an instance in the same Region." },
       { t: "Store the objects in S3 Intelligent-Tiering, so the most-used objects move to a faster access tier.", ok: false, no: "Intelligent-Tiering lowers storage cost. Its tiers don't change transfer speed." },
-      { t: "Turn on S3 Versioning for the bucket, so that uploads of new results don't have to overwrite objects.", ok: false, no: "Versioning keeps old copies. It doesn't make transfers faster." }
+      { t: "Turn on S3 Versioning for the bucket, so uploads of new results don't have to overwrite objects.", ok: false, no: "Versioning keeps old copies. It doesn't make transfers faster." }
     ],
     why: "One request uses one connection. Byte-range GETs and multipart uploads split a large object into parts that move in parallel, using more of the available bandwidth.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html"] },

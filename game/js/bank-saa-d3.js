@@ -107,7 +107,7 @@ SD.bank.push(
       "Add a warm pool to the group that keeps pre-initialized instances in the Stopped state.",
       "Add a predictive scaling policy so that the group launches instances ahead of the bursts.",
       "Raise the group's minimum capacity so that extra running instances can absorb each burst.",
-      "Shorten the default instance warmup so new instances count toward capacity much sooner."
+      "Shorten the default instance warmup so new instances count toward capacity sooner."
     ], a: 0,
     no: [null,
       "Predictive scaling needs recurring patterns to forecast. Random bursts give it nothing to learn.",

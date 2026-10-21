@@ -36,7 +36,7 @@ SD.bank.push(
   { id: "dva-3-303", exam: "DVA", dva: "3.2", topic: "sam", type: "mc",
     q: "A CI job promotes a SAM application from dev to staging by running sam deploy --config-env staging after every merge. When a merge changes only documentation, the staging stack has nothing to update, and the job fails because sam deploy exits with a non-zero code. Real deployment failures must still fail the job. What should the developer do?",
     opts: [
-      "Add --no-fail-on-empty-changeset to the sam deploy command for staging, or set it in samconfig.toml.",
+      "Add --no-fail-on-empty-changeset to the staging sam deploy command, or set it in samconfig.toml.",
       "Add --no-confirm-changeset to the command, so that sam deploy applies the change set without a prompt.",
       "Wrap the command so the CI job ignores any non-zero exit code that sam deploy returns for staging.",
       "Run sam sync --stack-name staging instead of sam deploy, so that unchanged resources are skipped."
@@ -52,7 +52,7 @@ SD.bank.push(
   { id: "dva-3-304", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
     q: "A new CloudFormation template creates a REST API with AWS::ApiGateway::RestApi, two AWS::ApiGateway::Method resources, and an AWS::ApiGateway::Deployment with StageName set to test. Creating the stack in a fresh test account fails at the deployment with the error The REST API doesn't contain any methods. What should the developer do?",
     opts: [
-      "Add a DependsOn attribute to the Deployment that lists both Method resources, so they exist before it is created.",
+      "Add a DependsOn attribute to the Deployment listing both Method resources, so they exist before it does.",
       "Move StageName out of the Deployment into a separate AWS::ApiGateway::Stage resource that references the Deployment by ID.",
       "Add the methods to the Deployment's StageDescription property, so that the stage knows which methods to serve.",
       "Change the Deployment's DeletionPolicy to Retain, so it isn't rolled back when it is created before the methods."
@@ -129,11 +129,11 @@ SD.bank.push(
   { id: "dva-3-309", exam: "DVA", dva: "3.4", topic: "codeartifact", type: "multi", hint: "Select TWO.",
     q: "A CodeArtifact domain and its shared-libs repository are in a tools account. CodeBuild projects in a separate workload account must install packages from shared-libs with aws codeartifact login, using their own service roles and no stored keys. Which steps are required? (Select TWO.)",
     items: [
-      { t: "In the tools account, add domain and repository policies that let the workload account's build roles get tokens and read from shared-libs.", ok: true },
+      { t: "In the tools account, add domain and repository policies that let the build roles get tokens and read shared-libs.", ok: true },
       { t: "In the workload account, allow the build roles the CodeArtifact token and read actions, and sts:GetServiceBearerToken.", ok: true },
       { t: "Add sts:GetServiceBearerToken to the domain policy in the tools account instead of to the build roles' own policies.", ok: false, no: "That permission has no effect in a domain policy. The caller's own IAM policy must allow it." },
       { t: "Create an IAM user in the tools account, and store its access keys as plaintext environment variables in each project.", ok: false, no: "That stores long-lived keys, which the team ruled out." },
-      { t: "Give a repository in the workload account an external connection to shared-libs, so packages flow through it.", ok: false, no: "External connections point to public repositories such as npmjs.com, not to another CodeArtifact repository." }
+      { t: "Give a repository in the workload account an external connection to shared-libs, so that packages flow through it.", ok: false, no: "External connections point to public repositories such as npmjs.com, not to another CodeArtifact repository." }
     ],
     why: "Cross-account access needs both sides: a resource policy in the owning account and identity policies in the calling account. Getting a token also needs sts:GetServiceBearerToken in the caller's own policy.",
     doc: ["https://docs.aws.amazon.com/codeartifact/latest/ug/repo-policies.html", "https://docs.aws.amazon.com/codeartifact/latest/ug/tokens-authentication.html"] },
@@ -189,9 +189,9 @@ SD.bank.push(
     q: "An Amplify Hosting app deploys main to the public site and connects several feature branches, each at its own URL. Unreleased features on the feature branches must be seen only by testers who have a shared user name and password. The main branch must stay public, and nothing new may be built. What should the developer do?",
     opts: [
       "Turn on access control for each feature branch with a user name and password, and leave main without it.",
-      "Turn on access control for all branches with one user name and password, so that testers use one login.",
+      "Turn on access control for all branches with one shared user name and password, so testers use one login.",
       "Add a Cognito user pool with the Amplify libraries, and require users to sign in on each of the feature branches.",
-      "Add a redirect rule on each feature branch that sends any request without a tester header back to main."
+      "Add a redirect rule on each feature branch that sends requests without a tester header back to main's URL."
     ], a: 0,
     no: [null,
       "The global setting also protects main, which must stay public.",
@@ -315,11 +315,11 @@ SD.bank.push(
   { id: "dva-3-322", exam: "DVA", dva: "3.4", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A new deployment of a REST API to its prod stage broke a mapping template. The previous deployment worked and is still in the stage's deployment history. Prod must return to it within minutes, at the same URL, without rebuilding or re-importing the API. Which actions will do this? (Select TWO.)",
     items: [
-      { t: "In the console's Deployment history tab for prod, select the previous deployment and choose Change active deployment.", ok: true },
+      { t: "In prod's Deployment history tab in the console, pick the previous deployment and choose Change active deployment.", ok: true },
       { t: "Run aws apigateway update-stage with a replace operation on /deploymentId, set to the previous deployment's ID.", ok: true },
       { t: "Run aws apigateway create-deployment for the prod stage, so prod gets a fresh copy of the API as it was.", ok: false, no: "It snapshots the API as it is now, broken template included." },
-      { t: "Flush the prod stage's cache, so the responses from the earlier deployment are served again.", ok: false, no: "Flushing the cache removes cached responses. It doesn't change which deployment the stage runs." },
-      { t: "Delete the prod stage and create it again from the previous deployment, keeping the same stage name.", ok: false, no: "It does more than needed, drops the stage's settings, and interrupts prod while the stage is gone." }
+      { t: "Flush the prod stage's API cache, so that the responses from the earlier deployment are served again.", ok: false, no: "Flushing the cache removes cached responses. It doesn't change which deployment the stage runs." },
+      { t: "Delete the prod stage and create it again from the previous deployment, keeping the same stage name and URL.", ok: false, no: "It does more than needed, drops the stage's settings, and interrupts prod while the stage is gone." }
     ],
     why: "A stage points at one deployment, a snapshot of the API. Changing the stage's deploymentId to an earlier deployment rolls the stage back, in the console or with update-stage.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-deployments.html"] },
@@ -344,9 +344,9 @@ SD.bank.push(
     q: "A pipeline tags each tested image in ECR as build-118 and so on. When QA approves a build, the same image must also get the tag approved-118 so the production deploy can find it. The image is 3 GB, and the approval step runs on a small runner where pulling and pushing it takes too long. What should the developer do?",
     opts: [
       "Get the image manifest with aws ecr batch-get-image, then call aws ecr put-image with it and --image-tag approved-118.",
-      "Run docker pull for build-118, then docker tag and docker push the image to ECR as approved-118.",
-      "Turn on tag immutability for the repository, so that ECR adds the approved tag to tested images.",
-      "Add a lifecycle policy rule that tags images as approved when they are older than the test period."
+      "Run docker pull for build-118 on the runner, then docker tag and docker push the image to ECR as approved-118.",
+      "Turn on tag immutability for the repository, so that ECR adds the approved-118 tag to each tested image for you.",
+      "Add a lifecycle policy rule that adds the approved tag to images once they are older than the QA test period."
     ], a: 0,
     no: [null,
       "It works, but it moves the whole 3 GB image twice, which the stem rules out.",
@@ -435,8 +435,8 @@ SD.bank.push(
     opts: [
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to keep source bundles in S3.",
       "Set an application version lifecycle policy with a maximum of 50 versions, and choose to delete the old source bundles.",
-      "Turn on S3 versioning on the Elastic Beanstalk bucket, so old versions no longer count toward the version quota.",
-      "Create a new Elastic Beanstalk application each time the quota is reached, and deploy new versions there instead."
+      "Turn on S3 versioning on the Elastic Beanstalk bucket, so the old versions no longer count toward the version quota.",
+      "Create a new Elastic Beanstalk application each time the quota is reached, and deploy the new versions there instead."
     ], a: 0,
     no: [null,
       "The source bundles would be deleted, which the auditors don't allow.",

@@ -9,7 +9,7 @@ SD.bank.push(
   { id: "dva-1-401", exam: "both", dva: "1.3", saa: "2.2", topic: "aurora", type: "mc",
     q: "An order service connects to an Aurora MySQL cluster that has one writer and two Aurora Replicas. A developer configured the app with the instance endpoint of the instance that was the writer when the cluster was created. After a failover during maintenance, every write fails with a read-only error until someone edits the app's configuration. The app must keep writing after future failovers with no manual changes. What should the developer do?",
     opts: [
-      "Point the app's write connections at the cluster endpoint, which Aurora always moves to the current primary instance.",
+      "Point the app's write connections at the cluster endpoint, which Aurora always moves to the current primary.",
       "Point the app's write connections at the reader endpoint, which spreads connections across the instances in the cluster.",
       "Create a custom endpoint whose static member list holds the original writer instance, and point the app at that endpoint.",
       "Give the original writer instance failover priority tier 0, so that Aurora always promotes that same instance again."
@@ -93,10 +93,10 @@ SD.bank.push(
   { id: "dva-1-407", exam: "DVA", dva: "1.2", topic: "elb", type: "multi", hint: "Select TWO.",
     q: "A developer is putting a Lambda function behind an existing Application Load Balancer so that requests to /reports/* run the function. The function already returns responses in the format the load balancer expects. The team deploys everything with the AWS CLI, not the console. Which steps are required? (Select TWO.)",
     items: [
-      { t: "Create a target group with the lambda target type, register the function's alias ARN, and add a /reports/* listener rule that forwards to it.", ok: true },
+      { t: "Create a lambda-type target group, register the function's alias ARN, and add a /reports/* listener rule forwarding to it.", ok: true },
       { t: "Add a statement to the function's resource-based policy that allows elasticloadbalancing.amazonaws.com to call lambda:InvokeFunction.", ok: true },
       { t: "Create a target group with the ip target type, and register the private IP address of the function's network interface.", ok: false, no: "Lambda functions are registered in a target group of type lambda; a function's network interfaces don't accept HTTP requests." },
-      { t: "Add an inbound rule to the function's security group that allows HTTP traffic from the load balancer's security group.", ok: false, no: "The load balancer invokes the function through the Lambda service, not over the network to it, so no security group rule is involved." },
+      { t: "Add an inbound rule to the function's security group that allows HTTP traffic from the load balancer's security group on port 80.", ok: false, no: "The load balancer invokes the function through the Lambda service, not over the network to it, so no security group rule is involved." },
       { t: "Allow elasticloadbalancing:RegisterTargets in the function's execution role, so that the load balancer can call the function.", ok: false, no: "The execution role covers what the function itself may do. The load balancer's right to invoke it comes from the function's resource-based policy." }
     ],
     why: "An ALB invokes a Lambda target directly. The function goes in a target group of type lambda (one function per group) behind a listener rule, and outside the console, lambda add-permission must grant elasticloadbalancing.amazonaws.com lambda:InvokeFunction.",
@@ -219,9 +219,9 @@ SD.bank.push(
     items: [
       { t: "Have each app pass its own RoleSessionName, such as reports-billing, which appears in the assumed-role ARN of every call.", ok: true },
       { t: "Have each app set a SourceIdentity when it assumes the role, with sts:SetSourceIdentity allowed for the apps and the role.", ok: true },
-      { t: "Add a different tag to ReportsRole for each app, so that CloudTrail records the matching tag with each call.", ok: false, no: "One role has one set of tags, shared by every session, so its tags can't tell the apps apart." },
-      { t: "Turn on CloudTrail Insights for the trail, so that each recorded call is labeled with the app that made it.", ok: false, no: "Insights flags unusual API call rates and error rates; it doesn't identify callers." },
-      { t: "Give each app an IAM user with its own access keys for S3, so each call shows a different user name.", ok: false, no: "That adds long-term credentials, which the rules forbid." }
+      { t: "Add a different tag to ReportsRole for each app, so that CloudTrail records the matching app tag with each S3 call.", ok: false, no: "One role has one set of tags, shared by every session, so its tags can't tell the apps apart." },
+      { t: "Turn on CloudTrail Insights for the trail, so that each recorded S3 call is labeled with the app that made it.", ok: false, no: "Insights flags unusual API call rates and error rates; it doesn't identify callers." },
+      { t: "Give each app its own IAM user with access keys for its S3 calls, so each call in CloudTrail shows a different user name.", ok: false, no: "That adds long-term credentials, which the rules forbid." }
     ],
     why: "A call made with assumed-role credentials is recorded with the assumed-role ARN, which ends in the role session name, and with any source identity set when the role was assumed. Distinct values per app make each call traceable.",
     doc: ["https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html", "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_monitor.html"] },
@@ -405,11 +405,11 @@ SD.bank.push(
   { id: "dva-4-404", exam: "DVA", dva: "4.1", topic: "cloudtrail", type: "multi", hint: "Select TWO.",
     q: "Objects keep disappearing from an S3 bucket. A developer searches CloudTrail Event history for DeleteObject calls on the bucket and finds none. The account's only trail logs management events. From now on, the team must record which principal deletes each object in the bucket. Which approaches will capture this? (Select TWO.)",
     items: [
-      { t: "Add S3 data events for the bucket to a trail, which then records each object-level call, such as DeleteObject, with its userIdentity.", ok: true },
-      { t: "Turn on S3 server access logging for the bucket, which records each request's operation, such as REST.DELETE.OBJECT, and its requester.", ok: true },
+      { t: "Add S3 data events for the bucket to a trail, so it records each object-level call, such as DeleteObject, with its userIdentity.", ok: true },
+      { t: "Turn on S3 server access logging for the bucket, which logs each request's operation, such as REST.DELETE.OBJECT, and requester.", ok: true },
       { t: "Filter Event history by the bucket's resource name and the s3.amazonaws.com event source, and search further back in time.", ok: false, no: "Event history shows only management events, so object-level deletes never appear there." },
-      { t: "Turn on AWS Config recording for S3 buckets, and review the bucket's configuration timeline after each deletion.", ok: false, no: "AWS Config records changes to the bucket's configuration, such as its policy, not individual object deletions." },
-      { t: "Turn on S3 request metrics in CloudWatch for the bucket, and set an alarm on the DeleteRequests metric.", ok: false, no: "Request metrics count requests; they don't say who made them." }
+      { t: "Turn on AWS Config recording for S3 buckets, and review the bucket's configuration timeline after each object deletion.", ok: false, no: "AWS Config records changes to the bucket's configuration, such as its policy, not individual object deletions." },
+      { t: "Turn on S3 request metrics in CloudWatch for the bucket, and set an alarm on the DeleteRequests metric to catch each delete.", ok: false, no: "Request metrics count requests; they don't say who made them." }
     ],
     why: "S3 object-level calls such as DeleteObject are CloudTrail data events, which trails don't log by default and Event history never shows. Data events on a trail, or S3 server access logs, record each request with the identity that made it.",
     doc: ["https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html"] },

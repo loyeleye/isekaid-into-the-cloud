@@ -21,7 +21,7 @@ SD.bank.push(
     q: "A Lambda function reads a Kinesis data stream of payment events. For each shard it must publish the count and total value of payments in every 1-minute period, in near real time. The team doesn't want to run a database or cache just to hold running totals between invocations. What should the developer do?",
     opts: [
       "Set TumblingWindowInSeconds to 60 on the mapping, return running totals as state, and publish them on the final invoke.",
-      "Set MaximumBatchingWindowInSeconds to 60 on the mapping, so that each invocation receives exactly one minute of records.",
+      "Set MaximumBatchingWindowInSeconds to 60 on the mapping, so each invocation gets exactly one minute of records.",
       "Keep the running totals in global variables outside the handler, and publish them once a minute has passed since the last.",
       "Register the function as an enhanced fan-out consumer, so that Lambda groups each shard's records into 1-minute batches."
     ], a: 0,
@@ -177,7 +177,7 @@ SD.bank.push(
     q: "An app invokes a Lambda function asynchronously. When an event fails all of Lambda's retries, the team wants a record that includes the original event and the error details sent to a custom EventBridge event bus, where existing rules route it to the right team. What should the developer configure?",
     opts: [
       "An on-failure destination on the function that sends records to the custom event bus.",
-      "A dead-letter queue on the function that sends failed events to the custom event bus.",
+      "A dead-letter queue on the function that sends failed events to the custom bus.",
       "An SNS topic as the function's dead-letter queue, with the event bus subscribed to it.",
       "An on-success destination on the function that sends records to the custom event bus."
     ], a: 0,
@@ -192,7 +192,7 @@ SD.bank.push(
     q: "A developer adds VPC subnets and a security group to an existing Lambda function so it can reach a private database. Saving the configuration fails with an error saying the execution role does not have permissions to call CreateNetworkInterface on EC2. What should the developer do?",
     opts: [
       "Attach the AWSLambdaVPCAccessExecutionRole managed policy to the function's execution role, then save again.",
-      "Add an inbound rule to the database's security group that allows traffic from the function's security group.",
+      "Add an inbound rule to the database's security group allowing traffic from the function's security group.",
       "Add a statement to the function's resource-based policy that allows ec2.amazonaws.com to invoke the function.",
       "Grant the developer's own IAM user ec2:CreateNetworkInterface, since Lambda acts with the caller's permissions."
     ], a: 0,
@@ -238,10 +238,10 @@ SD.bank.push(
     q: "A voting app stores each vote in a DynamoDB table with the contest ID as the partition key and the vote ID as the sort key. During a live final, millions of votes a minute go to one contest, and writes are throttled although the table is far below its capacity. Which changes will spread the writes? (Select TWO.)",
     items: [
       { t: "Append a calculated suffix from 0 to 19 to the contest ID, and add up the shards when the results are read.", ok: true },
-      { t: "Make the vote ID the partition key, keep the contest ID as an attribute, and total votes from the table's stream.", ok: true },
-      { t: "Switch the table to provisioned mode, and set its write capacity well above the peak rate of votes.", ok: false, no: "Table capacity doesn't lift the limit of a single partition, about 1,000 write units per second." },
+      { t: "Make the vote ID the partition key, keep the contest ID as an attribute, and total votes from a stream.", ok: true },
+      { t: "Switch the table to provisioned mode, and set its write capacity well above the peak rate of incoming votes.", ok: false, no: "Table capacity doesn't lift the limit of a single partition, about 1,000 write units per second." },
       { t: "Add a global secondary index with the contest ID as its partition key, to take part of the write load.", ok: false, no: "Every vote still goes to one key in the table, and the index would have the same hot key." },
-      { t: "Group the votes with BatchWriteItem, so that 25 votes cost the same capacity as one single write.", ok: false, no: "Each item in a batch uses its own write capacity, so batching doesn't cut the load on the partition." }
+      { t: "Group the votes with BatchWriteItem, so that 25 votes in a batch cost the same capacity as one single write.", ok: false, no: "Each item in a batch uses its own write capacity, so batching doesn't cut the load on the partition." }
     ],
     why: "Each partition serves up to 1,000 write units per second, and all items with one partition key value start on one partition. Sharding the key, or choosing a high-cardinality key, spreads the writes across many partitions.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"] },
@@ -308,7 +308,7 @@ SD.bank.push(
     opts: [
       "120 WCU, because each 2.5 KB write rounds up to 3 KB and uses 3 write units.",
       "100 WCU, because 40 writes of 2.5 KB each add up to 100 KB of data per second.",
-      "40 WCU, because one write unit covers any single write of an item up to 4 KB.",
+      "40 WCU, because one write unit covers any write of an item up to 4 KB.",
       "240 WCU, because each write needs 2 write units for every KB, after rounding up."
     ], a: 0,
     no: [null,
@@ -337,7 +337,7 @@ SD.bank.push(
     q: "A catalog service reads 120 items per second from a DynamoDB table in provisioned capacity mode, using eventually consistent GetItem calls. Each item is 9 KB. How many read capacity units does this traffic need?",
     opts: [
       "180 RCU: 9 KB rounds up to 12 KB, or 3 units, which is halved to 1.5 for eventual reads.",
-      "135 RCU: 9 KB is 2.25 units of 4 KB each, which is then halved for eventual consistency.",
+      "135 RCU: 9 KB is 2.25 units of 4 KB each, then halved for eventual consistency.",
       "360 RCU: 9 KB rounds up to 12 KB, which is 3 units for each read that the service makes.",
       "120 RCU: one eventually consistent read unit covers any single item of up to 16 KB in size."
     ], a: 0,
@@ -366,11 +366,11 @@ SD.bank.push(
   { id: "dva-1-230", exam: "DVA", dva: "1.3", topic: "dynamodb", type: "multi", hint: "Select TWO.",
     q: "A Lambda function counts page views in a DynamoDB item that has a numeric Views attribute. It reads the item, adds 1 to Views in code, and writes the item back with PutItem. Under load the count ends up lower than the real number of views. Which UpdateItem calls fix the lost updates without reading the item first? (Select TWO.)",
     items: [
-      { t: "UpdateItem with UpdateExpression SET Views = Views + :one, where :one is 1", ok: true },
-      { t: "UpdateItem with UpdateExpression ADD Views :one, where :one is 1", ok: true },
-      { t: "UpdateItem with UpdateExpression SET Views = :n, where :n is the value read earlier plus 1", ok: false, no: "It still writes a value computed from an earlier read, so concurrent updates overwrite each other." },
-      { t: "UpdateItem with UpdateExpression SET Views = list_append(Views, :one), where :one is [1]", ok: false, no: "list_append works on lists, not numbers, so it can't increment a counter." },
-      { t: "UpdateItem with UpdateExpression REMOVE Views, followed by a PutItem with the new count", ok: false, no: "Two separate calls leave a gap where other updates are lost, and REMOVE deletes the counter." }
+      { t: "UpdateItem with UpdateExpression SET Views = Views + :one, where :one is the number 1", ok: true },
+      { t: "UpdateItem with UpdateExpression ADD Views :one, where :one is the number 1", ok: true },
+      { t: "UpdateItem with UpdateExpression SET Views = :n, where :n is the value read plus 1", ok: false, no: "It still writes a value computed from an earlier read, so concurrent updates overwrite each other." },
+      { t: "UpdateItem with UpdateExpression SET Views = list_append(Views, :one), :one being [1]", ok: false, no: "list_append works on lists, not numbers, so it can't increment a counter." },
+      { t: "UpdateItem with UpdateExpression REMOVE Views, then a PutItem with the new count", ok: false, no: "Two separate calls leave a gap where other updates are lost, and REMOVE deletes the counter." }
     ],
     why: "SET with an arithmetic expression, or ADD on a number, increments the value on the server, so concurrent updates are applied in order and none are lost. These atomic counters aren't idempotent, so a retried call counts twice.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html"] },
@@ -486,11 +486,11 @@ SD.bank.push(
   { id: "dva-1-239", exam: "both", dva: "1.3", saa: "3.1", topic: "s3", type: "multi", hint: "Select TWO.",
     q: "An app stores millions of photos in an S3 bucket under keys such as photos/<uuid>.jpg. A new screen must list one user's photos from a given month within milliseconds, but listing the bucket and reading each object's metadata takes minutes. Which actions together meet the requirement? (Select TWO.)",
     items: [
-      { t: "Keep each photo's metadata in a DynamoDB table keyed on UserId, with the date taken as the sort key and the S3 key as an attribute.", ok: true },
+      { t: "Store each photo's metadata in a DynamoDB table keyed on UserId, with the date as sort key and the S3 key.", ok: true },
       { t: "Query that table by UserId with a sort key condition for the month, then fetch the photos by their stored S3 keys.", ok: true },
       { t: "Call ListObjectsV2 with the user ID as the Prefix parameter, since S3 can match keys on any part of the name.", ok: false, no: "A prefix matches only the start of a key, and these keys start with photos/ and a random UUID." },
-      { t: "Add object tags for UserId and month to each photo, and call ListObjectsV2 with a filter on those tags.", ok: false, no: "ListObjectsV2 can't filter by tags, so the app would still have to check every object." },
-      { t: "Turn on S3 Inventory, and search its latest report for the user's photos each time the screen loads.", ok: false, no: "Inventory reports arrive daily or weekly, so they are stale and far too slow to search per request." }
+      { t: "Add object tags for UserId and month to each photo, then call ListObjectsV2 with a filter on those two tags.", ok: false, no: "ListObjectsV2 can't filter by tags, so the app would still have to check every object." },
+      { t: "Turn on S3 Inventory, and search its latest report for the user's photos each time the new screen loads.", ok: false, no: "Inventory reports arrive daily or weekly, so they are stale and far too slow to search per request." }
     ],
     why: "S3 finds objects only by key or key prefix. Keeping searchable metadata in a DynamoDB table, keyed the way the app looks things up, turns the lookup into a fast Query that returns the S3 keys.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.KeyConditionExpressions.html"] },

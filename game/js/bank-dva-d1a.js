@@ -228,11 +228,11 @@ SD.bank.push(
   { id: "dva-1-116", exam: "both", dva: "1.1", saa: "2.1", topic: "stepfunctions", type: "multi", hint: "Select TWO.",
     q: "A team is choosing between Standard and Express workflows for a new Step Functions state machine that handles customer orders. Which requirements mean the team must choose a Standard workflow? (Select TWO.)",
     items: [
-      { t: "One step pauses for up to three days until a manager's app sends back a task token.", ok: true },
-      { t: "One step charges a customer's card and must run exactly once per execution, never skipped or repeated.", ok: true },
-      { t: "Each execution must log the input and output of every state to CloudWatch Logs.", ok: false, no: "Both workflow types can send execution logs to CloudWatch Logs." },
-      { t: "Executions are started by an EventBridge rule whenever a new order event arrives.", ok: false, no: "Both workflow types can be started by EventBridge and other event sources." },
-      { t: "Each execution finishes within about 30 seconds and calls only DynamoDB and Lambda.", ok: false, no: "Short executions with these integrations fit either type." }
+      { t: "One step pauses for up to three days until a manager's approval app sends back a task token.", ok: true },
+      { t: "One step charges a customer's card and must run exactly once per execution, never repeated.", ok: true },
+      { t: "Every execution must send the input and output of each state to CloudWatch Logs for auditing.", ok: false, no: "Both workflow types can send execution logs to CloudWatch Logs." },
+      { t: "Executions are started by an EventBridge rule whenever a new order event arrives on the bus.", ok: false, no: "Both workflow types can be started by EventBridge and other event sources." },
+      { t: "Each execution takes about 30 seconds and calls DynamoDB and Lambda through integrations.", ok: false, no: "Short executions with these integrations fit either type." }
     ],
     why: "Standard workflows run for up to a year with exactly-once execution and support the callback (.waitForTaskToken) pattern. Express workflows run for at most five minutes, use at-least-once (asynchronous) or at-most-once (synchronous) execution, and don't support callbacks.",
     doc: ["https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html"] },
@@ -424,9 +424,9 @@ SD.bank.push(
     items: [
       { t: "Enable CORS on the /orders resource, which adds an OPTIONS method for the preflight, and redeploy the API.", ok: true },
       { t: "Change the function to return an Access-Control-Allow-Origin header for the app's origin in its response.", ok: true },
-      { t: "Add a CORS configuration to the S3 bucket that hosts the app, allowing POST from the API's domain.", ok: false, no: "CORS is enforced on the server being called, here the API. The bucket's CORS rules apply to requests to the bucket." },
-      { t: "Add a resource-based policy to the function that allows calls from the app's origin.", ok: false, no: "Resource policies control which AWS principals may invoke the function. Browsers check CORS headers." },
-      { t: "Require an API key on the method, and have the app send it in the x-api-key header.", ok: false, no: "API keys meter clients. They add a custom header and don't satisfy the CORS check." }
+      { t: "Add a CORS configuration to the S3 bucket that hosts the app, allowing POST requests from the API's domain.", ok: false, no: "CORS is enforced on the server being called, here the API. The bucket's CORS rules apply to requests to the bucket." },
+      { t: "Add a resource-based policy to the function that allows invocations from the app's origin domain.", ok: false, no: "Resource policies control which AWS principals may invoke the function. Browsers check CORS headers." },
+      { t: "Require an API key on the method, and have the app send the key in the x-api-key request header.", ok: false, no: "API keys meter clients. They add a custom header and don't satisfy the CORS check." }
     ],
     why: "A JSON POST is a non-simple request, so the browser first sends a preflight OPTIONS request. With a proxy integration there is no integration response to add headers to, so the backend must return Access-Control-Allow-Origin itself.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-cors.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-cors-console.html"] },

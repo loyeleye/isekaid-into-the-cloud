@@ -42,7 +42,7 @@ SD.bank.push(
     opts: [
       "Rebuild the container image functions from the latest AWS base image and redeploy them regularly, so that they pick up new patches.",
       "Update the managed runtime of each .zip function every month, because Lambda doesn't apply runtime patches to functions that already exist.",
-      "Patch the operating system of the execution environments that run the .zip functions, because Lambda only manages the runtime itself.",
+      "Patch the operating system of the execution environments for the .zip functions, as Lambda manages only the runtime.",
       "Nothing for either type, because Lambda automatically applies new runtime patches to container image functions as well as .zip functions."
     ], a: 0,
     no: [null,
@@ -69,7 +69,7 @@ SD.bank.push(
     opts: [
       "Create an AWS Managed Microsoft AD directory for the app's domain, and set up a forest trust with the on-premises Active Directory.",
       "Create an AD Connector in the VPC, and join the app's servers to the on-premises domain through it so that employees keep their accounts.",
-      "Create a Simple AD directory for the app's domain, and set up a trust relationship between it and the on-premises Active Directory.",
+      "Create a Simple AD directory for the app's domain, and set up a trust between it and the on-premises Active Directory.",
       "Install Active Directory domain controllers on EC2 instances in two Availability Zones, and make them part of the on-premises forest."
     ], a: 0,
     no: [null,
@@ -179,10 +179,10 @@ SD.bank.push(
   { id: "saa-1-213", exam: "SAA", saa: "1.2", topic: "inspector", type: "mc",
     q: "A company deploys hundreds of Lambda functions as .zip packages. Security must be told when a function's third-party libraries have a known vulnerability, including CVEs published after deployment, and when the company's own code has flaws such as injection or hardcoded credentials. The solution must use a managed service with the LEAST operational overhead. What should a solutions architect recommend?",
     opts: [
-      "Activate Amazon Inspector Lambda standard scanning and Lambda code scanning in the accounts.",
-      "Turn on GuardDuty Lambda Protection, so that it inspects the function code and libraries for known vulnerabilities.",
-      "Turn on Amazon ECR enhanced scanning, and rely on it to scan the deployment packages of all of the Lambda functions.",
-      "Turn on Security Hub CSPM with the Foundational Security Best Practices standard to scan the code of each function."
+      "Activate Amazon Inspector Lambda standard scanning and Lambda code scanning in all of the accounts.",
+      "Turn on GuardDuty Lambda Protection, so it inspects function code and libraries for known vulnerabilities.",
+      "Turn on Amazon ECR enhanced scanning, and rely on it to scan the Lambda functions' deployment packages.",
+      "Turn on Security Hub CSPM's Foundational Security Best Practices standard to scan each function's code."
     ], a: 0,
     no: [null,
       "Lambda Protection monitors the functions' network activity for threats. It doesn't analyze code or packages.",
@@ -276,7 +276,7 @@ SD.bank.push(
       "Use a delegated Macie administrator account for the organization, and turn on automated sensitive data discovery.",
       "Run a Macie sensitive data discovery job each month in every account that analyzes every object in all of its S3 buckets.",
       "From the Macie administrator account, run a one-time job with a low sampling depth across all of the existing buckets.",
-      "Turn on Macie in each account as a standalone account, and turn on automated sensitive data discovery in each one."
+      "Turn on Macie in each account as a standalone account, with automated sensitive data discovery in each one."
     ], a: 0,
     no: [null,
       "Analyzing every object each month is far more expensive, and buckets created between runs go unchecked.",
@@ -312,7 +312,7 @@ SD.bank.push(
   { id: "saa-1-223", exam: "SAA", saa: "1.3", topic: "cloudhsm", type: "mc",
     q: "A bank wants to keep using SSE-KMS for S3 and KMS encryption for EBS volumes, but regulators now require that the key material live in single-tenant HSMs that the bank controls in its own AWS account. Which solution meets these requirements while keeping the KMS integrations?",
     opts: [
-      "Create an AWS CloudHSM cluster, connect it to an AWS KMS CloudHSM key store, and create the KMS keys in that key store.",
+      "Create an AWS CloudHSM cluster, connect it to a new AWS KMS CloudHSM key store, and create the bank's KMS keys in that key store.",
       "Create customer managed KMS keys with imported key material, and delete the bank's local copy after the import completes.",
       "Create customer managed KMS keys in the default key store, and turn on automatic rotation with a 90-day rotation period.",
       "Create an AWS CloudHSM cluster, and switch the S3 uploads and EBS volumes to SSE-C with keys exported from the cluster."
@@ -343,7 +343,7 @@ SD.bank.push(
     q: "A company's data protection policy requires versioning on every S3 bucket so that overwritten or deleted objects can be recovered. Engineers sometimes create buckets without it. The company wants noncompliant buckets fixed automatically within minutes of being detected, without writing or running custom code. What should a solutions architect do?",
     opts: [
       "Add the s3-bucket-versioning-enabled Config rule with automatic remediation by the AWS-ConfigureS3BucketVersioning runbook.",
-      "Turn on GuardDuty S3 Protection for the account, so that it turns on versioning for any bucket that is created without versioning.",
+      "Turn on GuardDuty S3 Protection, so that it turns on versioning for any bucket created without versioning.",
       "Turn on S3 Object Lock as the default for the account, so that every new bucket that engineers create has versioning turned on.",
       "Turn on AWS Trusted Advisor checks for the account, and have its security recommendations turn on versioning for each bucket."
     ], a: 0,
@@ -387,7 +387,7 @@ SD.bank.push(
   { id: "saa-1-228", exam: "SAA", saa: "1.3", topic: "kms", type: "mc",
     q: "A regulator requires the key material that protects a company's S3 and EBS data to be rotated every 180 days. Rotation must be automatic, the key ID and ARN that apps and policies use must not change, and the team must not have to re-encrypt any data. Which solution meets these requirements?",
     opts: [
-      "Use a customer managed KMS key, and turn on automatic key rotation with a rotation period of 180 days.",
+      "Use a customer managed KMS key, and turn on automatic key rotation with a custom rotation period of 180 days.",
       "Use the AWS managed keys for S3 and EBS, and set each one's automatic key rotation period to 180 days.",
       "Create a new KMS key every 180 days with a scheduled Lambda function, and point the alias at the new key.",
       "Store the key in Secrets Manager, and turn on automatic rotation for the secret with a 180-day schedule."
@@ -403,7 +403,7 @@ SD.bank.push(
     q: "Analysts read objects from an S3 bucket encrypted with SSE-KMS using a customer managed key in us-east-1. Security wants the analysts' role to be able to use the key only for S3 requests to the bucket, so that the role can't call KMS Decrypt directly on data copied out of other systems. Which key policy change meets this requirement?",
     opts: [
       "Allow kms:Decrypt for the role only when the kms:ViaService condition equals s3.us-east-1.amazonaws.com.",
-      "Allow kms:Decrypt for the role only when the aws:SourceIp condition matches the corporate network's range.",
+      "Allow kms:Decrypt for the role only when the aws:SourceIp condition matches the office range.",
       "Allow kms:Decrypt for the role only when the aws:SecureTransport condition is true for the analysts' request.",
       "Allow kms:Decrypt for the role only when the kms:CallerAccount condition equals the bucket owner's account."
     ], a: 0,

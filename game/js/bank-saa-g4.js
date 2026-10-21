@@ -8,7 +8,7 @@ SD.bank.push(
     q: "A company is launching a new RDS for PostgreSQL DB instance for an app whose data will start at 200 GiB and grow at an unpredictable rate. On older instances the team allocated 4 TiB up front to be safe and pays for space that sits empty. The database must stay on RDS for PostgreSQL and must never run out of space. Which solution is MOST cost-effective?",
     opts: [
       "Allocate about 250 GiB, and turn on storage autoscaling with a maximum storage threshold.",
-      "Allocate 4 TiB, then turn on storage autoscaling so RDS shrinks the volume to fit the data.",
+      "Allocate 4 TiB, then turn on storage autoscaling so RDS shrinks it to fit the data.",
       "Allocate about 250 GiB, and add a CloudWatch alarm on FreeStorageSpace that emails the team.",
       "Allocate about 250 GiB on magnetic storage, and increase the allocation by hand when needed."
     ], a: 0,
@@ -50,7 +50,7 @@ SD.bank.push(
     q: "Thousands of IoT devices send readings to a Lambda function that writes each reading of about 1 KB to S3 as its own object, billions of PUT requests a month. S3 request charges are now higher than storage charges, and Athena queries over millions of tiny files run slowly. Readings may land in S3 a few minutes late. Which change lowers costs the MOST?",
     opts: [
       "Send the readings to Amazon Data Firehose, and let it buffer them into larger objects before delivering them to S3.",
-      "Keep one object per reading, but enable S3 Transfer Acceleration on the bucket to speed up each of the PUT requests.",
+      "Keep one object per reading, but enable S3 Transfer Acceleration on the bucket to speed up each PUT.",
       "Keep one object per reading, but write each one to S3 Express One Zone, then copy objects to S3 Standard each night.",
       "Send each reading to an SQS queue, and have a second function poll the queue and write each message to S3 separately."
     ], a: 0,
@@ -65,7 +65,7 @@ SD.bank.push(
     q: "A company enabled Requester Pays on a bucket that it shares with partner accounts through its bucket policy, so that partners pay for their own downloads. Since then, every download the partners make with the AWS CLI fails with 403 Access Denied, although the bucket policy hasn't changed. The company must not pay for the partners' downloads. What should the partners do?",
     opts: [
       "Add the --request-payer requester option to their CLI commands to accept the request charges.",
-      "Download the objects through anonymous HTTPS requests to the bucket's public object URLs instead.",
+      "Download the objects through anonymous HTTPS requests to their public object URLs instead.",
       "Assume an IAM role in the company's account that has read access, and download the objects with it.",
       "Ask the company to grant each partner account READ access to the objects through object ACLs too."
     ], a: 0,
@@ -79,7 +79,7 @@ SD.bank.push(
   { id: "saa-4-206", exam: "SAA", saa: "4.1", topic: "ebs", type: "mc",
     q: "A vendor app on one EC2 instance keeps 12 TiB of scanned contracts on a gp3 data volume, and the vendor requires the data to stay on an attached block volume. The app reads large files from start to finish only a few times a month, and slower reads are acceptable. The boot volume is a 50 GiB gp3 volume. Which change lowers storage cost the MOST?",
     opts: [
-      "Change the data volume to Cold HDD (sc1), and leave the boot volume on gp3.",
+      "Change the data volume to Cold HDD (sc1) with Elastic Volumes, and keep the boot volume on gp3.",
       "Change the data volume to Throughput Optimized HDD (st1), and leave the boot volume on gp3.",
       "Change both the data volume and the boot volume to Cold HDD (sc1) with Elastic Volumes.",
       "Move the data to S3 Glacier Instant Retrieval, and have the app read the files from there."
@@ -109,10 +109,10 @@ SD.bank.push(
   { id: "saa-4-208", exam: "SAA", saa: "4.1", topic: "billing", type: "mc",
     q: "A company runs six standalone AWS accounts that are not in any organization. Each account stores about 300 TB in S3 Standard, and the data is read constantly, so it must stay in S3 Standard. Finance wants one invoice and lower per-GB storage rates, without moving any data between accounts. What should a solutions architect do?",
     opts: [
-      "Create an organization in AWS Organizations, and invite the six accounts to join it.",
-      "Copy all the data into buckets in one account so that its S3 usage reaches the lower-priced storage tiers.",
-      "Buy a three-year Savings Plan in each account that covers the S3 Standard storage that the account uses.",
-      "Turn on Requester Pays for the buckets in each account so that the readers pay part of the storage costs."
+      "Create an organization in AWS Organizations, and invite the six accounts to join it as members.",
+      "Copy all the data into buckets in one account, so its S3 usage reaches the lower-priced tiers.",
+      "Buy a three-year Savings Plan in each account to cover the account's S3 Standard storage.",
+      "Turn on Requester Pays for each account's buckets, so readers pay part of the storage costs."
     ], a: 0,
     no: [null,
       "This also combines usage, but it means moving 1.8 PB of data, which the company wants to avoid.",
@@ -157,7 +157,7 @@ SD.bank.push(
     opts: [
       "r6i.xlarge, a memory-optimized size with 4 vCPUs and 32 GiB of memory.",
       "c6i.2xlarge, a compute-optimized size with 8 vCPUs and 16 GiB of memory.",
-      "m6i.2xlarge, a general purpose size with 8 vCPUs and 32 GiB of memory.",
+      "m6i.2xlarge, general purpose, with 8 vCPUs and 32 GiB of memory.",
       "r6i.2xlarge, a memory-optimized size with 8 vCPUs and 64 GiB of memory."
     ], a: 0,
     no: [null,
@@ -171,10 +171,10 @@ SD.bank.push(
     q: "An Amazon ECS cluster runs many services on an Auto Scaling group of 20 EC2 instances that stays at a fixed size. The services use a task placement strategy that spreads tasks across instances, and on average only 35 percent of the cluster's reserved CPU and memory is in use. The company wants to cut costs and keep running on EC2. Which steps should a solutions architect take? (Select TWO.)",
     items: [
       { t: "Change the services' placement strategy to binpack on memory, so tasks fill instances before new ones are used.", ok: true },
-      { t: "Attach the Auto Scaling group as a capacity provider with managed scaling, so ECS adds and removes instances as needed.", ok: true },
+      { t: "Attach the Auto Scaling group as a capacity provider with managed scaling, so ECS adds and removes instances.", ok: true },
       { t: "Change the placement strategy to spread on instance ID, so tasks are spread evenly over every instance.", ok: false, no: "Spreading over every instance keeps all of them partly used, which is the waste the company wants to remove." },
-      { t: "Raise each task definition's CPU and memory reservations, so the cluster's reported usage goes up.", ok: false, no: "Bigger reservations waste more capacity per task and need more instances, not fewer." },
-      { t: "Change the placement strategy to random, so ECS can choose any instance that has room for the task.", ok: false, no: "Random placement doesn't try to minimize the number of instances in use." }
+      { t: "Raise each task definition's CPU and memory reservations, so that the cluster's reported usage goes up.", ok: false, no: "Bigger reservations waste more capacity per task and need more instances, not fewer." },
+      { t: "Change the placement strategy to random, so ECS can choose any instance that has room for each new task.", ok: false, no: "Random placement doesn't try to minimize the number of instances in use." }
     ],
     why: "The binpack strategy places tasks to leave the least unused CPU or memory, which minimizes the number of instances in use. Capacity provider managed scaling then scales the Auto Scaling group in and out to match what the tasks need.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement-strategies.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cluster-auto-scaling.html"] },
@@ -183,7 +183,7 @@ SD.bank.push(
     q: "A company runs about 150 Amazon ECS services on AWS Fargate. Developers set each task's CPU and memory when the services were built and never revisited them, and the company suspects many tasks are larger than needed. It wants per-service recommendations for task CPU and memory size based on actual use, with estimated savings, and no tooling to build. What should a solutions architect do?",
     opts: [
       "Opt in to AWS Compute Optimizer, and review its recommendations for Amazon ECS services on Fargate.",
-      "Use Cost Explorer Savings Plans recommendations to find the tasks that are oversized and resize them.",
+      "Use Cost Explorer's Savings Plans recommendations to find the oversized tasks and resize them.",
       "Turn on Container Insights, and write a Lambda function that compares the reserved and used resources.",
       "Move the services to Fargate Spot, which runs each task on capacity sized to what the task actually uses."
     ], a: 0,
@@ -199,7 +199,7 @@ SD.bank.push(
     opts: [
       "Switch the functions to the arm64 architecture (AWS Graviton2) after testing them on it.",
       "Purchase a Compute Savings Plan that covers the functions' current hourly spend for a one-year term.",
-      "Repackage each function as a container image in Amazon ECR instead of as a .zip file package.",
+      "Repackage each function as a container image in Amazon ECR instead of a .zip file.",
       "Set reserved concurrency on each function to cap how many copies of it can run at the same time."
     ], a: 0,
     no: [null,
@@ -212,10 +212,10 @@ SD.bank.push(
   { id: "saa-4-215", exam: "SAA", saa: "4.2", topic: "elb", type: "mc",
     q: "A company runs 15 small internal HTTPS web apps, each on its own EC2 instances behind its own Application Load Balancer. Each app has its own host name under example.com and gets little traffic, so the load balancers' hourly charges are now a large share of the bill. Which change reduces costs the MOST while keeping HTTPS and the host names?",
     opts: [
-      "Use one ALB with a host-header rule per app that forwards to that app's target group, with the certificates on its listener.",
-      "Replace each ALB with a Network Load Balancer, and pass the TLS traffic through to the instances.",
-      "Use one Network Load Balancer with a TLS listener, and route each host name to its app's instances.",
-      "Use one Gateway Load Balancer for all the apps, and route each request to the app's instances by host."
+      "Use one ALB with a host-header listener rule for each app, and add every app's certificate to its HTTPS listener.",
+      "Replace each ALB with a Network Load Balancer, and pass the TLS traffic through to each app's own instances.",
+      "Use one Network Load Balancer with a TLS listener, and route each host name to its app's instances by SNI.",
+      "Use one Gateway Load Balancer for all the apps, and route each HTTPS request to the app's instances by host."
     ], a: 0,
     no: [null,
       "There would still be 15 load balancers, each billed for every hour it runs.",
@@ -323,9 +323,9 @@ SD.bank.push(
     items: [
       { t: "Replace the script with an Amazon Data Lifecycle Manager policy that takes snapshots once every 24 hours.", ok: true },
       { t: "Give the policy count-based retention of 14 snapshots, and delete the older snapshots the script made.", ok: true },
-      { t: "Move every daily snapshot to the EBS Snapshots Archive tier as soon as it has been created.", ok: false, no: "Archived snapshots become full copies with a 90-day minimum and take hours to restore. The tier is for long-term retention." },
-      { t: "Keep only the newest snapshot, because each EBS snapshot is a full copy of the volume's data.", ok: false, no: "Snapshots are incremental, and keeping only one breaks the two-week restore window." },
-      { t: "Turn on fast snapshot restore for every new snapshot so that each one can be restored sooner.", ok: false, no: "Fast snapshot restore adds a charge for every hour it is enabled. It raises costs." }
+      { t: "Move every daily snapshot to the EBS Snapshots Archive tier as soon as the policy has created it.", ok: false, no: "Archived snapshots become full copies with a 90-day minimum and take hours to restore. The tier is for long-term retention." },
+      { t: "Keep only the newest snapshot, because each EBS snapshot is a full copy of all of the volume's data.", ok: false, no: "Snapshots are incremental, and keeping only one breaks the two-week restore window." },
+      { t: "Turn on fast snapshot restore for every new snapshot, so that each one can be restored more quickly.", ok: false, no: "Fast snapshot restore adds a charge for every hour it is enabled. It raises costs." }
     ],
     why: "Snapshot frequency should match the RPO, and retention should match how far back restores are needed. Data Lifecycle Manager creates snapshots on a schedule and deletes the oldest when the retention count is reached.",
     doc: ["https://docs.aws.amazon.com/ebs/latest/userguide/snapshot-ami-policy.html", "https://docs.aws.amazon.com/ebs/latest/userguide/snapshot-archive.html"] },
@@ -403,8 +403,8 @@ SD.bank.push(
   { id: "saa-4-229", exam: "SAA", saa: "4.4", topic: "transitgateway", type: "multi", hint: "Select TWO.",
     q: "A company connects 40 VPCs and its on-premises network through a transit gateway. Two of the VPCs, in the same Region, exchange about 500 TB a month, and transit gateway data processing charges for that traffic dominate the network bill. All other traffic must keep using the transit gateway. Which steps reduce costs the MOST? (Select TWO.)",
     items: [
-      { t: "Create a VPC peering connection between the two VPCs.", ok: true },
-      { t: "In both VPCs' route tables, add a route for the other VPC's CIDR range that points to the peering connection.", ok: true },
+      { t: "Create a VPC peering connection between the two VPCs, and accept the request from the other VPC.", ok: true },
+      { t: "In both VPCs' route tables, add a route to the other VPC's CIDR range through the peering connection.", ok: true },
       { t: "Replace the transit gateway with a full mesh of VPC peering connections between all 40 VPCs.", ok: false, no: "That needs 780 connections, and peering can't carry the other VPCs' traffic to on premises." },
       { t: "Expose the services in one VPC through an endpoint service, and reach them through PrivateLink endpoints.", ok: false, no: "Interface endpoints add hourly and per-GB processing charges of their own." },
       { t: "Attach the two VPCs to a second transit gateway that only connects the two of them.", ok: false, no: "Traffic through any transit gateway is still charged per GB processed." }
@@ -433,7 +433,7 @@ SD.bank.push(
       "Keep one outbound endpoint in the shared services VPC, share its rules through AWS RAM, and delete the rest.",
       "Replace each outbound endpoint with a DNS forwarder on a small EC2 instance in each VPC, and point DHCP options at it.",
       "Keep the endpoints, but delete the forwarding rules, and resolve on-premises names with records in public hosted zones.",
-      "Replace each outbound endpoint with an inbound endpoint, so the data center sends its DNS answers into each VPC."
+      "Replace each outbound endpoint with an inbound endpoint, so the data center sends DNS answers in."
     ], a: 0,
     no: [null,
       "Thirty forwarder servers to patch and keep available is more work, and they still cost money.",
@@ -474,7 +474,7 @@ SD.bank.push(
     opts: [
       "A 5 Gbps hosted connection, the smallest offered speed above the needed rate.",
       "A 2 Gbps hosted connection, sized to the average throughput over a full 24-hour day.",
-      "A 1 Gbps hosted connection, with the copy compressed to make up the difference.",
+      "A 1 Gbps hosted connection, with the copy compressed to make up the gap.",
       "A 10 Gbps hosted connection, to leave room for traffic to double in a few years."
     ], a: 0,
     no: [null,

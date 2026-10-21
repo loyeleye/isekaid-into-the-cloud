@@ -10,7 +10,7 @@ SD.bank.push(
     opts: [
       "In the integration response mapping template, set $context.responseOverride.status to 400 if the body has an error.",
       "Add an integration response with the selection pattern .*error.* that maps the backend's response to a 400 method response.",
-      "Turn on a request validator with a model for the method, so that lookups that will fail are rejected with 400 first.",
+      "Turn on a request validator with a model, so lookups that will fail are rejected with 400 first.",
       "Change the integration to HTTP proxy, so that API Gateway passes the error from the legacy service back to the client."
     ], a: 0,
     no: [null,
@@ -199,7 +199,7 @@ SD.bank.push(
       "A pipeline resolver with two functions: one on an HTTP data source for moderation, then one on the DynamoDB data source.",
       "A unit resolver on the HTTP data source for moderation whose response handler then writes the comment to the DynamoDB table.",
       "A unit resolver on a NONE data source whose request handler calls the moderation service and then writes to DynamoDB itself.",
-      "A subscription on addComment that sends each new comment to the moderation service, then deletes flagged ones afterward."
+      "A subscription on addComment that sends new comments to moderation, then deletes flagged ones."
     ], a: 0,
     no: [null,
       "A unit resolver runs against one data source, so its handlers can't also send a request to a second data source.",
@@ -311,7 +311,7 @@ SD.bank.push(
       "Store settings as a Map attribute, and change a setting with UpdateItem and SET settings.theme = :t.",
       "Store settings as a String Set attribute, and change one setting with UpdateItem and an ADD on the set.",
       "Store settings as gzip-compressed JSON in a Binary attribute, and overwrite it with each PutItem call.",
-      "Keep the JSON string, and add a version attribute that each PutItem checks in a ConditionExpression."
+      "Keep the JSON string, plus a version attribute each PutItem checks in a ConditionExpression."
     ], a: 0,
     no: [null,
       "A set holds unique scalar values with no names, so it can't hold name-value settings.",
@@ -327,7 +327,7 @@ SD.bank.push(
       "Wrap the client in DynamoDBDocumentClient from @aws-sdk/lib-dynamodb, and call its PutCommand with the object.",
       "Pass JSON.stringify(item) as the Item parameter, so that the client sends the object as one serialized document.",
       "Write each attribute with the S type descriptor, such as { total: { S: \"42\" } }, and convert the values in code.",
-      "Run a PartiQL INSERT with ExecuteStatement, passing the object's values as plain Parameters in the same order."
+      "Run a PartiQL INSERT with ExecuteStatement, passing the values as plain Parameters in order."
     ], a: 0,
     no: [null,
       "The low-level API needs a map of typed attribute values, not a JSON string, so the call still fails.",
@@ -433,7 +433,7 @@ SD.bank.push(
     q: "A Lambda function mounts an EFS file system through an access point whose root directory is owned by the access point's POSIX user. The file system has a file system policy that requires IAM authorization. The function's execution role grants elasticfilesystem:ClientMount. The function reads files fine, but every write fails. What should the developer do?",
     opts: [
       "Add elasticfilesystem:ClientWrite to the execution role, which the role needs for read/write access.",
-      "Change the function's file system configuration from read-only mode to read/write mode, and save it.",
+      "Change the function's file system configuration from read-only mode to read/write mode.",
       "Change the access point's POSIX user ID to 0, so the function writes to the directory as the root user.",
       "Increase the function's ephemeral storage, so it has space to write files before they are copied to EFS."
     ], a: 0,

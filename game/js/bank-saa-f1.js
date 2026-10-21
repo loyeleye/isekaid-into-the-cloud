@@ -6,10 +6,10 @@ SD.bank.push(
   { id: "saa-3-401", exam: "SAA", saa: "3.5", topic: "storagegateway", type: "multi", hint: "Select TWO.",
     q: "Lab instruments in a company's data center write each night's run, several hundred files, to an NFS share on an Amazon S3 File Gateway. A processing pipeline in AWS must start only after every file of the run is stored in the S3 bucket. Starting the pipeline on the first S3 object event has produced partial results. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "When the run finishes writing, call the NotifyWhenUploaded API for the gateway's file share.", ok: true },
+      { t: "When the run finishes writing, call the NotifyWhenUploaded API for the gateway's NFS file share.", ok: true },
       { t: "Start the pipeline from an EventBridge rule that matches the gateway's working file set upload event.", ok: true },
-      { t: "Turn on S3 Event Notifications for ObjectCreated events, and start the pipeline from the first event of each run.", ok: false, no: "Each object raises its own event as the gateway uploads it in the background, so the first event arrives while most of the run is still uploading." },
-      { t: "Set an automated cache refresh TTL on the file share, and start the pipeline when the cache refresh finishes.", ok: false, no: "Cache refresh updates the gateway's listing of objects already in S3. It doesn't track or wait for the gateway's own uploads." },
+      { t: "Turn on S3 Event Notifications for ObjectCreated events, and start the pipeline on the first event of a run.", ok: false, no: "Each object raises its own event as the gateway uploads it in the background, so the first event arrives while most of the run is still uploading." },
+      { t: "Set an automated cache refresh TTL on the file share, and start the pipeline when a cache refresh ends.", ok: false, no: "Cache refresh updates the gateway's listing of objects already in S3. It doesn't track or wait for the gateway's own uploads." },
       { t: "Start the pipeline with an EventBridge Scheduler schedule two hours after the instruments usually finish.", ok: false, no: "The gateway uploads asynchronously, so a fixed time can still fire before a large run has reached S3, and it delays small runs." }
     ],
     why: "S3 File Gateway uploads files to S3 asynchronously. NotifyWhenUploaded asks the gateway to send an EventBridge event, carrying the same notification ID, once every file written to the share up to that call has been uploaded, so processing starts on a complete set.",

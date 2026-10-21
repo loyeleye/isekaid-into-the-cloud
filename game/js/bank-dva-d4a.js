@@ -39,7 +39,7 @@ SD.bank.push(
     opts: [
       "Raise the load balancer's connection idle timeout above the longest export time, or make exports run in the background.",
       "Raise the target group's deregistration delay, so that the load balancer waits longer before it closes connections to targets.",
-      "Raise the target group's health check timeout and interval, so that slow exports don't mark the instances as unhealthy.",
+      "Raise the target group's health check timeout and interval, so slow exports don't mark instances unhealthy.",
       "Turn on sticky sessions for the target group, so that every request from one client reaches the instance that holds its export."
     ], a: 0,
     no: [null,
@@ -96,7 +96,7 @@ SD.bank.push(
     opts: [
       "DynamoDB is throttling the function's write requests, so add table capacity and make sure the SDK retries with backoff.",
       "DynamoDB is returning 500-series server faults, so open an AWS Support case and wait for the service to recover before retrying.",
-      "The function is sending malformed requests that get 400-series client errors, so fix the item shape that the code writes.",
+      "The function is sending malformed requests that get 400-series errors, so fix the item shape it writes.",
       "Lambda is throttling the function's invocations, so raise the function's reserved concurrency before the next sale begins."
     ], a: 0,
     no: [null,
@@ -181,10 +181,10 @@ SD.bank.push(
   { id: "dva-4-113", exam: "DVA", dva: "4.1", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A developer must see why a REST API returns intermittent 500 errors, including what API Gateway did with each request. The API is deployed to a prod stage in a new AWS account, and no API in that account or Region has ever written logs to CloudWatch. Which steps should the developer take? (Select TWO.)",
     items: [
-      { t: "Create an IAM role that API Gateway can assume, with the AmazonAPIGatewayPushToCloudWatchLogs policy, and set it as the CloudWatch log role ARN in API Gateway's settings.", ok: true },
+      { t: "Set API Gateway's CloudWatch log role ARN to a role it can assume that has the AmazonAPIGatewayPushToCloudWatchLogs policy.", ok: true },
       { t: "Edit the prod stage's logs and tracing settings, and set the CloudWatch Logs execution logging level to Errors and info logs.", ok: true },
       { t: "Attach the AmazonAPIGatewayPushToCloudWatchLogs policy to the execution role of the Lambda function behind the API.", ok: false, no: "The function's role covers the function's own logs. API Gateway writes its logs through the role set in its account settings." },
-      { t: "Turn on detailed CloudWatch metrics for the prod stage, so that each method reports its own 5XXError and Latency.", ok: false, no: "Detailed metrics count errors per method. They don't record what happened to each request." },
+      { t: "Turn on detailed CloudWatch metrics for the prod stage, so that each method reports its own 5XXError and Latency metrics.", ok: false, no: "Detailed metrics count errors per method. They don't record what happened to each request." },
       { t: "Create the API-Gateway-Execution-Logs log group for the API and stage by hand, so that API Gateway has a place to write.", ok: false, no: "API Gateway creates and manages this log group itself. Creating it doesn't give API Gateway permission to write." }
     ],
     why: "Execution logging needs an account-level CloudWatch role ARN, set once per Region, and a logging level on the stage. API Gateway then writes its processing steps and errors to its own log group.",
@@ -291,7 +291,7 @@ SD.bank.push(
     q: "A Lambda function calls PutMetricData for a custom metric, PaymentFailures, only when a payment fails. An alarm fires when the metric's Sum is above 5 in a 5-minute period. On quiet days the alarm sits in INSUFFICIENT_DATA, which the team's dashboard treats as a problem. Failures should still put it in ALARM. What should the developer change?",
     opts: [
       "Set the alarm's treatment of missing data to notBreaching, so periods with no data points count as within the threshold.",
-      "Set the alarm's treatment of missing data to breaching, so periods with no data points move the alarm into the ALARM state.",
+      "Set the alarm's treatment of missing data to breaching, so periods with no data move it into ALARM.",
       "Set the alarm's treatment of missing data to ignore, so the alarm keeps whatever state it had before the data stopped arriving.",
       "Raise the alarm's period to one hour, so that each period is more likely to contain at least one PaymentFailures data point."
     ], a: 0,
@@ -306,7 +306,7 @@ SD.bank.push(
     q: "An app makes heavy use of AWS KMS for envelope encryption. During a launch it hit a KMS request-rate quota and was throttled. The team wants an alarm when KMS usage passes 80% of that quota, and a graph of usage as a percentage on a dashboard. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
       "Graph the KMS usage metric in the AWS/Usage namespace with the expression m1/SERVICE_QUOTA(m1)*100, and create an alarm on it at 80.",
-      "Create a metric filter on a CloudTrail log group that counts KMS API events, and alarm when the count passes 80% of the quota value.",
+      "Create a metric filter on a CloudTrail log group that counts KMS API events, and alarm at 80% of the quota.",
       "Write a scheduled Lambda function that calls the Service Quotas API each minute and publishes the usage percentage with PutMetricData.",
       "Turn on AWS Config with a managed rule that compares KMS usage with the quota, and alarm on the count of the rule's noncompliant results."
     ], a: 0,
@@ -320,11 +320,11 @@ SD.bank.push(
   { id: "dva-4-123", exam: "DVA", dva: "4.2", topic: "codedeploy", type: "multi", hint: "Select TWO.",
     q: "A team deploys an app to EC2 instances with CodeDeploy. Developers want an email each time a deployment in the deployment group succeeds or fails, without changing the application code. Which solutions will meet these requirements? (Select TWO.)",
     items: [
-      { t: "Create an EventBridge rule that matches CodeDeploy Deployment State-change Notification events for successful and failed deployments, with an SNS topic as its target.", ok: true },
+      { t: "Create an EventBridge rule for CodeDeploy Deployment State-change Notification events in the SUCCESS or FAILURE state, with an SNS target.", ok: true },
       { t: "Add a trigger to the deployment group for the deployment success and deployment failure events that publishes to an SNS topic.", ok: true },
       { t: "Add CloudWatch alarms to the deployment group's alarm configuration, so CodeDeploy sends an alarm notification at the end of each deployment.", ok: false, no: "Alarms in a deployment group stop or roll back a deployment when they fire. They don't report each deployment's result." },
       { t: "Create a CloudTrail trail with SNS notifications turned on, so the team is emailed whenever a CodeDeploy API call is logged.", ok: false, no: "CloudTrail's SNS notice fires when a log file is delivered, not when a deployment ends." },
-      { t: "Add a ValidateService hook script to the AppSpec file that publishes to an SNS topic when it runs.", ok: false, no: "The hook runs only when the deployment gets that far, so many failed deployments send nothing." }
+      { t: "Add a ValidateService hook script to the AppSpec file that publishes the deployment's result to an SNS topic when it runs.", ok: false, no: "The hook runs only when the deployment gets that far, so many failed deployments send nothing." }
     ],
     why: "CodeDeploy sends deployment state changes to EventBridge, where a rule can route them to SNS. A deployment group trigger can also publish deployment and instance events straight to an SNS topic.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/monitoring-cloudwatch-events.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/monitoring-sns-event-notifications-create-trigger.html"] },

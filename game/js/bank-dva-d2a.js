@@ -40,9 +40,9 @@ SD.bank.push(
     items: [
       { t: "Allow s3:GetObject and s3:PutObject on arn:aws:s3:::app-bucket/${cognito-identity.amazonaws.com:sub}/* in the role's policy.", ok: true },
       { t: "Allow s3:ListBucket on the bucket ARN with a condition that s3:prefix starts with ${cognito-identity.amazonaws.com:sub}/.", ok: true },
-      { t: "Allow s3:GetObject and s3:PutObject on arn:aws:s3:::app-bucket/${aws:username}/* in the role's policy.", ok: false, no: "aws:username is set only for IAM users. App users come through the identity pool, so the variable doesn't resolve for them." },
-      { t: "Create one IAM role per user and add each role to the identity pool's list of authenticated roles.", ok: false, no: "It doesn't scale, and the team wants to avoid per-user policies. One role with a policy variable does the job." },
-      { t: "Set the bucket's ACL so that each object grants READ and WRITE to the identity pool's ID as grantee.", ok: false, no: "ACLs grant to AWS accounts or groups, not to identity pool users, and they can't scope access by prefix." }
+      { t: "Allow s3:GetObject and s3:PutObject on arn:aws:s3:::app-bucket/${aws:username}/* in the authenticated role's policy.", ok: false, no: "aws:username is set only for IAM users. App users come through the identity pool, so the variable doesn't resolve for them." },
+      { t: "Create one IAM role for each user, and map each user to their own role with the identity pool's role mapping rules.", ok: false, no: "It doesn't scale, and the team wants to avoid per-user policies. One role with a policy variable does the job." },
+      { t: "Set each object's ACL to grant READ and WRITE to the identity pool's ID as grantee, so only pool users can reach it.", ok: false, no: "ACLs grant to AWS accounts or groups, not to identity pool users, and they can't scope access by prefix." }
     ],
     why: "The identity pool puts each user's identity ID in the cognito-identity.amazonaws.com:sub key, which a policy can use as a variable. Object actions use it in the resource ARN, and ListBucket, which acts on the bucket, scopes it with the s3:prefix condition.",
     doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/iam-roles.html"] },
@@ -51,9 +51,9 @@ SD.bank.push(
     q: "A bucket policy denies all S3 actions unless aws:SourceIp is in the company's public address range. Office laptops can read the bucket. An app on EC2 in a private subnet reaches S3 through a gateway VPC endpoint, and its calls are denied even though its role allows them. What should the developer change in the bucket policy?",
     opts: [
       "Add a condition so the deny also does not apply when aws:SourceVpce equals the gateway endpoint's ID.",
-      "Add the private subnet's CIDR range to the aws:SourceIp list, so the instance's private address matches the condition.",
-      "Add the NAT gateway's Elastic IP address to the aws:SourceIp list, so traffic from the private subnet is treated as company traffic.",
-      "Replace the Deny statement with an Allow statement for the IP range, so that the role's own policy can grant the EC2 app access."
+      "Add the private subnet's CIDR range to the aws:SourceIp list, so the instance's private address matches.",
+      "Add the NAT gateway's Elastic IP address to the aws:SourceIp list, so the calls match the range.",
+      "Replace the Deny with an Allow for the IP range, so that the role's own policy can grant the app access."
     ], a: 0,
     no: [null,
       "aws:SourceIp isn't in the request when it comes through a VPC endpoint, and it only works with public address ranges anyway.",
@@ -161,10 +161,10 @@ SD.bank.push(
   { id: "dva-2-112", exam: "DVA", dva: "2.1", topic: "lambda", type: "multi", hint: "Select TWO.",
     q: "An app running under a role in account B must invoke a Lambda function in account A directly with the SDK's Invoke call. Neither team wants to create extra roles for this. Which changes are required? (Select TWO.)",
     items: [
-      { t: "In account A, add a statement to the function's resource-based policy that allows account B's role to call lambda:InvokeFunction.", ok: true },
+      { t: "In account A, add a statement to the function's resource-based policy allowing account B's role lambda:InvokeFunction.", ok: true },
       { t: "In account B, allow lambda:InvokeFunction on the account A function's ARN in the app role's identity-based policy.", ok: true },
       { t: "In account A, add account B's role as a trusted principal in the trust policy of the function's execution role.", ok: false, no: "The execution role is what the function uses when it runs. Trusting account B there lets B act as the function, not invoke it." },
-      { t: "In account A, put the function behind an API Gateway API key and share the key value with account B's team.", ok: false, no: "It adds an API the teams didn't ask for, and API keys don't authorize callers. A resource policy grants the invoke directly." },
+      { t: "In account A, put the function behind an API Gateway API key, and share the key value with account B's app team.", ok: false, no: "It adds an API the teams didn't ask for, and API keys don't authorize callers. A resource policy grants the invoke directly." },
       { t: "In account B, create a VPC peering connection to account A's VPC so that the Invoke call can reach the function.", ok: false, no: "Invoke goes to the Lambda service endpoint, not into a VPC, so peering is irrelevant. The problem is permissions." }
     ],
     why: "A function's resource-based policy can grant another account permission to invoke it. As with any cross-account call, the caller's own identity policy in account B must also allow the action.",
@@ -273,9 +273,9 @@ SD.bank.push(
     q: "A mobile app signs users in to a Cognito user pool. Users complain that they must enter their password every hour. The product team wants users to stay signed in for 30 days unless they sign out, and the app must not store passwords. What should the developer do?",
     opts: [
       "Store the refresh token securely, set its lifetime to 30 days, and use it to get new ID and access tokens.",
-      "Set the ID token and access token expiration to 30 days on the app client, so the tokens from the first sign-in last a month.",
-      "Store the user's password in the device keychain, and call InitiateAuth with it whenever the access token is about to expire.",
-      "Exchange the ID token for identity pool credentials, and reuse those AWS credentials as the app's sign-in proof for 30 days."
+      "Set the app client's ID and access token lifetimes to 30 days, so the first tokens last a month.",
+      "Store the user's password in the device keychain, and call InitiateAuth with it when the access token expires.",
+      "Exchange the ID token for identity pool credentials, and reuse those as the app's sign-in proof for 30 days."
     ], a: 0,
     no: [null,
       "ID and access tokens can last at most one day, so 30 days isn't allowed, and long-lived access tokens are riskier anyway.",
@@ -329,11 +329,11 @@ SD.bank.push(
   { id: "dva-2-124", exam: "DVA", dva: "2.1", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A REST API uses a TOKEN Lambda authorizer with result caching set to 300 seconds. The authorizer returns a policy that allows execute-api:Invoke only on the exact method ARN in the request. A user who calls GET /orders and then, a minute later, GET /profile with the same token gets 403 on the second call. Which changes fix this? (Select TWO.)",
     items: [
-      { t: "Have the authorizer return a policy that covers every method the user may call, for example with wildcards in the ARN.", ok: true },
+      { t: "Have the authorizer return a policy covering every method the user may call, such as with wildcards in the ARN.", ok: true },
       { t: "Set the authorizer's result TTL to 0, so API Gateway calls the authorizer for every request instead of caching.", ok: true },
-      { t: "Change the authorizer from TOKEN to REQUEST, and keep the token header as its only identity source.", ok: false, no: "The cache key would still be just the token, so the same narrow cached policy would be reused." },
+      { t: "Change the authorizer from TOKEN to REQUEST, and keep the token header as its only identity source for caching.", ok: false, no: "The cache key would still be just the token, so the same narrow cached policy would be reused." },
       { t: "Turn on stage caching for the API, so the response to GET /profile is cached separately from GET /orders.", ok: false, no: "Stage caching stores responses from the backend. The 403 comes from the cached authorizer policy." },
-      { t: "Add a usage plan with a higher throttle for the user's API key, so the second request isn't rejected.", ok: false, no: "Throttling returns 429, not 403, and usage plans don't change the authorizer's policy." }
+      { t: "Add a usage plan with a higher throttle limit for the user's API key, so the second request isn't rejected.", ok: false, no: "Throttling returns 429, not 403, and usage plans don't change the authorizer's policy." }
     ],
     why: "With caching on, API Gateway reuses the policy cached for a token on every method. A policy naming one method denies the rest, so return a policy that covers the whole API for that user or turn caching off.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-use-lambda-authorizer.html"] },
