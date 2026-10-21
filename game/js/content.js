@@ -104,10 +104,10 @@ SD.enemies = {
     resist: { visibility: 'A longer visibility timeout only delays the next failure.' },
     pattern: [{ t: 'retry', n: 10 }, { t: 'write', n: 9 }, { t: 'retry', n: 14 }, { t: 'escalate' }]
   },
-  // The example boss. Its framework steps are in SD.bossDesign; `deep` holds the deep-dive question ids.
+  // The example boss. Its incident steps are in SD.bossDesign and its Exam Twists in SD.twists.
   denywarden: {
     name: 'The Deny-All Warden', cause: 'An explicit Deny somewhere overrides the role\'s Allow', short: 'The Warden', sev: 110, concept: 'iam', tier: 9, boss: true, sprite: 'judge',
-    deep: ['q-iam2', 'q-iam3'], intro: 'wardenIntro', win: 'wardenWin',
+    intro: 'wardenIntro', win: 'wardenWin',
     flavor: 'Example boss.',
     symptom: 'A new orders service gets AccessDenied on every call to its DynamoDB table, though its role has an Allow for the table.',
     weak: { deny: 'An explicit Deny in any applicable policy beats every Allow, so finding it is what unblocks the call.', leastpriv: 'A role scoped to the table, with no stray statements, is easy to read and reason about.' },
@@ -132,32 +132,56 @@ SD.intentText = {
   escalate: i => `Escalates: all load +${(i && i.up) || 3}`
 };
 
-// Boss framework steps, run from data (js/run.js bossDesigned): requirements (multi), estimation (num, or a question
-// id) and design (mc). Each right answer buffs the fight.
+// Boss incident response, run from data (js/run.js R.incident): diagnose (read the evidence in `ev` and say what's
+// wrong), fix (the smallest correct change) and prevent (what stops it or catches it next time). Each is a question
+// (type mc by default, or multi; a fix that really is a number can be num), and each right answer buffs the fight.
 SD.bossDesign = {
   denywarden: {
-    concepts: ['iam', 'lambdaconc'],
-    req: {
-      c: 'iam', q: 'Step 1, Requirements. The orders function must read and write one DynamoDB table and write its logs. Which belong in its execution role?',
-      items: [
-        { t: 'Allow dynamodb:GetItem, PutItem and Query on that table\'s ARN', ok: true },
-        { t: 'Allow logs:CreateLogStream and logs:PutLogEvents', ok: true },
-        { t: 'Allow dynamodb:* on every resource', ok: false },
-        { t: 'Attach AdministratorAccess while testing', ok: false },
-        { t: 'Store an access key in an environment variable', ok: false }
-      ],
-      why: 'The role needs the table actions on that one table and permission to write logs to CloudWatch Logs. Wildcards and admin access give far more than the code uses, and a role already supplies temporary credentials, so stored keys only add risk.'
+    concepts: ['iam'],
+    diagnose: {
+      c: 'iam', type: 'mc',
+      ev: 'orders-fn  09:12:44Z  ERROR\nAccessDeniedException: User: arn:aws:sts::111122223333:assumed-role/orders-fn-role/orders-fn ' +
+        'is not authorized to perform: dynamodb:PutItem on resource: arn:aws:dynamodb:us-east-1:111122223333:table/Orders ' +
+        'with an explicit deny in a service control policy',
+      q: 'The orders function\'s role allows dynamodb:PutItem on the Orders table, yet every write fails like this. What\'s wrong?',
+      opts: ['An SCP on the account denies it, whatever the role allows', 'The role has no Allow for dynamodb:PutItem on this table', 'The table\'s resource-based policy denies the function\'s role', 'The function\'s temporary credentials expired mid-run'], a: 0,
+      no: [null, 'A missing Allow reads "because no identity-based policy allows". This one names an explicit deny.', 'A Deny in the table\'s own policy would say "in a resource-based policy". This one says service control policy.', 'Expired credentials fail with ExpiredTokenException, not an explicit deny.'],
+      why: 'The error names the type of policy that denied it. A service control policy sets the most that an account\'s principals can do, so its Deny wins over any Allow in the role.'
     },
-    est: { c: 'lambdaconc', q: 'Step 2, Estimation. The orders function takes 120 requests a second and each run lasts 2 seconds. Roughly how many concurrent executions does it need?', unit: 'executions', lo: 220, hi: 260, ans: '240 (120 × 2)', why: 'Concurrency is requests per second times average duration in seconds. 240 sits well inside the default quota of 1,000, unless other functions in the account share it.' },
-    design: {
-      c: 'iam', q: 'Step 3, Design. The role allows dynamodb:GetItem on the table, but a policy attached by the security team has an explicit Deny for dynamodb:* in this account. What happens to the call?',
-      opts: ['Denied: an explicit Deny overrides any Allow', 'Allowed: the more specific statement wins', 'Allowed: the role\'s own policy is checked first', 'Denied only if the Deny names the table\'s ARN'], a: 0,
-      no: [null, 'IAM does not rank statements by how specific they are. A matching Deny anywhere wins.', 'Order does not matter: every applicable policy is evaluated, and any matching Deny ends it.', 'A Deny on dynamodb:* with a wildcard resource matches every table, this one included.'],
-      why: 'Evaluation starts from an implicit deny, an Allow can lift that, and an explicit Deny in any applicable policy overrides every Allow. The fix is to change the Deny, not to add more Allows.'
+    fix: {
+      c: 'iam', type: 'mc',
+      q: 'The security team\'s SCP denies dynamodb:PutItem to every principal except a list of approved roles. What\'s the smallest correct change?',
+      opts: ['Add orders-fn-role to the SCP\'s list of approved principal ARNs', 'Attach AdministratorAccess to orders-fn-role so it outranks the SCP', 'Add a second Allow for dynamodb:* on every table to the role', 'Run the writes as the account\'s root user, which SCPs skip'], a: 0,
+      no: [null, 'Nothing outranks an SCP\'s Deny. AdministratorAccess is an Allow like any other.', 'More Allows change nothing while the Deny matches, and dynamodb:* on every table is far more than the function needs.', 'SCPs apply to a member account\'s root user too, and nobody should run an app as root.'],
+      why: 'The Deny is the only thing in the way, so narrow it. Its condition (for example ArnNotLike on aws:PrincipalArn) lists the approved roles, and the orders role joins the list. The role keeps its tight Allow on the one table.'
+    },
+    prevent: {
+      c: 'iam', type: 'mc',
+      q: 'What catches the next policy change like this one before the customers do?',
+      opts: ['A CloudWatch alarm on the orders function\'s Errors metric', 'Turn on DynamoDB point-in-time recovery for the Orders table', 'Raise the reserved concurrency of the orders function', 'A global table, so writes can fail over to another Region'], a: 0,
+      no: [null, 'Point-in-time recovery restores data. Nothing was lost here; the writes were refused.', 'More concurrency only fails faster. Every invocation hits the same Deny.', 'An SCP covers the whole account in every Region, so the replica\'s writes are denied too.'],
+      why: 'When a write is denied the function throws, and Lambda counts that in the function\'s Errors metric. An alarm on it pages someone within minutes of the next bad policy change.'
     },
     startCard: 'finddeny',
-    go: 'Now get the orders service through the gate. At half severity, expect a deep dive.'
+    go: 'Now get the orders service through the gate. At half severity, expect an exam twist.'
   }
+};
+
+// Exam Twists (js/run.js examTwist): at half severity a boss asks its incident again with one thing changed, and
+// you say which part of your answer still holds. Each is a multiple choice question with a `change` line.
+SD.twists = {
+  denywarden: [
+    { c: 'iam', change: 'The Deny is in the Orders table\'s resource-based policy instead of an SCP.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The Deny still wins; the fix moves to the table\'s own policy', 'The role\'s Allow wins now, since both are in one account', 'Nothing changes: still add the role to the SCP\'s list', 'The call works: resource policies can only allow, not deny'], a: 0,
+      no: [null, 'In one account either policy can allow, but an explicit Deny in either one still wins.', 'The SCP isn\'t what denies it now. The table\'s policy is.', 'Resource-based policies can deny, and DynamoDB tables support them.'],
+      why: 'An explicit Deny wins wherever it sits. The error would now say "in a resource-based policy", and the fix is to narrow that statement in the table\'s policy (PutResourcePolicy), not the SCP.' },
+    { c: 'iam', change: 'Someone tries the same write as the member account\'s root user.',
+      q: 'Which part of your answer still holds?',
+      opts: ['Still denied: SCPs limit a member account\'s root user too', 'Allowed: the root user isn\'t bound by any policy at all', 'Allowed: SCPs only apply to roles, never to the root user', 'Denied, but only because root has no Allow for DynamoDB'], a: 0,
+      no: [null, 'In a member account, SCPs limit the root user like everyone else.', 'SCPs cover every principal in a member account, the root user included.', 'Root can do anything in its own account without an Allow. The SCP is what denies it.'],
+      why: 'SCPs limit every principal in a member account, its root user included. Only the organization\'s management account sits outside them, so the fix is still to narrow the SCP.' }
+  ]
 };
 
 // Questions. type mc (choose; `no` explains each wrong option), num (estimate within lo..hi), order (tap in sequence),

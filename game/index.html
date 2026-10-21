@@ -157,6 +157,8 @@ body:has(#dialog:not([hidden])) .hub-hint { display: none; }
 .tier-good { background: #fff1c2; color: #7a5a00; } .tier-great { background: #e3f5e9; color: #1d7a43; }
 .q-text { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; }
 blockquote.typed { margin: 6px 0; padding: 6px 10px; border-left: 4px solid #b9a6ff; background: #f7f4ff; border-radius: 0 10px 10px 0; white-space: pre-wrap; }
+/* A boss step's evidence (js/quiz.js q.ev): an error, a CloudTrail event or a metric, as it would appear on screen */
+pre.q-ev { margin: 4px 0 10px; padding: 8px 10px; border-left: 4px solid #e0a030; background: #1b1724; color: #f1ecff; border-radius: 0 8px 8px 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto; }
 .rubric { display: grid; gap: 6px; margin: 6px 0; }
 .rubric .rp { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 2px solid #ddd5f0; border-radius: 10px; cursor: pointer; }
 .rubric .rp.on { border-color: #7fd6a8; background: #e9fbf2; }

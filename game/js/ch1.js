@@ -140,7 +140,6 @@
     },
     uptimaboss: {
       name: 'Uptima, Goddess of the Cloud', cause: 'Revoking a role\'s sessions denies credentials issued before the revoke', short: 'Uptima', sev: 90, concept: 'roles', tier: 9, boss: true, sprite: 'uptimaboss', ch: 1,
-      deep: ['q-ro4', 'q-ro2'],
       flavor: 'She reads the logs first. She is very proud of that.',
       symptom: 'Every time she sees your borrowed mask, she revokes its active sessions, and every request signed with the old credentials fails.',
       weak: {
@@ -170,35 +169,77 @@
     hooks: {}   // filled in by js/ch1-world.js
   };
 
-  // ---------- Boss steps ----------
-  // Before the sanctum, Freya talks you through it, and she's right every time.
+  // ---------- Boss steps: incident response (js/run.js R.incident) ----------
+  // In the sanctum, Freya talks you through it, and she's right every time. The evidence is what the brigade's job
+  // would really see: the S3 error and the CloudTrail event for Uptima's revoke.
   SD.bossDesign.uptimaboss = {
     concepts: ['roles', 'respolicy'],
-    req: {
-      c: 'roles', q: 'Step 1, Requirements. Freya, in your ear: "To reach her keys you need a mask her temple trusts. What does that take?"',
-      items: [
-        { t: 'A role in her account whose trust policy names the brigade\'s role', ok: true },
-        { t: 'An Allow in our own account for sts:AssumeRole on that role', ok: true },
-        { t: 'Her root user\'s password', ok: false, no: 'Never needed: a role hands out exactly what it allows, and nobody should be using root for this.' },
-        { t: 'An IAM user in her account, with its access keys copied to us', ok: false, no: 'Long-term keys passed between accounts are exactly what roles replace.' },
-        { t: 'A bigger Allow in our own account, and nothing on her side', ok: false, no: 'Across accounts, her side has to allow the call too.' }
-      ],
-      why: 'Assuming a role in another account takes both sides: the role\'s trust policy names the caller, and the caller\'s own account allows sts:AssumeRole on the role\'s ARN.'
+    diagnose: {
+      c: 'roles', type: 'mc',
+      ev: 'brigade-job, 02:15:31Z  GetObject uptima-vault/keys/backups.key\n' +
+        'AccessDenied: User: arn:aws:sts::111122223333:assumed-role/TempleMask/brigade-job is not authorized to perform: ' +
+        's3:GetObject on resource: "arn:aws:s3:::uptima-vault/keys/backups.key" with an explicit deny in an identity-based policy\n\n' +
+        'CloudTrail, 02:14:07Z\n  eventSource: iam.amazonaws.com\n  eventName: PutRolePolicy\n' +
+        '  requestParameters: { roleName: TempleMask, policyName: AWSRevokeOlderSessions }\n\n' +
+        'The job assumed TempleMask at 01:40:12Z.',
+      q: 'Freya, in your ear: "Here\'s the job\'s last call, and what she did a minute before it. What\'s actually wrong?"',
+      opts: ['Her revoke denies every session from before 02:14, ours too', 'The session hit its one-hour default duration and expired', 'Her trust policy has stopped naming the brigade\'s role', 'The mask\'s own policy never allowed s3:GetObject on the vault'], a: 0,
+      no: [null,
+        'An expired session fails with ExpiredToken, not an explicit deny. And it was issued at 01:40, so an hour hadn\'t passed.',
+        'The trust policy is only checked when you call AssumeRole, and this call was signed with a session you already had. Her event changed a permissions policy; a trust policy change would be UpdateAssumeRolePolicy.',
+        'A missing Allow reads "because no identity-based policy allows". This one says explicit deny, and the job read the vault fine until 02:14.'],
+      why: 'Revoke active sessions attaches an inline policy, AWSRevokeOlderSessions, with PutRolePolicy. It denies every action when aws:TokenIssueTime is earlier than the revoke (plus about 30 seconds, while the change spreads). The job\'s session dates from 01:40, so everything it signs is denied.'
     },
-    est: {
-      c: 'roles', q: 'Step 2, Estimation. The job in the sanctum takes 3 hours, and the role\'s maximum session duration is 4 hours. What DurationSeconds covers the job without asking for more than it needs?',
-      unit: 'seconds', lo: 10800, hi: 11400, ans: '10,800 (3 × 3,600)',
-      why: 'DurationSeconds is in seconds, from 900 up to the role\'s maximum session duration (which can be 1 to 12 hours, and is 1 hour by default). Without it the session lasts 1 hour, and a chained role session is capped at 1 hour whatever you ask.'
+    fix: {
+      c: 'roles', type: 'mc',
+      q: 'Freya: "Right. What\'s the smallest change that gets the job reading again?"',
+      opts: ['Call sts:AssumeRole again and sign with the new session', 'Retry the denied calls with exponential backoff and jitter', 'Add an Allow for s3:GetObject to the brigade\'s own role', 'Delete AWSRevokeOlderSessions from the TempleMask role'], a: 0,
+      no: [null,
+        'Backoff is for throttling. Every retry is signed by the same denied session, so every retry is denied.',
+        'The call is made as her TempleMask role, not as the brigade\'s role, and an explicit Deny beats any Allow anyway.',
+        'That takes iam:DeleteRolePolicy on her role, which the mask doesn\'t have. You don\'t need to undo her revoke, only to be newer than it.'],
+      why: 'The Deny only matches sessions issued before the revoke. A new AssumeRole, made more than about 30 seconds after it, returns credentials with a later aws:TokenIssueTime, so the Deny stops matching. Her trust policy still names the brigade, so the call works. Clear any cached credentials first: the AWS CLI keeps them until they expire.'
     },
-    design: {
-      c: 'roles', q: 'Step 3, Design. Freya: "When she sees the mask she\'ll revoke its active sessions. What does that actually do?"',
-      opts: ['Denies sessions issued before now; a fresh AssumeRole still works', 'Deletes the role and its trust policy, so nobody can assume it again', 'Rotates the role\'s long-term access keys, so old signed requests fail', 'Ends console sessions only; sessions from the API and CLI keep working'], a: 0,
-      no: [null, 'The role stays. Revoking attaches a Deny to it; it doesn\'t delete anything.', 'Roles have no long-term access keys. They only ever hand out temporary credentials.', 'It applies to every session of that role, however the role was assumed.'],
-      why: 'Revoking active sessions attaches an inline policy (AWSRevokeOlderSessions) that denies every action to sessions whose aws:TokenIssueTime is earlier than the revoke. Anyone the trust policy still names can assume the role again and get working credentials, so a real lockout also fixes the trust policy.'
+    prevent: {
+      c: 'roles', type: 'mc',
+      q: 'Freya: "She\'ll do it again, you know. What tells us the moment she does?"',
+      opts: ['A metric filter on the job\'s logs for AccessDenied, with an alarm', 'An EventBridge rule in our account for her PutRolePolicy calls', 'An AWS Config rule in our account that watches her TempleMask role', 'A DurationSeconds of 43,200, so our session outlasts her revoke'], a: 0,
+      no: [null,
+        'Her IAM calls are recorded in her account, and their events go to her default event bus, not ours.',
+        'AWS Config records resources in the account and Region it runs in. Her role isn\'t one of ours.',
+        'A revoke denies every older session at once, however long it was meant to last. And a chained role session can\'t ask for more than an hour.'],
+      why: 'From our side, the job\'s own logs are what we can see. A CloudWatch Logs metric filter counts the explicit-deny lines, and an alarm on that metric tells us within minutes, so the job puts on a fresh mask straight away.'
     },
     startCard: 'reassume',
     go: 'Now get past her. When she revokes your session, put on a fresh one.'
   };
+  // Her Exam Twists (js/run.js examTwist): the same revoke with one thing changed.
+  SD.twists.uptimaboss = [
+    { c: 'roles', change: 'The job still has 3 hours of work, and TempleMask\'s maximum session duration is 4 hours. You assume it from the brigade\'s role session: that\'s role chaining.',
+      q: 'Which part of your fix still holds?',
+      opts: ['The fresh AssumeRole holds, but each session lasts an hour at most', 'Ask for a DurationSeconds of 10,800, since her role allows 4 hours', 'None of it: a chained session can\'t get past a revoke', 'Ask her to raise the role\'s maximum session duration to 12 hours'], a: 0,
+      no: [null,
+        'Role chaining caps a session at one hour. STS fails the call if DurationSeconds is over 3,600.',
+        'The revoke checks when a session was issued, not how it was made. A new chained session is newer, so it works.',
+        'The role\'s maximum doesn\'t apply to chained sessions. They\'re capped at one hour whatever it says.'],
+      why: 'A new session still gets past the revoke. Role chaining only limits how long it lasts: one hour, so the job assumes the mask again every hour, and again whenever she revokes.' },
+    { c: 'roles', change: 'She revokes the sessions, and she also takes the brigade\'s role out of TempleMask\'s trust policy.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The diagnosis holds, but a fresh AssumeRole now fails too', 'All of it: a fresh AssumeRole still gets past the revoke', 'The trust change lifts the revoke, so the old session works', 'Only console sign-ins fail; AssumeRole from the CLI still works'], a: 0,
+      no: [null,
+        'AssumeRole checks the trust policy. If it no longer names you, the call is denied before any session exists.',
+        'They\'re separate. The revoke still denies every older session, and the trust policy now stops new ones.',
+        'The trust policy applies to every AssumeRole call, whether it comes from the console, the CLI or an SDK.'],
+      why: 'Revoking stops old sessions; the trust policy decides who can start a new one. With both changed, the brigade is locked out. That pair is the real lockout after a leak: revoke the sessions, then fix who can assume the role.' },
+    { c: 'respolicy', change: 'Our own account takes away the brigade\'s Allow for sts:AssumeRole on TempleMask. Her trust policy still names the brigade.',
+      q: 'Which part of your answer still holds?',
+      opts: ['The diagnosis holds; the fresh AssumeRole fails on our side now', 'All of it: her trust policy alone is enough to assume the role', 'None of it: without that Allow, her revoke can\'t be diagnosed', 'The old session works again, since our own policy changed'], a: 0,
+      no: [null,
+        'Across accounts both sides must allow it: her trust policy names us, and our own policy must allow sts:AssumeRole on the role.',
+        'The error and her PutRolePolicy event still say what happened. Our Allow only matters for the next AssumeRole.',
+        'The revoke is on her role and still denies the old session. Nothing in our account can lift her Deny.'],
+      why: 'Assuming a role in another account takes both sides: the role\'s trust policy names the caller, and the caller\'s own account allows sts:AssumeRole on the role\'s ARN. Take either away and the fresh session never comes.' }
+  ];
 
   // ---------- Questions ----------
   // The example's IAM questions stay; these join them. Six are adopted from the exam bank (js/bank-dva.js).

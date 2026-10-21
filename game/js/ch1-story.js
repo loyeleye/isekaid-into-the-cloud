@@ -360,7 +360,8 @@
     ['lead', { mira: '"Not him. Take the rest of me, not him." Do you remember that one?', kai: '"Tell her I didn\'t leave." Every night, for a year. Remember?', seoyeon: '"Let me choose." Do you remember that one?', dutch: '"Let her wake up. Once." Remember that one?' }],
     ['uptima', '...No. Someone told me a goddess shouldn\'t have to hear complaints. It was very good advice.'],
     ['uptima', 'I can\'t give you the keys. Everything in the Cloud is in there.'],
-    ['freya', 'Steady. She\'ll revoke your mask the moment she sees it. Talk me through it first.']
+    ['narr', 'Her eyes go to your mask. She lifts one finger, and somewhere a policy is written.'],
+    ['freya', 'Steady. She\'s revoked your mask, that\'s all. Talk me through it, and we\'ll fix it together.']
   ];
   T.uptimaFight = 'Uptima revokes active sessions whenever she sees your mask. Play AssumeRole or Fresh Session first, and her revoke finds nothing older to deny.';
   T.uptimaDown = [
