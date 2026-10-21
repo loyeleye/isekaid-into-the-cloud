@@ -109,7 +109,7 @@ function step([WIN, LEAD, CHOICE]) {
     if (!rd || !T) return 'raid-wait';
     if (!window.__paced) { window.__paced = 1; T.pace(0.05); }
     let x;
-    if ((x = rd.querySelector('#rd-back'))) { if (once('rdend-' + W.set + rd.textContent.slice(0, 30))) return 'shot:raid-end'; return click(x) && 'raid:back'; }
+    if ((x = rd.querySelector('#rd-back'))) { if (once('rdend-' + W.set + rd.textContent.slice(0, 30))) return 'shot:raid-end'; window.__paced = 0; return click(x) && 'raid:back'; }
     const G = T.G(), me = T.me(), ph = rd.dataset.ph;
     if (ph === 'fight') {
       const boss = rd.querySelector('.bossfight');
@@ -190,7 +190,7 @@ function step([WIN, LEAD, CHOICE]) {
   if (!f.ledger && once('ledger')) return go('ledger', 24, 47);
   if (!f.study) return go('study', 40, 50);
   if (!f.xp3) return push('xp3', 33, 49, 'ArrowUp');
-  if (!f.hand) return 'hand-wait';
+  if (!f.hand) return 'hand-wait:' + JSON.stringify([P.x, P.y, P.moving, P.path.length, D.busy(), Object.keys(f).join(',')]);
   if (!f.choice) return inCamp ? lift() : go('banner', 35, 28);
   return 'world-idle';
 }
@@ -201,7 +201,7 @@ function step([WIN, LEAD, CHOICE]) {
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
   const errors = [];
-  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
@@ -217,9 +217,12 @@ function step([WIN, LEAD, CHOICE]) {
   const seen = new Set(), last = [];
   let steps = 0, ended = false;
   const T0 = Date.now();
+  let same = 0, prev = '';
   for (; steps < 30000; steps++) {
     const what = await page.evaluate(step, [WIN, LEAD, CHOICE]);
     last.push(what); if (last.length > 20) last.shift();
+    same = what === prev ? same + 1 : 0; prev = what;
+    if (same >= 400) { errors.push('stuck on ' + what); break; }
     if (process.env.LOG && steps % 250 === 0) console.log(steps, Math.round((Date.now() - T0) / 1000) + 's', what);
     seen.add(what.replace(/:.*/, ''));
     if (/^(story|node|raid|mg|choice|end):/.test(what)) seen.add(what);
@@ -245,8 +248,9 @@ function step([WIN, LEAD, CHOICE]) {
     if (what === 'end' && (await page.evaluate(() => !!SD.c4world.debug.flag('reckon')))) { ended = true; break; }
     if (what === 'end') { errors.push('the end card offers no Last Letter, and it was never played'); break; }
     if (what === 'story:sealhouse' && !seen.has('town-shot')) { seen.add('town-shot'); }
-    await page.waitForTimeout(/wait/.test(what) ? 120 : 25);
+    await page.waitForTimeout(/^room-wait|^map-wait|^raid-wait/.test(what) ? 40 : /wait/.test(what) ? 120 : 25);
   }
+  if (!ended) await page.screenshot({ path: path.join(SHOTS || '/tmp', 'c4-check-stuck.png') });
   const sv = await page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, level: SD.state.save.level, c4: SD.state.save.c4, next: !!(SD.chapterStart && SD.chapterStart[5]), start: typeof (SD.chapterStart || {})[4] }));
   await browser.close(); server.close();
   console.log('steps', steps, 'lead', sv.lead, 'level', sv.level);

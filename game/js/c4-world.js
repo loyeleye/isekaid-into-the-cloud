@@ -300,7 +300,7 @@
     if (busy || P.moving || P.path.length) return;
     if (!flag('arrive')) return act(arrive);
     if (flag('lexi') && !flag('camp') && zoneAt(P.x, P.y)[4] === 'camp') return act(campArrive);
-    if (flag('bow') && !flag('hand') && zoneAt(P.x, P.y)[4] === 'camp') return act(otherHand);
+    if (flag('bow') && !flag('hand')) return act(otherHand);
     PAGES.forEach(([x, y], i) => { if (pageHere(i) && P.x === x && P.y === y) act(() => page(i)); });
   }
   function banner(text) {
@@ -380,7 +380,7 @@
   }
   async function notice() {
     await say([[null, 'The notice board: "Records, letters and family books are kept at the Seal-House, for your safety. Namgung Hyeon, for the Alliance."'],
-      ['tw', 'Where was I born? I had it a moment ago. It\'s sealed, dear. Everything is.', 'sad']]);
+      ['townswoman', 'Where was I born? I had it a moment ago. It\'s sealed, dear. Everything is.', 'sad']]);
     setFlag('notice');
   }
   async function master(id) {
@@ -540,21 +540,23 @@
   }
   async function after(xp, won) {
     if (W.debug.onAfter && W.debug.onAfter(xp, won)) return;
+    // An expedition starts from a raid gate's scene (inside act), or from the end card (outside one).
+    const run = fn => (busy ? fn() : act(fn));
     if (!won) {
       w().pos = [10, 26]; S.persist();
       sc = null; W.enter();
-      return act(() => say([[null, 'The party wakes by the camp fire, bruised. The expedition will start again from its first floor.'], ['seoyeon', 'Up. Forms. Then we go again.', 'tired']]));
+      return run(() => say([[null, 'The party wakes by the camp fire, bruised. The expedition will start again from its first floor.'], ['seoyeon', 'Up. Forms. Then we go again.', 'tired']]));
     }
     const f = { k4gates: 'xp1', k4peak: 'xp2', k4house: 'xp3', k4letter: 'reckon' }[xp];
     setFlag(f);
     R.gainXp(80);
     if (xp === 'k4letter') { await addCard('k4-lastletter', 'SEO-YEON\'S CARD'); return endCard(); }
     sc = null; W.enter();
-    if (xp === 'k4gates') return act(async () => {
+    if (xp === 'k4gates') return run(async () => {
       await say([[null, 'Down at the Outer Wall, the rockfall into the Hidden Valley has been cleared away.'], ['seoyeon', 'There\'s a vault down there. Sealed. Someone is reading in it.', 'neutral']]);
     });
-    if (xp === 'k4peak') return act(echo);
-    if (xp === 'k4house') return act(bow);
+    if (xp === 'k4peak') return run(echo);
+    if (xp === 'k4house') return run(bow);
   }
   // Cues from the floors' intros and outros (js/c4-data.js).
   const CUES = {
@@ -637,6 +639,7 @@
       ['show', 'ryu', 'sad', 'center'], ['ryu', 'Father.', 'sad']]);
     setFlag('bow');
     w().pos = [16, 28]; goTo(16, 28);
+    return otherHand();
   }
 
   // ---------- The Hidden Valley ----------
@@ -1017,5 +1020,5 @@
   }
 
   // For tools/c4_check.js.
-  W.debug = { expedition: xp => expedition(xp), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c4, GATES, PAGES, endCard };
+  W.debug = { expedition: xp => expedition(xp), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c4, GATES, PAGES, endCard };
 })();
