@@ -1,3 +1,7 @@
 
 # Publish-time base64 copy of the model table (game/assets/model/README.md)
 game/assets/model/*.b64.txt
+
+# The Cloudflare Worker's installed tools (cloudflare/README.md)
+cloudflare/node_modules/
+cloudflare/.wrangler/
