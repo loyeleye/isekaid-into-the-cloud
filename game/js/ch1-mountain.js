@@ -549,6 +549,8 @@
   }
   function miss(c) { const m = c1().miss || (c1().miss = []); if (!m.includes(c)) m.push(c); S.persist(); }
   M.miss = miss;
+  // The Deny Mines (js/ch1-mines.js) speak in the climb's voice.
+  M.say = say;
 
   // ---------- Rest Stops: a camp scene, and what you missed since the last one ----------
   const leadScenes = () => Object.keys(CS.camp).filter(k => CS.camp[k].who.includes(lead()));

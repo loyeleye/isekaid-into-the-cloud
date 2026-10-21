@@ -19,7 +19,7 @@ Everything here was first made for or gathered by the first game, [Isekai'd Into
 
 | The vector proof of concept's art (`vector.html`, or `index.html?vector`): the opening "the files" (Freya's pavilion, the hands and the ring, the folders and intro cards), the cast's figures and faces (`js/vec-cast.js`), chapter 1's prologue backgrounds and stills and the battle backdrops (`js/vec-scenes.js`), chapter 2's scenes: Bram's wagon, the edge of the Cloud, Freya's tower, the scrap field and Seymour's bunker, the Free Cloud's first fire, Thornwick's square and silent post box, the Sorting Floors and the camp post office (`js/vec-scenes2.js`), Kyu, Uptima and chapter 2's incidents, hit sparks and emotes (`js/vec-foes.js`) | Original, drawn in code for this game (SVG built in JavaScript; no generated or third-party images) | Same as the game's code | The vector demo, in place of every painted, generated or packed image |
 
-Everything else is drawn in code: portraits for characters without a painted one and the System windows in `js/art.js` and `index.html`, and chapter 1's whole overworld (the ground, river, buildings, props, the temple, and every character walking about) in `js/ch1-art.js`.
+Everything else is drawn in code: portraits for characters without a painted one and the System windows in `js/art.js` and `index.html`, chapter 1's whole overworld (the ground, river, buildings, props, the temple, and every character walking about) in `js/ch1-art.js`, and the Deny Mines' enemies in `js/ch1-mines-art.js`.
 
 ## Model
 
@@ -76,6 +76,12 @@ Weather (`assets/audio/a-*.mp3` except `a-sea`, `a-fire`, `a-crickets` and `a-cl
 Places and the night (`assets/audio/a-sea`, `a-fire`, `a-crickets`, `a-clock` and the `s-gull`, `s-anvil`, `s-chime`, `s-clank`, `s-thud`, `s-shopbell`, `s-doorclose`, `s-page` and `s-steps` one-shots), via OpenGameArt: "Beach Ocean Waves" and "Doorbell Ring" by qubodup, "Solo Seagull Sound Effects" by Rango Mango, "Fire Crackling" by AntumDeluge, "Hammer on Anvil" by themightyglider, "Blacksmith's Hammer" by vishwajai, "Bell Dings/Chimes" by pwl, "Metal Impact Sounds" by bmaczero, "Crickets Ambient Noise (Loopable)" by wolfgang, all CC0; "Slow Clock Ticking (Seamless Looping)", Sound Effect By Nicole Marie T (medicinestorm), https://opengameart.org/content/slow-clock-ticking-seamless-looping-sfx-sound-effect, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); and Kenney's RPG Audio (CC0) for the closing door, the page turn and the footsteps. All re-encoded to MP3 and loudness-normalised.
 
 `s-flush`, `s-pager`, `s-static`, `s-crash`, `s-slowmo`, `s-thunder` and `s-levelup` (loaded by `js/arc.js`): "Behind Doors Toilet Flush" by Alex_Jauk, "PagerBeeps" and "Light Metal Crash" by freesound_community, "Radio Static" by DRAGON-STUDIO, "Slow cinematic air rush #5" by Sdanezis, "Thunder For Anime" by LordSonny, "Level Up 06" by Universfield, all via Pixabay (Pixabay Content License).
+
+## Code
+
+| Code | Author and source | License | Used for |
+| --- | --- | --- | --- |
+| The Borderlands engine (`js/raid.js`), the party room (`js/party.js`), the networking (`js/net.js`, `js/cloud.js`) and the Cloudflare Worker (`cloudflare/`, with `_headers` and `.assetsignore`) | Written for the first game, [Isekai'd Into Prod](https://github.com/loyeleye/system-design-study) (branch `claude/pixellab-art-upgrade-68vl3t`: its Expedition Raid, party room, Guild Hall networking and Worker), ported on 2026-10-21 with the changes listed at the top of each file | Same as the game's code | Chapter 1's Deny Mines, solo with bots or in a party, and open lobbies on the Cloudflare build |
 
 ## Fonts
 

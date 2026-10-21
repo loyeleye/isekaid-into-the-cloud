@@ -27,6 +27,8 @@ const server = http.createServer((req, res) => {
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
+  // The Borderlands engine's test hook (SD.test.raid, js/raid.js) for the Deny Mines.
+  await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
@@ -35,7 +37,7 @@ const server = http.createServer((req, res) => {
 
   const seen = new Set(), last = [], shotsTaken = new Set();
   let steps = 0;
-  for (; steps < 6000; steps++) {
+  for (; steps < 12000; steps++) {
     const what = await page.evaluate(([WIN, LEAD]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
@@ -73,6 +75,9 @@ const server = http.createServer((req, res) => {
         if ((x = p.querySelector('#q-num')) && !x.value) { x.value = '10800'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
         if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'The trust policy says who can assume the role, and the permissions say what it can do.'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'text'; }
         if ((x = b('#q-confirm, #q-next, #pm-ok'))) return click(x) && 'next';
+        // The Deny Mines' Policy Sort: a guess, then each request sorted (all Allowed, so some are wrong).
+        if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
+        if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
         if (p.querySelector('[data-p]') && !p.querySelector('[data-p].on')) return click(p.querySelector('[data-p]')) && 'compass';
         const conf = b('.conf-b button');
         if (!conf && (x = b('.opts .opt:not(.on):not(.struck)'))) return click(x) && 'opt';
@@ -82,6 +87,36 @@ const server = http.createServer((req, res) => {
         if ((x = b('.opts .opt'))) return click(x) && 'opt2';
         if ((x = b('#skip, .ghost, #panel-x'))) return click(x) && 'ghost';
         return 'panel-wait';
+      }
+      // The Deny Mines (js/ch1-mines.js on js/raid.js): a story dungeon with three bots.
+      const rd = $('#run .rd');
+      if (vis($('#run')) && rd) {
+        const T = ((SD.debug || {}).raid) || ((SD.test || {}).raid);
+        if (!T) return 'mines-wait';
+        if (!window.__paced) { window.__paced = 1; T.pace(0.05); }
+        let x;
+        if ((x = rd.querySelector('#rd-back'))) return click(x) && 'mines:back';
+        const G = T.G(), mine = G.players[T.me()], ph = rd.dataset.ph;
+        if (ph === 'fight') {
+          if (WIN) { T.win(); return 'mines:win'; }
+          if (!mine || mine.ready) return 'mines-wait';
+          if ((x = rd.querySelector('[data-mate]'))) return click(x) && 'mines:mate';
+          const c = [...rd.querySelectorAll('.hand .card')].find(c => !c.classList.contains('dim'));
+          if (c) return click(c) && 'mines:play:' + G.main;
+          return click(rd.querySelector('#rd-ready')) && 'mines:ready';
+        }
+        if (ph === 'map') {
+          if (G.votes[T.me()]) return 'mines-wait';
+          const n = rd.querySelector('.node.can:not([disabled])');
+          return n ? click(n) && 'mines:node:' + n.className.split(' ')[1] : 'mines-wait';
+        }
+        if ((x = rd.querySelector('#rd-ask'))) return click(x) && 'mines:ask';
+        const send = [...rd.querySelectorAll('[data-send]')].filter(b => !b.disabled && b.offsetParent !== null);
+        for (const k of ['take', 'evote', 'one', 'rest', 'up', 'rm', 'done', 'skip']) {
+          const y = send.find(b => JSON.parse(b.dataset.send).k === k);
+          if (y) return click(y) && 'mines:' + k;
+        }
+        return 'mines-wait';
       }
       if (vis($('#run'))) {
         const end = $('#end-turn');
@@ -141,8 +176,9 @@ const server = http.createServer((req, res) => {
       return 'wait';
     }, [WIN, LEAD]);
     last.push(what); if (last.length > 16) last.shift();
-    seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
-    if (/^story:|^node:|^play:/.test(what)) seen.add(what);
+    if (process.env.TRACE && steps % 200 === 0) console.log(steps, last.slice(-6).join(' '));
+    seen.add(what.replace(/^(node|dialog|play|scene|mines:play|mines:node):.*/, '$1'));
+    if (/^story:|^node:|^play:|^mines:node:|^mines:play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
     const key = { 'lead-wait': 'lead-select', 'climb:cart': 'coldstart', 'climb:locker': 'locker', 'climb:ledge': 'ledge', 'climb:lift': 'lift', 'climb:summit': 'summit', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
@@ -156,7 +192,7 @@ const server = http.createServer((req, res) => {
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
-  if (steps >= 6000) errors.push('the demo never finished; last actions: ' + last.join(' '));
+  if (steps >= 12000) errors.push('the demo never finished; last actions: ' + last.join(' '));
   const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
   const missing = need.filter(k => !sv.flags || !sv.flags[k]);
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
