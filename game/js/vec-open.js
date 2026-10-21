@@ -53,7 +53,7 @@
     { strike: 'l3' },
     { light: 0.3 },
     { still: 'l4', pan: 'still', hold: 700 },
-    { light: 1, ms: 2400, hold: 800 },
+    { light: 1, ms: 2000, hold: 800 },
     { fade: true },
     { music: 'story' },
     B('You promised an army.'),
@@ -219,8 +219,9 @@
   SD.vn.acts.sound = async (o, tools) => tools.sfx(o.name);
   // How lit the stills are: dim until Freya lights the lamp, then up to full.
   const light = (to, ms) => { const cg = document.querySelector('#vn .vn-cg'); if (!cg) return; cg.style.transition = 'filter ' + (ms || 0) + 'ms ease-in-out'; cg.style.filter = to >= 1 ? '' : 'brightness(' + to + ')'; };
-  // Where the lamp's flame is on the painting. Lighting it brings the room up as a halo spreading out from the flame:
-  // the still goes to full at once under a dark layer whose hole grows from the lamp, with a warm bloom at its heart.
+  // Where the lamp's flame is on the painting. Lighting it brings the room up as a halo from the lamp: the still goes
+  // to full at once under a dark layer with a hole around the whole lamp, which pulses twice with a warm bloom and
+  // then spreads out to the edges of the screen.
   const LAMP = { 'op-l4': [.503, .39] };
   function halo(cg, from, ms, tools) {
     const vn = document.getElementById('vn'), at = SD.vn.onStill(...LAMP[vn.dataset.cg]);
@@ -229,11 +230,18 @@
     h.style.setProperty('--hx', at[0]); h.style.setProperty('--hy', at[1]); h.style.setProperty('--dark', 1 - from);
     cg.style.transition = 'none'; cg.style.filter = '';
     cg.appendChild(h);
-    const R = Math.hypot(cg.clientWidth, cg.clientHeight) * 1.1, t0 = performance.now();
+    const PULSE = 1400, r0 = cg.clientHeight * .3, R = Math.hypot(cg.clientWidth, cg.clientHeight) * 1.1, t0 = performance.now();
     return new Promise(done => {
       const step = now => {
-        const p = Math.min(1, (now - t0) / ms), e = p < .5 ? 2 * p * p : 1 - Math.pow(2 - 2 * p, 2) / 2;
-        h.style.setProperty('--r', (e * R) + 'px'); h.style.setProperty('--bloom', Math.sin(Math.PI * Math.min(1, p * 1.3)).toFixed(3));
+        const t = now - t0, beat = Math.sin(2 * Math.PI * t / 700);
+        let r, bloom, p = 0;
+        if (t < PULSE) { r = r0 * (1 + .12 * beat); bloom = .6 + .4 * beat; }
+        else {
+          p = Math.min(1, (t - PULSE) / ms);
+          const e = p < .5 ? 2 * p * p : 1 - Math.pow(2 - 2 * p, 2) / 2;
+          r = r0 + (R - r0) * e; bloom = (.6 + .4 * beat) * (1 - p);
+        }
+        h.style.setProperty('--r', r + 'px'); h.style.setProperty('--bloom', bloom.toFixed(3));
         if (p < 1 && !tools.skipping()) requestAnimationFrame(step); else { h.remove(); done(); }
       };
       requestAnimationFrame(step);
