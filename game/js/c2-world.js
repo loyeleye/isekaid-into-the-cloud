@@ -196,6 +196,7 @@
     LETTERS.forEach(([x, y], i) => sc.addActor('letter' + i, { x, y, thing: true, draw: () => {} }));
     person('coo', 'coo', 41, 7, 'south', { name: 'Coo' });
     person('wren', 'wren', 50, 31, 'north', { name: 'Elder Wren', o: { alpha: 0.5 } });
+    if (flag('wren')) sc.place('wren', 72, 25);   // he walked to the fire's ring of stones before you saved
     person('marrow', 'marrow', 86, 10, 'south', { name: 'Goodwife Marrow' });
     person('tilly', 'tilly', 82, 25, 'east', { name: 'Tilly', speed: 1.6 });
     person('v1', 'villager', 86, 19, 'east'); person('v2', 'villager2', 88, 19, 'west'); person('v3', 'villager3', 88, 21, 'north');
@@ -583,7 +584,8 @@
     U.flash(); AU.sfx('heal');
     faceTo('wren', 'you');
     await say([['narr', 'Elder Wren is himself again. He looks at the four of you for a long time, and says nothing. Then he walks off toward the tower wall, and sits down where a fire ought to be.']]);
-    await walkTo('wren', 72, 25, 2.6);
+    // Watch him set off, then carry on: he walks the rest of the way on his own.
+    await Promise.race([walkTo('wren', 72, 25, 2.6), wait(1500)]);
   }
   async function fire() {
     if (flag('fire')) return say([['coo', rnd(['Letterhead! I\'ll need letterhead.', 'The Free Cloud. Has a ring to it. A delivery ring.', 'At least once. That\'s my promise.']), 'smile']]);
@@ -603,7 +605,8 @@
     if (busy) return;
     if (d === 'gate') return act(async () => {
       if (!flag('fire')) { await say([['narr', 'The tower\'s door, sealed with Freya\'s ring. It\'ll open in the morning, the sign says, "for residents".']]); sc.place('you', 78, 20); return; }
-      sc.place('you', sc.P.x < 79 ? 80 : 78, 20);
+      // You're standing in the doorway by now, so go on the way you were facing.
+      sc.place('you', sc.P.face === 'west' ? 78 : 80, 20);
     });
     if (d === 'stair') return act(climb);
   }
