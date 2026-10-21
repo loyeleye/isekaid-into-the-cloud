@@ -265,11 +265,11 @@ SD.bank.push(
   { id: "dva-2-219", exam: "DVA", dva: "2.2", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A partner-facing REST API must accept calls only from clients that present a certificate issued by the company's own certificate authority. Clients must not be able to skip this check by calling the API another way. Which steps should the developer take? (Select TWO.)",
     items: [
-      { t: "Set up a Regional custom domain name with mutual TLS, using a truststore file of the CA's certificates uploaded to S3.", ok: true },
+      { t: "Set up a Regional custom domain name with mutual TLS, with a truststore of the CA's certificates in S3.", ok: true },
       { t: "Disable the API's default execute-api endpoint, so that clients can only reach the API through the custom domain.", ok: true },
-      { t: "Create a usage plan with an API key for each partner, and require the key on every method of the API.", ok: false, no: "API keys meter and throttle callers. They are not client certificates and don't authenticate anyone." },
+      { t: "Create a usage plan with an API key for each partner, and require that key on every method of the API.", ok: false, no: "API keys meter and throttle callers. They are not client certificates and don't authenticate anyone." },
       { t: "Generate a client certificate in API Gateway for the stage, and give a copy of it to each of the partners.", ok: false, no: "A stage client certificate lets backends verify that calls come from API Gateway. It doesn't check callers." },
-      { t: "Attach a resource policy to the API that allows calls only when aws:SecureTransport is set to true.", ok: false, no: "API Gateway endpoints already use HTTPS. That says nothing about whether the client holds a certificate." }
+      { t: "Attach a resource policy to the API that allows calls only when the aws:SecureTransport key is true.", ok: false, no: "API Gateway endpoints already use HTTPS. That says nothing about whether the client holds a certificate." }
     ],
     why: "Mutual TLS on a custom domain makes API Gateway require a client certificate that chains to a CA in the truststore. Clients can still use the default execute-api endpoint until it is disabled.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-mutual-tls.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-disable-default-endpoint.html"] },
@@ -458,11 +458,11 @@ SD.bank.push(
   { id: "dva-2-233", exam: "DVA", dva: "2.3", topic: "kms", type: "multi", hint: "Select TWO.",
     q: "A multi-tenant service encrypts each tenant's records with one shared KMS key. Its sessions carry a tenant session tag. The team wants KMS itself to refuse to decrypt one tenant's records in a session for another tenant, and to see the tenant on each Decrypt in CloudTrail. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "Pass the tenant ID as encryption context, such as {\"tenant\": \"t-42\"}, on every encrypt call and every matching Decrypt call.", ok: true },
+      { t: "Pass the tenant ID as encryption context, such as {\"tenant\": \"t-42\"}, on every encrypt and matching Decrypt call.", ok: true },
       { t: "Allow kms:Decrypt only when kms:EncryptionContext:tenant equals ${aws:PrincipalTag/tenant} in the role's policy.", ok: true },
       { t: "Put the tenant ID in the alias name of the key, such as alias/tenant-t-42, and use that alias in Decrypt calls.", ok: false, no: "Several aliases can point to the same key, so an alias in the request doesn't tie a ciphertext to a tenant." },
-      { t: "Store the tenant ID inside the plaintext before encrypting, and check it in code after each Decrypt call.", ok: false, no: "KMS would decrypt any tenant's data, and the check happens in app code after the data is exposed." },
-      { t: "Turn on automatic key rotation, so that each tenant's records are encrypted under different key material.", ok: false, no: "Rotation changes key material by date, not by tenant, and any caller with the key can decrypt every version." }
+      { t: "Store the tenant ID inside the plaintext before encrypting, and check it in app code after each Decrypt call.", ok: false, no: "KMS would decrypt any tenant's data, and the check happens in app code after the data is exposed." },
+      { t: "Turn on automatic key rotation, so that each tenant's records are encrypted under their own key material.", ok: false, no: "Rotation changes key material by date, not by tenant, and any caller with the key can decrypt every version." }
     ],
     why: "Encryption context is bound to the ciphertext, so Decrypt must name the same tenant, and it appears in CloudTrail. The kms:EncryptionContext condition key with a principal tag variable makes KMS refuse requests for other tenants.",
     doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/encrypt_context.html", "https://docs.aws.amazon.com/kms/latest/developerguide/conditions-kms.html"] },
@@ -482,10 +482,10 @@ SD.bank.push(
   { id: "dva-2-235", exam: "DVA", dva: "2.3", topic: "ssm", type: "mc",
     q: "An app must store a 6 KB TLS certificate chain in Parameter Store as a SecureString. The team also wants an EventBridge notification 15 days before the chain should be replaced. Saving it in the standard tier fails because the value is too large. What should the developer do?",
     opts: [
-      "Store it as an advanced-tier parameter with Expiration and ExpirationNotification policies.",
-      "Split the chain across two standard-tier SecureString parameters, and add a NoChangeNotification policy to each.",
-      "Store it as a standard-tier String parameter instead, because String values can be larger than SecureString ones.",
-      "Compress the chain into a standard-tier parameter, and schedule a Lambda function to check its age every day."
+      "Store it as an advanced-tier SecureString parameter with Expiration and ExpirationNotification policies.",
+      "Split the chain across two standard-tier SecureString parameters, with a NoChangeNotification policy each.",
+      "Store it as a standard-tier String parameter instead, since String values can be larger than SecureString.",
+      "Compress the chain into a standard-tier parameter, and have a Lambda function check its age daily."
     ], a: 0,
     no: [null,
       "Standard-tier parameters don't support parameter policies, and splitting the value adds code for no gain.",

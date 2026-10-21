@@ -123,10 +123,10 @@ SD.bank.push(
     q: "A team wants to move an ECS service on Fargate from rolling updates to CodeDeploy blue/green deployments that shift 10% of traffic first and the rest after 5 minutes. Which steps are required? (Select TWO.)",
     items: [
       { t: "Set the service's deployment controller type to CODE_DEPLOY, so that CodeDeploy manages its task sets.", ok: true },
-      { t: "Put an Application Load Balancer in front with a production listener and two target groups.", ok: true },
+      { t: "Put an Application Load Balancer in front, with a production listener and two target groups for the task sets.", ok: true },
       { t: "Use a Network Load Balancer with a test listener, and the CodeDeployDefault.ECSCanary10Percent5Minutes config.", ok: false, no: "With a Network Load Balancer, only CodeDeployDefault.ECSAllAtOnce is supported." },
-      { t: "Install the CodeDeploy agent in each task's container image, so that CodeDeploy can run hooks inside the tasks.", ok: false, no: "The agent is only for EC2/On-Premises deployments. ECS deployments don't use it." },
-      { t: "Set the service's scheduling strategy to DAEMON, so that each task set runs on every host during the shift.", ok: false, no: "Fargate and the CODE_DEPLOY controller don't support the DAEMON strategy." }
+      { t: "Install the CodeDeploy agent in each task's image, so that CodeDeploy can run lifecycle hooks in the tasks.", ok: false, no: "The agent is only for EC2/On-Premises deployments. ECS deployments don't use it." },
+      { t: "Set the service's scheduling strategy to DAEMON, so each task set runs on every host during the shift.", ok: false, no: "Fargate and the CODE_DEPLOY controller don't support the DAEMON strategy." }
     ],
     why: "CodeDeploy blue/green for ECS needs a service using the CODE_DEPLOY controller and a load balancer with a production listener and two target groups, one for each task set. Canary and linear configurations need an Application Load Balancer.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html", "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html"] },
@@ -393,9 +393,9 @@ SD.bank.push(
     items: [
       { t: "Add the VPC, private subnets and a security group to the project, and let the database's group allow it.", ok: true },
       { t: "Route the private subnets' outbound traffic through a NAT gateway in a public subnet of the same VPC.", ok: true },
-      { t: "Put the project in a public subnet whose route table sends 0.0.0.0/0 to the internet gateway.", ok: false, no: "CodeBuild can't give its network interfaces public IP addresses, so an internet gateway route doesn't work." },
+      { t: "Put the project in a public subnet whose route table sends 0.0.0.0/0 to the VPC's internet gateway.", ok: false, no: "CodeBuild can't give its network interfaces public IP addresses, so an internet gateway route doesn't work." },
       { t: "Make the database publicly accessible, so that the build can reach it from CodeBuild's network.", ok: false, no: "It exposes the database to the internet. A VPC build reaches it privately." },
-      { t: "Peer the database's VPC with the VPC that CodeBuild runs builds in by default.", ok: false, no: "The default build network isn't a VPC in your account that you can peer with." }
+      { t: "Peer the database's VPC with the VPC that CodeBuild uses by default to run the project's builds.", ok: false, no: "The default build network isn't a VPC in your account that you can peer with." }
     ],
     why: "A VPC-enabled build runs with network interfaces in your subnets, so it can reach private resources. It needs a NAT gateway or NAT instance to reach the internet.",
     doc: ["https://docs.aws.amazon.com/codebuild/latest/userguide/vpc-support.html"] },
