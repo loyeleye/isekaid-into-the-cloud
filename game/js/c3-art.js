@@ -278,7 +278,9 @@
       headOverride: () => K.r(140, 110, 120, 150, '#9aa6b8', INK, 3.5, null, 10) + K.r(152, 150, 96, 36, '#7a869a', INK, 2.5, null, 4) + K.c(200, 200, 14, '#ff5a5a', INK, 3) + K.r(152, 222, 96, 26, '#7a869a', INK, 2.5, null, 4) }
   });
   const sprite = (id, faces) => ({ faces: Object.fromEntries(faces.map(f => [f, K.fig(id, f, 'bust')])) });
-  SD.vn.addSprites({
+  // After js/vec-cast.js's own sprites (its installs run once the page has loaded), so Hana keeps all her faces.
+  const later = f => (K.installs ? K.installs.push(f) : f());
+  later(() => SD.vn.addSprites({
     noor: sprite('noor', ['neutral', 'smile', 'sad', 'shock', 'warm']),
     selvaria: sprite('selvaria', ['neutral', 'cold', 'unreadable', 'sad']),
     aurelian: sprite('aurelian', ['neutral', 'grief', 'sad', 'tired']),
@@ -286,8 +288,9 @@
     wen: sprite('wen', ['neutral', 'smile', 'warm', 'sad']),
     doug: sprite('doug', ['neutral', 'tired', 'smile']),
     kage: sprite('kage', ['neutral', 'smirk']),
-    hana: sprite('hana', ['neutral', 'smile', 'amused', 'warm', 'sad'])
-  });
+    hana: sprite('hana', ['neutral', 'smile', 'amused', 'warm', 'sad']),
+    baker: sprite('baker', ['neutral']), lord: sprite('lord', ['neutral']), child: sprite('child', ['neutral']), citizen: sprite('citizen', ['neutral']), guard: sprite('guard', ['neutral'])
+  }));
   Object.assign(SD.cast, {
     noor: { name: 'Noor Haddad', title: 'The twelfth Saint' }, selvaria: { name: 'Princess Selvaria', title: 'Regent of Halcyon' },
     aurelian: { name: 'Sir Aurelian', title: 'The Hero of Halcyon' }, ash: { name: 'Mother Ash', title: 'The seventh Saint' },
@@ -405,4 +408,6 @@
   foe('noorpart', 'robed', '#fff4d6', 'partition: NOOR', { ey: 40, ex1: 54, ex2: 66, er: 3, extra: `<circle cx="60" cy="18" r="20" fill="none" stroke="#ffd24a" stroke-width="3"/>` });
   foe('citizen', 'robed', '#9a8a5a', 'a day a year', { ey: 40, ex1: 54, ex2: 66, er: 3 });
   foe('ledger', 'book', '#6a2a4a', 'old records', { ey: 80 });
+  foe('backlog', 'book', '#8a6a3a', '365 · undelivered', { ey: 80, extra: `<rect x="14" y="88" width="26" height="16" fill="#fff8e0" ${ST}/><rect x="80" y="88" width="26" height="16" fill="#fff8e0" ${ST}/>` });
+  foe('winter', 'crystal', '#a8d0f0', 'Saint\'s Day ×10', { mad: true });
 })();

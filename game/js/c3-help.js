@@ -117,6 +117,7 @@
     'saa-4-117': 'The crowd is the same size every day. Book the counters ahead (provisioned, with a little auto scaling), and buy a season pass (reserved capacity) for the steady part.',
     'saa-4-05': 'Nobody knows when the crowds will come and most days it\'s empty: pay per customer (on-demand), not for counters standing idle.',
     'dva-1-700': 'If you drop each ballot on a random counter, finding one ballot means checking all ten. Work out the counter from the ballot\'s own number instead, and you know exactly where to look.',
+    'dva-4-700': 'The side ledger has its own small clerk. When he can\'t keep up, the main counter has to wait for him too: give him at least as many hands as the counter.',
     'dva-1-07': 'The library is sorted by order number, but you want one customer\'s orders by date. Print a second catalogue sorted by customer and date (a global index), and ask that one.',
     'dva-1-08': 'You need a second sort order for the same device, and fresh-off-the-press reads. That\'s a local index, and it must be printed when the library is built.',
     'dva-1-222': 'One reader takes nine hours. Send several readers at once, each given its own section of the library (parallel Scan segments).',

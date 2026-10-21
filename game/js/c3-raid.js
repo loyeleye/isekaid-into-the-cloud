@@ -8,8 +8,9 @@
 //   The Cathedral (floors 33-40, Hard)     6 The Choir (the Precentor), 7 The Burnt Library (the Archivist),
 //                                          8 The Gallery Stair (Sir Aurelian's Shadow), 9 The Gallery (Selvaria,
 //                                          fought as a hot partition, after the confrontation's three proofs).
-//   The Regent's Sum (the reckoning, Hard) 1 The Vault Stair (the Old Ledger), 2 The Vault (Selvaria again), the
-//                                          band's ideas mixed with chapter 2's.
+//   The Regent's Sum (the reckoning, Hard) 1 The Vault Stair (the Old Ledger), 2 The Undelivered (the Prayer
+//                                          Backlog), 3 The Winter Sum, 4 The Vault (Selvaria again): the band's
+//                                          ideas mixed with chapter 2's.
 // The band's two curses are live until camp lifts them: The Drinking Barrier (every hit 40% stronger, the shared SLA
 // standing in for the frontmost player) and Cold Grain (a Cold Grain card in every deck: the turn it's drawn, your
 // first card costs 1 more). SD.c3raid.play(id, how, onDone) runs one; js/c3-world.js calls it.
@@ -71,6 +72,8 @@
     'g-share': C({ name: 'Share the Load', cost: 1, abs: { any: 10 }, exhaust: true, quest: true, rarity: 'rare', champ: 'kai', art: 'pulse', text: 'Absorb {any} load. Exhaust. A hit meant for one, spread across the party.' }),
     'g-dayayear': C({ name: 'A Day a Year', cost: 1, all: true, mit: 6, abs: { any: 14 }, pow: 6, tags: ['dayayear', 'shard', 'highcard'], exhaust: true, quest: true, rarity: 'rare', champ: 'kai', art: 'pulse',
       text: 'Absorb {any} load and Mitigate {mit} on every enemy. Exhaust. The hit is spread across the party and every citizen on the field: the adds become part of the key space.' }),
+    // Sir Aurelian's boon, once he has helped (js/c3-world.js): once a fight, one player's hit split across the party.
+    'g-gauntlet': C({ name: 'Aurelian\'s Gauntlet', cost: 0, abs: { any: 8 }, exhaust: true, quest: true, rarity: 'rare', art: 'pulse', text: 'Absorb {any} load. Exhaust. Once a fight, the hit meant for one is split across the party. Twelve names inside it.' }),
     // The curse, while the camp hasn't lifted it.
     'g-coldgrain': { name: 'Cold Grain', cost: 0, kind: 'action', unplayable: true, curse: true, quest: true, rarity: 'basic', tags: [], art: 'spider-web', onDraw: { tax: 1 }, ch: 3,
       text: 'Curse. The turn you draw it, your first card costs 1 more. Wen\'s Warm Oven lifts it.' }
@@ -272,6 +275,16 @@
       weak: { dayayear: 'Asked, at last.', highcard: 'A key of their own.' }, resist: {},
       pattern: [{ t: 'read', n: 5 }, { t: 'write', n: 5 }] }),
     // The reckoning
+    'g-backlog': F({ name: 'The Prayer Backlog', short: 'Backlog', cause: 'Three hundred and sixty-five copies of one prayer, never delivered', sev: 86, concept: 'sqs', tier: 3, boss: true, sprite: 'g-backlog',
+      flavor: 'One a night, for a year. Every one of them says the same thing.',
+      symptom: 'The same message, redelivered and never deleted, in a queue nobody drains.',
+      weak: { dlq: 'Park the failures where someone reads them.', idem: 'A repeat should be a no-op.', partial: 'Report which ones failed; don\'t retry the lot.', scale: 'More consumers drain it faster.' }, resist: { cache: 'A cached prayer is still undelivered.', visibility: 'Hiding it longer doesn\'t deliver it.' },
+      pattern: [{ t: 'retry', n: 12 }, { t: 'burst', n: 12 }, { t: 'retry', n: 13 }, { t: 'escalate', up: 3 }, { t: 'burst', n: 14 }] }),
+    'g-winter': F({ name: 'The Winter Sum', short: 'Winter Sum', cause: 'Saint\'s Day traffic on a table sized for an ordinary night', sev: 86, concept: 'ddbkey', tier: 3, boss: true, sprite: 'g-winter',
+      flavor: 'Selvaria\'s forecast for the winter, written on the wall in her clear hand. It is correct.',
+      symptom: 'A spike ten times the usual load, on one key, against provisioned capacity.',
+      weak: { ondemand: 'Pay per request for the spike nobody can size.', shard: 'Spread the key.', highcard: 'Everyone\'s day, not one girl\'s.', dayayear: 'A day a year, from everyone.' }, resist: { strong: 'Strong reads cost twice the capacity.', scan: 'Reading everything makes it worse.' },
+      pattern: [{ t: 'hot', n: 12 }, { t: 'burst', n: 13 }, { t: 'hot', n: 13 }, { t: 'escalate', up: 3 }, { t: 'burst', n: 15 }] }),
     'g-ledger': F({ name: 'The Old Ledger', short: 'Old Ledger', cause: 'Three hundred years of records on one key, and queues nobody drained', sev: 88, concept: 'ddbindex', tier: 3, boss: true, sprite: 'g-ledger',
       flavor: 'Selvaria\'s own books. Every sum in them is right.',
       symptom: 'The vault\'s ledger is one partition, read by Scan, fed by a queue whose failures nobody looks at.',
@@ -526,6 +539,18 @@
           notes: ['g-pkey', 'g-queryscan', 'g-classes'], sorts: ['g-throttle', 'g-register', 'g-reads'], events: ['g-echo', 'g-ledgermem', 'g-register'],
           intro: [{ who: null, text: 'The Granaries\' vault. Selvaria has gone down with the last of the old records.' }, { who: 'kai', text: 'She kept the books. Of course she kept the books.' }],
           outro: [{ who: null, text: 'The Old Ledger falls open. Every sum in it is right.' }] }),
+        floor({ name: 'The Undelivered', gate: 'THE REGENT\'S SUM · THE UNDELIVERED', beat: 'The Mailroom\'s echoes: every prayer Halcyon sent, and none that arrived.', boss: 'g-backlog', bossTitle: 'The Prayer Backlog', fade: 3,
+          plan: [['fight', 'notes', 'fight'], ['event', 'fight', 'sort'], ['fight', 'cafe', 'notes'], ['elite', 'fight', 'event'], ['camp', 'notes', 'fight'], ['fight', 'elite', 'sort'], ['notes', 'fight', 'board'], ['fight', 'event', 'fight'], ['camp', 'cafe', 'camp']],
+          fights: [{ ids: ['visghost', 'g-staleread'] }, { ids: ['twins2', 'g-doublewriter'] }, { ids: ['pill', 'g-expiry'] }, 'millrace', { ids: ['g-hotkey', 'emptyclerk'] }], elites: ['herd', 'backlog'],
+          notes: ['g-ledger', 'g-optlock', 'g-ttl'], sorts: ['g-writes', 'g-reads'], events: ['g-echo', 'g-saint7'],
+          intro: [{ who: null, text: 'Below the vault, a sorting room. Every prayer Halcyon ever sent is stacked here, in the order it came.' }, { who: 'mate1', text: 'This is the Mailroom\'s. Freya kept a branch office.' }],
+          outro: [{ who: null, text: 'The backlog drains. Three hundred and sixty-five copies of one prayer go where someone can read them.' }, { who: 'kai', text: 'Every night. I said it every night.' }] }),
+        floor({ name: 'The Winter Sum', gate: 'THE REGENT\'S SUM · THE WINTER SUM', beat: 'Selvaria\'s forecast: Saint\'s Day traffic, on one key.', boss: 'g-winter', bossTitle: 'The Winter Sum', fade: 3,
+          plan: [['fight', 'sort', 'fight'], ['notes', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'sort'], ['camp', 'event', 'fight'], ['fight', 'elite', 'notes'], ['sort', 'fight', 'board'], ['fight', 'notes', 'event'], ['camp', 'cafe', 'camp']],
+          fights: [{ ids: ['g-burst', 'towncrier'] }, { ids: ['g-ptexceeded', 'g-hotkey'] }, 'g-connstorm', { ids: ['g-scan', 'bellnoringer'] }, 'g-replicalag'], elites: ['g-hotbarrel', 'g-writeshard'],
+          notes: ['g-pkey', 'g-rcu', 'g-proxy'], sorts: ['g-throttle', 'g-stores'], events: ['g-kyu5', 'g-choir'],
+          intro: [{ who: null, text: 'A hall with the winter written on its wall: every night\'s load, and the night it breaks.' }, { who: 'selvaria', text: 'Read it, if you like. It\'s right. It was always right.' }],
+          outro: [{ who: null, text: 'The sum on the wall still works. It just doesn\'t need one girl any more.' }] }),
         floor({ name: 'The Vault', gate: 'THE REGENT\'S SUM · THE VAULT', beat: 'The sum, done in front of the city.', boss: 'g-regent', bossTitle: 'Selvaria, the Regent\'s Sum', bossSev: 1.05,
           bossPack: { ids: ['g-regent', 'g-citizen', 'g-citizen'] },
           plan: [['fight', 'notes', 'fight'], ['event', 'fight', 'sort'], ['fight', 'cafe', 'notes'], ['elite', 'fight', 'event'], ['camp', 'notes', 'fight'], ['fight', 'elite', 'cafe'], ['sort', 'fight', 'board'], ['fight', 'notes', 'event'], ['camp', 'cafe', 'camp']],
@@ -544,6 +569,7 @@
     const own = !bot && c3() && Array.isArray(c3().deck) && c3().deck.length ? c3().deck.slice() : R3.startDeck();
     const d = SD.champions.deck(champ, own);
     if (champ === 'kai') d.unshift(dev('dayayear') ? 'g-dayayear' : 'g-share');
+    if (dev('gauntlet') && !bot) d.unshift('g-gauntlet');
     if (!dev('oven')) d.push('g-coldgrain');
     return d.filter(id => SD.cards[id]);
   }
