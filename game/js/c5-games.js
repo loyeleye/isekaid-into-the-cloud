@@ -39,6 +39,7 @@
 .g5-row.done button { opacity: .55; }
 .g5-steps { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .g5-steps button { min-height: 44px; text-align: left; }
+.g5-steps button, .g5-row button, .g5 .opts .opt { font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 14px; line-height: 1.35; }
 .g5-done { counter-reset: s; margin: 6px 0; padding-left: 0; list-style: none; }
 .g5-done li { counter-increment: s; font-size: 13px; padding: 4px 0 4px 26px; position: relative; color: #1e3a28; }
 .g5-done li::before { content: counter(s); position: absolute; left: 0; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #2c8a4b; color: #fff; font: 700 11px/18px sans-serif; text-align: center; }
