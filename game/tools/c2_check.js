@@ -93,11 +93,11 @@ const server = http.createServer((req, res) => {
           if (!window.__p2.bells) { window.__p2.bells = 1; return 'scene:c2w-bells'; }
           return click(x) && 'mg:bells';
         }
-        if (p.querySelector('.g2-run') && !b('.primary')) return 'mg-wait';
         const gh = p.querySelector('.g2-h');
         if (gh && p.querySelector('[data-o]') && !window.__p2['r' + gh.textContent]) { window.__p2['r' + gh.textContent] = 1; return 'scene:c2w-restore'; }
         if (gh && (x = b('[data-o]'))) return click(x) && 'mg:restore';
         if ((x = b('.g2-predict [data-p]'))) return click(x) && 'mg:predict';
+        if (p.querySelector('.g2-run') && !b('.primary')) return 'mg-wait';
         if (b('#sd-go') && once('sd')) return 'scene:c2-sorting-desk';
         if (b('#v2-ship, #v2-quest, #v2-up') && once('camp' + p.querySelectorAll('button[disabled]').length)) return 'scene:c2-camp-' + p.querySelectorAll('button[disabled]').length;
         if ((x = b('#sd-go'))) { p.querySelectorAll('[data-i="3"], [data-i="8"]').forEach(click); return click(x) && 'sorting-desk'; }
@@ -136,7 +136,9 @@ const server = http.createServer((req, res) => {
       }
       if (vis($('#screen-world')) && SD.c2world && SD.c2world.active && !SD.c2world.debug.busy()) {
         const D = SD.c2world.debug, sc = D.scene(), w = D.w(), f = w.x, A2 = sc.actors;
-        const go = (id, x, y) => { D.place(x, y); sc.onTalk(id); return 'story:' + id; };
+        // Each place gets a screenshot first, once, with the scene settled.
+        const views = window.__views = window.__views || {};
+        const go = (id, x, y) => { D.place(x, y); if (!views[id]) { views[id] = 1; return 'view:' + id; } sc.onTalk(id); return 'story:' + id; };
         if (!f.notes) return go('basket', 10, 22);
         if (!f.tower) { D.place(19, 20); return 'walk:tower'; }
         if (!f.scrap) { D.place(36, 20); return 'walk:scrap'; }
@@ -166,13 +168,14 @@ const server = http.createServer((req, res) => {
       }
       return 'wait';
     }, [WIN, LEAD]);
+    if (process.env.STOP && what === 'view:' + process.env.STOP) { await page.waitForTimeout(1500); await shot('stop-' + process.env.STOP); break; }
     last.push(what); if (last.length > 16) last.shift();
     seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
     if (/^story:|^node:|^play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
     const key = { 'lead-wait': 'lead-select', 'boss:postmistress': 'c2-postmistress', 'boss:belfry': 'c2-belfry', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
-      || (/^scene:/.test(what) && what.replace(':', '-'));
+      || (/^(scene|view):/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }

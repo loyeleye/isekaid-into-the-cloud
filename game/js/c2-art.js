@@ -370,7 +370,7 @@
   const PHASE = {
     night: { mul: 'rgba(40,46,90,.86)', sat: 0.6, vig: 0.75 },
     dawn: { mul: 'rgba(150,110,140,.55)', sat: 0.45, vig: 0.55, warm: 'rgba(255,150,120,.10)' },
-    day: { mul: 'rgba(120,124,140,.45)', sat: 0.7, vig: 0.5 },
+    day: { mul: 'rgba(160,160,176,.35)', sat: 0.35, vig: 0.45 },
     dusk: { mul: 'rgba(120,70,90,.62)', sat: 0.45, vig: 0.65, warm: 'rgba(255,130,60,.10)' },
     morning: { mul: 'rgba(170,150,130,.35)', sat: 0.5, vig: 0.45, warm: 'rgba(255,220,160,.08)' }
   };

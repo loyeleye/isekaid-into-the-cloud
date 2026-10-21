@@ -296,7 +296,7 @@
     if (!flag('notes') && P.x >= 15) return act(notYet);
     if (flag('notes') && !flag('tower') && P.x >= 18) return act(towerAtDawn);
     if (flag('notes') && !flag('scrap') && P.x >= 36) return act(scrapArrive);
-    if (flag('sign') && !flag('lensHint') && P.x >= 37) { setFlag('lensHint'); if (!lensOn()) U.system('TRY THE LENS', 'Tap 👁 Lens (or press L) to look under the delete markers.'); }
+    if (flag('sign') && !flag('lensHint') && P.x >= 37) { setFlag('lensHint'); if (!lensOn()) U.system('TRY THE LENS', 'Tap 👁 (or press L) to look under the delete markers.'); }
     if (flag('fire') && !flag('town') && P.x >= 80) return act(townArrive);
     LETTERS.forEach(([x, y], i) => { if (letterShown(i) && P.x === x && P.y === y) act(() => pickLetter(i)); });
   }
@@ -470,7 +470,7 @@
       ['seoyeon', 'If she only hid them... then everything here is still underneath.', 'neutral'],
       ['dutch', 'Then we look underneath.', 'neutral']
     ]);
-    U.system('NEW: THE VERSION LENS', 'Tap 👁 Lens in the bar, or press L, to see what\'s under the delete markers: deleted things, and the paths that were.', 'gold');
+    U.system('NEW: THE VERSION LENS', 'Tap 👁 in the bar, or press L, to see what\'s under the delete markers: deleted things, and the paths that were.', 'gold');
   }
   async function postOffice() {
     if (flag('coo')) return say([['narr', 'Pingsby\'s post office, back where it stood. Somebody has already swept the step.']]);
@@ -783,8 +783,8 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       ${flag('coo') ? `<span class="hud-chip" title="Coo's lost letters">✉ ${w().letters.length}/5</span>` : ''}
       <span class="w-sp"></span>
-      ${flag('sign') ? `<button class="${lensOn() ? 'primary' : 'ghost'}" id="w-lens" aria-pressed="${lensOn()}">👁 Lens</button>` : ''}
-      <button class="ghost" id="w-codex">Cheat sheet</button>
+      ${flag('sign') ? `<button class="${lensOn() ? 'primary' : 'ghost'}" id="w-lens" aria-pressed="${lensOn()}" aria-label="Version Lens" title="Version Lens (L)">👁</button>` : ''}
+      <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     const lb = $('#w-lens'); if (lb) lb.onclick = toggleLens;
