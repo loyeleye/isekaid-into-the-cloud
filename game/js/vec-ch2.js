@@ -255,7 +255,8 @@
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning.'],
       ['seymour', 'And a copy anyone can delete is not a copy.'],
       ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.']
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
+      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.']
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
@@ -313,6 +314,86 @@
     no: [null, 'Ordering copies doesn\'t stop each subscriber getting one.', 'We fixed the subscriptions; the topic still delivers.', 'Topics have no visibility timeout; that\'s a queue setting.'],
     why: 'A topic sends a copy to every subscription. A filter policy on each subscription decides which copies it accepts.',
       eli5: 'Every party member was getting every shout. Now each mailbox has its own filter, like a loot filter per player, so each one only picks up the messages meant for it.' };
+
+  // ---------- Pair scenes ----------
+  // The three the Story Bible names for chapter 2's act 1 (Relationships tab): Three, One, Four at the edge the first
+  // night (Dutch and Seo-yeon, arc 6 scene 2); Unmake It in Thornwick after Tilly looks through Mira (Kai and Mira,
+  // arc 5 scene 2); Sunlight on Thornwick's marsh path at noon (Mira and Seo-yeon, arc 4 scene 2). Short, skippable,
+  // no choices. Your lead changes the angle: one of the pair plays their side with one inner line nobody else hears;
+  // anyone else walks in partway through. A scene missed in the world comes back at the next camp.
+  // Storyboards: /mnt/project-files/storyboard/ch2/01-three-one-four.md, 02-unmake-it.md, 03-sunlight.md.
+  {
+    const KK = K, N = KK.NIGHT, { p, c, e, r, g } = KK, S2 = KK.scenes;
+    // The cart at the edge, the first night: its plank wall between two people, a lamp turned low.
+    S2['c2-cart'] = KK.scene([
+      KK.skyL('ct0', '#0a0a18', '#1c1a30'), KK.stars(1200, 700, 160, 41, 0.9),
+      p('M0 760 C300 740 600 780 900 750 C1000 740 1100 760 1200 750 L1200 1200 L0 1200Z', '#18162a', N, 4),
+      g(p('M-260 0 L260 0 L260 -300 L-260 -300Z', '#5a3e26', N, 5) + p('M-260 -100 h520 M-260 -200 h520', null, '#3e2a18', 5) + p('M-180 0 L-180 -300 M0 0 L0 -300 M180 0 L180 -300', null, '#4a3220', 4)
+        + c(-200, 40, 70, '#3a2818', N, 5) + c(200, 40, 70, '#3a2818', N, 5) + c(-200, 40, 12, N) + c(200, 40, 12, N), 'translate(600 900)'),
+      g(r(-14, -40, 28, 40, '#ffd27a', N, 3) + p('M-18 -40 h36 M0 -40 v-20', null, N, 3), 'translate(860 590)'), KK.glow('ctl', 860, 570, 260, '#ffb04a', 0.35),
+      KK.gradeL('ctg', '#0a1030', '#100808', 0.25, 0.2), KK.vignette(1200, 1200, 0.75)
+    ]);
+    // Thornwick's marsh path at noon: reeds, a plank walk, the sun flat and white on the water.
+    S2['c2-marsh'] = KK.scene([
+      KK.skyL('mh0', '#bfe0f2', '#fff6dc'), c(860, 220, 110, '#fffbe8', null, null, 0.95), KK.glow('mhs', 860, 220, 520, '#ffffff', 0.7),
+      p('M0 560 C200 540 400 560 600 548 C800 536 1000 556 1200 546 L1200 640 L0 640Z', '#8aa070', N, 3),
+      p('M0 620 L1200 610 L1200 1200 L0 1200Z', '#9cc4cc'), p(Array.from({ length: 9 }, (_, i) => `M${80 + i * 130} ${700 + (i % 3) * 60} h${70 + (i % 2) * 40}`).join(' '), null, '#fffbe8', 6, 0.8),
+      p('M380 1200 L520 640 L640 640 L760 1200Z', '#a8845a', N, 4) + p(Array.from({ length: 8 }, (_, i) => `M${520 - i * 18} ${700 + i * 70} h${120 + i * 36}`).join(' '), null, '#7a5a3a', 4),
+      p(Array.from({ length: 26 }, (_, i) => { const x = (i * 97) % 1200, h = 140 + (i * 37) % 120, y = 1200 - (i % 4) * 30; return `M${x} ${y} Q${x - 10} ${y - h * 0.6} ${x + 6} ${y - h}`; }).join(' '), null, '#5a7040', 6),
+      g(p('M-60 0 L-60 -60 L0 -100 L60 -60 L60 0Z', '#b8a088', N, 3) + p('M140 0 L140 -50 L190 -84 L240 -50 L240 0Z', '#a89078', N, 3), 'translate(150 560)'),
+      KK.vignette(1200, 1200, 0.3)
+    ]);
+  }
+  const PAIRS = {
+    tof: { title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
+      full: [
+        ['narr', 'Later. The others are asleep, or pretending. Dutch taps the cart wall out of habit: three, one, four. Then he stops. That\'s what Freya tapped, in Lina\'s voice. From the other side of the cart, Seo-yeon taps it back.'],
+        ['seoyeon', 'What does it mean?', 'neutral'],
+        ['dutch', 'Good night. Lina\'s. She said it was pi. I thought she meant pie.', 'stone'],
+        ['seoyeon', 'It\'s the start of pi.', 'neutral'],
+        ['dutch', 'Yeah. Says so in the diary.', 'neutral'],
+        ['narr', 'The next night, he taps first.']],
+      walk: 'You can\'t sleep. On either side of the cart\'s plank wall, two people can\'t either, and one of them has just tapped back.',
+      camp: 'At the fire, Dutch taps the log he\'s sitting on without meaning to: three, one, four. Across the fire, Seo-yeon taps it back.',
+      from: 1, inner: { dutch: [3, '(She tapped it back. Nobody has, since Lina.)'], seoyeon: [2, '(He doesn\'t know he does it. Neither did I, the first time.)'] } },
+    unmake: { title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
+      full: [
+        ['narr', 'Tilly walks on. Mira watches the grey coat until it turns the corner. Kai pulls off his glove and holds up the cracked hand.'],
+        ['kai', 'One touch. I take it off you, and the kid looks at you and sees you.', 'earnest'],
+        ['mira', 'You didn\'t ask me what I want. You told me what you want.', 'cold'],
+        ['narr', 'He doesn\'t understand yet.'],
+        ['mira', 'No, Kai.', 'tired'],
+        ['narr', 'He keeps the glove on, and he\'s angry about it for a day.']],
+      walk: 'You catch them up by the well. Kai has his glove off, and his cracked hand held up between them.',
+      camp: 'At the fire, Kai turns his glove over and over. Then he pulls it off, and holds up the cracked hand to Mira.',
+      from: 1, inner: { kai: [2, '(It would work. I know it would work.)'], mira: [3, '(She looked straight through me. Better that than knowing me.)'] } },
+    sunlight: { title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
+      full: [
+        ['narr', 'The marsh path, at noon. The sun comes off the water all at once; Seo-yeon squints, and her eyes go red. Mira, whose own left eye is amber and slit, holds up a hand to shade her.'],
+        ['mira', 'People look at the eye first. Let them. Then they look at your hands, and that\'s where you tell them who you are.', 'warm'],
+        ['seoyeon', 'Your hand is a paw.', 'neutral'],
+        ['mira', 'And I\'ve delivered six babies with it.', 'smile'],
+        ['narr', 'Seo-yeon laughs out loud, once, and is appalled.']],
+      walk: 'You find them on the marsh path in the noon glare: Mira\'s hand up against the sun, and Seo-yeon\'s red eyes in its shade.',
+      camp: 'Noon, the next day, by the camp\'s water barrel. The sun comes off it all at once, and Seo-yeon squints, and her eyes go red. Mira holds up a hand to shade her.',
+      from: 1, inner: { mira: [2, '(Don\'t fuss. She hates being fussed. Just the hand.)'], seoyeon: [3, '(Do not laugh. Namgung\'s daughter does not laugh in a marsh.)'] } }
+  };
+  C2.pairSeen = id => flag('pair-' + id);
+  // where: 'camp' when it comes back at the next camp, else in its own place.
+  C2.pair = async function (id, where) {
+    const P = PAIRS[id], me = (S.save.c1 && S.save.c1.lead) || 'mira';
+    if (!P || flag('pair-' + id)) return;
+    const mine = P.pair.includes(me);
+    let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
+    if (where === 'camp') lines[0] = ['narr', P.camp];
+    if (mine) { const [at, t] = P.inner[me]; lines.splice(mine && where !== 'camp' ? at : Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]); }
+    U.closePanel(); U.stage(null);
+    AU.music(P.music);
+    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['narr', P.title.toUpperCase() + ' · ' + P.pair.map(x => SD.ch1story.leads[x].name.split(' ')[0]).join(' and ')],
+      ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    setFlag('pair-' + id);
+  };
+  C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
 
   // ---------- Moments you play in the visual novel ----------
   const esc = s => U.esc(s);
@@ -761,7 +842,7 @@
       playing = false; undress = null;
     };
   }
-  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay }, extra);
+  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay, tapes: 2 }, extra);
 
   // A join screen: the open parties on the stair, and a box for a friend's code.
   function joinScreen(root, dir) {
@@ -869,7 +950,12 @@
     SD.ch1.halt(); U.closePanel(); U.stage(null);
     AU.music('story');
     if (!flag('act1')) {
-      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge, ...T.tower, ...T.scrap, ...T.bunker, ...T.wren, ...T.fire, ...T.thornwick]);
+      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge]);
+      await C2.pair('tof');
+      await SD.vn.play([...T.tower, ...T.scrap, ...T.bunker]);
+      await SD.vn.play([...T.wren, ...T.fire, ...T.thornwick.slice(0, T.thornwick.findIndex(x => x[0] === 'cg'))]);
+      await C2.pair('unmake');
+      await SD.vn.play(T.thornwick.slice(T.thornwick.findIndex(x => x[0] === 'cg')));
       setFlag('act1');
     }
     if (!flag('won')) return C2.climb(true);
@@ -882,6 +968,7 @@
     b.querySelector('#v2-again').onclick = () => { U.closePanel(); U.stage(null); C2.climb(true); };
   }
   async function afterExpedition() {
+    await C2.pairsMissed();
     U.stage(null);
     await SD.vn.play(T.redeploy);
     U.stage('c2fire');
@@ -899,7 +986,7 @@
       ${btn('v2-quest', '<b>At Least Once, At Most Twice</b> · Coo\'s quest', f.quest, f.ship && !f.quest)}
       ${both ? '<button class="opt primary" id="v2-up"><b>Take the lift to floor 7</b></button>' : ''}</div>`, { title: 'CAMP · THE FREE CLOUD', noClose: true });
     const on = (id, fn) => { const el = b.querySelector('#' + id); if (el) el.onclick = () => { U.closePanel(); fn(); }; };
-    on('v2-ship', shipIt); on('v2-quest', cooQuest); on('v2-up', toBeContinued);
+    on('v2-ship', shipIt); on('v2-quest', cooQuest); on('v2-up', lift);
   }
 
   // Ship It: the floors' fix as a SAM template, tested on the camp table, then deployed.
@@ -975,17 +1062,31 @@
     });
   }
 
+  // The handover to part B (floors 7 to 20, js/c2x-*.js): the lift, and the card's button, start it when it's loaded.
+  // Without it, the "to be continued" card stays the end.
+  const partB = () => (SD.chapterStart && typeof SD.chapterStart['2b'] === 'function' ? SD.chapterStart['2b'] : null);
+  function lift() {
+    setFlag('done');
+    const go = partB();
+    if (go) { U.stage(null); return go(); }
+    toBeContinued();
+  }
   function toBeContinued() {
     setFlag('done');
+    const go = partB();
     U.stage('c2fire');
     const b = U.panel(`<div class="verdict ok">TO BE CONTINUED</div>
       <p>The lift opens on floor 7: the Dead Letter Office, where the prayers go. Somewhere at the bottom of it, someone has been reading every one of them for ten thousand years, and never answered.</p>
       <p class="muted small">End of the vector demo: the opening, chapter 1, and the first slice of chapter 2 (Expedition I, the first Ship It and Coo's quest), every picture drawn in code.</p>
-      <div class="row"><button class="primary" id="v2-end">Title</button><button class="ghost" id="v2-replay">Replay chapter 2</button></div>`, { title: 'CHAPTER 2 · THE MAILROOM', noClose: true });
+      <div class="row">${go ? '<button class="primary" id="v2-next">Continue to floor 7</button>' : ''}<button class="${go ? 'ghost' : 'primary'}" id="v2-end">Title</button><button class="ghost" id="v2-replay">Replay chapter 2</button></div>`, { title: 'CHAPTER 2 · THE MAILROOM', noClose: true });
+    if (go) b.querySelector('#v2-next').onclick = () => { U.closePanel(); U.stage(null); go(); };
     b.querySelector('#v2-end').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
     b.querySelector('#v2-replay').onclick = () => { U.closePanel(); S.save.c2 = null; S.persist(); C2.start(); };
   }
 
+  // Chapter 2's start, for chapter 1's end card and anything else that hands over (conventions: SD.chapterStart).
+  SD.chapterStart = SD.chapterStart || {};
+  SD.chapterStart[2] = () => C2.start();
   // Chapter 1's end card opens the slice.
   K.installs.push(() => {
     SD.ch1.onEndCard = b => {

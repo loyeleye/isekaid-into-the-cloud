@@ -128,6 +128,7 @@
     [(x, y) => x < 63 && y > 25, 'scrap', 'WHAT\'S LEFT OF BROOKFALL', 'explore'],
     [(x) => x < 63, 'scrap', 'THE SCRAP FIELD', 'explore'],
     [(x) => x < 80, 'island', 'THE TOWER\'S FOOT', 'camp'],
+    [(x, y) => x >= 80 && y >= 31, 'marsh', 'THORNWICK · THE MARSH PATH', 'town'],
     [() => true, 'town', 'THORNWICK · FLOOR 1', 'town']
   ];
   const zoneAt = (x, y) => ZONES.find(z => z[0](x, y));
@@ -299,6 +300,7 @@
     if (flag('notes') && !flag('scrap') && P.x >= 36) return act(scrapArrive);
     if (flag('sign') && !flag('lensHint') && P.x >= 37) { setFlag('lensHint'); if (!lensOn()) U.system('TRY THE LENS', 'Tap 👁 (or press L) to look under the delete markers.'); }
     if (flag('fire') && !flag('town') && P.x >= 80) return act(townArrive);
+    if (flag('town') && !C2.pairSeen('sunlight') && P.x >= 81 && P.y >= 31) return act(sunlight);
     LETTERS.forEach(([x, y], i) => { if (letterShown(i) && P.x === x && P.y === y) act(() => pickLetter(i)); });
   }
   const straight = (x0, y0, x1, y1) => { const out = []; let x = x0; while (x !== x1) { x += Math.sign(x1 - x); out.push([x, y0]); } return out; };
@@ -429,6 +431,9 @@
       ['mira', 'Then we stop blaming each other, and start on her.', 'cold']
     ]);
     setFlag('notes');
+    // Pair scene: Three, One, Four, later that night by the cart (js/vec-ch2.js C2.pair).
+    await C2.pair('tof');
+    AU.music('kyusad');
     AU.sfx('sparkle'); U.flash();
     U.system('DAWN', 'The party follows you now. Take the road east.', 'gold');
     trail.length = 0;
@@ -559,8 +564,10 @@
       ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
       ['dutch', 'So we take root back.'],
       ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
+      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.'],
       ['narr', 'The slot snaps shut. Behind it, faintly, someone is humming.']
     ]);
+    U.system('SEYMOUR\'S TAPES', 'Two spare lives for each climb. A wipe uses one, and the floor starts again as you entered it. With none left, it\'s back down to camp.', 'gold');
     U.system('[GOAL] TAKE ROOT BACK', 'Kyu\'s tape stays offline until there\'s no root to fear. Somewhere on the island, Elder Wren is waiting.', 'gold');
     AU.music('camp');
   }
@@ -683,6 +690,14 @@
     ]);
     t2.scripted = false;
     setFlag('tilly');
+    // Pair scene: Unmake It, straight after.
+    await C2.pair('unmake');
+    AU.music('town');
+  }
+  // Pair scene: Sunlight, on the marsh path at noon. Missed, it comes back at the camp after Expedition I.
+  async function sunlight() {
+    await C2.pair('sunlight');
+    AU.music('town');
   }
   async function poster(n) {
     if (n === 1) {
