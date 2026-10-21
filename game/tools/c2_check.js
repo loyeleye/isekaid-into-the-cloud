@@ -247,6 +247,19 @@ async function openPage(browser, name, errors) {
       else if (Date.now() - t.waitSince > 5000 && !t.warned) { t.warned = 1; warnings.push(`${t.name}: a ${Math.round((Date.now() - t.waitSince) / 1000)} s wait at ${what}`); }
       if (!waiting) t.warned = 0;
       const sc = /^scene:(.*)/.exec(what);
+      // At every new screen: no sideways scroll at phone width, and every button at least 44px to tap.
+      if (sc) {
+        const au = await page.evaluate(() => {
+          const out = [], vw = innerWidth;
+          if (document.documentElement.scrollWidth > vw + 1) out.push('E:the page scrolls sideways (' + document.documentElement.scrollWidth + 'px wide)');
+          document.querySelectorAll('#panel button, #vn button, #w-hud button, #run button, #dialog button').forEach(el => {
+            const r = el.getBoundingClientRect(); if (!r.width || el.disabled || getComputedStyle(el).visibility === 'hidden') return;
+            if (r.height < 40 || r.width < 40) out.push('small button (' + Math.round(r.width) + 'x' + Math.round(r.height) + '): ' + (el.id ? '#' + el.id : el.className.split(' ')[0] || 'button') + ' "' + el.textContent.trim().slice(0, 24) + '"');
+          });
+          return out;
+        });
+        au.forEach(x => { const k = x.replace(/\(\d+x\d+\)/, '').replace(/"[^"]*"$/, ''); if (seen.has('au:' + k)) return; seen.add('au:' + k); if (x.startsWith('E:')) errors.push(t.name + ' at ' + sc[1] + ': ' + x.slice(2)); else warnings.push(t.name + ' at ' + sc[1] + ': ' + x); });
+      }
       if (sc && SHOTS && !shotsTaken.has(t.name + sc[1])) { shotsTaken.add(t.name + sc[1]); await page.waitForTimeout(sc[1].startsWith('vn-') ? 1400 : 700); await page.screenshot({ path: path.join(SHOTS, `${t.name}-${String(shotsTaken.size).padStart(3, '0')}-${sc[1].replace(/[^\w-]+/g, '_').slice(0, 60)}.png`) }); }
       // Real input: a key held until you've stepped (or something opened), a tap where a finger would go.
       const key = /^key:(\w+):(.*)$/.exec(what);
@@ -271,7 +284,7 @@ async function openPage(browser, name, errors) {
   const res = await Promise.all(tabs.map(t => t.page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, level: SD.state.save.level, c2: SD.state.save.c2, done: window.__done || null, twist: window.__twist || 0 }))));
   await browser.close(); server.close();
   const sv = res[0];
-  console.log('steps', steps, 'saw', [...seen].sort().join(' '));
+  console.log('steps', steps, 'saw', [...seen].filter(x => !x.startsWith('au:')).sort().join(' '));
   tabs.forEach(t => { if (!t.done) errors.push(`${t.name} never finished; last: ${t.last.join(' ')}`); });
   if (!RAID && !PARTY) {
     const wx = (sv.c2 && sv.c2.w && sv.c2.w.x) || {};

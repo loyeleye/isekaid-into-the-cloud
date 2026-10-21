@@ -154,7 +154,7 @@ const server = http.createServer((req, res) => {
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
-    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; document.querySelector('#v2-go').click(); }); continue; }
+    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.ui.closePanel(); SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; SD.chapterStart[2](); }); continue; }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }

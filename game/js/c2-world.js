@@ -647,7 +647,7 @@
         b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { U.closePanel(); res(); });
       });
     }
-    await SD.vn.play([['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
+    await SD.vn.play([['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
     setFlag('offer');
     AU.music('town');
     U.system('THE STAIR IS OPEN', 'Up the stair are the Sorting Floors: Expedition I.', 'gold');
@@ -821,6 +821,7 @@
     if (!sc) makeScene(); else applyState();
     zone = null; lastTile = '';
     W2.active = true;
+    document.body.classList.add('c2-on');
     sc.start();
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
   };

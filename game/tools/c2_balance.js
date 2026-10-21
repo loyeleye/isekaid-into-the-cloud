@@ -36,6 +36,8 @@ function step() {
   if (!p.hidden) {
     const b = s => [...p.querySelectorAll(s)].find(x => !x.disabled && vis(x));
     let x;
+    if ((x = p.querySelector('#q-num')) && !x.value) { x.value = '180'; x.dispatchEvent(new Event('input', { bubbles: true })); return {}; }
+    if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'The queue hides the letter while one consumer works on it.'; x.dispatchEvent(new Event('input', { bubbles: true })); return {}; }
     if ((x = b('#q-said'))) x.click();
     else if ((x = b('#q-confirm, #q-next'))) x.click();
     else if ((x = b('.ps-n'))) x.click();
@@ -55,6 +57,7 @@ async function run(browser, url, i) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (/warn|error/.test(m.type()) && !/Failed to load resource|AudioContext/.test(m.text())) errors.push(m.type() + ': ' + m.text().slice(0, 200)); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
   await page.waitForFunction(() => window.SD && SD.vec && SD.vec.ch2 && SD.vec.ch2.sorting);
@@ -70,7 +73,11 @@ async function run(browser, url, i) {
   }, lead);
   const t0 = Date.now();
   let r = {};
-  while (!r.done && Date.now() - t0 < 15 * 60 * 1000) { r = await page.evaluate(step); if (!r.done) await page.waitForTimeout(60); }
+  let crashed = false; page.on('crash', () => { crashed = true; });
+  try {
+    while (!r.done && Date.now() - t0 < (+process.env.MAXS || 900) * 1000) { r = await page.evaluate(step); if (!r.done) await page.waitForTimeout(60); }
+  } catch (e) { if (!crashed) throw e; await ctx.close().catch(() => {}); return { lead, crashed: true, secs: Math.round((Date.now() - t0) / 1000), errors: [] }; }
+  if (!r.done) r.stuck = await page.evaluate(() => { const T = SD.test.raid, G = T && T.G(), p = document.querySelector('#panel'); return JSON.stringify({ ph: G && G.ph, fl: G && G.fl, room: G && G.room && G.room.t, qs: G && G.qs && G.qs.length, panel: !p.hidden && p.textContent.slice(0, 160), dialog: !(document.querySelector('#dialog') || {}).hidden, vn: !!document.querySelector('#vn:not([hidden])'), done: window.__done || null, shown: (document.querySelector('.screen:not([hidden])') || {}).id, runTxt: (document.querySelector('#run') || {}).textContent.slice(0, 160), run: (document.querySelector('#run .rd') || {}).dataset }); }).catch(e => String(e));
   await ctx.close();
   return Object.assign({ lead, secs: Math.round((Date.now() - t0) / 1000), errors }, r);
 }
@@ -86,10 +93,13 @@ async function run(browser, url, i) {
       const i = next++;
       const r = await run(browser, url, i);
       out.push(r);
-      console.log(`run ${i + 1}: ${r.lead}, ${r.done ? (r.wipes.length ? `${r.wipes.length} wipe(s) on floor ${r.wipes.map(f => f + 1).join(', ')}` : 'clean clear') : 'timed out'}, SLA at floor ends ${(r.sla || []).join('/')}, ${r.secs}s${r.errors.length ? ', errors: ' + r.errors.join('; ') : ''}`);
+      console.log(`run ${i + 1}: ${r.lead}, ${r.crashed ? 'the browser tab crashed (not counted)' : r.done ? (r.wipes.length ? `${r.wipes.length} wipe(s) on floor ${r.wipes.map(f => f + 1).join(', ')}` : 'clean clear') : 'timed out'}, SLA at floor ends ${(r.sla || []).join('/')}, ${r.secs}s${r.errors.length ? ', errors: ' + r.errors.join('; ') : ''}${r.stuck ? ', stuck at ' + r.stuck : ''}`);
     }
   }));
   await browser.close(); server.close();
+  const crashes = out.filter(r => r.crashed).length;
+  out.splice(0, out.length, ...out.filter(r => !r.crashed));
+  if (crashes) console.log(`${crashes} run(s) lost to a browser tab crash, not counted.`);
   const clean = out.filter(r => r.done && !r.wipes.length).length, f1 = out.filter(r => (r.wipes || []).includes(0)).length, f2 = out.filter(r => (r.wipes || []).includes(1)).length;
   console.log(`\n${clean}/${out.length} clean clears (${Math.round(clean / out.length * 100)}%). Runs with a wipe on floor 1: ${f1}, on floor 2: ${f2}.`);
   if (out.some(r => r.errors.length || !r.done)) process.exit(1);

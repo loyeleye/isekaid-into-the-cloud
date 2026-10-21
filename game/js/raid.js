@@ -18,7 +18,8 @@
 //   - Exam Twists (chapter 2, 2026-10-21): a boss with SD.twists[id], as in js/run.js, asks every player one twist the
 //     first time it falls to half Severity: its incident again with one thing changed, answered on each player's own
 //     page (an Exam Twist card's question, st-twist). Each right answer mitigates 16, a slow one 10.
-//   - A floor's Field Notes can be someone else's (N.by for the header, N.sign for the signature), and a Policy Sort can
+//   - A floor's Field Notes can be someone else's (N.by for the header, N.sign for the signature, N.where for where the
+//     page is found), and a Policy Sort can
 //     name its two answers (P.yes and P.no, for a filter or a pattern instead of a policy), its header (P.by) and what
 //     arrives (P.what). Defaults as before.
 //   - A fight's backdrop is SD.run.stageArt(ch) when the page has one (the vector build draws its own), as in js/run.js.
@@ -2356,8 +2357,8 @@
     // Field Notes and Policy Sort: like the Whiteboard, each player on their own device, then the team's result.
     function notesView(r, mine) {
       const N = obj((SD.fieldNotes || {})[r.n]), wait = mine && r.wait[me.peer];
-      paint(`<div class="mi-card rd-room">${hud()}${head('Field Notes')}
-        <p>${esc(N.title || 'A page of notes')}, pinned to the wall in Freya's handwriting${r.fd ? ', and she stopped halfway' : ''}. Read it, then answer a question on the same idea. A right answer heals the team and pays you bits, as at a whiteboard.</p>
+      paint(`<div class="mi-card rd-room">${hud()}${head(N.by || 'Field Notes')}
+        <p>${esc(N.title || 'A page of notes')}, ${esc(N.where || 'pinned to the wall in Freya\'s handwriting')}${r.fd ? ', and she stopped halfway' : ''}. Read it, then answer a question on the same idea. A right answer heals the team and pays you bits, as at a whiteboard.</p>
         ${wait ? '<p class="rd-wait">Your notes are open.</p><button class="primary" type="button" id="rd-ask">Read the notes</button>' : mine ? '<p class="rd-wait">Waiting for the others to finish reading.</p>' : ''}
         ${team(k => (r.res[k] == null ? ['reading'] : r.res[k] ? [BAND_TEXT[r.res[k]] || 'right', 'ok'] : ['missed', 'no']))}</div>`);
       const a = root.querySelector('#rd-ask'); if (a) a.onclick = () => { if (!busy) { delete asked[r.k]; render(); } };
