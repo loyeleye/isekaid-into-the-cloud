@@ -93,13 +93,13 @@
     faithful: {
       name: 'Uptima\'s Faithful', sev: 40, concept: 'respolicy', tier: 1, sprite: 'c1faithful', ch: 1,
       flavor: 'Brookfall still prays to her. They don\'t like the look of you.',
-      symptom: 'Your role in Freya\'s account is allowed to call shrine:Enter, but the shrine belongs to Uptima\'s account and its resource policy names nobody from outside. AccessDenied.',
+      symptom: 'Your role in Freya\'s account has an identity policy that allows s3:GetObject on the shrine\'s prayer bucket. The bucket belongs to Uptima\'s account, and its bucket policy names nobody from outside. AccessDenied.',
       weak: {
-        resource: 'Across accounts both sides must allow: the shrine\'s own resource policy has to name your role as well.',
-        assume: 'A role in the shrine\'s account whose trust policy names you lets you act inside that account.',
+        resource: 'Across accounts both sides must allow: the bucket policy has to grant your role too, not just your own identity policy.',
+        assume: 'Assume a role in Uptima\'s account whose trust policy names you. Then you are a principal of that account, and its own policies decide.',
         unmake: 'Kai strips the blessing off the shrine\'s door. He feels every prayer in it.'
       },
-      resist: { allow: 'Your own account\'s Allow is only half of it. The shrine\'s account has to allow the call too.' },
+      resist: { allow: 'Your own identity policy already allows it. Cross-account, the bucket owner has to allow the call as well.' },
       pattern: [{ t: 'read', n: 8 }, { t: 'write', n: 9 }, { t: 'escalate' }, { t: 'read', n: 11 }]
     },
     wrongmask: {
@@ -231,8 +231,8 @@
       opts: ['Nothing: object reads are data events, which event history doesn\'t keep', 'The GetObject call, with the caller and the time, in event history', 'The read, but only if the bucket policy was changed afterwards', 'Everything, but only after asking AWS Support to restore the logs'], a: 0,
       no: [null, 'Event history holds management events only. GetObject is a data event.', 'Changing the bucket policy is its own management event. It doesn\'t bring back reads that weren\'t recorded.', 'Events that were never recorded can\'t be restored by anyone.'],
       why: 'Event history keeps 90 days of management events with no setup. Data events, such as S3 object reads, are recorded only by a trail or event data store configured for them, and only from then on.' },
-    { id: 'q-mask', c: 'roles', type: 'mc', q: 'Four masks hang at the temple gate, each a role. The gate opens for temple:OpenGate. Which one can Freya\'s brigade put on and open the gate with?',
-      opts: ['Trust names the brigade\'s role; its policy allows temple:OpenGate', 'Trust names the temple\'s acolytes; its policy allows temple:*', 'Trust names the brigade\'s role; it has no permissions policy', 'Trust names the brigade\'s role; its policy denies temple:Open*'], a: 0,
+    { id: 'q-mask', c: 'roles', type: 'mc', q: 'Four masks hang at the temple gate, each a role. The gate is a Lambda function in the temple\'s account, and it opens for lambda:InvokeFunction. Which one can Freya\'s brigade put on and open the gate with?',
+      opts: ['Trust names the brigade\'s role; its policy allows lambda:InvokeFunction on the gate', 'Trust names the temple\'s acolytes; its policy allows lambda:*', 'Trust names the brigade\'s role; it has no permissions policy', 'Trust names the brigade\'s role; its policy denies lambda:Invoke*'], a: 0,
       no: [null, 'You can\'t put it on: its trust policy doesn\'t name you, however much it allows.', 'You can put it on, but it allows nothing, so the gate stays implicitly denied.', 'You can put it on, and its own Deny refuses the gate.'],
       why: 'The trust policy decides who may assume a role, and its permissions decide what the role can then do. You need both: a trust policy that names you and an Allow for the action, with no Deny.' }
   );
