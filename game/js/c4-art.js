@@ -253,9 +253,12 @@
   // ---------- The grade ----------
   const PHASE = { dawn: { mul: 'rgba(230,190,200,.9)', warm: 'rgba(60,24,30,.08)', vig: 0.5 }, day: { mul: 'rgba(250,248,255,1)', warm: null, vig: 0.3 },
     dusk: { mul: 'rgba(200,170,190,.9)', warm: 'rgba(60,30,20,.08)', vig: 0.55 }, night: { mul: 'rgba(90,100,150,.95)', warm: null, vig: 0.7 } };
-  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights) {
+  // fx(stage), if given, paints the map's weather (js/weather.js): stage 0 under the lamps, stage 1 over them, both
+  // under the vignette.
+  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights, fx) {
     const ph = PHASE[phase] || PHASE.day;
     ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = ph.mul; ctx.fillRect(0, 0, vw, vh);
+    if (fx) { ctx.globalCompositeOperation = 'source-over'; fx(0); }
     ctx.globalCompositeOperation = 'lighter';
     if (ph.warm) { ctx.fillStyle = ph.warm; ctx.fillRect(0, 0, vw, vh); }
     (lights || []).forEach(([x, y, r, rgb, flick]) => {
@@ -265,15 +268,10 @@
       ctx.fillStyle = gr; ctx.fillRect(X - R, Y - R, R * 2, R * 2);
     });
     ctx.globalCompositeOperation = 'source-over';
-    // Snow in the high passes: a few flakes drifting across the screen.
-    if (phase !== 'night') for (let i = 0; i < 0; i++) { /* reserved */ }
+    if (fx) fx(1);
     const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.35, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
     vg.addColorStop(0, 'rgba(10,8,18,0)'); vg.addColorStop(1, `rgba(8,6,14,${ph.vig})`);
     ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);
-  };
-  A.snow = function (ctx, t, vw, vh) {
-    ctx.fillStyle = 'rgba(255,255,255,.7)';
-    for (let i = 0; i < 40; i++) { const h = hash(i, 7), x = ((h % 1000) / 1000 * vw + t * (12 + h % 9)) % vw, y = (((h >> 10) % 1000) / 1000 * vh + t * (24 + h % 13)) % vh; ctx.fillRect(x, y, 2, 2); }
   };
 
   // ---------- The new faces, in the visual novel ----------

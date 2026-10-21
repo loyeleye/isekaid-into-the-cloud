@@ -173,12 +173,12 @@
 .vc-stamp { position: absolute; right: 10px; bottom: 54px; padding: 6px 12px; font: 800 clamp(20px, 5.5vw, 28px) ui-monospace, monospace; color: #c0202e; border: 4px solid #c0202e; border-radius: 4px; transform: rotate(-12deg) scale(2.6); opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
 .vc-stamp.on { animation: vcStamp .28s cubic-bezier(.3, 1.6, .5, 1) forwards; }
 @keyframes vcStamp { to { transform: rotate(-12deg) scale(1); opacity: .88; } }
-.vc-card .vc-go, .vf-keep { grid-column: 1 / -1; justify-self: end; padding: 9px 18px; font: 700 14px Nunito, sans-serif; color: #fff; background: #2b2340; border: 0; border-radius: 6px; cursor: pointer; }
+.vc-card .vc-go, .vf-keep { grid-column: 1 / -1; justify-self: end; min-height: 44px; padding: 9px 18px; font: 700 14px Nunito, sans-serif; color: #fff; background: #2b2340; border: 0; border-radius: 6px; cursor: pointer; }
 .vc-card .vc-go[disabled] { opacity: .35; }
 .vf-head { margin: 0 0 10px; padding: 12px 14px; color: #e9e6f2; background: rgba(8,7,14,.88); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; font: 600 14px/1.4 Nunito, sans-serif; text-align: left; }
 .vf-head b { display: block; font: 700 15px Cinzel, serif; letter-spacing: .08em; margin-bottom: 2px; }
 .vf-file { display: block; width: 100%; margin: 0 0 8px; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; color: #2b2340; }
-.vf-tab { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: linear-gradient(180deg, #e2cf9a, #d4ba7c); border-radius: 8px 8px 8px 8px; box-shadow: 0 3px 0 rgba(0,0,0,.35); font: 700 16px Cinzel, serif; }
+.vf-tab { display: flex; justify-content: space-between; align-items: center; min-height: 44px; box-sizing: border-box; padding: 10px 14px; background: linear-gradient(180deg, #e2cf9a, #d4ba7c); border-radius: 8px 8px 8px 8px; box-shadow: 0 3px 0 rgba(0,0,0,.35); font: 700 16px Cinzel, serif; }
 .vf-tab small { font: 700 11px ui-monospace, monospace; color: #8a2a34; }
 .vf-file.open .vf-tab { border-radius: 8px 8px 0 0; }
 .vf-body { display: none; grid-template-columns: 30% 1fr; gap: 12px; padding: 12px 14px 14px; background: #ecdfba; border-radius: 0 0 8px 8px; font: 600 14px/1.35 Nunito, sans-serif; }
@@ -313,7 +313,7 @@
   function skipButton() {
     const b = document.createElement('button');
     b.id = 'op-skip'; b.type = 'button'; b.textContent = 'Skip intro ⏭';
-    b.style.cssText = 'position:fixed;top:max(10px, env(safe-area-inset-top));right:10px;z-index:41;font:600 13px Nunito,sans-serif;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.45);color:#e9e6f2;cursor:pointer';
+    b.style.cssText = 'position:fixed;top:max(10px, env(safe-area-inset-top));right:10px;z-index:41;font:600 13px Nunito,sans-serif;min-height:44px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.45);color:#e9e6f2;cursor:pointer';
     b.onclick = e => { e.stopPropagation(); b.remove(); const k = document.querySelector('#vn .vn-skip'); if (k) k.click(); };
     document.body.appendChild(b);
     return b;

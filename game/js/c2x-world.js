@@ -130,6 +130,22 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By room (js/weather.js): embers off the camp's fire; dust hanging in the Dead Letter Office's lamplight; a cold
+  // drizzle over the Inquisition's square, rippling on the river and the flagstones; and Thornwick under the same
+  // heavy cloud as in part 1. The drizzle is the only one you hear (js/audio.js SKY), set every frame in tick().
+  const WX = SD.wx;
+  const wet = (x, y) => { const ch = sc.def.map[y] && sc.def.map[y][x]; return !!ch && ch !== 'T' && ch !== '#' && ch !== 'V'; };
+  function weather(stage) {
+    const r = roomAt(sc.P ? sc.P.x : 0), cloud = WX.ease('c2xcloud', r === 'town' ? 1 : 0, 0.6), rain = WX.ease('c2xrain', r === 'square' ? 1 : 0);
+    if (stage === 0) { WX.overcast(cloud); WX.wash('multiply', 'rgb(150,160,190)', 0.3 * rain); return; }
+    if (r === 'camp') WX.embers(12.5, 16.6, 1, 12);
+    WX.motes(WX.ease('c2xmotes', r === 'office' ? 1 : 0), 'rgb(255,220,150)', 22);
+    WX.rain(rain * 0.6, wet);
+    WX.cover(cloud);
+  }
+
   const trail = [];
   const solidNow = () => 'TV#~' + (sv().compass ? '' : 'H');
   const phase = () => ({ camp: flag('uptima') && !flag('prayer') ? 'dusk' : 'night', office: 'night', square: 'day', town: 'morning' })[roomAt(sc && sc.P ? sc.P.x : 0)];
@@ -153,7 +169,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'lift', X: 'office', Y: 'stair' }, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false, WX && weather); },
       ambience: () => (sc && sc.P && Math.abs(sc.P.x - 12) + Math.abs(sc.P.y - 16) < 6) ? 'fire' : zone && zone[0] === 'town' ? 'post' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         const comp = !!sv().compass;
@@ -234,6 +250,7 @@
   // ---------- Every frame ----------
   function tick() {
     const P = sc.P; if (!P) return;
+    AU.weather(roomAt(P.x) === 'square' ? 'drizzle' : null);
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
       if (lastTile) { const [x, y] = lastTile.split(',').map(Number); if (Math.abs(x - P.x) + Math.abs(y - P.y) <= 1) trail.unshift([x, y]); else trail.length = 0; trail.length = Math.min(trail.length, 6); }

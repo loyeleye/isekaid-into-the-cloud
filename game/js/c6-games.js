@@ -20,18 +20,18 @@
   css.textContent = `
 .g6 { text-align: left; }
 .g6-rule { font: 12px/1.45 ui-monospace, monospace; color: #bfe6ff; background: #1c2a3a; border-radius: 6px; padding: 6px 8px; margin: 0 0 8px; white-space: pre-wrap; overflow-x: auto; }
-.g6-note { min-height: 1.4em; margin: 8px 0 0; } .g6-note.ok { color: #1d7a43; } .g6-note.bad { color: #b02a3a; }
+.g6-note { min-height: 1.4em; margin: 8px 0 0; } .g6-note.ok { color: #17582d; } .g6-note.bad { color: #9a1f30; }
 .g6-predict { border-left: 3px solid #2c6a8a; padding-left: 10px; margin-bottom: 10px; }
-.g6-predict b { color: #2c6a8a; font-size: 12px; letter-spacing: .06em; }
+.g6-predict b { color: #1f4f6a; font-size: 12px; letter-spacing: .06em; }
 .g6 .opts.col { display: flex; flex-direction: column; gap: 8px; } .g6 .opts.col .opt { text-align: left; min-height: 44px; }
 .g6-field { margin: 8px 0; } .g6-field > b { display: block; font-size: 12px; color: #5a5468; letter-spacing: .04em; margin-bottom: 4px; }
 .g6-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.g6-chips button { min-height: 44px; padding: 6px 10px; font: 13px ui-monospace, monospace; }
+.g6-chips button { min-height: 44px; min-width: 44px; padding: 6px 10px; font: 13px ui-monospace, monospace; }
 .g6-chips button.on, .g6-row button.on, .g6-line.on { background: var(--blue); color: #fff; }
 .g6-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.1); }
 .g6-row > span { flex: 1 1 100%; font-size: 14px; }
 .g6-row button { min-height: 44px; padding: 6px 10px; font-size: 13px; flex: 1 1 auto; }
-.g6-row .why, .g6-lines .why { flex-basis: 100%; font-size: 12px; margin: 2px 0 0; } .g6 .why.ok { color: #1d7a43; } .g6 .why.bad { color: #b02a3a; }
+.g6-row .why, .g6-lines .why { flex-basis: 100%; font-size: 12px; margin: 2px 0 0; } .g6 .why.ok { color: #17582d; } .g6 .why.bad { color: #9a1f30; }
 .g6-row.done button { opacity: .55; }
 .g6-steps { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .g6-steps button { min-height: 44px; text-align: left; }
@@ -40,8 +40,10 @@
 .g6-done li::before { content: counter(s); position: absolute; left: 0; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #2c6a8a; color: #fff; font: 700 11px/18px sans-serif; text-align: center; }
 .g6-lines { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .g6-line { min-height: 44px; text-align: left; font: 13px/1.35 ui-monospace, monospace; display: flex; justify-content: space-between; gap: 10px; }
-.g6-line i { font-style: normal; color: #8a5a00; white-space: nowrap; } .g6-line.on i { color: #fff; }
+.g6-line i { font-style: normal; color: #6e4700; white-space: nowrap; } .g6-line.on i { color: #fff; }
 .g6-line.gone { text-decoration: line-through; opacity: .6; }
+/* After a pick, the right answer stays solid with a green edge, so you can see which it was. */
+.g6 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
 .g6-count { font-size: 12px; color: #5a5468; }
 `;
   document.head.appendChild(css);

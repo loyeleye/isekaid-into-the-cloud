@@ -137,6 +137,24 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By zone (js/weather.js): a drizzle over the Arcanum's city, rippling on the cobbles; sparks off the Workshops'
+  // forge and a little soot in the air; dust hanging in the undercroft's green lamplight; and embers off the camp's
+  // fire. The drizzle is what you hear (js/audio.js SKY); the forge and the undercroft have their own place sounds.
+  const WX = SD.wx;
+  const zk = () => (zone ? zone[4] : null);
+  const wet = (x, y) => { const ch = sc.def.map[y] && sc.def.map[y][x]; return !!ch && ch !== 'T' && ch !== '#' && ch !== 'V' && ch !== 'G'; };
+  function weather(stage) {
+    const z = zk(), rain = WX.ease('c5rain', z === 'city' ? 1 : 0);
+    if (stage === 0) { WX.wash('multiply', 'rgb(160,168,196)', 0.28 * rain); return; }
+    WX.embers(7.5, 12.5, 1, 12);
+    if (z === 'shops') WX.embers(53.5, 5, 1, 16);
+    WX.ash(WX.ease('c5soot', z === 'shops' ? 0.35 : 0));
+    WX.motes(WX.ease('c5motes', z === 'under' ? 1 : 0), 'rgb(170,236,190)', 22);
+    WX.rain(rain * 0.55, wet);
+  }
+
   const trail = [];
   const solidNow = () => 'TG#V';
   function phase() {
@@ -170,7 +188,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'up', M: 'down', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#100e1c', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights()),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -264,6 +282,7 @@
   // ---------- Every frame ----------
   function tick() {
     const P = sc.P; if (!P) return;
+    AU.weather(zk() === 'city' ? 'drizzle' : null);
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
       if (lastTile) { const [x, y] = lastTile.split(',').map(Number); trail.unshift([x, y]); trail.length = Math.min(trail.length, 6); }
