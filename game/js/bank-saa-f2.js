@@ -78,10 +78,10 @@ SD.bank.push(
   { id: "saa-4-434", exam: "SAA", saa: "4.2", topic: "wellarchitected", type: "multi", hint: "Select TWO.",
     q: "A company's cloud center of excellence has 30 internal cost rules, such as every non-production workload having a documented shutdown schedule and an owner who reviews its commitment coverage each quarter. Teams in 50 accounts in one OU must review their workloads against these rules and the AWS Well-Architected Framework, and leadership wants to see each workload's progress over time. Which steps meet these requirements? (Select TWO.)",
     items: [
-      { t: "Create a custom lens in the AWS Well-Architected Tool with the rules as questions and best practices, publish it, and share it with the OU.", ok: true },
-      { t: "Have each team define its workload in the tool, apply the Framework lens and the custom lens, and save a milestone after each round of fixes.", ok: true },
-      { t: "Deploy an AWS Config conformance pack to the OU with a rule for each of the 30 cost rules, and report its compliance score.", ok: false, no: "Config rules evaluate resource settings. They can't tell whether a schedule is documented or whether an owner holds quarterly reviews." },
-      { t: "Turn on Trusted Advisor organizational view, and have teams answer the 30 rules in the notes field of its cost checks.", ok: false, no: "Trusted Advisor runs a fixed set of AWS checks. It can't hold custom review questions or track a workload's answers over time." },
+      { t: "Create a custom lens in the AWS Well-Architected Tool with the rules as questions and best practices, publish and share it with the OU.", ok: true },
+      { t: "Have each team define its workload, apply the Framework lens and the custom lens, and save a milestone after each round of fixes.", ok: true },
+      { t: "Deploy an AWS Config conformance pack to the OU with one rule for each of the 30 cost rules, and report its compliance score.", ok: false, no: "Config rules evaluate resource settings. They can't tell whether a schedule is documented or whether an owner holds quarterly reviews." },
+      { t: "Turn on Trusted Advisor organizational view, and have teams answer the 30 rules in the notes field of its cost optimization checks.", ok: false, no: "Trusted Advisor runs a fixed set of AWS checks. It can't hold custom review questions or track a workload's answers over time." },
       { t: "Enable AWS Control Tower proactive controls on the OU that block CloudFormation resources breaking any of the cost rules.", ok: false, no: "Proactive controls check resources before CloudFormation deploys them. They don't review documented processes or record progress." }
     ],
     why: "A custom lens holds your own pillars, questions and best practices, and can be shared with accounts, an organization or OUs. Workloads apply it alongside AWS lenses, and milestones record each workload's state so progress can be compared over time.",

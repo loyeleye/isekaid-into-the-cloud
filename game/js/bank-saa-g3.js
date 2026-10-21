@@ -9,9 +9,9 @@ SD.bank.push(
     items: [
       { t: "At site A, deploy a Volume Gateway with stored volumes, so all data stays local and snapshots go to AWS.", ok: true },
       { t: "At site B, deploy a Volume Gateway with cached volumes, so data lives in AWS and hot data is cached locally.", ok: true },
-      { t: "At site A, deploy an S3 File Gateway, and mount its NFS file share on the database server.", ok: false, no: "S3 File Gateway serves files over NFS or SMB, not iSCSI block volumes, and only a cache of the data is local." },
-      { t: "At site B, deploy a Tape Gateway, and present its virtual tapes to the servers as their disks.", ok: false, no: "Tape Gateway presents a virtual tape library for backup software. Servers can't use tapes as live block storage." },
-      { t: "At site A, deploy a Volume Gateway with cached volumes, and size the cache disk for the hot data.", ok: false, no: "Cached volumes keep the primary copy in S3 and only frequently used data locally, so the whole dataset wouldn't be local." }
+      { t: "At site A, deploy an S3 File Gateway, and mount its NFS file share on the database server for the dataset.", ok: false, no: "S3 File Gateway serves files over NFS or SMB, not iSCSI block volumes, and only a cache of the data is local." },
+      { t: "At site B, deploy a Tape Gateway, and present its virtual tapes to the servers over iSCSI as their disks.", ok: false, no: "Tape Gateway presents a virtual tape library for backup software. Servers can't use tapes as live block storage." },
+      { t: "At site A, deploy a Volume Gateway with cached volumes, and size its local cache disk for the hot data.", ok: false, no: "Cached volumes keep the primary copy in S3 and only frequently used data locally, so the whole dataset wouldn't be local." }
     ],
     why: "Volume Gateway serves iSCSI volumes. Stored volumes keep the full dataset on premises for low-latency access and back up point-in-time snapshots to AWS. Cached volumes keep the data in S3 and retain only frequently accessed data locally, which cuts on-premises storage.",
     doc: ["https://docs.aws.amazon.com/storagegateway/latest/vgw/WhatIsStorageGateway.html"] },

@@ -179,10 +179,10 @@ SD.bank.push(
   { id: "saa-1-213", exam: "SAA", saa: "1.2", topic: "inspector", type: "mc",
     q: "A company deploys hundreds of Lambda functions as .zip packages. Security must be told when a function's third-party libraries have a known vulnerability, including CVEs published after deployment, and when the company's own code has flaws such as injection or hardcoded credentials. The solution must use a managed service with the LEAST operational overhead. What should a solutions architect recommend?",
     opts: [
-      "Activate Amazon Inspector Lambda standard scanning and Lambda code scanning in the accounts.",
-      "Turn on GuardDuty Lambda Protection, so that it inspects the function code and libraries for known vulnerabilities.",
-      "Turn on Amazon ECR enhanced scanning, and rely on it to scan the deployment packages of all of the Lambda functions.",
-      "Turn on Security Hub CSPM with the Foundational Security Best Practices standard to scan the code of each function."
+      "Activate Amazon Inspector Lambda standard scanning and Lambda code scanning in all of the accounts.",
+      "Turn on GuardDuty Lambda Protection, so it inspects function code and libraries for known vulnerabilities.",
+      "Turn on Amazon ECR enhanced scanning, and rely on it to scan the Lambda functions' deployment packages.",
+      "Turn on Security Hub CSPM's Foundational Security Best Practices standard to scan each function's code."
     ], a: 0,
     no: [null,
       "Lambda Protection monitors the functions' network activity for threats. It doesn't analyze code or packages.",

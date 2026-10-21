@@ -224,7 +224,7 @@ SD.bank.push(
   { id: "saa-3-01", exam: "SAA", saa: "3.1", topic: "efs", type: "mc",
     q: "A content management system runs on Linux EC2 instances in three Availability Zones. Every instance must read and write the same files at the same time, and storage should grow on its own. Which storage should a solutions architect use?",
     opts: [
-      "Amazon EFS, mounted on every instance.",
+      "An Amazon EFS file system, mounted on every instance in each AZ.",
       "One EBS volume with Multi-Attach, attached to every instance.",
       "Instance store volumes, kept in sync between instances by a cron job.",
       "An S3 bucket, copied to each instance's disk by a script every minute."
@@ -316,9 +316,9 @@ SD.bank.push(
     items: [
       { t: "Turn on S3 Transfer Acceleration, and have clients use the bucket's accelerate endpoint.", ok: true },
       { t: "Use multipart upload, so parts go in parallel and a failed part can be retried on its own.", ok: true },
-      { t: "Move the uploaded objects to the S3 One Zone-IA storage class as they arrive.", ok: false, no: "Storage classes change cost and resilience, not upload speed." },
-      { t: "Request a higher S3 request rate quota for the bucket through Service Quotas.", ok: false, no: "The problem is distance and very large single uploads, not the request rate." },
-      { t: "Turn on S3 Versioning for the bucket, so that a failed upload can be resumed.", ok: false, no: "Versioning keeps earlier versions of objects. It doesn't resume uploads." }
+      { t: "Move the uploaded objects to the S3 One Zone-IA storage class as soon as they arrive.", ok: false, no: "Storage classes change cost and resilience, not upload speed." },
+      { t: "Request a higher S3 request rate quota for the bucket through the Service Quotas console.", ok: false, no: "The problem is distance and very large single uploads, not the request rate." },
+      { t: "Turn on S3 Versioning for the bucket, so that a failed upload can be resumed from where it stopped.", ok: false, no: "Versioning keeps earlier versions of objects. It doesn't resume uploads." }
     ],
     why: "Transfer Acceleration routes uploads through the nearest edge location and over the AWS network. Multipart upload splits big files into parts that upload in parallel and retry on their own.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html"] },
@@ -393,9 +393,9 @@ SD.bank.push(
     q: "A development VPC spans three Availability Zones, with a NAT gateway in each. The developers can live without outbound internet access if one AZ fails, and the company wants to cut costs. What should a solutions architect do?",
     opts: [
       "Keep one zonal NAT gateway, and route every private subnet's outbound internet traffic to it.",
-      "Attach an internet gateway to each private subnet in place of its NAT gateway.",
-      "Peer the VPC with the production VPC, and send traffic through its NAT gateways.",
-      "Keep all three NAT gateways, and stop them each evening outside office hours."
+      "Route each private subnet's internet traffic to an internet gateway instead of its NAT gateway.",
+      "Peer the VPC with the production VPC, and send outbound traffic through its NAT gateways.",
+      "Keep all three NAT gateways, and stop them each evening outside the developers' office hours."
     ], a: 0,
     no: [null,
       "Instances without public IP addresses can't use an internet gateway, and the subnets would no longer be private.",

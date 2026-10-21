@@ -190,9 +190,9 @@ SD.bank.push(
     q: "A company has just set up an AWS Control Tower landing zone in its existing organization. An OU named Legacy holds 40 accounts that were created years ago and run production workloads. All of them must get the landing zone's baseline and the controls that are turned on for that OU. Which solution meets these requirements with the LEAST operational effort?",
     opts: [
       "Register the Legacy OU with AWS Control Tower, so that its member accounts are enrolled in the landing zone.",
-      "Create 40 new accounts through Account Factory, and migrate each production workload from its old account into one of the new accounts.",
-      "Attach the same SCPs that the landing zone uses to the Legacy OU in AWS Organizations, leaving the accounts outside Control Tower.",
-      "Deploy the landing zone's AWS Config rules to the 40 accounts with CloudFormation StackSets, and review their findings each week."
+      "Create 40 new accounts through Account Factory, and migrate each production workload into one of them.",
+      "Attach the landing zone's SCPs to the Legacy OU in AWS Organizations, leaving the accounts outside Control Tower.",
+      "Deploy the landing zone's AWS Config rules to the 40 accounts with StackSets, and review their findings each week."
     ], a: 0,
     no: [null,
       "Moving 40 production workloads is a large migration when the existing accounts can be enrolled in place.",

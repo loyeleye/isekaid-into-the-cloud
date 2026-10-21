@@ -79,7 +79,7 @@ SD.bank.push(
   { id: "saa-4-206", exam: "SAA", saa: "4.1", topic: "ebs", type: "mc",
     q: "A vendor app on one EC2 instance keeps 12 TiB of scanned contracts on a gp3 data volume, and the vendor requires the data to stay on an attached block volume. The app reads large files from start to finish only a few times a month, and slower reads are acceptable. The boot volume is a 50 GiB gp3 volume. Which change lowers storage cost the MOST?",
     opts: [
-      "Change the data volume to Cold HDD (sc1), and leave the boot volume on gp3.",
+      "Change the data volume to Cold HDD (sc1) with Elastic Volumes, and keep the boot volume on gp3.",
       "Change the data volume to Throughput Optimized HDD (st1), and leave the boot volume on gp3.",
       "Change both the data volume and the boot volume to Cold HDD (sc1) with Elastic Volumes.",
       "Move the data to S3 Glacier Instant Retrieval, and have the app read the files from there."
@@ -109,10 +109,10 @@ SD.bank.push(
   { id: "saa-4-208", exam: "SAA", saa: "4.1", topic: "billing", type: "mc",
     q: "A company runs six standalone AWS accounts that are not in any organization. Each account stores about 300 TB in S3 Standard, and the data is read constantly, so it must stay in S3 Standard. Finance wants one invoice and lower per-GB storage rates, without moving any data between accounts. What should a solutions architect do?",
     opts: [
-      "Create an organization in AWS Organizations, and invite the six accounts to join it.",
-      "Copy all the data into buckets in one account so that its S3 usage reaches the lower-priced storage tiers.",
-      "Buy a three-year Savings Plan in each account that covers the S3 Standard storage that the account uses.",
-      "Turn on Requester Pays for the buckets in each account so that the readers pay part of the storage costs."
+      "Create an organization in AWS Organizations, and invite the six accounts to join it as members.",
+      "Copy all the data into buckets in one account, so its S3 usage reaches the lower-priced tiers.",
+      "Buy a three-year Savings Plan in each account to cover the account's S3 Standard storage.",
+      "Turn on Requester Pays for each account's buckets, so readers pay part of the storage costs."
     ], a: 0,
     no: [null,
       "This also combines usage, but it means moving 1.8 PB of data, which the company wants to avoid.",
@@ -171,10 +171,10 @@ SD.bank.push(
     q: "An Amazon ECS cluster runs many services on an Auto Scaling group of 20 EC2 instances that stays at a fixed size. The services use a task placement strategy that spreads tasks across instances, and on average only 35 percent of the cluster's reserved CPU and memory is in use. The company wants to cut costs and keep running on EC2. Which steps should a solutions architect take? (Select TWO.)",
     items: [
       { t: "Change the services' placement strategy to binpack on memory, so tasks fill instances before new ones are used.", ok: true },
-      { t: "Attach the Auto Scaling group as a capacity provider with managed scaling, so ECS adds and removes instances as needed.", ok: true },
+      { t: "Attach the Auto Scaling group as a capacity provider with managed scaling, so ECS adds and removes instances.", ok: true },
       { t: "Change the placement strategy to spread on instance ID, so tasks are spread evenly over every instance.", ok: false, no: "Spreading over every instance keeps all of them partly used, which is the waste the company wants to remove." },
-      { t: "Raise each task definition's CPU and memory reservations, so the cluster's reported usage goes up.", ok: false, no: "Bigger reservations waste more capacity per task and need more instances, not fewer." },
-      { t: "Change the placement strategy to random, so ECS can choose any instance that has room for the task.", ok: false, no: "Random placement doesn't try to minimize the number of instances in use." }
+      { t: "Raise each task definition's CPU and memory reservations, so that the cluster's reported usage goes up.", ok: false, no: "Bigger reservations waste more capacity per task and need more instances, not fewer." },
+      { t: "Change the placement strategy to random, so ECS can choose any instance that has room for each new task.", ok: false, no: "Random placement doesn't try to minimize the number of instances in use." }
     ],
     why: "The binpack strategy places tasks to leave the least unused CPU or memory, which minimizes the number of instances in use. Capacity provider managed scaling then scales the Auto Scaling group in and out to match what the tasks need.",
     doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement-strategies.html", "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cluster-auto-scaling.html"] },
@@ -212,10 +212,10 @@ SD.bank.push(
   { id: "saa-4-215", exam: "SAA", saa: "4.2", topic: "elb", type: "mc",
     q: "A company runs 15 small internal HTTPS web apps, each on its own EC2 instances behind its own Application Load Balancer. Each app has its own host name under example.com and gets little traffic, so the load balancers' hourly charges are now a large share of the bill. Which change reduces costs the MOST while keeping HTTPS and the host names?",
     opts: [
-      "Use one ALB with a host-header rule per app that forwards to that app's target group, with the certificates on its listener.",
-      "Replace each ALB with a Network Load Balancer, and pass the TLS traffic through to the instances.",
-      "Use one Network Load Balancer with a TLS listener, and route each host name to its app's instances.",
-      "Use one Gateway Load Balancer for all the apps, and route each request to the app's instances by host."
+      "Use one ALB with a host-header listener rule for each app, and add every app's certificate to its HTTPS listener.",
+      "Replace each ALB with a Network Load Balancer, and pass the TLS traffic through to each app's own instances.",
+      "Use one Network Load Balancer with a TLS listener, and route each host name to its app's instances by SNI.",
+      "Use one Gateway Load Balancer for all the apps, and route each HTTPS request to the app's instances by host."
     ], a: 0,
     no: [null,
       "There would still be 15 load balancers, each billed for every hour it runs.",
@@ -323,9 +323,9 @@ SD.bank.push(
     items: [
       { t: "Replace the script with an Amazon Data Lifecycle Manager policy that takes snapshots once every 24 hours.", ok: true },
       { t: "Give the policy count-based retention of 14 snapshots, and delete the older snapshots the script made.", ok: true },
-      { t: "Move every daily snapshot to the EBS Snapshots Archive tier as soon as it has been created.", ok: false, no: "Archived snapshots become full copies with a 90-day minimum and take hours to restore. The tier is for long-term retention." },
-      { t: "Keep only the newest snapshot, because each EBS snapshot is a full copy of the volume's data.", ok: false, no: "Snapshots are incremental, and keeping only one breaks the two-week restore window." },
-      { t: "Turn on fast snapshot restore for every new snapshot so that each one can be restored sooner.", ok: false, no: "Fast snapshot restore adds a charge for every hour it is enabled. It raises costs." }
+      { t: "Move every daily snapshot to the EBS Snapshots Archive tier as soon as the policy has created it.", ok: false, no: "Archived snapshots become full copies with a 90-day minimum and take hours to restore. The tier is for long-term retention." },
+      { t: "Keep only the newest snapshot, because each EBS snapshot is a full copy of all of the volume's data.", ok: false, no: "Snapshots are incremental, and keeping only one breaks the two-week restore window." },
+      { t: "Turn on fast snapshot restore for every new snapshot, so that each one can be restored more quickly.", ok: false, no: "Fast snapshot restore adds a charge for every hour it is enabled. It raises costs." }
     ],
     why: "Snapshot frequency should match the RPO, and retention should match how far back restores are needed. Data Lifecycle Manager creates snapshots on a schedule and deletes the oldest when the retention count is reached.",
     doc: ["https://docs.aws.amazon.com/ebs/latest/userguide/snapshot-ami-policy.html", "https://docs.aws.amazon.com/ebs/latest/userguide/snapshot-archive.html"] },
@@ -403,8 +403,8 @@ SD.bank.push(
   { id: "saa-4-229", exam: "SAA", saa: "4.4", topic: "transitgateway", type: "multi", hint: "Select TWO.",
     q: "A company connects 40 VPCs and its on-premises network through a transit gateway. Two of the VPCs, in the same Region, exchange about 500 TB a month, and transit gateway data processing charges for that traffic dominate the network bill. All other traffic must keep using the transit gateway. Which steps reduce costs the MOST? (Select TWO.)",
     items: [
-      { t: "Create a VPC peering connection between the two VPCs.", ok: true },
-      { t: "In both VPCs' route tables, add a route for the other VPC's CIDR range that points to the peering connection.", ok: true },
+      { t: "Create a VPC peering connection between the two VPCs, and accept the request from the other VPC.", ok: true },
+      { t: "In both VPCs' route tables, add a route to the other VPC's CIDR range through the peering connection.", ok: true },
       { t: "Replace the transit gateway with a full mesh of VPC peering connections between all 40 VPCs.", ok: false, no: "That needs 780 connections, and peering can't carry the other VPCs' traffic to on premises." },
       { t: "Expose the services in one VPC through an endpoint service, and reach them through PrivateLink endpoints.", ok: false, no: "Interface endpoints add hourly and per-GB processing charges of their own." },
       { t: "Attach the two VPCs to a second transit gateway that only connects the two of them.", ok: false, no: "Traffic through any transit gateway is still charged per GB processed." }

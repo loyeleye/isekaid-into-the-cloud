@@ -121,9 +121,9 @@ SD.bank.push(
     q: "A company is moving a sharded MongoDB cluster that holds hundreds of millions of user profiles to a managed AWS database. Peak traffic reaches millions of writes per second, more than any single writer instance can handle, and the data will grow to petabytes. The application must keep using the MongoDB API, and the team doesn't want to choose or patch instances. Which solution meets these requirements?",
     opts: [
       "Migrate to an Amazon DocumentDB elastic cluster, and shard the profile collections on a high-cardinality shard key.",
-      "Migrate to an Amazon DocumentDB instance-based cluster on the largest instance class, and add 15 replicas to spread the traffic load.",
-      "Migrate to an Amazon DocumentDB global cluster with secondary clusters in several Regions, and send writes to the nearest secondary cluster.",
-      "Migrate to Amazon Keyspaces (for Apache Cassandra) in on-demand mode, and store each profile as a row keyed by the profile's user ID."
+      "Migrate to a DocumentDB instance-based cluster on the largest instance class, with 15 replicas to spread the load.",
+      "Migrate to a DocumentDB global cluster with secondary clusters in several Regions, writing to the nearest one.",
+      "Migrate to Amazon Keyspaces (for Apache Cassandra) in on-demand mode, with each profile as a row keyed by user ID."
     ], a: 0,
     no: [null,
       "An instance-based cluster has one writer, and replicas only serve reads, so the write peak still exceeds what one instance can take.",

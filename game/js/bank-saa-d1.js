@@ -89,10 +89,10 @@ SD.bank.push(
     q: "A company is moving an app to Amazon EC2 instances that run Linux. The security team is writing down which tasks it owns under the AWS shared responsibility model. Which tasks are the company's responsibility? (Select TWO.)",
     items: [
       { t: "Install security patches for the Linux guest operating system and the app's software packages on the instances.", ok: true },
-      { t: "Configure the security groups attached to the instances so that only the needed ports are open to the right sources.", ok: true },
-      { t: "Patch the hypervisor and the host operating system of the physical servers that run the EC2 instances.", ok: false, no: "AWS operates the host operating system and the virtualization layer for EC2." },
+      { t: "Configure the instances' security groups so that only the needed ports are open, and only to the right sources.", ok: true },
+      { t: "Patch the hypervisor and the host operating system of the physical servers that run the company's EC2 instances.", ok: false, no: "AWS operates the host operating system and the virtualization layer for EC2." },
       { t: "Control physical access to the data centers and replace failed disks and servers in the underlying hardware.", ok: false, no: "Physical security and hardware are AWS's side of the model." },
-      { t: "Maintain the global network that links the AWS Regions and Availability Zones the instances run in.", ok: false, no: "The infrastructure that runs AWS services, including its networking, is AWS's responsibility." }
+      { t: "Maintain the global network that links the AWS Regions and Availability Zones that the instances run in.", ok: false, no: "The infrastructure that runs AWS services, including its networking, is AWS's responsibility." }
     ],
     why: "For EC2, AWS manages everything from the host operating system and virtualization layer down to the facilities. The customer manages the guest operating system, its patches, the application and the security group configuration.",
     doc: ["https://docs.aws.amazon.com/whitepapers/latest/aws-risk-and-compliance/shared-responsibility-model.html"] },
@@ -128,9 +128,9 @@ SD.bank.push(
     q: "A company with 60 accounts in AWS Organizations is worried that S3 buckets, KMS keys and IAM roles have been shared with AWS accounts outside the company over the years. It wants a continuous report of every resource that grants access to a principal outside the organization. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
       "Create an IAM Access Analyzer external access analyzer with the organization as its zone of trust.",
-      "Turn on Amazon Macie in every account, and review its findings about buckets that hold sensitive data shared outside.",
-      "Write a Lambda function that reads every resource policy in every account each night and flags unknown account IDs.",
-      "Turn on Amazon GuardDuty in every account, and filter its findings for API calls made by principals from outside."
+      "Turn on Amazon Macie in every account, and review its findings about buckets shared outside the company.",
+      "Write a Lambda function that reads every resource policy each night and flags unknown account IDs.",
+      "Turn on Amazon GuardDuty in every account, and filter its findings for calls from outside principals."
     ], a: 0,
     no: [null,
       "Macie looks at S3 data and bucket settings. It doesn't cover KMS keys or IAM role trust policies.",
@@ -231,9 +231,9 @@ SD.bank.push(
     q: "A company has 30 accounts in AWS Organizations, and teams create new Application Load Balancers every week. Security requires that every ALB in every account, including accounts added later, use a baseline set of AWS WAF rules. Which solution meets these requirements with the LEAST operational overhead?",
     opts: [
       "Create an AWS Firewall Manager WAF policy scoped to Application Load Balancers across the organization.",
-      "Deploy a web ACL to each account with CloudFormation StackSets, and ask every team to associate it with each new ALB they create.",
-      "Subscribe each account to AWS Shield Advanced, which applies AWS WAF managed rules to every load balancer in the account for free.",
-      "Attach an SCP to the organization root that requires every new Application Load Balancer to have a WAF web ACL associated with it."
+      "Deploy a web ACL to each account with CloudFormation StackSets, and have teams associate it with new ALBs.",
+      "Subscribe each account to AWS Shield Advanced, which applies AWS WAF managed rules to every load balancer.",
+      "Attach an SCP to the organization root that requires every new ALB to have a WAF web ACL associated."
     ], a: 0,
     no: [null,
       "Teams must remember to associate the web ACL with every new ALB, and any they miss stay unprotected.",

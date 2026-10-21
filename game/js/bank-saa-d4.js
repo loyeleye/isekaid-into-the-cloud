@@ -52,11 +52,11 @@ SD.bank.push(
   { id: "saa-4-104", exam: "SAA", saa: "4.1", topic: "s3", type: "multi", hint: "Select TWO.",
     q: "A company has more than 300 S3 buckets across the accounts in its organization. The S3 bill keeps rising even though the amount of current data is flat. The team suspects abandoned multipart uploads and old object versions in versioned buckets, and wants to find and remove this waste across the organization. Which steps should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Use an S3 Storage Lens dashboard for the organization to find buckets with incomplete multipart upload bytes and noncurrent version bytes.", ok: true },
+      { t: "Use S3 Storage Lens across the organization to find buckets with incomplete multipart upload bytes and noncurrent version bytes.", ok: true },
       { t: "Add lifecycle rules to those buckets that use the AbortIncompleteMultipartUpload and NoncurrentVersionExpiration actions.", ok: true },
-      { t: "Make S3 Intelligent-Tiering the storage class for all new uploads, so that unused data is tiered down.", ok: false, no: "Tiering lowers the price of data that is kept. It doesn't remove unfinished upload parts or old versions." },
-      { t: "Disable S3 Versioning on the versioned buckets, so that their old object versions are removed.", ok: false, no: "Versioning can only be suspended, and suspending it keeps every existing version." },
-      { t: "Turn on S3 server access logging for every bucket, and review the logs each month for waste.", ok: false, no: "Access logs list requests, not the bytes held by unfinished uploads or old versions, and reading them is slow manual work." }
+      { t: "Make S3 Intelligent-Tiering the storage class for all new uploads in every bucket, so that unused data is tiered down.", ok: false, no: "Tiering lowers the price of data that is kept. It doesn't remove unfinished upload parts or old versions." },
+      { t: "Disable S3 Versioning on each versioned bucket across the organization, so that their old object versions are removed.", ok: false, no: "Versioning can only be suspended, and suspending it keeps every existing version." },
+      { t: "Turn on S3 server access logging for every bucket, and review the logs each month to find the buckets holding waste.", ok: false, no: "Access logs list requests, not the bytes held by unfinished uploads or old versions, and reading them is slow manual work." }
     ],
     why: "Storage Lens aggregates storage metrics across an organization, including incomplete multipart upload bytes and noncurrent version bytes. Lifecycle rules then abort old incomplete uploads and expire noncurrent versions automatically.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage_lens.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html"] },
@@ -179,11 +179,11 @@ SD.bank.push(
   { id: "saa-4-113", exam: "SAA", saa: "4.2", topic: "autoscaling", type: "multi", hint: "Select TWO.",
     q: "A test environment runs its web tier in an EC2 Auto Scaling group with a minimum of four instances, and its database on a Single-AZ RDS for MySQL DB instance. Testers use it only on weekdays from 8 AM to 6 PM. The company wants to stop paying for idle compute outside those hours, with no manual steps. Which actions should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Add recurring scheduled actions that set the group's capacity to zero each weekday evening and back to four each weekday morning.", ok: true },
+      { t: "Add recurring scheduled actions that set the group's capacity to zero each weekday evening and to four each morning.", ok: true },
       { t: "Use EventBridge Scheduler to stop the DB instance each weekday evening and start it each weekday morning.", ok: true },
-      { t: "Buy Reserved Instances for the four web instances and a reserved DB instance for the database.", ok: false, no: "Reservations bill for every hour of the term, including the nights and weekends nobody uses." },
-      { t: "Add a target tracking policy on CPU use so that the group scales in when the testers go home.", ok: false, no: "Target tracking never takes the group below its minimum of four instances." },
-      { t: "Convert the DB instance to Multi-AZ, so that the standby serves testers while the primary is off.", ok: false, no: "A standby serves no traffic, and Multi-AZ adds the cost of a second instance." }
+      { t: "Buy Reserved Instances for the four web instances, and a reserved DB instance for the MySQL database.", ok: false, no: "Reservations bill for every hour of the term, including the nights and weekends nobody uses." },
+      { t: "Add a target tracking policy on average CPU use, so that the group scales in when the testers go home.", ok: false, no: "Target tracking never takes the group below its minimum of four instances." },
+      { t: "Convert the DB instance to Multi-AZ, so that the standby serves the testers while the primary is stopped.", ok: false, no: "A standby serves no traffic, and Multi-AZ adds the cost of a second instance." }
     ],
     why: "Scheduled actions set an Auto Scaling group's desired, minimum and maximum capacity at set times. A stopped RDS DB instance isn't charged for instance hours, only storage and backups, and it restarts on its own only after 7 days, longer than a weekend.",
     doc: ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scheduled-scaling.html", "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_StopInstance.html"] },
@@ -236,9 +236,9 @@ SD.bank.push(
     items: [
       { t: "Switch the table to provisioned capacity mode, with auto scaling to follow the small daily swings.", ok: true },
       { t: "Purchase DynamoDB reserved capacity for the steady baseline of read and write capacity units.", ok: true },
-      { t: "Change the table class to Standard-IA, so that reads and writes cost less.", ok: false, no: "Standard-IA lowers storage prices but raises read and write prices, and this table's cost is throughput." },
-      { t: "Put a DynamoDB Accelerator (DAX) cluster in front of the table to absorb the writes.", ok: false, no: "DAX caches reads. Writes still go through to the table, and the cluster adds node costs." },
-      { t: "Turn the table into a global table with a replica in a second Region.", ok: false, no: "A replica adds replicated writes and storage in another Region, which raises costs." }
+      { t: "Change the table class to Standard-Infrequent Access (Standard-IA), so that reads and writes cost less.", ok: false, no: "Standard-IA lowers storage prices but raises read and write prices, and this table's cost is throughput." },
+      { t: "Put a DynamoDB Accelerator (DAX) cluster in front of the table to absorb most of the writes.", ok: false, no: "DAX caches reads. Writes still go through to the table, and the cluster adds node costs." },
+      { t: "Turn the table into a global table with a replica in a second Region to share the traffic.", ok: false, no: "A replica adds replicated writes and storage in another Region, which raises costs." }
     ],
     why: "Provisioned capacity costs less than on-demand for steady, predictable traffic, and auto scaling tracks small swings. Reserved capacity, for provisioned tables in the Standard table class, discounts the committed baseline further.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/reserved-capacity.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html"] },
@@ -358,11 +358,11 @@ SD.bank.push(
   { id: "saa-4-126", exam: "SAA", saa: "4.4", topic: "vpc", type: "multi", hint: "Select TWO.",
     q: "An IPv4-only VPC has private subnets in three Availability Zones and a single NAT gateway in AZ A. Instances in all three AZs send large volumes of outbound traffic, mostly to DynamoDB tables in the same Region and the rest to third-party APIs on the internet. Cross-AZ data transfer and NAT processing charges are high, and the instances must stay in all three AZs. Which steps will reduce these costs? (Select TWO.)",
     items: [
-      { t: "Create a NAT gateway in each AZ, and point each private subnet's default route to the NAT gateway in its own AZ.", ok: true },
+      { t: "Create a NAT gateway in each AZ, and point each private subnet's default route at the NAT gateway in its AZ.", ok: true },
       { t: "Create a DynamoDB gateway endpoint, and associate it with the route tables of all the private subnets.", ok: true },
-      { t: "Replace the NAT gateway with a NAT instance in AZ A that is sized for the current traffic volume.", ok: false, no: "Traffic from the other two AZs still crosses AZs to reach it, and the instance must now be managed and scaled." },
-      { t: "Add an egress-only internet gateway, and route the private subnets' outbound traffic through it.", ok: false, no: "An egress-only internet gateway handles only IPv6 traffic, and these instances use IPv4." },
-      { t: "Send the outbound traffic through a transit gateway to a shared egress VPC with one NAT gateway.", ok: false, no: "This adds transit gateway attachment and per-GB processing charges, and traffic still crosses AZs to one NAT gateway." }
+      { t: "Replace the NAT gateway with a NAT instance in AZ A that is sized for the current outbound traffic volume.", ok: false, no: "Traffic from the other two AZs still crosses AZs to reach it, and the instance must now be managed and scaled." },
+      { t: "Add an egress-only internet gateway to the VPC, and route the private subnets' outbound traffic through it.", ok: false, no: "An egress-only internet gateway handles only IPv6 traffic, and these instances use IPv4." },
+      { t: "Send the outbound traffic through a transit gateway to a shared egress VPC that has one NAT gateway.", ok: false, no: "This adds transit gateway attachment and per-GB processing charges, and traffic still crosses AZs to one NAT gateway." }
     ],
     why: "Traffic to a NAT gateway in another AZ pays cross-AZ data transfer, so AWS advises a NAT gateway in each AZ with resources. A gateway endpoint for DynamoDB has no extra charge and takes that traffic off the NAT gateway entirely.",
     doc: ["https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html", "https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html"] },

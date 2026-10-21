@@ -53,11 +53,11 @@ SD.bank.push(
   { id: "saa-2-205", exam: "SAA", saa: "2.2", topic: "apigateway", type: "multi", hint: "Select TWO.",
     q: "A company deploys the same REST API with API Gateway in us-east-1 and us-west-2. Clients must keep calling https://api.example.com, and if the us-east-1 API stops responding, Route 53 must send clients to us-west-2 automatically. Which steps should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Make both APIs Regional, and create the Regional custom domain api.example.com in each Region with that Region's ACM certificate.", ok: true },
+      { t: "Make both APIs Regional, and create the Regional custom domain api.example.com in each Region with a local ACM certificate.", ok: true },
       { t: "Create failover alias records for api.example.com that point to each Region's custom domain, with a health check on the primary.", ok: true },
-      { t: "Make both APIs edge-optimized, and create the edge-optimized custom domain api.example.com for the API in each Region.", ok: false, no: "An edge-optimized custom domain name applies across all Regions; serving one name from an API in each Region uses Regional custom domains." },
-      { t: "Request one ACM certificate in us-east-1, and attach it to the Regional custom domains in both of the Regions.", ok: false, no: "A Regional custom domain needs an ACM certificate in the same Region as the API, so us-west-2 needs its own." },
-      { t: "Create an AWS Global Accelerator with an endpoint group in each Region that points to that Region's API.", ok: false, no: "Global Accelerator endpoints are load balancers, EC2 instances and Elastic IP addresses; an API Gateway API can't be one." }
+      { t: "Make both APIs edge-optimized, and create the edge-optimized custom domain api.example.com for the API in each of the Regions.", ok: false, no: "An edge-optimized custom domain name applies across all Regions; serving one name from an API in each Region uses Regional custom domains." },
+      { t: "Request one ACM certificate in us-east-1, and attach it to the Regional custom domains in both of the API's Regions.", ok: false, no: "A Regional custom domain needs an ACM certificate in the same Region as the API, so us-west-2 needs its own." },
+      { t: "Create an AWS Global Accelerator with an endpoint group in each Region that points to that Region's API endpoint.", ok: false, no: "Global Accelerator endpoints are load balancers, EC2 instances and Elastic IP addresses; an API Gateway API can't be one." }
     ],
     why: "A Regional API deployed in several Regions can have the same custom domain name in each, using a certificate from that Region. Route 53 failover records with a health check on the primary move the name to the secondary Region when the primary fails.",
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-regional-api-custom-domain-create.html"] },
@@ -83,9 +83,9 @@ SD.bank.push(
     items: [
       { t: "Run the application servers in an Auto Scaling group that spans private subnets in at least two Availability Zones.", ok: true },
       { t: "Put an internal Application Load Balancer in front of the application tier, and point the web servers at its DNS name.", ok: true },
-      { t: "Put an internet-facing Application Load Balancer in front of the application tier, in the public subnets.", ok: false, no: "An internet-facing load balancer exposes the application tier to the internet, which breaks the requirement to keep it private." },
+      { t: "Put an internet-facing Application Load Balancer in front of the application tier, in the web tier's public subnets.", ok: false, no: "An internet-facing load balancer exposes the application tier to the internet, which breaks the requirement to keep it private." },
       { t: "Assign an Elastic IP address to each application server, and update the web servers' list with those addresses.", ok: false, no: "The list still has to be edited by hand for every new or failed server, so nothing scales or fails over on its own." },
-      { t: "Move the application tier to one larger EC2 instance type, and turn on EC2 automatic recovery for it.", ok: false, no: "One instance is still a single point of failure in one AZ, and scaling up has a ceiling." }
+      { t: "Move the application tier to one larger EC2 instance type, and turn on EC2 automatic recovery for that instance.", ok: false, no: "One instance is still a single point of failure in one AZ, and scaling up has a ceiling." }
     ],
     why: "An internal load balancer has only private IP addresses and sends the web tier's requests to healthy application servers. With an Auto Scaling group attached, servers are added, replaced and registered automatically, so each tier scales on its own.",
     doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html", "https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-load-balancer.html"] },

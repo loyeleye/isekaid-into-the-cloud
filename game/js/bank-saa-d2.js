@@ -67,10 +67,10 @@ SD.bank.push(
   { id: "saa-2-105", exam: "SAA", saa: "2.1", topic: "cloudfront", type: "multi", hint: "Select TWO.",
     q: "A news site serves pages from EC2 instances behind an Application Load Balancer in one Region. Images, CSS and JavaScript files make up most of the traffic, readers are spread around the world, and the instances are overloaded at peak. The company wants lower latency for distant readers and less load on the instances. Which steps should a solutions architect take? (Select TWO.)",
     items: [
-      { t: "Move the static files to an S3 bucket, and keep Block Public Access turned on for the bucket.", ok: true },
-      { t: "Create a CloudFront distribution with the bucket as an origin that uses origin access control.", ok: true },
+      { t: "Move the images, CSS and JavaScript files to an S3 bucket, and keep Block Public Access turned on.", ok: true },
+      { t: "Create a CloudFront distribution with the bucket as an origin that uses origin access control (OAC).", ok: true },
       { t: "Put AWS Global Accelerator in front of the load balancer, so readers reach the Region over the AWS network.", ok: false, no: "Global Accelerator improves the network path but caches nothing, so the instances still serve every file." },
-      { t: "Add an ElastiCache cluster, and have the web servers cache the static files in memory before serving them.", ok: false, no: "The instances still serve every byte from one Region, so distant readers see no improvement." },
+      { t: "Add an ElastiCache cluster, and have the web servers cache the static files in memory to serve them.", ok: false, no: "The instances still serve every byte from one Region, so distant readers see no improvement." },
       { t: "Scale the instances up to a larger instance type, so that each one can serve more static files at peak.", ok: false, no: "Bigger instances ease the load but are still far from distant readers." }
     ],
     why: "CloudFront caches the static files at edge locations near readers, which cuts latency and keeps those requests off the instances. Origin access control lets only CloudFront read the private bucket.",
@@ -164,7 +164,7 @@ SD.bank.push(
     q: "An app on Aurora PostgreSQL has a single writer instance. Read traffic from a reporting dashboard varies widely through the day and is slowing the app's writes. The company wants read capacity that grows and shrinks with demand, without changing the dashboard's connection settings as capacity changes. Which steps should a solutions architect take? (Select TWO.)",
     items: [
       { t: "Add an Aurora Auto Scaling policy that adds and removes Aurora Replicas based on average reader CPU.", ok: true },
-      { t: "Point the dashboard's read-only connections at the cluster's reader endpoint.", ok: true },
+      { t: "Point the dashboard's read-only connections at the cluster's reader endpoint, not at any one instance.", ok: true },
       { t: "Point the dashboard at the cluster endpoint, so that Aurora spreads its queries across all instances.", ok: false, no: "The cluster endpoint always connects to the writer, so the reads stay on it." },
       { t: "Scale the writer up to a larger instance class each morning, and back down each night, on a schedule.", ok: false, no: "Each class change briefly interrupts the database, and reads still compete with writes on one instance." },
       { t: "Put an ElastiCache cluster in front of the database, and cache every dashboard query result for 24 hours.", ok: false, no: "The dashboard would show day-old data, and the caching logic must be written into the app." }
