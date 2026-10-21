@@ -27,7 +27,9 @@
     samples: {
       // General-purpose effects any chapter can use (the list chapter helpers see is in overnight/audio-requests.md).
       'x-stamp': 's-x-stamp', 'x-page': 's-x-page', 'x-lock': 's-x-lock', 'x-lever': 's-x-lever',
-      'x-bell': 's-x-bell', 'x-chime': 's-x-chime', 'x-crowd': 's-x-crowd', 'x-tick': 's-x-tick'
+      'x-bell': 's-x-bell', 'x-chime': 's-x-chime', 'x-crowd': 's-x-crowd', 'x-tick': 's-x-tick',
+      // Requested by the chapters: Chapter 2 part B's cage lift arriving, and a heavy chain snapping onto stone.
+      'x-lift': 's-x-lift', 'x-chain': 's-x-chain'
     }
   });
 })();
