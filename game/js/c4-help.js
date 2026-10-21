@@ -30,13 +30,10 @@
     'saa-1-750': 'The street guard reads his list from the top and stops at the first line that fits you. Line 100 says "not you", so line 200 never gets read.',
     'saa-1-751': 'The door guard only has a "welcome" list, never a "banned" list. To ban one gang, ask the street guard, who has both and reads them in order.',
     'saa-1-04': 'Instead of listing the web servers\' addresses (which keep changing), let in anyone wearing the web servers\' badge: their security group.',
-    'saa-3-228': 'Give the dashboard tool its own private door into the database\'s village, and add its badge to the database\'s guest list. No public road needed.',
     // Subnets, routes and NAT
     'saa-1-752': 'A village is only public if its road map has a road to the big gate. Public addresses without the road are like a house number on a street that doesn\'t exist.',
     'saa-1-123': 'Build a one-way tunnel (NAT gateway) in the public village, then point the private village\'s "everywhere else" road at it. Out, never in.',
     'saa-4-126': 'Give each zone its own tunnel, so one zone\'s blackout doesn\'t strand the others, and send the DynamoDB carts through the free secret door instead.',
-    'saa-4-440': 'Swap the hand-built tunnel for a managed one, keep the same address sign so partners still recognise you, and point the roads at the new tunnel.',
-    'saa-4-442': 'One regional tunnel that covers every zone, even new ones, so nobody has to remember to dig a new tunnel each time.',
     'saa-4-06': 'In a test village you can live without the road out during a blackout, so keep one tunnel and send everyone through it to save gold.',
     'dva-1-754': 'Your function lives in a private village with no tunnel out. Moving it to a public village doesn\'t help, because it never gets its own house number. Build the tunnel (a NAT gateway) and point the road at it.',
     // Endpoints
@@ -45,13 +42,9 @@
     'saa-1-03': 'Stop paying the tunnel toll for storehouse trips: add the free secret door to the private villages\' road maps.',
     'saa-4-122': 'The container shop needs two kiosks of its own, and the images themselves live in the storehouse, so add the free secret door to it too.',
     'saa-1-114': 'Only guests on the list may open a kiosk to your shop, and you approve each one by hand.',
-    'saa-3-461': 'When every customer\'s village uses the same street numbers, don\'t join the villages together; give each one a kiosk to your shop instead.',
     // VPN and Direct Connect
     'saa-1-125': 'Your private road isn\'t locked by itself. Run the hidden tunnel (VPN) along it, and the carts are locked all the way.',
     'saa-1-128': 'The free secret door only works from inside the village. From your castle over the tunnel, use a kiosk with its own address.',
-    'saa-3-121': 'Build your own steady road (Direct Connect) for the heavy carts, and keep the hidden tunnel as the spare route if the road washes out.',
-    'saa-4-228': 'You need it this week and your internet is fine: the hidden tunnel is up in an afternoon. A private road takes too long to build.',
-    'saa-1-471': 'Only send the carts for the castle through the tunnel; let everything else go straight down the public road. That\'s split tunnel.',
     'saa-1-217': 'Give each worker a lantern pass (Client VPN) that signs in at the guild desk, with a rule for which villages each group may visit.',
     // IAM policies
     'dva-2-102': '"Everything except deleting chests" in every shop in town, not just the storehouse. Name the storehouse moves you want instead.',
@@ -158,7 +151,6 @@
     'saa-1-215': 'Put one road patrol at the central crossroads (the transit gateway), so every cart between villages passes it.',
     'saa-1-117': 'A captain (Firewall Manager) who makes every new gate in every castle use the same guard rules, automatically.',
     'saa-1-214': 'The captain, with the castles\' inspectors (Config), finds every door left open to the world and closes it.',
-    'saa-1-466': 'Big floods hit the game servers\' own addresses. Premium bodyguards (Shield Advanced) can protect those addresses directly.'
   };
   Object.keys(E).forEach(k => { if (!SD.eli5[k]) SD.eli5[k] = E[k]; });
   SD.glossary.push(

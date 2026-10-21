@@ -508,10 +508,10 @@
   // ---------- Questions ----------
   // The bank questions each concept asks (js/qpick.js picks one at random), the chapter's ELI5 lines in js/c4-help.js.
   D.Q = {
-    sgnacl: ['saa-1-124', 'saa-1-750', 'saa-1-751', 'saa-1-04', 'saa-3-228'],
-    subnets: ['saa-1-752', 'saa-1-123', 'saa-4-126', 'saa-4-440', 'saa-4-06', 'saa-4-442', 'dva-1-754'],
-    endpoints: ['saa-1-753', 'saa-1-113', 'saa-1-03', 'saa-4-122', 'saa-1-114', 'saa-3-461'],
-    hybrid: ['saa-1-125', 'saa-1-128', 'saa-3-121', 'saa-4-228', 'saa-1-471', 'saa-1-217'],
+    sgnacl: ['saa-1-124', 'saa-1-750', 'saa-1-751', 'saa-1-04'],
+    subnets: ['saa-1-752', 'saa-1-123', 'saa-4-126', 'saa-4-06', 'dva-1-754'],
+    endpoints: ['saa-1-753', 'saa-1-113', 'saa-1-03', 'saa-4-122', 'saa-1-114'],
+    hybrid: ['saa-1-125', 'saa-1-128', 'saa-1-217'],
     iampol: ['dva-2-102', 'dva-2-601', 'dva-2-608', 'saa-1-108', 'saa-1-208', 'dva-2-136', 'dva-2-105', 'saa-1-106'],
     stschain: ['dva-2-755', 'dva-2-108', 'dva-2-127', 'dva-4-761', 'dva-2-406', 'dva-4-601'],
     sigv4: ['dva-2-110', 'dva-2-111', 'dva-2-128', 'dva-2-114', 'dva-2-757'],
@@ -525,7 +525,7 @@
     sse: ['dva-2-758', 'dva-2-215', 'dva-2-10', 'dva-2-605'],
     acm: ['dva-2-211', 'dva-2-220', 'dva-2-324', 'saa-1-133'],
     detect: ['saa-1-118', 'saa-1-210', 'saa-1-119', 'saa-1-213', 'saa-1-121', 'saa-1-120'],
-    edge: ['dva-2-316', 'saa-1-06', 'saa-1-115', 'saa-1-216', 'saa-1-116', 'saa-1-215', 'saa-1-117', 'saa-1-214', 'saa-1-466']
+    edge: ['dva-2-316', 'saa-1-06', 'saa-1-115', 'saa-1-216', 'saa-1-116', 'saa-1-215', 'saa-1-117', 'saa-1-214']
   };
   Object.keys(D.Q).forEach(c => D.Q[c].forEach(id => {
     const q = (SD.bank || []).find(x => x.id === id);
@@ -536,7 +536,7 @@
 
   // ---------- The expeditions ----------
   const intro = (...l) => l.map(([who, text]) => ({ who, text }));
-  const XP = (id, name, blurb, back, floors, more) => Object.assign({ id, name, who: ['mira', 'kai', 'seoyeon', 'dutch'], opens: () => !!(SD.c4world && SD.c4world.active), sev: 0.85, dmg: 0.85, blurb, back,
+  const XP = (id, name, blurb, back, floors, more) => Object.assign({ id, name, who: ['mira', 'kai', 'seoyeon', 'dutch'], opens: () => !!(SD.c4world && SD.c4world.on), sev: 0.85, dmg: 0.85, blurb, back,
     cafe: { title: 'A Pass Tea House', who: null, name: 'The tea house', text: 'A tea house that has served every traveller on this pass for a hundred years, and asks none of them where they were born.' },
     camp: { title: 'A Shrine on the Path', text: 'A small shrine, swept clean. Sit for a minute, or use the whetstone on one of your cards. Each of you chooses one.' },
     regroup: [{ who: 'seoyeon', text: 'Up. Forms. We go again from the start of the floor.' }], floors }, more);
