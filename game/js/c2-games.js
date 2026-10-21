@@ -390,30 +390,37 @@
   };
 
   // ---------- Lost letters: a quick recall question each ----------
-  G.LETTERS = [
-    { to: 'Pingsby Bakery', q: { c: 's3ver', type: 'mc', q: 'A versioned bucket gets a DELETE that names no version ID. What happens to the object\'s versions?',
+  // Questions written for these letters, where the bank had nothing on the exact point.
+  const F = {};
+  [
+    { id: 'c2-ver-delete', c: 's3ver', type: 'mc', q: 'A versioned bucket gets a DELETE that names no version ID. What happens to the object\'s versions?',
       opts: ['They all stay; a delete marker becomes the current version', 'The newest version is removed, and the one before becomes current', 'They all move to a noncurrent storage class for 30 days', 'They\'re all removed, unless MFA delete is turned on'], a: 0,
       no: [null, 'That\'s what a DELETE naming the newest version\'s ID does. With no ID, nothing is removed.', 'Storage classes change only through lifecycle rules or a copy, not a delete.', 'MFA delete guards deletes that name a version. A plain DELETE only adds a marker.'],
-      why: 'A simple DELETE in a versioned bucket inserts a delete marker as the current version. A plain GET then returns 404, and every version stays underneath.' } },
-    { to: 'Coo\'s mother', q: { c: 's3ver', type: 'mc', q: 'An object is hidden under a delete marker. Which request makes its newest real version current again?',
+      why: 'A simple DELETE in a versioned bucket inserts a delete marker as the current version. A plain GET then returns 404, and every version stays underneath.' },
+    { id: 'c2-ver-undelete', c: 's3ver', type: 'mc', q: 'An object is hidden under a delete marker. Which request makes its newest real version current again?',
       opts: ['DeleteObject with the delete marker\'s version ID', 'PutObject with an empty body on the same key', 'GetObject with the newest real version\'s ID', 'RestoreObject on the key, as for Glacier'], a: 0,
       no: [null, 'That adds a new, empty current version on top.', 'That reads the old version, but the key still shows as deleted to a plain GET.', 'RestoreObject brings back an archived object from a Glacier storage class; it doesn\'t touch delete markers.'],
-      why: 'Deleting the delete marker itself (DeleteObject naming the marker\'s version ID) removes it, and the version under it becomes current again.' } },
-    { to: 'The Pingsby Brass Band', q: { c: 's3ver', type: 'mc', q: 'Pingsby turned versioning on years ago. Can a bucket\'s owner now turn it off, so the bucket stops keeping versions?',
+      why: 'Deleting the delete marker itself (DeleteObject naming the marker\'s version ID) removes it, and the version under it becomes current again.' },
+    { id: 'c2-ver-suspend', c: 's3ver', type: 'mc', q: 'Pingsby turned versioning on years ago. Can a bucket\'s owner now turn it off, so the bucket stops keeping versions?',
       opts: ['No: it can only be suspended, and the versions already there stay', 'Yes: turning it off deletes every noncurrent version', 'Yes: turning it off keeps only each object\'s current version', 'No: versioning, once on, can only be changed by AWS Support'], a: 0,
       no: [null, 'A bucket that has had versioning on never goes back to unversioned.', 'There is no "off" once it\'s been on, and suspending deletes nothing.', 'The owner can suspend it any time; it just can\'t go back to never-versioned.'],
-      why: 'Once versioning is enabled, a bucket can be suspended but never returned to unversioned. Suspending stops new versions being kept; existing versions stay.' } },
-    { to: 'Brookfall Shrine', q: { c: 's3life', type: 'mc', q: 'A lifecycle rule says NoncurrentDays: 30, NoncurrentVersionExpiration. What does it do to an old version?',
+      why: 'Once versioning is enabled, a bucket can be suspended but never returned to unversioned. Suspending stops new versions being kept; existing versions stay.' },
+    { id: 'c2-life-noncurrent', c: 's3life', type: 'mc', q: 'A lifecycle rule says NoncurrentDays: 30, NoncurrentVersionExpiration. What does it do to an old version?',
       opts: ['Deletes it for good 30 days after it stops being current', 'Moves it to S3 Glacier 30 days after it\'s written', 'Adds a delete marker over it after 30 days', 'Deletes the current version once it\'s 30 days old'], a: 0,
       no: [null, 'A transition moves versions between storage classes. Expiration deletes them.', 'Noncurrent versions are already under something; expiring them removes them permanently.', 'That\'s the Expiration action for current versions, which in a versioned bucket only adds a delete marker.'],
-      why: 'NoncurrentVersionExpiration permanently deletes noncurrent versions a set number of days after they become noncurrent.' } },
-    { to: 'Kyu (care of Seymour)', q: { c: 's3lock', type: 'mc', q: 'A version is locked in Object Lock compliance mode until next year. Who can delete it before then?',
-      opts: ['No one, not even the account\'s root user', 'Only the root user, with an MFA code', 'Anyone with s3:BypassGovernanceRetention', 'The bucket owner, after removing the lock'], a: 0,
-      no: [null, 'That\'s MFA delete. Compliance mode doesn\'t bend for root.', 'That permission only gets past governance mode.', 'In compliance mode the retention can\'t be shortened or removed, by anyone.'],
-      why: 'In compliance mode, a protected version can\'t be overwritten or deleted by any user, including the root user, until its retain-until date passes.' } }
+      why: 'NoncurrentVersionExpiration permanently deletes noncurrent versions a set number of days after they become noncurrent.' }
+  ].forEach(q => { F[q.id] = q; });
+  // Lost letters: a recall question each, picked at random from a pool (js/qpick.js) of bank questions
+  // (js/bank-*.js, by id) and the ones above, so the five come out differently on each playthrough.
+  G.LETTERS = [
+    { to: 'Pingsby Bakery', c: 's3ver', pool: ['dva-1-244', F['c2-ver-delete'], F['c2-ver-suspend']] },
+    { to: 'Coo\'s mother', c: 's3ver', pool: [F['c2-ver-undelete'], 'dva-1-244', F['c2-ver-delete']] },
+    { to: 'The Pingsby Brass Band', c: 's3lock', pool: ['saa-1-134', 'saa-1-227'] },
+    { to: 'Brookfall Shrine', c: 's3life', pool: ['saa-4-104', F['c2-life-noncurrent'], 'saa-4-01'] },
+    { to: 'Kyu (care of Seymour)', c: 's3lock', pool: ['saa-1-05', 'saa-1-227'] }
   ];
   G.letter = function (i) {
     const L = G.LETTERS[i];
-    return Q.ask(L.q, { title: 'A LOST LETTER', context: 'To: ' + L.to });
+    return Q.ask(SD.qpick(L.pool, { c: L.c }), { title: 'A LOST LETTER', context: 'To: ' + L.to });
   };
 })();
