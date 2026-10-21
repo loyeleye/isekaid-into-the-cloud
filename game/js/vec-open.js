@@ -21,8 +21,13 @@
   // shot with Freya's face changed and nothing else, so a face change is a crossfade that only moves her face.
   const STILLS = ['l1', 'l2', 'l3', 'l4', 's1b', 's2', 's2b', 's2c', 's5', 's7', 's8', 's9a', 's9b', 's10', 's10b', 's12', 's13'];
   const FACES = ['warm', 'earnest', 'smirk', 'cold', 'amused', 'sad', 'unreadable', 'frustrated'];
-  O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id }])
-    .concat(FACES.map(f => ['op-a-' + f, { src: 'assets/img/opening/s1a-' + f + '.webp', label: 's1a ' + f }])));
+  // On a phone held upright only about a quarter of a still's width shows, so each still names what to keep in
+  // frame, as an object-position (js/vn.js); the ones not listed are centred. The lightning shots still hold still.
+  const FOCUS = { l1: 70, l2: 78, l3: 46, l4: 56, s1b: 74, a: 36, s2: 40, s2b: 50, s2c: 62, s5: 45, s9a: 36, s9b: 80,
+    s10: 84, s10b: 36, s13: 34 };
+  const focus = id => FOCUS[id] === undefined ? undefined : FOCUS[id] + '% 50%';
+  O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id, focus: focus(id) }])
+    .concat(FACES.map(f => ['op-a-' + f, { src: 'assets/img/opening/s1a-' + f + '.webp', label: 's1a ' + f, focus: focus('a') }])));
 
   // Every stage direction is its own still: no narrator, no animation, only cuts, lightning and slow push-ins.
   // The lightning plays over the storm alone and holds still; the music and the push-ins start with the talking.
@@ -210,11 +215,12 @@
   SD.vn.acts.light = async (o, tools) => { light(o.to, o.ms); if (o.ms) await tools.sleep(o.ms); };
   // The music comes in under the storm that's already playing.
   SD.vn.acts.music = async o => SD.audio.music(o.name, true);
-  const GLINT = { 'op-s5': ['53%', '46%'], 'op-s9b': ['80%', '58%'] };
+  // Where the ring is on the painting; js/vn.js puts that on screen after a phone's crop.
+  const GLINT = { 'op-s5': [.53, .46], 'op-s9b': [.80, .58] };
   SD.vn.acts.glint = async function () {
     const vn = document.getElementById('vn'), cg = vn && vn.querySelector('.vn-cg');
     if (!cg) return;
-    const at = GLINT[vn.dataset.cg] || ['50%', '55%'];
+    const at = SD.vn.onStill(...(GLINT[vn.dataset.cg] || [.5, .55]));
     const g = document.createElement('div');
     g.className = 'vn-glint'; g.style.setProperty('--gx', at[0]); g.style.setProperty('--gy', at[1]);
     cg.appendChild(g); requestAnimationFrame(() => g.classList.add('on'));

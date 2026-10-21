@@ -19,16 +19,29 @@
   const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut']);
 
   // ---------- Art registry ----------
-  // scenes: id -> { src (once painted), label, tint: [top, bottom] } for backgrounds and stills.
+  // scenes: id -> { src (once painted), label, tint: [top, bottom], focus } for backgrounds and stills. focus is
+  //   the CSS object-position that keeps the subject in frame when a narrow screen (a phone held upright) crops a
+  //   16:9 still to a quarter of its width; the default is the centre. Stills that cut or crossfade into each other
+  //   (a face change, a glitch cut) share one focus so the cut doesn't jump.
   // sprites: who -> { faces: { face: src }, stand: placeholder image, pixel: true if the stand-in is pixel art,
   //   tint } and who's name plate comes from SD.cast.
   V.art = { scenes: {}, sprites: {} };
   V.addScenes = o => Object.assign(V.art.scenes, o);
   V.addSprites = o => Object.assign(V.art.sprites, o);
+  // Where a point on the current still (x, y as fractions of the painting) is on screen, as CSS percentages, after
+  // the crop: an overlay like the ring's glint follows the painting rather than the screen.
+  V.onStill = function (x, y) {
+    const img = root && root.querySelector('.vn-cg .vn-pic:last-child > img');
+    if (!img || !img.naturalWidth) return [x * 100 + '%', y * 100 + '%'];
+    const W = img.clientWidth, H = img.clientHeight, k = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const w = img.naturalWidth * k, h = img.naturalHeight * k;
+    const [fx, fy] = getComputedStyle(img).objectPosition.split(' ').map(v => parseFloat(v) / 100);
+    return [((W - w) * fx + x * w) / W * 100 + '%', ((H - h) * fy + y * h) / H * 100 + '%'];
+  };
 
   function sceneHTML(id) {
     const s = V.art.scenes[id] || { label: id };
-    if (s.src) return `<img src="${s.src}" alt="">`;
+    if (s.src) return `<img src="${s.src}" alt=""${s.focus ? ` style="object-position:${s.focus}"` : ''}>`;
     const [a, b] = s.tint || ['#1b1d2b', '#05060a'];
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
   }

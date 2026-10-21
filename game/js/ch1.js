@@ -327,9 +327,14 @@
     d1: 'A cell at night, one slit of moonlight', d2: 'Dutch\'s fist on the wall', d3: 'Lina in the infirmary, the academy\'s flowers',
     d1b: 'Lina in the cell', d1c: 'Freya in the cell'
   };
+  // What a phone held upright keeps in frame (js/vn.js, focus), as a percentage across the still; the rest are
+  // centred. Each c still shares its shot's focus, so the glitch cut only changes the person.
+  const FOCUS = { m1: 40, m2: 45, m2b: 48, m2c: 48, m3: 34, m3a: 55, m3c: 55, k1: 52, k2: 70, k2b: 48, k2c: 66, k3: 70,
+    k3a: 47, k3c: 47, s2: 22, s2b: 36, s2c: 45, s3: 22, s3a: 72, s3c: 72, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
   // Freya comes to Mira in a dream (the Story Bible), so her kitchen shots play through a dream haze.
   const DREAM = ['m3', 'm3a', 'm3c'];
-  SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label, dream: DREAM.includes(id) }])));
+  SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label,
+    dream: DREAM.includes(id), focus: FOCUS[id] === undefined ? undefined : FOCUS[id] + '% 50%' }])));
   // Faces to paint: Mira desperate, grief, cold; Kai shock, grief, anger; Seo-yeon frozen, grief, anger; Dutch stone,
   // grief, anger; Freya smile, cold. Each painted face goes in faces: { face: src }.
   const stand = src => ({ stand: src, pixel: true, faces: {} });
