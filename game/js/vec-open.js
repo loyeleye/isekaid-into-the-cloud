@@ -23,7 +23,7 @@
   const FACES = ['warm', 'earnest', 'smirk', 'cold', 'amused', 'sad', 'unreadable', 'frustrated'];
   // On a phone held upright only about a quarter of a still's width shows, so each still names what to keep in
   // frame, as an object-position (js/vn.js); the ones not listed are centred. The lightning shots still hold still.
-  const FOCUS = { l1: 70, l2: 78, l3: 46, l4: 56, s1b: 74, a: 36, s2: 40, s2b: 50, s2c: 62, s5: 45, s9a: 36, s9b: 80,
+  const FOCUS = { l1: 70, l2: 78, l3: 46, l4: 56, s1b: 74, a: 36, s2: 40, s2b: 44, s2c: 44, s5: 45, s9a: 36, s9b: 80,
     s10: 84, s10b: 36, s13: 34 };
   const focus = id => FOCUS[id] === undefined ? undefined : FOCUS[id] + '% 50%';
   O.scenes = () => Object.fromEntries(STILLS.map(id => ['op-' + id, { src: 'assets/img/opening/' + id + '.webp', label: id, focus: focus(id) }])
