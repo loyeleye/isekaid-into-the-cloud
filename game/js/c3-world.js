@@ -788,6 +788,8 @@
     if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
   };
   W3.halt = function () { W3.active = false; if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  W3.reset = function () { W3.halt(); sc = null; busy = false; };
 
   // The chapter's start, from a new game or from the chapter before.
   W3.start = async function () {

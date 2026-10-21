@@ -1,6 +1,7 @@
 // Headless check of the combined demo's chapter select (index.html?vector&ch2&demo, js/demo-select.js): the title has
 // the Chapter select button and the demo foot line, the panel lists every loaded chapter, and Start on each one opens
-// that chapter on a fresh save with no page or console errors. Then the title offers Continue for the chapter played.
+// that chapter on a fresh save with no page or console errors. Erasing the save mid-chapter and starting again still
+// walks. Then the title offers Continue for the chapter played.
 // Run from game/:  node tools/demo_check.js   SHOTS=dir saves a screenshot per chapter. Phone viewport (390 x 844).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -79,6 +80,37 @@ const fail = [];
     console.log('chapter', n, '→', JSON.stringify(st), JSON.stringify(sv));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'demo-ch' + n + '.png') });
   }
+
+  // Erase the save from the menu in the middle of chapter 2, then start it again from the chapter select: the walk
+  // must still answer the arrow keys (the old scene used to keep running underneath and hold the controls).
+  const walk = async label => {
+    for (let i = 0; i < 40; i++) {
+      await page.waitForTimeout(250);
+      const st = await look();
+      if (st.lead) await page.click('#panel [data-lead="kai"]');
+      else if (st.vn) await page.keyboard.press('Space');
+      else if (await page.evaluate(() => !!(SD.c2world.debug.pos() && !SD.c2world.debug.busy()))) break;
+    }
+    const at = () => page.evaluate(() => SD.c2world.debug.pos().slice(0, 2).join(','));
+    const a = await at();
+    await page.keyboard.down('ArrowRight'); await page.waitForTimeout(500); await page.keyboard.up('ArrowRight');
+    const b = await at();
+    if (a === b) fail.push(label + ': the arrow keys did not move the lead (' + a + ')');
+    console.log(label + ': walked ' + a + ' → ' + b);
+  };
+  await toTitle(); await page.click('#ds-pick');
+  errors = [];
+  await page.click('.ds-row [data-go="2"][data-how="fresh"]');
+  if (await page.$('#ds-y')) await page.click('#ds-y');
+  await walk('chapter 2');
+  await page.click('#w-menu'); await page.click('#m-reset'); await page.click('#r-y');
+  await page.waitForSelector('#t-start, #ds-pick');
+  if (await page.$('#t-start')) await page.click('#t-start');
+  await page.click('#ds-pick');
+  await page.click('.ds-row [data-go="2"][data-how="fresh"]');
+  if (await page.$('#ds-y')) await page.click('#ds-y');
+  await walk('chapter 2 after Erase save');
+  if (errors.length) fail.push('erase and restart: ' + errors.slice(0, 3).join(' | '));
 
   // The last chapter started has a save now, so the title offers Continue.
   await toTitle();

@@ -35,6 +35,11 @@
   const today = () => new Date().toDateString();
 
   M.menu = menu;
+  // Stop every chapter's walkable scene before a fresh save, so none keeps running (or holding the controls) underneath.
+  M.haltWorlds = function () {
+    ['ch1m', 'ch1', 'c2world', 'c2xworld', 'c3world', 'c4world', 'c5world', 'c6world'].forEach(k => { if (SD[k] && SD[k].reset) SD[k].reset(); });
+    const d = $('#dialog'); if (d) d.hidden = true;
+  };
   function menu() {
     const p = AU.prefs;
     const b = U.panel(`<div class="opts">
@@ -67,7 +72,7 @@
     b.querySelector('#m-name').onclick = () => askName(() => { U.closePanel(); M.hud(); });
     b.querySelector('#m-reset').onclick = () => {
       const c = U.panel('<p>Erase everything: levels, shards and cheat sheet pages? This cannot be undone.</p><div class="row"><button class="danger" id="r-y">Erase</button><button class="ghost" id="r-n">Cancel</button></div>', { title: 'ARE YOU SURE?' });
-      c.querySelector('#r-y').onclick = () => { S.reset(); U.closePanel(); M.title(); };
+      c.querySelector('#r-y').onclick = () => { M.haltWorlds(); S.reset(); U.closePanel(); M.title(); };
       c.querySelector('#r-n').onclick = U.closePanel;
     };
   }

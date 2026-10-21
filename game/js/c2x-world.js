@@ -919,6 +919,8 @@
     AU.music(music(roomAt(sc.P.x)));
   }
   W.halt = function () { W.active = false; if (sc) { sc.stop(); sc.locked = false; } };
+  // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
+  W.reset = function () { W.halt(); sc = null; busy = false; };
   function endCard() {
     setFlag('done');
     W.halt();
