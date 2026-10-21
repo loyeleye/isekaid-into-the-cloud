@@ -6,7 +6,7 @@
   const css = document.createElement('style');
   css.textContent = `
 /* 44px to tap: the quiz's Huh/ELI5 buttons, the world HUD's buttons, and the skip links (bigger hit area, same look). */
-html.vector .help-b { min-height: 44px; }
+html.vector .help-b { min-height: 44px; display: inline-flex; align-items: center; vertical-align: top; }
 html.vector .compass .q-ctx { color: #7a5000; }
 html.vector #w-hud button, html.vector #rd-deck { min-height: 44px; min-width: 44px; }
 html.vector .ps-tg button { min-height: 44px; }
