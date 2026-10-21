@@ -41,7 +41,7 @@ const server = http.createServer((req, res) => {
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
-      if ($('#v2-end') && vis($('#v2-end'))) return 'end2';
+      if (($('#v2-end') && vis($('#v2-end'))) || (SD.c2xworld && SD.c2xworld.active)) return 'end2';   // or part 2 (js/c2x-world.js) took over at the lift
       if (!window.__c2 && $('#v2-go') && vis($('#v2-go'))) return 'done';
       // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
       const vn = $('#vn');
