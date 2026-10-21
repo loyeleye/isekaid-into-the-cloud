@@ -1222,6 +1222,7 @@
     const here = () => new Set(players().map(p => p.peer).concat(botKeys()));
     const seatsHere = () => { const h = here(); return Object.keys(G.players).filter(k => h.has(k)); };
     // Who votes on the map and on an event (Ladi, 2026-10-20): the humans here. Bots get no vote; they go with the result.
+    const allBots = () => !seatsHere().some(k => !isBot(k));
     const votersHere = () => { const s = seatsHere(), h = s.filter(k => !isBot(k)); return h.length ? h : s; };
     const theirs = votes => { const v = votersHere(), o = {}; Object.keys(votes).forEach(k => { if (v.includes(k)) o[k] = votes[k]; }); return o; };
     let party = null, sentP = '';
@@ -1634,8 +1635,14 @@
         if (q && Date.now() >= q.at) return q;
         return botFight(k, p) || q || null;
       }
-      // Bots get no vote on the map, or on an event the party shares (votersHere).
-      if (G.ph === 'map') return null;
+      // Bots get no vote on the map, or on an event the party shares (votersHere), unless no human is here (a table
+      // of bots, as the checks and balance runs play): then the first seat picks and the rest go with it.
+      const lead = votes => votes[seatsHere().find(j => votes[j] != null)];
+      if (G.ph === 'map') {
+        if (!allBots() || G.votes[k]) return null;
+        const can = reach(G), h = lead(G.votes);
+        return can.length ? { d: { k: 'vote', n: can.includes(h) ? h : rnd(can) } } : null;
+      }
       if (!r || !r.wait[k]) return null;
       const roll = (rar, tier) => () => ({ k: 'offer', ids: RD.cardChoices(3, chOf(FL()), p.c, tier, rar) });
       if (r.t === 'reward') return { d: p.o.length ? { k: 'take', i: bestOf(p, p.o) } : roll(null, r.tier) };
@@ -1655,16 +1662,20 @@
       if (!ev) return { d: { k: 'done' } };
       const chosen = ev.per ? r.votes[k] : r.ch;
       if (chosen == null) {
-        if (r.votes[k] != null || !ev.per) return null;
+        if (r.votes[k] != null || (!ev.per && !allBots())) return null;
         const price = i => +obj(ev.choices[i].fx).cost || 0;
         const can = ev.choices.map((c, i) => i).filter(i => (ev.per ? [k] : seatsHere()).every(j => G.players[j].bits >= price(i)));
         // An each-their-own event: a bot never picks first (Ladi, 2026-10-20), since its pick would give a choice away.
         // It goes with the human's pick, or a random one it can pay for when it can't pay for that one.
-        const h = humanPick(r.votes);
-        if (h == null) return null;
+        const h = allBots() ? lead(r.votes) : humanPick(r.votes);
+        if (h == null && !allBots()) return null;
         return can.length ? { d: { k: 'evote', i: can.includes(h) ? h : rnd(can) } } : null;
       }
-      if (!ev.per && needsOne(ev.choices[r.ch].fx) && !r.one) return null;
+      if (!ev.per && needsOne(ev.choices[r.ch].fx) && !r.one) {
+        if (!allBots() || r.wv[k] != null) return null;
+        const h = lead(r.wv);
+        return { d: { k: 'wvote', p: h != null ? h : rnd(seatsHere()) } };
+      }
       const todo = r.todo[k] || [], t0 = todo[0];
       if (t0 === 'ask') return ans('e' + r.k + ':' + todo.length, { k: 'ans' });
       if (typeof t0 === 'string' && t0.startsWith('pc:')) return { d: p.o.length ? { k: 'take', i: bestOf(p, p.o) } : roll(t0.slice(3), null) };
