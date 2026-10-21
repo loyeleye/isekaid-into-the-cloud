@@ -29,7 +29,9 @@
       'x-stamp': 's-x-stamp', 'x-page': 's-x-page', 'x-lock': 's-x-lock', 'x-lever': 's-x-lever',
       'x-bell': 's-x-bell', 'x-chime': 's-x-chime', 'x-crowd': 's-x-crowd', 'x-tick': 's-x-tick',
       // Requested by the chapters: Chapter 2 part B's cage lift arriving, and a heavy chain snapping onto stone.
-      'x-lift': 's-x-lift', 'x-chain': 's-x-chain'
+      'x-lift': 's-x-lift', 'x-chain': 's-x-chain',
+      // Chapter 3: Halcyon's barrier humming down to nothing as Kai unmakes it, with a soft warm ding at the end.
+      'x-barrier': 's-x-barrier'
     }
   });
 })();
