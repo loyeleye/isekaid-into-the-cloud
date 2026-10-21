@@ -8,7 +8,7 @@ It reads like the exam, it can't be answered by spotting the longest option, and
 
 ## Every multiple choice question
 
-A multiple choice question is any object with `opts: [...]` and a numeric `a:` (the index of the right option): question-bank entries (`type: 'mc'`), boss `design` questions, deep-dive chains, events and anything else shaped like that.
+A multiple choice question is any object with `opts: [...]` and a numeric `a:` (the index of the right option): question-bank entries (`type: 'mc'`), boss incident steps (`SD.bossDesign`: `diagnose`, `fix`, `prevent`), Exam Twists (`SD.twists`), events and anything else shaped like that.
 
 1. **Ask what the exam asks.** Pick topics from the DVA-C02 exam guide's task statements and from what the well-regarded prep courses spend their time on (their syllabi and outlines, not their questions). The project's research is in `/mnt/project-files/research/`: `aws-exam-topic-map.md` (every domain, task and skill) and `aws-exam-question-style.md` (how real questions are built, confusable matchups, keyword cues). Read both before writing a chapter's questions. Write to the DVA-C02 guide: Nov 30, 2026 is C02's last day, and DVA-C03 follows. A question about something the exam never tests is a wasted rep.
 2. **Write it fresh.** Never copy or paraphrase a practice-exam or course question, including AWS's own sample questions. Build the scenario from the AWS documentation and your own example.
