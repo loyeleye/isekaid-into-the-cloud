@@ -371,7 +371,13 @@
       ['seymour', 'She wrote over it. She wrote over a backup.', 'sad'],
       ['hide', 'seymour'], ['show', 'dutch', 'stone', 'right'],
       ['dutch', 'Then we\'ve got one. We use it once, and then we read the record first.', 'stone']]);
-    await U.system('SEYMOUR\'S TAPES: 📼 2 → 1', 'From here on, each expedition starts with one tape. Go down with it and the floor starts again; go down without it and you\'re back at camp, and that expedition starts over.', 'gold');
+    sfx('x-tick');
+    await new Promise(res => {
+      const b = U.panel(`<p style="font-size:44px;line-height:1.1;text-align:center;margin:6px 0 10px" aria-label="Seymour's Tapes: two, now one">📼 2 → 1</p>
+        <p>From here on, each expedition starts with <b>one tape</b>. Go down with it and the floor starts again. Go down without it and you're back at camp, and that expedition starts over from its first floor.</p>
+        <div class="row"><button class="primary" id="c5-tok">One tape. Read the record first.</button></div>`, { title: 'SEYMOUR\'S TAPES', noClose: true });
+      b.querySelector('#c5-tok').onclick = () => { U.closePanel(); res(); };
+    });
     setFlag('tapes');
   }
   async function arrive() {
@@ -898,7 +904,7 @@
       ['dutch', 'In my old job, when two guys swung at once, nobody landed anything. You back off, wait a bit longer each time, and don\'t go at the same time.', 'stone'],
       ['kai', 'Exponential backoff with jitter.', 'smirk'],
       ['dutch', 'Bless you.', 'neutral']]);
-    await ask({ c: 'cloudtrail', type: 'mc', q: 'Why do the AWS SDKs add jitter when they retry throttled requests with exponential backoff?',
+    await ask({ c: 'integdebug', type: 'mc', q: 'Why do the AWS SDKs add jitter when they retry throttled requests with exponential backoff?',
       opts: ['So clients that failed together don\'t all retry at the same moment again', 'To make each retry faster than the last', 'To skip the backoff when the service is busy', 'To retry forever'], a: 0,
       why: 'Without jitter, clients that were throttled together back off for the same time and collide again. A random wait spreads the retries out.',
       eli5: 'If everyone who bumped into the door waits exactly two seconds, they all bump again. Wait a random bit, and you go through one at a time.' }, 'BACKOFF');
@@ -996,7 +1002,7 @@
     const fns = { ship, dboard, fire, station, stepsT: steps, ashgrove, watch1: ashgrove, watch2: ashgrove, iris, stu1: iris, stu2: iris, arcanum: iris,
       ayo, cforge: ayo, kaito, machines: kaito, cron, clock: cron, pella, carrel: pella, freya: deal, ayoU: chainGate,
       post1: poster, post2: poster, post3: poster, post4: poster,
-      ashT: () => say([['ashgrove', 'She went up. You\'re going after her. I\'m coming too, Mr. Dutch. I want to see what you do with your hands.', 'cold']]),
+      ashT: async () => { await say([['ashgrove', 'She went up. You\'re going after her. I\'m coming too, Mr. Dutch. I want to see what you do with your hands.', 'cold']]); if (flag('xp3') && !flag('rail')) return rail(); },
       bell: () => { sfx('x-bell'); return say([[null, 'The lecture bell. A card is tied to the rope: "Ring for a release. Ring twice to undo."']]); },
       forge: () => say([[null, flag('xp1') ? 'The Workshops, quieter now. Ayo\'s anvil is gone from its chain.' : 'The Workshops. Somewhere inside, a huge voice is shouting "SCALE OUT!" at nobody.']]),
       mop: () => say([[null, 'A mop in a bucket. It has no logs. You can\'t tell what it did.']]),
