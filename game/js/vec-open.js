@@ -125,11 +125,11 @@
       if (!same && VARY[f] && !s.pan) seen[f] = (seen[f] || 0) + 1;
       const pan = s.pan || (VARY[f] ? VARY[f][(seen[f] - 1) % 3] : 'slow');
       steps.push(['cg', 'op-' + s.still, pan === 'still' || !same ? pan : pan + '+']);
-      if (s.rain) steps.push(['fx', 'rain']);
+      if (s.rain) steps.push(['act', 'flaprain', { on: true }]);
       if (s.glint) steps.push(['act', 'glint', {}]);
       if (s.hold) steps.push(['wait', s.hold]);
       (s.lines || []).forEach(l => steps.push(l));
-      if (s.rain) steps.push(['fx', 'dry']);
+      if (s.rain) steps.push(['act', 'flaprain', { on: false }]);
     });
     return steps;
   };
@@ -255,6 +255,44 @@
   };
   // The music comes in under the storm that's already playing.
   SD.vn.acts.music = async o => SD.audio.music(o.name, true);
+
+  // Rain only where the tent flap stands open (the outline, as fractions of the painting, leaves out the table and
+  // chair in front of it). It's drawn inside the still, so it pans and fades with it.
+  const FLAP = { 'op-s10': [[.877, .185], [.893, .26], [.916, .42], [.935, .6], [.958, .78], [.975, .88], [.975, .95], [.88, .95],
+    [.888, .72], [.8, .655], [.8, .6], [.826, .42], [.86, .26]] };
+  let flap = null;
+  SD.vn.acts.flaprain = async o => {
+    if (flap) { flap.remove(); flap = null; }
+    SD.audio.weather(o.on ? 'rain' : null);
+    const vn = document.getElementById('vn'), pic = vn && vn.querySelector('.vn-cg .vn-pic:last-child'), poly = vn && FLAP[vn.dataset.cg];
+    if (!o.on || !pic || !poly || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = flap = document.createElement('canvas');
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+    pic.appendChild(cv);
+    const ctx = cv.getContext('2d'), xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const drops = Array.from({ length: 60 }, () => ({ x: x0 + Math.random() * (x1 - x0), y: y0 + Math.random() * (y1 - y0), v: .6 + Math.random() * .8, l: .02 + Math.random() * .03 }));
+    let lastT = performance.now();
+    const step = t => {
+      if (flap !== cv || !cv.isConnected) return;
+      const dt = Math.min(.05, (t - lastT) / 1000); lastT = t;
+      const w = cv.width = cv.clientWidth, h = cv.height = cv.clientHeight;
+      const at = (x, y) => SD.vn.onStill(x, y).map((v, i) => parseFloat(v) / 100 * (i ? h : w));
+      ctx.save(); ctx.beginPath();
+      poly.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](...at(...p)));
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(200,215,240,.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      drops.forEach(d => {
+        d.y += d.v * dt * 1.6; d.x -= d.v * dt * .05;
+        if (d.y > y1) { d.y = y0 - d.l; d.x = x0 + Math.random() * (x1 - x0); }
+        ctx.moveTo(...at(d.x, d.y)); ctx.lineTo(...at(d.x - d.l * .05, d.y + d.l));
+      });
+      ctx.stroke(); ctx.restore();
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
   // Where the ring is on the painting; js/vn.js puts that on screen after a phone's crop.
   const GLINT = { 'op-s5': [.53, .46], 'op-s9b': [.80, .58] };
   SD.vn.acts.glint = async function () {
