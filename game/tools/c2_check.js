@@ -136,6 +136,9 @@ function step([LEAD, MODE]) {
       if (!T.hosting()) return 'fight-wait';
       // A boss goes to half Severity first, so its Exam Twist is asked.
       if (tier === 'boss' && once('half' + G.fl)) { const f = G.foes[0]; f.sev = Math.floor(f.max / 2); T.act(me, { k: 'ready' }); T.act(me, { k: 'ready' }); window.__twist = (window.__twist || 0); return 'boss-half'; }
+      // ...and waits for the twist (it's asked at the end of the turn), up to a few seconds, before winning.
+      if (tier === 'boss' && !G.tw && (window.__bw = (window.__bw || 0) + 1) % 400) { if (window.__bw % 25 === 0) { const f = G.foes[0]; if (f.sev > f.max / 2) f.sev = Math.floor(f.max / 2); T.act(me, { k: 'ready' }); } return 'boss-turn'; }
+      if (tier === 'boss' && G.tw && once('tw' + G.fl)) window.__twist = (window.__twist || 0) + 1;
       if (G.qs.length) { window.__twist = (window.__twist || 0) + (G.qs.some(q => q.q && /^tw:/.test(q.q)) ? 1 : 0); return 'fight-q'; }
       T.win(); return 'raid:win-' + tier;
     }
@@ -189,8 +192,11 @@ function step([LEAD, MODE]) {
   return 'key:' + k.key + ':' + tag;
 }
 
+// One browser context for every tab, so a party's tabs find each other (js/net.js talks across tabs locally).
+let CTX = null;
 async function openPage(browser, name, errors) {
-  const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
+  CTX = CTX || await browser.newContext({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
+  const page = await CTX.newPage();
   page.on('pageerror', e => errors.push(name + ' pageerror: ' + e.message));
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push(name + ' raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push(name + ' console: ' + m.text()); });

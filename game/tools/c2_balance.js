@@ -1,7 +1,7 @@
 // Balance runs for chapter 2's Expedition I, the Sorting Floors (js/vec-ch2.js), modelled on tools/mines_balance.js.
 // Each run is a solo party of four bots, your own seat included, played by js/raid.js's own bots (70% of questions
 // right), from the chapter 2 deck with the act 1 world's three card upgrades and the Unread Letter curse (it lifts at
-// Coo's quest, after the climb). Tapes are off: a wipe sends the party back to the start of its floor and the run goes
+// Coo's quest, after the climb). Tapes are off (o.free): a wipe sends the party back to the start of its floor and the run goes
 // on, counting wipes. A clear is both floors with no wipe.
 // Run from game/:  N=24 P=4 node tools/c2_balance.js   (N runs, P at a time)
 const { chromium } = require('playwright');
@@ -68,7 +68,7 @@ async function run(browser, url, i) {
     S.save.flags.prologue = true; S.save.flags.ch1 = true;
     S.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: { vistimeout: true, pattern: true, idem: true }, w: { x: {}, pos: [92, 21], letters: [], given: [], lens: true } };
     const play = SD.raid.play;
-    SD.raid.play = (root, hub, code, o) => { delete o.tapes; return play(root, hub, code, o); };
+    SD.raid.play = (root, hub, code, o) => { delete o.tapes; o.free = true; return play(root, hub, code, o); };
     SD.vec.ch2.sorting('solo').then(won => { window.__done = won ? 'won' : 'lost'; });
   }, lead);
   const t0 = Date.now();

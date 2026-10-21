@@ -8,8 +8,10 @@
 //     (a worked example from SD.fieldNotes, then a question on the same idea; from row 5 the notes stop halfway and you
 //     finish them, floor.fade) and Policy Sort (SD.policySorts: predict how many of five requests get through, then
 //     sort them). Both are personal, like the Whiteboard, and pay like it.
-//   - o.story: a wipe restarts the floor from its snapshot for free (no tapes, and the café sells none); the end
-//     screen hands back to the story (o.onEnd({ won, fl })). o.auto: { bots: [champion ids] } seats those bots and
+//   - o.story: the café sells no tapes, and the end screen hands back to the story (o.onEnd({ won, fl })). o.tapes: the
+//     Seymour Tapes the run starts with (chapter 2 on: 2, then 1 from chapter 5). A wipe plays one and restarts the
+//     floor from its snapshot; with none left the expedition is over, back to the story with won false. o.free (chapter 1's
+//     tutorial dungeon): every wipe restarts the floor, with no tapes needed. o.auto: { bots: [champion ids] } seats those bots and
 //     starts at once, skipping the party room (solo). o.deckFor(champ): this player's own deck. o.say(lines): the
 //     story's dialogue for floor intros and outros. o.onMiss(q): a question this player got wrong, for the story's
 //     next waypoint. o.label: the mode's name on screen.
@@ -23,7 +25,6 @@
 //     name its two answers (P.yes and P.no, for a filter or a pattern instead of a policy), its header (P.by) and what
 //     arrives (P.what). Defaults as before.
 //   - A fight's backdrop is SD.run.stageArt(ch) when the page has one (the vector build draws its own), as in js/run.js.
-//   - A story dungeon can start with tapes (o.tapes): a wipe plays one, and a wipe with none left ends the run.
 //   - Bots take their champion's name.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
@@ -1198,9 +1199,6 @@
     o = o || {};
     // The mode's name on screen, and whether this is the story's own dungeon (header: o.story, o.auto).
     const LABEL = o.label || 'Borderlands', STORYMODE = !!o.story;
-    // o.tapes (chapter 2, 2026-10-21): a story dungeon that starts with that many of Seymour's tapes instead of regrouping
-    // for ever. A wipe plays one; a wipe with none left ends the run (onEnd({won: false})). Tapes can't be bought in one.
-    const STAPES = STORYMODE && o.tapes > 0 ? Math.min(9, o.tapes | 0) : 0, REGROUP = STORYMODE && !STAPES;
     // A question on concept c for a Whiteboard or an event: the story's own picker (o.pickQ), else this save's.
     const pickQ = c => (o.pickQ ? o.pickQ(c) : SD.state && SD.state.pickQuestion ? SD.state.pickQuestion(c, []) : null);
     const room = await hub.join('ir-' + code);
@@ -1209,7 +1207,7 @@
     const finished = new Promise(r => { done = r; });
     const open = RD.expeditions();
     const xp0 = o.xp && open.some(x => x.id === o.xp) ? o.xp : o.settings && open.some(x => x.id === o.settings.xp) ? o.settings.xp : (open[0] || {}).id || null;
-    const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: STAPES, tapeN: 0, snap: null, note: '', end: null, rs: false,
+    const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: 0, tapeN: 0, snap: null, note: '', end: null, rs: false,
       main: null, tier: null, onWin: [], turn: 0, stale: 0, taken: 0, sh: zero(), flags: {}, infra: [], eff: [], log: '', players: {} }, newFoe(null, 0, 1), fightStatus());
     let G = fresh();
     G.host = o.create ? me.peer : null;
@@ -1267,7 +1265,7 @@
       Object.keys(G.players).forEach(k => { if (!h.has(k) && k !== me.peer) delete G.players[k]; });
       if (!X() || !all().length) return;
       Object.values(G.players).forEach(p => { p.bits = BITS; p.o = []; p.sold = []; });
-      Object.assign(G, { sla: SLA, tapes: STAPES, tapeN: 0, rooms: 0, end: null, note: '' });
+      Object.assign(G, { sla: SLA, tapes: STORYMODE ? Math.max(0, o.tapes | 0) : 0, tapeN: 0, rooms: 0, end: null, note: '' });
       enterFloor(0); push();
     }
     // The snapshot Seymour's tape restores: every deck and purse, the SLA and the map, as the floor began.
@@ -1366,13 +1364,14 @@
       Object.values(G.players).forEach(p => { p.draw = []; p.disc = []; p.hand = []; p.played = []; p.ready = false; });
       G.infra = [];
       const s = G.snap;
-      if ((G.tapes > 0 || REGROUP) && s && rowsOf(s.map)) {
-        if (!REGROUP) G.tapes--;
+      const free = STORYMODE && !!o.free;
+      if ((G.tapes > 0 || free) && s && rowsOf(s.map)) {
+        if (!free) G.tapes--;
         G.tapeN++;
         Object.keys(G.players).forEach(k => { const x = s.p[k]; if (x) { const d = dec(x.d, 80); if (d.length) G.players[k].deck = d; G.players[k].bits = Math.max(0, x.b | 0); } });
         Object.assign(G, { sla: Math.max(1, s.sla | 0), onWin: [], map: s.map, pos: null, seen: [], votes: {}, room: null, ph: 'map', boss: null, main: null, tier: null, foes: [] });
         G.k++;
-        G.note = REGROUP ? `The party regroups at the start of floor ${G.fl + 1}, as you entered it. Decks and bits are as they were.` : `Seymour's tape played: back to the start of floor ${G.fl + 1}, as you entered it. ${G.tapes ? `${G.tapes} tape${G.tapes > 1 ? 's' : ''} left.` : 'No tapes left.'}`;
+        G.note = free ? `The party regroups at the start of floor ${G.fl + 1}, as you entered it. Decks and bits are as they were.` : `Seymour's tape played: back to the start of floor ${G.fl + 1}, as you entered it. ${G.tapes ? `${G.tapes} tape${G.tapes > 1 ? 's' : ''} left.` : 'No tapes left.'}`;
         save();
         return;
       }
@@ -1857,7 +1856,8 @@
       const n = G.foes.length, GX = { 2: [36, 6], 3: [54, 30, 6] }, tg = aimHere();
       const foes = n > 1 ? G.foes.map((f, i) => { const fe = SD.enemies[f.boss], down = f.sev <= 0; return `<div class="foe gfoe${i === 0 && G.tier !== 'fight' ? ' elite' : ''}${i === tg && !down ? ' tgt' : ''}${down ? ' down' : ''}" data-fi="${i}" style="--foe:${col(fe)};--gx:${GX[n][i]}%"${down ? '' : ` tabindex="0" role="button" aria-pressed="${i === tg}" aria-label="Target ${esc(foeName(G, i))}"`}>${SD.art.enemy(fe.sprite, false, fe.hue)}</div>`; }).join('')
         : `<div class="foe" style="--foe:${col(e)}">${SD.art.enemy(e.sprite, true, e.hue)}</div>`;
-      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" style="background-image:url(${SD.run && SD.run.stageArt ? SD.run.stageArt(+b || 1) : `assets/img/battle/bg-${b}.webp`})"><div class="rd-party">${fighters}</div>${foes}</div>`;
+      const bg = SD.run && SD.run.stageArt ? `style="background-image:url(${SD.run.stageArt(+b || 1)})"` : window.SD_VECTOR ? '' : `style="background-image:url(assets/img/battle/bg-${b}.webp)"`;
+      return `<div class="stage rd-stage${n > 1 ? ' group g' + n : ''}" ${bg}><div class="rd-party">${fighters}</div>${foes}</div>`;
     }
     let raf = 0;
     (function tick() {
@@ -1887,7 +1887,9 @@
       const bend = (a, b) => { const [x1, y1] = xy(a), [x2, y2] = xy(b), k = jit(a.id + b.id, 3) * 46; return [x1, y1, (x1 + x2) / 2 + k, (y1 + y2) / 2, x2, y2]; };
       return { rows, n, xy, bend };
     }
-    const nodeIcon = t => (SD.dungeonArt && SD.dungeonArt.objects[t] ? `<img class="node-art" src="assets/img/dungeon/${t}.webp" alt="">` : SD.art.glyph((NODE()[t] || {}).g || 'card-random', 'currentColor'));
+    // The vector build (window.SD_VECTOR) draws everything in code: no painted map, node or battle art (as js/run.js).
+    const dArt = () => !window.SD_VECTOR && SD.dungeonArt;
+    const nodeIcon = t => (dArt() && dArt().objects[t] ? `<img class="node-art" src="assets/img/dungeon/${t}.webp" alt="">` : SD.art.glyph((NODE()[t] || {}).g || 'card-random', 'currentColor'));
     function mapHtml() {
       const { rows, n, xy, bend } = layout(), can = reach(G), visited = new Set(G.seen), mine = G.players[me.peer];
       let svg = `<svg class="map-lines" viewBox="0 0 300 ${n * 100}" preserveAspectRatio="none" aria-hidden="true">`;
@@ -1911,7 +1913,7 @@
     const pics = {};
     const pic = (name, again) => { if (!pics[name]) { pics[name] = new Image(); pics[name].src = 'assets/img/dungeon/' + name + '.webp'; } const im = pics[name]; if (again && !im.complete) im.addEventListener('load', again, { once: true }); return im; };
     function paintMap(el) {
-      const A = SD.dungeonArt, cv = el && el.querySelector('.map-bg'), f = FL();
+      const A = dArt(), cv = el && el.querySelector('.map-bg'), f = FL();
       if (!A || !cv || !f || !el.isConnected) return;
       const key = String(A.terrain[String(f.map)] ? f.map : chOf(f) in A.terrain ? chOf(f) : ((chOf(f) - 1) % 3) + 1);
       const W = el.clientWidth, H = el.clientHeight, ts = 24;
@@ -1999,7 +2001,7 @@
       shown = key;
       const [wx, wf, wt] = (was || '').split(':');
       if (wx === G.xp && +wf === G.fl && +wt < G.tapeN) {
-        queue(async () => { await titleCard(REGROUP ? 'REGROUPING...' : 'RESTORING FROM TAPE...'); await dialog(REGROUP ? obj(X()).regroup : [{ who: 'seymour', text: 'Backup No. 401, restored! Tested, labelled, and only slightly chewed. Back to the start of the floor, everyone.' }]); });
+        queue(async () => { await titleCard(STORYMODE && o.free ? 'REGROUPING...' : 'RESTORING FROM TAPE...'); await dialog((STORYMODE && obj(X()).regroup) || [{ who: 'seymour', text: 'Backup No. 401, restored! Tested, labelled, and only slightly chewed. Back to the start of the floor, everyone.' }]); });
         return;
       }
       if (wx === G.xp && +wf === G.fl - 1 && fs[G.fl - 1]) queue(() => dialog(fs[G.fl - 1].outro));
@@ -2132,7 +2134,7 @@
       const mine = G.players[me.peer], fs = floorsOf(X());
       return `<div class="run-hud"><div class="hud-sla"><span>Team SLA</span><div class="bar sla"><i style="width:${G.sla / SLA * 100}%"></i></div><b>${G.sla}/${SLA}</b></div>
         <span class="hud-chip">Floor <b>${G.fl + 1}/${fs.length}</b></span>${mine ? `<span class="hud-chip">Bits <b>${mine.bits}</b></span>` : ''}
-        ${REGROUP ? '' : `<span class="hud-chip" title="Seymour's Tape: if the team goes down, the floor starts again">📼 Tapes <b>${G.tapes}</b></span>`}
+        ${STORYMODE && !o.tapes ? '' : `<span class="hud-chip" title="Seymour's Tape: if the team goes down, the floor starts again">📼 Tapes <b>${G.tapes}</b></span>`}
         ${mine ? `<button class="hud-chip" type="button" id="rd-deck" aria-expanded="${ui.deck}">Deck (${mine.deck.length})</button>` : ''}</div>
         ${G.note ? `<p class="rd-note" role="status">${esc(G.note)}</p>` : ''}
         ${ui.deck && mine ? `<div class="cardgrid mini">${mine.deck.map(id => chtml(id)).join('')}</div>` : ''}`;
@@ -2190,7 +2192,7 @@
         mode: LABEL, code, leader: G.host, max: MAX_PLAYERS, listed: o.vis && o.vis.get(), vis: o.vis, leave,
         what: 'the expedition', startLabel: G.rs ? 'Resume the expedition' : 'Start the expedition', boss: kyu, deck: !G.rs,
         settings: pickX,
-        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: vote on every room; the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STAPES ? `You have ${STAPES} of Seymour's tapes: going down plays one, back to the start of the floor as you entered it. Going down with none left ends the climb.` : STORYMODE ? 'Going down sends the party back to the start of the floor, as you entered it.' : 'Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. No shards; this one is for practice.'}${seats}`,
+        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: vote on every room; the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STORYMODE && o.free ? 'Going down sends the party back to the start of the floor, as you entered it.' : STORYMODE ? `Going down plays one of your Seymour Tapes and restarts the floor as you entered it. This run has ${o.tapes | 0}; with none left, the party heads back to camp and the dungeon starts over.` : 'Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. No shards; this one is for practice.'}${seats}`,
         addBot: hosting && !G.rs && all().length < MAX_PLAYERS ? () => send({ k: 'bot' }) : null,
         botChamp: hosting && !G.rs ? (k, c) => send({ k: 'botc', b: k, c }) : null,
         startWhy: () => (!x ? 'No expedition is open yet.' : G.rs ? (seatsHere().length ? null : 'Waiting for someone with a seat.') : all().length ? null : 'Waiting for the table to answer.'),

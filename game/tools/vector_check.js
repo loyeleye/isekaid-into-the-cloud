@@ -2,8 +2,11 @@
 // file, then chapter 1 as tools/ch1_check.js plays it, then the chapter 2 slice to its "to be continued" card.
 // Fails on any page error or console error, and on any request for a painted or generated image (.webp, .png,
 // .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening).
+// Chapter 2 starts from chapter 1's #c1-next with its act 1 world marked done (tools/c2_check.js walks the world), so
+// this plays the stair, Expedition I on the raid engine, and the camp.
 // Run from game/:  node tools/vector_check.js [mira|kai|seoyeon|dutch] [--win]   SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
+const ch1Step = require('./ch1_step');
 const http = require('http'), fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -27,6 +30,8 @@ const server = http.createServer((req, res) => {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
+  // Chapter 1 plays as tools/ch1_check.js plays it (tools/ch1_step.js); SD_TEST opens the mines' test hook.
+  await page.addInitScript(`window.SD_TEST = 1; window.__ch1step = ${ch1Step.toString()};`);
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
@@ -35,14 +40,14 @@ const server = http.createServer((req, res) => {
 
   const seen = new Set(), last = [], shotsTaken = new Set();
   let steps = 0;
-  for (; steps < 6000; steps++) {
+  for (; steps < 30000; steps++) {
     const what = await page.evaluate(([WIN, LEAD]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
       const sv = SD.state.save, c1 = sv.c1;
       if (($('#v2-end') && vis($('#v2-end'))) || (SD.c2xworld && SD.c2xworld.active)) return 'end2';   // or part 2 (js/c2x-world.js) took over at the lift
-      if (!window.__c2 && $('#v2-go') && vis($('#v2-go'))) return 'done';
+      if (!window.__c2 && $('#c1-next') && vis($('#c1-next'))) return 'done';
       // The visual-novel prologue (js/vn.js): play each moment as it appears, then read on.
       const vn = $('#vn');
       if (vn && !vn.hidden) {
@@ -61,6 +66,7 @@ const server = http.createServer((req, res) => {
         if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:vn-' + k; }
         box.click(); return 'vn-line';
       }
+      if (!window.__c2) return window.__ch1step([WIN, LEAD]);
       if (!$('#dialog').hidden) {
         // The first line of each cutscene backdrop is left to finish typing for its screenshot.
         const st = $('#stage'), sc = !st.hidden && st.dataset.scene;
@@ -154,7 +160,7 @@ const server = http.createServer((req, res) => {
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
-    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.ui.closePanel(); SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; SD.chapterStart[2](); }); continue; }
+    if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; document.querySelector('#c1-next').click(); }); continue; }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }
@@ -162,8 +168,8 @@ const server = http.createServer((req, res) => {
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
-  if (steps >= 6000) errors.push('the demo never finished; last actions: ' + last.join(' '));
-  const need = ['intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
+  if (steps >= 30000) errors.push('the demo never finished; last actions: ' + last.join(' '));
+  const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];
   const missing = need.filter(k => !sv.flags || !sv.flags[k]);
   if (missing.length) errors.push('story flags never set: ' + missing.join(', '));
   const scenes = ['wrongchair', 'notshopping', 'stew', 'salt', 'getup', 'suspect'].filter(k => !sv.flags || !sv.flags['s_' + k]);
