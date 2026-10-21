@@ -829,7 +829,7 @@
     });
   }
   // Play one expedition: 'solo' (you and three bots), 'party' or 'join'. Resolves true if every floor was cleared.
-  W.raid = async function (xp, how) {
+  W.raid = async function (xp, how, extra) {
     const RD = SD.raid, net = SD.net, CH = SD.champions, game = GAME[xp];
     SD.main.show('run');
     const root = $('#run');
@@ -841,7 +841,7 @@
       hub = await net.open();
       if (how === 'solo') {
         if (hub.setNick && !(hub.remembered && hub.remembered())) hub.setNick(T.leads[lead()].name.split(' ')[0], true);
-        await RD.play(root, hub, net.code(game), story(xp, { create: true, auto: { bots: mates() }, onEnd }));
+        await RD.play(root, hub, net.code(game), story(xp, Object.assign({ create: true, auto: { bots: mates() }, onEnd }, extra)));
       } else {
         dir = await hub.directory(game);
         const create = how === 'party', code = create ? net.code(game) : await joinScreen(root, dir, game, XP(xp).name);
@@ -856,7 +856,7 @@
           };
           const poll = setInterval(beat, 1000);
           try {
-            await RD.play(root, hub, code, story(xp, { create, onEnd, status: f => { status = f; beat(); }, vis: { get: () => listed, set: v => { listed = !!v; beat(); } } }));
+            await RD.play(root, hub, code, story(xp, Object.assign({ create, onEnd, status: f => { status = f; beat(); }, vis: { get: () => listed, set: v => { listed = !!v; beat(); } } }, extra)));
           } finally { clearInterval(poll); if (hosting) dir.unhost(); }
         }
       }
@@ -987,6 +987,6 @@
 
   // For tools/c2x_check.js and tools/c2x_balance.js.
   W.debug = { busy: () => busy, flag, sv, scene: () => sc, step, act, place: (x, y) => sc && sc.place('you', x, y), room: () => sc && roomAt(sc.P.x),
-    flags: f => { Object.assign(sv().f, f); S.persist(); if (sc) applyState(); }, raid: (xp, how) => W.raid(xp, how || 'solo'), LETTERS, THINGS, LIFT, ARRIVE, roomAt,
+    flags: f => { Object.assign(sv().f, f); S.persist(); if (sc) applyState(); }, raid: (xp, how, extra) => W.raid(xp, how || 'solo', extra), LETTERS, THINGS, LIFT, ARRIVE, roomAt,
     want: () => { const t = rawStep()[1]; return t ? roomAt(t[0]) : null; }, shown: letterShown };
 })();

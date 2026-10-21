@@ -1,6 +1,6 @@
 // Balance runs for chapter 2, part 2's three expeditions (js/c2x-data.js), as tools/mines_balance.js does for the
 // Deny Mines: each run is a solo party of four bots, your own seat included, played by js/raid.js's own bots (70% of
-// questions right), with tapes off: a clear is every floor with no wipe, and a wipe is counted on its floor (story
+// questions right), with tapes off (tapes: 0, so a wipe regroups for free): a clear is every floor with no wipe, and a wipe is counted on its floor (story
 // mode sends the party back to the start of the floor, so the run goes on). At the top of the stair the evidence is
 // taken as found, each piece proved 70% of the time.
 // Run from game/:  N=12 P=4 XP=deadletter,inqtower,greynovice NODE_PATH=$(npm root -g) node tools/c2x_balance.js
@@ -65,7 +65,7 @@ async function run(browser, url, xp, i) {
     S.save.c2x = { f: { start: true, f7: true, f13: true, reckon: true, ev1: true, ev2: true, ev3: true }, pos: null, letters: [], given: [], compass: true, choice: 'give' };
     const ask = SD.quiz.ask;
     SD.quiz.ask = (q, o) => (o && o.title === 'THE EVIDENCE' ? Promise.resolve({ ok: Math.random() < 0.7 }) : ask(q, o));
-    SD.c2xworld.debug.raid(xp, 'solo').then(won => { window.__done = won; });
+    SD.c2xworld.debug.raid(xp, 'solo', { tapes: 0 }).then(won => { window.__done = won; });
   }, [lead, xp]);
   const t0 = Date.now();
   let r = {};
