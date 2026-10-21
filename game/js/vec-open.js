@@ -101,6 +101,9 @@
   O.compile = function (shots) {
     const steps = [];
     const frame = s => s.still && s.still.startsWith('a-') ? 'a' : s.still;
+    // The two facing shots come back again and again, so each return frames them differently: wide, then pushing
+    // in on whoever's talking, then close on them.
+    const VARY = { a: ['slow', 'pushA', 'closeA'], s1b: ['slow', 'pushB', 'closeB'] }, seen = {};
     let prev = null;
     shots.forEach(s => {
       const same = s.still && prev && frame(prev) === frame(s);
@@ -113,7 +116,9 @@
       if (s.fade) { steps.push(['fx', 'black'], ['act', 'light', { to: 1 }], ['wait', 400]); return; }
       if (s.strike) { steps.push(['fx', 'thunder'], ['cg', 'op-' + s.strike, 'still'], ['wait', s.hold || 1300], ['fx', 'black'], ['wait', 500]); return; }
       if (s.dark) { steps.push(['act', 'sound', { name: 'thunder' }], ['act', 'sound', { name: 'thud' }], ['fx', 'shake'], ['wait', 900]); return; }
-      const pan = s.pan || 'slow';
+      const f = frame(s);
+      if (!same && VARY[f] && !s.pan) seen[f] = (seen[f] || 0) + 1;
+      const pan = s.pan || (VARY[f] ? VARY[f][(seen[f] - 1) % 3] : 'slow');
       steps.push(['cg', 'op-' + s.still, pan === 'still' || !same ? pan : pan + '+']);
       if (s.rain) steps.push(['fx', 'rain']);
       if (s.glint) steps.push(['act', 'glint', {}]);
@@ -130,6 +135,12 @@
   const esc = s => SD.ui.esc(s);
   const css = document.createElement('style');
   css.textContent = `
+#vn .kb-pushA > *, #vn .kb-closeA > * { transform-origin: 37% 30%; }
+#vn .kb-pushB > *, #vn .kb-closeB > * { transform-origin: 73% 30%; }
+#vn .kb-pushA > *, #vn .kb-pushB > * { animation: kbPush 14s ease-in-out forwards; animation-delay: var(--kbd, 0ms); }
+#vn .kb-closeA > *, #vn .kb-closeB > * { animation: kbClose 30s linear forwards; animation-delay: var(--kbd, 0ms); }
+@keyframes kbPush { from { transform: scale(1); } to { transform: scale(1.2); } }
+@keyframes kbClose { from { transform: scale(1.32); } to { transform: scale(1.38); } }
 #vn .vn-glint { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--gx, 50%) var(--gy, 55%), rgba(255,236,170,.75), rgba(255,220,140,0) 4%); opacity: 0; mix-blend-mode: screen; }
 #vn .vn-glint.on { animation: vnGlint 1.1s ease-out 0.5s; }
 @keyframes vnGlint { 30% { opacity: 1; } 100% { opacity: 0; } }
