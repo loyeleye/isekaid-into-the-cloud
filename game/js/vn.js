@@ -4,9 +4,10 @@
 // someone else's. A chapter registers its art with SD.vn.art and plays a script with SD.vn.play(steps).
 //
 // A step is [command, ...args] or a line [speaker, text, face]:
-//   ['bg', id]  ['cg', id, pan]  ['show', who, face, pos]  ['hide', who]  ['fx', kind]  ['wait', ms]
+//   ['bg', id]  ['cg', id, pan, 'cut']  ['show', who, face, pos]  ['hide', who]  ['fx', kind]  ['wait', ms]
 //   ['act', kind, opts]  ['pray', text, to]  ['glitch', from, to, face]  ['gcut', id] (a still glitching into the next)
 // pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
+// 'cut' swaps the still in at once instead of crossfading;
 // pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
 // 'thunder', 'black', 'rain', 'dry' or 'heartbeat'. Art that hasn't been painted yet shows a placeholder.
 (function () {
@@ -428,7 +429,7 @@
       else if (k === 'cg') {
         root.classList.add('vn-incg');
         // Out of black, the still swaps in whole underneath, so only it fades up (not a mix with the last one).
-        setLayer('.vn-cg', a[0], a[1] || 'in', root.querySelector('.vn-black').classList.contains('on'));
+        setLayer('.vn-cg', a[0], a[1] || 'in', a[2] === 'cut' || root.querySelector('.vn-black').classList.contains('on'));
         root.querySelector('.vn-black').classList.remove('on');
         await sleep(skipping ? 0 : 900);
       }

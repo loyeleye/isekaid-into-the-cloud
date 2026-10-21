@@ -310,9 +310,11 @@
     bram: { name: 'Bram', title: 'Mira\'s husband' },
     hana: { name: 'Hana', title: 'Saint of Halcyon' },
     jin: { name: 'Jin', title: 'Burning Peak' },
-    lina: { name: 'Lina', title: 'Dutch\'s daughter' }
+    lina: { name: 'Lina', title: 'Dutch\'s daughter' },
+    gu: { name: 'Old Gu', title: 'Burning Peak' },
+    leader: { name: 'Alliance Leader', title: 'Murim Alliance' }
   });
-  [['bram', 300], ['hana', 1100], ['jin', 620], ['lina', 1200]].forEach(([w, hz]) => SD.ui.voice(w, hz));
+  [['bram', 300], ['hana', 1100], ['jin', 620], ['lina', 1200], ['gu', 260], ['leader', 340]].forEach(([w, hz]) => SD.ui.voice(w, hz));
 
   // ---------- The prologues' visual-novel art (js/vn.js) ----------
   // The painted stills from the backstory storyboard, one per shot. The c stills repeat the shot before them with
@@ -322,15 +324,16 @@
     m2c: 'Mira praying over him', m3: 'Her cottage kitchen, the new moon', m3a: 'Bram in the doorway', m3c: 'Freya in the doorway',
     k1: 'The cathedral square, the morning after', k2: 'Kai\'s hand on the barrier, Hana inside', k2b: 'Hana in the gold',
     k2c: 'Kai on his knees at the barrier', k3: 'The alley that night, in the rain', k3a: 'Hana under the lantern', k3c: 'Freya under the lantern',
-    s1: 'The Murim Alliance\'s duel hall', s2: 'The one second', s2b: 'The knife in her sleeve', s2c: 'Jin\'s sword on the floor',
-    s3: 'A training yard at dawn, in mist', s3a: 'Jin at the post', s3c: 'Freya at the post',
+    s0a: 'Seo-yeon\'s tiny fish at the stream', s0b: 'Jin carrying her home at dusk', s1: 'Burning Peak on fire, Jin\'s sword up',
+    s2: 'The Alliance Leader\'s hand held out', s3: 'His hand and hers, stopped halfway', s4: 'Jin on his knees, his sword dropped',
+    s5: 'Carried out of the fire', s6: 'His courtyard at dawn, eleven years later', s7a: 'Jin at the post', s7c: 'Freya at the post',
     d1: 'A cell at night, one slit of moonlight', d2: 'Dutch\'s fist on the wall', d3: 'Lina in the infirmary, the academy\'s flowers',
     d1b: 'Lina in the cell', d1c: 'Freya in the cell'
   };
   // What a phone held upright keeps in frame (js/vn.js, focus), as a percentage across the still; the rest are
   // centred. Each c still shares its shot's focus, so the glitch cut only changes the person.
   const FOCUS = { m1: 40, m2: 45, m2b: 48, m2c: 48, m3: 34, m3a: 55, m3c: 55, k1: 52, k2: 70, k2b: 48, k2c: 66, k3: 70,
-    k3a: 47, k3c: 47, s2: 22, s2b: 36, s2c: 45, s3: 22, s3a: 72, s3c: 72, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
+    k3a: 47, k3c: 47, s0a: 39, s0b: 73, s2: 55, s3: 57, s6: 23, s7a: 79, s7c: 79, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
   // Freya comes to Mira in a dream (the Story Bible), so her kitchen shots play through a dream haze.
   const DREAM = ['m3', 'm3a', 'm3c'];
   SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label,
@@ -344,7 +347,8 @@
     seoyeon: stand('assets/img/lead/seoyeon.webp'),
     dutch: stand('assets/img/lead/dutch.webp'),
     freya: { faces: { smile: 'assets/img/vn/freya-smile.webp' } },
-    bram: { tint: '#5a4a3a' }, hana: { tint: '#b08a3a' }, jin: { tint: '#6a2a2a' }, lina: { tint: '#7a6a9a' }
+    bram: { tint: '#5a4a3a' }, hana: { tint: '#b08a3a' }, jin: { tint: '#6a2a2a' }, lina: { tint: '#7a6a9a' },
+    gu: { tint: '#6a4a2a' }, leader: { tint: '#4c6fa8' }
   });
   SD.art.addPainted('mira', ['neutral'], true);
   SD.art.addPainted('kai', ['neutral'], true);

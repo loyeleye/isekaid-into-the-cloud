@@ -18,7 +18,7 @@
     },
     seoyeon: {
       name: 'Seo-yeon', title: 'Burning Peak', age: 20, card: 'peakstyle', img: 'assets/img/lead/seoyeon.webp',
-      blurb: 'A sword disciple raised in the house of the man who burned her family. When her chance came she froze for one second, and her sect brother Jin died in it.',
+      blurb: 'A sword disciple raised in the house of the man who burned her family. At nine she froze for one second, and her sect brother Jin died in it.',
       prayer: 'Let me choose.'
     },
     dutch: {
@@ -31,7 +31,7 @@
 
   // ---------- Prologues: the worst moment, the prayer nobody answered, and who answered instead ----------
   // Visual-novel scripts for js/vn.js, one painted still per shot (the backstory storyboard; js/ch1.js registers
-  // them): a step is a command (['cg', id, pan], ['act', ...], ['pray', ...], ['gcut', id], ['fx', kind]) or a line
+  // them): a step is a command (['cg', id, pan, 'cut'], ['act', ...], ['pray', ...], ['gcut', id], ['fx', kind]) or a line
   // [speaker, text, face]. A shot holds still until someone speaks, then pushes in slowly. Where Freya drops the
   // voice she borrowed, the still glitches into the same shot with her standing in it. js/vo.js has the recordings.
   T.prologue = {
@@ -87,28 +87,40 @@
       ['freya', 'You said that, not me. Now, how do you feel about a kitchen with a staff?', 'smile']
     ],
     seoyeon: [
-      ['cg', 's1', 'still'],
-      ['narr', 'The Murim Alliance\'s duel hall. Every master in the room has just named Burning Peak\'s style.'],
+      ['cg', 's0a', 'still'],
+      ['narr', 'Burning Peak.'],
+      ['jin', 'Oi, kid. That one\'s smaller than the worm.'],
+      ['cg', 's0b', 'slow'],
+      ['gu', 'A fish! Tonight we feast!'],
+      ['jin', 'Oi, kid. Don\'t drool on me.'],
+      ['cg', 's1', 'still', 'cut'],
+      ['narr', 'Burning Peak. The night the Murim Alliance came for it.'],
+      ['jin', 'Stay behind me, kid.'],
       ['cg', 's2', 'slow'], ['fx', 'heartbeat'],
-      ['narr', 'Jin stopped fighting for one beat. Seo-yeon was close enough to end it, with the knife in her sleeve. Namgung looked at her the way he looked at her across the breakfast table.'],
-      ['cg', 's2b', 'still'],
-      ['act', 'choice', { q: 'Let me choose.', opts: ['Strike', 'Run to Jin'], frozen: 'Your hand won\'t move.', stamp: 'TIMED OUT' }],
-      ['fx', 'shake'],
-      ['cg', 's2c', 'slow'],
-      ['narr', 'The second passed, and nobody chose.'],
-      ['pray', 'Let me choose.', 'Uptima'],
-      ['fx', 'black'],
+      ['leader', 'Come here, child. Nobody else needs to be hurt.'],
+      ['jin', 'Run!'],
       ['cg', 's3', 'still'],
-      ['narr', 'Weeks later, at dawn, a lazy voice she\'d know anywhere.'],
-      ['cg', 's3a', 'slow'],
+      ['act', 'choice', { q: 'Let me choose.', opts: ['Take his hand', 'Stay with Jin'], frozen: 'Your feet won\'t move.', stamp: 'TIMED OUT' }],
+      ['fx', 'shake'],
+      ['cg', 's4', 'slow'],
+      ['narr', 'He made the choice for her.'],
+      ['cg', 's5', 'slow'],
+      ['pray', 'Let me choose.', 'Uptima'],
+      ['narr', 'He carried her out of the fire, sealed that night out of her memory, and raised her as his own.'],
+      ['fx', 'black'],
+      ['cg', 's6', 'still'],
+      ['narr', 'At seventeen the seal broke, and she remembered everything.'],
+      ['narr', 'Eleven years after the fire, she still calls him Father, and she has spent every day since the seal broke planning to kill him.'],
+      ['narr', 'At dawn, a lazy voice she\'d know anywhere.'],
+      ['cg', 's7a', 'slow'],
       ['jin', 'Oi, kid. Forms. I\'m up first, so you owe me.'],
       ['seoyeon', 'Sahyung?', 'grief'],
-      ['gcut', 's3c'],
+      ['gcut', 's7c'],
       ['freya', 'It isn\'t him. It\'s Freya. But he isn\'t gone. The Cloud keeps everyone.', 'smile'],
       ['freya', 'Someone has been holding his copy all this time, and never answered you.', 'cold'],
-      ['cg', 's3', 'slow'],
+      ['cg', 's6', 'slow'],
       ['seoyeon', 'Who?', 'anger'],
-      ['cg', 's3c', 'slow'],
+      ['cg', 's7c', 'slow'],
       ['freya', 'You already know. Shall we go and ask?', 'smile']
     ],
     dutch: [
