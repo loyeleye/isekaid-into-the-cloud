@@ -598,6 +598,11 @@
     // The engine draws the map's floor and room icons from the painted dungeon art when it's loaded; this chapter is
     // vector only, so hide it for the run (its glyphs and plain floor stand in) and put it back after.
     const painted = SD.dungeonArt; SD.dungeonArt = null;
+    // The fight stage's backdrop is the painted battle art too (js/raid.js); in vector mode a stylesheet puts the
+    // expedition's drawn scene over it, so the painted file is never fetched.
+    const K = SD.vec, BACK = { cold: 'c3-kitchen', abyss: 'c3-abyss', cathedral: 'c3-gallery', regent: 'c3-gallery' };
+    const vback = K && K.on && K.scenes && K.scenes[BACK[id]] ? document.head.appendChild(Object.assign(document.createElement('style'), {
+      textContent: `.rd-stage{background-image:url("${K.scenes[BACK[id]]}") !important}` })) : null;
     let won = false, hub = null, dir = null;
     const onEnd = r => { won = !!(r && r.won); };
     const story = extra => Object.assign({ story: true, tapes: 2, label: 'Borderlands', xp: id, champNames: true, deckFor, pickQ, say,
@@ -624,7 +629,7 @@
         }
       }
     } catch (e) { console.warn('Granaries:', e); }
-    finally { if (dir) dir.leave(); R3.active = null; SD.dungeonArt = painted; }
+    finally { if (dir) dir.leave(); R3.active = null; SD.dungeonArt = painted; if (vback) vback.remove(); }
     return { won };
   };
   // A friend's party: the open ones at this door, and a box for a code.
