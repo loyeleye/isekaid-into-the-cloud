@@ -33,17 +33,23 @@
   //   { files: true }     the four files become the lead select
   //   { sound: name }     a sound on its own (thunder far off)
   //   { music: name }     the music comes in
+  //   { light: level, ms } the stills dim (the dark before the lamp) or come up to full over ms, then hold
+  //   { fade: true }       out to black; the next still fades in from it
   // pan is 'slow' (a very slow push-in, the default), 'still', or js/vn.js's 'in', 'up' or 'left'. A cut to the same
   // framing (a face change on A, B to B) carries the push-in on instead of restarting it.
   // A: Freya's side, wide. B: over her shoulder.
   const A = (face, ...lines) => ({ still: 'a-' + face, lines: lines.map(t => ['freya', t]) });
   const B = (...lines) => ({ still: 's1b', lines: lines.map(t => ['man', t]) });
   O.SHOTS = [
+    { light: 0.5 },
     { strike: 'l1' },
     { strike: 'l2', hold: 1900 },
     { dark: true },
     { strike: 'l3' },
-    { still: 'l4', pan: 'still', hold: 1600 },
+    { light: 0.3 },
+    { still: 'l4', pan: 'still', hold: 700 },
+    { light: 1, ms: 1800, hold: 1000 },
+    { fade: true },
     { music: 'story' },
     B('You promised an army.'),
     A('warm', 'I promised the right people. Armies pray. These four stopped.'),
@@ -103,6 +109,8 @@
       if (s.files) { steps.push(['act', 'vfiles', {}]); return; }
       if (s.sound) { steps.push(['act', 'sound', { name: s.sound }]); return; }
       if (s.music) { steps.push(['act', 'music', { name: s.music }]); return; }
+      if (s.light !== undefined) { steps.push(['act', 'light', { to: s.light, ms: s.ms || 0 }]); if (s.hold) steps.push(['wait', s.hold]); return; }
+      if (s.fade) { steps.push(['fx', 'black'], ['act', 'light', { to: 1 }], ['wait', 400]); return; }
       if (s.strike) { steps.push(['fx', 'thunder'], ['cg', 'op-' + s.strike, 'still'], ['wait', s.hold || 1300], ['fx', 'black'], ['wait', 500]); return; }
       if (s.dark) { steps.push(['act', 'sound', { name: 'thunder' }], ['act', 'sound', { name: 'thud' }], ['fx', 'shake'], ['wait', 900]); return; }
       const pan = s.pan || 'slow';
@@ -186,6 +194,9 @@
 
   // A sound on its own, and the ring catching the lamp once: a soft point of light that blooms and fades.
   SD.vn.acts.sound = async (o, tools) => tools.sfx(o.name);
+  // How lit the stills are: dim until Freya lights the lamp, then up to full.
+  const light = (to, ms) => { const cg = document.querySelector('#vn .vn-cg'); if (!cg) return; cg.style.transition = 'filter ' + (ms || 0) + 'ms ease-in-out'; cg.style.filter = to >= 1 ? '' : 'brightness(' + to + ')'; };
+  SD.vn.acts.light = async (o, tools) => { light(o.to, o.ms); if (o.ms) await tools.sleep(o.ms); };
   // The music comes in under the storm that's already playing.
   SD.vn.acts.music = async o => SD.audio.music(o.name, true);
   const GLINT = { 'op-s5': ['53%', '46%'], 'op-s9b': ['80%', '58%'] };
@@ -210,6 +221,7 @@
       SD.audio.music(null);
       SD.audio.weather('tempest');
       await SD.vn.play(O.compile(O.SHOTS));
+      light(1);
       SD.audio.weather(null);
       return O.picked || await W1.choose();
     };
