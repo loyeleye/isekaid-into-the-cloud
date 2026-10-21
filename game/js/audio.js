@@ -372,7 +372,14 @@
     // Chapter 1's Cloud: wind gusting through it and thunder far off, then rain at the temple, where js/ch1-world.js
     // sends the thunder itself so it lands with the lightning.
     gloom: { extra: [[['wind'], 0.34, 6, 14], [['leaves'], 0.22, 9, 20], [['rumble'], 0.2, 24, 50]] },
-    tempest: { bed: 'rain', vol: 0.85, extra: [[['wind'], 0.3, 10, 22]] }
+    tempest: { bed: 'rain', vol: 0.85, extra: [[['wind'], 0.3, 10, 22]] },
+    // The overworlds' weather (js/weather.js draws it): the scrap field's dust on a gusting wind, with the rustle of a
+    // tumbleweed going by; a breeze through dead leaves on chapter 2's road; a drizzle (floor 13, the Arcanum); and
+    // cold wind over snow (the Cold Stores, the Gate Passes).
+    dust: { extra: [[['wind'], 0.34, 5, 11], [['leaves'], 0.2, 7, 16]] },
+    breeze: { extra: [[['leaves'], 0.26, 8, 18], [['wind'], 0.18, 14, 28]] },
+    drizzle: { bed: 'rain', vol: 0.6, extra: [] },
+    snow: { extra: [[['wind'], 0.26, 8, 18]] }
   };
   const PLACE = {
     sea: { bed: 'sea', vol: 0.55, extra: [[['gull1', 'gull2', 'gull3'], 0.22, 8, 20]] },
@@ -382,7 +389,9 @@
     post: { extra: [[['page'], 0.28, 8, 20]] },
     temple: { extra: [[['chime1', 'chime2'], 0.22, 9, 20]] },
     gym: { extra: [[['clank1', 'clank2', 'thud'], 0.3, 1.8, 5]] },
-    yard: { extra: [[['clank1', 'clank2', 'thud'], 0.12, 4, 10]] }
+    yard: { extra: [[['clank1', 'clank2', 'thud'], 0.12, 4, 10]] },
+    // Deep places (the bottom of the Abyss, the undercroft): the floors above settling, far off.
+    rumble: { extra: [[['rumble'], 0.3, 9, 22]] }
   };
   function bedLayer(table) {
     const L = { me: null, want: undefined };

@@ -153,6 +153,22 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
+
+  // ---------- Weather ----------
+  // By zone (js/weather.js): snow through the Gate Passes and the Hidden Valley, small flakes far off and big ones
+  // close; over the Ruins of Burning Peak, a warm smoky air, ash sifting down and sparks rising through it; and
+  // embers off the camp's fire. The passes' cold wind is what you hear (js/audio.js SKY); the Peak's fire is its own place sound.
+  const WX = SD.wx;
+  const zk = () => (zone ? zone[4] : null);
+  function weather(stage) {
+    const z = zk(), snow = WX.ease('c4snow', z === 'pass' || z === 'valley' ? 1 : 0), ash = WX.ease('c4ash', z === 'ruins' ? 1 : 0);
+    if (stage === 0) { WX.wash('source-over', 'rgb(226,234,250)', 0.08 * snow); WX.wash('source-over', 'rgb(150,70,40)', 0.07 * ash); return; }
+    WX.embers(9.5, 28.5, 1, 12);
+    WX.snow(snow);
+    WX.fog(ash * 0.5, '168,156,156');
+    WX.ash(ash);
+  }
+
   const trail = [];
   const solidNow = () => 'TG#XrV';
   function phase() {
@@ -182,7 +198,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'down', M: 'up', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#141226', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights()),
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -276,6 +292,7 @@
   // ---------- Every frame ----------
   function tick() {
     const P = sc.P; if (!P) return;
+    AU.weather(zk() === 'pass' || zk() === 'valley' ? 'snow' : null);
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
       if (lastTile) { const [x, y] = lastTile.split(',').map(Number); trail.unshift([x, y]); trail.length = Math.min(trail.length, 6); }
@@ -311,7 +328,6 @@
   }
   function drawOverlay(ctx, t, vw, vh) {
     if (!sc) return;
-    if (zone && (zone[4] === 'pass' || zone[4] === 'valley') && A.snow) A.snow(ctx, t, vw, vh);
     const { cx, cy } = sc.cam(), ts = guessTs(vw, vh), tg = step()[1];
     if (tg && !busy) {
       const X = (tg[0] + 0.5) * ts - cx, Y = (tg[1] + 0.5) * ts - cy, m = 28;

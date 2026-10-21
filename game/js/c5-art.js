@@ -316,9 +316,12 @@
   // ---------- The grade ----------
   const PHASE = { dawn: { mul: 'rgba(230,196,210,.9)', warm: 'rgba(60,24,40,.08)', vig: 0.5 }, day: { mul: 'rgba(246,244,255,1)', warm: null, vig: 0.3 },
     dusk: { mul: 'rgba(196,170,200,.9)', warm: 'rgba(60,30,40,.08)', vig: 0.55 }, night: { mul: 'rgba(84,92,150,.95)', warm: null, vig: 0.7 } };
-  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights) {
+  // fx(stage), if given, paints the map's weather (js/weather.js): stage 0 under the lamps, stage 1 over them, both
+  // under the vignette.
+  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights, fx) {
     const ph = PHASE[phase] || PHASE.day;
     ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = ph.mul; ctx.fillRect(0, 0, vw, vh);
+    if (fx) { ctx.globalCompositeOperation = 'source-over'; fx(0); }
     ctx.globalCompositeOperation = 'lighter';
     if (ph.warm) { ctx.fillStyle = ph.warm; ctx.fillRect(0, 0, vw, vh); }
     (lights || []).forEach(([x, y, r, rgb, flick]) => {
@@ -328,6 +331,7 @@
       ctx.fillStyle = gr; ctx.fillRect(X - R, Y - R, R * 2, R * 2);
     });
     ctx.globalCompositeOperation = 'source-over';
+    if (fx) fx(1);
     const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.35, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
     vg.addColorStop(0, 'rgba(10,8,18,0)'); vg.addColorStop(1, `rgba(8,6,14,${ph.vig})`);
     ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);

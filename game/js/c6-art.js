@@ -272,9 +272,12 @@
   // ---------- The grade ----------
   const PHASE = { dawn: { mul: 'rgba(230,200,220,.92)', warm: 'rgba(60,24,40,.06)', vig: 0.45 }, day: { mul: 'rgba(250,252,255,1)', warm: null, vig: 0.28 },
     dusk: { mul: 'rgba(200,180,210,.9)', warm: 'rgba(60,30,40,.08)', vig: 0.5 }, night: { mul: 'rgba(96,108,160,.95)', warm: null, vig: 0.68 } };
-  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights) {
+  // fx(stage), if given, paints the map's weather (js/weather.js): stage 0 under the lamps, stage 1 over them, both
+  // under the vignette.
+  A.grade = function (ctx, t, vw, vh, cx, cy, ts, phase, lights, fx) {
     const ph = PHASE[phase] || PHASE.day;
     ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = ph.mul; ctx.fillRect(0, 0, vw, vh);
+    if (fx) { ctx.globalCompositeOperation = 'source-over'; fx(0); }
     ctx.globalCompositeOperation = 'lighter';
     if (ph.warm) { ctx.fillStyle = ph.warm; ctx.fillRect(0, 0, vw, vh); }
     (lights || []).forEach(([x, y, r, rgb, flick]) => {
@@ -284,17 +287,10 @@
       ctx.fillStyle = gr; ctx.fillRect(X - R, Y - R, R * 2, R * 2);
     });
     ctx.globalCompositeOperation = 'source-over';
+    if (fx) fx(1);
     const vg = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.35, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
     vg.addColorStop(0, 'rgba(10,8,18,0)'); vg.addColorStop(1, `rgba(8,6,14,${ph.vig})`);
     ctx.fillStyle = vg; ctx.fillRect(0, 0, vw, vh);
-  };
-  // Mist over the lake.
-  A.mist = function (ctx, t, vw, vh) {
-    for (let i = 0; i < 6; i++) {
-      const h = hash(i, 11), x = ((h % 1000) / 1000 * vw + t * (6 + h % 5)) % (vw + 300) - 150, y = ((h >> 10) % 1000) / 1000 * vh;
-      const gr = ctx.createRadialGradient(x, y, 0, x, y, 160); gr.addColorStop(0, 'rgba(240,244,255,.14)'); gr.addColorStop(1, 'rgba(240,244,255,0)');
-      ctx.fillStyle = gr; ctx.fillRect(x - 160, y - 160, 320, 320);
-    }
   };
 
   // ---------- The new faces, in the visual novel ----------
