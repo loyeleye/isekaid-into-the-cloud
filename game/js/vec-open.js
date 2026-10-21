@@ -188,6 +188,7 @@
     tools.closePanel();
   };
   SD.vn.acts.vfiles = async function (o, tools) {
+    const jump = document.getElementById('dbg-jump'); if (jump) jump.remove();
     const T = SD.ch1story;
     const p = tools.panel(`<div class="vf-head"><b>WHOSE FILE?</b>Freya keeps one file open. Whose story do you start with? The other three are in her camp either way.</div>
       ${T.order.map(id => { const l = T.leads[id]; return `<div class="vf-file" data-lead="${id}" role="button" tabindex="0"><div class="vf-tab">${esc(l.name)}<small>UNANSWERED</small></div>
@@ -221,17 +222,37 @@
     setTimeout(() => g.remove(), 2200);
   };
 
+  // Debug only: a button over the opening that skips to the files.
+  function jumpButton() {
+    const b = document.createElement('button');
+    b.id = 'dbg-jump'; b.type = 'button'; b.textContent = '🐞 Skip to the files';
+    b.style.cssText = 'position:fixed;top:6px;left:6px;z-index:10000;font:600 12px Fredoka,sans-serif;padding:4px 8px;border-radius:10px;border:2px solid #2b2340;background:#ffe14d;color:#2b2340;cursor:pointer';
+    b.onclick = e => { e.stopPropagation(); O.jump = true; b.remove(); const k = document.querySelector('#vn .vn-skip'); if (k) k.click(); };
+    document.body.appendChild(b);
+    return b;
+  }
+
   // ---------- Playing it before chapter 1 ----------
   K.installs.push(() => {
     SD.cast.man = { name: '???', title: '' };
     SD.ui.voice('man', 180);
     const W1 = SD.ch1;
     W1.opening = async function () {
-      O.picked = null;
+      O.picked = null; O.jump = false;
       SD.vn.addScenes(O.scenes());
       SD.audio.music(null);
       SD.audio.weather('tempest');
-      await SD.vn.play(O.compile(O.SHOTS));
+      // Debug (js/debug.js) can skip straight to the files: always, from its panel, or with the button it shows here.
+      const D = SD.debug, files = O.SHOTS.findIndex(s => s.files);
+      if (!(D && D.skipOpening())) {
+        const btn = D && jumpButton();
+        await SD.vn.play(O.compile(O.SHOTS));
+        if (btn) btn.remove();
+      }
+      if (!O.picked && (O.jump || (D && D.skipOpening()))) {
+        light(1);
+        await SD.vn.play(O.compile([{ music: 'story' }, { still: 's10', pan: 'still' }, ...O.SHOTS.slice(files)]));
+      }
       light(1);
       SD.audio.weather(null);
       return O.picked || await W1.choose();

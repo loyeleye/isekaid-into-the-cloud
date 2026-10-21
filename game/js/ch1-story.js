@@ -41,7 +41,7 @@
       ['narr', 'Bram held the stair long enough for Mira to break her chain and reach him. Not long enough for anything else.'],
       ['cg', 'm2', 'slow'], ['fx', 'heartbeat'],
       ['mira', 'Bram. Bram, love, look at me. Hold still. I\'ve had my hand in worse than you.'],
-      ['act', 'heal', { target: 'Bram', fail: 'There\'s nothing left for it to hold on to.' }],
+      ['act', 'heal', { target: 'Bram', fail: 'There\'s nothing left for it to hold on to.', glow: [0.40, 0.61] }],
       ['cg', 'm2b', 'still'],
       ['narr', 'He didn\'t hold still. He didn\'t do anything.'],
       ['cg', 'm2c', 'slow'],

@@ -12,6 +12,7 @@
 //   group=2|3     every normal and elite fight is a group of that size (see SD.debug.groupFight below)
 //   time=morning|afternoon|evening|night   the time of day (js/clock.js; chapter 10's town stays night)
 //   weather=clear|drizzle|rain|storm|wind|gusty|fog|mist|snow   force the weather on every map (js/weather.js)
+//   skipopen      the vector build's opening starts at the files (Freya's file cards), where you pick your lead
 // Examples: index.html?debug&ch=1&at=run   index.html?debug&ch=1&rank=C&at=town
 // While on, a 🐞 button (bottom left) opens a panel to pick these, win the current fight, add shards, start a group fight, or replay the intro.
 (function () {
@@ -120,6 +121,7 @@
         <label for="dbg-floor">Floor</label><select id="dbg-floor">${[1, 2, 3, 4].map(n => opt(n, P.get('floor') || 1)).join('')}</select>
         <label for="dbg-shards">Shards</label><input id="dbg-shards" type="number" placeholder="2000" min="0" step="100">
         <label for="dbg-q">Quests</label><label><input id="dbg-q" type="checkbox"${P.get('quests') === 'done' ? ' checked' : ''}> finish every quest so far</label>
+        ${SD.ch1 && SD.ch1.opening ? `<label for="dbg-skipopen">Opening</label><label><input id="dbg-skipopen" type="checkbox"${D.skipOpening() ? ' checked' : ''}> skip to the files</label>` : ''}
         ${SD.clock && SD.weather ? `<label for="dbg-time">Time of day</label><select id="dbg-time">${SD.clock.BLOCKS.map(k => opt(k, SD.clock.block())).join('')}</select>
         <label for="dbg-wx">Weather</label><select id="dbg-wx">${opt('', SD.weather.force || '', 'the chapter\'s own (' + SD.weather.now() + ')')}${SD.weather.KINDS.map(k => opt(k, SD.weather.force || '')).join('')}</select>` : ''}
       </div>
@@ -137,6 +139,7 @@
       try { const q = new URLSearchParams({ debug: '', ch: v('ch'), rank: v('rank'), at: v('at'), floor: v('floor'), shards: v('shards') }); if (quests) q.set('quests', 'done'); history.replaceState(null, '', '?' + q.toString().replace('debug=&', 'debug&')); } catch (e) { /* hosted preview */ }
       D.goTo(v('at'), v('floor'));
     };
+    if (b.querySelector('#dbg-skipopen')) b.querySelector('#dbg-skipopen').onchange = e => D.setSkipOpening(e.target.checked);
     b.querySelector('#dbg-win').onclick = () => {
       const C = SD.run.api && SD.run.api.combat();
       U.closePanel();
@@ -157,6 +160,13 @@
     b.querySelector('#dbg-sh').onclick = () => { sv.shards += 1000; S.persist(); U.closePanel(); U.system('DEBUG', `+1,000 shards (${sv.shards} now).`); if (SD.main.hud) SD.main.hud(); };
   }
   D.panel = panel;
+
+  // ---------- Skipping the opening ----------
+  // The vector build's opening (js/vec-open.js) jumps to the files when this is on, and while debug is on it shows
+  // a "Skip to the files" button over the opening either way.
+  const SKIP = 'isekai-cloud-debug-skipopen';
+  D.skipOpening = () => { if (P.has('skipopen')) return true; try { return localStorage.getItem(SKIP) === '1'; } catch (e) { return false; } };
+  D.setSkipOpening = v => { try { if (v) localStorage.setItem(SKIP, '1'); else localStorage.removeItem(SKIP); } catch (e) { /* ignore */ } };
 
   // ---------- Time and weather ----------
   // SD.debug.setTime('night') jumps the clock; SD.debug.setWeather('storm') forces the weather on every map until

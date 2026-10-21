@@ -225,6 +225,26 @@
     return up;
   }
 
+  // A pulsing glow on the still at [x, y] (fractions of the painted image), riding the still's slow push-in.
+  // It brightens with --heal (0 to 1), beats faster while .held, and gutters out with .out.
+  function handGlow(at) {
+    const pic = [...cam.querySelector('.vn-cg').children].pop();
+    if (!pic) return null;
+    const img = pic.querySelector('img'), g = document.createElement('div');
+    g.className = 'vn-heal'; g.innerHTML = '<i></i>';
+    const place = () => {
+      // The still is object-fit: cover, so find where the image point lands in the box.
+      const W = pic.clientWidth, H = pic.clientHeight, iw = img && img.naturalWidth || 16, ih = img && img.naturalHeight || 9;
+      const k = Math.max(W / iw, H / ih), x = (W - iw * k) / 2 + at[0] * iw * k, y = (H - ih * k) / 2 + at[1] * ih * k;
+      g.style.setProperty('--hx', x + 'px'); g.style.setProperty('--hy', y + 'px'); g.style.setProperty('--hr', (0.2 * iw * k) + 'px');
+    };
+    place(); addEventListener('resize', place);
+    const remove = g.remove.bind(g);
+    g.remove = () => { removeEventListener('resize', place); remove(); };
+    pic.appendChild(g);
+    return g;
+  }
+
   const ACTS = {
     // Hold to heal: the bar crawls toward full and never gets there.
     async heal(o) {
@@ -232,19 +252,27 @@
         <div class="vn-meter"><b>Heal</b><div class="bar mend"><i></i></div></div>
         <button class="vn-hold">Hold to heal</button><p class="vn-note"></p>`, 'heal');
       const bar = p.querySelector('.mend i'), btn = p.querySelector('.vn-hold'), note = p.querySelector('.vn-note');
+      const glow = o.glow && handGlow(o.glow);
+      if (glow) {
+        ['pointerdown', 'pointerup', 'pointerleave', 'pointercancel'].forEach(k =>
+          btn.addEventListener(k, () => glow.classList.toggle('held', k === 'pointerdown')));
+      }
       let v = 0, effort = 0;
       await new Promise(done => {
         const stop = holdable(btn, dt => {
           effort += dt; v += (0.97 - v) * Math.min(1, dt * 1.4);
           bar.style.width = (v * 100).toFixed(1) + '%';
+          if (glow) glow.style.setProperty('--heal', v.toFixed(2));
           if (Math.random() < dt * 4) sfx('heal');
           if (effort > 3.2) { stop(); btn.disabled = true; done(); }
         });
         setTimeout(() => { stop(); done(); }, 14000);
       });
       bar.parentElement.classList.add('fail'); bar.style.width = '0%';
+      if (glow) glow.classList.add('out');
       note.textContent = o.fail; sfx('wrong');
       await sleep(skipping ? 0 : 2200);
+      if (glow) glow.remove();
       closePanel();
     },
     // Hold to break the barrier; the face inside flickers harder, then the only button left is "Let go".
