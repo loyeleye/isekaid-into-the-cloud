@@ -45,6 +45,15 @@
   let root, cam, castEl, actEl, box, nameEl, textEl, rainCv, rainOn = false, rainRaf = 0;
   let skipping = false, advance = null, typing = null, full = '';
   const sprites = {};  // who -> { el, face, pos }
+  // On a phone (see #vn .vn-spr.lead in index.html) only one sprite shows: the one speaking, or while nobody with a
+  // sprite speaks, whoever spoke or came on last. Desktop shows everyone and dims all but the speaker.
+  let lead = null;
+  function setLead(who) {
+    if (who && !sprites[who]) who = null;
+    if (!who) { const up = Object.keys(sprites); who = sprites[lead] ? lead : up[up.length - 1] || null; }
+    lead = who;
+    Object.keys(sprites).forEach(w => sprites[w].el.classList.toggle('lead', w === who));
+  }
   function build() {
     if (root) return;
     root = document.createElement('div');
@@ -87,6 +96,7 @@
 
   function show(who, face, pos) {
     let s = sprites[who];
+    const fresh = !s;
     if (!s) {
       const el = document.createElement('div');
       el.className = 'vn-spr'; el.dataset.who = who;
@@ -102,9 +112,11 @@
       s.el.innerHTML = spriteHTML(who, face);
       s.el.classList.remove('bump'); void s.el.offsetWidth; s.el.classList.add('bump');
     }
-    // With two people up, the one who isn't speaking steps back to the side.
-    const up = Object.keys(sprites);
-    if (up.length > 1) up.forEach(w => { if (sprites[w].pos === 'center') { sprites[w].pos = w === who ? 'right' : 'left'; sprites[w].el.dataset.pos = sprites[w].pos; } });
+    // With two people up, the one who isn't speaking steps back to the side: the side the newcomer isn't on.
+    const up = Object.keys(sprites), mine = s.pos;
+    if (up.length > 1) up.forEach(w => { if (sprites[w].pos === 'center') { sprites[w].pos = w === who ? 'right' : mine === 'left' ? 'right' : 'left'; sprites[w].el.dataset.pos = sprites[w].pos; } });
+    // Someone who has just come on is the one a phone shows, until somebody speaks.
+    if (fresh) setLead(who);
   }
   function hide(who) {
     const s = sprites[who]; if (!s) return;
@@ -112,8 +124,9 @@
     s.el.classList.remove('on'); setTimeout(() => s.el.remove(), 600);
     const up = Object.keys(sprites);
     if (up.length === 1) { sprites[up[0]].pos = 'center'; sprites[up[0]].el.dataset.pos = 'center'; }
+    if (lead === who) { lead = null; setLead(null); }
   }
-  function focus(who) { Object.keys(sprites).forEach(w => sprites[w].el.classList.toggle('dim', w !== who)); }
+  function focus(who) { Object.keys(sprites).forEach(w => sprites[w].el.classList.toggle('dim', w !== who)); if (sprites[who]) setLead(who); }
 
   // ---------- Rain ----------
   function rain(on) {
@@ -322,6 +335,7 @@
     s.el.innerHTML = spriteHTML(to, face);
     sprites[to] = s; delete sprites[from];
     s.el.dataset.who = to; s.face = face || 'neutral';
+    if (lead === from) lead = to;
     if (!skipping) await sleep(650);
     s.el.classList.remove('glitch');
     // A last flicker of the face she borrowed.
@@ -366,6 +380,7 @@
     await sleep(skipping ? 200 : 900);
     rain(false);
     Object.keys(sprites).forEach(w => { sprites[w].el.remove(); delete sprites[w]; });
+    lead = null;
     cam.querySelectorAll('.vn-pic').forEach(e => e.remove());
     root.classList.remove('vn-incg', 'flicker', 'shake');
     box.hidden = true;
