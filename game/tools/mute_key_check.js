@@ -20,6 +20,8 @@ const server = http.createServer((req, res) => {
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  // Voice lines are <audio> elements of their own; keep hold of them to see whether V silences one mid-line.
+  await page.addInitScript(() => { const A = window.Audio; window.__vo = []; window.Audio = function (src) { const e = new A(src); if (/\/vo\//.test(src)) window.__vo.push(e); return e; }; });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   let fail = 0;
@@ -69,6 +71,17 @@ const server = http.createServer((req, res) => {
   check(await snd() === '--', 'V mutes while someone is talking');
   await page.keyboard.press('v');
   for (let i = 0; i < 5 && await page.evaluate(() => !document.querySelector('#dialog').hidden); i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(150); }
+
+  await page.evaluate(() => SD.audio.voice('bram-kettle'));
+  const vo = () => page.evaluate(() => { const e = __vo[__vo.length - 1]; return e && !e.paused && !e.muted; });
+  check(await vo(), 'a voice line plays');
+  await page.keyboard.press('v');
+  check(!await vo(), 'V silences a voice line already playing');
+  await page.keyboard.press('v');
+  check(await vo(), 'and V again brings it back');
+  await page.evaluate(() => SD.audio.set('sfx', false));
+  check(!await vo(), 'so does switching sound effects off by hand');
+  await page.evaluate(() => { SD.audio.set('sfx', true); SD.audio.voice(null); });
 
   await page.evaluate(() => SD.ui.panel('<input id="t-in"><textarea id="t-ta"></textarea><input type="checkbox" id="t-cb">', { title: 'TEST' }));
   await page.focus('#t-in'); await page.keyboard.press('v');
