@@ -978,6 +978,33 @@ body { background: var(--bg); }
 #vn .vn-pic { opacity: 0; transition: opacity .9s ease; }
 #vn .vn-pic.on { opacity: 1; }
 #vn .vn-pic > img, #vn .vn-ph { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* A pixel-art shot from a cutscene sheet, covering the screen like the img above (js/vn.js, sceneHTML). */
+#vn .vn-sheet { position: absolute; inset: 0; overflow: hidden; container-type: size; }
+#vn .vn-sheet > i, #vn .vn-sheet > .vn-gl { --w: max(100cqw, 100cqh * 688 / 384); position: absolute; width: var(--w); height: calc(var(--w) * 384 / 688);
+  left: calc((100cqw - var(--w)) * var(--fx, .5)); top: calc((100cqh - var(--w) * 384 / 688) / 2); }
+#vn .vn-sheet > i { background-repeat: no-repeat; image-rendering: pixelated; }
+/* The painted twin breaks through the pixel art in torn bands, twice every seven seconds. */
+#vn .vn-sheet > .vn-gl { opacity: 0; animation: vnTear 7s steps(1) 1.5s infinite; }
+@keyframes vnTear {
+  0%, 55% { opacity: 0; clip-path: none; translate: 0; }
+  56% { opacity: 1; clip-path: inset(18% 0 58% 0); translate: -1.5% 0; }
+  57% { opacity: 1; clip-path: inset(0); translate: 0; }
+  61% { opacity: 1; clip-path: inset(0 0 0 0); translate: .8% 0; }
+  62% { opacity: 1; clip-path: inset(46% 0 30% 0); translate: 0; }
+  63%, 84% { opacity: 0; clip-path: none; }
+  85% { opacity: 1; clip-path: inset(0); }
+  87% { opacity: 1; clip-path: inset(62% 0 12% 0); translate: 1.2% 0; }
+  88%, 100% { opacity: 0; clip-path: none; translate: 0; }
+}
+/* A ghost over a shot (Freya's projection): it drifts up and down, glows, and wavers like a bad signal. */
+#vn .vn-sheet .vn-ghost { position: absolute; translate: -50% 0; image-rendering: pixelated; opacity: .88; mix-blend-mode: screen;
+  filter: drop-shadow(0 0 .6cqh rgba(120, 255, 170, .8)); animation: vnGhost 4.5s ease-in-out infinite; }
+@keyframes vnGhost {
+  0%, 100% { translate: -50% 0; opacity: .88; }
+  50% { translate: -50% -4%; opacity: .78; }
+  71% { opacity: .9; } 72% { opacity: .55; } 73% { opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) { #vn .vn-sheet > .vn-gl, #vn .vn-sheet .vn-ghost { animation: none; } }
 #vn .vn-ph { display: flex; align-items: flex-start; justify-content: flex-end; }
 #vn .vn-ph span { margin: 14px 16px; font: 600 11px/1.4 ui-monospace, monospace; color: rgba(255,255,255,.4); text-align: right; letter-spacing: .04em; }
 #vn .vn-bg .vn-pic::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
@@ -1218,6 +1245,7 @@ body { background: var(--bg); }
 <script src="js/ch1-art.js"></script>
 <script src="js/ch1-story.js"></script>
 <script src="js/ch1-world.js"></script>
+<script src="js/cut-reveal.js"></script>
 <script src="js/ch1-trek-story.js"></script>
 <script src="js/ch1-mountain.js"></script>
 <script src="js/net.js"></script>
