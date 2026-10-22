@@ -53,13 +53,15 @@
     const cuts = SD.cutReveal && T() ? `<div class="ds-row ds-watch">
         <div class="ds-txt"><b>Chapter 1: the reveal</b><br><span class="muted small">As each lead sees it. Your save isn't touched.</span></div>
         <div class="ds-btns">${T().order.map(id => `<button class="ghost" type="button" data-watch="${id}">${esc(T().leads[id].name.split(' ')[0])}</button>`).join('')}</div>
-      </div>` : '';
+      </div>${revealOpts()}` : '';
     const b = U.panel(`<p class="muted small">Testing and reviewing only.</p>
       <h3 class="ds-h">Chapter select</h3>
       <p class="small"><b>Start</b> begins a fresh save at that chapter, with the level and deck its demo assumes, and replaces the save in this browser. From there each chapter's end card carries on into the next.</p>
       <div class="ds-list">${rows}</div>
       ${cuts ? `<h3 class="ds-h">Cutscenes</h3><div class="ds-list">${cuts}</div>` : ''}`, { title: 'DEBUG' });
     b.querySelectorAll('[data-watch]').forEach(el => { el.onclick = () => watchReveal(el.dataset.watch); });
+    b.querySelectorAll('[data-theme]').forEach(el => { el.onclick = () => { SD.audio.freyaTheme(el.dataset.theme); select(); }; });
+    b.querySelectorAll('[data-opt]').forEach(el => { el.onclick = () => { SD.cutReveal.setOpt(el.dataset.opt, JSON.parse(el.dataset.val)); select(); }; });
     b.querySelectorAll('[data-go]').forEach(el => {
       el.onclick = () => {
         const c = CHAPTERS.find(x => x.n === el.dataset.go);
@@ -70,6 +72,25 @@
         k.querySelector('#ds-n').onclick = select;
       };
     });
+  }
+  // The reveal's versions to compare (js/cut-reveal.js): how the pixel virus becomes the real one, and the glitch tiles.
+  function revealOpts() {
+    const o = SD.cutReveal.opts;
+    const now = SD.audio.freyaTheme && SD.audio.freyaTheme();
+    const theme = (v, label) => `<button class="${now === v ? 'primary' : 'ghost'}" type="button" data-theme="${v}" aria-pressed="${now === v}">${label}</button>`;
+    const btn = (k, v, label) => `<button class="${o[k] === v ? 'primary' : 'ghost'}" type="button" data-opt="${k}" data-val='${JSON.stringify(v)}' aria-pressed="${o[k] === v}">${label}</button>`;
+    return `<div class="ds-row ds-watch">
+        <div class="ds-txt"><b>Pixel to real</b><br><span class="muted small">The last cut, from the pixel virus to the real one.</span></div>
+        <div class="ds-btns">${btn('morph', 'head', 'Sharpen from her head')}${btn('morph', 'mosaic', 'Sharpen all at once')}${btn('morph', 'fade', 'Fade from her head')}</div>
+      </div>
+      <div class="ds-row ds-watch">
+        <div class="ds-txt"><b>Green glitch tiles</b><br><span class="muted small">The game breaking up over the glitches.</span></div>
+        <div class="ds-btns">${btn('tiles', true, 'On')}${btn('tiles', false, 'Off')}</div>
+      </div>
+      <div class="ds-row ds-watch">
+        <div class="ds-txt"><b>Freya's theme</b><br><span class="muted small">Her Chapter 1 music, which the reveal warps.</span></div>
+        <div class="ds-btns">${theme('waltz', 'Music-box waltz')}${theme('tune', 'Carefree tune')}</div>
+      </div>`;
   }
   function badge() {
     if ($('#ds-dbg')) return;
