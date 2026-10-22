@@ -1,6 +1,6 @@
 // Checks that every pixel cutscene still (js/cut-ch*.js) gets shown: plays js/vn.js's cue matching over every visual-
-// novel script in chapters 3 to 5 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 3's scripts are data (SD.c3story);
-// chapters 4 and 5 write theirs inline as vn([...]) calls in js/c4-world.js and js/c5-world.js, so those are read from
+// novel script in chapters 3 to 6 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 3's scripts are data (SD.c3story);
+// chapters 4 to 6 write theirs inline as vn([...]) calls in js/c4-world.js, js/c5-world.js and js/c6-world.js, so those are read from
 // the source as their string literals in order (a per-lead { lead: ..., other: ... } line counts every version). A
 // cutscene starts on a line holding its first cue and lasts until the next 'bg'; a shot shows on a line holding its
 // cue inside its cutscene. Fails on a cutscene that never starts, a shot that never shows, or a missing sheet.
@@ -103,7 +103,7 @@ function check(inline) {
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(base + 'index.html?vector', { waitUntil: 'load' });
   await page.waitForFunction(() => window.SD && SD.vn && SD.c3story && SD.c4data && SD.c5data);
-  const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js'].flatMap(vnCalls));
+  const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js'].flatMap(vnCalls));
   const noSheet = r.sheets.filter(s => !s || !fs.existsSync(path.join(ROOT, s)));
   await browser.close(); server.close();
   if (errors.length) console.log('page errors:\n  ' + errors.join('\n  '));

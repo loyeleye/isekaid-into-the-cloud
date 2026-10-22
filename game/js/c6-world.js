@@ -390,8 +390,6 @@
   }
   async function offer() {
     mus('freya');
-    const no = { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' };
-    const inner = { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' };
     await vn([['bg', 'c6-jetty'],
       ['narr', 'At the end of the jetty, Freya is waiting, as cheerful as ever. Behind her, the lake holds the whole town upside down.'],
       ['show', 'freya', 'warm', 'right'],
@@ -399,7 +397,9 @@
       ['freya', 'I\'ll bring them back. Bram, Hana, Jin, Lina. From my own memory. They\'ll be as real as I am.', 'earnest'],
       ['narr', 'Then she says it again, in their voices. Each of them hears the one they lost.'],
       ['show', 'lead', 'neutral', 'left'],
-      ...T.order.map(id => (id === lead() ? ['narr', inner[id]] : [id, no[id], 'cold'])),
+      // What each of the others says out loud, and what the lead hears inside.
+      ...T.order.map(id => (id === lead() ? ['narr', { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' }[id]]
+        : [id, { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' }[id], 'cold'])),
       ['lead', { mira: 'No, love.', kai: 'No.', seoyeon: 'No.', dutch: 'No.' }, 'cold'],
       ['freya', 'Free, my loves. Whenever you change your minds.', 'smile'],
       ['narr', 'She goes. At the jetty\'s end, someone has set up a stall, and he is in a wonderful mood.']]);
@@ -422,27 +422,26 @@
   }
   async function mioEar() {
     if (flag('mio')) return say([['mio', rnd(['That one\'s pretending. Shh.', 'I\'ll come to camp after the stairs. I can help with the relay.']), 'smile']]);
-    await say([[null, 'An eight-year-old in pink sits at the end of the jetty with her ear to the boards: Mio, from the first game, who can hear what servers think.'],
+    await say([[null, 'A fifteen-year-old with pink ribbons sits at the end of the jetty with her ear to the boards: Mio, from the first game, who can hear what servers think.'],
       ['mio', 'Shh. I\'m listening to the twins. That one\'s fine. That one\'s asleep. That one says it\'s fine and it isn\'t.', 'earnest'],
       ['lead', { mira: 'Which one is lying, love?', kai: 'How can you tell?', seoyeon: 'Which?', dutch: 'Which one?' }],
       ['mio', 'The ones that say "OK" too fast. Real things take a moment.', 'neutral'],
       ['mio', 'The man with the stall... I can\'t hear anything at all from him. Nothing. I don\'t like it.', 'sad'],
-      [null, 'Nobody listens to an eight-year-old. Except, by now, this camp.']]);
+      [null, 'Nobody listens to a fifteen-year-old. Except, by now, this camp.']]);
     setFlag('mio');
   }
-  const MIRROR = {
-    mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
-    kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
-    seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
-    dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
-  };
   async function mirror() {
     if (flag('mirror1')) return say([[null, 'The still water. Your reflection looks back, a moment late, and perfectly happy.']]);
     mus('c6mirror');
     await vn([['bg', 'c6-mirror'],
       ['narr', 'Where the jetty ends, the lake is brightest. Your lead looks down, and someone else looks up: who they\'d be if they\'d stayed with Freya.'],
       ['show', 'mirror', 'smile', 'right'], ['show', 'lead', 'neutral', 'left'],
-      ...MIRROR[lead()],
+      ...({
+        mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
+        kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
+        seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
+        dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
+      })[lead()],
       ['narr', 'It isn\'t unhappy. That\'s the worst of it.']]);
     mus('c6town');
     setFlag('mirror1');
@@ -607,7 +606,7 @@
     async clock() {
       if (flag('clock')) return;
       AU.sfx('x-tick');
-      await say([[null, 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
+      await vn([['bg', 'c6-clock'], ['narr', 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
       await ask({ c: 'keydelete', type: 'num', q: 'Freya could have picked any waiting period when she scheduled the key\'s deletion. What is the longest one KMS allows, in days?', lo: 30, hi: 30, ans: 30, unit: 'days',
         why: 'A KMS key scheduled for deletion waits 7 to 30 days; 30 is both the default and the most. During the wait it can\'t be used, and the deletion can be cancelled.',
         eli5: 'Throwing away a master key always comes with a waiting week or more, up to a month, so somebody has time to say "wait, no".' }, 'THE CLOCK ROOM');
@@ -644,13 +643,14 @@
         why: 'Reads of S3 objects are data events: CloudTrail records them only when a trail is set to log data events, which the Mailroom did. Each event names the role that made the call.',
         eli5: 'The letterbox kept a list of everyone who opened each letter, because someone switched that list on. His name is on it, an hour after hers.' }, 'EVIDENCE 1 · THE APPLICANTS\' FILES');
       AU.sfx('x-crowd');
-      await say([[null, 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
+      await vn([['bg', 'c6-vault'], ['narr', 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
       await ask({ c: 'keydelete', type: 'mc', q: 'Freya scheduled the deletion of Kyu\'s key. What could have stopped it, and did the Champion\'s role have it?',
         opts: ['kms:CancelKeyDeletion during the waiting period; his role had it, and never used it', 'kms:DisableKey; his role didn\'t have it', 'Nothing can stop a scheduled deletion', 'Deleting the CloudTrail trail'], a: 0,
         why: 'During the waiting period a scheduled deletion can be cancelled with kms:CancelKeyDeletion. CloudTrail shows his role had the permission, and no CancelKeyDeletion call from it.',
         eli5: 'He had the "stop the bin lorry" button the whole time. The log shows he never pressed it.' }, 'EVIDENCE 2 · THE DELETION');
-      await say([['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], [null, 'Another stretch of shore takes its grants back.']]);
-      await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary resigned in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
+      await vn([['bg', 'c6-vault'], ['show', 'kagemaru', 'ring', 'right'],
+        ['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], ['narr', 'Another stretch of shore takes its grants back.']]);
+      await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary stepped down as Champion in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
         opts: ['An IAM CreateRole management event, in a trail\'s S3 bucket: event history only keeps 90 days', 'In CloudTrail event history, which keeps everything forever', 'Nowhere: IAM changes are data events, off by default', 'In the role\'s own tags'], a: 0,
         why: 'CreateRole is a management event. Event history shows 90 days of them with no setup; anything older is only where a trail delivered it, such as an S3 bucket.',
         eli5: 'The town\'s diary only remembers the last three months by itself. To remember 1984, somebody had to be copying the pages into a library all along.' }, 'EVIDENCE 3 · THE YEAR');
@@ -774,7 +774,7 @@
       ['narr', 'Then he takes off his left glove, slides a ring off his bare finger, and puts it back on over the white glove: the snake eating its tail. Freya\'s halo. The ring from the man at the desk.'],
       ['kagemaru', 'They stopped praying. I never started.', 'reveal'],
       ['show', 'lead', 'neutral', 'left'],
-      ['kagemaru', 'Her Champion, since the day Gary quit. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
+      ['kagemaru', 'Her Champion, since the day Gary said no. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
       ['kagemaru', 'I only said yes when she promised Uptima would pay. That part sounded fun. That same night I read your prayers myself, to see what I was betting on.', 'amused'],
       ['kagemaru', 'Desperate people. My favourite customers. I backed her because she had a plan, and sold to you because you might win. Every pin was a bet on both.', 'reveal'],
       ['kagemaru', 'My lady asked me to delete this. I didn\'t. I never delete anything I could sell. Ah ha ha.', 'amused'],
@@ -831,7 +831,8 @@
   // ---------- The choice, and the end ----------
   async function choice() {
     if (flag('choice')) return say([[null, { vault: 'The vault door is shut. Someone inside is humming.', least: 'Kagemaru\'s stall is open at camp. Every sale goes in the log.', run: 'Kagemaru waves from the camp. He has a very nice new tent.' }[c6().choice]]]);
-    await say([['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]);
+    await vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'],
+      ['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]);
     const ch = await new Promise(res => {
       const b = U.panel(`<p>How do you contain the man who sold you everything? <span class="muted small">${esc(NAME(lead()))} decides alone.</span></p>
         <div class="opts col">
