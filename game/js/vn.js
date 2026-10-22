@@ -6,6 +6,7 @@
 // A step is [command, ...args] or a line [speaker, text, face]:
 //   ['bg', id]  ['cg', id, pan, 'cut']  ['show', who, face, pos]  ['hide', who]  ['fx', kind]  ['wait', ms]
 //   ['act', kind, opts]  ['pray', text, to]  ['glitch', from, to, face]  ['gcut', id] (a still glitching into the next)
+//   ['flick', [[id, ms], ...], slow, sound] (a run of quick cuts)  ['sfx', name]  ['music', name or null]
 // pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
 // 'cut' swaps the still in at once instead of crossfading;
 // pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
@@ -17,7 +18,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sfx = (n, p) => { if (SD.audio) SD.audio.sfx(n, p); };
-  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut']);
+  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut', 'flick', 'sfx', 'music']);
 
   // ---------- Art registry ----------
   // scenes: id -> { src (once painted), label, tint: [top, bottom], focus } for backgrounds and stills. focus is
@@ -29,6 +30,28 @@
   V.art = { scenes: {}, sprites: {} };
   V.addScenes = o => Object.assign(V.art.scenes, o);
   V.addSprites = o => Object.assign(V.art.sprites, o);
+  // Cutscene stills drawn one per storyboard shot (js/cut-*.js). A cut is a cutscene's shots as [still, cue] pairs,
+  // where cue is a piece of the line the shot plays under (or a list of pieces, one per version of the line). The
+  // first shot's cue starts the cut; after that, until the next 'bg', a line holding one of the cut's cues cuts to
+  // that shot's still first. So a chapter's scripts pick up their stills without changing, and a short cue ('Yes.')
+  // only counts inside its own cutscene. When several cues match, the one that starts earliest in the line wins.
+  V.cuts = [];
+  V.addShots = shots => { V.cuts.push(shots); };
+  function match(shots, text) {
+    let best = null, at = Infinity, len = 0;
+    shots.forEach(([id, cue]) => [].concat(cue).forEach(c => {
+      const i = text.indexOf(c);
+      if (i >= 0 && (i < at || (i === at && c.length > len))) { best = id; at = i; len = c.length; }
+    }));
+    return best;
+  }
+  let cut = null;
+  function shotFor(text) {
+    if (typeof text !== 'string') return null;
+    const open = V.cuts.find(c => match(c.slice(0, 1), text));
+    if (open) cut = open;
+    return cut && match(cut, text);
+  }
   // Where a point on the current still (x, y as fractions of the painting) is on screen, as CSS percentages, after
   // the crop: an overlay like the ring's glint follows the painting rather than the screen.
   V.onStill = function (x, y) {
@@ -42,6 +65,15 @@
 
   function sceneHTML(id) {
     const s = V.art.scenes[id] || { label: id };
+    // A shot from a sheet (js/cut-*.js): one image per cutscene with its 16:9 stills stacked top to bottom. A shot
+    // with a painted twin (glitch) flickers into it now and then: painted is what's real, pixel art is Freya's copy.
+    // A ghost ({ src, x, y, h }: centre, top and height in % of the shot) is a figure laid over the shot that floats,
+    // such as Freya's projection over the campfire.
+    const g = s.ghost;
+    if (s.sheet) return `<div class="vn-sheet"${s.focus ? ` style="--fx:${parseFloat(s.focus) / 100}"` : ''}><i style="background-image:url(${s.sheet});` +
+      `background-size:100% ${s.frames * 100}%;background-position:0 ${s.frames > 1 ? s.frame / (s.frames - 1) * 100 : 0}%">` +
+      `${g ? `<img class="vn-ghost" src="${g.src}" alt="" style="left:${g.x}%;top:${g.y}%;height:${g.h}%">` : ''}</i>` +
+      `${s.glitch ? `<img class="vn-gl" src="${s.glitch}" alt="">` : ''}</div>`;
     if (s.src) return `<img src="${s.src}" alt=""${s.focus ? ` style="object-position:${s.focus}"` : ''}>`;
     const [a, b] = s.tint || ['#1b1d2b', '#05060a'];
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
@@ -413,11 +445,24 @@
     if (!skipping && !reduce()) { now.classList.add('glitch'); await sleep(450); now.classList.remove('glitch'); }
   }
 
+  // A run of stills cut in quick succession, [id, ms] each, ending on the last (Chapter 1's reveal: Freya's faces
+  // glitching through each other). Each cut ticks; sound, if given, plays as the run starts. With reduced motion, or
+  // when skipping, it crossfades slowly through slow (default: just the last still) instead.
+  async function flick(frames, slow, sound) {
+    if (skipping || reduce()) {
+      for (const id of slow || [frames[frames.length - 1][0]]) { setLayer('.vn-cg', id, 'still'); await sleep(skipping ? 0 : 1200); }
+      return;
+    }
+    if (sound) sfx(sound);
+    for (const [id, ms] of frames) { setLayer('.vn-cg', id, 'still', true); if (ms) { sfx('tick'); await sleep(ms); } }
+  }
+
   // ---------- Playing a script ----------
   V.playing = () => !!root && !root.hidden;
   V.play = async function (steps) {
     build();
     skipping = false;
+    cut = null;
     root.hidden = false;
     document.body.classList.add('vn-on');
     root.querySelector('.vn-black').classList.add('on');
@@ -425,8 +470,17 @@
     for (const st of steps) {
       if (skipping) break;
       const [k, ...a] = st;
-      if (!CMD.has(k)) { await line(k, a[0], a[1]); continue; }
-      if (k === 'bg') { clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
+      if (!CMD.has(k)) {
+        const shot = shotFor(a[0]);
+        if (shot && shot !== root.dataset.cg) {
+          root.classList.add('vn-incg');
+          setLayer('.vn-cg', shot, 'slow', root.querySelector('.vn-black').classList.contains('on'));
+          root.querySelector('.vn-black').classList.remove('on');
+          await sleep(skipping ? 0 : 600);
+        }
+        await line(k, a[0], a[1]); continue;
+      }
+      if (k === 'bg') { cut = null; clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
       else if (k === 'cg') {
         root.classList.add('vn-incg');
         // Out of black, the still swaps in whole underneath, so only it fades up (not a mix with the last one).
@@ -442,6 +496,9 @@
       else if (k === 'pray') await pray(a[0], a[1]);
       else if (k === 'glitch') await glitch(a[0], a[1], a[2]);
       else if (k === 'gcut') await gcut(a[0]);
+      else if (k === 'flick') await flick(a[0], a[1], a[2]);
+      else if (k === 'sfx') sfx(a[0]);
+      else if (k === 'music') SD.audio.music(a[0]);
     }
     // Out to black, then away.
     advance = null; finishTyping(); closePanel(); SD.audio.voice(null);

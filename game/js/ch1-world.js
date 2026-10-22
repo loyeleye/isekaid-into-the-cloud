@@ -718,12 +718,13 @@
     S.save.flags.ch1 = true; S.save.stats.wins++; S.persist();
     U.stage('sanctum');
     AU.music('kyusad');
-    await say(T.ending);
+    // The reveal plays as a cutscene with stills (js/cut-reveal.js), the same words as T.ending and T.wipe; the vector build keeps the plain lines.
+    await (SD.cutReveal && !window.SD_VECTOR ? SD.cutReveal.ending() : say(T.ending));
     U.system('[SYSTEM] ADMIN CHANGED', 'Root user: Freya.', 'red');
     await wait(900);
     U.system('[SYSTEM] BACKUPS DELETED', 'Every backup in the Cloud, from every Region. Retention: none.', 'red');
     await wait(1200);
-    await say(T.wipe);
+    await (SD.cutReveal && !window.SD_VECTOR ? SD.cutReveal.wipe() : say(T.wipe));
     await say(T.basket);
     U.stage('edge');
     AU.music('kyu');
