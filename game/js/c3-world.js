@@ -564,8 +564,8 @@
     faceTo('wen', 'you');
     if (!flag('gary')) {
       setFlag('gary');
-      await say([['wen', 'Did I ever tell you about Gary, dears? Bought a half-price croissant every day for years. One day in 1984, he didn\'t come.', 'neutral'],
-        ['wen', 'Later I found out it was the day he quit his job. I never found out what the job was.', 'sad']]);
+      await say([['wen', 'Did I ever tell you about Gary, dears? First came in on a wet autumn night in 1984, soaked through, with a cardboard box under his arm.', 'neutral'],
+        ['wen', 'Fixed our oven by three in the morning and took half a croissant for it. Every day after that, for years. He never said what he did before, and I never asked.', 'smile']]);
       if (flag('x1') && !sc.actors.kage.hidden) await say([['narr', 'Across the camp, Kagemaru stops polishing a pin for a moment. Then he goes on.']]);
     }
     if (flag('cache')) return say([['wen', rnd(['Warm shelf, warm oven, warm hearts. Mind the TTL on the buns.', 'The keepsakes are ranked, dear. Most asked for at the front.', 'Eat something. You look like a cache miss.']), 'warm']]);

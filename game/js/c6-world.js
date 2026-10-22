@@ -650,7 +650,7 @@
         why: 'During the waiting period a scheduled deletion can be cancelled with kms:CancelKeyDeletion. CloudTrail shows his role had the permission, and no CancelKeyDeletion call from it.',
         eli5: 'He had the "stop the bin lorry" button the whole time. The log shows he never pressed it.' }, 'EVIDENCE 2 · THE DELETION');
       await say([['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], [null, 'Another stretch of shore takes its grants back.']]);
-      await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary resigned in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
+      await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary stepped down as Champion in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
         opts: ['An IAM CreateRole management event, in a trail\'s S3 bucket: event history only keeps 90 days', 'In CloudTrail event history, which keeps everything forever', 'Nowhere: IAM changes are data events, off by default', 'In the role\'s own tags'], a: 0,
         why: 'CreateRole is a management event. Event history shows 90 days of them with no setup; anything older is only where a trail delivered it, such as an S3 bucket.',
         eli5: 'The town\'s diary only remembers the last three months by itself. To remember 1984, somebody had to be copying the pages into a library all along.' }, 'EVIDENCE 3 · THE YEAR');
@@ -774,7 +774,7 @@
       ['narr', 'Then he takes off his left glove, slides a ring off his bare finger, and puts it back on over the white glove: the snake eating its tail. Freya\'s halo. The ring from the man at the desk.'],
       ['kagemaru', 'They stopped praying. I never started.', 'reveal'],
       ['show', 'lead', 'neutral', 'left'],
-      ['kagemaru', 'Her Champion, since the day Gary quit. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
+      ['kagemaru', 'Her Champion, since the day Gary said no. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
       ['kagemaru', 'I only said yes when she promised Uptima would pay. That part sounded fun. That same night I read your prayers myself, to see what I was betting on.', 'amused'],
       ['kagemaru', 'Desperate people. My favourite customers. I backed her because she had a plan, and sold to you because you might win. Every pin was a bet on both.', 'reveal'],
       ['kagemaru', 'My lady asked me to delete this. I didn\'t. I never delete anything I could sell. Ah ha ha.', 'amused'],
