@@ -10,7 +10,7 @@
     ['the-sealed-archive', ["Inside, a girl", "VISITORS", "forbidden knowledge", "get you out", "for \"Gary\"", "gets a library"]],
     ['letters', ["mostly about Jin", "worst jokes", "remembers him", "reads them twice"]],
     ['the-key-under-the-floor', ["Under the floorboards", "dead or sober", "get to choose", "be anyone"]],
-    ['jins-echo', ["Echo had stood", "Gu taught me a word", "out of order", "Up, Minnow. Forms.", "sounded like him"]],
+    ['jins-echo', ["Echo had stood", "Gu taught me a word", "out of order", "Up, Minnow. Forms.", "sounded like him"], [4]],
     ['a-choice-not-a-gift', ["No gift this time, love. A choice", "to open. You choose", "only her", "Not tonight"]],
     ['let-me-choose', ["seal scar", "One touch", "Let me choose.", "steps back", "Thank you."]]
   ];

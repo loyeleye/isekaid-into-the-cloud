@@ -5,7 +5,7 @@
 (function () {
   const CUTS = [
     ['three-one-four', ["long before the tower", "That's mine", "What's it mean", "Good night. Obviously", "on the wall between", "It's pi", "means pie"]],
-    ['two-tapes-one', ["foot of the Machine Floors", "keep them warm", "shudders", "green all through", "wrote over a backup", "read the record first"]],
+    ['two-tapes-one', ["foot of the Machine Floors", "keep them warm", "shudders", "green all through", "wrote over a backup", "read the record first"], [4]],
     ['the-badge-on-the-nail', ["his old desk, a cold stove", "every record in this city", "truth this whole time", "You never asked", "badge on its nail"]]
   ];
   // [cutscene, cues, glitch, ghosts]: glitch lists the shots (from 1) with a painted twin, assets/img/cut/<cutscene>-<n>-painted.webp;

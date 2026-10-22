@@ -1,5 +1,6 @@
 // Checks that every pixel cutscene still (js/cut-ch*.js) gets shown: plays js/vn.js's cue matching over every visual-
-// novel script in chapters 3 to 6 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 3's scripts are data (SD.c3story);
+// novel script in chapters 2 to 6 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 2's come from
+// js/reel.js, built for each lead and version; chapter 3's scripts are data (SD.c3story);
 // chapters 4 to 6 write theirs inline as vn([...]) calls in js/c4-world.js, js/c5-world.js and js/c6-world.js, so those are read from
 // the source as their string literals in order (a per-lead { lead: ..., other: ... } line counts every version). A
 // cutscene starts on a line holding its first cue and lasts until the next 'bg'; a shot shows on a line holding its
@@ -52,6 +53,15 @@ function check(inline) {
     if (isSteps(o)) return scripts.push(o);
     Object.values(o).forEach(v => walk(v, depth + 1));
   })([SD.c3story, SD.c4data, SD.c5data], 0);
+  // chapter 2's scripts, as js/reel.js builds them for each lead and version
+  const S = SD.state, snap = JSON.stringify(S.save), persist = S.persist;
+  S.persist = () => {};
+  SD.reel.list.filter(e => /^2/.test(e.ch) && !e.run).forEach(e => (e.alts || [[null, undefined]]).forEach(([, arg]) => LEADS.forEach(lead => {
+    S.save = JSON.parse(snap);
+    S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
+    scripts.push(SD.reel.steps(e, arg));
+  })));
+  S.save = JSON.parse(snap); S.persist = persist;
   const match = (shots, text) => {
     let best = null, at = Infinity, len = 0;
     shots.forEach(([id, cue]) => [].concat(cue).forEach(c => {
@@ -102,7 +112,7 @@ function check(inline) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(base + 'index.html?vector', { waitUntil: 'load' });
-  await page.waitForFunction(() => window.SD && SD.vn && SD.c3story && SD.c4data && SD.c5data);
+  await page.waitForFunction(() => window.SD && SD.vn && SD.reel && SD.c3story && SD.c4data && SD.c5data);
   const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js'].flatMap(vnCalls));
   const noSheet = r.sheets.filter(s => !s || !fs.existsSync(path.join(ROOT, s)));
   await browser.close(); server.close();
