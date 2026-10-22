@@ -22,7 +22,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sfx = (n, p) => { if (SD.audio) SD.audio.sfx(n, p); };
-  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut', 'flick', 'reveal', 'morph', 'tiles', 'sfx', 'music', 'warp', 'ring']);
+  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut', 'flick', 'reveal', 'morph', 'tiles', 'sfx', 'music', 'warp', 'ring', 'cut']);
 
   // ---------- Art registry ----------
   // scenes: id -> { src (once painted), label, tint: [top, bottom], focus } for backgrounds and stills. focus is
@@ -39,6 +39,8 @@
   // first shot's cue starts the cut; after that, until the next 'bg', a line holding one of the cut's cues cuts to
   // that shot's still first. So a chapter's scripts pick up their stills without changing, and a short cue ('Yes.')
   // only counts inside its own cutscene. When several cues match, the one that starts earliest in the line wins.
+  // A script can also name the cut it's in with ['cut', <cutscene>]: after a 'bg' inside a cutscene, or for lines that
+  // carry on a cutscene after a quiz or a choice in between.
   V.cuts = [];
   V.addShots = shots => { V.cuts.push(shots); };
   function match(shots, text) {
@@ -696,6 +698,7 @@
       else if (k === 'ring') { if (SD.audio && SD.audio.ring) SD.audio.ring(a[0], a[1]); }
       else if (k === 'sfx') sfx(a[0]);
       else if (k === 'music') SD.audio.music(a[0]);
+      else if (k === 'cut') cut = V.cuts.find(c => c[0][0] === 'cut-' + a[0] + '-1') || cut;
     }
     // Out to black, then away.
     advance = null; finishTyping(); closePanel(); SD.audio.voice(null);
