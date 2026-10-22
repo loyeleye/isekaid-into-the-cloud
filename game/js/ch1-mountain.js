@@ -25,11 +25,10 @@
   M.active = () => { const sv = S.save; return !!(sv.c1 && sv.c1.lead) && !sv.c1.f.summit && !sv.c1.f.intro; };
 
   // ---------- Words ----------
-  // Freya wears her promoter's face on the painted build until her briefing; the vector build is neutral unless a
-  // line asks for a face (Ladi, Oct 21: neutral mostly, a smile now and then).
+  // Freya wears her promoter's face until her briefing in camp, matching her sprite on the trek (Ladi, Oct 22).
   function L(lines) {
     const me = lead();
-    return lines.map(([s, t, e]) => ({ s: s === 'lead' ? me : s, t: typeof t === 'object' ? t[me] : t, e: s === 'freya' && !window.SD_VECTOR ? 'promoter' : e }));
+    return lines.map(([s, t, e]) => ({ s: s === 'lead' ? me : s, t: typeof t === 'object' ? t[me] : t, e: s === 'freya' ? 'promoter' : e }));
   }
   const say = lines => U.dialog(L(lines));
 
