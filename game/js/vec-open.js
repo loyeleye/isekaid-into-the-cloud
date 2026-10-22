@@ -298,7 +298,7 @@
     requestAnimationFrame(step);
   };
   // Where the ring is on the painting; js/vn.js puts that on screen after a phone's crop.
-  const GLINT = { 'op-s5': [.53, .46], 'op-s9b': [.80, .58] };
+  const GLINT = { 'op-s5': [.53, .46], 'op-s9b': [.807, .709] };
   SD.vn.acts.glint = async function () {
     const vn = document.getElementById('vn'), cg = vn && vn.querySelector('.vn-cg');
     if (!cg) return;

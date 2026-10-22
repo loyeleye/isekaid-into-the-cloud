@@ -234,7 +234,8 @@
   function weather() {
     const storm = zone && zone[1] === 'temple', now = performance.now() / 1000;
     AU.weather(storm ? 'tempest' : 'gloom');
-    if (!storm) { nextBolt = 0; return; }
+    // No lightning, and so no thunder, while a scene has hushed the weather (the reveal in the vault).
+    if (!storm || (AU.hushed && AU.hushed())) { nextBolt = 0; return; }
     if (!nextBolt) nextBolt = now + 6 + Math.random() * 10;
     if (now < nextBolt) return;
     ART.lightning(now);

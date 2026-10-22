@@ -396,7 +396,7 @@
       ['uptima', 'I did this at the Cache Café. Part time.', 'sad'],
       ['uptima', 'I brought the backlog. I\'ll read some of it every night.', 'neutral']
     ]);
-    AU.music('freya');
+    AU.music('virus');
     await vn('c2-fire', [
       ['narr', 'That night Freya visits the camp: a smiling projection over the fire.'],
       ['freya', 'Oh good, you found her! Is she listening yet?', 'smile'],
