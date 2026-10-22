@@ -75,6 +75,18 @@
     "freya|You already know. Shall we go and ask?": 'freya-seoyeon-03',
     "freya|Not her. Freya. I'm sorry, it was the only knock you'd answer.": 'freya-dutch-01',
     "freya|Her diary's still in the Cloud. So is the girl who wrote it, if you know who holds the backups.": 'freya-dutch-02',
-    "freya|That's the right question, Mr Kane. Come and find out.": 'freya-dutch-03'
+    "freya|That's the right question, Mr Kane. Come and find out.": 'freya-dutch-03',
+    // Chapter 1's reveal (T.ending and T.wipe; Dutch's line still to record)
+    "freya|We did it!": 'freya-c1-reveal-01',
+    "freya|Oh, that's better.": 'freya-c1-reveal-02',
+    "freya|Granted. All of it. Thank you, my loves.": 'freya-c1-reveal-03',
+    "mira|Where's Bram's backup? Freya, you said...": 'mira-c1-reveal',
+    "kai|Where's Hana? You said she was safe!": 'kai-c1-reveal',
+    "seoyeon|Where is Jin's copy? You said...": 'seoyeon-c1-reveal',
+    "freya|I said they were safe as long as they were in her temple, love. I never said I'd leave them there.": 'freya-c1-reveal-04',
+    "uptima|You. It was you. The dream, ten thousand years ago. \"A goddess shouldn't have to hear complaints.\"": 'uptima-c1-reveal-01',
+    "uptima|She suggested it. I'm the one who stopped reading. Listen to me, all of you. Find Gary's weapon. He said no to her once, in 1984, and...": 'uptima-c1-reveal-02',
+    "freya|Honestly. Some people can't take a compliment.": 'freya-c1-reveal-05',
+    "freya|Best brigade I've ever had. I made you a basket!": 'freya-c1-reveal-06'
   });
 })();
