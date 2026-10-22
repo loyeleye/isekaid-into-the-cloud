@@ -2,7 +2,7 @@
 // floor 7, the camp, floor 13 and Thornwick with every minigame, dead letter and delivery, walk through the lift and
 // the expedition doors with real key presses, play the three expeditions on the raid engine (every fight won through
 // SD.test.raid.win, every node and room clicked), make the choice, and reach the end card. Fails on page or console
-// errors, raster images, and any story flag never set.
+// errors, raster images (other than the cutscene stills), and any story flag never set.
 // Run from game/:  NODE_PATH=$(npm root -g) node tools/c2x_check.js [mira|kai|seoyeon|dutch] --win
 //   CHOICE=give|keep picks the last letter (default: give for Mira and Seo-yeon, keep otherwise). SHOTS=dir saves
 //   screenshots of the main moments; W and H set the viewport (default 390 x 844).
@@ -151,7 +151,7 @@ function step([WIN, LEAD, CHOICE]) {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);

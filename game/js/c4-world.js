@@ -39,13 +39,15 @@
   const pick = t => (t && typeof t === 'object' ? (t[lead()] || t.other) : t);
   const L = lines => lines.map(([s, t, e]) => ({ s: s === 'lead' ? lead() : s || 'narr', t: pick(t), e }));
   const say = lines => U.dialog(L(lines));
-  // A visual-novel scene, with the same 'lead' and per-lead text.
-  const vn = steps => SD.vn.play(steps.map(s => {
+  // A visual-novel scene, with the same 'lead' and per-lead text. The chapter's scenes are named with cut.def, for the
+  // cutscene viewer (js/reel.js), and played with cut.play.
+  const cut = SD.reel.chapter('4', { music: k => mus(k) });
+  const vn = steps => steps.map(s => {
     if (!Array.isArray(s)) return s;
     if (s[0] === 'show' || s[0] === 'hide') return [s[0], s[1] === 'lead' ? lead() : s[1]].concat(s.slice(2));
     if (['bg', 'cg', 'fx', 'wait', 'narr'].includes(s[0])) return s[0] === 'narr' ? ['narr', pick(s[1])] : s;
     return [s[0] === 'lead' ? lead() : s[0], pick(s[1]), s[2]];
-  }));
+  });
 
   // ---------- The map ----------
   const MW = 72, MH = 54;
@@ -371,18 +373,18 @@
   const ask = (q, title) => SD.quiz.ask(q, { title: title || 'A QUESTION' });
 
   // ---------- The story: act 1 ----------
+  cut.def('cold', 'Burning Peak, years ago', () => vn([['bg', 'c4-dawn'],
+    ['narr', 'Burning Peak, years ago. Dawn, and a memory the seals haven\'t reached. Seo-yeon is nine, and she has Jin by the ankle.'],
+    ['show', 'seoyeon', 'neutral', 'left'],
+    ['seoyeon', 'Get up. Forms.', 'neutral'],
+    ['show', 'jin', 'smirk', 'right'],
+    ['jin', 'Five more minutes, Minnow. Old Gu taught me a new word last night. Want to hear it?', 'smirk'],
+    ['narr', 'Old Gu, still drunk on the yard steps, laughs at the word. Jin does the forms badly on purpose until she laughs too.'],
+    ['narr', 'Far below, smoke on the road. Nothing else.'],
+    ['fx', 'black']]), { music: 'c4peak', note: 'Seo-yeon at nine, and Jin, and Old Gu.' });
   async function coldOpen() {
-    mus('c4peak');
     U.closePanel(); U.stage(null);
-    await vn([['bg', 'c4-dawn'],
-      ['narr', 'Burning Peak, years ago. Dawn, and a memory the seals haven\'t reached. Seo-yeon is nine, and she has Jin by the ankle.'],
-      ['show', 'seoyeon', 'neutral', 'left'],
-      ['seoyeon', 'Get up. Forms.', 'neutral'],
-      ['show', 'jin', 'smirk', 'right'],
-      ['jin', 'Five more minutes, Minnow. Old Gu taught me a new word last night. Want to hear it?', 'smirk'],
-      ['narr', 'Old Gu, still drunk on the yard steps, laughs at the word. Jin does the forms badly on purpose until she laughs too.'],
-      ['narr', 'Far below, smoke on the road. Nothing else.'],
-      ['fx', 'black']]);
+    await cut.play('cold');
     setFlag('cold');
   }
   async function arrive() {
@@ -404,27 +406,28 @@
     await say([[null, `${SD.cast[m].name} sees how Seo-yeon stands, and goes very still.`], [m, 'That stance. That\'s... no. Good morning, young lady.', 'stone'], ['seoyeon', 'Good morning, Master.', 'neutral']]);
     setFlag('master');
   }
+  cut.def('sealhouse', 'The Seal-House', () => vn([['bg', 'c4-sealhouse'],
+    ['narr', 'The Seal-House: shelves of everyone\'s past, every scroll sealed. Freya is waiting at the counter.'],
+    ['show', 'freya', 'neutral', 'right'],
+    ['freya', 'I\'ll give you every key on these floors, love. Namgung\'s too. You choose what to unseal. You always should have.', 'neutral'],
+    ['show', 'seoyeon', 'cold', 'left'],
+    ['narr', 'Let me choose. Her prayer, word for word.'],
+    ['seoyeon', 'Thank you. That\'s very kind.', 'neutral'],
+    ['narr', 'Free, and every key\'s policy would name Freya as its administrator. Seo-yeon folds the offer neatly, and files it in the fire.']]), { music: 'freya', note: 'Freya offers every key on these floors.' });
   async function sealhouse() {
     if (flag('offer')) return say([[null, flag('freed') ? 'The shelves are open. People are reading their own pasts, some of them crying.' : 'Shelf after shelf of the town\'s pasts, every scroll sealed.']]);
-    mus('freya');
-    await vn([['bg', 'c4-sealhouse'],
-      ['narr', 'The Seal-House: shelves of everyone\'s past, every scroll sealed. Freya is waiting at the counter.'],
-      ['show', 'freya', 'neutral', 'right'],
-      ['freya', 'I\'ll give you every key on these floors, love. Namgung\'s too. You choose what to unseal. You always should have.', 'neutral'],
-      ['show', 'seoyeon', 'cold', 'left'],
-      ['narr', 'Let me choose. Her prayer, word for word.'],
-      ['seoyeon', 'Thank you. That\'s very kind.', 'neutral'],
-      ['narr', 'Free, and every key\'s policy would name Freya as its administrator. Seo-yeon folds the offer neatly, and files it in the fire.']]);
+    await cut.play('sealhouse');
     mus('c4town');
     setFlag('offer');
   }
+  cut.def('ok', 'Madam Ok\'s tea', () => vn([['ok', 'There she is. My heir, in a disciple\'s robe. You scowl like your mother, child.', 'warm'],
+    ['seoyeon', 'I don\'t have a mother.', 'cold'],
+    ['ok', 'You have a whole Cult of them. When Freya\'s truce breaks we go down the mountain, and you lead us.', 'smile'],
+    ['ok', 'Drink your tea. I never poison guests. It\'s bad for business.', 'amused'],
+    ['kai', 'She\'s joking. Right?', 'neutral'], ['seoyeon', 'No.', 'neutral']]), { note: 'The Cult\'s Left Hand, and her heir.' });
   async function tea() {
     if (!flag('okmet')) {
-      await vn([['ok', 'There she is. My heir, in a disciple\'s robe. You scowl like your mother, child.', 'warm'],
-        ['seoyeon', 'I don\'t have a mother.', 'cold'],
-        ['ok', 'You have a whole Cult of them. When Freya\'s truce breaks we go down the mountain, and you lead us.', 'smile'],
-        ['ok', 'Drink your tea. I never poison guests. It\'s bad for business.', 'amused'],
-        ['kai', 'She\'s joking. Right?', 'neutral'], ['seoyeon', 'No.', 'neutral']]);
+      await cut.play('ok');
       return setFlag('okmet');
     }
     if (flag('camp') && !flag('abacus')) {
@@ -574,35 +577,45 @@
     if (xp === 'k4peak') return run(echo);
     if (xp === 'k4house') return run(bow);
   }
+  cut.def('gu', 'Old Gu\'s letter', () => vn([['bg', 'c4-letter'],
+    ['narr', 'Under the floorboards of the master\'s room: a letter for her eighteenth birthday, sealed with a key that names her.'],
+    ['show', 'gu', 'smile', 'center'],
+    ['gu', 'Kid. If you\'re reading this I\'m dead or sober, and I don\'t know which is worse.', 'smile'],
+    ['gu', 'I didn\'t take you to hide you, kid. I took you so you\'d get to choose.', 'warm'],
+    ['hide', 'gu'], ['show', 'seoyeon', 'grief', 'center'],
+    ['narr', 'The man who made her a Burning Peak disciple did it so she wouldn\'t have to be anyone\'s.']]), { music: 'c4sad', note: 'For her eighteenth birthday, under the floorboards.' });
+  cut.def('hall', 'The Succession Hall', () => vn([['bg', 'c4-hall'],
+    ['narr', 'The Succession Hall. The whole Alliance is here, Ryu and Madam Ok among them. Namgung waits in front of his chair.'],
+    ['show', 'namgung', 'stone', 'right'],
+    ['namgung', 'I burned the Peak to stop a war. I raised the child. I killed the boy. I regret none of it.', 'stone'],
+    ['show', 'seoyeon', 'cold', 'left'],
+    ['seoyeon', 'I know. That\'s not what I came to prove. You told the Alliance Burning Peak struck first.', 'cold']]), { music: 'c4culprit', note: 'Namgung regrets none of it.' });
+  cut.def('evidence-1', 'Evidence 1: the raid order', () => vn([['cut', 'the-evidence'], ['narr', 'The Hwa sect\'s elder stands, and takes back his grants. One.']]), { note: 'The Hwa sect takes back its grants.' });
+  cut.def('evidence-3', 'The hall turns', () => vn([['bg', 'c4-hall'], ['cut', 'the-evidence'], ['narr', 'The third one turns the hall. They all have birthdays. Sect after sect takes its grants back.'],
+    ['show', 'namgung', 'neutral', 'right'], ['namgung', 'Then read me, all of you. And then fight me.', 'neutral']]), { note: 'Every sect has birthdays.' });
+  cut.def('summer-house', 'The summer house', () => vn([['bg', 'c4-summer'],
+    ['narr', 'The summer house in the high passes. This year\'s birthday letter lies unsent on the table.'],
+    ['show', 'seoyeon', 'cold', 'left'], ['show', 'namgung', 'sad', 'right'],
+    ['narr', 'With the knife she didn\'t use, she cuts the white mourning sash off her own robes, and gives it to him.'],
+    ['seoyeon', 'I\'m done mourning you. Now you get to.', 'cold'],
+    ['narr', 'She opens his account in front of the Alliance, and they read it in his own words. Ryu chooses the truth, and the hall goes with him.'],
+    ['narr', 'Namgung is not killed. He is read.']]), { music: 'c4sad', note: 'Namgung is not killed. He is read.' });
   // Cues from the floors' intros and outros (js/c4-data.js).
   const CUES = {
     async gu() {
-      mus('c4sad');
-      await vn([['bg', 'c4-letter'],
-        ['narr', 'Under the floorboards of the master\'s room: a letter for her eighteenth birthday, sealed with a key that names her.'],
-        ['show', 'gu', 'smile', 'center'],
-        ['gu', 'Kid. If you\'re reading this I\'m dead or sober, and I don\'t know which is worse.', 'smile'],
-        ['gu', 'I didn\'t take you to hide you, kid. I took you so you\'d get to choose.', 'warm'],
-        ['hide', 'gu'], ['show', 'seoyeon', 'grief', 'center'],
-        ['narr', 'The man who made her a Burning Peak disciple did it so she wouldn\'t have to be anyone\'s.']]);
+      await cut.play('gu');
       setFlag('gu');
       mus('c4dungeon');
     },
     async confront() {
-      mus('c4culprit');
-      await vn([['bg', 'c4-hall'],
-        ['narr', 'The Succession Hall. The whole Alliance is here, Ryu and Madam Ok among them. Namgung waits in front of his chair.'],
-        ['show', 'namgung', 'stone', 'right'],
-        ['namgung', 'I burned the Peak to stop a war. I raised the child. I killed the boy. I regret none of it.', 'stone'],
-        ['show', 'seoyeon', 'cold', 'left'],
-        ['seoyeon', 'I know. That\'s not what I came to prove. You told the Alliance Burning Peak struck first.', 'cold']]);
+      await cut.play('hall');
       await ask({ c: 'stschain', type: 'explain', q: 'The raid order on Burning Peak is in the Alliance\'s CloudTrail records, signed by a role, not a person. What in the record\'s userIdentity shows who was behind that session?',
         points: [{ t: 'The session issuer: the role that was assumed', keys: ['sessionissuer', 'session issuer', 'issuer', 'assumed.?role'], ex: ['which role was assumed', 'the role that issued the session'] },
           { t: 'The role session name (the end of the ARN): Namgung\'s', keys: ['session name', 'sessionname', 'role session', 'namgung', 'arn'], ex: ['the name given to the session', 'the session was named after him'] }],
         model: 'userIdentity is an AssumedRole: sessionContext.sessionIssuer names the role, and the ARN ends with the role session name, which is Namgung\'s.',
         why: 'An assumed-role userIdentity carries the session issuer (the role) and an ARN ending in the role session name, chosen by whoever called AssumeRole.',
         eli5: 'The order was signed in a borrowed robe. The log says whose robe (the role) and whose name was sewn into it that night (the session name).' }, 'EVIDENCE 1 · THE RAID ORDER');
-      await vn([['cut', 'the-evidence'], ['narr', 'The Hwa sect\'s elder stands, and takes back his grants. One.']]);
+      await cut.play('evidence-1');
       await ask({ c: 'kmskeys', type: 'mc', q: 'Seo-yeon can read Namgung\'s sealed account and nobody else in the hall can. What does she need, and what does the house\'s own key policy say?',
         opts: ['Permission to decrypt the data key with the KMS key, which the key policy grants only to her', 'The plaintext data key, which Namgung gave her', 'Administrator access to the house\'s account', 'A grant from Freya'], a: 0,
         why: 'To open envelope-encrypted data you need kms:Decrypt on the KMS key that protects its data key. Namgung\'s key policy allows that to her role and nobody else.',
@@ -614,66 +627,58 @@
         model: 'Yes, and nobody had to turn it on: KMS calls such as Decrypt are management events, which CloudTrail records by default.',
         why: 'KMS API calls are management events. CloudTrail keeps 90 days of management events in event history with no setup, and a trail keeps them for longer.',
         eli5: 'The key box keeps a diary of every time it was opened, all by itself. Nobody had to ask it to.' }, 'EVIDENCE 3 · THE BIRTHDAY READS');
-      await vn([['bg', 'c4-hall'], ['cut', 'the-evidence'], ['narr', 'The third one turns the hall. They all have birthdays. Sect after sect takes its grants back.'],
-        ['show', 'namgung', 'neutral', 'right'], ['namgung', 'Then read me, all of you. And then fight me.', 'neutral']]);
+      await cut.play('evidence-3');
       setFlag('confront');
     },
     async reckon() {
-      mus('c4sad');
-      await vn([['bg', 'c4-summer'],
-        ['narr', 'The summer house in the high passes. This year\'s birthday letter lies unsent on the table.'],
-        ['show', 'seoyeon', 'cold', 'left'], ['show', 'namgung', 'sad', 'right'],
-        ['narr', 'With the knife she didn\'t use, she cuts the white mourning sash off her own robes, and gives it to him.'],
-        ['seoyeon', 'I\'m done mourning you. Now you get to.', 'cold'],
-        ['narr', 'She opens his account in front of the Alliance, and they read it in his own words. Ryu chooses the truth, and the hall goes with him.'],
-        ['narr', 'Namgung is not killed. He is read.']]);
+      await cut.play('summer-house');
     }
   };
 
+  cut.def('echo', 'Jin\'s Echo', () => vn([['bg', 'c4-ruins'],
+    ['narr', 'In the master\'s room, Jin\'s Echo had stood waiting: what the nightly redeploy rebuilds of Jin. His style and his lines, without him.'],
+    ['show', 'jin', 'neutral', 'right'],
+    ['jin', 'The road. Five more minutes. Gu taught me a word. Get up.', 'neutral'],
+    ['narr', 'It said his lines out of order, like a log replayed without its timestamps. When it fell it said, in his voice:'],
+    ['jin', 'Up, Minnow. Forms.', 'smirk'],
+    ['hide', 'jin'], ['show', 'seoyeon', 'grief', 'left'], ['show', 'dutch', 'stone', 'right'],
+    ['dutch', 'It sounded like him. That\'s what she does too.', 'stone']]), { music: 'c4sad', note: 'What the nightly redeploy rebuilds of Jin.' });
   async function echo() {
-    mus('c4sad');
-    await vn([['bg', 'c4-ruins'],
-      ['narr', 'In the master\'s room, Jin\'s Echo had stood waiting: what the nightly redeploy rebuilds of Jin. His style and his lines, without him.'],
-      ['show', 'jin', 'neutral', 'right'],
-      ['jin', 'The road. Five more minutes. Gu taught me a word. Get up.', 'neutral'],
-      ['narr', 'It said his lines out of order, like a log replayed without its timestamps. When it fell it said, in his voice:'],
-      ['jin', 'Up, Minnow. Forms.', 'smirk'],
-      ['hide', 'jin'], ['show', 'seoyeon', 'grief', 'left'], ['show', 'dutch', 'stone', 'right'],
-      ['dutch', 'It sounded like him. That\'s what she does too.', 'stone']]);
+    await cut.play('echo');
     setFlag('echo');
     w().pos = [10, 26]; goTo(10, 26);
     mus('camp');
   }
+  cut.def('bow', 'Namgung bows', () => vn([['bg', 'c4-hall'],
+    ['narr', 'Beaten, Namgung Hyeon straightens his robe, and bows to her the way he did across the breakfast table.'],
+    ['show', 'namgung', 'sad', 'right'],
+    ['namgung', 'You were the best student this house ever had. I am sorry it was this house.', 'sad'],
+    ['show', 'seoyeon', 'frozen', 'left'],
+    ['narr', 'Freya\'s blessing takes him up the tower. He doesn\'t look back.'],
+    ['show', 'ryu', 'sad', 'center'], ['ryu', 'Father.', 'sad']]), { music: 'c4sad', note: 'Freya\'s blessing takes him up the tower.' });
   async function bow() {
-    mus('c4sad');
-    await vn([['bg', 'c4-hall'],
-      ['narr', 'Beaten, Namgung Hyeon straightens his robe, and bows to her the way he did across the breakfast table.'],
-      ['show', 'namgung', 'sad', 'right'],
-      ['namgung', 'You were the best student this house ever had. I am sorry it was this house.', 'sad'],
-      ['show', 'seoyeon', 'frozen', 'left'],
-      ['narr', 'Freya\'s blessing takes him up the tower. He doesn\'t look back.'],
-      ['show', 'ryu', 'sad', 'center'], ['ryu', 'Father.', 'sad']]);
+    await cut.play('bow');
     setFlag('bow');
     w().pos = [16, 28]; goTo(16, 28);
     return otherHand();
   }
 
   // ---------- The Hidden Valley ----------
+  cut.def('lexi', 'Lexi in the archive', () => vn([['bg', 'c4-archive'],
+    ['narr', 'Inside, a girl with an eyepatch over a perfectly good eye sits cross-legged on a pile of sealed scrolls, reading.'],
+    ['show', 'lexi', 'happy', 'center'],
+    ['lexi', 'VISITORS! I\'ve been sealed in here with the Forbidden Index for weeks! The seals are REAL!', 'happy'],
+    ['lexi', 'I am Lexi, keeper of forbidden knowledge. Also the regular kind. Library card?', 'earnest'],
+    ['show', 'seoyeon', 'neutral', 'left'], ['seoyeon', 'We\'re here to get you out.', 'neutral'],
+    ['lexi', 'The Index has one card for "Gary". One word, in his handwriting: No. Dated 1984. Filed under Champions, former.', 'shock'],
+    ['narr', 'She comes down the mountain with them, and the camp gets a library.']]), { music: 'quest', note: 'The keeper of forbidden knowledge. Also the regular kind.' });
   async function vault() {
     if (flag('lexi')) return;
     if (!flag('archive')) {
       await say([[null, 'A vault in the valley rock, sealed with a lock that only answers to the key-keepers\' service. From inside, someone is humming.']]);
       await G.door(G.DEF.archive); setFlag('archive'); R.gainXp(20); await addCard('k4-privlink');
     }
-    mus('quest');
-    await vn([['bg', 'c4-archive'],
-      ['narr', 'Inside, a girl with an eyepatch over a perfectly good eye sits cross-legged on a pile of sealed scrolls, reading.'],
-      ['show', 'lexi', 'happy', 'center'],
-      ['lexi', 'VISITORS! I\'ve been sealed in here with the Forbidden Index for weeks! The seals are REAL!', 'happy'],
-      ['lexi', 'I am Lexi, keeper of forbidden knowledge. Also the regular kind. Library card?', 'earnest'],
-      ['show', 'seoyeon', 'neutral', 'left'], ['seoyeon', 'We\'re here to get you out.', 'neutral'],
-      ['lexi', 'The Index has one card for "Gary". One word, in his handwriting: No. Dated 1984. Filed under Champions, former.', 'shock'],
-      ['narr', 'She comes down the mountain with them, and the camp gets a library.']]);
+    await cut.play('lexi');
     setFlag('lexi');
     mus('c4explore');
   }
@@ -692,6 +697,12 @@
     setFlag('ship'); R.gainXp(r.first === r.of ? 30 : 15);
     await addCard('k4-natgw');
   }
+  cut.def('ryu-letters', 'Ryu\'s letters', () => vn([['bg', 'c4-camp'],
+    ['narr', 'Unsealed, Ryu\'s letters are mostly about Jin.'],
+    ['show', 'ryu', 'warm', 'right'],
+    ['ryu', 'He told the worst jokes in the yard. He fell asleep in the library once, and I let him.', 'warm'],
+    ['ryu', 'I wanted you to know someone in that house remembers him.', 'earnest'],
+    ['show', 'seoyeon', 'grief', 'left'], ['narr', 'She reads them twice, and then puts them somewhere she won\'t lose them.']]), { music: 'c4sad', note: 'Mostly about Jin.' });
   async function library() {
     if (!flag('lexi')) return say([[null, 'An empty tent with empty shelves. Someone should run this.']]);
     if (!flag('ryuseal')) {
@@ -702,13 +713,7 @@
         eli5: 'The master box only takes notes the size of a postcard. For a whole letter, you lock it with a little key, and put the little key in the box.' }, 'SEAL AND UNSEAL');
       await G.sort(G.DEF.readers);
       await addCard('k4-envelope'); await addCard('k4-keypol');
-      mus('c4sad');
-      await vn([['bg', 'c4-camp'],
-        ['narr', 'Unsealed, Ryu\'s letters are mostly about Jin.'],
-        ['show', 'ryu', 'warm', 'right'],
-        ['ryu', 'He told the worst jokes in the yard. He fell asleep in the library once, and I let him.', 'warm'],
-        ['ryu', 'I wanted you to know someone in that house remembers him.', 'earnest'],
-        ['show', 'seoyeon', 'grief', 'left'], ['narr', 'She reads them twice, and then puts them somewhere she won\'t lose them.']]);
+      await cut.play('ryu-letters');
       mus('camp');
       setFlag('ryuseal');
       await addCard('k4-ryuseal', 'PLOT DEVICE: RYU\'S SEAL');
@@ -758,15 +763,15 @@
     await say([['seoyeon', 'With an AWS managed key, someone else writes the policy. With a customer managed key, I write it. My own name on it.', 'cold']]);
     return U.system('SEO-YEON\'S UPGRADE: MY OWN KEY', 'A customer managed key, with her own name on the policy. My Own Key is in Seo-yeon\'s deck from Expedition III, whoever plays her.', 'gold');
   }
+  cut.def('freya', 'Freya\'s choice', () => vn([['bg', 'c4-camp'],
+    ['show', 'freya', 'neutral', 'right'],
+    ['freya', 'No gift this time, love. A choice. Namgung\'s own account of the night of the Peak, sealed.', 'neutral'],
+    ['freya', 'It\'s yours to open. You choose.', 'neutral'],
+    ['show', 'seoyeon', 'cold', 'left'],
+    ['narr', 'Its key policy names her, and only her. Namgung wrote it for her, and sealed it so only she could read it.'],
+    ['seoyeon', 'Not tonight.', 'cold'], ['narr', 'She doesn\'t open it.']]), { music: 'freya', note: 'Namgung\'s own account, sealed for Seo-yeon.' });
   async function freya() {
-    mus('freya');
-    await vn([['bg', 'c4-camp'],
-      ['show', 'freya', 'neutral', 'right'],
-      ['freya', 'No gift this time, love. A choice. Namgung\'s own account of the night of the Peak, sealed.', 'neutral'],
-      ['freya', 'It\'s yours to open. You choose.', 'neutral'],
-      ['show', 'seoyeon', 'cold', 'left'],
-      ['narr', 'Its key policy names her, and only her. Namgung wrote it for her, and sealed it so only she could read it.'],
-      ['seoyeon', 'Not tonight.', 'cold'], ['narr', 'She doesn\'t open it.']]);
+    await cut.play('freya');
     mus('camp');
     setFlag('freya');
     return upgrade();
@@ -775,15 +780,15 @@
     if (!flag('camp')) return say([[null, 'A camp fire, banked low.']]);
     return review('forms');
   }
+  cut.def('other-hand', 'The other hand', () => vn([['bg', 'c4-camp'],
+    ['narr', 'That night Seo-yeon sits by the fire with Namgung\'s sealed account in her lap, and can\'t make herself open it.'],
+    ['show', 'mira', 'tired', 'left'],
+    ['mira', 'Brother Anselm made me the beast with his own hands, love. They were shaking. I\'ve never managed to hate him for it.', 'tired'],
+    ['show', 'seoyeon', 'sad', 'right'],
+    ['seoyeon', 'I remember the seal going on. His hand on my forehead. He said "I\'m sorry." The only time he ever did.', 'sad'],
+    ['narr', 'They keep it from the others. Then Mira holds the lamp while Seo-yeon breaks the seal.']]), { music: 'c4sad', note: 'Mira and Seo-yeon by the fire.' });
   async function otherHand() {
-    mus('c4sad');
-    await vn([['bg', 'c4-camp'],
-      ['narr', 'That night Seo-yeon sits by the fire with Namgung\'s sealed account in her lap, and can\'t make herself open it.'],
-      ['show', 'mira', 'tired', 'left'],
-      ['mira', 'Brother Anselm made me the beast with his own hands, love. They were shaking. I\'ve never managed to hate him for it.', 'tired'],
-      ['show', 'seoyeon', 'sad', 'right'],
-      ['seoyeon', 'I remember the seal going on. His hand on my forehead. He said "I\'m sorry." The only time he ever did.', 'sad'],
-      ['narr', 'They keep it from the others. Then Mira holds the lamp while Seo-yeon breaks the seal.']]);
+    await cut.play('other-hand');
     setFlag('hand');
     mus('camp');
   }
@@ -797,36 +802,49 @@
   }
 
   // ---------- Namgung's house ----------
+  cut.def('let-me-choose', 'Let me choose', () => vn([['narr', 'Outside Namgung\'s house. Kai reaches for the seal scar under her ear.'],
+    ['kai', 'One touch. I could unmake it. Give you back whatever\'s still under there.', 'earnest'],
+    ['seoyeon', 'Let me choose.', 'cold'],
+    ['narr', 'She has his wrist. Those are the words of her prayer.'],
+    ['narr', 'Kai steps back. After the Granaries he knows what that costs him, and he does it anyway.'],
+    ['seoyeon', 'Thank you.', 'neutral']]), { note: 'Kai and the seal scar, outside Namgung\'s house.' });
   async function houseGate() {
     if (!flag('xp2')) return say([[null, 'The Namgung house\'s gate, and a guard who bows very politely and doesn\'t move.']]);
     if (!(flag('freya') && flag('cards') && flag('board'))) return say([['seoyeon', 'Not yet. Camp first: Freya is waiting for me, and so are Lexi and the Design Board.', 'cold']]);
-    await vn([['narr', 'Outside Namgung\'s house. Kai reaches for the seal scar under her ear.'],
-      ['kai', 'One touch. I could unmake it. Give you back whatever\'s still under there.', 'earnest'],
-      ['seoyeon', 'Let me choose.', 'cold'],
-      ['narr', 'She has his wrist. Those are the words of her prayer.'],
-      ['narr', 'Kai steps back. After the Granaries he knows what that costs him, and he does it anyway.'],
-      ['seoyeon', 'Thank you.', 'neutral']]);
+    await cut.play('let-me-choose');
     setFlag('letme');
   }
+  cut.def('study', 'Namgung\'s study', () => vn([['narr', 'Namgung\'s study, where she once stood with a knife. She sits down with it now.'],
+    ['dutch', 'You going to use it this time?', 'stone'],
+    ['seoyeon', 'If you had Professor Vell on the tower, would you let go?', 'cold'],
+    ['dutch', '...Yes.', 'stone'],
+    ['seoyeon', 'I kept every birthday letter he sent me. Last year I answered one. I said I was well. I asked about his back.', 'sad'],
+    ['dutch', 'That\'s not a crime, kid.', 'neutral'],
+    ['seoyeon', 'In my family it\'s the worst one there is.', 'cold'], ['narr', 'He can\'t tell which family she means, and for once he doesn\'t ask. Above them, something moves in the rafters.']]), { note: 'Dutch asks if she\'ll use the knife this time.' });
   async function study() {
     if (flag('study')) return say([[null, 'His study, as tidy as a sealed scroll.']]);
-    await vn([['narr', 'Namgung\'s study, where she once stood with a knife. She sits down with it now.'],
-      ['dutch', 'You going to use it this time?', 'stone'],
-      ['seoyeon', 'If you had Professor Vell on the tower, would you let go?', 'cold'],
-      ['dutch', '...Yes.', 'stone'],
-      ['seoyeon', 'I kept every birthday letter he sent me. Last year I answered one. I said I was well. I asked about his back.', 'sad'],
-      ['dutch', 'That\'s not a crime, kid.', 'neutral'],
-      ['seoyeon', 'In my family it\'s the worst one there is.', 'cold'], ['narr', 'He can\'t tell which family she means, and for once he doesn\'t ask. Above them, something moves in the rafters.']]);
+    await cut.play('study');
     await G.sort(G.DEF.detect);
     setFlag('study'); R.gainXp(20);
     await addCard('k4-guardduty');
   }
 
   // ---------- The choice, and the end ----------
+  cut.def('square', 'The square at first light', () => vn([['narr', 'The square, at first light. The Cult wants Burning Peak\'s name for a war banner. The Alliance wants it buried. Ryu wants whatever she wants.']]), { note: 'Before Burning Peak\'s name is chosen.' });
+  cut.def('name', 'Burning Peak\'s name', (ch = 'school') => vn([['bg', ch === 'school' ? 'c4-school' : 'c4-town'], ['cut', 'burning-peaks-name'], ...(ch === 'school' ? [] : [['cg', 'cut-burning-peaks-name-1']]),
+    ...({ banner: [['show', 'ok', 'smile', 'right'], ['ok', 'That\'s my heir.', 'smile'], ['narr', 'The Cult comes down to the camp armed, and the training yard has two halves that don\'t speak.']],
+      bury: [['show', 'ryu', 'sad', 'right'], ['narr', 'Burning Peak becomes a name on a grave. Ryu comes down to the camp, with a few quiet disciples.']],
+      school: [['show', 'seoyeon', 'neutral', 'left'], ['seoyeon', 'Burning Peak is a school. Anyone, Alliance or Cult. Forms at dawn.', 'neutral'], ['narr', 'Both families walk out on her. Over the next chapter, one by one, their children turn up for forms anyway.']] }[ch]),
+    ['bg', 'c4-dawn'], ['cut', 'burning-peaks-name'], ['show', 'uptima', 'neutral', 'center'],
+    ['narr', 'Uptima reads the prayer: "Let me choose." And then, for once, she doesn\'t say anything at all. She waits.'],
+    ['seoyeon', 'I did.', 'neutral'],
+    ['narr', 'It\'s the only prayer Uptima doesn\'t answer, and the right one not to.']]), { music: 'c4peak', note: 'Seo-yeon\'s choice, and the prayer Uptima doesn\'t answer.', alts: [['A school', 'school'], ['A war banner', 'banner'], ['Bury it', 'bury']] });
+  cut.def('seals-open', 'The seals open', (ch = 'school') => vn([['bg', 'c4-town'], ['narr', 'The seals open across the band. People remember where they were born, and some of them wish they didn\'t.'],
+    ['narr', ch === 'school' ? 'The disciples and the Cult\'s children move down to the camp, and the training yard opens.' : 'The training yard opens, and the camp gets louder.']]), { note: 'The end of Chapter 4.', alts: [['A school', 'school'], ['A war banner or a grave', 'bury']] });
   async function choice() {
     if (!flag('hand')) return say([[null, 'Burning Peak\'s old banner pole. Nobody has flown anything from it for twenty years.']]);
     if (flag('choice')) return say([[null, { banner: 'The war banner snaps on the pole.', bury: 'The pole is bare. The name is on a grave now.', school: 'A small sign on the pole: BURNING PEAK. FORMS AT DAWN. ALL WELCOME.' }[c4().choice]]]);
-    await vn([['narr', 'The square, at first light. The Cult wants Burning Peak\'s name for a war banner. The Alliance wants it buried. Ryu wants whatever she wants.']]);
+    await cut.play('square');
     const ch = await new Promise(res => {
       const b = U.panel(`<p>What does Burning Peak's name mean from now on? <span class="muted small">Seo-yeon decides alone. Whatever she picks, both families turn their backs on her, for a while.</span></p>
         <div class="opts col">
@@ -836,18 +854,9 @@
       b.querySelectorAll('[data-ch]').forEach(el => el.onclick = () => { AU.sfx('ok'); U.closePanel(); res(el.dataset.ch); });
     });
     c4().choice = ch; S.persist();
-    mus('c4peak');
-    await vn([['bg', ch === 'school' ? 'c4-school' : 'c4-town'], ['cut', 'burning-peaks-name'], ...(ch === 'school' ? [] : [['cg', 'cut-burning-peaks-name-1']]),
-      ...({ banner: [['show', 'ok', 'smile', 'right'], ['ok', 'That\'s my heir.', 'smile'], ['narr', 'The Cult comes down to the camp armed, and the training yard has two halves that don\'t speak.']],
-        bury: [['show', 'ryu', 'sad', 'right'], ['narr', 'Burning Peak becomes a name on a grave. Ryu comes down to the camp, with a few quiet disciples.']],
-        school: [['show', 'seoyeon', 'neutral', 'left'], ['seoyeon', 'Burning Peak is a school. Anyone, Alliance or Cult. Forms at dawn.', 'neutral'], ['narr', 'Both families walk out on her. Over the next chapter, one by one, their children turn up for forms anyway.']] }[ch]),
-      ['bg', 'c4-dawn'], ['cut', 'burning-peaks-name'], ['show', 'uptima', 'neutral', 'center'],
-      ['narr', 'Uptima reads the prayer: "Let me choose." And then, for once, she doesn\'t say anything at all. She waits.'],
-      ['seoyeon', 'I did.', 'neutral'],
-      ['narr', 'It\'s the only prayer Uptima doesn\'t answer, and the right one not to.']]);
+    await cut.play('name', ch);
     setFlag('choice');
-    await vn([['bg', 'c4-town'], ['narr', 'The seals open across the band. People remember where they were born, and some of them wish they didn\'t.'],
-      ['narr', ch === 'school' ? 'The disciples and the Cult\'s children move down to the camp, and the training yard opens.' : 'The training yard opens, and the camp gets louder.']]);
+    await cut.play('seals-open', ch);
     setFlag('freed');
     c4().f.done = true; S.persist();
     R.gainXp(60);

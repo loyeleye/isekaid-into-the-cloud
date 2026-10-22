@@ -1,7 +1,7 @@
 // Headless playthrough of the vector proof of concept (index.html?vector): the opening ("the files") and choosing a
 // file, then chapter 1 as tools/ch1_check.js plays it, then the chapter 2 slice to its "to be continued" card.
 // Fails on any page error or console error, and on any request for a painted or generated image (.webp, .png,
-// .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening).
+// .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening) and the cutscene stills (assets/img/cut).
 // Chapter 2 starts from chapter 1's #c1-next with its act 1 world marked done (tools/c2_check.js walks the world), so
 // this plays the stair, Expedition I on the raid engine, and the camp.
 // Run from game/:  node tools/vector_check.js [mira|kai|seoyeon|dutch] [--win]   SHOTS=dir saves screenshots.
@@ -28,7 +28,7 @@ const server = http.createServer((req, res) => {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 420), height: Number(process.env.H || 860) } });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   // Chapter 1 plays as tools/ch1_check.js plays it (tools/ch1_step.js); SD_TEST opens the mines' test hook.
   await page.addInitScript(`window.SD_TEST = 1; window.__ch1step = ${ch1Step.toString()};`);

@@ -40,14 +40,17 @@
   const pick = t => (t && typeof t === 'object' ? (t[lead()] || t.other) : t);
   const L = lines => lines.map(([s, t, e]) => ({ s: s === 'lead' ? lead() : s === 'mirror' ? 'mir' + lead() : s || 'narr', t: pick(t), e }));
   const say = lines => U.dialog(L(lines));
-  // A visual-novel scene, with the same 'lead', 'mirror' and per-lead text.
+  // A visual-novel scene, with the same 'lead', 'mirror' and per-lead text. The chapter's scenes are named with cut.def,
+  // for the cutscene viewer (js/reel.js), and played with cut.play.
+  const cut = SD.reel.chapter('6', { music: k => mus(k) });
   const who = s => (s === 'lead' ? lead() : s === 'mirror' ? 'mir' + lead() : s);
-  const vn = steps => SD.vn.play(steps.map(s => {
+  const vn = steps => steps.map(s => {
     if (!Array.isArray(s)) return s;
     if (s[0] === 'show' || s[0] === 'hide') return [s[0], who(s[1])].concat(s.slice(2));
     if (['bg', 'cg', 'fx', 'wait', 'narr'].includes(s[0])) return s[0] === 'narr' ? ['narr', pick(s[1])] : s;
     return [who(s[0]), pick(s[1]), s[2]];
-  }));
+  });
+
   const NAME = id => ((T.leads[id] || {}).name || id).split(' ')[0];
   const LOST = { mira: 'Bram', kai: 'Hana', seoyeon: 'Jin', dutch: 'Lina' };
 
@@ -363,21 +366,21 @@
   }
 
   // ---------- The story: act 1 ----------
+  cut.def('cold', '1984', () => vn([['bg', 'c6-1984'],
+    ['narr', 'A memory node, from the oldest backup in the vault. 1984. Uptima\'s temple, before it was Freya\'s.'],
+    ['show', 'gary', 'tired', 'left'],
+    ['narr', 'Gary at the console, packing a box. A half-price croissant sits on the keyboard. He doesn\'t look up.'],
+    ['show', 'kagemaru', 'neutral', 'right'],
+    ['narr', 'A hooded figure waits in the doorway, white gloves folded, for the job Gary has just left.'],
+    ['freya', 'And why do you want to be my Champion, love?', 'warm'],
+    ['kagemaru', 'I like to stand near whoever\'s winning, my lady. And the view is wonderful.', 'neutral'],
+    ['hide', 'gary'],
+    ['narr', 'Gary walks out past him, box under one arm, and doesn\'t say goodbye.'],
+    ['kagemaru', 'Ah ha ha.', 'amused'],
+    ['fx', 'black']]), { music: 'c6sad', note: 'A memory node: Gary at the console, packing a box.' });
   async function coldOpen() {
-    mus('c6sad');
     U.closePanel(); U.stage(null);
-    await vn([['bg', 'c6-1984'],
-      ['narr', 'A memory node, from the oldest backup in the vault. 1984. Uptima\'s temple, before it was Freya\'s.'],
-      ['show', 'gary', 'tired', 'left'],
-      ['narr', 'Gary at the console, packing a box. A half-price croissant sits on the keyboard. He doesn\'t look up.'],
-      ['show', 'kagemaru', 'neutral', 'right'],
-      ['narr', 'A hooded figure waits in the doorway, white gloves folded, for the job Gary has just left.'],
-      ['freya', 'And why do you want to be my Champion, love?', 'warm'],
-      ['kagemaru', 'I like to stand near whoever\'s winning, my lady. And the view is wonderful.', 'neutral'],
-      ['hide', 'gary'],
-      ['narr', 'Gary walks out past him, box under one arm, and doesn\'t say goodbye.'],
-      ['kagemaru', 'Ah ha ha.', 'amused'],
-      ['fx', 'black']]);
+    await cut.play('cold');
     setFlag('cold');
   }
   async function arrive() {
@@ -388,21 +391,21 @@
       [others()[0], 'The jetty. Someone\'s waiting at the end of it.', 'neutral']]);
     setFlag('arrive');
   }
+  cut.def('offer', 'The offer on the jetty', () => vn([['bg', 'c6-jetty'],
+    ['narr', 'At the end of the jetty, Freya is waiting, as cheerful as ever. Behind her, the lake holds the whole town upside down.'],
+    ['show', 'freya', 'warm', 'right'],
+    ['freya', 'My loves. All four of you, at once. I\'ve saved my best for last.', 'warm'],
+    ['freya', 'I\'ll bring them back. Bram, Hana, Jin, Lina. From my own memory. They\'ll be as real as I am.', 'earnest'],
+    ['narr', 'Then she says it again, in their voices. Each of them hears the one they lost.'],
+    ['show', 'lead', 'neutral', 'left'],
+    // What each of the others says out loud, and what the lead hears inside.
+    ...T.order.map(id => (id === lead() ? ['narr', { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' }[id]]
+      : [id, { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' }[id], 'cold'])),
+    ['lead', { mira: 'No, love.', kai: 'No.', seoyeon: 'No.', dutch: 'No.' }, 'cold'],
+    ['freya', 'Free, my loves. Whenever you change your minds.', 'smile'],
+    ['narr', 'She goes. At the jetty\'s end, someone has set up a stall, and he is in a wonderful mood.']]), { music: 'freya', note: 'Freya, as cheerful as ever.' });
   async function offer() {
-    mus('freya');
-    await vn([['bg', 'c6-jetty'],
-      ['narr', 'At the end of the jetty, Freya is waiting, as cheerful as ever. Behind her, the lake holds the whole town upside down.'],
-      ['show', 'freya', 'warm', 'right'],
-      ['freya', 'My loves. All four of you, at once. I\'ve saved my best for last.', 'warm'],
-      ['freya', 'I\'ll bring them back. Bram, Hana, Jin, Lina. From my own memory. They\'ll be as real as I am.', 'earnest'],
-      ['narr', 'Then she says it again, in their voices. Each of them hears the one they lost.'],
-      ['show', 'lead', 'neutral', 'left'],
-      // What each of the others says out loud, and what the lead hears inside.
-      ...T.order.map(id => (id === lead() ? ['narr', { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' }[id]]
-        : [id, { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' }[id], 'cold'])),
-      ['lead', { mira: 'No, love.', kai: 'No.', seoyeon: 'No.', dutch: 'No.' }, 'cold'],
-      ['freya', 'Free, my loves. Whenever you change your minds.', 'smile'],
-      ['narr', 'She goes. At the jetty\'s end, someone has set up a stall, and he is in a wonderful mood.']]);
+    await cut.play('offer');
     mus('c6town');
     setFlag('offer');
   }
@@ -430,19 +433,19 @@
       [null, 'Nobody listens to a fifteen-year-old. Except, by now, this camp.']]);
     setFlag('mio');
   }
+  cut.def('mirror', 'The mirror', () => vn([['bg', 'c6-mirror'],
+    ['narr', 'Where the jetty ends, the lake is brightest. Your lead looks down, and someone else looks up: who they\'d be if they\'d stayed with Freya.'],
+    ['show', 'mirror', 'smile', 'right'], ['show', 'lead', 'neutral', 'left'],
+    ...({
+      mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
+      kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
+      seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
+      dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
+    })[lead()],
+    ['narr', 'It isn\'t unhappy. That\'s the worst of it.']]), { music: 'c6mirror', note: 'Your lead looks down, and someone else looks up.' });
   async function mirror() {
     if (flag('mirror1')) return say([[null, 'The still water. Your reflection looks back, a moment late, and perfectly happy.']]);
-    mus('c6mirror');
-    await vn([['bg', 'c6-mirror'],
-      ['narr', 'Where the jetty ends, the lake is brightest. Your lead looks down, and someone else looks up: who they\'d be if they\'d stayed with Freya.'],
-      ['show', 'mirror', 'smile', 'right'], ['show', 'lead', 'neutral', 'left'],
-      ...({
-        mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
-        kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
-        seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
-        dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
-      })[lead()],
-      ['narr', 'It isn\'t unhappy. That\'s the worst of it.']]);
+    await cut.play('mirror');
     mus('c6town');
     setFlag('mirror1');
   }
@@ -589,6 +592,33 @@
     sc = null; W.enter();
     return run(() => say([[null, 'Twinwater, at dusk. Kagemaru sits on the jetty with his stall packed up, humming.']]));
   }
+  cut.def('clock', 'The clock room', () => vn([['bg', 'c6-clock'], ['narr', 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]), { note: 'One day left of the waiting period.' });
+  cut.def('saved', 'Saved: a locked box', () => vn([['bg', 'c6-clock'],
+    ['narr', 'On the last turn, someone plays Cancel Deletion. kms:CancelKeyDeletion. The countdown stops.'],
+    ['narr', 'The key survives, and so does Kyu\'s second copy. But the key comes back Disabled, not Enabled, and its key policy hands control to the account\'s IAM policies. Freya\'s.'],
+    ['kagemaru', 'Saved it? Touching. Now it\'s a locked box, and only she holds the key to the key.', 'neutral'],
+    ['show', 'lead', 'sad', 'left'],
+    ['seymour', 'That\'s why you test them. We\'ll test this one the day we can open it.', 'neutral']]), { music: 'c6sad', note: 'Cancel Deletion, on the last turn.' });
+  cut.def('keeper', 'The Keeper\'s Room', () => vn([['bg', 'c6-vault'],
+    ['narr', 'The Keeper\'s Room. On the card table: Freya\'s backup, locked in compliance mode, retain until 12026. Beside it, Seymour\'s tape.'],
+    ['show', 'kagemaru', 'ring', 'right'],
+    ['kagemaru', 'I won\'t deny a thing. I\'d like to see whether you can prove it. Watching people work it out is the best part.', 'amused'],
+    ['show', 'lead', 'cold', 'left']]), { music: 'c6culprit', note: 'Kagemaru won\'t deny a thing.' });
+  cut.def('evidence-1', 'The near shore takes its grants back', () => vn([['bg', 'c6-vault'], ['narr', 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]), { music: 'c6culprit', note: 'After the applicants\' files.' });
+  cut.def('evidence-2', 'Another stretch of shore', () => vn([['bg', 'c6-vault'], ['show', 'kagemaru', 'ring', 'right'],
+    ['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], ['narr', 'Another stretch of shore takes its grants back.']]), { music: 'c6culprit', note: 'After the deletion.' });
+  cut.def('evidence-3', 'Both shores, all at once', () => vn([['bg', 'c6-vault'], ['narr', 'Both shores, all at once. Every grant in Twinwater goes back to its owner.'],
+    ['show', 'kagemaru', 'reveal', 'right'], ['kagemaru', 'Bravo! Bravo. Now come and take it from me. Mind my twin.', 'reveal']]), { music: 'c6culprit', note: 'After the year.' });
+  cut.def('after', 'Delete the tape', () => vn([['bg', 'c6-vault'],
+    ['narr', 'Beaten, Kagemaru sits on the floor of the Keeper\'s Room and laughs until he has to hold his sides.'],
+    ['show', 'kagemaru', 'amused', 'right'],
+    ['freya', 'Delete the tape, love. Now.', 'cold'],
+    ['narr', 'Her voice, warm, from the top of the tower. He looks up at the ceiling for a long time. He\'s doing a sum: four bands gone, her pipeline broken, the party standing over him.'],
+    ['kagemaru', 'No, my lady. I don\'t think I will.', 'neutral'],
+    ['narr', 'The third time anyone has said no to her, after Gary and Kyu. The only time it wasn\'t brave.'],
+    ['kagemaru', 'Keep winning and it stays with you. Lose, and it comes home to me. Today it\'s every Memory Shard in your camp. I\'m practically giving it away.', 'amused'],
+    ['show', 'lead', 'cold', 'left'],
+    ['narr', 'They pay. Seymour\'s tape is theirs, the way his pins always were: for as long as they keep winning.']]), { music: 'c6sad', note: 'Kagemaru, beaten, laughs until he has to hold his sides.' });
   // Cues from the floors' intros and outros (js/c6-data.js).
   const CUES = {
     async keeper() {
@@ -606,7 +636,7 @@
     async clock() {
       if (flag('clock')) return;
       AU.sfx('x-tick');
-      await vn([['bg', 'c6-clock'], ['narr', 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
+      await cut.play('clock');
       await ask({ c: 'keydelete', type: 'num', q: 'Freya could have picked any waiting period when she scheduled the key\'s deletion. What is the longest one KMS allows, in days?', lo: 30, hi: 30, ans: 30, unit: 'days',
         why: 'A KMS key scheduled for deletion waits 7 to 30 days; 30 is both the default and the most. During the wait it can\'t be used, and the deletion can be cancelled.',
         eli5: 'Throwing away a master key always comes with a waiting week or more, up to a month, so somebody has time to say "wait, no".' }, 'THE CLOCK ROOM');
@@ -615,12 +645,7 @@
     async saved() {
       if (flag('saved')) return;
       mus('c6sad'); AU.sfx('x-lever');
-      await vn([['bg', 'c6-clock'],
-        ['narr', 'On the last turn, someone plays Cancel Deletion. kms:CancelKeyDeletion. The countdown stops.'],
-        ['narr', 'The key survives, and so does Kyu\'s second copy. But the key comes back Disabled, not Enabled, and its key policy hands control to the account\'s IAM policies. Freya\'s.'],
-        ['kagemaru', 'Saved it? Touching. Now it\'s a locked box, and only she holds the key to the key.', 'neutral'],
-        ['show', 'lead', 'sad', 'left'],
-        ['seymour', 'That\'s why you test them. We\'ll test this one the day we can open it.', 'neutral']]);
+      await cut.play('saved');
       await ask({ c: 'keydelete', type: 'mc', q: 'Kyu\'s key had its deletion cancelled with kms:CancelKeyDeletion. What does it take before the copy can be decrypted again?',
         opts: ['Someone allowed kms:EnableKey must enable it: a cancelled key comes back Disabled', 'Nothing: cancelling restores it to Enabled', 'Its key material must be imported again', 'It must be rotated first'], a: 0,
         why: 'Cancelling a scheduled deletion leaves the key Disabled. It works again only after EnableKey, by a principal the key policy (or IAM, where the policy allows it) permits.',
@@ -631,11 +656,7 @@
     async confront() {
       mus('c6culprit');
       if (flag('confront')) return say([['kagemaru', 'Again? I do love a second showing. Ah ha ha.', 'amused']]);
-      await vn([['bg', 'c6-vault'],
-        ['narr', 'The Keeper\'s Room. On the card table: Freya\'s backup, locked in compliance mode, retain until 12026. Beside it, Seymour\'s tape.'],
-        ['show', 'kagemaru', 'ring', 'right'],
-        ['kagemaru', 'I won\'t deny a thing. I\'d like to see whether you can prove it. Watching people work it out is the best part.', 'amused'],
-        ['show', 'lead', 'cold', 'left']]);
+      await cut.play('keeper');
       await ask({ c: 'cloudtrail', type: 'explain', q: 'Freya read the four prayers the night she chose them. Who else read them that night, and what record would show it?',
         points: [{ t: 'CloudTrail data events on Bru\'s prayer logs (S3 object reads), turned on in the Mailroom', keys: ['data event', 'getobject', 'object.?level', 's3', 'cloudtrail', 'mailroom'], ex: ['the read events in the logs', 'S3 data events recorded by a trail'] },
           { t: 'The Champion\'s role read them, an hour after Freya', keys: ['champion', 'kagemaru', 'his role', 'role', 'an hour', 'after freya'], ex: ['his role read them too', 'the Champion checked her picks'] }],
@@ -643,34 +664,22 @@
         why: 'Reads of S3 objects are data events: CloudTrail records them only when a trail is set to log data events, which the Mailroom did. Each event names the role that made the call.',
         eli5: 'The letterbox kept a list of everyone who opened each letter, because someone switched that list on. His name is on it, an hour after hers.' }, 'EVIDENCE 1 · THE APPLICANTS\' FILES');
       AU.sfx('x-crowd');
-      await vn([['bg', 'c6-vault'], ['narr', 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
+      await cut.play('evidence-1');
       await ask({ c: 'keydelete', type: 'mc', q: 'Freya scheduled the deletion of Kyu\'s key. What could have stopped it, and did the Champion\'s role have it?',
         opts: ['kms:CancelKeyDeletion during the waiting period; his role had it, and never used it', 'kms:DisableKey; his role didn\'t have it', 'Nothing can stop a scheduled deletion', 'Deleting the CloudTrail trail'], a: 0,
         why: 'During the waiting period a scheduled deletion can be cancelled with kms:CancelKeyDeletion. CloudTrail shows his role had the permission, and no CancelKeyDeletion call from it.',
         eli5: 'He had the "stop the bin lorry" button the whole time. The log shows he never pressed it.' }, 'EVIDENCE 2 · THE DELETION');
-      await vn([['bg', 'c6-vault'], ['show', 'kagemaru', 'ring', 'right'],
-        ['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], ['narr', 'Another stretch of shore takes its grants back.']]);
+      await cut.play('evidence-2');
       await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary stepped down as Champion in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
         opts: ['An IAM CreateRole management event, in a trail\'s S3 bucket: event history only keeps 90 days', 'In CloudTrail event history, which keeps everything forever', 'Nowhere: IAM changes are data events, off by default', 'In the role\'s own tags'], a: 0,
         why: 'CreateRole is a management event. Event history shows 90 days of them with no setup; anything older is only where a trail delivered it, such as an S3 bucket.',
         eli5: 'The town\'s diary only remembers the last three months by itself. To remember 1984, somebody had to be copying the pages into a library all along.' }, 'EVIDENCE 3 · THE YEAR');
-      await vn([['bg', 'c6-vault'], ['narr', 'Both shores, all at once. Every grant in Twinwater goes back to its owner.'],
-        ['show', 'kagemaru', 'reveal', 'right'], ['kagemaru', 'Bravo! Bravo. Now come and take it from me. Mind my twin.', 'reveal']]);
+      await cut.play('evidence-3');
       setFlag('confront');
     },
     async after() {
       if (flag('after')) return;
-      mus('c6sad');
-      await vn([['bg', 'c6-vault'],
-        ['narr', 'Beaten, Kagemaru sits on the floor of the Keeper\'s Room and laughs until he has to hold his sides.'],
-        ['show', 'kagemaru', 'amused', 'right'],
-        ['freya', 'Delete the tape, love. Now.', 'cold'],
-        ['narr', 'Her voice, warm, from the top of the tower. He looks up at the ceiling for a long time. He\'s doing a sum: four bands gone, her pipeline broken, the party standing over him.'],
-        ['kagemaru', 'No, my lady. I don\'t think I will.', 'neutral'],
-        ['narr', 'The third time anyone has said no to her, after Gary and Kyu. The only time it wasn\'t brave.'],
-        ['kagemaru', 'Keep winning and it stays with you. Lose, and it comes home to me. Today it\'s every Memory Shard in your camp. I\'m practically giving it away.', 'amused'],
-        ['show', 'lead', 'cold', 'left'],
-        ['narr', 'They pay. Seymour\'s tape is theirs, the way his pins always were: for as long as they keep winning.']]);
+      await cut.play('after');
       c6().tape = true; S.persist(); AU.sfx('x-chain');
       await ask({ c: 'drtiers', type: 'mc', q: 'The deep dive, while he\'s still laughing: which strategy meets an RPO of seconds and an RTO of minutes, at the lowest cost?',
         opts: ['Warm standby, with data replicated continuously', 'Backup and restore', 'Pilot light with nightly backups', 'Multi-site active/active'], a: 0,
@@ -761,28 +770,29 @@
     R.gainXp(10 + right * 5);
     setFlag(kind === 'relay' ? 'relayrev' : 'rev' + kind);
   }
+  cut.def('bunker', 'Seymour\'s bunker', () => vn([['bg', 'c6-bunker'],
+    ['narr', 'Seymour opens his bunker for the first time, to show them the tape, because they\'ve earned it.'],
+    ['narr', 'Kagemaru is already inside, sitting on the tape case, white gloves folded. Nobody let him in.'],
+    ['show', 'kagemaru', 'neutral', 'right'],
+    ['narr', 'He lowers his hood. Under it there\'s nothing: the shadow and the grin, as there always were.'],
+    ['show', 'kagemaru', 'ring', 'right'],
+    ['narr', 'Then he takes off his left glove, slides a ring off his bare finger, and puts it back on over the white glove: the snake eating its tail. Freya\'s halo. The ring from the man at the desk.'],
+    ['kagemaru', 'They stopped praying. I never started.', 'reveal'],
+    ['show', 'lead', 'neutral', 'left'],
+    ['kagemaru', 'Her Champion, since the day Gary said no. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
+    ['kagemaru', 'I only said yes when she promised Uptima would pay. That part sounded fun. That same night I read your prayers myself, to see what I was betting on.', 'amused'],
+    ['kagemaru', 'Desperate people. My favourite customers. I backed her because she had a plan, and sold to you because you might win. Every pin was a bet on both.', 'reveal'],
+    ['kagemaru', 'My lady asked me to delete this. I didn\'t. I never delete anything I could sell. Ah ha ha.', 'amused'],
+    ['narr', 'He takes the tape: Seymour\'s original, the one the party\'s working copies were made from.'],
+    ['kagemaru', 'Come and see me at the top of the Mirror Floors. Bring shards.', 'ring'],
+    ['hide', 'kagemaru'],
+    ['seymour', 'The copies you carry still work. But that one was the original, and I can\'t make it again.', 'neutral'],
+    ['narr', 'In the ledger he left on the case: what else is in his vault. Kyu\'s second copy, newer than the tape, made on the night of the vault. Freya has scheduled its KMS key for deletion. The waiting period has days left.']]), { music: 'c6culprit', note: 'The tape, and someone already inside.' });
   async function bunker() {
     if (!flag('xp2')) return say([[null, 'Seymour\'s bunker: a steel dome, a sign that says NO VISITORS, and a slot.'], ['seymour', flag('camp') ? 'Not yet. When you\'ve earned it.' : 'Go away. Politely.', 'neutral']]);
     if (flag('reveal')) return say([['seymour', 'I made copies of everything, every night, for forty years. That one I couldn\'t copy. It was the original.', 'neutral']]);
     mus('c6culprit'); AU.sfx('x-lock');
-    await vn([['bg', 'c6-bunker'],
-      ['narr', 'Seymour opens his bunker for the first time, to show them the tape, because they\'ve earned it.'],
-      ['narr', 'Kagemaru is already inside, sitting on the tape case, white gloves folded. Nobody let him in.'],
-      ['show', 'kagemaru', 'neutral', 'right'],
-      ['narr', 'He lowers his hood. Under it there\'s nothing: the shadow and the grin, as there always were.'],
-      ['show', 'kagemaru', 'ring', 'right'],
-      ['narr', 'Then he takes off his left glove, slides a ring off his bare finger, and puts it back on over the white glove: the snake eating its tail. Freya\'s halo. The ring from the man at the desk.'],
-      ['kagemaru', 'They stopped praying. I never started.', 'reveal'],
-      ['show', 'lead', 'neutral', 'left'],
-      ['kagemaru', 'Her Champion, since the day Gary said no. I sat across the desk the night she went through your files. A nurse, a cook, a child and a janitor, against a goddess. I told her you\'d lose.', 'amused'],
-      ['kagemaru', 'I only said yes when she promised Uptima would pay. That part sounded fun. That same night I read your prayers myself, to see what I was betting on.', 'amused'],
-      ['kagemaru', 'Desperate people. My favourite customers. I backed her because she had a plan, and sold to you because you might win. Every pin was a bet on both.', 'reveal'],
-      ['kagemaru', 'My lady asked me to delete this. I didn\'t. I never delete anything I could sell. Ah ha ha.', 'amused'],
-      ['narr', 'He takes the tape: Seymour\'s original, the one the party\'s working copies were made from.'],
-      ['kagemaru', 'Come and see me at the top of the Mirror Floors. Bring shards.', 'ring'],
-      ['hide', 'kagemaru'],
-      ['seymour', 'The copies you carry still work. But that one was the original, and I can\'t make it again.', 'neutral'],
-      ['narr', 'In the ledger he left on the case: what else is in his vault. Kyu\'s second copy, newer than the tape, made on the night of the vault. Freya has scheduled its KMS key for deletion. The waiting period has days left.']]);
+    await cut.play('bunker');
     await ask({ c: 'keydelete', type: 'mc', q: 'Kyu\'s second copy is encrypted under a KMS key that Freya has scheduled for deletion. The waiting period has days left. What is true right now?',
       opts: ['The key can\'t be used, and the deletion can still be cancelled', 'The key material is already gone', 'The key still works until the last day', 'Only AWS Support can stop it'], a: 0,
       why: 'A key pending deletion is unusable (any attempt fails and is recorded in CloudTrail) but intact. Until the waiting period ends, CancelKeyDeletion stops the deletion.',
@@ -790,15 +800,15 @@
     setFlag('reveal'); R.gainXp(30);
     mus('camp');
   }
+  cut.def('freya', 'Freya at camp', () => vn([['bg', 'c6-camp'],
+    ['show', 'freya', 'warm', 'right'],
+    ['freya', 'You\'re nearly at the top, my loves. I\'m so proud of you.', 'warm'],
+    ['freya', 'Has my Champion been looking after you?', 'smile'],
+    ['show', 'lead', 'cold', 'left'],
+    ['lead', { mira: 'He has, love. Very closely.', kai: 'Yeah. He\'s been great.', seoyeon: 'Closely.', dutch: 'Every step.' }, 'cold'],
+    ['narr', 'She means all of it. She brings nothing this time. She doesn\'t know he kept the tape.']]), { music: 'freya' });
   async function freya() {
-    mus('freya');
-    await vn([['bg', 'c6-camp'],
-      ['show', 'freya', 'warm', 'right'],
-      ['freya', 'You\'re nearly at the top, my loves. I\'m so proud of you.', 'warm'],
-      ['freya', 'Has my Champion been looking after you?', 'smile'],
-      ['show', 'lead', 'cold', 'left'],
-      ['lead', { mira: 'He has, love. Very closely.', kai: 'Yeah. He\'s been great.', seoyeon: 'Closely.', dutch: 'Every step.' }, 'cold'],
-      ['narr', 'She means all of it. She brings nothing this time. She doesn\'t know he kept the tape.']]);
+    await cut.play('freya');
     mus('camp');
     setFlag('freya');
   }
@@ -829,10 +839,24 @@
   }
 
   // ---------- The choice, and the end ----------
+  cut.def('switched', 'Kagemaru switches sides', () => vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'],
+    ['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]), { music: 'c6mirror', note: 'Before you decide what to do with him.' });
+  cut.def('contain', 'Containing Kagemaru', (ch = 'least') => vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'], ['show', 'lead', 'cold', 'left'],
+    ...({ vault: [['lead', 'In the vault. With her backup. Nothing to sell.', 'cold'], ['kagemaru', 'A locked room, and me in it. How long do you think a door holds? Ah ha ha.', 'amused']],
+      least: [['lead', { mira: 'A stall at camp, love. One stall. Every sale logged. Touch anything else and we\'ll know.', other: 'A stall at camp. Nothing else. Every action logged.' }, 'cold'], ['kagemaru', 'Trust nothing, verify everything. How grown up. I may even enjoy it.', 'neutral']],
+      run: [['lead', 'Come to camp. Help where you like.', 'neutral'], ['kagemaru', 'Oh, I will.', 'amused']] }[ch]),
+    ['bg', 'c6-lake'], ['show', 'uptima', 'neutral', 'center'],
+    ['narr', 'That night Uptima searches the backlog for his prayer. Every message in ten thousand years. Every lead\'s prayer has been in it.'],
+    ['narr', 'There isn\'t one from Kagemaru. He has never asked anyone for anything. He buys it.'],
+    ['kagemaru', 'I told you. I never started. Ah ha ha.', 'amused']]), { music: 'c6mirror', note: 'Your choice, and the prayer he never sent.', alts: [['Least privilege', 'least'], ['The vault', 'vault'], ['The run of the camp', 'run']] });
+  cut.def('freed', 'The Mirror Floors freed', () => vn([['bg', 'c6-freed'],
+    ['narr', 'The Mirror Floors freed. The twins stop answering each other.'],
+    ['narr', 'On both shores, people are suddenly alone, and a few of them cry for the first time in forty years. Then they come down to the camp.'],
+    ['narr', 'The relay station opens. Mio sits at the front, with her ear to the counter.'],
+    ['show', 'mio', 'smile', 'center'], ['mio', 'They\'re all honest now. It\'s really loud.', 'smile']]), { music: 'c6sad', note: 'The end of Chapter 6.' });
   async function choice() {
     if (flag('choice')) return say([[null, { vault: 'The vault door is shut. Someone inside is humming.', least: 'Kagemaru\'s stall is open at camp. Every sale goes in the log.', run: 'Kagemaru waves from the camp. He has a very nice new tent.' }[c6().choice]]]);
-    await vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'],
-      ['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]);
+    await cut.play('switched');
     const ch = await new Promise(res => {
       const b = U.panel(`<p>How do you contain the man who sold you everything? <span class="muted small">${esc(NAME(lead()))} decides alone.</span></p>
         <div class="opts col">
@@ -842,22 +866,10 @@
       b.querySelectorAll('[data-ch]').forEach(el => el.onclick = () => { AU.sfx('ok'); U.closePanel(); res(el.dataset.ch); });
     });
     c6().choice = ch; S.persist();
-    mus('c6mirror');
-    await vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'], ['show', 'lead', 'cold', 'left'],
-      ...({ vault: [['lead', 'In the vault. With her backup. Nothing to sell.', 'cold'], ['kagemaru', 'A locked room, and me in it. How long do you think a door holds? Ah ha ha.', 'amused']],
-        least: [['lead', { mira: 'A stall at camp, love. One stall. Every sale logged. Touch anything else and we\'ll know.', other: 'A stall at camp. Nothing else. Every action logged.' }, 'cold'], ['kagemaru', 'Trust nothing, verify everything. How grown up. I may even enjoy it.', 'neutral']],
-        run: [['lead', 'Come to camp. Help where you like.', 'neutral'], ['kagemaru', 'Oh, I will.', 'amused']] }[ch]),
-      ['bg', 'c6-lake'], ['show', 'uptima', 'neutral', 'center'],
-      ['narr', 'That night Uptima searches the backlog for his prayer. Every message in ten thousand years. Every lead\'s prayer has been in it.'],
-      ['narr', 'There isn\'t one from Kagemaru. He has never asked anyone for anything. He buys it.'],
-      ['kagemaru', 'I told you. I never started. Ah ha ha.', 'amused']]);
+    await cut.play('contain', ch);
     setFlag('choice');
     mus('c6sad'); AU.sfx('x-bell');
-    await vn([['bg', 'c6-freed'],
-      ['narr', 'The Mirror Floors freed. The twins stop answering each other.'],
-      ['narr', 'On both shores, people are suddenly alone, and a few of them cry for the first time in forty years. Then they come down to the camp.'],
-      ['narr', 'The relay station opens. Mio sits at the front, with her ear to the counter.'],
-      ['show', 'mio', 'smile', 'center'], ['mio', 'They\'re all honest now. It\'s really loud.', 'smile']]);
+    await cut.play('freed');
     setFlag('freed');
     c6().f.done = true; S.persist();
     R.gainXp(60);

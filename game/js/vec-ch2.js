@@ -307,6 +307,21 @@
       ['coo', 'Shipped! Delivered! Exactly once, I think. I\'m counting.', 'smile']
     ]
   };
+  // In the cutscene viewer (js/reel.js). Thornwick is two scenes: the square, and Freya at the post box after the
+  // Unmake It talk. The explorable chapter 2 (js/c2-world.js) plays some of these and adds its own.
+  const cut = K.cut2 = SD.reel.chapter('2', { before: () => { U.closePanel(); U.stage(null); } });
+  const atPost = () => T.thornwick.findIndex(x => x[0] === 'cg');
+  cut.def('cold', 'Bram\'s wagon', T.cold, { music: 'story', note: 'A memory: Mira and Bram, the night of a new moon.' });
+  cut.def('edge', 'The edge of the Cloud', T.edge, { note: 'The night after the wipe, and Freya\'s basket. (The climb-only version.)' });
+  cut.def('tower', 'The tower at dawn', T.tower);
+  cut.def('scrap', 'The scrap field', T.scrap, { note: 'Where Freya dumps what she deletes. (The climb-only version.)' });
+  cut.def('bunker', 'The bunker', T.bunker, { note: 'Sir Seymour Backups won\'t open the door. (The climb-only version.)' });
+  cut.def('wren', 'Elder Wren', T.wren, { note: '(The climb-only version.)' });
+  cut.def('fire', 'The first fire', T.fire);
+  cut.def('thornwick', 'Thornwick', () => T.thornwick.slice(0, atPost()), { note: 'The silent bell, and Tilly. (The climb-only version.)' });
+  cut.def('thornwick-post', 'Freya at the post box', () => T.thornwick.slice(atPost()), { note: '(The climb-only version.)' });
+  cut.def('redeploy', 'Midnight: the floors grow back', T.redeploy);
+  cut.def('shipped', 'Shipped', T.shipped, { note: 'The template is yours, and floors 2 to 6 stay cleared.' });
   // Pip's question after the expedition: the Belfry's answer, explained.
   const PIP_Q = { c: 'snsfan', type: 'mc', q: 'Pip: "Why did the Belfry\'s bells stop hitting all of us at once?"',
     opts: ['Each subscription got a filter policy, so each copy only reached the one it was for', 'The topic was switched to FIFO, so the copies came one at a time', 'We deleted the topic, so nothing was sent', 'The visibility timeout hid the copies until the fight was over'], a: 0,
@@ -379,9 +394,8 @@
   };
   C2.pairSeen = id => flag('pair-' + id);
   // where: 'camp' when it comes back at the next camp, else in its own place.
-  C2.pair = async function (id, where) {
+  function pairSteps(id, where) {
     const P = PAIRS[id], me = (S.save.c1 && S.save.c1.lead) || 'mira';
-    if (!P || flag('pair-' + id)) return;
     const mine = P.pair.includes(me);
     let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
     if (where === 'camp') lines[0] = ['narr', P.camp];
@@ -392,9 +406,13 @@
       if (k >= 0) lines[k] = [me, lines[k][1] + ' ' + t, lines[k][2]]; else lines.splice(Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]);
     }
     lines[0] = [lines[0][0], P.title.toUpperCase() + ' · ' + lines[0][1]].concat(lines[0].slice(2));
-    U.closePanel(); U.stage(null);
-    AU.music(P.music);
-    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    return [['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]];
+  }
+  Object.keys(PAIRS).forEach(id => cut.def('pair-' + id, 'Pair scene: ' + PAIRS[id].title, where => pairSteps(id, where),
+    { music: PAIRS[id].music, alts: [['Where it happens', null], ['Caught up at camp', 'camp']] }));
+  C2.pair = async function (id, where) {
+    if (!PAIRS[id] || flag('pair-' + id)) return;
+    await cut.play('pair-' + id, where);
     setFlag('pair-' + id);
   };
   C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
@@ -974,12 +992,12 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     SD.ch1.halt(); U.closePanel(); U.stage(null);
     AU.music('story');
     if (!flag('act1')) {
-      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge]);
+      await cut.play(['cold', ['fx', 'black'], 'edge']);
       await C2.pair('tof');
-      await SD.vn.play([...T.tower, ...T.scrap, ...T.bunker]);
-      await SD.vn.play([...T.wren, ...T.fire, ...T.thornwick.slice(0, T.thornwick.findIndex(x => x[0] === 'cg'))]);
+      await cut.play(['tower', 'scrap', 'bunker']);
+      await cut.play(['wren', 'fire', 'thornwick']);
       await C2.pair('unmake');
-      await SD.vn.play(T.thornwick.slice(T.thornwick.findIndex(x => x[0] === 'cg')));
+      await cut.play('thornwick-post');
       setFlag('act1');
     }
     if (!flag('won')) return C2.climb(true);
@@ -994,7 +1012,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
   async function afterExpedition() {
     await C2.pairsMissed();
     U.stage(null);
-    await SD.vn.play(T.redeploy);
+    await cut.play('redeploy');
     U.stage('c2fire');
     await Q.ask(PIP_Q, { title: 'WHY DID THAT WORK?', context: 'Pip, after the expedition' });
     await say([['pip', 'Oh. A filter on each one. That\'s nice. I\'d like one of those.', 'happy'], ['dutch', 'So we change the template. And it gets through her pipeline, or it doesn\'t.', 'neutral'], ['coo', 'Ship it! And when you\'ve shipped it, I\'ve got a sorting desk that needs you.', 'smile']]);
@@ -1041,7 +1059,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     R.gainXp(40);
     U.system('SHIPPED', 'Floors 2 to 6 stay cleared at midnight. The lift opens to floor 7.', 'gold');
     U.stage(null);
-    await SD.vn.play(T.shipped);
+    await cut.play('shipped');
     camp();
   }
 
