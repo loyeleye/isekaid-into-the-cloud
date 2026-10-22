@@ -37,13 +37,27 @@
     if (document.hidden) ctx.suspend(); else ctx.resume();
   });
 
-  A.set = function (kind, on) {
+  function setBus(kind, on) {
     prefs[kind] = on; savePrefs();
     if (!ctx) return;
     const bus = kind === 'music' ? musicBus : sfxBus;
     bus.gain.setTargetAtTime(on ? (kind === 'music' ? 0.34 : 0.55) : 0, ctx.currentTime, 0.05);
-  };
+  }
+  // A switch flipped by hand forgets what the mute key would bring back.
+  A.set = function (kind, on) { delete prefs.unmute; setBus(kind, on); };
   A.muted = () => !prefs.music && !prefs.sfx;
+  // The mute key (V, js/main.js): mutes everything, and pressed again brings back what was on before, music only or
+  // sound effects only. If everything was already muted when you pressed it, it turns everything on.
+  A.toggleMute = function () {
+    if (A.muted()) {
+      const u = prefs.unmute && (prefs.unmute.music || prefs.unmute.sfx) ? prefs.unmute : { music: true, sfx: true };
+      delete prefs.unmute; setBus('music', !!u.music); setBus('sfx', !!u.sfx);
+      return true;
+    }
+    prefs.unmute = { music: prefs.music, sfx: prefs.sfx };
+    setBus('music', false); setBus('sfx', false);
+    return false;
+  };
   // A recorded voice line (assets/audio/vo/<file>.mp3, mapped in js/vo.js), on the sound-effects switch. One plays
   // at a time: the next line, or null, cuts it off. Returns whether it's speaking, so the typewriter can stay quiet.
   let voEl = null;

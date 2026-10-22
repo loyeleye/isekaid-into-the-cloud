@@ -34,6 +34,19 @@
   };
   const today = () => new Date().toDateString();
 
+  // V (for volume) is the mute key, everywhere, quizzes and dialogue included: it mutes everything and brings back
+  // what was on before (js/audio.js). Not while you type in a text field.
+  const typing = t => t && t.closest && (t.isContentEditable || t.closest('textarea, select') ||
+    (t.closest('input') && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/.test(t.closest('input').type)));
+  window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() !== 'v' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || typing(e.target)) return;
+    e.preventDefault();
+    const on = AU.toggleMute();
+    ['#t-snd', '#hud-snd', '#w-snd'].forEach(id => { const b = $(id); if (b) b.textContent = sndIcon(); });
+    if (!$('#panel').hidden && $('#panel .win-h span').textContent === 'MENU') menu();
+    if (on && AU.prefs.sfx) AU.sfx('ok');
+  });
+
   M.menu = menu;
   // Stop every chapter's walkable scene before a fresh save, so none keeps running (or holding the controls) underneath.
   M.haltWorlds = function () {
@@ -89,7 +102,7 @@
   }
   function help() {
     U.panel(`<ul class="links">
-      <li><b>Walking.</b> Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. Someone with a "!" has something for you.</li>
+      <li><b>Walking.</b> Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. V mutes or unmutes the sound. Someone with a "!" has something for you.</li>
       <li><b>Runs.</b> The temple gate takes you down a branching path of incidents and side rooms, ending at a boss.</li>
       <li><b>Combat.</b> Each turn you get 3 Capacity. Cards absorb load or mitigate the incident's Severity. The incident shows its next move: read it and answer with the right service or setting.</li>
       <li><b>Matchups.</b> Cards that fit the incident are EFFECTIVE and mitigate hard. Wrong ones are RESISTED, and the game tells you why. That reason is the lesson.</li>
