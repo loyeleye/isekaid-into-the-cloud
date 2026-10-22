@@ -422,12 +422,12 @@
   }
   async function mioEar() {
     if (flag('mio')) return say([['mio', rnd(['That one\'s pretending. Shh.', 'I\'ll come to camp after the stairs. I can help with the relay.']), 'smile']]);
-    await say([[null, 'An eight-year-old in pink sits at the end of the jetty with her ear to the boards: Mio, from the first game, who can hear what servers think.'],
+    await say([[null, 'A fifteen-year-old with pink ribbons sits at the end of the jetty with her ear to the boards: Mio, from the first game, who can hear what servers think.'],
       ['mio', 'Shh. I\'m listening to the twins. That one\'s fine. That one\'s asleep. That one says it\'s fine and it isn\'t.', 'earnest'],
       ['lead', { mira: 'Which one is lying, love?', kai: 'How can you tell?', seoyeon: 'Which?', dutch: 'Which one?' }],
       ['mio', 'The ones that say "OK" too fast. Real things take a moment.', 'neutral'],
       ['mio', 'The man with the stall... I can\'t hear anything at all from him. Nothing. I don\'t like it.', 'sad'],
-      [null, 'Nobody listens to an eight-year-old. Except, by now, this camp.']]);
+      [null, 'Nobody listens to a fifteen-year-old. Except, by now, this camp.']]);
     setFlag('mio');
   }
   const MIRROR = {
