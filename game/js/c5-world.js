@@ -922,7 +922,8 @@
   // ---------- The tower ----------
   // Backoff (Kai and Dutch), at the Astronomy Tower's door.
   async function backoff() {
-    await say([[null, 'At the Astronomy Tower\'s door, Kai and Dutch both go for it first, and wedge in it, shoulder to shoulder.'],
+    await vn([['bg', 'c5-observatory'], ['show', 'kai', 'smirk', 'left'], ['show', 'dutch', 'stone', 'right'],
+      ['narr', 'At the Astronomy Tower\'s door, Kai and Dutch both go for it first, and wedge in it, shoulder to shoulder.'],
       ['dutch', 'In my old job, when two guys swung at once, nobody landed anything. You back off, wait a bit longer each time, and don\'t go at the same time.', 'stone'],
       ['kai', 'Exponential backoff with jitter.', 'smirk'],
       ['dutch', 'Bless you.', 'neutral']]);

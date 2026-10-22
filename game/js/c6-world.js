@@ -607,7 +607,7 @@
     async clock() {
       if (flag('clock')) return;
       AU.sfx('x-tick');
-      await say([[null, 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
+      await vn([['bg', 'c6-clock'], ['narr', 'The countdown above the key reads 00:00:59... days, not seconds. One day left of the waiting period Freya set.']]);
       await ask({ c: 'keydelete', type: 'num', q: 'Freya could have picked any waiting period when she scheduled the key\'s deletion. What is the longest one KMS allows, in days?', lo: 30, hi: 30, ans: 30, unit: 'days',
         why: 'A KMS key scheduled for deletion waits 7 to 30 days; 30 is both the default and the most. During the wait it can\'t be used, and the deletion can be cancelled.',
         eli5: 'Throwing away a master key always comes with a waiting week or more, up to a month, so somebody has time to say "wait, no".' }, 'THE CLOCK ROOM');
@@ -644,12 +644,13 @@
         why: 'Reads of S3 objects are data events: CloudTrail records them only when a trail is set to log data events, which the Mailroom did. Each event names the role that made the call.',
         eli5: 'The letterbox kept a list of everyone who opened each letter, because someone switched that list on. His name is on it, an hour after hers.' }, 'EVIDENCE 1 · THE APPLICANTS\' FILES');
       AU.sfx('x-crowd');
-      await say([[null, 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
+      await vn([['bg', 'c6-vault'], ['narr', 'On the near shore, a stretch of Twinwater\'s people take their grants back. Kagemaru applauds.']]);
       await ask({ c: 'keydelete', type: 'mc', q: 'Freya scheduled the deletion of Kyu\'s key. What could have stopped it, and did the Champion\'s role have it?',
         opts: ['kms:CancelKeyDeletion during the waiting period; his role had it, and never used it', 'kms:DisableKey; his role didn\'t have it', 'Nothing can stop a scheduled deletion', 'Deleting the CloudTrail trail'], a: 0,
         why: 'During the waiting period a scheduled deletion can be cancelled with kms:CancelKeyDeletion. CloudTrail shows his role had the permission, and no CancelKeyDeletion call from it.',
         eli5: 'He had the "stop the bin lorry" button the whole time. The log shows he never pressed it.' }, 'EVIDENCE 2 · THE DELETION');
-      await say([['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], [null, 'Another stretch of shore takes its grants back.']]);
+      await vn([['bg', 'c6-vault'], ['show', 'kagemaru', 'ring', 'right'],
+        ['kagemaru', 'A second copy would have halved the price of the first. You understand. You\'re customers.', 'amused'], ['narr', 'Another stretch of shore takes its grants back.']]);
       await ask({ c: 'cloudtrail', type: 'mc', q: 'Gary stepped down as Champion in 1984, and the Forbidden Index files "Champions, current" under the same day. If a role was made for the new Champion that day, where would its record be now?',
         opts: ['An IAM CreateRole management event, in a trail\'s S3 bucket: event history only keeps 90 days', 'In CloudTrail event history, which keeps everything forever', 'Nowhere: IAM changes are data events, off by default', 'In the role\'s own tags'], a: 0,
         why: 'CreateRole is a management event. Event history shows 90 days of them with no setup; anything older is only where a trail delivered it, such as an S3 bucket.',
@@ -831,7 +832,8 @@
   // ---------- The choice, and the end ----------
   async function choice() {
     if (flag('choice')) return say([[null, { vault: 'The vault door is shut. Someone inside is humming.', least: 'Kagemaru\'s stall is open at camp. Every sale goes in the log.', run: 'Kagemaru waves from the camp. He has a very nice new tent.' }[c6().choice]]]);
-    await say([['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]);
+    await vn([['bg', 'c6-jetty'], ['show', 'kagemaru', 'amused', 'right'],
+      ['kagemaru', 'There you are. I\'ve switched sides, you know. I expect you\'re wondering what to do with a man who\'ll always switch again.', 'amused']]);
     const ch = await new Promise(res => {
       const b = U.panel(`<p>How do you contain the man who sold you everything? <span class="muted small">${esc(NAME(lead()))} decides alone.</span></p>
         <div class="opts col">

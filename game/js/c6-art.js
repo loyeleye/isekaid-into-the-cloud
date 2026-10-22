@@ -322,7 +322,7 @@
   // Your lead's reflection in the lake: the same figure, lit from below by moonlight off the water.
   ['mira', 'kai', 'seoyeon', 'dutch'].forEach(id => { if (K.cast[id]) K.cast['mir' + id] = Object.assign({}, K.cast[id], { light: 'moon' }); });
   const NAMES = {
-    kagemaru: { name: 'Kagemaru', title: 'Card Fixer' }, mio: { name: 'Mio', title: 'Hears servers, age 8' }, aigerim: { name: 'Aigerim', title: 'Card Peddler' },
+    kagemaru: { name: 'Kagemaru', title: 'Card Fixer' }, mio: { name: 'Mio', title: 'Hears servers, age 15' }, aigerim: { name: 'Aigerim', title: 'Card Peddler' },
     chad: { name: 'Chad', title: 'Certified Solutions Visionary' }, gary: { name: 'Gary', title: 'Freya\'s Champion, 1984' }, ashgrove: { name: 'Lord Ashgrove', title: 'Caspian\'s father' },
     wen: { name: 'Grandma Wen', title: 'Cache Café' }, twin1: { name: 'A Twinwater fisher', title: 'Floor 81' }, twin2: { name: 'A Twinwater baker', title: 'Floor 81' },
     twin3: { name: 'A Twinwater teacher', title: 'Floor 81' }, twin4: { name: 'A Twinwater boatman', title: 'Floor 81' }
