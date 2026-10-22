@@ -433,7 +433,31 @@
     return L;
   }
   const wxL = bedLayer(SKY), placeL = bedLayer(PLACE);
-  A.weather = kind => wxL.set(kind);
+  // A.hush(true): the weather stops dead and, under the silence, a low room hum with a faint ring over it, like ears
+  // after a blast (Chapter 1's reveal, js/cut-reveal.js). The weather asked for meanwhile comes back with hush(false).
+  let hushed = false, wxWant, hum = null;
+  A.weather = kind => { wxWant = kind; wxL.set(hushed ? null : kind); };
+  A.hush = function (on) {
+    if (on === hushed) return;
+    hushed = on;
+    wxL.set(on ? null : wxWant === undefined ? null : wxWant);
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (!on) { if (hum) { const h = hum; hum = null; h.g.gain.setTargetAtTime(0, t, 0.5); setTimeout(() => h.oscs.forEach(o => o.stop()), 3000); } return; }
+    const g = ctx.createGain(); g.gain.value = 0; g.connect(sfxBus);
+    // Two low sines a little apart, so the hum beats slowly; the ring is very quiet and wavers.
+    const oscs = [[46, 0.16], [46.6, 0.12], [92.5, 0.03], [6150, 0.006]].map(([f, v]) => {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f; og.gain.value = v;
+      o.connect(og); og.connect(g); o.start(t);
+      return o;
+    });
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    lfo.frequency.value = 0.13; lg.gain.value = 9; lfo.connect(lg); lg.connect(oscs[3].frequency); lfo.start(t);
+    oscs.push(lfo);
+    g.gain.setTargetAtTime(1, t, 1.6);
+    hum = { g, oscs };
+  };
   // A place's own sound (PLACE above), or null for none. A.placeName() is the one playing (or asked for).
   A.place = kind => placeL.set(kind);
   A.placeName = () => placeL.want !== undefined ? placeL.want : placeL.me ? placeL.me.kind : null;
