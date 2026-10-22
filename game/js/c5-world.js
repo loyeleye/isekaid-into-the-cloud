@@ -949,9 +949,16 @@
       b.querySelectorAll('[data-ch]').forEach(el => el.onclick = () => { sfx('ok'); U.closePanel(); res(el.dataset.ch); });
     });
     c5().choice = ch; S.persist();
-    await vn([['bg', 'c5-rail'],
-      ...(ch === 'hold' ? [['narr', 'He holds. Freya\'s blessing pulls Iris up out of his hands anyway, and he\'s left holding a strip of her scarf. Lilac.']]
-        : [['narr', 'He lets go. Freya\'s blessing catches her and takes her up the tower. He did it on purpose this time, and he knows it.']]),
+    // One call per ending, so each ending's cutscene (the-rail-hold, the-rail-let) plays the Ashgrove shots.
+    if (ch === 'hold') await vn([['bg', 'c5-rail'], ['narr', 'He holds. Freya\'s blessing pulls Iris up out of his hands anyway, and he\'s left holding a strip of her scarf. Lilac.'],
+      ['show', 'ashgrove', 'cold', 'right'],
+      ['narr', 'Lord Ashgrove has followed him up the stair.'],
+      ['ashgrove', 'Mr. Dutch.', 'cold'],
+      ['dutch', 'Your boy grabbed for her hand. He tried to catch her.', 'grief'],
+      ['narr', 'It\'s the first time he has told anyone what\'s true, instead of what he\'s sure of.'],
+      ['ashgrove', '...', 'stone'],
+      ['narr', 'Ashgrove calls off the watch the next morning. He doesn\'t forgive him.']]);
+    else await vn([['bg', 'c5-rail'], ['narr', 'He lets go. Freya\'s blessing catches her and takes her up the tower. He did it on purpose this time, and he knows it.'],
       ['show', 'ashgrove', 'cold', 'right'],
       ['narr', 'Lord Ashgrove has followed him up the stair.'],
       ['ashgrove', 'Mr. Dutch.', 'cold'],

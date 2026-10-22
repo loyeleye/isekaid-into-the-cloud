@@ -390,8 +390,6 @@
   }
   async function offer() {
     mus('freya');
-    const no = { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' };
-    const inner = { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' };
     await vn([['bg', 'c6-jetty'],
       ['narr', 'At the end of the jetty, Freya is waiting, as cheerful as ever. Behind her, the lake holds the whole town upside down.'],
       ['show', 'freya', 'warm', 'right'],
@@ -399,7 +397,9 @@
       ['freya', 'I\'ll bring them back. Bram, Hana, Jin, Lina. From my own memory. They\'ll be as real as I am.', 'earnest'],
       ['narr', 'Then she says it again, in their voices. Each of them hears the one they lost.'],
       ['show', 'lead', 'neutral', 'left'],
-      ...T.order.map(id => (id === lead() ? ['narr', inner[id]] : [id, no[id], 'cold'])),
+      // What each of the others says out loud, and what the lead hears inside.
+      ...T.order.map(id => (id === lead() ? ['narr', { mira: '(Bram, in her voice. Bram, asking me to come home.)', kai: '(Hana. She even laughs like Hana.)', seoyeon: '(Up, Minnow. Forms. In her mouth.)', dutch: '(Lina\'s voice. The exact pitch of it. That\'s the worst part.)' }[id]]
+        : [id, { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' }[id], 'cold'])),
       ['lead', { mira: 'No, love.', kai: 'No.', seoyeon: 'No.', dutch: 'No.' }, 'cold'],
       ['freya', 'Free, my loves. Whenever you change your minds.', 'smile'],
       ['narr', 'She goes. At the jetty\'s end, someone has set up a stall, and he is in a wonderful mood.']]);
@@ -430,19 +430,18 @@
       [null, 'Nobody listens to a fifteen-year-old. Except, by now, this camp.']]);
     setFlag('mio');
   }
-  const MIRROR = {
-    mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
-    kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
-    seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
-    dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
-  };
   async function mirror() {
     if (flag('mirror1')) return say([[null, 'The still water. Your reflection looks back, a moment late, and perfectly happy.']]);
     mus('c6mirror');
     await vn([['bg', 'c6-mirror'],
       ['narr', 'Where the jetty ends, the lake is brightest. Your lead looks down, and someone else looks up: who they\'d be if they\'d stayed with Freya.'],
       ['show', 'mirror', 'smile', 'right'], ['show', 'lead', 'neutral', 'left'],
-      ...MIRROR[lead()],
+      ...({
+        mira: [['mirror', 'I finished it, love. The list. Every name crossed off, and nobody left to look after.', 'smile'], ['lead', 'Bram would have hated it.', 'warm'], ['mirror', 'He would. I don\'t mind.', 'warm']],
+        kai: [['mirror', 'She\'s right here. On the shelf, in her jar. She never leaves.', 'smile'], [null, 'Kai thinks of his own shelf at camp, where Freya\'s jar went dark.'], ['lead', 'Mine went dark.', 'sad']],
+        seoyeon: [['mirror', 'The Cult goes down the mountain at dawn. I asked them very politely.', 'cold'], ['lead', 'You would.', 'neutral']],
+        dutch: [['mirror', 'Sit down, Dutch. You\'ve earned it.', 'warm'], [null, 'The badge on its chest is polished. Dutch doesn\'t sit.']]
+      })[lead()],
       ['narr', 'It isn\'t unhappy. That\'s the worst of it.']]);
     mus('c6town');
     setFlag('mirror1');
