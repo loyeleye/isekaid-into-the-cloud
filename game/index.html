@@ -1044,6 +1044,19 @@ body { background: var(--bg); }
 #vn.shake .vn-cam, #vn.shake .vn-cast { animation: vnShake .45s cubic-bezier(.36,.07,.19,.97); }
 @keyframes vnShake { 10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); } 30%, 50%, 70% { transform: translate(-7px, 2px); } 40%, 60% { transform: translate(7px, -1px); } }
 #vn.beat .vn-cam { animation: vnBeat .5s ease-out; }
+/* A broken neon sign (['fx', 'neon'], Chapter 1's reveal): the picture mostly holds, then drops out and stutters back,
+   at uneven gaps, until ['fx', 'unneon']. */
+#vn.neon .vn-cam { animation: vnNeon 2.9s infinite; }
+@keyframes vnNeon {
+  0%, 9%, 12%, 34%, 40%, 63%, 66%, 84%, 90%, 100% { filter: none; animation-timing-function: steps(1, end); }
+  8% { filter: brightness(.3) contrast(1.4); animation-timing-function: steps(1, end); }
+  10% { filter: brightness(.6); animation-timing-function: steps(1, end); }
+  33% { filter: brightness(.2) contrast(1.5) saturate(1.6); animation-timing-function: steps(1, end); }
+  36%, 38% { filter: brightness(.45) contrast(1.3); animation-timing-function: steps(1, end); }
+  37%, 39% { filter: brightness(1.25); animation-timing-function: steps(1, end); }
+  64% { filter: brightness(.55); animation-timing-function: steps(1, end); }
+  80% { filter: brightness(.15) contrast(1.6); animation-timing-function: steps(1, end); }
+}
 @keyframes vnBeat { 30% { transform: scale(1.025); filter: brightness(.8); } }
 /* Sprites stand on the bottom edge, behind the text box. */
 #vn .vn-cast { position: absolute; inset: 0; pointer-events: none; }

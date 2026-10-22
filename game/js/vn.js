@@ -10,7 +10,7 @@
 // pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
 // 'cut' swaps the still in at once instead of crossfading;
 // pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
-// 'thunder', 'black', 'rain', 'dry' or 'heartbeat'. Art that hasn't been painted yet shows a placeholder.
+// 'thunder', 'black', 'rain', 'dry', 'heartbeat', or 'neon' and 'unneon' (a broken neon sign's flicker, on and off). Art that hasn't been painted yet shows a placeholder.
 (function () {
   const V = SD.vn = {};
   const $ = s => document.querySelector(s);
@@ -213,6 +213,7 @@
     if (kind === 'rain' || kind === 'dry') return rain(kind === 'rain');
     if (kind === 'black') { bl.classList.add('on'); await sleep(skipping ? 0 : 1100); return; }
     if (kind === 'unblack') { bl.classList.remove('on'); return; }
+    if (kind === 'neon' || kind === 'unneon') { root.classList.toggle('neon', kind === 'neon' && !reduce()); return; }
     if (kind === 'heartbeat') { sfx('hit', 0); root.classList.remove('beat'); void root.offsetWidth; root.classList.add('beat'); return; }
     if (kind === 'flash' || kind === 'thunder') {
       fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
@@ -509,7 +510,7 @@
     Object.keys(sprites).forEach(w => { sprites[w].el.remove(); delete sprites[w]; });
     lead = null;
     cam.querySelectorAll('.vn-pic').forEach(e => e.remove());
-    root.classList.remove('vn-incg', 'flicker', 'shake');
+    root.classList.remove('vn-incg', 'flicker', 'shake', 'neon');
     box.hidden = true;
     root.hidden = true;
     document.body.classList.remove('vn-on');
