@@ -37,8 +37,11 @@
     if (document.hidden) ctx.suspend(); else ctx.resume();
   });
 
+  let voEl = null;           // the voice line playing now (A.voice below)
   function setBus(kind, on) {
     prefs[kind] = on; savePrefs();
+    // A voice line is its own <audio> element, outside the buses, so muting sound effects mutes it by hand.
+    if (kind === 'sfx' && voEl) voEl.muted = !on;
     if (!ctx) return;
     const bus = kind === 'music' ? musicBus : sfxBus;
     bus.gain.setTargetAtTime(on ? (kind === 'music' ? 0.34 : 0.55) : 0, ctx.currentTime, 0.05);
@@ -60,7 +63,6 @@
   };
   // A recorded voice line (assets/audio/vo/<file>.mp3, mapped in js/vo.js), on the sound-effects switch. One plays
   // at a time: the next line, or null, cuts it off. Returns whether it's speaking, so the typewriter can stay quiet.
-  let voEl = null;
   A.voice = function (file) {
     if (voEl) { voEl.pause(); voEl = null; }
     if (!file || !prefs.sfx) return false;
