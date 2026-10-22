@@ -1,7 +1,8 @@
-// Headless check of the combined demo's chapter select (index.html?vector&ch2&demo, js/demo-select.js): the title has
-// the Chapter select button and the demo foot line, the panel lists every loaded chapter, and Start on each one opens
+// Headless check of the combined demo's Debug menu (index.html?vector&ch2&demo, js/demo-select.js): the title has New
+// game, the 🐞 Debug button and the demo foot line, the menu lists every loaded chapter, and Start on each one opens
 // that chapter on a fresh save with no page or console errors. Erasing the save mid-chapter and starting again still
-// walks. Then the title offers Continue for the chapter played.
+// walks. Then the title offers Continue for the chapter played, and watching the Chapter 1 reveal from the menu plays
+// it through and leaves the save as it was.
 // Run from game/:  node tools/demo_check.js   SHOTS=dir saves a screenshot per chapter. Phone viewport (390 x 844).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -29,9 +30,9 @@ const fail = [];
   const vis = sel => page.evaluate(s => { const el = document.querySelector(s); return !!(el && !el.hidden && el.offsetParent !== null); }, sel);
   const toTitle = async () => {
     await page.goto(url);
-    await page.waitForSelector('#t-start, #ds-pick', { timeout: 30000 });
+    await page.waitForSelector('#t-start, #ds-new', { timeout: 30000 });
     if (await page.$('#t-start')) await page.click('#t-start');
-    await page.waitForSelector('#ds-pick', { timeout: 10000 });
+    await page.waitForSelector('#ds-new', { timeout: 10000 });
   };
 
   await toTitle();
@@ -39,7 +40,10 @@ const fail = [];
   if (!/Demo: Chapters 1 to 6/.test(foot)) fail.push('title foot line: ' + foot);
   if (await vis('#ds-go')) fail.push('Continue shown with no save');
   if (!(await vis('#t-help'))) fail.push('How to play missing from the title');
-  await page.click('#ds-pick');
+  if (!(await page.evaluate(() => { const b = document.querySelector('#ds-dbg'); return !!b && getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0; }))) fail.push('no Debug button on the title');
+  const dbgH = await page.evaluate(() => document.querySelector('#ds-dbg').offsetHeight);
+  if (dbgH < 44) fail.push('Debug button ' + dbgH + 'px tall');
+  await page.click('#ds-dbg');
   const rows = await page.evaluate(() => [...document.querySelectorAll('.ds-row [data-how="fresh"]')].map(b => b.dataset.go));
   console.log('chapters listed:', rows.join(' '));
   for (const n of ['1', '2', '3', '4', '5', '6']) if (!rows.includes(n)) fail.push('chapter ' + n + ' not listed');
@@ -56,10 +60,12 @@ const fail = [];
       lead: !!(shown(p) && p.querySelector('[data-lead]')), vn: shown(document.querySelector('#vn')) };
   });
   for (const n of rows) {
-    if (n !== rows[0]) { await toTitle(); await page.click('#ds-pick'); }
+    if (n !== rows[0]) { await toTitle(); await page.click('#ds-dbg'); }
     errors = [];
     await page.click(`.ds-row [data-go="${n}"][data-how="fresh"]`);
     if (await page.$('#ds-y')) await page.click('#ds-y');
+    // Off the lead cards, which lift on hover: a pointer resting on an edge makes one bob and never settle.
+    await page.mouse.move(0, 0);
     // Every chapter's fresh start asks whose story it is (chapter 1's after its opening scene).
     let st, picked = false;
     for (let i = 0; i < 40 && !picked; i++) {
@@ -98,15 +104,15 @@ const fail = [];
     if (a === b) fail.push(label + ': the arrow keys did not move the lead (' + a + ')');
     console.log(label + ': walked ' + a + ' → ' + b);
   };
-  await toTitle(); await page.click('#ds-pick');
+  await toTitle(); await page.click('#ds-dbg');
   errors = [];
   await page.click('.ds-row [data-go="2"][data-how="fresh"]');
   if (await page.$('#ds-y')) await page.click('#ds-y');
   await walk('chapter 2');
   await page.click('#w-menu'); await page.click('#m-reset'); await page.click('#r-y');
-  await page.waitForSelector('#t-start, #ds-pick');
+  await page.waitForSelector('#t-start, #ds-new');
   if (await page.$('#t-start')) await page.click('#t-start');
-  await page.click('#ds-pick');
+  await page.click('#ds-dbg');
   await page.click('.ds-row [data-go="2"][data-how="fresh"]');
   if (await page.$('#ds-y')) await page.click('#ds-y');
   await walk('chapter 2 after Erase save');
@@ -116,6 +122,29 @@ const fail = [];
   await toTitle();
   if (!(await vis('#ds-go'))) fail.push('no Continue button after starting a chapter');
   else console.log('continue:', await page.textContent('#ds-go'));
+
+  // The Chapter 1 reveal from the Debug menu, as Dutch: it plays to the end and the save comes back as it was.
+  const before = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
+  await page.click('#ds-dbg');
+  const watch = await page.evaluate(() => [...document.querySelectorAll('[data-watch]')].map(b => b.dataset.watch));
+  if (watch.length !== 4) fail.push('cutscenes: ' + watch.length + ' lead buttons for the reveal');
+  errors = [];
+  await page.click('[data-watch="dutch"]');
+  const cgs = new Set();
+  let back = false;
+  for (let i = 0; i < 600 && !back; i++) {
+    await page.waitForTimeout(150);
+    const st = await page.evaluate(() => { const vn = document.querySelector('#vn'); return { vn: !!vn && !vn.hidden, cg: vn && vn.dataset.cg, ready: !!vn && vn.classList.contains('vn-ready'), title: !document.querySelector('#screen-title').hidden && !!document.querySelector('#ds-new'), watching: SD.demo.watching }; });
+    if (st.cg) cgs.add(st.cg);
+    if (st.ready) await page.keyboard.press('Space');
+    back = !st.watching && !st.vn && st.title && cgs.size > 0;
+  }
+  console.log('reveal stills:', [...cgs].join(' '));
+  if (!back) fail.push('watching the reveal did not come back to the title');
+  for (const id of ['cut-reveal-dutch-2', 'rv-F', 'rv-I']) if (!cgs.has(id)) fail.push('the reveal never showed ' + id);
+  const after = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
+  if (before !== after) fail.push('watching the reveal changed the save: ' + before + ' → ' + after);
+  if (errors.length) fail.push('the reveal: ' + errors.slice(0, 3).join(' | '));
 
   await browser.close(); server.close();
   if (fail.length) { console.log('FAIL:\n  ' + fail.join('\n  ')); process.exit(1); }
