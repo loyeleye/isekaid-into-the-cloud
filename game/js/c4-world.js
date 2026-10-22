@@ -420,7 +420,7 @@
   }
   async function tea() {
     if (!flag('okmet')) {
-      await say([['ok', 'There she is. My heir, in a disciple\'s robe. You scowl like your mother, child.', 'warm'],
+      await vn([['ok', 'There she is. My heir, in a disciple\'s robe. You scowl like your mother, child.', 'warm'],
         ['seoyeon', 'I don\'t have a mother.', 'cold'],
         ['ok', 'You have a whole Cult of them. When Freya\'s truce breaks we go down the mountain, and you lead us.', 'smile'],
         ['ok', 'Drink your tea. I never poison guests. It\'s bad for business.', 'amused'],
@@ -602,7 +602,7 @@
         model: 'userIdentity is an AssumedRole: sessionContext.sessionIssuer names the role, and the ARN ends with the role session name, which is Namgung\'s.',
         why: 'An assumed-role userIdentity carries the session issuer (the role) and an ARN ending in the role session name, chosen by whoever called AssumeRole.',
         eli5: 'The order was signed in a borrowed robe. The log says whose robe (the role) and whose name was sewn into it that night (the session name).' }, 'EVIDENCE 1 · THE RAID ORDER');
-      await say([[null, 'The Hwa sect\'s elder stands, and takes back his grants. One.']]);
+      await vn([['cut', 'the-evidence'], ['narr', 'The Hwa sect\'s elder stands, and takes back his grants. One.']]);
       await ask({ c: 'kmskeys', type: 'mc', q: 'Seo-yeon can read Namgung\'s sealed account and nobody else in the hall can. What does she need, and what does the house\'s own key policy say?',
         opts: ['Permission to decrypt the data key with the KMS key, which the key policy grants only to her', 'The plaintext data key, which Namgung gave her', 'Administrator access to the house\'s account', 'A grant from Freya'], a: 0,
         why: 'To open envelope-encrypted data you need kms:Decrypt on the KMS key that protects its data key. Namgung\'s key policy allows that to her role and nobody else.',
@@ -614,7 +614,7 @@
         model: 'Yes, and nobody had to turn it on: KMS calls such as Decrypt are management events, which CloudTrail records by default.',
         why: 'KMS API calls are management events. CloudTrail keeps 90 days of management events in event history with no setup, and a trail keeps them for longer.',
         eli5: 'The key box keeps a diary of every time it was opened, all by itself. Nobody had to ask it to.' }, 'EVIDENCE 3 · THE BIRTHDAY READS');
-      await vn([['bg', 'c4-hall'], ['narr', 'The third one turns the hall. They all have birthdays. Sect after sect takes its grants back.'],
+      await vn([['bg', 'c4-hall'], ['cut', 'the-evidence'], ['narr', 'The third one turns the hall. They all have birthdays. Sect after sect takes its grants back.'],
         ['show', 'namgung', 'neutral', 'right'], ['namgung', 'Then read me, all of you. And then fight me.', 'neutral']]);
       setFlag('confront');
     },
@@ -800,23 +800,23 @@
   async function houseGate() {
     if (!flag('xp2')) return say([[null, 'The Namgung house\'s gate, and a guard who bows very politely and doesn\'t move.']]);
     if (!(flag('freya') && flag('cards') && flag('board'))) return say([['seoyeon', 'Not yet. Camp first: Freya is waiting for me, and so are Lexi and the Design Board.', 'cold']]);
-    await say([[null, 'Outside Namgung\'s house. Kai reaches for the seal scar under her ear.'],
+    await vn([['narr', 'Outside Namgung\'s house. Kai reaches for the seal scar under her ear.'],
       ['kai', 'One touch. I could unmake it. Give you back whatever\'s still under there.', 'earnest'],
       ['seoyeon', 'Let me choose.', 'cold'],
-      [null, 'She has his wrist. Those are the words of her prayer.'],
-      [null, 'Kai steps back. After the Granaries he knows what that costs him, and he does it anyway.'],
+      ['narr', 'She has his wrist. Those are the words of her prayer.'],
+      ['narr', 'Kai steps back. After the Granaries he knows what that costs him, and he does it anyway.'],
       ['seoyeon', 'Thank you.', 'neutral']]);
     setFlag('letme');
   }
   async function study() {
     if (flag('study')) return say([[null, 'His study, as tidy as a sealed scroll.']]);
-    await say([[null, 'Namgung\'s study, where she once stood with a knife. She sits down with it now.'],
+    await vn([['narr', 'Namgung\'s study, where she once stood with a knife. She sits down with it now.'],
       ['dutch', 'You going to use it this time?', 'stone'],
       ['seoyeon', 'If you had Professor Vell on the tower, would you let go?', 'cold'],
       ['dutch', '...Yes.', 'stone'],
       ['seoyeon', 'I kept every birthday letter he sent me. Last year I answered one. I said I was well. I asked about his back.', 'sad'],
-      ['dutch', 'That\'s not a crime, kid.', 'neutral']]);
-    await say([['seoyeon', 'In my family it\'s the worst one there is.', 'cold'], [null, 'He can\'t tell which family she means, and for once he doesn\'t ask. Above them, something moves in the rafters.']]);
+      ['dutch', 'That\'s not a crime, kid.', 'neutral'],
+      ['seoyeon', 'In my family it\'s the worst one there is.', 'cold'], ['narr', 'He can\'t tell which family she means, and for once he doesn\'t ask. Above them, something moves in the rafters.']]);
     await G.sort(G.DEF.detect);
     setFlag('study'); R.gainXp(20);
     await addCard('k4-guardduty');
@@ -826,7 +826,7 @@
   async function choice() {
     if (!flag('hand')) return say([[null, 'Burning Peak\'s old banner pole. Nobody has flown anything from it for twenty years.']]);
     if (flag('choice')) return say([[null, { banner: 'The war banner snaps on the pole.', bury: 'The pole is bare. The name is on a grave now.', school: 'A small sign on the pole: BURNING PEAK. FORMS AT DAWN. ALL WELCOME.' }[c4().choice]]]);
-    await say([[null, 'The square, at first light. The Cult wants Burning Peak\'s name for a war banner. The Alliance wants it buried. Ryu wants whatever she wants.']]);
+    await vn([['narr', 'The square, at first light. The Cult wants Burning Peak\'s name for a war banner. The Alliance wants it buried. Ryu wants whatever she wants.']]);
     const ch = await new Promise(res => {
       const b = U.panel(`<p>What does Burning Peak's name mean from now on? <span class="muted small">Seo-yeon decides alone. Whatever she picks, both families turn their backs on her, for a while.</span></p>
         <div class="opts col">
@@ -837,11 +837,11 @@
     });
     c4().choice = ch; S.persist();
     mus('c4peak');
-    await vn([['bg', ch === 'school' ? 'c4-school' : 'c4-town'],
+    await vn([['bg', ch === 'school' ? 'c4-school' : 'c4-town'], ['cut', 'burning-peaks-name'], ...(ch === 'school' ? [] : [['cg', 'cut-burning-peaks-name-1']]),
       ...({ banner: [['show', 'ok', 'smile', 'right'], ['ok', 'That\'s my heir.', 'smile'], ['narr', 'The Cult comes down to the camp armed, and the training yard has two halves that don\'t speak.']],
         bury: [['show', 'ryu', 'sad', 'right'], ['narr', 'Burning Peak becomes a name on a grave. Ryu comes down to the camp, with a few quiet disciples.']],
         school: [['show', 'seoyeon', 'neutral', 'left'], ['seoyeon', 'Burning Peak is a school. Anyone, Alliance or Cult. Forms at dawn.', 'neutral'], ['narr', 'Both families walk out on her. Over the next chapter, one by one, their children turn up for forms anyway.']] }[ch]),
-      ['bg', 'c4-dawn'], ['show', 'uptima', 'neutral', 'center'],
+      ['bg', 'c4-dawn'], ['cut', 'burning-peaks-name'], ['show', 'uptima', 'neutral', 'center'],
       ['narr', 'Uptima reads the prayer: "Let me choose." And then, for once, she doesn\'t say anything at all. She waits.'],
       ['seoyeon', 'I did.', 'neutral'],
       ['narr', 'It\'s the only prayer Uptima doesn\'t answer, and the right one not to.']]);
