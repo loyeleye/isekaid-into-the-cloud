@@ -34,12 +34,11 @@
   SD.cutReveal = {
     opts,
     setOpt: (k, v) => { opts[k] = v; try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* kept for this visit only */ } },
+    // The scene's two halves, as scripts: the faces, then the wipe.
     ending: () => {
       const L = 'cut-reveal-' + me() + '-', e = T.ending;
       const [gold, scales] = e[5][1].split(/ (?=Its scales)/);
-      // No weather in the vault (the temple's rain stops at its door): only a faint ring, until the wipe is over.
-      SD.audio.hush(true);
-      return SD.vn.play([
+      return [
         ['music', null],
         ['cg', 'cut-reveal-1', 'slow'], say(e[0]),
         ['cg', 'cut-reveal-2', 'slow'], say(e[1]),
@@ -69,11 +68,11 @@
         ['narr', gold],
         ['fx', 'unneon'], tiles(0), ['ring', false, 3], toReal(), ['narr', scales],
         ['cg', G, 'slow'], say(e[6])
-      ]);
+      ];
     },
     wipe: () => {
       const w = T.wipe;
-      return SD.vn.play([
+      return [
         ['cg', 'cut-reveal-' + me() + '-4', 'in'], say(w[0]),
         // "I never said I'd leave them there": the smile gone, a closed-mouth grimace (Ladi, Oct 22).
         ['cg', G2, 'still'], say(w[1]),
@@ -81,7 +80,20 @@
         // One finger, and Uptima turns to static; for one frame, the friendly camp face.
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 70], [H, 0]]], say(w[4]),
         ['cg', I, 'in'], say(w[5]), say(w[6])
-      ]).finally(() => SD.audio.hush(false));
+      ];
     }
   };
+  // In the story, chapter 1's ending (js/ch1-world.js), with its system messages between the two halves.
+  SD.reel.chapter('1').def('reveal', 'The reveal', null, {
+    music: 'kyusad', leads: true, note: 'Freya in the vault, as each lead sees it.',
+    // No weather in the vault (the temple's rain stops at its door): only a faint ring, until the wipe is over.
+    run: async () => {
+      SD.audio.hush(true);
+      try {
+        await SD.vn.play(SD.cutReveal.ending());
+        await SD.ch1.wiped();
+        await SD.vn.play(SD.cutReveal.wipe());
+      } finally { SD.audio.hush(false); }
+    }
+  });
 })();

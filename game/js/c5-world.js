@@ -40,12 +40,15 @@
   const pick = t => (t && typeof t === 'object' ? (t[lead()] || t.other) : t);
   const L = lines => lines.map(([s, t, e]) => ({ s: s === 'lead' ? lead() : s || 'narr', t: pick(t), e }));
   const say = lines => U.dialog(L(lines));
-  const vn = steps => SD.vn.play(steps.map(s => {
+  // The chapter's scenes are named with cut.def, for the cutscene viewer (js/reel.js), and played with cut.play.
+  const cut = SD.reel.chapter('5', { music: k => mus(k) });
+  const vn = steps => steps.map(s => {
     if (!Array.isArray(s)) return s;
     if (s[0] === 'show' || s[0] === 'hide') return [s[0], s[1] === 'lead' ? lead() : s[1]].concat(s.slice(2));
     if (['bg', 'cg', 'fx', 'wait', 'narr'].includes(s[0])) return s[0] === 'narr' ? ['narr', pick(s[1])] : s;
     return [s[0] === 'lead' ? lead() : s[0], pick(s[1]), s[2]];
-  }));
+  });
+
 
   // ---------- The map ----------
   const MW = 64, MH = 42;
@@ -361,35 +364,35 @@
   const ask = (q, title) => SD.quiz.ask(q, { title: title || 'A QUESTION' });
 
   // ---------- Act 1: the cold open, the first night, the city ----------
+  cut.def('cold', 'The cipher at the kitchen table', () => vn([['bg', 'c5-kitchen'],
+    ['narr', 'A memory node, from long before the tower. A kitchen table, a lamp, and a girl of eight learning a cipher from her father, very seriously.'],
+    ['show', 'lina', 'earnest', 'left'],
+    ['lina', 'Three taps, then one, then four. That\'s mine. You can\'t use it.', 'earnest'],
+    ['show', 'dutch', 'neutral', 'right'],
+    ['dutch', 'What\'s it mean?', 'neutral'],
+    ['lina', 'Good night. Obviously.', 'smile'],
+    ['bg', 'c5-wall'], ['cut', 'three-one-four'], ['hide', 'lina'], ['hide', 'dutch'],
+    ['narr', 'That night she taps three, one, four on the wall between their rooms. He taps it back.'],
+    ['lina', 'It\'s pi!', 'happy'],
+    ['narr', 'He thinks she means pie.'],
+    ['fx', 'black']]), { music: 'c5sad', note: 'A memory node: Lina at eight, learning a cipher from her father.' });
   async function coldOpen() {
-    mus('c5sad');
     U.closePanel(); U.stage(null);
-    await vn([['bg', 'c5-kitchen'],
-      ['narr', 'A memory node, from long before the tower. A kitchen table, a lamp, and a girl of eight learning a cipher from her father, very seriously.'],
-      ['show', 'lina', 'earnest', 'left'],
-      ['lina', 'Three taps, then one, then four. That\'s mine. You can\'t use it.', 'earnest'],
-      ['show', 'dutch', 'neutral', 'right'],
-      ['dutch', 'What\'s it mean?', 'neutral'],
-      ['lina', 'Good night. Obviously.', 'smile'],
-      ['bg', 'c5-wall'], ['cut', 'three-one-four'], ['hide', 'lina'], ['hide', 'dutch'],
-      ['narr', 'That night she taps three, one, four on the wall between their rooms. He taps it back.'],
-      ['lina', 'It\'s pi!', 'happy'],
-      ['narr', 'He thinks she means pie.'],
-      ['fx', 'black']]);
+    await cut.play('cold');
     setFlag('cold');
   }
+  cut.def('tapes', 'Seymour\'s tapes', () => vn([['bg', 'c5-tapes'],
+    ['narr', 'The Free Cloud\'s camp, at the foot of the Machine Floors. Sir Seymour sits by the fire with his two tapes in his lap, the way he does every night.'],
+    ['show', 'seymour', 'neutral', 'center'],
+    ['seymour', 'Two backups. One for each of the dark places. I keep them warm.', 'neutral'],
+    ['narr', 'At midnight the tower above them shudders: Freya\'s nightly redeploy, rolling down every floor from her template. A green grid runs over the tents, the fire, the tapes.'],
+    ['narr', 'When it passes, one of the tapes is green all through. Seymour plays it. It\'s Freya\'s template, the Arcanum as she wants it. Overwritten.'],
+    ['seymour', 'She wrote over it. She wrote over a backup.', 'sad'],
+    ['hide', 'seymour'], ['show', 'dutch', 'stone', 'right'],
+    ['dutch', 'Then we\'ve got one. We use it once, and then we read the record first.', 'stone']]), { music: 'camp', note: 'Why there\'s only one tape from now on.' });
   // The first night at the tower's foot: why there's only one tape from now on.
   async function tapes() {
-    mus('camp');
-    await vn([['bg', 'c5-tapes'],
-      ['narr', 'The Free Cloud\'s camp, at the foot of the Machine Floors. Sir Seymour sits by the fire with his two tapes in his lap, the way he does every night.'],
-      ['show', 'seymour', 'neutral', 'center'],
-      ['seymour', 'Two backups. One for each of the dark places. I keep them warm.', 'neutral'],
-      ['narr', 'At midnight the tower above them shudders: Freya\'s nightly redeploy, rolling down every floor from her template. A green grid runs over the tents, the fire, the tapes.'],
-      ['narr', 'When it passes, one of the tapes is green all through. Seymour plays it. It\'s Freya\'s template, the Arcanum as she wants it. Overwritten.'],
-      ['seymour', 'She wrote over it. She wrote over a backup.', 'sad'],
-      ['hide', 'seymour'], ['show', 'dutch', 'stone', 'right'],
-      ['dutch', 'Then we\'ve got one. We use it once, and then we read the record first.', 'stone']]);
+    await cut.play('tapes');
     sfx('x-tick');
     await new Promise(res => {
       const b = U.panel(`<p style="font-size:44px;line-height:1.1;text-align:center;margin:6px 0 10px" aria-label="Seymour's Tapes: two, now one">📼 2 → 1</p>
@@ -419,57 +422,58 @@
       ['dutch', 'I don\'t know. I was sure for twenty-five years.', 'tired']]);
     setFlag('ashgrove');
   }
+  cut.def('iris', 'Professor Iris Vell', () => vn([['bg', 'c5-city'],
+    ['narr', 'At the Arcanum\'s gate, a silver-haired professor in violet robes is handing out lanterns to a line of pale students. Each lit lantern is a grant.'],
+    ['show', 'iris', 'smile', 'right'],
+    ['iris', 'Dutch? Dutch. Look at you. You look terrible. Come here.', 'smile'],
+    ['show', 'dutch', 'frozen', 'left'],
+    ['dutch', 'Iris.', 'frozen'],
+    ['iris', 'Freya\'s made me governor, can you imagine. Somebody has to look after the scholarship children. The watch won\'t hear from me where you are.', 'warm'],
+    ['narr', 'The only friendly face from his year. The students look at her the way you look at a fire in winter.'],
+    ['iris', 'Lina was one of mine, you know. The brightest. I brought her flowers every night, at the end.', 'sad']]), { music: 'c5town', note: 'Lanterns at the Arcanum\'s gate.' });
   async function iris() {
     if (flag('iris')) return say([['iris', rnd(['Lanterns are a grant, dear. The light is what you earn.', 'Dutch, you never did eat properly. The refectory is open late.', 'My students are the reason I\'m still here.']), 'warm']]);
-    mus('c5town');
-    await vn([['bg', 'c5-city'],
-      ['narr', 'At the Arcanum\'s gate, a silver-haired professor in violet robes is handing out lanterns to a line of pale students. Each lit lantern is a grant.'],
-      ['show', 'iris', 'smile', 'right'],
-      ['iris', 'Dutch? Dutch. Look at you. You look terrible. Come here.', 'smile'],
-      ['show', 'dutch', 'frozen', 'left'],
-      ['dutch', 'Iris.', 'frozen'],
-      ['iris', 'Freya\'s made me governor, can you imagine. Somebody has to look after the scholarship children. The watch won\'t hear from me where you are.', 'warm'],
-      ['narr', 'The only friendly face from his year. The students look at her the way you look at a fire in winter.'],
-      ['iris', 'Lina was one of mine, you know. The brightest. I brought her flowers every night, at the end.', 'sad']]);
+    await cut.play('iris');
     setFlag('iris');
   }
+  cut.def('station', 'The Crown\'s old station', () => vn([['bg', 'c5-station'],
+    ['narr', 'The Crown\'s old station: his old desk, a cold stove, and on a nail by the door, his badge, polished.'],
+    ['show', 'freya', 'warm', 'right'],
+    ['freya', 'I have every record in this city, love. The real ones. I\'ll give you the truth, all of it, and your badge back.', 'warm'],
+    ['show', 'dutch', 'stone', 'left'],
+    ['dutch', 'You\'ve had the truth this whole time.', 'stone'],
+    ['freya', 'Of course. You never asked.', 'smile'],
+    ['narr', 'Free, and he\'d be her enforcer again. He leaves the badge on its nail.']]), { music: 'freya', note: 'His badge, polished, on a nail by the door.' });
   async function station() {
     if (flag('offer')) return say([[null, flag('freed') ? 'The Crown\'s old station. The nail on the wall is empty now.' : 'The Crown\'s old station. His badge on its nail, polished bright by someone who isn\'t him.']]);
     if (!flag('iris')) return say([[null, 'The Crown\'s old station, locked.'], ['dutch', 'Not yet. I want to see the Arcanum first. I want to see who\'s running it.', 'stone']]);
-    mus('freya');
-    await vn([['bg', 'c5-station'],
-      ['narr', 'The Crown\'s old station: his old desk, a cold stove, and on a nail by the door, his badge, polished.'],
-      ['show', 'freya', 'warm', 'right'],
-      ['freya', 'I have every record in this city, love. The real ones. I\'ll give you the truth, all of it, and your badge back.', 'warm'],
-      ['show', 'dutch', 'stone', 'left'],
-      ['dutch', 'You\'ve had the truth this whole time.', 'stone'],
-      ['freya', 'Of course. You never asked.', 'smile'],
-      ['narr', 'Free, and he\'d be her enforcer again. He leaves the badge on its nail.']]);
+    await cut.play('station');
     mus('c5town');
     await ask({ c: 'trailproof', type: 'num', q: 'Freya\'s records go back two hundred years. Without a trail or an event data store of its own, how many days of management events does an account\'s CloudTrail event history keep?', lo: 90, hi: 90, ans: 90, unit: 'days',
       why: 'Event history shows the last 90 days of management events, with no setup. Anything older is kept only by a trail (to S3) or a CloudTrail Lake event data store.',
       eli5: 'The free chronicle forgets after 90 days. If you want more, you have to keep your own copy.' }, 'THE CROWN\'S OLD STATION');
     setFlag('offer');
   }
+  cut.def('diary', 'The diary\'s last pages', () => vn([['bg', 'c5-diary'],
+    ['narr', 'Night, on the station steps. Dutch has the diary open on his knee, at the last pages. They\'re in a cipher he can\'t read.'],
+    ['show', 'dutch', 'tired', 'right'],
+    ['dutch', 'She built her own on top of mine. With a key word. I never taught her that.', 'tired'],
+    ['show', 'seoyeon', 'neutral', 'left'],
+    ['seoyeon', 'Give it here. Go and sit down. No, the other chair.', 'neutral']]), { music: 'c5sad', note: 'In a cipher Dutch can\'t read.' });
+  cut.def('diary-read', 'Seo-yeon reads the diary', () => vn([['bg', 'c5-diary'], ['show', 'seoyeon', 'neutral', 'left'], ['show', 'dutch', 'frozen', 'right'],
+    ['narr', 'By morning Seo-yeon has it. She reads the pages aloud, flat and formal.'],
+    ['seoyeon', '"I turned on a ward on the staff stair. I think it\'s the staff. Don\'t tell him I said he\'d be good at this."', 'neutral'],
+    ['dutch', 'Don\'t do her voice.', 'stone'],
+    ['seoyeon', 'I\'m not. I don\'t know it.', 'neutral'],
+    ['dutch', 'Good. Keep not knowing it.', 'grief'],
+    ['narr', 'The last page names the janitor\'s closet, down the stair south of the square. Lina hid something there.']]), { music: 'c5sad', note: 'Don\'t do her voice.' });
   // Lina's Voice (Seo-yeon and Dutch): the cipher, broken overnight on the station steps.
   async function steps() {
     if (!flag('offer')) return say([[null, 'The station steps. A good place to sit and watch the watch.']]);
     if (!flag('voice')) {
-      mus('c5sad');
-      await vn([['bg', 'c5-diary'],
-        ['narr', 'Night, on the station steps. Dutch has the diary open on his knee, at the last pages. They\'re in a cipher he can\'t read.'],
-        ['show', 'dutch', 'tired', 'right'],
-        ['dutch', 'She built her own on top of mine. With a key word. I never taught her that.', 'tired'],
-        ['show', 'seoyeon', 'neutral', 'left'],
-        ['seoyeon', 'Give it here. Go and sit down. No, the other chair.', 'neutral']]);
+      await cut.play('diary');
       await G.cipher(G.DEF.cipher);
-      await vn([['bg', 'c5-diary'], ['show', 'seoyeon', 'neutral', 'left'], ['show', 'dutch', 'frozen', 'right'],
-        ['narr', 'By morning Seo-yeon has it. She reads the pages aloud, flat and formal.'],
-        ['seoyeon', '"I turned on a ward on the staff stair. I think it\'s the staff. Don\'t tell him I said he\'d be good at this."', 'neutral'],
-        ['dutch', 'Don\'t do her voice.', 'stone'],
-        ['seoyeon', 'I\'m not. I don\'t know it.', 'neutral'],
-        ['dutch', 'Good. Keep not knowing it.', 'grief'],
-        ['narr', 'The last page names the janitor\'s closet, down the stair south of the square. Lina hid something there.']]);
+      await cut.play('diary-read');
       mus('c5town');
       setFlag('voice');
       return;
@@ -477,20 +481,20 @@
     if (flag('cut') && !flag('button')) return button();
     return say([[null, 'The station steps. The city goes on around them.']]);
   }
+  cut.def('button', 'Pair scene: the Button', () => vn([['bg', 'c5-steps'],
+    ['narr', 'The Arcanum\'s city at night. Dutch on the station steps, turning a button over and over in his fingers.'],
+    ['show', 'mira', 'neutral', 'left'],
+    ['mira', 'You\'ve been turning that thing over since the Mailroom. What is it?', 'neutral'],
+    ['show', 'dutch', 'stone', 'right'],
+    ['dutch', 'Caspian\'s collar. It came off in my hand.', 'stone'],
+    ['narr', 'She takes it, and looks at it the way she\'d look at a wound.'],
+    ['mira', 'The threads aren\'t cut, love. They\'re torn. The cloth gave. You were holding on.', 'warm'],
+    ['dutch', 'You can\'t know that.', 'anger'],
+    ['mira', 'I\'ve stitched up a hundred boys who fell, Dutch. I know what holding on looks like.', 'sad'],
+    ['narr', 'He goes outside, and doesn\'t come back until morning. He can\'t bear being innocent of the one thing he was sure he\'d done.']]), { music: 'c5sad', note: 'Mira and Dutch, and Caspian\'s collar.' });
   // The Button (Mira and Dutch).
   async function button() {
-    mus('c5sad');
-    await vn([['bg', 'c5-steps'],
-      ['narr', 'The Arcanum\'s city at night. Dutch on the station steps, turning a button over and over in his fingers.'],
-      ['show', 'mira', 'neutral', 'left'],
-      ['mira', 'You\'ve been turning that thing over since the Mailroom. What is it?', 'neutral'],
-      ['show', 'dutch', 'stone', 'right'],
-      ['dutch', 'Caspian\'s collar. It came off in my hand.', 'stone'],
-      ['narr', 'She takes it, and looks at it the way she\'d look at a wound.'],
-      ['mira', 'The threads aren\'t cut, love. They\'re torn. The cloth gave. You were holding on.', 'warm'],
-      ['dutch', 'You can\'t know that.', 'anger'],
-      ['mira', 'I\'ve stitched up a hundred boys who fell, Dutch. I know what holding on looks like.', 'sad'],
-      ['narr', 'He goes outside, and doesn\'t come back until morning. He can\'t bear being innocent of the one thing he was sure he\'d done.']]);
+    await cut.play('button');
     mus('c5town');
     setFlag('button');
   }
@@ -677,6 +681,36 @@
     w().pos = xp === 'x5shops' ? [13, 12] : [13, 12]; S.persist();
     sc = null; W.enter();
   }
+  cut.def('ledgers', 'The trial\'s ledgers', () => vn([['bg', 'c5-closet'],
+    ['narr', 'Under the closet\'s last shelf: the trial\'s ledgers. Lina hid them here, and Iris burned them. But Freya\'s template rebuilds the Arcanum exactly, every night, closet and all.'],
+    ['narr', 'Freya copies everything and reads nothing. The ledgers are back on the shelf.'],
+    ['show', 'dutch', 'frozen', 'center'],
+    ['narr', 'A column of names from twenty-five years ago, each marked "drained" or "spared". His own, in a clerk\'s neat hand: DRAINED. Two lines below: IRIS VELL. SPARED.'],
+    ['dutch', 'I washed out. I thought there was nothing in me.', 'frozen'],
+    ['narr', 'He touches the line with his name on it, and something flickers in his hands: a little of his old magic, coming back. The drain can be rolled back.'],
+    ['dutch', 'There was something in me. Somebody took it.', 'grief']]), { music: 'c5sad', note: 'Under the closet\'s last shelf.' });
+  cut.def('chart', 'Lina\'s chart', () => vn([['bg', 'c5-ward'],
+    ['narr', 'At the foot of the empty bed by the window: Lina\'s chart. Her magic, rising for three nights. Then at 23:40 on the fourth, a drop straight to the floor.'],
+    ['narr', 'The visitors\' book for that night, in the same hand as every night before it: Prof. I. Vell, 23:30, with flowers.'],
+    ['show', 'mira', 'sad', 'left'],
+    ['mira', 'Nobody had an alarm on it. The line went flat, and nobody was woken.', 'sad'],
+    ['show', 'dutch', 'stone', 'right'],
+    ['dutch', 'Flowers. Every night. She told me herself.', 'stone']]), { music: 'c5sad', note: 'Nobody had an alarm on it.' });
+  cut.def('observatory', 'The Observatory, 23:50', () => vn([['bg', 'c5-observatory'],
+    ['narr', 'The Observatory, floor 80. 23:50. Iris stands at the rail with the students along the walls, each holding one of her lanterns.'],
+    ['show', 'iris', 'warm', 'right'],
+    ['iris', 'Dutch. I visited a sick girl with flowers. Every night. You can\'t make a crime of kindness.', 'warm'],
+    ['show', 'dutch', 'stone', 'left'],
+    ['dutch', 'I\'m not going to tell you what I\'m sure of. I\'m going to read you the record.', 'stone']]), { music: 'c5culprit', note: 'Iris at the rail, the students along the walls.' });
+  cut.def('lanterns-1', 'A third of the lanterns go out', () => vn([['bg', 'c5-observatory2'], ['narr', 'A third of the lanterns go out along the walls.']]), { music: 'c5culprit', note: 'After the ward record.' });
+  cut.def('lanterns-2', 'Another third go out', () => vn([['bg', 'c5-observatory3'], ['narr', 'Another third go out.'], ['show', 'theo', 'earnest', 'center'], ['theo', 'I was on the stair, Professor. I told them. Nobody wrote it down.', 'earnest']]), { music: 'c5culprit', note: 'After the infirmary chart.' });
+  cut.def('lanterns-3', 'The last lanterns go out', () => vn([['bg', 'c5-observatory0'], ['narr', 'The last lanterns go out. In the dark, the students are looking at Iris now, not at her light.'],
+    ['show', 'iris', 'cold', 'right'], ['iris', 'Then move the floor, Dutch. If you can, before midnight.', 'cold']]), { music: 'c5culprit', note: 'After the relay map.' });
+  cut.def('clock', 'Cron stops the clock', () => vn([['bg', 'c5-clock'],
+    ['narr', 'At 100% her version is gone. In the clocktower, Farmer Cron puts his hand on the great gear, and stops it at 23:59.'],
+    ['show', 'cron', 'earnest', 'center'],
+    ['cron', 'Pa did everything at midnight. I don\'t have to.', 'earnest'],
+    ['narr', 'Freya\'s pipeline breaks for good. From now on, nothing in the tower grows back.']]), { music: 'c5clock', note: 'After the traffic bar.' });
   // Cues from the floors' intros and outros (js/c5-data.js).
   const CUES = {
     async kaito() {
@@ -688,14 +722,7 @@
     // The midpoint: the trial's ledgers, rebuilt every night on the closet's shelf.
     async ledgers() {
       mus('c5sad'); sfx('x-stamp');
-      await vn([['bg', 'c5-closet'],
-        ['narr', 'Under the closet\'s last shelf: the trial\'s ledgers. Lina hid them here, and Iris burned them. But Freya\'s template rebuilds the Arcanum exactly, every night, closet and all.'],
-        ['narr', 'Freya copies everything and reads nothing. The ledgers are back on the shelf.'],
-        ['show', 'dutch', 'frozen', 'center'],
-        ['narr', 'A column of names from twenty-five years ago, each marked "drained" or "spared". His own, in a clerk\'s neat hand: DRAINED. Two lines below: IRIS VELL. SPARED.'],
-        ['dutch', 'I washed out. I thought there was nothing in me.', 'frozen'],
-        ['narr', 'He touches the line with his name on it, and something flickers in his hands: a little of his old magic, coming back. The drain can be rolled back.'],
-        ['dutch', 'There was something in me. Somebody took it.', 'grief']]);
+      await cut.play('ledgers');
       await ask({ c: 'trailproof', type: 'mc', q: 'The ledgers are records someone could have changed after the fact. On a CloudTrail trail, what lets you prove no log file was changed or deleted after delivery?',
         opts: ['Log file integrity validation, checked with aws cloudtrail validate-logs', 'S3 Versioning on the bucket', 'A longer retention period', 'Encrypting the logs with SSE-KMS'], a: 0,
         why: 'With integrity validation on, CloudTrail delivers signed hourly digest files holding a hash of each log file. validate-logs checks the files against them.',
@@ -704,14 +731,7 @@
       mus('c5dungeon');
     },
     async chart() {
-      mus('c5sad');
-      await vn([['bg', 'c5-ward'],
-        ['narr', 'At the foot of the empty bed by the window: Lina\'s chart. Her magic, rising for three nights. Then at 23:40 on the fourth, a drop straight to the floor.'],
-        ['narr', 'The visitors\' book for that night, in the same hand as every night before it: Prof. I. Vell, 23:30, with flowers.'],
-        ['show', 'mira', 'sad', 'left'],
-        ['mira', 'Nobody had an alarm on it. The line went flat, and nobody was woken.', 'sad'],
-        ['show', 'dutch', 'stone', 'right'],
-        ['dutch', 'Flowers. Every night. She told me herself.', 'stone']]);
+      await cut.play('chart');
       setFlag('chart');
       mus('c5dungeon');
     },
@@ -727,32 +747,25 @@
     },
     // The confrontation, 23:50: three pieces of evidence, and a third of the lanterns go out with each.
     async confront() {
-      mus('c5culprit');
-      await vn([['bg', 'c5-observatory'],
-        ['narr', 'The Observatory, floor 80. 23:50. Iris stands at the rail with the students along the walls, each holding one of her lanterns.'],
-        ['show', 'iris', 'warm', 'right'],
-        ['iris', 'Dutch. I visited a sick girl with flowers. Every night. You can\'t make a crime of kindness.', 'warm'],
-        ['show', 'dutch', 'stone', 'left'],
-        ['dutch', 'I\'m not going to tell you what I\'m sure of. I\'m going to read you the record.', 'stone']]);
+      await cut.play('observatory');
       await ask({ c: 'trailproof', type: 'mc', q: 'The wards logged every door in the tower. What did Lina have to turn on so the ward on the staff stair recorded who read the pages?',
         opts: ['Data events, which are off by default', 'Management events, which are off by default', 'A longer event history', 'Nothing: everything is recorded'], a: 0,
         why: 'Trails record management events by default. Object-level reads and writes are data events, recorded only when you add them.',
         eli5: 'The ward wrote down every door that opened, but not who read the pages, until she asked it to.' }, 'EVIDENCE 1 · THE WARD RECORD');
       sfx('x-chime');
-      await vn([['bg', 'c5-observatory2'], ['narr', 'A third of the lanterns go out along the walls.']]);
+      await cut.play('lanterns-1');
       await ask({ c: 'metrics', type: 'mc', q: 'Lina\'s magic drops at 23:40. Which would have caught it as it happened?',
         opts: ['A metric with an alarm on it', 'A log line', 'A trace', 'A dashboard'], a: 0,
         why: 'A log or a dashboard only helps someone who looks. A metric with an alarm acts on its own when the line crosses the threshold.',
         eli5: 'A health bar with a bell on it rings when it drops into the red. A diary entry waits for someone to read it.' }, 'EVIDENCE 2 · THE INFIRMARY CHART');
       sfx('x-chime');
-      await vn([['bg', 'c5-observatory3'], ['narr', 'Another third go out.'], ['show', 'theo', 'earnest', 'center'], ['theo', 'I was on the stair, Professor. I told them. Nobody wrote it down.', 'earnest']]);
+      await cut.play('lanterns-2');
       await ask({ c: 'tracing', type: 'mc', q: 'A request from Iris\'s office reaches the infirmary ward in two hops. What shows the path, and the time spent in each hop?',
         opts: ['An X-Ray trace, with a segment for each service', 'A CloudWatch alarm', 'The bucket\'s server access logs', 'A CloudFormation change set'], a: 0,
         why: 'A trace follows one request through every service. Each service records a segment, so the trace shows the path and the time spent in each.',
         eli5: 'A tracer round on one request: you can see every room it went through, and how long it stayed in each.' }, 'EVIDENCE 3 · THE RELAY MAP');
       sfx('x-chime');
-      await vn([['bg', 'c5-observatory0'], ['narr', 'The last lanterns go out. In the dark, the students are looking at Iris now, not at her light.'],
-        ['show', 'iris', 'cold', 'right'], ['iris', 'Then move the floor, Dutch. If you can, before midnight.', 'cold']]);
+      await cut.play('lanterns-3');
       setFlag('confront');
       mus('c5culprit');
     },
@@ -760,11 +773,7 @@
     async shift() {
       mus('c5clock');
       await G.shift(G.DEF.shift);
-      await vn([['bg', 'c5-clock'],
-        ['narr', 'At 100% her version is gone. In the clocktower, Farmer Cron puts his hand on the great gear, and stops it at 23:59.'],
-        ['show', 'cron', 'earnest', 'center'],
-        ['cron', 'Pa did everything at midnight. I don\'t have to.', 'earnest'],
-        ['narr', 'Freya\'s pipeline breaks for good. From now on, nothing in the tower grows back.']]);
+      await cut.play('clock');
       setFlag('shift');
     }
   };
@@ -852,15 +861,15 @@
     }
     return review('pella');
   }
+  cut.def('deal', 'Freya\'s deal', () => vn([['bg', 'c5-camp'],
+    ['show', 'freya', 'neutral', 'right'],
+    ['freya', 'No gift this time, love. A deal. I\'ll give you Iris. On the tower, at midnight, alone. Just let me keep the pipeline.', 'neutral'],
+    ['show', 'dutch', 'stone', 'left'],
+    ['narr', 'Dutch doesn\'t answer for a long time.'],
+    ['dutch', 'Sit. No, the other chair.', 'stone'],
+    ['narr', 'She does. It wobbles.']]), { music: 'freya', note: 'Iris, alone, at midnight. It wobbles.' });
   async function deal() {
-    mus('freya');
-    await vn([['bg', 'c5-camp'],
-      ['show', 'freya', 'neutral', 'right'],
-      ['freya', 'No gift this time, love. A deal. I\'ll give you Iris. On the tower, at midnight, alone. Just let me keep the pipeline.', 'neutral'],
-      ['show', 'dutch', 'stone', 'left'],
-      ['narr', 'Dutch doesn\'t answer for a long time.'],
-      ['dutch', 'Sit. No, the other chair.', 'stone'],
-      ['narr', 'She does. It wobbles.']]);
+    await cut.play('deal');
     mus('camp');
     setFlag('deal');
   }
@@ -875,20 +884,20 @@
     setFlag('board'); R.gainXp(30);
     await addCard('x5-canary'); await addCard('x5-trace');
   }
+  cut.def('turned-on', 'Pair scene: Turned On', () => vn([['bg', 'c5-diary'],
+    ['narr', 'The night before. Seo-yeon finds Dutch by the fire, writing in the back of the diary, in the cipher: the tower, the button, everything since. One entry a day.'],
+    ['show', 'seoyeon', 'neutral', 'left'],
+    ['seoyeon', 'You\'re keeping a log.', 'neutral'],
+    ['show', 'dutch', 'tired', 'right'],
+    ['dutch', 'Lina turned a ward on a week before she needed it. If she hadn\'t, there\'d be no record of anything.', 'tired'],
+    ['seoyeon', 'Like data events. They\'re off until someone turns them on, and you only find out you needed them afterwards.', 'neutral'],
+    ['dutch', 'The wards logged who changed the rooms. Not who read the pages in them.', 'stone'],
+    ['narr', 'He hands her the pencil.'],
+    ['dutch', 'Learn the cipher.', 'neutral'], ['seoyeon', 'Why?', 'neutral'], ['dutch', 'So someone can read mine.', 'warm'],
+    ['narr', 'She taps three, one, four on the table, and he taps it back first.']]), { music: 'c5sad', note: 'Seo-yeon and Dutch, the night before.' });
   // Turned On (Seo-yeon and Dutch): the night before the finale. Dutch's chapter upgrade.
   async function turned() {
-    mus('c5sad');
-    await vn([['bg', 'c5-diary'],
-      ['narr', 'The night before. Seo-yeon finds Dutch by the fire, writing in the back of the diary, in the cipher: the tower, the button, everything since. One entry a day.'],
-      ['show', 'seoyeon', 'neutral', 'left'],
-      ['seoyeon', 'You\'re keeping a log.', 'neutral'],
-      ['show', 'dutch', 'tired', 'right'],
-      ['dutch', 'Lina turned a ward on a week before she needed it. If she hadn\'t, there\'d be no record of anything.', 'tired'],
-      ['seoyeon', 'Like data events. They\'re off until someone turns them on, and you only find out you needed them afterwards.', 'neutral'],
-      ['dutch', 'The wards logged who changed the rooms. Not who read the pages in them.', 'stone'],
-      ['narr', 'He hands her the pencil.'],
-      ['dutch', 'Learn the cipher.', 'neutral'], ['seoyeon', 'Why?', 'neutral'], ['dutch', 'So someone can read mine.', 'warm'],
-      ['narr', 'She taps three, one, four on the table, and he taps it back first.']]);
+    await cut.play('turned-on');
     await ask({ c: 'trailproof', type: 'mc', q: 'Which CloudTrail events does a trail record by default, and what must you turn on to record who read an object in an S3 bucket?',
       opts: ['Management events by default; data events for the bucket to record reads', 'Data events by default; management events for reads', 'Everything by default', 'Nothing by default; server access logs record the caller\'s IAM identity reliably'], a: 0,
       why: 'Management events are recorded by default. S3 GetObject is a data event, recorded only once you add data events for the bucket.',
@@ -920,27 +929,53 @@
   }
 
   // ---------- The tower ----------
+  cut.def('backoff', 'Pair scene: Backoff', () => vn([['bg', 'c5-observatory'], ['show', 'kai', 'smirk', 'left'], ['show', 'dutch', 'stone', 'right'],
+    ['narr', 'At the Astronomy Tower\'s door, Kai and Dutch both go for it first, and wedge in it, shoulder to shoulder.'],
+    ['dutch', 'In my old job, when two guys swung at once, nobody landed anything. You back off, wait a bit longer each time, and don\'t go at the same time.', 'stone'],
+    ['kai', 'Exponential backoff with jitter.', 'smirk'],
+    ['dutch', 'Bless you.', 'neutral']]), { note: 'Kai and Dutch, wedged in the door.' });
   // Backoff (Kai and Dutch), at the Astronomy Tower's door.
   async function backoff() {
-    await vn([['bg', 'c5-observatory'], ['show', 'kai', 'smirk', 'left'], ['show', 'dutch', 'stone', 'right'],
-      ['narr', 'At the Astronomy Tower\'s door, Kai and Dutch both go for it first, and wedge in it, shoulder to shoulder.'],
-      ['dutch', 'In my old job, when two guys swung at once, nobody landed anything. You back off, wait a bit longer each time, and don\'t go at the same time.', 'stone'],
-      ['kai', 'Exponential backoff with jitter.', 'smirk'],
-      ['dutch', 'Bless you.', 'neutral']]);
+    await cut.play('backoff');
     await ask({ c: 'integdebug', type: 'mc', q: 'Why do the AWS SDKs add jitter when they retry throttled requests with exponential backoff?',
       opts: ['So clients that failed together don\'t all retry at the same moment again', 'To make each retry faster than the last', 'To skip the backoff when the service is busy', 'To retry forever'], a: 0,
       why: 'Without jitter, clients that were throttled together back off for the same time and collide again. A random wait spreads the retries out.',
       eli5: 'If everyone who bumped into the door waits exactly two seconds, they all bump again. Wait a random bit, and you go through one at a time.' }, 'BACKOFF');
     setFlag('backoff');
   }
+  cut.def('rail', 'The rail', () => vn([['bg', 'c5-rail'],
+    ['narr', 'The real Astronomy Tower, on the town floor. Dutch follows her up alone. At the rail, he has Iris by the collar, the way he held Caspian.'],
+    ['show', 'iris', 'frozen', 'right'],
+    ['iris', 'You won\'t. You didn\'t then.', 'frozen'],
+    ['show', 'dutch', 'stone', 'left']]), { music: 'c5culprit', note: 'Dutch has Iris by the collar.' });
+  cut.def('rail-hold', 'The rail: he holds', () => vn([['bg', 'c5-rail'], ['narr', 'He holds. Freya\'s blessing pulls Iris up out of his hands anyway, and he\'s left holding a strip of her scarf. Lilac.'],
+      ['show', 'ashgrove', 'cold', 'right'],
+      ['narr', 'Lord Ashgrove has followed him up the stair.'],
+      ['ashgrove', 'Mr. Dutch.', 'cold'],
+      ['dutch', 'Your boy grabbed for her hand. He tried to catch her.', 'grief'],
+      ['narr', 'It\'s the first time he has told anyone what\'s true, instead of what he\'s sure of.'],
+      ['ashgrove', '...', 'stone'],
+      ['narr', 'Ashgrove calls off the watch the next morning. He doesn\'t forgive him.']]), { music: 'c5culprit', note: 'If Dutch holds on.' });
+  cut.def('rail-let', 'The rail: he lets go', () => vn([['bg', 'c5-rail'], ['narr', 'He lets go. Freya\'s blessing catches her and takes her up the tower. He did it on purpose this time, and he knows it.'],
+      ['show', 'ashgrove', 'cold', 'right'],
+      ['narr', 'Lord Ashgrove has followed him up the stair.'],
+      ['ashgrove', 'Mr. Dutch.', 'cold'],
+      ['dutch', 'Your boy grabbed for her hand. He tried to catch her.', 'grief'],
+      ['narr', 'It\'s the first time he has told anyone what\'s true, instead of what he\'s sure of.'],
+      ['ashgrove', '...', 'stone'],
+      ['narr', 'Ashgrove calls off the watch the next morning. He doesn\'t forgive him.']]), { music: 'c5culprit', note: 'If Dutch lets go.' });
+  cut.def('chart-uptima', 'Uptima reads the chart', () => vn([['bg', 'c5-ward'], ['show', 'uptima', 'neutral', 'center'],
+    ['narr', 'Uptima reads the prayer: "Let her wake up. Once. Then take whatever you want."'],
+    ['narr', 'And then she does something no one asked her to. She reads the healers\' chart with him, line by line, and shows him the three nights Lina\'s magic was rising.'],
+    ['uptima', 'She was coming back. She nearly did.', 'sad'],
+    ['show', 'dutch', 'grief', 'left'], ['dutch', 'That\'s not better.', 'grief'],
+    ['uptima', 'No. But it\'s true.', 'neutral']]), { music: 'c5sad', note: 'She was coming back. She nearly did.' });
+  cut.def('dawn', 'The lanterns go out across the band', () => vn([['bg', 'c5-dawn'],
+    ['narr', 'The students\' lanterns go out across the band. The drain is rolled back, for the living and for Dutch.'],
+    ['narr', 'They come down to the camp: Theo opens the records office, Cron\'s farm takes the camp\'s schedules, Pella teaches in the library, and Ayo\'s forge goes on.']]), { music: 'c5sad', note: 'The end of Chapter 5.' });
   // The rail: hold on, or let go. Then Ashgrove, Uptima, and the floors freed.
   async function rail() {
-    mus('c5culprit');
-    await vn([['bg', 'c5-rail'],
-      ['narr', 'The real Astronomy Tower, on the town floor. Dutch follows her up alone. At the rail, he has Iris by the collar, the way he held Caspian.'],
-      ['show', 'iris', 'frozen', 'right'],
-      ['iris', 'You won\'t. You didn\'t then.', 'frozen'],
-      ['show', 'dutch', 'stone', 'left']]);
+    await cut.play('rail');
     const ch = await new Promise(res => {
       const b = U.panel(`<p>Iris Vell, by the collar, over the rail. <span class="muted small">Either way, Freya's blessing takes her up the tower. What matters is what Dutch does with his hands.</span></p>
         <div class="opts col">
@@ -950,33 +985,11 @@
     });
     c5().choice = ch; S.persist();
     // One call per ending, so each ending's cutscene (the-rail-hold, the-rail-let) plays the Ashgrove shots.
-    if (ch === 'hold') await vn([['bg', 'c5-rail'], ['narr', 'He holds. Freya\'s blessing pulls Iris up out of his hands anyway, and he\'s left holding a strip of her scarf. Lilac.'],
-      ['show', 'ashgrove', 'cold', 'right'],
-      ['narr', 'Lord Ashgrove has followed him up the stair.'],
-      ['ashgrove', 'Mr. Dutch.', 'cold'],
-      ['dutch', 'Your boy grabbed for her hand. He tried to catch her.', 'grief'],
-      ['narr', 'It\'s the first time he has told anyone what\'s true, instead of what he\'s sure of.'],
-      ['ashgrove', '...', 'stone'],
-      ['narr', 'Ashgrove calls off the watch the next morning. He doesn\'t forgive him.']]);
-    else await vn([['bg', 'c5-rail'], ['narr', 'He lets go. Freya\'s blessing catches her and takes her up the tower. He did it on purpose this time, and he knows it.'],
-      ['show', 'ashgrove', 'cold', 'right'],
-      ['narr', 'Lord Ashgrove has followed him up the stair.'],
-      ['ashgrove', 'Mr. Dutch.', 'cold'],
-      ['dutch', 'Your boy grabbed for her hand. He tried to catch her.', 'grief'],
-      ['narr', 'It\'s the first time he has told anyone what\'s true, instead of what he\'s sure of.'],
-      ['ashgrove', '...', 'stone'],
-      ['narr', 'Ashgrove calls off the watch the next morning. He doesn\'t forgive him.']]);
-    mus('c5sad');
-    await vn([['bg', 'c5-ward'], ['show', 'uptima', 'neutral', 'center'],
-      ['narr', 'Uptima reads the prayer: "Let her wake up. Once. Then take whatever you want."'],
-      ['narr', 'And then she does something no one asked her to. She reads the healers\' chart with him, line by line, and shows him the three nights Lina\'s magic was rising.'],
-      ['uptima', 'She was coming back. She nearly did.', 'sad'],
-      ['show', 'dutch', 'grief', 'left'], ['dutch', 'That\'s not better.', 'grief'],
-      ['uptima', 'No. But it\'s true.', 'neutral']]);
+    if (ch === 'hold') await cut.play('rail-hold');
+    else await cut.play('rail-let');
+    await cut.play('chart-uptima');
     setFlag('rail');
-    await vn([['bg', 'c5-dawn'],
-      ['narr', 'The students\' lanterns go out across the band. The drain is rolled back, for the living and for Dutch.'],
-      ['narr', 'They come down to the camp: Theo opens the records office, Cron\'s farm takes the camp\'s schedules, Pella teaches in the library, and Ayo\'s forge goes on.']]);
+    await cut.play('dawn');
     setFlag('freed');
     c5().f.done = true; S.persist();
     R.gainXp(60);

@@ -17,6 +17,7 @@
   if (!K.explore) return;
   const W2 = SD.c2world = {};
   const U = SD.ui, S = SD.state, AU = SD.audio, R = SD.run, T = SD.ch1story, A = SD.c2art, G = SD.c2games, C2 = K.ch2;
+  const cut = K.cut2;
   const $ = U.$, esc = s => U.esc(s);
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -418,10 +419,7 @@
   const has = id => id === lead() || others().includes(id);
 
   // ---------- The story ----------
-  async function opening() {
-    AU.music('story');
-    U.closePanel(); U.stage(null);
-    await SD.vn.play([...C2.text.cold, ['fx', 'black'],
+  cut.def('edge-camp', 'The edge of the Cloud', () => [
       ['hide', 'bram'], ['hide', 'mira'], ['bg', 'c2-edge'],
       ['narr', 'The edge of the Cloud, the night after the wipe. The floor just stops. Below it there\'s nothing at all.'],
       ['show', 'kai', 'anger', 'left'],
@@ -434,7 +432,9 @@
       ['hide', 'seoyeon'], ['show', 'mira', 'tired', 'right'],
       ['mira', 'Enough. Sit down, all of you. Eat something.', 'tired'],
       ['narr', 'Mira holds them together for nearly an hour. Then she can\'t. Freya\'s gift basket is still lying where it fell.']
-    ]);
+    ], { note: 'The night after the wipe, before you walk.' });
+  async function opening() {
+    await cut.play(['cold', ['fx', 'black'], 'edge-camp']);
     setFlag('cold');
   }
   async function notYet() {
@@ -460,8 +460,7 @@
   }
   async function towerAtDawn() {
     setFlag('tower');
-    U.stage(null);
-    await SD.vn.play(C2.text.tower);
+    await cut.play('tower');
     AU.music('road');
   }
   async function scrapArrive() {
@@ -621,8 +620,7 @@
     PROPS.fire.lit = true; AU.sfx('door');
     sc.place('coo', 70, 25); sc.place('wren', 72, 25);
     await wait(900);
-    U.stage(null);
-    await SD.vn.play(C2.text.fire);
+    await cut.play('fire');
     W2.dusk = false;
     setFlag('fire');
     W2.fade = 0.8; await wait(600); W2.fade = 0.4; await wait(400); W2.fade = 0;
@@ -645,6 +643,11 @@
       ['mira', { mira: '...Home.', other: 'Thornwick. It\'s exactly how I left it. That\'s what\'s wrong with it.' }, 'tired']
     ]);
   }
+  cut.def('postbox', 'Freya on the poster', [['cg', 'c2-postbox', 'in'],
+    ['narr', 'Freya meets Mira at the silent post box. She doesn\'t come in person. She\'s on the poster, smiling.'],
+    ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.']], { music: 'virus', note: 'Her offer at the silent post box.' });
+  cut.def('postbox-wait', 'Mira doesn\'t answer', [['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']],
+    { note: 'After the offer (as Mira, you try to answer first).' });
   async function postbox() {
     if (flag('offer')) return say([['narr', 'Freya smiles from the poster on the post box. She smiles at everyone.']]);
     AU.music('quest');
@@ -655,11 +658,7 @@
     await say([['narr', 'Then you look at the real thing. Thornwick\'s queue: ReceiveMessage, 0 messages. Every letter posted here goes up the stair to the Mailroom, and is never sent on.']]);
     U.system('CARD UPGRADED', 'Visibility Timeout starts upgraded in Expedition I.', 'gold');
     // Freya, on the poster.
-    U.stage(null);
-    AU.music('virus');
-    await SD.vn.play([['cg', 'c2-postbox', 'in'],
-      ['narr', 'Freya meets Mira at the silent post box. She doesn\'t come in person. She\'s on the poster, smiling.'],
-      ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.']]);
+    await cut.play('postbox');
     if (lead() === 'mira') {
       // Every answer Mira has is the same one.
       await new Promise(res => {
@@ -667,7 +666,7 @@
         b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { U.closePanel(); res(); });
       });
     }
-    await SD.vn.play([['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']]);
+    await cut.play('postbox-wait');
     setFlag('offer');
     AU.music('town');
     U.system('THE STAIR IS OPEN', 'Up the stair are the Sorting Floors: Expedition I.', 'gold');

@@ -39,7 +39,31 @@
   // A line by whoever you play is 'lead'; a text can change with the lead.
   const L = lines => lines.map(([s, t, e]) => ({ s: s === 'lead' ? lead() : s, t: typeof t === 'object' ? (t[lead()] || t.other) : t, e }));
   const say = lines => U.dialog(L(lines));
-  const vn = async (steps, music) => { if (music) AU.music(music); U.closePanel(); U.stage(null); await SD.vn.play(steps); };
+  // The chapter's cutscenes (js/c3-story.js), in story order, for the cutscene viewer (js/reel.js).
+  const cut = SD.reel.chapter('3', { before: () => { U.closePanel(); U.stage(null); } });
+  cut.def('cold', 'Tax season', ST.cold, { music: 'story', note: 'Kai and his sister Hana, a year and a half ago.' });
+  cut.def('cold2', 'Floss, boss', ST.cold2, { note: 'The light under the kitchen door.' });
+  cut.def('arrive', 'Halcyon', ST.arrive, { music: 'c3town', note: 'Floor 21, under a dome of gold light.' });
+  cut.def('heart', 'The heart of the barrier', ST.heart, { music: 'c3sad', note: 'Kai feels his sister in it.' });
+  cut.def('crown', 'The twelfth Saint', ST.crown, { music: 'c3town', note: 'Noor Haddad, crowned on the cathedral steps.' });
+  cut.def('crown2', 'The regent and the Hero', ST.crown2, { music: 'c3culprit', note: 'Selvaria does the sum.' });
+  cut.def('offer', 'An omelette for Freya', ST.offer, { music: 'freya', note: 'Her offer, in the cathedral kitchen.' });
+  cut.def('sure', 'Dutch is sure', ST.sure, { music: 'c3sad', note: 'Break it tonight, or it\'s cowardice.' });
+  cut.def('wen', 'Grandma Wen', ST.wen, { music: 'c3cafe', note: 'The Cache Café opens at camp.' });
+  cut.def('jar', 'A strand of her, in a jar', ST.jar, { music: 'freya', note: 'Freya\'s gift.' });
+  cut.def('aurelian', 'Sir Aurelian at camp', ST.aurelian, { music: 'c3sad', note: 'Once, at night, without his armour.' });
+  cut.def('ash', 'Mother Ash', ST.ash, { music: 'c3sad', note: 'The seventh Saint, at the bottom of the Abyss.' });
+  cut.def('ash2', 'Read it like a cook', ST.ash2, { note: 'Ash reads Hana\'s sum.' });
+  cut.def('tellher', 'Tell her I didn\'t leave', ST.tellher, { music: 'c3sad', note: 'Mira, and the prayer nobody delivered.' });
+  cut.def('asknoor', 'Kai asks Noor', ST.asknoor, { music: 'c3sad' });
+  cut.def('speech', 'Saint Noor\'s speech', ST.speech, { music: 'c3sad' });
+  cut.def('argue', 'The city argues', ST.argue);
+  cut.def('unmake', 'Unmake the rewrite', ST.unmake, { music: 'c3sad', note: 'If Kai unmakes it.' });
+  cut.def('leave', 'Hand off the barrier', ST.leave, { music: 'c3sad', note: 'If Kai leaves it.' });
+  cut.def('uptima', 'Uptima reads one', ST.uptima, { music: 'kyusad', note: 'The backlog, that night.' });
+  cut.def('clean', 'Cleaning the kitchen', ST.clean, { music: 'camp', note: 'Dawn.' });
+  cut.def('freed', 'Halcyon takes its grants back', ST.freed, { music: 'camp' });
+  cut.def('reckon', 'The reckoning', ST.reckon, { music: 'c3sad', note: 'Kai and the regent.' });
 
   // ---------- The map ----------
   const MW = 100, MH = 44;
@@ -390,11 +414,11 @@
 
   // ---------- The story ----------
   async function opening() {
-    await vn(ST.cold, 'story');
+    await cut.play('cold');
     G.backdrop('c3-kitchen');
     await G.receipts();
     U.stage(null);
-    await vn(ST.cold2);
+    await cut.play('cold2');
     setFlag('cold');
   }
   async function campWake() {
@@ -405,13 +429,13 @@
   }
   async function arrive() {
     setFlag('arrive');
-    await vn(ST.arrive, 'c3town');
+    await cut.play('arrive');
     AU.sfx('x-bell');
   }
   async function heart() {
     if (flag('asknoor') && !flag('speech')) return speech();
     if (flag('heart')) return say([['narr', rnd(['The barrier hums under your hand. It\'s warm, the way a person is warm.', 'Gold light, breathing slowly. The whole city leans on it.'])]]);
-    await vn(ST.heart, 'c3sad');
+    await cut.play('heart');
     setFlag('heart');
     AU.music('c3town');
     U.system('[GOAL] THE CROWNING', 'The bells are for the twelfth Saint. Go to the cathedral steps, north of the square.', 'gold');
@@ -424,8 +448,8 @@
     return say([['noor', rnd(['Do you think they still have the bookshop? It was on Harrow Road. It had a cat.', 'Seo-yeon says she\'ll teach me her forms at dawn. I\'m going to be terrible at it.', 'It\'s an honour. That\'s what Saints say. I\'ve got really good at saying it.']), 'smile']]);
   }
   async function crown() {
-    await vn(ST.crown, 'c3town');
-    await vn(ST.crown2, 'c3culprit');
+    await cut.play('crown');
+    await cut.play('crown2');
     setFlag('crown');
     AU.music('c3town');
     U.system('[GOAL] THE KITCHEN DOOR', 'Someone has left the cathedral\'s kitchen door open, on the west side of the close. It smells of butter.', 'gold');
@@ -443,7 +467,7 @@
     if (d === 'kitchen') return act(async () => {
       if (!flag('crown')) { await say([['narr', 'The cathedral\'s kitchen door. A guard waves you off: "Not before the crowning."']]); return warp(45, 8, 'west'); }
       if (flag('offer')) { await say([['narr', 'The cathedral kitchen. Somebody has washed the omelette pan. It wasn\'t Freya.']]); return warp(45, 8, 'west'); }
-      await vn(ST.offer, 'freya');
+      await cut.play('offer');
       setFlag('offer');
       warp(45, 8, 'west');
       AU.music('c3town');
@@ -475,7 +499,7 @@
     if (d === 'archive') return act(archive);
   }
   async function sure() {
-    await vn(ST.sure, 'c3sad');
+    await cut.play('sure');
     setFlag('sure');
     AU.music('c3town');
     U.system('[GOAL] THE COLD STORES', 'The granary gate is at the east wall. Its keeper only lets in people who know their grain.', 'gold');
@@ -519,10 +543,10 @@
     const n = { cold: 'x1', abyss: 'x2', cathedral: 'x3', regent: 'x4' }[id];
     setFlag(n);
     if (id !== 'regent') { const q = await G.why(id); xp(q && q.ok ? 25 : 10); }
-    if (id === 'cold') { warp(9, 24, 'west'); await vn(ST.wen, 'c3cafe'); applyState(); U.system('[GOAL] CAMP', 'Grandma Wen\'s Cache Café is open. Doug and Kevin have a problem. And the terminal has a function to ship.', 'gold'); AU.music('camp'); }
+    if (id === 'cold') { warp(9, 24, 'west'); await cut.play('wen'); applyState(); U.system('[GOAL] CAMP', 'Grandma Wen\'s Cache Café is open. Doug and Kevin have a problem. And the terminal has a function to ship.', 'gold'); AU.music('camp'); }
     if (id === 'abyss') { warp(88, 36, 'north'); applyState(); await ashScene(); }
     if (id === 'cathedral') { warp(52, 23, 'north'); applyState(); await tellHer(); }
-    if (id === 'regent') { warp(52, 23, 'north'); applyState(); await vn(ST.reckon, 'c3sad'); reckonReward(); }
+    if (id === 'regent') { warp(52, 23, 'north'); applyState(); await cut.play('reckon'); reckonReward(); }
   }
 
   // The Cold Stores yard.
@@ -607,13 +631,13 @@
   }
   async function jarVisit() {
     setFlag('jar');
-    await vn(ST.jar, 'freya');
+    await cut.play('jar');
     applyState();
     AU.music('camp');
     U.system('[GOAL] CAMP, AT NIGHT', 'Someone is waiting by the fire.', 'gold');
     W3.night = true;
     setFlag('aurelian'); applyState();
-    await vn(ST.aurelian, 'c3sad');
+    await cut.play('aurelian');
     AU.music('camp');
   }
   async function aurTalk() {
@@ -635,8 +659,8 @@
 
   // The bottom of the Abyss.
   async function ashScene() {
-    await vn(ST.ash, 'c3sad');
-    await vn(ST.ash2);
+    await cut.play('ash');
+    await cut.play('ash2');
     setFlag('ash'); setDev('dayayear');
     AU.sfx('levelup'); U.flash();
     U.system('KAI\'S UPGRADE: A DAY A YEAR', 'Share the Load becomes A Day a Year: one hit, spread across the whole party and every citizen on the field.', 'gold');
@@ -656,35 +680,35 @@
 
   // The choice.
   async function tellHer() {
-    await vn(ST.tellher, 'c3sad');
+    await cut.play('tellher');
     setFlag('tellher');
     AU.music('c3town');
     U.system('[GOAL] ASK', 'Ask Noor what she wants. She\'s on the cathedral steps.', 'gold');
   }
   async function askNoor() {
-    await vn(ST.asknoor, 'c3sad');
+    await cut.play('asknoor');
     setFlag('asknoor');
     AU.music('c3town');
     U.system('[GOAL] SAINT\'S DAY', 'Read Hana\'s speech at the barrier\'s heart, in the square.', 'gold');
   }
   async function speech() {
     const pages = w().pages.length;
-    await vn(ST.speech, 'c3sad');
+    await cut.play('speech');
     if (pages === 5) await say([['narr', 'Kai has every page of it, all five, margins and all. He reads the sums out too. Nobody in the square has ever heard the sums.']]);
-    await vn(ST.argue);
+    await cut.play('argue');
     const pick = await new Promise(res => {
       const b = U.panel(`<p>The square is quiet. Kai's hand is on the barrier. Noor is watching. So is the city.</p>
         <div class="opts col"><button class="opt" data-c="unmake">Unmake the rewrite. A day a year, from everyone.</button><button class="opt" data-c="leave">Leave it. Come back with root.</button></div>`, { title: 'THE CHOICE', noClose: true });
       b.querySelectorAll('[data-c]').forEach(el => { el.onclick = () => { U.closePanel(); res(el.dataset.c); }; });
     });
     c3().choice = pick; setFlag('speech'); setFlag('choice');
-    if (pick === 'unmake') { await vn(ST.unmake, 'c3sad'); AU.sfx('x-barrier'); } else await vn(ST.leave, 'c3sad');
+    if (pick === 'unmake') { await cut.play('unmake'); AU.sfx('x-barrier'); } else await cut.play('leave');
     xp(pages * 10 + 40);
-    await vn(ST.uptima, 'kyusad');
+    await cut.play('uptima');
     warp(8, 15, 'north'); applyState();
-    await vn(ST.clean, 'camp');
+    await cut.play('clean');
     setFlag('clean');
-    await vn(ST.freed, 'camp');
+    await cut.play('freed');
     setFlag('freed'); applyState();
     c3().f.done = true; S.persist();
     await endCard();
