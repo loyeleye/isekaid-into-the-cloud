@@ -7,6 +7,10 @@
 //   ['bg', id]  ['cg', id, pan, 'cut']  ['show', who, face, pos]  ['hide', who]  ['fx', kind]  ['wait', ms]
 //   ['act', kind, opts]  ['pray', text, to]  ['glitch', from, to, face]  ['gcut', id] (a still glitching into the next)
 //   ['flick', [[id, ms], ...], slow, sound] (a run of quick cuts)  ['sfx', name]  ['music', name or null]
+//   ['reveal', id, x, y, ms] (a still growing in over the last from a point)  ['warp', rate, secs, stutter] (the song
+//   slowing like a dying tape; js/audio.js)  ['ring', on, back] (the hushed ring, off for `back` seconds)
+//   ['morph', id, x, y, ms] (a still sharpening out of a mosaic over the last, outward from a point if given)
+//   ['tiles', level] (the game breaking up in green blocks over the picture, 0 to 4)
 // pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
 // 'cut' swaps the still in at once instead of crossfading;
 // pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
@@ -18,7 +22,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sfx = (n, p) => { if (SD.audio) SD.audio.sfx(n, p); };
-  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut', 'flick', 'sfx', 'music']);
+  const CMD = new Set(['bg', 'cg', 'show', 'hide', 'fx', 'wait', 'act', 'pray', 'glitch', 'gcut', 'flick', 'reveal', 'morph', 'tiles', 'sfx', 'music', 'warp', 'ring']);
 
   // ---------- Art registry ----------
   // scenes: id -> { src (once painted), label, tint: [top, bottom], focus } for backgrounds and stills. focus is
@@ -133,6 +137,7 @@
   // same framing (a face change) doesn't jump back to the start of the move.
   function setLayer(sel, id, pan, cut) {
     const host = cam.querySelector(sel);
+    if (sel === '.vn-cg' && root.dataset.cg !== id) lastCG = root.dataset.cg;
     root.dataset[sel === '.vn-bg' ? 'bg' : 'cg'] = id;
     const old = [...host.children];
     const el = document.createElement('div');
@@ -459,6 +464,191 @@
     for (const [id, ms] of frames) { setLayer('.vn-cg', id, 'still', true); if (ms) { sfx('tick'); await sleep(ms); } }
   }
 
+  // A still that grows in over the one showing from a point (x, y: 0 to 1 across and down the picture), a soft-edged
+  // circle widening over ms. With reduced motion, or skipping, it just cuts.
+  async function revealCG(id, x, y, ms) {
+    if (skipping || reduce()) { setLayer('.vn-cg', id, 'still', true); return; }
+    const host = cam.querySelector('.vn-cg'), old = [...host.children];
+    root.dataset.cg = id;
+    const el = document.createElement('div');
+    el.className = 'vn-pic on cut';
+    el.innerHTML = sceneHTML(id);
+    host.appendChild(el);
+    // Where the point lands in the box: the picture covers it (object-fit: cover), cropped by its object-position.
+    const img = el.querySelector('img'), w = el.clientWidth, h = el.clientHeight;
+    const ar = img && img.naturalWidth ? img.naturalWidth / img.naturalHeight : 1376 / 768;
+    const op = img ? getComputedStyle(img).objectPosition.split(' ').map(v => /%$/.test(v) ? parseFloat(v) / 100 : 0.5) : [0.5, 0.5];
+    const pw = Math.max(w, h * ar), ph = pw / ar, cx = (w - pw) * op[0] + x * pw, cy = (h - ph) * (op[1] == null ? 0.5 : op[1]) + y * ph;
+    const far = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy)), soft = far * 0.35, t0 = performance.now();
+    const mask = r => { const m = `radial-gradient(circle at ${cx}px ${cy}px, #000 ${Math.max(0, r - soft)}px, transparent ${r}px)`; el.style.webkitMaskImage = el.style.maskImage = m; };
+    mask(0);
+    await new Promise(res => {
+      const step = () => {
+        const p = Math.min(1, (performance.now() - t0) / ms), e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        mask(e * (far + soft));
+        if (p < 1 && !skipping) return requestAnimationFrame(step);
+        el.style.webkitMaskImage = el.style.maskImage = '';
+        old.forEach(o => o.remove());
+        res();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ---------- Shots on a canvas ----------
+  // A shot drawn as the CG layer shows it, covering w×h (cropped by its focus), for the mosaic and the tiles below.
+  // Each is drawn once per size and kept; null until its picture has loaded. lastCG is the shot before this one.
+  let lastCG = null;
+  const imgs = {}, shots = new Map();
+  function shotCanvas(id, w, h) {
+    const key = id + '|' + w + 'x' + h;
+    if (shots.has(key)) return shots.get(key);
+    const s = V.art.scenes[id], im = picture(id);
+    if (!im || !im.complete || !im.naturalWidth) return null;
+    const fw = im.naturalWidth, fh = s.sheet ? im.naturalHeight / s.frames : im.naturalHeight;
+    const pos = s.sheet ? [s.focus ? parseFloat(s.focus) / 100 : 0.5, 0.5] : s.focus ? s.focus.split(' ').map(v => parseFloat(v) / 100) : [0.5, 0.5];
+    const k = Math.max(w / fw, h / fh), dw = fw * k, dh = fh * k;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = !s.sheet;
+    g.drawImage(im, 0, s.sheet ? (s.frame || 0) * fh : 0, fw, fh, (w - dw) * pos[0], (h - dh) * (pos[1] == null ? 0.5 : pos[1]), dw, dh);
+    shots.set(key, c);
+    if (shots.size > 12) shots.delete(shots.keys().next().value);
+    return c;
+  }
+  // A canvas of `src` in blocks `p` wide (a mosaic).
+  function mosaic(src, p) {
+    const w = src.width, h = src.height, sw = Math.ceil(w / p), sh = Math.ceil(h / p);
+    const small = document.createElement('canvas'); small.width = sw; small.height = sh;
+    small.getContext('2d').drawImage(src, 0, 0, sw, sh);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.drawImage(small, 0, 0, sw, sh, 0, 0, sw * p, sh * p);
+    return c;
+  }
+  function picture(id) {
+    const s = V.art.scenes[id], url = s && (s.src || s.sheet);
+    if (!url) return null;
+    if (!imgs[url]) { imgs[url] = new Image(); imgs[url].src = url; }
+    return imgs[url];
+  }
+  const loaded = id => { const im = picture(id); return !im || im.complete ? Promise.resolve() : new Promise(r => { im.addEventListener('load', r); im.addEventListener('error', r); }); };
+
+  // The same pose from one shot to the next, through a mosaic: first the last shot dissolves into big blocks of the
+  // new one, then the blocks get finer in steps until it's the picture itself. With x and y (0 to 1 across and down
+  // the new shot) it sharpens outward from there, in rings, the finest nearest. With reduced motion, or skipping, it
+  // just cuts.
+  async function morphCG(id, x, y, ms) {
+    if (skipping || reduce()) { setLayer('.vn-cg', id, 'still', true); return; }
+    const host = cam.querySelector('.vn-cg'), old = [...host.children], from = root.dataset.cg;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(host.clientWidth * dpr), h = Math.round(host.clientHeight * dpr);
+    await Promise.all([loaded(id), from && loaded(from)]);
+    const A = from && shotCanvas(from, w, h), B = shotCanvas(id, w, h);
+    if (!B) { setLayer('.vn-cg', id, 'still', true); return; }
+    lastCG = from; root.dataset.cg = id;
+    // Coarse to fine, as blocks across the width, starting near the pixel art's own grain; the last is the shot itself.
+    const levels = [150, 220, 320, 470, 700].map(n => mosaic(B, w / n)).concat([B]);
+    const el = document.createElement('div');
+    el.className = 'vn-pic on cut';
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    el.appendChild(c); host.appendChild(el);
+    const g = c.getContext('2d'), n = levels.length - 1, fade = 0.3;
+    const cx = x * w, cy = y * h, far = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy)), band = far * 0.16;
+    const draw = t => {
+      g.globalAlpha = 1;
+      if (t < fade) {
+        if (A) g.drawImage(A, 0, 0); else g.clearRect(0, 0, w, h);
+        g.globalAlpha = t / fade; g.drawImage(levels[0], 0, 0);
+        return;
+      }
+      const u = (t - fade) / (1 - fade);
+      if (x == null) { g.drawImage(levels[Math.min(n, Math.floor(u * (n + 1)))], 0, 0); return; }
+      g.drawImage(levels[0], 0, 0);
+      const r = u * (far + n * band);
+      for (let i = 1; i <= n; i++) {
+        const ri = r - (i - 1) * band;
+        if (ri <= 0) break;
+        g.save(); g.beginPath(); g.arc(cx, cy, ri, 0, Math.PI * 2); g.clip(); g.drawImage(levels[i], 0, 0); g.restore();
+      }
+    };
+    const t0 = performance.now();
+    await new Promise(res => {
+      const step = () => {
+        const t = Math.min(1, (performance.now() - t0) / ms);
+        draw(t);
+        if (t < 1 && !skipping) return requestAnimationFrame(step);
+        el.innerHTML = sceneHTML(id);
+        old.forEach(o => o.remove());
+        res();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  // The game itself breaking up over the picture, level 1 to 4 (0 stops it): bursts of the dull green blocks a video
+  // decoder leaves where picture data is missing (zeroed YUV comes out green), rows of the shot torn sideways, and
+  // blocks of the last shot left behind on the new one, as in a datamosh. Each level comes more often and bigger.
+  // Not with reduced motion: it's flashing.
+  let tl = null;
+  function tiles(level) {
+    if (tl) { cancelAnimationFrame(tl.raf); tl.c.remove(); tl = null; }
+    if (!level || reduce() || skipping) return;
+    const c = document.createElement('canvas');
+    c.className = 'vn-tiles';
+    cam.appendChild(c);
+    const g = c.getContext('2d'), rnd = (a, b) => a + Math.random() * (b - a), pick = a => a[Math.floor(Math.random() * a.length)];
+    const me = tl = { c, raf: 0, next: performance.now() + rnd(80, 400), end: 0, burst: [], f: 0 };
+    const burst = (w, h, b) => {
+      const out = [], cols = Math.ceil(w / b), rows = Math.ceil(h / b);
+      for (let k = 0, m = level + Math.floor(rnd(0, level * 2.5)); k < m; k++) {
+        const kind = Math.random(), r = Math.floor(rnd(0, rows)), col = Math.floor(rnd(0, cols));
+        const len = 1 + Math.floor(rnd(0, 2 + level * 3)), tall = 1 + Math.floor(rnd(0, 1 + level / 2));
+        if (kind < 0.5) out.push({ k: 'green', x: col * b, y: r * b, w: len * b, h: tall * b, b, cells: Array.from({ length: len * tall }, () => Math.random() < 0.45 ? 'luma' : pick(['#008700', '#008700', '#007a12', '#00a02c', '#22ff6a'])) });
+        else if (kind < 0.75) out.push({ k: 'stale', x: col * b, y: r * b, w: len * b, h: tall * b });
+        else if (kind < 0.95) out.push({ k: 'tear', y: r * b, h: Math.max(2, Math.floor(rnd(0.15, 1) * tall * b)), dx: (Math.random() < 0.5 ? -1 : 1) * b * rnd(0.5, 5) });
+        else out.push({ k: 'green', x: col * b, y: r * b, w: b, h: b, b, cells: ['#ff2bd6'] });
+      }
+      return out;
+    };
+    const step = now => {
+      if (tl !== me) return;
+      const w = c.clientWidth, h = c.clientHeight;
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+      const b = Math.round(Math.min(32, Math.max(10, w / 56)));
+      if (now >= me.next) {
+        me.burst = burst(w, h, b);
+        me.end = now + rnd(70, 120 + level * 50);
+        me.next = me.end + rnd(220, 1300) / level;
+      }
+      g.clearRect(0, 0, w, h);
+      // Blocks come and go every other frame or so while a burst lasts, like a stream catching and losing sync.
+      if (now < me.end && (me.f++ % 3 !== 2)) {
+        const cur = shotCanvas(root.dataset.cg, w, h), prev = lastCG && shotCanvas(lastCG, w, h);
+        me.burst.forEach(t => {
+          if (t.k === 'green') {
+            // Each block flat dull green (no data at all), or the picture with its colour gone green (the brightness
+            // came through, the colour didn't).
+            const across = t.w / t.b;
+            t.cells.forEach((cell, i) => {
+              const x = t.x + (i % across) * t.b, y = t.y + Math.floor(i / across) * t.b;
+              if (cell === 'luma' && cur) {
+                g.drawImage(cur, x, y, t.b, t.b, x, y, t.b, t.b);
+                g.globalCompositeOperation = 'color'; g.fillStyle = '#00b400'; g.fillRect(x, y, t.b, t.b);
+                g.globalCompositeOperation = 'source-over';
+              } else { g.fillStyle = cell === 'luma' ? '#008700' : cell; g.fillRect(x, y, t.b, t.b); }
+            });
+            g.fillStyle = 'rgba(0,0,0,.18)';
+            for (let yy = t.y + 2; yy < t.y + t.h; yy += 4) g.fillRect(t.x, yy, t.w, 1);
+          } else if (t.k === 'stale') {
+            if (prev) g.drawImage(prev, t.x, t.y, t.w, t.h, t.x, t.y, t.w, t.h);
+          } else if (cur) g.drawImage(cur, 0, t.y, w, t.h, t.dx, t.y, w, t.h);
+        });
+      }
+      me.raf = requestAnimationFrame(step);
+    };
+    me.raf = requestAnimationFrame(step);
+  }
+
   // ---------- Playing a script ----------
   V.playing = () => !!root && !root.hidden;
   V.play = async function (steps) {
@@ -499,6 +689,11 @@
       else if (k === 'glitch') await glitch(a[0], a[1], a[2]);
       else if (k === 'gcut') await gcut(a[0]);
       else if (k === 'flick') await flick(a[0], a[1], a[2]);
+      else if (k === 'reveal') await revealCG(a[0], a[1], a[2], a[3]);
+      else if (k === 'morph') await morphCG(a[0], a[1], a[2], a[3]);
+      else if (k === 'tiles') tiles(a[0]);
+      else if (k === 'warp') { if (SD.audio && SD.audio.warp) SD.audio.warp(a[0], a[1], a[2]); }
+      else if (k === 'ring') { if (SD.audio && SD.audio.ring) SD.audio.ring(a[0], a[1]); }
       else if (k === 'sfx') sfx(a[0]);
       else if (k === 'music') SD.audio.music(a[0]);
     }
@@ -506,7 +701,7 @@
     advance = null; finishTyping(); closePanel(); SD.audio.voice(null);
     root.querySelector('.vn-black').classList.add('on');
     await sleep(skipping ? 200 : 900);
-    rain(false);
+    rain(false); tiles(0);
     Object.keys(sprites).forEach(w => { sprites[w].el.remove(); delete sprites[w]; });
     lead = null;
     cam.querySelectorAll('.vn-pic').forEach(e => e.remove());

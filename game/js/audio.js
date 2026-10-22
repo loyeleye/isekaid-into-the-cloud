@@ -190,16 +190,25 @@
   // This game's own tracks are the m-c1-* files: darker ones for a revenge story (credited in CREDITS.md). The title,
   // the story moments and the battles use them too; the rest of the first game's songs stay for its older places.
   const SONG = { title: 'm-c1-title', goddess: 'm-goddess', town: 'm-village', explore: 'm-explore', battle: 'm-c1-battle', boss: 'm-c1-boss', quest: 'm-quest', story: 'm-c1-prologue', guild: 'm-guild', journey: 'm-journey',
-    // Chapter 1: Freya's theme, her camp, the road east, Brookfall, the Temple of Uptime and its dungeon.
-    freya: 'm-c1-freya', camp: 'm-c1-camp', road: 'm-c1-road', brookfall: 'm-c1-brookfall', temple: 'm-c1-temple', map1: 'm-c1-temple',
+    // Chapter 1: Freya's theme (her music-box waltz, which the reveal rots: js/cut-reveal.js), her camp, the road
+    // east, Brookfall, the Temple of Uptime and its dungeon. virus is hers after the reveal, from Chapter 2 on.
+    freya: 'm-c1-freya', virus: 'm-c1-freya', camp: 'm-c1-camp', road: 'm-c1-road', brookfall: 'm-c1-brookfall', temple: 'm-c1-temple', map1: 'm-c1-temple',
     map2: 'm-ch2', map3: 'm-ch3', map4: 'm-ch4', map5: 'm-ch5',
     // The newer places' own themes (OpenGameArt, credited in CREDITS.md): the Eventual Isles, the PR Club and its
     // yoga studio, Aigerim's card shop, and Kagemaru's cave (a music box). Rooms otherwise keep the music from outside.
     isles: 'm-isles', gym: 'm-gym', studio: 'm-studio', shop: 'm-shop', cave: 'm-cave',
     // Kyu's themes, from the first game's chapter 10: hers, her flashbacks, and the fight with her.
     kyu: 'm-kyu', kyusad: 'm-kyusad', kyuboss: 'm-kyuboss' };
+  // A carefree music-box tune held in reserve as Freya's Chapter 1 theme, in case the waltz rotting doesn't land
+  // (Ladi, Oct 22); the 🐞 Debug menu switches it in for this browser (js/demo-select.js).
+  const THEMES = { waltz: 'm-c1-freya', tune: 'm-c1-freya-tune' };
+  A.freyaTheme = v => {
+    if (v) { try { localStorage.setItem('sd-freya-theme', v); } catch (e) { /* this visit only */ } SONG.freya = THEMES[v]; }
+    return Object.keys(THEMES).find(k => THEMES[k] === SONG.freya);
+  };
+  try { const v = localStorage.getItem('sd-freya-theme'); if (THEMES[v]) SONG.freya = THEMES[v]; } catch (e) { /* the waltz */ }
   // Songs without a synth version fall back to this one if the file fails to load.
-  const FALLBACK = { journey: 'title', quest: 'town', story: 'town', guild: 'town', freya: 'story', camp: 'story', road: 'explore', brookfall: 'explore', temple: 'explore', map1: 'explore', map2: 'explore', map3: 'explore', map4: 'explore', map5: 'explore',
+  const FALLBACK = { journey: 'title', quest: 'town', story: 'town', guild: 'town', freya: 'story', virus: 'story', camp: 'story', road: 'explore', brookfall: 'explore', temple: 'explore', map1: 'explore', map2: 'explore', map3: 'explore', map4: 'explore', map5: 'explore',
     isles: 'explore', gym: 'explore', studio: 'heaven', shop: 'town', cave: 'isles', kyu: 'story', kyusad: 'story', kyuboss: 'boss' };
   // Per-song loudness: the piano is gentle on purpose, and the chapter maps are mastered hotter than explore.
   const SONG_VOL = { map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
@@ -433,30 +442,54 @@
     return L;
   }
   const wxL = bedLayer(SKY), placeL = bedLayer(PLACE);
-  // A.hush(true): the weather stops dead and, under the silence, a low room hum with a faint ring over it, like ears
-  // after a blast (Chapter 1's reveal, js/cut-reveal.js). The weather asked for meanwhile comes back with hush(false).
+  // A.hush(true): the weather stops dead and, under the silence, only a faint ring, like ears after a blast (Chapter
+  // 1's reveal, js/cut-reveal.js); A.hushed() says so, for the lightning that would bring thunder. The weather asked
+  // for meanwhile comes back with hush(false). A.ring(false, secs) cuts even the ring, for secs of dead silence.
   let hushed = false, wxWant, hum = null;
   A.weather = kind => { wxWant = kind; wxL.set(hushed ? null : kind); };
+  A.hushed = () => hushed;
   A.hush = function (on) {
     if (on === hushed) return;
     hushed = on;
     wxL.set(on ? null : wxWant === undefined ? null : wxWant);
+    A.ring(on);
+  };
+  A.ring = function (on, back) {
     if (!ctx) return;
     const t = ctx.currentTime;
-    if (!on) { if (hum) { const h = hum; hum = null; h.g.gain.setTargetAtTime(0, t, 0.5); setTimeout(() => h.oscs.forEach(o => o.stop()), 3000); } return; }
+    if (!on) {
+      if (hum) { const h = hum; hum = null; h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(0, t); setTimeout(() => h.oscs.forEach(o => o.stop()), 200); }
+      if (back) setTimeout(() => { if (hushed) A.ring(true); }, back * 1000);
+      return;
+    }
+    if (hum) return;
     const g = ctx.createGain(); g.gain.value = 0; g.connect(sfxBus);
-    // Two low sines a little apart, so the hum beats slowly; the ring is very quiet and wavers.
-    const oscs = [[46, 0.16], [46.6, 0.12], [92.5, 0.03], [6150, 0.006]].map(([f, v]) => {
-      const o = ctx.createOscillator(), og = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f; og.gain.value = v;
-      o.connect(og); og.connect(g); o.start(t);
-      return o;
-    });
+    // A very quiet high ring that wavers a little; nothing low (a low hum reads as far-off thunder).
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 6150; og.gain.value = 0.006;
+    o.connect(og); og.connect(g); o.start(t);
     const lfo = ctx.createOscillator(), lg = ctx.createGain();
-    lfo.frequency.value = 0.13; lg.gain.value = 9; lfo.connect(lg); lg.connect(oscs[3].frequency); lfo.start(t);
-    oscs.push(lfo);
+    lfo.frequency.value = 0.13; lg.gain.value = 9; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t);
     g.gain.setTargetAtTime(1, t, 1.6);
-    hum = { g, oscs };
+    hum = { g, oscs: [o, lfo] };
+  };
+  // The song playing, warped like a dying tape: its speed (and so its pitch) slides to `rate` over `secs`, after
+  // dropping out for `stutter` ms if given. A.warp(0, secs) runs it down to a stop. (Chapter 1's reveal.)
+  A.warp = function (rate, secs, stutter) {
+    if (!ctx || !cur || !cur.el) return;
+    const c = cur, el = c.el, g = c.gain.gain, t = ctx.currentTime;
+    el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = false;
+    if (stutter) { const v = g.value; g.cancelScheduledValues(t); g.setValueAtTime(0, t); g.setValueAtTime(v, t + stutter / 1000); }
+    const from = el.playbackRate, to = rate || 0.3, t0 = performance.now(), ms = (secs || 1) * 1000;
+    if (!rate) g.setTargetAtTime(0, t + (stutter || 0) / 1000, ms / 3000);
+    clearInterval(c.warpT);
+    c.warpT = setInterval(() => {
+      const p = Math.min(1, (performance.now() - t0) / ms);
+      el.playbackRate = from + (to - from) * p;
+      if (p < 1) return;
+      clearInterval(c.warpT);
+      if (!rate && cur === c) { A.loopName = null; stopCur(0.05); }
+    }, 30);
   };
   // A place's own sound (PLACE above), or null for none. A.placeName() is the one playing (or asked for).
   A.place = kind => placeL.set(kind);

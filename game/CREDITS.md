@@ -38,7 +38,8 @@ Everything else is drawn in code: portraits for characters without a painted one
 | --- | --- | --- | --- | --- |
 | `m-c1-title` | "Oppressive Gloom" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100885 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Title (`title`) |
 | `m-c1-prologue` | "Death Is Just Another Path" | Otto Halmén, https://opengameart.org/content/death-is-just-another-path | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (also OGA-BY 3.0) | The prologues and story moments (`story`) |
-| `m-c1-freya` | "musicbox1_spooky_waltz", from "4 Music Box Tracks" | Aureolus_Omicron, https://opengameart.org/content/4-music-box-tracks | CC0 | Freya's scenes (`freya`) |
+| `m-c1-freya` | "musicbox1_spooky_waltz", from "4 Music Box Tracks" | Aureolus_Omicron, https://opengameart.org/content/4-music-box-tracks | CC0 | Freya's scenes (`freya`, warped in the reveal, and `virus` from Chapter 2) |
+| `m-c1-freya-tune` | "musicbox2_cute_tune", from "4 Music Box Tracks" | Aureolus_Omicron, https://opengameart.org/content/4-music-box-tracks | CC0 | A carefree theme for Freya in Chapter 1, held in reserve (switched in from the 🐞 Debug menu) |
 | `m-c1-camp` | "Vampire's Piano" | TAD, https://opengameart.org/content/vampires-piano | CC0 | Freya's camp (`camp`) |
 | `m-c1-road` | "Darkness March" | Alexandr Zhelanov, https://opengameart.org/content/darkness-march | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The road east (`road`) |
 | `m-c1-brookfall` | "Heavy Heart" | Kevin MacLeod (incompetech.com), https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600002 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Brookfall (`brookfall`) |

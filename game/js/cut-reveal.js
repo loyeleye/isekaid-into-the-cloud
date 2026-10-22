@@ -21,22 +21,32 @@
   const [B, D, F, G, H, H2, I] = ['B', 'D', 'F', 'G', 'H', 'H2', 'I'].map(k => 'rv-' + k);
   const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const me = () => (SD.state.save.c1 && SD.state.save.c1.lead) || 'mira';
+  // Ways to try the last cut, from the pixel virus to the real one, and the green glitch tiles over the breaks, picked
+  // in the 🐞 Debug menu (js/demo-select.js) and kept in this browser. morph: 'head' sharpens out of a mosaic from the
+  // serpent's head, 'mosaic' sharpens all at once, 'fade' fades in from the head.
+  const OPTS_KEY = 'sd-reveal-opts';
+  const opts = Object.assign({ morph: 'head', tiles: true }, (() => { try { return JSON.parse(localStorage.getItem(OPTS_KEY)) || {}; } catch (e) { return {}; } })());
+  const HEAD = [0.52, 0.23];
+  const toReal = () => opts.morph === 'fade' ? ['reveal', F, ...HEAD, 3500] : opts.morph === 'mosaic' ? ['morph', F, null, null, 3200] : ['morph', F, ...HEAD, 3600];
+  const tiles = n => ['tiles', opts.tiles ? n : 0];
   const say = ([who, text]) => [who === 'lead' ? me() : who, typeof text === 'object' ? text[me()] : text];
 
   SD.cutReveal = {
+    opts,
+    setOpt: (k, v) => { opts[k] = v; try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* kept for this visit only */ } },
     ending: () => {
       const L = 'cut-reveal-' + me() + '-', e = T.ending;
       const [gold, scales] = e[5][1].split(/ (?=Its scales)/);
-      // No weather in the vault (the temple's rain stops at its door): a still hum, until the wipe is over.
+      // No weather in the vault (the temple's rain stops at its door): only a faint ring, until the wipe is over.
       SD.audio.hush(true);
       return SD.vn.play([
         ['music', null],
         ['cg', 'cut-reveal-1', 'slow'], say(e[0]),
         ['cg', 'cut-reveal-2', 'slow'], say(e[1]),
         ['music', 'freya'], ['cg', 'cut-reveal-3', 'in'], say(e[2]),
-        // The walk: no music, slow cold steps, one step missing while her hand rests on your shoulder. With reduced
-        // motion it holds on the hand.
-        ['music', null], ...(calm() ? [['cg', L + '2', 'still'], ['narr', 'Freya steps past you...']] : [
+        // The walk: her waltz plays on under slow cold steps, one step missing while her hand rests on your shoulder.
+        // With reduced motion it holds on the hand.
+        ...(calm() ? [['cg', L + '2', 'still'], ['narr', 'Freya steps past you...']] : [
           ['cg', L + '1', 'still'], ['sfx', 'coldsteps'], ['narr', 'Freya steps past you...'],
           ['cg', L + '2', 'still', 'cut'], ['wait', 1700],
           ['cg', L + '3', 'slow'], ['sfx', 'coldsteps'], ['wait', 2300], ['sfx', 'coldsteps'], ['wait', 1600]]),
@@ -47,12 +57,17 @@
         // smiling, as if nothing happened (Ladi, Oct 22: slow enough to see, uncanny). Then they run together, faster,
         // under the hiss, and stop on the pixel virus; then the real one. With reduced motion: B, then E.
         // The whole picture flickers like a broken neon sign from the first break until she settles on the real one.
+        // Her theme rots with it (Ladi, Oct 22): each break the waltz skips and sags lower, like a dying tape, and on
+        // the fast run it winds down to nothing. Then dead silence, even the ring, while the real one fades in from
+        // the serpent's head.
         ['fx', 'neon'],
-        ['flick', [[A, 360], [D, 1100]], []],
-        ['flick', [[B, 320], [D, 800]], []],
-        ['flick', [[C, 280], [A, 240], [D, 520]], []],
-        ['flick', [[B, 170], [C, 140], [A, 120], [B, 100], [C, 80], [A, 65], [E, 0]], [B, E], 'hiss'], ['narr', gold],
-        ['fx', 'unneon'], ['flick', [[F, 0]], [F]], ['narr', scales],
+        // And the game itself starts to break up in green blocks, more with each break (Ladi, Oct 22).
+        ['warp', 0.92, 0.6, 120], tiles(1), ['flick', [[A, 360], [D, 1100]], []],
+        ['warp', 0.8, 0.6, 160], tiles(2), ['flick', [[B, 320], [D, 800]], []],
+        ['warp', 0.66, 0.6, 200], tiles(3), ['flick', [[C, 280], [A, 240], [D, 520]], []],
+        ['warp', 0, 2.2], tiles(4), ['flick', [[B, 170], [C, 140], [A, 120], [B, 100], [C, 80], [A, 65], [E, 0]], [B, E], 'hiss'],
+        ['narr', gold],
+        ['fx', 'unneon'], tiles(0), ['ring', false, 3], toReal(), ['narr', scales],
         ['cg', G, 'slow'], say(e[6])
       ]);
     },

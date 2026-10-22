@@ -656,7 +656,7 @@
     U.system('CARD UPGRADED', 'Visibility Timeout starts upgraded in Expedition I.', 'gold');
     // Freya, on the poster.
     U.stage(null);
-    AU.music('freya');
+    AU.music('virus');
     await SD.vn.play([['cg', 'c2-postbox', 'in'],
       ['narr', 'Freya meets Mira at the silent post box. She doesn\'t come in person. She\'s on the poster, smiling.'],
       ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.']]);
