@@ -516,7 +516,8 @@
         notes: ['r6dr', 'r6page9'], sorts: ['r6mesh'], events: ['r6probe', 'r6lighthouse', 'r6quota'],
         intro: intro(['c6', 'keeper'], [null, 'The Far Shore, where everything the near shore does is kept twice: some of it burning, some of it banked, some of it in boxes.'], ['mate1', 'How much of it has to be running?'], ['lead', 'Depends what we can lose. And how long we can wait.']),
         outro: intro([null, 'The Lighthouse Keeper trims his lamp to exactly what you asked for, and not one candle more.'], ['lead', 'Pay for exactly what you need. Then test it.'], ['mate2', 'Mio said she\'d meet us at camp.']) })
-    ]),
+      // Balance (Ladi, 2026-10-21: a gentle rise across the chapter): just under the 0.85 default, the easiest (near 70% clean).
+    ], { sev: 0.84, dmg: 0.84 }),
     XP('r6relay', 'The Relay', 'Floors 87 to 93: where everything on one shore is copied to the other. The Copy Room, the Bridges, and the Sealed Twin.', 'Back to the jetty', [
       fl({ name: 'The Copy Room', gate: 'THE RELAY · THE COPY ROOM', beat: 'Every store copies itself to the far shore, each in its own way, and each a little late.', boss: 'splitbrain', bossTitle: 'The Split Brain', bossPack: { ids: ['splitbrain', 'splittwin'] }, fade: 0,
         plan: ROW.a, fights: ['lag', 'lastwriter', 'xread', { ids: ['lag', 'xread'] }, { ids: ['lastwriter', 'lag'] }], elites: ['gtable'],
@@ -529,11 +530,14 @@
         intro: intro([null, 'The Bridges: every town on the lake joined to every other, some through a hub in the middle, all of them with a toll booth.'], ['mate2', 'Chad would love this place.'], ['lead', 'Count the crossings.']),
         outro: intro([null, 'The Bridge Toll closes his booth. Most of the carts never needed to cross at all.'], ['lead', 'Most of what we paid for was crossing a bridge we didn\'t need.']) }),
       fl({ name: 'The Sealed Twin', gate: 'THE RELAY · THE SEALED TWIN', beat: 'Echoes of the whole band, twins rebuilt from the same image, and a key that lives on one shore.', boss: 'shadow', bossTitle: 'The Keeper\'s Shadow', bossPack: { ids: ['shadow', 'shadowtwin'] }, fade: 3,
+        // Balance (2026-10-21): the Shadow at 92% Severity. His floor wiped about half the bots, more than any Vault floor.
+        bossSev: 0.92,
         plan: ROW.a, fights: ['drift', 'onekey', { ids: ['oneaz', 'lag'] }, { ids: ['coin', 'tangle'] }, { ids: ['drift', 'natbill'] }], elites: ['immutablee'],
         notes: ['r6page10', 'r6clock'], sorts: ['r6keyuse'], events: ['r6kyukey', 'r6edgev', 'r6mioear'],
         intro: intro([null, 'The Sealed Twin: a copy of the whole band, every floor you\'ve climbed, sealed in glass. Something in it grins at you.'], ['mate1', 'Everything we fought. Again.'], ['lead', 'And something that\'s been watching.']),
         outro: intro([null, 'The Shadow goes back into the water, grinning. On the far shore, a ledger: "Copy 2 of Kyu. Key scheduled for deletion."'], ['lead', 'Two copies.'], ['mate2', 'Seymour\'s bunker. Now.']) })
-    ], { sev: 0.85, dmg: 0.88 }),
+      // Balance (2026-10-21): a touch under 0.85 and 0.88, with the Shadow softened above: the middle of the rise.
+    ], { sev: 0.84, dmg: 0.87 }),
     XP('r6vault', 'The Vault', 'Floors 94 to 99: Kagemaru\'s vault. The Ledger of Copies, the Lock Room, the Clock Room, and the Keeper\'s Room.', 'Out to the jetty', [
       fl({ name: 'The Ledger of Copies', gate: 'THE VAULT · THE LEDGER OF COPIES', beat: 'Copies with no labels, copies nobody tested, and who read the four prayers that night.', boss: 'archivists', bossTitle: 'The Archivist Twins', bossPack: { ids: ['archivists', 'archtwin'] }, fade: 4,
         plan: ROW.a, fights: ['unlabelled', 'untested', { ids: ['unlabelled', 'untested'] }, { ids: ['untested', 'lag'] }, 'drift'], elites: ['snapfreq'],
@@ -555,7 +559,8 @@
         notes: ['r6dr', 'r6lock', 'r6clock'], sorts: ['r6lockdel', 'r6keyuse', 'r6vault'], events: ['r6stall', 'r6files', 'r6kyukey'],
         intro: intro(['c6', 'confront'], [null, 'Twinwater\'s people line both shores to watch. Across the lake, in the water where Kagemaru\'s twin should be, your own reflection steps up.'], ['lead', 'That\'s me.']),
         outro: intro(['c6', 'after']) })
-    ], { sev: 0.88, dmg: 0.9 })
+      // Balance (2026-10-21): up from 0.88 and 0.9 to the chapter's hardest, about half clean (0.97 and 1.01 was a third).
+    ], { sev: 0.94, dmg: 0.97 })
   ]);
   // A { who: 'c6' } line is a cue for js/c6-world.js, not a line: 'keeper' asks the Lighthouse Keeper's RPO and RTO,
   // 'clock' and 'saved' play the Clock Room, 'confront' the evidence before Kagemaru, and 'after' what he does next.

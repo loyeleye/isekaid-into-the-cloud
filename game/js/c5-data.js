@@ -637,7 +637,9 @@
         notes: ['x5roles', 'x5eb'], sorts: ['x5task'], events: ['x5kaito', 'x5kagemaru', 'x5kyu8'],
         intro: intro(['c5', 'kaito'], [null, 'The Assembly Line: a conveyor through the whole floor, and fifty-two services along it, half of them smoking.'], ['mate2', 'Somebody built this as fifty-two pieces.'], ['dutch', 'Somebody\'s still up there on the gantry, pretending it\'s fine.']),
         outro: intro([null, 'The Line slows, and stops, and the servers under it are simply gone. The tasks keep running.'], ['kaito', 'I had it under control.', 'proud'], ['dutch', 'Sure you did, kid. Down the stairs. Camp\'s that way.']) })
-    ]),
+      // Balance (Ladi, 2026-10-21: chapters get harder in order): the Workshops were a 100% clear for bots; their Severity
+      // and load up to 1.1 and 1.2 bring it to about 85%, the easiest of the three.
+    ], { sev: 1.1, dmg: 1.2 }),
     XP('x5records', 'The Records Floors', 'Below the city, the floors where the Arcanum keeps its records: the Janitor\'s Closet, the Lecture Halls, the Healers\' Ward.', 'Back up to the city', [
       fl({ name: 'The Janitor\'s Closet', gate: 'THE RECORDS FLOORS · THE JANITOR\'S CLOSET', beat: 'Furniture the wards never see, pages rewritten after the fact, and a trail that logged every door.', boss: 'x5mop', bossTitle: 'The Mop Bucket', fade: 5,
         plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'board'], ['camp', 'event', 'fight'], ['fight', 'elite', 'notes'], ['notes', 'fight', 'board'], ['fight', 'event', 'fight'], ['camp', 'cafe', 'camp']],
@@ -657,7 +659,9 @@
         notes: ['x5chart', 'x5emf'], sorts: ['x5gate'], events: ['x5infirmary', 'x5freya', 'x5kagemaru'],
         intro: intro([null, 'The Healers\' Ward: rows of beds, charts at their feet, and one bed by the window, made up and empty.'], ['mira', 'I\'ve worked wards like this. You learn to read the charts before the faces.'], ['dutch', '...That\'s her bed.']),
         outro: intro(['c5', 'chart']) })
-    ], { sev: 0.85, dmg: 0.88 }),
+      // Balance (2026-10-21): up from 0.85 and 0.88 (a 100% clear) so the Night Nurse bites, to about two in three clean;
+      // she is steep, so small steps (0.9 and 0.96 was 50%).
+    ], { sev: 0.88, dmg: 0.93 }),
     XP('x5tower', 'The Astronomy Tower', 'Up the Arcanum\'s tower to floor 80: the Staff Stair, the Relay Floor, the Clocktower, and the Observatory at the top, rail and all.', 'Back down to the city', [
       fl({ name: 'The Staff Stair', gate: 'THE ASTRONOMY TOWER · THE STAFF STAIR', beat: 'A stair the wards can\'t see, a reader who leaves no trace, and the ward Lina turned on.', boss: 'x5stair', bossTitle: 'The Stair Itself', fade: 5,
         plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'board'], ['camp', 'event', 'fight'], ['fight', 'elite', 'notes'], ['notes', 'fight', 'board'], ['fight', 'event', 'fight'], ['camp', 'cafe', 'camp']],
@@ -683,7 +687,9 @@
         notes: ['x5shift', 'x5chart', 'x5relay'], sorts: ['x5release'], events: ['x5infirmary', 'x5relaymap', 'x5kagemaru'],
         intro: intro(['c5', 'confront'], [null, 'Freya\'s version of the Observatory, and yours, laid over each other. Everything she rebuilt tonight stands between you and the rail.'], ['dutch', 'Every ward on. Everyone recorded. Staff included.']),
         outro: intro(['c5', 'shift']) })
-    ], { sev: 0.88, dmg: 0.9 })
+      // Balance (2026-10-21): a step up from 0.88 and 0.9 (about 60% clean, too close to the Records Floors) so the Tower,
+      // with Midnight at the Clocktower, stays the chapter's peak.
+    ], { sev: 0.9, dmg: 0.93 })
   ]);
   // A { who: 'c5' } line is a cue for js/c5-world.js, not a line: 'kaito' before the Assembly Line, 'ledgers' after the
   // Closet (the trial's ledgers, the midpoint), 'chart' after the Ward, 'theo' before the Relay Floor, 'clock' before
