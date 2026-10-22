@@ -105,6 +105,11 @@
     ['dutch', 'You\'ve been in there.'],
     ['freya', 'I\'ve been everywhere on this mountain.']
   ];
+  // After Freya's exit (js/ch1-mountain.js, freyaExit): she comes apart into gold sparks that go up the cliff.
+  T.freyaGone = [
+    ['narr', 'Then she isn\'t there. A few gold sparks drift up the cliff face toward the upper trail, and go out.'],
+    ['lead', { mira: 'Did she just...?', kai: 'Okay. She can do that.', seoyeon: 'Where did she go?', dutch: 'She didn\'t walk.' }]
+  ];
   T.minesSoon = [
     ['narr', 'The cave is dark and goes a long way in. Somewhere ahead, water drips on stone, and something says "Denied" in a small, satisfied voice.'],
     ['narr', 'The Deny Mines are still being dug. For now the four of you feel your way through to the upper mouth.']

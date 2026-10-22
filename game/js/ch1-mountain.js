@@ -97,6 +97,7 @@
     prop('tollhut', 13, 36, 3, 2); prop('bench', 2, 43, 2, 1); prop('sign', 3, 46);
     prop('stove', 29, 37, 3, 2); prop('ledgesign', 25, 32, 2, 1, { solid: false });
     prop('cave', 15, 27, 3, 2); prop('rockfall', 14, 25, 5, 2, { solid: true });
+    set(16, 28, 'C');   // the way into the mines, in the middle of the cave mouth, at the trail's end
     prop('cave', 15, 22, 3, 1, { upper: true });
     prop('station', 28, 21, 3, 2); prop('station', 28, 10, 3, 2, { top: true });
     prop('rangerhut', 10, 10, 3, 2); prop('bench', 19, 5, 2, 1); prop('flag', 17, 2, 1, 1);
@@ -586,10 +587,97 @@
   // ---------- The Deny Mines ----------
   async function rockfall() {
     AU.music('freya');
+    // Freya steps up beside the cave mouth, in view, to see you in.
+    const P = sc.P, fr = sc.actors.freya;
+    if (fr && !fr.hidden) {
+      const tx = P.x + 2;
+      if (Math.abs(fr.x - tx) + Math.abs(fr.y - 30) > 8) sc.place('freya', tx, 30);
+      else await Promise.race([walk('freya', tx, 30), wait(2500)]);
+      fr.scripted = true;   // and stays there through the talk, rather than falling back in behind you
+      faceTo('freya', 'you'); faceTo('you', 'freya');
+    }
     await say(T.rockfall);
+    await freyaExit();
+    await say(T.freyaGone);
     setFlag('m_rock');
     applyState();
     AU.music('road');
+  }
+  // She can't come in ("The Free Tier doesn't cover caves"), so she leaves the way she'll meet them at the top: by
+  // assuming a role. Her picture slips twice, like a bad signal, and the second time it's the goddess she'll be in
+  // camp for a frame or two (the reveal's glitch through her masks, early and easy to miss). Then she comes apart
+  // from the feet up into gold motes that stream up the cliff toward the lift. Reduced motion: a plain fade.
+  async function freyaExit() {
+    const a = sc.actors.freya;
+    if (!a || a.hidden) return;
+    a.scripted = true; a.path = []; faceTo('freya', 'you');
+    const draw = a.draw, look = a.look, name = a.name, now = () => performance.now() / 1000;
+    const done = () => { a.hidden = true; a.draw = draw; a.look = look; a.name = name; a.o = null; a.scripted = false; };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      for (let k = 9; k >= 0; k--) { a.o = { alpha: k / 10 }; await wait(60); }
+      return done();
+    }
+    let slip = 0, cut = 0, at = null, said = 0;
+    const motes = [];
+    a.draw = (ctx, fx, fy, ts, t) => {
+      at = [fx, fy, ts];
+      const top = fy - ts * 2.2, bot = fy + ts * 0.2 - cut * ts * 2.4, n = slip ? 4 : 1, h = (bot - top) / n;
+      if (bot <= top) return;
+      // The picture in bands; when it slips, each band jumps sideways on its own.
+      for (let i = 0; i < n; i++) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(fx - ts * 1.5, top + i * h, ts * 3, h + 0.5); ctx.clip();
+        if (slip) ctx.translate(((i * 7 + Math.floor(t * 40)) % 5 - 2) * ts * 0.07, 0);
+        draw(ctx, fx, fy, ts, t);
+        ctx.restore();
+      }
+      // Motes come off the edge as it rises.
+      if (cut > 0) for (let k = 0; k < 3; k++) motes.push({ x: fx + (Math.random() - 0.5) * ts * 0.7, y: bot, t0: now(), d: 1.3 + Math.random() * 0.9, j: Math.random() * 6.3 });
+    };
+    const fxDraw = (ctx, t, ts) => {
+      if (!at) return;
+      const tn = now(), tx = 29.5 * ts, ty = 21 * ts;
+      ctx.save();
+      for (let i = motes.length - 1; i >= 0; i--) {
+        const m = motes[i], p = (tn - m.t0) / m.d;
+        if (p >= 1) { motes.splice(i, 1); continue; }
+        // Up the cliff first, then across to the lift station: a curve through a point high above where she stood.
+        const e = p * p * (3 - 2 * p), cx = m.x + (tx - m.x) * 0.15, cy = m.y - ts * 4;
+        const x = (1 - e) * (1 - e) * m.x + 2 * (1 - e) * e * cx + e * e * tx + Math.sin(m.j + p * 9) * ts * 0.12 * (1 - p);
+        const y = (1 - e) * (1 - e) * m.y + 2 * (1 - e) * e * cy + e * e * ty;
+        const al = Math.min(1, p * 6) * (1 - p), r = ts * (0.07 - p * 0.03);
+        ctx.globalAlpha = al * 0.25; ctx.fillStyle = '#ffe9a0';
+        ctx.beginPath(); ctx.arc(x, y, r * 2.6, 0, 7); ctx.fill();
+        ctx.globalAlpha = al; ctx.fillStyle = '#ffd34d';
+        ctx.beginPath(); ctx.moveTo(x, y - r * 1.4); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * 1.4); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill();
+      }
+      // The call she makes, hanging where she stood.
+      if (said) {
+        const p = (tn - said) / 2.2;
+        if (p < 1) {
+          const [fx, fy] = at;
+          ctx.globalAlpha = Math.min(1, p * 5) * (1 - p * p);
+          ctx.font = `700 ${Math.round(ts * 0.34)}px Fredoka, sans-serif`; ctx.textAlign = 'center';
+          ctx.lineWidth = ts * 0.09; ctx.strokeStyle = INK; ctx.fillStyle = '#ffd34d';
+          ctx.strokeText('sts:AssumeRole', fx, fy - ts * (2.5 + p * 0.6)); ctx.fillText('sts:AssumeRole', fx, fy - ts * (2.5 + p * 0.6));
+        }
+      }
+      ctx.restore();
+    };
+    sc.fx.push(fxDraw);
+    try {
+      await wait(300);
+      AU.sfx('tick'); slip = 1; await wait(90); slip = 0; await wait(450);
+      AU.sfx('tick'); slip = 1; a.look = 'freya'; await wait(80); a.look = look; await wait(70); slip = 0; await wait(400);
+      AU.sfx('sparkle'); said = now(); a.name = null;
+      const t0 = now();
+      while ((cut = (now() - t0) / 1.4) < 1) await wait(16);
+      cut = 1; a.hidden = true;
+      await wait(2300);
+    } finally {
+      sc.fx = sc.fx.filter(g => g !== fxDraw);
+      done();
+    }
   }
   async function cave() {
     if (flag('m_mines')) { sc.place('you', 16, 24); return; }

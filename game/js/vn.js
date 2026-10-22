@@ -242,7 +242,8 @@
     return new Promise(res => {
       advance = res;
       if (skipping) { res(); return; }
-      if (reduce()) { finishTyping(); return; }
+      // With reduced motion the line shows at once (finishTyping only finishes a line that started typing).
+      if (reduce()) { textEl.textContent = full; root.classList.add('vn-ready'); return; }
       let i = 0, n = 0;
       typing = setInterval(() => {
         i += 1; textEl.textContent = full.slice(0, i);
