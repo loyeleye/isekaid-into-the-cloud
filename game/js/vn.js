@@ -462,6 +462,13 @@
       for (const id of slow || [frames[frames.length - 1][0]]) { setLayer('.vn-cg', id, 'still'); await sleep(skipping ? 0 : 1200); }
       return;
     }
+    // Load every still first, so a short cut never shows an empty frame.
+    await Promise.all([...new Set(frames.map(f => f[0]))].map(id => {
+      const src = (V.art.scenes[id] || {}).src || (V.art.scenes[id] || {}).sheet;
+      if (!src) return null;
+      const im = new Image(); im.src = src;
+      return im.decode().catch(() => {});
+    }));
     if (sound) sfx(sound);
     for (const [id, ms] of frames) { setLayer('.vn-cg', id, 'still', true); if (ms) { sfx('tick'); await sleep(ms); } }
   }
