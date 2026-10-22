@@ -371,7 +371,7 @@
       ['show', 'dutch', 'neutral', 'right'],
       ['dutch', 'What\'s it mean?', 'neutral'],
       ['lina', 'Good night. Obviously.', 'smile'],
-      ['bg', 'c5-wall'], ['hide', 'lina'], ['hide', 'dutch'],
+      ['bg', 'c5-wall'], ['cut', 'three-one-four'], ['hide', 'lina'], ['hide', 'dutch'],
       ['narr', 'That night she taps three, one, four on the wall between their rooms. He taps it back.'],
       ['lina', 'It\'s pi!', 'happy'],
       ['narr', 'He thinks she means pie.'],
