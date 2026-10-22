@@ -333,7 +333,7 @@
   // What a phone held upright keeps in frame (js/vn.js, focus), as a percentage across the still; the rest are
   // centred. Each c still shares its shot's focus, so the glitch cut only changes the person.
   const FOCUS = { m1: 40, m2: 45, m2b: 48, m2c: 48, m3: 34, m3a: 55, m3c: 55, k1: 52, k2: 70, k2b: 48, k2c: 66, k3: 70,
-    k3a: 47, k3c: 47, s0a: 39, s0b: 73, s2: 46, s5: 79, s3: 57, s6: 23, s7a: 79, s7c: 79, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
+    k3a: 47, k3c: 47, s0a: 39, s0b: 73, s2: 46, s5: 79, s3: 43, s6: 23, s7a: 79, s7c: 79, d1: 40, d1b: 45, d1c: 45, d2: 42, d3: 36 };
   // Freya comes to Mira in a dream (the Story Bible), so her kitchen shots play through a dream haze.
   const DREAM = ['m3', 'm3a', 'm3c'];
   SD.vn.addScenes(Object.fromEntries(Object.entries(STILL).map(([id, label]) => [id, { src: 'assets/img/vn/' + id + '.webp', label,
