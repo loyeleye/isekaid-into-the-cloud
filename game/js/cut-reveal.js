@@ -9,8 +9,8 @@
   const IMG = 'assets/img/cut/';
   const still = (id, label) => ['cut-' + id, { src: IMG + id + '.webp', label: id.replace(/-/g, ' ') + (label ? ': ' + label : '') }];
   // The locked pose: A, C and E are the pixel twins of B, D and F (the same frame, converted), so they line up.
-  // G to I are the virus after she settles; H2 is the promoter in H's pose, for one frame.
-  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', H: 'one finger raised', H2: 'promoter, finger raised', I: 'the basket' };
+  // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, for one frame.
+  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', I: 'the basket' };
   SD.vn.addScenes(Object.fromEntries([
     ...[1, 2, 3, 4, 5].map(n => still('reveal-' + n)),
     ...['mira', 'kai', 'seoyeon', 'dutch'].flatMap(l => [1, 2, 3, 4].map(n => still('reveal-' + l + '-' + n))),
@@ -18,7 +18,7 @@
     ...Object.entries(PAINTED).map(([k, label]) => ['rv-' + k, { src: IMG + 'reveal-' + k + '.webp', label: 'reveal ' + k + ': ' + label }])
   ]));
   const A = 'cut-reveal-glitch-1', C = 'cut-reveal-glitch-2', E = 'cut-reveal-glitch-3';
-  const [B, D, F, G, H, H2, I] = ['B', 'D', 'F', 'G', 'H', 'H2', 'I'].map(k => 'rv-' + k);
+  const [B, D, F, G, G2, H, H2, I] = ['B', 'D', 'F', 'G', 'G2', 'H', 'H2', 'I'].map(k => 'rv-' + k);
   const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const me = () => (SD.state.save.c1 && SD.state.save.c1.lead) || 'mira';
   // Ways to try the last cut, from the pixel virus to the real one, and the green glitch tiles over the breaks, picked
@@ -75,7 +75,8 @@
       const w = T.wipe;
       return SD.vn.play([
         ['cg', 'cut-reveal-' + me() + '-4', 'in'], say(w[0]),
-        ['cg', G, 'still'], say(w[1]),
+        // "I never said I'd leave them there": the smile gone, a closed-mouth grimace (Ladi, Oct 22).
+        ['cg', G2, 'still'], say(w[1]),
         ['cg', 'cut-reveal-5', 'slow'], say(w[2]), say(w[3]),
         // One finger, and Uptima turns to static; for one frame, the friendly camp face.
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 70], [H, 0]]], say(w[4]),
