@@ -388,6 +388,7 @@
     await say([[null, 'Floor 81: Twinwater. A town on both shores of a lake so still it\'s a mirror. Every house has a twin across the water.'],
       [null, 'A fisher waves. On the far shore, a moment later, another fisher waves the same wave.'],
       ['lead', { mira: 'Nobody here looks like they\'ve ever been sad, love. That\'s not a good sign.', kai: 'Everyone\'s smiling. Everyone. Even the fish guy.', seoyeon: 'Nobody here has ever been alone. I can tell from how they stand.', dutch: 'Every one of them has a backup. Freya\'s own town. Of course.' }],
+      [null, 'Freya\'s voice, over the water: "Twinwater is now in two Regions! Nothing of mine can ever be lost. Isn\'t that nice?" Across the lake, a moment later, she says it again.'],
       [others()[0], 'The jetty. Someone\'s waiting at the end of it.', 'neutral']]);
     setFlag('arrive');
   }
@@ -403,6 +404,7 @@
       : [id, { mira: 'No. He\'d hate being remembered by you.', kai: 'Hana was never a recipe.', seoyeon: 'I\'ve met Jin\'s Echo. It said his lines without him. No.', dutch: 'No. Lina was real. That\'s the whole point of her.' }[id], 'cold'])),
     ['lead', { mira: 'No, love.', kai: 'No.', seoyeon: 'No.', dutch: 'No.' }, 'cold'],
     ['freya', 'Free, my loves. Whenever you change your minds.', 'smile'],
+    ['narr', 'Dutch reads the fine print on the jetty\'s brass plate, in tiny gold letters: RESTORED FROM THE LATEST AVAILABLE COPY. COPIES MAY DIFFER FROM THE ORIGINAL.'],
     ['narr', 'She goes. At the jetty\'s end, someone has set up a stall, and he is in a wonderful mood.']]), { music: 'freya', note: 'Freya, as cheerful as ever.' });
   async function offer() {
     await cut.play('offer');
@@ -411,6 +413,13 @@
   }
   async function stall() {
     if (flag('xp3')) return choice();
+    if (flag('reveal') && !flag('spot')) {
+      setFlag('spot');
+      return say([[null, 'The stall is packed up. One price tag is still pinned to the cloth: SPOT PINS, UP TO 90% OFF. MAY BE RECLAIMED WITH TWO MINUTES\' NOTICE.'],
+        ['dutch', 'Spot. He could take back every one of them, any time he liked. He told us so on the tag.', 'stone'],
+        ['mira', 'And we bought them anyway, love.', 'sad'],
+        ['dutch', 'Every pin was a bet on both.', 'stone']]);
+    }
     if (!flag('stall')) {
       mus('c6culprit');
       await say([['kagemaru', 'So close to the top! I\'ve marked everything down. You\'ll want it all for the last floors. Ah ha ha.', 'amused'],
@@ -421,7 +430,7 @@
       await addCard('r6-markdown', 'A GIFT FROM THE STALL');
       return say([[null, 'Marked Down: exactly what you need, and it costs the team 3 SLA every time you play it.']]);
     }
-    return say([['kagemaru', rnd(['Everything must go! Including, eventually, you. Ah ha ha.', 'Two of everything, in Twinwater. Except me. There\'s only ever one of me.', 'Buy now. Prices only go up, closer to the top.']), 'amused']]);
+    return say([['kagemaru', rnd(['Everything must go! Including, eventually, you. Ah ha ha.', 'Two of everything, in Twinwater. Except me. There\'s only ever one of me.', 'Buy now. Prices only go up, closer to the top.', 'Reserved pins! Commit for three chapters, save up to 72%.', 'Spot pins! Up to 90% off. I may take them back with two minutes\' notice. Ah ha ha.']), 'amused']]);
   }
   async function mioEar() {
     if (flag('mio')) return say([['mio', rnd(['That one\'s pretending. Shh.', 'I\'ll come to camp after the stairs. I can help with the relay.']), 'smile']]);
@@ -452,6 +461,8 @@
   async function notice() {
     await say([[null, flag('freed') ? 'The notice board: "Twinwater Relay Station, at the camp below. Come and say how you are. Somebody will listen."' : 'The notice board: "Twinwater: twice as safe. Every house, every shop, every one of you, kept on both shores. With love, Freya."'],
       ['lead', { dutch: 'Twice as safe. Same account, though. Same hands.', other: 'Two of everything. One owner.' }]]);
+    if (flag('reveal') && !flag('freed')) await say([[null, 'Beside it, a fresh wanted poster: just a hood and a grin. Under the reward, in a neat hand, someone has written a better price.'],
+      ['kai', 'He\'s bidding on himself.', 'neutral']]);
     setFlag('notice');
   }
   // Twinwater's people: whatever one says, the twin across the water says a moment later.
@@ -462,6 +473,18 @@
   async function villager(id) {
     const base = id.replace(/^f/, '');
     if (flag('freed')) return say([[base, FREED[base], 'sad']]);
+    if (flag('echo') && !flag('echo2')) {
+      setFlag('echo2');
+      return say([['kai', 'Your bread\'s stale.', 'smirk'], [base, '...', 'smile'],
+        [null, 'Across the lake, a second later, the twin flinches.'],
+        ['kai', 'Even my insults are eventually consistent here.', 'neutral']]);
+    }
+    if (flag('echo2') && !flag('echo3')) {
+      setFlag('echo3');
+      return say([['dutch', 'You two said different things a minute ago. Which of you is lying?', 'stone'],
+        [null, 'Both shores, at once: "Him."'],
+        ['dutch', 'Last writer wins, then.', 'tired']]);
+    }
     const line = rnd(ECHO[base]);
     await say([[base, line, 'smile'], [null, `Across the water, a moment later, the same voice: "${line}"`]]);
     setFlag('echo');
@@ -729,6 +752,11 @@
       await say([['mio', 'Six of them, from the lake. Listen with me. Some of them are lying.', 'earnest']]);
       const r = await G.sort(G.DEF.beats);
       setFlag('heartbeat'); R.gainXp(r.first === r.of ? 30 : 15);
+      await say([[null, 'Down the hill, Marrow\'s bell rings. A twin sneezed. It rings again: Kai\'s toast. Again: the cat.'],
+        ['mio', 'It rings for every little thing, so nobody listens. Make it ring only when two things are wrong at once. The heartbeat stops AND the queue backs up.', 'earnest'],
+        ['seoyeon', 'A composite alarm. Built from the other alarms.', 'neutral'],
+        [null, 'They wire it. The bell is quiet all evening.'],
+        ['marrow', 'First quiet night in three chapters.', 'neutral']]);
       await addCard('r6-calc');
       await addCard('r6-heartbeat', 'PLOT DEVICE: MIO\'S HEARTBEAT');
       return U.system('FAILOVER LIFTED', 'No more Failover cards in your decks.', 'gold');
@@ -788,8 +816,12 @@
     ['hide', 'kagemaru'],
     ['seymour', 'The copies you carry still work. But that one was the original, and I can\'t make it again.', 'neutral'],
     ['narr', 'In the ledger he left on the case: what else is in his vault. Kyu\'s second copy, newer than the tape, made on the night of the vault. Freya has scheduled its KMS key for deletion. The waiting period has days left.']]), { music: 'c6culprit', note: 'The tape, and someone already inside.' });
+  SD.vn.addScenes({ 'seymours-notes-4': { sheet: 'assets/img/cut/seymours-notes.webp', frame: 3, frames: 4, label: 'seymours-notes-4' } });
+  cut.def('note', 'Seymour\'s note', () => vn([['cg', 'seymours-notes-4', 'in'], ['narr', 'Seymour\'s bunker. You knock, and a note slides out under the hatch: "NOT YET. WHEN YOU\'VE EARNED IT. — S."']]),
+    { note: 'Before the bunker opens.' });
   async function bunker() {
-    if (!flag('xp2')) return say([[null, 'Seymour\'s bunker: a steel dome, a sign that says NO VISITORS, and a slot.'], ['seymour', flag('camp') ? 'Not yet. When you\'ve earned it.' : 'Go away. Politely.', 'neutral']]);
+    if (!flag('xp2') && flag('camp')) return cut.play('note');
+    if (!flag('xp2')) return say([[null, 'Seymour\'s bunker: a steel dome, a sign that says NO VISITORS, and a slot.'], ['seymour', 'Go away. Politely.', 'neutral']]);
     if (flag('reveal')) return say([['seymour', 'I made copies of everything, every night, for forty years. That one I couldn\'t copy. It was the original.', 'neutral']]);
     mus('c6culprit'); AU.sfx('x-lock');
     await cut.play('bunker');
@@ -826,6 +858,11 @@
   }
   async function fire() {
     if (!flag('camp')) return say([[null, 'A camp fire, banked low.']]);
+    if (!flag('cat6')) {
+      setFlag('cat6');
+      return say([[null, 'The marsh cat is sitting by the lake, staring at the other cat in the water. The other cat stares back, a moment late.'],
+        [null, 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." Both cats ignore all of them.']]);
+    }
     return say([[others()[0], rnd(['Sit. The lake can wait one evening.', 'Seymour hasn\'t come out of the bunker all day.', 'Mio says the camp sounds honest. I\'ll take it.']), 'warm']]);
   }
   async function ashgrove() {
@@ -835,6 +872,7 @@
         ['ashgrove', 'Tell me again. Slowly. I have time, now. I find I have nothing else.', 'sad']]);
       return setFlag('ashgrove');
     }
+    if (!flag('seconds')) { setFlag('seconds'); return say([[null, 'Lord Ashgrove holds his empty bowl out to Kai without looking up.'], ['ashgrove', 'Seconds.', 'stone'], ['kai', 'Yes, chef.', 'neutral']]); }
     return say([['ashgrove', rnd(['This stew is terrible. More.', 'Caspian would have liked this camp. He would have hated the food.']), 'stone']]);
   }
 
@@ -855,7 +893,7 @@
     ['narr', 'The relay station opens. Mio sits at the front, with her ear to the counter.'],
     ['show', 'mio', 'smile', 'center'], ['mio', 'They\'re all honest now. It\'s really loud.', 'smile']]), { music: 'c6sad', note: 'The end of Chapter 6.' });
   async function choice() {
-    if (flag('choice')) return say([[null, { vault: 'The vault door is shut. Someone inside is humming.', least: 'Kagemaru\'s stall is open at camp. Every sale goes in the log.', run: 'Kagemaru waves from the camp. He has a very nice new tent.' }[c6().choice]]]);
+    if (flag('choice')) return say([[null, { vault: 'The vault door is shut. Someone inside is humming.', least: 'Kagemaru\'s stall is open at camp. Every sale goes in the log. His only stool is the wobbly chair.', run: 'Kagemaru waves from the camp. He has a very nice new tent.' }[c6().choice]]]);
     await cut.play('switched');
     const ch = await new Promise(res => {
       const b = U.panel(`<p>How do you contain the man who sold you everything? <span class="muted small">${esc(NAME(lead()))} decides alone.</span></p>

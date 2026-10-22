@@ -23,7 +23,8 @@
     ['narr', 'Floor 21: Halcyon, rebuilt as the tower\'s stores, beautiful and well fed under a dome of gold light.'],
     ['narr', 'The barrier. It hums. Everyone here grew up under it, and nobody looks up.'],
     ['kai', 'I know this place. I know every street of this place.', 'grief'],
-    ['narr', 'In the cathedral, bells start. They ring every night for the crowning of the twelfth Saint. It\'s in the template.']];
+    ['narr', 'In the cathedral, bells start. They ring every night for the crowning of the twelfth Saint. It\'s in the template.'],
+    ['narr', 'Then Freya\'s voice, from everywhere, bright as a shop: "The Granaries are now on demand! Pay only for what you eat!"']];
   T.heart = [['bg', 'c3-square'], ['show', 'kai', 'grief', 'right'],
     ['narr', 'The heart of the barrier, in the square. Kai puts his hand on it, the cracked hand that unmakes things.'],
     ['narr', 'And feels his sister. Warm, and everywhere, holding the city up.'],
@@ -61,9 +62,11 @@
   T.jar = [['bg', 'c3-camp'], ['show', 'freya', 'neutral', 'left'], ['show', 'kai', 'neutral', 'right'],
     ['freya', 'A gift, love. A single strand of her, in a jar. Warm, see?', 'neutral'],
     ['freya', 'A little piece of her. A sample. There\'s more where that came from.', 'warm'],
-    ['narr', 'It\'s real. Kai puts it on the shelf over the stove, and doesn\'t look at it.']];
+    ['narr', 'It\'s real. Kai puts it on the shelf over the stove, and doesn\'t look at it.'],
+    ['narr', 'Dutch turns the jar\'s label over. In very small gold print: SAMPLE SIZE. FULL SIZE SOLD SEPARATELY.'],
+    ['narr', 'Freya leaves her usual card on the stove: "How likely are you to recommend the Free Tier to a friend? 0 to 10." Kai adds it to the kindling.']];
   T.aurelian = [['bg', 'c3-camp'], ['show', 'aurelian', 'tired', 'left'], ['show', 'kai', 'anger', 'right'],
-    ['narr', 'Sir Aurelian comes to camp once, at night, without his armour.'],
+    ['narr', 'Sir Aurelian comes to camp once, at night, without his armour. Dutch gives him the wobbly chair. He sits in it as straight as a knight should, and it wobbles.'],
     ['aurelian', 'I know the cathedral\'s records. I know they were changed. Let me help you. Once.', 'tired'],
     ['kai', 'You drew from her. Every night.', 'anger'],
     ['aurelian', 'I did. Let me help you anyway.', 'grief'],

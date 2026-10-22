@@ -289,6 +289,8 @@
       ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.'],
       ['narr', 'Mira doesn\'t answer.'],
       ['freya', 'Take your time. Everything here does.'],
+      ['narr', 'Under the poster, in very small gold print: DELIVERY IS FREE. POSTAGE IS THORNWICK\'S GRANTS, PAYABLE FOREVER.'],
+      ['dutch', 'Always read the small print. Hers especially.', 'stone'],
       ['hide', 'mira'], ['bg', 'c2-floors'],
       ['narr', 'Up the stair are the Sorting Floors: the halls where Thornwick\'s letters go to be processed, and never come out.']
     ],
@@ -721,7 +723,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
       text: 'In a sorting bin, under a drift of returned mail, is Pip: a small, polite packet who has never been answered and is very sorry to be a bother. "They tried me three times," he says, "and then they put me in here. Is that bad?"',
       choices: [
         { label: 'SQS deletes a letter after three failures, so you shouldn\'t exist', out: 'SQS never deletes a letter for failing. Only a DeleteMessage call, or the end of the retention period, removes one. Pip looks worried. The team loses 5 SLA.', fx: { sla: -5 } },
-        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', out: 'Pip: "Set aside. For someone to look at. Oh." He climbs into your satchel. You get a Dead-Letter Queue card.', fx: { card: 'dlq' } },
+        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', out: 'Pip: "Set aside. For someone to look at. Oh." Then, apologising: "They didn\'t even reset my clock when they moved me." Dutch: "Standard queue. Your age comes with you, so the dead-letter queue has to keep you longer than the queue you came from." Pip climbs into your satchel. You get a Dead-Letter Queue card.', fx: { card: 'dlq' } },
         { label: 'You\'re in a FIFO queue, waiting your turn', out: 'He isn\'t waiting his turn. He failed, more times than the redrive policy allows.', fx: {} }] },
     'c2-pigeon': { id: 'c2-pigeon', title: 'Coo\'s Lost Pigeon', who: null, per: true,
       text: 'A pigeon flies in a minute late with a sack of letters for the archive, then another a minute after that. A note in Coo\'s hand: "The archive takes them in batches, never one at a time, and never loses one. What does that remind you of?"',

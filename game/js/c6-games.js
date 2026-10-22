@@ -300,22 +300,24 @@
   // Chad's quest: Mirror Everything Premium, Chad's Receipt.
   DEF.receipt = {
     title: 'CHAD\'S RECEIPT · MIRROR EVERYTHING PREMIUM', concept: 'costnet', card: 'r6-gwend',
-    intro: 'Chad the Consultant is selling Twinwater a third twin, and here\'s his invoice for the first two. Wen has circled nothing yet. <b>Find the five lines that shouldn\'t be there.</b>',
+    intro: 'Chad the Consultant is selling Twinwater a third twin, and here\'s his invoice for the first two. Wen has circled nothing yet. <b>Find the seven lines that shouldn\'t be there.</b>',
     predict: P('Private instances copy files to S3 in the same Region through a NAT gateway. What\'s the cheapest fix?', [
       ['A gateway endpoint for S3: no charge, and off the NAT', true], ['A bigger NAT gateway', false, 'Bigger costs the same per gigabyte, and more per hour.'], ['An interface endpoint for S3', false, 'That works, but it has an hourly and per-gigabyte charge. The gateway endpoint is free.']],
       'Gateway endpoints for S3 and DynamoDB cost nothing and sit in the route table, so that traffic never touches the NAT gateway\'s per-gigabyte charge.'),
-    need: 5,
+    need: 7,
     lines: [{ t: 'NAT gateway data processing: 2 TB a day of S3 traffic', cost: '$90/day', bad: true, why: 'Same-Region S3 traffic can take a free gateway endpoint instead.' },
       { t: 'Cross-AZ transfer: every zone\'s instances use one NAT in AZ a', cost: '$41/day', bad: true, why: 'A NAT gateway in each AZ keeps each zone\'s traffic in its zone.' },
       { t: 'The test twin, full size, 24 hours a day', cost: '$212/day', bad: true, why: 'Nobody tests at night. Switch it off out of hours, or schedule it.' },
       { t: 'A third twin in a third Region, "for luck"', cost: '$1,400/mo', bad: true, why: 'Two Regions already meet the RPO and RTO. Luck isn\'t a requirement.' },
       { t: 'On-Demand price for the stair that has run every hour all year', cost: '$880/mo', bad: true, why: 'Steady use like this is what a Savings Plan is for: a commitment for a discount.' },
+      { t: 'Synergy consulting', cost: '$4,000/mo', bad: true, why: 'Nobody can say what it is. That\'s the line Wen circles twice.' },
+      { t: 'Synergy consulting (replica)', cost: '$4,000/mo', bad: true, why: 'Chad mirrored his own invoice line, too.' },
       { t: 'The warm standby in the second Region, at a quarter size', cost: '$310/mo', bad: false, why: 'That\'s the recovery plan. It meets the RTO.' },
       { t: 'S3 Replication Time Control on the diary bucket', cost: '$0.015/GB', bad: false, why: 'The diary\'s RPO is 15 minutes: RTC is what promises it.' },
       { t: 'Route 53 health checks on both stairs', cost: '$1/mo', bad: false, why: 'Failover needs them.' },
       { t: 'Data transfer in from the internet', cost: '$0.00', bad: false, why: 'Data in is free, and the line says so.' },
       { t: 'CloudFront in front of the far shore\'s pictures', cost: '$0.085/GB', bad: false, why: 'Cached at the edge, fewer gigabytes out of the origin.' }],
-    done: 'Five lines struck. Wen tags every line that\'s left with who it belongs to. Chad says this is "a really exciting conversation".'
+    done: 'Seven lines struck. Wen tags every line that\'s left with who it belongs to. Chad says this is "a really exciting conversation".'
   };
   // The lake road's gate: how each store crosses to the far shore.
   DEF.lake = {
