@@ -102,7 +102,7 @@
     prop('rangerhut', 10, 10, 3, 2); prop('bench', 19, 5, 2, 1); prop('flag', 17, 2, 1, 1);
     // Trees low down, cairns high up.
     [[7, 47], [11, 47], [20, 47], [2, 41], [9, 41], [20, 42], [24, 41], [31, 43], [12, 37], [21, 37], [27, 36], [31, 36], [3, 32], [8, 31], [21, 31], [26, 31]].forEach(([x, y]) => { if (g[y][x] === '.') prop('pine', x, y); });
-    [[19, 23], [24, 23], [21, 25], [11, 12], [19, 14], [4, 9], [8, 6], [13, 5], [21, 8]].forEach(([x, y]) => { if (g[y][x] === '.') prop('cairn', x, y); });
+    [[19, 23], [24, 23], [21, 25], [19, 14], [4, 9], [8, 6], [13, 5], [21, 8]].forEach(([x, y]) => { if (g[y][x] === '.') prop('cairn', x, y); });
     return g;
   })();
   const MAP = G.map(r => r.join(''));
@@ -316,7 +316,7 @@
     thing('board', 20, 58, 'Notice board');
     thing('trailmap', 13, 58, 'Trail map');
     thing('locker', 25, 47, 'Ranger\'s locker');
-    thing('keeper', 16, 37, 'Toll keeper');
+    thing('keeper', 14, 38, 'Toll keeper');   // at the hut's window, beside the trail (the hut itself is solid)
     thing('ledge', 26, 32, 'Painted rock');
     thing('lift', 27, 23, 'Lift station');
     thing('motor', 30, 23, 'Lift motor');
