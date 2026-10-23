@@ -9,10 +9,10 @@
   const IMG = 'assets/img/cut/';
   const still = (id, label) => ['cut-' + id, { src: IMG + id + '.webp', label: id.replace(/-/g, ' ') + (label ? ': ' + label : '') }];
   // The locked pose: A, C and E are the pixel twins of B, D and F (the same frame, converted), so they line up.
-  // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, for one frame.
+  // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, flashed twice.
   const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', I: 'the basket' };
   SD.vn.addScenes(Object.fromEntries([
-    ...[1, 2, 3, 4, 5].map(n => still('reveal-' + n)),
+    ...[1, 2, 3, '3b', 4, 5].map(n => still('reveal-' + n)),
     ...['mira', 'kai', 'seoyeon', 'dutch'].flatMap(l => [1, 2, 3, 4].map(n => still('reveal-' + l + '-' + n))),
     ...['A', 'C', 'E'].map((k, i) => ['cut-reveal-glitch-' + (i + 1), { sheet: IMG + 'reveal-glitch.webp', frame: i, frames: 3, label: 'reveal ' + k }]),
     ...Object.entries(PAINTED).map(([k, label]) => ['rv-' + k, { src: IMG + 'reveal-' + k + '.webp', label: 'reveal ' + k + ': ' + label }])
@@ -42,7 +42,9 @@
         ['music', null],
         ['cg', 'cut-reveal-1', 'slow'], say(e[0]),
         ['cg', 'cut-reveal-2', 'slow'], say(e[1]),
+        // "We did it!" while they still face the altar; then, for a beat, their faces over her clapping shoulder (Ladi, Oct 22).
         ['music', 'freya'], ['cg', 'cut-reveal-3', 'in'], say(e[2]),
+        ['cg', 'cut-reveal-3b', 'still', 'cut'], ['wait', 1600],
         // The walk: her waltz plays on under slow cold steps, one step missing while her hand rests on your shoulder.
         // With reduced motion it holds on the hand.
         ...(calm() ? [['cg', L + '2', 'still'], ['narr', 'Freya steps past you...']] : [
@@ -77,8 +79,9 @@
         // "I never said I'd leave them there": the smile gone, a closed-mouth grimace (Ladi, Oct 22).
         ['cg', G2, 'still'], say(w[1]),
         ['cg', 'cut-reveal-5', 'slow'], say(w[2]), say(w[3]),
-        // One finger, and Uptima turns to static; for one frame, the friendly camp face.
-        ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 70], [H, 0]]], say(w[4]),
+        // One finger, and Uptima turns to static; the friendly camp face flashes through twice (Ladi, Oct 22: once was
+        // too quick to catch).
+        ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 100], [H, 160], [H2, 100], [H, 0]]], say(w[4]),
         ['cg', I, 'in'], say(w[5]), say(w[6])
       ];
     }

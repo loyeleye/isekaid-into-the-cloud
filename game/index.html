@@ -1141,6 +1141,8 @@ body { background: var(--bg); }
 /* Sprites stand on the bottom edge, behind the text box. */
 #vn .vn-cast { position: absolute; inset: 0; pointer-events: none; }
 #vn.vn-incg .vn-cast { opacity: 0; transition: opacity .6s; }
+/* Under a still the drawn backdrop is never seen, even for a frame. */
+#vn.vn-incg .vn-bg { visibility: hidden; }
 #vn .vn-spr { position: absolute; bottom: 0; left: 50%; height: min(88vh, 150vw); transform: translateX(-50%) translateY(16px); opacity: 0; transition: left .6s ease, opacity .6s ease, transform .6s ease, filter .4s; display: flex; align-items: flex-end; justify-content: center; }
 #vn .vn-spr.on { opacity: 1; transform: translateX(-50%); }
 #vn .vn-spr[data-pos="left"] { left: 28%; }

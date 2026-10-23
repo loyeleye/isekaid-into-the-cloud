@@ -419,7 +419,10 @@
   const has = id => id === lead() || others().includes(id);
 
   // ---------- The story ----------
-  cut.def('edge-camp', 'The edge of the Cloud', () => [
+  // The climb-only slice (js/vec-ch2.js) has its own version of this scene, which plays with no arg: the viewer lists
+  // the two as one cutscene with both versions.
+  const climbEdge = SD.reel.get('2/edge');
+  cut.def('edge', 'The edge of the Cloud', v => (v !== 'camp' ? SD.reel.steps(climbEdge) : [
       ['hide', 'bram'], ['hide', 'mira'], ['bg', 'c2-edge'],
       ['narr', 'The edge of the Cloud, the night after the wipe. The floor just stops. Below it there\'s nothing at all.'],
       ['show', 'kai', 'anger', 'left'],
@@ -432,9 +435,9 @@
       ['hide', 'seoyeon'], ['show', 'mira', 'tired', 'right'],
       ['mira', 'Enough. Sit down, all of you. Eat something.', 'tired'],
       ['narr', 'Mira holds them together for nearly an hour. Then she can\'t. Freya\'s gift basket is still lying where it fell.']
-    ], { note: 'The night after the wipe, before you walk.' });
+    ]), { note: 'The night after the wipe.', alts: [['Before you walk', 'camp'], ['The climb', undefined]] });
   async function opening() {
-    await cut.play(['cold', ['fx', 'black'], 'edge-camp']);
+    await cut.play(['cold', ['fx', 'black'], 'edge'], 'camp');
     setFlag('cold');
   }
   async function notYet() {
