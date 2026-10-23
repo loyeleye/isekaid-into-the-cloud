@@ -57,7 +57,7 @@
   function predict(b, p, concept) {
     return new Promise(res => {
       const box = document.createElement('div'); box.className = 'g6-predict';
-      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${p.opts.map((o, i) => `<button class="opt" data-p="${i}">${esc(o.t)}</button>`).join('')}</div><p class="g6-note"></p>`;
+      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${shuffle(p.opts.map((o, i) => i)).map(i => `<button class="opt" data-p="${i}">${esc(p.opts[i].t)}</button>`).join('')}</div><p class="g6-note"></p>`;
       b.appendChild(box);
       box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
         const o = p.opts[+el.dataset.p];

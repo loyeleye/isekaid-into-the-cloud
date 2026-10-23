@@ -1020,7 +1020,7 @@
   W.enter = function () {
     W.on = true;
     SD.ch1.halt();
-    ['c2world', 'c3world', 'c4world', 'c5world'].forEach(k => { if (SD[k] && SD[k].halt && SD[k] !== W) SD[k].halt(); });
+    ['c2world', 'c3world', 'c4world', 'c5world', 'c7world'].forEach(k => { if (SD[k] && SD[k].halt && SD[k] !== W) SD[k].halt(); });
     SD.ch1.dress();
     SD.main.show('world');
     $('#w-canvas').setAttribute('aria-label', 'Twinwater on floor 81: the near shore, the jetty over the mirror lake, the far shore, and the camp');

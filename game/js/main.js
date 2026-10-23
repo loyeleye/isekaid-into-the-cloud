@@ -50,7 +50,7 @@
   M.menu = menu;
   // Stop every chapter's walkable scene before a fresh save, so none keeps running (or holding the controls) underneath.
   M.haltWorlds = function () {
-    ['ch1m', 'ch1', 'c2world', 'c2xworld', 'c3world', 'c4world', 'c5world', 'c6world'].forEach(k => { if (SD[k] && SD[k].reset) SD[k].reset(); });
+    ['ch1m', 'ch1', 'c2world', 'c2xworld', 'c3world', 'c4world', 'c5world', 'c6world', 'c7world'].forEach(k => { if (SD[k] && SD[k].reset) SD[k].reset(); });
     const d = $('#dialog'); if (d) d.hidden = true;
   };
   function menu() {
