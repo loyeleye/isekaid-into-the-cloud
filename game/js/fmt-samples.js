@@ -1,0 +1,183 @@
+// Sample items for the question formats (docs/question-formats.md), two per type, for game/fmt-lab.html and as
+// worked examples of the schema. The real items live in js/fmt-items-*.js. Ids 90 and up are kept for samples.
+// Facts checked against the AWS docs linked in each item (October 2026). Check with: node tools/format_check.js
+window.SD = window.SD || {};
+SD.fmtItems = SD.fmtItems || [];
+SD.fmtItems.push(
+  // ---- compare ----
+  { id: 'fmt-compare-90', type: 'compare', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '2.3', saa: '1.3' }, topic: 'secrets',
+    title: 'Where the password lives',
+    q: 'An app reads its Amazon RDS database password at startup. Security wants the password changed every 30 days without anyone writing rotation code.',
+    cols: ['AWS Secrets Manager', 'Parameter Store (SecureString)', 'AWS KMS'],
+    rows: ['What it stores', 'Rotation', 'Cost'],
+    cells: [
+      ['Secrets such as database credentials and API keys', 'Configuration values, optionally encrypted', 'Encryption keys, not secret values'],
+      ['Automatic rotation on a schedule, with ready-made RDS rotation functions', 'No built-in rotation', 'Optional automatic rotation of its own key material'],
+      ['Per secret per month, plus API calls', 'Standard parameters at no additional charge', 'Per key per month, plus API calls']],
+    a: 0, key: 1,
+    no: [null, 'A SecureString parameter can hold the password, but Parameter Store has no built-in rotation, so you would write and schedule it yourself.', 'KMS rotates the key material of a KMS key. It doesn\'t store or change a database password.'],
+    why: 'Secrets Manager rotates a secret on a schedule, updating both the secret and the database, and provides ready-made Lambda rotation functions for Amazon RDS. Parameter Store is cheaper for plain configuration but leaves rotation to you.',
+    doc: ['https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html', 'https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_available-rotation-templates.html', 'https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html', 'https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html'],
+    eli5: 'Secrets Manager is the guild locksmith who changes the vault code every month and tells your party the new one. Parameter Store is a notice board: handy, free, but nobody changes what you pinned.' },
+
+  { id: 'fmt-compare-91', type: 'compare', tracks: ['DVA-C02'], task: { dva: '1.1' }, topic: 'lambda',
+    title: 'Cap the function',
+    q: 'A Lambda function writes to a small database that falls over above 50 connections. The function must never run more than 50 copies at once.',
+    cols: ['Reserved concurrency', 'Provisioned concurrency', 'Unreserved account concurrency'],
+    rows: ['Limits how far it scales', 'Removes cold starts', 'Extra charge'],
+    cells: [
+      ['Yes: the reserved number is also its maximum', 'No', 'No'],
+      ['No: it can scale past the provisioned amount', 'Yes, for the environments it keeps ready', 'Yes'],
+      ['No: it shares the account pool with other functions', 'No', 'No']],
+    a: 0, key: 0,
+    no: [null, 'Provisioned concurrency keeps environments initialized to cut cold starts. It doesn\'t stop the function from scaling beyond that number.', 'The shared pool lets the function scale up to the account\'s limit, far past 50.'],
+    why: 'Reserved concurrency sets aside that many executions for the function and also stops it from scaling past them, at no extra charge.',
+    doc: ['https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html', 'https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html'],
+    eli5: 'Reserved concurrency is a party size cap: exactly 50 seats are yours, and nobody can squeeze in a 51st. Provisioned concurrency is warming up 50 heroes before the raid, but more can still join.' },
+
+  // ---- seq ----
+  { id: 'fmt-seq-90', type: 'seq', tracks: ['DVA-C02'], task: { dva: '3.4' }, topic: 'codedeploy', platform: 'Lambda',
+    title: 'Lambda deployment events',
+    q: 'Put the lifecycle events of a CodeDeploy deployment to a Lambda alias in the order they run.',
+    steps: ['BeforeAllowTraffic', 'AllowTraffic', 'AfterAllowTraffic'],
+    decoys: [
+      { t: 'BeforeInstall', no: 'An EC2/On-Premises and Amazon ECS hook. A Lambda deployment shifts alias traffic and has no install step.' },
+      { t: 'ValidateService', no: 'The last hook of an EC2/On-Premises deployment. On Lambda, validation after the shift goes in AfterAllowTraffic.' }],
+    why: 'A Lambda deployment runs BeforeAllowTraffic, shifts the alias to the new version (AllowTraffic), then runs AfterAllowTraffic. Only the two hooks can run your functions; AllowTraffic can\'t be scripted.',
+    doc: ['https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html'],
+    eli5: 'Check the bridge before the party crosses, let them cross, then count heads on the other side.' },
+
+  { id: 'fmt-seq-91', type: 'seq', tracks: ['DVA-C02'], task: { dva: '3.4' }, topic: 'codedeploy', platform: 'EC2/On-premises',
+    title: 'In-place hooks on EC2',
+    q: 'An in-place CodeDeploy deployment updates EC2 instances that already run an earlier revision, with no load balancer. Put the hooks you can script in the order they run.',
+    steps: ['ApplicationStop', 'BeforeInstall', 'AfterInstall', 'ApplicationStart', 'ValidateService'],
+    decoys: [
+      { t: 'AfterAllowTestTraffic', no: 'An Amazon ECS blue/green hook that runs after the test listener serves the replacement task set. EC2 deployments don\'t have it.' }],
+    why: 'ApplicationStop runs first, from the previous revision\'s AppSpec file. The agent then downloads and installs the bundle between BeforeInstall and AfterInstall, and ApplicationStart and ValidateService finish the deployment.',
+    doc: ['https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html'],
+    eli5: 'Close the shop, clean up, stock the new goods, arrange them, open the doors, then check the first customer gets served.' },
+
+  // ---- predict ----
+  { id: 'fmt-predict-90', type: 'predict', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '1.1', saa: '2.1' }, topic: 'sqs',
+    title: 'The slow worker',
+    setup: 'A worker on EC2 receives a message from an SQS standard queue whose visibility timeout is 30 seconds. The job takes 90 seconds, and the worker deletes the message when it finishes.',
+    q: 'What happens to the message while the worker is still busy?',
+    opts: ['It becomes visible again and another worker can receive it', 'It stays hidden until the worker deletes it', 'It moves to the dead-letter queue'],
+    a: 0,
+    no: [null, 'SQS hides a message only for the visibility timeout. It doesn\'t know the worker is busy unless the worker calls ChangeMessageVisibility.', 'A message moves to a dead-letter queue only after more receives than maxReceiveCount, and only if the queue has a redrive policy.'],
+    reveal: 'After 30 seconds the message is visible again. A second worker receives it while the first is still working, so the job runs twice.',
+    anim: 'visibility',
+    why: 'Set the visibility timeout longer than the job takes, or extend it with ChangeMessageVisibility while you work. Standard queues deliver at least once, so make the work idempotent anyway.',
+    doc: ['https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html'],
+    eli5: 'You took a quest from the board, but the board only hides it for 30 seconds. Take too long and someone else grabs the same quest.' },
+
+  { id: 'fmt-predict-91', type: 'predict', tracks: ['DVA-C02'], task: { dva: '1.3' }, topic: 'dynamodb',
+    title: 'Read right after write',
+    setup: 'A function calls PutItem to update a user\'s score in DynamoDB, then immediately calls GetItem for the same key with the default settings.',
+    q: 'What can the GetItem call return?',
+    opts: ['The item as it was before the update', 'Always the new score, because the write has finished', 'A ProvisionedThroughputExceededException until the write settles'],
+    a: 0,
+    no: [null, 'Reads are eventually consistent by default and may not reflect a write that just completed. Set ConsistentRead to true for a strongly consistent read.', 'That error means requests exceed the table\'s capacity. It has nothing to do with a write settling.'],
+    reveal: 'The default read is eventually consistent, so it can return the old score. Repeating the read after a short time returns the new one.',
+    why: 'GetItem, Query and Scan are eventually consistent unless you set ConsistentRead to true, which costs twice the read capacity.',
+    doc: ['https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html'],
+    eli5: 'You saved the game, but the other save slot hasn\'t synced yet. Look again in a moment, or ask for the slot you just wrote.' },
+
+  // ---- spot ----
+  { id: 'fmt-spot-90', type: 'spot', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '2.1', saa: '1.1' }, topic: 'iam', lang: 'json',
+    title: 'The download that fails',
+    q: 'This identity policy on a role should let it download any object in report-bucket, but GetObject calls get AccessDenied. Which line is wrong?',
+    lines: ['{', '  "Version": "2012-10-17",', '  "Statement": [', '    {', '      "Effect": "Allow",', '      "Action": "s3:GetObject",', '      "Resource": "arn:aws:s3:::report-bucket"', '    }', '  ]', '}'],
+    bad: 6,
+    reasons: ['GetObject acts on objects, so the ARN needs /*', 'The Version must be the date the policy was written', 'An Allow statement needs a Principal element'],
+    a: 0,
+    fix: '      "Resource": "arn:aws:s3:::report-bucket/*"',
+    no: [null, '2012-10-17 is the current version of the policy language, not a date to update.', 'Identity-based policies can\'t use Principal; the role they are attached to is the principal.'],
+    why: 'Object actions such as s3:GetObject need an object ARN (bucket/*). The bucket ARN alone matches bucket actions such as s3:ListBucket.',
+    doc: ['https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-arn-format.html', 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_version.html', 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html'],
+    eli5: 'You got a key to the library building, but each book is locked in its own case. You need the key that says "every book inside".' },
+
+  { id: 'fmt-spot-91', type: 'spot', tracks: ['DVA-C02'], task: { dva: '3.4' }, topic: 'codedeploy', lang: 'yaml',
+    title: 'The AppSpec that won\'t deploy',
+    q: 'This AppSpec file is for a CodeDeploy deployment that shifts a Lambda alias to a new version. Which line is wrong?',
+    lines: ['version: 0.0', 'Resources:', '  - OrdersFunction:', '      Type: AWS::Lambda::Function', '      Properties:', '        Name: "orders-api"', '        Alias: "live"', '        CurrentVersion: "4"', '        TargetVersion: "5"', 'Hooks:', '  - BeforeInstall: "CheckOrdersBefore"', '  - AfterAllowTraffic: "CheckOrdersAfter"'],
+    bad: 10,
+    reasons: ['Lambda deployments have no BeforeInstall hook', 'A hook must name its function by full ARN', 'The version must be 1.0 for Lambda'],
+    a: 0,
+    fix: '  - BeforeAllowTraffic: "CheckOrdersBefore"',
+    no: [null, 'A hook names the Lambda function to run, and the AWS examples use a plain function name.', 'Every AppSpec file uses version 0.0. It is reserved by CodeDeploy for future use.'],
+    why: 'A Lambda AppSpec file can only use the BeforeAllowTraffic and AfterAllowTraffic hooks. BeforeInstall belongs to EC2/On-Premises and Amazon ECS deployments.',
+    doc: ['https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html', 'https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure.html'],
+    eli5: 'You wrote "before unpacking the tent" in the plan for a trip that stays at an inn. That step doesn\'t exist on this trip.' },
+
+  // ---- recall ----
+  { id: 'fmt-recall-90', type: 'recall', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '2.1', saa: '1.1' }, topic: 'iam',
+    title: 'Inside a statement',
+    q: 'Name the elements you can put inside an IAM policy statement.',
+    answers: [
+      { t: 'Effect', alt: [] },
+      { t: 'Action', alt: ['NotAction', 'actions'] },
+      { t: 'Resource', alt: ['NotResource', 'resources'] },
+      { t: 'Condition', alt: ['conditions'] },
+      { t: 'Principal', alt: ['NotPrincipal'] },
+      { t: 'Sid', alt: ['statement id'] }],
+    decoys: [
+      { t: 'Version', no: 'Version belongs to the policy as a whole, outside the Statement block.' },
+      { t: 'Region', no: 'There is no Region element. Limit Regions with a Condition on aws:RequestedRegion.' }],
+    need: 4,
+    why: 'A statement is built from Effect, Action, Resource and optional Condition, with Principal in resource-based policies and an optional Sid label. Version and Id sit at the top of the policy.',
+    doc: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements.html', 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html'],
+    eli5: 'Every rule card says who it\'s for, allow or deny, which moves, on which targets, and when it applies.' },
+
+  { id: 'fmt-recall-91', type: 'recall', tracks: ['DVA-C02'], task: { dva: '1.1' }, topic: 'lambda',
+    title: 'What Lambda polls',
+    q: 'Name the services Lambda reads from with an event source mapping.',
+    answers: [
+      { t: 'Amazon SQS', alt: ['SQS', 'Simple Queue Service'] },
+      { t: 'Amazon Kinesis', alt: ['Kinesis', 'Kinesis Data Streams'] },
+      { t: 'Amazon DynamoDB Streams', alt: ['DynamoDB', 'DynamoDB Streams', 'DDB Streams'] },
+      { t: 'Amazon MSK', alt: ['MSK', 'Managed Streaming for Apache Kafka'] },
+      { t: 'Self-managed Apache Kafka', alt: ['Kafka', 'Apache Kafka', 'self managed Kafka'] },
+      { t: 'Amazon MQ', alt: ['MQ', 'ActiveMQ', 'RabbitMQ'] },
+      { t: 'Amazon DocumentDB', alt: ['DocumentDB', 'DocDB'] }],
+    decoys: [
+      { t: 'Amazon SNS', no: 'SNS pushes each message to Lambda as an asynchronous invoke. There is no poller.' },
+      { t: 'Amazon S3', no: 'S3 event notifications invoke the function asynchronously; nothing polls the bucket.' }],
+    need: 3,
+    why: 'With an event source mapping, Lambda runs pollers that read batches from the source and invoke your function. Services that push events, such as SNS and S3, invoke it directly instead.',
+    doc: ['https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html'],
+    eli5: 'Some quest givers come to your door (SNS, S3). For others, you send a runner to check their board over and over (the pollers).' },
+
+  // ---- faded ----
+  { id: 'fmt-faded-90', type: 'faded', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '2.2', saa: '1.3' }, topic: 'kms',
+    title: 'Envelope encryption',
+    q: 'Encrypt a 5 MB file with a KMS key.',
+    steps: [
+      { t: 'Call GenerateDataKey for the KMS key', why: 'KMS returns a plaintext data key and a copy encrypted under the KMS key. Encrypt itself takes at most 4,096 bytes.',
+        opts: ['Call GenerateDataKey for the KMS key', 'Call Encrypt with the whole file', 'Call CreateKey for the file'] },
+      { t: 'Encrypt the file locally with the plaintext data key', why: 'KMS can\'t use a data key itself; you encrypt outside KMS, for example with the AWS Encryption SDK.',
+        opts: ['Encrypt the file locally with the plaintext data key', 'Send the file and data key to KMS to encrypt', 'Encrypt the file with the encrypted data key'] },
+      { t: 'Remove the plaintext data key from memory', why: 'Only the encrypted copy of the data key should outlive the operation.',
+        opts: ['Remove the plaintext data key from memory', 'Save the plaintext data key next to the file', 'Rotate the KMS key'] },
+      { t: 'Store the encrypted data key with the encrypted file', why: 'To decrypt later, pass the encrypted data key to Decrypt, then decrypt the file locally.',
+        opts: ['Store the encrypted data key with the encrypted file', 'Add the encrypted data key to the key policy', 'Delete the encrypted data key'] }],
+    why: 'Envelope encryption: KMS protects a small data key, and the data key protects the large file. You store the encrypted data key with the data.',
+    doc: ['https://docs.aws.amazon.com/kms/latest/developerguide/data-keys.html', 'https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html'],
+    eli5: 'Lock the treasure chest with a small key, then lock that small key in the bank vault and tape the vault receipt to the chest.' },
+
+  { id: 'fmt-faded-91', type: 'faded', tracks: ['DVA-C02', 'SAA-C03'], task: { dva: '2.1', saa: '1.1' }, topic: 'sts',
+    title: 'Cross-account access',
+    q: 'Let an app in account A read an S3 bucket in account B, with no long-term keys from account B.',
+    steps: [
+      { t: 'In account B, create a role whose trust policy trusts account A', why: 'The trust policy says who may assume the role; its permissions policy grants access to the bucket.',
+        opts: ['In account B, create a role whose trust policy trusts account A', 'In account B, create an IAM user and share its access keys', 'In account A, add account B to the app\'s trust policy'] },
+      { t: 'In account A, allow the app\'s role to call sts:AssumeRole on that role', why: 'Both sides must agree: account B trusts account A, and account A grants its own principal the permission to assume.',
+        opts: ['In account A, allow the app\'s role to call sts:AssumeRole on that role', 'In account A, attach AmazonS3FullAccess to the app\'s role', 'In account A, call GetSessionToken'] },
+      { t: 'The app calls AssumeRole with the role\'s ARN', why: 'STS returns temporary credentials for the role in account B.',
+        opts: ['The app calls AssumeRole with the role\'s ARN', 'The app calls AssumeRoleWithWebIdentity', 'The app calls GetFederationToken'] },
+      { t: 'The app calls S3 with the temporary credentials', why: 'Requests made with them act as the role in account B until they expire.',
+        opts: ['The app calls S3 with the temporary credentials', 'The app calls S3 with its own role\'s credentials', 'The app stores the credentials in Parameter Store for a year'] }],
+    why: 'Cross-account access uses a role: account B trusts account A in the role\'s trust policy, account A allows sts:AssumeRole, and the app works with the temporary credentials AssumeRole returns.',
+    doc: ['https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html', 'https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html'],
+    eli5: 'The other guild lists your guild on its guest pass, your guild master lets you use it, and you get a visitor badge that expires.' }
+);
