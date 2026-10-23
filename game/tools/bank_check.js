@@ -26,7 +26,7 @@ const EXAMS = {
 };
 
 function load() {
-  const files = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /^bank-.*\.js$/.test(f)).sort();
+  const files = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /^bank-.*\.js$/.test(f) && !/-eli5\.js$/.test(f)).sort();
   const ctx = { console };
   ctx.window = ctx; vm.createContext(ctx);
   const fileOf = new Map();
@@ -65,10 +65,12 @@ function check(q, ids) {
     }
   } else if (q.type === 'multi') {
     const items = q.items || [], right = items.filter(i => i.ok);
-    if (items.length < 5) p.push('multi needs 5 or more items');
-    if (q.hint !== 'Select TWO.' || right.length !== 2) p.push('multi should be "Select TWO." with exactly 2 right items');
+    // Select TWO has 2 right items of 5 or more; Select THREE has 3 right items of 6 or more.
+    const k = q.hint === 'Select THREE.' ? 3 : 2, word = k === 3 ? 'THREE' : 'TWO';
+    if (items.length < k + 3) p.push(`multi needs ${k + 3} or more items`);
+    if (!['Select TWO.', 'Select THREE.'].includes(q.hint) || right.length !== k) p.push('multi should be "Select TWO." with exactly 2 right items, or "Select THREE." with exactly 3');
     if (items.some(i => !i.ok && !i.no)) p.push('every wrong item needs a no line');
-    if (!q.q.includes('(Select TWO.)')) p.push('stem should end with (Select TWO.)');
+    if (!q.q.includes(`(Select ${word}.)`)) p.push(`stem should end with (Select ${word}.)`);
     if (right.length && right.length < items.length && items.every(i => typeof i.t === 'string')) {
       const r = T.multi(items);
       if (r.clear) p.push(`right items are clearly longer (${r.note})`);
@@ -94,7 +96,8 @@ function spread(bank) {
     const pos = [0, 1, 2, 3].map(i => mcs.filter(q => q.a === i).length);
     const untouched = E.tasks.filter(t => !qs.some(q => q[key] === t));
     out.push(`${E.name}: ${qs.length} questions (${qs.filter(q => q.exam === 'both').length} shared). ${doms.join(', ')}.`);
-    out.push(`  Select TWO: ${multi} (${Math.round(100 * multi / qs.length)}%). Right answer longest in ${longest} of ${mcs.length} single-answer questions. Tasks with no question yet: ${untouched.join(', ') || 'none'}.`);
+    const three = qs.filter(q => q.type === 'multi' && q.hint === 'Select THREE.').length;
+    out.push(`  Multi-answer: ${multi} (${Math.round(100 * multi / qs.length)}%, ${three} of them Select THREE). Right answer longest in ${longest} of ${mcs.length} single-answer questions. Tasks with no question yet: ${untouched.join(', ') || 'none'}.`);
     out.push(`  Right answer position as written (the game shuffles): ${pos.join(' / ')}`);
   }
   return out.join('\n');
