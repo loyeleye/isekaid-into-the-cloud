@@ -604,10 +604,12 @@
     // vector only, so hide it for the run (its glyphs and plain floor stand in) and put it back after.
     const painted = SD.dungeonArt; SD.dungeonArt = null;
     // The fight stage's backdrop is the painted battle art too (js/raid.js); in vector mode a stylesheet puts the
-    // expedition's drawn scene over it, so the painted file is never fetched.
+    // expedition's own scene over it (a PixelLab still, centred so the fire stays between the fighters), so the
+    // battle file is never fetched. A stylesheet's url() isn't rewritten by the published page's image pack, hence assetUrl.
     const K = SD.vec, BACK = { cold: 'c3-kitchen', abyss: 'c3-abyss', cathedral: 'c3-gallery', regent: 'c3-gallery' };
-    const vback = K && K.on && K.scenes && K.scenes[BACK[id]] ? document.head.appendChild(Object.assign(document.createElement('style'), {
-      textContent: `.rd-stage{background-image:url("${K.scenes[BACK[id]]}") !important}` })) : null;
+    const vsrc = K && K.scenes && K.scenes[BACK[id]], vurl = vsrc && SD.assetUrl ? SD.assetUrl(vsrc) : vsrc;
+    const vback = K && K.on && vsrc ? document.head.appendChild(Object.assign(document.createElement('style'), {
+      textContent: `.rd-stage{background-image:url("${vurl}") !important;background-size:cover !important;background-position:center bottom !important}` })) : null;
     let won = false, hub = null, dir = null;
     const onEnd = r => { won = !!(r && r.won); };
     const story = extra => Object.assign({ story: true, label: 'Borderlands', xp: id, champNames: true, deckFor, pickQ, say,

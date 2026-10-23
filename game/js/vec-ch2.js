@@ -444,7 +444,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
 .vv-t tr.dm td { color: #ff8a9a; } .vv-t tr.gone td { text-decoration: line-through; opacity: .45; } .vv-t tr.cur td:first-child::after { content: " ← latest"; color: #7fe0a0; }
 #vn .vn-opts.col { flex-direction: column; } #vn .vn-opts.col button { background: #2a2a40; text-align: left; }
 #vn .vn-opts.col button[disabled] { opacity: .4; }
-#stage .vstage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#stage .vstage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
 .sd-letters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 10px 0; }
 .sd-letters .opt { padding: 10px 4px; min-height: 44px; text-align: center; font: 700 13px ui-monospace, monospace; }
 .sd-letters .opt.bad { box-shadow: inset 0 0 0 3px #d63a3a; }
