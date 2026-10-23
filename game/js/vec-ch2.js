@@ -359,7 +359,7 @@
     ]);
   }
   const PAIRS = {
-    tof: { title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
+    tof: { cut: 'three-one-four-cart', title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
       full: [
         ['narr', 'Later. The others are asleep, or pretending. Dutch taps the cart wall out of habit: three, one, four. Then he stops. That\'s what Freya tapped, in Lina\'s voice. From the other side of the cart, Seo-yeon taps it back.'],
         ['seoyeon', 'What does it mean?', 'neutral'],
@@ -370,7 +370,7 @@
       walk: 'You can\'t sleep. On either side of the cart\'s plank wall, two people can\'t either, and one of them has just tapped back.',
       camp: 'At the fire, Dutch taps the log he\'s sitting on without meaning to: three, one, four. Across the fire, Seo-yeon taps it back.',
       from: 1, inner: { dutch: [3, '(She tapped it back. Nobody has, since Lina.)'], seoyeon: [2, '(He doesn\'t know he does it. Neither did I, the first time.)'] } },
-    unmake: { title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
+    unmake: { cut: 'unmake-it', title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
       full: [
         ['narr', 'Tilly walks on. Mira watches the grey coat until it turns the corner. Kai pulls off his glove and holds up the cracked hand.'],
         ['kai', 'One touch. I take it off you, and the kid looks at you and sees you.', 'earnest'],
@@ -381,7 +381,7 @@
       walk: 'You catch them up by the well. Kai has his glove off, and his cracked hand held up between them.',
       camp: 'At the fire, Kai turns his glove over and over. Then he pulls it off, and holds up the cracked hand to Mira.',
       from: 1, inner: { kai: [2, '(It would work. I know it would work.)'], mira: [3, '(She looked straight through me. Better that than knowing me.)'] } },
-    sunlight: { title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
+    sunlight: { cut: 'sunlight', title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
       full: [
         ['narr', 'The marsh path, at noon. The sun comes off the water all at once; Seo-yeon squints, and her eyes go red. Mira, whose own left eye is amber and slit, holds up a hand to shade her.'],
         ['mira', 'People look at the eye first. Let them. Then they look at your hands, and that\'s where you tell them who you are.', 'warm'],
@@ -406,7 +406,9 @@
       if (k >= 0) lines[k] = [me, lines[k][1] + ' ' + t, lines[k][2]]; else lines.splice(Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]);
     }
     lines[0] = [lines[0][0], P.title.toUpperCase() + ' · ' + lines[0][1]].concat(lines[0].slice(2));
-    return [['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]];
+    // At camp the opening line is told at the fire, so no cue opens the cutscene's stills: name it and start on its first.
+    const stills = where === 'camp' ? [['cut', P.cut], ['cg', 'cut-' + P.cut + '-1']] : [];
+    return [['bg', where === 'camp' ? 'c2-fire' : P.bg], ...stills, ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]];
   }
   Object.keys(PAIRS).forEach(id => cut.def('pair-' + id, 'Pair scene: ' + PAIRS[id].title, where => pairSteps(id, where),
     { music: PAIRS[id].music, alts: [['Where it happens', null], ['Caught up at camp', 'camp']] }));
