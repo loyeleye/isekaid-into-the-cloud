@@ -50,6 +50,8 @@
     // own SAA-only question is skipped and counts as passed, so whatever it gates still opens.
     if (SD.exam && !opts.noSwap) {
       if (SD.exam.skips(q)) {
+        // Close whatever panel the question would have replaced (a minigame's), as an answered question does.
+        U.closePanel();
         U.system('STICKY NOTE', U.esc(SD.exam.SKIP_NOTE));
         return Promise.resolve({ ok: true, conf: 1, ms: 0, score: q.points ? q.points.length : null, skipped: true });
       }
