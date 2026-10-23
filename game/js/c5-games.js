@@ -358,7 +358,8 @@
       I('A physics service that needs a GPU, all day', 2, 'Fargate offers no GPUs; an accelerated EC2 instance does.'),
       I('A service whose only job is to check that the health-check service is up', 3, 'The load balancer\'s health checks already do this.'),
       I('A thumbnail maker triggered by each upload, a second each', 0, 'Short, event-driven, and idle most of the time.'),
-      I('A second copy of the orders service, "just in case"', 3, 'Run more tasks of one service instead, across AZs.')],
+      I('A second copy of the orders service, "just in case"', 3, 'Run more tasks of one service instead, across AZs.'),
+      I('Two services that only call each other, and nothing else calls either', 3, 'A loop with a bill attached. If nothing outside needs them, they go.')],
     done: 'Seven machines where there were fifty-two, and the bill is a fraction. Kaito insists he was about to do exactly this.'
   };
   // Kaito's quest, part two: the two roles.

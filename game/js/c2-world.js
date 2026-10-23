@@ -564,8 +564,19 @@
     for (let x = 63; x <= 65; x++) setTile(x, 20, 'b');
     U.flash(); AU.sfx('door');
   }
+  // Seymour's notes under the hatch: one pixel still per note (assets/img/cut/seymours-notes.webp; the fourth is chapter 6's).
+  SD.vn.addScenes(Object.fromEntries([1, 2, 3, 4].map(i => ['seymours-notes-' + i, { sheet: 'assets/img/cut/seymours-notes.webp', frame: i - 1, frames: 4, label: 'seymours-notes-' + i }])));
+  const NOTES = ['NOT HOME. — S.', 'STILL NOT HOME. — S.', 'HATCH IS FOR TAPES. HAVE YOU GOT A TAPE? THEN NOT HOME. — S.'];
+  cut.def('seymours-notes', 'Seymour\'s notes', (n = 1) => [['cg', 'seymours-notes-' + n, 'in'],
+    ['narr', 'You knock. After a moment a note slides out under the hatch, in neat capitals:'], ['narr', '"' + NOTES[n - 1] + '"']],
+    { note: 'He answers every knock in writing now.', alts: [['First note', 1], ['Second note', 2], ['Every note after', 3]] });
   async function bunker() {
-    if (flag('seymour')) return say([['seymour', 'Hatch is for tapes. Have you got a tape? Then go away.']]);
+    if (flag('seymour')) {
+      // From now on he answers every knock in writing, under the hatch. The last note is the one he keeps sending.
+      const n = c2().notes = Math.min((c2().notes || 0) + 1, NOTES.length);
+      S.persist();
+      return cut.play('seymours-notes', n);
+    }
     AU.music('kyu');
     await say([
       ['narr', 'A steel dome, a sign that says NO VISITORS, and no handle on the outside. You knock.'],
@@ -614,6 +625,15 @@
     await Promise.race([walkTo('wren', 72, 25, 2.6), wait(1500)]);
   }
   async function fire() {
+    if (flag('fire') && !flag('cootwice')) {
+      setFlag('cootwice');
+      return say([
+        ['coo', 'Letter for Mr Kane!', 'smile'], ['dutch', 'Thanks.', 'neutral'],
+        ['coo', 'Letter for Mr Kane!', 'smile'], ['dutch', 'Got this one.', 'stone'],
+        ['coo', 'Standard delivery, sir! At least once. For exactly once you want my FIFO window: I remember every letter for five minutes, and a repeat in that time isn\'t delivered.', 'smile'],
+        ['dutch', 'And after five minutes?', 'stone'],
+        ['coo', 'Then it\'s a new letter, sir. I have a pigeon\'s memory. Exactly five minutes of it.', 'neutral']]);
+    }
     if (flag('fire')) return say([['coo', rnd(['Letterhead! I\'ll need letterhead.', 'The Free Cloud. Has a ring to it. A delivery ring.', 'At least once. That\'s my promise.']), 'smile']]);
     if (!(flag('coo') && flag('seymour') && flag('wren'))) return say([['narr', 'A ring of stones by the tower wall, where a fire ought to be.']]);
     W2.dusk = true;
@@ -640,13 +660,17 @@
     await say([
       ['narr', 'Thornwick, rebuilt as the tower\'s first floor: the village as it was, every morning, forever.'],
       ['narr', 'People wait at the post box for replies that never come. In the bell tower, someone is pulling a rope, and nothing rings.'],
-      ['mira', { mira: '...Home.', other: 'Thornwick. It\'s exactly how I left it. That\'s what\'s wrong with it.' }, 'tired']
+      ['mira', { mira: '...Home.', other: 'Thornwick. It\'s exactly how I left it. That\'s what\'s wrong with it.' }, 'tired'],
+      ['narr', 'Among the Inquisition\'s posters is a new one: THE BEAST OF THORNWICK. REWARD.'],
+      ['mira', 'They\'ve drawn the wrong arm.', 'tired']
     ]);
   }
   cut.def('postbox', 'Freya on the poster', [['cg', 'c2-postbox', 'in'],
     ['narr', 'Freya meets Mira at the silent post box. She doesn\'t come in person. She\'s on the poster, smiling.'],
     ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.']], { music: 'virus', note: 'Her offer at the silent post box.' });
-  cut.def('postbox-wait', 'Mira doesn\'t answer', [['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.']],
+  cut.def('postbox-wait', 'Mira doesn\'t answer', [['cg', 'c2-postbox', 'in', 'cut'], ['narr', 'Mira doesn\'t answer.'], ['freya', 'Take your time. Everything here does.'],
+    ['narr', 'Under the poster, in very small gold print: DELIVERY IS FREE. POSTAGE IS THORNWICK\'S GRANTS, PAYABLE FOREVER.'],
+    ['dutch', 'Always read the small print. Hers especially.', 'stone']],
     { note: 'After the offer (as Mira, you try to answer first).' });
   async function postbox() {
     if (flag('offer')) return say([['narr', 'Freya smiles from the poster on the post box. She smiles at everyone.']]);

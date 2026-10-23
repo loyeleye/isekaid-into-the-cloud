@@ -392,15 +392,31 @@
     ['freya', 'Oh good, you found her! Is she listening yet?', 'smile'],
     ['freya', 'Tilly could be here tonight, love. Safe. One little grant.', 'neutral'],
     ['mira', 'Please leave.', 'cold'],
-    ['narr', 'Freya leaves. Freya always does what she\'s asked.']
+    ['narr', 'Freya leaves. Freya always does what she\'s asked.'],
+    ['narr', 'Where the projection was, a little card floats down onto the stones: "How likely are you to recommend the Free Tier to a friend? 0 to 10." Kai puts it under the stove, for kindling.']
   ]), { music: 'virus', note: 'A smiling projection, and one little grant.' });
   async function uptima() {
     if (flag('uptima')) {
+      if (!flag('potatoes')) {
+        setFlag('potatoes');
+        return say([
+          ['kai', 'You\'re on potatoes. Read the ticket.', 'neutral'],
+          ['uptima', 'I was a goddess.', 'angry'],
+          ['kai', 'And now you\'re on potatoes. Read the ticket.', 'neutral'],
+          ['uptima', 'I don\'t read tickets.', 'sad'],
+          ['kai', 'Learn.', 'anger'],
+          ['narr', 'The next night she has read every ticket on the rail, in order, including last week\'s. Thirty-one potatoes, peeled, each one labelled with its order number.'],
+          ['kai', '...Yes, chef.', 'shock'],
+          ['narr', 'He means yes. Nobody knows what to do with that.']]);
+      }
       if (flag('prayer')) return say([['uptima', 'I read twelve more last night. One was about a goat. I answered it.', 'neutral']]);
       return say([['uptima', rnd(['I read some of the backlog every night. It\'s mostly about the weather.', 'The pots are clean. Don\'t look at me like that.']), 'sad']]);
     }
     await say([
       ['narr', 'Uptima comes into camp, and everyone looks away. Elder Wren is the only one who stands up. She can\'t look at him.'],
+      ['narr', 'Every seat at the fire is taken, except one.'],
+      ['dutch', 'Sit. No, that one.', 'stone'],
+      ['narr', 'She sits. It wobbles.'],
       ['kai', 'Kitchen. You can start on the pots.', 'anger'],
       ['uptima', 'I did this at the Cache Café. Part time.', 'sad'],
       ['uptima', 'I brought the backlog. I\'ll read some of it every night.', 'neutral']
@@ -447,6 +463,14 @@
     ['mira', 'How old were you?', 'sad'],
     ['narr', '"Seventeen." Mira does the sum. Tilly is fifteen.']
   ]), { note: 'Mira and Seo-yeon, the night after the burning field.' });
+  cut.def('cat-stew', 'The marsh cat', () => vn('c2-fire', [
+    ['narr', 'A scrawny marsh cat is sitting by the fire, eating Kai\'s stew straight out of the pot.'],
+    ['coo', 'We should call it something. Every post office has a name.', 'smile'],
+    ['mira', 'Patient. It keeps coming back with something wrong with it.', 'warm'],
+    ['kai', 'Chef. It\'s stealing from my station.', 'anger'],
+    ['seoyeon', 'Honoured Guest.', 'neutral'],
+    ['dutch', 'Suspect.', 'stone'],
+    ['narr', 'The cat finishes the stew and leaves. Nobody agrees on anything.']]), { note: 'A stray at the fire, and four names for it.' });
   async function fire() {
     if (flag('freed') || !flag('uptima')) return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
     if (!flag('tillyPair')) {
@@ -454,6 +478,11 @@
       return setFlag('tillyPair');
     }
     if (flag('choice') && !flag('prayer')) return prayerNight();
+    if (!flag('cat')) {
+      // The marsh cat adopts the camp. Nobody agrees on its name, all the way to the epilogue.
+      setFlag('cat');
+      return cut.play('cat-stew');
+    }
     return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
   }
   cut.def('what-he-felt', 'What Kai felt', () => vn('c2-fire', [
