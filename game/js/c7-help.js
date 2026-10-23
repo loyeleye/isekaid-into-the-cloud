@@ -68,7 +68,7 @@
   Object.keys(E).forEach(k => { if (!SD.eli5[k]) SD.eli5[k] = E[k]; });
   const has = t => SD.glossary.some(g => g[0] === t);
   [
-    ['SCP', /\bSCPs?\b|service control polic/i, 'An Organizations policy that sets the most a member account\'s users and roles can do. It grants nothing.'],
+    ['SCP', /\bSCPs?\b|service control polic/i, 'An Organizations policy that sets the most a member account\'s users, roles and root user can do. It grants nothing.'],
     ['Organizational unit', /\bOUs?\b|organizational units?/i, 'A group of accounts in an organization that policies can be attached to.'],
     ['Management account', /management account/i, 'The account that creates the organization and pays its bill. SCPs never restrict it.'],
     ['Consolidated billing', /consolidated bill/i, 'One bill for every account in an organization, with their usage added together for volume pricing.'],

@@ -21,10 +21,10 @@
     intro: 'The lift to floor 100 is run by a controller that assumes the role <b>freya-everything</b>. Freya still holds sessions on that role, some of them years old, and the controller must keep working. Build the policy that <b>Revoke active sessions</b> attaches to the role, and try it on the lift.',
     rule: 'Role: freya-everything   MaxSessionDuration: 12 hours\nThe controller asks for fresh credentials every hour.\nnow = 2026-10-23T21:00:00Z',
     predict: P('Revoking a role\'s active sessions: what happens to the controller, which uses the same role?', [
-      ['It keeps working: its next credentials are issued after the revoke', true],
+      ['It\'s refused until it fetches fresh credentials, which then work', true],
       ['It stops working until somebody deletes and recreates the role', false, 'The role isn\'t deleted. Only older sessions are denied.'],
       ['Nothing changes for anyone until the old sessions expire by themselves', false, 'The deny applies from the next request, whatever the session\'s expiry.']],
-      'The revoke policy denies requests signed with credentials issued before the moment you revoked. Anything that assumes the role afterwards gets credentials that aren\'t matched.'),
+      'The revoke policy denies requests signed with credentials issued before the moment you revoked, the controller\'s current ones included. Once it assumes the role again, its new credentials aren\'t matched.'),
     fields: [{ k: 'eff', label: 'EFFECT', opts: [['deny', 'Deny'], ['allow', 'Allow']] },
       { k: 'act', label: 'ACTION', opts: [['all', '"*"'], ['sts', '"sts:AssumeRole"'], ['s3', '"s3:*"']] },
       { k: 'cond', label: 'CONDITION', opts: [['tok', 'DateLessThan aws:TokenIssueTime now'], ['cur', 'DateLessThan aws:CurrentTime now'], ['mfa', 'Bool aws:MultiFactorAuthPresent false']] }],
@@ -76,14 +76,14 @@
     intro: 'Uptima won\'t take the throne back. She\'s drawing how the Cloud will run instead, from the camp\'s fire, so nobody can ever take all of it again. Tap the steps in order.',
     predict: P('Each band gets its own member account. Why is that better than one big account with an IAM group per band?', [
       ['An account is a hard boundary: its resources, limits and SCPs are its own', true],
-      ['It\'s cheaper, because every member account gets its own free tier', false, 'Accounts in an organization share one bill and one Free Tier; that\'s not why.'],
+      ['It\'s cheaper, because every member account gets its own free tier', false, 'Accounts in an organization share one bill; that\'s not why.'],
       ['IAM groups can\'t hold enough users for a whole band of the camp', false, 'Group size isn\'t the point. Isolation is.']],
       'Separate accounts isolate workloads by default: one band\'s mistake, or one stolen credential, stays inside one account, and policies can be set per account and per OU.'),
     steps: [{ t: 'Give each band its own member account in the organization, grouped into OUs.', why: 'Thornwick, Halcyon, the Sealed Floors, the Arcanum and Twinwater, each with its own boundary.', hint: 'everything else hangs off the accounts.' },
-      { t: 'Set up a Control Tower landing zone over them: a log archive account, an audit account, and controls on every OU.', why: 'Preventive controls are SCPs, detective ones are Config rules, proactive ones check templates before they deploy.', hint: 'the guardrails go on the OUs once the accounts are in them.' },
+      { t: 'Set up a Control Tower landing zone over them: a log archive account, an audit account, and controls on every OU.', why: 'Preventive controls are SCPs or RCPs, detective ones are Config rules, proactive ones check templates before they deploy.', hint: 'the guardrails go on the OUs once the accounts are in them.' },
       { t: 'Sign everyone in through IAM Identity Center, with MFA, and a permission set for each account they work in.', why: 'Short-lived role credentials, never IAM users. Nobody holds root.', hint: 'people come in once the accounts and their guardrails exist.' },
       { t: 'Share the camp\'s network with every band\'s account through AWS RAM.', why: 'One VPC owned by the camp; each band launches into its shared subnets.', hint: 'shared things come after there are accounts to share with.' },
       { t: 'Once a season, review each band\'s workload with the Well-Architected Tool, and save a milestone.', why: 'So everyone can see whether it\'s getting better.', hint: 'the review is the last thing, and then it repeats.' }],
-    done: 'The board, finished: five accounts, guardrails on each, one front door with a second key, one shared road, and a review every season.'
+    done: 'The board, finished: five accounts, controls on each, one front door with a second key, one shared road, and a review every season.'
   };
 })();

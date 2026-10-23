@@ -367,12 +367,12 @@
       why: 'AssumeRole returns temporary security credentials: an access key ID, a secret access key and a session token, with an expiration. Once they expire they\'re refused, and the caller assumes the role again (the SDKs refresh them for you).',
       eli5: 'You get a visitor\'s pass with today\'s date on it. At dawn it stops opening doors, and you ask for a new one.' },
     redrive: { c: 'dlqredrive', type: 'mc', q: 'In Amazon SQS, what moves a message to a dead-letter queue, and how do you send it back to the source queue?',
-      opts: ['It passes maxReceiveCount without being deleted; a DLQ redrive moves it back', 'It waits in the queue for over an hour; SQS moves it back by itself a day later', 'Its consumer calls DeleteMessage on it; you send it again with SendMessage', 'It is larger than 256 KB, and messages in a DLQ can never be moved back'], a: 0,
+      opts: ['It passes maxReceiveCount without being deleted; a DLQ redrive moves it back', 'It waits in the queue for over an hour; SQS moves it back by itself a day later', 'Its consumer calls DeleteMessage on it; you send it again with SendMessage', 'It is larger than 1 MiB, and messages in a DLQ can never be moved back'], a: 0,
       why: 'Each failed receive raises a message\'s receive count. Past the source queue\'s maxReceiveCount, SQS moves it to the dead-letter queue. Once the cause is fixed, a DLQ redrive (from the console or StartMessageMoveTask) moves the messages back to the source queue.',
       eli5: 'A letter that bounces too many times goes to the "couldn\'t deliver" box. Open the box, fix the address, and post them all again.' },
     key: { c: 'kmskeys', type: 'mc', q: 'What can you do with a customer managed KMS key\'s key policy that you can\'t do with an AWS managed key\'s?',
       opts: ['Write it yourself, and decide who may use and manage the key', 'Nothing: both kinds of key come with the same fixed policy from AWS', 'Leave it empty, so the key works without any key policy at all', 'Edit an AWS managed key\'s policy to share it with another account'], a: 0,
-      why: 'An AWS managed key\'s key policy is set by the AWS service that created it and can\'t be changed. With a customer managed key you own the key policy, and can add or remove principals, grants, rotation and deletion as you choose.',
+      why: 'An AWS managed key\'s key policy is set by the AWS service that created it and can\'t be changed. With a customer managed key you own the key policy and decide which principals may use and manage it, and you control its rotation and deletion too.',
       eli5: 'Someone else\'s lock comes with their list of who gets keys, and you can\'t edit it. Your own lock, you write the list.' },
     idem: { c: 'lambdasqs', type: 'mc', q: 'An SQS standard queue triggers a Lambda function. Why can the function get the same message more than once, and what should its code do about it?',
       opts: ['Delivery is at least once and failed batches return; make the handler idempotent', 'It can\'t: SQS standard queues always deliver each message exactly once', 'Only when the function\'s memory is too small; give the function more memory', 'Lambda retries each message three times; delete the message as the first step'], a: 0,
@@ -652,7 +652,7 @@
   cut.def('kyu', 'Kyu comes back', () => vn([['bg', 'c7-kyu'],
     ['narr', 'With root out of Freya\'s hands, Uptima\'s admin role can enable the key the party saved in the Clock Room. Seymour can restore at last.'],
     ['show', 'seymour', 'neutral', 'right'],
-    ['narr', 'He does it his way: the newer copy into a separate test account first, checked, then for real.'],
+    ['narr', 'He does it his way: the newer copy goes into a separate test account first and is restored there, checked, then for real.'],
     ['show', 'kyu', 'neutral', 'center'], ['hide', 'seymour'],
     ['narr', 'Kyu comes back as she was on the night of the vault. She remembers the temple road, the note she slipped into their pocket, Mira\'s hand, and the four of them deleting her.'],
     ['narr', 'Nobody has to tell her the truth, because she tells it first, all of it. Then she listens to their side without interrupting.'],
@@ -667,7 +667,7 @@
     let wrong = 0;
     for (;;) {
       const d = await new Promise(res => {
-        const b = U.panel(`<div class="g6"><p>Gary\'s Deny, as he left it: a draft, not attached. A service control policy binds every principal in a member account, its root user included. Scope it before you attach it to the Cloud\'s account. Three drafts on the board:</p>
+        const b = U.panel(`<div class="g6"><p>Gary\'s Deny, as he left it: a draft, not attached. A service control policy binds every principal in a member account, its root user included (service-linked roles aside). Scope it before you attach it to the Cloud\'s account. Three drafts on the board:</p>
           <div class="opts col">${DRAFTS.map(([k, t, j]) => `<button class="opt" data-d="${k}"><b>${esc(t)}</b><br><span class="muted small" style="font-family:ui-monospace,monospace;white-space:pre-wrap">${esc(j)}</span></button>`).join('')}</div></div>`, { title: 'THE ROOF · GARY\'S DENY', noClose: true, cls: 'wide' });
         b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { AU.sfx('ok'); U.closePanel(); res(el.dataset.d); });
       });
@@ -701,7 +701,7 @@
       if (!flag('kyu')) {
         mus('c7sad');
         await cut.play('kyu');
-        await ask({ c: 'awsbackup', type: 'mc', q: 'Seymour restores Kyu\'s copy into a separate test account before the real one. What does that prove that a backup job marked "Completed" can\'t?',
+        await ask({ c: 'awsbackup', type: 'mc', q: 'Seymour copies Kyu\'s backup into a separate test account and restores it there before the real one. What does that prove that a backup job marked "Completed" can\'t?',
           opts: ['That the copy actually restores, and works, without touching production', 'That the backup is encrypted with the key the vault requires', 'That the backup job ran on its schedule and finished in its window', 'Nothing more: a job marked Completed is already proof enough'], a: 0,
           why: 'A completed backup only says a copy was written. Restoring it, somewhere it can\'t harm the real thing, and checking the result is the only proof it can be used. AWS Backup can run restore tests on a schedule for you.',
           eli5: 'A spare key in a drawer is only a spare key once you\'ve tried it in the lock.' }, 'KYU');
@@ -783,7 +783,7 @@
     ['dutch', 'Sit. No, the other chair.', 'stone'],
     ...({ vault: [['bg', 'c6-vault'], ['narr', 'In Kagemaru\'s vault, he\'s sitting beside her backup when she calls through the door.'], ['freya', 'Love, let me out.', 'warm'],
         ['narr', 'He would sell it to her in a heartbeat. He can\'t reach the console from inside, and the door holds.'], ['kagemaru', 'Ah ha ha.', 'amused']],
-      least: [['narr', 'In the log, a restore request in Kagemaru\'s name, for her backup: denied, by the policy the party gave him. Uptima will read it aloud at the fire tonight.'], ['kagemaru', 'Worth a try.', 'amused']],
+      least: [['narr', 'In the log, a StartRestoreJob request in Kagemaru\'s name, for her backup: AccessDenied, by the policy the party gave him. Uptima will read it aloud at the fire tonight.'], ['kagemaru', 'Worth a try.', 'amused']],
       run: [['narr', 'Afterwards, Kagemaru counts his payment.'], ['kagemaru', 'You trusted me. Humans. Ah ha ha.', 'amused']] }[ch] || []),
     ['bg', 'c7-queue'],
     ['narr', 'What\'s left of her is her backup in Kagemaru\'s vault, locked in compliance mode until a date ten thousand years away. Nobody can delete it, not even Uptima.'],
@@ -797,7 +797,7 @@
   cut.def('fireside', 'Uptima at the fire', () => vn([['bg', 'c7-fire'],
     ['narr', 'Uptima doesn\'t take the throne back. She runs the Cloud from the camp\'s fire, through IAM Identity Center, with MFA.'],
     ['show', 'uptima', 'neutral', 'right'],
-    ['uptima', 'Each band its own account, under the organization, so no one can take all of it again. Control Tower\'s guardrails on every one.', 'earnest'],
+    ['uptima', 'Each band its own account, under the organization, so no one can take all of it again. Control Tower\'s controls on every one.', 'earnest'],
     ['uptima', 'The camp\'s network shared across them with Resource Access Manager. Approved kits from Service Catalog. Licences counted in License Manager. And once a season, all of us, with the Well-Architected Tool.', 'neutral'],
     ['narr', 'Then she writes a policy on herself: nobody may purge the prayer queue, herself included.'],
     ['narr', 'She reads some every night. Elder Wren sits with her while she does.']]), { music: 'c7camp', note: 'The morning after: how the Cloud is run now.' });
@@ -809,7 +809,7 @@
   }
   async function dboard() {
     if (!flag('won')) return say([[null, 'The Design Board, on its easel. Blank, for the morning.']]);
-    if (flag('board')) return say([[null, 'The Cloud, run properly: five accounts with guardrails, one front door with a second key, one shared road, and a review every season.']]);
+    if (flag('board')) return say([[null, 'The Cloud, run properly: five accounts with controls, one front door with a second key, one shared road, and a review every season.']]);
     await G.order(G.DEF.board);
     await ask({ c: 'controltower', type: 'mc', q: 'On Uptima\'s board, every band signs in through IAM Identity Center. What does a person get in each account they\'re assigned to?',
       opts: ['Short-lived credentials for a role made from a permission set', 'An IAM user of their own, with a long-term access key', 'The account\'s root user, protected by their MFA device', 'A copy of every permission the management account has'], a: 0,
