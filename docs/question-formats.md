@@ -121,7 +121,7 @@ A worked procedure whose steps are revealed or left blank by fade level. Level 0
   why: '...', doc: ['...'], eli5: '...' }
 ```
 
-Each step's `opts` must contain its own `t` exactly once.
+Each step's `opts` must contain its own `t` exactly once. A step may also carry `no`, lined up with `opts` (`null` at the right one), saying why each wrong option is wrong; it shows in feedback when that option was picked.
 
 ## How a format is introduced
 

@@ -144,6 +144,11 @@ function check(q, ids) {
       const n = s.opts.filter(o => o === s.t).length;
       if (n !== 1) p.push(`steps[${i}].opts contains its t ${n} times (needs exactly once)`);
       if (new Set(s.opts).size !== s.opts.length) p.push(`steps[${i}].opts has duplicates`);
+      if (s.no != null) {
+        const right = s.opts.indexOf(s.t);
+        if (!Array.isArray(s.no) || s.no.length !== s.opts.length) p.push(`steps[${i}].no needs ${s.opts.length} entries, one per opt`);
+        else s.no.forEach((x, k) => { if (k === right ? x !== null : !str(x)) p.push(k === right ? `steps[${i}].no[${k}] should be null (the right opt)` : `steps[${i}].no[${k}] needs a reason`); });
+      }
     });
     if (q.fade != null && !int(q.fade, 4)) p.push('fade, when set, must be 0 to 3');
   }

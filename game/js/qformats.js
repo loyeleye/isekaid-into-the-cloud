@@ -99,6 +99,29 @@
     const p = document.getElementById('panel'); if (p) { p.hidden = true; p.innerHTML = ''; }
   }
 
+  // ---- Keyboard: focus moves into the panel when it opens, and Tab stays inside it while a format is showing ----
+  const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])';
+  function focusFirst(root) {
+    const el = root && root.querySelector(FOCUSABLE);
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+  }
+  let trapped = false;
+  function trapTab() {
+    if (trapped) return;
+    trapped = true;
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Tab') return;
+      const p = document.getElementById('panel');
+      if (!p || p.hidden || !p.querySelector('.qf')) return;
+      const els = [...p.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null || el === document.activeElement);
+      if (!els.length) return;
+      const first = els[0], last = els[els.length - 1], cur = document.activeElement;
+      if (!p.contains(cur)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+    }, true);
+  }
+
   // ---- Shared bits of markup ----
   const mark = ok => `<span class="qf-m" aria-hidden="true">${ok ? '✓' : '✗'}</span>`;
   const chipBtn = (attr, text, on, extra) => `<button class="qf-chip${on ? ' on' : ''}${extra ? ' ' + extra : ''}" ${attr} aria-pressed="${!!on}" aria-label="${esc(text)}">${esc(text)}</button>`;
@@ -446,7 +469,7 @@
     review(st, it) {
       return `<ol class="qf-steps">${it.steps.map((s, i) => {
         const blank = st.blanks.includes(i), ok = blank && s.opts[st.fill[i]] === s.t;
-        return `<li class="qf-st ${blank ? (ok ? 'right' : 'wrong') : 'given'}"><span class="qf-n">${i + 1}</span><div>${blank ? mark(ok) + ' ' : ''}<b>${esc(blank && !ok ? s.opts[st.fill[i]] : s.t)}</b>${blank && !ok ? `<br><em class="qf-tag">should be: ${esc(s.t)}</em>` : ''}${s.why ? `<p class="qf-why">${esc(s.why)}</p>` : ''}</div></li>`;
+        return `<li class="qf-st ${blank ? (ok ? 'right' : 'wrong') : 'given'}"><span class="qf-n">${i + 1}</span><div>${blank ? mark(ok) + ' ' : ''}<b>${esc(blank && !ok ? s.opts[st.fill[i]] : s.t)}</b>${blank && !ok ? `<br><em class="qf-tag">should be: ${esc(s.t)}</em>${s.no && s.no[st.fill[i]] ? `<p class="qf-why">${esc(s.no[st.fill[i]])}</p>` : ''}` : ''}${s.why ? `<p class="qf-why">${esc(s.why)}</p>` : ''}</div></li>`;
       }).join('')}</ol>`;
     },
     answer: it => it.steps.map(s => s.t).join(' → '),
@@ -459,6 +482,7 @@
     opts = opts || {};
     if (!Q.enabled() || !item || !R[item.type]) return Promise.resolve(null);
     injectCss();
+    trapTab();
     return new Promise(resolve => {
       const r = R[item.type], t0 = Date.now();
       const mode = ['worked', 'hint', 'scored'].includes(opts.mode) ? opts.mode : Q.modeFor(item.type);
@@ -471,11 +495,19 @@
       const concept = SD.concepts && item.c ? SD.concepts[item.c] : null;
       const head = () => `<div class="q-ctx">${esc(opts.context || (concept ? concept.name : NAMES[item.type]))}</div>${item.title ? `<div class="qf-title">${esc(item.title)}</div>` : ''}<p class="q-q">${esc(item.q || '')}</p>`;
       if (mode === 'worked') r.solve(st, item);
-      let root = null, locked = false;
+      let root = null, locked = false, opened = false;
       // One state model for every format: idle (nothing chosen) -> selected (an answer is ready) -> submitted (the
       // answer is locked and you rate your confidence) -> feedback. Nothing submits on a tap; Submit does.
+      let lastKey = null;
+      // Remember which control had focus (by its data-qf-* attribute) before a redraw.
+      const keyOf = el => {
+        if (!el || !root || !root.contains(el)) return null;
+        const a = [...el.attributes].find(x => /^data-qf-/.test(x.name));
+        return a ? `[${a.name}="${a.value.replace(/"/g, '\\"')}"]` : el.id ? '#' + el.id : null;
+      };
       function draw() {
         if (mode === 'worked') return worked();
+        lastKey = keyOf(document.activeElement);
         const ready = r.ready(st, item), state = locked ? 'submitted' : ready ? 'selected' : 'idle';
         let h = head() + (practice ? `<div class="qf-hint"><span class="qf-practice">Practice</span> Not scored.${mode === 'hint' ? ` <span class="qf-hint-t">Hint: ${esc(r.hint(st, item))}</span>` : ''}</div>` : '');
         if (item.type === 'recall' && !st.typed) h += '<div class="qf-recog"><span class="qf-practice">Recognition</span> Word bank: picking from a list counts for less than typing from memory.</div>';
@@ -485,6 +517,7 @@
         if (!root || !root.isConnected) {
           const b = panel(`<div class="qf qf-${item.type}" data-qf-type="${item.type}" data-qf-phase="answer"></div>`, { title, noClose: true, cls });
           root = b.querySelector('.qf');
+          opened = true;
         }
         root.dataset.qfState = state;
         root.innerHTML = h;
@@ -495,6 +528,10 @@
           const first = root.querySelector('[data-c="1"]'); if (first) first.focus();
         } else {
           r.bind(root, st, item, ctx, draw);
+          // A redraw replaces the buttons, so keep focus on the same control (by its data attributes) for keyboard
+          // players; on the first draw, focus the first control so Tab starts inside the panel.
+          if (opened) { opened = false; focusFirst(root); }
+          else if (lastKey) { const el = root.querySelector(lastKey); if (el && !el.disabled) el.focus({ preventScroll: true }); else focusFirst(root.querySelector('.qf-submit-row #qf-submit:not([disabled])') ? root.querySelector('.qf-submit-row') : root); }
           const sb = root.querySelector('#qf-submit');
           sb.onclick = () => { if (r.ready(st, item)) { locked = true; draw(); } };
         }

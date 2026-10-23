@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// What the check is playing, for error messages.
+let CUR = '';
 // Headless check of the question formats (js/qformats.js) through game/fmt-lab.html: serves game/ with
 // python3 -m http.server, opens the lab on a phone (375 x 812) and a desktop (1280 x 800), and plays every item of
 // every type through the UI to the end, once right and once wrong. On the first item of each type it also walks the
@@ -39,13 +41,17 @@ const up = url => new Promise(r => { const t = Date.now(); (function poll() { ht
       await page.waitForSelector('body[data-ready="1"]', { timeout: 15000 });
       await page.waitForSelector('[data-play]', { timeout: 15000 });
       if (!(await page.evaluate(() => document.body.dataset.css === 'game'))) fail.push(`${vp.name}: the game's CSS did not load from index.html`);
-      const items = await page.evaluate(() => SD.fmtItems.map(q => JSON.parse(JSON.stringify(q))));
+      // ONLY=regex limits the run to matching item ids (for chasing one failure).
+      const only = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
+      const items = (await page.evaluate(() => SD.fmtItems.map(q => JSON.parse(JSON.stringify(q))))).filter(q => !only || only.test(q.id));
       const types = [...new Set(items.map(q => q.type))];
       console.log(`${vp.name}px: ${items.length} items (${types.join(', ')})`);
       const where = (q, what) => `${vp.name}px ${q.id} ${what}`;
 
       const layout = async (q, phase) => {
         if (!vp.phone) return;
+        // Measure the settled window: its pop-in (winIn) scales it, which shrinks every button for a moment.
+        await page.evaluate(() => { const w = document.querySelector('#panel .win'); return w ? Promise.all(w.getAnimations().map(a => a.finished.catch(() => {}))) : null; });
         const r = await page.evaluate(() => {
           const d = document.documentElement, wb = document.querySelector('#panel .win-b');
           const small = [...document.querySelectorAll('#panel .qf button')].filter(b => b.offsetParent && b.getBoundingClientRect().height < 44)
@@ -60,7 +66,7 @@ const up = url => new Promise(r => { const t = Date.now(); (function poll() { ht
       };
       // Wait out the panel's pop-in (and, on a predict reveal, its animation) so the shot shows the settled screen.
       const shot = async (q, tag) => { if (!SHOTS) return; await page.waitForTimeout(/feedback/.test(tag) && q.anim ? 5300 : 350); await page.screenshot({ path: path.join(SHOTS, `${vp.name}-${q.type}-${q.id}-${tag}.png`) }); shots++; };
-      const click = async sel => { const el = await page.waitForSelector(sel, { timeout: 5000 }); await el.click(); };
+      const click = async sel => { const el = await page.waitForSelector(sel, { timeout: 5000 }); try { await el.click({ timeout: 5000 }); } catch (e) { const dbg = await page.evaluate(() => { const r = document.querySelector('#panel:not([hidden]) .qf'); return r ? `open: ${(r.querySelector('.q-ctx') || {}).textContent}, state ${r.dataset.qfState || r.dataset.qfPhase}` : 'no panel open'; }); throw new Error(`${vp.name}px ${CUR}: could not click ${sel} [${dbg}]`); } };
       const open = async (q, mode) => {
         await page.selectOption('#lab-mode', mode);
         await click(`[data-play="${q.id}"]`);
@@ -69,6 +75,7 @@ const up = url => new Promise(r => { const t = Date.now(); (function poll() { ht
 
       // Answer an item through the UI. right: the right answer; otherwise a wrong one.
       async function answer(q, right) {
+        CUR = q.id + (right ? ' (right)' : ' (wrong)');
         const t = q.type;
         if (t === 'compare') {
           const col = right ? q.a : [0, 1, 2].find(i => i !== q.a && !(q.alsoOk || []).includes(i));
@@ -190,7 +197,9 @@ const up = url => new Promise(r => { const t = Date.now(); (function poll() { ht
       // Keyboard: the first item's options can be reached with Tab and chosen with Enter.
       const kq = items.find(x => x.type === 'predict');
       if (kq) {
+        CUR = 'keyboard test on ' + kq.id;
         await open(kq, 'scored');
+        if (!(await page.evaluate(() => document.querySelector('#panel').contains(document.activeElement)))) fail.push(`${vp.name}px keyboard: focus did not move into the panel when it opened`);
         let found = false;
         for (let k = 0; k < 30 && !found; k++) {
           await page.keyboard.press('Tab');
@@ -200,9 +209,20 @@ const up = url => new Promise(r => { const t = Date.now(); (function poll() { ht
         else {
           const lbl = await page.evaluate(() => document.activeElement.getAttribute('aria-label'));
           if (!lbl) fail.push(`${vp.name}px keyboard: option has no aria-label`);
-          await page.keyboard.press('Enter');
-          if (!(await page.$('#qf-submit:not([disabled])'))) fail.push(`${vp.name}px keyboard: Enter did not select the option`);
+          // Tab stays inside the open panel, and comes back round to the options.
+          let back = false;
+          for (let k = 0; k < 40 && !back; k++) {
+            await page.keyboard.press('Tab');
+            const at = await page.evaluate(() => ({ inside: document.querySelector('#panel').contains(document.activeElement), opt: document.activeElement.matches('[data-qf-opt]:not([disabled])') }));
+            if (!at.inside) { fail.push(`${vp.name}px keyboard: Tab left the open panel`); break; }
+            back = k > 0 && at.opt;
+          }
+          if (back) {
+            await page.keyboard.press('Enter');
+            if (!(await page.$('#qf-submit:not([disabled])'))) fail.push(`${vp.name}px keyboard: Enter did not select the option`);
+          }
         }
+        if (!(await page.$('#qf-submit:not([disabled])'))) await click('[data-qf-opt]:not([disabled])');
         await click('#qf-submit'); await click('[data-c="0"]'); await click('#q-next');
         await page.waitForSelector('#panel', { state: 'hidden', timeout: 5000 });
       }
