@@ -46,8 +46,15 @@
   // ev: optional evidence shown above the question as it would appear on screen: an error, a log line, a metric.
   Q.ask = function (q, opts) {
     opts = opts || {};
-    // Exam mode (js/exam.js): an SAA-only question becomes a DVA one on the same concept or topic.
-    if (SD.exam && !opts.noSwap) q = SD.exam.swap(q);
+    // Exam mode (js/exam.js): an SAA-only bank question becomes a DVA one on the same concept or topic. A chapter's
+    // own SAA-only question is skipped and counts as passed, so whatever it gates still opens.
+    if (SD.exam && !opts.noSwap) {
+      if (SD.exam.skips(q)) {
+        U.system('STICKY NOTE', U.esc(SD.exam.SKIP_NOTE));
+        return Promise.resolve({ ok: true, conf: 1, ms: 0, score: q.points ? q.points.length : null, skipped: true });
+      }
+      q = SD.exam.swap(q);
+    }
     return new Promise(resolve => {
       const t0 = Date.now();
       let thinking = sayFirst(q, opts);
