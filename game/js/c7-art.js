@@ -260,7 +260,7 @@
     G(p('M-130 0 L-130 -400 Q0 -480 130 -400 L130 0Z', '#fff4f8', K.NIGHT, 5) + R(-110, -120, 220, 120, '#ffd0e0', K.NIGHT, 4), 'translate(600 840)'),
     G(e(0, 0, 90, 22, '#f6f2ea', K.NIGHT, 3) + c(-40, -10, 12, '#ff8ab8', K.NIGHT, 2) + c(0, -12, 12, '#ffd24a', K.NIGHT, 2) + c(40, -10, 12, '#7fd0ff', K.NIGHT, 2), 'translate(860 800)'),
     K.glow('c7pg', 600, 560, 460, '#ffffff', 0.4), K.vignette(1200, 1200, 0.3)]);
-  // The queue nobody will ever read: one message, waiting.
+  // The message nobody will ever read: one, waiting.
   SF['c7-queue'] = () => K.scene([R(0, 0, 1200, 1200, '#0a0812'),
     ...Array.from({ length: 12 }, (_, i) => R(120 + i * 84, 560, 64, 80, '#14101f', '#2a2438', 2, 0.6)),
     R(1000, 560, 64, 80, '#ffd0e0', '#ff8ab8', 3, 0.9), T(600, 760, 'ApproximateNumberOfMessagesVisible: 1', { size: 24, fill: '#5a5468', font: 'ui-monospace, monospace' }),

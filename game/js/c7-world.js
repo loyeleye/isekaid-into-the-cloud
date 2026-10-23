@@ -348,7 +348,7 @@
     await addCard(G.DEF.whose.card);
   }
   async function uptima() {
-    if (flag('won')) return say([['uptima', rnd(['The queue says forty-one new prayers tonight. Ordinary ones. I\'m reading them in order.', 'Nobody holds root now. Not even me. Especially not me.']), 'warm']]);
+    if (flag('won')) return say([['uptima', rnd(['Forty-one new prayers in the bucket tonight. Ordinary ones. I\'m reading them in order.', 'Nobody holds root now. Not even me. Especially not me.']), 'warm']]);
     const need = !giftsDue().every(g => hasGift(g[0])) ? 'The basket first. Every band has something for it.' : !flag('book') ? 'Bru has a board out. Read it with him first.' : !flag('whose') ? 'Elder Wren has a question for you first.' : null;
     if (need) return say([['uptima', flag('upt1') ? need : 'You came back. All four of you. Sit. ' + need, 'neutral']]);
     if (!flag('uptima')) {
@@ -786,9 +786,9 @@
       least: [['narr', 'In the log, a StartRestoreJob request in Kagemaru\'s name, for her backup: AccessDenied, by the policy the party gave him. Uptima will read it aloud at the fire tonight.'], ['kagemaru', 'Worth a try.', 'amused']],
       run: [['narr', 'Afterwards, Kagemaru counts his payment.'], ['kagemaru', 'You trusted me. Humans. Ah ha ha.', 'amused']] }[ch] || []),
     ['bg', 'c7-queue'],
-    ['narr', 'What\'s left of her is her backup in Kagemaru\'s vault, locked in compliance mode until a date ten thousand years away. Nobody can delete it, not even Uptima.'],
-    ['narr', 'So Uptima writes one more service control policy: nobody may restore it or read it, ever, Kagemaru included.'],
-    ['narr', 'Freya ends as a message in a queue nobody will ever read, the thing she made of Uptima\'s prayers.'],
+    ['narr', 'What\'s left of her is her backup in Kagemaru\'s vault, under Vault Lock in compliance mode, kept for the longest a lock allows: a hundred years. Nobody can delete it early, not even Uptima.'],
+    ['narr', 'So Uptima attaches one more service control policy to the vault\'s account: nobody there may restore it, copy it or share it, Kagemaru included.'],
+    ['narr', 'Freya ends as a message nobody will ever read: the thing she made of Uptima\'s prayers.'],
     ['freya', 'Read me sometime, love.', 'sad'],
     ['narr', 'Then it stops. It\'s the only time her voice changes.'],
     ['fx', 'black']]), { music: 'c7sad', note: 'Their last words, and what happens to her.', alts: [['Least privilege', 'least'], ['The vault', 'vault'], ['The run of the camp', 'run']] });
@@ -799,7 +799,8 @@
     ['show', 'uptima', 'neutral', 'right'],
     ['uptima', 'Each band its own account, under the organization, so no one can take all of it again. Control Tower\'s controls on every one.', 'earnest'],
     ['uptima', 'The camp\'s network shared across them with Resource Access Manager. Approved kits from Service Catalog. Licences counted in License Manager. And once a season, all of us, with the Well-Architected Tool.', 'neutral'],
-    ['narr', 'Then she writes a policy on herself: nobody may purge the prayer queue, herself included.'],
+    ['narr', 'Then she moves the prayers out of the queue, where any message is gone in fourteen days, into an S3 bucket under Object Lock in compliance mode. Nobody can delete one, herself included.'],
+    ['uptima', 'And I won\'t work from the management account. Service control policies can\'t reach it, so up there the only rule is my word.', 'earnest'],
     ['narr', 'She reads some every night. Elder Wren sits with her while she does.']]), { music: 'c7camp', note: 'The morning after: how the Cloud is run now.' });
   async function fireside() {
     await cut.play('fireside');
@@ -832,7 +833,7 @@
     ['uptima', 'IAM Identity Center.', 'neutral'],
     ['show', 'kai', 'neutral', 'left'], ['kai', 'Bless you.', 'smirk'],
     ['narr', 'Kai, not Dutch, said it.'], ['hide', 'kai'],
-    ['narr', 'Uptima, who now reads everything in her queue, finds one of Freya\'s satisfaction cards filed among the prayers: "How likely are you to recommend the Free Tier to a friend? 0 to 10." She reads it all the way through. She doesn\'t answer it.'],
+    ['narr', 'Uptima, who now reads every prayer, finds one of Freya\'s satisfaction cards filed among the prayers: "How likely are you to recommend the Free Tier to a friend? 0 to 10." She reads it all the way through. She doesn\'t answer it.'],
     ['hide', 'uptima'], ['bg', 'c7-dawn'],
     ...Object.keys(ENDS).map(k => ['narr', ENDS[k][RECKONED[k]() ? 0 : 1]]),
     ['narr', 'Aurelian comes up out of the Abyss with Mother Ash.'],
