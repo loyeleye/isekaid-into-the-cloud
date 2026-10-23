@@ -91,7 +91,8 @@ const fail = [];
   // Erase the save from the menu in the middle of chapter 2, then start it again from the chapter select: the walk
   // must still answer the arrow keys (the old scene used to keep running underneath and hold the controls).
   const walk = async label => {
-    for (let i = 0; i < 40; i++) {
+    // The opening cutscenes cross-fade between pixel stills, so give them up to 30 s to reach the walk.
+    for (let i = 0; i < 120; i++) {
       await page.waitForTimeout(250);
       const st = await look();
       if (st.lead) await page.click('#panel [data-lead="kai"]');
