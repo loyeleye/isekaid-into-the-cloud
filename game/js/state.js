@@ -145,14 +145,18 @@
     return false;
   };
   // conf: 0 guess, 1 think so, 2 sure. Overconfident misses come back soonest (gap seeking).
-  S.recordAnswer = function (id, ok, conf, ms) {
+  S.recordAnswer = function (id, ok, conf, ms, qid) {
     const c = S.concept(id);
+    if (SD.exam) SD.exam.noteAnswer(id, qid, ok);
     c.seen = true;
     c.hist.push({ ok, conf, ms, t: Date.now() });
     if (c.hist.length > 12) c.hist.shift();
     if (ok) c.box = Math.min(BOX_DAYS.length - 1, c.box + (conf === 2 ? 1 : conf === 1 ? 1 : 0) + (c.box === 0 ? 1 : 0));
     else c.box = conf === 2 ? 0 : Math.max(0, c.box - 1);
+    if (SD.exam) c.box = Math.min(c.box, SD.exam.boxCap(id));
     c.due = Date.now() + BOX_DAYS[c.box] * DAY;
+    // Exam mode: no gap longer than a quarter of the days left, nothing due after the exam (js/exam.js).
+    if (SD.exam) c.due = SD.exam.capDue(c.due);
     S.save.stats.answered++; if (ok) S.save.stats.correct++;
     // The confidence tally's window (S.tally below).
     S.save.tally = (Array.isArray(S.save.tally) ? S.save.tally : []).concat([[ok ? 1 : 0, [0, 1, 2].includes(conf) ? conf : 0]]).slice(-TALLY_N);
@@ -201,7 +205,12 @@
   };
   // A concept's review questions: the bank, plus, for side quests' concepts (zone 98), the questions their quests ask.
   S.questionsFor = function (id) {
-    const bank = SD.questions.filter(q => q.c === id);
+    // Exam mode (js/exam.js): the exam-task concepts' questions come from the bank; held-out questions never show
+    // here, and SAA-only ones only when a concept has nothing else (SD.quiz.ask swaps those).
+    const E = SD.exam;
+    if (E && E.isTaskConcept(id)) return E.taskQuestions(id);
+    let bank = SD.questions.filter(q => q.c === id && !(E && E.isHeld(q)));
+    if (E && E.on() && bank.some(q => !E.isSaa(q))) bank = bank.filter(q => !E.isSaa(q));
     if (!SD.concepts[id] || SD.concepts[id].zone !== 98 || !SD.quests) return bank;
     const asks = SD.quests.list.flatMap(q => q.steps.flatMap(s => s.do)).map(a => a.ask)
       .filter(q => q && q.c === id && q.id && (q.type !== 'explain' || S.save.typed !== false));
@@ -209,9 +218,11 @@
   };
   // Concepts the town's reviews can ask: every chapter reached so far, and side quests' concepts (zone 98) once
   // you've met them. The Isles (zone 99) review theirs at their own tide posts.
+  // In exam mode (js/exam.js) that's every DVA concept instead, whatever the chapter, and no SAA-only ones.
   S.reviewable = function (id) {
     const c = SD.concepts[id], st = S.save.concepts[id];
     if (!c) return false;
+    if (SD.exam && SD.exam.on()) { const r = SD.exam.reviewable(id); if (r !== null) return r; }
     if (c.zone <= (S.save.chapter || 1)) return true;
     return c.zone === 98 && !!st && st.seen && S.questionsFor(id).length > 0;
   };
@@ -229,6 +240,7 @@
     }
     const all = S.questionsFor(conceptId), qs = all.filter(q => !(avoid || []).includes(q.id));
     const list = qs.length ? qs : all;
+    if (SD.exam && SD.exam.isTaskConcept(conceptId) && list.length) return SD.exam.pickTask(list);
     return list[Math.floor(Math.random() * list.length)];
   };
 })();

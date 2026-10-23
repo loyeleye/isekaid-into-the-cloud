@@ -37,7 +37,7 @@ for (const vector of [false, true]) {
   SD = r.SD; errors.push(...r.errors);
   Object.keys(SD.concepts).forEach(c => concepts.add(c));
   SD.questions.forEach(q => questions.set(q.id || '(no id) ' + q.q.slice(0, 50), q));
-  for (const s of r.srcs.filter(s => !/^js\/bank-/.test(s))) {
+  for (const s of r.srcs.filter(s => !/^js\/(bank-|exam-heldout)/.test(s))) {
     for (const m of fs.readFileSync(path.join(ROOT, s), 'utf8').matchAll(/['"]((?:dva|saa)-\d-\d{2,3})['"]/g)) {
       const q = (SD.bank || []).find(b => b.id === m[1]);
       if (q) questions.set(q.id, q);

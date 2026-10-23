@@ -46,6 +46,8 @@
   // ev: optional evidence shown above the question as it would appear on screen: an error, a log line, a metric.
   Q.ask = function (q, opts) {
     opts = opts || {};
+    // Exam mode (js/exam.js): an SAA-only question becomes a DVA one on the same concept or topic.
+    if (SD.exam && !opts.noSwap) q = SD.exam.swap(q);
     return new Promise(resolve => {
       const t0 = Date.now();
       let thinking = sayFirst(q, opts);
@@ -120,7 +122,7 @@
           ok = score >= q.items.filter(i => i.ok).length - 1;
         }
         let page = null;
-        if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, ms);
+        if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, ms, q.id);
         SD.state.persist();
         feedback(ok, conf, ms, page, score);
       }
@@ -148,7 +150,7 @@
             const score = ticks.filter(Boolean).length, ok = !!typed && score >= need;
             // Typing takes longer than tapping, so typed answers don't count against fluency's speed check.
             let page = null;
-            if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, 0);
+            if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, 0, q.id);
             SD.state.persist();
             feedback(ok, conf, ms, page, score);
           };
