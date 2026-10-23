@@ -100,6 +100,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#td-base');
   await page.waitForTimeout(50);
   check(await page.evaluate(() => !!SD.examHall || [...document.querySelectorAll('.sysnote')].some(n => /coming soon/.test(n.textContent))), 'without the Exam Hall, the baseline says "Exam Hall coming soon"');
+  if (await page.$('#xh-later')) { await page.click('#xh-later'); await page.waitForTimeout(100); }
+  check(await page.$('#td-skip') !== null, 'leaving the Exam Hall intro returns to the Today card');
 
   // ---- A daily set: answer, stop, resume ----
   const xp0 = await totalXp();
