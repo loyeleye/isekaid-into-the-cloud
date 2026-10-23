@@ -872,7 +872,7 @@
     if (!flag('ledger')) {
       await say([['pella', 'Two hundred years of trial records, and every query costs me a week\'s stipend. It shouldn\'t. Help me ask the cheapest question?', 'frustrated']]);
       await G.door(G.DEF.cheapest);
-      await ask({ c: 'datalake', type: 'mc', q: 'Pella wants most readers kept away from the students\' names column in the trial tables, which Athena queries through the Glue Data Catalog. What does that?',
+      await ask({ c: 'datalake', exam: 'SAA', type: 'mc', q: 'Pella wants most readers kept away from the students\' names column in the trial tables, which Athena queries through the Glue Data Catalog. What does that?',
         opts: ['Lake Formation column-level permissions', 'A bucket policy on the records', 'Converting the column to Parquet', 'A Glue crawler'], a: 0,
         why: 'Lake Formation grants permissions on Data Catalog tables down to columns, rows and cells, and Athena enforces them.',
         eli5: 'The library keeper can hide one column from most readers, however they ask.' }, 'TWO HUNDRED YEARS');

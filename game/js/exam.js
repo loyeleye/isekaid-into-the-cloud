@@ -1,7 +1,8 @@
 // Exam mode (ExamPrepDemo, Oct 23): until the exam date, the whole game prepares for DVA-C02 and nothing else.
 //   - Reviews draw from every DVA concept whatever chapter you've reached (S.reviewable asks SD.exam.reviewable).
 //   - SAA-only questions are never asked: SD.qpick skips them while its pool has others, and SD.quiz.ask swaps one
-//     for a DVA question on the same concept or topic (SD.exam.swap).
+//     for a DVA question on the same concept or topic (SD.exam.swap). A chapter's own SAA-only question (exam: 'SAA'
+//     on an inline question its story sets up) is skipped with a note from Kyu instead, and counts as passed.
 //   - The held-out questions (js/exam-heldout.js) are only ever asked by the Exam Hall (js/exam-hall.js).
 //   - Thirteen exam-task concepts, one per DVA-C02 task statement, carry the bank questions no chapter asks yet, so
 //     spaced review covers the whole DVA bank. Their Huh??? lines are in js/exam-help.js.
@@ -66,6 +67,13 @@
   E.domainOf = q => (q && q.dva ? +String(q.dva)[0] : 0);
   const bankById = () => E._byId || (E._byId = new Map((SD.bank || []).map(q => [q.id, q])));
   E.find = id => bankById().get(id) || (SD.questions || []).find(q => q.id === id);
+  // A bank question (js/bank-*.js, or a chapter's copy of one) keeps its bank id. A chapter's own question, written
+  // inline after a line of its story that sets it up, has none.
+  E.inBank = q => !!q && !!q.id && bankById().has(q.id);
+  // A chapter's own question marked exam: 'SAA' isn't swapped (that would break the line before it): in exam mode
+  // SD.quiz.ask skips it with Kyu's note and counts it as passed, so nothing it gates is blocked.
+  E.skips = q => E.on() && E.isSaa(q) && !E.inBank(q);
+  E.SKIP_NOTE = 'Kyu left a sticky note: \'Not on your test. Skip it. — K.\'';
 
   // Exam-task concepts: 'x11' for task 1.1, and so on. Zone 97 keeps them out of the story's own reviews and lists.
   E.taskConcept = t => 'x' + t.replace('.', '');
@@ -124,8 +132,9 @@
 
   // ---- Swapping an SAA question for a DVA one ----
   const pick = a => a[Math.floor(Math.random() * a.length)];
+  // Only bank questions are swapped; a chapter's own SAA-only question is skipped instead (E.skips).
   E.swap = function (q) {
-    if (!q || !E.on() || !E.isSaa(q)) return q;
+    if (!q || !E.on() || !E.isSaa(q) || !E.inBank(q)) return q;
     // Same concept first, then the same topic in the bank, then any due DVA concept.
     const same = (SD.questions || []).filter(x => x.c && x.c === q.c && E.isDva(x) && !E.isHeld(x) && x.type !== 'explain');
     if (same.length) return Object.assign({}, pick(same), { swappedFrom: q.id });
@@ -143,12 +152,13 @@
 
   // ---- Spacing that knows the exam date ----
   // No gap longer than a quarter of the days left (at least a day), with a little jitter so the reviews don't all land
-  // on the same day; nothing falls due after the day before the exam.
+  // on the same day; nothing falls due after the day before the exam. In its last day, nothing falls due after the
+  // exam itself (and on the day, once it has started, everything is due now).
   E.capDue = function (due) {
     if (!E.on()) return due;
     const now = Date.now(), left = E.when() - now;
     const gap = Math.max(DAY, Math.floor(left / 4 / DAY) * DAY * (0.85 + Math.random() * 0.3));
-    return Math.min(due, now + gap, Math.max(now + DAY, E.when() - DAY));
+    return Math.min(due, Math.max(now, Math.min(now + gap, Math.max(now + DAY, E.when() - DAY), E.when())));
   };
   // Every question's last answer: S.save.qlog[qid] = [time, right]. Task concepts climb a box only as their answers
   // spread: one review box per two different questions answered right, so two lucky answers can't hide a whole task.
