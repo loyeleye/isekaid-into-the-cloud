@@ -108,7 +108,10 @@
     ['baker', 'A day a year? I lose more than that to proving dough. Yes.', 'neutral'],
     ['lord', 'No. Absolutely not. We were promised.', 'neutral'],
     ['child', 'Does it hurt?', 'neutral'],
-    ['narr', 'Sir Aurelian, who has taken from twelve girls, puts his hand up first.']];
+    ['narr', 'Sir Aurelian, who has taken from twelve girls, puts his hand up first.'],
+    ['narr', 'Then the square\'s hands go up, one by one. Lord Brannick\'s is last, and only halfway.'],
+    ['lord', 'I want it noted that I was promised.', 'neutral'],
+    ['kai', 'Noted.', 'neutral']];
   T.unmake = [['bg', 'c3-square'], ['show', 'kai', 'grief', 'right'],
     ['narr', 'Kai puts his hand on the barrier and unmakes the rewrite. It goes back to what it was built to be: a day a year, from everyone.'],
     ['narr', 'Noor walks out of the cathedral in her own clothes.'],

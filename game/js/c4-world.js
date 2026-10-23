@@ -860,6 +860,12 @@
     ['narr', ch === 'school' ? 'The disciples and the Cult\'s children move down to the camp, and the training yard opens.' : 'The training yard opens, and the camp gets louder.']]), { note: 'The end of Chapter 4.', alts: [['A school', 'school'], ['A war banner or a grave', 'bury']] });
   async function choice() {
     if (!flag('hand')) return say([[null, 'Burning Peak\'s old banner pole. Nobody has flown anything from it for twenty years.']]);
+    if (flag('choice') && c4().choice === 'school' && !flag('word')) {
+      setFlag('word');
+      return say([[null, 'Burning Peak\'s first dawn forms. Alliance children on the left, the Cult\'s on the right, all of them yawning.'],
+        ['seoyeon', 'Get up. Forms. And one word, for historical accuracy. Old Gu taught it to Jin, and Jin taught it to me. It goes:', 'neutral'],
+        [null, 'Down the hill, Marrow\'s bell rings over it. Nobody hears the word. Every child in the yard repeats it anyway.']]);
+    }
     if (flag('choice')) return say([[null, { banner: 'The war banner snaps on the pole.', bury: 'The pole is bare. The name is on a grave now.', school: 'A small sign on the pole: BURNING PEAK. FORMS AT DAWN. ALL WELCOME.' }[c4().choice]]]);
     await cut.play('square');
     const ch = await new Promise(res => {
