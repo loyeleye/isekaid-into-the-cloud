@@ -259,6 +259,8 @@
     ],
     wren: [
       ['hide', 'seymour'], ['hide', 'mira'], ['hide', 'dutch'], ['bg', 'c2-scrap'],
+      // The puzzle plays over the scrap field's wide still, not the drawn backdrop.
+      ['cut', 'the-scrap-field'], ['cg', 'cut-the-scrap-field-1'],
       ['act', 'versions', { who: 'faithful', bucket: 'brookfall-shrine', key: 'faithful/elder-wren.json', q: 'One more under a delete marker. Freya deleted him for praying to Uptima.' }],
       ['show', 'faithful', 'tired', 'center'],
       ['narr', 'Elder Wren, whose faithful you beat at Brookfall. He looks at the four of you for a long time, and says nothing.']

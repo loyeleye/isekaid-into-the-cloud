@@ -65,7 +65,8 @@
   function nextShot(steps, i, c) {
     for (let j = i + 1; j < steps.length; j++) {
       const [k, a] = steps[j];
-      if (k === 'bg') return null;
+      // A puzzle or a prayer plays before the next line, so the backdrop has to show for it.
+      if (k === 'bg' || k === 'act' || k === 'pray') return null;
       if (k === 'cg') return drawn(a) ? null : a;
       if (k === 'cut') { c = V.cuts.find(x => x[0][0] === 'cut-' + a + '-1') || c; continue; }
       if (CMD.has(k)) continue;
@@ -187,7 +188,10 @@
     el.innerHTML = sceneHTML(id);
     host.appendChild(el);
     requestAnimationFrame(() => el.classList.add('on'));
-    old.forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : 900); });
+    // A still fades in over the last one, which stays solid until it's covered: fading both at once let the backdrop
+    // underneath show through mid-crossfade.
+    const keep = sel === '.vn-cg' && !cut;
+    old.forEach(o => { if (!keep) o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : keep ? 950 : 900); });
   }
   function clearCG() { [...cam.querySelector('.vn-cg').children].forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); }); root.classList.remove('vn-incg'); }
 
