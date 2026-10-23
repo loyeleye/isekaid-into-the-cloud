@@ -123,6 +123,8 @@
     M.show('title');
     $('#t-snd').textContent = sndIcon();
     $('#t-snd').onclick = e => toggleSound(e.currentTarget);
+    // The Today card (js/today.js): exam practice above Continue and New game, after PRESS START.
+    if (SD.today) SD.today.mount(started);
     if (!started) {
       // A press-start screen is also what lets the browser play music.
       $('#title-actions').innerHTML = '<button class="primary press" id="t-start">PRESS START</button>';

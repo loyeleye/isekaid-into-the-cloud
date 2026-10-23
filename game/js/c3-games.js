@@ -175,7 +175,7 @@
         { t: 'The winter reserve: drawn on a few times a year, at once when it is', v: 1, why: 'Infrequent but immediate: Standard-IA, with its 30-day minimum and retrieval fee.' },
         { t: 'The founding harvest, kept by law, never touched', v: 2, why: 'Kept for years, almost never read: Deep Archive.' },
         { t: 'A new grain nobody knows the demand for yet', v: 3, why: 'Unknown access pattern: Intelligent-Tiering moves it between tiers for a small monitoring fee per object.' }] }, 's3class');
-    const r = await num({ c: 's3class', q: 'One last thing. A sack goes into Standard-IA and is moved out after 3 days. For how many days of storage is it billed?', unit: 'days', lo: 30, hi: 30, ans: '30 days',
+    const r = await num({ c: 's3class', exam: 'SAA', q: 'One last thing. A sack goes into Standard-IA and is moved out after 3 days. For how many days of storage is it billed?', unit: 'days', lo: 30, hi: 30, ans: '30 days',
       why: 'Standard-IA (and One Zone-IA) bill a minimum of 30 days. Moving or deleting an object earlier still costs the rest of the 30.',
       eli5: 'It\'s an inn that charges a month\'s rent the moment you check in. Leave after three nights and you\'ve still paid for thirty.' }, 'THE GATEKEEPER');
     return { ok: n >= 3 && !!(r && r.ok) };
@@ -193,7 +193,7 @@
       { t: 'Standard: typically within 12 hours', ok: true, out: 'Standard retrieval from Deep Archive comes back within 12 hours. Bulk is cheaper but takes up to 48.' },
       { t: 'Expedited: a few minutes', no: 'Deep Archive doesn\'t offer Expedited retrieval. That\'s Glacier Flexible Retrieval.' }] }, 's3class');
     await cont(b, 'Thaw it');
-    const r = await num({ c: 's3class', q: 'Within how many hours does a Standard retrieval from S3 Glacier Deep Archive typically complete?', unit: 'hours', lo: 12, hi: 12, ans: '12 hours',
+    const r = await num({ c: 's3class', exam: 'SAA', q: 'Within how many hours does a Standard retrieval from S3 Glacier Deep Archive typically complete?', unit: 'hours', lo: 12, hi: 12, ans: '12 hours',
       why: 'Deep Archive: Standard retrieval typically within 12 hours, Bulk within 48. Its minimum storage duration is 180 days.',
       eli5: 'The deepest freezer in the stores. Ask for something and the porters go down overnight: half a day if you pay normal rates, two days if you let them bring it with the bulk run.' }, 'THE CLERK');
     return { ok: ok1 && !!(r && r.ok) };
@@ -411,7 +411,7 @@
 
   // ---------- Pip: why did that work? ----------
   const WHY = {
-    cold: { c: 's3class', q: 'Explain, the way you would to an interviewer, how you\'d choose between S3 Standard, Standard-IA and Glacier Deep Archive for a store of records.',
+    cold: { c: 's3class', exam: 'SAA', q: 'Explain, the way you would to an interviewer, how you\'d choose between S3 Standard, Standard-IA and Glacier Deep Archive for a store of records.',
       points: [{ t: 'Match the class to how often it\'s read', keys: ['how often', 'access pattern', 'frequen', 'rarely', 'infrequent'], ex: ['it depends how often people read it', 'hot data in standard, cold data in glacier'] },
         { t: 'Retrieval: IA is immediate but charged; Deep Archive takes hours', keys: ['retriev', 'restore', 'hours', '12', '48', 'fee'], ex: ['deep archive has to be restored first', 'you pay to get things out of IA'] },
         { t: 'Minimum storage durations', keys: ['minimum', '30 days', '180 days', 'thirty'], ex: ['you pay for at least a month in IA', 'deleting early still costs'] },

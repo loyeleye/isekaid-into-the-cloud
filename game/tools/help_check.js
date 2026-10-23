@@ -37,7 +37,7 @@ for (const vector of [false, true]) {
   SD = r.SD; errors.push(...r.errors);
   Object.keys(SD.concepts).forEach(c => concepts.add(c));
   SD.questions.forEach(q => questions.set(q.id || '(no id) ' + q.q.slice(0, 50), q));
-  for (const s of r.srcs.filter(s => !/^js\/bank-/.test(s))) {
+  for (const s of r.srcs.filter(s => !/^js\/(bank-|exam-heldout)/.test(s))) {
     for (const m of fs.readFileSync(path.join(ROOT, s), 'utf8').matchAll(/['"]((?:dva|saa)-\d-\d{2,3})['"]/g)) {
       const q = (SD.bank || []).find(b => b.id === m[1]);
       if (q) questions.set(q.id, q);
@@ -47,7 +47,8 @@ for (const vector of [false, true]) {
 const noHuh = [...concepts].filter(c => !SD.huh[c]);
 const noEli = [...questions.keys()].filter(id => !SD.eli5[id] && !questions.get(id).eli5);
 const strayHuh = Object.keys(SD.huh).filter(c => !concepts.has(c));
-const strayEli = Object.keys(SD.eli5).filter(id => !questions.has(id));
+// Bank questions carry ELI5 lines too (the game shows them on any question), so a bank id isn't a stray key.
+const strayEli = Object.keys(SD.eli5).filter(id => !questions.has(id) && !(SD.bank || []).some(b => b.id === id));
 const texts = [...questions.values()].map(q => [q.q, q.why].concat(q.opts || [], (q.items || []).map(i => i.t || i)).join(' '));
 const unusedGloss = SD.glossary.filter(g => !texts.some(t => g[1].test(t))).map(g => g[0]);
 
