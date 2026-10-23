@@ -55,6 +55,10 @@
     ['narr', 'Dutch hits him. Later Mira patches them both, and won\'t speak to either.']];
 
   // ---------- Camp ----------
+  // The marsh cat, on Kai's stove (js/cut-cat.js has its stills)
+  T.catfish = [['bg', 'c3-camp'],
+    ['narr', 'The marsh cat has followed the camp up the tower. It\'s on Kai\'s stove, with a fish that was meant for the market.'],
+    ['narr', 'Four people shout four names at once: "Patient!" "Chef!" "Honoured Guest!" "Suspect!"'], ['narr', 'It leaves with the fish.']];
   T.wen = [['bg', 'c3-camp'], ['show', 'wen', 'smile', 'left'],
     ['narr', 'Grandma Wen, who cached her face in 1987 and never set an expiry, comes down from the Granaries with the party.'],
     ['wen', 'Freya had me serving whatever was asked for last and forgetting the rest. That\'s no way to run a pantry, dears.', 'neutral'],

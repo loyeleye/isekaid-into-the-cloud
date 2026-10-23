@@ -463,6 +463,14 @@
     ['mira', 'How old were you?', 'sad'],
     ['narr', '"Seventeen." Mira does the sum. Tilly is fifteen.']
   ]), { note: 'Mira and Seo-yeon, the night after the burning field.' });
+  cut.def('cat-stew', 'The marsh cat', () => vn('c2-fire', [
+    ['narr', 'A scrawny marsh cat is sitting by the fire, eating Kai\'s stew straight out of the pot.'],
+    ['coo', 'We should call it something. Every post office has a name.', 'smile'],
+    ['mira', 'Patient. It keeps coming back with something wrong with it.', 'warm'],
+    ['kai', 'Chef. It\'s stealing from my station.', 'anger'],
+    ['seoyeon', 'Honoured Guest.', 'neutral'],
+    ['dutch', 'Suspect.', 'stone'],
+    ['narr', 'The cat finishes the stew and leaves. Nobody agrees on anything.']]), { note: 'A stray at the fire, and four names for it.' });
   async function fire() {
     if (flag('freed') || !flag('uptima')) return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
     if (!flag('tillyPair')) {
@@ -473,14 +481,7 @@
     if (!flag('cat')) {
       // The marsh cat adopts the camp. Nobody agrees on its name, all the way to the epilogue.
       setFlag('cat');
-      return say([
-        ['narr', 'A scrawny marsh cat is sitting by the fire, eating Kai\'s stew straight out of the pot.'],
-        ['coo', 'We should call it something. Every post office has a name.', 'smile'],
-        ['mira', 'Patient. It keeps coming back with something wrong with it.', 'warm'],
-        ['kai', 'Chef. It\'s stealing from my station.', 'anger'],
-        ['seoyeon', 'Honoured Guest.', 'neutral'],
-        ['dutch', 'Suspect.', 'stone'],
-        ['narr', 'The cat finishes the stew and leaves. Nobody agrees on anything.']]);
+      return cut.play('cat-stew');
     }
     return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
   }

@@ -926,14 +926,16 @@
     setFlag('turned');
     await U.system('DUTCH\'S UPGRADE: TURNED ON', 'Data events, on. In Expedition III, Dutch\'s Master Key reveals every hidden intent for the rest of the fight, whoever plays him.', 'gold');
   }
+  cut.def('cat-cable', 'The marsh cat and the machines', () => vn([['bg', 'c5-camp'],
+    ['narr', 'The marsh cat walks out of Kaito\'s machines with one of his cables in its mouth. Three of them stop humming.'],
+    ['narr', 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect."'],
+    ['kaito', 'That was redundant anyway.', 'smug'],
+    ['narr', 'Down the hill, Marrow\'s bell rings, once for each machine.']]), { note: 'One of Kaito\'s cables, taken.' });
   async function fire() {
     if (!flag('up')) return;
     if (!flag('cat5')) {
       setFlag('cat5');
-      return say([[null, 'The marsh cat walks out of Kaito\'s machines with one of his cables in its mouth. Three of them stop humming.'],
-        [null, 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect."'],
-        ['kaito', 'That was redundant anyway.', 'smug'],
-        [null, 'Down the hill, Marrow\'s bell rings, once for each machine.']]);
+      return cut.play('cat-cable');
     }
     if (flag('board') && flag('watch') && flag('ledger') && flag('deal') && !flag('turned')) return turned();
     return review('fire');

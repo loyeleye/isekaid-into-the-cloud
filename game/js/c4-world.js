@@ -787,13 +787,15 @@
     setFlag('freya');
     return upgrade();
   }
+  cut.def('cat-forms', 'The marsh cat at dawn', () => vn([['bg', 'c4-camp'],
+    ['narr', 'The marsh cat is asleep in the middle of the dawn forms, exactly where Seo-yeon wants to stand.'],
+    ['narr', 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." It doesn\'t move.'],
+    ['narr', 'Down the hill, Marrow\'s bell rings for the cat. It rings for every alarm. Seo-yeon does her forms around it.']]), { note: 'Seo-yeon\'s spot in the dawn forms, taken.' });
   async function fire() {
     if (!flag('camp')) return say([[null, 'A camp fire, banked low.']]);
     if (!flag('cat4')) {
       setFlag('cat4');
-      return say([[null, 'The marsh cat is asleep in the middle of the dawn forms, exactly where Seo-yeon wants to stand.'],
-        [null, 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." It doesn\'t move.'],
-        [null, 'Down the hill, Marrow\'s bell rings for the cat. It rings for every alarm. Seo-yeon does her forms around it.']]);
+      return cut.play('cat-forms');
     }
     return review('forms');
   }

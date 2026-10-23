@@ -856,12 +856,14 @@
     setFlag('board'); R.gainXp(30);
     await addCard('r6-copy');
   }
+  cut.def('cat-mirror', 'The marsh cat and the lake', () => vn([['bg', 'c6-camp'],
+    ['narr', 'The marsh cat is sitting by the lake, staring at the other cat in the water. The other cat stares back, a moment late.'],
+    ['narr', 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." Both cats ignore all of them.']]), { note: 'The other cat, in the water.' });
   async function fire() {
     if (!flag('camp')) return say([[null, 'A camp fire, banked low.']]);
     if (!flag('cat6')) {
       setFlag('cat6');
-      return say([[null, 'The marsh cat is sitting by the lake, staring at the other cat in the water. The other cat stares back, a moment late.'],
-        [null, 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." Both cats ignore all of them.']]);
+      return cut.play('cat-mirror');
     }
     return say([[others()[0], rnd(['Sit. The lake can wait one evening.', 'Seymour hasn\'t come out of the bunker all day.', 'Mio says the camp sounds honest. I\'ll take it.']), 'warm']]);
   }

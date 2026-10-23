@@ -43,6 +43,7 @@
   const cut = SD.reel.chapter('3', { before: () => { U.closePanel(); U.stage(null); } });
   cut.def('cold', 'Tax season', ST.cold, { music: 'story', note: 'Kai and his sister Hana, a year and a half ago.' });
   cut.def('cold2', 'Floss, boss', ST.cold2, { note: 'The light under the kitchen door.' });
+  cut.def('cat-fish', 'The marsh cat, again', ST.catfish, { note: 'Kai\'s stove, and a fish meant for the market.' });
   cut.def('arrive', 'Halcyon', ST.arrive, { music: 'c3town', note: 'Floor 21, under a dome of gold light.' });
   cut.def('heart', 'The heart of the barrier', ST.heart, { music: 'c3sad', note: 'Kai feels his sister in it.' });
   cut.def('crown', 'The twelfth Saint', ST.crown, { music: 'c3town', note: 'Noor Haddad, crowned on the cathedral steps.' });
@@ -775,8 +776,7 @@
     if (sc.actors[id] && !sc.actors[id].thing) faceTo(id, 'you');
     const fns = { heart, noor: noorTalk, gate, keeper: gate, sack: sackTalk, clerk: sackTalk, merchant, wen: wenTalk, doug: dougTalk, kevin: dougTalk, term: terminal, kage: kageTalk, kstall: kageTalk,
       aurc: aurTalk, board: boardTalk, ash: ashTalk, saints: register, noorc: () => say([['noor', rnd(['So this is a camp of people who don\'t want anything from me. It\'s loud.', 'Seo-yeon\'s forms are hard. I fell over twice. She said that was "a start".']), 'smile']]),
-      stove: () => flag('x1') && !flag('cat3') ? (setFlag('cat3'), say([['narr', 'The marsh cat has followed the camp up the tower. It\'s on Kai\'s stove, with a fish that was meant for the market.'],
-        ['narr', 'Four people shout four names at once: "Patient!" "Chef!" "Honoured Guest!" "Suspect!"'], ['narr', 'It leaves with the fish.']])) : flag('freed') && !flag('clean') ? say([['narr', 'The camp kitchen. Every pot hung by size.']]) : say([['narr', flag('jar') ? (flag('choice') ? 'The shelf over the stove. Freya\'s jar has gone dark.' : 'The shelf over the stove. Freya\'s jar, warm and gold. Kai doesn\'t look at it.') : 'Kai\'s stove, the camp\'s kitchen. Every pot clean.']]),
+      stove: () => flag('x1') && !flag('cat3') ? (setFlag('cat3'), cut.play('cat-fish')) : flag('freed') && !flag('clean') ? say([['narr', 'The camp kitchen. Every pot hung by size.']]) : say([['narr', flag('jar') ? (flag('choice') ? 'The shelf over the stove. Freya\'s jar has gone dark.' : 'The shelf over the stove. Freya\'s jar, warm and gold. Kai doesn\'t look at it.') : 'Kai\'s stove, the camp\'s kitchen. Every pot clean.']]),
       office: () => say([['narr', 'THE RATION OFFICE. A queue out of the door, and a sign: "PLEASE WAIT. THE LEDGER IS BUSY."']]),
       bell: () => { AU.sfx('x-bell'); return say([['narr', 'The bell tower. Every night it rings the crowning, because the crowning is in the template.']]); },
       well: () => say([['narr', 'A well that echoes every change made above it, before and after, for exactly one day. Then it goes quiet.']]) };
