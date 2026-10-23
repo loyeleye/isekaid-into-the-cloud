@@ -10,6 +10,8 @@
     'kai|Because every one of you said it was the only way.': 'kai-c2-edge-02',
     'dutch|Nobody said anything. Freya did. Every one of us heard what we wanted to.': 'dutch-c2-edge-01',
     'mira|Enough. Sit down, all of you. Eat something.': 'mira-c2-edge-01',
+    // The climb-only edge (js/vec-ch2.js, in the cutscene viewer) cuts her off with "We'll...": same recording.
+    "mira|Enough. Sit down, all of you. Eat something. We'll...": 'mira-c2-edge-01',
     'dutch|Same handwriting. Same person played all four of us.': 'dutch-c2-edge-02',
     'mira|Then we stop blaming each other, and start on her.': 'mira-c2-edge-02',
     "freya|Welcome to the Free Tier, everyone! Everything's free!": 'freya-c2-tower',
@@ -23,9 +25,6 @@
     "freya|Give me Thornwick's post, love, and every letter goes through. Tilly's too. It's free.": 'freya-c2-postbox-01',
     'freya|Take your time. Everything here does.': 'freya-c2-postbox-02'
   };
-  // kai-c2-tower wasn't recorded (quota): left out until its file is in assets/audio/vo/.
-  const MISSING = ['kai-c2-tower'];
-  Object.keys(LINES).forEach(k => { if (MISSING.includes(LINES[k])) delete LINES[k]; });
   SD.vo = Object.assign(SD.vo || {}, LINES);
 
   // The dialogue box: remember each call's lines in order, and voice each one as it starts typing.
