@@ -615,7 +615,7 @@
         notes: ['k4sse', 'k4detect', 'k4edge'], sorts: ['k4keypol', 'k4routes'], events: ['k4tea', 'k4reads', 'k4order'],
         intro: intro([null, 'The summer house. Ryu has come, and half the Alliance behind him. Namgung waits on the veranda.'], ['seoyeon', 'You wrote it for me. I\'ll read it to them.']),
         outro: intro(['c4', 'reckon']) })
-    ], { sev: 1.17, dmg: 1.17 }) // Balance (Oct 21): the chapter's hardest; was 0.88/0.9, 100% clean clears; now 67%.
+    ], { sev: 1.08, dmg: 1.08 }) // Balance (Oct 23, with tapes and the debrief heal, raid damage ×1.1): the chapter's hardest; 1.17 gave 35% clean clears at 70% right, 1.08 gives 75%.
   ]);
   // A { who: 'c4' } line is a cue for js/c4-world.js, not a line: 'gu' plays Old Gu's letter before the Master's Room,
   // 'confront' the evidence before the Succession Hall, and 'reckon' the reckoning's end.
