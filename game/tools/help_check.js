@@ -47,7 +47,8 @@ for (const vector of [false, true]) {
 const noHuh = [...concepts].filter(c => !SD.huh[c]);
 const noEli = [...questions.keys()].filter(id => !SD.eli5[id] && !questions.get(id).eli5);
 const strayHuh = Object.keys(SD.huh).filter(c => !concepts.has(c));
-const strayEli = Object.keys(SD.eli5).filter(id => !questions.has(id));
+// Bank questions carry ELI5 lines too (the game shows them on any question), so a bank id isn't a stray key.
+const strayEli = Object.keys(SD.eli5).filter(id => !questions.has(id) && !(SD.bank || []).some(b => b.id === id));
 const texts = [...questions.values()].map(q => [q.q, q.why].concat(q.opts || [], (q.items || []).map(i => i.t || i)).join(' '));
 const unusedGloss = SD.glossary.filter(g => !texts.some(t => g[1].test(t))).map(g => g[0]);
 
