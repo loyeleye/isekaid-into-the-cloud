@@ -58,6 +58,42 @@
     if (open) cut = open;
     return cut && match(cut, text);
   }
+  // A drawn picture: no sheet, and no painting behind it (the vector demo's art is SVG, so an SVG src is drawn too).
+  function drawn(id) { const s = V.art.scenes[id] || {}; return !s.sheet && (!s.src || /^data:image\/svg/.test(s.src)); }
+  // The still the next line after steps[i] cuts to, if it's a shot, without moving on: a backdrop that's about to be
+  // covered by one is never shown (on a phone a drawn backdrop flashed up before the still).
+  function nextShot(steps, i, c) {
+    for (let j = i + 1; j < steps.length; j++) {
+      const [k, a] = steps[j];
+      if (k === 'bg') return null;
+      if (k === 'cg') return drawn(a) ? null : a;
+      if (k === 'cut') { c = V.cuts.find(x => x[0][0] === 'cut-' + a + '-1') || c; continue; }
+      if (CMD.has(k)) continue;
+      if (typeof a !== 'string') return null;
+      c = V.cuts.find(x => match(x.slice(0, 1), a)) || c;
+      return c && match(c, a);
+    }
+    return null;
+  }
+  // Every sheet a script will cut to, loaded before it fades up from black, so a still never arrives late.
+  function preload(steps) {
+    const urls = new Set();
+    let c = null;
+    steps.forEach(([k, a]) => {
+      if (k === 'bg') c = null;
+      else if (k === 'cut') c = V.cuts.find(x => x[0][0] === 'cut-' + a + '-1') || c;
+      else if (!CMD.has(k) && typeof a === 'string') {
+        c = V.cuts.find(x => match(x.slice(0, 1), a)) || c;
+        const s = V.art.scenes[c && match(c, a)];
+        if (s && s.sheet) urls.add(s.sheet);
+      }
+    });
+    return Promise.race([sleep(4000), Promise.all([...urls].map(u => new Promise(done => {
+      const im = new Image();
+      im.onload = im.onerror = done;
+      im.src = SD.assetUrl ? SD.assetUrl(u) : u;
+    })))]);
+  }
   // Where a point on the current still (x, y as fractions of the painting) is on screen, as CSS percentages, after
   // the crop: an overlay like the ring's glint follows the painting rather than the screen.
   V.onStill = function (x, y) {
@@ -667,13 +703,13 @@
     root.hidden = false;
     document.body.classList.add('vn-on');
     root.querySelector('.vn-black').classList.add('on');
-    await sleep(60);
-    for (const st of steps) {
+    await Promise.all([sleep(60), preload(steps)]);
+    for (let i = 0; i < steps.length; i++) {
       if (skipping) break;
-      const [k, ...a] = st;
+      const [k, ...a] = steps[i];
       if (!CMD.has(k)) {
         const shot = shotFor(a[0]);
-        if (shot && shot !== root.dataset.cg) {
+        if (shot && (shot !== root.dataset.cg || root.querySelector('.vn-black').classList.contains('on'))) {
           root.classList.add('vn-incg');
           setLayer('.vn-cg', shot, 'slow', root.querySelector('.vn-black').classList.contains('on'));
           root.querySelector('.vn-black').classList.remove('on');
@@ -681,7 +717,11 @@
         }
         await line(k, a[0], a[1]); continue;
       }
-      if (k === 'bg') { cut = null; clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
+      // A backdrop the next line's still covers goes in underneath, unseen; a drawn still (no painting or sheet behind
+      // it) is skipped when a pixel still is up or about to be.
+      if (k === 'bg' && nextShot(steps, i, null)) { cut = null; root.classList.add('vn-incg'); setLayer('.vn-bg', a[0]); }
+      else if (k === 'cg' && drawn(a[0]) && (cut || nextShot(steps, i, cut))) continue;
+      else if (k === 'bg') { cut = null; clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
       else if (k === 'cg') {
         root.classList.add('vn-incg');
         // Out of black, the still swaps in whole underneath, so only it fades up (not a mix with the last one).

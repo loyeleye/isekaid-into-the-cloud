@@ -496,7 +496,7 @@
   const XP = (id, name, blurb, back, floors, more) => Object.assign({ id, name, who: ['mira', 'kai', 'seoyeon', 'dutch'], opens: () => !!(SD.c6world && SD.c6world.on), sev: 0.85, dmg: 0.85, blurb, back,
     cafe: { title: 'A Lakeside Café', who: null, name: 'The lakeside café', text: 'A café with a twin across the water. When you order, the far one\'s waiter writes it down too, a moment later.' },
     camp: { title: 'A Jetty to Rest On', text: 'A jetty over still water. Sit for a minute, or sharpen one of your cards on the boards. Each of you chooses one.' },
-    regroup: [{ who: 'lead', text: 'Seymour\'s tape. We\'re back at the start of the floor. Again, and better.' }], floors }, more);
+    tapeLine: [{ who: 'lead', text: 'Seymour\'s tape. We\'re back on our feet. Again, and better.' }], floors }, more);
   const fl = o => Object.assign({ map: '6' }, o);
   const ROW = {
     a: [['fight', 'notes', 'fight'], ['event', 'fight', 'sort'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'board'], ['camp', 'event', 'fight'], ['fight', 'elite', 'notes'], ['sort', 'fight', 'board'], ['fight', 'event', 'fight'], ['camp', 'cafe', 'camp']],

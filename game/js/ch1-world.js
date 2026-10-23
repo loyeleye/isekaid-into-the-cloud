@@ -7,6 +7,7 @@
   const U = SD.ui, S = SD.state, Q = SD.quiz, AU = SD.audio, R = SD.run, T = SD.ch1story, ART = SD.c1art;
   const $ = U.$;
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  const cut = SD.reel.chapter('1');
   const rnd = a => a[Math.floor(Math.random() * a.length)];
   const CH = SD.chapters[1];
 
@@ -507,12 +508,12 @@
     S.persist();
     sc = null;
   }
+  cut.def('prologue', 'The prologue', () => T.prologue[lead()], { music: 'story', note: 'Your lead\'s life before the files.' });
   W1.newGame = async function () {
     // W1.opening, when a build sets one (the vector proof of concept's "the files"), plays first and picks the lead.
     begin(await (W1.opening ? W1.opening() : choose()));
     freyaForm();
-    AU.music('story');
-    await SD.vn.play(T.prologue[lead()]);
+    await cut.play('prologue');
     // The climb up Mount Quota (js/ch1-mountain.js) comes first, and ends at the camp.
     if (SD.ch1m) return SD.ch1m.start();
     W1.enter();
@@ -719,19 +720,23 @@
     S.save.flags.ch1 = true; S.save.stats.wins++; S.persist();
     U.stage('sanctum');
     AU.music('kyusad');
-    // The reveal plays as a cutscene with stills (js/cut-reveal.js), the same words as T.ending and T.wipe; the vector build keeps the plain lines.
-    await (SD.cutReveal && !window.SD_VECTOR ? SD.cutReveal.ending() : say(T.ending));
-    U.system('[SYSTEM] ADMIN CHANGED', 'Root user: Freya.', 'red');
-    await wait(900);
-    U.system('[SYSTEM] BACKUPS DELETED', 'Every backup in the Cloud, from every Region. Retention: none.', 'red');
-    await wait(1200);
-    await (SD.cutReveal && !window.SD_VECTOR ? SD.cutReveal.wipe() : say(T.wipe));
+    // The reveal plays as a cutscene with stills (js/cut-reveal.js), the same words as T.ending and T.wipe, in the
+    // vector build too (Ladi, Oct 22); without it, the plain lines.
+    if (SD.cutReveal) await SD.reel.play('1/reveal');
+    else { await say(T.ending); await W1.wiped(); await say(T.wipe); }
     await say(T.basket);
     U.stage('edge');
     AU.music('kyu');
     await say(T.edge);
     endCard();
   }
+  // The system messages between the reveal's two halves.
+  W1.wiped = async function () {
+    U.system('[SYSTEM] ADMIN CHANGED', 'Root user: Freya.', 'red');
+    await wait(900);
+    U.system('[SYSTEM] BACKUPS DELETED', 'Every backup in the Cloud, from every Region. Retention: none.', 'red');
+    await wait(1200);
+  };
   SD.chapterStart = SD.chapterStart || {};
   SD.chapterStart[1] = () => W1.newGame();
   function endCard() {

@@ -289,6 +289,8 @@
       ['freya', 'Give me Thornwick\'s post, love, and every letter goes through. Tilly\'s too. It\'s free.'],
       ['narr', 'Mira doesn\'t answer.'],
       ['freya', 'Take your time. Everything here does.'],
+      ['narr', 'Under the poster, in very small gold print: DELIVERY IS FREE. POSTAGE IS THORNWICK\'S GRANTS, PAYABLE FOREVER.'],
+      ['dutch', 'Always read the small print. Hers especially.', 'stone'],
       ['hide', 'mira'], ['bg', 'c2-floors'],
       ['narr', 'Up the stair are the Sorting Floors: the halls where Thornwick\'s letters go to be processed, and never come out.']
     ],
@@ -307,6 +309,21 @@
       ['coo', 'Shipped! Delivered! Exactly once, I think. I\'m counting.', 'smile']
     ]
   };
+  // In the cutscene viewer (js/reel.js). Thornwick is two scenes: the square, and Freya at the post box after the
+  // Unmake It talk. The explorable chapter 2 (js/c2-world.js) plays some of these and adds its own.
+  const cut = K.cut2 = SD.reel.chapter('2', { before: () => { U.closePanel(); U.stage(null); } });
+  const atPost = () => T.thornwick.findIndex(x => x[0] === 'cg');
+  cut.def('cold', 'Bram\'s wagon', T.cold, { music: 'story', note: 'A memory: Mira and Bram, the night of a new moon.' });
+  cut.def('edge', 'The edge of the Cloud', T.edge, { note: 'The night after the wipe, and Freya\'s basket. (The climb-only version.)' });
+  cut.def('tower', 'The tower at dawn', T.tower);
+  cut.def('scrap', 'The scrap field', T.scrap, { note: 'Where Freya dumps what she deletes. (The climb-only version.)' });
+  cut.def('bunker', 'The bunker', T.bunker, { note: 'Sir Seymour Backups won\'t open the door. (The climb-only version.)' });
+  cut.def('wren', 'Elder Wren', T.wren, { note: '(The climb-only version.)' });
+  cut.def('fire', 'The first fire', T.fire);
+  cut.def('thornwick', 'Thornwick', () => T.thornwick.slice(0, atPost()), { note: 'The silent bell, and Tilly. (The climb-only version.)' });
+  cut.def('thornwick-post', 'Freya at the post box', () => T.thornwick.slice(atPost()), { note: '(The climb-only version.)' });
+  cut.def('redeploy', 'Midnight: the floors grow back', T.redeploy);
+  cut.def('shipped', 'Shipped', T.shipped, { note: 'The template is yours, and floors 2 to 6 stay cleared.' });
   // Pip's question after the expedition: the Belfry's answer, explained.
   const PIP_Q = { c: 'snsfan', type: 'mc', q: 'Pip: "Why did the Belfry\'s bells stop hitting all of us at once?"',
     opts: ['Each subscription got a filter policy, so each copy only reached the one it was for', 'The topic was switched to FIFO, so the copies came one at a time', 'We deleted the topic, so nothing was sent', 'The visibility timeout hid the copies until the fight was over'], a: 0,
@@ -344,7 +361,7 @@
     ]);
   }
   const PAIRS = {
-    tof: { title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
+    tof: { cut: 'three-one-four-cart', title: 'Three, One, Four', pair: ['dutch', 'seoyeon'], faces: ['stone', 'neutral'], bg: 'c2-cart', music: 'kyusad',
       full: [
         ['narr', 'Later. The others are asleep, or pretending. Dutch taps the cart wall out of habit: three, one, four. Then he stops. That\'s what Freya tapped, in Lina\'s voice. From the other side of the cart, Seo-yeon taps it back.'],
         ['seoyeon', 'What does it mean?', 'neutral'],
@@ -355,7 +372,7 @@
       walk: 'You can\'t sleep. On either side of the cart\'s plank wall, two people can\'t either, and one of them has just tapped back.',
       camp: 'At the fire, Dutch taps the log he\'s sitting on without meaning to: three, one, four. Across the fire, Seo-yeon taps it back.',
       from: 1, inner: { dutch: [3, '(She tapped it back. Nobody has, since Lina.)'], seoyeon: [2, '(He doesn\'t know he does it. Neither did I, the first time.)'] } },
-    unmake: { title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
+    unmake: { cut: 'unmake-it', title: 'Unmake It', pair: ['kai', 'mira'], faces: ['earnest', 'grief'], bg: 'c2-square', music: 'kyusad',
       full: [
         ['narr', 'Tilly walks on. Mira watches the grey coat until it turns the corner. Kai pulls off his glove and holds up the cracked hand.'],
         ['kai', 'One touch. I take it off you, and the kid looks at you and sees you.', 'earnest'],
@@ -366,7 +383,7 @@
       walk: 'You catch them up by the well. Kai has his glove off, and his cracked hand held up between them.',
       camp: 'At the fire, Kai turns his glove over and over. Then he pulls it off, and holds up the cracked hand to Mira.',
       from: 1, inner: { kai: [2, '(It would work. I know it would work.)'], mira: [3, '(She looked straight through me. Better that than knowing me.)'] } },
-    sunlight: { title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
+    sunlight: { cut: 'sunlight', title: 'Sunlight', pair: ['mira', 'seoyeon'], faces: ['warm', 'neutral'], bg: 'c2-marsh', music: 'town',
       full: [
         ['narr', 'The marsh path, at noon. The sun comes off the water all at once; Seo-yeon squints, and her eyes go red. Mira, whose own left eye is amber and slit, holds up a hand to shade her.'],
         ['mira', 'People look at the eye first. Let them. Then they look at your hands, and that\'s where you tell them who you are.', 'warm'],
@@ -379,9 +396,8 @@
   };
   C2.pairSeen = id => flag('pair-' + id);
   // where: 'camp' when it comes back at the next camp, else in its own place.
-  C2.pair = async function (id, where) {
+  function pairSteps(id, where) {
     const P = PAIRS[id], me = (S.save.c1 && S.save.c1.lead) || 'mira';
-    if (!P || flag('pair-' + id)) return;
     const mine = P.pair.includes(me);
     let lines = mine ? P.full.slice() : [['narr', P.walk]].concat(P.full.slice(P.from));
     if (where === 'camp') lines[0] = ['narr', P.camp];
@@ -392,9 +408,15 @@
       if (k >= 0) lines[k] = [me, lines[k][1] + ' ' + t, lines[k][2]]; else lines.splice(Math.min(at, lines.length), 0, [me, t, P.faces[P.pair.indexOf(me)]]);
     }
     lines[0] = [lines[0][0], P.title.toUpperCase() + ' · ' + lines[0][1]].concat(lines[0].slice(2));
-    U.closePanel(); U.stage(null);
-    AU.music(P.music);
-    await SD.vn.play([['bg', where === 'camp' ? 'c2-fire' : P.bg], ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]]);
+    // At camp the opening line is told at the fire, so no cue opens the cutscene's stills: name it and start on its first.
+    const stills = where === 'camp' ? [['cut', P.cut], ['cg', 'cut-' + P.cut + '-1']] : [];
+    return [['bg', where === 'camp' ? 'c2-fire' : P.bg], ...stills, ['show', P.pair[0], P.faces[0], 'left'], ['show', P.pair[1], P.faces[1], 'right'], ...lines, ['hide', P.pair[0]], ['hide', P.pair[1]]];
+  }
+  Object.keys(PAIRS).forEach(id => cut.def('pair-' + id, 'Pair scene: ' + PAIRS[id].title, where => pairSteps(id, where),
+    { music: PAIRS[id].music, alts: [['Where it happens', null], ['Caught up at camp', 'camp']] }));
+  C2.pair = async function (id, where) {
+    if (!PAIRS[id] || flag('pair-' + id)) return;
+    await cut.play('pair-' + id, where);
     setFlag('pair-' + id);
   };
   C2.pairsMissed = async function () { for (const id of Object.keys(PAIRS)) if (!flag('pair-' + id)) await C2.pair(id, 'camp'); };
@@ -703,7 +725,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
       text: 'In a sorting bin, under a drift of returned mail, is Pip: a small, polite packet who has never been answered and is very sorry to be a bother. "They tried me three times," he says, "and then they put me in here. Is that bad?"',
       choices: [
         { label: 'SQS deletes a letter after three failures, so you shouldn\'t exist', out: 'SQS never deletes a letter for failing. Only a DeleteMessage call, or the end of the retention period, removes one. Pip looks worried. The team loses 5 SLA.', fx: { sla: -5 } },
-        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', out: 'Pip: "Set aside. For someone to look at. Oh." He climbs into your satchel. You get a Dead-Letter Queue card.', fx: { card: 'dlq' } },
+        { label: 'You\'re in a dead-letter queue: you failed past maxReceiveCount, so SQS set you aside for someone to look at', out: 'Pip: "Set aside. For someone to look at. Oh." Then, apologising: "They didn\'t even reset my clock when they moved me." Dutch: "Standard queue. Your age comes with you, so the dead-letter queue has to keep you longer than the queue you came from." Pip climbs into your satchel. You get a Dead-Letter Queue card.', fx: { card: 'dlq' } },
         { label: 'You\'re in a FIFO queue, waiting your turn', out: 'He isn\'t waiting his turn. He failed, more times than the redrive policy allows.', fx: {} }] },
     'c2-pigeon': { id: 'c2-pigeon', title: 'Coo\'s Lost Pigeon', who: null, per: true,
       text: 'A pigeon flies in a minute late with a sack of letters for the archive, then another a minute after that. A note in Coo\'s hand: "The archive takes them in batches, never one at a time, and never loses one. What does that remind you of?"',
@@ -732,7 +754,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     back: 'Back down to the Free Cloud',
     cafe: { title: 'The Franking Room', who: null, name: 'The franking room', text: 'A franking machine with a kettle on top, and cards on the counter with prices stamped on them.' },
     camp: { title: 'The Sorting Room', text: 'An empty sorting room with a kettle that works. Everyone sits on the mail sacks at once. Rest, or practise one of your cards.' },
-    regroup: [{ who: null, text: 'One of Seymour\'s tapes whirrs, and the floor is back the way you found it.' }, { who: 'mate1', text: 'Up. All of us. Back to the top of the floor: we know what\'s in there now.' }],
+    tapeLine: [{ who: null, text: 'One of Seymour\'s tapes whirrs, and goes quiet for good.' }, { who: 'mate1', text: 'Up. All of us. It\'s still in there, and now we know what it does.' }],
     floors: [
       { name: 'Intake', gate: 'THE SORTING FLOORS · INTAKE', map: '2', beat: 'Where Thornwick\'s letters arrive, and go round, and round.',
         boss: 'postmistress', bossTitle: 'The Postmistress Without Post', fade: 4,
@@ -865,7 +887,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
       playing = false; undress = null;
     };
   }
-  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay, tapes: 2 }, extra);
+  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay }, SD.tapes.forRaid(2), extra);
 
   // A join screen: the open parties on the stair, and a box for a friend's code.
   function joinScreen(root, dir) {
@@ -941,14 +963,15 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     return new Promise(res => {
       const net = !!(SD.net && SD.raid);
       const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p>
-        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and one of Seymour's tapes puts you back at the start of the floor: two tapes a climb.</p>
+        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss.</p>${SD.tapes.door(2)}
         <div class="opts"><button class="opt primary" id="sf-solo"><b>Climb</b> · you and your three</button>
         ${net ? '<button class="opt" id="sf-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="sf-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         ${noBack ? '' : '<div class="row"><button class="ghost" id="sf-not">Not yet</button></div>'}`, { title: 'THE SORTING FLOORS', noClose: true });
-      const go = how => async () => { U.closePanel(); c2().f.act1 = true; S.persist(); AU.music('story'); if (SD.c2world && SD.c2world.active) SD.c2world.halt(); const won = await C2.sorting(how); res(won); after(won); };
+      const go = how => async () => { U.closePanel(); SD.tapes.award('starter', 3, 'Seymour, through the slot: "For the stair. Don\'t waste them."'); c2().f.act1 = true; S.persist(); AU.music('story'); if (SD.c2world && SD.c2world.active) SD.c2world.halt(); const won = await C2.sorting(how); res(won); after(won); };
       b.querySelector('#sf-solo').onclick = go('solo');
       if (net) { b.querySelector('#sf-party').onclick = go('party'); b.querySelector('#sf-join').onclick = go('join'); }
       if (!noBack) b.querySelector('#sf-not').onclick = () => { U.closePanel(); res(null); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(null); });
     });
   };
   // Back down the stair: cleared, the camp; not, the Free Cloud's fire and another go.
@@ -974,12 +997,12 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     SD.ch1.halt(); U.closePanel(); U.stage(null);
     AU.music('story');
     if (!flag('act1')) {
-      await SD.vn.play([...T.cold, ['fx', 'black'], ...T.edge]);
+      await cut.play(['cold', ['fx', 'black'], 'edge']);
       await C2.pair('tof');
-      await SD.vn.play([...T.tower, ...T.scrap, ...T.bunker]);
-      await SD.vn.play([...T.wren, ...T.fire, ...T.thornwick.slice(0, T.thornwick.findIndex(x => x[0] === 'cg'))]);
+      await cut.play(['tower', 'scrap', 'bunker']);
+      await cut.play(['wren', 'fire', 'thornwick']);
       await C2.pair('unmake');
-      await SD.vn.play(T.thornwick.slice(T.thornwick.findIndex(x => x[0] === 'cg')));
+      await cut.play('thornwick-post');
       setFlag('act1');
     }
     if (!flag('won')) return C2.climb(true);
@@ -994,7 +1017,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
   async function afterExpedition() {
     await C2.pairsMissed();
     U.stage(null);
-    await SD.vn.play(T.redeploy);
+    await cut.play('redeploy');
     U.stage('c2fire');
     await Q.ask(PIP_Q, { title: 'WHY DID THAT WORK?', context: 'Pip, after the expedition' });
     await say([['pip', 'Oh. A filter on each one. That\'s nice. I\'d like one of those.', 'happy'], ['dutch', 'So we change the template. And it gets through her pipeline, or it doesn\'t.', 'neutral'], ['coo', 'Ship it! And when you\'ve shipped it, I\'ve got a sorting desk that needs you.', 'smile']]);
@@ -1041,7 +1064,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     R.gainXp(40);
     U.system('SHIPPED', 'Floors 2 to 6 stay cleared at midnight. The lift opens to floor 7.', 'gold');
     U.stage(null);
-    await SD.vn.play(T.shipped);
+    await cut.play('shipped');
     camp();
   }
 

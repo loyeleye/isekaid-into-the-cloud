@@ -621,7 +621,7 @@
   const XP = (id, name, blurb, back, floors, more) => Object.assign({ id, name, who: ['mira', 'kai', 'seoyeon', 'dutch'], opens: () => !!(SD.c5world && SD.c5world.on), sev: 0.85, dmg: 0.85, blurb, back,
     cafe: { title: 'The Refectory', who: null, name: 'The refectory', text: 'The Arcanum\'s refectory, rebuilt to the last chipped plate. The scholarship students eat at the far table. Tonight, so do you.' },
     camp: { title: 'A Lecture Hall After Hours', text: 'An empty lecture hall with a lamp still lit. Rest on the benches, or use the demonstration bench on one of your cards. Each of you chooses one.' },
-    regroup: [{ who: 'dutch', text: 'Up. Again. From the top of the floor, and this time we read the record first.' }], floors }, more);
+    tapeLine: [{ who: 'dutch', text: 'Up. Again. Same fight, and this time we read the record first.' }], floors }, more);
   const fl = (o) => Object.assign({ map: '5' }, o);
   SD.expeditions = (SD.expeditions || []).concat([
     XP('x5shops', 'The Workshops', 'The Arcanum\'s workshops, where the tower\'s machines are made: the Forge, then the Assembly Line.', 'Back up to the city', [

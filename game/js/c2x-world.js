@@ -41,7 +41,9 @@
   const L = lines => lines.map(([s, t, e]) => ({ s: who(s), t: txt(t), e }));
   const say = lines => U.dialog(L(lines));
   const SPR = new Set(['mira', 'kai', 'seoyeon', 'dutch', 'freya', 'coo', 'pip', 'seymour', 'uptima', 'tilly', 'marrow', 'hale', 'anselm', 'bru', 'faithful', 'bram']);
-  // A short visual-novel scene (6 lines or fewer, skippable): speakers step on as they speak, two at a time.
+  // A short visual-novel scene (6 lines or fewer, skippable): speakers step on as they speak, two at a time. The
+  // chapter's scenes are in the cutscene viewer (js/reel.js).
+  const cut = SD.reel.chapter('2b', { before: () => { U.closePanel(); U.stage(null); } });
   function vn(bg, lines) {
     const cmds = [['bg', bg]], on = [];
     lines.forEach(([s, t, e]) => {
@@ -55,8 +57,7 @@
       cmds.push([id, text, e || 'neutral']);
     });
     on.forEach(o => cmds.push(['hide', o.id]));
-    U.closePanel(); U.stage(null);
-    return SD.vn.play(cmds);
+    return cmds;
   }
 
   // ---------- The map ----------
@@ -327,15 +328,15 @@
   const ask = (q, title, ctx) => Q.ask(Object.assign({ type: 'mc' }, q), { title, context: ctx || 'Spaced recall' }).then(r => !!(r && r.ok));
 
   // ---------- The story ----------
+  cut.def('opening', 'Floor 7: the Dead Letter Office', () => vn('c2x-office', [
+    ['narr', 'Floor 7. The lift opens on the Dead Letter Office: pigeonholes to the ceiling, a clerk at every desk, and not one letter answered.'],
+    ['seoyeon', 'They\'re prayers. All of them.', 'sad'],
+    ['kai', 'That clerk gave up after three seconds. They all do.', 'anger'],
+    ['dutch', 'Then we find out why. There\'s a bench over there with a clerk on it.', 'neutral'],
+    ['mira', 'And somewhere at the bottom of all this, someone reads them.', 'cold']
+  ]), { music: 'c2xexplore', note: 'Pigeonholes to the ceiling, and not one letter answered.' });
   async function opening() {
-    AU.music('c2xexplore');
-    await vn('c2x-office', [
-      ['narr', 'Floor 7. The lift opens on the Dead Letter Office: pigeonholes to the ceiling, a clerk at every desk, and not one letter answered.'],
-      ['seoyeon', 'They\'re prayers. All of them.', 'sad'],
-      ['kai', 'That clerk gave up after three seconds. They all do.', 'anger'],
-      ['dutch', 'Then we find out why. There\'s a bench over there with a clerk on it.', 'neutral'],
-      ['mira', 'And somewhere at the bottom of all this, someone reads them.', 'cold']
-    ]);
+    await cut.play('opening');
     setFlag('start');
   }
   async function bench() {
@@ -365,45 +366,62 @@
     if (!went) moveTo('square', [88, 13]);
   }
 
+  cut.def('uptima-chained', 'Uptima in chains', () => vn('c2x-vault', [
+    ['narr', 'At the bottom of the Prayer Vault, in the backlog, with the prayers still pouring over her, sits Uptima. In chains.'],
+    ['uptima', 'Freya put me here. "You didn\'t want to hear complaints, love. Now you can hear all of them."', 'sad'],
+    ['uptima', 'I have no grants left. I\'m asking the four people who tried to kill me for help.', 'sad'],
+    ['kai', 'Give me one reason.', 'anger'],
+    ['mira', 'Nobody gets left in there. Not even you.', 'cold'],
+    ['narr', 'Mira breaks the chain. It\'s the healer in her, not forgiveness. Forgiveness isn\'t on offer.']
+  ]), { music: 'c2xsad', note: 'The bottom of the Prayer Vault, after Expedition II.' });
+  cut.def('two-prayers', 'Two prayers from the same night', () => vn('c2x-vault', [
+    ['narr', 'In the same vault, Mira finds two prayers from the same night.'],
+    ['narr', 'Her own, still sealed: "Not him. Take the rest of me, not him."'],
+    ['narr', 'And one from the tower: "Let me get the girl out." It\'s signed by Brother Anselm.'],
+    ['mira', 'He was there.', 'shock'],
+    ['dutch', 'Then he\'s alive. And he saw it.', 'stone']
+  ]), { note: 'Mira\'s own, and one signed by Brother Anselm.' });
   // After Expedition II: the midpoint, in two short scenes.
   async function midpoint() {
-    AU.music('c2xsad');
-    await vn('c2x-vault', [
-      ['narr', 'At the bottom of the Prayer Vault, in the backlog, with the prayers still pouring over her, sits Uptima. In chains.'],
-      ['uptima', 'Freya put me here. "You didn\'t want to hear complaints, love. Now you can hear all of them."', 'sad'],
-      ['uptima', 'I have no grants left. I\'m asking the four people who tried to kill me for help.', 'sad'],
-      ['kai', 'Give me one reason.', 'anger'],
-      ['mira', 'Nobody gets left in there. Not even you.', 'cold'],
-      ['narr', 'Mira breaks the chain. It\'s the healer in her, not forgiveness. Forgiveness isn\'t on offer.']
-    ]);
+    await cut.play('uptima-chained');
     AU.sfx('x-chain');
-    await vn('c2x-vault', [
-      ['narr', 'In the same vault, Mira finds two prayers from the same night.'],
-      ['narr', 'Her own, still sealed: "Not him. Take the rest of me, not him."'],
-      ['narr', 'And one from the tower: "Let me get the girl out." It\'s signed by Brother Anselm.'],
-      ['mira', 'He was there.', 'shock'],
-      ['dutch', 'Then he\'s alive. And he saw it.', 'stone']
-    ]);
+    await cut.play('two-prayers');
   }
+  cut.def('freya-at-fire', 'Freya over the fire', () => vn('c2-fire', [
+    ['narr', 'That night Freya visits the camp: a smiling projection over the fire.'],
+    ['freya', 'Oh good, you found her! Is she listening yet?', 'smile'],
+    ['freya', 'Tilly could be here tonight, love. Safe. One little grant.', 'neutral'],
+    ['mira', 'Please leave.', 'cold'],
+    ['narr', 'Freya leaves. Freya always does what she\'s asked.'],
+    ['narr', 'Where the projection was, a little card floats down onto the stones: "How likely are you to recommend the Free Tier to a friend? 0 to 10." Kai puts it under the stove, for kindling.']
+  ]), { music: 'virus', note: 'A smiling projection, and one little grant.' });
   async function uptima() {
     if (flag('uptima')) {
+      if (!flag('potatoes')) {
+        setFlag('potatoes');
+        return say([
+          ['kai', 'You\'re on potatoes. Read the ticket.', 'neutral'],
+          ['uptima', 'I was a goddess.', 'angry'],
+          ['kai', 'And now you\'re on potatoes. Read the ticket.', 'neutral'],
+          ['uptima', 'I don\'t read tickets.', 'sad'],
+          ['kai', 'Learn.', 'anger'],
+          ['narr', 'The next night she has read every ticket on the rail, in order, including last week\'s. Thirty-one potatoes, peeled, each one labelled with its order number.'],
+          ['kai', '...Yes, chef.', 'shock'],
+          ['narr', 'He means yes. Nobody knows what to do with that.']]);
+      }
       if (flag('prayer')) return say([['uptima', 'I read twelve more last night. One was about a goat. I answered it.', 'neutral']]);
       return say([['uptima', rnd(['I read some of the backlog every night. It\'s mostly about the weather.', 'The pots are clean. Don\'t look at me like that.']), 'sad']]);
     }
     await say([
       ['narr', 'Uptima comes into camp, and everyone looks away. Elder Wren is the only one who stands up. She can\'t look at him.'],
+      ['narr', 'Every seat at the fire is taken, except one.'],
+      ['dutch', 'Sit. No, that one.', 'stone'],
+      ['narr', 'She sits. It wobbles.'],
       ['kai', 'Kitchen. You can start on the pots.', 'anger'],
       ['uptima', 'I did this at the Cache Café. Part time.', 'sad'],
       ['uptima', 'I brought the backlog. I\'ll read some of it every night.', 'neutral']
     ]);
-    AU.music('virus');
-    await vn('c2-fire', [
-      ['narr', 'That night Freya visits the camp: a smiling projection over the fire.'],
-      ['freya', 'Oh good, you found her! Is she listening yet?', 'smile'],
-      ['freya', 'Tilly could be here tonight, love. Safe. One little grant.', 'neutral'],
-      ['mira', 'Please leave.', 'cold'],
-      ['narr', 'Freya leaves. Freya always does what she\'s asked.']
-    ]);
+    await cut.play('freya-at-fire');
     setFlag('uptima');
     AU.music('camp');
   }
@@ -437,31 +455,46 @@
     R.gainXp(ok ? 25 : 12);
     U.system('THE LIFT', 'Floor 13 is open: the Inquisition\'s tower. Take the lift.', 'gold');
   }
+  cut.def('tilly-pair', 'Pair scene: Tilly', () => vn('c2-marsh', [
+    ['narr', 'The night after the burning field. Tilly burned a "beast nest" on the town floor, and Mira watched from the reeds.'],
+    ['mira', 'She\'s better off hating a beast than having one for a mother.', 'tired'],
+    ['seoyeon', 'I was raised by the man who burned my family. He was kind to me every day for eight years.', 'sad'],
+    ['seoyeon', 'When she finds out, she won\'t need someone who\'s right. She\'ll need someone who doesn\'t make her choose.', 'neutral'],
+    ['mira', 'How old were you?', 'sad'],
+    ['narr', '"Seventeen." Mira does the sum. Tilly is fifteen.']
+  ]), { note: 'Mira and Seo-yeon, the night after the burning field.' });
+  cut.def('cat-stew', 'The marsh cat', () => vn('c2-fire', [
+    ['narr', 'A scrawny marsh cat is sitting by the fire, eating Kai\'s stew straight out of the pot.'],
+    ['coo', 'We should call it something. Every post office has a name.', 'smile'],
+    ['mira', 'Patient. It keeps coming back with something wrong with it.', 'warm'],
+    ['kai', 'Chef. It\'s stealing from my station.', 'anger'],
+    ['seoyeon', 'Honoured Guest.', 'neutral'],
+    ['dutch', 'Suspect.', 'stone'],
+    ['narr', 'The cat finishes the stew and leaves. Nobody agrees on anything.']]), { note: 'A stray at the fire, and four names for it.' });
   async function fire() {
     if (flag('freed') || !flag('uptima')) return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
     if (!flag('tillyPair')) {
-      await vn('c2-marsh', [
-        ['narr', 'The night after the burning field. Tilly burned a "beast nest" on the town floor, and Mira watched from the reeds.'],
-        ['mira', 'She\'s better off hating a beast than having one for a mother.', 'tired'],
-        ['seoyeon', 'I was raised by the man who burned my family. He was kind to me every day for eight years.', 'sad'],
-        ['seoyeon', 'When she finds out, she won\'t need someone who\'s right. She\'ll need someone who doesn\'t make her choose.', 'neutral'],
-        ['mira', 'How old were you?', 'sad'],
-        ['narr', '"Seventeen." Mira does the sum. Tilly is fifteen.']
-      ]);
+      await cut.play('tilly-pair');
       return setFlag('tillyPair');
     }
     if (flag('choice') && !flag('prayer')) return prayerNight();
+    if (!flag('cat')) {
+      // The marsh cat adopts the camp. Nobody agrees on its name, all the way to the epilogue.
+      setFlag('cat');
+      return cut.play('cat-stew');
+    }
     return say([['narr', 'The fire. Someone has left a pot of Kai\'s stew on the stones.']]);
   }
+  cut.def('what-he-felt', 'What Kai felt', () => vn('c2-fire', [
+    ['narr', 'That night, at camp. On the stair, Kai grabbed Mira\'s beast arm to pull her clear, and the Unmaking flared.'],
+    ['narr', 'For one second he felt the stair, the men on it, and how good letting it out felt.'],
+    ['mira', 'Now you know.', 'tired'],
+    ['kai', 'At the barrier, with my hand on Hana, there was one second when I didn\'t care about the hundred thousand.', 'grief'],
+    ['kai', 'I only took my hand away because the twelfth Saint was watching. Now you know.', 'sad'],
+    ['narr', 'Neither of them tells anyone.']
+  ]), { note: 'The Unmaking flares on the stair.' });
   async function whatHeFelt() {
-    await vn('c2-fire', [
-      ['narr', 'That night, at camp. On the stair, Kai grabbed Mira\'s beast arm to pull her clear, and the Unmaking flared.'],
-      ['narr', 'For one second he felt the stair, the men on it, and how good letting it out felt.'],
-      ['mira', 'Now you know.', 'tired'],
-      ['kai', 'At the barrier, with my hand on Hana, there was one second when I didn\'t care about the hundred thousand.', 'grief'],
-      ['kai', 'I only took my hand away because the twelfth Saint was watching. Now you know.', 'sad'],
-      ['narr', 'Neither of them tells anyone.']
-    ]);
+    await cut.play('what-he-felt');
     setFlag('felt');
   }
 
@@ -488,18 +521,19 @@
     setFlag('ev2'); R.gainXp(ok ? 20 : 10);
     await say([['narr', 'THE FERRY LEDGER. Tilly, carried out through the river gate at the second hour, while the beast was still on the stair.'], ['mira', 'Someone carried her out.', 'shock']]);
   }
+  cut.def('hale-report', 'Hale\'s report', () => vn('c2x-archive', [
+    ['narr', 'HALE\'S REPORT: "The beast killed Bram Holloway." It was sent before the fight on the stair ended. Dutch reads the rest by their dates.'],
+    ['dutch', 'Your man never stood a chance. That one isn\'t on you.', 'stone'],
+    ['dutch', 'The ones on the stair are.', 'stone'],
+    ['mira', 'Yes.', 'tired'],
+    ['dutch', 'Okay.', 'neutral'],
+    ['narr', 'He doesn\'t say anything else. It\'s the kindest thing anyone has done for her in two years.']
+  ]), { note: 'Dutch reads it by its dates.' });
   async function desk() {
     if (flag('ev3')) return say([['narr', 'Hale\'s desk. His seal, his ink, his dispatches in a neat stack.']]);
     const ok = await G.report();
     setFlag('ev3'); R.gainXp(ok ? 20 : 10);
-    await vn('c2x-archive', [
-      ['narr', 'HALE\'S REPORT: "The beast killed Bram Holloway." It was sent before the fight on the stair ended. Dutch reads the rest by their dates.'],
-      ['dutch', 'Your man never stood a chance. That one isn\'t on you.', 'stone'],
-      ['dutch', 'The ones on the stair are.', 'stone'],
-      ['mira', 'Yes.', 'tired'],
-      ['dutch', 'Okay.', 'neutral'],
-      ['narr', 'He doesn\'t say anything else. It\'s the kindest thing anyone has done for her in two years.']
-    ]);
+    await cut.play('hale-report');
   }
   // The confrontation at the top of the stair (the 'evidence' line of the last floor's intro): each piece found is a
   // question every player answers on their own screen, and each one proved weakens Hale.
@@ -539,14 +573,14 @@
       ['narr', 'She doesn\'t believe it yet. She keeps listening.']
     ]));
   }
+  cut.def('hale-escapes', 'Hale escapes', () => vn('c2x-stair', [
+    ['narr', 'Beaten, Hale runs up the tower, past the bell, and is gone.'],
+    ['narr', 'Tilly stays on the town floor. She goes with nobody.'],
+    ['tilly', 'I heard all of it. That doesn\'t mean I believe it.', 'cold'],
+    ['mira', 'I know.', 'grief']
+  ]), { music: 'c2xsad' });
   async function haleEscapes() {
-    AU.music('c2xsad');
-    await vn('c2x-stair', [
-      ['narr', 'Beaten, Hale runs up the tower, past the bell, and is gone.'],
-      ['narr', 'Tilly stays on the town floor. She goes with nobody.'],
-      ['tilly', 'I heard all of it. That doesn\'t mean I believe it.', 'cold'],
-      ['mira', 'I know.', 'grief']
-    ]);
+    await cut.play('hale-escapes');
   }
 
   // Thornwick: the letters from Freya's basket, door by door, then the last one.
@@ -585,29 +619,31 @@
     if (pick === 'give') await say([['narr', 'Tilly reads it in front of Mira, all the way to the end.'], ['tilly', 'You\'re lying.', 'anger'], ['narr', 'She keeps it.']]);
     else await say([['narr', 'Mira puts the letter back in the bag. Tilly walks back to the Inquisition\'s door.'], ['lead', { mira: '(Better she hates a beast.)', other: 'Mira doesn\'t say anything all the way back to the lift.' }]]);
   }
+  cut.def('mira-prayer', 'Uptima reads Mira\'s prayer', () => vn('c2-fire', [
+    ['narr', 'That night, at the fire, Uptima opens Mira\'s prayer and reads it aloud.'],
+    ['uptima', '"Not him. Take the rest of me, not him."', 'sad'],
+    ['uptima', 'I\'m sorry. I didn\'t read it.', 'sad'],
+    ['mira', 'You\'d have said no.', 'cold'],
+    ['uptima', 'Probably. But you\'d have known someone heard you.', 'neutral'],
+    ['narr', 'It\'s the first thing Uptima has done that anyone in camp respects.']
+  ]), { music: 'c2xsad' });
+  cut.def('grants-back', 'Thornwick takes its grants back', () => vn('c2-square', [
+    ['narr', 'In Thornwick, people take back their grants. High above the Cloud, Freya\'s halo flickers for the first time.'],
+    ['narr', 'They move down to the camp. Thornwick\'s postmen join Coo, and Goodwife Marrow hangs the bell.'],
+    ['marrow', 'It rings for every alarm now. Not for her.', 'neutral']
+  ]), { note: 'Freya\'s halo flickers; Marrow hangs the bell.' });
+  cut.def('not-hana', 'I\'m not your sister', () => vn('c2-fire', [
+    ['narr', 'Later, Kai talks about Hana for the first time: the leases, the lies to his bosses, the floss.'],
+    ['seoyeon', 'I\'ve been playing Hana. And letting you play Jin.', 'anger'],
+    ['seoyeon', 'I\'m not your sister.', 'anger'],
+    ['kai', 'Good. She\'d have made me floss.', 'smirk']
+  ]), { note: 'Kai talks about Hana, and Seo-yeon stops playing her.' });
   async function prayerNight() {
-    AU.music('c2xsad');
-    await vn('c2-fire', [
-      ['narr', 'That night, at the fire, Uptima opens Mira\'s prayer and reads it aloud.'],
-      ['uptima', '"Not him. Take the rest of me, not him."', 'sad'],
-      ['uptima', 'I\'m sorry. I didn\'t read it.', 'sad'],
-      ['mira', 'You\'d have said no.', 'cold'],
-      ['uptima', 'Probably. But you\'d have known someone heard you.', 'neutral'],
-      ['narr', 'It\'s the first thing Uptima has done that anyone in camp respects.']
-    ]);
+    await cut.play('mira-prayer');
     setFlag('prayer');
-    await vn('c2-square', [
-      ['narr', 'In Thornwick, people take back their grants. High above the Cloud, Freya\'s halo flickers for the first time.'],
-      ['narr', 'They move down to the camp. Thornwick\'s postmen join Coo, and Goodwife Marrow hangs the bell.'],
-      ['marrow', 'It rings for every alarm now. Not for her.', 'neutral']
-    ]);
+    await cut.play('grants-back');
     AU.sfx('x-bell');
-    await vn('c2-fire', [
-      ['narr', 'Later, Kai talks about Hana for the first time: the leases, the lies to his bosses, the floss.'],
-      ['seoyeon', 'I\'ve been playing Hana. And letting you play Jin.', 'anger'],
-      ['seoyeon', 'I\'m not your sister.', 'anger'],
-      ['kai', 'Good. She\'d have made me floss.', 'smirk']
-    ]);
+    await cut.play('not-hana');
     setFlag('freed');
     AU.music('camp');
   }
@@ -624,15 +660,15 @@
   async function reckoning() {
     await expedition('greynovice');
   }
+  cut.def('ending', 'Tilly and Mira', (choice) => vn('c2x-stair', [
+    ['narr', 'On the last floor, Brother Anselm told Tilly who killed Bram, and who tried to get her out.'],
+    ['tilly', choice === 'give' ? 'You wrote to me. You never sent it.' : 'He says you tried to get me out.', 'neutral'],
+    ['mira', 'Every day.', 'warm'],
+    ['narr', 'High above the Cloud, Freya loses Hale\'s blessing, and doesn\'t notice yet.'],
+    ['mira', { mira: '(Bram. It wasn\'t me.)', other: 'It wasn\'t me, Bram. It was never me.' }, 'grief']
+  ]), { music: 'c2xsad', note: 'The end of Chapter 2, part 2.', alts: [['If Mira gave her the letter', 'give'], ['If Mira kept it', 'keep']] });
   async function ending() {
-    AU.music('c2xsad');
-    await vn('c2x-stair', [
-      ['narr', 'On the last floor, Brother Anselm told Tilly who killed Bram, and who tried to get her out.'],
-      ['tilly', sv().choice === 'give' ? 'You wrote to me. You never sent it.' : 'He says you tried to get me out.', 'neutral'],
-      ['mira', 'Every day.', 'warm'],
-      ['narr', 'High above the Cloud, Freya loses Hale\'s blessing, and doesn\'t notice yet.'],
-      ['mira', { mira: '(Bram. It wasn\'t me.)', other: 'It wasn\'t me, Bram. It was never me.' }, 'grief']
-    ]);
+    await cut.play('ending', sv().choice);
     const c1 = S.save.c1;
     if (c1 && c1.lead === 'mira' && !c1.deck.some(d => d.id === 'rts')) { c1.deck.push({ id: 'rts', up: false }); S.persist(); U.system('NEW CARD: RETURN TO SENDER', 'Mira\'s own. Her Letters are a dead-letter queue now: redrive the whole pile back at its sender.', 'gold'); }
     setFlag('grey');
@@ -682,8 +718,8 @@
     if (/^letter\d$/.test(id)) return act(() => pickLetter(+id.slice(6)));
     const fns = { bench, fire, design, uptima, bru, board: bru, anselm, tilly, archive, ledger, desk,
       kitchen: () => (flag('uptima') ? uptima() : say([['narr', 'Kai\'s kitchen. Every pot is clean, which is suspicious.']])),
-      bunker: () => say([['narr', 'Seymour\'s bunker. A sign on the hatch: TAPES, TWO PER CLIMB. NO REFUNDS.']]),
-      seymour: () => say([['seymour', 'Two tapes a climb, and not one more. Fall with none left and you start the climb again. I don\'t make the rules. I do enforce them.', 'neutral']]),
+      bunker: () => say([['narr', 'Seymour\'s bunker. A sign on the hatch: TAPES. TESTED, NOT GIVEN. ONE A DAY. NO REFUNDS.']]),
+      seymour: async () => { await say([['seymour', 'A tape gets used up, and it doesn\'t come back. Mind how many you\'ve got. I don\'t make the rules. I do enforce them.', 'neutral']]); await SD.tapes.shop(); },
       wren: () => say([['wren', flag('prayer') ? 'She read it to you. I heard. That\'s a start.' : 'She was my goddess. She\'s still somebody\'s.', 'neutral']]),
       chute: () => say([['narr', 'PRAYERS ↓. The chute never stops. Somewhere below, they pile up unread.']]),
       clerk1: () => say([['clerk', rnd(['Three seconds. Three seconds for a whole sack!', 'I start cold every morning. Every single morning.']), 'neutral']]),
@@ -820,7 +856,7 @@
     };
   }
   const GAME = { deadletter: 'dlo', inqtower: 'tower', greynovice: 'tower' };
-  const story = (xp, extra) => Object.assign({ story: true, label: XP(xp).name, xp, champNames: true, deckFor, pickQ: X.pickQ, say: raidSay, tapes: 2 }, extra);
+  const story = (xp, extra) => Object.assign({ story: true, label: XP(xp).name, xp, champNames: true, deckFor, pickQ: X.pickQ, say: raidSay }, SD.tapes.forRaid(2), extra);
   function joinScreen(root, dir, game, label) {
     const net = SD.net, pre = net.PREFIX[game];
     return new Promise(res => {
@@ -890,7 +926,7 @@
     const E = XP(xp), net = !!(SD.net && SD.raid);
     return new Promise(res => {
       const b = U.panel(`<p>${esc(E.blurb)}</p>
-        <p class="muted small">${E.floors.length} raid floors, each with a boss. Seymour gives you two tapes: fall with one left and you start the floor again. Fall with none, and it's back to camp to start the expedition over.</p>
+        <p class="muted small">${E.floors.length} raid floors, each with a boss.</p>${SD.tapes.door(2)}
         <div class="opts"><button class="opt primary" id="xe-solo"><b>Go</b> · you and your three</button>
         ${net ? '<button class="opt" id="xe-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="xe-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         <div class="row"><button class="ghost" id="xe-not">Not yet</button></div>`, { title: E.name.toUpperCase(), noClose: true });
@@ -904,6 +940,7 @@
       b.querySelector('#xe-solo').onclick = go('solo');
       if (net) { b.querySelector('#xe-party').onclick = go('party'); b.querySelector('#xe-join').onclick = go('join'); }
       b.querySelector('#xe-not').onclick = () => { U.closePanel(); res(false); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(false); });
     });
   }
   async function after(xp, won) {

@@ -1,7 +1,8 @@
 // Headless check of the combined demo's Debug menu (index.html?vector&ch2&demo, js/demo-select.js): the title has New
 // game, the 🐞 Debug button and the demo foot line, the menu lists every loaded chapter, and Start on each one opens
 // that chapter on a fresh save with no page or console errors. Erasing the save mid-chapter and starting again still
-// walks. Then the title offers Continue for the chapter played, and watching the Chapter 1 reveal from the menu plays
+// walks. Then the title offers Continue for the chapter played, and watching the Chapter 1 reveal from the menu's
+// cutscene viewer (every cutscene's own check is tools/reel_check.js) plays
 // it through and leaves the save as it was.
 // Run from game/:  node tools/demo_check.js   SHOTS=dir saves a screenshot per chapter. Phone viewport (390 x 844).
 const { chromium } = require('playwright');
@@ -90,7 +91,8 @@ const fail = [];
   // Erase the save from the menu in the middle of chapter 2, then start it again from the chapter select: the walk
   // must still answer the arrow keys (the old scene used to keep running underneath and hold the controls).
   const walk = async label => {
-    for (let i = 0; i < 40; i++) {
+    // The opening cutscenes cross-fade between pixel stills, so give them up to 30 s to reach the walk.
+    for (let i = 0; i < 120; i++) {
       await page.waitForTimeout(250);
       const st = await look();
       if (st.lead) await page.click('#panel [data-lead="kai"]');
@@ -126,21 +128,24 @@ const fail = [];
   // The Chapter 1 reveal from the Debug menu, as Dutch: it plays to the end and the save comes back as it was.
   const before = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
   await page.click('#ds-dbg');
-  const watch = await page.evaluate(() => [...document.querySelectorAll('[data-watch]')].map(b => b.dataset.watch));
-  if (watch.length !== 4) fail.push('cutscenes: ' + watch.length + ' lead buttons for the reveal');
+  await page.click('#ds-reel');
+  const watch = await page.evaluate(() => [...document.querySelectorAll('#panel [data-lead]')].map(b => b.dataset.lead));
+  if (watch.length !== 4) fail.push('cutscenes: ' + watch.length + ' leads to watch as');
+  await page.click('#panel [data-lead="dutch"]');
+  await page.evaluate(() => { document.querySelector('.rv-ch[data-ch="1"]').open = true; });
   errors = [];
-  await page.click('[data-watch="dutch"]');
+  await page.click('[data-play="1/reveal"]');
   const cgs = new Set();
   let back = false;
   for (let i = 0; i < 600 && !back; i++) {
     await page.waitForTimeout(150);
-    const st = await page.evaluate(() => { const vn = document.querySelector('#vn'); return { vn: !!vn && !vn.hidden, cg: vn && vn.dataset.cg, ready: !!vn && vn.classList.contains('vn-ready'), title: !document.querySelector('#screen-title').hidden && !!document.querySelector('#ds-new'), watching: SD.demo.watching }; });
+    const st = await page.evaluate(() => { const vn = document.querySelector('#vn'); return { vn: !!vn && !vn.hidden, cg: vn && vn.dataset.cg, ready: !!vn && vn.classList.contains('vn-ready'), title: !document.querySelector('#screen-title').hidden && !!document.querySelector('#rv-list'), watching: SD.demo.watching }; });
     if (st.cg) cgs.add(st.cg);
     if (st.ready) await page.keyboard.press('Space');
     back = !st.watching && !st.vn && st.title && cgs.size > 0;
   }
   console.log('reveal stills:', [...cgs].join(' '));
-  if (!back) fail.push('watching the reveal did not come back to the title');
+  if (!back) fail.push('watching the reveal did not come back to the cutscene viewer');
   for (const id of ['cut-reveal-dutch-2', 'rv-F', 'rv-I']) if (!cgs.has(id)) fail.push('the reveal never showed ' + id);
   const after = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
   if (before !== after) fail.push('watching the reveal changed the save: ' + before + ' → ' + after);

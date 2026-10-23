@@ -376,12 +376,12 @@
       ['403 Forbidden', true], ['401 Unauthorized', false, '401 means "I don\'t know who you are". This gate knows exactly who they are.'], ['200, and let them in', false, 'Scopes are the point.']],
       '401 is for a token that can\'t be trusted (missing, forged, expired, wrong pool). 403 is for a trusted token that isn\'t allowed this.'),
     bins: ['200: in', '401', '403'],
-    items: [I('Signed by the pool, in date, scope records.read', 0, 'Signature, expiry, issuer and scope all check out.'),
-      I('Expired an hour ago', 1, 'An expired token can\'t be trusted. They should use their refresh token for a new one.'),
-      I('Signature doesn\'t match any of the pool\'s public keys', 1, 'Forged, or from somewhere else: the signature check fails.'),
-      I('Issued by a different user pool', 1, 'Wrong issuer: this authorizer only trusts the Alliance\'s pool.'),
-      I('No token at all', 1, 'Nobody to identify.'),
-      I('Genuine and in date, but only scope profile.read', 2, 'Trusted, but not allowed this route.')],
+    items: [I('A Hwa disciple: signed by the pool, in date, scope records.read', 0, 'Signature, expiry, issuer and scope all check out.'),
+      I('Grandma Wen. Her token expired an hour ago. "I\'m twenty, dear."', 1, 'An expired token can\'t be trusted, however young its owner looks. She should use her refresh token for a new one.'),
+      I('A very confident man whose token matches none of the pool\'s public keys. He drew it himself.', 1, 'Forged: the signature check fails.'),
+      I('A token from the Halcyon Bakery Loyalty Scheme\'s user pool', 1, 'Wrong issuer: this authorizer only trusts the Alliance\'s pool. Lovely bread, though.'),
+      I('Kevin. No token at all. Just "THROTTLED."', 1, 'Nobody to identify. Kevin understands.'),
+      I('A Cult accountant: genuine, in date, scope profile.read only. "I just want to look at the books."', 2, 'Trusted, but not allowed this route.')],
     done: 'Lexi applauds. "Signature, expiry, issuer, audience, and then what they\'re allowed. In that order. Gary would have said no to all of them."'
   };
   // The Design Board: the Alliance's sign-in, in order.

@@ -323,22 +323,28 @@
   K.installs.push(() => {
     SD.cast.man = { name: '???', title: '' };
     SD.ui.voice('man', 180);
-    const W1 = SD.ch1;
-    W1.opening = async function () {
-      O.picked = null;
-      SD.vn.addScenes(O.scenes());
-      SD.audio.music(null);
-      SD.audio.weather('tempest');
-      const files = O.SHOTS.findIndex(s => s.files), btn = skipButton();
-      await SD.vn.play(O.compile(O.SHOTS));
-      btn.remove();
-      // Either skip (this button or the dialogue box's) lands on the files, never past them.
-      if (!O.picked) {
+    const W1 = SD.ch1, cut = SD.reel.chapter('1');
+    const files = () => O.SHOTS.findIndex(s => s.files);
+    cut.def('opening', 'The opening: the files', () => O.compile(O.SHOTS), {
+      note: 'The storm, Freya\'s pavilion, and keeping one of the four files.', ahead: 'prologue',
+      run: async function () {
+        O.picked = null;
+        SD.vn.addScenes(O.scenes());
+        SD.audio.music(null);
+        SD.audio.weather('tempest');
+        const btn = skipButton();
+        await SD.vn.play(O.compile(O.SHOTS));
+        btn.remove();
+        // Either skip (this button or the dialogue box's) lands on the files, never past them.
+        if (!O.picked) {
+          light(1);
+          await SD.vn.play(O.compile([{ music: 'story' }, { still: 's10', pan: 'still' }, ...O.SHOTS.slice(files())]));
+        }
         light(1);
-        await SD.vn.play(O.compile([{ music: 'story' }, { still: 's10', pan: 'still' }, ...O.SHOTS.slice(files)]));
-      }
-      light(1);
-      SD.audio.weather(null);
+        SD.audio.weather(null);
+      } });
+    W1.opening = async function () {
+      await cut.play('opening');
       return O.picked || await W1.choose();
     };
   });

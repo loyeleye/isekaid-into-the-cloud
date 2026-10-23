@@ -539,7 +539,7 @@
   const XP = (id, name, blurb, back, floors, more) => Object.assign({ id, name, who: ['mira', 'kai', 'seoyeon', 'dutch'], opens: () => !!(SD.c4world && SD.c4world.on), sev: 0.85, dmg: 0.85, blurb, back,
     cafe: { title: 'A Pass Tea House', who: null, name: 'The tea house', text: 'A tea house that has served every traveller on this pass for a hundred years, and asks none of them where they were born.' },
     camp: { title: 'A Shrine on the Path', text: 'A small shrine, swept clean. Sit for a minute, or use the whetstone on one of your cards. Each of you chooses one.' },
-    regroup: [{ who: 'seoyeon', text: 'Up. Forms. We go again from the start of the floor.' }], floors }, more);
+    tapeLine: [{ who: 'seoyeon', text: 'Up. Forms. We go again, right where we fell.' }], floors }, more);
   const fl = (o) => Object.assign({ map: '4' }, o);
   SD.expeditions = (SD.expeditions || []).concat([
     XP('k4gates', 'The Gate Passes', 'The Alliance\'s mountain passes, every one with a gate: the Outer Wall, then the Hidden Valley.', 'Out into the Hidden Valley', [

@@ -50,18 +50,17 @@
         <div class="ds-txt"><b>${esc(label(c))}</b>${done(c) ? ' <span class="ds-done">✓ cleared</span>' : ''}<br><span class="muted small">${esc(c.sub)}</span></div>
         <div class="ds-btns">${saved(c) ? `<button class="ghost" type="button" data-go="${c.n}" data-how="resume">Continue</button>` : ''}<button class="primary" type="button" data-go="${c.n}" data-how="fresh">Start</button></div>
       </div>`).join('');
-    const cuts = SD.cutReveal && T() ? `<div class="ds-row ds-watch">
-        <div class="ds-txt"><b>Chapter 1: the reveal</b><br><span class="muted small">As each lead sees it. Your save isn't touched.</span></div>
-        <div class="ds-btns">${T().order.map(id => `<button class="ghost" type="button" data-watch="${id}">${esc(T().leads[id].name.split(' ')[0])}</button>`).join('')}</div>
-      </div>${revealOpts()}` : '';
+    const n = SD.reel ? SD.reel.list.length : 0;
     const b = U.panel(`<p class="muted small">Testing and reviewing only.</p>
       <h3 class="ds-h">Chapter select</h3>
       <p class="small"><b>Start</b> begins a fresh save at that chapter, with the level and deck its demo assumes, and replaces the save in this browser. From there each chapter's end card carries on into the next.</p>
       <div class="ds-list">${rows}</div>
-      ${cuts ? `<h3 class="ds-h">Cutscenes</h3><div class="ds-list">${cuts}</div>` : ''}`, { title: 'DEBUG' });
-    b.querySelectorAll('[data-watch]').forEach(el => { el.onclick = () => watchReveal(el.dataset.watch); });
-    b.querySelectorAll('[data-theme]').forEach(el => { el.onclick = () => { SD.audio.freyaTheme(el.dataset.theme); select(); }; });
-    b.querySelectorAll('[data-opt]').forEach(el => { el.onclick = () => { SD.cutReveal.setOpt(el.dataset.opt, JSON.parse(el.dataset.val)); select(); }; });
+      ${n ? `<h3 class="ds-h">Cutscenes</h3><div class="ds-list"><div class="ds-row">
+        <div class="ds-txt"><b>Cutscene viewer</b><br><span class="muted small">All ${n} cutscenes, by chapter, as any lead. Your save isn't touched.</span></div>
+        <div class="ds-btns"><button class="primary" type="button" id="ds-reel">Open</button></div>
+      </div></div>` : ''}`, { title: 'DEBUG' });
+    const open = b.querySelector('#ds-reel');
+    if (open) open.onclick = () => viewer();
     b.querySelectorAll('[data-go]').forEach(el => {
       el.onclick = () => {
         const c = CHAPTERS.find(x => x.n === el.dataset.go);
@@ -109,32 +108,118 @@
     k.querySelector('#ds-n').onclick = U.closePanel;
   }
 
-  // The Chapter 1 reveal (js/cut-reveal.js) without playing up to it, with the system messages it has in the story
-  // (js/ch1-world.js). The lead is lent to the save for the length of the scene, then the save is put back as it was
-  // and you're back at the title (Continue picks up where you were).
-  async function watchReveal(lead) {
+  // ---------- The cutscene viewer ----------
+  // Every cutscene in SD.reel (js/reel.js), grouped by chapter in story order: pick who you're playing as, search by
+  // title or line, and Play. A scene plays on a borrowed copy of the save that's thrown away after, so nothing it sets
+  // sticks; then you're back here, where you were. New cutscenes show up on their own once a chapter names them.
+  const LEADS = ['mira', 'kai', 'seoyeon', 'dutch'];
+  const VKEY = 'sd-reel-view';
+  const view = Object.assign({ lead: null, open: null, q: '', last: null }, (() => { try { return JSON.parse(localStorage.getItem(VKEY)) || {}; } catch (e) { return {}; } })());
+  const keep = () => { try { localStorage.setItem(VKEY, JSON.stringify({ lead: view.lead, open: view.open })); } catch (e) { /* kept for this visit only */ } };
+  const first = id => (T() && T().leads[id] ? T().leads[id].name.split(' ')[0] : id);
+  const chLabel = ch => { const c = CHAPTERS.find(x => x.n === ch); return c ? label(c) : 'Chapter ' + ch; };
+  const chOrder = ch => { const i = CHAPTERS.findIndex(x => x.n === ch); return i < 0 ? 99 : i; };
+
+  // Runs fn on a copy of the save with lead as the lead (and a stand-in chapter 1 save where there's none), then puts
+  // the real one back. Nothing is written to this browser in between.
+  function borrow(lead, fn) {
+    const snap = JSON.stringify(S.save), persist = S.persist;
+    S.persist = () => {};
+    S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
+    const back = () => { S.save = JSON.parse(snap); S.persist = persist; };
+    let out;
+    try { out = fn(); } catch (e) { back(); throw e; }
+    if (out && out.then) return out.finally(back);
+    back();
+    return out;
+  }
+  // What the viewer knows about a scene: whether it changes with the lead, and its words (for the search).
+  function facts(e) {
+    const built = {};
+    LEADS.forEach(l => { try { built[l] = e.run ? null : JSON.stringify(borrow(l, () => SD.reel.steps(e, e.alts ? e.alts[0][1] : undefined))); } catch (x) { built[l] = null; } });
+    const words = (built[view.lead] || '').replace(/\\'/g, '\'');
+    return { perLead: !!e.leads || new Set(Object.values(built)).size > 1, words: (e.title + ' ' + (e.note || '') + ' ' + words).toLowerCase() };
+  }
+
+  function viewer() {
+    if (!view.lead || !LEADS.includes(view.lead)) view.lead = (S.save.c1 && S.save.c1.lead) || 'mira';
+    const all = SD.reel.list.map((e, i) => ({ e, i })).sort((a, b) => chOrder(a.e.ch) - chOrder(b.e.ch) || a.i - b.i).map(x => x.e);
+    const info = new Map(all.map(e => [e, facts(e)]));
+    const chapters = [...new Set(all.map(e => e.ch))];
+    if (!view.open) view.open = [chapters[0]];
+    const b = U.panel(`<div class="rv-top">
+        <button class="ghost" type="button" id="rv-back">‹ Debug</button>
+        <span class="muted small" id="rv-count" aria-live="polite"></span>
+      </div>
+      <fieldset class="rv-leads"><legend class="small"><b>Watch as</b> <span class="muted">(for scenes marked “per lead”)</span></legend>
+        ${LEADS.map(l => `<button type="button" class="${l === view.lead ? 'primary' : 'ghost'}" data-lead="${l}" aria-pressed="${l === view.lead}">${esc(first(l))}</button>`).join('')}
+      </fieldset>
+      <label class="rv-search"><span class="sr">Search cutscenes</span><input type="search" id="rv-q" placeholder="Search titles and lines" autocomplete="off" value="${esc(view.q)}"></label>
+      <div id="rv-list">${chapters.map(ch => {
+        const list = all.filter(e => e.ch === ch);
+        return `<details class="rv-ch" data-ch="${esc(ch)}"${view.open.includes(ch) ? ' open' : ''}>
+          <summary><b>${esc(chLabel(ch))}</b> <span class="rv-n muted small"></span></summary>
+          ${list.map((e, k) => `<div class="ds-row rv-row${e.alts ? ' rv-alts' : ''}${view.last === e.key ? ' rv-last' : ''}" data-key="${esc(e.key)}">
+            <div class="ds-txt"><span class="rv-no muted small">${k + 1}</span><b>${esc(e.title)}</b>${info.get(e).perLead ? ' <span class="rv-tag">per lead</span>' : ''}${view.last === e.key ? ' <span class="ds-done">✓ just watched</span>' : ''}
+              ${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ''}</div>
+            <div class="ds-btns">${(e.alts || [[null, undefined]]).map(([l, a], j) => `<button class="ghost" type="button" data-play="${esc(e.key)}" data-alt="${j}" aria-label="Play ${esc(e.title)}${l ? ', ' + esc(l) : ''}">▶ ${l ? esc(l) : 'Play'}</button>`).join('')}</div>
+          </div>${e.key === '1/reveal' && SD.cutReveal ? `<details class="rv-opts"><summary class="small">The reveal's versions</summary>${revealOpts()}</details>` : ''}`).join('')}
+        </details>`;
+      }).join('')}<p class="muted small" id="rv-none" hidden>No cutscenes match.</p></div>`, { title: 'CUTSCENES', cls: 'wide' });
+
+    // Search: titles, notes and the lines themselves (as the lead picked above). Matching chapters open.
+    const filter = () => {
+      const q = view.q.trim().toLowerCase();
+      let shown = 0;
+      b.querySelectorAll('.rv-ch').forEach(d => {
+        let n = 0;
+        d.querySelectorAll('.rv-row').forEach(r => { const hit = !q || info.get(SD.reel.get(r.dataset.key)).words.includes(q); r.hidden = !hit; n += hit; });
+        d.hidden = !n;
+        d.querySelector('.rv-n').textContent = q ? n + ' of ' + d.querySelectorAll('.rv-row').length : String(n);
+        if (q && n) d.open = true;
+        shown += n;
+      });
+      b.querySelector('#rv-none').hidden = !!shown;
+      b.querySelector('#rv-count').textContent = q ? shown + ' of ' + all.length + ' cutscenes' : all.length + ' cutscenes';
+    };
+    const qIn = b.querySelector('#rv-q');
+    qIn.oninput = () => { view.q = qIn.value; filter(); };
+    filter();
+    b.querySelectorAll('.rv-ch').forEach(d => d.addEventListener('toggle', () => {
+      if (view.q.trim()) return;
+      view.open = view.open.filter(c => c !== d.dataset.ch).concat(d.open ? [d.dataset.ch] : []);
+      keep();
+    }));
+    b.querySelector('#rv-back').onclick = select;
+    b.querySelectorAll('[data-lead]').forEach(el => { el.onclick = () => { view.lead = el.dataset.lead; keep(); viewer(); }; });
+    b.querySelectorAll('[data-play]').forEach(el => {
+      el.onclick = () => { const e = SD.reel.get(el.dataset.play); watch(e, e.alts ? e.alts[+el.dataset.alt][1] : undefined); };
+    });
+    b.querySelectorAll('[data-theme]').forEach(el => { el.onclick = () => { SD.audio.freyaTheme(el.dataset.theme); viewer(); }; });
+    b.querySelectorAll('[data-opt]').forEach(el => { el.onclick = () => { SD.cutReveal.setOpt(el.dataset.opt, JSON.parse(el.dataset.val)); viewer(); }; });
+    const last = view.last && b.querySelector(`.rv-row[data-key="${CSS.escape(view.last)}"]`);
+    if (last && !last.hidden) { const d = last.closest('details'); d.open = true; last.scrollIntoView({ block: 'center' }); }
+    else if (!view.q) qIn.blur();
+  }
+
+  // Plays one scene over a black cover (so the title doesn't show between its parts), then comes back to the viewer.
+  async function watch(e, arg) {
     U.closePanel();
     SD.main.haltWorlds();
-    const sv = S.save, old = sv.c1, wait = ms => new Promise(r => setTimeout(r, ms));
-    // Black behind the scene (above the title, below the VN and the system messages), so the title doesn't show
-    // through in the pause between the cutscene's two halves.
     const cover = document.createElement('div');
     cover.id = 'ds-cover';
     document.body.appendChild(cover);
     SD.demo.watching = true;
-    sv.c1 = Object.assign({ f: {} }, old || {}, { lead });
+    view.last = e.key;
     try {
-      SD.audio.music('kyusad');
-      await SD.cutReveal.ending();
-      U.system('[SYSTEM] ADMIN CHANGED', 'Root user: Freya.', 'red');
-      await wait(900);
-      U.system('[SYSTEM] BACKUPS DELETED', 'Every backup in the Cloud, from every Region. Retention: none.', 'red');
-      await wait(1200);
-      await SD.cutReveal.wipe();
+      await borrow(view.lead, () => SD.reel.play(e.key, arg));
+    } catch (x) {
+      console.error('[reel] ' + e.key + ': ' + (x && x.message));
     } finally {
-      sv.c1 = old; S.persist();
       cover.remove(); SD.demo.watching = false;
+      SD.audio.weather(null);
       SD.main.title();
+      viewer();
     }
   }
 
@@ -150,7 +235,27 @@
     #ds-dbg { position: fixed; bottom: 6px; left: 6px; z-index: 9999; min-height: 44px; padding: 4px 12px; font: 600 13px Fredoka, sans-serif;
       border-radius: 12px; border: 2px solid #2b2340; background: #ffe14d; color: #2b2340; cursor: pointer; opacity: .9; }
     #ds-cover { position: fixed; inset: 0; z-index: 30; background: #000; }
-    .ds-done { color: #2c7a3a; font-size: 12px; font-weight: 700; }`;
+    .ds-done { color: #2c7a3a; font-size: 12px; font-weight: 700; }
+    .rv-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    #panel .rv-top button { min-height: 44px; }
+    .rv-leads { border: 0; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .rv-leads legend { padding: 0; margin-bottom: 6px; }
+    #panel .rv-leads button { min-height: 44px; flex: 1 1 0; min-width: 0; padding: 4px 6px; font-size: 14px; white-space: nowrap; }
+    .rv-search { display: block; margin: 10px 0 4px; }
+    .rv-search input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px; font: 16px Nunito, sans-serif; border: 2px solid #2b2340; border-radius: 10px; background: #fff; color: #2b2340; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .rv-ch { border-top: 2px solid rgba(0,0,0,.15); padding: 4px 0; }
+    .rv-ch > summary, .rv-opts > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; list-style: none; }
+    .rv-ch > summary { font-size: 15px; }
+    .rv-ch > summary::-webkit-details-marker, .rv-opts > summary::-webkit-details-marker { display: none; }
+    .rv-ch > summary::before, .rv-opts > summary::before { content: '▸'; display: inline-block; width: 1em; transition: transform .15s; }
+    .rv-ch[open] > summary::before, .rv-opts[open] > summary::before { transform: rotate(90deg); }
+    .rv-row .ds-btns { flex-wrap: wrap; justify-content: flex-end; max-width: 55%; }
+    .rv-no { display: inline-block; min-width: 1.6em; }
+    .rv-tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #e7e0f7; color: #4a3a7a; white-space: nowrap; }
+    .rv-last { background: rgba(255, 225, 77, .25); border-radius: 8px; }
+    .rv-opts { margin: 0 0 6px 1.6em; }
+    @media (max-width: 480px) { .rv-alts { flex-wrap: wrap; } .rv-alts .ds-btns { max-width: none; width: 100%; justify-content: flex-start; } }`;
   document.head.appendChild(css);
 
   // Outermost of the title patches: each chapter's own patch runs inside it (their scripts load first), and this
@@ -175,5 +280,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
   else { boot(); SD.main.title(); }
 
-  SD.demo = { chapters: CHAPTERS, select, watching: false, fresh: n => fresh(CHAPTERS.find(c => c.n === n)) };
+  SD.demo = { chapters: CHAPTERS, select, viewer, watching: false, fresh: n => fresh(CHAPTERS.find(c => c.n === n)) };
 })();
