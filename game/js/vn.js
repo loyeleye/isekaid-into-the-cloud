@@ -58,12 +58,15 @@
     if (open) cut = open;
     return cut && match(cut, text);
   }
+  // A drawn picture: no sheet, and no painting behind it (the vector demo's art is SVG, so an SVG src is drawn too).
+  function drawn(id) { const s = V.art.scenes[id] || {}; return !s.sheet && (!s.src || /^data:image\/svg/.test(s.src)); }
   // The still the next line after steps[i] cuts to, if it's a shot, without moving on: a backdrop that's about to be
   // covered by one is never shown (on a phone a drawn backdrop flashed up before the still).
   function nextShot(steps, i, c) {
     for (let j = i + 1; j < steps.length; j++) {
       const [k, a] = steps[j];
-      if (k === 'bg' || k === 'cg') return null;
+      if (k === 'bg') return null;
+      if (k === 'cg') return drawn(a) ? null : a;
       if (k === 'cut') { c = V.cuts.find(x => x[0][0] === 'cut-' + a + '-1') || c; continue; }
       if (CMD.has(k)) continue;
       if (typeof a !== 'string') return null;
@@ -710,7 +713,7 @@
       // A backdrop the next line's still covers goes in underneath, unseen; a drawn still (no painting or sheet behind
       // it) is skipped when a pixel still is up or about to be.
       if (k === 'bg' && nextShot(steps, i, null)) { cut = null; root.classList.add('vn-incg'); setLayer('.vn-bg', a[0]); }
-      else if (k === 'cg' && !/^cut-/.test(a[0]) && !(V.art.scenes[a[0]] || {}).src && (cut || nextShot(steps, i, cut))) continue;
+      else if (k === 'cg' && drawn(a[0]) && (cut || nextShot(steps, i, cut))) continue;
       else if (k === 'bg') { cut = null; clearCG(); setLayer('.vn-bg', a[0]); root.querySelector('.vn-black').classList.remove('on'); await sleep(skipping ? 0 : 700); }
       else if (k === 'cg') {
         root.classList.add('vn-incg');
