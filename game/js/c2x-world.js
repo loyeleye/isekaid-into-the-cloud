@@ -718,8 +718,8 @@
     if (/^letter\d$/.test(id)) return act(() => pickLetter(+id.slice(6)));
     const fns = { bench, fire, design, uptima, bru, board: bru, anselm, tilly, archive, ledger, desk,
       kitchen: () => (flag('uptima') ? uptima() : say([['narr', 'Kai\'s kitchen. Every pot is clean, which is suspicious.']])),
-      bunker: () => say([['narr', 'Seymour\'s bunker. A sign on the hatch: TAPES, TWO PER CLIMB. NO REFUNDS.']]),
-      seymour: () => say([['seymour', 'Two tapes a climb, and not one more. Fall with none left and you start the climb again. I don\'t make the rules. I do enforce them.', 'neutral']]),
+      bunker: () => say([['narr', 'Seymour\'s bunker. A sign on the hatch: TAPES. TESTED, NOT GIVEN. ONE A DAY. NO REFUNDS.']]),
+      seymour: async () => { await say([['seymour', 'A tape gets used up, and it doesn\'t come back. Mind how many you\'ve got. I don\'t make the rules. I do enforce them.', 'neutral']]); await SD.tapes.shop(); },
       wren: () => say([['wren', flag('prayer') ? 'She read it to you. I heard. That\'s a start.' : 'She was my goddess. She\'s still somebody\'s.', 'neutral']]),
       chute: () => say([['narr', 'PRAYERS ↓. The chute never stops. Somewhere below, they pile up unread.']]),
       clerk1: () => say([['clerk', rnd(['Three seconds. Three seconds for a whole sack!', 'I start cold every morning. Every single morning.']), 'neutral']]),
@@ -856,7 +856,7 @@
     };
   }
   const GAME = { deadletter: 'dlo', inqtower: 'tower', greynovice: 'tower' };
-  const story = (xp, extra) => Object.assign({ story: true, label: XP(xp).name, xp, champNames: true, deckFor, pickQ: X.pickQ, say: raidSay, tapes: 2 }, extra);
+  const story = (xp, extra) => Object.assign({ story: true, label: XP(xp).name, xp, champNames: true, deckFor, pickQ: X.pickQ, say: raidSay }, SD.tapes.forRaid(2), extra);
   function joinScreen(root, dir, game, label) {
     const net = SD.net, pre = net.PREFIX[game];
     return new Promise(res => {
@@ -926,7 +926,7 @@
     const E = XP(xp), net = !!(SD.net && SD.raid);
     return new Promise(res => {
       const b = U.panel(`<p>${esc(E.blurb)}</p>
-        <p class="muted small">${E.floors.length} raid floors, each with a boss. Seymour gives you two tapes: fall with one left and you start the floor again. Fall with none, and it's back to camp to start the expedition over.</p>
+        <p class="muted small">${E.floors.length} raid floors, each with a boss.</p>${SD.tapes.door(2)}
         <div class="opts"><button class="opt primary" id="xe-solo"><b>Go</b> · you and your three</button>
         ${net ? '<button class="opt" id="xe-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="xe-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         <div class="row"><button class="ghost" id="xe-not">Not yet</button></div>`, { title: E.name.toUpperCase(), noClose: true });
@@ -940,6 +940,7 @@
       b.querySelector('#xe-solo').onclick = go('solo');
       if (net) { b.querySelector('#xe-party').onclick = go('party'); b.querySelector('#xe-join').onclick = go('join'); }
       b.querySelector('#xe-not').onclick = () => { U.closePanel(); res(false); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(false); });
     });
   }
   async function after(xp, won) {

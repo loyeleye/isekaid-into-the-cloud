@@ -459,7 +459,7 @@
   const floor = (o) => Object.assign({ map: '3' }, o);
   SD.expeditions = (SD.expeditions || []).concat([
     xp('cold', { sev: 0.8, dmg: 0.66 }, { name: 'The Cold Stores', blurb: 'Floors 22 to 26: the Granaries, where Freya keeps everything she owns. Two floors of grain kept wrong.', back: 'Back up to Halcyon', cafe, camp,
-      regroup: [{ who: 'mate1', text: 'Up. Back to the top of the floor. We know where everything is now.' }],
+      tapeLine: [{ who: 'mate1', text: 'Up. Same fight, and now we know how it hits.' }],
       floors: [
         floor({ name: 'The Grain Floors', gate: 'THE COLD STORES · THE GRAIN FLOORS', beat: 'Every sack in the wrong room.', boss: 'g-quartermaster', bossTitle: 'The Quartermaster', fade: 5,
           plan: [['fight', 'notes', 'fight'], ['notes', 'fight', 'event'], ['fight', 'sort', 'notes'], ['elite', 'notes', 'cafe'], ['camp', 'fight', 'notes'], ['notes', 'event', 'fight'], ['fight', 'elite', 'board'], ['sort', 'notes', 'fight'], ['camp', 'cafe', 'camp']],
@@ -479,7 +479,7 @@
             { who: 'kai', text: '...Grandma Wen?' }, { who: 'wen', text: 'Is it Tuesday? Gary comes on Tuesdays. Well. He did.' }] })
       ] }),
     xp('abyss', { sev: 0.9, dmg: 1.05 }, { name: 'The Abyss', blurb: 'Floors 27 to 32: under Halcyon, where burnt-out Saints are thrown. Its chambers are a table\'s partitions.', back: 'Down to the bottom', cafe, camp,
-      regroup: [{ who: 'kai', text: 'Get up. I did a year down here. You can do a floor.' }],
+      tapeLine: [{ who: 'kai', text: 'Get up. I did a year down here. You can do a floor.' }],
       floors: [
         floor({ name: 'The Hot Chamber', gate: 'THE ABYSS · THE HOT CHAMBER', beat: 'One partition doing all the work.', boss: 'g-singlesaint', bossTitle: 'The Single Saint', fade: 5,
           plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'notes'], ['camp', 'event', 'fight'], ['notes', 'fight', 'sort'], ['fight', 'elite', 'board'], ['event', 'notes', 'fight'], ['camp', 'cafe', 'camp']],
@@ -503,7 +503,7 @@
           outro: [{ who: null, text: 'The Sinkhole fills. At the bottom of the Well there\'s a ledge, eleven candles, and somebody cackling.' }] })
       ] }),
     xp('cathedral', { sev: 0.9, dmg: 0.82 }, { name: 'The Cathedral', blurb: 'Floors 33 to 40: up through the choir, the burnt library and the gallery stair to Selvaria.', back: 'Back down to Halcyon', cafe, camp,
-      regroup: [{ who: 'mate1', text: 'Again. From the bottom of the stair.' }],
+      tapeLine: [{ who: 'mate1', text: 'Again. Right here on the stair.' }],
       floors: [
         floor({ name: 'The Choir', gate: 'THE CATHEDRAL · THE CHOIR', beat: 'One writer, many voices, all a beat behind.', boss: 'g-precentor', bossTitle: 'The Precentor', fade: 4,
           plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'notes'], ['camp', 'sort', 'fight'], ['notes', 'elite', 'event'], ['fight', 'board', 'fight'], ['event', 'notes', 'fight'], ['camp', 'cafe', 'camp']],
@@ -536,7 +536,7 @@
           outro: [{ who: null, text: 'Selvaria doesn\'t run. She walks, up the tower, and Freya\'s blessing carries her.' }, { who: 'noor', text: 'Is it... is it over? Can I sit down?' }] })
       ] }),
     xp('regent', { sev: 0.95, dmg: 1 }, { name: 'The Regent\'s Sum', blurb: 'The reckoning: the Granaries\' vault, the last of the old records, and Selvaria, still honest.', back: 'Back to camp', cafe, camp,
-      regroup: [{ who: 'kai', text: 'Up. She\'d do it again. So would I.' }],
+      tapeLine: [{ who: 'kai', text: 'Up. She\'d do it again. So would I.' }],
       floors: [
         floor({ name: 'The Vault Stair', gate: 'THE REGENT\'S SUM · THE VAULT STAIR', beat: 'The band\'s ideas, mixed with the Mailroom\'s.', boss: 'g-ledger', bossTitle: 'The Old Ledger', fade: 3,
           plan: [['fight', 'notes', 'fight'], ['sort', 'fight', 'event'], ['fight', 'notes', 'cafe'], ['elite', 'fight', 'sort'], ['camp', 'event', 'fight'], ['notes', 'elite', 'fight'], ['fight', 'board', 'sort'], ['event', 'notes', 'fight'], ['camp', 'cafe', 'camp']],
@@ -610,8 +610,8 @@
       textContent: `.rd-stage{background-image:url("${K.scenes[BACK[id]]}") !important}` })) : null;
     let won = false, hub = null, dir = null;
     const onEnd = r => { won = !!(r && r.won); };
-    const story = extra => Object.assign({ story: true, tapes: 2, label: 'Borderlands', xp: id, champNames: true, deckFor, pickQ, say,
-      onMiss: q => { if (q && q.c && R3.onMiss) R3.onMiss(q.c); } }, extra);
+    const story = extra => Object.assign({ story: true, label: 'Borderlands', xp: id, champNames: true, deckFor, pickQ, say,
+      onMiss: q => { if (q && q.c && R3.onMiss) R3.onMiss(q.c); } }, SD.tapes.forRaid(3), extra);
     try {
       hub = await net.open();
       if (how === 'solo') await RD.play(root, hub, net.code('granaries'), story({ create: true, auto: { bots: ORDER.filter(x => x !== lead()) }, onEnd }));

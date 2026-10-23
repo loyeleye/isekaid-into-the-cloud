@@ -9,8 +9,8 @@
 // Knowledge opens the way: each gate is a minigame (js/c5-games.js), and a gate you've understood stays open. Eight
 // pages of Lina's diary lie about as collectibles, each with a quick recall question (half on earlier chapters). The
 // expeditions are raid-engine dungeons (js/raid.js, data in js/c5-data.js), played solo with the other three as bots
-// or in a party with friends (as the Deny Mines), with one of Seymour's Tapes: from this chapter on there's only one,
-// because Freya's midnight redeploy overwrites the other on the first night. The trial's ledgers, the confrontation and
+// or in a party with friends (as the Deny Mines), with Seymour's Tapes (js/tapes.js): on the first night Freya's
+// midnight redeploy overwrites half of them, and from this chapter on fewer can play on one expedition. The trial's ledgers, the confrontation and
 // the traffic bar play from cues in the floors' intros and outros.
 // Plays standalone with window.SD_CH = 5 or ?vector&ch5; SD.chapterStart[5] starts it from another chapter, and the
 // end card hands over to SD.chapterStart[6] when that's loaded. Saves in S.save.c5.
@@ -382,22 +382,24 @@
     setFlag('cold');
   }
   cut.def('tapes', 'Seymour\'s tapes', () => vn([['bg', 'c5-tapes'],
-    ['narr', 'The Free Cloud\'s camp, at the foot of the Machine Floors. Sir Seymour sits by the fire with his two tapes in his lap, the way he does every night.'],
+    ['narr', 'The Free Cloud\'s camp, at the foot of the Machine Floors. Sir Seymour sits by the fire with the party\'s tapes in his lap, the way he does every night.'],
     ['show', 'seymour', 'neutral', 'center'],
-    ['seymour', 'Two backups. One for each of the dark places. I keep them warm.', 'neutral'],
+    ['seymour', 'Every backup you\'ve got. I count them, and I keep them warm.', 'neutral'],
     ['narr', 'At midnight the tower above them shudders: Freya\'s nightly redeploy, rolling down every floor from her template. A green grid runs over the tents, the fire, the tapes.'],
-    ['narr', 'When it passes, one of the tapes is green all through. Seymour plays it. It\'s Freya\'s template, the Arcanum as she wants it. Overwritten.'],
-    ['seymour', 'She wrote over it. She wrote over a backup.', 'sad'],
+    ['narr', 'When it passes, half the tapes are green all through. Seymour plays one. It\'s Freya\'s template, the Arcanum as she wants it. Overwritten.'],
+    ['seymour', 'She wrote over a backup. She wrote over half of them.', 'sad'],
     ['hide', 'seymour'], ['show', 'dutch', 'stone', 'right'],
-    ['dutch', 'Then we\'ve got one. We use it once, and then we read the record first.', 'stone']]), { music: 'camp', note: 'Why there\'s only one tape from now on.' });
-  // The first night at the tower's foot: why there's only one tape from now on.
+    ['dutch', 'Then we keep what\'s left offline, and we spend them slow. And we read the record first.', 'stone']]), { music: 'camp', note: 'Why half the tapes are gone.' });
+  // The first night at the tower's foot: Freya's redeploy writes over half the stockpile (js/tapes.js halve), and
+  // from here on fewer can play on one expedition.
   async function tapes() {
     await cut.play('tapes');
     sfx('x-tick');
+    const [was, now] = SD.tapes.halve();
     await new Promise(res => {
-      const b = U.panel(`<p style="font-size:44px;line-height:1.1;text-align:center;margin:6px 0 10px" aria-label="Seymour's Tapes: two, now one">📼 2 → 1</p>
-        <p>From here on, each expedition starts with <b>one tape</b>. Go down with it and the floor starts again. Go down without it and you're back at camp, and that expedition starts over from its first floor.</p>
-        <div class="row"><button class="primary" id="c5-tok">One tape. Read the record first.</button></div>`, { title: 'SEYMOUR\'S TAPES', noClose: true });
+      const b = U.panel(`<p style="font-size:44px;line-height:1.1;text-align:center;margin:6px 0 10px" aria-label="Seymour's Tapes: ${was}, now ${now}">📼 ${was} → ${now}</p>
+        <p>Freya's redeploy wrote over half your tapes. From here on, up to <b>${SD.tapes.cap(5)}</b> can play on one expedition. Go down with one and you fight on at full SLA. Go down without one and you're back at camp, and that expedition starts over from its first floor.</p>
+        <div class="row"><button class="primary" id="c5-tok">Spend them slow. Read the record first.</button></div>`, { title: 'SEYMOUR\'S TAPES', noClose: true });
       b.querySelector('#c5-tok').onclick = () => { U.closePanel(); res(); };
     });
     setFlag('tapes');
@@ -585,13 +587,14 @@
   function lobby(x, n) {
     return new Promise(res => {
       const party = !!(SD.net && SD.raid);
-      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses. One of Seymour's Tapes: go down with it and the floor starts again; go down without it and you're back at camp, and the expedition starts over.</p>
+      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses.</p>${SD.tapes.door(5)}
         <div class="opts"><button class="opt" id="c5-solo"><b>Go in with your companions</b> · solo, they play as bots</button>
         <button class="opt" id="c5-party" ${party ? '' : 'disabled'}><b>Form a party</b> · share a code with friends; empty seats take a bot</button>
         <button class="opt" id="c5-join" ${party ? '' : 'disabled'}><b>Join a party</b> · type a friend's code</button></div>
         <div class="row"><button class="ghost" id="c5-not">Not yet</button></div>`, { title: x.name.toUpperCase(), noClose: true });
       ['solo', 'party', 'join'].forEach(h => { b.querySelector('#c5-' + h).onclick = () => { U.closePanel(); res(h); }; });
       b.querySelector('#c5-not').onclick = () => { U.closePanel(); res(null); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(null); });
     });
   }
   function joinScreen(root, dir) {
@@ -645,7 +648,7 @@
     A.raidArt(true);
     const stop = raidMusic(root);
     let won = false, hub = null, dir = null;
-    const opts = extra => Object.assign({ story: true, label: 'The Machine Floors', xp, champNames: true, tapes: 1, deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, extra, W.debug.raidOpts);
+    const opts = extra => Object.assign({ story: true, label: 'The Machine Floors', xp, champNames: true, deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, SD.tapes.forRaid(5), extra, W.debug.raidOpts);
     try {
       hub = await SD.net.open();
       if (!how || how === 'solo') await SD.raid.play(root, hub, SD.net.code('c5'), opts({ create: true, auto: { bots: others() } }));
@@ -678,7 +681,7 @@
     if (!won) {
       w().pos = [9, 14]; S.persist();
       sc = null; W.enter();
-      return act(() => say([[null, 'The party wakes by the camp fire, bruised. Seymour\'s tape is spent, and the expedition will start again from its first floor.'], ['dutch', 'Up. We read the record first this time. Then we go again.', 'tired']]));
+      return act(() => say([[null, 'The party wakes by the camp fire, bruised. No tape left to play, and the expedition will start again from its first floor.'], ['dutch', 'Up. We read the record first this time. Then we go again.', 'tired']]));
     }
     const f = { x5shops: 'xp1', x5records: 'xp2', x5tower: 'xp3' }[xp];
     setFlag(f);
@@ -1053,7 +1056,7 @@
     const cc = c || (older.length ? S.pickConcepts(1, older)[0] : 'scaling');
     const q = D.pickQ(cc);
     if (q) { const r = await SD.quiz.ask(q, { title: 'A PAGE OF LINA\'S DIARY' }); R.gainXp(r && r.ok ? 15 : 5); }
-    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT PAGES', 'Every page of Lina\'s diary. +50 XP.', 'gold'); R.gainXp(50); }
+    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT PAGES', 'Every page of Lina\'s diary. +50 XP.', 'gold'); R.gainXp(50); SD.tapes.award('c5diary', 1, 'Lina\'s diary has a tape for a bookmark, and the redeploy never found it.'); }
   }
   function door(d) {
     if (busy) return;
@@ -1130,7 +1133,7 @@
       <div class="bar xp w-xp" title="XP"><i style="width:${Math.min(100, sv.xp / need * 100)}%"></i></div>
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       <span class="hud-chip" title="Pages of Lina's diary">📓 ${w().pages.length}/8</span>
-      <span class="hud-chip" title="Seymour's Tapes per expedition">📼 ${flag('tapes') ? 1 : 2}</span>
+      <span class="hud-chip" title="Seymour's Tapes">📼 ${SD.tapes.count()}</span>
       <span class="w-sp"></span>
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>

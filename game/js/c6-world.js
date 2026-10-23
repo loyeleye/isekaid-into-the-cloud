@@ -11,7 +11,7 @@
 // Knowledge opens the way: each gate is a minigame (js/c6-games.js), and a gate you've understood stays open. Eight
 // Lost Reflections lie about as collectibles, each with a quick recall question (half on earlier chapters). The
 // expeditions are raid-engine dungeons (js/raid.js, data in js/c6-data.js) played solo with the other three as bots,
-// with one of Seymour's Tapes. The Clock Room, the confrontation and what Kagemaru does next play from cues in the
+// with Seymour's Tapes (js/tapes.js). The Clock Room, the confrontation and what Kagemaru does next play from cues in the
 // floors' intros and outros.
 // Plays standalone with window.SD_CH = 6 or ?vector&ch6; SD.chapterStart[6] starts it from another chapter, and the
 // end card hands over to SD.chapterStart[7] when that's loaded. Saves in S.save.c6.
@@ -522,9 +522,10 @@
     if (n === 1 && !flag('route')) { goTo(back[0], back[1]); return say([['lead', 'The signpost gate first.', 'neutral']]); }
     const x = SD.expeditions.find(e => e.id === xp);
     const go = await new Promise(res => {
-      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses, with the other three as your party. One of Seymour's Tapes: lose with it left and the floor starts again; lose with none and you're back at camp, and the expedition starts over.</p>
+      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses, with the other three as your party.</p>${SD.tapes.door(6)}
         <div class="row"><button class="primary" id="c6-go">Go in</button><button class="ghost" id="c6-not">Not yet</button></div>`, { title: x.name.toUpperCase(), noClose: true });
       b.querySelector('#c6-not').onclick = () => { U.closePanel(); res(false); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(false); });
       b.querySelector('#c6-go').onclick = () => { U.closePanel(); res(true); };
     });
     if (!go) { goTo(back[0], back[1]); return; }
@@ -583,8 +584,8 @@
     let won = false;
     try {
       const hub = await SD.net.open();
-      await SD.raid.play(root, hub, SD.net.code('c6'), { story: true, label: 'The Mirror Floors', xp, champNames: true, create: true, auto: { bots: others() }, tapes: 1,
-        deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } });
+      await SD.raid.play(root, hub, SD.net.code('c6'), Object.assign({ story: true, label: 'The Mirror Floors', xp, champNames: true, create: true, auto: { bots: others() },
+        deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, SD.tapes.forRaid(6)));
     } catch (e) { console.warn('Mirror Floors:', e); }
     finally { stop(); A.raidArt(false); W.set = null; }
     return after(xp, won);
@@ -814,7 +815,8 @@
     ['narr', 'He takes the tape: Seymour\'s original, the one the party\'s working copies were made from.'],
     ['kagemaru', 'Come and see me at the top of the Mirror Floors. Bring shards.', 'ring'],
     ['hide', 'kagemaru'],
-    ['seymour', 'The copies you carry still work. But that one was the original, and I can\'t make it again.', 'neutral'],
+    ['seymour', 'The copies you carry still work. But that one was the original. I made every tape you have from it, and without it I can\'t make you another.', 'neutral'],
+    ['narr', 'Pinned to the tape case, in white-gloved handwriting: TAPES SOLD HERE. ASK FOR KAGEMARU. PRICES REASONABLE.'],
     ['narr', 'In the ledger he left on the case: what else is in his vault. Kyu\'s second copy, newer than the tape, made on the night of the vault. Freya has scheduled its KMS key for deletion. The waiting period has days left.']]), { music: 'c6culprit', note: 'The tape, and someone already inside.' });
   SD.vn.addScenes({ 'seymours-notes-4': { sheet: 'assets/img/cut/seymours-notes.webp', frame: 3, frames: 4, label: 'seymours-notes-4' } });
   cut.def('note', 'Seymour\'s note', () => vn([['cg', 'seymours-notes-4', 'in'], ['narr', 'Seymour\'s bunker. You knock, and a note slides out under the hatch: "NOT YET. WHEN YOU\'VE EARNED IT. — S."']]),
@@ -822,7 +824,7 @@
   async function bunker() {
     if (!flag('xp2') && flag('camp')) return cut.play('note');
     if (!flag('xp2')) return say([[null, 'Seymour\'s bunker: a steel dome, a sign that says NO VISITORS, and a slot.'], ['seymour', 'Go away. Politely.', 'neutral']]);
-    if (flag('reveal')) return say([['seymour', 'I made copies of everything, every night, for forty years. That one I couldn\'t copy. It was the original.', 'neutral']]);
+    if (flag('reveal')) { await say([['seymour', 'I made copies of everything, every night, for forty years. That one I couldn\'t copy. It was the original. If you want a tape now, you buy it from him.', 'neutral']]); return SD.tapes.shop(); }
     mus('c6culprit'); AU.sfx('x-lock');
     await cut.play('bunker');
     await ask({ c: 'keydelete', type: 'mc', q: 'Kyu\'s second copy is encrypted under a KMS key that Freya has scheduled for deletion. The waiting period has days left. What is true right now?',
@@ -942,7 +944,7 @@
     // Half the pebbles ask about this chapter, half about whatever older lesson is due.
     const q = c ? D.pickQ(c) : olderQ();
     if (q) { const r = await SD.quiz.ask(q, { title: 'A LOST REFLECTION' }); R.gainXp(r && r.ok ? 15 : 5); }
-    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT REFLECTIONS', 'Every Lost Reflection in Twinwater. +50 XP.', 'gold'); R.gainXp(50); }
+    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT REFLECTIONS', 'Every Lost Reflection in Twinwater. +50 XP.', 'gold'); R.gainXp(50); SD.tapes.award('c6reflections', 1, 'The last reflection was holding a tape. A copy of a copy, but it plays.'); }
   }
   function door(d) {
     if (busy) return;

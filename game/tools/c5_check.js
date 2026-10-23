@@ -39,7 +39,7 @@ function step([WIN, LEAD, CHOICE]) {
   if (!$('#dialog').hidden) { $('#dialog').click(); return 'dialog:' + ($('#dialog').dataset.who || ''); }
   const p = $('#panel');
   if (!p.hidden) {
-    if (/📼 2 → 1/.test(p.textContent)) window.__tapes = 1;
+    if (/📼 \d+ → \d+/.test(p.textContent)) window.__tapes = 1;
     const b = s => [...p.querySelectorAll(s)].find(x => !x.disabled && vis(x));
     let x;
     if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (once('lead')) return 'shot:lead-select'; return click(x) && 'lead'; }
@@ -265,7 +265,7 @@ function step([WIN, LEAD, CHOICE]) {
   console.log('c5', JSON.stringify(sv.c5 && { f: sv.c5.f, choice: sv.c5.choice, pages: sv.c5.w.pages, cards: sv.c5.w.cards, x: Object.keys(sv.c5.w.x).join(' ') }));
   console.log('saw', [...seen].sort().join(' '));
   if (!ended) errors.push('the chapter never reached its end card; last actions: ' + last.join(' '));
-  if (!sv.tapes) errors.push('the first night never showed the tapes going from 2 to 1');
+  if (!sv.tapes) errors.push('the first night never showed half the tapes overwritten');
   if (wide) errors.push('the page scrolls sideways by ' + wide + 'px');
   if (sv.next !== sv.nextBtn) errors.push('the end card ' + (sv.next ? 'has no' : 'has a') + ' Continue to Chapter 6 button, but SD.chapterStart[6] is ' + (sv.next ? '' : 'not ') + 'registered');
   const x = (sv.c5 && sv.c5.w.x) || {};
