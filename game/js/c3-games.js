@@ -53,7 +53,7 @@
 .g3 .opt.on:disabled { opacity: 1; box-shadow: inset 0 0 0 2px #2c8a4b, 0 3px 0 rgba(43,35,64,.5); }
 .g3 p.small { font-size: 13px; }
 .g3 .bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); } .g3 .bins button { padding: 6px 4px; font-family: var(--f-body); font-variant: normal; text-transform: none; letter-spacing: 0; font-weight: 700; font-size: 14px; }
-#stage .g3-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#stage .g3-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
 `;
   document.head.appendChild(css);
 
