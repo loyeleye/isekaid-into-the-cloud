@@ -10,7 +10,7 @@
 // Knowledge opens the way: each gate is a minigame (js/c4-games.js), and a gate you've understood stays open. Eight
 // pages of Jin's forms lie about as collectibles, each with a quick recall question (some on earlier chapters). The
 // expeditions are raid-engine dungeons (js/raid.js, data in js/c4-data.js) played solo with the other three as bots,
-// with two of Seymour's Tapes. Old Gu's letter and the confrontation play from cues in the floors' intros.
+// with Seymour's Tapes (js/tapes.js; none in the Last Letter). Old Gu's letter and the confrontation play from cues in the floors' intros.
 // Plays standalone with window.SD_CH = 4 or ?vector&ch4; SD.chapterStart[4] starts it from another chapter, and the
 // end card hands over to SD.chapterStart[5] when that's loaded. Saves in S.save.c4.
 (function () {
@@ -495,9 +495,10 @@
     }
     const x = SD.expeditions.find(e => e.id === xp);
     const go = await new Promise(res => {
-      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses, with the other three as your party. Two of Seymour's Tapes: lose with a tape left and the floor starts again; lose with none and you're back at camp, and the expedition starts over.</p>
+      const b = U.panel(`<p>${esc(x.blurb)}</p><p class="muted small">Expedition ${['I', 'II', 'III'][n - 1]}: ${x.floors.length} raid floors and ${x.floors.length} floor bosses, with the other three as your party.</p>${SD.tapes.door(4, xp === 'k4letter')}
         <div class="row"><button class="primary" id="c4-go">Go in</button><button class="ghost" id="c4-not">Not yet</button></div>`, { title: x.name.toUpperCase(), noClose: true });
       b.querySelector('#c4-not').onclick = () => { U.closePanel(); res(false); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(false); });
       b.querySelector('#c4-go').onclick = () => { U.closePanel(); res(true); };
     });
     if (!go) { goTo(back[0], back[1]); return; }
@@ -557,8 +558,9 @@
     let won = false;
     try {
       const hub = await SD.net.open();
-      await SD.raid.play(root, hub, SD.net.code('c4'), { story: true, label: 'The Sealed Floors', xp, champNames: true, create: true, auto: { bots: others() }, tapes: 2,
-        deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } });
+      // The Last Letter is a hard optional reckoning: no tapes (Ladi, Oct 23).
+      await SD.raid.play(root, hub, SD.net.code('c4'), Object.assign({ story: true, label: 'The Sealed Floors', xp, champNames: true, create: true, auto: { bots: others() },
+        deckFor, pickQ: D.pickQ, say: raidSay, onMiss, onEnd: r => { won = !!(r && r.won); } }, SD.tapes.forRaid(4, xp === 'k4letter')));
     } catch (e) { console.warn('Sealed Floors:', e); }
     finally { stop(); A.raidArt(false); W.set = null; }
     return after(xp, won);
@@ -917,7 +919,7 @@
     const cc = c || (older.length ? S.pickConcepts(1, older)[0] : 'sgnacl');
     const q = D.pickQ(cc);
     if (q) { const r = await SD.quiz.ask(q, { title: 'A PAGE OF JIN\'S FORMS' }); R.gainXp(r && r.ok ? 15 : 5); }
-    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT FORMS', 'Every page of Jin\'s forms. +50 XP.', 'gold'); R.gainXp(50); }
+    if (w().pages.length === PAGES.length) { await U.system('ALL EIGHT FORMS', 'Every page of Jin\'s forms. +50 XP.', 'gold'); R.gainXp(50); SD.tapes.award('c4forms', 1, 'Jin kept a spare tape in the form drawer. Filed, of course.'); }
   }
   function door(d) {
     if (busy) return;

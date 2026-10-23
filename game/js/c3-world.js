@@ -540,9 +540,10 @@
         cathedral: ['THE CATHEDRAL', 'Expedition III: four raid floors, up to the gallery. The Precentor, the Archivist, Sir Aurelian\'s Shadow, and Princess Selvaria.'],
         regent: ['THE REGENT\'S SUM', 'The reckoning: four raid floors down into the vault, and Selvaria, still honest.'] }[id];
       const curses = [!dev('sum') ? 'The Drinking Barrier (every hit 40% stronger)' : null, !dev('oven') ? 'Cold Grain (a curse card in every deck)' : null].filter(Boolean);
-      const b = U.panel(`<p>${esc(names[1])}</p><p class="muted small">Two of Seymour's Tapes: lose twice more and the expedition ends, back at camp, from its first floor.${curses.length ? ` Curses on these floors: ${esc(curses.join('; '))}.` : ''}</p>
+      const b = U.panel(`<p>${esc(names[1])}</p>${SD.tapes.door(3)}${curses.length ? `<p class="muted small">Curses on these floors: ${esc(curses.join('; '))}.</p>` : ''}
         <div class="row"><button class="primary" id="g3-solo">Go in</button><button class="ghost" id="g3-party">Host a party</button><button class="ghost" id="g3-join">Join a party</button><button class="ghost" id="g3-not">Not yet</button></div>`, { title: names[0], noClose: true });
       b.querySelector('#g3-not').onclick = () => { U.closePanel(); res(null); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(null); });
       ['solo', 'party', 'join'].forEach(k => { b.querySelector('#g3-' + k).onclick = () => { U.closePanel(); res(k); }; });
     });
     if (!how) return warp(at[0], at[1]);
@@ -753,6 +754,7 @@
     w().pages.push(i); S.persist();
     AU.sfx('x-page');
     U.system('A PAGE OF HANA\'S SPEECH', `${w().pages.length} of 5. There's a question in the margin, in her hand.`, 'gold');
+    if (w().pages.length === 5) SD.tapes.award('c3speech', 1, 'Tucked behind the last page of Hana\'s speech: one of Seymour\'s tapes.');
     const r = await G.page(PAGES[i][2]);
     xp(r && r.ok ? 15 : 6);
     applyState();
@@ -914,7 +916,7 @@
         const has = !!(sv.c3 && sv.c3.lead);
         box.innerHTML = (has ? `<button class="primary" id="t-c3go">Continue · ${esc(T1.leads[sv.c3.lead].name)}</button><button class="ghost" id="t-c3new">New game</button>` : '<button class="primary" id="t-c3new">Play Chapter 3: The Granaries</button>') + '<button class="ghost" id="t-help">How to play</button>';
         const h = $('#t-help');
-        if (h) h.onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step.</p><p>In the dungeons, play cards to fix incidents. You have two of Seymour\'s Tapes for each expedition.</p>', { title: 'HOW TO PLAY' });
+        if (h) h.onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step.</p><p>In the dungeons, play cards to fix incidents. Go down with one of Seymour\'s Tapes and you fight on at full SLA; it\'s used up for good.</p>', { title: 'HOW TO PLAY' });
         if (has) $('#t-c3go').onclick = () => W3.resume();
         $('#t-c3new').onclick = () => { if (!has) return W3.newGame(); const c = U.panel('<p>Start chapter 3 again from the cold open? Your level and cheat sheet stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' }); c.querySelector('#n-y').onclick = () => { U.closePanel(); W3.newGame(); }; c.querySelector('#n-n').onclick = U.closePanel; };
       };

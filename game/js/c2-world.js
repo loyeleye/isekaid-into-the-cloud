@@ -566,7 +566,7 @@
   }
   // Seymour's notes under the hatch: one pixel still per note (assets/img/cut/seymours-notes.webp; the fourth is chapter 6's).
   SD.vn.addScenes(Object.fromEntries([1, 2, 3, 4].map(i => ['seymours-notes-' + i, { sheet: 'assets/img/cut/seymours-notes.webp', frame: i - 1, frames: 4, label: 'seymours-notes-' + i }])));
-  const NOTES = ['NOT HOME. — S.', 'STILL NOT HOME. — S.', 'HATCH IS FOR TAPES. HAVE YOU GOT A TAPE? THEN NOT HOME. — S.'];
+  const NOTES = ['NOT HOME. — S.', 'STILL NOT HOME. — S.', 'HATCH IS FOR TAPES. WANT ONE? EARN IT. OTHERWISE NOT HOME. — S.'];
   cut.def('seymours-notes', 'Seymour\'s notes', (n = 1) => [['cg', 'seymours-notes-' + n, 'in'],
     ['narr', 'You knock. After a moment a note slides out under the hatch, in neat capitals:'], ['narr', '"' + NOTES[n - 1] + '"']],
     { note: 'He answers every knock in writing now.', alts: [['First note', 1], ['Second note', 2], ['Every note after', 3]] });
@@ -575,7 +575,9 @@
       // From now on he answers every knock in writing, under the hatch. The last note is the one he keeps sending.
       const n = c2().notes = Math.min((c2().notes || 0) + 1, NOTES.length);
       S.persist();
-      return cut.play('seymours-notes', n);
+      await cut.play('seymours-notes', n);
+      // Under the last note, the tape shop (js/tapes.js).
+      return n === NOTES.length ? SD.tapes.shop() : undefined;
     }
     AU.music('kyu');
     await say([
@@ -594,10 +596,11 @@
       ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
       ['dutch', 'So we take root back.'],
       ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
-      ['seymour', 'Wait. Take these. Two tapes, for the stair. If it all goes wrong up there, one puts you back at the start of the floor. I\'ll make two more every time you climb. Don\'t waste them.'],
+      ['seymour', 'Wait. Take these. Three tapes, for the stair. If it all goes wrong up there, one gets you back on your feet, right where you fell. It\'s used up when it plays. I won\'t hand out more. You can earn them.'],
       ['narr', 'The slot snaps shut. Behind it, faintly, someone is humming.']
     ]);
-    U.system('SEYMOUR\'S TAPES', 'Two spare lives for each climb. A wipe uses one, and the floor starts again as you entered it. With none left, it\'s back down to camp.', 'gold');
+    SD.tapes.award('starter', 3);
+    U.system('SEYMOUR\'S TAPES', 'Spare lives you keep. Go down in a raid and one plays: answer a question on what beat you, and the team is back on its feet at full SLA, in the same fight. Get it right, and the incident keeps the damage you did. A played tape is gone for good. Find more out in the world, or earn one a day from Seymour with a review. With none left, it\'s back down to camp.', 'gold');
     U.system('[GOAL] TAKE ROOT BACK', 'Kyu\'s tape stays offline until there\'s no root to fear. Somewhere on the island, Elder Wren is waiting.', 'gold');
     AU.music('camp');
   }
@@ -787,6 +790,7 @@
       await say([['coo', 'All five! Delivered at least once and, thanks to you, at most once. Here. A pigeon pays his debts.', 'smile']]);
       U.system('COO\'S THANKS', 'Idempotent Consumer starts upgraded in Expedition I. +30 XP.', 'gold');
       R.gainXp(30);
+      SD.tapes.award('c2letters', 1, 'In the last envelope, misdelivered years ago: one of Seymour\'s tapes.');
     } else await say([['coo', 'Delivered! Bring me the rest when you find them.', 'smile']]);
   }
   function climb() {

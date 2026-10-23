@@ -754,7 +754,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     back: 'Back down to the Free Cloud',
     cafe: { title: 'The Franking Room', who: null, name: 'The franking room', text: 'A franking machine with a kettle on top, and cards on the counter with prices stamped on them.' },
     camp: { title: 'The Sorting Room', text: 'An empty sorting room with a kettle that works. Everyone sits on the mail sacks at once. Rest, or practise one of your cards.' },
-    regroup: [{ who: null, text: 'One of Seymour\'s tapes whirrs, and the floor is back the way you found it.' }, { who: 'mate1', text: 'Up. All of us. Back to the top of the floor: we know what\'s in there now.' }],
+    tapeLine: [{ who: null, text: 'One of Seymour\'s tapes whirrs, and goes quiet for good.' }, { who: 'mate1', text: 'Up. All of us. It\'s still in there, and now we know what it does.' }],
     floors: [
       { name: 'Intake', gate: 'THE SORTING FLOORS · INTAKE', map: '2', beat: 'Where Thornwick\'s letters arrive, and go round, and round.',
         boss: 'postmistress', bossTitle: 'The Postmistress Without Post', fade: 4,
@@ -887,7 +887,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
       playing = false; undress = null;
     };
   }
-  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay, tapes: 2 }, extra);
+  const story = extra => Object.assign({ story: true, label: 'The Sorting Floors', xp: 'sortingfloors', champNames: true, deckFor, pickQ, say: raidSay }, SD.tapes.forRaid(2), extra);
 
   // A join screen: the open parties on the stair, and a box for a friend's code.
   function joinScreen(root, dir) {
@@ -963,14 +963,15 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
     return new Promise(res => {
       const net = !!(SD.net && SD.raid);
       const b = U.panel(`<p>Up the stair are the Sorting Floors: the halls where Thornwick's letters go to be processed, and never come out.</p>
-        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss. Fall, and one of Seymour's tapes puts you back at the start of the floor: two tapes a climb.</p>
+        <p class="muted small">Expedition I: two raid floors, Intake and Fan-out, each with a boss.</p>${SD.tapes.door(2)}
         <div class="opts"><button class="opt primary" id="sf-solo"><b>Climb</b> · you and your three</button>
         ${net ? '<button class="opt" id="sf-party"><b>Form a party</b> · friends join with your code</button><button class="opt" id="sf-join"><b>Join a party</b> · with a friend\'s code</button>' : ''}</div>
         ${noBack ? '' : '<div class="row"><button class="ghost" id="sf-not">Not yet</button></div>'}`, { title: 'THE SORTING FLOORS', noClose: true });
-      const go = how => async () => { U.closePanel(); c2().f.act1 = true; S.persist(); AU.music('story'); if (SD.c2world && SD.c2world.active) SD.c2world.halt(); const won = await C2.sorting(how); res(won); after(won); };
+      const go = how => async () => { U.closePanel(); SD.tapes.award('starter', 3, 'Seymour, through the slot: "For the stair. Don\'t waste them."'); c2().f.act1 = true; S.persist(); AU.music('story'); if (SD.c2world && SD.c2world.active) SD.c2world.halt(); const won = await C2.sorting(how); res(won); after(won); };
       b.querySelector('#sf-solo').onclick = go('solo');
       if (net) { b.querySelector('#sf-party').onclick = go('party'); b.querySelector('#sf-join').onclick = go('join'); }
       if (!noBack) b.querySelector('#sf-not').onclick = () => { U.closePanel(); res(null); };
+      SD.tapes.wire(b, () => { U.closePanel(); res(null); });
     });
   };
   // Back down the stair: cleared, the camp; not, the Free Cloud's fire and another go.

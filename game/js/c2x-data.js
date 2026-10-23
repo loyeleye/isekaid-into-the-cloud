@@ -564,7 +564,7 @@
     back: 'Up to the lift',
     cafe: { title: 'The Clerks\' Tea Room', who: null, name: 'The tea room', text: 'A tea room for clerks who never take a break. The urn is warm. Someone has left cards on the counter, priced in red ink.' },
     camp: { title: 'The Franking Room', text: 'A quiet room full of franking machines. Sit for a minute, or use the bench to tune one of your cards. Each of you chooses one.' },
-    regroup: [{ who: 'mate1', text: 'Everyone up? Back to the start of the floor. We know what\'s in there now.' }],
+    tapeLine: [{ who: 'mate1', text: 'Everyone up? Same fight. We know what it does now.' }],
     floors: [
       { name: 'The Clerks', gate: 'THE DEAD LETTER OFFICE · THE CLERKS', map: '2', beat: 'Clerks that time out, starve, start cold and drop what fails.',
         boss: 'nightshift', bossTitle: 'The Night Shift', fade: 5,
@@ -612,7 +612,7 @@
     back: 'Back down to the square',
     cafe: { title: 'The Penitents\' Kitchen', who: null, name: 'The kitchen', text: 'A bare kitchen for the Inquisition\'s penitents. The bread is hard. The cards on the shelf are not.' },
     camp: { title: 'A Cell With the Door Off', text: 'An empty cell with its door taken off its hinges. Rest, or tune one of your cards. Each of you chooses one.' },
-    regroup: [{ who: 'mate1', text: 'Up. Back to the start of the floor. We\'re not done.' }],
+    tapeLine: [{ who: 'mate1', text: 'Up. It\'s still here, and so are we. We\'re not done.' }],
     floors: [
       { name: 'The Square', gate: 'THE INQUISITION\'S TOWER · THE SQUARE', map: '2', beat: 'A crowd where everyone calls everyone, retries at once, and falls together.',
         boss: 'qsquare', bossTitle: 'The Square Itself', fade: 5,
@@ -674,7 +674,7 @@
     back: 'Back down to Thornwick',
     cafe: { title: 'The Bell-Ringer\'s Cupboard', who: null, name: 'Marrow\'s cupboard', text: 'Goodwife Marrow\'s cupboard: rope, candles, a teapot, and a few cards she says she found.' },
     camp: { title: 'The Belfry Landing', text: 'A landing under the bells. Rest, or tune a card. Each of you chooses one.' },
-    regroup: [{ who: 'mate1', text: 'Again. From the bottom of these stairs.' }],
+    tapeLine: [{ who: 'mate1', text: 'Again. Right here, on these stairs.' }],
     floors: [
       { name: 'The Back Stairs', gate: 'THE GREY NOVICE · THE BACK STAIRS', map: '2', beat: 'Every idea in the Mailroom, mixed, and the last of Hale\'s guard.',
         boss: 'qguard', bossTitle: 'Hale\'s Last Guard', fade: 3,

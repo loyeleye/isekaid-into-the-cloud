@@ -4,6 +4,7 @@
 // no wipe; a wipe sends the party back to the start of its floor (story mode, as with no tapes), so the run goes on and
 // counts where it wiped. Prints the clear rate per expedition and the share of runs that got through each floor clean.
 // Run from game/:  N=8 P=4 XP=k4gates,k4peak,k4house,k4letter node tools/c4_balance.js
+// ACC sets how often the bots answer right (default 0.7) and DMG multiplies every enemy's load (SD.raid.dmgX).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -69,15 +70,17 @@ async function run(browser, url, xp, i) {
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
   const lead = LEADS[i % 4];
-  await page.evaluate(([lead, xp, st]) => {
+  await page.evaluate(([lead, xp, st, acc, dmg]) => {
     const S = SD.state;
+    if (acc != null) SD.raid.botAcc = acc;
+    if (dmg != null) SD.raid.dmgX = dmg;
     S.save.c1 = { lead, f: { done: true }, deck: SD.starterDeck.map(id => ({ id, up: false })), pos: null };
     if (S.save.level < 12) S.save.level = 12;
     S.save.c4 = { f: {}, w: { x: Object.assign({ cold: 1, arrive: 1, hinted: 1 }, st.x), pos: [24, 28], pages: [], cards: st.cards, miss: [] }, choice: null };
     SD.c4world.on = true;
     SD.c4world.debug.onAfter = (x, won) => { window.__done = won ? 'won' : 'lost'; return true; };
     SD.c4world.debug.expedition(xp);
-  }, [lead, xp, STATE[xp]]);
+  }, [lead, xp, STATE[xp], process.env.ACC != null ? +process.env.ACC : null, process.env.DMG != null ? +process.env.DMG : null]);
   const t0 = Date.now();
   let r = {};
   while (!r.done && Date.now() - t0 < 20 * 60 * 1000) { r = await page.evaluate(step); if (!r.done) await page.waitForTimeout(60); }
