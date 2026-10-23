@@ -64,14 +64,9 @@
     g(r(-60, -24, 120, 48, '#e8dcc0', N, 3) + t(0, 8, 'NO VISITORS', { size: 16, fill: '#8a2a34', font: 'ui-monospace, monospace' }), 'translate(820 620) rotate(4)'),
     K.vignette(1200, 1200, 0.5)
   ]);
-  // The first fire of the Free Cloud, at night in the scrap field.
-  S['c2-fire'] = K.scene([
-    sky('fr0', '#0e0c18', '#1a1420'), K.stars(1200, 600, 120, 31, 0.8), tower(600, 640, -400, 700, true),
-    r(0, 760, 1200, 440, '#1e1814'),
-    g(r(-80, -120, 160, 120, '#4a3a2a', N, 3) + p('M-90 -120 L0 -180 L90 -120Z', '#5a2a2a', N, 3) + t(0, -60, 'POST', { size: 22, fill: '#e8c86a' }), 'translate(280 800)'),
-    g(p('M-120 0 C-120 -110 120 -110 120 0Z', '#6a7080', N, 3), 'translate(960 800)'),
-    ...fire(600, 900, 1.2, 'ff'), K.vignette(1200, 1200, 0.8)
-  ]);
+  // The first fire of the Free Cloud, at night in the scrap field: a PixelLab still (CREDITS.md), not drawn, since
+  // it is a backdrop people see (the camp's stage after Expedition I, the lost-run screen, the chapter's end cards).
+  S['c2-fire'] = 'assets/img/vn/c2-fire.webp';
   // Thornwick's square, as it was every morning: the bell tower, the post box, the posters.
   const poster = (x, y, rot, freya) => g(r(-70, -90, 140, 180, '#efe4c8', N, 3) + (freya
     ? c(0, -30, 34, '#f6dcc6', N, 3) + p('M-36 -40 C-36 -80 36 -80 36 -40 C30 -60 -30 -60 -36 -40Z', '#e7b648', N, 2) + e(0, -74, 30, 6, 'none', '#ffd76a', 3) + c(-12, -30, 4, '#2fbf63') + c(12, -30, 4, '#2fbf63') + p('M-10 -14 Q0 -6 10 -14', null, N, 2) + t(0, 40, 'EVERYTHING', { size: 16, fill: '#2c8a4b' }) + t(0, 62, 'FREE!', { size: 22, fill: '#2c8a4b' })
@@ -92,14 +87,8 @@
     g(r(-110, -330, 220, 330, '#b8402a', N, 5) + r(-70, -270, 140, 22, N), 'translate(600 1100)'),
     K.vignette(1200, 1200, 0.4)
   ]);
-  // The post office in camp: Coo's counter, the sorting desk, a lamp.
-  S['c2-office'] = K.scene([
-    sky('po0', '#4a3424', '#1a120c'), r(0, 0, 1200, 1200, '#4a3424'),
-    p(Array.from({ length: 6 }, (_, j) => Array.from({ length: 8 }, (_, i) => `M${240 + i * 92} ${180 + j * 70} h80 v60 h-80Z`).join(' ')).join(' '), '#2a1c12', '#1a120c', 3),
-    p(Array.from({ length: 14 }, (_, i) => `M${260 + (i * 97) % 700} ${196 + (i * 53) % 380} h40 v26 h-40Z`).join(' '), '#efe4c8', N, 2),
-    p('M120 700 L1080 700 L1080 780 L120 780Z', '#6a4a2c', N, 4) + r(140, 780, 920, 420, '#4a3018', N, 4),
-    K.lantern(900, 700, 1.2), K.glow('pog', 900, 610, 600, '#ffb45a', 0.45), K.vignette(1200, 1200, 0.7)
-  ]);
+  // The post office in camp: Coo's counter, the sorting desk, a lamp. A PixelLab still too: the camp hub's backdrop.
+  S['c2-office'] = 'assets/img/vn/c2-office.webp';
   // The Sorting Floors: the halls where Thornwick's letters are processed and never come out.
   S['c2-floors'] = K.scene([
     sky('sr0', '#2a2418', '#0e0c08'),

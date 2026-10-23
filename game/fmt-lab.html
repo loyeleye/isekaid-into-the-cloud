@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Format Lab</title>
+<!-- Dev page for the question formats (js/qformats.js, docs/question-formats.md). It borrows the game's look by
+     reading the <style> blocks from index.html, so it needs a server: cd game && python3 -m http.server 8000, then
+     open http://localhost:8000/fmt-lab.html. ?mem keeps exposure in memory instead of a stand-in save. -->
+<script>
+window.SD_FMT_LAB = true;
+window.SD = window.SD || {};
+// A stand-in save, so the engine's exposure tracking (SD.state.save.fg.fmt) can be seen. Never the game's real
+// state.js: that would write over the player's save in this origin.
+if (!/[?&]mem\b/.test(location.search)) SD.state = { save: {}, persist() {} };
+</script>
+<style>
+/* Used until the game's CSS arrives, and on top of it. */
+:root { --ink: #2b2340; --muted: #6f6787; --cream: #fffaf0; --blue: #3b8bff; --blue-d: #2160d0; --mint: #2fbf7f; --red: #ff5a5a; --sun: #ffc93c; --line: #e2d5bb;
+  --f-head: "Fredoka", "Trebuchet MS", system-ui, sans-serif; --f-body: "Nunito", "Segoe UI", system-ui, sans-serif; }
+html, body { overflow-x: hidden !important; overflow-y: auto !important; height: auto !important; }
+body.lab { margin: 0; background: #cfeaff; color: var(--ink); font: 15px/1.5 var(--f-body); }
+.lab main { max-width: 860px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+.lab h1 { font: 700 26px var(--f-head); margin: 0 0 4px; }
+.lab h2 { font: 700 18px var(--f-head); margin: 18px 0 6px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.lab h2 small { font: 600 13px var(--f-body); color: var(--muted); }
+.lab .lab-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; background: var(--cream); border: 3px solid var(--ink); border-radius: 14px; }
+.lab .lab-bar label { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: 14px; }
+.lab select, .lab .lab-bar button { min-height: 44px; font: 600 15px var(--f-head); border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 10px; }
+.lab ul.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lab .it { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: #fff; border: 2px solid var(--ink); border-radius: 12px; }
+.lab .it div { flex: 1; min-width: 0; }
+.lab .it b { display: block; }
+.lab .it code { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.lab .it button { min-height: 44px; min-width: 72px; font: 600 15px var(--f-head); border: 3px solid var(--ink); border-radius: 12px; background: var(--blue); color: #fff; }
+.lab .exp { font-size: 12px; color: var(--muted); }
+.lab #log { margin-top: 16px; padding: 10px 12px; background: #fff; border: 2px dashed var(--ink); border-radius: 12px; font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 2em; }
+.lab .muted { color: var(--muted); }
+.lab .empty { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body class="lab">
+<main>
+  <h1>Format Lab</h1>
+  <p class="muted">Every item in <code>SD.fmtItems</code>, by type. Play one to try the format.</p>
+  <div class="lab-bar">
+    <label>Mode <select id="lab-mode">
+      <option value="auto">Auto (intro rule)</option>
+      <option value="worked">Worked</option>
+      <option value="hint">Practice with hint</option>
+      <option value="scored" selected>Scored</option>
+    </select></label>
+    <label>Faded level <select id="lab-fade"><option value="">Item's own (2)</option><option>1</option><option>2</option><option>3</option></select></label>
+    <button id="lab-reset">Reset exposure</button>
+  </div>
+  <div id="lab-list"></div>
+  <div id="log" aria-live="polite"></div>
+</main>
+<div id="panel" hidden></div>
+<div id="notes"></div>
+
+<script src="js/ui.js"></script>
+<script src="js/eli5.js"></script>
+<script src="js/fmt-samples.js"></script>
+<script src="js/fmt-items-a.js" onerror="this.remove()"></script>
+<script src="js/fmt-items-b.js" onerror="this.remove()"></script>
+<script src="js/qformats.js"></script>
+<script>
+(function () {
+  const U = SD.ui, esc = U.esc;
+  const $ = s => document.querySelector(s);
+  // The game's own look: the <style> blocks of index.html.
+  fetch('index.html').then(r => r.ok ? r.text() : '').then(t => {
+    const css = [...t.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n');
+    if (!css) return;
+    const el = document.createElement('style'); el.id = 'game-css'; el.textContent = css;
+    document.head.insertBefore(el, document.head.querySelector('style'));
+    document.body.dataset.css = 'game';
+  }).catch(() => {}).finally(() => { document.body.dataset.ready = '1'; });
+
+  const items = () => (SD.fmtItems || []).filter(Boolean);
+  function expText(type) {
+    const e = SD.qf.exposure(type);
+    return `seen ${e.n} · last ${e.last.map(x => x === true ? '✓' : x === false ? '✗' : '½').join('') || '-'}${e.known ? ' · known' : ''} · next: ${SD.qf.modeFor(type)}`;
+  }
+  function list() {
+    $('#lab-list').innerHTML = SD.qf.TYPES.map(t => {
+      const its = items().filter(q => q.type === t);
+      return `<section data-type="${t}"><h2>${esc(SD.qf.NAMES[t])} <small>${t} · ${its.length} item${its.length === 1 ? '' : 's'}</small> <small class="exp" data-exp="${t}">${expText(t)}</small></h2>
+        <ul class="items">${its.map(q => `<li class="it"><div><b>${esc(q.title || q.id)}</b><code>${esc(q.id)} · ${esc((q.tracks || []).join(', '))} · ${esc(q.topic || '')}</code></div><button data-play="${esc(q.id)}" aria-label="Play ${esc(q.title || q.id)}">Play</button></li>`).join('') || '<li class="empty">No items yet.</li>'}</ul></section>`;
+    }).join('');
+    document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => play(b.dataset.play, b));
+  }
+  const log = t => { const l = $('#log'); l.textContent = (t + '\n' + l.textContent).slice(0, 4000); };
+  async function play(id, btn) {
+    const q = items().find(x => x.id === id);
+    const mode = $('#lab-mode').value, fade = $('#lab-fade').value;
+    const opts = { title: 'FORMAT LAB', context: SD.qf.NAMES[q.type] + ' · ' + q.id };
+    if (mode !== 'auto') opts.mode = mode;
+    if (fade !== '') opts.fade = +fade;
+    const r = await SD.qf.ask(q, opts);
+    window.lastResult = Object.assign({ id }, r);
+    log(`${id}: ${JSON.stringify(r)}`);
+    list();
+    const again = document.querySelector(`[data-play="${CSS.escape(id)}"]`); if (again) again.focus();
+  }
+  $('#lab-reset').onclick = () => { SD.qf.resetExposure(); list(); log('exposure reset'); };
+  window.addEventListener('load', list);
+})();
+</script>
+</body>
+</html>
