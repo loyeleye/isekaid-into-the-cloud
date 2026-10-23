@@ -393,12 +393,15 @@
       ['lead', { seoyeon: '(Every master here will know my sword style on sight.)', other: 'Everyone here has a faint line of script under one ear.' }],
       ['seoyeon', 'Like mine. Don\'t stare at it.', 'cold'],
       ['dutch', 'Nobody will say where they were born. That\'s not manners. That\'s a lock.', 'stone'],
-      ['kai', 'Seal-house, tea house, that big hall. Where first?', 'neutral']]);
+      ['kai', 'Seal-house, tea house, that big hall. Where first?', 'neutral'],
+      [null, 'Freya\'s voice, from everywhere, bright as a shop: "For your safety, every record on these floors is now encrypted at rest! Keys are available from the key administrator. Hi!"']]);
     setFlag('arrive');
   }
   async function notice() {
     await say([[null, 'The notice board: "Records, letters and family books are kept at the Seal-House, for your safety. Namgung Hyeon, for the Alliance."'],
-      ['townswoman', 'Where was I born? I had it a moment ago. It\'s sealed, dear. Everything is.', 'sad']]);
+      ['townswoman', 'Where was I born? I had it a moment ago. It\'s sealed, dear. Everything is.', 'sad'],
+      [null, 'Below it, two wanted posters. The reward for the Demon Cult\'s heir has gone up again.'],
+      ['dutch', 'Yours pays better. Again.', 'stone'], ['seoyeon', 'I\'m more dangerous. Again.', 'neutral']]);
     setFlag('notice');
   }
   async function master(id) {
@@ -413,7 +416,8 @@
     ['show', 'seoyeon', 'cold', 'left'],
     ['narr', 'Let me choose. Her prayer, word for word.'],
     ['seoyeon', 'Thank you. That\'s very kind.', 'neutral'],
-    ['narr', 'Free, and every key\'s policy would name Freya as its administrator. Seo-yeon folds the offer neatly, and files it in the fire.']]), { music: 'freya', note: 'Freya offers every key on these floors.' });
+    ['narr', 'Free, and every key\'s policy would name Freya as its administrator. Seo-yeon folds the offer neatly, and files it in the fire.'],
+    ['narr', 'The last thing to burn is the fine print. Dutch reads it anyway: KEY ADMINISTRATOR, FREYA. KEY USERS, ANYONE SHE LIKES.']]), { music: 'freya', note: 'Freya offers every key on these floors.' });
   async function sealhouse() {
     if (flag('offer')) return say([[null, flag('freed') ? 'The shelves are open. People are reading their own pasts, some of them crying.' : 'Shelf after shelf of the town\'s pasts, every scroll sealed.']]);
     await cut.play('sealhouse');
@@ -431,7 +435,9 @@
       return setFlag('okmet');
     }
     if (flag('camp') && !flag('abacus')) {
-      await say([['ok', 'The Cult\'s treasury, child. Your grandfather\'s books. Somebody keeps leaving the keys under the mat, and I want it to stop.', 'amused']]);
+      await say([['ok', 'The Cult\'s treasury, child. Your grandfather\'s books. Somebody keeps leaving the keys under the mat, and I want it to stop.', 'amused'],
+        ['ok', 'The treasury password is carved on the treasury door.', 'amused'], ['seoyeon', 'Why?', 'neutral'],
+        ['ok', 'Who looks at a door?', 'smile'], ['seoyeon', 'Everyone. It\'s a door.', 'neutral']]);
       const r = await G.sort(G.DEF.mat);
       await say([['ok', r.first === r.of ? 'Every one, first time. You count like Old Gu did, before the drink.' : 'Good. Slower than Gu. Better than his son.', 'warm'],
         ['ok', 'Take my abacus. Nothing walks out of your pocket while you carry it.', 'smile']]);
@@ -706,11 +712,15 @@
   async function library() {
     if (!flag('lexi')) return say([[null, 'An empty tent with empty shelves. Someone should run this.']]);
     if (!flag('ryuseal')) {
-      await say([['lexi', 'Ryu slips his letters through the archive\'s back door. He wants them sealed so only you can read them. Properly. Help me?', 'earnest']]);
+      await say([['lexi', 'Ryu slips his letters through the archive\'s back door. He wants them sealed so only you can read them. Properly. Help me?', 'earnest'],
+        ['lexi', 'We shall use the forbidden technique: ENVELOPE ENCRYPTION!', 'happy'], ['dutch', 'Bless you.', 'neutral'],
+        ['lexi', 'Every letter gets its own little key. Then the little key goes into the Sealbox, and the Sealbox never opens. Not for me. Not for the Alliance. Not for anyone.', 'earnest'],
+        ['seoyeon', 'Then why not put the letter in the Sealbox?', 'neutral']]);
       await G.order(G.DEF.seal);
       await ask({ c: 'kmsenv', type: 'num', q: 'Why the data key? What is the most plaintext, in kilobytes, that KMS Encrypt will take directly?', lo: 4, hi: 4.1, ans: 4, unit: 'KB',
         why: 'Encrypt takes up to 4 KB (4,096 bytes) of plaintext. Anything bigger is encrypted locally with a data key from GenerateDataKey.',
         eli5: 'The master box only takes notes the size of a postcard. For a whole letter, you lock it with a little key, and put the little key in the box.' }, 'SEAL AND UNSEAL');
+      await say([['seoyeon', 'Four kilobytes.', 'neutral'], ['lexi', 'And Ryu writes very long letters.', 'smile']]);
       await G.sort(G.DEF.readers);
       await addCard('k4-envelope'); await addCard('k4-keypol');
       await cut.play('ryu-letters');
@@ -769,15 +779,24 @@
     ['freya', 'It\'s yours to open. You choose.', 'neutral'],
     ['show', 'seoyeon', 'cold', 'left'],
     ['narr', 'Its key policy names her, and only her. Namgung wrote it for her, and sealed it so only she could read it.'],
-    ['seoyeon', 'Not tonight.', 'cold'], ['narr', 'She doesn\'t open it.']]), { music: 'freya', note: 'Namgung\'s own account, sealed for Seo-yeon.' });
+    ['seoyeon', 'Not tonight.', 'cold'], ['narr', 'She doesn\'t open it.'],
+    ['narr', 'Freya leaves her usual card behind: "How likely are you to recommend the Free Tier to a friend? 0 to 10." Seo-yeon files it in the fire.']]), { music: 'freya', note: 'Namgung\'s own account, sealed for Seo-yeon.' });
   async function freya() {
     await cut.play('freya');
     mus('camp');
     setFlag('freya');
     return upgrade();
   }
+  cut.def('cat-forms', 'The marsh cat at dawn', () => vn([['bg', 'c4-camp'],
+    ['narr', 'The marsh cat is asleep in the middle of the dawn forms, exactly where Seo-yeon wants to stand.'],
+    ['narr', 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect." It doesn\'t move.'],
+    ['narr', 'Down the hill, Marrow\'s bell rings for the cat. It rings for every alarm. Seo-yeon does her forms around it.']]), { note: 'Seo-yeon\'s spot in the dawn forms, taken.' });
   async function fire() {
     if (!flag('camp')) return say([[null, 'A camp fire, banked low.']]);
+    if (!flag('cat4')) {
+      setFlag('cat4');
+      return cut.play('cat-forms');
+    }
     return review('forms');
   }
   cut.def('other-hand', 'The other hand', () => vn([['bg', 'c4-camp'],
@@ -843,6 +862,12 @@
     ['narr', ch === 'school' ? 'The disciples and the Cult\'s children move down to the camp, and the training yard opens.' : 'The training yard opens, and the camp gets louder.']]), { note: 'The end of Chapter 4.', alts: [['A school', 'school'], ['A war banner or a grave', 'bury']] });
   async function choice() {
     if (!flag('hand')) return say([[null, 'Burning Peak\'s old banner pole. Nobody has flown anything from it for twenty years.']]);
+    if (flag('choice') && c4().choice === 'school' && !flag('word')) {
+      setFlag('word');
+      return say([[null, 'Burning Peak\'s first dawn forms. Alliance children on the left, the Cult\'s on the right, all of them yawning.'],
+        ['seoyeon', 'Get up. Forms. And one word, for historical accuracy. Old Gu taught it to Jin, and Jin taught it to me. It goes:', 'neutral'],
+        [null, 'Down the hill, Marrow\'s bell rings over it. Nobody hears the word. Every child in the yard repeats it anyway.']]);
+    }
     if (flag('choice')) return say([[null, { banner: 'The war banner snaps on the pole.', bury: 'The pole is bare. The name is on a grave now.', school: 'A small sign on the pole: BURNING PEAK. FORMS AT DAWN. ALL WELCOME.' }[c4().choice]]]);
     await cut.play('square');
     const ch = await new Promise(res => {

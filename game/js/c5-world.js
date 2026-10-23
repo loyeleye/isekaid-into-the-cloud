@@ -407,11 +407,20 @@
     await say([[null, 'Floor 61: the Arcanum\'s city, rebuilt inside the tower. Spires, lecture bells, scholars in a hurry. And on every wall, the same face.'],
       ['lead', { dutch: '(The drunk enforcer who threw an heir off a tower. They got my nose wrong.)', other: 'Dutch. That\'s you on the posters.' }],
       ['dutch', 'Twenty-five years, and they still couldn\'t draw a nose.', 'stone'],
+      ['kai', 'They got your good side.', 'smirk'], ['dutch', 'Haven\'t got one.', 'stone'],
+      [null, 'Freya\'s voice, from every lecture bell at once: "Scheduled maintenance tonight at midnight! And every night at midnight. Thank you for your patience!"'],
       ['mira', 'Hood up, love. Walk like you\'re late for a lecture.', 'neutral'],
       ['kai', 'Everything here has that green grid on it. Like the tape.', 'neutral']]);
     setFlag('arrive');
   }
   async function ashgrove() {
+    if (flag('ashgrove') && !flag('rail') && !flag('plate')) {
+      setFlag('plate');
+      return say([[null, 'Kai puts a plate down in front of Lord Ashgrove, on the edge of the poster table.'],
+        ['kai', 'Eat. It isn\'t poisoned. Madam Ok says that\'s bad for business.', 'neutral'],
+        ['ashgrove', 'I am hunting your friend.', 'cold'], ['kai', 'You\'re hunting him hungry.', 'neutral'],
+        [null, 'Ashgrove eats all of it, slowly, hating every bite. He hands the plate back clean.']]);
+    }
     if (flag('ashgrove')) return say([['ashgrove', flag('rail') ? 'Go back to your camp, Mr. Dutch.' : 'The city is closed to him. Spread out, and be courteous about it.', 'cold']]);
     await say([[null, 'A grey man in the watch\'s dark coat is reading the wanted poster as if it were a letter. The watch stands to attention around him.'],
       ['ashgrove', 'He was drunk. He had my son by the collar on the Astronomy Tower, and he let go. I know exactly who did it.', 'cold'],
@@ -443,6 +452,7 @@
     ['show', 'dutch', 'stone', 'left'],
     ['dutch', 'You\'ve had the truth this whole time.', 'stone'],
     ['freya', 'Of course. You never asked.', 'smile'],
+    ['narr', 'On the badge, under the shine, in tiny gold print: BADGE REMAINS THE PROPERTY OF THE ISSUER, AND MAY BE REVOKED AT ANY TIME. He reads it twice.'],
     ['narr', 'Free, and he\'d be her enforcer again. He leaves the badge on its nail.']]), { music: 'freya', note: 'His badge, polished, on a nail by the door.' });
   async function station() {
     if (flag('offer')) return say([[null, flag('freed') ? 'The Crown\'s old station. The nail on the wall is empty now.' : 'The Crown\'s old station. His badge on its nail, polished bright by someone who isn\'t him.']]);
@@ -811,7 +821,12 @@
   }
   async function kaito() {
     if (!flag('helm')) {
-      await say([['kaito', 'I don\'t need help. But if you were going to help, hypothetically, the bill is the problem. And the roles. Hypothetically.', 'earnest']]);
+      await say([['kaito', 'I don\'t need help. But if you were going to help, hypothetically, the bill is the problem. And the roles. Hypothetically.', 'earnest'],
+        [null, 'Behind him, fifty-two machines hum, smoke, and send each other messages. One of them is on fire.'],
+        ['kaito', 'It isn\'t on fire. It\'s horizontally scaled fire.', 'smug'],
+        ['dutch', 'What does this one do?', 'stone'], ['kaito', 'It calls that one.', 'smug'],
+        ['dutch', 'What does that one do?', 'stone'], ['kaito', '...It calls this one.', 'earnest'],
+        ['dutch', 'Who calls either of them?', 'stone'], [null, 'Nobody says anything for a while. Both machines hum on, billing by the hour.']]);
       await G.sort(G.DEF.machines);
       await G.sort(G.DEF.roles);
       setFlag('helm'); R.gainXp(30);
@@ -819,14 +834,18 @@
       await addCard('x5-helm', 'BOON: KAITO\'S HELM');
       return say([['kaito', 'Take it. Not because you helped. I just have a spare.', 'smug']]);
     }
-    return say([['kaito', rnd(['Seven machines. It\'s fine. It\'s more than fine.', 'Legendary Skill: Kubernetes. Also, now, Fargate.', 'I was going to delete the health-check checker anyway.']), 'smug']]);
+    return say([['kaito', rnd(['Seven machines. It\'s fine. It\'s more than fine.', 'Legendary Skill: Kubernetes. Also, now, Fargate.', 'I was going to delete the health-check checker anyway.', 'Nothing here calls anything that calls it back. I checked. Twice.']), 'smug']]);
   }
   async function cronArrives() {
     mus('camp');
     await say([[null, 'That night someone slips down the tower stair to camp: an old farmer in a straw hat, his pocket watch in his hand.'],
       ['cron', 'I\'m Cron. I run the midnight redeploy, up in the clocktower. Because the schedule said to. Because Pa did everything at midnight.', 'sad'],
       ['cron', 'It drains them again every night, the students. I didn\'t know until tonight. Help me stop it?', 'earnest'],
-      ['dutch', 'Sit. Not that chair.', 'neutral']]);
+      ['dutch', 'Sit. Not that chair.', 'neutral'],
+      [null, 'He hangs one thing over his cot before he sleeps: an embroidered sampler, old and careful. cron(0 0 * * ? *) — Pa.'],
+      ['seoyeon', 'Midnight. Every day, every month, every year.', 'neutral'],
+      ['lexi', 'In UTC.', 'earnest'],
+      ['cron', '...Pa never said UTC.', 'sad']]);
     setFlag('cron');
   }
   async function cron() {
@@ -867,7 +886,8 @@
     ['show', 'dutch', 'stone', 'left'],
     ['narr', 'Dutch doesn\'t answer for a long time.'],
     ['dutch', 'Sit. No, the other chair.', 'stone'],
-    ['narr', 'She does. It wobbles.']]), { music: 'freya', note: 'Iris, alone, at midnight. It wobbles.' });
+    ['narr', 'She does. It wobbles.'],
+    ['narr', 'When she\'s gone there\'s a card on the chair: "How likely are you to recommend the Free Tier to a friend? 0 to 10." Kai adds it to the kindling under the stove.']]), { music: 'freya', note: 'Iris, alone, at midnight. It wobbles.' });
   async function deal() {
     await cut.play('deal');
     mus('camp');
@@ -906,8 +926,17 @@
     setFlag('turned');
     await U.system('DUTCH\'S UPGRADE: TURNED ON', 'Data events, on. In Expedition III, Dutch\'s Master Key reveals every hidden intent for the rest of the fight, whoever plays him.', 'gold');
   }
+  cut.def('cat-cable', 'The marsh cat and the machines', () => vn([['bg', 'c5-camp'],
+    ['narr', 'The marsh cat walks out of Kaito\'s machines with one of his cables in its mouth. Three of them stop humming.'],
+    ['narr', 'Four people say four names at once: "Patient." "Chef." "Honoured Guest." "Suspect."'],
+    ['kaito', 'That was redundant anyway.', 'smug'],
+    ['narr', 'Down the hill, Marrow\'s bell rings, once for each machine.']]), { note: 'One of Kaito\'s cables, taken.' });
   async function fire() {
     if (!flag('up')) return;
+    if (!flag('cat5')) {
+      setFlag('cat5');
+      return cut.play('cat-cable');
+    }
     if (flag('board') && flag('watch') && flag('ledger') && flag('deal') && !flag('turned')) return turned();
     return review('fire');
   }
@@ -1049,7 +1078,9 @@
       ashT: async () => { await say([['ashgrove', 'She went up. You\'re going after her. I\'m coming too, Mr. Dutch. I want to see what you do with your hands.', 'cold']]); if (flag('xp3') && !flag('rail')) return rail(); },
       bell: () => { sfx('x-bell'); return say([[null, 'The lecture bell. A card is tied to the rope: "Ring for a release. Ring twice to undo."']]); },
       forge: () => say([[null, flag('xp1') ? 'The Workshops, quieter now. Ayo\'s anvil is gone from its chain.' : 'The Workshops. Somewhere inside, a huge voice is shouting "SCALE OUT!" at nobody.']]),
-      mop: () => say([[null, 'A mop in a bucket. It has no logs. You can\'t tell what it did.']]),
+      mop: () => flag('mopq') ? say([[null, 'A mop in a bucket. It has no logs. You can\'t tell what it did.']]) : (setFlag('mopq'), say([[null, 'A mop in a bucket, in the corner of the closet.'],
+        ['dutch', 'I know that bucket. It\'s done things.', 'stone'], ['seoyeon', 'Prove it.', 'neutral'],
+        [null, 'A long pause.'], ['dutch', '...It has no logs.', 'tired']])),
       shelf1: () => say([[null, 'Shelves of the Arcanum\'s records, every one of them Freya\'s perfect copy, rebuilt tonight.']]), shelf3: () => say([[null, 'More shelves. A faint green grid runs over every spine.']]),
       sch1: () => say([['scholar', flag('freed') ? 'My lantern went out this morning. I\'ve never felt so awake.' : 'Lecture at nine. Professor Vell\'s, if you can get in.', 'neutral']]),
       sch2: () => say([['scholar', flag('freed') ? 'The posters came down overnight. All of them.' : 'Have you seen this man? No? Good. Nor have I.', 'neutral']]) };

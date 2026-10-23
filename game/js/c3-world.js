@@ -43,6 +43,7 @@
   const cut = SD.reel.chapter('3', { before: () => { U.closePanel(); U.stage(null); } });
   cut.def('cold', 'Tax season', ST.cold, { music: 'story', note: 'Kai and his sister Hana, a year and a half ago.' });
   cut.def('cold2', 'Floss, boss', ST.cold2, { note: 'The light under the kitchen door.' });
+  cut.def('cat-fish', 'The marsh cat, again', ST.catfish, { note: 'Kai\'s stove, and a fish meant for the market.' });
   cut.def('arrive', 'Halcyon', ST.arrive, { music: 'c3town', note: 'Floor 21, under a dome of gold light.' });
   cut.def('heart', 'The heart of the barrier', ST.heart, { music: 'c3sad', note: 'Kai feels his sister in it.' });
   cut.def('crown', 'The twelfth Saint', ST.crown, { music: 'c3town', note: 'Noor Haddad, crowned on the cathedral steps.' });
@@ -431,6 +432,8 @@
     setFlag('arrive');
     await cut.play('arrive');
     AU.sfx('x-bell');
+    await say([['narr', 'On a notice board by the lift, a fresh poster: KAI MERCER. INSULTED THE CROWN. REWARD.'],
+      ['kai', 'That\'s not even the worst thing I said to her.', 'smirk']]);
   }
   async function heart() {
     if (flag('asknoor') && !flag('speech')) return speech();
@@ -445,6 +448,18 @@
     if (!flag('heart')) return say([['noor', 'Oh, hi. Sorry, I\'m not supposed to talk before the crowning. Saints smile. That\'s the rule.', 'smile']]);
     if (!flag('crown')) return crown();
     if (flag('x3') && c3().choice === 'leave') return say([['noor', 'You said you\'d come back with root. I\'m counting the days. A day a year, right?', 'sad']]);
+    if (!flag('nforms')) {
+      setFlag('nforms');
+      return say([
+        ['narr', 'Dawn, on the cathedral steps. Seo-yeon is standing over the twelfth Saint\'s bedroll.'],
+        ['seoyeon', 'Get up. Forms.', 'neutral'],
+        ['noor', 'I worked in a bookshop. The heaviest thing I\'ve ever lifted was a dictionary.', 'smile'],
+        ['seoyeon', 'Then lift it again. Forms.', 'neutral'],
+        ['narr', 'Noor falls over twice. Seo-yeon says that\'s a start. Then: "Again."'],
+        ['noor', 'Yes, chef.', 'smile'],
+        ['seoyeon', '...Who taught you that?', 'neutral'],
+        ['narr', 'Somewhere behind the cathedral, Kai is laughing. Noor did not mean yes.']]);
+    }
     return say([['noor', rnd(['Do you think they still have the bookshop? It was on Harrow Road. It had a cat.', 'Seo-yeon says she\'ll teach me her forms at dawn. I\'m going to be terrible at it.', 'It\'s an honour. That\'s what Saints say. I\'ve got really good at saying it.']), 'smile']]);
   }
   async function crown() {
@@ -603,7 +618,9 @@
   async function dougTalk() {
     faceTo('doug', 'you');
     if (flag('bread')) return say([['doug', rnd(['Kevin hasn\'t been throttled in two days. He doesn\'t know what to do with himself.', 'A hundred thousand keys. Each a bit warm. None hot. That\'s the dream.']), 'smile']]);
-    await say([['doug', 'Kevin\'s throttled again. The barrier\'s ration ledger. Every morning, same thing.', 'tired'], ['kevin', 'THROTTLED.']]);
+    await say([['doug', 'Kevin\'s throttled again. The barrier\'s ration ledger. Every morning, same thing.', 'tired'], ['kevin', 'THROTTLED.'],
+      ['kevin', 'PROVISIONEDTHROUGHPUTEXCEEDEDEXCEPTION.'], ['dutch', 'Bless you.', 'neutral'],
+      ['narr', 'Down at the camp, Marrow\'s bell rings. It rings for every alarm now. Kevin is an alarm.']]);
     AU.music('quest');
     const r = await G.breadLine();
     setFlag('bread'); xp(r.ok ? 30 : 15);
@@ -625,9 +642,9 @@
     faceTo('kage', 'you');
     if (!flag('kage')) {
       setFlag('kage');
-      return say([['kagemaru', 'Card pins. Very cheap. Very helpful. I am always helpful.', 'smirk'], ['kagemaru', 'That bunker of Seymour\'s, by the way. What does he keep in it? Just asking. Helpfully.', 'neutral']]);
+      return say([['kagemaru', 'Card pins. Very cheap. Very helpful. I am always helpful.', 'smirk'], ['kagemaru', 'On demand, this week. Pay by the fight, no commitment. Ah ha ha.', 'smirk'], ['kagemaru', 'That bunker of Seymour\'s, by the way. What does he keep in it? Just asking. Helpfully.', 'neutral']]);
     }
-    return say([['kagemaru', rnd(['Pins for every card. Cheap. Have I mentioned helpful?', 'Your knight friend. Seymour. Does he ever leave the bunker? Just curious.']), 'smirk']]);
+    return say([['kagemaru', rnd(['Pins for every card. Cheap. Have I mentioned helpful?', 'On-demand pins. No commitment. Commitment comes later, for the lucky ones.', 'Your knight friend. Seymour. Does he ever leave the bunker? Just curious.']), 'smirk']]);
   }
   async function jarVisit() {
     setFlag('jar');
@@ -759,7 +776,7 @@
     if (sc.actors[id] && !sc.actors[id].thing) faceTo(id, 'you');
     const fns = { heart, noor: noorTalk, gate, keeper: gate, sack: sackTalk, clerk: sackTalk, merchant, wen: wenTalk, doug: dougTalk, kevin: dougTalk, term: terminal, kage: kageTalk, kstall: kageTalk,
       aurc: aurTalk, board: boardTalk, ash: ashTalk, saints: register, noorc: () => say([['noor', rnd(['So this is a camp of people who don\'t want anything from me. It\'s loud.', 'Seo-yeon\'s forms are hard. I fell over twice. She said that was "a start".']), 'smile']]),
-      stove: () => flag('freed') && !flag('clean') ? say([['narr', 'The camp kitchen. Every pot hung by size.']]) : say([['narr', flag('jar') ? (flag('choice') ? 'The shelf over the stove. Freya\'s jar has gone dark.' : 'The shelf over the stove. Freya\'s jar, warm and gold. Kai doesn\'t look at it.') : 'Kai\'s stove, the camp\'s kitchen. Every pot clean.']]),
+      stove: () => flag('x1') && !flag('cat3') ? (setFlag('cat3'), cut.play('cat-fish')) : flag('freed') && !flag('clean') ? say([['narr', 'The camp kitchen. Every pot hung by size.']]) : say([['narr', flag('jar') ? (flag('choice') ? 'The shelf over the stove. Freya\'s jar has gone dark.' : 'The shelf over the stove. Freya\'s jar, warm and gold. Kai doesn\'t look at it.') : 'Kai\'s stove, the camp\'s kitchen. Every pot clean.']]),
       office: () => say([['narr', 'THE RATION OFFICE. A queue out of the door, and a sign: "PLEASE WAIT. THE LEDGER IS BUSY."']]),
       bell: () => { AU.sfx('x-bell'); return say([['narr', 'The bell tower. Every night it rings the crowning, because the crowning is in the template.']]); },
       well: () => say([['narr', 'A well that echoes every change made above it, before and after, for exactly one day. Then it goes quiet.']]) };
