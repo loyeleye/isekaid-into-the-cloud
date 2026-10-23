@@ -71,6 +71,8 @@ async function run(browser, url, xp, i) {
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
   const lead = LEADS[i % 4];
+  // ACC: how often the bots answer right (SD.raid.botAcc, default 0.7); DMG: every enemy's load (SD.raid.dmgX).
+  await page.evaluate(([a, d]) => { if (a != null) SD.raid.botAcc = a; if (d != null) SD.raid.dmgX = d; }, [process.env.ACC != null ? +process.env.ACC : null, process.env.DMG != null ? +process.env.DMG : null]);
   await page.evaluate(([lead, xp, st]) => {
     const S = SD.state;
     S.save.c1 = { lead, f: { done: true }, deck: SD.starterDeck.map(id => ({ id, up: false })), pos: null };

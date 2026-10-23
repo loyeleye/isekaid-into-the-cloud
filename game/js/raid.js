@@ -79,9 +79,9 @@
   const RD = SD.raid = {};
   // How often a bot answers right (the balance tools set it).
   RD.botAcc = 0.7;
-  // Every raid enemy's load, on top of its own tuning: the knob the debrief's heal is balanced against (Ladi, Oct 23;
-  // 1 until the balance runs set it).
-  RD.dmgX = 1;
+  // Every raid enemy's load, on top of its own tuning: the knob the debrief's heal is balanced against (Ladi, Oct 23).
+  // Ch4 clean clears at 0% / 70% / 100% right: before the rework 65/80/88; with it at ×1, 63/94/97; at ×1.1, 47/81/84.
+  RD.dmgX = 1.1;
   const net = SD.net;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const BOT_KEY = /^~b[1-9]$/;
