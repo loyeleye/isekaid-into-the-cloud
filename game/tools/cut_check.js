@@ -1,7 +1,7 @@
 // Checks that every pixel cutscene still (js/cut-ch*.js) gets shown: plays js/vn.js's cue matching over every visual-
-// novel script in chapters 2 to 6 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 2's come from
-// js/reel.js, built for each lead and version; chapter 3's scripts are data (SD.c3story);
-// chapters 4 to 6 write theirs inline as vn([...]) calls in js/c4-world.js, js/c5-world.js and js/c6-world.js, so those are read from
+// novel script in chapters 2 to 7 (with js/vn.js's ['cut', name] steps), once per lead, without drawing anything. Chapter 2's come from
+// js/reel.js, built for each lead and version (chapter 7's too, see below); chapter 3's scripts are data (SD.c3story);
+// chapters 4 to 7 write theirs inline as vn([...]) calls in js/c4-world.js, js/c5-world.js, js/c6-world.js and js/c7-world.js, so those are read from
 // the source as their string literals in order (a per-lead { lead: ..., other: ... } line counts every version). A
 // cutscene starts on a line holding its first cue and lasts until the next 'bg'; a shot shows on a line holding its
 // cue inside its cutscene. Fails on a cutscene that never starts, a shot that never shows, or a missing sheet.
@@ -61,6 +61,15 @@ function check(inline) {
     S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
     scripts.push(SD.reel.steps(e, arg));
   })));
+  // chapter 7's too, the same way: its versions (the vault hatch, Kagemaru's three endings) branch inside one vn([...])
+  // call, and the culprits' endings are built from the save, so build each version with every culprit reckoned with or
+  // none (the inline pass below can only see a script's literals in order).
+  const RECKONED = { c2x: { f: { grey: 1 } }, c3: { w: { x: { reckard: 1 } } }, c4: { w: { x: { reckon: 1 } } }, c5: { w: { x: { reckon: 1 } } } };
+  SD.reel.list.filter(e => e.ch === '7' && !e.run).forEach(e => (e.alts || [[null, undefined]]).forEach(([, arg]) => [{}, RECKONED].forEach(r => LEADS.forEach(lead => {
+    S.save = Object.assign(JSON.parse(snap), JSON.parse(JSON.stringify(r)));
+    S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
+    try { scripts.push(SD.reel.steps(e, arg)); } catch (x) { /* a scene that needs a running world plays only in the story */ }
+  }))));
   S.save = JSON.parse(snap); S.persist = persist;
   const match = (shots, text) => {
     let best = null, at = Infinity, len = 0;
@@ -113,7 +122,7 @@ function check(inline) {
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(base + 'index.html?vector', { waitUntil: 'load' });
   await page.waitForFunction(() => window.SD && SD.vn && SD.reel && SD.c3story && SD.c4data && SD.c5data);
-  const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js'].flatMap(vnCalls));
+  const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js', 'js/c7-world.js'].flatMap(vnCalls));
   const noSheet = r.sheets.filter(s => !s || !fs.existsSync(path.join(ROOT, s)));
   await browser.close(); server.close();
   if (errors.length) console.log('page errors:\n  ' + errors.join('\n  '));
