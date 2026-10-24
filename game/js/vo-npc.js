@@ -161,6 +161,25 @@
     "ayo|Forge is hot! Bring me anything that's bent. Ha!": 'ayo-c7-02',
     "theo|Records office. Every change on every floor, logged. Ask me what happened on any day you like.": 'theo-c7-01',
     "pella|A lantern from the Arcanum. We put the flame out ourselves. On purpose. It felt strange.": 'pella-c7-01',
-    "pella|I brought a book for the climb. I know I'm not climbing. I brought it anyway.": 'pella-c7-02'
+    "pella|I brought a book for the climb. I know I'm not climbing. I brought it anyway.": 'pella-c7-02',
+    // The backstory cast in chapters 2 to 5
+    "bram|Stew. Onions in whole, the way you hate.": 'bram-c2-01',
+    "bram|I'll take it in the morning, love.": 'bram-c2-02',
+    "hana|You kept a receipt for one lemon. One. But not your rent.": 'hana-c3-01',
+    "hana|You're an idiot about receipts. Sit. We're sorting these properly.": 'hana-c3-02',
+    "hana|Done. Now floss. In front of me. I don't trust you.": 'hana-c3-03',
+    "hana|Then you've had twenty-four years to learn. Floss, boss.": 'hana-c3-04',
+    "jin|Five more minutes, Minnow. Old Gu taught me a new word last night. Want to hear it?": 'jin-c4-01',
+    "jin|The road. Five more minutes. Gu taught me a word. Get up.": 'jin-c4-02',
+    "jin|Up, Minnow. Forms.": 'jin-c4-03',
+    "namgung|Seo-yeon. You look well.": 'namgung-c4-01',
+    "namgung|I burned the Peak to stop a war. I raised the child. I killed the boy. I regret none of it.": 'namgung-c4-02',
+    "namgung|Then read me, all of you. And then fight me.": 'namgung-c4-03',
+    "namgung|You were the best student this house ever had. I am sorry it was this house.": 'namgung-c4-04',
+    "gu|Kid. If you're reading this I'm dead or sober, and I don't know which is worse.": 'gu-c4-01',
+    "gu|I didn't take you to hide you, kid. I took you so you'd get to choose.": 'gu-c4-02',
+    "lina|Three taps, then one, then four. That's mine. You can't use it.": 'lina-c5-01',
+    "lina|Good night. Obviously.": 'lina-c5-02',
+    "lina|It's pi!": 'lina-c5-03'
   });
 })();
