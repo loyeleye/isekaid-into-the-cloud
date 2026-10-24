@@ -131,6 +131,8 @@
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
   }
   const LEAD_CM = { mira: 173, kai: 178, seoyeon: 160, dutch: 191 };
+// Chapter 1's Dutch is a full body while the others stop above the knee, so he has his own knee-up stand-in here.
+const LEAD_STAND = { dutch: 'dutch-stand' };
   function overHTML(o) {
     if (o.text != null) return `<span class="vn-otext${o.mono ? ' mono' : ''}" style="left:${o.x}%;top:${o.y}%;width:${o.w || 30}%;--os:${o.size || 4};` +
       `${o.color ? `color:${o.color};` : ''}${o.bg ? `background:${o.bg};` : ''}${o.align ? `text-align:${o.align};` : ''}${o.rot ? `rotate:${o.rot}deg;` : ''}">${esc(o.text)}</span>`;
@@ -141,7 +143,7 @@
     // lead's (Dutch), the others shorter, feet on the same line.
     if (o.lead) {
       const who = (SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira', h = o.h * (LEAD_CM[who] || 178) / LEAD_CM.dutch;
-      return `<img class="vn-osp lead" src="assets/img/lead/${who}.webp" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y + o.h - h}%;height:${h}%">`;
+      return `<img class="vn-osp lead" src="assets/img/lead/${LEAD_STAND[who] || who}.webp" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y + o.h - h}%;height:${h}%">`;
     }
     if (!src) return '';
     // A sprite that isn't drawn yet just isn't there.
