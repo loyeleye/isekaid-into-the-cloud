@@ -31,6 +31,10 @@
 //   - Up to 6 floors (chapter 7, 2026-10-23): the finale's sixth, Freya's backup, comes only after a chapter 6 choice.
 //   - o.give(ids) (chapter 7, 2026-10-23), set by RD.play on the options it was given: the story adds cards to the
 //     leader's own deck mid-expedition, as a cue's reward.
+//   - Multiplayer replays (Ladi, 2026-10-24; js/raid-finder.js): o.open lists the expedition ids this player may play,
+//     in place of each expedition's opens() (which only holds while its chapter is the one being played). A guest whose
+//     o.open leaves out the expedition the leader starts leaves with 'locked'. o.onFinish({ won, fl, xp, humans }) runs once on
+//     each seated player's page when an expedition ends, outside the story too, for the replay's reward.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
 // players, after Slay the Spire. The leader picks an expedition (js/expeditions.js) of 2 to 5 floors. Each floor is a
@@ -64,7 +68,7 @@
 // never touches the save's run. One page is the authority (the host) and sends the whole expedition on `state` after
 // every change and every few seconds. Card piles go as short codes (enc() below), so four players stay well under a
 // room's 4 KiB. Players send only their moves on `pick`. If the host leaves, the present player with the lowest peer
-// label takes over from the last state. Pays no rewards.
+// label takes over from the last state. Pays no rewards of its own (a Multiplayer replay pays through o.onFinish, js/raid-finder.js).
 // Before it starts the table waits in the party room (js/party.js): everyone picks a champion (js/champions.js),
 // whose three signature cards go into their deck, the leader (the host) picks the expedition, and starts once everyone
 // is ready. In a fight each player stands on the left as their champion, facing the foe.
@@ -1240,7 +1244,8 @@
     const me = hub.me;
     let done = null;
     const finished = new Promise(r => { done = r; });
-    const open = RD.expeditions();
+    const openList = () => (Array.isArray(o.open) ? o.open.map(xpOf).filter(Boolean) : RD.expeditions());
+    const open = openList();
     const xp0 = o.xp && open.some(x => x.id === o.xp) ? o.xp : o.settings && open.some(x => x.id === o.settings.xp) ? o.settings.xp : (open[0] || {}).id || null;
     const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: 0, tapeN: 0, snap: null, note: '', end: null, rs: false,
       main: null, tier: null, onWin: [], turn: 0, stale: 0, taken: 0, sh: zero(), flags: {}, infra: [], eff: [], log: '', players: {} }, newFoe(null, 0, 1), fightStatus());
@@ -2288,14 +2293,18 @@
       const mine = G.players[me.peer];
       return `<p class="muted small">${esc(title)}</p><div class="cardgrid pick">${mine.deck.map((id, i) => (ok(id) ? `<div ${sendAttr({ k: act, i })} class="rd-pickc">${chtml(id, { i })}</div>` : '')).join('')}</div>${cancel ? `<button class="ghost" type="button" ${cancel}>Cancel</button>` : ''}`;
     }
+    // Whether this expedition's end has been reported to o.onFinish (once per expedition; the party room resets it).
+    let ended = false;
     function render() {
       if (left) return;
       scenes(); owed(); owedQ(); offer();
       if (mismatch) return paint(`<div class="mi-card">${head('A different version')}<p>This party is running a different version of the game. Reload both pages, then join again.</p></div>`);
       if (!G.host) return paint(`<div class="mi-card">${head('Finding the host…')}</div>`);
       const mine = G.players[me.peer], x = X();
-      if (G.ph === 'lobby') return lobby(x);
+      if (G.ph !== 'lobby' && !hosting && mine && Array.isArray(o.open) && !o.open.includes(G.xp)) return leave('locked');
+      if (G.ph === 'lobby') { ended = false; return lobby(x); }
       if (G.ph === 'done' || G.ph === 'over') {
+        if (!ended && mine && o.onFinish) { ended = true; o.onFinish({ won: G.ph === 'done', fl: (G.end || {}).fl | 0, xp: G.xp, humans: all().filter(k => !isBot(k)).length }); }
         const fs = floorsOf(x), e = G.end || {}, foe = SD.enemies[e.foe];
         paint(`<div class="mi-card rd-end">${head(G.ph === 'done' ? (STORYMODE ? `${x.name} cleared!` : 'Expedition complete!') : 'The expedition is over')}
           <p>${G.ph === 'done' ? `You cleared all ${fs.length} floors of ${esc(x.name)}, ${G.rooms} fights in, with ${G.sla} SLA left.` : `The team went down on floor ${(e.fl | 0) + 1} of ${fs.length} (${esc(fs[e.fl | 0] ? fs[e.fl | 0].name : '')}), after ${e.rooms | 0} fight${(e.rooms | 0) === 1 ? '' : 's'}.${foe ? ` ${esc(foe.short || foe.name)} held on with ${e.sev | 0} severity left.` : ''}`}</p>
@@ -2320,7 +2329,7 @@
     }
     function lobby(x) {
       pres();
-      const open = RD.expeditions(), h = here();
+      const open = openList(), h = here();
       const kyu = kyuBoss();
       const fl = x ? floorsOf(x) : [];
       const pickX = hosting && !G.rs ? (open.length ? `<label class="pt-lbl" for="rd-xp">Expedition<select id="rd-xp">${open.map(e => `<option value="${esc(e.id)}" ${e.id === G.xp ? 'selected' : ''}>${esc(e.name)} · ${RD.level(e)}, ${floorsOf(e).length} floors</option>`).join('')}</select></label>` : '<span class="mi-tag">Expedition</span><small class="mi-muted">None open yet. Reach chapter 2 for the first.</small>')
