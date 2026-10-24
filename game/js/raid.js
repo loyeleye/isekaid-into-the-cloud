@@ -27,6 +27,10 @@
 //     arrives (P.what). Defaults as before.
 //   - A fight's backdrop is SD.run.stageArt(ch) when the page has one (the vector build draws its own), as in js/run.js.
 //   - Bots take their champion's name.
+//   - A floor's elitesInOrder (chapter 7, 2026-10-23) takes its elites in list order, one per elite room entered.
+//   - Up to 6 floors (chapter 7, 2026-10-23): the finale's sixth, Freya's backup, comes only after a chapter 6 choice.
+//   - o.give(ids) (chapter 7, 2026-10-23), set by RD.play on the options it was given: the story adds cards to the
+//     leader's own deck mid-expedition, as a cue's reward.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
 // players, after Slay the Spire. The leader picks an expedition (js/expeditions.js) of 2 to 5 floors. Each floor is a
@@ -170,11 +174,11 @@
   const STORY = ['pager', 'shadowarmy'];
   const okBoss = id => !!(SD.enemies[id] && SD.enemies[id].boss && !STORY.includes(id));
   const okFoe = id => !!(SD.enemies[id] && !SD.enemies[id].boss && !SD.enemies[id].tutorial);
-  const floorsOf = X => (X && Array.isArray(X.floors) ? X.floors : []).filter(f => f && okBoss(f.boss)).slice(0, 5);
+  const floorsOf = X => (X && Array.isArray(X.floors) ? X.floors : []).filter(f => f && okBoss(f.boss)).slice(0, 6);
   const xpOf = id => (SD.expeditions || []).find(x => x.id === id && floorsOf(x).length >= 2) || null;
   RD.expeditions = () => (SD.expeditions || []).filter(x => { try { return floorsOf(x).length >= 2 && x.opens(); } catch (e) { return false; } });
   // Difficulty goes with length (Ladi, 2026-10-20), and each expedition's sev and dmg tune it to its level.
-  const LEVELS = { 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Master' };
+  const LEVELS = { 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Master', 6: 'Master' };
   RD.level = x => LEVELS[floorsOf(x).length] || '';
   const xpX = (x, k) => Math.max(0.5, Math.min(2, +(x || {})[k] || 1));
   // A floor's chapter: the dungeon its map looks like, else its boss's.
@@ -1275,6 +1279,8 @@
 
     // ---------- Host ----------
     function push() { G.v++; G.host = me.peer; room.emit('state', pack(G, true)); render(); }
+    // The story hands the leader's own player cards in the middle of an expedition (a cue's reward), for the floors to come.
+    o.give = ids => { const p = G.players[me.peer]; if (!hosting || !p) return; (ids || []).filter(id => card(id)).forEach(id => p.deck.push(id)); push(); };
     // The expedition after every room, on this (the leader's) page. It ends with the expedition.
     function save() {
       if (G.ph !== 'map' || !X()) return;
@@ -1306,7 +1312,7 @@
     // The snapshot Seymour's tape restores: every deck and purse, the SLA and the map, as the floor began.
     function snapNow() { const p = {}; all().forEach(k => { p[k] = { d: enc(G.players[k].deck, true), b: G.players[k].bits }; }); return { sla: Math.max(1, G.sla), map: G.map, p }; }
     function enterFloor(f) {
-      Object.assign(G, { fl: f, onWin: [], map: genMap(planOf(floorsOf(X())[f])), pos: null, seen: [], votes: {}, room: null, ph: 'map', boss: null, main: null, tier: null, foes: [] });
+      Object.assign(G, { fl: f, onWin: [], map: genMap(planOf(floorsOf(X())[f])), pos: null, seen: [], votes: {}, room: null, ph: 'map', boss: null, main: null, tier: null, foes: [], ei: 0 });
       G.k++;
       G.snap = snapNow();
       FL().boss && SD.state && SD.state.seeConcept && SD.enemies[FL().boss].concept && SD.state.seeConcept(SD.enemies[FL().boss].concept);
@@ -1350,6 +1356,9 @@
       G.pos = id; G.seen.push(id); G.votes = {};
       // The last room's café stock or card picks don't follow anyone in, a fight included.
       Object.values(G.players).forEach(p => { p.o = []; p.sold = []; });
+      // A floor with elitesInOrder (chapter 7's Top: one elite per blessing Freya still wears) takes its elites one
+      // after another instead of at random, so no phase is fought twice.
+      if (n.type === 'elite' && f.elitesInOrder) { G.k++; const l = foes(f, true), i = (G.ei | 0) % l.length; G.ei = (G.ei | 0) + 1; return fight(l[i], 'elite'); }
       if (n.type === 'fight' || n.type === 'elite') { G.k++; return fight(rnd(foes(f, n.type === 'elite')), n.type); }
       // A floor boss may bring an add (the floor's bossPack).
       if (n.type === 'boss') { G.k++; return fight(packOf(f.bossPack, chOf(f), f.boss) || { ids: [f.boss], sev: [0], dmg: [0] }, 'boss'); }

@@ -20,7 +20,7 @@
   function st() {
     const sv = S.save;
     if (!sv.tapes || typeof sv.tapes !== 'object') {
-      const met = !!(sv.c2 && sv.c2.w && sv.c2.w.x && sv.c2.w.x.seymour) || ['c2x', 'c3', 'c4', 'c5', 'c6'].some(k => sv[k]);
+      const met = !!(sv.c2 && sv.c2.w && sv.c2.w.x && sv.c2.w.x.seymour) || ['c2x', 'c3', 'c4', 'c5', 'c6', 'c7'].some(k => sv[k]);
       sv.tapes = { n: met ? STARTER : 0, day: '', got: met ? ['starter'] : [] };
     }
     const t = sv.tapes;
@@ -78,7 +78,7 @@
       const done = t.day === today(), poor = (S.save.shards | 0) < price;
       const b = U.panel(`<p>${pitch}</p>
         <p class="muted small">Once a day: ${REVIEW} review questions, due ones first. Get ${PASS} right, then pay ${price} shards for one tape. You have ${S.save.shards | 0} shards and ${t.n} tape${t.n === 1 ? '' : 's'}.</p>
-        <div class="row">${done ? '<p class="muted">Come back tomorrow.</p>' : `<button class="primary" id="tp-go" ${poor ? 'disabled' : ''}>${poor ? `Need ${price} shards` : 'Start the review'}</button>`}<button class="ghost" id="tp-no">Not now</button></div>`, { title: name.toUpperCase() + '\'S TAPES' });
+        <div class="row">${done ? '<p class="muted">Come back tomorrow.</p>' : `<button class="primary" id="tp-go" ${poor ? 'disabled' : ''}>${poor ? `Need ${price} shards` : 'Start the review'}</button>`}<button class="ghost" id="tp-no">Not now</button></div>`, { title: name.toUpperCase() + '\'S TAPES', onClose: () => res(false) });
       const g = b.querySelector('#tp-go'); if (g) g.onclick = () => { U.closePanel(); res(true); };
       b.querySelector('#tp-no').onclick = () => { U.closePanel(); res(false); };
     });

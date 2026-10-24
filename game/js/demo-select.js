@@ -26,7 +26,9 @@
     { n: '5', name: 'The Machine Floors', sub: 'The Arcanum and the Astronomy Tower', key: 'c5',
       go: () => SD.c5world && SD.c5world.newGame() },
     { n: '6', name: 'The Mirror Floors', sub: 'Twinwater and the Keeper\'s Room', key: 'c6',
-      go: () => SD.c6world && SD.c6world.newGame() }
+      go: () => SD.c6world && SD.c6world.newGame() },
+    { n: '7', name: 'Root', sub: 'The camp the night before, and floor 100', key: 'c7',
+      go: () => SD.c7world && SD.c7world.newGame() }
   ];
   // A chapter is in this build when its start is registered (chapter 1's is always there in vector mode).
   const loaded = c => !!(SD.chapterStart && SD.chapterStart[c.n]);
