@@ -13,6 +13,10 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const LEAD = ['mira', 'kai', 'seoyeon', 'dutch'].find(l => process.argv.includes(l)) || 'mira';
 const WIN = process.argv.includes('--win');
+// drawfirst: at the morning after, draw the Design Board before hearing Uptima's plan.
+const DRAW = process.argv.includes('drawfirst');
+// The chapter's storyboards (the painted pass), to list any boarded line the game never plays. Skipped if missing.
+const BOARDS = process.env.BOARDS || '/mnt/project-files/storyboard/ch7';
 const SHOTS = process.env.SHOTS, CHOICE = process.env.CHOICE || 'least';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webp': 'image/webp', '.png': 'image/png', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.i8': 'application/octet-stream', '.md': 'text/plain' };
 const server = http.createServer((req, res) => {
@@ -69,11 +73,12 @@ function step([WIN, LEAD]) {
     if ((x = b('#c7-go'))) return click(x) && 'go-up';
     if ((x = b('#c7-q'))) return click(x) && 'pair-q';
     if ((x = b('#c7-k'))) return click(x) && 'kyu-take';
+    if ((x = b(window.__drawFirst ? '#c7-df' : '#c7-hf'))) return click(x) && (window.__drawFirst ? 'draw-first' : 'hear-first');
     // The roof's three drafts of Gary's Deny: the two wrong ones first, to play their scenes, then the right one.
     if (p.querySelector('[data-d]')) {
       if (once('drafts')) return 'shot:roof-drafts';
       window.__dr = (window.__dr || 0) + 1;
-      return click(p.querySelector(`[data-d="${['all', 'roles', 'root'][Math.min(window.__dr - 1, 2)]}"]`)) && 'draft:' + window.__dr;
+      return click(p.querySelector(`[data-d="${['roles', 'mgmt', 'root'][Math.min(window.__dr - 1, 2)]}"]`)) && 'draft:' + window.__dr;
     }
     // This chapter's minigames, played right (the answers are the games' own data).
     const g = SD.c6games && SD.c6games.cur, gp = p.querySelector('.g6');
@@ -208,6 +213,7 @@ function step([WIN, LEAD]) {
     return push('lift', 21, 6, 'ArrowUp');
   }
   if (!f.fireside) return 'fireside-wait';
+  if (!f.restoreq) return go('seymour');
   if (!f.board) return go('dboard');
   return 'world-idle';
 }
@@ -222,7 +228,7 @@ function step([WIN, LEAD]) {
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
-  await page.addInitScript(() => { window.SD_TEST = 1; });
+  await page.addInitScript(d => { window.SD_TEST = 1; window.__drawFirst = d; }, DRAW);
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
@@ -266,13 +272,38 @@ function step([WIN, LEAD]) {
   if (!ended) await page.screenshot({ path: path.join(SHOTS || '/tmp', 'c7-check-stuck.png') });
   const sv = await page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, level: SD.state.save.level, c7: SD.state.save.c7, choice: (SD.state.save.c6 || {}).choice,
     start: typeof (SD.chapterStart || {})[7], card: (document.querySelector('#c7-end') || {}).textContent || '' }));
+  // Every line chapter 7's cutscenes can play, for every lead, chapter 6 choice and version.
+  const lines = await page.evaluate(() => {
+    const sv = SD.state.save, keep = { lead: sv.c1.lead, c6: sv.c6 }, out = new Set();
+    for (const lead of ['mira', 'kai', 'seoyeon', 'dutch']) for (const choice of ['least', 'vault', 'run']) {
+      sv.c1.lead = lead; sv.c6 = Object.assign({}, keep.c6, { choice });
+      SD.reel.list.filter(e => e.ch === '7').forEach(e => [undefined].concat((e.alts || []).map(a => a[1])).forEach(arg =>
+        SD.reel.steps(e, arg).forEach(st => { if (Array.isArray(st) && typeof st[1] === 'string') out.add(st[1]); })));
+    }
+    sv.c1.lead = keep.lead; sv.c6 = keep.c6;
+    return [...out];
+  });
   await browser.close(); server.close();
+  // A boarded line the game never plays can't get its still: list them (a warning, not a failure). Board 01 is world
+  // dialogue, not a cutscene, so it's left out; [brackets] in a line stand for words the game fills in.
+  if (fs.existsSync(BOARDS)) {
+    const norm = t => t.replace(/[“”"]/g, '"').replace(/[‘’]/g, "'").replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+    const all = lines.map(norm), missing = [];
+    for (const f of fs.readdirSync(BOARDS).filter(f => /^0[2-8].*\.md$/.test(f)).sort()) {
+      for (const row of fs.readFileSync(path.join(BOARDS, f), 'utf8').split('\n').filter(r => /^\| \d+[a-z]? \|/.test(r))) {
+        const c = row.split('|').map(x => x.trim()), shot = c[1], line = c[6] || '';
+        line.split(' / ').map(t => norm(t.replace(/^\([^)]*\)\s*/, '').replace(/\s*\[[^\]]*\].*$/, ''))).filter(t => t && t !== '—' && !/^\(.*\)$/.test(t))
+          .forEach(t => { if (!all.some(l => l.includes(t))) missing.push(`${f} · ${shot}: ${t}`); });
+      }
+    }
+    console.log(missing.length ? 'boarded lines the game never plays:\n  ' + missing.join('\n  ') : 'every boarded line plays');
+  }
   console.log('steps', steps, 'lead', sv.lead, 'level', sv.level, 'choice', sv.choice, Math.round((Date.now() - T0) / 1000) + 's');
   console.log('c7', JSON.stringify(sv.c7 && { f: sv.c7.f, gifts: sv.c7.w.gifts, pairs: sv.c7.w.pairs, cards: sv.c7.w.cards, x: Object.keys(sv.c7.w.x).join(' ') }));
   console.log('saw', [...seen].sort().join(' '));
   if (!ended) errors.push('the chapter never reached its end card; last actions: ' + last.join(' '));
   const x = (sv.c7 && sv.c7.w.x) || {};
-  const need = ['arrive', 'book', 'whose', 'uptima', 'lift', 'climb', 'hatch', 'roof', 'kyu', 'vote', 'top', 'last', 'won', 'fireside', 'board', 'epilogue']
+  const need = ['arrive', 'book', 'whose', 'uptima', 'lift', 'climb', 'hatch', 'roof', 'kyu', 'vote', 'top', 'last', 'won', 'fireside', 'restoreq', 'board', 'epilogue']
     .concat(CHOICE === 'run' ? ['sale'] : []).filter(k => !x[k]);
   if (need.length) errors.push('flags never set: ' + need.join(', '));
   if (!sv.c7 || sv.c7.w.pairs.length !== 5) errors.push('not every pair scene played: ' + JSON.stringify(sv.c7 && sv.c7.w.pairs));

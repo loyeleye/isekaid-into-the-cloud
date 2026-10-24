@@ -7,7 +7,7 @@
   Object.assign(SD.huh, {
     revoke: 'A stolen hall pass keeps working until the time printed on it. Revoking is a note on every door: "no pass printed before noon today". The thief\'s pass stops at once, and anyone who gets a new pass walks straight in.',
     sesspol: 'The guard reads the whole rulebook in one go. Any "NO" anywhere wins. Otherwise someone has to say yes, and every other page (the guild\'s limits, the boundary, the note you brought with you) can only cut the yes down, never add to it.',
-    rootuser: 'The root user is the game\'s owner account. No in-game rule can stop it, so lock it with a second key (MFA), never make spare keys for it, and only log in as it for the handful of things only the owner can do.',
+    rootuser: 'The root user is the game\'s owner account. No in-game rule can stop it, so lock it with a second key (MFA), never make spare keys for it, and only log in as it for the handful of things only the owner can do. One trap: ":root" written as a policy\'s Principal means the whole account, not its owner; written in aws:PrincipalArn, it means the owner only.',
     sharedresp: 'AWS guards the castle: the walls, the floors, the wiring, the machines that run its own shops. You guard what you bring inside: your treasure, who holds the keys, which doors you leave open, and anything you build yourself.',
     compliance7: 'A referee (AWS Config) checks every one of your pieces against the rules all day, and can put the wrong ones back. AWS Artifact is the shelf where AWS keeps its own report cards from outside examiners, and the contracts you sign with it.',
     orgs: 'A guild of accounts. One head account pays the whole guild\'s bill, the others are members sorted into teams, and everything the guild buys counts as one big order, so the bulk discounts come sooner.',
@@ -70,6 +70,7 @@
   [
     ['SCP', /\bSCPs?\b|service control polic/i, 'An Organizations policy that sets the most a member account\'s users, roles and root user can do. It grants nothing.'],
     ['Organizational unit', /\bOUs?\b|organizational units?/i, 'A group of accounts in an organization that policies can be attached to.'],
+    [':root', /:root\b/, 'As a policy\'s Principal, arn:aws:iam::<account>:root means the whole account, whose own IAM policies then decide who may act. In aws:PrincipalArn it matches only that account\'s root user.'],
     ['Management account', /management account/i, 'The account that creates the organization and pays its bill. SCPs never restrict it.'],
     ['Consolidated billing', /consolidated bill/i, 'One bill for every account in an organization, with their usage added together for volume pricing.'],
     ['Session policy', /session polic/i, 'A policy passed when a role session starts. It can only narrow what the role allows.'],

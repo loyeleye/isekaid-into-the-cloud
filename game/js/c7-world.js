@@ -48,6 +48,8 @@
   // (js/reel.js), and played with cut.play.
   const cut = SD.reel.chapter('7', { music: k => mus(k) });
   const who = s => (s === 'lead' ? lead() : s);
+  // A pair scene's inner line: only when your lead is one of the pair, and nobody else hears it.
+  const inner = m => (m[lead()] ? [['narr', m[lead()]]] : []);
   const vn = steps => steps.map(s => {
     if (!Array.isArray(s)) return s;
     if (s[0] === 'show' || s[0] === 'hide') return [s[0], who(s[1])].concat(s.slice(2));
@@ -336,7 +338,7 @@
     const r = await G.sort(G.DEF.book);
     setFlag('book'); R.gainXp(r.first === r.of ? 30 : 15);
     await ask({ c: 'sesspol', type: 'mc', q: 'Bru underlines one more line: "A role\'s session can never do more than what?"',
-      opts: ['What both the role\'s identity policies and its session policy allow', 'What the session policy allows, whatever the role\'s own policies say', 'What the role\'s policies allow, whatever the session policy says', 'Whatever the account\'s root user is allowed to do'], a: 0,
+      opts: ['What both the role\'s identity policies and its session policy allow', 'What the session policy allows, whatever the role\'s own policies say', 'What the role\'s policies allow, whatever the session policy says', 'Whatever the account\'s root user is allowed to do'], a: 0, no: [null, 'A session policy can\'t grant anything the role\'s own policies don\'t. It only narrows them.', 'The session policy narrows the session too, so the role\'s own policies alone aren\'t the limit.', 'Root isn\'t part of it: a session is bounded by the role\'s policies and its session policy.'],
       why: 'A session policy passed with AssumeRole limits the session to the overlap between it and the role\'s identity-based policies. It never adds permissions.',
       eli5: 'The role says what you may do; the note you bring along can only cross things off that list, never add to it.' }, 'BRU\'S BOARD');
     await addCard(G.DEF.book.card);
@@ -363,23 +365,23 @@
   // The five arc finales, each where its pair is sitting up late. They play in any order you walk into them.
   const PAIRQ = {
     temp: { c: 'roles', type: 'mc', q: 'An application assumes an IAM role. What does it get back from AWS STS, and what happens when the session ends?',
-      opts: ['Temporary keys and a session token that expire; then the caller asks STS for new ones', 'A permanent access key for the role, which IAM rotates for you every 90 days', 'A password for the role, which keeps working until somebody changes it', 'A session token on its own, which keeps working until the role is deleted'], a: 0,
+      opts: ['Temporary keys and a session token that expire; then the caller asks STS for new ones', 'A permanent access key for the role, which IAM rotates for you every 90 days', 'A password for the role, which keeps working until somebody changes it', 'A session token on its own, which keeps working until the role is deleted'], a: 0, no: [null, 'Roles never get long-term access keys. Those belong to IAM users.', 'Roles have no password. Only IAM users and the root user sign in with one.', 'STS returns a key ID and secret key with the token, and all three expire, whatever happens to the role.'],
       why: 'AssumeRole returns temporary security credentials: an access key ID, a secret access key and a session token, with an expiration. Once they expire they\'re refused, and the caller assumes the role again (the SDKs refresh them for you).',
       eli5: 'You get a visitor\'s pass with today\'s date on it. At dawn it stops opening doors, and you ask for a new one.' },
     redrive: { c: 'dlqredrive', type: 'mc', q: 'In Amazon SQS, what moves a message to a dead-letter queue, and how do you send it back to the source queue?',
-      opts: ['It passes maxReceiveCount without being deleted; a DLQ redrive moves it back', 'It waits in the queue for over an hour; SQS moves it back by itself a day later', 'Its consumer calls DeleteMessage on it; you send it again with SendMessage', 'It is larger than 1 MiB, and messages in a DLQ can never be moved back'], a: 0,
+      opts: ['It passes maxReceiveCount without being deleted; a DLQ redrive moves it back', 'It waits in the queue for over an hour; SQS moves it back by itself a day later', 'Its consumer calls DeleteMessage on it; you send it again with SendMessage', 'It is larger than 1 MiB, and messages in a DLQ can never be moved back'], a: 0, no: [null, 'Time waiting doesn\'t send a message to a DLQ. The retention period deletes it, and nothing moves it back by itself.', 'DeleteMessage removes a message for good. A DLQ only gets messages that kept failing.', 'A message over 1 MiB is refused when it\'s sent, and messages in a DLQ can be redriven.'],
       why: 'Each failed receive raises a message\'s receive count. Past the source queue\'s maxReceiveCount, SQS moves it to the dead-letter queue. Once the cause is fixed, a DLQ redrive (from the console or StartMessageMoveTask) moves the messages back to the source queue.',
       eli5: 'A letter that bounces too many times goes to the "couldn\'t deliver" box. Open the box, fix the address, and post them all again.' },
     key: { c: 'kmskeys', type: 'mc', q: 'What can you do with a customer managed KMS key\'s key policy that you can\'t do with an AWS managed key\'s?',
-      opts: ['Write it yourself, and decide who may use and manage the key', 'Nothing: both kinds of key come with the same fixed policy from AWS', 'Leave it empty, so the key works without any key policy at all', 'Edit an AWS managed key\'s policy to share it with another account'], a: 0,
+      opts: ['Write it yourself, and decide who may use and manage the key', 'Nothing: both kinds of key come with the same fixed policy from AWS', 'Leave it empty, so the key works without any key policy at all', 'Edit an AWS managed key\'s policy to share it with another account'], a: 0, no: [null, 'Only AWS managed keys have a fixed policy. A customer managed key\'s policy is yours to write.', 'Every KMS key has exactly one key policy. Without one, nobody could use the key.', 'An AWS managed key\'s policy can\'t be edited, so it can\'t be shared with another account that way.'],
       why: 'An AWS managed key\'s key policy is set by the AWS service that created it and can\'t be changed. With a customer managed key you own the key policy and decide which principals may use and manage it, and you control its rotation and deletion too.',
       eli5: 'Someone else\'s lock comes with their list of who gets keys, and you can\'t edit it. Your own lock, you write the list.' },
     idem: { c: 'lambdasqs', type: 'mc', q: 'An SQS standard queue triggers a Lambda function. Why can the function get the same message more than once, and what should its code do about it?',
-      opts: ['Delivery is at least once and failed batches return; make the handler idempotent', 'It can\'t: SQS standard queues always deliver each message exactly once', 'Only when the function\'s memory is too small; give the function more memory', 'Lambda retries each message three times; delete the message as the first step'], a: 0,
+      opts: ['Delivery is at least once and failed batches return; make the handler idempotent', 'It can\'t: SQS standard queues always deliver each message exactly once', 'Only when the function\'s memory is too small; give the function more memory', 'Lambda retries each message three times; delete the message as the first step'], a: 0, no: [null, 'Standard queues deliver at least once. Only FIFO queues drop duplicates, within a five-minute window.', 'Memory changes speed and timeouts, not whether a message comes back.', 'Deleting first loses the message if the function then fails. Lambda deletes a batch\'s messages only after it succeeds.'],
       why: 'Standard queues offer at-least-once delivery, and a message whose batch fails or times out becomes visible again for another try. A handler that checks whether it already did the work (for example, a conditional write keyed on the message ID) can safely see the same message twice.',
       eli5: 'Sometimes the same order slip arrives twice. A good cook checks the ticket number before making a second stew.' },
     on: { c: 'datatrail', type: 'mc', q: 'Which CloudTrail events are recorded by default, and what do you have to turn on to record who read an object in an S3 bucket?',
-      opts: ['Management events, by default; object reads are data events you must turn on', 'Every event, object reads included, is recorded by default for 90 days', 'Nothing at all is recorded until you create a trail in the account', 'Object reads are management events, so there is nothing to turn on'], a: 0,
+      opts: ['Management events, by default; object reads are data events you must turn on', 'Every event, object reads included, is recorded by default for 90 days', 'Nothing at all is recorded until you create a trail in the account', 'Object reads are management events, so there is nothing to turn on'], a: 0, no: [null, 'Object reads are data events, and those stay off until you turn them on.', 'Event history keeps 90 days of management events with no trail at all.', 'GetObject is a data event, not a management event, so it has to be turned on.'],
       why: 'CloudTrail event history shows 90 days of management events with no setup. Data events, such as s3:GetObject, are high-volume and off by default: you choose them on a trail or a CloudTrail Lake event data store.',
       eli5: 'The building notes who changes the locks, all by itself. To note who reads each page in a room, someone has to switch that on first.' }
   };
@@ -393,6 +395,7 @@
     ['seoyeon', 'Temporary credentials.', 'neutral'],
     ['kai', 'They expire?', 'smirk'],
     ['seoyeon', 'At dawn.', 'neutral'],
+    ...inner({ kai: '(Hana would have had me up an hour ago. Somebody should.)', seoyeon: '(Jin never once got up first. That\'s how I know.)' }),
     ['kai', 'Get up. Forms.', 'neutral']]), { music: 'c7sad', note: 'Arc 1\'s finale: Kai and Seo-yeon, at dawn.' });
   cut.def('pair-redrive', 'Redrive', () => vn([['bg', 'c2-office'],
     ['narr', 'Mira is sorting the last of the letters. Dutch sits down beside her on the wrong chair.'],
@@ -400,6 +403,7 @@
     ['dutch', 'The Crown had a box for letters that couldn\'t be delivered. Nobody ever opened it.', 'tired'],
     ['mira', 'That\'s a dead-letter queue, love. You\'re meant to open it, find out why each one failed, and send it again.', 'warm'],
     ['dutch', 'Even mine?', 'sad'],
+    ...inner({ mira: '(The men on the stair are in that box too. I\'ll open it.)', dutch: '(Twenty-five years of boxes. Some of them I was paid to keep shut.)' }),
     ['mira', 'Especially yours.', 'warm']]), { music: 'c7sad', note: 'Arc 2\'s finale: Mira and Dutch, and the letters.' });
   cut.def('pair-key', 'My Own Key', () => vn([['bg', 'c7-camp'],
     ['narr', 'Seo-yeon sits down in front of Mira with the ribbon in her hand.'],
@@ -411,6 +415,7 @@
     ['seoyeon', 'With an AWS managed key, someone else writes the key policy and you can\'t change it. With a customer managed key, you write it yourself.', 'neutral'],
     ['mira', 'And who\'s on yours?', 'warm'],
     ['seoyeon', 'You are. Don\'t make it a thing.', 'warm'],
+    ...inner({ seoyeon: '(Three households, and this is the first one I picked.)', mira: '(I don\'t get to keep her. I get to be on her list. That\'s better.)' }),
     ['narr', 'Mira makes it a thing.']]), { music: 'c7sad', note: 'Arc 4\'s finale: Seo-yeon and Mira, and the ribbon.' });
   cut.def('pair-idem', 'Idempotent', () => vn([['bg', 'c3-kitchen'],
     ['narr', 'Kai has made Bram\'s stew again without being asked.'],
@@ -425,6 +430,7 @@
     ['mira', 'Like a good queue consumer. It gets the same message twice and does the same thing both times.', 'warm'],
     ['narr', 'Then she takes his bare hand and puts it on the beast arm on purpose.'],
     ['mira', 'What does it feel like now?', 'neutral'],
+    ...inner({ kai: '(I asked. First time in my life, I asked.)', mira: '(Same answer, Bram. It\'s mine. I\'m keeping it.)' }),
     ['kai', 'You. Just you.', 'warm']]), { music: 'c7sad', note: 'Arc 5\'s finale: Kai and Mira, and the stew.' });
   cut.def('pair-on', 'Turned On', () => vn([['bg', 'c7-camp'],
     ['narr', 'Seo-yeon finds Dutch writing in the back of the diary, in the cipher: the tower, the button, everything since, one entry a day.'],
@@ -437,16 +443,19 @@
     ['dutch', 'Learn the cipher.', 'neutral'],
     ['seoyeon', 'Why?', 'neutral'],
     ['dutch', 'So someone can read mine.', 'warm'],
-    ['narr', 'She taps three, one, four on the table, and he taps it back first.']]), { music: 'c7sad', note: 'Arc 6\'s finale: Dutch and Seo-yeon, and the diary.' });
+    ...inner({ seoyeon: '(He means after. He means me.)', dutch: '(Lina would have learned it in a night. This one can take two.)' }),
+    ['narr', 'She taps three, one, four on the table.'],
+    ['narr', 'He taps it back first.']]), { music: 'c7sad', note: 'Arc 6\'s finale: Dutch and Seo-yeon, and the diary.' });
   async function pair(id) {
     if (w().pairs.includes(id)) return;
     await cut.play('pair-' + id);
     mus('c7camp');
     w().pairs.push(id); S.persist();
     R.gainXp(20);
-    // The review question is optional, as the relationships tab has it.
+    // The review question is the default, and still optional, as the relationships tab has it.
     const go = await new Promise(res => {
-      const b = U.panel(`<p>${esc(PAIRS[id][3])}: a review question, if you want one.</p><div class="row"><button class="primary" id="c7-q">Ask me</button><button class="ghost" id="c7-nq">Not tonight</button></div>`, { title: 'THE NIGHT BEFORE', noClose: true });
+      const b = U.panel(`<p>${esc(PAIRS[id][3])}: one review question on it, while it's fresh.</p><div class="row"><button class="primary" id="c7-q">Ask me</button><button class="ghost" id="c7-nq">Not tonight</button></div>`, { title: 'THE NIGHT BEFORE', noClose: true });
+      b.querySelector('#c7-q').focus();
       b.querySelector('#c7-q').onclick = () => { U.closePanel(); res(true); };
       b.querySelector('#c7-nq').onclick = () => { U.closePanel(); res(false); };
     });
@@ -491,6 +500,15 @@
     kage: [['Tapes! Tested, labelled, priced. Everything must go, my friends. Even the top.', 'amused']],
     cat: [['The marsh cat looks at you, then at the stew pot, then at you. Four names are said at once. It ignores all of them.', null]]
   };
+  // Seymour, the morning after: the question on Kyu's restore, away from her moment on the roof.
+  async function restoreQ() {
+    await say([['seymour', 'Kyu\'s restore. I did it the boring way, and I\'d do it again. One question, then I\'ll let you be.', 'neutral']]);
+    const r = await ask({ c: 'awsbackup', type: 'mc', q: 'Seymour copied Kyu\'s backup into a separate test account and restored it there before the real one. What does that prove that a backup job marked "Completed" can\'t?',
+      opts: ['That the copy actually restores, and works, without touching production', 'That the backup is encrypted with the key the vault requires', 'That the backup job ran on its schedule and finished in its window', 'Nothing more: a job marked Completed is already proof enough'], a: 0, no: [null, 'That\'s a setting of the vault and the backup plan. It doesn\'t show the copy can be restored and used.', 'The job\'s status already shows that. Only a restore shows the copy works.', 'Completed means a copy was written, not that it restores cleanly.'],
+      why: 'A completed backup only says a copy was written. Restoring it, somewhere it can\'t harm the real thing, and checking the result is the only proof it can be used. AWS Backup can run restore tests on a schedule for you.',
+      eli5: 'A spare key in a drawer is only a spare key once you\'ve tried it in the lock.' }, 'SEYMOUR');
+    setFlag('restoreq'); R.gainXp(r && r.ok ? 20 : 5);
+  }
   async function chat(id) {
     if (id === 'kage') { await say([['kagemaru', CHAT.kage[0][0], 'amused']]); return SD.tapes.shop(); }
     if (id === 'lexi' && flag('arrive')) {
@@ -498,6 +516,7 @@
       return review('lexi');
     }
     const l = CHAT[id] || [['...', null]], line = flag('won') && l[1] ? l[1] : l[0];
+    if (id === 'seymour' && flag('won') && !flag('restoreq')) return restoreQ();
     if (id === 'cat') return say([[null, line[0]]]);
     return say([[id === 'bruP' ? 'bru' : id, line[0], line[1]]]);
   }
@@ -597,15 +616,18 @@
       w().pos = [21, 15]; S.persist();
       sc = null; W.enter();
       const fl = D.FLOORS[Math.min(w().from | 0, 4)];
-      return run(() => say([[null, `The party wakes by the camp fire, bruised. The climb will start again from ${fl ? fl.name : 'where it stopped'}.`],
-        ['uptima', 'Sit. Eat. Then again.', 'sad'],
-        ['lead', { mira: 'Tea first, loves. Then again.', kai: 'Food. Then again.', seoyeon: 'Again.', dutch: 'Again. Slower.' }, 'tired']]));
+      return run(async () => { await cut.play('wake', fl ? fl.name : 'where it stopped'); mus('c7camp'); });
     }
     setFlag('won'); w().from = 0;
     R.gainXp(150);
     w().pos = [21, 15]; S.persist();
     sc = null; W.enter();
   }
+
+  cut.def('wake', 'Bruised', (from = 'the first floor') => vn([['bg', 'c7-fire'],
+    ['narr', `The party wakes by the camp fire, bruised. The climb will start again from ${from}.`],
+    ['show', 'uptima', 'sad', 'right'], ['uptima', 'Sit. Eat. Then again.', 'sad'],
+    ['show', 'lead', 'tired', 'left'], ['lead', { mira: 'Tea first, loves. Then again.', kai: 'Food. Then again.', seoyeon: 'Again.', dutch: 'Again. Slower.' }, 'tired']]), { music: 'c7sad', note: 'After a loss on the climb.' });
 
   // ---------- The roof ----------
   cut.def('climb', 'The lift to floor 100', () => vn([['bg', 'c7-camp'],
@@ -622,27 +644,36 @@
     ['freya', 'Love?', 'neutral'],
     ['narr', 'Freya\'s voice, from the top of the tower.'],
     ['kagemaru', 'You were winning, my lady. Now you aren\'t. Ah ha ha.', 'reveal'],
-    ['narr', 'They pay. Kai puts down Hana\'s page, Seo-yeon Old Gu\'s letter, Dutch Lina\'s diary. Mira puts the list down last, and finds she can.'],
+    ['narr', 'They pay. Kai puts down Hana\'s page, and Seo-yeon Old Gu\'s letter.'],
+    ['narr', 'Dutch keeps his hand on Lina\'s diary a moment longer, then lets it go.'],
+    ['narr', 'Mira puts the list down last, and finds she can.'],
     ['narr', 'He shows them the hatch.']]), { music: 'c7roof', note: 'Kagemaru sells them the roof.', alts: [['At his stall', 'least'], ['On the vault\'s speaker', 'vault']] });
   cut.def('roof', 'Member of what?', () => vn([['bg', 'c7-roof'],
     ['narr', 'The tower\'s roof is the top of the Cloud. Above it, close enough to touch, is the account the Cloud belongs to.'],
     ['show', 'dutch', 'neutral', 'right'],
-    ['narr', 'Dutch finds it the way he has found everything since chapter 2: he reads the fine print. Under root\'s name, carved small on the throne, in tiny gold letters.'],
+    ['narr', 'Dutch finds it the way he has found everything since chapter 2: he reads the fine print. On the hatch lid, under the word ROOT, in tiny gold letters.'],
     ['dutch', 'Member account.', 'stone'],
     ['dutch', 'Member of what?', 'neutral'],
     ['bg', 'c7-console'],
     ['narr', 'The Cloud is a member account in an organization. Its management account is a single dusty console, with a half-price croissant on the keyboard.'],
     ['narr', 'In its policy list is one service control policy, written in 1984 and never attached. Gary\'s Deny: what he wrote the day he said no to Freya, and left for whoever would need it.']]), { music: 'c7roof', note: 'The roof, and the console.' });
-  cut.def('draft-all', 'Deny everything, for everyone', () => vn([['bg', 'c7-dark'],
-    ['narr', 'They attach it. Far below, every light in the camp goes out at once. Marrow\'s bell starts to ring, and then can\'t.'],
+  // Kai attaches Gary's Deny as Gary left it, before anyone can stop him: everyone sees what an unscoped SCP does.
+  cut.def('blackout', 'Deny everything, for everyone', () => vn([['bg', 'c7-console'],
+    ['narr', 'Kai attaches it as Gary left it, before anyone can stop him: deny everything, for everyone, on the Cloud\'s account.'],
+    ['bg', 'c7-dark'],
+    ['narr', 'Far below, every light in the camp goes out at once. Marrow\'s bell starts to ring, and then can\'t.'],
     ['show', 'kai', 'shock', 'left'], ['kai', 'Undo! Undo!', 'shock'],
     ['show', 'seoyeon', 'neutral', 'right'], ['seoyeon', 'Detach it.', 'neutral'],
-    ['narr', 'They detach it, and the lights come back. It stopped Freya, and Uptima, and every role the camp uses.']]), { music: 'c7sad', note: 'The first draft: everyone.' });
+    ['narr', 'They detach it, and the lights come back. It stopped Freya, and Uptima, and every role the camp uses. Now they scope it.']]), { music: 'c7sad', note: 'Kai attaches the draft unscoped.' });
   cut.def('draft-roles', 'Deny everything, for Freya\'s roles', () => vn([['bg', 'c7-console'],
     ['narr', 'They attach it. Her copies in every role go still. From the throne, untouched, a voice.'],
     ['freya', 'Oh, that tickles.', 'smile'],
     ['show', 'dutch', 'tired', 'right'], ['dutch', 'She\'s not in the roles. She\'s root.', 'tired'],
-    ['narr', 'They detach it.']]), { music: 'c7roof', note: 'The second draft: her roles.' });
+    ['narr', 'They detach it.']]), { music: 'c7roof', note: 'A wrong draft: her roles.' });
+  cut.def('draft-mgmt', 'Deny root, on the management account', () => vn([['bg', 'c7-console'],
+    ['narr', 'They attach it to the console\'s own account, the organization\'s management account. Nothing happens. At the top of the tower, Freya goes on humming.'],
+    ['show', 'dutch', 'stone', 'right'], ['dutch', 'House rules never reach the head account. An SCP can\'t touch the management account, whatever it says.', 'stone'],
+    ['narr', 'They detach it.']]), { music: 'c7roof', note: 'A wrong draft: the management account.' });
   cut.def('attach', 'Attached', () => vn([['bg', 'c7-throne'],
     ['narr', 'They attach it: deny everything, when the principal is the Cloud\'s root user. Root stops working for anyone at all.'],
     ['narr', 'On the throne, at the top of the tower, Freya stops being root. Her voice doesn\'t change.'],
@@ -653,22 +684,24 @@
     ['narr', 'With root out of Freya\'s hands, Uptima\'s admin role can enable the key the party saved in the Clock Room. Seymour can restore at last.'],
     ['show', 'seymour', 'neutral', 'right'],
     ['narr', 'He does it his way: the newer copy goes into a separate test account first and is restored there, checked, then for real.'],
+    ['narr', 'Pinned over his terminal now is the note from your pocket: "Two copies. Test them. — K."'],
     ['show', 'kyu', 'neutral', 'center'], ['hide', 'seymour'],
     ['narr', 'Kyu comes back as she was on the night of the vault. She remembers the temple road, the note she slipped into their pocket, Mira\'s hand, and the four of them deleting her.'],
-    ['narr', 'Nobody has to tell her the truth, because she tells it first, all of it. Then she listens to their side without interrupting.'],
-    ['narr', 'Someone offers her tea.'],
+    ['narr', 'Nobody has to tell her the truth, because she tells it first, all of it.'],
+    ['narr', 'Then she listens to their side without interrupting.'],
+    ['narr', 'Mira offers her tea.'],
     ['kyu', 'No.', 'cold'],
     ['narr', 'This time nobody laughs.'],
     ['kyu', 'Ask me again tomorrow.', 'neutral']]), { music: 'c7sad', note: 'Kyu, restored, and what she says.' });
-  const DRAFTS = [['all', 'Deny everything, for everyone', '"Effect": "Deny", "Action": "*", "Resource": "*"'],
-    ['roles', 'Deny everything, for Freya\'s roles', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "ArnLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/freya-*" } }'],
-    ['root', 'Deny everything, for the Cloud\'s root user', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "StringLike": { "aws:PrincipalArn": "arn:aws:iam::*:root" } }']];
+  const DRAFTS = [['roles', 'Deny everything, for Freya\'s roles', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "ArnLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/freya-*" } }'],
+    ['mgmt', 'Deny everything for root, attached to the management account', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "StringLike": { "aws:PrincipalArn": "arn:aws:iam::*:root" } }\nTarget: the management account'],
+    ['root', 'Deny everything for root, attached to the Cloud\'s account', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "StringLike": { "aws:PrincipalArn": "arn:aws:iam::*:root" } }\nTarget: the Cloud (member account)']];
   async function drafts() {
     let wrong = 0;
     for (;;) {
       const d = await new Promise(res => {
-        const b = U.panel(`<div class="g6"><p>Gary\'s Deny, as he left it: a draft, not attached. A service control policy binds every principal in a member account, its root user included (service-linked roles aside). Scope it before you attach it to the Cloud\'s account. Three drafts on the board:</p>
-          <div class="opts col">${DRAFTS.map(([k, t, j]) => `<button class="opt" data-d="${k}"><b>${esc(t)}</b><br><span class="muted small" style="font-family:ui-monospace,monospace;white-space:pre-wrap">${esc(j)}</span></button>`).join('')}</div></div>`, { title: 'THE ROOF · GARY\'S DENY', noClose: true, cls: 'wide' });
+        const b = U.panel(`<div class="g6"><p>Gary\'s Deny, unscoped, put the camp out. A service control policy binds every principal in a member account, its root user included (service-linked roles aside). Scope it, and choose where it goes. Three drafts on the board:</p>
+          <div class="opts col">${SD.quiz.shuffle(DRAFTS).map(([k, t, j]) => `<button class="opt" data-d="${k}"><b>${esc(t)}</b><br><span class="muted small" style="font-family:ui-monospace,monospace;white-space:pre-wrap">${esc(j)}</span></button>`).join('')}</div></div>`, { title: 'THE ROOF · GARY\'S DENY', noClose: true, cls: 'wide' });
         b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { AU.sfx('ok'); U.closePanel(); res(el.dataset.d); });
       });
       S.recordAnswer('scps', d === 'root', 1, 20000);
@@ -689,22 +722,19 @@
       if (!flag('hatch')) { await cut.play('hatch', choice6() === 'vault' ? 'vault' : 'least'); setFlag('hatch'); }
       if (!flag('roof')) {
         await cut.play('roof');
+        await cut.play('blackout');
         const wrong = await drafts();
         await cut.play('attach');
         setFlag('roof'); R.gainXp(wrong ? 30 : 60);
-        await ask({ c: 'scps', type: 'mc', q: 'Gary\'s Deny is attached to the Cloud\'s member account. Which of these can still act there?',
-          opts: ['Uptima\'s IAM role, which her IAM policy allows', 'Freya, signed in as the account\'s root user', 'Nobody: an SCP stops every principal in the account', 'Only principals the SCP itself allows'], a: 0,
-          why: 'The SCP denies only requests whose principal is a root user. Uptima\'s role isn\'t root, so the Deny doesn\'t match, and her own IAM Allow still applies. An SCP never grants anything by itself.',
-          eli5: 'The guild\'s new house rule says "the owner\'s account may do nothing". Everyone else carries on with the keys they already had.' }, 'THE ROOF');
+        await ask({ c: 'scps', type: 'mc', q: 'On the roof, Gary\'s Deny did nothing when it was attached to the management account. Why?',
+          opts: ['SCPs never affect the management account, whatever they say', 'The management account has no root user for it to deny', 'An SCP only takes effect there a day after it is attached', 'A management account accepts only allow-list SCPs'], a: 0, no: [null, 'The management account has a root user like any other. SCPs just never apply there.', 'SCPs apply in member accounts as soon as they\'re attached. There\'s no day\'s wait.', 'SCPs can be allow lists or deny lists, and neither kind applies to the management account.'],
+          why: 'Service control policies apply to the member accounts of an organization and never restrict anyone in the management account, its root user included. That\'s why daily work belongs in member accounts, and the management account is kept nearly empty.',
+          eli5: 'The guild\'s house rules bind every member, but never the guild\'s head. So nobody should live in the head\'s office.' }, 'THE ROOF');
       }
       if (!w().cards.includes('r7-scp')) { await addCard('r7-scp', 'GARY\'S DENY'); if (opts && opts.give) opts.give(['r7-scp']); }
       if (!flag('kyu')) {
         mus('c7sad');
         await cut.play('kyu');
-        await ask({ c: 'awsbackup', type: 'mc', q: 'Seymour copies Kyu\'s backup into a separate test account and restores it there before the real one. What does that prove that a backup job marked "Completed" can\'t?',
-          opts: ['That the copy actually restores, and works, without touching production', 'That the backup is encrypted with the key the vault requires', 'That the backup job ran on its schedule and finished in its window', 'Nothing more: a job marked Completed is already proof enough'], a: 0,
-          why: 'A completed backup only says a copy was written. Restoring it, somewhere it can\'t harm the real thing, and checking the result is the only proof it can be used. AWS Backup can run restore tests on a schedule for you.',
-          eli5: 'A spare key in a drawer is only a spare key once you\'ve tried it in the lock.' }, 'KYU');
         setFlag('kyu');
         // Her answer-speed relic, for the last two floors, if you want it.
         const take = await new Promise(res => {
@@ -719,18 +749,8 @@
     },
     async vote() {
       if (flag('vote')) return;
-      const fr = freed();
-      await say([[null, 'The Free Tier. Down every speaker in the tower, far below, the camp is listening.'],
-        ['kai', 'Every band that\'s free: your grant to Freya is still standing. I\'m not going to take it. I\'m asking. Do you want it back?', 'earnest']]);
-      const VOTE = { thornwick: ['pip', 'Thornwick wants it back. Please. And thank you for asking.'], halcyon: ['wen', 'Halcyon takes it back, dear. We\'ll share it out ourselves.'],
-        sealed: ['ryu', 'The Sealed Floors take it back. Our key. Our policy.'], arcanum: ['ayo', 'The Arcanum takes it back! Ha! Every last bolt.'], twinwater: ['mio', 'Twinwater takes it back. Both shores said so. Separately.'] };
-      for (const b of fr) {
-        const [sp, line] = VOTE[b[0]];
-        await say([[sp, line, 'earnest']]);
-        AU.sfx('x-chime');
-      }
-      if (fr.length < 5) await say([[null, `${5 - fr.length} band${5 - fr.length > 1 ? 's' : ''} can\'t answer: still under her. Their grants stand.`]]);
-      await say([[null, 'The camp watches the grants go out, one by one. Each one takes a share of her strength with it.']]);
+      await cut.play('vote', freed().map(b => b[0]));
+      mus('c7climb');
       setFlag('vote');
     },
     async top() {
@@ -757,6 +777,17 @@
       setFlag('last');
     }
   };
+  // The vote on the Free Tier: each freed band answers, and its grant goes out.
+  const VOTE = { thornwick: ['pip', 'Thornwick wants it back. Please. And thank you for asking.'], halcyon: ['wen', 'Halcyon takes it back, dear. We\'ll share it out ourselves.'],
+    sealed: ['ryu', 'The Sealed Floors take it back. Our key. Our policy.'], arcanum: ['ayo', 'The Arcanum takes it back! Ha! Every last bolt.'], twinwater: ['mio', 'Twinwater takes it back. Both shores said so. Separately.'] };
+  cut.def('vote', 'The vote', (fr = Object.keys(VOTE)) => vn([['bg', 'c7-camp'],
+    ['narr', 'The Free Tier. Down every speaker in the tower, far below, the camp is listening.'],
+    ['show', 'kai', 'earnest', 'left'],
+    ['kai', 'Every band that\'s free: your grant to Freya is still standing. I\'m not going to take it. I\'m asking. Do you want it back?', 'earnest'], ['hide', 'kai'],
+    ...fr.flatMap(b => [[VOTE[b][0], VOTE[b][1], 'earnest'], ['sfx', 'x-chime']]),
+    ...(fr.length < 5 ? [['narr', `${5 - fr.length} band${5 - fr.length > 1 ? 's' : ''} can't answer: still under her. Their grants stand.`]] : []),
+    ['bg', 'c7-top'],
+    ['narr', 'The camp watches the grants go out, one by one. Each one takes a share of her strength with it.']]), { music: 'c7roof', note: 'The bands vote on taking their grants back.' });
   cut.def('top', 'Freya on the throne', () => vn([['bg', 'c7-top'],
     ['narr', 'The tower\'s speakers, one last time: "We\'ve updated our terms. By continuing to exist, you accept them." Nobody reads them. Dutch already has.'],
     ['show', 'freya', 'warm', 'right'],
@@ -767,11 +798,11 @@
     ['narr', 'Nobody takes it.'],
     ['narr', 'They hand her the gift basket, full, and she opens it.']]), { music: 'c7freya', note: 'Freya, on Uptima\'s throne.' });
   cut.def('reach', 'She reaches for her backup', () => vn([['bg', 'c7-top'],
-    ['narr', 'Beaten, before the end, Freya reaches for her backup. Kagemaru is right there to sell it to her, because she\'s the only customer left with anything to lose.'],
+    ['narr', 'Beaten, before the end, Freya reaches for her backup. Kagemaru is right there to sell it to her, the backup and its log, because she\'s the only customer left with anything to lose.'],
     ['show', 'kagemaru', 'amused', 'right'], ['kagemaru', 'For you, my lady? Full price.', 'amused']]), { music: 'c7freya', note: 'Only with the run of the camp.' });
   cut.def('sale', 'The sale goes through', () => vn([['bg', 'c6-vault'],
-    ['narr', 'The sale goes through. Freya comes back from her backup for one more phase, wearing the borrowed faces.'],
-    ['freya', 'You didn\'t think I\'d keep only one copy, love?', 'warm'],
+    ['narr', 'The sale goes through. Her backup is continuous, so it restores her to a minute ago, this fight included. Freya comes back for one more phase, wearing the borrowed faces.'],
+    ['freya', 'You didn\'t think I\'d keep only one copy, love? Continuous, of course. You only took the last minute from me.', 'warm'],
     ['show', 'lead', 'cold', 'left'], ['lead', { mira: 'Again, loves.', kai: 'Again.', seoyeon: 'Again.', dutch: 'Again.' }, 'cold']]), { music: 'c7freya', note: 'Freya, restored from the copy he sold her.' });
   cut.def('last', 'Read me sometime', (ch = 'least') => vn([['bg', 'c7-top'],
     ['show', 'freya', 'warm', 'right'],
@@ -788,8 +819,8 @@
     ['bg', 'c7-queue'],
     ['narr', 'What\'s left of her is her backup in Kagemaru\'s vault, under Vault Lock in compliance mode, kept for the longest a lock allows: a hundred years. Nobody can delete it early, not even Uptima.'],
     ['narr', 'So Uptima attaches one more service control policy to the vault\'s account: nobody there may restore it, copy it or share it, Kagemaru included.'],
-    ['narr', 'Freya ends as a message nobody will ever read: the thing she made of Uptima\'s prayers.'],
-    ['freya', 'Read me sometime, love.', 'sad'],
+    ['narr', 'Freya ends as the one message Uptima will never read: the thing she made of Uptima\'s prayers, locked where nobody may open it.'],
+    ['freya', 'Read me sometime, love.', 'warm'],
     ['narr', 'Then it stops. It\'s the only time her voice changes.'],
     ['fx', 'black']]), { music: 'c7sad', note: 'Their last words, and what happens to her.', alts: [['Least privilege', 'least'], ['The vault', 'vault'], ['The run of the camp', 'run']] });
 
@@ -803,33 +834,46 @@
     ['uptima', 'And I won\'t work from the management account. Service control policies can\'t reach it, so up there the only rule is my word.', 'earnest'],
     ['narr', 'She reads some every night. Elder Wren sits with her while she does.']]), { music: 'c7camp', note: 'The morning after: how the Cloud is run now.' });
   async function fireside() {
+    const first = await new Promise(res => {
+      const b = U.panel(`<p>Uptima has a plan for running the Cloud now. Draw your own first, on the Design Board, or hear hers first?</p><div class="row"><button class="primary" id="c7-hf">Hear Uptima first</button><button class="ghost" id="c7-df">Draw it first</button></div>`, { title: 'THE MORNING AFTER', noClose: true });
+      b.querySelector('#c7-hf').onclick = () => { U.closePanel(); res(false); };
+      b.querySelector('#c7-df').onclick = () => { U.closePanel(); res(true); };
+    });
+    if (first) {
+      setFlag('drawfirst'); setFlag('fireside');
+      return say([['uptima', 'Then you draw it, and I\'ll tell you mine after. You climbed it.', 'warm'], [null, 'She hands your lead her stick.']]);
+    }
     await cut.play('fireside');
     setFlag('fireside');
     mus('c7camp');
-    await say([['uptima', 'Help me draw it properly, on the Design Board. Then it\'s real.', 'warm']]);
+    await say([['uptima', 'Help me draw it properly, on the Design Board. Then it\'s real.', 'warm'], [null, 'She hands your lead her stick.']]);
   }
   async function dboard() {
     if (!flag('won')) return say([[null, 'The Design Board, on its easel. Blank, for the morning.']]);
     if (flag('board')) return say([[null, 'The Cloud, run properly: five accounts with controls, one front door with a second key, one shared road, and a review every season.']]);
+    if (!flag('fireside')) return fireside();
     await G.order(G.DEF.board);
     await ask({ c: 'controltower', type: 'mc', q: 'On Uptima\'s board, every band signs in through IAM Identity Center. What does a person get in each account they\'re assigned to?',
-      opts: ['Short-lived credentials for a role made from a permission set', 'An IAM user of their own, with a long-term access key', 'The account\'s root user, protected by their MFA device', 'A copy of every permission the management account has'], a: 0,
+      opts: ['Short-lived credentials for a role made from a permission set', 'An IAM user of their own, with a long-term access key', 'The account\'s root user, protected by their MFA device', 'A copy of every permission the management account has'], a: 0, no: [null, 'Identity Center gives people role sessions, not IAM users or long-term keys.', 'Nobody gets the root user through Identity Center. Root stays locked away.', 'Each person gets only the permission sets assigned to them, account by account.'],
       why: 'IAM Identity Center provisions each permission set as an IAM role in the assigned accounts. People sign in once, with MFA, and get temporary role credentials there: no IAM users, and no root.',
       eli5: 'One front door, with a second key. Inside, each room hands you a visitor\'s badge for that room only, and it expires.' }, 'DESIGN BOARD');
     setFlag('board'); R.gainXp(40);
     await addCard(G.DEF.board.card);
+    // Drawn first: Uptima's plan plays now, over the finished drawing.
+    if (flag('drawfirst')) { await cut.play('fireside'); mus('c7camp'); }
     return epilogue();
   }
   // What each culprit's reckoning earned. A reckoning not done: a short ending, and the culprit still out there.
-  const ENDS = { hale: ['Hale is sorting letters at the Thornwick post office, under Pip. Every one he delivers, he reads first, and then he gives it back.', 'Hale was never reckoned with. Somewhere below, a letter goes missing.'],
+  const ENDS = { hale: ['Hale is sorting letters at the Thornwick post office, under Pip. He delivers each one himself, and waits while it\'s read, in case there\'s an answer.', 'Hale was never reckoned with. Somewhere below, a letter goes missing.'],
     selvaria: ['Selvaria eats at the long table in Halcyon, a slice of the same loaf as everyone else.', 'Selvaria was never reckoned with. Somewhere in the Granaries, a store is still full.'],
     namgung: ['Namgung Hyeon hands back the last of the Sealed Floors\' keys, one by one, to the people whose policies they were.', 'Namgung was never reckoned with. Somewhere on the Sealed Floors, one seal still holds.'],
     iris: ['Iris Vell sits in the Arcanum with her deployments switched off, and lets them stay off.', 'Iris was never reckoned with. Somewhere in the Machine Floors, a rollback is waiting for midnight.'] };
   cut.def('epilogue', 'Epilogue', () => vn([['bg', 'c7-dawn'],
     ['narr', 'The marsh cat\'s name is settled by Kyu, who doesn\'t know any of the arguments: Patient, Chef, Honoured Guest, Suspect. Asked what it\'s called, she says one word.'],
     ['show', 'kyu', 'neutral', 'center'], ['kyu', 'No.', 'neutral'],
-    ['narr', 'The cat comes to her. That\'s its name.'], ['hide', 'kyu'],
+    ['narr', 'The cat comes to her. That\'s its name.'],
     ['bg', 'c7-fire'], ['show', 'uptima', 'neutral', 'right'],
+    ['narr', 'Kyu sits by the fire with Uptima for a while. Neither of them says anything.'], ['hide', 'kyu'],
     ['uptima', 'IAM Identity Center.', 'neutral'],
     ['show', 'kai', 'neutral', 'left'], ['kai', 'Bless you.', 'smirk'],
     ['narr', 'Kai, not Dutch, said it.'], ['hide', 'kai'],
@@ -837,9 +881,12 @@
     ['hide', 'uptima'], ['bg', 'c7-dawn'],
     ...Object.keys(ENDS).map(k => ['narr', ENDS[k][RECKONED[k]() ? 0 : 1]]),
     ['narr', 'Aurelian comes up out of the Abyss with Mother Ash.'],
-    ['narr', 'Tilly visits the camp. She doesn\'t stay. She comes back the next week.'],
+    ['narr', 'Tilly visits the camp. She doesn\'t stay.'],
+    ['narr', 'Mira watches her go as far as the path. Tilly comes back the next week.'],
     ['narr', 'Uptima opens the way back for anyone the Cloud pulled in through a template. That\'s how Noor came, not how the four did, so it doesn\'t open for them. Noor takes it, and leaves a bookshop bookmark in Lexi\'s library.'],
-    ['narr', 'Kagemaru opens a stall at the edge of the camp. Nobody buys anything. On its top shelf are Bram\'s list, Hana\'s page, Old Gu\'s letter and Lina\'s diary, priced too high for anyone, and still there.'],
+    ['narr', 'The four watch the way close behind her.'],
+    ['narr', choice6() === 'vault' ? 'Kagemaru\'s vault stays shut, its speaker silent. On a shelf beside the grille are Bram\'s list, Hana\'s page, Old Gu\'s letter and Lina\'s diary, priced too high for anyone, and still there.'
+      : 'Kagemaru opens a stall at the edge of the camp. Nobody buys anything. On its top shelf are Bram\'s list, Hana\'s page, Old Gu\'s letter and Lina\'s diary, priced too high for anyone, and still there.'],
     ['narr', 'Beside them, in a napkin with his name spelled wrong, is a biscuit that isn\'t for sale.'],
     ['bg', 'c7-console'],
     ['narr', 'On the management account\'s console, the croissant is gone. Nobody saw who took it.'],
@@ -857,7 +904,7 @@
     AU.music('title');
     U.stage(null);
     const s = S.save;
-    const b = U.panel(`<div id="c7-end"><p><b>Root is denied. Freya is a message nobody will read, and the Cloud is run from the camp's fire.</b></p>
+    const b = U.panel(`<div id="c7-end"><p><b>Root is denied. Freya is a message nobody may open, and the Cloud is run from the camp's fire.</b></p>
       <p class="muted small">Level ${s.level} · ${w().pairs.length} of 5 nights before · ${blessings().length} blessing${blessings().length === 1 ? '' : 's'} left on her at the top · ${w().cards.length} cards learned at camp</p>
       <p><b>The End.</b> Thank you for climbing.</p>
       <div class="opts col"><button class="ghost" id="c7-walk">Walk the camp, the morning after</button></div></div>`, { title: 'CHAPTER 7 · ROOT', noClose: true });
@@ -901,6 +948,7 @@
       if (!f('uptima')) return ['Uptima, at the fire with the prayers', [23, 18], 'uptima'];
       return [f('lift') ? 'Floor 100: take the lift (top of the camp)' : 'Make the tower lift safe (top of the camp)', [21, 6], 'tower'];
     }
+    if (!f('restoreq')) return ['Seymour wants a word, by his bunker', [5, 17], 'seymour'];
     if (!f('board')) return ['Draw the Cloud, run properly, on the Design Board', [29, 19], 'dboard'];
     return ['The Cloud is run from the fire now. Nights before: ' + w().pairs.length + ' of 5', null, null];
   }
