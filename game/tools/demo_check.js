@@ -146,7 +146,7 @@ const fail = [];
   }
   console.log('reveal stills:', [...cgs].join(' '));
   if (!back) fail.push('watching the reveal did not come back to the cutscene viewer');
-  for (const id of ['cut-reveal-dutch-w2', 'rv-F', 'rv-I']) if (!cgs.has(id)) fail.push('the reveal never showed ' + id);
+  for (const id of ['cut-reveal-dutch-w2', 'rv-R', 'rv-F', 'rv-I']) if (!cgs.has(id)) fail.push('the reveal never showed ' + id);
   const after = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
   if (before !== after) fail.push('watching the reveal changed the save: ' + before + ' → ' + after);
   if (errors.length) fail.push('the reveal: ' + errors.slice(0, 3).join(' | '));

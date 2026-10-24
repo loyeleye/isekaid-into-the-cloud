@@ -9,8 +9,9 @@
   const IMG = 'assets/img/cut/';
   const still = (id, label) => ['cut-' + id, { src: IMG + id + '.webp', label: id.replace(/-/g, ' ') + (label ? ': ' + label : '') }];
   // The locked pose: A, C and E are the pixel twins of B, D and F (the same frame, converted), so they line up.
-  // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, flashed twice.
-  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', I: 'the basket' };
+  // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, flashed twice;
+  // R is her eye-roll after Uptima goes quiet.
+  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', R: 'an eye-roll', I: 'the basket' };
   // Each lead's walk frames and the one with her hand on their shoulder (Ladi, Oct 24): Kai's stops on her hand and Mira's
   // goes from her first step to the hand, as the wide carries her on; Dutch is first in line, so his hand comes second.
   const STEPS = { mira: 3, kai: 3, seoyeon: 4, dutch: 4 }, HANDS = { mira: 2, kai: 3, seoyeon: 3, dutch: 2 };
@@ -25,7 +26,7 @@
     ...Object.entries(PAINTED).map(([k, label]) => ['rv-' + k, { src: IMG + 'reveal-' + k + '.webp', label: 'reveal ' + k + ': ' + label }])
   ]));
   const A = 'cut-reveal-glitch-1', C = 'cut-reveal-glitch-2', E = 'cut-reveal-glitch-3';
-  const [B, D, F, G, G2, H, H2, I] = ['B', 'D', 'F', 'G', 'G2', 'H', 'H2', 'I'].map(k => 'rv-' + k);
+  const [B, D, F, G, G2, H, H2, R, I] = ['B', 'D', 'F', 'G', 'G2', 'H', 'H2', 'R', 'I'].map(k => 'rv-' + k);
   const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const me = () => (SD.state.save.c1 && SD.state.save.c1.lead) || 'mira';
   // Ways to try the last cut, from the pixel virus to the real one, and the green glitch tiles over the breaks, picked
@@ -95,7 +96,10 @@
         // One finger, and Uptima turns to static; the friendly camp face flashes through twice (Ladi, Oct 22: once was
         // too quick to catch).
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 100], [H, 160], [H2, 100], [H, 0]]], say(w[4]),
-        ['cg', I, 'in'], say(w[5]), say(w[6])
+        // "Some people can't take a compliment": Uptima gone, she rolls her eyes and flicks the static off her fingers; then
+        // the basket (Ladi, Oct 24).
+        ['cg', R, 'in'], say(w[5]),
+        ['cg', I, 'in'], say(w[6])
       ];
     }
   };
