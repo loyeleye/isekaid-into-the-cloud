@@ -3,7 +3,7 @@
 // the Deny Mines from the finder, the other finds the party on the list and joins, the leader adds two bots and
 // starts, and both tabs clear both floors (fights won through SD.test.raid.win). Each player gets the replay's XP and
 // doubled Raid Marks (another person was in the party), no tape, and no story flag or chapter save changes. The Raid
-// shop sells the beanie once, and the finder's shop button lists it as yours. Back leaves to the title. Fails on any page or console error.
+// shop sells its cheapest item once, and the finder's shop button lists it as yours. Back leaves to the title. Fails on any page or console error.
 // Run from game/:  node tools/mp_check.js
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -133,21 +133,22 @@ function step(who) {
     // Two people in the party: the clear's marks are doubled, so 2 x (10 + 2 per right answer, up to 5).
     const marks = r.marks - t.before.marks;
     if (!(marks >= 20 && marks <= 40 && marks % 4 === 0)) errors.push(name + ': got ' + marks + ' Raid Marks, not a doubled clear (20 to 40)');
-    // The Raid shop: top up to 50, buy the beanie (40), and it's owned and wearable.
+    // The Raid shop: top up past the cheapest item, buy it once, and it's owned; the dearest stays out of reach.
     const shop = await t.page.evaluate(() => {
-      const M = SD.marks; M.pay({ right: 5, humans: 1 }); while (M.balance() < 50) M.pay({ right: 0 });
-      const b = M.balance(), ok = M.buy('hat-beanie'), again = M.buy('hat-beanie'), poor = M.buy('scarf-golden');
-      return { ok, again, poor, spent: b - M.balance(), owns: M.owns('hat-beanie'), wearOwns: !!(SD.wear && SD.wear.owns('hat-beanie')) };
+      const M = SD.marks, by = M.ITEMS.slice().sort((a, b) => a.cost - b.cost), lo = by[0], hi = by[by.length - 1];
+      while (M.balance() < lo.cost + 10) M.pay({ right: 0 });
+      const b = M.balance(), ok = M.buy(lo.id), again = M.buy(lo.id), poor = M.buy(hi.id);
+      return { n: M.ITEMS.length, item: lo.id, cost: lo.cost, ok, again, poor, spent: b - M.balance(), owns: M.owns(lo.id) };
     });
-    if (!shop.ok || shop.again || shop.spent !== 40 || !shop.owns || shop.poor) errors.push(name + ': the Raid shop went ' + JSON.stringify(shop));
+    if (!shop.ok || shop.again || shop.spent !== shop.cost || !shop.owns || shop.poor) errors.push(name + ': the Raid shop went ' + JSON.stringify(shop));
     if (r.story !== t.before.story) errors.push(name + ': the story changed: ' + r.story);
     // Leave the party, then Back from the finder goes to the title.
     await t.page.click('#rd-leave');
     await t.page.waitForSelector('#mp-back', { timeout: 10000 });
     await t.page.click('#mp-shop');
     await t.page.waitForSelector('#panel [data-buy]', { timeout: 10000 });
-    const row = await t.page.evaluate(() => { const li = [...document.querySelectorAll('#panel .mp-list li')]; return { n: li.length, beanie: li[0] && li[0].textContent.includes('yours') }; });
-    if (row.n !== 10 || !row.beanie) errors.push(name + ': the Raid shop panel showed ' + JSON.stringify(row));
+    const row = await t.page.evaluate(id => { const li = [...document.querySelectorAll('#panel .mp-list li')], i = SD.marks.ITEMS.findIndex(x => x.id === id); return { n: li.length, yours: !!li[i] && li[i].textContent.includes('yours') }; }, shop.item);
+    if (row.n !== shop.n || !row.yours) errors.push(name + ': the Raid shop panel showed ' + JSON.stringify(row));
     await t.page.evaluate(() => SD.ui.closePanel());
     await t.page.click('#mp-back');
     await t.page.waitForSelector('#t-mp', { timeout: 10000 });
@@ -155,5 +156,5 @@ function step(who) {
   await browser.close(); server.close();
   console.log('steps', steps);
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
-  console.log('OK: two players found each other in Multiplayer, replayed the Deny Mines with two bots, and got 40 XP and doubled Raid Marks each, bought a beanie at the Raid shop, and left the story untouched.');
+  console.log('OK: two players found each other in Multiplayer, replayed the Deny Mines with two bots, and got 40 XP and doubled Raid Marks each, bought from the Raid shop, and left the story untouched.');
 })().catch(e => { console.error(e); process.exit(1); });

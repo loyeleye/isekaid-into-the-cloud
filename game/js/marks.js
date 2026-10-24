@@ -16,7 +16,9 @@
   const M = SD.marks = {};
   // A solo or bot clear with every question right pays 20; the same clear with another person pays 40.
   M.PAY = Object.freeze({ clear: 10, perRight: 2, rightCap: 5, withHuman: 2 });
-  // Same ids as js/economy.js COSMETICS (and js/wear.js), priced in marks.
+  // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. Same ids as
+  // js/economy.js COSMETICS (and js/wear.js), priced in marks.
+  M.SLOTS = Object.freeze({ hat: 'Hat', scarf: 'Scarf' });
   M.ITEMS = Object.freeze([
     ['hat-beanie', 'Beanie', 'hat', 40], ['scarf-red', 'Red scarf', 'scarf', 50], ['hat-crown', 'Paper crown', 'hat', 80],
     ['scarf-knit', 'Knitted scarf', 'scarf', 100], ['hat-party', 'Party hat', 'hat', 120], ['hat-wizard', 'Wizard hat', 'hat', 160],
