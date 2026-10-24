@@ -168,6 +168,7 @@
   // ---------- A chapter's lens ----------
   // Everything a later chapter's map needs, in one place. cfg: { mode, save(): the chapter's save (keeps .lens and
   // .lensDone), busy(), scene(), act(fn): run fn with the controls locked, redraw(): put the map in step, flag(k),
+  // costs(): optional, false while looks are free,
   // spots: { id: { x, y, label, mark, need: [flags it waits for], spot: L.spot's o, after: async () => {} } } }
   // The map calls w.add() once its scene exists, w.apply() whenever it redraws, w.tick(dt) every frame, and hands
   // talk(id) to w.talk(id) first (true when it was a spot). w.seen() is what to draw with (it flickers), w.on() what
@@ -176,7 +177,7 @@
     const sv = () => { const s = cfg.save(); s.lensDone = s.lensDone || {}; return s; };
     const w = {};
     w.on = () => !!sv().lens;
-    w.LC = L.make({ mode: cfg.mode, on: w.on, set: v => { sv().lens = v; }, costs: () => true,
+    w.LC = L.make({ mode: cfg.mode, on: w.on, set: v => { sv().lens = v; }, costs: cfg.costs || (() => true),
       idle: () => cfg.busy() || !document.getElementById('panel').hidden || !document.getElementById('dialog').hidden,
       hold: cfg.hold || (() => false), changed: () => { if (cfg.intro && w.on() && !sv().lensIntro) { sv().lensIntro = true; U.system(cfg.intro[0], cfg.intro[1], 'gold'); } cfg.redraw(); }, dry: () => cfg.act(() => L.teach().then(() => SD.run.gainXp(10))) });
     w.seen = () => w.on() && !w.LC.flicker(performance.now() / 1000);
