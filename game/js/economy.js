@@ -54,9 +54,7 @@
     items: freeze([
       ['mug', 30], ['hat-beanie', 40], ['lantern', 50], ['rug', 60], ['hat-crown', 80], ['plant', 90], ['banner', 110],
       ['hat-party', 120], ['bookshelf', 140], ['hat-wizard', 160], ['fountain', 180], ['telescope', 200], ['hat-cloud', 220],
-      ['arcade', 240], ['hat-golden', 260], ['observatory', 300],
-      // Scarves (js/wear.js): worn with a hat or without one. Placeholder prices: cosmetics move to the raid currency.
-      ['scarf-red', 50], ['scarf-knit', 100], ['scarf-cloud', 190], ['scarf-golden', 280]
+      ['arcade', 240], ['hat-golden', 260], ['observatory', 300]
     ].map(([id, cost]) => freeze({ id, cost })))
   });
 

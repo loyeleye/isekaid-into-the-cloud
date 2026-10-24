@@ -212,7 +212,7 @@
   };
 
   function figure(L, F, uid, o) {
-    o = o || {};   // o: what's worn (js/wear.js): { hat, scarf } markup
+    o = o || {};
     let s = '';
     const hair = HAIR[L.style] ? HAIR[L.style](L) : { back: '', front: '' };
     // The head is drawn a little larger than life, the way visual-novel sprites are.
@@ -236,7 +236,6 @@
     body += hand(304, 650, L.gloveR || L.skin);
     if (L.over) body += L.over(L, F);
     s += `<g${big}>${body}</g>`;
-    if (o.scarf) s += o.scarf;
     // Head.
     let h = e(141, 198, 9, 15, L.skin, INK, 2.5) + e(259, 198, 9, 15, L.skin, INK, 2.5);
     h += `<clipPath id="${uid}face"><path d="${FACE}"/></clipPath>`;
@@ -246,7 +245,6 @@
     h += hair.front;
     if (L.top) h += L.top(L, F);
     if (L.halo) h += e(200, 58, 74, 15, 'none', '#ffd76a', 6) + e(200, 58, 74, 15, 'none', '#fff6c8', 2);
-    if (o.hat) h += o.hat;
     return s + `<g${HEAD}>${h}</g>`;
   }
   function beastArm(L) {
@@ -265,11 +263,12 @@
     dusk: [['#ff9a6a', 0.2], ['#1c1030', 0.4]],
     gold: [['#ffe08a', 0.3], ['#3a2a10', 0.3]]
   };
-  function render(id, face, view, light, wear) {
-    const L = CAST[id]; if (!L) return null;
+  function render(id, face, view, light, dress) {
+    if (!CAST[id]) return null;
+    const L = dress ? Object.assign({}, CAST[id], dress) : CAST[id];
     const F = Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {});
     const uid = id.replace(/\W/g, '') + face;
-    const fig = figure(L, F, uid, wear);
+    const fig = figure(L, F, uid);
     let defs = '', body = `<g id="fig">${fig}</g>`;
     const lt = LIGHT[light || L.light];
     if (lt) {
@@ -278,20 +277,18 @@
       body += `<rect x="0" y="0" width="400" height="1000" fill="url(#lit)" mask="url(#msk)"/>`;
     }
     if (L.post) body += L.post(F);
-    // A hat can rise above the box: give it room on top.
-    const up = wear && wear.hat ? 60 : 0;
-    const vb = view === 'bust' ? `0 ${-up} 400 ${620 + up}` : view === 'head' ? `80 ${-up} 240 ${280 + up}` : `0 ${-up} 400 ${1000 + up}`;
+    const vb = view === 'bust' ? '0 0 400 620' : view === 'head' ? '80 0 240 280' : '0 0 400 1000';
     return K.uri(K.svg(vb, body, defs));
   }
   // The raw markup of a figure in its 400 x 1000 box, for a look that isn't in the cast: js/vec-foes.js builds its
   // human incidents from the same parts, so they stand in the same world as the people they fight.
   K.person = (L, face, uid) => figure(L, Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {}), uid);
   const memo = {};
-  // wear: the cosmetics to draw (js/wear.js), [] for none; left out, your lead wears yours.
+  // wear: the cosmetics to dress in (js/wear.js), [] for none; left out, your lead wears yours.
   K.fig = (id, face, view, light, wear) => {
     const w = SD.wear ? SD.wear.vec(id, wear) : null;
     const k = [id, face, view, light, w ? w.key : ''].join('|');
-    return memo[k] || (memo[k] = render(id, face || 'neutral', view || 'bust', light, w));
+    return memo[k] || (memo[k] = render(id, face || 'neutral', view || 'bust', light, w && w.L));
   };
 
   // ---------- Who's who ----------
@@ -412,7 +409,8 @@
       const fs = FACESET[who];
       if (fs) {
         const m = fs.includes(mood) ? mood : 'neutral';
-        return `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false">${SD.wear ? SD.wear.bust(who, m) : ''}</span>`;
+        const html = `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+        return SD.wear ? SD.wear.dressBust(who, m, html) : html;
       }
       let id = who;
       if (who === 'freya') id = mood === 'virus' ? 'freyav' : mood === 'promoter' || !morphed() ? 'freya' : 'freyag';

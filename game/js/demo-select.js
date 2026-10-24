@@ -62,7 +62,7 @@
         <div class="ds-btns"><button class="primary" type="button" id="ds-reel">Open</button></div>
       </div></div>` : ''}
       ${SD.wear ? `<h3 class="ds-h">Wardrobe</h3><div class="ds-list"><div class="ds-row">
-        <div class="ds-txt"><b>Hats and scarves</b><br><span class="muted small">What your lead wears in dialogue, in battle and in the party room. Until the Cache Café sells them, every one is free to try.</span></div>
+        <div class="ds-txt"><b>Outfits, effects and frames</b><br><span class="muted small">What your lead wears in dialogue, in battle and in the party room. Until the Raid shop is in, every one is free to try.</span></div>
         <div class="ds-btns"><button class="primary" type="button" id="ds-wear">Open</button></div>
       </div></div>` : ''}`, { title: 'DEBUG' });
     const wear = b.querySelector('#ds-wear');

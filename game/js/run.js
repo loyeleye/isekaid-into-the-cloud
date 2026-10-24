@@ -1258,7 +1258,7 @@
     if (!A) return grouped() ? `<div class="gfoes">${foe}</div>` : foe;
     const h = A.hero;
     return `<div class="stage${grouped() ? ' group g' + C.foes.length : ''}" style="background-image:url(${R.stageArt ? R.stageArt(ch) : `assets/img/battle/bg-${ch}.webp`})">
-      <div class="hero${flashing('hurtflash')}" role="img" aria-label="You" style="--hw:${h.w}px;--hh:${h.h}px"></div>${foe}</div>`;
+      <div class="hero${flashing('hurtflash')}" role="img" aria-label="You" style="--hw:${h.w}px;--hh:${h.h}px">${SD.wear ? SD.wear.heroFx() : ''}</div>${foe}</div>`;
   }
   // The NEXT line for a foe: the intent's numbers with its load (rage), its damage share and curses applied.
   function intentLine(e, ii, rage, ms) {

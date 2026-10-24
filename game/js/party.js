@@ -273,7 +273,7 @@
         const big = el.classList.contains('pt-stage');
         const spr = el.appendChild(CH.sprite(id, big ? Math.min(2, 104 / c.h) : Math.min(1.2, 62 / c.h), big || (!lock && id === champ)));
         // A seat shows what its player wears (js/wear.js).
-        if (big && SD.wear && el.dataset.wear) SD.wear.dressSprite(spr, id, el.dataset.wear.split(' '));
+        if (big && SD.wear && el.dataset.wear) SD.wear.dressSprite(spr, id, el.dataset.wear.split(' '), el);
       });
       if (focusNick) { const i = root.querySelector('#pt-nick'); if (i) { i.focus(); i.value = draft; } }
       else if (keep) { const k = root.querySelector(keep); if (k) k.focus(); }
