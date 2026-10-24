@@ -85,19 +85,20 @@
       return `<button class="${on ? 'primary' : 'ghost'}" id="w-lens" aria-pressed="${on}" aria-label="Version Lens" title="Version Lens (L)">👁<i class="lens-n"></i></button>`;
     };
     let last = '';
-    // The ring round 👁 is what's left of this look; the badge is the looks left, or the wait for the next one.
+    // The ring round 👁 is what's left of this look; the badge is the looks left, or the wait for the next one, or
+    // "free" while the map isn't charging yet, so a free look never reads as a broken count.
     c.paint = function () {
       const b = document.getElementById('w-lens'); if (!b) return;
       const s = st(), m = metered(), on = o.on();
       const lp = !m ? (on ? 1 : 0) : on ? s.left / L.LOOK : s.n ? 0 : 1 - s.cd / L.COOL;
-      const badge = !m ? (on && L.unlimited() ? '∞' : '') : s.n ? String(s.n) : Math.ceil(s.cd) + 's';
+      const badge = !m ? (L.unlimited() ? (on ? '∞' : '') : 'free') : s.n ? String(s.n) : Math.ceil(s.cd) + 's';
       const key = [lp.toFixed(2), badge, warn(), m && !s.n && !on].join();
       if (key === last) return; last = key;
       b.style.setProperty('--lp', lp.toFixed(3));
       const n = b.querySelector('.lens-n'); if (n) { n.textContent = badge; n.hidden = !badge; }
       b.classList.toggle('warn', warn());
       b.classList.toggle('dry', m && !s.n && !on);
-      b.title = !m ? 'Version Lens (L)' : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${Math.ceil(s.cd)} s` : ''}`;
+      b.title = !m ? (L.unlimited() ? 'Version Lens (L): unlimited' : 'Version Lens (L): free for now, nothing spent') : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${Math.ceil(s.cd)} s` : ''}`;
     };
     c.repaint = () => { last = ''; c.paint(); };
     return c;
