@@ -303,12 +303,15 @@
   const ask = (q, title) => SD.quiz.ask(q, { title: title || 'A QUESTION' });
 
   // ---------- The night before ----------
+  // A cutscene rather than world dialogue, so the painted stills (js/cut-ch7a.js) show behind it.
+  cut.def('arrive', 'The night before', () => vn([['bg', 'c7-camp'],
+    ['narr', 'The Free Cloud\'s camp, at the foot of the tower, the night before the last climb. Everyone is here. Every band you freed came down, and stayed.'],
+    ['narr', 'Pip is at the post office desk. Bru has a board out. Wen\'s café is open late, Lexi\'s library later. Seymour\'s bunker door is open, for once. Uptima sits at the fire with the prayers.'],
+    ['lead', { mira: 'All of them, love. All at once.', kai: 'Everyone. Even Seymour came out.', seoyeon: '...Everyone.', dutch: 'Every band. In one place. Count them.' }],
+    [others()[0], 'The basket\'s by the fire. Every band\'s putting something in it.', 'neutral']]), { music: 'c7camp', note: 'Arriving at the camp, the night before the climb.' });
   async function arrive() {
+    await cut.play('arrive');
     mus('c7camp');
-    await say([[null, 'The Free Cloud\'s camp, at the foot of the tower, the night before the last climb. Everyone is here. Every band you freed came down, and stayed.'],
-      [null, 'Pip is at the post office desk. Bru has a board out. Wen\'s café is open late, Lexi\'s library later. Seymour\'s bunker door is open, for once. Uptima sits at the fire with the prayers.'],
-      ['lead', { mira: 'All of them, love. All at once.', kai: 'Everyone. Even Seymour came out.', seoyeon: '...Everyone.', dutch: 'Every band. In one place. Count them.' }],
-      [others()[0], 'The basket\'s by the fire. Every band\'s putting something in it.', 'neutral']]);
     setFlag('arrive');
   }
   // The gift basket. Whoever gives each band's gift; the basket itself, by the fire.
