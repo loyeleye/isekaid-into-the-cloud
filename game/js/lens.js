@@ -103,6 +103,125 @@
     return c;
   };
 
+  // ---------- Lens spots ----------
+  // Something only the lens shows, in the chapters after the first: each mode has a few. Walk up to one with the
+  // lens on and it asks first (predict, then look): you commit an answer, and what the lens shows is the feedback.
+  // o: { title, mode, concept, intro: what you see without the lens (text), q, opts: [{ t, ok, no }],
+  //      view: { head, rows: [[cells]], note } what the lens shows, why: the explanation, said: [[who, line]] after }
+  // Resolves true if the prediction was right.
+  const css2 = document.createElement('style');
+  css2.textContent = `
+.lens-view { margin: 10px 0 6px; padding: 8px 10px; border-radius: 8px; background: #0f2a3a; color: #d9f2ff; box-shadow: inset 0 0 0 2px #5fd0ff; }
+.lens-view b.h { display: block; font: 700 11px/1.4 Nunito, sans-serif; letter-spacing: .12em; color: #5fd0ff; margin-bottom: 4px; }
+.lens-view table { width: 100%; border-collapse: collapse; font: 12px/1.35 ui-monospace, monospace; }
+.lens-view td { padding: 4px 4px; border-top: 1px solid rgba(95,208,255,.25); vertical-align: top; }
+.lens-view tr:first-child td { border-top: 0; }
+.lens-view .n { margin: 6px 0 0; font-size: 12px; color: #a8dcf2; }
+`;
+  document.head.appendChild(css2);
+  L.spot = function (o) {
+    return new Promise(res => {
+      const t0 = Date.now(), order = o.opts.map((x, i) => i).sort(() => Math.random() - 0.5);
+      const view = o.view ? `<div class="lens-view" hidden><b class="h">THROUGH THE LENS · ${U.esc(o.mode)}${o.view.head ? ' · ' + U.esc(o.view.head) : ''}</b>
+        ${o.view.rows ? `<table>${o.view.rows.map(r => `<tr>${r.map(c => `<td>${U.esc(c)}</td>`).join('')}</tr>`).join('')}</table>` : ''}
+        ${o.view.note ? `<p class="n">${U.esc(o.view.note)}</p>` : ''}</div>` : '';
+      const b = U.panel(`<div class="g2"><p>${U.esc(o.intro)}</p>
+        <div class="g2-predict"><b>PREDICT, THEN LOOK</b><p>${U.esc(o.q)}</p>
+        <div class="opts col">${order.map(i => `<button class="opt" data-p="${i}">${U.esc(o.opts[i].t)}</button>`).join('')}</div></div>
+        ${view}<p class="g2-note"></p></div>`, { title: o.title, noClose: true });
+      b.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
+        const x = o.opts[+el.dataset.p];
+        b.querySelectorAll('[data-p]').forEach(y => { y.disabled = true; if (o.opts[+y.dataset.p].ok) y.classList.add('on'); });
+        if (o.concept && SD.concepts[o.concept]) S.recordAnswer(o.concept, !!x.ok, 1, Date.now() - t0);
+        AU.sfx(x.ok ? 'right' : 'wrong');
+        const v = b.querySelector('.lens-view'); if (v) v.hidden = false;
+        const n = b.querySelector('.g2-note');
+        n.textContent = (x.ok ? 'Right. ' : (x.no || 'Not quite.') + ' ') + o.why;
+        n.className = 'g2-note ' + (x.ok ? 'ok' : 'bad');
+        const go = document.createElement('button'); go.className = 'primary'; go.textContent = 'Continue';
+        b.querySelector('.g2').appendChild(go); go.focus();
+        go.onclick = () => { U.closePanel(); res(!!x.ok); };
+      });
+    });
+  };
+  // A lens spot on the map (feet at fx, fy in world pixels): a slow cyan shimmer with a mark in it.
+  L.drawSpot = function (ctx, fx, fy, ts, t, mark) {
+    const r = ts * 0.38, y = fy - ts * 0.45, a = 0.55 + 0.25 * Math.sin(t * 2.6 + fx);
+    ctx.save();
+    const g = ctx.createRadialGradient(fx, y, 1, fx, y, r * 1.8);
+    g.addColorStop(0, `rgba(95,208,255,${a})`); g.addColorStop(1, 'rgba(95,208,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx, y, r * 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(217,242,255,${a + 0.2})`; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -t * 8;
+    ctx.beginPath(); ctx.arc(fx, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#e8f8ff'; ctx.font = `700 ${Math.round(ts * 0.36)}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(mark || '?', fx, y + 1);
+    ctx.restore();
+  };
+  // A blue wash over the whole view while the lens is on, for maps whose art kit has no lens grade of its own.
+  L.wash = function (ctx, vw, vh, t) {
+    ctx.save(); ctx.fillStyle = 'rgba(40,120,190,.16)'; ctx.fillRect(0, 0, vw, vh);
+    ctx.fillStyle = 'rgba(160,230,255,.05)';
+    for (let y = (t * 18) % 6; y < vh; y += 6) ctx.fillRect(0, y, vw, 1);
+    ctx.restore();
+  };
+
+  // ---------- A chapter's lens ----------
+  // Everything a later chapter's map needs, in one place. cfg: { mode, save(): the chapter's save (keeps .lens and
+  // .lensDone), busy(), scene(), act(fn): run fn with the controls locked, redraw(): put the map in step, flag(k),
+  // spots: { id: { x, y, label, mark, need: [flags it waits for], spot: L.spot's o, after: async () => {} } } }
+  // The map calls w.add() once its scene exists, w.apply() whenever it redraws, w.tick(dt) every frame, and hands
+  // talk(id) to w.talk(id) first (true when it was a spot). w.seen() is what to draw with (it flickers), w.on() what
+  // to walk by; w.hud() is the chip and the button.
+  L.world = function (cfg) {
+    const sv = () => { const s = cfg.save(); s.lensDone = s.lensDone || {}; return s; };
+    const w = {};
+    w.on = () => !!sv().lens;
+    w.LC = L.make({ mode: cfg.mode, on: w.on, set: v => { sv().lens = v; }, costs: () => true,
+      idle: () => cfg.busy() || !document.getElementById('panel').hidden || !document.getElementById('dialog').hidden,
+      hold: cfg.hold || (() => false), changed: () => { if (cfg.intro && w.on() && !sv().lensIntro) { sv().lensIntro = true; U.system(cfg.intro[0], cfg.intro[1], 'gold'); } cfg.redraw(); }, dry: () => cfg.act(() => L.teach().then(() => SD.run.gainXp(10))) });
+    w.seen = () => w.on() && !w.LC.flicker(performance.now() / 1000);
+    w.done = id => !!sv().lensDone[id];
+    w.need = id => cfg.spots[id].need || [];
+    w.ready = id => w.need(id).every(k => cfg.flag(k));
+    w.left = () => Object.keys(cfg.spots).filter(id => !w.done(id)).length;
+    w.add = function () {
+      const sc = cfg.scene();
+      Object.keys(cfg.spots).forEach(id => {
+        const o = cfg.spots[id];
+        sc.addActor('lens-' + id, { x: o.x, y: o.y, thing: true, label: o.label,
+          draw: (ctx, fx, fy, ts, t) => { if (w.seen()) L.drawSpot(ctx, fx, fy, ts, t, o.mark); } });
+      });
+    };
+    w.apply = function () {
+      const sc = cfg.scene(); if (!sc) return;
+      Object.keys(cfg.spots).forEach(id => {
+        const a = sc.actors['lens-' + id]; if (!a) return;
+        a.hidden = !w.on() || w.done(id) || !w.ready(id); a.marker = !a.hidden; a.name = a.hidden ? null : cfg.spots[id].label;
+      });
+    };
+    w.tick = dt => w.LC.tick(dt);
+    w.toggle = () => { if (!cfg.busy()) w.LC.toggle(); };
+    w.hud = () => w.LC.chip() + w.LC.button();
+    w.bind = () => { const b = document.getElementById('w-lens'); if (b) { b.onclick = w.toggle; w.LC.repaint(); } };
+    w.talk = function (id) {
+      if (!/^lens-/.test(id)) return false;
+      const k = id.slice(5), o = cfg.spots[k]; if (!o || w.done(k) || !w.ready(k)) return true;
+      cfg.act(async () => {
+        const ok = await L.spot(Object.assign({ mode: cfg.mode }, o.spot));
+        sv().lensDone[k] = true; S.persist();
+        SD.run.gainXp(ok ? 15 : 8);
+        if (o.after) await o.after(ok);
+        if (!w.left()) U.system('LENS · ' + cfg.mode, 'Every spot this lens can show on this floor, found.', 'gold');
+      });
+      return true;
+    };
+    window.addEventListener('keydown', e => {
+      const sc = cfg.scene();
+      if (sc && sc.active && !cfg.busy() && (e.key === 'l' || e.key === 'L') && document.getElementById('panel').hidden && document.getElementById('dialog').hidden) w.toggle();
+    });
+    return w;
+  };
+
   // The first empty tap: what an SDK does with a throttling error. Freya's own line is the wrong answer's bait.
   L.teach = function () {
     return new Promise(res => {

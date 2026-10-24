@@ -169,6 +169,43 @@
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
 
+  // ---------- The Version Lens: old image (js/lens.js) ----------
+  // In the Granaries the lens shows a stream record's old image (an item as it was before its last write, kept for
+  // 24 hours if the stream was on and its view type keeps it), and items past their TTL that nobody has cleared yet.
+  const LW = SD.lens.world({ mode: 'OLD IMAGE', save: c3, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    intro: ['THE LENS · OLD IMAGE', 'In the Granaries the lens shows what a record was before its last write, where a stream kept it, and rations past their TTL that nobody has cleared yet.'],
+    spots: {
+      ledger: { x: 92, y: 9, label: 'The ration ledger', mark: '⟲', spot: { title: 'THE RATION LEDGER', concept: 'ddbstream',
+        intro: 'The Cold Stores\' ration ledger. Last night\'s redeploy rewrote a household\'s ration, and the ledger shows only the new number. The table has a stream, with the view type NEW_AND_OLD_IMAGES.',
+        q: 'What can the lens show you about last night\'s write?',
+        opts: [{ t: 'The record just before and just after it, for 24 hours', ok: true },
+          { t: 'Every version of the record since the table was made', no: 'DynamoDB doesn\'t keep an item\'s history. A stream keeps each change for 24 hours, then it\'s gone.' },
+          { t: 'Only the key of the record that changed', no: 'That\'s KEYS_ONLY. This stream\'s view type keeps both images.' },
+          { t: 'Nothing: a stream records new items, not updates', no: 'A stream records every insert, update and delete.' }],
+        view: { head: 'ration-ledger · stream record', rows: [['eventName', 'MODIFY'], ['OldImage', 'household 1417 · ration 12'], ['NewImage', 'household 1417 · ration 4'], ['Kept until', '24 hours after the write']] },
+        why: 'A DynamoDB stream records each insert, update and delete, in order, and keeps every record for 24 hours. With NEW_AND_OLD_IMAGES each record carries the item as it was before the write and after it, so the old number is right there, as long as the stream was on when it changed.' } },
+      expired: { x: 93, y: 16, label: 'A ration past its use-by', mark: '⌛', spot: { title: 'A RATION PAST ITS USE-BY', concept: 'ddbstream',
+        intro: 'A sack of grain still on the shelf, though its TTL attribute says it expired two hours ago.',
+        q: 'A Scan of the table runs now. Does this ration come back?',
+        opts: [{ t: 'It can, until DynamoDB gets round to deleting it', ok: true },
+          { t: 'No, it was deleted the moment its TTL passed', no: 'TTL deletes run in the background, typically within a few days of expiry, not on the second.' },
+          { t: 'No, a Scan skips expired items by itself', no: 'Reads, queries and scans still return expired items until they\'re deleted. A filter on the TTL attribute leaves them out.' },
+          { t: 'Only if the table also has a stream turned on', no: 'A stream records TTL deletes when they happen, but it doesn\'t change what a Scan returns.' }],
+        view: { head: 'ration-ledger · item', rows: [['expiresAt (epoch seconds)', '2 hours ago'], ['Status', 'expired, not yet deleted'], ['In Scan results', 'yes']],
+          note: 'When TTL does delete it, the stream records a delete made by the DynamoDB service, not by a user.' },
+        why: 'TTL compares an item\'s expiry attribute (a Number, in epoch seconds) with the time now, and deletes expired items in the background, typically within a few days. Until then reads, queries and scans still return them, so filter on the attribute to leave them out.' } },
+      granary: { x: 83, y: 18, label: 'The old granary', mark: '?', spot: { title: 'THE OLD GRANARY', concept: 'ddbstream',
+        intro: 'The old granary\'s ledger changed last night too. Its stream was only switched on this morning, with the view type KEYS_ONLY.',
+        q: 'What does the lens show of last night\'s change?',
+        opts: [{ t: 'Nothing: the stream only records from when it\'s on', ok: true },
+          { t: 'The old image, since a stream keeps 24 hours', no: 'A stream only records changes made after it\'s enabled. Last night\'s write was never in it.' },
+          { t: 'Both images, once you switch the view type', no: 'You can\'t change an existing stream\'s view type. You\'d disable it and enable a new stream, which only records changes from then on.' },
+          { t: 'Its key, but none of the values it held', no: 'Not even the key: last night\'s write happened before the stream existed.' }],
+        view: { head: 'old-granary · stream', rows: [['Stream enabled', 'this morning'], ['View type', 'KEYS_ONLY'], ['Records of last night', 'none']],
+          note: 'From now on, each change shows only the record\'s key.' },
+        why: 'Turn a stream on before you need it, with the view type you\'ll need. It only records changes from when it\'s enabled, KEYS_ONLY records carry just the key, and the view type can\'t be changed afterwards.' } }
+    } });
+
   // ---------- Weather ----------
   // By zone (js/weather.js): embers off the camp's fire; the barrier's gold hanging in Halcyon's air until it comes
   // down; snow blowing through the Cold Stores, with a frost on everything; and ash sifting down to the bottom of the
@@ -214,7 +251,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: DOORS, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A2.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false, WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A2.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), LW.seen(), WX && weather); },
       ambience: () => (sc && sc.P && Math.abs(sc.P.x - 11) + Math.abs(sc.P.y - 22) < 6) ? 'fire' : zone && zone[1] === 'abyss' ? 'rumble' : zone && zone[1] === 'stores' ? 'storm' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -265,6 +302,7 @@
     person('aurc', 'aurelianplain', 12, 23, 'north', { name: 'Sir Aurelian' });
     // The Abyss.
     person('ash', 'ash', 86, 32, 'south', { name: 'Mother Ash' });
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -298,6 +336,7 @@
     X.ash.hidden = false;
     PAGES.forEach((p, i) => { X['page' + i].hidden = !pageShown(i); });
     others().forEach(id => { const a = X[id]; if (Math.abs(a.x - sc.P.x) + Math.abs(a.y - sc.P.y) > 6) sc.place(id, sc.P.x, sc.P.y); });
+    LW.apply();
     refresh();
   }
   function setTile(x, y, c) { const m = sc.def.map; m[y] = m[y].slice(0, x) + c + m[y].slice(x + 1); }
@@ -324,7 +363,8 @@
   }
 
   // ---------- Every frame ----------
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     AU.weather(zk() === 'stores' ? 'snow' : null);
     const k = P.x + ',' + P.y;
@@ -783,6 +823,7 @@
       bell: () => { AU.sfx('x-bell'); return say([['narr', 'The bell tower. Every night it rings the crowning, because the crowning is in the template.']]); },
       well: () => say([['narr', 'A well that echoes every change made above it, before and after, for exactly one day. Then it goes quiet.']]) };
     if (/^page\d$/.test(id)) return act(() => pickPage(+id.slice(4)));
+    if (LW.talk(id)) return;
     if (ORDER.includes(id)) return act(() => say([[id, rnd({ mira: ['Eat something. I mean it.', 'I\'m not speaking to either of them. You can tell them that.'], kai: ['Don\'t. Not yet.', 'I\'m fine. I\'m cooking. That\'s fine.'], seoyeon: ['...', 'Every guard here holds their sword the same way. Drilled.'], dutch: ['Every guard keeps their keys on the left. Why does that bother me?', 'Someone did this on purpose. I want to know how.'] }[id])]]));
     if (fns[id]) return act(fns[id]);
     const VOICE = { c1: 'citizen', c2: 'citizen', g1: 'guard', g2: 'guard' };
@@ -824,12 +865,14 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       <span class="hud-chip" title="Pages of Hana's speech">📜 ${w().pages.length}/5</span>
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const prevHud = SD.ch1.hud;
   SD.ch1.hud = () => (W3.active ? hud() : prevHud());
@@ -937,5 +980,5 @@
   };
 
   // For tools/c3_check.js.
-  W3.debug = { busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, dev, place: (x, y) => sc && warp(x, y), scene: () => sc, step, act, w, c3, talk, door };
+  W3.debug = { busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, dev, place: (x, y) => sc && warp(x, y), scene: () => sc, step, act, w, c3, talk, door, LW };
 })();
