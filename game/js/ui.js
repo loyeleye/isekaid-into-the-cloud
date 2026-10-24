@@ -62,7 +62,8 @@
     let n = 0;
     typing = setInterval(() => {
       i += slow ? 1 : 2; el.textContent = full.slice(0, i);
-      if (who !== 'narr' && n++ % 3 === 0 && SD.audio) SD.audio.sfx('text', VOICE[who] || 600);
+      if (SD.audio && SD.audio.chirps && SD.audio.chirps(who)) SD.audio.chirp(who, full, i - (slow ? 1 : 2), i, mood);
+      else if (who !== 'narr' && n++ % 3 === 0 && SD.audio) SD.audio.sfx('text', VOICE[who] || 600);
       if (i >= full.length) { clearInterval(typing); typing = null; }
     }, slow ? 70 : 18);
   }
