@@ -61,6 +61,7 @@
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-say">Say it first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
       <button class="opt" id="m-typed">Typed answers: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
+      ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
       <button class="opt" id="m-name">Change name</button>
       <button class="opt" id="m-credits">Credits</button>
       <button class="opt" id="m-reset">Erase save and start over</button>
@@ -82,6 +83,9 @@
       try { if (SD.debug) localStorage.removeItem('isekai-cloud-debug'); else localStorage.setItem('isekai-cloud-debug', '1'); } catch (e) { /* ignore */ }
       location.reload();
     };
+    // Version Lens (js/lens.js): an accessibility option, for anyone the looks and their timer get in the way of.
+    const ml = b.querySelector('#m-lens');
+    if (ml) ml.onclick = () => { if (!S.save) return; S.save.lensFree = !SD.lens.unlimited(); S.persist(); menu(); M.hud(); };
     b.querySelector('#m-name').onclick = () => askName(() => { U.closePanel(); M.hud(); });
     b.querySelector('#m-reset').onclick = () => {
       const c = U.panel('<p>Erase everything: levels, shards and cheat sheet pages? This cannot be undone.</p><div class="row"><button class="danger" id="r-y">Erase</button><button class="ghost" id="r-n">Cancel</button></div>', { title: 'ARE YOU SURE?' });
