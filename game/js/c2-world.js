@@ -281,7 +281,10 @@
     mark('poster1', false, null); mark('poster2', false, null);
     mark('runbook', lens && !flag('runbook'));
     A2.coo.marker = flag('coo') && w().letters.some(i => !w().given.includes(i));
-    A2.wren.marker = !flag('wren') && flag('seymour');
+    // Freya wrote over Elder Wren, so until he's restored he only answers through the lens, where his older versions show.
+    A2.wren.talk = flag('wren') || lens;
+    A2.wren.name = A2.wren.talk ? 'Elder Wren' : null;
+    A2.wren.marker = !flag('wren') && flag('seymour') && lens;
     A2.marrow.marker = flag('town') && !flag('bells');
     A2.tilly.marker = flag('town') && !flag('tilly');
     hud();
@@ -584,6 +587,24 @@
   cut.def('seymours-notes', 'Seymour\'s notes', (n = 1) => [['cg', 'seymours-notes-' + n, 'in'],
     ['narr', 'You knock. After a moment a note slides out under the hatch, in neat capitals:'], ['narr', '"' + NOTES[n - 1] + '"']],
     { note: 'He answers every knock in writing now.', alts: [['First note', 1], ['Second note', 2], ['Every note after', 3]] });
+  // The first knock, on the bunker's pixel stills (js/cut-ch2a.js, the-bunker): the talk at the hatch, then after
+  // its puzzle, the rest. The climb-only slice (js/vec-ch2.js) has its own version; the viewer lists all three.
+  const climbBunker = SD.reel.get('2/bunker');
+  cut.def('bunker', 'The bunker', v => v === 'climb' ? SD.reel.steps(climbBunker) : L(v === 'after' ? [
+      ['cut', 'the-bunker'],
+      ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
+      ['dutch', 'So we take root back.'],
+      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.']
+    ] : [
+      ['cut', 'the-bunker'], ['cg', 'cut-the-bunker-1'],
+      ['narr', 'A steel dome, a sign that says NO VISITORS, and no handle on the outside. You knock.'],
+      ['seymour', 'Go away. I\'m offline. That\'s the whole point.'],
+      ['lead', { mira: 'Seymour. It\'s Mira. Freya has Kyu.', kai: 'Seymour, it\'s Kai. She wiped Kyu.', seoyeon: 'Sir Seymour. Kyu is gone.', dutch: 'It\'s Dutch. Kyu\'s gone. Wiped.', other: 'Kyu is gone.' }],
+      ['seymour', 'I know. I have one tape, made long before the end. Kyu\'s on it. I\'ve tested it: it restores.'],
+      ['mira', 'Then restore her.'],
+      ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning. And a copy anyone can delete is not a copy. You don\'t believe me. Fine. Tell me which of these would stop her.']
+    ]).map(l => [l.s, l.t, l.e].filter(x => x !== undefined)),
+    { note: 'Sir Seymour Backups won\'t open the door.', leads: true, alts: [['At the hatch', undefined], ['After the hatch', 'after'], ['The climb', 'climb']] });
   async function bunker() {
     if (flag('seymour')) {
       // From now on he answers every knock in writing, under the hatch. The last note is the one he keeps sending.
@@ -594,22 +615,13 @@
       return n === NOTES.length ? SD.tapes.shop() : undefined;
     }
     AU.music('kyu');
-    await say([
-      ['narr', 'A steel dome, a sign that says NO VISITORS, and no handle on the outside. You knock.'],
-      ['seymour', 'Go away. I\'m offline. That\'s the whole point.'],
-      ['lead', { mira: 'Seymour. It\'s Mira. Freya has Kyu.', kai: 'Seymour, it\'s Kai. She wiped Kyu.', seoyeon: 'Sir Seymour. Kyu is gone.', dutch: 'It\'s Dutch. Kyu\'s gone. Wiped.', other: 'Kyu is gone.' }],
-      ['seymour', 'I know. I have one tape, made long before the end. Kyu\'s on it. I\'ve tested it: it restores.'],
-      ['mira', 'Then restore her.'],
-      ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning. And a copy anyone can delete is not a copy. You don\'t believe me. Fine. Tell me which of these would stop her.']
-    ]);
+    await cut.play('bunker');
     const ok = await G.hatch();
     setFlag('seymour');
     R.gainXp(ok ? 25 : 12);
     applyState();
+    await cut.play('bunker', 'after');
     await say([
-      ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
-      ['dutch', 'So we take root back.'],
-      ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.'],
       ['seymour', 'Wait. Take these. Three tapes, for the stair. If it all goes wrong up there, one gets you back on your feet, right where you fell. It\'s used up when it plays. I won\'t hand out more. You can earn them.'],
       ['narr', 'The slot snaps shut. Behind it, faintly, someone is humming.']
     ]);
@@ -620,7 +632,8 @@
   }
   async function wren() {
     if (flag('wren')) return say([['faithful', '...'], ['narr', 'Elder Wren looks at you for a long time, and says nothing.']]);
-    if (!flag('seymour')) return say([['narr', 'An old man in Brookfall blue, praying to nothing. He doesn\'t blink. He doesn\'t look quite there.']]);
+    if (!lensOn()) return;
+    if (!flag('seymour')) return say([['narr', 'An old man in Brookfall blue, praying to nothing. Under the lens there are older versions of him, one under another. He doesn\'t look quite there.']]);
     await say([['narr', 'Elder Wren, whose faithful you beat at Brookfall. Freya deleted him for praying to Uptima. Then she wrote over him.']]);
     const r = await G.restore({ title: 'ELDER WREN', concept: 's3life', bucket: 'brookfall-shrine', key: 'faithful/elder-wren.json',
       rule: 'Lifecycle rule "tidy-up" (by root): NoncurrentVersionExpiration, NoncurrentDays: 1',
@@ -840,7 +853,7 @@
     if (!flag('coo')) return [lensOn() ? 'Find Pingsby\'s post office, north in the field' : 'Turn on the Version Lens (👁)', [41, 6]];
     if (!flag('bridge')) return [lensOn() ? 'Cross the chasm east of the field' : 'Turn on the lens, and cross the chasm', [62, 20]];
     if (!flag('seymour')) return ['Knock on the bunker', [71, 11]];
-    if (!flag('wren')) return ['Find Elder Wren, south in the field', [50, 32]];
+    if (!flag('wren')) return [lensOn() ? 'Find Elder Wren, south in the field' : 'Turn on the lens, and find Elder Wren', [50, 32]];
     if (!flag('fire')) return ['Make camp by the tower wall', [71, 25]];
     if (!flag('town')) return ['Go through the tower\'s door', [80, 20]];
     if (!flag('offer')) return ['See what\'s wrong with the post box', [87, 21]];

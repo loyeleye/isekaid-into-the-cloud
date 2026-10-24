@@ -132,6 +132,34 @@
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
 
+  // ---------- The Version Lens: in flight (js/lens.js) ----------
+  // On floor 7 the lens shows letters a clerk has received but not yet deleted: still in the queue, hidden until
+  // their visibility timeout runs out. SQS itself only reports how many; the lens draws them, with their clocks.
+  const LW = SD.lens.world({ mode: 'IN FLIGHT', save: sv, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    intro: ['THE LENS · IN FLIGHT', 'On these floors the lens shows letters in flight: received by someone, not yet deleted, and hidden only until their visibility timeout runs out.'],
+    spots: {
+      bin: { x: 44, y: 20, label: 'An empty sorting bin', mark: '✉', spot: { title: 'AN EMPTY SORTING BIN', concept: 'sqs',
+        intro: 'A clerk\'s sorting bin, empty. He took three letters off the queue 20 seconds ago and he\'s still on the first. Each one takes him 45 seconds.',
+        q: 'The queue\'s visibility timeout is the default. What happens to his three letters?',
+        opts: [{ t: 'In about 10 s, any he hasn\'t deleted can go to another clerk', ok: true },
+          { t: 'They\'re his until he finishes, however long it takes', no: 'Receiving a letter doesn\'t hand it over. It hides it for the visibility timeout, 30 seconds by default, and then it can be received again.' },
+          { t: 'They move to the dead-letter queue at the timeout', no: 'A redrive policy moves a letter to the dead-letter queue only after it\'s been received maxReceiveCount times.' },
+          { t: 'They were deleted the moment he received them', no: 'SQS never deletes on receive. The clerk deletes each letter with its receipt handle once he\'s done with it.' }],
+        view: { head: 'floor-7-sorting', rows: [['In flight (ApproximateNumberOfMessagesNotVisible)', '3'], ['Letter 1 · being sorted', 'visible again in 10 s'], ['Letter 2 · not started', 'visible again in 10 s'], ['Letter 3 · not started', 'visible again in 10 s']],
+          note: 'SQS only reports how many letters are in flight. The lens draws each one, with its clock.' },
+        why: 'A received message stays in the queue, hidden for the visibility timeout (30 seconds by default, up to 12 hours). If the consumer hasn\'t deleted it by then, it can be received again. A letter is delivered when the clerk holding it deletes it; if the work runs long, he can extend the timeout with ChangeMessageVisibility.' } },
+      chute: { x: 52, y: 5, label: 'A prayer, twice', mark: '↻', spot: { title: 'A PRAYER, TWICE', concept: 'lambdasqs',
+        intro: 'A prayer drops out of the chute. A moment later the same prayer drops out again. The function that reads this queue has a 60-second timeout; the queue\'s visibility timeout is 30 seconds.',
+        q: 'What stops the prayer coming back while it\'s still being read?',
+        opts: [{ t: 'Raise the visibility timeout to 6× the function timeout', ok: true },
+          { t: 'Cut the function\'s timeout to under 30 seconds', no: 'Only if the work really fits in 30 seconds. A function cut off mid-prayer fails, and the prayer comes back anyway.' },
+          { t: 'Turn on long polling, so receives wait for messages', no: 'Long polling cuts down empty receives. It doesn\'t change how long a received message stays hidden.' },
+          { t: 'Switch to a FIFO queue, so nothing is ever repeated', no: 'A FIFO queue makes a message visible again when its visibility timeout runs out, too. Its deduplication only drops repeats sent within 5 minutes.' }],
+        view: { head: 'prayers', rows: [['Function timeout', '60 s'], ['Queue visibility timeout', '30 s'], ['Prayer 4471', 'received 2 times']],
+          note: 'The first reader was still working on it when it became visible again.' },
+        why: 'For a Lambda function reading from an SQS queue, AWS recommends a visibility timeout of at least six times the function\'s timeout, so a message stays hidden through the function\'s run and the retries Lambda may make after an error or a throttle.' } }
+    } });
+
   // ---------- Weather ----------
   // By room (js/weather.js): embers off the camp's fire; dust hanging in the Dead Letter Office's lamplight; a cold
   // drizzle over the Inquisition's square, rippling on the river and the flagstones; and Thornwick under the same
@@ -170,7 +198,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'lift', X: 'office', Y: 'stair' }, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), false, WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), LW.seen(), WX && weather); },
       ambience: () => (sc && sc.P && Math.abs(sc.P.x - 12) + Math.abs(sc.P.y - 16) < 6) ? 'fire' : zone && zone[0] === 'town' ? 'post' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
         const comp = !!sv().compass;
@@ -218,6 +246,7 @@
     // Thornwick.
     person('tilly', 'tilly', 96, 12, 'east', { name: 'Tilly', speed: 1.6 });
     person('marrow', 'marrow', 102, 19, 'south', { name: 'Goodwife Marrow' });
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -237,6 +266,7 @@
     A2.anselm.hidden = !flag('freed') || flag('grey');
     A2.tilly.hidden = !flag('tower') || (flag('choice') && sv().choice === 'keep');
     LETTERS.forEach((l, i) => { A2['letter' + i].hidden = !letterShown(i); });
+    LW.apply();
     refresh();
   }
   function refresh() {
@@ -249,7 +279,8 @@
   }
 
   // ---------- Every frame ----------
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     AU.weather(roomAt(P.x) === 'square' ? 'drizzle' : null);
     const k = P.x + ',' + P.y;
@@ -716,6 +747,7 @@
     const a = sc.actors[id];
     if (a && !a.thing) faceTo(id, 'you');
     if (/^letter\d$/.test(id)) return act(() => pickLetter(+id.slice(6)));
+    if (LW.talk(id)) return;
     const fns = { bench, fire, design, uptima, bru, board: bru, anselm, tilly, archive, ledger, desk,
       kitchen: () => (flag('uptima') ? uptima() : say([['narr', 'Kai\'s kitchen. Every pot is clean, which is suspicious.']])),
       bunker: () => say([['narr', 'Seymour\'s bunker. A sign on the hatch: TAPES. TESTED, NOT GIVEN. ONE A DAY. NO REFUNDS.']]),
@@ -777,12 +809,14 @@
       <span class="hud-chip" title="Dead letters found">✉ ${sv().letters.length}/6</span>
       ${sv().compass ? '<span class="hud-chip" title="Bru\'s Compass: it shows where people really walked">🧭</span>' : ''}
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const prevHud = SD.ch1.hud;
   SD.ch1.hud = () => (W.active ? hud() : prevHud());
@@ -1044,5 +1078,5 @@
   // For tools/c2x_check.js and tools/c2x_balance.js.
   W.debug = { busy: () => busy, flag, sv, scene: () => sc, step, act, place: (x, y) => sc && sc.place('you', x, y), room: () => sc && roomAt(sc.P.x),
     flags: f => { Object.assign(sv().f, f); S.persist(); if (sc) applyState(); }, raid: (xp, how, extra) => W.raid(xp, how || 'solo', extra), LETTERS, THINGS, LIFT, ARRIVE, roomAt,
-    want: () => { const t = rawStep()[1]; return t ? roomAt(t[0]) : null; }, shown: letterShown };
+    want: () => { const t = rawStep()[1]; return t ? roomAt(t[0]) : null; }, shown: letterShown, LW };
 })();
