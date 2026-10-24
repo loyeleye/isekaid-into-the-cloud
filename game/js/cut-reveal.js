@@ -18,7 +18,7 @@
   const WALK = l => Array.from({ length: STEPS[l] }, (_, i) => 'w' + (i + 1));
   const HAND = l => 'w' + HANDS[l];
   SD.vn.addScenes(Object.fromEntries([
-    ...[1, 2, 3, '3b', 'door', 'spot', 'steps', '4d', 4, 5].map(n => still('reveal-' + n)),
+    ...[1, 2, 3, '3b', 'door', 'spot', 'steps', '4d', 4, 5, '5b'].map(n => still('reveal-' + n)),
     // Each lead's walk in one framing (w1 on: Freya coming up, her hand on their shoulder, past them; the empty-spot wide
     // carries her on, Ladi, Oct 24), and their close-up (4).
     ...['mira', 'kai', 'seoyeon', 'dutch'].flatMap(l => [...WALK(l), 4].map(n => still('reveal-' + l + '-' + n))),
@@ -92,14 +92,16 @@
         ['cg', 'cut-reveal-' + me() + '-4', 'in'], say(w[0]),
         // "I never said I'd leave them there": the smile gone, a closed-mouth grimace (Ladi, Oct 22).
         ['cg', G2, 'still'], say(w[1]),
-        ['cg', 'cut-reveal-5', 'slow'], say(w[2]), say(w[3]),
+        // Uptima looks down at Freya ("You. It was you."), then turns to the four ("Listen to me, all of you"; Ladi, Oct 24).
+        ['cg', 'cut-reveal-5', 'slow'], say(w[2]),
+        ['cg', 'cut-reveal-5b', 'slow+'], say(w[3]),
         // One finger, and Uptima turns to static; the friendly camp face flashes through twice (Ladi, Oct 22: once was
         // too quick to catch).
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 100], [H, 160], [H2, 100], [H, 0]]], say(w[4]),
-        // "Some people can't take a compliment": Uptima gone, a flat, exasperated stare where Uptima was as she flicks the static off her fingers; then
-        // the basket (Ladi, Oct 24).
+        // "Some people can't take a compliment": Uptima gone, a flat, numb stare where she was as Freya flicks the static
+        // off her fingers; then the basket, melting in slowly over it on the same camera move (Ladi, Oct 24).
         ['cg', R, 'in'], say(w[5]),
-        ['cg', I, 'in'], say(w[6])
+        ['cg', I, 'in+', 'soft'], say(w[6])
       ];
     }
   };
