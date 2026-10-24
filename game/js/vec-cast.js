@@ -263,8 +263,9 @@
     dusk: [['#ff9a6a', 0.2], ['#1c1030', 0.4]],
     gold: [['#ffe08a', 0.3], ['#3a2a10', 0.3]]
   };
-  function render(id, face, view, light) {
-    const L = CAST[id]; if (!L) return null;
+  function render(id, face, view, light, dress) {
+    if (!CAST[id]) return null;
+    const L = dress ? Object.assign({}, CAST[id], dress) : CAST[id];
     const F = Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {});
     const uid = id.replace(/\W/g, '') + face;
     const fig = figure(L, F, uid);
@@ -283,9 +284,11 @@
   // human incidents from the same parts, so they stand in the same world as the people they fight.
   K.person = (L, face, uid) => figure(L, Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {}), uid);
   const memo = {};
-  K.fig = (id, face, view, light) => {
-    const k = [id, face, view, light].join('|');
-    return memo[k] || (memo[k] = render(id, face || 'neutral', view || 'bust', light));
+  // wear: the cosmetics to dress in (js/wear.js), [] for none; left out, your lead wears yours.
+  K.fig = (id, face, view, light, wear) => {
+    const w = SD.wear ? SD.wear.vec(id, wear) : null;
+    const k = [id, face, view, light, w ? w.key : ''].join('|');
+    return memo[k] || (memo[k] = render(id, face || 'neutral', view || 'bust', light, w && w.L));
   };
 
   // ---------- Who's who ----------
@@ -406,7 +409,8 @@
       const fs = FACESET[who];
       if (fs) {
         const m = fs.includes(mood) ? mood : 'neutral';
-        return `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+        const html = `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+        return SD.wear ? SD.wear.dressBust(who, m, html) : html;
       }
       let id = who;
       if (who === 'freya') id = mood === 'virus' ? 'freyav' : mood === 'promoter' || !morphed() ? 'freya' : 'freyag';

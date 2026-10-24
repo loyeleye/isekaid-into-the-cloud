@@ -535,6 +535,7 @@
     const l = T.leads[lead()];
     document.body.dataset.lead = lead();
     document.body.style.setProperty('--lead-img', `url(${l.img})`);
+    if (SD.wear) SD.wear.dress();
   }
   W1.enter = function () {
     if (onMountain()) return SD.ch1m.enter();

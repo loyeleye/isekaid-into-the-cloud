@@ -862,7 +862,7 @@ body.c2-floors .ps-tg button, body.c2-floors #rd-deck { min-height: 44px; }
       if (!c) return d;
       const h = c.h * scale, w = h * 0.4;
       d.className = 'champ-spr';
-      d.style.cssText = `width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;background:url("${K.fig(id, 'neutral', 'full')}") center/contain no-repeat`;
+      d.style.cssText = `width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;background:url("${K.fig(id, 'neutral', 'full', null, [])}") center/contain no-repeat`;
       return d;
     };
     // The fight's fighters (js/raid.js artOf): a one-frame sheet, the figure in its idle row (the third).

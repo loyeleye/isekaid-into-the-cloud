@@ -8,8 +8,8 @@
 //     onFull is called once if the party already had max players when this one arrived; leader() names the peer
 //     whose Remove counts. bots() lists the mode's computer-controlled seats ([{ peer, nick, champ }], the Raid's):
 //     they take seats and champions, are always Ready, and give way to any human in a clash.
-//     P.fields()            -> presence fields to merge into the mode's own presence (nick, champ, ready)
-//     P.members()           -> present players of this kind: [{ peer, nick, champ, ready, isMe }]
+//     P.fields()            -> presence fields to merge into the mode's own presence (nick, champ, ready, wear)
+//     P.members()           -> present players of this kind: [{ peer, nick, champ, ready, isMe, wear }]
 //     P.champ()             -> this player's champion id
 //     P.render(root, ctx)   -> draws the room; ctx: { mode, code, leader, max, min, settings, bind, chip, start,
 //                              startLabel, startWhy, boss, deck, vis, leave, note, addBot, botChamp }  addBot: the
@@ -154,7 +154,8 @@
     const since = Date.now();
     const unsub = [];
     const members = () => room.peers().filter(p => p.presence && p.presence.kind === kind)
-      .map(p => ({ peer: p.peer, isMe: p.isMe, nick: p.isMe ? me.nick : net.clean(p.presence.nick, 24) || 'A hero', champ: CH && CH.get(p.isMe ? champ : p.presence.champ) ? (p.isMe ? champ : p.presence.champ) : null, ready: p.isMe ? ready : !!p.presence.ready, since: p.isMe ? since : +p.presence.since || 0 }));
+      .map(p => ({ peer: p.peer, isMe: p.isMe, nick: p.isMe ? me.nick : net.clean(p.presence.nick, 24) || 'A hero', champ: CH && CH.get(p.isMe ? champ : p.presence.champ) ? (p.isMe ? champ : p.presence.champ) : null, ready: p.isMe ? ready : !!p.presence.ready, since: p.isMe ? since : +p.presence.since || 0,
+        wear: SD.wear ? (p.isMe ? SD.wear.worn() : SD.wear.clean(p.presence.wear)) : [] }));
     const before = m => m.since < since || (m.since === since && m.peer < me.peer);
     // A bot arrived after everyone (since: Infinity), so a human never gives way to one.
     const bots = () => (opts.bots ? opts.bots() : []).map(b => ({ peer: b.peer, isMe: false, bot: true, nick: net.clean(b.nick, 24) || 'Bot', champ: CH.get(b.champ) ? b.champ : null, ready: true, since: Infinity }));
@@ -206,7 +207,7 @@
 
     const P = {
       members, champ: () => champ, ready: () => ready,
-      fields: () => ({ nick: me.nick, champ, ready, since }),
+      fields: () => ({ nick: me.nick, champ, ready, since, wear: SD.wear ? SD.wear.worn() : [] }),
       setReady(v) { ready = !!v; if (opts.onChange) opts.onChange(); },
       leave() { unsub.forEach(f => f()); }
     };
@@ -223,7 +224,7 @@
       const seats = sorted.map(m => {
         const c = CH.get(m.champ);
         const chips = (ctx.chip ? ctx.chip(m) : '') + (m.peer === leaderPeer ? '' : `<span class="pt-chip ${m.ready ? 'ok' : 'wait'}">${m.ready ? 'Ready' : 'Not ready'}</span>`);
-        return `<div class="pt-mem${m.ready || m.peer === leaderPeer ? ' ready' : ''}${ed === m ? ' editing' : ''}" data-peer="${esc(m.peer)}"><div class="pt-stage" data-spr="${esc(m.champ || '')}"></div>
+        return `<div class="pt-mem${m.ready || m.peer === leaderPeer ? ' ready' : ''}${ed === m ? ' editing' : ''}" data-peer="${esc(m.peer)}"><div class="pt-stage" data-spr="${esc(m.champ || '')}" data-wear="${esc((m.wear || []).join(' '))}"></div>
           ${m.isMe ? '<span class="pt-badge you">YOU</span>' : m.bot ? '<span class="pt-badge bot" title="A computer-controlled teammate, run by the leader\'s page">BOT</span>' : ''}${m.peer === leaderPeer ? '<span class="pt-badge lead">LEADER</span>' : ''}
           ${m.isMe ? `<div class="pt-rename"><input id="pt-nick" maxlength="24" value="${esc(m.nick)}" aria-label="Your name" autocomplete="off"><button class="mi-btn sm" type="button" id="pt-save">Save</button></div>` : `<b>${esc(m.nick)}</b>`}
           <span class="as">${c ? 'as ' + esc(c.name) : 'No champion yet'}</span>${m.bot && iLead && ctx.botChamp ? `<button class="mi-btn sm pt-chg" type="button" data-edit="${esc(m.peer)}" aria-pressed="${ed === m}">${ed === m ? 'Done' : 'Change champion'}</button>` : ''}<div class="pt-chips">${chips}</div>
@@ -270,7 +271,9 @@
         const v = el.dataset.spr; if (!v) return;
         const lock = v.startsWith('lock:'), id = lock ? v.slice(5) : v, c = CH.get(id); if (!c) return;
         const big = el.classList.contains('pt-stage');
-        el.appendChild(CH.sprite(id, big ? Math.min(2, 104 / c.h) : Math.min(1.2, 62 / c.h), big || (!lock && id === champ)));
+        const spr = el.appendChild(CH.sprite(id, big ? Math.min(2, 104 / c.h) : Math.min(1.2, 62 / c.h), big || (!lock && id === champ)));
+        // A seat shows what its player wears (js/wear.js).
+        if (big && SD.wear && el.dataset.wear) SD.wear.dressSprite(spr, id, el.dataset.wear.split(' '), el);
       });
       if (focusNick) { const i = root.querySelector('#pt-nick'); if (i) { i.focus(); i.value = draft; } }
       else if (keep) { const k = root.querySelector(keep); if (k) k.focus(); }

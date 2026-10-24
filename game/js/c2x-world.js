@@ -862,7 +862,7 @@
       if (!c) return d;
       const h = c.h * scale, w = h * 0.4;
       d.className = 'champ-spr';
-      d.style.cssText = `width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;background:url("${K.fig(id, 'neutral', 'full')}") center/contain no-repeat`;
+      d.style.cssText = `width:${w.toFixed(1)}px;height:${h.toFixed(1)}px;background:url("${K.fig(id, 'neutral', 'full', null, [])}") center/contain no-repeat`;
       return d;
     };
     const keep = CH.list.map(c => ({ c, sheet: c.sheet, w: c.w, h: c.h, n: c.n }));
