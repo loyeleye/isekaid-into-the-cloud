@@ -4,19 +4,23 @@
 // they are eligible for, friends join from the list or by code, and the leader can fill the other seats with bots.
 // Nothing it does moves the story (no flags, no story cards, no chapter progress); a clear pays REWARD.win XP to each
 // player on their own page, half of the 80 a first clear pays in the story, as the game's other replays pay half.
-// Clearing with at least one other person also pays one of Seymour's Tapes (js/tapes.js), once a day per player:
-// the story's extra lives, so playing with people is worth more than playing with bots.
+// Clearing with at least one other person still there at the end, with at least TAPE_RIGHT of your own questions
+// right, also pays one of Seymour's Tapes (js/tapes.js), once a day per player: the story's extra lives, so playing
+// with people is worth more than playing with bots. Only once you've reached chapter 2, where the tapes begin; from
+// the chapter 6 reveal it's Kagemaru's tape (SD.tapes.seller).
 // A guest who hasn't reached the expedition the leader starts is sent back here (raid.js o.open, 'locked').
 //
 //   SD.mp.eligible() -> [{ ch, label, done, xps: [expedition] }], in story order: the chapters you can replay
-//   SD.mp.open(from)  -> the finder; from 'title' or 'menu' (back resumes the chapter you were in)
+//   SD.mp.open(from, code) -> the finder; from 'title' or 'menu' (back resumes the chapter you were in). With a
+//                       code, straight into that party first. A party room's Copy link (js/party.js, #join-CODE)
+//                       opens here: the title, once past PRESS START, joins it.
 //
 // The parties share one directory, 'raid' (the Worker's and net.js's raid prefix, r). A table's info is its
 // expedition's name, which is how the list tells which parties you can join.
 (function () {
   const U = SD.ui, S = SD.state, $ = U.$, esc = s => U.esc(s);
   const MP = SD.mp = {};
-  const REWARD = { win: 40 };
+  const REWARD = { win: 40 }, TAPE_RIGHT = 3;
 
   // Each chapter's save field (as js/demo-select.js) and its expeditions, in story order.
   const CHAPTERS = [
@@ -47,7 +51,7 @@
   // The replay's say: the floors' lines in your party's voices, without the story's cues (a { who: 'c4' } line plays a
   // chapter's own scene and sets its flags) and with per-lead lines picked for your lead.
   function say(list) {
-    const me = lead(), mates = ['mira', 'kai', 'seoyeon', 'dutch'].filter(x => x !== me);
+    const me = (SD.champions && SD.champions.mine && SD.champions.mine()) || lead(), mates = ['mira', 'kai', 'seoyeon', 'dutch'].filter(x => x !== me);
     const out = [];
     (list || []).forEach(l => {
       if (!l || /^c\d$/.test(l.who || '')) return;
@@ -85,9 +89,21 @@
     document.head.appendChild(st);
   }
 
+  // ---------- The party tape ----------
+  const today = () => new Date().toDateString();
+  const mpSave = () => sv().mp || (sv().mp = {});
+  // Tapes start in chapter 2, at Seymour's bunker.
+  const tapesOpen = () => !!(SD.tapes && ['c2', 'c2x', 'c3', 'c4', 'c5', 'c6', 'c7'].some(k => sv()[k]));
+  const tapeFrom = () => (SD.tapes.seller() === 'kagemaru' ? 'Kagemaru' : 'Seymour');
+  function tapeState() {
+    if (!tapesOpen()) return '';
+    return mpSave().tapeDay === today() ? `Today's party tape: claimed. 📼 ${SD.tapes.count()}.`
+      : `Today's party tape: ready. Clear one with another player, with ${TAPE_RIGHT} of your answers right, for one of ${tapeFrom()}'s Tapes. 📼 ${SD.tapes.count()}.`;
+  }
+
   // ---------- The finder ----------
   let busy = false, from = 'title';
-  MP.open = async function (where) {
+  MP.open = async function (where, code) {
     if (busy || !MP.available()) return;
     busy = true;
     from = where || 'title';
@@ -100,15 +116,17 @@
     try {
       hub = await SD.net.open();
       dir = await hub.directory('raid');
-      for (;;) {
-        const pick = await finder(dir, note);
+      for (let first = true; ; first = false) {
+        const pick = first && code ? { code } : await finder(dir, note);
         note = '';
         if (!pick) break;
         const why = await play(hub, dir, pick);
-        note = { full: 'That party is full.', kicked: 'The leader removed you from the party.', locked: 'The leader started an expedition you haven\'t reached in the story yet.' }[why] || '';
+        const lx = /^locked:/.test(why || '') ? expOf(why.slice(7)) : null;
+        note = lx ? `The leader started ${lx.name}, which you haven't reached in the story yet. Pick a party on one of yours.` : { full: 'That party is full.', kicked: 'The leader removed you from the party.' }[why] || '';
       }
     } catch (e) {
       console.warn('Multiplayer:', e);
+      U.system('MULTIPLAYER', 'Couldn\'t reach the party list. Check your connection and try again.');
     } finally {
       if (dir) dir.leave();
       busy = false;
@@ -116,9 +134,10 @@
     back();
   };
   function back() {
+    $('#run').innerHTML = '';
     if (from !== 'menu') return SD.main.title();
     // Back to the chapter you were in, as the title's Continue would.
-    const c = SD.demo && SD.demo.chapters && SD.demo.chapters.slice().reverse().find(x => SD.chapterStart && SD.chapterStart[x.n] && saved(x));
+    const c = SD.demo && SD.demo.chapters && SD.demo.chapters.slice().reverse().find(x => (x.resume || (SD.chapterStart && SD.chapterStart[x.n])) && saved(x));
     if (c) return c.resume ? c.resume() : SD.chapterStart[c.n]();
     if (SD.ch1 && lead()) return SD.ch1.resume();
     SD.main.title();
@@ -129,7 +148,7 @@
   function finder(dir, note) {
     const net = SD.net, root = $('#run');
     return new Promise(res => {
-      let off = null;
+      let off = null, sig = '';
       const draw = () => {
         const ch = MP.eligible(), mine = new Set(ids()), byName = {};
         (SD.expeditions || []).forEach(x => { byName[x.name] = x; });
@@ -138,22 +157,29 @@
         const ok = tables.filter(t => { const x = xOf(t); return x && mine.has(x.id); });
         const hidden = tables.length - ok.length;
         const count = id => ok.filter(t => xOf(t).id === id).length;
+        // The list only redraws when what it shows changes, so it doesn't jump under a thumb on every heartbeat.
+        const now = JSON.stringify([ok.map(t => [t.code, t.players, t.max, t.info]), hidden, note]);
+        if (now === sig) return;
+        sig = now;
+        const tp = tapeState();
         root.innerHTML = `<div class="mp">
+          <div class="row" style="margin:0;justify-content:space-between;align-items:center"><button class="ghost" type="button" id="mp-back">‹ ${from === 'menu' ? 'Back to the story' : 'Back to the title'}</button>
+            ${ok.length ? '<button class="primary" type="button" id="mp-quick">Quick join</button>' : ''}</div>
           <div class="mp-card"><span class="mi-tag">Multiplayer · Expedition raids</span><h2>Find a party</h2>
-            <p class="small" style="margin:0">Replay any expedition from a chapter you've beaten or the one you're on, with friends or with bots. Replays don't move the story. A clear pays each player ${REWARD.win} XP, and your first clear of the day with another person adds one of Seymour's Tapes${SD.tapes ? ` (you have ${SD.tapes.count()})` : ''}.</p>
+            <p class="small" style="margin:0">Replay any expedition from a chapter you've beaten or the one you're on, with friends or with bots. Replays don't move the story. A clear pays each player ${REWARD.win} XP.${tp ? ` ${tp}` : ''}</p>
             ${note ? `<p class="small" role="status" style="margin:0"><b>${esc(note)}</b></p>` : ''}</div>
           <div class="mp-card"><h3>Open parties you can join</h3>
             ${ok.length ? `<ul class="mp-list">${ok.map(t => { const x = xOf(t); return `<li><div class="mp-txt"><b>${esc(x.name)}</b><small>${esc(t.nick || 'A party')} · ${t.players | 0}/${t.max | 0} players · ${esc(SD.raid.level(x))}</small></div>
               <div class="mp-btns"><button class="mi-btn go sm" type="button" data-join="${esc(net.cleanCode(t.code))}">Join</button></div></li>`; }).join('')}</ul>`
               : '<p class="muted small" style="margin:0">No open parties for your expeditions right now. Host one below, and friends can join with its code.</p>'}
             ${hidden > 0 ? `<p class="muted small" style="margin:0">${hidden} more open part${hidden === 1 ? 'y is' : 'ies are'} on expeditions you haven't reached yet.</p>` : ''}
-            <div class="mp-code"><label class="small" for="mp-code"><b>A friend's code</b></label><input id="mp-code" maxlength="6" autocomplete="off" placeholder="R7KQP"><button class="mi-btn sm" type="button" id="mp-go">Join</button></div>
-            <p class="muted small mp-why" id="mp-why" role="status"></p></div>
+            <div class="mp-code"><label class="small" for="mp-code"><b>A friend's code</b></label><input id="mp-code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="Code" aria-describedby="mp-why"><button class="mi-btn sm" type="button" id="mp-go">Join</button></div>
+            <p class="muted small mp-why" id="mp-why" role="status">Party codes are 5 letters and start with R.</p></div>
           ${ch.length ? ch.map(c => `<div class="mp-card"><h3>${esc(c.label)} ${c.done ? '<span class="mp-chip ok">Cleared</span>' : c.now ? '<span class="mp-chip now">You are here</span>' : ''}</h3>
             <ul class="mp-list">${c.xps.map(x => { const n = count(x.id); return `<li><div class="mp-txt"><b>${esc(x.name)}</b><small>${esc(SD.raid.level(x))}, ${x.floors.length} floors${n ? ` · ${n} open part${n === 1 ? 'y' : 'ies'}` : ''}</small></div>
               <div class="mp-btns">${n ? `<button class="mi-btn sm" type="button" data-find="${esc(x.id)}">Join a party</button>` : ''}<button class="mi-btn go sm" type="button" data-host="${esc(x.id)}">Host</button></div></li>`; }).join('')}</ul></div>`).join('')
             : '<div class="mp-card"><p style="margin:0">No expeditions yet. Start the story: chapter 1\'s Deny Mines is the first.</p></div>'}
-          <div class="row"><button class="ghost" type="button" id="mp-back">${from === 'menu' ? 'Back to the story' : 'Back to the title'}</button></div></div>`;
+</div>`;
         root.querySelectorAll('[data-join]').forEach(b => { b.onclick = () => end({ code: b.dataset.join }); });
         root.querySelectorAll('[data-find]').forEach(b => { b.onclick = () => { const t = ok.find(y => xOf(y).id === b.dataset.find); if (t) end({ code: net.cleanCode(t.code) }); }; });
         root.querySelectorAll('[data-host]').forEach(b => { b.onclick = () => end({ code: net.code('raid'), create: true, xp: b.dataset.host }); });
@@ -166,6 +192,9 @@
         root.querySelector('#mp-go').onclick = go;
         input.onkeydown = e => { if (e.key === 'Enter') go(); };
         root.querySelector('#mp-back').onclick = () => end(null);
+        const qj = root.querySelector('#mp-quick');
+        // Quick join: the open party with the most players already in it (the soonest to start), oldest first.
+        if (qj) qj.onclick = () => { const t = ok.slice().sort((a, b) => (b.players | 0) - (a.players | 0))[0]; if (t) end({ code: net.cleanCode(t.code) }); };
       };
       const end = v => { if (off) off(); res(v); };
       off = dir.onTables(() => { if (!root.contains(document.activeElement) || document.activeElement.id !== 'mp-code') draw(); }) || null;
@@ -190,14 +219,17 @@
       if (!r || !r.won || !ids().includes(r.xp)) return;
       SD.run.gainXp(REWARD.win);
       U.system('REPLAY CLEARED', `${esc((expOf(r.xp) || {}).name || 'The expedition')}: +${REWARD.win} XP. The story stays where you left it.`, 'gold');
-      const m = sv().mp || (sv().mp = {}), today = new Date().toDateString();
-      if ((r.humans | 0) >= 2 && SD.tapes && m.tapeDay !== today) {
-        m.tapeDay = today;
-        SD.tapes.add(1, '+1 SEYMOUR\'S TAPE', 'For clearing it with a friend. One a day.');
+      const m = mpSave();
+      if ((r.humans | 0) >= 2 && (r.right | 0) >= TAPE_RIGHT && tapesOpen() && m.tapeDay !== today()) {
+        m.tapeDay = today();
+        SD.tapes.add(1, '+1 SEYMOUR\'S TAPE', tapeFrom() === 'Kagemaru'
+          ? 'Kagemaru, from behind his stall: "A party that clears together pays together. Ah ha ha. One a day."'
+          : 'Seymour, delighted: "A clear with another party in the room! Two of you, and tested. One a day."');
       }
     };
     try {
-      return await RD.play(root, hub, pick.code, { create: !!pick.create, xp: pick.xp, open: ids(), label: 'Multiplayer', champNames: true, say, onFinish,
+      const rewardNote = `A clear pays ${REWARD.win} XP each${tapesOpen() ? `, and your first of the day with another player (${TAPE_RIGHT} of your answers right) adds a tape` : ''}. The story stays where you left it.`;
+      return await RD.play(root, hub, pick.code, { create: !!pick.create, xp: pick.xp, open: ids(), label: 'Multiplayer', champNames: true, say, onFinish, rewardNote,
         status: f => { status = f; beat(); }, vis: { get: () => listed, set: v => { listed = !!v; beat(); } } });
     } finally { clearInterval(poll); if (hosting) dir.unhost(); }
   }
@@ -216,6 +248,12 @@
       b.onclick = () => MP.open('title');
       const help = box.querySelector('#t-help');
       box.insertBefore(b, help || null);
+      // An invite link: once, straight into the party.
+      const m = /^#join-([a-z0-9]{5})$/i.exec(location.hash || '');
+      if (m && SD.net.gameOf(SD.net.cleanCode(m[1])) === 'raid') {
+        try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) { location.hash = ''; }
+        setTimeout(() => MP.open('title', SD.net.cleanCode(m[1])), 0);
+      }
     };
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); if (!$('#screen-title').hidden) SD.main.title(); }, 0), { once: true });
