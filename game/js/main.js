@@ -55,7 +55,10 @@
   };
   function menu() {
     const p = AU.prefs;
+    // Multiplayer (js/raid-finder.js): not from inside a dungeon, which is already a party of its own.
+    const mp = SD.mp && SD.mp.available() && $('#screen-run').hidden;
     const b = U.panel(`<div class="opts">
+      ${mp ? '<button class="opt" id="m-mp">Multiplayer: expedition raids</button>' : ''}
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
@@ -68,6 +71,7 @@
       <button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button></div>
       <p class="muted small">Progress saves automatically${S.db ? ' to your claude.ai account, so it follows you across devices' : ' in this browser'}.</p>`, { title: 'MENU' });
     b.querySelector('#m-help').onclick = help;
+    if (mp) b.querySelector('#m-mp').onclick = () => SD.mp.open('menu');
     b.querySelector('#m-music').onclick = () => { AU.set('music', !p.music); menu(); M.hud(); };
     b.querySelector('#m-sfx').onclick = () => { AU.set('sfx', !p.sfx); menu(); M.hud(); };
     b.querySelector('#m-credits').onclick = credits;
