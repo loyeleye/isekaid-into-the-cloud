@@ -36,12 +36,14 @@
 `;
   document.head.appendChild(css);
 
-  // One map's lens. o: { mode: label on the chip, on(), set(on), costs(): whether looks are spent yet, idle(): true
+  // One map's lens. o: { mode: label on the chip, on(), set(on), costs(): whether looks are spent yet, timed():
+  // optional, whether a free look still lasts L.LOOK s (else free looks don't run out), idle(): true
   // while the player can't walk, hold(): true while standing somewhere only the lens holds up, changed(): redraw
   // the map and HUD, dry(): the first empty tap (returns a promise) }
   L.make = function (o) {
     const c = {};
     const metered = () => !L.unlimited() && o.costs();
+    const timed = () => !L.unlimited() && (o.costs() || !!(o.timed && o.timed()));
     c.open = function () {
       const s = st();
       if (metered()) {
@@ -72,13 +74,13 @@
         s.cd -= dt;
         if (s.cd <= 0) { s.n++; s.cd = s.n < L.MAX ? L.COOL : 0; S.persist(); }
       } else s.cd = 0;
-      if (o.on() && metered()) {
+      if (o.on() && timed()) {
         if (!o.idle()) s.left = Math.max(0, s.left - dt);
-        if (s.left <= 0 && !o.hold()) { c.close(); if (!s.closed) { s.closed = true; S.persist(); U.system('THE LENS CLOSES', 'That look is used up. Tap 👁 again for another, while you have looks left.'); } }
+        if (s.left <= 0 && !o.hold()) { c.close(); if (!s.closed) { s.closed = true; S.persist(); U.system('THE LENS CLOSES', metered() ? 'That look is used up. Tap 👁 again for another, while you have looks left.' : 'Each look lasts ' + L.LOOK + ' s of walking. Tap 👁 again for another; for now they\'re free.'); } }
       }
       c.paint();
     };
-    const warn = () => o.on() && metered() && st().left < L.WARN && !o.idle();
+    const warn = () => o.on() && timed() && st().left < L.WARN && !o.idle();
     // The last few seconds of a look: the lens drops out for a moment, faster as it runs down.
     c.flicker = t => warn() && Math.sin(t * (10 + 4 * (L.WARN - st().left))) > 0.75;
     c.chip = () => (o.on() ? `<span class="hud-chip w-lens-mode">LENS · ${U.esc(o.mode)}</span>` : '');
@@ -87,19 +89,20 @@
       return `<button class="${on ? 'primary' : 'ghost'}" id="w-lens" aria-pressed="${on}" aria-label="Version Lens" title="Version Lens (L)">👁<i class="lens-n"></i></button>`;
     };
     let last = '';
-    // The ring round 👁 is what's left of this look; the badge is the looks left, or the wait for the next one.
+    // The ring round 👁 is what's left of this look; the badge is the looks left, or the wait for the next one, or
+    // "free" while the map isn't charging yet, so a free look never reads as a broken count.
     c.paint = function () {
       const b = document.getElementById('w-lens'); if (!b) return;
       const s = st(), m = metered(), on = o.on();
-      const lp = !m ? (on ? 1 : 0) : on ? s.left / L.LOOK : s.n ? 0 : 1 - s.cd / L.COOL;
-      const badge = !m ? (on && L.unlimited() ? '∞' : '') : s.n ? String(s.n) : L.span(s.cd).replace(' ', '');
+      const lp = on ? (timed() ? s.left / L.LOOK : 1) : !m || s.n ? 0 : 1 - s.cd / L.COOL;
+      const badge = !m ? (L.unlimited() ? (on ? '∞' : '') : 'free') : s.n ? String(s.n) : L.span(s.cd).replace(' ', '');
       const key = [lp.toFixed(2), badge, warn(), m && !s.n && !on].join();
       if (key === last) return; last = key;
       b.style.setProperty('--lp', lp.toFixed(3));
       const n = b.querySelector('.lens-n'); if (n) { n.textContent = badge; n.hidden = !badge; }
       b.classList.toggle('warn', warn());
       b.classList.toggle('dry', m && !s.n && !on);
-      b.title = !m ? 'Version Lens (L)' : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${L.span(s.cd)}` : ''}`;
+      b.title = !m ? (L.unlimited() ? 'Version Lens (L): unlimited' : (on && timed() ? `Version Lens (L): free for now; ${Math.ceil(s.left)} s left on this look` : 'Version Lens (L): free for now, nothing spent')) : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${L.span(s.cd)}` : ''}`;
     };
     c.repaint = () => { last = ''; c.paint(); };
     return c;
@@ -170,6 +173,7 @@
   // ---------- A chapter's lens ----------
   // Everything a later chapter's map needs, in one place. cfg: { mode, save(): the chapter's save (keeps .lens and
   // .lensDone), busy(), scene(), act(fn): run fn with the controls locked, redraw(): put the map in step, flag(k),
+  // costs(): optional, false while looks are free,
   // spots: { id: { x, y, label, mark, need: [flags it waits for], spot: L.spot's o, after: async () => {} } } }
   // The map calls w.add() once its scene exists, w.apply() whenever it redraws, w.tick(dt) every frame, and hands
   // talk(id) to w.talk(id) first (true when it was a spot). w.seen() is what to draw with (it flickers), w.on() what
@@ -178,7 +182,7 @@
     const sv = () => { const s = cfg.save(); s.lensDone = s.lensDone || {}; return s; };
     const w = {};
     w.on = () => !!sv().lens;
-    w.LC = L.make({ mode: cfg.mode, on: w.on, set: v => { sv().lens = v; }, costs: () => true,
+    w.LC = L.make({ mode: cfg.mode, on: w.on, set: v => { sv().lens = v; }, costs: cfg.costs || (() => true),
       idle: () => cfg.busy() || !document.getElementById('panel').hidden || !document.getElementById('dialog').hidden,
       hold: cfg.hold || (() => false), changed: () => { if (cfg.intro && w.on() && !sv().lensIntro) { sv().lensIntro = true; U.system(cfg.intro[0], cfg.intro[1], 'gold'); } cfg.redraw(); }, dry: () => cfg.act(() => L.teach().then(() => SD.run.gainXp(10))) });
     w.seen = () => w.on() && !w.LC.flicker(performance.now() / 1000);

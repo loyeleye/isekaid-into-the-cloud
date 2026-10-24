@@ -162,7 +162,7 @@
   const lensOn = () => !!(w().lens && flag('sign'));
   // Its cost (js/lens.js): free while you learn it, metered from the moment Coo is back. The map draws through the
   // lens a frame or two less in a look's last seconds (lensSeen), but what you can walk on follows lensOn.
-  const LC = SD.lens.make({ mode: 'VERSIONS', on: lensOn, set: on => { w().lens = on; }, costs: () => flag('coo'),
+  const LC = SD.lens.make({ mode: 'VERSIONS', on: lensOn, set: on => { w().lens = on; }, costs: () => flag('coo'), timed: () => true,
     idle: () => busy || !$('#panel').hidden || !$('#dialog').hidden,
     hold: () => !!(sc && sc.P && sc.tile(sc.P.x, sc.P.y) === 'G'),
     changed: () => { if (sc) applyState(); },
