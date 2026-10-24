@@ -80,10 +80,10 @@
   // How often a bot answers right (the balance tools set it).
   RD.botAcc = 0.7;
   // Every raid enemy's load, on top of its own tuning: the knob the debrief's heal is balanced against (Ladi, Oct 23;
-  // back to ×1 on Oct 24, since people land closer to 50% right than the bots' 70%).
+  // kept at ×1.1 on Oct 24: dying is fine as long as you learn from your mistakes).
   // Ch4 clean clears at 0% / 70% / 100% right: before the rework 65/80/88; with it at ×1, 63/94/97; at ×1.1, 47/81/84.
-  // At 50% right (8 runs per expedition, gates/peak/house/letter): ×1.1 gave 63/75/75/63%, ×1 gives 75/100/88/100%.
-  RD.dmgX = 1;
+  // At 50% right (8 runs per expedition, gates/peak/house/letter): ×1.1 gives 63/75/75/63%, ×1 gave 75/100/88/100%.
+  RD.dmgX = 1.1;
   const net = SD.net;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const BOT_KEY = /^~b[1-9]$/;
