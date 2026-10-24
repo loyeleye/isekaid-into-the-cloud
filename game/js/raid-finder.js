@@ -4,10 +4,9 @@
 // they are eligible for, friends join from the list or by code, and the leader can fill the other seats with bots.
 // Nothing it does moves the story (no flags, no story cards, no chapter progress); a clear pays REWARD.win XP to each
 // player on their own page, half of the 80 a first clear pays in the story, as the game's other replays pay half.
-// Clearing with at least one other person still there at the end, with at least TAPE_RIGHT of your own questions
-// right, also pays one of Seymour's Tapes (js/tapes.js), once a day per player: the story's extra lives, so playing
-// with people is worth more than playing with bots. Only once you've reached chapter 2, where the tapes begin; from
-// the moment Kagemaru joins your camp (chapter 6's choice: a stall, or the run of the camp) it's his tape.
+// Every clear, solo, with bots or with friends, also pays Raid Marks (js/marks.js), more for your answers right and
+// double with another person still in the party at the end: the currency of the Raid shop, cosmetics only
+// (Ladi, Oct 24, in place of the earlier daily party tape).
 // A guest who hasn't reached the expedition the leader starts is sent back here (raid.js o.open, 'locked').
 //
 //   SD.mp.eligible() -> [{ ch, label, done, xps: [expedition] }], in story order: the chapters you can replay
@@ -20,7 +19,7 @@
 (function () {
   const U = SD.ui, S = SD.state, $ = U.$, esc = s => U.esc(s);
   const MP = SD.mp = {};
-  const REWARD = { win: 40 }, TAPE_RIGHT = 3;
+  const REWARD = { win: 40 };
 
   // Each chapter's save field (as js/demo-select.js) and its expeditions, in story order.
   const CHAPTERS = [
@@ -89,17 +88,22 @@
     document.head.appendChild(st);
   }
 
-  // ---------- The party tape ----------
-  const today = () => new Date().toDateString();
-  const mpSave = () => sv().mp || (sv().mp = {});
-  // Tapes start in chapter 2, at Seymour's bunker.
-  const tapesOpen = () => !!(SD.tapes && ['c2', 'c2x', 'c3', 'c4', 'c5', 'c6', 'c7'].some(k => sv()[k]));
-  // Seymour's, until Kagemaru joins the camp (Ladi, Oct 24). Locked in the vault, he never hands anything over.
-  const tapeFrom = () => (sv().c6 && ['least', 'run'].includes(sv().c6.choice) ? 'Kagemaru' : 'Seymour');
-  function tapeState() {
-    if (!tapesOpen()) return '';
-    return mpSave().tapeDay === today() ? `Today's party tape: claimed. 📼 ${SD.tapes.count()}.`
-      : `Today's party tape: ready. Clear one with another player, with ${TAPE_RIGHT} of your answers right, for one of ${tapeFrom()}'s Tapes. 📼 ${SD.tapes.count()}.`;
+  // ---------- Raid Marks ----------
+  const marksNote = () => { const P = SD.marks.PAY; return `Every clear also pays Raid Marks: ${P.clear}, plus ${P.perRight} for each of your answers right (up to ${P.rightCap}), doubled with another player in the party.`; };
+  // The Raid shop: outfit recolors, effects and frames for marks (js/marks.js); a Wear button once js/wear.js is loaded.
+  function shop() {
+    const W = SD.wear, draw = () => {
+      const worn = W && W.worn ? Object.values(W.worn()) : [];
+      const body = `<p class="small" style="margin:0 0 10px">You have <b>${SD.marks.balance()} ✦</b>. Cosmetics only: they change how your lead looks, never how they play.</p>
+        <ul class="mp-list">${SD.marks.ITEMS.map(it => { const own = SD.marks.owns(it.id), on = worn.includes(it.id);
+          return `<li><div class="mp-txt"><b>${esc(it.name)}</b><small>${esc(SD.marks.SLOTS[it.slot] || it.slot)}${it.tier ? ' · ' + it.tier[0].toUpperCase() + it.tier.slice(1) : ''}${own ? ' · yours' : ` · ${it.cost} ✦`}</small></div>
+            <div class="mp-btns">${own ? (W && W.equip ? `<button class="mi-btn sm${on ? '' : ' go'}" type="button" data-wear="${esc(it.id)}">${on ? 'Take off' : 'Wear'}</button>` : '')
+              : `<button class="mi-btn go sm" type="button" data-buy="${esc(it.id)}"${SD.marks.balance() < it.cost ? ' disabled' : ''}>Buy</button>`}</div></li>`; }).join('')}</ul>`;
+      const box = U.panel(body, { title: 'RAID SHOP' });
+      box.querySelectorAll('[data-buy]').forEach(b => { b.onclick = () => { if (SD.marks.buy(b.dataset.buy)) draw(); }; });
+      box.querySelectorAll('[data-wear]').forEach(b => { b.onclick = () => { const it = SD.marks.item(b.dataset.wear); if (worn.includes(it.id)) W.unequip(it.slot); else W.equip(it.id); draw(); }; });
+    };
+    draw();
   }
 
   // ---------- The finder ----------
@@ -159,15 +163,15 @@
         const hidden = tables.length - ok.length;
         const count = id => ok.filter(t => xOf(t).id === id).length;
         // The list only redraws when what it shows changes, so it doesn't jump under a thumb on every heartbeat.
-        const now = JSON.stringify([ok.map(t => [t.code, t.players, t.max, t.info]), hidden, note]);
+        const now = JSON.stringify([ok.map(t => [t.code, t.players, t.max, t.info]), hidden, note, SD.marks.balance()]);
         if (now === sig) return;
         sig = now;
-        const tp = tapeState();
         root.innerHTML = `<div class="mp">
           <div class="row" style="margin:0;justify-content:space-between;align-items:center"><button class="ghost" type="button" id="mp-back">‹ ${from === 'menu' ? 'Back to the story' : 'Back to the title'}</button>
             ${ok.length ? '<button class="primary" type="button" id="mp-quick">Quick join</button>' : ''}</div>
           <div class="mp-card"><span class="mi-tag">Multiplayer · Expedition raids</span><h2>Find a party</h2>
-            <p class="small" style="margin:0">Replay any expedition from a chapter you've beaten or the one you're on, with friends or with bots. Replays don't move the story. A clear pays each player ${REWARD.win} XP.${tp ? ` ${tp}` : ''}</p>
+            <p class="small" style="margin:0">Replay any expedition from a chapter you've beaten or the one you're on, with friends or with bots. Replays don't move the story. A clear pays each player ${REWARD.win} XP. ${marksNote()}</p>
+            <div class="row" style="margin:0;align-items:center;gap:10px"><span class="mp-chip" id="mp-marks" title="Raid Marks">${SD.marks.balance()} ✦</span><button class="mi-btn sm" type="button" id="mp-shop">Raid shop</button></div>
             ${note ? `<p class="small" role="status" style="margin:0"><b>${esc(note)}</b></p>` : ''}</div>
           <div class="mp-card"><h3>Open parties you can join</h3>
             ${ok.length ? `<ul class="mp-list">${ok.map(t => { const x = xOf(t); return `<li><div class="mp-txt"><b>${esc(x.name)}</b><small>${esc(t.nick || 'A party')} · ${t.players | 0}/${t.max | 0} players · ${esc(SD.raid.level(x))}</small></div>
@@ -193,6 +197,7 @@
         root.querySelector('#mp-go').onclick = go;
         input.onkeydown = e => { if (e.key === 'Enter') go(); };
         root.querySelector('#mp-back').onclick = () => end(null);
+        root.querySelector('#mp-shop').onclick = () => { shop(); };
         const qj = root.querySelector('#mp-quick');
         // Quick join: the open party with the most players already in it (the soonest to start), oldest first.
         if (qj) qj.onclick = () => { const t = ok.slice().sort((a, b) => (b.players | 0) - (a.players | 0))[0]; if (t) end({ code: net.cleanCode(t.code) }); };
@@ -219,17 +224,11 @@
     const onFinish = r => {
       if (!r || !r.won || !ids().includes(r.xp)) return;
       SD.run.gainXp(REWARD.win);
-      U.system('REPLAY CLEARED', `${esc((expOf(r.xp) || {}).name || 'The expedition')}: +${REWARD.win} XP. The story stays where you left it.`, 'gold');
-      const m = mpSave();
-      if ((r.humans | 0) >= 2 && (r.right | 0) >= TAPE_RIGHT && tapesOpen() && m.tapeDay !== today()) {
-        m.tapeDay = today();
-        SD.tapes.add(1, '+1 SEYMOUR\'S TAPE', tapeFrom() === 'Kagemaru'
-          ? 'Kagemaru, from behind his stall: "A party that clears together pays together. Ah ha ha. One a day."'
-          : 'Seymour, delighted: "A clear with another party in the room! Two of you, and tested. One a day."');
-      }
+      const n = SD.marks.pay(r);
+      U.system('REPLAY CLEARED', `${esc((expOf(r.xp) || {}).name || 'The expedition')}: +${REWARD.win} XP and +${n} ✦ Raid Marks${(r.humans | 0) >= 2 ? ' (doubled: you played with another person)' : ''}. The story stays where you left it.`, 'gold');
     };
     try {
-      const rewardNote = `A clear pays ${REWARD.win} XP each${tapesOpen() ? `, and your first of the day with another player (${TAPE_RIGHT} of your answers right) adds a tape` : ''}. The story stays where you left it.`;
+      const rewardNote = `A clear pays ${REWARD.win} XP each, and Raid Marks for the Raid shop: double with another player. The story stays where you left it.`;
       return await RD.play(root, hub, pick.code, { create: !!pick.create, xp: pick.xp, open: ids(), label: 'Multiplayer', champNames: true, say, onFinish, rewardNote,
         status: f => { status = f; beat(); }, vis: { get: () => listed, set: v => { listed = !!v; beat(); } } });
     } finally { clearInterval(poll); if (hosting) dir.unhost(); }
