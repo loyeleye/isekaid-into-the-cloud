@@ -1,12 +1,12 @@
 // Raid Marks (Ladi, 2026-10-24): the raid finder's own currency, for cosmetics only. Every replay clear in the
 // Multiplayer finder (js/raid-finder.js) pays them, solo, with bots or with friends, and more when another person
-// is still in the party at the end. They buy hats and scarves at the Raid shop; what's worn and how it's drawn is
+// is still in the party at the end. They buy outfit recolors, follow-along effects and portrait frames at the Raid shop; what's worn and how it's drawn is
 // js/wear.js. No power, no story: the story's currencies (shards, tapes) never mix with marks.
 //
 //   SD.marks.balance()                 marks you have
 //   SD.marks.pay({ right, humans })    a clear's marks: PAY.clear, plus PAY.perRight per answer right (up to
 //                                      PAY.rightCap), times PAY.withHuman when humans >= 2. Adds them, returns n.
-//   SD.marks.ITEMS                     the shop: [{ id, name, slot, cost }]
+//   SD.marks.ITEMS                     the shop: [{ id, name, slot, tier, cost }]
 //   SD.marks.owns(id), owned(), buy(id) -> true when bought
 //
 // Saved at S.save.mp.marks = { n, owned: [id] }. Where the full profile's economy is loaded (js/economy.js), a buy is
@@ -16,15 +16,22 @@
   const M = SD.marks = {};
   // A solo or bot clear with every question right pays 20; the same clear with another person pays 40.
   M.PAY = Object.freeze({ clear: 10, perRight: 2, rightCap: 5, withHuman: 2 });
-  // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. Same ids as
-  // js/economy.js COSMETICS (and js/wear.js), priced in marks.
-  M.SLOTS = Object.freeze({ hat: 'Hat', scarf: 'Scarf' });
+  // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. The ids, names
+  // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames). Each tier has
+  // one price for now; Ladi settles the final prices once every cosmetic is built.
+  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame' });
+  M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260 });
   M.ITEMS = Object.freeze([
-    ['hat-beanie', 'Beanie', 'hat', 40], ['scarf-red', 'Red scarf', 'scarf', 50], ['hat-crown', 'Paper crown', 'hat', 80],
-    ['scarf-knit', 'Knitted scarf', 'scarf', 100], ['hat-party', 'Party hat', 'hat', 120], ['hat-wizard', 'Wizard hat', 'hat', 160],
-    ['scarf-cloud', 'Cloud scarf', 'scarf', 190], ['hat-cloud', 'Cloud hat', 'hat', 220], ['hat-golden', 'Golden crown', 'hat', 260],
-    ['scarf-golden', 'Golden scarf', 'scarf', 280]
-  ].map(([id, name, slot, cost]) => Object.freeze({ id, name, slot, cost })));
+    ['frame-cafe', 'Café frame', 'frame', 'common'], ['frame-pager', '3 a.m. pager', 'frame', 'common'],
+    ['frame-temple', 'Temple of Uptime', 'frame', 'common'], ['frame-starlit', 'Starlit', 'frame', 'common'],
+    ['outfit-ember', 'Ember red', 'outfit', 'common'], ['outfit-forest', 'Forest green', 'outfit', 'common'],
+    ['outfit-midnight', 'Midnight blue', 'outfit', 'common'], ['outfit-snow', 'Snow white', 'outfit', 'common'],
+    ['outfit-gilded', 'Gilded trim', 'outfit', 'common'],
+    ['outfit-harvest', 'Harvest', 'outfit', 'rare'], ['outfit-winterfest', 'Winterfest', 'outfit', 'rare'],
+    ['outfit-lunar', 'Lunar New Year', 'outfit', 'rare'], ['outfit-spring', 'Spring bloom', 'outfit', 'rare'],
+    ['fx-stardust', 'Stardust', 'effect', 'rare'], ['fx-snow', 'Snowfall', 'effect', 'rare'], ['fx-embers', 'Embers', 'effect', 'rare'],
+    ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary']
+  ].map(([id, name, slot, tier]) => Object.freeze({ id, name, slot, tier, cost: M.TIERS[tier] })));
   const st = () => { const s = S.save; const mp = s.mp || (s.mp = {}); return mp.marks || (mp.marks = { n: 0, owned: [] }); };
   M.balance = () => st().n;
   M.item = id => M.ITEMS.find(x => x.id === id) || null;
