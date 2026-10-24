@@ -141,6 +141,55 @@
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
 
+  // ---------- The Version Lens: release (js/lens.js) ----------
+  // On the Machine Floors the lens shows what's really deployed behind a name: the digest under a tag that moved, an
+  // alias's weighted split, which alias a stage variable points at, and, in the janitor's closet, whether the record
+  // of who deployed it is still the record CloudTrail wrote.
+  const LW = SD.lens.world({ mode: 'RELEASE', save: c5, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    intro: ['THE LENS · RELEASE', 'On the Machine Floors the lens shows what\'s really running behind a name: the image under a tag, the versions behind an alias, the stage behind a URL.'],
+    spots: {
+      station: { x: 25, y: 18, label: 'The station\'s engine', mark: '⧉', need: ['offer'], spot: { title: 'THE STATION\'S ENGINE', concept: 'containers',
+        intro: 'The Crown\'s old station runs on containers, and its task definition names the image my-station:latest. The tasks started yesterday. Overnight, Freya\'s pipeline pushed a new image and moved latest onto it.',
+        q: 'Which image are the running tasks using now?',
+        opts: [{ t: 'Yesterday\'s: the tag was resolved when they started', ok: true },
+          { t: 'The new one, since latest points at it now', no: 'A running container never swaps its image. Moving a tag only changes what the next pull gets.' },
+          { t: 'Neither: ECS stops tasks whose tag has moved', no: 'Nothing stops them. They keep running yesterday\'s image until they\'re replaced.' },
+          { t: 'Whichever image was first ever tagged latest', no: 'A tag points at one image at a time. When the tasks started, it pointed at yesterday\'s.' }],
+        view: { head: 'my-station · what\'s really running', rows: [['latest (now)', 'sha256:9f2c… pushed 02:14 by Freya\'s pipeline'], ['Running tasks', 'sha256:41ab… yesterday\'s image'], ['Next task to start', 'sha256:9f2c…']],
+          note: 'Name an image by its digest (my-station@sha256:…) and it can never change under you. ECR\'s tag immutability setting stops anyone pushing over a tag.' },
+        why: 'A tag is a name that can be moved; a digest is the image\'s own fingerprint and can\'t. A task gets whatever image its tag points at when it starts, so two tasks from one task definition can run different code. Pin the digest, or turn on tag immutability, so a name always means one image.' } },
+      alias: { x: 4, y: 10, label: 'The order function\'s alias', mark: '⑂', need: ['ship'], spot: { title: 'THE ORDER FUNCTION\'S ALIAS', concept: 'shifting',
+        intro: 'The pipeline at Ship It publishes the order function and shifts traffic slowly. Right now the alias live sends 90% to version 6 and 10% to version 7.',
+        q: 'A customer calls the live alias. Which code runs?',
+        opts: [{ t: 'Version 6 nine times in ten, version 7 one in ten', ok: true },
+          { t: 'Always version 7, the newest', no: 'The alias decides, not the version number. It sends version 7 only a tenth of the calls.' },
+          { t: '$LATEST, whatever was last saved', no: '$LATEST runs only on an unqualified call or one that names it. A weighted alias can\'t point at $LATEST at all.' },
+          { t: 'Both versions, one after the other', no: 'Each call goes to one version. The weights decide which.' }],
+        view: { head: 'order-fn:live · routing', rows: [['version 6', 'weight 0.9'], ['version 7', 'weight 0.1'], ['$LATEST', 'not in the alias']],
+          note: 'CodeDeploy\'s Canary10Percent5Minutes leaves it like this for five minutes, then moves the rest, unless an alarm rolls it back.' },
+        why: 'An alias is a name for a published version, and it can split calls between two versions by weight. Callers keep calling the alias while the weights move, which is how CodeDeploy runs a canary or linear deployment for Lambda. Both versions must be published; $LATEST can\'t be in a weighted alias.' } },
+      bell: { x: 35, y: 5, label: 'The lecture bell\'s rope', mark: '⇄', need: ['iris'], spot: { title: 'THE LECTURE BELL\'S ROPE', concept: 'stages',
+        intro: 'The lecture bell\'s API has two stages, prod and beta, and one integration: the function bell:${stageVariables.alias}. Stage prod sets alias to live; stage beta sets it to dev.',
+        q: 'A request comes in on the beta stage\'s URL. Which alias answers it?',
+        opts: [{ t: 'dev, from the beta stage\'s variable', ok: true },
+          { t: 'live, since prod is the default stage', no: 'There\'s no default stage. Each stage has its own URL and its own variables.' },
+          { t: 'Neither, until the API is deployed again', no: 'Stage variables are read on each request. Changing one takes effect without a new deployment.' },
+          { t: 'Each alias half the time', no: 'That would be a canary on the stage, a separate setting. This stage has none.' }],
+        view: { head: 'bell-api · stages', rows: [['Integration', 'function bell:${stageVariables.alias}'], ['prod', 'alias = live'], ['beta', 'alias = dev']],
+          note: 'API Gateway needs permission to invoke each alias it might point at: one statement in the function\'s resource-based policy per alias.' },
+        why: 'A stage variable is a setting on a stage that the API reads on every request. One deployment can serve prod and beta and point each stage at a different alias, endpoint or Lambda version, just by giving the stages different variables.' } },
+      closet: { x: 28, y: 32, label: 'The janitor\'s ledger', mark: '✓', need: ['trail'], spot: { title: 'THE JANITOR\'S LEDGER', concept: 'trailproof',
+        intro: 'The janitor keeps every call the tower makes: CloudTrail\'s log files, in a bucket nobody reads. Dutch: "Nobody looks at the janitor. That\'s the whole plan." Last night\'s redeploy rewrote one file, to hide who ran it. The trail has log file validation turned on.',
+        q: 'How do you prove that file was changed?',
+        opts: [{ t: 'Validate it against CloudTrail\'s signed digest files', ok: true },
+          { t: 'You can\'t: whoever can write the bucket can rewrite the record', no: 'They can rewrite the file, but not the digest that CloudTrail signed when it was delivered. The hashes won\'t match.' },
+          { t: 'Turn validation on now, then check last night', no: 'Validation only covers files delivered after it was turned on. Here it was on already, which is the point.' },
+          { t: 'Ask CloudTrail to send the original file again', no: 'CloudTrail delivers each log file once. Proving it changed is what the digests are for.' }],
+        view: { head: 'trail · validate-logs', rows: [['Digest files', 'one an hour, signed by CloudTrail'], ['0200–0300 digest', 'valid, chained to the hour before'], ['0214 log file', 'INVALID: hash value doesn\'t match']],
+          note: 'Deleting the digest too doesn\'t help: each digest names the one before it, so a missing one shows.' },
+        why: 'With log file validation on, CloudTrail delivers a digest file every hour. It holds a SHA-256 hash of each log file delivered that hour, is signed with CloudTrail\'s private key, and refers to the digest before it. aws cloudtrail validate-logs checks every file and digest in a range and names any that were changed or deleted.' } }
+    } });
+
   // ---------- Weather ----------
   // By zone (js/weather.js): a drizzle over the Arcanum's city, rippling on the cobbles; sparks off the Workshops'
   // forge and a little soot in the air; dust hanging in the undercroft's green lamplight; and embers off the camp's
@@ -191,7 +240,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'up', M: 'down', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#100e1c', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); if (LW.seen()) SD.lens.wash(ctx, vw, vh, t); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -239,6 +288,7 @@
     person('ayoU', 'ayo', 38, 36, 'west', { name: 'Ayo' });
     Object.keys(GATES).forEach(id => thing(id, GATES[id][0], GATES[id][1], 'A gate: ' + GATES[id][2]));
     PAGES.forEach(([x, y], i) => sc.addActor('page' + i, { x, y, thing: true, solid: false, draw: () => {} }));
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -269,6 +319,7 @@
     ['arcanum', 'tower', 'forge', 'shelf1', 'shelf2', 'shelf3', 'shelf4', 'shelf5'].forEach(id => { PROP[id].free = free; });
     Object.values(A2).forEach(a => { if (a.o && a.o.grid && free) a.o = Object.assign({}, a.o, { grid: false }); });
     PAGES.forEach((p, i) => { A2['page' + i].hidden = !pageHere(i); });
+    LW.apply();
     refresh();
   }
   // The "!" over whoever or whatever has something for you.
@@ -283,7 +334,8 @@
   }
 
   // ---------- Every frame ----------
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     AU.weather(zk() === 'city' ? 'drizzle' : null);
     const k = P.x + ',' + P.y;
@@ -1074,6 +1126,7 @@
     if (sc.actors[id] && !sc.actors[id].thing) { const a = sc.actors[id], P = sc.P; a.face = Math.abs(P.x - a.x) >= Math.abs(P.y - a.y) ? (P.x > a.x ? 'east' : 'west') : (P.y > a.y ? 'south' : 'north'); }
     if (GATES[id]) return act(() => gate(id));
     if (/^page\d$/.test(id)) return act(() => page(+id.slice(4)));
+    if (LW.talk(id)) return;
     const poster = () => say([[null, 'WANTED: the drunk enforcer who threw an heir off the Astronomy Tower. By order of Lord Ashgrove. The nose is wrong.']]);
     const fns = { ship, dboard, fire, station, stepsT: steps, ashgrove, watch1: ashgrove, watch2: ashgrove, iris, stu1: iris, stu2: iris, arcanum: iris,
       ayo, cforge: ayo, kaito, machines: kaito, cron, clock: cron, pella, carrel: pella, freya: deal, ayoU: chainGate,
@@ -1135,12 +1188,14 @@
       <span class="hud-chip" title="Pages of Lina's diary">📓 ${w().pages.length}/8</span>
       <span class="hud-chip" title="Seymour's Tapes">📼 ${SD.tapes.count()}</span>
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const ch1Hud = SD.ch1.hud;
   SD.ch1.hud = () => (W.active ? hud() : ch1Hud());
@@ -1224,5 +1279,5 @@
   }
 
   // For tools/c5_check.js.
-  W.debug = { expedition: (xp, how) => expedition(xp, how), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c5, GATES, PAGES, endCard };
+  W.debug = { expedition: (xp, how) => expedition(xp, how), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c5, GATES, PAGES, endCard, LW };
 })();
