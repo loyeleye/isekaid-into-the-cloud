@@ -6,7 +6,7 @@
 //
 // Like a Zelda overworld, the map is a hub with branches, and what opens it up is something you understand: the
 // Version Lens (earned by restoring Pingsby's sign) shows what's under the delete markers, deleted paths you can
-// walk once you can see them, and the secrets off the main path. An arrow at the screen's edge points at the next
+// walk once you can see them, and the secrets off the main path. Once Coo is back, looking costs looks (js/lens.js). An arrow at the screen's edge points at the next
 // step. It plays when the page sets window.SD_CH2 (the chapter 2 demo) or the URL has ?ch2, and hands over to the
 // vector slice's Expedition I and camp (js/vec-ch2.js) at the top of Thornwick's stair.
 // The map is drawn in code on js/scene.js: 96 x 40 tiles.
@@ -158,6 +158,14 @@
 
   const trail = [];
   const lensOn = () => !!(w().lens && flag('sign'));
+  // Its cost (js/lens.js): free while you learn it, metered from the moment Coo is back. The map draws through the
+  // lens a frame or two less in a look's last seconds (lensSeen), but what you can walk on follows lensOn.
+  const LC = SD.lens.make({ mode: 'VERSIONS', on: lensOn, set: on => { w().lens = on; }, costs: () => flag('coo'),
+    idle: () => busy || !$('#panel').hidden || !$('#dialog').hidden,
+    hold: () => !!(sc && sc.P && sc.tile(sc.P.x, sc.P.y) === 'G'),
+    changed: () => { if (sc) applyState(); },
+    dry: () => act(() => SD.lens.teach().then(() => R.gainXp(10))) });
+  const lensSeen = () => lensOn() && !LC.flicker(performance.now() / 1000);
   function phase() {
     if (W2.dusk) return 'dusk';
     if (!flag('notes')) return 'night';
@@ -184,10 +192,10 @@
     };
     const def = {
       map, solid: solidNow(), doors: { D: 'gate', U: 'stair' }, ground: false, bg: '#0b0a14', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), lensOn(), WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), lensSeen(), WX && weather); },
       ambience: () => (PROPS.fire.lit && sc && sc.P && Math.abs(sc.P.x - 71) + Math.abs(sc.P.y - 24) < 6) ? 'fire' : zone && zone[1] === 'town' ? 'post' : null,
       under(ctx, ts, t, x0, x1, y0, y1) {
-        const lens = lensOn();
+        const lens = lensSeen();
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
           const c = groundCh(map, x, y), z = zoneAt(x, y)[1];
           const base = c === 'T' || c === '#' ? (z === 'town' ? 'c' : z === 'scrap' || z === 'island' ? 'x' : '.') : c === 'G' ? 'B' : c;
@@ -196,7 +204,7 @@
       },
       rowDraw(ctx, y, ts, t, x0, x1) {
         if (y < 0 || y >= MH) return;
-        const lens = lensOn();
+        const lens = lensSeen();
         for (let x = Math.max(0, x0); x < Math.min(x1, MW); x++) if (map[y][x] === 'T') A.wall(ctx, x, y, ts, t, zoneAt(x, y)[1]);
         PROPS.forEach(p => { if (p.y + p.h - 1 === y && p.x + p.w >= x0 - 1 && p.x <= x1) A.prop(ctx, p, ts, t, lens); });
         LETTERS.forEach(([x, ly], i) => { if (ly === y && letterShown(i)) A.prop(ctx, { kind: 'letter', x, y }, ts, t, lens); });
@@ -287,7 +295,8 @@
     'Thornwick\'s post: now with unlimited free waiting!'
   ];
   let bark = null, barkN = 0;
-  function tick() {
+  function tick(dt) {
+    LC.tick(dt);
     const P = sc.P; if (!P) return;
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
@@ -523,6 +532,8 @@
       ['coo', 'A whole field of undelivered post, and five of the letters are mine. A pigeon has standards. Bring me any you find, would you?', 'neutral']
     ]);
     U.system('[QUEST] LOST LETTERS', 'Five of Coo\'s letters are somewhere in the field. Some only show through the lens.', 'gold');
+    SD.lens.state().left = SD.lens.LOOK; // the look you're on when the cost starts is a whole one
+    if (!SD.lens.unlimited()) U.system('FREYA\'S FREE TIER', `From now on, looking costs a look. You have ${SD.lens.MAX}; each lasts ${SD.lens.LOOK} s of walking, and a spent one comes back on its own after ${SD.lens.COOL} s. The ring round 👁 shows what's left.`);
   }
   async function bakery() {
     if (flag('bakery')) return say([['narr', 'PINGSBY BAKERY · EST. 1987. It smells, very faintly, of buns.']]);
@@ -817,9 +828,7 @@
   }
   function toggleLens() {
     if (!flag('sign') || busy) return;
-    w().lens = !w().lens; S.persist();
-    AU.sfx(w().lens ? 'sparkle' : 'blip');
-    applyState();
+    LC.toggle();
   }
   window.addEventListener('keydown', e => { if (sc && sc.active && !busy && (e.key === 'l' || e.key === 'L') && $('#panel').hidden && $('#dialog').hidden) toggleLens(); });
 
@@ -849,13 +858,13 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       ${flag('coo') ? `<span class="hud-chip" title="Coo's lost letters">✉ ${w().letters.length}/5</span>` : ''}
       <span class="w-sp"></span>
-      ${flag('sign') ? `<button class="${lensOn() ? 'primary' : 'ghost'}" id="w-lens" aria-pressed="${lensOn()}" aria-label="Version Lens" title="Version Lens (L)">👁</button>` : ''}
+      ${flag('sign') ? LC.chip() + LC.button() : ''}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     // Toasts (js/ui.js) sit just below this HUD, however it wraps on a phone.
     requestAnimationFrame(() => { const r = el.getBoundingClientRect(); if (r.height) document.documentElement.style.setProperty('--c2-hud', Math.round(r.bottom + 8) + 'px'); });
-    const lb = $('#w-lens'); if (lb) lb.onclick = toggleLens;
+    const lb = $('#w-lens'); if (lb) { lb.onclick = toggleLens; LC.repaint(); }
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
@@ -970,5 +979,5 @@
     const px = r.left + x * ts + ts / 2 - cx, py = r.top + y * ts + ts / 2 - cy;
     return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom ? [Math.round(px), Math.round(py)] : null;
   }
-  W2.debug = { nextKey, tapAt, pos: () => sc && sc.P && [sc.P.x, sc.P.y, sc.P.moving || sc.P.path.length > 0], busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); } };
+  W2.debug = { nextKey, tapAt, pos: () => sc && sc.P && [sc.P.x, sc.P.y, sc.P.moving || sc.P.path.length > 0], busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && sc.place('you', x, y), scene: () => sc, step, act, w, lens: on => { w().lens = on; if (sc) applyState(); }, LC };
 })();
