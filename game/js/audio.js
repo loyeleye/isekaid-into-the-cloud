@@ -360,6 +360,40 @@
     // Synth thunder for when the recorded claps haven't loaded.
     thunder: t => { hiss({ t, dur: 0.08, vol: 0.35, f: 3000 }); hiss({ t: t + 0.05, dur: 2.2, vol: 0.45, type: 'lowpass', f: 500, f2: 50 }); }
   };
+  // Machines don't get recorded voices; they talk in synth bursts as their line types, one burst per word.
+  // Pip is a packet, so Pip chirps: quick two-tone sine bursts, and the end of the line says how Pip feels (a question
+  // rises, a happy line trills, a sad one droops). Kevin is a bot, so Kevin beeps: flat, low and square, and every line
+  // ends in an error buzz. `from` and `to` are how far the text has typed. Bursts queue one after another, and a word
+  // is skipped when the queue runs too far behind the typing.
+  const CHIRP = { pip: { wave: 'sine', f: 1250, spread: 350, step: 1.4, max: 4, gap: 0.034, vol: 0.05 },
+    kevin: { wave: 'square', f: 330, spread: 0, step: 1.12, max: 8, gap: 0.05, vol: 0.03 } };
+  let chirpAt = 0;
+  A.chirps = who => !!CHIRP[who];
+  A.chirp = function (who, text, from, to, mood) {
+    const v = CHIRP[who];
+    if (!ctx || !prefs.sfx || !v) return;
+    let t = Math.max(ctx.currentTime + 0.005, chirpAt);
+    for (let j = Math.max(0, from); j < to && j < text.length; j++) {
+      if (/\s/.test(text[j]) || (j > 0 && !/\s/.test(text[j - 1]))) continue;
+      if (t > ctx.currentTime + 0.2) continue;
+      const len = (text.slice(j).match(/^\S+/) || [''])[0].replace(/[^\w']/g, '').length;
+      const lo = v.f + Math.random() * v.spread, hi = lo * (v.step + Math.random() * 0.2 * (v.spread ? 1 : 0));
+      for (let k = 0; k < Math.min(v.max, 1 + Math.ceil(len / (who === 'kevin' ? 5 : 3))); k++) {
+        tone({ wave: v.wave, f: k % 2 ? hi : lo, t, dur: v.gap - 0.004, vol: v.vol, a: 0.003, r: 0.012 });
+        t += v.gap;
+      }
+      t += 0.02;
+    }
+    chirpAt = t;
+    if (to < text.length || from >= text.length) return;
+    t += 0.03;
+    if (who === 'kevin') { tone({ wave: 'sawtooth', f: 140, t, dur: 0.28, vol: 0.05, lp: 900 }); return; }
+    const end = text.trim().slice(-3);
+    if (/\?/.test(end)) tone({ wave: 'sine', f: 1300, f2: 2900, t, dur: 0.14, vol: 0.05 });
+    else if (mood === 'sad' || /\.\.\.$|…$/.test(end)) tone({ wave: 'sine', f: 1700, f2: 650, t, dur: 0.22, vol: 0.045, vib: true });
+    else if (mood === 'happy' || /!/.test(end)) [0, 1, 2, 3, 4].forEach(k => tone({ wave: 'sine', f: k % 2 ? 2600 : 2000, t: t + k * 0.03, dur: 0.028, vol: 0.045, a: 0.003, r: 0.01 }));
+    else tone({ wave: 'sine', f: 1500, f2: 1150, t, dur: 0.06, vol: 0.04 });
+  };
   // `pitch` lets each speaker have their own typewriter voice, as in classic JRPGs.
   A.sfx = function (name, pitch) {
     if (!ctx || !prefs.sfx) return;
