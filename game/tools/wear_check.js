@@ -39,6 +39,9 @@ const server = http.createServer((req, res) => {
     const r = await page.evaluate(async () => {
       const W = SD.wear, out = {}, wait = ms => new Promise(res => setTimeout(res, ms));
       const pixels = async u => { const im = new Image(); im.src = u; await im.decode(); const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
+      // The Raid shop (js/marks.js) decides what's owned; this check owns everything until it tests the shop's say.
+      const shopOwns = W.owns;
+      W.owns = id => !!W.ITEMS[id];
       out.count = Object.keys(W.ITEMS).length;
       out.slots = W.SLOTS.every(s => Object.values(W.ITEMS).some(it => it.slot === s));
       document.body.dataset.lead = 'kai';
@@ -93,6 +96,8 @@ const server = http.createServer((req, res) => {
       document.querySelector('#panel [data-wear="frame-pager"]').click();
       out.wardrobeOn = W.worn().join(',');
       SD.ui.closePanel(); Object.assign(W, was); W.unequip('frame');
+      W.owns = shopOwns;
+      out.shop = !SD.marks || (W.owns('fx-soot') === false && W.equip('fx-soot') === false);
       return out;
     });
     check(r.count >= 15 && r.slots, `${mode}: ${r.count} items across outfits, effects and frames`);
@@ -115,6 +120,7 @@ const server = http.createServer((req, res) => {
     check(r.owned, `${mode}: with a shop loaded, only bought items can be worn`);
     check(r.locked === r.count - 1 && r.priced === '99 ✦', `${mode}: the Wardrobe shows the rest locked with the shop's price (${r.locked}, ${r.priced})`);
     check(r.wardrobeOff === 0 && r.wardrobeOn === 'frame-pager', `${mode}: the Wardrobe takes off and puts on`);
+    check(r.shop, `${mode}: with the Raid shop loaded, nothing unbought can be worn`);
   }
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
