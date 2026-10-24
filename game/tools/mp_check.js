@@ -2,7 +2,8 @@
 // Multiplayer on the title, and the finder lists the Deny Mines and the Sorting Floors and nothing later. One tab hosts
 // the Deny Mines from the finder, the other finds the party on the list and joins, the leader adds two bots and
 // starts, and both tabs clear both floors (fights won through SD.test.raid.win). Each player gets the replay's XP and
-// the day's Seymour's Tape once, and no story flag or chapter save changes. Back leaves to the title. Fails on any page or console error.
+// doubled Raid Marks (another person was in the party), no tape, and no story flag or chapter save changes. The Raid
+// shop sells the beanie once, and the finder's shop button lists it as yours. Back leaves to the title. Fails on any page or console error.
 // Run from game/:  node tools/mp_check.js
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -95,7 +96,7 @@ function step(who) {
       S.save.flags.prologue = true; S.save.flags.ch1 = true;
       S.save.c1 = { lead, f: { intro: true, cart: true, brief: true, done: true }, deck: SD.starterDeck.map(id => ({ id, up: false })), pos: null };
       S.save.c2 = { f: { act1: true } };
-      return { xp: S.save.xp, level: S.save.level, tapes: SD.tapes.count(), story: JSON.stringify([S.save.flags, S.save.c1, S.save.c2, S.save.c3 || null]) };
+      return { xp: S.save.xp, level: S.save.level, tapes: SD.tapes.count(), marks: SD.marks.balance(), story: JSON.stringify([S.save.flags, S.save.c1, S.save.c2, S.save.c3 || null]) };
     }, lead);
     await page.click('#t-start');
     await page.waitForSelector('#t-mp', { timeout: 10000 });
@@ -123,21 +124,36 @@ function step(who) {
   if (!(done.host && done.guest)) errors.push('the party never finished; host: ' + last.host.join(' ') + ' | guest: ' + last.guest.join(' '));
   for (const [t, name] of [[host, 'host'], [guest, 'guest']]) {
     await t.page.waitForTimeout(500);
-    const r = await t.page.evaluate(() => { const S = SD.state, G = SD.test.raid.G(); return { ph: G.ph, xp: S.save.xp, level: S.save.level, tapes: SD.tapes.count(), story: JSON.stringify([S.save.flags, S.save.c1, S.save.c2, S.save.c3 || null]) }; });
-    console.log(name, JSON.stringify({ ph: r.ph, xp: [t.before.level, t.before.xp, '->', r.level, r.xp], tapes: [t.before.tapes, r.tapes] }));
+    const r = await t.page.evaluate(() => { const S = SD.state, G = SD.test.raid.G(); return { ph: G.ph, xp: S.save.xp, level: S.save.level, tapes: SD.tapes.count(), marks: SD.marks.balance(), story: JSON.stringify([S.save.flags, S.save.c1, S.save.c2, S.save.c3 || null]) }; });
+    console.log(name, JSON.stringify({ ph: r.ph, xp: [t.before.level, t.before.xp, '->', r.level, r.xp], tapes: [t.before.tapes, r.tapes], marks: [t.before.marks, r.marks] }));
     if (r.ph !== 'done') errors.push(name + ': the expedition ended ' + r.ph);
     const gained = r.level === t.before.level ? r.xp - t.before.xp : null;
     if (r.level === t.before.level && gained !== 40) errors.push(name + ': gained ' + gained + ' XP, not 40');
-    if (r.tapes !== t.before.tapes + 1) errors.push(name + ': tapes went ' + t.before.tapes + ' -> ' + r.tapes + ', not +1');
+    if (r.tapes !== t.before.tapes) errors.push(name + ': tapes went ' + t.before.tapes + ' -> ' + r.tapes + '; a replay pays marks, not tapes');
+    // Two people in the party: the clear's marks are doubled, so 2 x (10 + 2 per right answer, up to 5).
+    const marks = r.marks - t.before.marks;
+    if (!(marks >= 20 && marks <= 40 && marks % 4 === 0)) errors.push(name + ': got ' + marks + ' Raid Marks, not a doubled clear (20 to 40)');
+    // The Raid shop: top up to 50, buy the beanie (40), and it's owned and wearable.
+    const shop = await t.page.evaluate(() => {
+      const M = SD.marks; M.pay({ right: 5, humans: 1 }); while (M.balance() < 50) M.pay({ right: 0 });
+      const b = M.balance(), ok = M.buy('hat-beanie'), again = M.buy('hat-beanie'), poor = M.buy('scarf-golden');
+      return { ok, again, poor, spent: b - M.balance(), owns: M.owns('hat-beanie'), wearOwns: !!(SD.wear && SD.wear.owns('hat-beanie')) };
+    });
+    if (!shop.ok || shop.again || shop.spent !== 40 || !shop.owns || shop.poor) errors.push(name + ': the Raid shop went ' + JSON.stringify(shop));
     if (r.story !== t.before.story) errors.push(name + ': the story changed: ' + r.story);
     // Leave the party, then Back from the finder goes to the title.
     await t.page.click('#rd-leave');
     await t.page.waitForSelector('#mp-back', { timeout: 10000 });
+    await t.page.click('#mp-shop');
+    await t.page.waitForSelector('#panel [data-buy]', { timeout: 10000 });
+    const row = await t.page.evaluate(() => { const li = [...document.querySelectorAll('#panel .mp-list li')]; return { n: li.length, beanie: li[0] && li[0].textContent.includes('yours') }; });
+    if (row.n !== 10 || !row.beanie) errors.push(name + ': the Raid shop panel showed ' + JSON.stringify(row));
+    await t.page.evaluate(() => SD.ui.closePanel());
     await t.page.click('#mp-back');
     await t.page.waitForSelector('#t-mp', { timeout: 10000 });
   }
   await browser.close(); server.close();
   console.log('steps', steps);
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
-  console.log('OK: two players found each other in Multiplayer, replayed the Deny Mines with two bots, and got 40 XP and a tape each with the story untouched.');
+  console.log('OK: two players found each other in Multiplayer, replayed the Deny Mines with two bots, and got 40 XP and doubled Raid Marks each, bought a beanie at the Raid shop, and left the story untouched.');
 })().catch(e => { console.error(e); process.exit(1); });
