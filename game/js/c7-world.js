@@ -430,7 +430,7 @@
     ['mira', 'Like a good queue consumer. It gets the same message twice and does the same thing both times.', 'warm'],
     ['narr', 'Then she takes his bare hand and puts it on the beast arm on purpose.'],
     ['mira', 'What does it feel like now?', 'neutral'],
-    ...inner({ kai: '(I asked. First time in my life, I asked.)', mira: '(Same answer, Bram. It\'s mine. I\'m keeping it.)' }),
+    ...inner({ kai: '(I asked her. I didn\'t offer this time. I asked.)', mira: '(Same answer, Bram. It\'s mine. I\'m keeping it.)' }),
     ['kai', 'You. Just you.', 'warm']]), { music: 'c7sad', note: 'Arc 5\'s finale: Kai and Mira, and the stew.' });
   cut.def('pair-on', 'Turned On', () => vn([['bg', 'c7-camp'],
     ['narr', 'Seo-yeon finds Dutch writing in the back of the diary, in the cipher: the tower, the button, everything since, one entry a day.'],
