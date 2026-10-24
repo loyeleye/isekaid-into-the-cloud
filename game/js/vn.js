@@ -315,7 +315,8 @@
       let i = 0, n = 0;
       typing = setInterval(() => {
         i += 1; textEl.textContent = full.slice(0, i);
-        if (who !== 'narr' && !spoken && n++ % 3 === 0) sfx('text', SD.ui.voiceOf ? SD.ui.voiceOf(who) : 600);
+        if (!spoken && SD.audio.chirps && SD.audio.chirps(who)) SD.audio.chirp(who, full, i - 1, i, face);
+        else if (who !== 'narr' && !spoken && n++ % 3 === 0) sfx('text', SD.ui.voiceOf ? SD.ui.voiceOf(who) : 600);
         if (i >= full.length) finishTyping();
       }, who === 'narr' ? 32 : 26);
     });
