@@ -67,7 +67,7 @@
   A.portrait = function (who, size, mood) {
     if (PAINTED[who] && !window.SD_VECTOR) {
       const m = PAINTED[who].includes(mood) ? mood : 'neutral';
-      return `<span class="bust b-${who}${PX[who] ? ' px' : ''}" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="${IMG}portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+      return `<span class="bust b-${who}${PX[who] ? ' px' : ''}" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="${IMG}portraits/${who}-${m}.webp" alt="" draggable="false">${SD.wear ? SD.wear.bust(who, m) : ''}</span>`;
     }
     const c = SD.cast[who] || SD.cast.you;
     const id = 'p' + (uid++);
