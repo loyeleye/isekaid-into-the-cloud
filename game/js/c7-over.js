@@ -26,7 +26,7 @@
     // Kyu's note, pinned over Seymour's terminal.
     'cut-c7-kyu-3': [{ text: 'Two copies.\nTest them.\n— K.', x: 30, y: 34, w: 14, size: 3.4, color: '#2a2030', align: 'center', rot: -3 }],
     // Kyu and your lead: the lead stands in front.
-    'cut-c7-kyu-6': [{ lead: 1, face: 'sad', x: 28, y: 22, h: 78 }],
+    'cut-c7-kyu-6': [{ lead: 1, x: 28, y: 22, h: 78 }],
     // Freya's survey card, filed among the prayers.
     'cut-c7-epifire-3': [{ text: 'How likely are you to recommend the Free Tier to a friend? 0 to 10', x: 41, y: 43, w: 18, size: 2.2, color: '#4a2a3a', align: 'center', rot: -16 }],
     // The blessings still on her, as motifs in her halo: one per reckoning not done.
@@ -38,10 +38,10 @@
     'cut-c7-vote-1': [[12, 47], [25, 50], [40, 47], [64, 47], [80, 46]].map(([x, y], i) => ({ src: img('lit'), x, y, h: 6, if: lit(i + 1) })),
     // Your lead, in the shots painted without them: under Kagemaru's price (both versions), when nobody takes root, and
     // after the sale.
-    'cut-c7-hatch-10': [{ lead: 1, face: 'cold', x: 26, y: 22, h: 78 }],
-    'cut-c7-hatch-vault-10': [{ lead: 1, face: 'cold', x: 26, y: 22, h: 78 }],
-    'cut-c7-top-6': [{ lead: 1, face: 'cold', x: 26, y: 22, h: 78 }],
-    'cut-c7-sale-3': [{ lead: 1, face: 'cold', x: 26, y: 22, h: 78 }]
+    'cut-c7-hatch-10': [{ lead: 1, x: 26, y: 22, h: 78 }],
+    'cut-c7-hatch-vault-10': [{ lead: 1, x: 26, y: 22, h: 78 }],
+    'cut-c7-top-6': [{ lead: 1, x: 26, y: 22, h: 78 }],
+    'cut-c7-sale-3': [{ lead: 1, x: 26, y: 22, h: 78 }]
   });
   // The same blessings on every other still of her on the throne, round her halo in each.
   Object.assign(V.over, { 'cut-c7-top-3': halo(45, 26, 4.5, 3.2), 'cut-c7-top-4': halo(57, 3, 7, 6), 'cut-c7-attach-2': halo(37, 25.5, 4.5, 3) });
