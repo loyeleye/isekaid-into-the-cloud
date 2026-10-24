@@ -156,6 +156,45 @@
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
 
+  // ---------- The Version Lens: envelope (js/lens.js) ----------
+  // Lexi teaches it once she's out of the Sealed Archive: the lens reads the envelope, never the letter. A bearer
+  // token's decoded claims, the encrypted data key kept beside sealed data, and a secret's staging labels. KMS
+  // rotation stays the Namgung fight's own surprise, so no spot here shows it.
+  const LW = SD.lens.world({ mode: 'ENVELOPE', save: c4, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    intro: ['THE LENS · ENVELOPE', 'On the Sealed Floors the lens reads the envelope, never the letter: what a token claims, which key sealed a thing, and which version of a secret is which. Lexi will show you where to look.'],
+    spots: {
+      token: { x: 3, y: 23, label: 'A token at the library door', mark: '◈', need: ['lexi'], spot: { title: 'A TOKEN AT THE LIBRARY DOOR', concept: 'cognito',
+        intro: 'A messenger holds out a bearer token at Lexi\'s door. The library\'s API checks callers with a Cognito user pool authorizer. Lexi: "Don\'t read the messenger. Read the token."',
+        q: 'Predict first: does this token get the messenger in?',
+        opts: [{ t: 'No: it has expired, so the authorizer turns it away', ok: true },
+          { t: 'Yes: its signature is still good', no: 'The authorizer checks the expiry as well as the signature. A well-signed token past its exp is still refused.' },
+          { t: 'Yes: its groups claim says readers', no: 'Groups only matter if the API checks them, and an expired token never gets that far.' },
+          { t: 'No: API Gateway never accepts an ID token', no: 'A Cognito authorizer accepts an ID token. It wants an access token only when the method is set up with OAuth scopes.' }],
+        view: { head: 'bearer token · decoded claims', rows: [['iss', 'the Alliance\'s user pool'], ['aud', 'Lexi\'s app client'], ['token_use', 'id'], ['cognito:groups', 'readers'], ['exp', '10 minutes ago']],
+          note: 'Decoding isn\'t verifying. Anyone can read a token\'s claims; only its signature, checked against the pool\'s public keys, makes them true.' },
+        why: 'A JWT carries its claims in plain sight: who issued it, which app it\'s for, when it expires, and the user\'s groups. API Gateway\'s Cognito authorizer checks the signature and the expiry before your code runs, and answers 401 when either fails. The app gets fresh ID and access tokens with its refresh token; by default they last an hour.' } },
+      datakey: { x: 61, y: 6, label: 'A sealed scroll', mark: '✉', need: ['lexi'], spot: { title: 'A SEALED SCROLL', concept: 'kmsenv',
+        intro: 'A scroll from the Sealed Archive, sealed. Tied to it is a small locked slip. Lexi: "The scroll\'s too big for the vault to seal. So the vault sealed the slip."',
+        q: 'To read the scroll, what do you send to KMS?',
+        opts: [{ t: 'The slip: the encrypted data key, to Decrypt', ok: true },
+          { t: 'The whole scroll, to Decrypt', no: 'KMS never sees the scroll. It encrypts at most 4 KB directly, which is why bigger data goes in an envelope.' },
+          { t: 'Nothing: ask KMS for the KMS key and unseal it here', no: 'A KMS key never leaves KMS unencrypted. You send it the data key to unseal, and it sends back the plaintext data key.' },
+          { t: 'A GenerateDataKey call, for the key that sealed it', no: 'Each GenerateDataKey call makes a new data key. The one that sealed this scroll exists only on the slip.' }],
+        view: { head: 'archive scroll · envelope', rows: [['Scroll', 'encrypted locally with a data key'], ['Slip', 'the data key, encrypted under the KMS key'], ['Sealed under', 'alias/sealed-archive'], ['Plaintext data key', 'not stored anywhere']],
+          note: 'For a symmetric KMS key, the encrypted data key says which key sealed it, so Decrypt doesn\'t need to be told.' },
+        why: 'Envelope encryption: GenerateDataKey returns a data key twice, in plaintext and encrypted under the KMS key. You seal the data with the plaintext copy, throw that copy away, and keep the encrypted copy beside the data. To read it, send the encrypted data key to Decrypt and unseal the data with what comes back.' } },
+      treasury: { x: 39, y: 32, label: 'The Cult\'s treasury book', mark: '⟳', need: ['camp'], spot: { title: 'THE CULT\'S TREASURY BOOK', concept: 'secrets',
+        intro: 'The Cult\'s treasury app keeps its password in Secrets Manager now, not on the door. Rotation has just started, and the app has stopped working. Its code asks for the version labelled AWSPENDING.',
+        q: 'Which version should the app be reading?',
+        opts: [{ t: 'AWSCURRENT, which it gets by asking for no stage at all', ok: true },
+          { t: 'AWSPENDING, since it\'s the newest password', no: 'AWSPENDING is the new password before rotation has set it and tested it. The treasury may not accept it yet.' },
+          { t: 'AWSPREVIOUS, to be safe', no: 'AWSPREVIOUS is the version before the current one, kept so you can roll back. It isn\'t the one to run on.' },
+          { t: 'It doesn\'t matter: a secret has one value', no: 'A secret keeps several versions at once, and the staging labels say which is which.' }],
+        view: { head: 'cult/treasury · versions', rows: [['version 4 · AWSPENDING', 'made by createSecret, not yet set or tested'], ['version 3 · AWSCURRENT', 'the password the treasury accepts'], ['version 2 · AWSPREVIOUS', 'the one before']],
+          note: 'When finishSecret runs, AWSCURRENT moves to version 4 and AWSPREVIOUS to version 3.' },
+        why: 'A rotation function runs four steps: createSecret makes the new version as AWSPENDING, setSecret sets it on the database, testSecret tries it, and finishSecret moves AWSCURRENT onto it. GetSecretValue with no stage or version returns AWSCURRENT, so an app that asks for nothing in particular never reads a half-made password.' } }
+    } });
+
   // ---------- Weather ----------
   // By zone (js/weather.js): snow through the Gate Passes and the Hidden Valley, small flakes far off and big ones
   // close; over the Ruins of Burning Peak, a warm smoky air, ash sifting down and sparks rising through it; and
@@ -200,7 +239,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'down', M: 'up', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#141226', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); if (LW.seen()) SD.lens.wash(ctx, vw, vh, t); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         for (let y = Math.max(0, y0); y <= Math.min(y1, MH - 1); y++) for (let x = Math.max(0, x0); x <= Math.min(x1, MW - 1); x++) {
@@ -252,6 +291,7 @@
     person('guard', 'steward', 36, 49, 'west', Object.assign({ name: 'Namgung\'s guards' }, SEAL));
     Object.keys(GATES).forEach(id => thing(id, GATES[id][0], GATES[id][1], 'A gate: ' + GATES[id][2]));
     PAGES.forEach(([x, y], i) => sc.addActor('page' + i, { x, y, thing: true, solid: false, draw: () => {} }));
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -278,6 +318,7 @@
     A2.ryuC.hidden = !flag('choice');
     A2.guard.hidden = flag('edge');
     PAGES.forEach((p, i) => { A2['page' + i].hidden = !pageHere(i); });
+    LW.apply();
     refresh();
   }
   // The "!" over whoever or whatever has something for you.
@@ -292,7 +333,8 @@
   }
 
   // ---------- Every frame ----------
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     AU.weather(zk() === 'pass' || zk() === 'valley' ? 'snow' : null);
     const k = P.x + ',' + P.y;
@@ -933,6 +975,7 @@
     if (sc.actors[id] && !sc.actors[id].thing) { const a = sc.actors[id], P = sc.P; a.face = Math.abs(P.x - a.x) >= Math.abs(P.y - a.y) ? (P.x > a.x ? 'east' : 'west') : (P.y > a.y ? 'south' : 'north'); }
     if (GATES[id]) return act(() => gate(id));
     if (/^page\d$/.test(id)) return act(() => page(+id.slice(4)));
+    if (LW.talk(id)) return;
     const fns = { sealhouse, tea, ok: tea, hall, namgung: hall, notice, tw: notice, vault, library, lexi: library, ship, dboard, fire, freya, study, knife: study, banner: choice,
       baek: () => master('baek'), seol: () => master('seol'),
       ryu: hall, ryuC: () => say([['ryu', { banner: 'I don\'t agree with you. I came anyway.', bury: 'Thank you. For him.', school: 'I\'ll teach the third form. Jin always did it wrong.' }[c4().choice] || 'Seo-yeon.', 'warm']]),
@@ -985,12 +1028,14 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       <span class="hud-chip" title="Pages of Jin's forms">📜 ${w().pages.length}/8</span>
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const ch1Hud = SD.ch1.hud;
   SD.ch1.hud = () => (W.active ? hud() : ch1Hud());
@@ -1074,5 +1119,5 @@
   }
 
   // For tools/c4_check.js.
-  W.debug = { expedition: xp => expedition(xp), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c4, GATES, PAGES, endCard };
+  W.debug = { expedition: xp => expedition(xp), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c4, GATES, PAGES, endCard, LW };
 })();
