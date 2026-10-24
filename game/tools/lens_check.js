@@ -2,8 +2,8 @@
 // Lens check: the Version Lens's cost (js/lens.js) on a stubbed page, with the clock driven by hand. Checks that a
 // look costs one of L.MAX, that spent looks come back one at a time after L.COOL seconds, that a look's L.LOOK
 // seconds only run while the player can walk, that it never closes on ground only the lens holds up, that an empty
-// tap teaches the 503 once and then only says how long, that it's free until the map says it costs, and that the
-// menu's unlimited setting turns the cost off.
+// tap teaches the 503 once and then only says how long, that it's free until the map says it costs (with or without
+// the timer), and that the menu's unlimited setting turns the cost off.
 //   node tools/lens_check.js          exit 1 on any failure
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
@@ -21,8 +21,8 @@ const L = ctx.SD.lens;
 
 let fails = 0;
 const ok = (cond, what) => { if (!cond) { fails++; console.log('FAIL ' + what); } };
-const world = { on: false, idle: false, hold: false, costs: true, dry: 0 };
-const c = L.make({ mode: 'VERSIONS', on: () => world.on, set: v => { world.on = v; }, costs: () => world.costs,
+const world = { on: false, idle: false, hold: false, costs: true, timed: false, dry: 0 };
+const c = L.make({ mode: 'VERSIONS', on: () => world.on, set: v => { world.on = v; }, costs: () => world.costs, timed: () => world.timed,
   idle: () => world.idle, hold: () => world.hold, changed() {}, dry: () => { world.dry++; } });
 const run = (secs, step = 0.1) => { for (let t = 0; t < secs - 1e-9; t += step) c.tick(step); };
 const s = L.state();
@@ -32,7 +32,13 @@ world.costs = false;
 ok(c.open() && world.on && s.n === L.MAX, 'a free look spends nothing');
 run(L.LOOK + 5);
 ok(world.on, 'a free look never times out');
-c.close(); world.costs = true;
+c.close();
+// Free but timed (chapter 2's first act): nothing spent, but a look still lasts L.LOOK seconds.
+world.timed = true;
+ok(c.open() && s.n === L.MAX, 'a free, timed look spends nothing');
+run(L.LOOK + 1);
+ok(!world.on && s.n === L.MAX, 'a free, timed look closes after its seconds and still spends nothing');
+world.timed = false; world.costs = true;
 
 // A look costs one, and lasts L.LOOK seconds of walking.
 ok(c.open() && s.n === L.MAX - 1, 'opening spends one look');

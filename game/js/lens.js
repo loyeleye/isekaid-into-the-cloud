@@ -34,12 +34,14 @@
 `;
   document.head.appendChild(css);
 
-  // One map's lens. o: { mode: label on the chip, on(), set(on), costs(): whether looks are spent yet, idle(): true
+  // One map's lens. o: { mode: label on the chip, on(), set(on), costs(): whether looks are spent yet, timed():
+  // optional, whether a free look still lasts L.LOOK s (else free looks don't run out), idle(): true
   // while the player can't walk, hold(): true while standing somewhere only the lens holds up, changed(): redraw
   // the map and HUD, dry(): the first empty tap (returns a promise) }
   L.make = function (o) {
     const c = {};
     const metered = () => !L.unlimited() && o.costs();
+    const timed = () => !L.unlimited() && (o.costs() || !!(o.timed && o.timed()));
     c.open = function () {
       const s = st();
       if (metered()) {
@@ -70,13 +72,13 @@
         s.cd -= dt;
         if (s.cd <= 0) { s.n++; s.cd = s.n < L.MAX ? L.COOL : 0; S.persist(); }
       } else s.cd = 0;
-      if (o.on() && metered()) {
+      if (o.on() && timed()) {
         if (!o.idle()) s.left = Math.max(0, s.left - dt);
-        if (s.left <= 0 && !o.hold()) { c.close(); if (!s.closed) { s.closed = true; S.persist(); U.system('THE LENS CLOSES', 'That look is used up. Tap 👁 again for another, while you have looks left.'); } }
+        if (s.left <= 0 && !o.hold()) { c.close(); if (!s.closed) { s.closed = true; S.persist(); U.system('THE LENS CLOSES', metered() ? 'That look is used up. Tap 👁 again for another, while you have looks left.' : 'Each look lasts ' + L.LOOK + ' s of walking. Tap 👁 again for another; for now they\'re free.'); } }
       }
       c.paint();
     };
-    const warn = () => o.on() && metered() && st().left < L.WARN && !o.idle();
+    const warn = () => o.on() && timed() && st().left < L.WARN && !o.idle();
     // The last few seconds of a look: the lens drops out for a moment, faster as it runs down.
     c.flicker = t => warn() && Math.sin(t * (10 + 4 * (L.WARN - st().left))) > 0.75;
     c.chip = () => (o.on() ? `<span class="hud-chip w-lens-mode">LENS · ${U.esc(o.mode)}</span>` : '');
@@ -90,7 +92,7 @@
     c.paint = function () {
       const b = document.getElementById('w-lens'); if (!b) return;
       const s = st(), m = metered(), on = o.on();
-      const lp = !m ? (on ? 1 : 0) : on ? s.left / L.LOOK : s.n ? 0 : 1 - s.cd / L.COOL;
+      const lp = on ? (timed() ? s.left / L.LOOK : 1) : !m || s.n ? 0 : 1 - s.cd / L.COOL;
       const badge = !m ? (L.unlimited() ? (on ? '∞' : '') : 'free') : s.n ? String(s.n) : Math.ceil(s.cd) + 's';
       const key = [lp.toFixed(2), badge, warn(), m && !s.n && !on].join();
       if (key === last) return; last = key;
@@ -98,7 +100,7 @@
       const n = b.querySelector('.lens-n'); if (n) { n.textContent = badge; n.hidden = !badge; }
       b.classList.toggle('warn', warn());
       b.classList.toggle('dry', m && !s.n && !on);
-      b.title = !m ? (L.unlimited() ? 'Version Lens (L): unlimited' : 'Version Lens (L): free for now, nothing spent') : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${Math.ceil(s.cd)} s` : ''}`;
+      b.title = !m ? (L.unlimited() ? 'Version Lens (L): unlimited' : (on && timed() ? `Version Lens (L): free for now; ${Math.ceil(s.left)} s left on this look` : 'Version Lens (L): free for now, nothing spent')) : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${Math.ceil(s.cd)} s` : ''}`;
     };
     c.repaint = () => { last = ''; c.paint(); };
     return c;
