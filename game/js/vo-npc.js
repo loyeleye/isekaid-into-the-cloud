@@ -1,6 +1,6 @@
 // The supporting cast's recorded voice lines, chapters 2 to 7: 'who|text' to assets/audio/vo/<file>.mp3, as in js/vo.js.
 // The visual-novel scenes (js/vn.js) play them as they type, and js/vo-c2.js's hook on the dialogue box plays the rest.
-// A line whose text changes goes quiet until it's recorded again. Kyu, Noor and Madam Ok come later, on their own model.
+// A line whose text changes goes quiet until it's recorded again. Kyu comes later, on her own model.
 (function () {
   SD.vo = Object.assign(SD.vo || {}, {
     // Chapter 2
@@ -180,6 +180,39 @@
     "gu|I didn't take you to hide you, kid. I took you so you'd get to choose.": 'gu-c4-02',
     "lina|Three taps, then one, then four. That's mine. You can't use it.": 'lina-c5-01',
     "lina|Good night. Obviously.": 'lina-c5-02',
-    "lina|It's pi!": 'lina-c5-03'
+    "lina|It's pi!": 'lina-c5-03',
+    // Noor and Madam Ok, on their own model
+    "noor|Is it... is it over? Can I sit down?": 'noor-c3-01',
+    "noor|I'm Noor. Noor Haddad. I worked in a bookshop. Is that... are you from home too?": 'noor-c3-02',
+    "noor|It's fine. It's an honour. That's what Saints say.": 'noor-c3-03',
+    "noor|Nobody's asked me that since I got here.": 'noor-c3-04',
+    "noor|I want to go home. Can I?": 'noor-c3-05',
+    "noor|People keep promising me things up here.": 'noor-c3-06',
+    "noor|I want to see what a camp of people who don't want anything from me looks like.": 'noor-c3-07',
+    "noor|Oh, hi. Sorry, I'm not supposed to talk before the crowning. Saints smile. That's the rule.": 'noor-c3-08',
+    "noor|You said you'd come back with root. I'm counting the days. A day a year, right?": 'noor-c3-09',
+    "noor|I worked in a bookshop. The heaviest thing I've ever lifted was a dictionary.": 'noor-c3-10',
+    "noor|Yes, chef.": 'noor-c3-11',
+    "noor|Do you think they still have the bookshop? It was on Harrow Road. It had a cat.": 'noor-c3-12',
+    "noor|Seo-yeon says she'll teach me her forms at dawn. I'm going to be terrible at it.": 'noor-c3-13',
+    "noor|It's an honour. That's what Saints say. I've got really good at saying it.": 'noor-c3-14',
+    "noor|So this is a camp of people who don't want anything from me. It's loud.": 'noor-c3-15',
+    "noor|Seo-yeon's forms are hard. I fell over twice. She said that was \"a start\".": 'noor-c3-16',
+    "noor|I came here through a template. Nobody asked me. Tomorrow, maybe, someone will.": 'noor-c7-01',
+    "ok|There she is. My heir, in a disciple's robe. You scowl like your mother, child.": 'ok-c4-01',
+    "ok|You have a whole Cult of them. When Freya's truce breaks we go down the mountain, and you lead us.": 'ok-c4-02',
+    "ok|Drink your tea. I never poison guests. It's bad for business.": 'ok-c4-03',
+    "ok|The Cult's treasury, child. Your grandfather's books. Somebody keeps leaving the keys under the mat, and I want it to stop.": 'ok-c4-04',
+    "ok|The treasury password is carved on the treasury door.": 'ok-c4-05',
+    "ok|Who looks at a door?": 'ok-c4-06',
+    "ok|Every one, first time. You count like Old Gu did, before the drink.": 'ok-c4-07',
+    "ok|Good. Slower than Gu. Better than his son.": 'ok-c4-08',
+    "ok|Take my abacus. Nothing walks out of your pocket while you carry it.": 'ok-c4-09',
+    "ok|Your grandfather took three sugars. I take four. It's a competition.": 'ok-c4-10',
+    "ok|The Alliance calls me the Left Hand. The right one's for shaking.": 'ok-c4-11',
+    "ok|Come home when you're ready, child. I'll still be here. I'm always here.": 'ok-c4-12',
+    "ok|That's my heir.": 'ok-c4-13',
+    "ok|A seal from the Sealed Floors. Open it. There is nothing under it. There never was.": 'ok-c7-01',
+    "ok|Madam Ok has seen a great many people go up towers. You four, I would like to see come down.": 'ok-c7-02'
   });
 })();
