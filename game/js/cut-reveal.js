@@ -10,8 +10,8 @@
   const still = (id, label) => ['cut-' + id, { src: IMG + id + '.webp', label: id.replace(/-/g, ' ') + (label ? ': ' + label : '') }];
   // The locked pose: A, C and E are the pixel twins of B, D and F (the same frame, converted), so they line up.
   // G to I are the virus after she settles; G2 is G with a closed-mouth grimace; H2 is the promoter in H's pose, flashed twice;
-  // R is her eye-roll after Uptima goes quiet.
-  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', R: 'an eye-roll', I: 'the basket' };
+  // R is her exasperated stare after Uptima goes quiet.
+  const PAINTED = { B: 'promoter', D: 'goddess', F: 'virus', G: 'hands folded', G2: 'hands folded, a closed-mouth grimace', H: 'one finger raised', H2: 'promoter, finger raised', R: 'exasperated', I: 'the basket' };
   // Each lead's walk frames and the one with her hand on their shoulder (Ladi, Oct 24): Kai's stops on her hand and Mira's
   // goes from her first step to the hand, as the wide carries her on; Dutch is first in line, so his hand comes second.
   const STEPS = { mira: 3, kai: 3, seoyeon: 4, dutch: 4 }, HANDS = { mira: 2, kai: 3, seoyeon: 3, dutch: 2 };
@@ -96,7 +96,7 @@
         // One finger, and Uptima turns to static; the friendly camp face flashes through twice (Ladi, Oct 22: once was
         // too quick to catch).
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 100], [H, 160], [H2, 100], [H, 0]]], say(w[4]),
-        // "Some people can't take a compliment": Uptima gone, she rolls her eyes and flicks the static off her fingers; then
+        // "Some people can't take a compliment": Uptima gone, a flat, exasperated stare where Uptima was as she flicks the static off her fingers; then
         // the basket (Ladi, Oct 24).
         ['cg', R, 'in'], say(w[5]),
         ['cg', I, 'in'], say(w[6])
