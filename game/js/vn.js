@@ -48,6 +48,7 @@
   //                                                        the width, in % of the shot; size in % of its height
   //   { src, x, y, h, float }                              a small sprite: centre x, top y and height in %
   //   { lead: 1, x, y, h }                                 your lead's own figure, standing in a shot painted without them
+  //                                                        (h is Dutch's; shorter leads keep the same feet)
   // Any of them can carry if: () => bool, so a shot shows only what the save earned (a blessing left, a lantern lit).
   V.over = {};
   function match(shots, text) {
@@ -129,16 +130,22 @@
     const [a, b] = s.tint || ['#1b1d2b', '#05060a'];
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
   }
+  const LEAD_CM = { mira: 173, kai: 178, seoyeon: 160, dutch: 191 };
   function overHTML(o) {
     if (o.text != null) return `<span class="vn-otext${o.mono ? ' mono' : ''}" style="left:${o.x}%;top:${o.y}%;width:${o.w || 30}%;--os:${o.size || 4};` +
       `${o.color ? `color:${o.color};` : ''}${o.bg ? `background:${o.bg};` : ''}${o.align ? `text-align:${o.align};` : ''}${o.rot ? `rotate:${o.rot}deg;` : ''}">${esc(o.text)}</span>`;
     let src = o.src;
     // Your lead over a painted still: their pixel full body (chapter 1's art), so pixel art never has a vector figure
     // standing in it. Dialogue sprites can be vector drawings (js/vec-cast.js), so they aren't used here.
-    if (o.lead) src = 'assets/img/lead/' + ((SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira') + '.webp';
+    // Each body is cropped head to feet, so it's sized by the lead's height (the cast sheet's, in cm): h is the tallest
+    // lead's (Dutch), the others shorter, feet on the same line.
+    if (o.lead) {
+      const who = (SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira', h = o.h * (LEAD_CM[who] || 178) / LEAD_CM.dutch;
+      return `<img class="vn-osp lead" src="assets/img/lead/${who}.webp" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y + o.h - h}%;height:${h}%">`;
+    }
     if (!src) return '';
     // A sprite that isn't drawn yet just isn't there.
-    return `<img class="vn-osp${o.float ? ' float' : ''}${o.lead ? ' lead' : ''}" src="${src}" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y}%;height:${o.h}%">`;
+    return `<img class="vn-osp${o.float ? ' float' : ''}" src="${src}" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y}%;height:${o.h}%">`;
   }
   function spriteHTML(who, face) {
     // A sprite can choose its art at the time it's shown: now(face) returns { faces } or { stand } (Freya's three forms).
