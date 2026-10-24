@@ -61,7 +61,7 @@
       const t0 = Date.now();
       // opts.tally (an expedition's questions, js/raid.js): Trust Policy, the confidence tally (SD.state.tally). Each
       // confidence button shows what it does to it, and the verdict carries it before and after. opts.heal(ok, tally),
-      // when given, says on the Continue button what this answer heals; opts.stakeNote adds to the Trust line under the buttons (tap it for how the stakes work);
+      // when given, says on the Continue button what this answer heals; opts.stakeNote ends the tap-to-open explanation under the Trust line below the buttons;
       // opts.credNote ends the "Why Trust" breakdown above Continue.
       const T = opts.tally && SD.state.tally && SD.state.TALLY ? SD.state.TALLY : null, tal0 = T ? SD.state.tally() : 0;
       const sgn = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n);
@@ -103,7 +103,7 @@
         const ready = q.type === 'mc' ? pick != null : q.type === 'num' ? true : q.type === 'order' ? order.length === q.items.length : q.type === 'explain' ? words(typed) >= 3 : multi.size > 0;
         h += `<div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
           ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}>${t}${T ? `<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small>` : ''}</button>`).join('')}</div>
-          ${T ? `<details class="muted small stake-help"><summary>🎯 Your Trust Policy is <b>${tal0}</b>.${opts.stakeNote ? ' ' + U.esc(opts.stakeNote) : ''}</summary><p>Right / wrong moves it by the numbers on each button. Say how sure you really are.</p></details>` : ''}</div>`;
+          ${T ? `<details class="muted small stake-help"><summary>🎯 Your Trust Policy is <b>${tal0}</b>.</summary><p>Right / wrong moves it by the numbers on each button. Say how sure you really are.${opts.stakeNote ? ' ' + U.esc(opts.stakeNote) : ''}</p></details>` : ''}</div>`;
         const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
         b.querySelectorAll('[data-o]').forEach(el => el.onclick = () => { pick = +el.dataset.o; render(); });
         b.querySelectorAll('[data-ord]').forEach(el => el.onclick = () => { order.push(+el.dataset.ord); render(); });
