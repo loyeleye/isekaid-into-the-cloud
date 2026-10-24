@@ -129,6 +129,70 @@
 
   // ---------- The scene ----------
   let sc = null, busy = false, lastTile = '', zoneShown = false;
+
+  // ---------- The Version Lens: every mode, once more (js/lens.js) ----------
+  // No new mode. The night before the climb, each mode lights one building borrowed from its own chapter, with a short
+  // recall question. On the roof there's nothing for it to show: Dutch just reads.
+  const LW = SD.lens.world({ mode: 'EVERY MODE', save: c7, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    // Freya's throttle is hers only while she holds root: once the vote is won, looking is free.
+    costs: () => !flag('won'),
+    intro: ['THE LENS · EVERY MODE', 'The night before the climb, every mode the lens has learned lights one building in the camp, the one that taught it.'],
+    spots: {
+      bell: { x: 8, y: 11, label: 'Marrow\'s bell', mark: '⟲', spot: { title: 'MARROW\'S BELL', mode: 'VERSIONS', concept: 's3ver',
+        intro: 'Under Marrow\'s bell, the lens finds what Pingsby taught it first: versions.',
+        q: 'A versioned bucket gets a plain DELETE for the bakery sign, with no version ID. What happens?',
+        opts: [{ t: 'A delete marker goes on top; the sign is still underneath', ok: true },
+          { t: 'The sign is gone for good', no: 'Only a delete that names a version ID removes a version for good.' },
+          { t: 'S3 refuses: versioned objects can\'t be deleted', no: 'The delete works. It just hides the sign behind a marker.' },
+          { t: 'Every version of the sign is deleted', no: 'A plain delete never touches older versions.' }],
+        view: { head: 'pingsby/bakery-sign · versions', rows: [['Current', 'delete marker'], ['Underneath', 'the sign, noncurrent']] },
+        why: 'In a versioned bucket a plain delete adds a delete marker as the current version, so a GET answers 404 while every earlier version is still there. Delete the marker and the sign is back.' } },
+      bru: { x: 12, y: 16, label: 'Bru\'s board', mark: '✉', spot: { title: 'BRU\'S BOARD', mode: 'IN FLIGHT', concept: 'sqs',
+        intro: 'On Bru\'s board, the lens finds the Dead Letter Office\'s letters still in flight.',
+        q: 'A consumer receives a message and crashes before deleting it. What happens to the message?',
+        opts: [{ t: 'Once its visibility timeout runs out, it can be received again', ok: true },
+          { t: 'It\'s gone: receiving it removed it', no: 'Receiving only hides a message. Only a delete removes it.' },
+          { t: 'It goes straight to the dead-letter queue', no: 'Only after it has been received more times than the redrive policy\'s maxReceiveCount.' },
+          { t: 'It stays hidden until it expires', no: 'It\'s hidden only for the visibility timeout, then it\'s back in the queue.' }],
+        view: { head: 'letters · in flight', rows: [['Received, not deleted', '1'], ['Visible again in', '30 s'], ['Receive count', '1 of 5 before the dead-letter queue']] },
+        why: 'A received message stays in the queue, hidden for the visibility timeout. If the consumer deletes it in time it\'s done; if not, it comes back for another try, and the redrive policy sends it to a dead-letter queue after too many.' } },
+      cafe: { x: 3, y: 26, label: 'The Cache Café', mark: '⌛', spot: { title: 'THE CACHE CAFÉ', mode: 'OLD IMAGE', concept: 'ddbstream',
+        intro: 'At Wen\'s café, the lens finds the Granaries\' old images.',
+        q: 'A function reads a table\'s stream to undo bad writes. Which view type does the stream need?',
+        opts: [{ t: 'OLD_IMAGE or NEW_AND_OLD_IMAGES', ok: true },
+          { t: 'KEYS_ONLY', no: 'That records only the key. There\'s nothing to put back.' },
+          { t: 'NEW_IMAGE', no: 'That records the item after the write, the bad version.' },
+          { t: 'Any of them: you can change it later', no: 'An existing stream\'s view type can\'t be changed. You\'d make a new stream, which only records from then on.' }],
+        view: { head: 'ledger · stream record', rows: [['OldImage', 'what to put back'], ['Kept for', '24 hours']] },
+        why: 'To undo a write you need the item as it was before it, which only OLD_IMAGE and NEW_AND_OLD_IMAGES record. Pick the view type when you turn the stream on, and act within 24 hours.' } },
+      library: { x: 31, y: 11, label: 'Lexi\'s library', mark: '◈', spot: { title: 'LEXI\'S LIBRARY', mode: 'ENVELOPE', concept: 'kmsenv',
+        intro: 'At Lexi\'s library, the lens reads the envelope, never the letter.',
+        q: 'With envelope encryption, what do you store beside the encrypted data?',
+        opts: [{ t: 'The data key, encrypted under the KMS key', ok: true },
+          { t: 'The data key, in plaintext', no: 'Then anyone who can read the data can read the key. You throw the plaintext copy away.' },
+          { t: 'The KMS key, encrypted', no: 'A KMS key never leaves KMS. Only data keys do.' },
+          { t: 'Nothing: KMS keeps the data key for you', no: 'KMS doesn\'t store data keys. The encrypted copy you keep is the only one.' }],
+        view: { head: 'scroll · envelope', rows: [['Beside the data', 'encrypted data key'], ['In KMS', 'the KMS key, never leaving']] },
+        why: 'GenerateDataKey gives you a data key in plaintext and encrypted. Seal the data with the plaintext copy, discard it, and keep the encrypted copy with the data; Decrypt turns it back into a key when you need to read.' } },
+      records: { x: 32, y: 17, label: 'Theo\'s records office', mark: '⑂', spot: { title: 'THEO\'S RECORDS OFFICE', mode: 'RELEASE', concept: 'shifting',
+        intro: 'At Theo\'s records office, the lens shows what\'s really behind a name.',
+        q: 'CodeDeploy is running a canary: the live alias sends 10% to version 7. The deployment\'s alarm goes off. What happens?',
+        opts: [{ t: 'With rollback on alarm set, the alias goes back to all version 6', ok: true },
+          { t: 'Version 7 gets the rest of the traffic anyway', no: 'An alarm stops the deployment; it doesn\'t push it through.' },
+          { t: 'The alias is deleted until someone fixes it', no: 'The alias stays, so callers never notice. Only its weights change back.' },
+          { t: '$LATEST takes all the traffic', no: 'A weighted alias never points at $LATEST.' }],
+        view: { head: 'order-fn:live · after the alarm', rows: [['version 6', 'weight 1.0'], ['version 7', 'rolled back']] },
+        why: 'A Lambda deployment in CodeDeploy moves an alias\'s weights from the old version to the new one. Attach CloudWatch alarms and turn on rollback, and an alarm during the shift puts the alias back on the old version.' } },
+      relay: { x: 40, y: 26, label: 'The relay station', mark: '♥', spot: { title: 'THE RELAY STATION', mode: 'HEARTBEAT', concept: 'readiness',
+        intro: 'At Mio\'s relay station, the lens hears what\'s behind an OK.',
+        q: 'Why can a target pass its health check and still fail real requests?',
+        opts: [{ t: 'The check may only show the process answers, not that its dependencies work', ok: true },
+          { t: 'It can\'t: passing the check means every dependency is fine', no: 'Only if the check asks about them. A shallow check doesn\'t.' },
+          { t: 'Health checks only fail on timeouts', no: 'They fail on any response outside the success codes, too.' },
+          { t: 'The load balancer doesn\'t send it real requests', no: 'Healthy targets get real traffic. That\'s the problem.' }],
+        view: { head: 'twin · behind the OK', rows: [['GET /health', '200 OK'], ['Database', 'unreachable']] },
+        why: 'A health check answers exactly the question it asks. Check the path that does the work, or the dependencies it needs, and keep it cheap enough to run every few seconds.' } }
+    } });
   const WX = SD.wx;
   function weather(stage) {
     if (stage === 0 || !WX) return;
@@ -156,7 +220,7 @@
     };
     const def = {
       map, solid: solidNow(), doors: { L: 'lift' }, ground: false, bg: '#141226', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); if (LW.seen()) SD.lens.wash(ctx, vw, vh, t); },
       ambience: () => 'crickets',
       under(ctx, ts, t, x0, x1, y0, y1) {
         const ph = phase();
@@ -211,6 +275,7 @@
     person('kage', 'kagemaru', 41, 28, 'west', { name: 'Kagemaru' });
     person('kyu', 'kyu', 22, 19, 'north', { name: 'Kyu' });
     Object.keys(PAIRS).forEach(id => sc.addActor('pair' + id, { x: PAIRS[id][0], y: PAIRS[id][1], thing: true, solid: false, draw: () => {} }));
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -227,6 +292,7 @@
     A2.kage.hidden = ch === 'vault';
     A2.kyu.hidden = !flag('won');
     Object.keys(PAIRS).forEach(id => { PROP['pair' + id].hidden = A2['pair' + id].hidden = w().pairs.includes(id); });
+    LW.apply();
     refresh();
   }
   // The "!" over whoever or whatever has something for you.
@@ -239,7 +305,8 @@
   }
 
   // ---------- Every frame ----------
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
@@ -663,6 +730,7 @@
     ['narr', 'The tower\'s roof is the top of the Cloud. Above it, close enough to touch, is the account the Cloud belongs to.'],
     ['show', 'dutch', 'neutral', 'right'],
     ['narr', 'Dutch finds it the way he has found everything since chapter 2: he reads the fine print. On the hatch lid, under the word ROOT, in tiny gold letters.'],
+    ['kai', 'Lens?', 'neutral'], ['dutch', 'No. Some things you just read.', 'stone'],
     ['dutch', 'Member account.', 'stone'],
     ['dutch', 'Member of what?', 'neutral'],
     ['bg', 'c7-console'],
@@ -941,6 +1009,7 @@
     if (busy) return;
     if (sc.actors[id] && !sc.actors[id].thing) { const a = sc.actors[id], P = sc.P; a.face = Math.abs(P.x - a.x) >= Math.abs(P.y - a.y) ? (P.x > a.x ? 'east' : 'west') : (P.y > a.y ? 'south' : 'north'); }
     if (/^pair/.test(id)) return act(() => pair(id.slice(4)));
+    if (LW.talk(id)) return;
     // A gift-giver with the band's gift still to give gives it first.
     const g = GIFTS.find(x => x[2] === id && !hasGift(x[0]) && giftsDue().includes(x));
     if (g && flag('arrive') && !flag('won')) return act(() => gift(g[0]));
@@ -983,12 +1052,14 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       <span class="hud-chip" title="The night before: the five arc finales">✦ ${w().pairs.length}/5</span>
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const prevHud = SD.ch1.hud;
   SD.ch1.hud = () => (W.active ? hud() : prevHud());
@@ -1077,5 +1148,5 @@
 
   // For tools/c7_check.js and tools/c7_balance.js.
   W.debug = { expedition: () => expedition(), after: won => after(won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x2, y) => sc && goTo(x2, y),
-    scene: () => sc, step, act, w, c7, PAIRS, GIFTS, giftsDue, blessings, freed, build, endCard, BASE, CUES, opts: () => opts };
+    scene: () => sc, step, act, w, c7, PAIRS, GIFTS, giftsDue, blessings, freed, build, endCard, BASE, CUES, opts: () => opts, LW };
 })();

@@ -144,6 +144,43 @@
   // ---------- The scene ----------
   let sc = null, busy = false, zone = null, lastTile = '';
 
+  // ---------- The Version Lens: heartbeat (js/lens.js) ----------
+  // Mio teaches it once you've met her on the jetty: the lens hears what a server really thinks behind the "OK" it
+  // gives a health check, and what a cached copy was really keyed on. One spot, Aigerim's diary, shows replication.
+  const LW = SD.lens.world({ mode: 'HEARTBEAT', save: c6, busy: () => busy, scene: () => sc, act: fn => act(fn), redraw: () => applyState(), flag,
+    intro: ['THE LENS · HEARTBEAT', 'On the Mirror Floors the lens hears what Mio hears: whether a twin is really ready behind the "OK" it gives, and what a copy was really made from.'],
+    spots: {
+      twin: { x: 44, y: 16, label: 'A twin that says OK', mark: '♥', need: ['mio'], spot: { title: 'A TWIN THAT SAYS OK', concept: 'readiness',
+        intro: 'A twin on the jetty answers the load balancer\'s health check at once: 200 OK. Mio, ear to the boards: "That one says it\'s fine and it isn\'t."',
+        q: 'The health check gets 200 OK. Is this twin ready for traffic?',
+        opts: [{ t: 'Not necessarily: the check only proves that path answers', ok: true },
+          { t: 'Yes: 200 OK means healthy', no: 'Healthy means the check passed, and this check only asks whether the path answers.' },
+          { t: 'No: the load balancer would have caught it', no: 'A load balancer knows only what its health check asks. Ask a shallow question, get a shallow answer.' },
+          { t: 'Yes, once it has passed the check a few times in a row', no: 'Passing the same shallow check more times proves nothing new.' }],
+        view: { head: 'twin-3 · behind the OK', rows: [['GET /health', '200 OK in 2 ms'], ['Database connections', '0 of 10'], ['Orders it can serve', 'none']],
+          note: 'Mio: "The ones that say OK too fast. Real things take a moment."' },
+        why: 'A shallow health check (the process answers) tells you it\'s alive, not that it can do its job. A deeper check also tries what the work needs, such as the database. Keep it cheap, and remember a shared dependency can fail every target at once; an ALB with no healthy targets fails open and sends traffic to all of them.' } },
+      menu: { x: 31, y: 37, label: 'Chad\'s mirrored menu', mark: '⧉', need: ['mio'], spot: { title: 'CHAD\'S MIRRORED MENU', concept: 'edge6',
+        intro: 'Mirror Everything Premium serves Twinwater\'s menu through CloudFront. The origin writes it in each shore\'s language, from the Accept-Language header. The origin request policy forwards that header; the cache policy doesn\'t include it.',
+        q: 'Visitors from both shores ask for /menu. What does each of them get?',
+        opts: [{ t: 'Whichever language was cached first, for everyone', ok: true },
+          { t: 'Each their own language, since the origin sees the header', no: 'The origin only sees it on a cache miss. After that, the cached copy answers everyone with the same key.' },
+          { t: 'An error: a forwarded header must be in the cache key', no: 'An origin request policy can forward headers that aren\'t in the cache key. That\'s exactly what went wrong here.' },
+          { t: 'Each their own: CloudFront keeps a copy per visitor', no: 'CloudFront keeps a copy per cache key, and both shores\' requests have the same one.' }],
+        view: { head: 'menu · cache key', rows: [['Cache key', 'the domain and /menu'], ['Accept-Language', 'sent to the origin, not in the key'], ['Cached copy', 'the near shore\'s, served to both']],
+          note: 'Two shores, one cached copy.' },
+        why: 'CloudFront caches one copy per cache key, which by default is just the domain and path. If the origin\'s answer depends on a header, cookie or query string, put it in the cache policy: values in the cache key are also sent to the origin, and each value gets its own copy.' } },
+      diary: { x: 12, y: 24, label: 'Aigerim\'s diary', mark: '⇋', need: ['camp'], spot: { title: 'AIGERIM\'S DIARY', concept: 'replicas',
+        intro: 'Aigerim keeps her diary in an S3 bucket on the near shore, replicated to the far shore, with delete marker replication on. She deleted one page by naming its version ID.',
+        q: 'What happens to that page on the far shore?',
+        opts: [{ t: 'Nothing: it\'s still there', ok: true },
+          { t: 'It\'s deleted too', no: 'A delete that names a version ID is never replicated, so nobody can wipe both copies from one side.' },
+          { t: 'A delete marker hides it', no: 'Only a delete without a version ID makes a delete marker, and that\'s what delete marker replication copies.' },
+          { t: 'Replication stops until someone fixes it', no: 'Replication carries on. It just doesn\'t copy this kind of delete.' }],
+        view: { head: 'diary · two shores', rows: [['Near shore', 'page, version 3: deleted for good'], ['Far shore', 'page, version 3: still there'], ['Delete marker replication', 'on, but no marker was made']] },
+        why: 'S3 replication copies new objects and, if you turn it on, delete markers. It never copies a delete that names a version ID, so a mistake or an attacker on one side can\'t destroy the copy on the other. This one is on the SAA exam more than the Developer one.' } }
+    } });
+
   // ---------- Weather ----------
   // By zone (js/weather.js): fog in long banks over the mirror lake, drifting slower than it; and embers off the
   // camp's fire. Both are quiet: the lake has its own place sound.
@@ -185,7 +222,7 @@
     const isWater = (x, y) => groundCh(map, x, y) === 'w';
     const def = {
       map, solid: solidNow(), doors: { L: 'down', M: 'up', 1: 'xp1', 2: 'xp2', 3: 'xp3' }, ground: false, bg: '#141226', clock: false,
-      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); },
+      grade: (ctx, t, vw, vh, cx, cy, ts) => { if (WX) WX.at(ctx, t, vw, vh, cx, cy, ts, sc.P && sc.P.px, sc.P && sc.P.py); A.grade(ctx, t, vw, vh, cx, cy, ts, phase(), lights(), WX && weather); if (LW.seen()) SD.lens.wash(ctx, vw, vh, t); },
       ambience: () => (zone ? zone[7] : null),
       under(ctx, ts, t, x0, x1, y0, y1) {
         const ph = phase();
@@ -240,6 +277,7 @@
     person('kageJ', 'kagemaru', 41, 18, 'south', { name: 'Kagemaru' });
     Object.keys(GATES).forEach(id => thing(id, GATES[id][0], GATES[id][1], 'A gate: ' + GATES[id][2]));
     PAGES.forEach(([x, y], i) => sc.addActor('page' + i, { x, y, thing: true, solid: false, draw: () => {} }));
+    LW.add();
     sc.addActor('ctl', { x: 0, y: 0, hidden: true, solid: false, talk: false, draw: () => {}, tick });
     sc.onTalk = id => talk(id);
     sc.onDoor = d => door(d);
@@ -265,6 +303,7 @@
     A2.ashgrove.hidden = A2.wen.hidden = !flag('camp');
     A2.freya.hidden = !(flag('reveal') && !flag('freya'));
     PAGES.forEach((p, i) => { A2['page' + i].hidden = !pageHere(i); });
+    LW.apply();
     refresh();
   }
   // The "!" over whoever or whatever has something for you.
@@ -280,7 +319,8 @@
 
   // ---------- Every frame ----------
   const onJetty = P => sc.tile(P.x, P.y) === 'j' && P.x >= 37 && P.x <= 44 && P.y <= 27;
-  function tick() {
+  function tick(dt) {
+    LW.tick(dt);
     const P = sc.P; if (!P) return;
     const k = P.x + ',' + P.y;
     if (k !== lastTile) {
@@ -958,6 +998,7 @@
     if (sc.actors[id] && !sc.actors[id].thing) { const a = sc.actors[id], P = sc.P; a.face = Math.abs(P.x - a.x) >= Math.abs(P.y - a.y) ? (P.x > a.x ? 'east' : 'west') : (P.y > a.y ? 'south' : 'north'); }
     if (GATES[id]) return act(() => gate(id));
     if (/^page\d$/.test(id)) return act(() => page(+id.slice(4)));
+    if (LW.talk(id)) return;
     if (/^f?twin\d$/.test(id)) return act(() => villager(id));
     const fns = { notice, booth: receipt, chad: receipt, stall, kage: stall, kageJ: choice, mio: mioEar, mirror, bunker, shop: aigerim, aigerim, relay, mioC: relay, ship, dboard, fire, freya, ashgrove,
       wen: () => (flag('receipt') ? review('receipt') : say([['wen', flag('camp') ? 'Sit, dear. Chad\'s booth is on the near shore. Bring me his invoice when you\'re ready; I\'ll show you what\'s wrong with it.' : 'Sit, dear.', 'smile']])) };
@@ -1000,12 +1041,14 @@
       <span class="hud-chip w-goal">${esc(step()[0])}</span>
       <span class="hud-chip" title="Lost Reflections">◐ ${w().pages.length}/8</span>
       <span class="w-sp"></span>
+      ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
       <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    LW.bind();
   }
   const ch1Hud = SD.ch1.hud;
   SD.ch1.hud = () => (W.active ? hud() : ch1Hud());
@@ -1089,5 +1132,5 @@
   }
 
   // For tools/c6_check.js and tools/c6_balance.js.
-  W.debug = { expedition: xp => expedition(xp), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c6, GATES, PAGES, endCard, BASE };
+  W.debug = { expedition: xp => expedition(xp), after: (xp, won) => after(xp, won), busy: () => busy, flags: f => { Object.assign(w().x, f); S.persist(); if (sc) applyState(); }, flag, place: (x, y) => sc && goTo(x, y), scene: () => sc, step, act, w, c6, GATES, PAGES, endCard, BASE, LW };
 })();
