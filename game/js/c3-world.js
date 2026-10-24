@@ -576,7 +576,7 @@
     if (flag('toll')) return say([['merchant', 'Pay for my own carting! Whoever heard of such a thing. Everyone, apparently.', 'neutral']]);
     faceTo('merchant', 'you');
     await say([['merchant', 'I cart the city\'s grain out to sell. The stores pay the carters. Sweet arrangement, eh?', 'neutral']]);
-    const r = await SD.quiz.ask({ c: 's3class', type: 'mc', q: 'The stores own the grain (an S3 bucket) and the merchant downloads lots of it. How do you make him pay for the requests and the transfer, not the stores?',
+    const r = await SD.quiz.ask({ c: 's3class', exam: 'SAA', type: 'mc', q: 'The stores own the grain (an S3 bucket) and the merchant downloads lots of it. How do you make him pay for the requests and the transfer, not the stores?',
       opts: ['Turn on Requester Pays for the bucket, so the requester is billed for requests and data transfer', 'Move the grain to Standard-IA, so his downloads carry a retrieval fee', 'Give him a presigned URL, so his downloads are billed to his account', 'Turn on Transfer Acceleration, so he pays the per-gigabyte transfer charge'], a: 0,
       no: [null, 'The retrieval fee is billed to the bucket owner, not to the merchant.', 'A presigned URL acts with the signer\'s permissions, and the bucket owner still pays.', 'Acceleration adds a charge to whoever owns the bucket.'],
       why: 'With Requester Pays, the requester pays for requests and data transfer, and the bucket owner pays only for storage. Requests must be authenticated, so AWS knows whom to bill.',

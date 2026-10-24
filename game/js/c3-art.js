@@ -1,7 +1,8 @@
 // Chapter 3, the Granaries, drawn in code: the overworld (the Free Cloud's camp, Halcyon on floor 21 under its golden
 // barrier, the Cold Stores yard on floor 22, the bottom of the Abyss on floor 32) in chapter 1's chibi style on
 // js/c2-art.js's prop kit, the new people for the overworld and the visual-novel figures (js/vec-cast.js), the
-// cutscene backgrounds, and the 120 x 120 SVGs of every enemy in js/c3-raid.js. No painted or generated images.
+// cutscene backgrounds, and the 120 x 120 SVGs of every enemy in js/c3-raid.js. No painted or generated images, except
+// the three backdrops seen outside cutscenes (the kitchen, the Abyss, the gallery), which are PixelLab stills.
 (function () {
   const K = SD.vec, A2 = SD.c2art, ART = SD.c1art;
   if (!K || !A2 || !ART) return;
@@ -319,13 +320,9 @@
   const sky = (id, a, b) => ({ defs: K.lin(id, [[0, a], [1, b]]), body: r(0, 0, 1200, 1200, `url(#${id})`) });
   const S = {};
   // Kai's kitchen in our world, at night: a table under a lamp, a shoebox of receipts, a door with light under it.
-  S['c3-kitchen'] = K.scene([sky('k1', '#3a2e3e', '#1a141e'),
-    r(0, 760, 1200, 440, '#4a3a32'), r(140, 300, 300, 260, '#5a4a52', K.NIGHT, 4), r(170, 330, 240, 200, '#20304a'), K.stars(240, 200, 20, 5, 0.6).replace(/cx="(\d+)"/g, (m, x) => `cx="${+x + 170}"`),
-    r(760, 260, 260, 520, '#6a4a3a', K.NIGHT, 4), K.glow('door', 890, 790, 240, '#fff2a8', 0.9), r(760, 770, 260, 14, '#fff6c8'),
-    K.glow('lamp', 600, 420, 420, '#ffd88a', 0.5), p('M600 0 L600 300', null, K.NIGHT, 4), p('M540 300 L660 300 L630 340 L570 340Z', '#e8b86a', K.NIGHT, 4),
-    r(300, 640, 600, 40, '#8a5a3a', K.NIGHT, 4), r(330, 680, 30, 200, '#6a4a2a'), r(840, 680, 30, 200, '#6a4a2a'),
-    r(420, 580, 140, 64, '#c99a5a', K.NIGHT, 3), ...[0, 1, 2, 3, 4].map(i => r(436 + i * 22, 560 - (i % 2) * 10, 18, 30, '#f6efd8', K.NIGHT, 2)),
-    r(640, 600, 120, 40, '#f6efd8', K.NIGHT, 2), p('M650 615 h90 M650 627 h70', null, '#6a6378', 3), c(820, 610, 22, '#e8e2d6', K.NIGHT, 3), K.vignette(1200, 1200, 0.6)]);
+  // The five backdrops people actually see outside a cutscene are PixelLab stills (CREDITS.md), not drawn: this one is
+  // behind the Tax Season minigame and the Cold Stores fights; the Abyss and the gallery are raid fight backdrops.
+  S['c3-kitchen'] = 'assets/img/vn/c3-kitchen.webp';
   // Halcyon at dusk under the barrier: honey-stone roofs, the cathedral's spires, a dome of gold light.
   const roofs = (y, col, n, seed) => { const R = K.rng(seed); let s = ''; for (let i = 0; i < n; i++) { const x = i * 1200 / n + R() * 30, w = 1200 / n + 10, h = 60 + R() * 90; s += r(x, y - h, w, h + 400, col, K.NIGHT, 3) + p(`M${x - 6} ${y - h} L${x + w / 2} ${y - h - 50} L${x + w + 6} ${y - h}Z`, '#a85a3a', K.NIGHT, 3); } return s; };
   const dome = { defs: K.rad('dome', [[0.7, '#ffd76a', 0], [0.95, '#ffd76a', 0.35], [1, '#fff2c0', 0.6]], 0.5, 1, 0.75), body: `<ellipse cx="600" cy="1000" rx="900" ry="900" fill="url(#dome)"/>` };
@@ -336,12 +333,10 @@
   S['c3-cathkitchen'] = K.scene([sky('ck', '#5a3a2a', '#2a1a14'), r(0, 0, 1200, 1200, '#6a4a3a', null, null, 0.4),
     ...[0, 1, 2, 3].map(i => r(140 + i * 240, 200, 160, 220, '#8a6a4a', K.NIGHT, 3)), r(0, 760, 1200, 440, '#4a3428'), r(200, 640, 800, 50, '#a87a4a', K.NIGHT, 4),
     r(860, 420, 220, 260, '#2a2a30', K.NIGHT, 4), K.glow('fire', 970, 600, 220, '#ff9a4a', 0.8), ...[0, 1, 2, 3, 4].map(i => c(260 + i * 140, 160, 26, '#b8a890', K.NIGHT, 3)), K.vignette(1200, 1200, 0.6)]);
-  S['c3-abyss'] = K.scene([sky('ab', '#1a1620', '#0a080e'), ...[0, 1, 2, 3, 4, 5].map(i => p(`M${i * 220 - 60} 1200 L${i * 220 + 40} ${300 + (i % 3) * 120} L${i * 220 + 160} 1200Z`, '#2a2632', K.NIGHT, 3)),
-    K.glow('ember', 600, 900, 380, '#ffaa50', 0.45), r(380, 820, 440, 80, '#3a3442', K.NIGHT, 3), ...Array.from({ length: 11 }, (_, i) => c(400 + i * 40, 800, 6, '#ffbe5a')), K.vignette(1200, 1200, 0.75)]);
+  S['c3-abyss'] = 'assets/img/vn/c3-abyss.webp';
   S['c3-camp'] = K.scene([sky('cp', '#2a2a50', '#4a3a5a'), K.stars(1200, 600, 60, 21, 0.8), r(0, 820, 1200, 380, '#5a5448'), r(1000, 0, 200, 1200, '#3a3446', K.NIGHT, 4),
     K.glow('cf', 560, 860, 300, '#ff9a4a', 0.7), p('M500 900 L560 760 L620 900Z', '#ffb238'), r(140, 640, 220, 200, '#3a3a42', K.NIGHT, 4), r(140, 560, 220, 16, '#7a5232'), r(300, 520, 30, 40, '#ffe082', K.NIGHT, 2, 0.8), K.vignette(1200, 1200, 0.6)]);
-  S['c3-gallery'] = K.scene([sky('ga', '#3a2a5a', '#120c1c'), ...[0, 1, 2, 3, 4, 5].map(i => r(60 + i * 200, 100, 70, 1100, '#e4ddcf', K.NIGHT, 3)), c(600, 300, 140, '#7a5aa0', K.NIGHT, 5),
-    K.glow('rose', 600, 300, 300, '#c8a0ff', 0.5), r(200, 700, 800, 40, '#c9b48a', K.NIGHT, 4), ...Array.from({ length: 16 }, (_, i) => p(`M${210 + i * 50} 740 v100`, null, K.NIGHT, 4)), K.glow('gold', 600, 1100, 500, '#ffd76a', 0.5), K.vignette(1200, 1200, 0.6)]);
+  S['c3-gallery'] = 'assets/img/vn/c3-gallery.webp';
   Object.assign(K.scenes || (K.scenes = {}), S);
   SD.vn.addScenes(Object.fromEntries(Object.keys(S).map(k => [k, { src: S[k], label: k }])));
 

@@ -16,6 +16,12 @@
       return q;
     }).filter(Boolean);
     if (!qs.length) return null;
+    // Exam mode (js/exam.js): never a held-out question, and no SAA-only one while the pool has others.
+    const E = SD.exam;
+    if (E) {
+      const ok = qs.filter(E.allowed);
+      if (ok.length) qs.splice(0, qs.length, ...ok);
+    }
     const S = SD.state, save = S && S.save;
     const seen = (save && save.qseen) || [];
     const fresh = qs.filter(q => !seen.includes(q.id));

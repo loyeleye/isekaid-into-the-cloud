@@ -14,6 +14,7 @@
   const S = SD.state, U = SD.ui;
   const STARTER = 3, MAX = 99, REVIEW = 5, PASS = 4;
   const PRICE = { seymour: 50, kagemaru: 100 };
+  T.RULES = Object.freeze({ price: Object.freeze(Object.assign({}, PRICE)), review: REVIEW, pass: PASS }); // read by js/economy.js
   const today = () => new Date().toDateString();
   // The stockpile. A save from before the rework that's past Seymour's bunker starts with his first gift.
   function st() {

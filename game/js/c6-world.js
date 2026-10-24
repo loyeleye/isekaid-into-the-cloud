@@ -509,7 +509,7 @@
     R.gainXp(r.first === true || r.first === (r.of || 0) || r.mistakes === 0 ? 20 : 10);
     if (def.card) await addCard(def.card);
     if (id === 'glake') {
-      await ask({ c: 'replicas', type: 'num', q: 'Aigerim\'s diary bucket replicates to the far shore with S3 Replication Time Control. RTC copies 99.99% of new objects within how many minutes, under its SLA?', lo: 15, hi: 15, ans: 15, unit: 'minutes',
+      await ask({ c: 'replicas', exam: 'SAA', type: 'num', q: 'Aigerim\'s diary bucket replicates to the far shore with S3 Replication Time Control. RTC copies 99.99% of new objects within how many minutes, under its SLA?', lo: 15, hi: 15, ans: 15, unit: 'minutes',
         why: 'S3 Replication Time Control replicates 99.99% of new objects within 15 minutes, backed by an SLA, and adds replication metrics and notifications.',
         eli5: 'The fast ferry promises almost every letter reaches the far shore within a quarter of an hour, and it pays you back if it doesn\'t.' }, 'THE LAKE ROAD');
     }
@@ -648,10 +648,10 @@
     async keeper() {
       if (flag('keeper')) return;
       await say([[null, 'The Lighthouse Keeper looks up from his ledger. "Ships want guiding. How much can they lose, and how long can they wait? Give me the numbers, and I\'ll pick my lamp."']]);
-      await ask({ c: 'drtiers', type: 'num', q: 'The last good copy of the harbour log was made at 12:00. The near shore was lost at 15:10. How many minutes of data could be lost (the RPO this gives)?', lo: 190, hi: 190, ans: 190, unit: 'minutes',
+      await ask({ c: 'drtiers', exam: 'SAA', type: 'num', q: 'The last good copy of the harbour log was made at 12:00. The near shore was lost at 15:10. How many minutes of data could be lost (the RPO this gives)?', lo: 190, hi: 190, ans: 190, unit: 'minutes',
         why: 'RPO is measured back from the failure to the last good copy: 12:00 to 15:10 is 3 hours 10 minutes, 190 minutes.',
         eli5: 'If the last time you saved your game was at noon and the power went at ten past three, you lose everything since noon.' }, 'THE LIGHTHOUSE KEEPER · RPO');
-      await ask({ c: 'drtiers', type: 'num', q: 'Restoring the log takes 45 minutes, and launching and checking the lamp 15 more. How many minutes until ships are guided again (the RTO this gives)?', lo: 60, hi: 60, ans: 60, unit: 'minutes',
+      await ask({ c: 'drtiers', exam: 'SAA', type: 'num', q: 'Restoring the log takes 45 minutes, and launching and checking the lamp 15 more. How many minutes until ships are guided again (the RTO this gives)?', lo: 60, hi: 60, ans: 60, unit: 'minutes',
         why: 'RTO is how long until users are served again: 45 minutes to restore and 15 to launch and check, 60 minutes.',
         eli5: 'Getting the lamp lit again takes an hour, so the ships wait an hour.' }, 'THE LIGHTHOUSE KEEPER · RTO');
       await say([[null, '"Then I\'ll keep one lamp banked, not burning," says the Keeper. "Cheapest that meets both. Now come and test it."']]);
@@ -705,7 +705,7 @@
       if (flag('after')) return;
       await cut.play('after');
       c6().tape = true; S.persist(); AU.sfx('x-chain');
-      await ask({ c: 'drtiers', type: 'mc', q: 'The deep dive, while he\'s still laughing: which strategy meets an RPO of seconds and an RTO of minutes, at the lowest cost?',
+      await ask({ c: 'drtiers', exam: 'SAA', type: 'mc', q: 'The deep dive, while he\'s still laughing: which strategy meets an RPO of seconds and an RTO of minutes, at the lowest cost?',
         opts: ['Warm standby, with data replicated continuously', 'Backup and restore', 'Pilot light with nightly backups', 'Multi-site active/active'], a: 0,
         why: 'Seconds of RPO needs continuous replication; minutes of RTO needs a scaled-down full copy already running. That\'s warm standby: more than pilot light costs, less than active/active.',
         eli5: 'Keep a smaller copy of the shop open all the time across the lake, with the till copied every second. If this shop burns, the other one just gets bigger.' }, 'THE DEEP DIVE');
@@ -770,7 +770,7 @@
     await say([['chad', 'Twinwater\'s invoice for the first two twins. Totally standard. You\'ll love the third.', 'smug'],
       ['wen', 'Give it here, dear. I\'ve run a café for forty years. I know a padded bill.', 'amused']]);
     const r = await G.pick(G.DEF.receipt);
-    await ask({ c: 'costnet', type: 'num', q: 'The first line: 2 TB a day of S3 traffic through the NAT gateway, at $0.045 per GB processed. About how many dollars a day is that? (Count 1 TB as 1,000 GB.)', lo: 88, hi: 93, ans: 90, unit: 'dollars a day',
+    await ask({ c: 'costnet', exam: 'SAA', type: 'num', q: 'The first line: 2 TB a day of S3 traffic through the NAT gateway, at $0.045 per GB processed. About how many dollars a day is that? (Count 1 TB as 1,000 GB.)', lo: 88, hi: 93, ans: 90, unit: 'dollars a day',
       why: '2,000 GB x $0.045 = $90 a day, about $2,700 a month, for traffic a gateway endpoint carries for free.',
       eli5: 'Every box that goes through the toll gate costs a few cents. Two thousand boxes a day is ninety dollars a day, for a road that has a free lane right beside it.' }, 'CHAD\'S RECEIPT');
     setFlag('receipt'); R.gainXp(r.first === r.of ? 30 : 15);
@@ -851,7 +851,7 @@
     if (!flag('reveal')) return say([[null, 'The Design Board. Someone has written on it: "Before Kagemaru: draw Twinwater as it should have been built." Not yet.']]);
     if (flag('board')) return say([[null, 'Twinwater, built right: a warm standby, failover with health checks, the data replicated, the backups in another account and locked.']]);
     await G.order(G.DEF.board);
-    await ask({ c: 'awsbackup', type: 'mc', q: 'The interviewer taps the locked vault on your board. "The backups are copied to a vault in another account, with Vault Lock in compliance mode, and the cooling-off time is over. Who can delete a recovery point in it before its retention ends?"',
+    await ask({ c: 'awsbackup', exam: 'SAA', type: 'mc', q: 'The interviewer taps the locked vault on your board. "The backups are copied to a vault in another account, with Vault Lock in compliance mode, and the cooling-off time is over. Who can delete a recovery point in it before its retention ends?"',
       opts: ['Nobody: not that account\'s admins, not its root user, not AWS', 'That account\'s root user', 'Anyone with backup:DeleteRecoveryPoint', 'The production account\'s admin, since the backups came from there'], a: 0,
       why: 'Once a compliance-mode Vault Lock\'s grace time has passed, the lock is immutable: no user, root included, can delete recovery points before their retention ends, or change the lock.',
       eli5: 'The backups sit in a different house, in a safe on a timer. Nobody in either house has a key that beats the timer.' }, 'DESIGN BOARD · THE INTERVIEWER');
