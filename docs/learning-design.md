@@ -45,7 +45,7 @@ The confidence tally, shown in expeditions as **Trust Policy** (an IAM trust pol
 
 - **Score:** your last 20 answers anywhere in the game, each by how sure you said you were: Guess +1 right, ±0 wrong; Think so +2, −1; Sure +3, −5. It never goes above 15 (`SD.state.TALLY`, `TALLY_MAX`). Town reviews feed it silently; only expedition questions show it.
 - **Meter:** the HUD chip `🎯 Trust N` has a pip per point up to 15 (red below 0) and ends with what a right debrief answer heals now. Under 2 it turns pink and reads `Debrief +1 ×2`. Tapping it opens a short help bubble on how it's scored and how to recover.
-- **Stakes:** each confidence button shows its right / wrong change, with a line under the buttons giving your current Trust and, on a debrief, what a right answer heals. Saying how sure you really are is the point, so the cost of a confident miss is visible before you commit.
+- **Stakes:** each confidence button shows its right / wrong change, with a line under the buttons giving your current Trust and, on a debrief, what a right answer heals; tapping it shows how the stakes work. Saying how sure you really are is the point, so the cost of a confident miss is visible before you commit.
 - **Badge:** the verdict carries `🎯 Trust a → b ±d`, green or red.
 - **Why row:** a collapsed "🎯 Why Trust ±d?" above Continue, opened by tap so it works on phones, says what you chose, what it cost, every button's stakes and what Trust heals.
 - **Continue heal:** on a debrief the button reads `Continue · team heals N SLA` or `Continue · no heal`. After a won fight a right debrief answer heals the team by your Trust, up to 15 SLA; under 2 you get two questions at 1 SLA each instead.
