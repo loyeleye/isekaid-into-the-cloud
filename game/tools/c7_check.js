@@ -274,13 +274,14 @@ function step([WIN, LEAD]) {
     start: typeof (SD.chapterStart || {})[7], card: (document.querySelector('#c7-end') || {}).textContent || '' }));
   // Every line chapter 7's cutscenes can play, for every lead, chapter 6 choice and version.
   const lines = await page.evaluate(() => {
-    const sv = SD.state.save, keep = { lead: sv.c1.lead, c6: sv.c6 }, out = new Set();
-    for (const lead of ['mira', 'kai', 'seoyeon', 'dutch']) for (const choice of ['least', 'vault', 'run']) {
+    const sv = SD.state.save, cards = sv.c7.w.cards, keep = { lead: sv.c1.lead, c6: sv.c6, cards: cards.slice() }, out = new Set();
+    for (const lead of ['mira', 'kai', 'seoyeon', 'dutch']) for (const choice of ['least', 'vault', 'run']) for (const kyu of [true, false]) {
       sv.c1.lead = lead; sv.c6 = Object.assign({}, keep.c6, { choice });
+      cards.splice(0, cards.length, ...keep.cards.filter(c => kyu || c !== 'r7-kyu'));
       SD.reel.list.filter(e => e.ch === '7').forEach(e => [undefined].concat((e.alts || []).map(a => a[1])).forEach(arg =>
         SD.reel.steps(e, arg).forEach(st => { if (Array.isArray(st) && typeof st[1] === 'string') out.add(st[1]); })));
     }
-    sv.c1.lead = keep.lead; sv.c6 = keep.c6;
+    sv.c1.lead = keep.lead; sv.c6 = keep.c6; cards.splice(0, cards.length, ...keep.cards);
     return [...out];
   });
   await browser.close(); server.close();

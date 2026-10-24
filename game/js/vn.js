@@ -43,6 +43,13 @@
   // carry on a cutscene after a quiz or a choice in between.
   V.cuts = [];
   V.addShots = shots => { V.cuts.push(shots); };
+  // Overlays a chapter lays on a shot, by shot id ('cut-<cutscene>-<n>'), drawn by the game rather than painted:
+  //   { text, x, y, w, size, color, bg, mono, align, rot }  words on a screen, a card or a note: x, y the top left and w
+  //                                                        the width, in % of the shot; size in % of its height
+  //   { src, x, y, h, float }                              a small sprite: centre x, top y and height in %
+  //   { lead: 1, x, y, h, face }                           your lead's own figure, standing in a shot painted without them
+  // Any of them can carry if: () => bool, so a shot shows only what the save earned (a blessing left, a lantern lit).
+  V.over = {};
   function match(shots, text) {
     let best = null, at = Infinity, len = 0;
     shots.forEach(([id, cue]) => [].concat(cue).forEach(c => {
@@ -113,13 +120,26 @@
     // A ghost ({ src, x, y, h }: centre, top and height in % of the shot) is a figure laid over the shot that floats,
     // such as Freya's projection over the campfire.
     const g = s.ghost;
+    const over = (V.over[id] || []).filter(o => !o.if || o.if()).map(overHTML).join('');
     if (s.sheet) return `<div class="vn-sheet"${s.focus ? ` style="--fx:${parseFloat(s.focus) / 100}"` : ''}><i style="background-image:url(${s.sheet});` +
       `background-size:100% ${s.frames * 100}%;background-position:0 ${s.frames > 1 ? s.frame / (s.frames - 1) * 100 : 0}%">` +
-      `${g ? `<img class="vn-ghost" src="${g.src}" alt="" style="left:${g.x}%;top:${g.y}%;height:${g.h}%">` : ''}</i>` +
+      `${g ? `<img class="vn-ghost" src="${g.src}" alt="" style="left:${g.x}%;top:${g.y}%;height:${g.h}%">` : ''}${over}</i>` +
       `${s.glitch ? `<img class="vn-gl" src="${s.glitch}" alt="">` : ''}</div>`;
     if (s.src) return `<img src="${s.src}" alt=""${s.focus ? ` style="object-position:${s.focus}"` : ''}>`;
     const [a, b] = s.tint || ['#1b1d2b', '#05060a'];
     return `<div class="vn-ph" style="background:radial-gradient(ellipse at 50% 35%, ${a}, ${b} 75%)"><span>${esc(id.toUpperCase())} · ${esc(s.label || '')}<br><i>painted art coming</i></span></div>`;
+  }
+  function overHTML(o) {
+    if (o.text != null) return `<span class="vn-otext${o.mono ? ' mono' : ''}" style="left:${o.x}%;top:${o.y}%;width:${o.w || 30}%;--os:${o.size || 4};` +
+      `${o.color ? `color:${o.color};` : ''}${o.bg ? `background:${o.bg};` : ''}${o.align ? `text-align:${o.align};` : ''}${o.rot ? `rotate:${o.rot}deg;` : ''}">${esc(o.text)}</span>`;
+    let src = o.src;
+    if (o.lead) {
+      const who = (SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira', s0 = V.art.sprites[who] || {}, sp = s0.now ? s0.now(o.face) || {} : s0;
+      src = (sp.faces && (sp.faces[o.face] || sp.faces[Object.keys(sp.faces)[0]])) || sp.stand;
+    }
+    if (!src) return '';
+    // A sprite that isn't drawn yet just isn't there.
+    return `<img class="vn-osp${o.float ? ' float' : ''}${o.lead ? ' lead' : ''}" src="${src}" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y}%;height:${o.h}%">`;
   }
   function spriteHTML(who, face) {
     // A sprite can choose its art at the time it's shown: now(face) returns { faces } or { stand } (Freya's three forms).

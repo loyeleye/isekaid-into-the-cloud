@@ -1102,7 +1102,13 @@ body { background: var(--bg); }
   50% { translate: -50% -4%; opacity: .78; }
   71% { opacity: .9; } 72% { opacity: .55; } 73% { opacity: .9; }
 }
-@media (prefers-reduced-motion: reduce) { #vn .vn-sheet > .vn-gl, #vn .vn-sheet .vn-ghost { animation: none; } }
+/* Overlays the game lays on a shot (js/vn.js, V.over): crisp words on a painted blank, small sprites, your lead. */
+#vn .vn-sheet .vn-otext { position: absolute; font: 600 calc(var(--w) * 384 / 688 * var(--os) / 100)/1.25 system-ui, sans-serif; color: #f4ecd8;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .6); white-space: pre-line; image-rendering: auto; }
+#vn .vn-sheet .vn-otext.mono { font-family: ui-monospace, monospace; font-weight: 500; }
+#vn .vn-sheet .vn-osp { position: absolute; translate: -50% 0; image-rendering: pixelated; }
+#vn .vn-sheet .vn-osp.float { animation: vnGhost 4.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { #vn .vn-sheet > .vn-gl, #vn .vn-sheet .vn-ghost, #vn .vn-sheet .vn-osp.float { animation: none; } }
 #vn .vn-ph { display: flex; align-items: flex-start; justify-content: flex-end; }
 #vn .vn-ph span { margin: 14px 16px; font: 600 11px/1.4 ui-monospace, monospace; color: rgba(255,255,255,.4); text-align: right; letter-spacing: .04em; }
 #vn .vn-bg .vn-pic::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
@@ -1439,6 +1445,7 @@ body { background: var(--bg); }
 <script src="js/c7-art.js"></script>
 <script src="js/c7-games.js"></script>
 <script src="js/c7-world.js"></script>
+<script src="js/c7-over.js"></script>
 <!-- /Chapter 6 -->
 <!-- Exam prep: held-out mock questions, exam mode, task concepts -->
 <script src="js/exam-heldout.js"></script>
