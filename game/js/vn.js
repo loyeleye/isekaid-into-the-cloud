@@ -47,7 +47,7 @@
   //   { text, x, y, w, size, color, bg, mono, align, rot }  words on a screen, a card or a note: x, y the top left and w
   //                                                        the width, in % of the shot; size in % of its height
   //   { src, x, y, h, float }                              a small sprite: centre x, top y and height in %
-  //   { lead: 1, x, y, h, face }                           your lead's own figure, standing in a shot painted without them
+  //   { lead: 1, x, y, h }                                 your lead's own figure, standing in a shot painted without them
   // Any of them can carry if: () => bool, so a shot shows only what the save earned (a blessing left, a lantern lit).
   V.over = {};
   function match(shots, text) {
@@ -133,10 +133,9 @@
     if (o.text != null) return `<span class="vn-otext${o.mono ? ' mono' : ''}" style="left:${o.x}%;top:${o.y}%;width:${o.w || 30}%;--os:${o.size || 4};` +
       `${o.color ? `color:${o.color};` : ''}${o.bg ? `background:${o.bg};` : ''}${o.align ? `text-align:${o.align};` : ''}${o.rot ? `rotate:${o.rot}deg;` : ''}">${esc(o.text)}</span>`;
     let src = o.src;
-    if (o.lead) {
-      const who = (SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira', s0 = V.art.sprites[who] || {}, sp = s0.now ? s0.now(o.face) || {} : s0;
-      src = (sp.faces && (sp.faces[o.face] || sp.faces[Object.keys(sp.faces)[0]])) || sp.stand;
-    }
+    // Your lead over a painted still: their pixel full body (chapter 1's art), so pixel art never has a vector figure
+    // standing in it. Dialogue sprites can be vector drawings (js/vec-cast.js), so they aren't used here.
+    if (o.lead) src = 'assets/img/lead/' + ((SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira') + '.webp';
     if (!src) return '';
     // A sprite that isn't drawn yet just isn't there.
     return `<img class="vn-osp${o.float ? ' float' : ''}${o.lead ? ' lead' : ''}" src="${src}" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y}%;height:${o.h}%">`;
