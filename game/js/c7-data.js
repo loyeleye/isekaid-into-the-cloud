@@ -170,7 +170,7 @@
     'The Cloud\'s root user is signed in, and IAM policies in its own account don\'t apply to it.',
     { mfa: 'MFA on the root user.', root: 'And use root only for the tasks that need it.' }, IAMRES, [r(7), w(8), b(8)]);
   F('nomfa', 'No MFA', 'No MFA', 'A password, and nothing behind it', 28, 'rootuser', 1, 'One door, one key, and the key is a word anyone can guess.',
-    'The account\'s root user has no MFA device, and its password was written on a prayer slip.',
+    'The Cloud\'s account was opened in 1984, before root needed a second key, and nobody ever added one. Its password is on a prayer slip.',
     { mfa: 'A second factor. Even root needs one, root most of all.', nokeys: 'And no access keys for it either.' },
     { allow: 'Permissions don\'t make a password stronger.' }, [w(7), r(7), up()]);
   F('rootkey', 'The Root Key', 'Root Key', 'An access key for the root user, in a script', 30, 'rootuser', 1, 'He opens every door in the Cloud, and he lives in a text file.',

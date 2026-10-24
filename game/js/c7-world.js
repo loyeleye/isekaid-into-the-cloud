@@ -38,7 +38,8 @@
   const choice6 = () => sv('c6').choice || 'least';
   // Music: this chapter's own songs once they're loaded (js/audio-chapters.js), else the nearest older one.
   const FB = { c7camp: 'camp', c7climb: 'c6dungeon', c7boss: 'boss', c7freya: 'freya', c7sad: 'c6sad', c7roof: 'story' };
-  const mus = k => { const f = AU.has && AU.has(k) ? k : (FB[k] || k); AU.music(AU.has && !AU.has(f) && FB[f] ? FB[f] : f); };
+  const mname = k => { const f = AU.has && AU.has(k) ? k : (FB[k] || k); return AU.has && !AU.has(f) && FB[f] ? FB[f] : f; };
+  const mus = k => AU.music(mname(k));
 
   // Lines: [who, text, face]. who 'lead' is you; text can be { mira: ..., other: ... } for the lead's own words.
   const pick = t => (t && typeof t === 'object' ? (t[lead()] || t.other) : t);
@@ -53,6 +54,7 @@
   const vn = steps => steps.map(s => {
     if (!Array.isArray(s)) return s;
     if (s[0] === 'show' || s[0] === 'hide') return [s[0], who(s[1])].concat(s.slice(2));
+    if (s[0] === 'music') return ['music', s[1] && mname(s[1])];
     if (['bg', 'cg', 'fx', 'wait', 'narr'].includes(s[0])) return s[0] === 'narr' ? ['narr', pick(s[1])] : s;
     return [who(s[0]), pick(s[1]), s[2]];
   });
@@ -122,6 +124,8 @@
   const GIFTS = [['thornwick', 'r7-letter', 'pip'], ['halcyon', 'r7-loaf', 'wen'], ['sealed', 'r7-seal', 'ok'], ['arcanum', 'r7-lantern', 'pella'], ['twinwater', 'r6-stone', 'mio']];
   const giftsDue = () => GIFTS.filter(g => (BANDS.find(b => b[0] === g[0]) || [])[2] && BANDS.find(b => b[0] === g[0])[2]());
   const hasGift = band => w().gifts.includes(band);
+  // What the save left, for the overlays on this chapter's stills (js/c7-over.js).
+  W.now = { blessings: () => blessings().map(b => b[0]), gifts: () => w().gifts.slice(), pairs: () => w().pairs.length };
 
   // ---------- The scene ----------
   let sc = null, busy = false, lastTile = '', zoneShown = false;
@@ -427,7 +431,7 @@
     ['kai', 'Same as last time.', 'neutral'],
     ['mira', 'Same answer however many times you ask, love.', 'warm'],
     ['kai', 'So it\'s idempotent.', 'smirk'],
-    ['mira', 'Like a good queue consumer. It gets the same message twice and does the same thing both times.', 'warm'],
+    ['mira', 'Like a good queue consumer. It gets the same message twice and does the thing once.', 'warm'],
     ['narr', 'Then she takes his bare hand and puts it on the beast arm on purpose.'],
     ['mira', 'What does it feel like now?', 'neutral'],
     ...inner({ kai: '(I asked her. I didn\'t offer this time. I asked.)', mira: '(Same answer, Bram. It\'s mine. I\'m keeping it.)' }),
@@ -467,7 +471,11 @@
   async function review(kind) {
     const seen = Object.keys(SD.concepts).filter(c => S.concept(c).seen);
     const pool = w().miss.filter(c => seen.includes(c)).concat(S.pickConcepts(kind === 'lexi' ? 5 : 3, seen.length ? seen : ['revoke']));
-    const cs = [...new Set(pool)].slice(0, kind === 'lexi' ? 5 : 3);
+    let cs = [...new Set(pool)].slice(0, kind === 'lexi' ? 5 : 3);
+    // Lexi's review is everything, so it always has one on deployment (chapter 5's concepts), the one domain the
+    // finale's own questions don't cover.
+    const DEPLOY = ['shifting', 'deploycfg', 'stages', 'cicd'];
+    if (kind === 'lexi' && !cs.some(c => DEPLOY.includes(c))) { const d = SD.quiz.shuffle(DEPLOY).find(c => SD.concepts[c] && D.pickQ(c)); if (d) cs = cs.slice(0, 4).concat(d); }
     const [sp, line, title] = { book: ['bru', 'Again? Three from the book. Read every page.', 'BRU\'S BOARD'], lexi: ['lexi', 'Five, from everything, and the ones you missed first. Pencils.', 'LEXI\'S LIBRARY'],
       fire: ['uptima', 'Three, from the prayers. What you got wrong, first.', 'THE FIRE'] }[kind];
     await say([[sp, line, 'smile']]);
@@ -635,7 +643,7 @@
     ['show', 'lead', 'neutral', 'left'],
     ['lead', { mira: 'The basket, love. Don\'t drop it.', kai: 'Basket. Got it. Don\'t look at me like that.', seoyeon: 'I have the basket.', dutch: 'Basket\'s here. Doors open.' }]]), { music: 'c7roof', note: 'The lift up, with the basket.' });
   cut.def('hatch', 'Kagemaru sells the roof', (ch = 'least') => vn([['bg', 'c7-throne'],
-    ...(ch === 'vault' ? [['narr', 'The empty throne, and beside it a speaker, crackling. A voice they know comes out of it, from inside a locked vault far below.']]
+    ...(ch === 'vault' ? [['cut', 'c7-hatch-vault'], ['narr', 'The empty throne, and beside it a speaker, crackling. A voice they know comes out of it, from inside a locked vault far below.']]
       : [['narr', 'Beside the empty throne, Kagemaru is waiting with his stall, which nobody saw him carry up.'], ['show', 'kagemaru', 'amused', 'right']]),
     ['kagemaru', 'I was here, you know. 1984. I watched Gary climb out through a hatch above that throne, and come back down without his weapon.', 'neutral'],
     ['kagemaru', 'I can show you the hatch. For a price, of course. Not shards this time.', 'amused'],
@@ -676,7 +684,7 @@
     ['narr', 'They detach it.']]), { music: 'c7roof', note: 'A wrong draft: the management account.' });
   cut.def('attach', 'Attached', () => vn([['bg', 'c7-throne'],
     ['narr', 'They attach it: deny everything, when the principal is the Cloud\'s root user. Root stops working for anyone at all.'],
-    ['narr', 'On the throne, at the top of the tower, Freya stops being root. Her voice doesn\'t change.'],
+    ['narr', 'On the throne, at the top of the tower, Freya is still root. Root just can\'t do anything any more. Her voice doesn\'t change.'],
     ['freya', 'My loves? Is something wrong with the lights?', 'warm'],
     ['show', 'lead', 'cold', 'left'],
     ['narr', 'Uptima, far below at the fire, signs in through IAM Identity Center with her second factor. It\'s how the Cloud should have been run all along.']]), { music: 'c7roof', note: 'Gary\'s Deny, scoped and attached.' });
@@ -698,6 +706,13 @@
     ['root', 'Deny everything for root, attached to the Cloud\'s account', '"Effect": "Deny", "Action": "*", "Resource": "*",\n"Condition": { "StringLike": { "aws:PrincipalArn": "arn:aws:iam::*:root" } }\nTarget: the Cloud (member account)']];
   async function drafts() {
     let wrong = 0;
+    // The console stays on screen behind the drafts, so the decision is made where it happens.
+    const sc7 = (SD.vn.art.scenes['cut-c7-console-2'] || {}), still = sc7.sheet
+      ? `background:url(${SD.assetUrl ? SD.assetUrl(sc7.sheet) : sc7.sheet}) 0 ${sc7.frames > 1 ? sc7.frame / (sc7.frames - 1) * 100 : 0}%/100% ${sc7.frames * 100}% no-repeat;image-rendering:pixelated`
+      : null, vec = (SD.vn.art.scenes['c7-console'] || {}).src;
+    U.stageDecor['c7-drafts'] = '<div style="position:absolute;inset:0;background:#06050c"></div>' + (still ? `<div style="position:absolute;inset:0;${still};opacity:.55"></div>`
+      : vec ? `<img src="${vec}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55">` : '');
+    U.stage('c7-drafts');
     for (;;) {
       const d = await new Promise(res => {
         const b = U.panel(`<div class="g6"><p>Gary\'s Deny, unscoped, put the camp out. A service control policy binds every principal in a member account, its root user included (service-linked roles aside). Scope it, and choose where it goes. Three drafts on the board:</p>
@@ -705,7 +720,7 @@
         b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { AU.sfx('ok'); U.closePanel(); res(el.dataset.d); });
       });
       S.recordAnswer('scps', d === 'root', 1, 20000);
-      if (d === 'root') return wrong;
+      if (d === 'root') { U.stage(null); return wrong; }
       wrong++;
       AU.sfx('wrong');
       await cut.play('draft-' + d);
@@ -829,7 +844,10 @@
     ['narr', 'Uptima doesn\'t take the throne back. She runs the Cloud from the camp\'s fire, through IAM Identity Center, with MFA.'],
     ['show', 'uptima', 'neutral', 'right'],
     ['uptima', 'Each band its own account, under the organization, so no one can take all of it again. Control Tower\'s controls on every one.', 'earnest'],
-    ['uptima', 'The camp\'s network shared across them with Resource Access Manager. Approved kits from Service Catalog. Licences counted in License Manager. And once a season, all of us, with the Well-Architected Tool.', 'neutral'],
+    ['uptima', 'The camp\'s network shared across them with Resource Access Manager.', 'neutral'],
+    ['uptima', 'Approved kits from Service Catalog.', 'neutral'],
+    ['uptima', 'Licences counted in License Manager.', 'neutral'],
+    ['uptima', 'And once a season, all of us, with the Well-Architected Tool.', 'neutral'],
     ['narr', 'Then she moves the prayers out of the queue, where any message is gone in fourteen days, into an S3 bucket under Object Lock in compliance mode. Nobody can delete one, herself included.'],
     ['uptima', 'And I won\'t work from the management account. Service control policies can\'t reach it, so up there the only rule is my word.', 'earnest'],
     ['narr', 'She reads some every night. Elder Wren sits with her while she does.']]), { music: 'c7camp', note: 'The morning after: how the Cloud is run now.' });
@@ -877,8 +895,9 @@
     ['uptima', 'IAM Identity Center.', 'neutral'],
     ['show', 'kai', 'neutral', 'left'], ['kai', 'Bless you.', 'smirk'],
     ['narr', 'Kai, not Dutch, said it.'], ['hide', 'kai'],
+    ...(w().cards.includes('r7-kyu') ? [] : [['show', 'kyu', 'neutral', 'left'], ['kyu', 'I remember all of it. I\'m still deciding.', 'neutral'], ['hide', 'kyu']]),
     ['narr', 'Uptima, who now reads every prayer, finds one of Freya\'s satisfaction cards filed among the prayers: "How likely are you to recommend the Free Tier to a friend? 0 to 10." She reads it all the way through. She doesn\'t answer it.'],
-    ['hide', 'uptima'], ['bg', 'c7-dawn'],
+    ['hide', 'uptima'], ['bg', 'c7-dawn'], ['music', 'c7sad'],
     ...Object.keys(ENDS).map(k => ['narr', ENDS[k][RECKONED[k]() ? 0 : 1]]),
     ['narr', 'Aurelian comes up out of the Abyss with Mother Ash.'],
     ['narr', 'Tilly visits the camp. She doesn\'t stay.'],
@@ -888,11 +907,10 @@
     ['narr', choice6() === 'vault' ? 'Kagemaru\'s vault stays shut, its speaker silent. On a shelf beside the grille are Bram\'s list, Hana\'s page, Old Gu\'s letter and Lina\'s diary, priced too high for anyone, and still there.'
       : 'Kagemaru opens a stall at the edge of the camp. Nobody buys anything. On its top shelf are Bram\'s list, Hana\'s page, Old Gu\'s letter and Lina\'s diary, priced too high for anyone, and still there.'],
     ['narr', 'Beside them, in a napkin with his name spelled wrong, is a biscuit that isn\'t for sale.'],
-    ['bg', 'c7-console'],
+    ['music', null], ['bg', 'c7-console'],
     ['narr', 'On the management account\'s console, the croissant is gone. Nobody saw who took it.'],
-    ['fx', 'black']]), { music: 'c7sad', note: 'The epilogue.' });
+    ['fx', 'black']]), { music: 'c7camp', note: 'The epilogue.' });
   async function epilogue() {
-    mus('c7sad');
     await cut.play('epilogue');
     setFlag('epilogue');
     c7().f.done = true; S.persist();
