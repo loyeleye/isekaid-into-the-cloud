@@ -34,6 +34,8 @@
   // A line by whoever you play is 'lead'; a text can change with the lead.
   const L = lines => lines.map(([s, t, e]) => ({ s: s === 'lead' ? lead() : s, t: typeof t === 'object' ? (t[lead()] || t.other) : t, e }));
   const say = lines => U.dialog(L(lines));
+  // The same lines as a js/vn.js script, for a scene played on its pixel stills (js/cut-ch2a.js).
+  const vnL = steps => L(steps).map(l => [l.s, l.t, l.e].filter(x => x !== undefined));
 
   // ---------- The map ----------
   const MW = 96, MH = 40;
@@ -478,12 +480,23 @@
     await cut.play('tower');
     AU.music('road');
   }
+  // The scrap field and Coo's return, on the-scrap-field's stills. The climb-only slice has its own scrap field.
+  const climbScrap = SD.reel.get('2/scrap');
+  cut.def('scrap', 'The scrap field', v => v === 'climb' ? SD.reel.steps(climbScrap) : vnL([
+      ['cut', 'the-scrap-field'], ['cg', 'cut-the-scrap-field-1'],
+      ['narr', 'At the tower\'s foot is the field where Freya dumps everything she deletes. Houses, people, shop signs from Pingsby: all of it half there.'],
+      ['cg', 'cut-the-scrap-field-2'],
+      ['dutch', 'Pingsby\'s post office should be north of here. And someone in it.', 'neutral']
+    ]), { note: 'Where Freya dumps what she deletes.', alts: [['Arriving', undefined], ['The climb', 'climb']] });
+  cut.def('coo', 'Coo comes back', [
+      ['cut', 'the-scrap-field'],
+      ['coo', 'Coo! Delivered! At least once. Possibly twice. Did I miss anything?', 'smile'],
+      ['narr', 'Freya never read Pingsby\'s settings. She doesn\'t read fine print.'],
+      ['coo', 'A whole field of undelivered post, and five of the letters are mine. A pigeon has standards. Bring me any you find, would you?', 'neutral']
+    ], { note: 'Pingsby\'s postmaster, restored from under a delete marker.' });
   async function scrapArrive() {
     setFlag('scrap');
-    await say([
-      ['narr', 'At the tower\'s foot is the field where Freya dumps everything she deletes. Houses, people, shop signs from Pingsby: all of it half there.'],
-      ['dutch', 'Pingsby\'s post office should be north of here. And someone in it.', 'neutral']
-    ]);
+    await cut.play('scrap');
   }
   async function notice() {
     await say([['narr', 'A laminated notice, nailed to a stake: "NOTICE. VERSIONING IS ENABLED ON EVERY BUCKET IN PINGSBY. IT CANNOT BE TURNED OFF, ONLY SUSPENDED, AND I WILL NOT BE SUSPENDING IT. DO NOT ASK. — Sir S. Backups"']]);
@@ -529,14 +542,10 @@
     applyState();
     U.flash(); AU.sfx('heal');
     faceTo('coo', 'you');
-    await say([
-      ['coo', 'Coo! Delivered! At least once. Possibly twice. Did I miss anything?', 'smile'],
-      ['narr', 'Freya never read Pingsby\'s settings. She doesn\'t read fine print.'],
-      ['coo', 'A whole field of undelivered post, and five of the letters are mine. A pigeon has standards. Bring me any you find, would you?', 'neutral']
-    ]);
+    await cut.play('coo');
     U.system('[QUEST] LOST LETTERS', 'Five of Coo\'s letters are somewhere in the field. Some only show through the lens.', 'gold');
     SD.lens.state().left = SD.lens.LOOK; // the look you're on when the cost starts is a whole one
-    if (!SD.lens.unlimited()) U.system('FREYA\'S FREE TIER', `From now on, looking costs a look. You have ${SD.lens.MAX}; each lasts ${SD.lens.LOOK} s of walking, and a spent one comes back on its own after ${SD.lens.COOL} s. The ring round 👁 shows what's left.`);
+    if (!SD.lens.unlimited()) U.system('FREYA\'S FREE TIER', `From now on, looking costs a look. You have ${SD.lens.MAX}; each lasts ${SD.lens.LOOK} s of walking, and a spent one comes back on its own after ${SD.lens.COOL >= 60 ? SD.lens.COOL / 60 + ' minutes' : SD.lens.COOL + ' s'}. The ring round 👁 shows what's left.`);
   }
   async function bakery() {
     if (flag('bakery')) return say([['narr', 'PINGSBY BAKERY · EST. 1987. It smells, very faintly, of buns.']]);
@@ -590,7 +599,7 @@
   // The first knock, on the bunker's pixel stills (js/cut-ch2a.js, the-bunker): the talk at the hatch, then after
   // its puzzle, the rest. The climb-only slice (js/vec-ch2.js) has its own version; the viewer lists all three.
   const climbBunker = SD.reel.get('2/bunker');
-  cut.def('bunker', 'The bunker', v => v === 'climb' ? SD.reel.steps(climbBunker) : L(v === 'after' ? [
+  cut.def('bunker', 'The bunker', v => v === 'climb' ? SD.reel.steps(climbBunker) : vnL(v === 'after' ? [
       ['cut', 'the-bunker'],
       ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
       ['dutch', 'So we take root back.'],
@@ -603,7 +612,7 @@
       ['seymour', 'I know. I have one tape, made long before the end. Kyu\'s on it. I\'ve tested it: it restores.'],
       ['mira', 'Then restore her.'],
       ['seymour', 'No. Two reasons, in order. Freya holds root, and she\'d wipe her again by morning. And a copy anyone can delete is not a copy. You don\'t believe me. Fine. Tell me which of these would stop her.']
-    ]).map(l => [l.s, l.t, l.e].filter(x => x !== undefined)),
+    ]),
     { note: 'Sir Seymour Backups won\'t open the door.', leads: true, alts: [['At the hatch', undefined], ['After the hatch', 'after'], ['The climb', 'climb']] });
   async function bunker() {
     if (flag('seymour')) {
@@ -630,11 +639,15 @@
     U.system('[GOAL] TAKE ROOT BACK', 'Kyu\'s tape stays offline until there\'s no root to fear. Somewhere on the island, Elder Wren is waiting.', 'gold');
     AU.music('camp');
   }
+  const climbWren = SD.reel.get('2/wren');
+  cut.def('wren', 'Elder Wren', v => v === 'climb' ? SD.reel.steps(climbWren) : [['cut', 'elder-wren'], ['cg', 'cut-elder-wren-1'],
+      ['narr', 'Elder Wren, whose faithful you beat at Brookfall. Freya deleted him for praying to Uptima. Then she wrote over him.']],
+    { note: 'Found through the lens.', alts: [['Through the lens', undefined], ['The climb', 'climb']] });
   async function wren() {
     if (flag('wren')) return say([['faithful', '...'], ['narr', 'Elder Wren looks at you for a long time, and says nothing.']]);
     if (!lensOn()) return;
     if (!flag('seymour')) return say([['narr', 'An old man in Brookfall blue, praying to nothing. Under the lens there are older versions of him, one under another. He doesn\'t look quite there.']]);
-    await say([['narr', 'Elder Wren, whose faithful you beat at Brookfall. Freya deleted him for praying to Uptima. Then she wrote over him.']]);
+    await cut.play('wren');
     const r = await G.restore({ title: 'ELDER WREN', concept: 's3life', bucket: 'brookfall-shrine', key: 'faithful/elder-wren.json',
       rule: 'Lifecycle rule "tidy-up" (by root): NoncurrentVersionExpiration, NoncurrentDays: 1',
       rows: [['v4 · Elder Wren, faithful of FREYA', '2026-10-20 23:59', '1.1 KB', 'cur'], ['v3 · Elder Wren', '2026-09-21 06:00', '2.4 KB', 'fade'], ['v2 · Elder Wren, deacon', '2001-04-01 06:00', '2.2 KB', 'fade']],
@@ -685,15 +698,26 @@
     });
     if (d === 'stair') return act(climb);
   }
-  async function townArrive() {
-    setFlag('town');
-    await say([
+  // Thornwick's square and Tilly, on thornwick-square's stills. The climb-only slice plays them as one scene.
+  const climbTown = SD.reel.get('2/thornwick');
+  cut.def('thornwick', 'Thornwick', v => v === 'climb' ? SD.reel.steps(climbTown) : vnL(v === 'tilly' ? [
+      ['cut', 'thornwick-square'], ['cg', 'cut-thornwick-square-3'],
+      ['narr', 'Tilly, in Inquisition grey, with a pole-net, hunting the beast in the tower. She looks straight through Mira.'],
+      ['tilly', 'Move along. There\'s a beast loose.', 'cold'],
+      ['mira', 'Tilly...', 'grief'],
+      ['tilly', 'Do I know you?', 'cold']
+    ] : [
+      ['cut', 'thornwick-square'], ['cg', 'cut-thornwick-square-1'],
       ['narr', 'Thornwick, rebuilt as the tower\'s first floor: the village as it was, every morning, forever.'],
+      ['cg', 'cut-thornwick-square-2'],
       ['narr', 'People wait at the post box for replies that never come. In the bell tower, someone is pulling a rope, and nothing rings.'],
       ['mira', { mira: '...Home.', other: 'Thornwick. It\'s exactly how I left it. That\'s what\'s wrong with it.' }, 'tired'],
       ['narr', 'Among the Inquisition\'s posters is a new one: THE BEAST OF THORNWICK. REWARD.'],
       ['mira', 'They\'ve drawn the wrong arm.', 'tired']
-    ]);
+    ]), { note: 'The silent bell, and Tilly.', leads: true, alts: [['Arriving', undefined], ['Tilly', 'tilly'], ['The climb', 'climb']] });
+  async function townArrive() {
+    setFlag('town');
+    await cut.play('thornwick');
   }
   cut.def('postbox', 'Freya on the poster', [['cg', 'c2-postbox', 'in'],
     ['narr', 'Freya meets Mira at the silent post box. She doesn\'t come in person. She\'s on the poster, smiling.'],
@@ -755,12 +779,7 @@
   async function tilly() {
     const t2 = sc.actors.tilly; t2.path = []; t2.scripted = true;
     faceTo('tilly', 'you');
-    await say([
-      ['narr', 'Tilly, in Inquisition grey, with a pole-net, hunting the beast in the tower. She looks straight through Mira.'],
-      ['tilly', 'Move along. There\'s a beast loose.', 'cold'],
-      ['mira', 'Tilly...', 'grief'],
-      ['tilly', 'Do I know you?', 'cold']
-    ]);
+    await cut.play('thornwick', 'tilly');
     t2.scripted = false;
     setFlag('tilly');
     // Pair scene: Unmake It, straight after.

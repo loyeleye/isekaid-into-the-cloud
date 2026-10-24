@@ -9,7 +9,9 @@
 // Saves in S.save.lens: { n: looks left, cd: seconds to the next look back, left: seconds left on this look, taught }.
 (function () {
   const S = SD.state, U = SD.ui, AU = SD.audio;
-  const L = SD.lens = { MAX: 5, LOOK: 30, COOL: 20, WARN: 5 };
+  const L = SD.lens = { MAX: 5, LOOK: 30, COOL: 120, WARN: 5 };
+  // A wait as players read it: '45 s' under a minute, '1:58' above.
+  L.span = sec => { sec = Math.ceil(sec); return sec < 60 ? sec + ' s' : Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
   const st = () => { const s = S.save; return s.lens || (s.lens = { n: L.MAX, cd: 0, left: L.LOOK, taught: false }); };
   L.state = st;
   L.unlimited = () => !!(S.save && S.save.lensFree);
@@ -58,7 +60,7 @@
       if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); }
       AU.sfx('wrong');
       if (!s.taught && o.dry) { s.taught = true; S.persist(); o.dry(); }
-      else U.system('503 SLOW DOWN', `No looks left. The next one is back in ${Math.ceil(s.cd)} s.`);
+      else U.system('503 SLOW DOWN', `No looks left. The next one is back in ${L.span(s.cd)}.`);
       return false;
     };
     // Every frame: looks come back one at a time, whatever you're doing; the open look's clock runs only while you
@@ -90,14 +92,14 @@
       const b = document.getElementById('w-lens'); if (!b) return;
       const s = st(), m = metered(), on = o.on();
       const lp = !m ? (on ? 1 : 0) : on ? s.left / L.LOOK : s.n ? 0 : 1 - s.cd / L.COOL;
-      const badge = !m ? (on && L.unlimited() ? '∞' : '') : s.n ? String(s.n) : Math.ceil(s.cd) + 's';
+      const badge = !m ? (on && L.unlimited() ? '∞' : '') : s.n ? String(s.n) : L.span(s.cd).replace(' ', '');
       const key = [lp.toFixed(2), badge, warn(), m && !s.n && !on].join();
       if (key === last) return; last = key;
       b.style.setProperty('--lp', lp.toFixed(3));
       const n = b.querySelector('.lens-n'); if (n) { n.textContent = badge; n.hidden = !badge; }
       b.classList.toggle('warn', warn());
       b.classList.toggle('dry', m && !s.n && !on);
-      b.title = !m ? 'Version Lens (L)' : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${Math.ceil(s.cd)} s` : ''}`;
+      b.title = !m ? 'Version Lens (L)' : on ? `Version Lens (L): ${Math.ceil(s.left)} s left on this look` : `Version Lens (L): ${s.n} of ${L.MAX} looks${s.n < L.MAX ? `, next back in ${L.span(s.cd)}` : ''}`;
     };
     c.repaint = () => { last = ''; c.paint(); };
     return c;

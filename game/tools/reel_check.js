@@ -121,7 +121,7 @@ console.log('source: ' + calls + ' SD.vn.play calls outside js/reel.js, all insi
   if (wide > 0) fail.push('viewer: the page scrolls sideways by ' + wide + 'px');
   if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, 'reel-viewer.png'), fullPage: false }); }
   // Search: a title, then a line inside a scene.
-  for (const [q, want] of [['Jin\'s Echo', '4/echo'], ['delete marker', '2/scrap'], ['zzzz no such', null]]) {
+  for (const [q, want] of [['Jin\'s Echo', '4/echo'], ['delete marker', '2/coo'], ['zzzz no such', null]]) {
     await page.fill('#rv-q', q);
     const hits = await page.evaluate(() => [...document.querySelectorAll('.rv-row')].filter(r => !r.hidden && !r.closest('details').hidden).map(r => r.dataset.key));
     if (want && !hits.includes(want)) fail.push(`search "${q}" doesn't find ${want} (${hits.join(', ')})`);
