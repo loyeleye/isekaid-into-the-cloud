@@ -31,6 +31,12 @@
 //   - Up to 6 floors (chapter 7, 2026-10-23): the finale's sixth, Freya's backup, comes only after a chapter 6 choice.
 //   - o.give(ids) (chapter 7, 2026-10-23), set by RD.play on the options it was given: the story adds cards to the
 //     leader's own deck mid-expedition, as a cue's reward.
+//   - Multiplayer replays (Ladi, 2026-10-24; js/raid-finder.js): o.open lists the expedition ids this player may play,
+//     in place of each expedition's opens() (which only holds while its chapter is the one being played). A guest whose
+//     o.open leaves out the expedition the leader starts leaves with 'locked:<id>' (and is warned in the party room).
+//     o.onFinish({ won, fl, xp, humans, asked, right }) runs once on each seated player's page when an expedition ends,
+//     outside the story too, for the replay's reward: humans counts the people still here at the end, asked and right
+//     this page's own questions. o.rewardNote: the party room's line on what a clear pays, in place of the practice note.
 //
 // Expedition Raid (Ladi, 2026-10-20; it replaced the one-fight Incident Raid): a co-op dungeon crawl for 2 to 4
 // players, after Slay the Spire. The leader picks an expedition (js/expeditions.js) of 2 to 5 floors. Each floor is a
@@ -64,7 +70,7 @@
 // never touches the save's run. One page is the authority (the host) and sends the whole expedition on `state` after
 // every change and every few seconds. Card piles go as short codes (enc() below), so four players stay well under a
 // room's 4 KiB. Players send only their moves on `pick`. If the host leaves, the present player with the lowest peer
-// label takes over from the last state. Pays no rewards.
+// label takes over from the last state. Pays no rewards of its own (a Multiplayer replay pays through o.onFinish, js/raid-finder.js).
 // Before it starts the table waits in the party room (js/party.js): everyone picks a champion (js/champions.js),
 // whose three signature cards go into their deck, the leader (the host) picks the expedition, and starts once everyone
 // is ready. In a fight each player stands on the left as their champion, facing the foe.
@@ -1240,7 +1246,8 @@
     const me = hub.me;
     let done = null;
     const finished = new Promise(r => { done = r; });
-    const open = RD.expeditions();
+    const openList = () => (Array.isArray(o.open) ? o.open.map(xpOf).filter(Boolean) : RD.expeditions());
+    const open = openList();
     const xp0 = o.xp && open.some(x => x.id === o.xp) ? o.xp : o.settings && open.some(x => x.id === o.settings.xp) ? o.settings.xp : (open[0] || {}).id || null;
     const fresh = () => Object.assign({ v: 0, host: me.peer, cv: index().length, ph: 'lobby', xp: xp0, fl: 0, map: null, pos: null, seen: [], votes: {}, room: null, k: 0, rooms: 0, sla: SLA, tapes: 0, tapeN: 0, snap: null, note: '', end: null, rs: false,
       main: null, tier: null, onWin: [], turn: 0, stale: 0, taken: 0, sh: zero(), flags: {}, infra: [], eff: [], log: '', players: {} }, newFoe(null, 0, 1), fightStatus());
@@ -2141,7 +2148,7 @@
         <ol class="fn-steps">${li}</ol>${r.fd ? '<p class="muted small">The notes stop here. You finish them: the question is the rest.</p>' : ''}<p class="fn-sign">${esc(N.sign || 'xx F.')}</p>
         <div class="row"><button class="primary" type="button" id="fn-ok">${r.fd ? 'I\'ll finish it' : 'Got it'}</button></div>`, 'FIELD NOTES', (el, done) => { el.querySelector('#fn-ok').onclick = () => done(true); });
       const q = N.q ? Object.assign({ c: N.c }, N.q) : pickQ(N.c);
-      if (!q) { send({ k: 'ans', ok: true, band: 'steady' }); return; }
+      if (!q) { send({ k: 'ans', ok: true, band: 'steady', free: 1 }); return; }
       const res = await askHere(q, { timer: TIMER, bands: [20, 45], title: 'FIELD NOTES', context: (SD.concepts[q.c] || {}).name });
       if (!res.ok && o.onMiss) o.onMiss(q);
       send({ k: 'ans', ok: !!res.ok, band: bandOf(res.ms || 0), late: !!res.timeout });
@@ -2288,19 +2295,24 @@
       const mine = G.players[me.peer];
       return `<p class="muted small">${esc(title)}</p><div class="cardgrid pick">${mine.deck.map((id, i) => (ok(id) ? `<div ${sendAttr({ k: act, i })} class="rd-pickc">${chtml(id, { i })}</div>` : '')).join('')}</div>${cancel ? `<button class="ghost" type="button" ${cancel}>Cancel</button>` : ''}`;
     }
+    // Whether this expedition's end has been reported to o.onFinish (once per expedition; the party room resets it).
+    let ended = false;
     function render() {
       if (left) return;
       scenes(); owed(); owedQ(); offer();
       if (mismatch) return paint(`<div class="mi-card">${head('A different version')}<p>This party is running a different version of the game. Reload both pages, then join again.</p></div>`);
       if (!G.host) return paint(`<div class="mi-card">${head('Finding the host…')}</div>`);
       const mine = G.players[me.peer], x = X();
-      if (G.ph === 'lobby') return lobby(x);
+      if (G.ph !== 'lobby' && !hosting && mine && Array.isArray(o.open) && !o.open.includes(G.xp)) return leave('locked:' + G.xp);
+      if (G.ph === 'lobby') { ended = false; qn = { asked: 0, right: 0 }; return lobby(x); }
       if (G.ph === 'done' || G.ph === 'over') {
+        if (!ended && mine && o.onFinish) { ended = true; o.onFinish({ won: G.ph === 'done', fl: (G.end || {}).fl | 0, xp: G.xp, humans: seatsHere().filter(k => !isBot(k)).length, asked: qn.asked, right: qn.right }); }
         const fs = floorsOf(x), e = G.end || {}, foe = SD.enemies[e.foe];
         paint(`<div class="mi-card rd-end">${head(G.ph === 'done' ? (STORYMODE ? `${x.name} cleared!` : 'Expedition complete!') : 'The expedition is over')}
           <p>${G.ph === 'done' ? `You cleared all ${fs.length} floors of ${esc(x.name)}, ${G.rooms} fights in, with ${G.sla} SLA left.` : `The team went down on floor ${(e.fl | 0) + 1} of ${fs.length} (${esc(fs[e.fl | 0] ? fs[e.fl | 0].name : '')}), after ${e.rooms | 0} fight${(e.rooms | 0) === 1 ? '' : 's'}.${foe ? ` ${esc(foe.short || foe.name)} held on with ${e.sev | 0} severity left.` : ''}`}</p>
           <p class="muted small">Talk through the room that hurt most: which card, or which path, would have covered it?</p>
-          ${STORYMODE ? `<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-back">${esc(obj(x).back || 'Back to the story')}</button></div>` : hosting ? '<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-again">Back to the party room</button></div>' : ''}</div>`);
+          ${STORYMODE ? `<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-back">${esc(obj(x).back || 'Back to the story')}</button></div>` : hosting ? '<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-again">Back to the party room</button></div>' : o.open ? '<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-out">Back to Multiplayer</button></div>' : ''}</div>`);
+        const out = root.querySelector('#rd-out'); if (out) out.onclick = () => leave();
         const bk = root.querySelector('#rd-back'); if (bk) bk.onclick = () => { const r = { won: G.ph === 'done', fl: (G.end || {}).fl | 0 }; leave('story'); if (o.onEnd) o.onEnd(r); };
         const ag = root.querySelector('#rd-again'); if (ag) ag.onclick = () => { const xp = G.xp, bs = botKeys().map(k => [k, G.players[k].n, G.players[k].c]); G = fresh(); G.xp = xp; bs.forEach(([k, n, c]) => { G.players[k] = Object.assign(newSeat(n, c, botDeck(c)), { bot: true }); }); hello(); push(); };
         return;
@@ -2320,11 +2332,13 @@
     }
     function lobby(x) {
       pres();
-      const open = RD.expeditions(), h = here();
+      const open = openList(), h = here();
       const kyu = kyuBoss();
       const fl = x ? floorsOf(x) : [];
       const pickX = hosting && !G.rs ? (open.length ? `<label class="pt-lbl" for="rd-xp">Expedition<select id="rd-xp">${open.map(e => `<option value="${esc(e.id)}" ${e.id === G.xp ? 'selected' : ''}>${esc(e.name)} · ${RD.level(e)}, ${floorsOf(e).length} floors</option>`).join('')}</select></label>` : '<span class="mi-tag">Expedition</span><small class="mi-muted">None open yet. Reach chapter 2 for the first.</small>')
         : `<span class="mi-tag">Expedition${G.rs ? ' · resuming' : ''}</span><b>${esc(x ? x.name : 'None yet')}</b><small class="mi-muted">${G.rs ? `Floor ${G.fl + 1} of ${fl.length}. Seats come back by name, or tap yours.` : `${esc((G.players[G.host] || {}).n || 'The leader')} picks the expedition.`}</small>`;
+      // A guest who hasn't reached the leader's pick (o.open): said before Ready, not only when it starts.
+      const lockNote = x && !hosting && Array.isArray(o.open) && !o.open.includes(x.id) ? `<br><b>You haven't reached ${esc(x.name)} in the story yet.</b> If the leader starts it, you'll be sent back to Multiplayer. Ask them to pick one of yours.` : '';
       const floors = x ? `<b>${esc(x.name)}</b>: ${esc(x.blurb || '')} ${fl.map((f, i) => `${i + 1}. ${esc(f.name)} (${esc(SD.enemies[f.boss].name)})`).join(' · ')}` : '';
       // A resumed expedition: the saved seats, and a button for each empty one this player could be.
       const seats = G.rs ? `<br><b>Seats:</b> ${Object.keys(G.players).map(k => `${esc(G.players[k].n)}${h.has(k) ? (k === me.peer ? ' (you)' : ' ✓') : ' (away)'}`).join(', ')}.${!G.players[me.peer] ? ' ' + free().map(k => `<button class="mi-btn sm" type="button" ${sendAttr({ k: 'claim', seat: k })}>I'm ${esc(G.players[k].n)}</button>`).join(' ') : ''}` : '';
@@ -2332,7 +2346,7 @@
         mode: LABEL, code, leader: G.host, max: MAX_PLAYERS, listed: o.vis && o.vis.get(), vis: o.vis, leave,
         what: 'the expedition', startLabel: G.rs ? 'Resume the expedition' : 'Start the expedition', boss: kyu, deck: !G.rs,
         settings: pickX,
-        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: the players vote on every room (bots go with the vote); the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STORYMODE && o.free ? 'Going down sends the party back to the start of the floor, as you entered it.' : STORYMODE ? `Going down plays one of your Seymour Tapes and restarts the floor as you entered it. This run has ${o.tapes | 0}; with none left, the party heads back to camp and the dungeon starts over.` : 'Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. No shards; this one is for practice.'}${seats}`,
+        note: `${floors ? floors + '<br>' : ''}Each floor is a dungeon map: the players vote on every room (bots go with the vote); the most votes win and the leader breaks ties. The SLA is shared and carries from room to room; your deck and bits are your own. After each fight you each pick a card. ${STORYMODE && o.free ? 'Going down sends the party back to the start of the floor, as you entered it.' : STORYMODE ? `Going down plays one of your Seymour Tapes and restarts the floor as you entered it. This run has ${o.tapes | 0}; with none left, the party heads back to camp and the dungeon starts over.` : `Going down ends the expedition, unless someone bought Seymour\'s Tape at a café. ${o.rewardNote || 'No shards; this one is for practice.'}`}${lockNote}${seats}`,
         addBot: hosting && !G.rs && all().length < MAX_PLAYERS ? () => send({ k: 'bot' }) : null,
         botChamp: hosting && !G.rs ? (k, c) => send({ k: 'botc', b: k, c }) : null,
         startWhy: () => (!x ? 'No expedition is open yet.' : G.rs ? (seatsHere().length ? null : 'Waiting for someone with a seat.') : all().length ? null : 'Waiting for the table to answer.'),
@@ -2577,7 +2591,12 @@
 
     // ---------- Messages ----------
     let mismatch = false;
-    function send(d) { if (hosting) act(me.peer, d); else room.emit('pick', d); }
+    // This page's own questions this expedition (o.onFinish's asked and right): every answer it sends, but a free pass.
+    let qn = { asked: 0, right: 0 };
+    function send(d) {
+      if (d && (d.k === 'ans' || d.k === 'qa') && !d.free) { qn.asked++; if (d.ok) qn.right++; }
+      if (hosting) act(me.peer, d); else room.emit('pick', d);
+    }
     // This player's seat at the host: name, champion and deck. Sent again whenever the champion or name changes, and
     // now and then by a player without a seat, so a returning one finds theirs.
     let helloSent = '', helloAt = 0;
