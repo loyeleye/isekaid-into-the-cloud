@@ -7,7 +7,7 @@
 // Clearing with at least one other person still there at the end, with at least TAPE_RIGHT of your own questions
 // right, also pays one of Seymour's Tapes (js/tapes.js), once a day per player: the story's extra lives, so playing
 // with people is worth more than playing with bots. Only once you've reached chapter 2, where the tapes begin; from
-// the chapter 6 reveal it's Kagemaru's tape (SD.tapes.seller).
+// the moment Kagemaru joins your camp (chapter 6's choice: a stall, or the run of the camp) it's his tape.
 // A guest who hasn't reached the expedition the leader starts is sent back here (raid.js o.open, 'locked').
 //
 //   SD.mp.eligible() -> [{ ch, label, done, xps: [expedition] }], in story order: the chapters you can replay
@@ -94,7 +94,8 @@
   const mpSave = () => sv().mp || (sv().mp = {});
   // Tapes start in chapter 2, at Seymour's bunker.
   const tapesOpen = () => !!(SD.tapes && ['c2', 'c2x', 'c3', 'c4', 'c5', 'c6', 'c7'].some(k => sv()[k]));
-  const tapeFrom = () => (SD.tapes.seller() === 'kagemaru' ? 'Kagemaru' : 'Seymour');
+  // Seymour's, until Kagemaru joins the camp (Ladi, Oct 24). Locked in the vault, he never hands anything over.
+  const tapeFrom = () => (sv().c6 && ['least', 'run'].includes(sv().c6.choice) ? 'Kagemaru' : 'Seymour');
   function tapeState() {
     if (!tapesOpen()) return '';
     return mpSave().tapeDay === today() ? `Today's party tape: claimed. 📼 ${SD.tapes.count()}.`
