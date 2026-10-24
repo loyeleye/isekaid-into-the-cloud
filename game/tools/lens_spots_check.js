@@ -59,9 +59,11 @@ const server = http.createServer((req, res) => {
     if (!(await settle())) { errors.push(`${ch}: the map never came up`); await page.close(); continue; }
     const spots = await page.evaluate(k => {
       const D = SD[k].debug, LW = D.LW, sc = D.scene();
+      if (!LW) return null;
       const ids = Object.keys(sc.actors).filter(id => /^lens-/.test(id));
       return { ids, solid: sc.def.solid || 'T#', spots: ids.map(id => { const a = sc.actors[id]; return { id, x: a.x, y: a.y, tile: sc.tile(a.x, a.y), near: [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([dx, dy]) => sc.tile(a.x + dx, a.y + dy)), hidden: a.hidden }; }), on: LW.on() };
     }, key);
+    if (!spots) { errors.push(`${ch}: this map has no lens (its world's debug has no LW)`); await page.close(); continue; }
     if (!spots.ids.length) errors.push(`${ch}: no lens spots`);
     for (const s of spots.spots) {
       const bad = c => !c || (spots.solid + 'TV#~').includes(c);
