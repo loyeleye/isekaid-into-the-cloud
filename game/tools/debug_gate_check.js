@@ -1,6 +1,6 @@
 // Headless check of the debug code (js/debug-gate.js) on a "public" host (127.0.0.2, which the gate doesn't count as
 // local): the published demo (index.html?vector&ch2&demo) shows no 🐞 Debug button and no Debug start switch in the menu;
-// five taps on the title's foot line open the code box, a wrong code is refused, and the right one reloads with the
+// seven taps on the title's foot line open the code box, a wrong code is refused, and the right one reloads with the
 // button showing; "Hide the debug tools" hides it again; ?debug=<code> in the link unlocks it too; a bare ?debug does
 // nothing there; and on localhost the button is always there.
 // Run from game/:  node tools/debug_gate_check.js   (DEBUG_CODE=nnnn to give the code; otherwise it's found from the gate's seal)
@@ -44,7 +44,9 @@ const ok = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!
   ok(!(await bug()), 'public host: no Debug button before the code');
   ok(!(await menuDebug()), 'public host: no Debug start switch in the menu before the code');
   for (let i = 0; i < 5; i++) await page.click('.t-foot');
-  ok(await page.evaluate(() => !!document.querySelector('#dg-code')), 'five taps on the foot line open the code box');
+  ok(await page.evaluate(() => !document.querySelector('#dg-code')), 'five taps on the foot line are not enough');
+  for (let i = 0; i < 2; i++) await page.click('.t-foot');
+  ok(await page.evaluate(() => !!document.querySelector('#dg-code')), 'seven taps on the foot line open the code box');
   await page.fill('#dg-code', '00000'); await page.click('#dg-form button[type=submit]');
   ok(/isn't it/.test(await page.textContent('#dg-msg')), 'a wrong code is refused');
   await page.fill('#dg-code', CODE);

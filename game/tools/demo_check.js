@@ -38,7 +38,7 @@ const fail = [];
 
   await toTitle();
   const foot = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');
-  if (!/Demo: Chapters 1 to 6/.test(foot)) fail.push('title foot line: ' + foot);
+  if (foot !== 'Built on the AWS documentation · Saves automatically') fail.push('title foot line: ' + foot);
   if (await vis('#ds-go')) fail.push('Continue shown with no save');
   if (!(await vis('#t-help'))) fail.push('How to play missing from the title');
   if (!(await page.evaluate(() => { const b = document.querySelector('#ds-dbg'); return !!b && getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0; }))) fail.push('no Debug button on the title');

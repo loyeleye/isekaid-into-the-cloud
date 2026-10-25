@@ -295,7 +295,7 @@
       $('#ds-new').onclick = newGame;
       badge();
       const foot = $('.t-foot');
-      if (foot) foot.textContent = 'Demo: Chapters 1 to 6 · Built on the AWS documentation · Saves automatically';
+      if (foot) foot.textContent = 'Built on the AWS documentation · Saves automatically';
     };
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
