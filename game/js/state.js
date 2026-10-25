@@ -206,11 +206,11 @@
   // A concept's review questions: the bank, plus, for side quests' concepts (zone 98), the questions their quests ask.
   S.questionsFor = function (id) {
     // Exam mode (js/exam.js): the exam-task concepts' questions come from the bank; held-out questions never show
-    // here, and SAA-only ones only when a concept has nothing else (SD.quiz.ask swaps those).
+    // here, and ones only on the other exam only when a concept has nothing else (SD.quiz.ask swaps those).
     const E = SD.exam;
     if (E && E.isTaskConcept(id)) return E.taskQuestions(id);
     let bank = SD.questions.filter(q => q.c === id && !(E && E.isHeld(q)));
-    if (E && E.on() && bank.some(q => !E.isSaa(q))) bank = bank.filter(q => !E.isSaa(q));
+    if (E && E.on() && bank.some(q => !E.offTrack(q))) bank = bank.filter(q => !E.offTrack(q));
     if (!SD.concepts[id] || SD.concepts[id].zone !== 98 || !SD.quests) return bank;
     const asks = SD.quests.list.flatMap(q => q.steps.flatMap(s => s.do)).map(a => a.ask)
       .filter(q => q && q.c === id && q.id && (q.type !== 'explain' || S.save.typed !== false));
@@ -218,7 +218,7 @@
   };
   // Concepts the town's reviews can ask: every chapter reached so far, and side quests' concepts (zone 98) once
   // you've met them. The Isles (zone 99) review theirs at their own tide posts.
-  // In exam mode (js/exam.js) that's every DVA concept instead, whatever the chapter, and no SAA-only ones.
+  // In exam mode (js/exam.js) that's every concept on the chosen exam instead, whatever the chapter.
   S.reviewable = function (id) {
     const c = SD.concepts[id], st = S.save.concepts[id];
     if (!c) return false;

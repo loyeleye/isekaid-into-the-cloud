@@ -1,6 +1,7 @@
 // The Today card (ExamPrepDemo, Oct 23): the daily front door on the title screen, after PRESS START.
-// One short DVA-C02 practice set a day (S.save.todaySet), readiness by domain, the wall of misses (S.save.wall) and the
-// next mock. Kyu leaves it as a sticky note until Uptima joins the camp (chapter 2, part 2), then she hosts it.
+// One short practice set a day for the chosen exam, DVA-C02 or SAA-C03 (S.save.todaySet), readiness by domain, the
+// wall of misses (S.save.wall) and the next mock. Its exam settings pick the exam, the date and the switch; with no
+// date or exam prep off, the card only offers them, and the game mixes both exams' questions (js/exam.js). Kyu leaves it as a sticky note until Uptima joins the camp (chapter 2, part 2), then she hosts it.
 // main.js calls SD.today.mount(started) from the title. Mocks are the Exam Hall's (SD.examHall.open, if loaded).
 (function () {
   const T = SD.today = {};
@@ -43,12 +44,12 @@
     return m ? { form: f, t: m.t, days: calDays(Date.now(), m.t) } : null;
   };
   const examStyle = q => q && (q.type === 'mc' || q.type === 'multi');
-  // Reviewable DVA concepts that have exam-style questions.
-  function dvaConcepts() {
-    return Object.keys(SD.concepts).filter(id => S.reviewable(id) && E().isDvaConcept(id) && S.questionsFor(id).some(examStyle));
+  // Reviewable concepts on the chosen exam that have exam-style questions.
+  function trackConcepts() {
+    return Object.keys(SD.concepts).filter(id => S.reviewable(id) && E().isTrackConcept(id) && S.questionsFor(id).some(examStyle));
   }
   const isDue = id => { const c = sv().concepts[id]; return !!(c && c.seen && c.due <= Date.now()); };
-  T.dueList = () => dvaConcepts().filter(isDue);
+  T.dueList = () => trackConcepts().filter(isDue);
 
   // How much a domain needs work, 0..1: the latest mock's score, else review accuracy, else unknown (0.5).
   function score(d) {
@@ -87,7 +88,8 @@
   // The concept a bank question records under when asked on its own (the wall): its own, else its exam task's.
   function conceptOf(q) {
     if (q.c && SD.concepts[q.c]) return q.c;
-    return q.dva ? E().taskConcept(String(q.dva)) : null;
+    const t = E().taskOf(q);
+    return t ? E().taskConcept(String(t)) : null;
   }
   function resolve(it) {
     let q = null;
@@ -97,8 +99,8 @@
   }
 
   // ---- Building sets ----
-  // Two thirds due DVA concepts (any reviewable one when not enough are due), one third questions never answered
-  // from the thirteen exam-task concepts, weighted toward the weakest domains and the exam's weights.
+  // Two thirds due concepts on the exam (any reviewable one when not enough are due), one third questions never
+  // answered from the exam-task concepts, weighted toward the weakest domains and the exam's weights.
   T.build = function (n, light) {
     const N = needs(), log = qlog(), used = new Set(), items = [];
     if (!light) {
@@ -106,7 +108,7 @@
       Object.keys(E().TASKS).forEach(t => E().taskQuestions(E().taskConcept(t)).forEach(q => { if (!log[q.id] && examStyle(q)) fresh.push(q); }));
       weighted(fresh, q => N[E().domainOf(q)] || N[0], Math.round(n / 3)).forEach(q => { items.push({ c: q.c, q: q.id, fresh: 1 }); used.add(q.id); });
     }
-    const all = dvaConcepts(), due = all.filter(isDue), want = n - items.length;
+    const all = trackConcepts(), due = all.filter(isDue), want = n - items.length;
     const w = id => (N[E().conceptDomain(id)] || N[0]);
     let cs = weighted(due, w, want);
     if (cs.length < want) cs = cs.concat(weighted(all.filter(id => !cs.includes(id)), id => w(id) * (isDue(id) ? 2 : 1), want - cs.length));
@@ -121,14 +123,16 @@
   // Today's set, if one was started today.
   T.set = () => { const s = sv().todaySet; return s && s.day === today() && Array.isArray(s.items) ? s : null; };
   function drillSet(d) {
-    const pool = dvaConcepts().filter(id => E().conceptDomain(id) === d), used = new Set(), items = [];
+    const pool = trackConcepts().filter(id => E().conceptDomain(id) === d), used = new Set(), items = [];
     for (let pass = 0; pass < 3 && items.length < 10 && pool.length; pass++) {
       S.pickConcepts(10 - items.length, pool).forEach(c => { const q = pickQ(c, used); if (q && items.length < 10) { items.push({ c, q: q.id }); used.add(q.id); } });
     }
     return { kind: 'drill', dom: d, items: shuffle(items), i: 0, right: 0 };
   }
   function wallSet() {
-    const items = wall().slice().sort((a, b) => a.t - b.t).slice(0, 10).map(w => ({ q: w.id, wall: 1 })).filter(it => resolve(it));
+    // Only the chosen exam's posters (and untagged ones): the other exam's wait on the wall until you switch back.
+    const mine = w => { const q = E().find(w.id); return !q || !E().offTrack(q); };
+    const items = wall().filter(mine).sort((a, b) => a.t - b.t).slice(0, 10).map(w => ({ q: w.id, wall: 1 })).filter(it => resolve(it));
     return { kind: 'wall', items, i: 0, right: 0 };
   }
 
@@ -182,7 +186,7 @@
       if (!q) { s.items.splice(s.i, 1); continue; }
       S.seeConcept(q.c);
       live.q = q; live.t0 = Date.now();
-      const name = SD.concepts[q.c] ? SD.concepts[q.c].name : 'DVA-C02';
+      const name = SD.concepts[q.c] ? SD.concepts[q.c].name : E().NAME;
       const r = await SD.quiz.ask(q, { title: TITLE[s.kind], context: `${name} · ${s.i + 1}/${s.items.length}`, noSwap: true });
       if (!live || live.tok !== tok) return;
       settle(s, it, r.ok, r.conf);
@@ -253,17 +257,42 @@
   T.drillWall = () => { U.closePanel(); const s = wallSet(); if (s.items.length) run(s); else T.render(); };
 
   // ---- Panels ----
-  T.datePicker = function () {
-    const b = U.panel(`<p>When is your DVA-C02 exam booked?</p>
-      <label class="td-date"><span>Exam date</span><input type="date" id="td-date-in" value="${esc(E().date())}"></label>
-      <p class="muted small">DVA-C02's last day is Nov 30, 2026. Reviews space themselves to land before it.</p>
-      <div class="row"><button class="primary" id="td-date-ok">Save date</button></div>`, { title: 'EXAM DATE', onClose: T.render });
-    b.querySelector('#td-date-ok').onclick = () => { if (E().setDate(b.querySelector('#td-date-in').value)) { U.closePanel(); T.render(); } };
+  const NOTE = {
+    DVA: 'DVA-C02\'s last day is Nov 30, 2026; DVA-C03 starts Dec 1.',
+    SAA: 'SAA-C03 has no announced last day.'
   };
-  // Seen X of N: DVA questions answered at least once, of every DVA question reviews can reach.
+  // Exam settings: which exam, its date, and exam prep on or off. Clearing the date goes back to the standard game.
+  T.datePicker = function () {
+    const tr = E().track(), on = sv().examMode !== false;
+    const opt = t => `<label class="td-pick"><input type="radio" name="td-track" value="${t}" ${t === tr ? 'checked' : ''}><span><b>${esc(E().TRACKS[t].name)}</b> ${esc(E().TRACKS[t].title)}</span></label>`;
+    const b = U.panel(`<p>Which exam are you preparing for?</p>
+      <div class="td-picks" role="radiogroup" aria-label="Exam">${opt('DVA')}${opt('SAA')}</div>
+      <label class="td-date"><span>Exam date</span><input type="date" id="td-date-in" value="${esc(E().date())}"></label>
+      <p class="muted small" id="td-note">${esc(NOTE[tr])}</p>
+      <label class="td-pick"><input type="checkbox" id="td-mode" ${on ? 'checked' : ''}><span><b>Exam prep</b> Only this exam's questions, with every review spaced to land before the date.</span></label>
+      <p class="muted small">With no date set, or exam prep off, the game asks both exams' questions, paced by the story.</p>
+      <div class="row">${E().hasDate() ? '<button class="ghost" id="td-date-clear">Clear date</button>' : ''}<button class="primary" id="td-date-ok">Save</button></div>`, { title: 'EXAM SETTINGS', onClose: T.render });
+    const pick = () => (b.querySelector('input[name="td-track"]:checked') || {}).value || tr;
+    b.querySelectorAll('input[name="td-track"]').forEach(r => r.onchange = () => {
+      const t = pick();
+      b.querySelector('#td-note').textContent = NOTE[t];
+      if (!E().hasDate()) b.querySelector('#td-date-in').value = E().TRACKS[t].DEFAULT_DATE || E().suggestDate();
+    });
+    b.querySelector('#td-date-ok').onclick = () => {
+      const iso = b.querySelector('#td-date-in').value;
+      if (iso && !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+      E().setTrack(pick());
+      if (iso) E().setDate(iso); else E().clearDate();
+      E().setMode(b.querySelector('#td-mode').checked);
+      U.closePanel(); T.render();
+    };
+    const c = b.querySelector('#td-date-clear');
+    if (c) c.onclick = () => { E().clearDate(); U.closePanel(); T.render(); };
+  };
+  // Seen X of N: questions on the chosen exam answered at least once, of every one reviews can reach.
   T.seen = function () {
     const ids = new Set();
-    (SD.questions || []).forEach(q => { if (q.id && E().isDva(q) && !E().isHeld(q) && q.type !== 'explain') ids.add(q.id); });
+    (SD.questions || []).forEach(q => { if (q.id && E().inTrack(q) && !E().isHeld(q) && q.type !== 'explain') ids.add(q.id); });
     Object.keys(E().TASKS).forEach(t => E().taskQuestions(E().taskConcept(t)).forEach(q => ids.add(q.id)));
     const log = qlog();
     return { x: [...ids].filter(id => log[id]).length, n: ids.size };
@@ -283,7 +312,7 @@
     const pct = seen.n ? Math.round(seen.x / seen.n * 100) : 0;
     const b = U.panel(`<p class="td-head">Reviews: what feels true · Mock: what is true</p>
       <div class="opts">${rows}</div>
-      <div class="td-seen"><span>Seen ${seen.x} of ${seen.n} DVA questions</span><div class="bar"><i style="width:${pct}%;background:var(--mint)"></i></div></div>`, { title: 'READINESS', onClose: T.render });
+      <div class="td-seen"><span>Seen ${seen.x} of ${seen.n} ${esc(E().NAME)} questions</span><div class="bar"><i style="width:${pct}%;background:var(--mint)"></i></div></div>`, { title: 'READINESS', onClose: T.render });
     b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => T.drill(+el.dataset.d));
   };
   T.wallPanel = function () {
@@ -308,10 +337,11 @@
   const ONES = 'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'.split(' ');
   const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
   const word = n => { const w = n < 20 ? ONES[n] : n < 100 ? TENS[Math.floor(n / 10)] + (n % 10 ? '-' + ONES[n % 10] : '') : String(n); return w[0].toUpperCase() + w.slice(1); };
-  // The card's state: first, eve, mock, resume, done, back, due.
+  // The card's state: first, off, eve, mock, resume, done, back, due.
   T.state = function () {
     const s = sv(), set = T.set(), left = T.daysLeft();
-    if (!s.examDate) return 'first';
+    if (!E().hasDate()) return 'first';
+    if (s.examMode === false) return 'off';
     if (!E().lastMock() && E().nextForm() === 'half' && !s.todayLast && !set && !s.todaySkip) return 'first';
     if (set && set.i < set.items.length && set.i > 0) return 'resume';
     if (set && set.i >= set.items.length) return 'done';
@@ -327,6 +357,7 @@
     if (!up) {
       return {
         first: 'When\'s the exam? Write it down. — K.',
+        off: 'Exam prep is off. The story asks both exams. Fine. — K.',
         base: 'Thirty-three questions. Find out what you don\'t know. — K.',
         due: `${n.due} due · ${n.wall} on the wall${mockIn ? ' · ' + mockIn : ''}. Test them. — K.`,
         resume: `${n.done} of ${n.total} done. Finish it. — K.`,
@@ -341,6 +372,7 @@
         : 'No prayers waiting. Suspicious. Read the wall.';
     return {
       first: 'When is your trial? Tell me the day and I\'ll count down. I\'m good at waiting.',
+      off: 'No trial on the calendar for now. The story still asks both kinds of prayer.',
       base: 'Thirty-three questions first. Even gods get audited.',
       due: pile,
       resume: `${n.done} of ${n.total} answered. The rest are still praying.`,
@@ -357,12 +389,17 @@
     const n = { due: T.dueList().length, wall: wall().length, done: set ? set.i : 0, total: set ? set.items.length : T.size() };
     const nm = T.nextMock(), left = T.daysLeft(), hasHall = !!(SD.examHall && SD.examHall.open);
     const ex = new Date(isoDay(E().date())).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const chip = `${ex} · ${left > 0 ? plural(left, 'day') : left === 0 ? 'today' : 'done'}`;
-    const base = st === 'first' && !!s.examDate;
+    const chip = !E().hasDate() ? 'No exam date' : st === 'off' ? `${E().NAME} · prep off`
+      : `${E().NAME} · ${ex} · ${left > 0 ? plural(left, 'day') : left === 0 ? 'today' : 'done'}`;
+    const base = st === 'first' && E().hasDate();
     let main, line = lines(base ? 'base' : st, n), extra = '', alt = '';
     if (st === 'first' && !base) {
-      extra = `<label class="td-date"><span>Exam date</span><input type="date" id="td-date-first" value="${esc(E().DEFAULT_DATE)}"></label>`;
+      const tr = E().track(), opt = t => `<option value="${t}" ${t === tr ? 'selected' : ''}>${esc(E().TRACKS[t].name)}</option>`;
+      extra = `<label class="td-date"><span>Exam</span><select id="td-track-first">${opt('DVA')}${opt('SAA')}</select></label>
+        <label class="td-date"><span>Exam date</span><input type="date" id="td-date-first" value="${esc(E().date())}"></label>`;
       main = ['td-setdate', 'Set my exam date'];
+    } else if (st === 'off') {
+      main = ['td-on', `Turn exam prep on · ${E().NAME}`];
     } else if (base) {
       main = ['td-base', 'Take the 33-question baseline'];
       alt = `<button class="td-link" id="td-skip">Start today's set instead</button>`;
@@ -375,8 +412,8 @@
     else if (st === 'resume') main = ['td-go', `Resume · ${set.i} / ${set.items.length}`];
     else if (st === 'done') main = ['td-more', '+10 more'];
     else main = ['td-go', `Start today's set · ${T.size()}`];
-    const nums = [`${n.due} due`, `${n.wall} on the wall`];
-    if (nm && st !== 'first') nums.push(nm.days <= 0 ? `${FORM_NAME[nm.form]} today` : `${FORM_NAME[nm.form]} in ${plural(nm.days, 'day')}`);
+    const nums = st === 'first' || st === 'off' ? ['Both exams in the story'] : [`${n.due} due`, `${n.wall} on the wall`];
+    if (nm && st !== 'first' && st !== 'off') nums.push(nm.days <= 0 ? `${FORM_NAME[nm.form]} today` : `${FORM_NAME[nm.form]} in ${plural(nm.days, 'day')}`);
     if (set && st !== 'resume') nums.push(`today ${set.i} / ${set.items.length}`);
     card.className = 'td-card ' + (up ? 'td-uptima' : 'td-kyu');
     card.dataset.state = st;
@@ -385,10 +422,19 @@
       <div class="td-nums">${nums.map(x => `<span>${esc(x)}</span>`).join('')}</div>
       ${extra}
       <button class="primary td-main" id="${main[0]}">${esc(main[1])}</button>
-      <div class="td-links">${alt}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button></div>`;
+      <div class="td-links">${alt}${st === 'first' || st === 'off' ? '<button class="td-link" id="td-settings">Exam settings</button>'
+        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}</div>`;
     const on = (id, f) => { const el = card.querySelector('#' + id); if (el) el.onclick = f; };
     on('td-date', T.datePicker);
-    on('td-setdate', () => { if (E().setDate(card.querySelector('#td-date-first').value)) T.render(); });
+    on('td-setdate', () => {
+      E().setTrack(card.querySelector('#td-track-first').value);
+      if (E().setDate(card.querySelector('#td-date-first').value)) { if (sv().examMode === false) E().setMode(true); T.render(); }
+    });
+    const tf = card.querySelector('#td-track-first');
+    if (tf) tf.onchange = () => { card.querySelector('#td-date-first').value = E().TRACKS[tf.value].DEFAULT_DATE || E().suggestDate(); };
+    on('td-on', () => { E().setMode(true); T.render(); });
+    on('td-settings', T.datePicker);
+    on('td-practice', () => hall());
     on('td-base', () => hall('half'));
     on('td-skip', () => { s.todaySkip = true; S.persist(); T.start(); });
     on('td-mock', () => hall(nm.form));
@@ -433,6 +479,11 @@
     .td-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; margin-top: 6px; }
     .td-link { background: none; border: 0; padding: 8px 4px; min-height: 36px; font: 700 13px/1 var(--f-body); text-decoration: underline; text-underline-offset: 3px; }
     .td-date { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-weight: 700; font-size: 14px; }
+    .td-picks { display: grid; gap: 6px; margin: 0 0 10px; }
+    .td-pick { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; cursor: pointer; margin: 0 0 8px; }
+    .td-pick input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+    .td-pick b { display: block; }
+    .td-date select { flex: 1; min-width: 0; font: 600 15px var(--f-body); padding: 6px 8px; border: 2px solid #2b2340; border-radius: 8px; background: #fff; color: #2b2340; }
     .td-date input { flex: 1; min-width: 0; font: 600 15px var(--f-body); padding: 6px 8px; border: 2px solid #2b2340; border-radius: 8px; background: #fff; color: #2b2340; }
     .td-soon { margin: 0 0 8px; font-size: 12px; font-weight: 700; opacity: .8; }
     .td-qbar { display: flex; align-items: center; gap: 8px; margin-left: auto; }

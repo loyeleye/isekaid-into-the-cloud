@@ -80,7 +80,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- A fresh save ----
   check(await state() === 'first', 'fresh save: the card asks for the exam date');
   check(await page.inputValue('#td-date-first') === '2026-11-30', 'the date input defaults to 2026-11-30');
-  check(/Nov 30 · \d+ days?/.test(await page.textContent('#td-date')), 'the exam-date chip reads "Nov 30 · N days"');
+  check(/No exam date/.test(await page.textContent('#td-date')), 'with no date the chip reads "No exam date"');
+  check(await page.evaluate(() => !SD.exam.on()), 'with no date, exam prep is off: the standard game, both exams');
+  check(await page.inputValue('#td-track-first') === 'DVA', 'the exam picker defaults to DVA-C02');
   check(/—\sK\./.test(await page.textContent('.td-line')) && await page.$('.td-kyu'), 'before Uptima joins, Kyu leaves the card, signed "— K."');
   const reach = await page.evaluate(() => {
     const b = document.querySelector('#t-new'); if (!b) return 'no #t-new';
@@ -96,6 +98,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.fill('#td-date-first', '2026-11-30');
   await page.click('#td-setdate');
   check(await page.evaluate(() => SD.state.save.examDate) === '2026-11-30', 'setting the date saves S.save.examDate');
+  check(/DVA-C02 · Nov 30 · \d+ days?/.test(await page.textContent('#td-date')), 'the exam-date chip reads "DVA-C02 · Nov 30 · N days"');
+  check(await page.evaluate(() => SD.exam.on()), 'with a date set, exam prep is on');
   check(await page.textContent('.td-main') === 'Take the 33-question baseline', 'once the date is set, the main action is the 33-question baseline');
   await page.click('#td-base');
   await page.waitForTimeout(50);
@@ -183,7 +187,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => SD.state.save.wall.length === 0), 'a right answer on another day takes the poster down');
 
   // ---- Back after missed days, mock day, day before ----
-  await page.evaluate(() => { SD.state.save.todaySet = null; SD.state.save.todayLast = new Date(Date.now() - 4 * 86400000).toDateString(); SD.today.render(); });
+  // A date two months out, so no suggested mock falls due today whatever the real date is.
+  await page.evaluate(() => { SD.state.save.examDate = (() => { const d = new Date(Date.now() + 60 * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(); SD.state.save.todaySet = null; SD.state.save.todayLast = new Date(Date.now() - 4 * 86400000).toDateString(); SD.today.render(); });
   check(await state() === 'back' && /today's set/i.test(await page.textContent('.td-line')), 'back after missed days: "start with today\'s set", no guilt');
   await page.evaluate(() => { SD.state.save.examDate = '2026-11-05'; SD.today.render(); });
   const mock = await page.evaluate(() => SD.today.mockDates().map(m => new Date(m.t).toDateString()));
@@ -192,7 +197,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(JSON.stringify(await page.evaluate(() => SD.today.mockDates().map(m => new Date(m.t).toDateString()))) === JSON.stringify(['Mon Oct 26 2026', 'Sun Nov 15 2026', 'Tue Nov 24 2026']), 'a Nov 30 exam suggests mocks on Oct 26, Nov 15 and Nov 24');
   await page.evaluate(() => { const d = new Date(Date.now() + 86400000); SD.state.save.examDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); SD.today.render(); });
   check(await state() === 'eve' && /sleep beats cramming/i.test(await page.textContent('.td-line')), 'the day before the exam: a light review, "sleep beats cramming"');
-  await page.evaluate(() => { SD.state.save.examDate = '2026-11-30'; SD.today.render(); });
+  await page.evaluate(() => { SD.state.save.examDate = (() => { const d = new Date(Date.now() + 60 * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(); SD.today.render(); });
 
   // ---- Uptima by flag ----
   await page.evaluate(() => { SD.state.save.flags.uptima = true; SD.today.render(); });
@@ -211,7 +216,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#td-ready');
   check(/Reviews: what feels true · Mock: what is true/.test(await page.textContent('#panel')), 'the readiness board\'s header line');
   check(await page.$$eval('.td-dom', els => els.length) === 4 && /early read/.test(await page.textContent('#panel')), 'four domain rows, marked "early read" before 10 mock questions');
-  check(/Seen \d+ of \d+ DVA questions/.test(await page.textContent('.td-seen')), 'the "seen X of N" meter');
+  check(/Seen \d+ of \d+ DVA-C02 questions/.test(await page.textContent('.td-seen')), 'the "seen X of N" meter');
   await shot('board');
   await noHScroll('readiness board');
   await page.click('.td-dom[data-d="2"]');
@@ -221,8 +226,39 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#td-stop');
   // The date chip opens the picker.
   await page.click('#td-date');
-  check(!!await page.$('#td-date-in'), 'the exam-date chip opens the date picker');
+  check(!!await page.$('#td-date-in'), 'the exam-date chip opens the exam settings');
+  check(await page.$$eval('input[name="td-track"]', els => els.length) === 2 && !!await page.$('#td-mode'), 'exam settings offer DVA-C02 or SAA-C03 and the exam prep switch');
+  await noHScroll('exam settings');
+  await shot('settings');
+
+  // ---- Switch to SAA-C03 ----
+  await page.check('input[name="td-track"][value="SAA"]');
+  await page.click('#td-date-ok');
+  check(await page.evaluate(() => SD.state.save.examTrack === 'SAA' && SD.exam.on() && SD.exam.NAME === 'SAA-C03'), 'choosing SAA-C03 saves S.save.examTrack and keeps exam prep on');
+  check(/SAA-C03 · /.test(await page.textContent('#td-date')), 'the chip names SAA-C03');
+  check(!!await page.$('#td-practice'), 'SAA-C03 has no fixed forms: the card offers a practice mock');
+  await page.click('#td-ready');
+  check(/Design Secure Architectures/.test(await page.textContent('#panel')) && /Seen \d+ of \d+ SAA-C03 questions/.test(await page.textContent('.td-seen')), 'the readiness board shows SAA-C03\'s domains and questions');
   await page.click('#panel-x');
+  await page.evaluate(() => { SD.state.save.todaySet = null; SD.state.save.todayLast = null; SD.today.render(); });
+  await page.click('.td-main');
+  await page.waitForSelector('#panel .win.quiz');
+  const saaSet = await page.evaluate(() => SD.state.save.todaySet.items.map(it => SD.exam.find(it.q)).filter(Boolean).filter(q => SD.exam.offTrack(q)).map(q => q.id));
+  check(!saaSet.length, 'an SAA-C03 daily set asks no DVA-only question' + (saaSet.length ? ': ' + saaSet.join(', ') : ''));
+  await page.click('#td-stop');
+
+  // ---- Exam prep off, then no date: the standard game ----
+  await page.click('#td-date');
+  await page.uncheck('#td-mode');
+  await page.click('#td-date-ok');
+  check(await state() === 'off' && !await page.evaluate(() => SD.exam.on()), 'exam prep off: the card says so and exam mode is off');
+  check(/Turn exam prep on/.test(await page.textContent('.td-main')), 'the card offers "Turn exam prep on"');
+  await page.click('.td-main');
+  check(await page.evaluate(() => SD.exam.on()), 'turning it back on from the card works');
+  await page.click('#td-date');
+  await page.click('#td-date-clear');
+  check(await state() === 'first' && await page.evaluate(() => !SD.exam.on() && !SD.state.save.examDate), 'clearing the date goes back to the standard game');
+  await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.today.render(); });
 
   // ---- 25 questions on a laptop ----
   await page.setViewportSize({ width: 1280, height: 800 });

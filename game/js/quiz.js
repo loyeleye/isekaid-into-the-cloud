@@ -46,8 +46,9 @@
   // ev: optional evidence shown above the question as it would appear on screen: an error, a log line, a metric.
   Q.ask = function (q, opts) {
     opts = opts || {};
-    // Exam mode (js/exam.js): an SAA-only bank question becomes a DVA one on the same concept or topic. A chapter's
-    // own SAA-only question is skipped and counts as passed, so whatever it gates still opens.
+    // Exam mode (js/exam.js): a bank question only on the other exam becomes one on the chosen exam, on the same
+    // concept or topic. A chapter's own question tagged for the other exam is skipped and counts as passed, so whatever
+    // it gates still opens.
     if (SD.exam && !opts.noSwap) {
       if (SD.exam.skips(q)) {
         // Close whatever panel the question would have replaced (a minigame's), as an answered question does.
