@@ -1034,7 +1034,9 @@ body { background: var(--bg); }
 @keyframes haloGlow { 50% { opacity: .62; box-shadow: 0 0 34px rgba(214, 178, 84, .6), inset 0 0 18px rgba(214, 178, 84, .45); } }
 .t-ridge { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; pointer-events: none; background: #0d0c12; clip-path: polygon(0 38%, 9% 30%, 18% 36%, 30% 22%, 41% 30%, 50% 18%, 61% 28%, 72% 20%, 84% 33%, 93% 26%, 100% 32%, 100% 100%, 0 100%); }
 .t-leads { position: absolute; left: 50%; bottom: calc(30% * .62 - 6px); translate: -50% 0; pointer-events: none; display: flex; gap: clamp(4px, 2vw, 18px); align-items: flex-end; }
-.t-leads img { height: clamp(70px, 15vh, 130px); image-rendering: pixelated; filter: brightness(.08) saturate(0) drop-shadow(0 -1px 0 rgba(214, 205, 185, .35)); }
+.t-leads img { height: min(clamp(70px, 15vh, 130px), 28vw); image-rendering: pixelated; filter: brightness(.08) saturate(0) drop-shadow(0 -1px 0 rgba(214, 205, 185, .35)); }
+/* Dutch's knee-up figure stands a head taller than the others, his cut-off legs lost in the dark of the ridge; the vw caps keep all four on a phone's width. */
+.t-leads img[data-art="dutch-stand"] { height: min(clamp(84px, 19.5vh, 169px), 36.4vw); margin-bottom: -6px; }
 .t-rain { position: absolute; inset: -20% 0 0; pointer-events: none; opacity: .22; background: repeating-linear-gradient(105deg, transparent 0 14px, rgba(190, 196, 220, .5) 14px 15px, transparent 15px 34px); background-size: 100% 220px; animation: tRain .5s linear infinite; }
 @keyframes tRain { to { background-position: -60px 220px; } }
 .t-bolt { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 40% 10%, rgba(226, 232, 255, .55), rgba(200, 210, 255, .12) 60%, transparent); opacity: 0; }
@@ -1264,8 +1266,8 @@ body { background: var(--bg); }
     <div id="title-clouds" aria-hidden="true"></div>
     <div class="t-rain" aria-hidden="true"></div>
     <div class="t-ridge" aria-hidden="true"></div>
-    <div class="t-leads" aria-hidden="true"><img data-lead="kai" alt=""><img data-lead="mira" alt=""><img data-lead="dutch" alt=""><img data-lead="seoyeon" alt=""></div>
-    <script>if (!window.SD_VECTOR) document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + i.dataset.lead + '.webp'; });</script>
+    <div class="t-leads" aria-hidden="true"><img data-lead="kai" alt=""><img data-lead="mira" alt=""><img data-lead="dutch" data-art="dutch-stand" alt=""><img data-lead="seoyeon" alt=""></div>
+    <script>if (!window.SD_VECTOR) document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + (i.dataset.art || i.dataset.lead) + '.webp'; });</script>
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>
