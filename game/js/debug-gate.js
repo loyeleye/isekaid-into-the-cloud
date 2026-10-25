@@ -12,7 +12,7 @@
 (function () {
   const KEY = 'isekai-cloud-debug-code';
   const seal = c => { let x = 0x811c9dc5; for (const ch of 'isekai-cloud/' + c) { x ^= ch.charCodeAt(0); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(36); };
-  const fits = c => /^\d{4}$/.test(c || '') && seal(c) === '1xbgx1o';
+  const fits = c => /^\d{5}$/.test(c || '') && seal(c) === '2xizdu';
   const local = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   // What the link asks for: null (no debug), '' (a bare ?debug), 'off' or a code.
   const m = /[?&#]debug(?:=([^&#]*))?(?=[&#]|$)/.exec(location.search + location.hash);
@@ -60,7 +60,7 @@
     taps = [];
     const U = SD.ui;
     const b = U.panel(`<form id="dg-form" autocomplete="off"><label for="dg-code">Code</label>
-      <input id="dg-code" type="password" inputmode="numeric" maxlength="4" style="display:block;width:100%;box-sizing:border-box;min-height:44px;margin:6px 0 10px;padding:8px 12px;font:16px Nunito,sans-serif;border:2px solid #2b2340;border-radius:10px">
+      <input id="dg-code" type="password" inputmode="numeric" maxlength="5" style="display:block;width:100%;box-sizing:border-box;min-height:44px;margin:6px 0 10px;padding:8px 12px;font:16px Nunito,sans-serif;border:2px solid #2b2340;border-radius:10px">
       <div class="row"><button class="primary" type="submit">OK</button><button class="ghost" type="button" id="dg-n">Cancel</button></div>
       <p class="muted small" id="dg-msg" aria-live="polite"></p></form>`, { title: 'CODE' });
     const input = b.querySelector('#dg-code');

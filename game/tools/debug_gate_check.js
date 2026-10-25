@@ -8,11 +8,11 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-// The code isn't written down in the repo: find the four digits that match the seal in js/debug-gate.js.
+// The code isn't written down in the repo: find the five digits that match the seal in js/debug-gate.js.
 const GATE = fs.readFileSync(path.join(ROOT, 'js/debug-gate.js'), 'utf8');
 const SALT = /for \(const ch of '([^']+)' \+ c\)/.exec(GATE)[1], SEAL = /seal\(c\) === '([^']+)'/.exec(GATE)[1];
 const seal = c => { let x = 0x811c9dc5; for (const ch of SALT + c) { x ^= ch.charCodeAt(0); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(36); };
-const CODE = process.env.DEBUG_CODE || [...Array(10000).keys()].map(n => String(n).padStart(4, '0')).find(c => seal(c) === SEAL);
+const CODE = process.env.DEBUG_CODE || [...Array(100000).keys()].map(n => String(n).padStart(5, '0')).find(c => seal(c) === SEAL);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webp': 'image/webp', '.png': 'image/png', '.mp3': 'audio/mpeg', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
   const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]).replace(/\/$/, '/index.html'));
@@ -45,7 +45,7 @@ const ok = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!
   ok(!(await menuDebug()), 'public host: no Debug start switch in the menu before the code');
   for (let i = 0; i < 5; i++) await page.click('.t-foot');
   ok(await page.evaluate(() => !!document.querySelector('#dg-code')), 'five taps on the foot line open the code box');
-  await page.fill('#dg-code', '0000'); await page.click('#dg-form button[type=submit]');
+  await page.fill('#dg-code', '00000'); await page.click('#dg-form button[type=submit]');
   ok(/isn't it/.test(await page.textContent('#dg-msg')), 'a wrong code is refused');
   await page.fill('#dg-code', CODE);
   await Promise.all([page.waitForNavigation({ timeout: 10000 }), page.click('#dg-form button[type=submit]')]);
