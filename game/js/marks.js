@@ -52,6 +52,9 @@
         .map(e => ({ id: 'em-' + e, name: E.EMOTES[e].name, slot: E.EMOTES[e].act ? 'act1' : 'emote1', tier: null, pack: it.id, emote: e, cost: M.SINGLE[E.EMOTES[e].act ? 'act1' : 'emote1'] }));
       it.has = ones.map(o => o.id);
       it.cost = Math.round(M.PACK_OFF * ones.reduce((a, o) => a + o.cost, 0));
+      // Its price comes from what's in it, so it's labelled by that, not by a tier (Ladi, 2026-10-25).
+      it.tier = null;
+      it.label = ones.some(o => o.slot === 'act1') ? 'Action pack' : 'Emote pack';
       return [it].concat(ones);
     }).map(it => Object.freeze(it)));
   const st = () => { const s = S.save; const mp = s.mp || (s.mp = {}); return mp.marks || (mp.marks = { n: 0, owned: [] }); };
