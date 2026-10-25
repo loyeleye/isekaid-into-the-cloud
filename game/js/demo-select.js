@@ -285,6 +285,9 @@
     const M = SD.main, title = M.title;
     M.title = function () {
       title();
+      // Set before the press-start screen returns, so it never shows a chapter's own line.
+      const foot = $('.t-foot');
+      if (foot) foot.textContent = 'Built on the AWS documentation · Saves automatically';
       const box = $('#title-actions');
       if (!box || box.querySelector('#t-start')) return;
       const c = latest(), help = box.querySelector('#t-help');
@@ -294,8 +297,6 @@
       if (c) $('#ds-go').onclick = () => resume(c);
       $('#ds-new').onclick = newGame;
       badge();
-      const foot = $('.t-foot');
-      if (foot) foot.textContent = 'Built on the AWS documentation · Saves automatically';
     };
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
