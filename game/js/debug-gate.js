@@ -3,7 +3,7 @@
 //
 // On a public host (the published artifact, Cloudflare) the tools need the code, entered either way:
 //   - in the link: ?debug=<code> (or #debug=<code>), where the link can change;
-//   - in the game: tap the line at the foot of the title screen five times, and type the code in the box that opens
+//   - in the game: tap the line at the foot of the title screen seven times, and type the code in the box that opens
 //     (for the claude.ai artifact, whose link can't take a query).
 // A right code is remembered in this browser, so later visits show the tools straight away; ?debug=off or "Hide the debug
 // tools" in the 🐞 Debug menu forgets it. On localhost and file:// the tools are always open (the test scripts in tools/
@@ -50,13 +50,13 @@
     }
   };
 
-  // Five taps on the title screen's foot line within three seconds open the code box.
+  // Seven taps on the title screen's foot line within three seconds open the code box.
   let taps = [];
   document.addEventListener('click', e => {
     if (G.open() || !e.target.closest || !e.target.closest('.t-foot')) return;
     const now = Date.now();
     taps = taps.filter(t => now - t < 3000).concat(now);
-    if (taps.length < 5) return;
+    if (taps.length < 7) return;
     taps = [];
     const U = SD.ui;
     const b = U.panel(`<form id="dg-form" autocomplete="off"><label for="dg-code">Code</label>
