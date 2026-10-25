@@ -58,14 +58,40 @@
     const lk = SD.wear && SD.wear.mapLook ? SD.wear.mapLook(id) : null;
     if (lk) L = Object.assign({}, L, lk);
     o = o || {};
+    // Standing still, your lead can be doing one of the Emote button's actions (js/emote.js): a pose a moment.
+    let act = SD.emote && SD.emote.acting ? SD.emote.acting(id) : null;
+    if (act && moving) { SD.emote.stop(); act = null; }                // walking off ends it
+    const ps = act ? pose(act, face) : null;
+    if (ps) { face = ps.face; o = Object.assign({}, o, { arms: ps.arms, shut: ps.shut, lean: ps.lean }); }
     const flip = face === 'west', side = face === 'east' || face === 'west', back = face === 'north';
-    const ph = moving ? Math.sin(t * 13) : 0, bob = moving ? -Math.abs(Math.sin(t * 13)) * 1.2 : Math.sin(t * 2.2) * 0.35;
+    const ph = ps ? ps.ph : moving ? Math.sin(t * 13) : 0, bob = ps ? ps.bob : moving ? -Math.abs(Math.sin(t * 13)) * 1.2 : Math.sin(t * 2.2) * 0.35;
+    const dx = ps ? ps.dx * ts / 32 : 0;
     // Shadow, unflipped.
-    frame(ctx, fx, fy, ts, g => g.ell(0, 0, 9, 2.6).fill('rgba(43,35,64,.22)', false), false, L.k);
+    frame(ctx, fx + dx, fy, ts, g => g.ell(0, 0, 9, 2.6).fill('rgba(43,35,64,.22)', false), false, L.k);
     if (o.alpha != null) { ctx.save(); ctx.globalAlpha = o.alpha; }
-    frame(ctx, fx, fy + bob * ts / 32, ts, g => body(g, L, ph, side, back, t, o), flip, L.k);
+    frame(ctx, fx + dx, fy + bob * ts / 32, ts, g => { if (ps && ps.rot) g.ctx.rotate(ps.rot); body(g, L, ph, side, back, t, o); }, flip, L.k);
     if (o.alpha != null) ctx.restore();
   };
+
+  // The actions' poses, t seconds in: which way they face, the legs' swing (ph), a hop (bob) and a step (dx) in units,
+  // a tilt (rot, radians), a bow at the hips (lean), and where the hands go ([left, right], null for their own swing).
+  function pose(act, face) {
+    const t = act.t, P = { face: face === 'north' ? 'south' : face, ph: 0, bob: 0, dx: 0, rot: 0, arms: null, shut: false, lean: 0 };
+    const S = Math.sin, PI = Math.PI;
+    switch (act.id) {
+      case 'dance': { const b = Math.floor(t / 0.5) % 2, f = (t % 0.5) / 0.5; P.face = b ? 'east' : 'west'; P.bob = -S(PI * f) * 3; P.ph = S(t * PI * 2); P.arms = [[-13, b ? -40 : -12], [13, b ? -12 : -40]]; break; }
+      case 'wave': P.face = 'south'; P.arms = [null, [14 + S(t * 12) * 3, -40]]; break;
+      case 'bow': { const k = t < 0.4 ? t / 0.4 : t < 1.4 ? 1 : Math.max(0, 1 - (t - 1.4) / 0.4); if (P.face === 'south') P.face = 'east'; P.lean = 0.45 * k; break; }
+      case 'flex': P.face = 'south'; P.arms = [[-14, -31], [14, -31]]; P.bob = -Math.abs(S(t * 6)) * 1.2; break;
+      case 'spin': P.face = ['south', 'east', 'north', 'west'][Math.floor(t / 0.13) % 4]; P.bob = -Math.abs(S(t * PI / 1.6)) * 3; break;
+      case 'cheer': P.face = 'south'; P.arms = [[-12, -45], [12, -45]]; P.bob = -Math.abs(S(t * PI * 2.5)) * 6; break;
+      case 'nap': P.face = 'south'; P.shut = true; P.rot = -0.14 + S(t * 2) * 0.03; break;
+      case 'facepalm': P.face = 'south'; P.arms = [null, [3, -29]]; P.rot = 0.05; P.bob = 0.6; break;
+      case 'groove': { const w = S(t * PI * 2); P.face = 'south'; P.bob = -Math.abs(S(t * PI * 4)) * 2.5; P.dx = w * 2.5; P.ph = S(t * 8); P.arms = [[-13, w > 0 ? -43 : -12], [13, w > 0 ? -12 : -43]]; P.rot = w * 0.12; break; }
+      case 'moonwalk': P.face = 'east'; P.dx = -14 * S(PI * Math.min(1, t / 3)); P.ph = S(t * 13); P.bob = -Math.abs(S(t * 13)) * 0.6; P.rot = -0.08; break;
+    }
+    return P;
+  }
 
   function body(g, L, ph, side, back, t, o) {
     const c = g.ctx;
@@ -91,8 +117,12 @@
       });
     }
     // Arms swing opposite the legs.
-    const armL = () => arm(g, L, -1, ph, false);
-    const armR = () => arm(g, L, 1, -ph, true);
+    // An action's raised hand (above the shoulder) is drawn over the head, so it shows.
+    const to = i => o.arms && o.arms[i], up = i => !!(to(i) && to(i)[1] < -22);
+    const armL = () => { if (!up(0)) arm(g, L, -1, ph, false, to(0)); };
+    const armR = () => { if (!up(1)) arm(g, L, 1, -ph, true, to(1)); };
+    // A bow bends at the hips: everything above the legs leans (rot, radians; forward when side on).
+    if (o.lean) { c.save(); c.translate(0, -10); c.rotate(o.lean); c.translate(0, 10); }
     if (!side) armL();
     // Torso.
     const w0 = L.k ? 8 : 7.2;
@@ -123,6 +153,8 @@
     if (L.tray && !back) tray(g, side);
     if (L.clipboard && !back) { const x = side ? 6 : -10.5; g.rect(x, -19, 5, 6.5, 0.6).fill('#9a6a3a', 0.8); g.rect(x + 0.8, -18, 3.4, 4.8).fill('#f4f1ea', false); [-17, -15.6].forEach(y => g.line(x + 1.2, y, x + 3.8, y).stroke('#8a8a8a', 0.4)); }
     armR();
+    [0, 1].forEach(i => { if (up(i)) arm(g, L, i ? 1 : -1, 0, !!i, to(i)); });
+    if (o.lean) c.restore();
     if (L.lantern && !back) lantern(g, side, t);
     if (L.hat && !back) hat(g, L, side);
     if ((L.halo || L.ring) && !back) halo(g, t);
@@ -130,8 +162,10 @@
     if (L.mop && back) mop(g, false);
   }
 
-  function arm(g, L, s, p, front) {
-    const sx = s * (L.k ? 8.2 : 7.4), hx = sx + s * 1.4 + (L.tray && s < 0 ? 2 : 0), hy = -11.5 + p * 1.4;
+  function arm(g, L, s, p, front, to) {
+    const sx = s * (L.k ? 8.2 : 7.4);
+    let hx = sx + s * 1.4 + (L.tray && s < 0 ? 2 : 0), hy = -11.5 + p * 1.4;
+    if (to) [hx, hy] = to;
     if (L.wolf && s > 0) {
       // Mira's left side stays beast: a long grey foreleg in Bram's silver chain, black claws.
       g.path(x => { x.moveTo(sx - 1.6, -20); x.quadraticCurveTo(sx + 3.5, -16, hx + 1.5, hy + 1); x.lineTo(hx - 2.5, hy + 1.5); x.quadraticCurveTo(sx - 2.5, -14, sx - 1.6, -20); x.closePath(); }).fill(L.wolfCol || '#8f939c');
@@ -139,8 +173,10 @@
       [-1.5, 0, 1.5].forEach(d => g.line(hx + d, hy + 1.5, hx + d * 1.3, hy + 3.4).stroke('#111', 0.9));
       return;
     }
-    g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(sx + s * 2.2, -16, hx, hy); }).stroke(L.coatD, 3.6);
-    g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(sx + s * 2.2, -16, hx, hy); }).stroke(L.coat, 2.2);
+    // A posed arm bends out at the elbow; a hanging one swings.
+    const [cx, cy] = to ? [sx + s * 5, Math.min(-16, (hy - 20) / 2 + 2)] : [sx + s * 2.2, -16];
+    g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(cx, cy, hx, hy); }).stroke(L.coatD, 3.6);
+    g.path(x => { x.moveTo(sx, -20); x.quadraticCurveTo(cx, cy, hx, hy); }).stroke(L.coat, 2.2);
     if (L.armband && s < 0) g.line(sx + s * 0.4, -17.2, sx + s * 2.6, -16.6).stroke(L.armband, 1.3);   // Hana's ribbon
     if (L.glove && s > 0) { g.circle(hx, hy + 0.6, 2).fill('#1a1416', 0.9); g.line(hx - 1, hy - 0.4, hx + 0.6, hy + 1.6).stroke('#ffcf4a', 0.6); }
     else g.circle(hx, hy + 0.6, 1.7).fill(L.skin, 0.9);
@@ -172,7 +208,7 @@
     // Face.
     if (L.style === 'shaved') { g.ell(-3 + sx, hy - 6, 3.4, 1.6).fill('rgba(255,255,255,.28)', false); if (!side) g.ell(-10, hy + 1, 1.5, 2.4).fill(L.skin); g.ell(10, hy + 1, 1.5, 2.4).fill(L.skin); g.line(-5, hy + 6.2, 5, hy + 6.2).stroke('rgba(0,0,0,.18)', 1.4); }
     const ey = hy + 1, ex = side ? [1.4, 6.4] : [-3.8, 3.8];
-    const blink = (Math.floor(t * 0.7 + (L.skin.length)) % 6 === 0) && (t * 0.7 % 1) < 0.12 && !L.halo;   // Freya never blinks
+    const blink = (Math.floor(t * 0.7 + (L.skin.length)) % 6 === 0) && (t * 0.7 % 1) < 0.12 && !L.halo || o.shut;   // Freya never blinks
     ex.forEach((x, i) => {
       if (side && i === 1) { g.ell(x, ey, 0.9, 1.6).fill(INK, false); return; }
       if (blink) { g.line(x - 1.4, ey, x + 1.4, ey).stroke(INK, 1); return; }

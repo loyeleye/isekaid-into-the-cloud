@@ -31,8 +31,8 @@
     ['outfit-lunar', 'Lunar New Year', 'outfit', 'rare'], ['outfit-spring', 'Spring bloom', 'outfit', 'rare'],
     ['fx-stardust', 'Stardust', 'effect', 'rare'], ['fx-snow', 'Snowfall', 'effect', 'rare'], ['fx-embers', 'Embers', 'effect', 'rare'],
     ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary'],
-    // Emote packs (js/emote.js): four emotes each for the Emote button in the party room and the raid.
-    ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare'],
+    // Emote packs (js/emote.js) for the Emote button: four emotes each, and the Moves pack's seven actions.
+    ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare'], ['emo-moves', 'Moves pack', 'emote', 'legendary'],
     // Looks (js/wear.js): reskins of the full body, the top tier. Restored isn't sold: it's earned by beating Freya.
     ['look-zombie', 'Zombie Process', 'look', 'mythic'], ['look-santa', 'Winterfest Santa', 'look', 'mythic'], ['look-lantern', 'Lantern-bearer', 'look', 'mythic'],
     ['look-blossom', 'Spring Blossom', 'look', 'mythic'], ['look-glacier', 'Glacier', 'look', 'mythic'], ['look-spot', 'Spot Instance', 'look', 'mythic'],

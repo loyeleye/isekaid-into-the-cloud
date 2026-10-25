@@ -58,10 +58,10 @@ const server = http.createServer((req, res) => {
       const btn = document.querySelector('#emo-test [data-emo-open]'); if (!btn) return null;
       btn.click();
       const box = document.querySelector('.emo-pick');
-      return box && { n: box.querySelectorAll('[data-emo]').length, more: (box.querySelector('small') || {}).textContent || '', open: btn.getAttribute('aria-expanded'), focus: document.activeElement && document.activeElement.dataset.emo };
+      return box && { n: box.querySelectorAll('[data-emo]').length, acts: box.querySelectorAll('.emo-grid')[1].querySelectorAll('[data-emo]').length, more: (box.querySelector('small') || {}).textContent || '', open: btn.getAttribute('aria-expanded'), focus: document.activeElement && document.activeElement.dataset.emo };
     });
-    check(pick && pick.n === 6 && pick.open === 'true' && pick.focus === 'heart', `${mode}: the Emote button opens the free six, focused (${JSON.stringify(pick)})`);
-    check(pick && /3 more emote packs/.test(pick.more), `${mode}: the picker says where the rest are`);
+    check(pick && pick.n === 9 && pick.acts === 3 && pick.open === 'true' && pick.focus === 'heart', `${mode}: the Emote button opens the free six and three free actions, focused (${JSON.stringify(pick)})`);
+    check(pick && /4 more emote packs/.test(pick.more), `${mode}: the picker says where the rest are`);
 
     const sent = await a.evaluate(p => {
       document.querySelector('.emo-pick [data-emo="heart"]').click();
@@ -101,6 +101,20 @@ const server = http.createServer((req, res) => {
     check(fight, `${mode}: in a fight the bubble is over your fighter`);
     await a.waitForTimeout(2600);
 
+    // An action: the seat's picture moves on both tabs (dance flips and hops), then settles back.
+    const danced = await a.evaluate(async p => {
+      const sent = SD.emote.send('dance'), locked = SD.emote.send('groove');
+      await new Promise(r => setTimeout(r, 700));
+      const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`);
+      return { sent, locked, moving: !!el && /translate/.test(el.style.transform), bub: !!document.querySelector(`.emo-bub[data-for="${p}"]`) };
+    }, pa);
+    check(danced.sent && danced.moving && !danced.bub, `${mode}: an action moves your seat's picture, no bubble (${JSON.stringify(danced)})`);
+    check(danced.locked === false, `${mode}: an action from an unbought pack can't be sent`);
+    const otherDance = await b.waitForFunction(p => { const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`); return el && /scale\(-1/.test(el.style.transform); }, pa, { timeout: 3000 }).then(() => true).catch(() => false);
+    check(otherDance, `${mode}: the other tab sees you dance`);
+    await a.waitForTimeout(4200);
+    check(await b.evaluate(p => (document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`) || {}).style.transform === '', pa), `${mode}: and the dance ends`);
+
     const shop = await a.evaluate(() => {
       SD.state.save.mp = SD.state.save.mp || {}; SD.state.save.mp.marks = { n: 500, owned: [] };
       const bought = SD.marks.buy('emo-season');
@@ -111,7 +125,7 @@ const server = http.createServer((req, res) => {
       box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       return { bought, n, pumpkin, closed: !document.querySelector('.emo-pick'), item: !!SD.marks.item('emo-cloud') && SD.marks.item('emo-cloud').slot };
     });
-    check(shop.bought && shop.n === 10 && shop.pumpkin, `${mode}: a pack bought at the Raid shop joins the picker (${shop.n})`);
+    check(shop.bought && shop.n === 13 && shop.pumpkin, `${mode}: a pack bought at the Raid shop joins the picker (${shop.n})`);
     check(shop.closed, `${mode}: Escape closes the picker`);
     check(shop.item === 'emote', `${mode}: the Raid shop sells the packs`);
     // On the story map, with no party: the bubble goes over your lead, drawn into the map.
@@ -122,10 +136,17 @@ const server = http.createServer((req, res) => {
       sc.player(2, 1, 'south'); sc.start();
       await new Promise(r => setTimeout(r, 1600));
       const sent = SD.emote.send('pumpkin'), picked = sc.P.emo;
+      await new Promise(r => setTimeout(r, 1600));
+      const lead = SD.wear.lead() || 'mira'; SD.state.save.c1 = Object.assign({}, SD.state.save.c1, { lead });
+      const waved = SD.emote.send('wave'), acting = (SD.emote.acting(lead) || {}).id, bubble = sc.P.emo;
+      sc.P.draw = (ctx, fx, fy, ts, t) => SD.c1art.person(ctx, lead, fx, fy, ts, t, sc.P.face, sc.P.moving, null);
+      await new Promise(r => setTimeout(r, 300));
+      SD.emote.stop();
       const btn = !!new DOMParser().parseFromString(SD.emote.mapButton(), 'text/html').querySelector('#w-emote[data-emo-open]');
       sc.stop();
-      return { sent, picked, btn, cleared: !SD.scene.current };
+      return { sent, picked, btn, cleared: !SD.scene.current, waved, acting, bubble };
     });
+    check(onMap.waved && onMap.acting === 'wave' && !onMap.bubble, `${mode}: an action on the map is your lead posing, not a bubble`);
     check(onMap.sent && onMap.picked === 'pumpkin', `${mode}: on the story map your lead shows the emote (${JSON.stringify(onMap)})`);
     check(onMap.btn && onMap.cleared, `${mode}: the map has its Emote button, and leaving the map lets go of it`);
     check(!errors.length, `${mode}: no page errors` + (errors.length ? ': ' + errors.join(' | ') : ''));

@@ -12,6 +12,12 @@
 //   SD.emote.mapButton()     the story map HUD's Emote button (every chapter's world); with no party, send() puts the
 //                            bubble over your lead on the walkable map (js/scene.js SC.current), drawn by paint()
 //
+//   SD.emote.acting(lead)    the action your lead is doing on the story map, { id, t }, for js/ch1-art.js's poses
+//
+// Actions (Ladi, 2026-10-25): dances and funny moves done with the whole body, not a bubble. On the story map the
+// walker is drawn in code, so it really poses (js/ch1-art.js). A seat or a fighter is one picture, so the picture
+// moves as a whole: it hops, sways, flips, spins and bows. Reduced motion shows the action's mark in a bubble.
+//
 // What a room hears is another player's data: only an id from EMOTES is ever shown, and one a second per player.
 (function () {
   const E = SD.emote = {};
@@ -19,7 +25,11 @@
   const svg = body => `<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">${body}</svg>`;
   const txt = (t, size, fill, y) => `<text x="16" y="${y || 20.5}" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="700" font-size="${size}" fill="${fill || INK}">${t}</text>`;
   const face = '<circle cx="16" cy="16" r="11" fill="#ffd25a" stroke="' + INK + '" stroke-width="2"/>';
-  E.PACKS = Object.freeze({ 'emo-tavern': 'Tavern pack', 'emo-cloud': 'Cloud jokes pack', 'emo-season': 'Seasonal pack' });
+  E.PACKS = Object.freeze({ 'emo-tavern': 'Tavern pack', 'emo-cloud': 'Cloud jokes pack', 'emo-season': 'Seasonal pack', 'emo-moves': 'Moves pack' });
+  // A stick figure for the actions' buttons: head, body, legs to (l, r), arms as polylines from the shoulder.
+  const ln = (pts, w) => `<polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="${w || 2.4}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const man = (armL, armR, legs, head, more) => svg(`<circle cx="${head ? head[0] : 16}" cy="${head ? head[1] : 7}" r="3.6" fill="#ffd25a" stroke="${INK}" stroke-width="1.8"/>`
+    + ln(legs || '11.5,28.5 16,20 20.5,28.5') + ln(head ? `${head[0]},${head[1] + 3.6} 16,20` : '16,10.6 16,20') + ln(armL) + ln(armR) + (more || ''));
   E.EMOTES = Object.freeze({
     heart: { name: 'Heart', svg: svg(`<path d="M16 26 C5 18 5 9 11 8 C14 7.5 16 10 16 12 C16 10 18 7.5 21 8 C27 9 27 18 16 26Z" fill="#e04a6a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`) },
     laugh: { name: 'Ha!', svg: svg(face + `<path d="M10.5 14 Q12 12 13.5 14 M18.5 14 Q20 12 21.5 14" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/><path d="M10 18 H22 Q21 24 16 24 Q11 24 10 18Z" fill="${INK}"/>`) },
@@ -40,6 +50,23 @@
     lantern: { name: 'Lantern', pack: 'emo-season', svg: svg(`<path d="M16 3 V7" stroke="${INK}" stroke-width="2"/><rect x="11" y="6.5" width="10" height="3" rx="1" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/><ellipse cx="16" cy="16.5" rx="10" ry="8" fill="#e0402a" stroke="${INK}" stroke-width="2"/><path d="M16 8.5 V24.5 M11 9.8 Q8.5 16.5 11 23.2 M21 9.8 Q23.5 16.5 21 23.2" fill="none" stroke="#ffd25a" stroke-width="1.3"/><rect x="11" y="23.5" width="10" height="3" rx="1" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/><path d="M16 26.5 V30" stroke="#ffd25a" stroke-width="2"/>`) },
     blossom: { name: 'Blossom', pack: 'emo-season', svg: svg(`${[0, 72, 144, 216, 288].map(a => `<ellipse cx="16" cy="9" rx="5" ry="6.5" fill="#ffb3cf" stroke="${INK}" stroke-width="1.6" transform="rotate(${a} 16 16)"/>`).join('')}<circle cx="16" cy="16" r="3.5" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/>`) }
   });
+  // Actions: secs is how long it lasts; bub 'always' keeps its mark in a bubble too (a nap's Zzz), 'body' only over a
+  // seat or a fighter, whose picture can't move an arm (a wave, a flex, a facepalm).
+  const ACTS = {
+    dance: { name: 'Dance', secs: 4, svg: man('16,13 9,5', '16,13 23,18', '11,28.5 16,20 21,25 22,29', null, '<path d="M26 4 V10" stroke="#e04a6a" stroke-width="2"/><circle cx="24.5" cy="10.5" r="2" fill="#e04a6a"/>') },
+    wave: { name: 'Wave', secs: 2.4, bub: 'body', svg: man('16,13 11,19', '16,13 22,10 24,4', null, null, '<path d="M27 3 Q29.5 6 27 9" fill="none" stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round"/>') },
+    bow: { name: 'Bow', secs: 2, svg: man('20,14 21,21', '20,14 19,21', '13,28.5 14,20 15,28.5', [24, 10], '') },
+    flex: { name: 'Flex', secs: 2.4, pack: 'emo-moves', bub: 'body', svg: man('16,13 9,12 9,6', '16,13 23,12 23,6') },
+    spin: { name: 'Spin', secs: 1.6, pack: 'emo-moves', svg: man('16,13 11,17', '16,13 21,17', null, null, `<path d="M5 22 Q16 31 27 22" fill="none" stroke="#2a62c9" stroke-width="1.8" stroke-linecap="round"/><path d="M27 22 L23.5 22.5 M27 22 L26 25.5" stroke="#2a62c9" stroke-width="1.8" stroke-linecap="round"/>`) },
+    cheer: { name: 'Jump for joy', secs: 2.4, pack: 'emo-moves', svg: man('16,13 10,4', '16,13 22,4', '10,26 16,20 22,26', [16, 8], '<path d="M5 9 L7 11 M27 9 L25 11 M4 15 H7 M28 15 H25" stroke="#e0a020" stroke-width="1.6" stroke-linecap="round"/>') },
+    nap: { name: 'Nap', secs: 4, pack: 'emo-moves', bub: 'always', svg: svg(txt('Z', 13, '#2a62c9', 27).replace('x="16"', 'x="9"') + txt('Z', 10, '#2a62c9', 17).replace('x="16"', 'x="17"') + txt('z', 8, '#2a62c9', 9).replace('x="16"', 'x="24"')) },
+    facepalm: { name: 'Facepalm', secs: 2.4, pack: 'emo-moves', bub: 'body', svg: man('16,13 11,19', '16,13 21,13 17.5,7.5') },
+    groove: { name: 'Groove', secs: 4, pack: 'emo-moves', svg: man('16,13 10,18', '16,13 24,3', '12,28.5 16,20 21,28.5', null, '<path d="M4 6 L6 8 M5 4 V9 M2.5 6.5 H7.5" stroke="#e0a020" stroke-width="1.4" stroke-linecap="round"/>') },
+    moonwalk: { name: 'Moonwalk', secs: 3, pack: 'emo-moves', svg: man('15,13 11,18', '15,13 19,18', '10,28.5 15,20 21,27.5', [14, 7], '<path d="M30 25 H23 M26 22 L23 25 L26 28" fill="none" stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>') }
+  };
+  Object.keys(ACTS).forEach(k => { ACTS[k].act = true; });
+  E.EMOTES = Object.freeze(Object.assign({}, E.EMOTES, ACTS));
+  E.isAct = id => E.valid(id) && !!E.EMOTES[id].act;
   const ids = Object.keys(E.EMOTES);
   const owns = pack => !pack || !!(SD.marks && SD.marks.owns(pack));
   E.mine = () => ids.filter(id => owns(E.EMOTES[id].pack));
@@ -61,6 +88,7 @@
 .emo-pick button { width: 44px; height: 44px; padding: 0; border: 2px solid ${INK}; border-radius: 10px; background: #fff; cursor: pointer; display: grid; place-items: center; }
 .emo-pick button:hover, .emo-pick button:focus-visible { background: var(--mi-sun, #ffc93c); }
 .emo-pick button svg { width: 30px; height: 30px; }
+.emo-pick .emo-h { font: 700 12px var(--f-body, system-ui); color: ${INK}; margin-top: 2px; }
 .emo-pick small { font: 600 12px var(--f-body, system-ui); color: var(--mi-muted, #6b6480); }
 `;
     document.head.appendChild(st);
@@ -75,16 +103,64 @@
     return [`.rd-fighter[data-peer="${q}"] .rd-spr`, `.pt-mem[data-peer="${q}"] .pt-stage`, `[data-peer="${q}"]`]
       .map(s => document.querySelector(s)).find(vis) || null;
   }
+  // ---------- Actions on a seat or a fighter ----------
+  // The whole picture moves, t seconds in: [x, y] in px, a turn in degrees, and a scale (sx -1 is a flip).
+  const MOVE = {
+    dance: t => { const b = Math.floor(t / 0.5) % 2, f = (t % 0.5) / 0.5; return [0, -Math.sin(Math.PI * f) * 8, b ? 6 : -6, b ? -1 : 1, 1]; },
+    wave: t => [0, 0, Math.sin(t * 8) * 4, 1, 1],
+    bow: t => { const k = t < 0.4 ? t / 0.4 : t < 1.4 ? 1 : Math.max(0, 1 - (t - 1.4) / 0.4); return [0, 0, 0, 1, 1 - 0.16 * k]; },
+    flex: t => { const k = 1 + 0.07 * Math.abs(Math.sin(t * 6)); return [0, 0, 0, k, k]; },
+    spin: t => [0, -Math.abs(Math.sin(t * Math.PI / 1.6)) * 8, 0, Math.cos(t * Math.PI * 2 / 0.8), 1],
+    cheer: t => [0, -Math.abs(Math.sin(t * Math.PI * 2.5)) * 16, 0, 1, 1],
+    nap: t => [0, 2, -7 + Math.sin(t * 2), 1, 1 + Math.sin(t * 3) * 0.02],
+    facepalm: () => [0, 2, 5, 1, 0.97],
+    groove: t => { const w = Math.sin(t * Math.PI * 2); return [w * 6, -Math.abs(Math.sin(t * Math.PI * 4)) * 6, w * 9, w > 0 ? 1 : -1, 1]; },
+    moonwalk: t => [-30 * Math.sin(Math.PI * Math.min(1, t / 3)), -Math.abs(Math.sin(t * 13)) * 1.5, -4, 1, 1]
+  };
+  const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // The picture to move: a fighter's sprite, a seat's champion, else whatever's marked theirs.
+  function body(peer) {
+    const q = CSS.escape(peer), vis = el => el && el.getClientRects().length;
+    return [`.rd-fighter[data-peer="${q}"] .rd-spr`, `.pt-mem[data-peer="${q}"] .pt-stage > .champ-spr`]
+      .map(s => document.querySelector(s)).find(vis) || null;
+  }
+  const acts = {};                      // peer -> { raf, el }
+  function act(peer, id) {
+    const old = acts[peer];
+    if (old) { cancelAnimationFrame(old.raf); if (old.el) old.el.style.transform = ''; delete acts[peer]; }
+    if (!id) return;
+    const a = { raf: 0, el: null }, t0 = performance.now(), secs = E.EMOTES[id].secs, f = MOVE[id];
+    acts[peer] = a;
+    // Like the bubble, it finds the picture again every frame, so the party room's redraws don't stop it.
+    const step = () => {
+      const t = (performance.now() - t0) / 1000, el = body(peer);
+      if (a.el && a.el !== el) a.el.style.transform = '';
+      a.el = el;
+      if (t >= secs) { if (el) el.style.transform = ''; if (acts[peer] === a) delete acts[peer]; return; }
+      if (el) { const [x, y, r, sx, sy] = f(t); el.style.transformOrigin = '50% 100%'; el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${sx.toFixed(3)},${sy.toFixed(3)})`; }
+      a.raf = requestAnimationFrame(step);
+    };
+    step();
+  }
+
   E.show = function (peer, id) {
     if (!E.valid(id) || typeof peer !== 'string') return false;
+    const A = E.EMOTES[id];
+    if (A.act) {
+      const quiet = still();
+      act(peer, quiet ? null : id);
+      if (!quiet && !A.bub) { const b = live[peer]; if (b) { cancelAnimationFrame(b.raf); b.el.remove(); delete live[peer]; } return true; }
+    }
+    else act(peer, null);
     css();
     const old = live[peer];
     if (old) { cancelAnimationFrame(old.raf); old.el.remove(); }
     const el = document.createElement('div');
     el.className = 'emo-bub'; el.dataset.emo = id; el.dataset.for = peer;
+    if (A.act) el.style.animationDuration = A.secs + 's';
     el.setAttribute('role', 'img'); el.setAttribute('aria-label', E.EMOTES[id].name);
     el.innerHTML = E.EMOTES[id].svg;
-    const b = { el, until: performance.now() + 2400, raf: 0 };
+    const b = { el, until: performance.now() + (A.act ? A.secs * 1000 : 2400), raf: 0 };
     live[peer] = b;
     // The party room and the raid redraw often, so the bubble looks for its seat again every frame.
     const follow = () => {
@@ -119,13 +195,30 @@
     const now = Date.now();
     if (now - last < 1500) return false;
     last = now;
-    if (map) { map.emote('you', id, 2.4); return true; }
+    if (map) {
+      // An action on the map: your lead poses (js/ch1-art.js asks acting()), with its bubble only if it keeps one.
+      const A = E.EMOTES[id];
+      if (A.act && !still()) { mapAct = { id, t0: performance.now(), secs: A.secs }; if (A.bub === 'always') map.emote('you', id, A.secs); else map.emote('you', null, 0); }
+      else { mapAct = null; map.emote('you', id, A.act ? A.secs : 2.4); }
+      return true;
+    }
     E.show(me.peer, id);
     room.emit('emote', { e: id });
     return true;
   };
 
   // ---------- On the story map ----------
+  let mapAct = null;
+  E.acting = function (lead) {
+    if (!mapAct || !lead || !SD.scene || !SD.scene.current) return null;
+    const mine = SD.wear && SD.wear.lead ? SD.wear.lead() : (SD.state && SD.state.save && SD.state.save.c1 || {}).lead;
+    if (lead !== mine) return null;
+    const t = (performance.now() - mapAct.t0) / 1000;
+    if (t >= mapAct.secs) { mapAct = null; return null; }
+    return { id: mapAct.id, t };
+  };
+  // Walking off ends it: js/scene.js's player moves, and the pose would follow them down the road.
+  E.stop = () => { mapAct = null; };
   // Drawn into the map's canvas like its own emotes (js/scene.js), at the same size: a white bubble, the mark inside.
   const pics = {};
   E.paint = function (ctx, id, px, py, S) {
@@ -148,7 +241,8 @@
     const mine = E.mine(), more = Object.keys(E.PACKS).filter(p => !owns(p)).length;
     const box = document.createElement('div');
     box.className = 'emo-pick'; box.setAttribute('role', 'menu'); box.setAttribute('aria-label', 'Emotes');
-    box.innerHTML = `<div class="emo-grid">${mine.map(id => `<button type="button" role="menuitem" data-emo="${id}" aria-label="${E.EMOTES[id].name}" title="${E.EMOTES[id].name}">${E.EMOTES[id].svg}</button>`).join('')}</div>`
+    const grid = list => `<div class="emo-grid">${list.map(id => `<button type="button" role="menuitem" data-emo="${id}" aria-label="${E.EMOTES[id].name}" title="${E.EMOTES[id].name}">${E.EMOTES[id].svg}</button>`).join('')}</div>`;
+    box.innerHTML = grid(mine.filter(id => !E.EMOTES[id].act)) + `<b class="emo-h">Actions</b>` + grid(mine.filter(id => E.EMOTES[id].act))
       + (more ? `<small>${more} more emote pack${more > 1 ? 's' : ''} at the Raid shop.</small>` : '');
     document.body.appendChild(box);
     const r = btn.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
