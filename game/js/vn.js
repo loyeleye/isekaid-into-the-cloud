@@ -755,6 +755,8 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
           root.querySelector('.vn-black').classList.remove('on');
           await sleep(skipping ? 0 : 600);
         }
+        // The text box is under the black: a line never plays on it (tools/cut_check.js finds scripts that would).
+        root.querySelector('.vn-black').classList.remove('on');
         await line(k, a[0], a[1]); continue;
       }
       // A backdrop the next line's still covers goes in underneath, unseen; a drawn still (no painting or sheet behind
