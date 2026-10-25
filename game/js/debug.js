@@ -1,6 +1,11 @@
-// Debug start: for testing and reviewing only. Remove this file and its script tag in index.html before release.
-// Turn it on with ?debug in the URL (or #debug, window.SD_DEBUG = true before this script, or Menu > Debug start). It keeps its own save
-// (localStorage 'isekai-cloud-save-debug', never the cloud save), so testing never touches a real game.
+// Debug start: for testing and reviewing. It keeps its own save (localStorage 'isekai-cloud-save-debug', never the cloud
+// save), so testing never touches a real game.
+//
+// Turn it on with ?debug in the URL (or #debug, window.SD_DEBUG = true before this script, or Menu > Debug start). On a
+// public host it also needs the debug code (js/debug-gate.js): ?debug=<code> in the link, or the code typed into the
+// title screen's hidden box; until then neither the link nor the menu switch does anything. A link without debug plays
+// the real save, unless Menu > Debug start is on. On localhost and file:// a bare ?debug is enough (the test scripts in
+// tools/ use that).
 //
 // URL options, all optional (each load with `ch` builds a fresh debug save):
 //   ch=1..N       the chapter you are on (N is the last chapter in SD.chapters): every chapter before it counts as cleared
@@ -16,8 +21,10 @@
 // While on, a 🐞 button (bottom left) opens a panel to pick these, win the current fight, add shards, start a group fight, or replay the intro.
 (function () {
   // The menu's "Debug start" switch sets the localStorage key too, for pages that can't take a URL (the published game).
+  // Either way it needs the debug code first (js/debug-gate.js), except on localhost.
+  const G = SD.debugGate;
   let stored = false; try { stored = localStorage.getItem('isekai-cloud-debug') === '1'; } catch (e) { /* ignore */ }
-  const on = /[?&]debug\b/.test(location.search) || /debug/.test(location.hash) || !!window.SD_DEBUG || stored;
+  const on = !!window.SD_DEBUG || (G.open() && ((G.ask != null && G.ask !== 'off') || stored));
   if (!on) return;
   const D = SD.debug = {};
   const S = SD.state, U = SD.ui;
@@ -125,7 +132,9 @@
       </div>
       ${SD.clock && SD.weather ? '<div class="row"><button class="ghost" id="dbg-sky">Set time and weather now</button></div>' : ''}
       <div class="row"><button class="primary" id="dbg-go">Start here</button><button class="ghost" id="dbg-win">Win this fight</button><button class="ghost" id="dbg-sh">+1,000 shards</button><button class="ghost" id="dbg-grp">Group fight (3)</button>${SD.main.coldOpen ? '<button class="ghost" id="dbg-intro">Play the intro</button>' : ''}</div>
-      <p class="muted small">Or put it in the link: <code>?debug&amp;ch=1&amp;at=run</code></p>`, { title: 'DEBUG START' });
+      <p class="muted small">Or put it in the link: <code>?debug${G.code() ? '=' + G.code() : ''}&amp;ch=1&amp;at=run</code></p>
+      <div class="row"><button class="ghost" id="dbg-lock">Hide the debug tools</button></div>`, { title: 'DEBUG START' });
+    b.querySelector('#dbg-lock').onclick = G.lock;
     // Rebuild the save in place (a hosted preview can't always reload with a new link), then go there.
     b.querySelector('#dbg-go').onclick = () => {
       const v = k => b.querySelector('#dbg-' + k).value;
@@ -134,7 +143,7 @@
       if (SD.run.api && SD.run.api.combat() && !SD.run.api.combat().over) SD.run.api.combat().over = true;
       D.build(+v('ch'), v('rank'), v('shards'), quests);
       S.syncChapter();
-      try { const q = new URLSearchParams({ debug: '', ch: v('ch'), rank: v('rank'), at: v('at'), floor: v('floor'), shards: v('shards') }); if (quests) q.set('quests', 'done'); history.replaceState(null, '', '?' + q.toString().replace('debug=&', 'debug&')); } catch (e) { /* hosted preview */ }
+      try { const q = new URLSearchParams({ debug: '', ch: v('ch'), rank: v('rank'), at: v('at'), floor: v('floor'), shards: v('shards') }); if (quests) q.set('quests', 'done'); history.replaceState(null, '', '?' + q.toString().replace('debug=&', G.code() ? 'debug=' + G.code() + '&' : 'debug&')); } catch (e) { /* hosted preview */ }
       D.goTo(v('at'), v('floor'));
     };
     b.querySelector('#dbg-win').onclick = () => {

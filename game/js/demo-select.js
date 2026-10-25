@@ -67,7 +67,10 @@
       </div>${SD.marks ? `<div class="ds-row">
         <div class="ds-txt"><b>Raid Marks</b><br><span class="muted small">You have <b id="ds-mk-n">${SD.marks.balance()}</b> ✦. Set any amount to try the shop.</span></div>
         <div class="ds-btns"><input id="ds-mk" type="number" inputmode="numeric" min="0" max="999999" step="1" value="${SD.marks.balance()}" aria-label="Raid Marks" style="width:96px;font:600 15px var(--f-body,system-ui);padding:6px 8px;border:2px solid var(--mi-ink,#222);border-radius:10px"><button class="primary" type="button" id="ds-mk-set">Set</button></div>
-      </div>` : ''}</div>` : ''}`, { title: 'DEBUG' });
+      </div>` : ''}</div>` : ''}
+      ${SD.debugGate && !SD.debugGate.local ? '<div class="row"><button class="ghost" type="button" id="ds-lock">Hide the debug tools</button></div>' : ''}`, { title: 'DEBUG' });
+    const lock = b.querySelector('#ds-lock');
+    if (lock) lock.onclick = SD.debugGate.lock;
     const wear = b.querySelector('#ds-wear');
     if (wear) wear.onclick = () => SD.wear.open();
     const mk = b.querySelector('#ds-mk');
@@ -109,7 +112,8 @@
       </div>`;
   }
   function badge() {
-    if ($('#ds-dbg')) return;
+    // Hidden until the debug code is in (js/debug-gate.js).
+    if ($('#ds-dbg') || (SD.debugGate && !SD.debugGate.open())) return;
     const b = document.createElement('button');
     b.id = 'ds-dbg'; b.type = 'button'; b.textContent = '🐞 Debug';
     // Let go of focus, so Space and Enter go on to the scene and don't reopen the menu.
