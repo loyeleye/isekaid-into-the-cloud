@@ -386,6 +386,13 @@
     "seoyeon|Two copies. She knew.": 'seoyeon-c1-20',
     "seoyeon|Are you coming with us?": 'seoyeon-c1-21',
     "seoyeon|Where did she go?": 'seoyeon-c1-22',
-    "seoyeon|How did you get here first?": 'seoyeon-c1-23'
+    "seoyeon|How did you get here first?": 'seoyeon-c1-23',
+    // Kyu
+    "kyu|No.": 'kyu-c7-01',
+    "kyu|Ask me again tomorrow.": 'kyu-c7-02',
+    "kyu|I remember all of it. I'm still deciding.": 'kyu-c7-03',
+    "kyu|The cat's name is No. It answers to it.": 'kyu-c7-04',
+    "kyu|You talk like the job ad for my old job.": 'kyu-c1-01',
+    "kyu|...No.": 'kyu-c1-02'
   });
 })();
