@@ -82,8 +82,9 @@
   E.EMOTES = Object.freeze(Object.assign({}, E.EMOTES, ACTS));
   E.isAct = id => E.valid(id) && !!E.EMOTES[id].act;
   const ids = Object.keys(E.EMOTES);
-  const owns = pack => !pack || !!(SD.marks && SD.marks.owns(pack));
-  E.mine = () => ids.filter(id => owns(E.EMOTES[id].pack));
+  // A pack's emote is yours with the pack or on its own (js/marks.js sells both as em-<id>).
+  const has = id => !E.EMOTES[id].pack || !!(SD.marks && SD.marks.owns('em-' + id));
+  E.mine = () => ids.filter(has);
   E.valid = id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(E.EMOTES, id);
 
   function css() {
@@ -298,12 +299,12 @@
   function close() { if (!pick) return; pick.box.remove(); pick.btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', pick.out, true); pick = null; }
   function open(btn) {
     css(); close();
-    const mine = E.mine(), more = Object.keys(E.PACKS).filter(p => !owns(p)).length;
+    const mine = E.mine(), more = ids.length - mine.length;
     const box = document.createElement('div');
     box.className = 'emo-pick'; box.setAttribute('role', 'menu'); box.setAttribute('aria-label', 'Emotes');
     const grid = list => `<div class="emo-grid">${list.map(id => `<button type="button" role="menuitem" data-emo="${id}" aria-label="${E.EMOTES[id].name}" title="${E.EMOTES[id].name}">${E.EMOTES[id].svg}</button>`).join('')}</div>`;
     box.innerHTML = grid(mine.filter(id => !E.EMOTES[id].act)) + `<b class="emo-h">Actions</b>` + grid(mine.filter(id => E.EMOTES[id].act))
-      + (more ? `<small>${more} more emote pack${more > 1 ? 's' : ''} at the Raid shop.</small>` : '');
+      + (more ? `<small>${more} more at the Raid shop, one at a time or in packs.</small>` : '');
     document.body.appendChild(box);
     const r = btn.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
     box.style.left = Math.max(16, Math.min(innerWidth - w - 16, r.left)) + 'px';

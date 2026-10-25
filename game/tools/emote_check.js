@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
       return box && { n: box.querySelectorAll('[data-emo]').length, acts: box.querySelectorAll('.emo-grid')[1].querySelectorAll('[data-emo]').length, more: (box.querySelector('small') || {}).textContent || '', open: btn.getAttribute('aria-expanded'), focus: document.activeElement && document.activeElement.dataset.emo };
     });
     check(pick && pick.n === 9 && pick.acts === 3 && pick.open === 'true' && pick.focus === 'heart', `${mode}: the Emote button opens the free six and three free actions, focused (${JSON.stringify(pick)})`);
-    check(pick && /6 more emote packs/.test(pick.more), `${mode}: the picker says where the rest are`);
+    check(pick && /29 more at the Raid shop/.test(pick.more), `${mode}: the picker says where the rest are`);
 
     const sent = await a.evaluate(p => {
       document.querySelector('.emo-pick [data-emo="heart"]').click();
@@ -145,6 +145,20 @@ const server = http.createServer((req, res) => {
     });
     check(shop.bought && shop.n === 13 && shop.pumpkin, `${mode}: a pack bought at the Raid shop joins the picker (${shop.n})`);
     check(shop.closed, `${mode}: Escape closes the picker`);
+    // Never twice: a single emote, or a pack once it or all its emotes are yours; a pack is full price until then.
+    const twice = await a.evaluate(() => {
+      const M = SD.marks; SD.state.save.mp.marks = { n: 2000, owned: ['emo-season'] };
+      const full = M.price('emo-story'), one = M.buy('em-pip'), again = M.buy('em-pip'), less = M.price('emo-story');
+      const pack = M.buy('emo-story'), packAgain = M.buy('emo-story'), single = M.buy('em-freetier'), mine = SD.emote.mine().includes('freetier');
+      ['coffee', 'cheers', 'song', 'idea'].forEach(e => M.buy('em-' + e));
+      const all = M.owns('emo-tavern') && M.buy('emo-tavern') === false;
+      const spent = 2000 - M.balance(), n = M.ITEMS.length;
+      SD.ui.closePanel && SD.ui.closePanel();
+      return { full, one, again, less, pack, packAgain, single, mine, all, spent, n };
+    });
+    check(twice.one && !twice.again && twice.pack && !twice.packAgain && !twice.single && twice.all, `${mode}: nothing can be bought twice, a pack and its emotes count as each other (${JSON.stringify(twice)})`);
+    check(twice.full === 126 && twice.less === 126 && twice.spent === 30 + 126 + 120 && twice.mine, `${mode}: a pack costs 70% of its emotes singly, full price even with one of them, and a single emote joins the picker`);
+    check(twice.n === 64, `${mode}: the shop sells ${twice.n} items, the pack emotes one at a time too`);
     check(shop.item === 'emote', `${mode}: the Raid shop sells the packs`);
     // On the story map, with no party: the bubble goes over your lead, drawn into the map.
     const onMap = await a.evaluate(async () => {

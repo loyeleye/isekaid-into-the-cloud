@@ -7,7 +7,8 @@
 //   SD.marks.pay({ right, humans })    a clear's marks: PAY.clear, plus PAY.perRight per answer right (up to
 //                                      PAY.rightCap), times PAY.withHuman when humans >= 2. Adds them, returns n.
 //   SD.marks.ITEMS                     the shop: [{ id, name, slot, tier, cost }]
-//   SD.marks.owns(id), owned(), buy(id) -> true when bought
+//   SD.marks.owns(id), owned(), buy(id) -> true when bought; never twice (a pack and its emotes count as each other)
+//   SD.marks.price(id)                 its price (a pack's is full price even when you have some of it)
 //
 // Saved at S.save.mp.marks = { n, owned: [id] }. Where the full profile's economy is loaded (js/economy.js), a buy is
 // also pushed into its cosmetics list, so either can tell what you own.
@@ -19,8 +20,11 @@
   // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. The ids, names
   // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames) and js/emote.js's. Each tier has
   // one price for now; Ladi settles the final prices once every cosmetic is built.
-  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack', look: 'Look' });
+  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack', emote1: 'Emote', act1: 'Action', look: 'Look' });
   M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260, mythic: 400 });
+  // A single emote or action, and a pack's price as a share of its emotes' singly (placeholders, like TIERS).
+  M.SINGLE = Object.freeze({ emote1: 30, act1: 60 });
+  M.PACK_OFF = 0.7;
   M.ITEMS = Object.freeze([
     ['frame-cafe', 'Café frame', 'frame', 'common'], ['frame-pager', '3 a.m. pager', 'frame', 'common'],
     ['frame-temple', 'Temple of Uptime', 'frame', 'common'], ['frame-starlit', 'Starlit', 'frame', 'common'],
@@ -38,11 +42,34 @@
     ['look-blossom', 'Spring Blossom', 'look', 'mythic'], ['look-glacier', 'Glacier', 'look', 'mythic'], ['look-spot', 'Spot Instance', 'look', 'mythic'],
     ['look-lambda', 'Lambda', 'look', 'mythic'], ['look-veteran', 'us-east-1 Veteran', 'look', 'mythic'], ['look-guild', 'Guild armour', 'look', 'mythic'],
     ['look-acolyte', 'Temple acolyte', 'look', 'mythic'], ['look-tavern', 'Tavern keeper', 'look', 'mythic']
-  ].map(([id, name, slot, tier]) => Object.freeze({ id, name, slot, tier, cost: M.TIERS[tier] })));
+  ].map(([id, name, slot, tier]) => ({ id, name, slot, tier, cost: M.TIERS[tier] }))
+    // Every pack's emotes are also sold one at a time (Ladi, 2026-10-25), listed under their pack as em-<emote id>, and
+    // a pack costs PACK_OFF of what the emotes in it would cost singly.
+    .flatMap(it => {
+      const E = SD.emote;
+      if (it.slot !== 'emote' || !E) return [it];
+      const ones = Object.keys(E.EMOTES).filter(e => E.EMOTES[e].pack === it.id)
+        .map(e => ({ id: 'em-' + e, name: E.EMOTES[e].name, slot: E.EMOTES[e].act ? 'act1' : 'emote1', tier: null, pack: it.id, emote: e, cost: M.SINGLE[E.EMOTES[e].act ? 'act1' : 'emote1'] }));
+      it.has = ones.map(o => o.id);
+      it.cost = Math.round(M.PACK_OFF * ones.reduce((a, o) => a + o.cost, 0));
+      return [it].concat(ones);
+    }).map(it => Object.freeze(it)));
   const st = () => { const s = S.save; const mp = s.mp || (s.mp = {}); return mp.marks || (mp.marks = { n: 0, owned: [] }); };
   M.balance = () => st().n;
   M.item = id => M.ITEMS.find(x => x.id === id) || null;
-  M.owns = id => st().owned.includes(id) || !!(SD.econ && SD.econ.state && SD.econ.state().cosmetics.includes(id));
+  const bought = id => st().owned.includes(id) || !!(SD.econ && SD.econ.state && SD.econ.state().cosmetics.includes(id));
+  // A pack owns its emotes, and all of a pack's emotes own the pack, so neither can be bought twice.
+  M.owns = id => {
+    const it = M.item(id);
+    if (bought(id)) return true;
+    if (it && it.pack) return bought(it.pack);
+    if (it && it.has) return it.has.every(bought);
+    return false;
+  };
+  // A pack keeps its full price whatever of it you have, and stays for sale until every emote in it is yours (Ladi,
+  // 2026-10-25).
+  M.price = id => { const it = M.item(id); return it ? it.cost : null; };
+  M.isEmote = it => !!it && ['emote', 'emote1', 'act1'].includes(it.slot);
   M.owned = () => st().owned.slice();
   M.earned = ({ right, humans } = {}) => {
     const P = M.PAY;
@@ -55,8 +82,9 @@
   };
   M.buy = function (id) {
     const it = M.item(id), s = st();
-    if (!it || M.owns(id) || s.n < it.cost) return false;
-    s.n -= it.cost; s.owned.push(id);
+    const cost = M.price(id);
+    if (!it || M.owns(id) || s.n < cost) return false;
+    s.n -= cost; s.owned.push(id);
     if (SD.econ && SD.econ.state) { const c = SD.econ.state().cosmetics; if (!c.includes(id)) c.push(id); }
     S.persist();
     if (SD.audio) SD.audio.sfx('coin');
@@ -64,7 +92,7 @@
     return true;
   };
   // js/wear.js asks here who owns what, and labels what you don't own yet with its price.
-  const link = () => { if (!SD.wear) return; SD.wear.owns = M.owns; SD.wear.price = id => { const it = M.item(id); return it ? `${it.cost} ✦ at the Raid shop` : ''; }; };
+  const link = () => { if (!SD.wear) return; SD.wear.owns = M.owns; SD.wear.price = id => { const c = M.price(id); return c == null ? '' : `${c} ✦ at the Raid shop`; }; };
   link();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', link, { once: true });
 })();

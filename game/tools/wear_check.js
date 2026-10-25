@@ -136,6 +136,10 @@ const server = http.createServer((req, res) => {
       out.wardrobeOff = W.worn().length;
       document.querySelector('#panel [data-wear="frame-pager"]').click();
       out.wardrobeOn = W.worn().join(',');
+      // The Wardrobe's way into the Raid shop (js/raid-finder.js).
+      const sb = document.querySelector('#panel #wd-shop');
+      if (sb) sb.click();
+      out.shopBtn = !SD.mp || (!!sb && document.querySelectorAll('#panel .mp-list li').length === (SD.marks ? SD.marks.ITEMS.length : -1));
       SD.ui.closePanel(); Object.assign(W, was); W.unequip('frame');
       W.owns = shopOwns;
       out.shop = !SD.marks || (W.owns('fx-soot') === false && W.equip('fx-soot') === false);
@@ -165,6 +169,7 @@ const server = http.createServer((req, res) => {
     check(r.owned, `${mode}: with a shop loaded, only bought items can be worn`);
     check(r.locked === r.count - 1 && r.priced === '99 ✦', `${mode}: the Wardrobe shows the rest locked with the shop's price (${r.locked}, ${r.priced})`);
     check(r.wardrobeOff === 0 && r.wardrobeOn === 'frame-pager', `${mode}: the Wardrobe takes off and puts on`);
+    check(r.shopBtn, `${mode}: the Wardrobe's Raid shop button opens the shop`);
     check(r.shop, `${mode}: with the Raid shop loaded, nothing unbought can be worn`);
   }
 

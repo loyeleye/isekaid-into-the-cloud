@@ -450,7 +450,10 @@ ${spots}
       const b = U.panel(`<div class="wd">
           <div class="wd-top">${W.lead() === lead ? SD.art.portrait(lead, 120, 'smile') : face}<div class="wd-fig" id="wd-fig" style="background-image:url(${fig})">${W.heroFx()}</div></div>
           <p class="small muted">Worn by ${esc(SD.ch1story && SD.ch1story.leads[lead] ? SD.ch1story.leads[lead].name : lead)} in dialogue, in battle and in the party room. Looks only, no power.</p>
+          ${SD.mp && SD.mp.shop && SD.marks ? `<p class="small" style="margin:0 0 8px"><button class="mi-btn sm" type="button" id="wd-shop">Raid shop</button> <span class="muted">${SD.marks.balance()} ✦ to spend</span></p>` : ''}
           ${SLOTS.map(slot).join('')}</div>`, { title: 'WARDROBE' });
+      // The Raid shop lives in Multiplayer (js/raid-finder.js); the Wardrobe has a way in too (Ladi, 2026-10-25).
+      const sh = b.querySelector('#wd-shop'); if (sh) sh.onclick = () => SD.mp.shop();
       if (!vec && outfit && !look && fig === standSrc(lead)) W.recolor(standSrc(lead), standMask(lead), outfit, u => { const el = b.querySelector('#wd-fig'); if (el) el.style.backgroundImage = `url(${u})`; });
       b.querySelectorAll('[data-wear]').forEach(el => { el.onclick = () => { if (W.equip(el.dataset.wear)) draw(); }; });
       b.querySelectorAll('[data-off]').forEach(el => { el.onclick = () => { W.unequip(el.dataset.off); draw(); }; });

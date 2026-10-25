@@ -10,6 +10,7 @@
 // A guest who hasn't reached the expedition the leader starts is sent back here (raid.js o.open, 'locked').
 //
 //   SD.mp.eligible() -> [{ ch, label, done, xps: [expedition] }], in story order: the chapters you can replay
+//   SD.mp.shop()           the Raid shop's panel (the finder's button, and the Wardrobe's)
 //   SD.mp.open(from, code) -> the finder; from 'title' or 'menu' (back resumes the chapter you were in). With a
 //                       code, straight into that party first. A party room's Copy link (js/party.js, #join-CODE)
 //                       opens here: the title, once past PRESS START, joins it.
@@ -96,15 +97,16 @@
       const worn = W && W.worn ? Object.values(W.worn()) : [];
       const body = `<p class="small" style="margin:0 0 10px">You have <b>${SD.marks.balance()} ✦</b>. Cosmetics only: they change how your lead looks, never how they play.</p>
         <ul class="mp-list">${SD.marks.ITEMS.map(it => { const own = SD.marks.owns(it.id), on = worn.includes(it.id);
-          return `<li><div class="mp-txt"><b>${esc(it.name)}</b><small>${esc(SD.marks.SLOTS[it.slot] || it.slot)}${it.tier ? ' · ' + it.tier[0].toUpperCase() + it.tier.slice(1) : ''}${own ? ' · yours' : ` · ${it.cost} ✦`}</small></div>
-            <div class="mp-btns">${own ? (it.slot === 'emote' ? '<small>On your Emote button</small>' : W && W.equip ? `<button class="mi-btn sm${on ? '' : ' go'}" type="button" data-wear="${esc(it.id)}">${on ? 'Take off' : 'Wear'}</button>` : '')
-              : `<button class="mi-btn go sm" type="button" data-buy="${esc(it.id)}"${SD.marks.balance() < it.cost ? ' disabled' : ''}>Buy</button>`}</div></li>`; }).join('')}</ul>`;
+          return `<li><div class="mp-txt"><b>${esc(it.name)}</b><small>${esc(SD.marks.SLOTS[it.slot] || it.slot)}${it.tier ? ' · ' + it.tier[0].toUpperCase() + it.tier.slice(1) : ''}${it.pack ? ' · in the ' + esc(SD.marks.item(it.pack).name) : ''}${own ? ' · yours' : ` · ${SD.marks.price(it.id)} ✦`}</small></div>
+            <div class="mp-btns">${own ? (SD.marks.isEmote(it) ? '<small>On your Emote button</small>' : W && W.equip ? `<button class="mi-btn sm${on ? '' : ' go'}" type="button" data-wear="${esc(it.id)}">${on ? 'Take off' : 'Wear'}</button>` : '')
+              : `<button class="mi-btn go sm" type="button" data-buy="${esc(it.id)}"${SD.marks.balance() < SD.marks.price(it.id) ? ' disabled' : ''}>Buy</button>`}</div></li>`; }).join('')}</ul>`;
       const box = U.panel(body, { title: 'RAID SHOP' });
       box.querySelectorAll('[data-buy]').forEach(b => { b.onclick = () => { if (SD.marks.buy(b.dataset.buy)) draw(); }; });
       box.querySelectorAll('[data-wear]').forEach(b => { b.onclick = () => { const it = SD.marks.item(b.dataset.wear); if (worn.includes(it.id)) W.unequip(it.slot); else W.equip(it.id); draw(); }; });
     };
     draw();
   }
+  MP.shop = shop;
 
   // ---------- The finder ----------
   let busy = false, from = 'title';
