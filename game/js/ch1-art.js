@@ -53,7 +53,10 @@
 
   // face: 'south' | 'north' | 'east' | 'west'. moving: whether they're walking. Feet at (fx, fy) in pixels.
   A.person = function (ctx, id, fx, fy, ts, t, face, moving, o) {
-    const L = LOOK[id]; if (!L) return;
+    let L = LOOK[id]; if (!L) return;
+    // Your lead in the look they're wearing (js/wear.js mapLook): its colours and its one telling detail.
+    const lk = SD.wear && SD.wear.mapLook ? SD.wear.mapLook(id) : null;
+    if (lk) L = Object.assign({}, L, lk);
     o = o || {};
     const flip = face === 'west', side = face === 'east' || face === 'west', back = face === 'north';
     const ph = moving ? Math.sin(t * 13) : 0, bob = moving ? -Math.abs(Math.sin(t * 13)) * 1.2 : Math.sin(t * 2.2) * 0.35;
@@ -70,7 +73,8 @@
     if (back) backHair(g, L);
     else if (L.style === 'long' || L.style === 'uptima') longHairBehind(g, L);
     if (L.mop && !back) mop(g, side);
-    if (L.halo && back) halo(g, t);
+    if ((L.halo || L.ring) && back) halo(g, t);
+    if (L.wings) wings(g, L, back, t);
     // Legs or robe.
     if (L.robe) {
       g.path(x => { x.moveTo(-6.5, -20); x.lineTo(6.5, -20); x.quadraticCurveTo(9, -8, 9.5, -1); x.lineTo(-9.5, -1); x.quadraticCurveTo(-9, -8, -6.5, -20); x.closePath(); }).fill(L.coat);
@@ -106,6 +110,10 @@
     if (L.sash && !back) g.path(x => { x.moveTo(-6, -20.5); x.lineTo(-3, -21.5); x.lineTo(6, -11.5); x.lineTo(3, -10.5); x.closePath(); }).fill(L.sash, 0.8);
     if (L.keys) { g.circle(side ? 5 : -5, -9.5, 2.2).stroke('#d9a740', 1); g.line(side ? 5 : -5, -8, side ? 5.6 : -5.6, -5.5).stroke('#d9a740', 0.9); }
     if (L.wolf && !back) { g.rect(-7, -13, 4, 4, 1).fill('#8a5a32', 0.8); }
+    if (L.tabard && !back) { g.rect(-3.6, -20.5, 7.2, 13, 0.8).fill(L.tabard, 0.8); g.circle(0, -16, 1.4).fill(L.crest || '#e2b23a', 0.6); }
+    if (L.bib && !back) { g.rect(-4.6, -16, 9.2, 10, 1).fill(L.bib, 0.8); g.line(-4, -16, -5, -20.5).stroke(L.bib, 0.9); g.line(4, -16, 5, -20.5).stroke(L.bib, 0.9); }
+    if (L.stripes && !back) [[-6, -18, 6], [-2, -14.5, 7], [-5, -11, 4]].forEach(([x, y, w]) => { g.ctx.fillStyle = L.stripes; g.ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 9 + y); g.ctx.fillRect(x, y, w, 1.1); g.ctx.globalAlpha = 1; });
+    if (L.stitch && !back) { g.line(-5, -17, -2, -16).stroke('#e8dcc4', 0.6); g.line(-4.4, -17.8, -4.6, -16.2).stroke('#e8dcc4', 0.5); g.line(-3, -17.4, -3.2, -15.8).stroke('#e8dcc4', 0.5); }
     if (L.lanyard && !back) { g.line(-2.5, -21, 0, -15, 2.5, -21).stroke('#e2bd4f', 0.8); g.rect(-1.4, -15.2, 2.8, 3.2, 0.5).fill('#f4f1ea', 0.6); g.rect(-6.6, -11.5, 13.2, 1.8, 0.6).fill(L.under, 0.7); }
     if (L.sword) { const sx = back ? 5 : -6.5; g.line(sx, -14, sx - 2.5, -1).stroke('#6b6f7a', 1.6); g.line(sx - 1.5, -14.5, sx + 1.5, -13.5).stroke('#2a2a2a', 1.4); g.line(sx - 0.2, -14, sx + 1.2, -8).stroke('#3cb87a', 1.2); }
     if (L.towel && !back) g.path(x => { x.moveTo(side ? -2 : -7.5, -21); x.lineTo(side ? 2 : -3.5, -21.5); x.lineTo(side ? 1.5 : -4, -14); x.lineTo(side ? -2.5 : -7.5, -14.5); x.closePath(); }).fill('#e9e2cf', 0.8);
@@ -115,7 +123,9 @@
     if (L.tray && !back) tray(g, side);
     if (L.clipboard && !back) { const x = side ? 6 : -10.5; g.rect(x, -19, 5, 6.5, 0.6).fill('#9a6a3a', 0.8); g.rect(x + 0.8, -18, 3.4, 4.8).fill('#f4f1ea', false); [-17, -15.6].forEach(y => g.line(x + 1.2, y, x + 3.8, y).stroke('#8a8a8a', 0.4)); }
     armR();
-    if (L.halo && !back) halo(g, t);
+    if (L.lantern && !back) lantern(g, side, t);
+    if (L.hat && !back) hat(g, L, side);
+    if ((L.halo || L.ring) && !back) halo(g, t);
     if (L.staff) { g.line(side ? 9 : 10, -34, side ? 9 : 10, 0).stroke('#7a5232', 1.8); g.circle(side ? 9 : 10, -35, 2.4).fill('#ffd76a', 1); }
     if (L.mop && back) mop(g, false);
   }
@@ -288,6 +298,25 @@
     const y = -46 + Math.sin(t * 2) * 0.8;
     g.ell(0, y, 8.5, 2.6).stroke('#5a4a10', 2.6); g.ell(0, y, 8.5, 2.6).stroke('#ffd24a', 1.4);
     g.circle(8.2, y + 0.4, 1.2).fill('#ffd24a', 0.6);
+  }
+  // Looks (js/wear.js): a hat on top of the hair, a lantern in the hand, wings of light behind.
+  function hat(g, L, side) {
+    const hy = -31;
+    if (L.hat === 'santa' && L.style !== 'nun') {
+      g.path(x => { x.moveTo(-10.5, hy - 7); x.quadraticCurveTo(-4, hy - 19, 8, hy - 16); x.quadraticCurveTo(13, hy - 14, 14, hy - 9); x.quadraticCurveTo(6, hy - 13, 10.5, hy - 7); x.closePath(); }).fill('#c0202c', 0.9);
+      g.rect(-11.5, hy - 9, 23, 3.6, 1.8).fill('#f6f4ee', 0.8); g.circle(14, hy - 8, 2).fill('#f6f4ee', 0.8);
+    } else if (L.hat === 'flowers') [-8, -4, 0, 4, 8].forEach((x, i) => { g.circle(x, hy - 9.5 - (i % 2 ? 1 : 0) - (x === 0 ? 1.5 : 0), 1.8).fill(i % 2 ? '#ffffff' : '#ffb3cf', 0.6); g.circle(x, hy - 9.5 - (i % 2 ? 1 : 0) - (x === 0 ? 1.5 : 0), 0.6).fill('#ffd25a', false); });
+    else if (L.hat === 'frost') g.poly(-8, hy - 8, -6, hy - 14, -4, hy - 9, -1, hy - 16, 2, hy - 9, 5, hy - 14, 7, hy - 8).fill('#eef9ff', 0.8);
+  }
+  function lantern(g, side, t) {
+    const x = side ? 9 : 10, sway = Math.sin(t * 2.4) * 0.8;
+    g.line(x, -11, x + sway, -7).stroke(INK, 0.6);
+    g.ell(x + sway, -4.5, 2.6, 3).fill('#e0402a', 0.8); g.ell(x + sway, -4.5, 4.2, 4.6).fill('rgba(255,180,90,.25)', false);
+    g.rect(x + sway - 1.8, -7.8, 3.6, 1, 0.3).fill('#e9b53a', false); g.rect(x + sway - 1.8, -2, 3.6, 1, 0.3).fill('#e9b53a', false);
+  }
+  function wings(g, L, back, t) {
+    const f = Math.sin(t * 1.6) * 1.2;
+    [-1, 1].forEach(s => [2, 1, 0].forEach(i => g.path(x => { x.moveTo(s * 3, -19); x.quadraticCurveTo(s * (14 + i * 3), -30 - i * 3 - f, s * (17 + i * 2), -22 + i * 3); x.quadraticCurveTo(s * (13 + i * 2), -12 + i * 2, s * 4, -13); x.closePath(); }).fill(['#ffffff', '#eef5ff', '#d6e6ff'][i], 0.7)));
   }
   function tray(g, side) {
     const x = side ? 6 : -9;

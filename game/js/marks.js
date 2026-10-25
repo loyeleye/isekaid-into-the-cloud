@@ -1,6 +1,6 @@
 // Raid Marks (Ladi, 2026-10-24): the raid finder's own currency, for cosmetics only. Every replay clear in the
 // Multiplayer finder (js/raid-finder.js) pays them, solo, with bots or with friends, and more when another person
-// is still in the party at the end. They buy outfit recolors, follow-along effects, portrait frames and emote packs (js/emote.js) at the Raid shop; what's worn and how it's drawn is
+// is still in the party at the end. They buy outfit recolors, follow-along effects, portrait frames, looks (full-body reskins) and emote packs (js/emote.js) at the Raid shop; what's worn and how it's drawn is
 // js/wear.js. No power, no story: the story's currencies (shards, tapes) never mix with marks.
 //
 //   SD.marks.balance()                 marks you have
@@ -19,8 +19,8 @@
   // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. The ids, names
   // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames) and js/emote.js's. Each tier has
   // one price for now; Ladi settles the final prices once every cosmetic is built.
-  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack' });
-  M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260 });
+  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack', look: 'Look' });
+  M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260, mythic: 400 });
   M.ITEMS = Object.freeze([
     ['frame-cafe', 'Café frame', 'frame', 'common'], ['frame-pager', '3 a.m. pager', 'frame', 'common'],
     ['frame-temple', 'Temple of Uptime', 'frame', 'common'], ['frame-starlit', 'Starlit', 'frame', 'common'],
@@ -32,7 +32,12 @@
     ['fx-stardust', 'Stardust', 'effect', 'rare'], ['fx-snow', 'Snowfall', 'effect', 'rare'], ['fx-embers', 'Embers', 'effect', 'rare'],
     ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary'],
     // Emote packs (js/emote.js): four emotes each for the Emote button in the party room and the raid.
-    ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare']
+    ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare'],
+    // Looks (js/wear.js): reskins of the full body, the top tier. Restored isn't sold: it's earned by beating Freya.
+    ['look-zombie', 'Zombie Process', 'look', 'mythic'], ['look-santa', 'Winterfest Santa', 'look', 'mythic'], ['look-lantern', 'Lantern-bearer', 'look', 'mythic'],
+    ['look-blossom', 'Spring Blossom', 'look', 'mythic'], ['look-glacier', 'Glacier', 'look', 'mythic'], ['look-spot', 'Spot Instance', 'look', 'mythic'],
+    ['look-lambda', 'Lambda', 'look', 'mythic'], ['look-veteran', 'us-east-1 Veteran', 'look', 'mythic'], ['look-guild', 'Guild armour', 'look', 'mythic'],
+    ['look-acolyte', 'Temple acolyte', 'look', 'mythic'], ['look-tavern', 'Tavern keeper', 'look', 'mythic']
   ].map(([id, name, slot, tier]) => Object.freeze({ id, name, slot, tier, cost: M.TIERS[tier] })));
   const st = () => { const s = S.save; const mp = s.mp || (s.mp = {}); return mp.marks || (mp.marks = { n: 0, owned: [] }); };
   M.balance = () => st().n;
