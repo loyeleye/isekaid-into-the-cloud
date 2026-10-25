@@ -170,7 +170,8 @@
 .vc-txt i { display: block; font: 600 13px Nunito, sans-serif; font-style: normal; opacity: .8; }
 .vc-txt p { margin: 10px 0 6px; font: 600 15px/1.35 Nunito, sans-serif; }
 .vc-txt q { display: block; margin-top: 8px; padding: 8px 10px; font: italic 400 15px/1.4 Nunito, sans-serif; background: rgba(255,255,255,.45); border-left: 3px solid #8a2a34; }
-.vc-stamp { position: absolute; right: 10px; bottom: 54px; padding: 6px 12px; font: 800 clamp(20px, 5.5vw, 28px) ui-monospace, monospace; color: #c0202e; border: 4px solid #c0202e; border-radius: 4px; transform: rotate(-12deg) scale(2.6); opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+/* Bottom left, on the row of the Next file button and under the photo, so it never covers the prayer. */
+.vc-stamp { position: absolute; left: 16px; bottom: 22px; padding: 6px 12px; font: 800 clamp(20px, 5.5vw, 28px) ui-monospace, monospace; color: #c0202e; border: 4px solid #c0202e; border-radius: 4px; transform: rotate(-12deg) scale(2.6); opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
 .vc-stamp.on { animation: vcStamp .28s cubic-bezier(.3, 1.6, .5, 1) forwards; }
 @keyframes vcStamp { to { transform: rotate(-12deg) scale(1); opacity: .88; } }
 .vc-card .vc-go, .vf-keep { grid-column: 1 / -1; justify-self: end; min-height: 44px; padding: 9px 18px; font: 700 14px Nunito, sans-serif; color: #fff; background: #2b2340; border: 0; border-radius: 6px; cursor: pointer; }

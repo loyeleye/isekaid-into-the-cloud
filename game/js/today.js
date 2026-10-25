@@ -464,20 +464,39 @@
     #screen-title.has-today { overflow-x: hidden; overflow-y: auto; justify-content: safe center; padding-top: calc(12px + env(safe-area-inset-top, 0px)); padding-bottom: 6vh; }
     #screen-title.has-today .logo { font-size: clamp(34px, 9.5vw, 86px); margin-top: 8px; }
     #screen-title.has-today #title-actions { margin-top: 14px; }
+    /* Short landscape phones: the title on the left over the four on the ridge, Kyu's note and the buttons on the
+       right, so New game is on screen without scrolling. */
+    @media (orientation: landscape) and (max-height: 420px) {
+      #screen-title.has-today { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); grid-template-rows: auto auto auto; column-gap: 20px; row-gap: 8px; align-content: safe center; justify-items: center; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
+      #screen-title.has-today .t-ribbon { grid-area: 1 / 1; align-self: end; }
+      #screen-title.has-today .logo { grid-area: 2 / 1; align-self: start; font-size: min(14vh, 6.5vw); margin-top: 6px; }
+      #screen-title.has-today #today-card { grid-area: 1 / 2 / 3 / 3; margin: 0; }
+      #screen-title.has-today #title-actions { grid-area: 3 / 2; margin-top: 0; gap: 8px; flex-wrap: nowrap; }
+      #screen-title.has-today #title-actions button { font-size: 15px; padding-inline: 14px; white-space: nowrap; }
+      #screen-title.has-today .snd { right: auto; left: max(16px, env(safe-area-inset-left, 0px)); }
+      #screen-title.has-today .t-halo { width: min(30vw, 200px); }
+      #screen-title.has-today :is(.t-foot, .pcl.near) { display: none; }
+      #screen-title.has-today :is(.t-leads, .t-halo) { left: calc(max(16px, env(safe-area-inset-left, 0px)) + (100% - 452px) / 2); }
+      #screen-title.has-today .td-line { margin: 6px 0 4px; }
+      #screen-title.has-today .td-nums { margin-bottom: 6px; }
+      #screen-title.has-today .td-date { margin-bottom: 6px; }
+    }
     .td-card { position: relative; z-index: 2; width: min(440px, 100%); margin: 14px auto 0; padding: 12px 14px 10px; text-align: left; border-radius: 6px; flex: none; }
     .td-kyu { background: #ffe97a; color: #2b2340; border: 2px solid #0c0a10; box-shadow: 0 4px 0 #0c0a10, 0 10px 24px rgba(0,0,0,.45); transform: rotate(-.6deg); }
     .td-uptima { background: linear-gradient(180deg, #2d2838, #221e2b); color: #ece4d2; border: 2px solid #d6b254; border-radius: 12px; box-shadow: 0 0 18px rgba(214,178,84,.25), 0 4px 0 #0c0a10; }
     .td-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .td-who { font: 700 12px/1.2 var(--f-head); letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
     .td-uptima .td-who { color: #e0b453; opacity: 1; }
-    .td-chip { font: 700 12px/1 var(--f-body); padding: 6px 10px; min-height: 30px; border-radius: 20px; border: 2px solid currentColor; background: transparent; white-space: nowrap; }
+    /* The chip and the links are 44px to tap, drawn and laid out at their old size (the pill is the ::before). */
+    .td-chip { position: relative; font: 700 12px/1 var(--f-body); padding: 6px 12px; min-height: 44px; margin: -7px 0; border: 0; background: transparent; white-space: nowrap; }
+    .td-chip::before { content: ""; position: absolute; inset: 7px 0; border: 2px solid currentColor; border-radius: 20px; pointer-events: none; }
     .td-line { margin: 8px 0 6px; font: 600 16px/1.35 var(--f-head); }
     .td-kyu .td-line { font: italic 700 17px/1.35 var(--f-body); }
     .td-nums { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; font-weight: 700; opacity: .85; margin-bottom: 10px; }
     .td-main { width: 100%; font-size: 16px !important; }
     .td-uptima .td-main { background: #d6b254 !important; color: #1b1722 !important; border-color: #0c0a10; }
     .td-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; margin-top: 6px; }
-    .td-link { background: none; border: 0; padding: 8px 4px; min-height: 36px; font: 700 13px/1 var(--f-body); text-decoration: underline; text-underline-offset: 3px; }
+    .td-link { background: none; border: 0; padding: 8px 4px; min-height: 44px; margin: -4px 0; font: 700 13px/1 var(--f-body); text-decoration: underline; text-underline-offset: 3px; }
     .td-date { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-weight: 700; font-size: 14px; }
     .td-picks { display: grid; gap: 6px; margin: 0 0 10px; }
     .td-pick { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; cursor: pointer; margin: 0 0 8px; }

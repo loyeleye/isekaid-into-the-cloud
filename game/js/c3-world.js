@@ -466,7 +466,7 @@
     setFlag('wake');
     await say([['narr', 'The Free Cloud\'s camp, at the tower\'s foot. Somewhere above, the lift has started running again. Its panel reads 21.'],
       ['kai', { kai: 'Twenty-one. That\'s Halcyon. That\'s where she is.', other: 'Twenty-one. That\'s Halcyon. That\'s where my sister is.' }, 'grief']]);
-    U.system('[GOAL] FLOOR 21', 'Take the lift up to Halcyon. Arrow keys or WASD to walk, E to talk, or tap. The yellow arrow points at your next step.', 'gold');
+    U.system('[GOAL] FLOOR 21', U.howTo('Take the lift up to Halcyon. Arrow keys or WASD to walk, E to talk, or tap. The yellow arrow points at your next step.'), 'gold');
   }
   async function arrive() {
     setFlag('arrive');
@@ -889,7 +889,7 @@
     zone = null; lastTile = '';
     W3.active = true;
     sc.start();
-    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
+    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', U.howTo('Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.')); }
   };
   W3.halt = function () { W3.active = false; if (sc) { sc.stop(); sc.locked = false; } };
   // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
@@ -960,7 +960,7 @@
         const has = !!(sv.c3 && sv.c3.lead);
         box.innerHTML = (has ? `<button class="primary" id="t-c3go">Continue · ${esc(T1.leads[sv.c3.lead].name)}</button><button class="ghost" id="t-c3new">New game</button>` : '<button class="primary" id="t-c3new">Play Chapter 3: The Granaries</button>') + '<button class="ghost" id="t-help">How to play</button>';
         const h = $('#t-help');
-        if (h) h.onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step.</p><p>In the dungeons, play cards to fix incidents. Go down with one of Seymour\'s Tapes and you fight on at full SLA; it\'s used up for good.</p>', { title: 'HOW TO PLAY' });
+        if (h) h.onclick = () => U.panel(U.howTo('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step.</p><p>In the dungeons, play cards to fix incidents. Go down with one of Seymour\'s Tapes and you fight on at full SLA; it\'s used up for good.</p>'), { title: 'HOW TO PLAY' });
         if (has) $('#t-c3go').onclick = () => W3.resume();
         $('#t-c3new').onclick = () => { if (!has) return W3.newGame(); const c = U.panel('<p>Start chapter 3 again from the cold open? Your level and cheat sheet stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' }); c.querySelector('#n-y').onclick = () => { U.closePanel(); W3.newGame(); }; c.querySelector('#n-n').onclick = U.closePanel; };
       };

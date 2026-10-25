@@ -918,7 +918,7 @@
     W2.active = true;
     document.body.classList.add('c2-on');
     sc.start();
-    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.'); }
+    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', U.howTo('Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them. The yellow arrow points at your next step.')); }
   };
   W2.halt = function () { W2.active = false; if (sc) { sc.stop(); sc.locked = false; } };
   // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
@@ -969,7 +969,7 @@
         const has = !!(sv.c1 && sv.c1.lead && sv.c2);
         box.innerHTML = (has ? `<button class="primary" id="t-c2go">Continue · ${esc(T.leads[sv.c1.lead].name)}</button><button class="ghost" id="t-c2new">New game</button>` : '<button class="primary" id="t-c2new">Play Chapter 2: The Mailroom</button>') + '<button class="ghost" id="t-help">How to play</button>';
         const h = $('#t-help');
-        if (h) h.onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. Once you have the Version Lens, tap 👁 or press L to see what\'s under the delete markers.</p><p>In the Sorting Floors, play cards to fix incidents, as in chapter 1.</p>', { title: 'HOW TO PLAY' });
+        if (h) h.onclick = () => U.panel(U.howTo('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. Once you have the Version Lens, tap 👁 or press L to see what\'s under the delete markers.</p><p>In the Sorting Floors, play cards to fix incidents, as in chapter 1.</p>'), { title: 'HOW TO PLAY' });
         if (has) $('#t-c2go').onclick = () => W2.resume();
         $('#t-c2new').onclick = () => { if (!has) return W2.newGame(); const c = U.panel('<p>Start chapter 2 again from the edge of the Cloud? Your level and cheat sheet stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' }); c.querySelector('#n-y').onclick = () => { U.closePanel(); W2.newGame(); }; c.querySelector('#n-n').onclick = U.closePanel; };
       };
