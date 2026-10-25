@@ -114,6 +114,20 @@ const server = http.createServer((req, res) => {
     check(shop.bought && shop.n === 10 && shop.pumpkin, `${mode}: a pack bought at the Raid shop joins the picker (${shop.n})`);
     check(shop.closed, `${mode}: Escape closes the picker`);
     check(shop.item === 'emote', `${mode}: the Raid shop sells the packs`);
+    // On the story map, with no party: the bubble goes over your lead, drawn into the map.
+    const onMap = await a.evaluate(async () => {
+      window.__t.party.leave();
+      const cv = document.createElement('canvas'); cv.width = 320; cv.height = 240; document.body.appendChild(cv);
+      const sc = SD.scene.create(cv, { map: ['.....', '.....', '.....'], terrain: {}, solid: '', ground: false, clock: false });
+      sc.player(2, 1, 'south'); sc.start();
+      await new Promise(r => setTimeout(r, 1600));
+      const sent = SD.emote.send('pumpkin'), picked = sc.P.emo;
+      const btn = !!new DOMParser().parseFromString(SD.emote.mapButton(), 'text/html').querySelector('#w-emote[data-emo-open]');
+      sc.stop();
+      return { sent, picked, btn, cleared: !SD.scene.current };
+    });
+    check(onMap.sent && onMap.picked === 'pumpkin', `${mode}: on the story map your lead shows the emote (${JSON.stringify(onMap)})`);
+    check(onMap.btn && onMap.cleared, `${mode}: the map has its Emote button, and leaving the map lets go of it`);
     check(!errors.length, `${mode}: no page errors` + (errors.length ? ': ' + errors.join(' | ') : ''));
     await ctx.close();
   }

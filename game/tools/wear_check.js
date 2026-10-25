@@ -33,6 +33,9 @@ const server = http.createServer((req, res) => {
     const looks = fs.readFileSync(path.join(ROOT, 'js/wear.js'), 'utf8').match(/'look-[a-z]+'(?=: \{ slot: 'look')/g).map(x => x.slice(1, -1));
     const art = looks.filter(k => !fs.existsSync(path.join(ROOT, 'assets/img/wear/look', `${k}-${l}.webp`)));
     check(!art.length, `${l}: a full body for every look` + (art.length ? ' (missing ' + art.join(', ') + ')' : ''));
+    // Dutch's knee-up stand-in for the cutscenes (js/vn.js LEAD_STAND).
+    const stand = l === 'dutch' && looks.filter(k => !fs.existsSync(path.join(ROOT, 'assets/img/wear/look', `${k}-dutch-stand.webp`)));
+    if (stand) check(!stand.length, 'dutch: a knee-up body for every look' + (stand.length ? ' (missing ' + stand.join(', ') + ')' : ''));
   });
 
   for (const vector of [false, true]) {
@@ -94,6 +97,19 @@ const server = http.createServer((req, res) => {
       W.dressSprite(el2, 'kai', ['look-zombie', 'outfit-ember'], seat2);
       out.lookSeat = /look-zombie-kai\.webp/.test(el2.style.backgroundImage);
       out.lookMap = (W.mapLook('kai') || {}).hat === 'santa' && W.mapLook('mira') === null;
+      // A story cutscene (js/vn.js): your lead standing in a still, and as a dialogue stand-in; another lead as they are.
+      const pixelSprites = { kai: SD.vn.art.sprites.kai, dutch: SD.vn.art.sprites.dutch };
+      SD.vn.addScenes({ 'wear-test': { sheet: 'assets/img/vn/m1.webp', frames: 1, frame: 0 } });
+      SD.vn.addSprites({ kai: { stand: 'assets/img/lead/kai.webp', pixel: true, faces: {} }, dutch: { stand: 'assets/img/lead/dutch.webp', pixel: true, faces: {} } });
+      SD.vn.over['wear-test'] = [{ lead: 1, x: 30, y: 4, h: 90 }];
+      const c1 = SD.state.save.c1; SD.state.save.c1 = Object.assign({}, c1, { lead: 'kai' });
+      SD.vn.play([['cg', 'wear-test'], ['show', 'kai', 'neutral', 'left'], ['show', 'dutch', 'neutral', 'right'], ['wait', 5000]]);
+      await wait(2200);
+      const imgs = [...document.querySelectorAll('#vn img')].map(i => i.getAttribute('src'));
+      out.lookCut = imgs.some(u => /look-santa-kai\.webp/.test(u)) && imgs.filter(u => /look-santa-kai/.test(u)).length === 2 && imgs.includes('assets/img/lead/dutch.webp') && !imgs.includes('assets/img/lead/kai.webp');
+      out.lookCutImgs = imgs.filter(u => /lead|look/.test(u)).join(' ');
+      document.querySelector('#vn .vn-skip').click(); await wait(300);
+      SD.state.save.c1 = c1; SD.vn.addSprites(pixelSprites); delete SD.vn.over['wear-test'];
       if (SD.vec && SD.vec.fig) {
         const z = SD.vec.fig('kai', 'neutral', 'full', null, ['look-zombie']), plain = SD.vec.fig('kai', 'neutral', 'full', null, []);
         out.lookVec = z !== plain && SD.vec.fig('kai', 'neutral', 'bust', null, ['look-zombie']) === SD.vec.fig('kai', 'neutral', 'bust', null, []);
@@ -142,6 +158,7 @@ const server = http.createServer((req, res) => {
       check(r.leadImg, 'vector: your fighter in battle is redrawn when you change');
     }
     check(r.lookBust && r.lookHero && r.lookSeat && r.lookMap, `${mode}: a look dresses your fighter, your party seat and your walker on the map, not your portrait`);
+    check(r.lookCut, `${mode}: and your lead in the story's cutscenes, not anyone else (${r.lookCutImgs})`);
     if (vector) check(r.lookVec, 'vector: a look redraws the full figure and leaves the bust alone');
     check(r.trophyLocked && r.trophyEarned, `${mode}: Restored can't be worn until Freya is beaten, then can`);
     check(r.after === 'outfit-forest,frame-cafe', `${mode}: taking the effect off leaves the rest`);

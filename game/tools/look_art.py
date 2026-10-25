@@ -20,6 +20,8 @@ LEADS = {
     'mira': 'a pale young woman with dark blue-grey hair, a hooded dark nun-like robe, her right arm a white furred wolf arm with claws (always keep the wolf arm, it is part of her body)',
     'seoyeon': 'a young Korean woman with a black bob haircut and a red ribbon, a dark swordswoman outfit',
     'dutch': 'a broad older man with slicked-back grey hair and stubble, a dark blue work coat',
+    # Dutch's knee-up figure for the story's cutscene stills (js/vn.js LEAD_STAND): the same man, framed from the knees.
+    'dutch-stand': 'a broad older man with slicked-back grey hair and stubble, a dark blue work coat, seen from the knees up',
 }
 LOOKS = {
     'look-zombie': 'dressed as a cartoon zombie for Halloween: greyish green skin, a torn and tattered version of the clothes, patched with stitches, friendly not scary',
@@ -68,7 +70,7 @@ def generate(out, wants):
         for lead in (leads.split(',') if leads else LEADS):
             if os.path.exists(os.path.join(out, '%s-%s-0.png' % (look, lead))): continue
             (w, h), r = ref(lead)
-            desc = 'pixel art full body game character, standing, front view, the same character and pose as the reference: %s, %s' % (LEADS[lead], LOOKS[look])
+            desc = 'pixel art ' + ('knee-up' if lead.endswith('-stand') else 'full body') + ' game character, standing, front view, the same character and pose as the reference: %s, %s' % (LEADS[lead], LOOKS[look])
             ims = job('generate-image-v2', dict(description=desc, image_size=dict(width=w, height=h), seed=SEED, no_background=True,
                                                 reference_images=[dict(r, usage_description='the same character, the same face, hair, body and pose')], style_image=r))
             for n, im in enumerate(ims): im.save(os.path.join(out, '%s-%s-%d.png' % (look, lead, n)))
@@ -80,7 +82,8 @@ def pick(out, picks):
     for p in picks:
         name, n = p.split('=')
         n, _, keep = n.partition('/')
-        lead = name.split('-')[-1]
+        look = next(k for k in LOOKS if name.startswith(k + '-'))
+        lead = name[len(look) + 1:]
         base = Image.open(os.path.join(GAME, 'assets/img/lead/%s.webp' % lead)).convert('RGBA')
         bb = base.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
         im = Image.open(os.path.join(out, '%s-%s.png' % (name, n))).convert('RGBA')

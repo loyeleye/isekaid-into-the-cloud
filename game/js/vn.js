@@ -144,7 +144,9 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     // lead's (Dutch), the others shorter, feet on the same line.
     if (o.lead) {
       const who = (SD.state && SD.state.save.c1 && SD.state.save.c1.lead) || 'mira', h = o.h * (LEAD_CM[who] || 178) / LEAD_CM.dutch;
-      return `<img class="vn-osp lead" src="assets/img/lead/${LEAD_STAND[who] || who}.webp" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y + o.h - h}%;height:${h}%">`;
+      // Wearing a look (js/wear.js), they wear it here too: Dutch's knee-up stand-in has its own art.
+      const look = SD.wear && SD.wear.look(who), body = LEAD_STAND[who] || who;
+      return `<img class="vn-osp lead" src="${look ? SD.wear.lookSrc(body, look) : `assets/img/lead/${body}.webp`}" alt="" onerror="this.remove()" style="left:${o.x}%;top:${o.y + o.h - h}%;height:${h}%">`;
     }
     if (!src) return '';
     // A sprite that isn't drawn yet just isn't there.
@@ -155,7 +157,9 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     const s0 = V.art.sprites[who] || {}, s = s0.now ? s0.now(face) || {} : s0;
     const src = s.faces && (s.faces[face] || s.faces[Object.keys(s.faces)[0]]);
     if (src) return `<img src="${src}" alt="">`;
-    if (s.stand) return `<img class="${s.pixel ? 'px' : ''}" src="${s.stand}" alt="">`;
+    // Your lead's pixel stand-in wears your look (js/wear.js); the painted faces stay as they are.
+    const look = s.pixel && s.stand && SD.wear && SD.wear.look(who);
+    if (s.stand) return `<img class="${s.pixel ? 'px' : ''}" src="${look ? SD.wear.lookSrc(who, look) : s.stand}" alt="">`;
     const c = SD.cast[who];
     return `<div class="vn-sil" style="--t:${(s.tint || '#3a3f55')}"><span>${esc(c ? c.name : who)}</span></div>`;
   }

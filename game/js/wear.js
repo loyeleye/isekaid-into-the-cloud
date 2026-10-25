@@ -196,6 +196,8 @@
   const standSrc = who => `assets/img/lead/${who}.webp`;
   const standMask = who => `${MASK}${who}-stand.webp`;
   const lookSrc = W.lookSrc = (who, look) => `assets/img/wear/look/${look}-${who}.webp`;
+  // The look your lead wears, for a lead's pixel full body anywhere else (js/vn.js's cutscenes); null on anyone else.
+  W.look = who => (who && who === W.lead() ? of(W.worn(), 'look') : null) || null;
   // Get a lead's faces and full body ready before they're needed.
   W.prepare = function (who, outfit) {
     if (!LEADS.includes(who) || !outfit) return;

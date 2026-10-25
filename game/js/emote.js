@@ -9,6 +9,8 @@
 //   SD.emote.button()        the Emote button's html, for a bar or a HUD; SD.emote.wire(root) binds it
 //   SD.emote.send(id)        show it over your own seat and send it to the party (at most one every 1.5 s)
 //   SD.emote.show(peer, id)  a bubble over [data-peer="peer"] for 2.4 s, following it through redraws
+//   SD.emote.mapButton()     the story map HUD's Emote button (every chapter's world); with no party, send() puts the
+//                            bubble over your lead on the walkable map (js/scene.js SC.current), drawn by paint()
 //
 // What a room hears is another player's data: only an id from EMOTES is ever shown, and one a second per player.
 (function () {
@@ -111,14 +113,31 @@
     return () => { off(); if (room === r) { room = null; me = null; } close(); };
   };
   E.send = function (id) {
-    if (!E.valid(id) || !E.mine().includes(id) || !room || !me) return false;
+    if (!E.valid(id) || !E.mine().includes(id)) return false;
+    const map = !room && SD.scene && SD.scene.current;
+    if (!map && (!room || !me)) return false;
     const now = Date.now();
     if (now - last < 1500) return false;
     last = now;
+    if (map) { map.emote('you', id, 2.4); return true; }
     E.show(me.peer, id);
     room.emit('emote', { e: id });
     return true;
   };
+
+  // ---------- On the story map ----------
+  // Drawn into the map's canvas like its own emotes (js/scene.js), at the same size: a white bubble, the mark inside.
+  const pics = {};
+  E.paint = function (ctx, id, px, py, S) {
+    const im = pics[id] || (pics[id] = Object.assign(new Image(), { src: 'data:image/svg+xml,' + encodeURIComponent(E.EMOTES[id].svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" ')) }));
+    ctx.save();
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(px - S * 0.62, py - S * 1.1, S * 1.24, S * 1.12, 6) : ctx.rect(px - S * 0.62, py - S * 1.1, S * 1.24, S * 1.12); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px - 4, py); ctx.lineTo(px, py + 6); ctx.lineTo(px + 4, py); ctx.closePath(); ctx.fill();
+    if (im.complete && im.naturalWidth) ctx.drawImage(im, px - S / 2, py - S * 1.04, S, S);
+    ctx.restore();
+  };
+  E.mapButton = () => `<button class="ghost emo-btn" type="button" id="w-emote" data-emo-open aria-haspopup="true" aria-expanded="false" aria-label="Emote" title="Emote">${E.EMOTES.laugh.svg}</button>`;
 
   // ---------- The button and its picker ----------
   E.button = () => `<button class="mi-btn sm emo-btn" type="button" data-emo-open aria-haspopup="true" aria-expanded="false" title="Emote">${E.EMOTES.laugh.svg} Emote</button>`;
