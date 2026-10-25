@@ -27,6 +27,27 @@ html.vector #dialog[data-who="pip"] .dlg-nm { background: #0f6f80; }
 /* A story dungeon's end screen has one way on (#rd-back, which tells the chapter how it went); the engine's own
    "Leave the dungeon" under it skipped that, so it is hidden there. */
 html.vector .rd:is([data-ph="done"], [data-ph="over"]):has(#rd-back) #rd-leave { display: none; }
+/* Card battles (js/raid.js, js/run.js) were one long column, so a phone showed the enemy or the hand, never both.
+   Portrait: a shorter stage, and the enemy panel sticks to the top while the hand scrolls up under it. */
+@media (max-width: 600px) {
+  html.vector #screen-run .combat .foe-zone { position: sticky; top: 0; z-index: 3; box-shadow: 0 4px 0 var(--ink), 0 10px 18px rgba(0, 0, 0, .45); }
+  html.vector #screen-run .combat .stage { aspect-ratio: auto; height: 104px; max-height: none; }
+  html.vector #screen-run .combat .stage:not(.group) .foe { width: 92px; height: 92px; right: 6%; }
+  html.vector #screen-run .combat .foe-zone:has(.stage) { gap: 6px; padding-bottom: 8px; }
+  html.vector #screen-run .combat .foe-info { gap: 4px; }
+  html.vector #screen-run .combat .foe-name { font-size: 17px; }
+}
+/* Landscape: two columns. The enemy, the log and the defences stay put on the left; the hand scrolls on the right. */
+@media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  html.vector #screen-run .combat { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; gap: 12px; }
+  html.vector #screen-run .combat > :is(.cb-l, .cb-r) { display: grid; gap: 10px; }
+  html.vector #screen-run .cb-l { gap: 8px; position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; padding-bottom: 8px; scrollbar-width: thin; }
+  html.vector #screen-run .cb-r .hand-zone { order: -1; }
+  html.vector #screen-run .combat .stage { aspect-ratio: auto; height: 132px; max-height: none; }
+  html.vector #screen-run .combat .stage:not(.group) .foe { width: 104px; height: 104px; }
+  html.vector #screen-run .cb-r .hand { flex-wrap: wrap; justify-content: center; overflow: visible; gap: 14px 8px; padding-top: 12px; scroll-snap-type: none; }
+  html.vector #screen-run .cb-r .hand .card { width: calc((100% - 16px) / 3); min-height: 0; }
+}
 `;
   document.head.appendChild(css);
 
