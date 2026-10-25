@@ -233,7 +233,7 @@ function step([WIN, LEAD, CHOICE]) {
   page.setDefaultTimeout(180000);
   const errors = [];
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);
@@ -242,7 +242,7 @@ function step([WIN, LEAD, CHOICE]) {
   const btn = await page.textContent('#t-c6new');
   if (!/Play Chapter 6: The Mirror Floors/.test(btn)) errors.push('title button reads "' + btn + '"');
   const foot = await page.textContent('.t-foot');
-  if (!/Chapter 6 demo: The Mirror Floors/.test(foot)) errors.push('title footer reads "' + foot + '"');
+  if (!/Chapter 6: The Mirror Floors/.test(foot)) errors.push('title footer reads "' + foot + '"');
   await page.click('#t-c6new');
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
   const seen = new Set(), last = [];

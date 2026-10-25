@@ -746,9 +746,9 @@
     // The card stands in front of an empty edge; whoever spoke last steps off.
     const a = $('#stage .actor'); if (a) a.hidden = true;
     const b = U.panel(`<div class="verdict ok">END OF CHAPTER 1</div>
-      <p>Thanks for playing the demo. Chapter 2 opens here at the edge of the Cloud, on the night after the wipe.</p>
+      <p>Chapter 2 opens here at the edge of the Cloud, on the night after the wipe.</p>
       <p class="muted small">You played ${U.esc(T.leads[lead()].name)}. The scenes change with your lead, and every kindness Freya does you quotes your prayer back.</p>
-      <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'DEMO COMPLETE', noClose: true });
+      <div class="row"><button class="primary" id="c1-again">Play again as someone else</button><button class="ghost" id="c1-title">Title</button></div>`, { title: 'CHAPTER 1 COMPLETE', noClose: true });
     b.querySelector('#c1-again').onclick = () => { U.closePanel(); U.stage(null); S.save.c1 = null; S.persist(); W1.newGame(); };
     b.querySelector('#c1-title').onclick = () => { U.closePanel(); U.stage(null); SD.main.title(); };
     // The next chapter, once one has registered its start (SD.chapterStart, shared by every chapter).

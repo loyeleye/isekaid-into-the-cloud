@@ -199,7 +199,7 @@ function step([WIN, LEAD, CHOICE]) {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
   const errors = [];
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => {
     if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text());
     if (m.type() === 'warning' && /qpick: no question|Machine Floors:/.test(m.text())) errors.push('console: ' + m.text());
@@ -213,7 +213,7 @@ function step([WIN, LEAD, CHOICE]) {
   const btn = await page.textContent('#t-c5new');
   if (!/Play Chapter 5: The Machine Floors/.test(btn)) errors.push('title button reads "' + btn + '"');
   const foot = await page.textContent('.t-foot');
-  if (!/Chapter 5 demo: The Machine Floors · Built on the AWS documentation · Saves automatically/.test(foot)) errors.push('title footer reads "' + foot + '"');
+  if (!/Chapter 5: The Machine Floors · Built on the AWS documentation · Saves automatically/.test(foot)) errors.push('title footer reads "' + foot + '"');
   await page.click('#t-c5new');
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
   const seen = new Set(), last = [];

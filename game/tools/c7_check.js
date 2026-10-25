@@ -235,7 +235,7 @@ function step([WIN, LEAD]) {
   const btn = await page.textContent('#t-c7new');
   if (!/Play Chapter 7: Root/.test(btn)) errors.push('title button reads "' + btn + '"');
   const foot = await page.textContent('.t-foot');
-  if (!/Chapter 7 demo: Root/.test(foot)) errors.push('title footer reads "' + foot + '"');
+  if (!/Chapter 7: Root/.test(foot)) errors.push('title footer reads "' + foot + '"');
   // Chapter 6's choice, as if it had been made there.
   if (CHOICE !== 'least') await page.evaluate(c => { SD.state.save.c6 = Object.assign({}, SD.state.save.c6, { choice: c }); SD.state.persist(); }, CHOICE);
   await page.click('#t-c7new');
