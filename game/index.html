@@ -248,6 +248,15 @@ pre.q-ev { margin: 4px 0 10px; padding: 8px 10px; border-left: 4px solid #e0a030
 .xh-confirm { flex: 1 0 100%; margin: 0 0 4px; }
 .xh-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 10px 0 14px; }
 .xh-facts dt { font-weight: 700; color: var(--muted); }
+/* Short landscape phones: the hall uses the screen's width, answers two to a row, so more of a question shows at once. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .win.exam-hall { width: min(900px, 100%); }
+  .win.exam-hall .xh-opts { grid-template-columns: 1fr 1fr; }
+  .win.exam-hall .xh-stem { text-wrap: wrap; margin-bottom: 0; }
+  .win.exam-hall .xh-opts { margin: 8px 0; }
+  .win.exam-hall .xh-opt { min-height: 44px; padding: 8px 12px; }
+  .win.exam-hall .xh-top { padding-block: 4px; margin-bottom: 6px; }
+}
 .xh-facts dd { margin: 0; font-weight: 800; }
 .xh-practice { display: inline-block; margin: 0 0 8px; padding: 3px 10px; border: 2px solid #d39a00; border-radius: 20px; background: #fff7d6; color: #7a5a00; font-size: 13px; font-weight: 800; }
 .xh-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; }
@@ -1060,6 +1069,15 @@ body { background: var(--bg); }
 /* The stack sits a little above centre, clear of the four on the ridge, as the first game's does above its hills. */
 #screen-title { padding-bottom: 14vh; }
 #screen-title #title-actions { margin-top: 30px; }
+/* Short landscape phones (under about 420px tall): a smaller stack at the top, so Press Start sits above the four on
+   the ridge instead of over them. The menu after it (js/today.js) goes to two columns. */
+@media (orientation: landscape) and (max-height: 420px) {
+  #screen-title { justify-content: flex-start; padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 0; }
+  #screen-title .t-ribbon { font-size: 12px; padding: 3px 14px; }
+  #screen-title .logo { font-size: min(15vh, 7vw); margin-top: 8px; }
+  #screen-title #title-actions { margin-top: 14px; }
+  .t-halo { top: 3%; }
+}
 .tagline { color: #cfc6b4; font-weight: 600; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
 .press { background: #2e2a3a !important; color: var(--bone) !important; letter-spacing: .12em; font-family: var(--f-head); }
 .t-foot { color: #8f8799; }

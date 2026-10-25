@@ -3,6 +3,15 @@
   const U = SD.ui = {};
   const $ = s => document.querySelector(s);
   U.$ = $;
+  // On a phone or tablet (no hover, a finger to point with), the how-to-move lines lead with tapping: the keys they
+  // name aren't there. Elsewhere the text is unchanged.
+  U.touch = () => !!(window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches);
+  const TAP = 'Tap where you want to go, and tap someone to talk to them.';
+  U.howTo = text => !U.touch() ? text : text
+    .replace(/Arrow keys or WASD to walk, E or Enter to talk(\. Or tap where you want to go, and tap someone to talk to them|, or tap where you want to go)\./, TAP)
+    .replace('Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk.', TAP)
+    .replace('Arrow keys or WASD to walk, E to talk, or tap.', 'Tap where you want to go, and tap someone to talk.')
+    .replace('V mutes or unmutes the sound.', 'The 🔊 button turns the sound on or off.');
   U.esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // ---- Dialogue with typewriter text ----

@@ -111,13 +111,13 @@
         <li><b>Fonts:</b> Fredoka and Nunito (SIL Open Font License).</li></ul>`, { title: 'CREDITS', cls: 'wide' });
   }
   function help() {
-    U.panel(`<ul class="links">
+    U.panel(U.howTo(`<ul class="links">
       <li><b>Walking.</b> Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. V mutes or unmutes the sound. Someone with a "!" has something for you.</li>
       <li><b>Runs.</b> The temple gate takes you down a branching path of incidents and side rooms, ending at a boss.</li>
       <li><b>Combat.</b> Each turn you get 3 Capacity. Cards absorb load or mitigate the incident's Severity. The incident shows its next move: read it and answer with the right service or setting.</li>
       <li><b>Matchups.</b> Cards that fit the incident are EFFECTIVE and mitigate hard. Wrong ones are RESISTED, and the game tells you why. That reason is the lesson.</li>
       <li><b>Questions.</b> Answer first, then rate how sure you are. Confident misses come back soonest. Cheat sheet pages return when you get a concept right twice in a row.</li>
-      <li><b>Loops.</b> If SLA hits zero, you respawn in town. You keep XP, shards, cards unlocked and everything you learned.</li></ul>`, { title: 'HOW TO PLAY', cls: 'wide' });
+      <li><b>Loops.</b> If SLA hits zero, you respawn in town. You keep XP, shards, cards unlocked and everything you learned.</li></ul>`), { title: 'HOW TO PLAY', cls: 'wide' });
   }
   function askName(done) {
     const b = U.panel(`<p class="small">Name, please.</p><label class="num">Hero name <input id="nm" maxlength="16" value="${U.esc(S.save.name)}"></label><button class="primary" id="nm-ok">Sign here</button>`, { title: 'HERO REGISTRATION FORM', noClose: true });

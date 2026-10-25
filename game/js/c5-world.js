@@ -1220,7 +1220,7 @@
     W.active = true;
     sc.start();
     hud();
-    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. The yellow arrow points at your next step. Gates open when you understand them.'); }
+    if (!flag('hinted')) { setFlag('hinted'); U.system('HOW TO MOVE', U.howTo('Arrow keys or WASD to walk, E or Enter to talk, or tap where you want to go. The yellow arrow points at your next step. Gates open when you understand them.')); }
   };
   W.halt = function () { W.active = false; if (sc) { sc.stop(); sc.locked = false; } };
   // A fresh save (the chapter select's Start, the menu's Erase save): stop this scene for good, even mid-scene.
@@ -1265,7 +1265,7 @@
         const has = !!(sv.c1 && sv.c1.lead && sv.c5);
         box.innerHTML = (has ? `<button class="primary" id="t-c5go">Continue · ${esc(T.leads[sv.c1.lead].name)}</button><button class="ghost" id="t-c5new">New game</button>` : '<button class="primary" id="t-c5new">Play Chapter 5: The Machine Floors</button>') + '<button class="ghost" id="t-help">How to play</button>';
         const h = $('#t-help');
-        if (h) h.onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. Gates open when you understand them: each one is a small puzzle.</p><p>The expeditions are raids: play cards to fix incidents, with the other three as your party, or with friends.</p>', { title: 'HOW TO PLAY' });
+        if (h) h.onclick = () => U.panel(U.howTo('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. Gates open when you understand them: each one is a small puzzle.</p><p>The expeditions are raids: play cards to fix incidents, with the other three as your party, or with friends.</p>'), { title: 'HOW TO PLAY' });
         if (has) $('#t-c5go').onclick = () => W.start();
         $('#t-c5new').onclick = () => {
           if (!has) return W.newGame();

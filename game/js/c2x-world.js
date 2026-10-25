@@ -1062,7 +1062,7 @@
         const has = !!(s.c1 && s.c1.lead && s.c2x && s.c2x.f && s.c2x.f.start);
         box.innerHTML = (has ? `<button class="primary" id="t-c2xgo">Continue · ${esc(T.leads[s.c1.lead].name)}</button>` : '') +
           `<button class="${has ? 'ghost' : 'primary'}" id="t-c2xnew">Play Chapter 2, part 2: The Dead Letter Office</button><button class="ghost" id="t-help">How to play</button>`;
-        $('#t-help').onclick = () => U.panel('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step; the lift joins the floors.</p><p>Behind the doors are the expeditions: raid floors where you play cards to fix incidents, alone with your three or with friends.</p>', { title: 'HOW TO PLAY' });
+        $('#t-help').onclick = () => U.panel(U.howTo('<p>Walk with the arrow keys or WASD, or tap where you want to go. Tap someone, or press E, to talk. The yellow arrow points at your next step; the lift joins the floors.</p><p>Behind the doors are the expeditions: raid floors where you play cards to fix incidents, alone with your three or with friends.</p>'), { title: 'HOW TO PLAY' });
         if (has) $('#t-c2xgo').onclick = () => W.start();
         $('#t-c2xnew').onclick = () => {
           if (!has) return W.newGame();

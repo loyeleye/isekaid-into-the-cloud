@@ -552,7 +552,7 @@
   function hint() {
     if (flag('hinted')) return;
     setFlag('hinted');
-    U.system('HOW TO MOVE', 'Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them.');
+    U.system('HOW TO MOVE', U.howTo('Arrow keys or WASD to walk, E or Enter to talk. Or tap where you want to go, and tap someone to talk to them.'));
   }
   function objective() {
     if (onMountain()) return SD.ch1m.objective();
