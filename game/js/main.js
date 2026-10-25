@@ -68,7 +68,7 @@
       <button class="opt" id="m-name">Change name</button>
       <button class="opt" id="m-credits">Credits</button>
       <button class="opt" id="m-reset">Erase save and start over</button>
-      <button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button></div>
+      ${SD.debugGate && SD.debugGate.open() ? `<button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button>` : ''}</div>
       <p class="muted small">Progress saves automatically${S.db ? ' to your claude.ai account, so it follows you across devices' : ' in this browser'}.</p>`, { title: 'MENU' });
     b.querySelector('#m-help').onclick = help;
     if (mp) b.querySelector('#m-mp').onclick = () => SD.mp.open('menu');
@@ -82,8 +82,10 @@
     };
     // Typed answers (js/explain-data.js, checked on-device by js/embed.js): sometimes explain a concept instead of picking.
     b.querySelector('#m-typed').onclick = () => { if (!S.save) return; S.save.typed = S.save.typed === false; S.persist(); menu(); };
-    // Testing only (js/debug.js; remove with it before release): a separate save that starts on any chapter or rank.
-    b.querySelector('#m-debug').onclick = () => {
+    // Testing only (js/debug.js), shown once the debug code is in (js/debug-gate.js): a separate save that starts on any
+    // chapter or rank.
+    const md = b.querySelector('#m-debug');
+    if (md) md.onclick = () => {
       try { if (SD.debug) localStorage.removeItem('isekai-cloud-debug'); else localStorage.setItem('isekai-cloud-debug', '1'); } catch (e) { /* ignore */ }
       location.reload();
     };
