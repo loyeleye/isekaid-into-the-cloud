@@ -1,16 +1,21 @@
 #!/usr/bin/env node
-// Exam check (ExamPrepDemo, Oct 23): exam mode (js/exam.js) keeps its promises. Loads every script index.html loads
+// Exam check (ExamPrepDemo, Oct 23; both exams, Oct 25): exam mode (js/exam.js) keeps its promises. Loads every script index.html loads
 // (in a stubbed browser, as the vector build, so chapters 2 to 6 are in), with the clock set before the exam, and checks:
 //   1. No held-out question (js/exam-heldout.js) is reachable: not from S.questionsFor on any concept (exam mode on or
 //      off), not from any SD.qpick pool (a quoted bank id in a chapter's script), not in SD.questions.
 //   2. No held-out question is a near-duplicate of a reachable one: the same stem once normalized (its first 100
 //      characters; at 60, two different questions that open with the same setup sentence match), or word sets with a
 //      Jaccard similarity above 0.8. The closest pair is printed either way.
-//   3. Every DVA-C02 task (1.1 to 4.3) has a reviewable concept with at least 5 questions on it in exam mode.
+//   3. For each exam, DVA-C02 and SAA-C03, every task has a reviewable concept with at least 5 questions on it in exam
+//      mode, and the reachable questions by task and domain are printed (the coverage audit).
 //   4. The forms: half 33, A 65, B 65, split by domain 10/9/8/6 and 21/17/15/12, only mc and multi, every id a DVA
 //      bank question, none on two forms.
-//   5. In exam mode, S.questionsFor returns no SAA-only question for a concept that has anything else to ask.
+//   5. In exam mode, for each exam, S.questionsFor returns no question only on the other exam for a concept that has
+//      anything else to ask, and SD.exam.swap turns the other exam's bank questions into ones on the chosen exam.
 //   6. SD.exam.capDue never schedules a review after the exam, from 60 days out to the last minute before it.
+//   7. The standard game: with no exam date, with exam prep off, or after the exam, exam mode is off, the exam-task
+//      concepts aren't reviewable, and reviews and chapters ask both exams' questions.
+//   8. A practice mock for each exam has 65 questions on that exam only, split by the guide's weights, mc and multi only.
 //
 //   node tools/exam_check.js          print a summary, exit 1 if any check fails
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -50,6 +55,8 @@ const check = (n, name, bad, detail) => {
 if (!E) { console.log('No SD.exam: js/exam.js did not load.'); errors.forEach(e => console.log('load error: ' + e)); process.exit(1); }
 ctx.__now = E.when() - 30 * DAY;   // a month before the exam
 const setMode = on => { S.save.examMode = on; };
+const setTrack = t => { S.save.examTrack = t; };
+S.save.examDate = E.TRACKS.DVA.DEFAULT_DATE;
 setMode(true);
 
 const bankById = new Map(SD.bank.map(q => [q.id, q]));
@@ -107,19 +114,31 @@ for (const id of held) {
 }
 check(2, 'No held-out question is a near-duplicate of a reachable one', dups, `stem prefix ${PREFIX} chars, Jaccard > ${JACCARD}; closest ${close.a} ~ ${close.b} at ${close.j.toFixed(2)}`);
 
-// ---- 3. Every task has a reviewable concept with 5+ questions ----
-const thin = [], best = [];
-for (const t of Object.keys(E.TASKS)) {
-  let top = null, n = 0;
+// ---- 3. Every task of each exam has a reviewable concept with 5+ questions ----
+const audit = [];
+for (const tr of ['DVA', 'SAA']) {
+  setTrack(tr);
+  const key = E.cfg(tr).key, thin = [], best = [], perTask = {}, perDom = { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set() };
   for (const id of concepts) {
     if (!S.reviewable(id)) continue;
-    const k = S.questionsFor(id).filter(q => q.dva === t && E.allowed(q)).length;
-    if (k > n) { n = k; top = id; }
+    for (const q of S.questionsFor(id)) if (q.id && E.allowed(q) && q[key]) { (perTask[q[key]] = perTask[q[key]] || new Set()).add(q.id); perDom[E.domainOf(q)].add(q.id); }
   }
-  best.push(`${t} ${top || '-'} ${n}`);
-  if (n < 5) thin.push(`task ${t}: best is ${top || 'no concept'} with ${n} question${n === 1 ? '' : 's'}`);
+  for (const t of Object.keys(E.TASKS)) {
+    let top = null, n = 0;
+    for (const id of concepts) {
+      if (!S.reviewable(id)) continue;
+      const k = S.questionsFor(id).filter(q => q[key] === t && E.allowed(q)).length;
+      if (k > n) { n = k; top = id; }
+    }
+    best.push(`${t} ${top || '-'} ${n}`);
+    if (n < 5) thin.push(`task ${t}: best is ${top || 'no concept'} with ${n} question${n === 1 ? '' : 's'}`);
+  }
+  const tot = [1, 2, 3, 4].reduce((a, d) => a + perDom[d].size, 0);
+  audit.push(`     ${E.NAME} reachable by domain: ` + [1, 2, 3, 4].map(d => `D${d} ${perDom[d].size} (${Math.round(perDom[d].size / tot * 100)}%, guide ${Math.round(E.WEIGHTS[d] * 100)}%)`).join(', '));
+  audit.push(`     ${E.NAME} reachable by task: ` + Object.keys(E.TASKS).map(t => `${t} ${(perTask[t] || new Set()).size}`).join(', '));
+  check('3' + tr[0].toLowerCase(), `Every ${E.NAME} task has a reviewable concept with 5+ questions`, thin, best.join(', '));
 }
-check(3, 'Every DVA task has a reviewable concept with 5+ questions', thin, best.join(', '));
+setTrack('DVA');
 
 // ---- 4. The forms ----
 const WANT = { half: { n: 33, d: { 1: 10, 2: 9, 3: 8, 4: 6 } }, A: { n: 65, d: { 1: 21, 2: 17, 3: 15, 4: 12 } }, B: { n: 65, d: { 1: 21, 2: 17, 3: 15, 4: 12 } } };
@@ -144,18 +163,29 @@ for (const f of Object.keys(WANT)) {
 if (held.size !== onForm.size) formBad.push(`SD.examHeldOut has ${held.size} ids, the forms ${onForm.size}`);
 check(4, 'The forms are 33/65/65, split by domain, mc and multi only', formBad, sizes.join(', '));
 
-// ---- 5. No SAA-only question where a concept has others ----
+// ---- 5. No question only on the other exam where a concept has others, and swaps land on the chosen exam ----
 setMode(true);
-const saaLeft = [];
-let withAlt = 0;
-for (const id of concepts) {
-  const alt = SD.questions.some(q => q.c === id && !E.isSaa(q) && !E.isHeld(q));
-  if (!alt) continue;
-  withAlt++;
-  const saa = S.questionsFor(id).filter(E.isSaa);
-  if (saa.length) saaLeft.push(`${id}: ${saa.map(q => q.id).join(', ')}`);
+for (const tr of ['DVA', 'SAA']) {
+  setTrack(tr);
+  const left = [];
+  let withAlt = 0, swaps = 0, stuck = 0;
+  for (const id of concepts) {
+    const alt = SD.questions.some(q => q.c === id && !E.offTrack(q) && !E.isHeld(q));
+    if (!alt) continue;
+    withAlt++;
+    const off = S.questionsFor(id).filter(q => E.offTrack(q));
+    if (off.length) left.push(`${id}: ${off.map(q => q.id).join(', ')}`);
+  }
+  for (const q of SD.questions.filter(q => E.offTrack(q) && E.inBank(q))) {
+    swaps++;
+    const r = E.swap(q);
+    if (E.offTrack(r)) stuck++;
+    if (E.isHeld(r)) left.push(`swap of ${q.id} gave held-out ${r.id}`);
+  }
+  if (stuck) left.push(`${stuck} of ${swaps} swaps stayed on the other exam`);
+  check('5' + tr[0].toLowerCase(), `In ${E.NAME} mode, no question only on the other exam where a concept has others; swaps land on ${E.NAME}`, left, `${withAlt} concepts with something else, ${swaps} swaps`);
 }
-check(5, 'In exam mode, S.questionsFor returns no SAA-only question where a concept has others', saaLeft, `${withAlt} concepts with something besides SAA`);
+setTrack('DVA');
 
 // ---- 6. capDue never lands after the exam ----
 const late = [];
@@ -174,8 +204,49 @@ for (const now of nows) {
 ctx.__now = when - 30 * DAY;
 check(6, 'SD.exam.capDue never schedules a review after the exam', late, `${nows.length} clocks x ${dues.length} due dates`);
 
-console.log(`Exam mode for DVA-C02 on ${E.date()}: ${SD.bank.length} bank questions, ${SD.questions.length} in the chapters, ${concepts.length} concepts`);
+// ---- 7. The standard game when exam prep is off ----
+const std = [];
+const standard = why => {
+  if (E.on()) { std.push(`${why}: exam mode still on`); return; }
+  const tasks = concepts.filter(id => E.isTaskConcept(id) && S.reviewable(id));
+  if (tasks.length) std.push(`${why}: exam-task concepts reviewable: ${tasks.join(', ')}`);
+  const kinds = new Set();
+  for (const id of concepts) for (const q of S.questionsFor(id)) { if (E.isSaa(q)) kinds.add('SAA'); if (q.exam === 'DVA') kinds.add('DVA'); }
+  if (!kinds.has('SAA') || !kinds.has('DVA')) std.push(`${why}: reviews ask only ${[...kinds].join(', ') || 'nothing'}`);
+  const saaQ = SD.questions.find(q => E.isSaa(q) && E.inBank(q));
+  if (saaQ && E.swap(saaQ) !== saaQ) std.push(`${why}: an SAA question was swapped`);
+  if (SD.questions.some(q => E.skips(q))) std.push(`${why}: a chapter question would be skipped`);
+};
+for (const tr of ['DVA', 'SAA']) {
+  setTrack(tr);
+  delete S.save.examDate; standard(`${tr}, no date`);
+  S.save.examDate = '2026-11-30'; setMode(false); standard(`${tr}, exam prep off`);
+  setMode(true); ctx.__now = E.when() + 2 * DAY; standard(`${tr}, after the exam`);
+  ctx.__now = E.when() - 30 * DAY;
+  if (!E.on()) std.push(`${tr}: with a date and exam prep on, exam mode is off`);
+}
+setTrack('DVA'); S.save.examDate = E.TRACKS.DVA.DEFAULT_DATE; setMode(true); ctx.__now = E.when() - 30 * DAY;
+check(7, 'No date, exam prep off or after the exam: the standard game, both exams', std, 'each exam, three ways');
+
+// ---- 8. A practice mock of each exam ----
+const mockBad = [], mockSizes = [];
+for (const tr of ['DVA', 'SAA']) {
+  setTrack(tr);
+  const qs = E.drawMock(true), dom = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  qs.forEach(q => { dom[E.domainOf(q)] = (dom[E.domainOf(q)] || 0) + 1; if (!E.inTrack(q)) mockBad.push(`${tr}: ${q.id} is exam ${q.exam}`); if (q.type !== 'mc' && q.type !== 'multi') mockBad.push(`${tr}: ${q.id} is ${q.type}`); });
+  const split = [1, 2, 3, 4].map(d => dom[d]).join('/'), want = [1, 2, 3, 4].map(d => E.MOCK[d]).join('/');
+  if (qs.length !== 65 || split !== want) mockBad.push(`${tr}: ${qs.length} questions, domains ${split}, want 65 at ${want}`);
+  if (new Set(qs.map(q => q.id)).size !== qs.length) mockBad.push(`${tr}: a question appears twice`);
+  if (tr === 'SAA' && E.nextForm()) mockBad.push('SAA-C03 offered a DVA-C02 form');
+  mockSizes.push(`${E.NAME} ${split}`);
+}
+setTrack('DVA');
+check(8, 'A practice mock of each exam: 65 of its own questions, split by its guide', mockBad, mockSizes.join(', '));
+
+console.log(`Exam mode for DVA-C02 and SAA-C03 on ${E.date()}: ${SD.bank.length} bank questions, ${SD.questions.length} in the chapters, ${concepts.length} concepts`);
 errors.forEach(e => console.log('load error: ' + e));
 lines.forEach(l => console.log(l));
-console.log(fails.length || errors.length ? `${fails.length} check${fails.length === 1 ? '' : 's'} failed${errors.length ? `, ${errors.length} load error${errors.length === 1 ? '' : 's'}` : ''}.` : 'All six exam checks pass.');
+console.log('Coverage audit:');
+audit.forEach(l => console.log(l));
+console.log(fails.length || errors.length ? `${fails.length} check${fails.length === 1 ? '' : 's'} failed${errors.length ? `, ${errors.length} load error${errors.length === 1 ? '' : 's'}` : ''}.` : `All ${lines.filter(l => /^ok/.test(l)).length} exam checks pass.`);
 process.exit(fails.length || errors.length ? 1 : 0);

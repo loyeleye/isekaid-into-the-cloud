@@ -1,4 +1,4 @@
-// The Exam Hall (ExamPrepDemo): a timed DVA-C02 mock that plays like the real one. Questions from SD.exam.mockFor
+// The Exam Hall (ExamPrepDemo): a timed mock of the chosen exam (DVA-C02 or SAA-C03) that plays like the real one. Questions from SD.exam.mockFor
 // (js/exam.js), no feedback until you submit, answers you can change, flags, a question grid and a review screen.
 // It doesn't go through SD.quiz.ask, so say it first and the confidence buttons never apply here.
 // Progress is saved after every answer to S.save.examInProgress; the clock only runs while the hall is open and the
@@ -45,7 +45,7 @@
   // ---- Saving ----
   function persist() {
     if (!run) return;
-    S().save.examInProgress = { form: run.form, practice: run.practice, full: run.full, ids: run.qs.map(q => q.id),
+    S().save.examInProgress = { form: run.form, practice: run.practice, full: run.full, ids: run.qs.map(q => q.id), exam: run.exam,
       ord: run.ord, ans: run.ans, flags: run.flags, at: run.at, ms: elapsed(), t: run.t };
     S().persist();
   }
@@ -53,11 +53,11 @@
     const qs = (p.ids || []).map(id => E.find(id));
     if (!qs.length || qs.some(q => !q)) return null;
     return { qs, ord: p.ord, ans: p.ans || qs.map(() => null), flags: p.flags || qs.map(() => false), at: p.at || 0,
-      form: p.form, practice: !!p.practice, full: !!p.full, base: p.ms || 0, since: 0, limit: limitFor(!!p.full), t: p.t || Date.now() };
+      form: p.form, practice: !!p.practice, full: !!p.full, exam: p.exam || 'DVA', base: p.ms || 0, since: 0, limit: limitFor(!!p.full), t: p.t || Date.now() };
   }
   function fresh(m) {
     return { qs: m.qs, ord: m.qs.map(q => shuffle((q.type === 'multi' ? q.items : q.opts).map((x, i) => i))),
-      ans: m.qs.map(() => null), flags: m.qs.map(() => false), at: 0, form: m.form, practice: m.practice, full: m.full,
+      ans: m.qs.map(() => null), flags: m.qs.map(() => false), at: 0, form: m.form, practice: m.practice, full: m.full, exam: E.track(),
       base: 0, since: 0, limit: limitFor(m.full), t: Date.now() };
   }
 
@@ -66,7 +66,7 @@
     const dom = { 1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0] };
     let right = 0;
     const ok = run.qs.map((q, i) => {
-      const r = E.correct(q, run.ans[i]), d = dom[E.domainOf(q)];
+      const r = E.correct(q, run.ans[i]), d = dom[E.domainOf(q, run.exam)];
       if (r) right++;
       if (d) { d[1]++; if (r) d[0]++; }
       return r;
@@ -76,7 +76,7 @@
   function record(isDone, timedOut) {
     const s = score(), ms = Math.min(elapsed(), run.limit);
     const m = { t: Date.now(), n: run.qs.length, right: s.right, mins: Math.round(ms / 6000) / 10, full: run.full,
-      form: run.form, practice: run.practice, done: isDone, dom: s.dom, ids: run.qs.map(q => q.id) };
+      form: run.form, practice: run.practice, done: isDone, dom: s.dom, ids: run.qs.map(q => q.id), exam: run.exam };
     if (isDone) m.score = scaled(s.right / run.qs.length);
     if (timedOut) m.timedOut = true;
     delete S().save.examInProgress;
@@ -106,8 +106,8 @@
     view = 'intro';
     const n = m.qs.length, mins = limitFor(m.full) / MIN;
     const b = draw(`<div class="xh-intro">
-      <div class="q-ctx">DVA-C02 · ${U.esc(formName(m.form))}</div>
-      ${m.practice ? '<p class="xh-practice">Practice: questions you\'ve seen before</p>' : ''}
+      <div class="q-ctx">${U.esc(E.NAME)} · ${U.esc(formName(m.form))}</div>
+      ${m.practice ? `<p class="xh-practice">Practice: from the bank, questions you haven\'t answered first</p>` : ''}
       <dl class="xh-facts"><dt>Questions</dt><dd>${n}</dd><dt>Time</dt><dd>${mins} minutes</dd><dt>Pass line</dt><dd>${PASS} of 1000</dd></dl>
       <p class="small">Like the real exam: no feedback until you submit, you can change any answer, and you can flag questions to come back to. Multiple response questions say how many to choose and score only when every pick is right.</p>
       <p class="muted small">The clock pauses when you leave the tab or the hall, and your answers are saved as you go.</p>
@@ -129,7 +129,7 @@
     b.querySelector('#xh-resume').onclick = () => { run = r; resume(); question(); };
     b.querySelector('#xh-abandon').onclick = () => {
       if (r) { run = r; record(false); run = null; }
-      else { delete S().save.examInProgress; E.recordMock({ t: Date.now(), n, right: 0, mins: Math.round((p.ms || 0) / 6000) / 10, full: !!p.full, form: p.form, practice: !!p.practice, done: false, dom: {}, ids: p.ids || [] }); }
+      else { delete S().save.examInProgress; E.recordMock({ t: Date.now(), n, right: 0, mins: Math.round((p.ms || 0) / 6000) / 10, full: !!p.full, form: p.form, practice: !!p.practice, done: false, dom: {}, ids: p.ids || [], exam: p.exam || 'DVA' }); }
       intro(E.mockFor(form));
     };
     (r ? b.querySelector('#xh-resume') : b.querySelector('#xh-abandon')).focus();
@@ -262,9 +262,10 @@
     view = 'result';
     const pct = m.right / m.n, est = m.score, pass = est >= PASS;
     if (SD.audio) SD.audio.sfx(pass ? 'right' : 'wrong');
-    const doms = Object.keys(E.DOMAINS).filter(d => s.dom[d][1]).map(d => {
+    const DOM = E.cfg(m.exam).DOMAINS;
+    const doms = Object.keys(DOM).filter(d => s.dom[d][1]).map(d => {
       const [got, of] = s.dom[d];
-      return `<li><span class="xh-dn">${d}. ${U.esc(E.DOMAINS[d])}</span><span class="xh-dv">${got} of ${of} (${Math.round(got / of * 100)}%)${of < 10 ? ' <em class="xh-early">early read</em>' : ''}</span>
+      return `<li><span class="xh-dn">${d}. ${U.esc(DOM[d])}</span><span class="xh-dv">${got} of ${of} (${Math.round(got / of * 100)}%)${of < 10 ? ' <em class="xh-early">early read</em>' : ''}</span>
         <span class="xh-bar" aria-hidden="true"><i style="width:${Math.round(got / of * 100)}%"></i></span></li>`;
     }).join('');
     const items = r.qs.map((q, i) => `<details class="q-recap xh-item ${s.ok[i] ? 'ok' : 'bad'}" data-ok="${s.ok[i] ? 1 : 0}">
@@ -272,8 +273,8 @@
       <div class="qr-body">${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(stem(q))}</p>${recapOf(q, r.ans[i], r.ord[i])}
       <div class="why"><p>${U.esc(q.why || '')}</p></div>${q.doc ? `<p class="small xh-doc"><a href="${U.esc(q.doc)}" target="_blank" rel="noopener noreferrer">AWS docs ↗</a></p>` : ''}</div></details>`).join('');
     const missed = s.ok.filter(x => !x).length;
-    const b = draw(`<div class="q-ctx">DVA-C02 · ${U.esc(formName(m.form))}</div>
-      ${m.practice ? '<p class="xh-practice">Practice: questions you\'ve seen before</p>' : ''}
+    const b = draw(`<div class="q-ctx">${U.esc(E.cfg(m.exam).name)} · ${U.esc(formName(m.form))}</div>
+      ${m.practice ? '<p class="xh-practice">Practice: from the bank, questions you haven\'t answered first</p>' : ''}
       ${m.timedOut ? '<p class="warn small">Time ran out, so the exam was submitted as it stood.</p>' : ''}
       <div class="xh-score ${pass ? 'pass' : 'fail'}"><span class="xh-big">${est}</span><span class="xh-of">/ 1000 <em>estimate</em></span>
         <span class="verdict ${pass ? 'ok' : 'bad'}">${pass ? 'PASS' : 'NOT YET'}</span></div>

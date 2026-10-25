@@ -16,7 +16,8 @@
       return q;
     }).filter(Boolean);
     if (!qs.length) return null;
-    // Exam mode (js/exam.js): never a held-out question, and no SAA-only one while the pool has others.
+    // Exam mode (js/exam.js): never a held-out question, and none only on the other exam while the pool has
+    // others.
     const E = SD.exam;
     if (E) {
       const ok = qs.filter(E.allowed);
