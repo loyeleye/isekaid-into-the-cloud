@@ -266,6 +266,70 @@
     "ok|Come home when you're ready, child. I'll still be here. I'm always here.": 'ok-c4-12',
     "ok|That's my heir.": 'ok-c4-13',
     "ok|A seal from the Sealed Floors. Open it. There is nothing under it. There never was.": 'ok-c7-01',
-    "ok|Madam Ok has seen a great many people go up towers. You four, I would like to see come down.": 'ok-c7-02'
+    "ok|Madam Ok has seen a great many people go up towers. You four, I would like to see come down.": 'ok-c7-02',
+    // More of the cast, recorded 2026-10-25
+    // Postmaster Coo
+    "coo|Coo! Delivered! At least once. Possibly twice. Did I miss anything?": 'coo-c2-01',
+    "coo|A whole field of undelivered post, and five of the letters are mine. A pigeon has standards. Bring me any you find, would you?": 'coo-c2-02',
+    "coo|Letter for Mr Kane!": 'coo-c2-03',
+    "coo|Standard delivery, sir! At least once. For exactly once you want my FIFO window: I remember every letter for five minutes, and a repeat in that time isn't delivered.": 'coo-c2-04',
+    "coo|Then it's a new letter, sir. I have a pigeon's memory. Exactly five minutes of it.": 'coo-c2-05',
+    "coo|Letterhead! I'll need letterhead.": 'coo-c2-06',
+    "coo|The Free Cloud. Has a ring to it. A delivery ring.": 'coo-c2-07',
+    "coo|At least once. That's my promise.": 'coo-c2-08',
+    "coo|All five, delivered. At least once. I checked twice.": 'coo-c2-09',
+    "coo|Oh! Before I deliver it, tell me what you've learned. A postman checks.": 'coo-c2-10',
+    "coo|All five! Delivered at least once and, thanks to you, at most once. Here. A pigeon pays his debts.": 'coo-c2-11',
+    "coo|Delivered! Bring me the rest when you find them.": 'coo-c2-12',
+    // Sir Seymour
+    "seymour|Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.": 'seymour-c2-04',
+    "seymour|No. Two reasons, in order. Freya holds root, and she'd wipe her again by morning. And a copy anyone can delete is not a copy. You don't believe me. Fine. Tell me which of these would stop her.": 'seymour-c2-05',
+    "seymour|Wait. Take these. Three tapes, for the stair. If it all goes wrong up there, one gets you back on your feet, right where you fell. It's used up when it plays. I won't hand out more. You can earn them.": 'seymour-c2-06',
+    "seymour|A tape gets used up, and it doesn't come back. Mind how many you've got. I don't make the rules. I do enforce them.": 'seymour-c2-07',
+    // Elder Wren, later
+    "wren|She read it to you. I heard. That's a start.": 'wren-c2-01',
+    "wren|She was my goddess. She's still somebody's.": 'wren-c2-02',
+    // Sir Seymour
+    "seymour|Every backup you've got. I count them, and I keep them warm.": 'seymour-c5-01',
+    "seymour|She wrote over a backup. She wrote over half of them.": 'seymour-c5-02',
+    "seymour|You've earned it. Come in. I'll show you the tape.": 'seymour-c6-01',
+    "seymour|That's why you test them. We'll test this one the day we can open it.": 'seymour-c6-02',
+    "seymour|The copies you carry still work. But that one was the original. I made every tape you have from it, and without it I can't make you another.": 'seymour-c6-03',
+    "seymour|Go away. Politely.": 'seymour-c6-04',
+    "seymour|I made copies of everything, every night, for forty years. That one I couldn't copy. It was the original. If you want a tape now, you buy it from him.": 'seymour-c6-05',
+    // Postmaster Coo
+    "coo|Coo. (He straightens his cap and looks at the tower.)": 'coo-c7-01',
+    // Sir Seymour
+    "seymour|Kyu's restore. I did it the boring way, and I'd do it again. One question, then I'll let you be.": 'seymour-c7-01',
+    "seymour|Door's open. Don't make a thing of it. Tapes are labelled, tested, and stacked by date.": 'seymour-c7-02',
+    "seymour|Restore to a test account first. Always. I'll be saying that at your funerals.": 'seymour-c7-03',
+    // Elder Wren, later
+    "wren|Sit a moment. The tower isn't going anywhere. That's rather the problem with it.": 'wren-c7-01',
+    "wren|She reads them all, you know. Every one. She never used to.": 'wren-c7-02',
+    "wren|Ask everyone. You remembered that. Good.": 'wren-c7-03',
+    // Elder Wren
+    "faithful|Freya's people. We know what you've come for. You'll not pass the shrine.": 'faithful-c1-01',
+    "faithful|Forty years. Every morning.": 'faithful-c1-02',
+    "faithful|And we're still here. Faithful, stand together!": 'faithful-c1-03',
+    "faithful|Forty years I prayed. She never answered once.": 'faithful-c1-04',
+    "faithful|Go on, then. Maybe she'll answer you.": 'faithful-c1-05',
+    "faithful|Forty years. Every morning. Go on, then.": 'faithful-c1-06',
+    // Sir Seymour
+    "seymour|Backup No. 401, restored! Tested, labelled, and only slightly chewed. On your feet, everyone. It's still in there.": 'seymour-cx-01',
+    // Postmaster Coo
+    "coo|Shipped! Delivered! Exactly once, I think. I'm counting.": 'coo-c2-13',
+    "coo|Back down the stair! Everyone in one piece? Mostly? Good. The floors will keep.": 'coo-c2-14',
+    "coo|Ship it! And when you've shipped it, I've got a sorting desk that needs you.": 'coo-c2-15',
+    "coo|The tower redeploys from its template at midnight. So: we change the template. A function, a queue, and a dead-letter queue for the letters that won't go.": 'coo-c2-16',
+    "coo|Every letter delivered at least once. That's my promise. At most twice is the hard part. Come and sort with me.": 'coo-c2-17',
+    "coo|Here. My redrive stamp. Anything that comes back to Thornwick from now on comes back to someone who reads it.": 'coo-c2-18',
+    // Sir Seymour
+    "seymour|I have one tape, made long before the end. Kyu's on it. I've tested it: it restores.": 'seymour-c2-08',
+    "seymour|No. Two reasons, in order. Freya holds root, and she'd wipe her again by morning.": 'seymour-c2-09',
+    "seymour|And a copy anyone can delete is not a copy.": 'seymour-c2-10',
+    // Lexi in the Hall of Blueprints
+    "lexi|Welcome to the Hall of Blueprints, where the Library keeps the great designs of every kingdom!": 'lexi-cx-01',
+    "lexi|Keeps. Kept. A mimic got in. It looks exactly like a whiteboard, and it EATS diagrams.": 'lexi-cx-02',
+    "lexi|Pick a blueprint. Smudge will have erased half of it. Put every part back where it belongs.": 'lexi-cx-03'
   });
 })();
