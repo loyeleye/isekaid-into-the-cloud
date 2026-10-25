@@ -125,6 +125,18 @@ const fail = [];
   if (!(await vis('#ds-go'))) fail.push('no Continue button after starting a chapter');
   else console.log('continue:', await page.textContent('#ds-go'));
 
+  // The Debug menu's Raid Marks box sets the balance (whole numbers, never below 0).
+  await page.click('#ds-dbg');
+  if (!(await page.$('#ds-mk'))) fail.push('no Raid Marks box in the Debug Wardrobe section');
+  else {
+    await page.fill('#ds-mk', '5000'); await page.click('#ds-mk-set');
+    const m1 = await page.evaluate(() => [SD.marks.balance(), document.querySelector('#ds-mk-n').textContent]);
+    await page.fill('#ds-mk', '-3'); await page.press('#ds-mk', 'Enter');
+    const m2 = await page.evaluate(() => SD.marks.balance());
+    if (m1[0] !== 5000 || m1[1] !== '5000' || m2 !== 0) fail.push('Raid Marks box: ' + JSON.stringify([m1, m2]));
+  }
+  await page.evaluate(() => SD.ui.closePanel());
+
   // The Chapter 1 reveal from the Debug menu, as Dutch: it plays to the end and the save comes back as it was.
   const before = await page.evaluate(() => JSON.stringify(SD.state.save.c1 || null));
   await page.click('#ds-dbg');

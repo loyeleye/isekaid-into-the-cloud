@@ -8,6 +8,7 @@
 //                                      PAY.rightCap), times PAY.withHuman when humans >= 2. Adds them, returns n.
 //   SD.marks.ITEMS                     the shop: [{ id, name, slot, tier, cost }]
 //   SD.marks.owns(id), owned(), buy(id) -> true when bought; never twice (a pack and its emotes count as each other)
+//   SD.marks.set(n)                    the Debug menu's: sets the balance to n (0 to 999999)
 //   SD.marks.price(id)                 its price (a pack's is full price even when you have some of it)
 //
 // Saved at S.save.mp.marks = { n, owned: [id] }. Where the full profile's economy is loaded (js/economy.js), a buy is
@@ -18,10 +19,10 @@
   // A solo or bot clear with every question right pays 20; the same clear with another person pays 40.
   M.PAY = Object.freeze({ clear: 10, perRight: 2, rightCap: 5, withHuman: 2 });
   // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. The ids, names
-  // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames) and js/emote.js's. Each tier has
-  // one price for now; Ladi settles the final prices once every cosmetic is built.
+  // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames) and js/emote.js's. Each tier
+  // has one price, which Ladi set on 2026-10-25: Looks > Effects > Outfit colours > Frames > Emotes.
   M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack', emote1: 'Emote', act1: 'Action', look: 'Look' });
-  M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260, mythic: 400 });
+  M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 200, mythic: 400 });
   // A single emote or action, and a pack's price as a share of its emotes' singly (placeholders, like TIERS).
   M.SINGLE = Object.freeze({ emote1: 30, act1: 60 });
   M.PACK_OFF = 0.7;
@@ -33,7 +34,8 @@
     ['outfit-gilded', 'Gilded trim', 'outfit', 'common'],
     ['outfit-harvest', 'Harvest', 'outfit', 'rare'], ['outfit-winterfest', 'Winterfest', 'outfit', 'rare'],
     ['outfit-lunar', 'Lunar New Year', 'outfit', 'rare'], ['outfit-spring', 'Spring bloom', 'outfit', 'rare'],
-    ['fx-stardust', 'Stardust', 'effect', 'rare'], ['fx-snow', 'Snowfall', 'effect', 'rare'], ['fx-embers', 'Embers', 'effect', 'rare'],
+    // Every effect is Legendary at the same price: they're all alike (Ladi, 2026-10-25).
+    ['fx-stardust', 'Stardust', 'effect', 'legendary'], ['fx-snow', 'Snowfall', 'effect', 'legendary'], ['fx-embers', 'Embers', 'effect', 'legendary'],
     ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary'],
     // Emote packs (js/emote.js) for the Emote button: four or six emotes each, and the Moves pack's seven actions and the Story moves pack's four.
     ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare'], ['emo-moves', 'Moves pack', 'emote', 'legendary'], ['emo-story', 'Story pack', 'emote', 'rare'], ['emo-lore', 'Story moves pack', 'emote', 'legendary'],
@@ -77,6 +79,11 @@
   M.earned = ({ right, humans } = {}) => {
     const P = M.PAY;
     return (P.clear + P.perRight * Math.min(Math.max(right | 0, 0), P.rightCap)) * ((humans | 0) >= 2 ? P.withHuman : 1);
+  };
+  // The Debug menu's Raid Marks box (js/demo-select.js): any whole amount from 0 up. Returns the new balance.
+  M.set = function (n) {
+    st().n = Math.max(0, Math.min(999999, Math.floor(+n) || 0)); S.persist();
+    return st().n;
   };
   M.pay = function (r) {
     const n = M.earned(r);

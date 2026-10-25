@@ -12,8 +12,8 @@
 //   ['morph', id, x, y, ms] (a still sharpening out of a mosaic over the last, outward from a point if given)
 //   ['tiles', level] (the game breaking up in green blocks over the picture, 0 to 4)
 // pan is 'in' (default), 'slow', 'still', 'left', 'right' or 'up', with '+' to carry on the last still's move;
-// 'cut' swaps the still in at once instead of crossfading, and 'soft' crossfades slowly (2.2 s), for two stills of the
-// same framing that should melt into each other;
+// 'cut' swaps the still in at once instead of crossfading, and 'soft' blends the two evenly over 1 s (a linear
+// crossfade: halfway through, each is at half), for two stills of the same framing that should melt into each other;
 // pos is 'left', 'right' or 'center'; fx is 'shake', 'flash',
 // 'thunder', 'black', 'rain', 'dry', 'heartbeat', or 'neon' and 'unneon' (a broken neon sign's flicker, on and off). Art that hasn't been painted yet shows a placeholder.
 (function () {
@@ -226,7 +226,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     // A still fades in over the last one, which stays solid until it's covered: fading both at once let the backdrop
     // underneath show through mid-crossfade.
     const keep = sel === '.vn-cg' && !cut;
-    old.forEach(o => { if (!keep) o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : soft ? 2300 : keep ? 950 : 900); });
+    old.forEach(o => { if (!keep) o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : soft ? 1100 : keep ? 950 : 900); });
   }
   function clearCG() { [...cam.querySelector('.vn-cg').children].forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); }); root.classList.remove('vn-incg'); }
 
@@ -770,7 +770,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
         const black = root.querySelector('.vn-black').classList.contains('on');
         setLayer('.vn-cg', a[0], a[1] || 'in', a[2] === 'cut' || black || (a[2] === 'soft' && !reduce() ? 'soft' : false));
         root.querySelector('.vn-black').classList.remove('on');
-        await sleep(skipping ? 0 : a[2] === 'soft' && !black && !reduce() ? 2200 : 900);
+        await sleep(skipping ? 0 : a[2] === 'soft' && !black && !reduce() ? 1000 : 900);
       }
       else if (k === 'show') show(a[0], a[1], a[2]);
       else if (k === 'hide') hide(a[0]);
