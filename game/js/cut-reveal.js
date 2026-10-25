@@ -99,7 +99,7 @@
         // too quick to catch).
         ['cg', H, 'still'], ['sfx', 'static'], ['flick', [[H2, 100], [H, 160], [H2, 100], [H, 0]]], say(w[4]),
         // "Some people can't take a compliment": Uptima gone, a flat, numb stare where she was as Freya flicks the static
-        // off her fingers; then the basket, melting in slowly over it on the same camera move (Ladi, Oct 24).
+        // off her fingers; then the basket, blended in over it in 1 s on the same camera move (Ladi, Oct 24; 1 s, Oct 25).
         ['cg', R, 'in'], say(w[5]),
         ['cg', I, 'in+', 'soft'], say(w[6])
       ];
