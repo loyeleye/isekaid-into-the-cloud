@@ -1,7 +1,8 @@
 """Reskins ("looks") for the leads' full bodies, drawn with PixelLab: assets/img/wear/look/<look>-<lead>.webp (see CREDITS.md).
 
 usage: look_art.py OUT_DIR LOOK[:LEAD,...] ...      ask PixelLab (needs PIXELLAB_API_KEY), saving OUT_DIR/<look>-<lead>-<n>.png
-       look_art.py OUT_DIR --pick LOOK-LEAD=N ...   fit pick N to the lead's standing sprite and save it in assets/img/wear/look
+       look_art.py OUT_DIR --pick LOOK-LEAD=N[/F] ...   fit pick N to the lead's standing sprite and save it in assets/img/wear/look;
+                                                     F keeps only the top F of a full-body pick (Kai's own sprite stops at the hips)
 
 Each look starts from the lead's own standing sprite (assets/img/lead/<lead>.webp) as the reference, so it's the same
 person in the same pose with different clothes. Only the full body changes: the dialogue portraits stay as they are
@@ -78,6 +79,7 @@ def pick(out, picks):
     os.makedirs(OUT, exist_ok=True)
     for p in picks:
         name, n = p.split('=')
+        n, _, keep = n.partition('/')
         lead = name.split('-')[-1]
         base = Image.open(os.path.join(GAME, 'assets/img/lead/%s.webp' % lead)).convert('RGBA')
         bb = base.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
@@ -85,6 +87,7 @@ def pick(out, picks):
         a = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
         im.putalpha(a)
         im = im.crop(a.getbbox())
+        if keep: im = im.crop((0, 0, im.width, round(im.height * float(keep))))
         # As tall as the lead's own figure; anything wider (Restored's wings) widens the canvas, which js/wear.js allows for.
         k = (bb[3] - bb[1]) / im.height
         im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.NEAREST)
