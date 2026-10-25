@@ -284,9 +284,10 @@
   // human incidents from the same parts, so they stand in the same world as the people they fight.
   K.person = (L, face, uid) => figure(L, Object.assign({}, FACES.neutral, FACES[face] || {}, (L.faces && L.faces[face]) || {}), uid);
   const memo = {};
-  // wear: the cosmetics to dress in (js/wear.js), [] for none; left out, your lead wears yours.
+  // wear: the cosmetics to dress in (js/wear.js), [] for none; left out, your lead wears yours. A look shows on the
+  // full figure only.
   K.fig = (id, face, view, light, wear) => {
-    const w = SD.wear ? SD.wear.vec(id, wear) : null;
+    const w = SD.wear ? SD.wear.vec(id, wear, view || 'bust') : null;
     const k = [id, face, view, light, w ? w.key : ''].join('|');
     return memo[k] || (memo[k] = render(id, face || 'neutral', view || 'bust', light, w && w.L));
   };

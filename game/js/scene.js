@@ -289,6 +289,8 @@
     sc.drawObj = obj;
     function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
     function emote(name, px, py) {
+      // The player's own emotes (js/emote.js), from the map's Emote button.
+      if (SD.emote && SD.emote.valid(name)) return SD.emote.paint(ctx, name, px, py, ts * 0.75);
       if (SC.emoteArt) return SC.emoteArt(ctx, name, px, py, ts * 0.75);
       if (!ok(EMOTE) || !EMO[name]) return;
       const [sx, sy] = EMO[name], S = ts * 0.75;
@@ -542,12 +544,14 @@
     sc.start = function () {
       if (sc.active) return;
       sc.active = true; resize(); t0 = 0;
+      if (sc.P) SC.current = sc;          // the walkable map you're on, for js/emote.js
       window.addEventListener('resize', resize); window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKeyUp);
       canvas.addEventListener('pointerdown', onTap);
       raf = requestAnimationFrame(frame);
     };
     sc.stop = function () {
       sc.active = false; cancelAnimationFrame(raf);
+      if (SC.current === sc) SC.current = null;
       window.removeEventListener('resize', resize); window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp);
       canvas.removeEventListener('pointerdown', onTap);
       Object.keys(keys).forEach(k => keys[k] = false);

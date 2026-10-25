@@ -575,11 +575,12 @@
       <button class="ghost" id="w-deck">Deck (${c1().deck.length})</button>
       <button class="ghost" id="w-codex">Cheat sheet</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
-      <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
+      ${SD.emote ? SD.emote.mapButton() : ''}<button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-deck').onclick = () => U.panel(`<div class="cardgrid">${c1().deck.map(c => U.cardHtml(c)).join('')}</div>`, { title: 'YOUR DECK', cls: 'wide' });
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    if (SD.emote) SD.emote.wire($('#w-menu').parentNode);
   }
   W1.hud = hud;
 

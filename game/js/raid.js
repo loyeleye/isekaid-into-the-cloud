@@ -2271,6 +2271,7 @@
       root.querySelectorAll('[data-send]').forEach(b => { b.onclick = () => { ui.pick = null; send(JSON.parse(b.dataset.send)); }; });
       const db = root.querySelector('#rd-deck'); if (db) db.onclick = () => { ui.deck = !ui.deck; render(); };
       const tb = root.querySelector('#rd-tally'); if (tb) tb.onclick = () => { ui.tally = !ui.tally; render(); };
+      if (SD.emote) SD.emote.wire(root);
     }
     const head = t => `<span class="mi-tag">${esc(LABEL)}${o.auto ? '' : ` · party ${esc(code.toUpperCase())}`}</span><h2 style="margin:2px 0 6px">${esc(t)}</h2>`;
     const sendAttr = d => `data-send="${esc(JSON.stringify(d))}"`;
@@ -2280,7 +2281,7 @@
         <span class="hud-chip">Floor <b>${G.fl + 1}/${fs.length}</b></span>${mine ? `<span class="hud-chip">Bits <b>${mine.bits}</b></span>` : ''}
         ${STORYMODE && (o.free || o.tapes == null) ? '' : `<span class="hud-chip" title="Seymour's Tapes left for this expedition: if the team goes down, one plays and you fight on at full SLA">📼 Tapes <b>${G.tapes}</b></span>`}
         ${mine ? tallyChip(mine.tal | 0) : ''}
-        ${mine ? `<button class="hud-chip" type="button" id="rd-deck" aria-expanded="${ui.deck}">Deck (${mine.deck.length})</button>` : ''}</div>
+        ${mine ? `<button class="hud-chip" type="button" id="rd-deck" aria-expanded="${ui.deck}">Deck (${mine.deck.length})</button>` : ''}${mine && SD.emote ? SD.emote.button().replace('mi-btn sm', 'hud-chip') : ''}</div>
         ${ui.tally && mine ? `<p class="rd-tally-help">${tallyHelp(mine.tal | 0)}</p>` : ''}
         ${G.note ? `<p class="rd-note" role="status">${esc(G.note)}</p>` : ''}
         ${ui.deck && mine ? `<div class="cardgrid mini">${mine.deck.map(id => chtml(id)).join('')}</div>` : ''}`;

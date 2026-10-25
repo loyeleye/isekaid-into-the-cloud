@@ -1055,10 +1055,11 @@
       ${LW.hud()}
       <button class="ghost" id="w-codex" aria-label="Cheat sheet" title="Cheat sheet">📖</button>
       <button class="ghost" id="w-snd" aria-label="Sound on or off">${AU.muted() ? '🔇' : '🔊'}</button>
-      <button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
+      ${SD.emote ? SD.emote.mapButton() : ''}<button class="ghost" id="w-menu" aria-label="Menu">☰</button>`;
     $('#w-codex').onclick = () => U.codex();
     $('#w-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = AU.muted() ? '🔇' : '🔊'; };
     $('#w-menu').onclick = () => SD.main.menu();
+    if (SD.emote) SD.emote.wire($('#w-menu').parentNode);
     LW.bind();
   }
   const prevHud = SD.ch1.hud;
