@@ -447,10 +447,10 @@
       seymour: sprite('seymour', ['neutral']), faithful: sprite('faithful', ['neutral', 'sad', 'tired']), uptima: sprite('uptima', ['neutral', 'sad']),
       tilly: sprite('tilly', ['neutral', 'cold', 'anger']), marrow: sprite('marrow', ['neutral', 'sad']), hale: sprite('hale', ['smile', 'neutral'])
     });
-    // Full-length leads: choosing a lead, the title screen, and your fighter in battle.
+    // Full-length leads: choosing a lead and your fighter in battle. The title screen keeps the pixel leads
+    // (assets/img/lead/, set in index.html), Dutch's taller knee-up figure among them.
     const T = SD.ch1story;
     T.order.forEach(id => { T.leads[id].img = K.fig(id, 'neutral', 'full'); });
-    document.querySelectorAll('.t-leads img').forEach(i => { i.src = K.fig(i.dataset.lead, 'neutral', 'full'); });
   });
   K.pipSVG = pipSVG;
 })();

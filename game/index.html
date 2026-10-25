@@ -1306,7 +1306,7 @@ body { background: var(--bg); }
     <div class="t-rain" aria-hidden="true"></div>
     <div class="t-ridge" aria-hidden="true"></div>
     <div class="t-leads" aria-hidden="true"><img data-lead="kai" alt=""><img data-lead="mira" alt=""><img data-lead="dutch" data-art="dutch-stand" alt=""><img data-lead="seoyeon" alt=""></div>
-    <script>if (!window.SD_VECTOR) document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + (i.dataset.art || i.dataset.lead) + '.webp'; });</script>
+    <script>document.querySelectorAll('.t-leads img').forEach(i => { i.src = 'assets/img/lead/' + (i.dataset.art || i.dataset.lead) + '.webp'; });</script>
     <div class="pcl near" aria-hidden="true"></div>
     <div class="t-bolt" aria-hidden="true"></div>
     <button class="ghost snd" id="t-snd" aria-label="Sound on or off">🔊</button>

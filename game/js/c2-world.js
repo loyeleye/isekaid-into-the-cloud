@@ -973,7 +973,7 @@
         if (has) $('#t-c2go').onclick = () => W2.resume();
         $('#t-c2new').onclick = () => { if (!has) return W2.newGame(); const c = U.panel('<p>Start chapter 2 again from the edge of the Cloud? Your level and cheat sheet stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' }); c.querySelector('#n-y').onclick = () => { U.closePanel(); W2.newGame(); }; c.querySelector('#n-n').onclick = U.closePanel; };
       };
-      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 2 demo: The Mailroom · Built on the AWS documentation · Saves automatically';
+      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 2: The Mailroom · Built on the AWS documentation · Saves automatically';
     };
     // js/main.js loads after this file and shows the title on DOMContentLoaded; wrap it before then.
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });

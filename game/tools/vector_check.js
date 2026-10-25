@@ -28,7 +28,7 @@ const server = http.createServer((req, res) => {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 420), height: Number(process.env.H || 860) } });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   // Chapter 1 plays as tools/ch1_check.js plays it (tools/ch1_step.js); SD_TEST opens the mines' test hook.
   await page.addInitScript(`window.SD_TEST = 1; window.__ch1step = ${ch1Step.toString()};`);

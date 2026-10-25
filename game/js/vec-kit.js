@@ -72,8 +72,7 @@
   // CSS for vector mode: smooth (not pixelated) art, and the panels the proof of concept adds.
   const css = document.createElement('style');
   css.textContent = `
-html.vector .c1-lead img, html.vector .t-leads img, html.vector .spark, html.vector #vn .vn-spr > img { image-rendering: auto; }
-html.vector .t-leads img { height: clamp(90px, 19vh, 170px); }
+html.vector .c1-lead img, html.vector .spark, html.vector #vn .vn-spr > img { image-rendering: auto; }
 html.vector .c1-lead img { width: 64px; height: 120px; }
 html.vector #stage .fall .faller { background: none; }
 html.vector body[data-lead] .stage .hero { width: 24% !important; height: 88% !important; bottom: 2%; }

@@ -964,7 +964,7 @@
         if (has) $('#t-c3go').onclick = () => W3.resume();
         $('#t-c3new').onclick = () => { if (!has) return W3.newGame(); const c = U.panel('<p>Start chapter 3 again from the cold open? Your level and cheat sheet stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' }); c.querySelector('#n-y').onclick = () => { U.closePanel(); W3.newGame(); }; c.querySelector('#n-n').onclick = U.closePanel; };
       };
-      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 3 demo: The Granaries · Built on the AWS documentation · Saves automatically';
+      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 3: The Granaries · Built on the AWS documentation · Saves automatically';
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
     else { boot(); }

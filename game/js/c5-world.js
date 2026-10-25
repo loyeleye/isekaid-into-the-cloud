@@ -1274,7 +1274,7 @@
           c.querySelector('#n-n').onclick = U.closePanel;
         };
       };
-      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 5 demo: The Machine Floors · Built on the AWS documentation · Saves automatically';
+      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 5: The Machine Floors · Built on the AWS documentation · Saves automatically';
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
   }

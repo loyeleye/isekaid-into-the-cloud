@@ -1142,7 +1142,7 @@
           c.querySelector('#n-n').onclick = U.closePanel;
         };
       };
-      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 7 demo: Root · Built on the AWS documentation · Saves automatically';
+      const foot = $('.t-foot'); if (foot) foot.textContent = 'Chapter 7: Root · Built on the AWS documentation · Saves automatically';
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
   }
