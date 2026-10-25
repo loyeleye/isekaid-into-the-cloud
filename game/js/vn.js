@@ -90,6 +90,8 @@
     const urls = new Set();
     let c = null;
     steps.forEach(([k, a]) => {
+      // A still named outright (a painting or a sheet) loads now too, so its fade has a picture to show.
+      if ((k === 'cg' || k === 'reveal' || k === 'morph') && typeof a === 'string') { const s = V.art.scenes[a]; if (s && (s.src || s.sheet)) urls.add(s.src || s.sheet); }
       if (k === 'bg') c = null;
       else if (k === 'cut') c = V.cuts.find(x => x[0][0] === 'cut-' + a + '-1') || c;
       else if (!CMD.has(k) && typeof a === 'string') {
@@ -222,11 +224,28 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '') + (cut ? ' on cut' : '') + (soft ? ' soft' : '') + ((V.art.scenes[id] || {}).dream ? ' dream' : '');
     el.innerHTML = sceneHTML(id);
     host.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('on'));
     // A still fades in over the last one, which stays solid until it's covered: fading both at once let the backdrop
     // underneath show through mid-crossfade.
     const keep = sel === '.vn-cg' && !cut;
-    old.forEach(o => { if (!keep) o.classList.remove('on'); setTimeout(() => o.remove(), cut ? 0 : soft ? 1100 : keep ? 950 : 900); });
+    const swap = () => {
+      el.classList.add('on');
+      old.forEach(o => { if (!keep) o.classList.remove('on'); });
+      // The one underneath goes once the new one is fully in (or after its fade's time, if the page is in the background).
+      let gone = false;
+      const drop = () => { if (gone) return; gone = true; old.forEach(o => o.remove()); };
+      if (cut) drop();
+      else { el.addEventListener('transitionend', e => { if (e.target === el && e.propertyName === 'opacity') drop(); }); setTimeout(drop, soft ? 1600 : 1300); }
+    };
+    // The fade starts once the picture has loaded: on the published page a still comes over the network, and a fade
+    // that ran while it loaded showed nothing, then the picture all at once (Ladi, Oct 25). Resolves when it starts.
+    const im = !cut && el.querySelector('img:not(.vn-ghost):not(.vn-gl)');
+    if (!im || im.complete) { requestAnimationFrame(swap); return Promise.resolve(); }
+    return new Promise(done => {
+      let go = () => { go = () => {}; requestAnimationFrame(swap); done(); };
+      im.addEventListener('load', () => go(), { once: true });
+      im.addEventListener('error', () => go(), { once: true });
+      setTimeout(() => go(), 2500);
+    });
   }
   function clearCG() { [...cam.querySelector('.vn-cg').children].forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); }); root.classList.remove('vn-incg'); }
 
@@ -768,7 +787,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
         root.classList.add('vn-incg');
         // Out of black, the still swaps in whole underneath, so only it fades up (not a mix with the last one).
         const black = root.querySelector('.vn-black').classList.contains('on');
-        setLayer('.vn-cg', a[0], a[1] || 'in', a[2] === 'cut' || black || (a[2] === 'soft' && !reduce() ? 'soft' : false));
+        await setLayer('.vn-cg', a[0], a[1] || 'in', a[2] === 'cut' || black || (a[2] === 'soft' && !reduce() ? 'soft' : false));
         root.querySelector('.vn-black').classList.remove('on');
         await sleep(skipping ? 0 : a[2] === 'soft' && !black && !reduce() ? 1000 : 900);
       }
