@@ -97,7 +97,7 @@
       const worn = W && W.worn ? Object.values(W.worn()) : [];
       const body = `<p class="small" style="margin:0 0 10px">You have <b>${SD.marks.balance()} ✦</b>. Cosmetics only: they change how your lead looks, never how they play.</p>
         <ul class="mp-list">${SD.marks.ITEMS.map(it => { const own = SD.marks.owns(it.id), on = worn.includes(it.id);
-          return `<li><div class="mp-txt"><b>${esc(it.name)}</b><small>${esc(SD.marks.SLOTS[it.slot] || it.slot)}${it.tier ? ' · ' + it.tier[0].toUpperCase() + it.tier.slice(1) : ''}${it.pack ? ' · in the ' + esc(SD.marks.item(it.pack).name) : ''}${own ? ' · yours' : ` · ${SD.marks.price(it.id)} ✦`}</small></div>
+          return `<li><div class="mp-txt"><b>${esc(it.name)}</b><small>${esc(it.label || SD.marks.SLOTS[it.slot] || it.slot)}${it.tier ? ' · ' + it.tier[0].toUpperCase() + it.tier.slice(1) : ''}${it.pack ? ' · in the ' + esc(SD.marks.item(it.pack).name) : ''}${own ? ' · yours' : ` · ${SD.marks.price(it.id)} ✦`}</small></div>
             <div class="mp-btns">${own ? (SD.marks.isEmote(it) ? '<small>On your Emote button</small>' : W && W.equip ? `<button class="mi-btn sm${on ? '' : ' go'}" type="button" data-wear="${esc(it.id)}">${on ? 'Take off' : 'Wear'}</button>` : '')
               : `<button class="mi-btn go sm" type="button" data-buy="${esc(it.id)}"${SD.marks.balance() < SD.marks.price(it.id) ? ' disabled' : ''}>Buy</button>`}</div></li>`; }).join('')}</ul>`;
       const box = U.panel(body, { title: 'RAID SHOP' });

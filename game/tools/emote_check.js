@@ -158,6 +158,8 @@ const server = http.createServer((req, res) => {
     });
     check(twice.one && !twice.again && twice.pack && !twice.packAgain && !twice.single && twice.all, `${mode}: nothing can be bought twice, a pack and its emotes count as each other (${JSON.stringify(twice)})`);
     check(twice.full === 126 && twice.less === 126 && twice.spent === 30 + 126 + 120 && twice.mine, `${mode}: a pack costs 70% of its emotes singly, full price even with one of them, and a single emote joins the picker`);
+    const labels = await a.evaluate(() => ['emo-tavern', 'emo-cloud', 'emo-moves', 'emo-lore'].map(id => { const it = SD.marks.item(id); return it.label + (it.tier ? ':' + it.tier : ''); }).join(','));
+    check(labels === 'Emote pack,Emote pack,Action pack,Action pack', `${mode}: packs are labelled by what's in them, not by a tier (${labels})`);
     check(twice.n === 64, `${mode}: the shop sells ${twice.n} items, the pack emotes one at a time too`);
     check(shop.item === 'emote', `${mode}: the Raid shop sells the packs`);
     // On the story map, with no party: the bubble goes over your lead, drawn into the map.
