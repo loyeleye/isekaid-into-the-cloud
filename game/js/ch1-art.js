@@ -88,6 +88,10 @@
       case 'nap': P.face = 'south'; P.shut = true; P.rot = -0.14 + S(t * 2) * 0.03; break;
       case 'facepalm': P.face = 'south'; P.arms = [null, [3, -29]]; P.rot = 0.05; P.bob = 0.6; break;
       case 'groove': { const w = S(t * PI * 2); P.face = 'south'; P.bob = -Math.abs(S(t * PI * 4)) * 2.5; P.dx = w * 2.5; P.ph = S(t * 8); P.arms = [[-13, w > 0 ? -43 : -12], [13, w > 0 ? -12 : -43]]; P.rot = w * 0.12; break; }
+      case 'pray': P.face = 'south'; P.arms = [[-1.6, -22.5], [1.6, -22.5]]; P.lean = 0; P.bob = Math.min(1, t / 0.4, (3 - t) / 0.4) * 1.5; P.shut = true; break;
+      case 'coldstart': P.face = 'south'; if (t < 1.6) { P.dx = S(t * 70) * 0.5; P.arms = [[5, -15], [-5, -15]]; } else { P.arms = [[-12, -45], [12, -45]]; P.bob = -Math.abs(S((t - 1.6) * PI * 2)) * 5; } break;
+      case 'mop': { const w = S(t * PI * 2); P.face = w > 0 ? 'east' : 'west'; P.dx = w * 4; P.arms = [[7, -12], [9, -14]]; P.ph = S(t * 6); break; }
+      case 'pitch': P.face = 'south'; P.arms = [null, [13 + S(t * 6) * 1.5, -42]]; P.bob = -Math.abs(S(t * PI * 2)) * 1.5; break;
       case 'moonwalk': P.face = 'east'; P.dx = -14 * S(PI * Math.min(1, t / 3)); P.ph = S(t * 13); P.bob = -Math.abs(S(t * 13)) * 0.6; P.rot = -0.08; break;
     }
     return P;

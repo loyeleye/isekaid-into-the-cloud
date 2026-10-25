@@ -25,7 +25,7 @@
   const svg = body => `<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">${body}</svg>`;
   const txt = (t, size, fill, y) => `<text x="16" y="${y || 20.5}" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="700" font-size="${size}" fill="${fill || INK}">${t}</text>`;
   const face = '<circle cx="16" cy="16" r="11" fill="#ffd25a" stroke="' + INK + '" stroke-width="2"/>';
-  E.PACKS = Object.freeze({ 'emo-tavern': 'Tavern pack', 'emo-cloud': 'Cloud jokes pack', 'emo-season': 'Seasonal pack', 'emo-moves': 'Moves pack' });
+  E.PACKS = Object.freeze({ 'emo-tavern': 'Tavern pack', 'emo-cloud': 'Cloud jokes pack', 'emo-season': 'Seasonal pack', 'emo-moves': 'Moves pack', 'emo-story': 'Story pack', 'emo-lore': 'Story moves pack' });
   // A stick figure for the actions' buttons: head, body, legs to (l, r), arms as polylines from the shoulder.
   const ln = (pts, w) => `<polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="${w || 2.4}" stroke-linecap="round" stroke-linejoin="round"/>`;
   const man = (armL, armR, legs, head, more) => svg(`<circle cx="${head ? head[0] : 16}" cy="${head ? head[1] : 7}" r="3.6" fill="#ffd25a" stroke="${INK}" stroke-width="1.8"/>`
@@ -48,7 +48,15 @@
     pumpkin: { name: 'Pumpkin', pack: 'emo-season', svg: svg(`<path d="M16 9 Q14 5 17 3.5" fill="none" stroke="#3f7a3a" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="16" cy="18" rx="12" ry="9.5" fill="#ff8a2a" stroke="${INK}" stroke-width="2"/><path d="M16 9 V27 M10 10 Q7 18 10 27 M22 10 Q25 18 22 27" fill="none" stroke="${INK}" stroke-width="1.4" opacity=".55"/><path d="M10 16 L12.5 14 L13.5 17Z M22 16 L19.5 14 L18.5 17Z M11 21 Q16 24.5 21 21" fill="${INK}" stroke="${INK}" stroke-width="1.2"/>`) },
     snowflake: { name: 'Snowflake', pack: 'emo-season', svg: svg(`<g stroke="#2a62c9" stroke-width="2.2" stroke-linecap="round">${[0, 60, 120].map(a => `<g transform="rotate(${a} 16 16)"><path d="M16 4 V28 M12.5 7 L16 10 L19.5 7 M12.5 25 L16 22 L19.5 25"/></g>`).join('')}</g>`) },
     lantern: { name: 'Lantern', pack: 'emo-season', svg: svg(`<path d="M16 3 V7" stroke="${INK}" stroke-width="2"/><rect x="11" y="6.5" width="10" height="3" rx="1" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/><ellipse cx="16" cy="16.5" rx="10" ry="8" fill="#e0402a" stroke="${INK}" stroke-width="2"/><path d="M16 8.5 V24.5 M11 9.8 Q8.5 16.5 11 23.2 M21 9.8 Q23.5 16.5 21 23.2" fill="none" stroke="#ffd25a" stroke-width="1.3"/><rect x="11" y="23.5" width="10" height="3" rx="1" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/><path d="M16 26.5 V30" stroke="#ffd25a" stroke-width="2"/>`) },
-    blossom: { name: 'Blossom', pack: 'emo-season', svg: svg(`${[0, 72, 144, 216, 288].map(a => `<ellipse cx="16" cy="9" rx="5" ry="6.5" fill="#ffb3cf" stroke="${INK}" stroke-width="1.6" transform="rotate(${a} 16 16)"/>`).join('')}<circle cx="16" cy="16" r="3.5" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/>`) }
+    blossom: { name: 'Blossom', pack: 'emo-season', svg: svg(`${[0, 72, 144, 216, 288].map(a => `<ellipse cx="16" cy="9" rx="5" ry="6.5" fill="#ffb3cf" stroke="${INK}" stroke-width="1.6" transform="rotate(${a} 16 16)"/>`).join('')}<circle cx="16" cy="16" r="3.5" fill="#ffd25a" stroke="${INK}" stroke-width="1.6"/>`) },
+    // The Story pack: the game's own running jokes. Freya's Free Tier sign (the ring that eats its own tail), Pip the
+    // lost packet, the bill, Uptima's nines, the Deny Mines' stamp and Dutch's keys.
+    freetier: { name: 'Free Tier!', pack: 'emo-story', svg: svg(`<circle cx="16" cy="13" r="8.5" fill="none" stroke="#2c8a4b" stroke-width="3"/><path d="M22.5 7.5 L25.5 6 L24.5 9.5Z" fill="#2c8a4b"/><rect x="3" y="20" width="26" height="9" rx="2" fill="#e2bd4f" stroke="${INK}" stroke-width="1.8"/>${txt('FREE', 7.5, '#1d6334', 27.3)}`) },
+    pip: { name: 'Pip', pack: 'emo-story', svg: svg(`<rect x="5" y="9" width="22" height="15" rx="2.5" fill="#f4f1ea" stroke="${INK}" stroke-width="2"/><path d="M5.5 10 L16 18 L26.5 10" fill="none" stroke="${INK}" stroke-width="1.6"/><circle cx="12" cy="20" r="1.6" fill="${INK}"/><circle cx="20" cy="20" r="1.6" fill="${INK}"/><path d="M24 4 L26 7 M28 6 L26.5 8" stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round"/>`) },
+    bill: { name: 'The bill', pack: 'emo-story', svg: svg(`<path d="M8 3 H24 V28 L21.5 26 L19 28 L16.5 26 L14 28 L11.5 26 L8 28Z" fill="#fff" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><path d="M11 8 H21 M11 11.5 H19 M11 15 H21" stroke="#8a8a8a" stroke-width="1.4"/>${txt('$$$', 8, '#c43a3a', 23)}`) },
+    nines: { name: '99.99%', pack: 'emo-story', svg: svg(`<path d="M7 12 L10 5 L13 10 L16 3.5 L19 10 L22 5 L25 12Z" fill="#ffd25a" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><rect x="2.5" y="14" width="27" height="12" rx="4" fill="#dff4ea" stroke="#1f8a57" stroke-width="1.8"/>${txt('99.99', 9, '#1f6b46', 23.3)}`) },
+    denied: { name: 'DENIED', pack: 'emo-story', svg: svg(`<g transform="rotate(-12 16 16)"><rect x="2.5" y="10" width="27" height="12" rx="2" fill="none" stroke="#c43a3a" stroke-width="2.4"/>${txt('DENIED', 7.6, '#c43a3a', 19)}</g>`) },
+    keys: { name: 'Keys', pack: 'emo-story', svg: svg(`<circle cx="12" cy="11" r="6" fill="none" stroke="#d9a740" stroke-width="2.4"/>${[[15, 15, 24, 26], [12, 17, 13, 28], [9, 15, 4, 25]].map(([a, b, c, d]) => `<path d="M${a} ${b} L${c} ${d}" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/><path d="M${a} ${b} L${c} ${d}" stroke="#d9a740" stroke-width="1.4" stroke-linecap="round"/>`).join('')}`) },
   });
   // Actions: secs is how long it lasts; bub 'always' keeps its mark in a bubble too (a nap's Zzz), 'body' only over a
   // seat or a fighter, whose picture can't move an arm (a wave, a flex, a facepalm).
@@ -62,7 +70,13 @@
     nap: { name: 'Nap', secs: 4, pack: 'emo-moves', bub: 'always', svg: svg(txt('Z', 13, '#2a62c9', 27).replace('x="16"', 'x="9"') + txt('Z', 10, '#2a62c9', 17).replace('x="16"', 'x="17"') + txt('z', 8, '#2a62c9', 9).replace('x="16"', 'x="24"')) },
     facepalm: { name: 'Facepalm', secs: 2.4, pack: 'emo-moves', bub: 'body', svg: man('16,13 11,19', '16,13 21,13 17.5,7.5') },
     groove: { name: 'Groove', secs: 4, pack: 'emo-moves', svg: man('16,13 10,18', '16,13 24,3', '12,28.5 16,20 21,28.5', null, '<path d="M4 6 L6 8 M5 4 V9 M2.5 6.5 H7.5" stroke="#e0a020" stroke-width="1.4" stroke-linecap="round"/>') },
-    moonwalk: { name: 'Moonwalk', secs: 3, pack: 'emo-moves', svg: man('15,13 11,18', '15,13 19,18', '10,28.5 15,20 21,27.5', [14, 7], '<path d="M30 25 H23 M26 22 L23 25 L26 28" fill="none" stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>') }
+    moonwalk: { name: 'Moonwalk', secs: 3, pack: 'emo-moves', svg: man('15,13 11,18', '15,13 19,18', '10,28.5 15,20 21,27.5', [14, 7], '<path d="M30 25 H23 M26 22 L23 25 L26 28" fill="none" stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>') },
+    // The Story moves pack: praying to Uptima, a cold start (frozen, then up), Dutch's mop round the floor, and
+    // Freya's Free Tier pitch.
+    pray: { name: 'Pray to Uptima', secs: 3, pack: 'emo-lore', bub: 'body', svg: man('16,13 14.5,15.5 16,11', '16,13 17.5,15.5 16,11', '12,28.5 14,23 16,20 18,23 20,28.5', null, '<path d="M24 4 L25 7 L28 8 L25 9 L24 12 L23 9 L20 8 L23 7Z" fill="#ffd25a" stroke="' + INK + '" stroke-width="1"/>') },
+    coldstart: { name: 'Cold start', secs: 3, pack: 'emo-lore', svg: man('16,13 19,16 13,17', '16,13 13,16 19,17', null, null, `<g stroke="#2a62c9" stroke-width="1.6" stroke-linecap="round"><path d="M4 6 V12 M1.5 7.5 L6.5 10.5 M6.5 7.5 L1.5 10.5"/><path d="M26 4 L28 2 M27 8 H30"/></g>`) },
+    mop: { name: 'Mop up', secs: 3, pack: 'emo-lore', bub: 'always', svg: man('16,13 20,19', '16,13 21,16', null, null, `<path d="M24 5 L19 25" stroke="#8a5a3a" stroke-width="2"/><path d="M15 25 Q19 22 23 25 L24 29 H14Z" fill="#e8ebf0" stroke="${INK}" stroke-width="1.4"/>`) },
+    pitch: { name: 'Free Tier pitch', secs: 3, pack: 'emo-lore', bub: 'always', svg: man('16,13 11,19', '16,13 22,9 24,4', null, null, `<rect x="19" y="1" width="12" height="7" rx="1.5" fill="#e2bd4f" stroke="${INK}" stroke-width="1.4"/>`) },
   };
   Object.keys(ACTS).forEach(k => { ACTS[k].act = true; });
   E.EMOTES = Object.freeze(Object.assign({}, E.EMOTES, ACTS));
@@ -82,6 +96,7 @@
 .emo-bub svg { width: 32px; height: 32px; display: block; }
 @keyframes emo-pop { 0% { transform: translateY(8px) scale(.4); opacity: 0; } 10% { transform: translateY(-2px) scale(1.1); opacity: 1; } 18% { transform: none; } 82% { transform: translateY(-6px); opacity: 1; } 100% { transform: translateY(-12px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .emo-bub { animation: emo-fade 2.4s linear forwards; } @keyframes emo-fade { 0%, 85% { opacity: 1; } 100% { opacity: 0; } } }
+.emo-dance { position: fixed; z-index: 59; pointer-events: none; background-repeat: no-repeat; image-rendering: pixelated; }
 .emo-btn svg { width: 18px; height: 18px; vertical-align: -4px; }
 .emo-pick { position: fixed; z-index: 61; background: var(--mi-cream, #fff8ec); border: 2.5px solid ${INK}; border-radius: 14px; padding: 8px; box-shadow: 0 4px 0 rgba(43,35,64,.25); display: grid; gap: 6px; max-width: calc(100vw - 32px); }
 .emo-pick .emo-grid { display: grid; grid-template-columns: repeat(5, 44px); gap: 6px; }
@@ -115,7 +130,11 @@
     nap: t => [0, 2, -7 + Math.sin(t * 2), 1, 1 + Math.sin(t * 3) * 0.02],
     facepalm: () => [0, 2, 5, 1, 0.97],
     groove: t => { const w = Math.sin(t * Math.PI * 2); return [w * 6, -Math.abs(Math.sin(t * Math.PI * 4)) * 6, w * 9, w > 0 ? 1 : -1, 1]; },
-    moonwalk: t => [-30 * Math.sin(Math.PI * Math.min(1, t / 3)), -Math.abs(Math.sin(t * 13)) * 1.5, -4, 1, 1]
+    moonwalk: t => [-30 * Math.sin(Math.PI * Math.min(1, t / 3)), -Math.abs(Math.sin(t * 13)) * 1.5, -4, 1, 1],
+    pray: t => { const k = Math.min(1, t / 0.4, (3 - t) / 0.4); return [0, 3 * k, 0, 1, 1 - 0.1 * k]; },
+    coldstart: t => t < 1.6 ? [Math.sin(t * 70) * 1.5, 0, 0, 0.97, 0.97] : [0, -Math.abs(Math.sin((t - 1.6) * Math.PI * 2)) * 12, 0, 1, 1],
+    mop: t => { const w = Math.sin(t * Math.PI * 2); return [w * 8, 0, w * 6, w > 0 ? 1 : -1, 1]; },
+    pitch: t => [0, -Math.abs(Math.sin(t * Math.PI * 2)) * 5, Math.sin(t * 6) * 3, 1, 1]
   };
   const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   // The picture to move: a fighter's sprite, a seat's champion, else whatever's marked theirs.
@@ -124,20 +143,61 @@
     return [`.rd-fighter[data-peer="${q}"] .rd-spr`, `.pt-mem[data-peer="${q}"] .pt-stage > .champ-spr`]
       .map(s => document.querySelector(s)).find(vis) || null;
   }
-  const acts = {};                      // peer -> { raf, el }
+  // ---------- PixelLab dances on a seat ----------
+  // The leads' plain pixel bodies have real frames for some actions (tools/dance_art.py): DN frames in one strip, each
+  // PAD times the standing sprite's size with the feet on the bottom, the first frame the sprite itself. An outfit or a
+  // look (frames can't be recoloured) and the vector build keep the code moves.
+  const DANCES = ['dance', 'wave', 'cheer'], DLEADS = ['kai', 'mira', 'seoyeon', 'dutch'], DN = 9, PAD = [1.8, 1.25];
+  E.danceSrc = (id, lead) => `assets/img/emote/${id}-${lead}.webp`;
+  function framed(el, id) {
+    if (!el || window.SD_VECTOR || !DANCES.includes(id)) return null;
+    const st = el.parentNode;
+    if (!st || !st.classList || !st.classList.contains('pt-stage')) return null;
+    const lead = st.dataset.spr, wear = st.dataset.wear || '';
+    return DLEADS.includes(lead) && !/(^| )(outfit|look)-/.test(wear) ? E.danceSrc(id, lead) : null;
+  }
+  // Which frame, t seconds into secs at 10 a second: in through the first three, round the rest and back, out again.
+  function frameAt(t, secs) {
+    const i = Math.floor(t * 10), n = Math.floor(secs * 10), loop = (DN - 3) * 2 - 2;
+    if (i < 3) return i;
+    if (i >= n - 3) return Math.max(0, n - 1 - i);
+    const k = (i - 3) % loop;
+    return 3 + (k < DN - 3 ? k : loop - k);
+  }
+
+  const acts = {};                      // peer -> { raf, el, pic }
+  function settle(a) {
+    if (a.el) { a.el.style.transform = ''; a.el.style.visibility = ''; }
+    if (a.pic) { a.pic.remove(); a.pic = null; }
+  }
   function act(peer, id) {
     const old = acts[peer];
-    if (old) { cancelAnimationFrame(old.raf); if (old.el) old.el.style.transform = ''; delete acts[peer]; }
+    if (old) { cancelAnimationFrame(old.raf); settle(old); delete acts[peer]; }
     if (!id) return;
-    const a = { raf: 0, el: null }, t0 = performance.now(), secs = E.EMOTES[id].secs, f = MOVE[id];
+    css();
+    const a = { raf: 0, el: null, pic: null }, t0 = performance.now(), secs = E.EMOTES[id].secs, f = MOVE[id];
     acts[peer] = a;
+    let im = null;
     // Like the bubble, it finds the picture again every frame, so the party room's redraws don't stop it.
     const step = () => {
       const t = (performance.now() - t0) / 1000, el = body(peer);
-      if (a.el && a.el !== el) a.el.style.transform = '';
+      if (a.el && a.el !== el) settle(a);
       a.el = el;
-      if (t >= secs) { if (el) el.style.transform = ''; if (acts[peer] === a) delete acts[peer]; return; }
-      if (el) { const [x, y, r, sx, sy] = f(t); el.style.transformOrigin = '50% 100%'; el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${sx.toFixed(3)},${sy.toFixed(3)})`; }
+      if (t >= secs) { settle(a); if (acts[peer] === a) delete acts[peer]; return; }
+      const src = framed(el, id);
+      if (src && (!im || im.dataset.src !== src)) { im = new Image(); im.dataset.src = src; im.src = src; }
+      if (el && src && im.complete && im.naturalWidth) {
+        // The frames, over the seat's own picture (hidden meanwhile), feet on the same line.
+        const r = el.getBoundingClientRect(), w = r.width * PAD[0], h = r.height * PAD[1];
+        if (!a.pic) { a.pic = document.createElement('div'); a.pic.className = 'emo-dance'; a.pic.dataset.for = peer; a.pic.dataset.emo = id; document.body.appendChild(a.pic); }
+        Object.assign(a.pic.style, { left: (r.left + r.width / 2 - w / 2) + 'px', top: (r.bottom - h) + 'px', width: w + 'px', height: h + 'px',
+          backgroundImage: `url(${src})`, backgroundSize: `${DN * 100}% 100%`, backgroundPosition: `${frameAt(t, secs) / (DN - 1) * 100}% 0` });
+        el.style.visibility = 'hidden'; el.style.transform = '';
+      }
+      else if (el) {
+        if (a.pic) { a.pic.remove(); a.pic = null; el.style.visibility = ''; }
+        const [x, y, r, sx, sy] = f(t); el.style.transformOrigin = '50% 100%'; el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${sx.toFixed(3)},${sy.toFixed(3)})`;
+      }
       a.raf = requestAnimationFrame(step);
     };
     step();

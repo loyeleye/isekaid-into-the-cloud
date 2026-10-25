@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
       return box && { n: box.querySelectorAll('[data-emo]').length, acts: box.querySelectorAll('.emo-grid')[1].querySelectorAll('[data-emo]').length, more: (box.querySelector('small') || {}).textContent || '', open: btn.getAttribute('aria-expanded'), focus: document.activeElement && document.activeElement.dataset.emo };
     });
     check(pick && pick.n === 9 && pick.acts === 3 && pick.open === 'true' && pick.focus === 'heart', `${mode}: the Emote button opens the free six and three free actions, focused (${JSON.stringify(pick)})`);
-    check(pick && /4 more emote packs/.test(pick.more), `${mode}: the picker says where the rest are`);
+    check(pick && /6 more emote packs/.test(pick.more), `${mode}: the picker says where the rest are`);
 
     const sent = await a.evaluate(p => {
       document.querySelector('.emo-pick [data-emo="heart"]').click();
@@ -99,6 +99,24 @@ const server = http.createServer((req, res) => {
       return Math.abs(r.left + r.width / 2 - 640) < 4 && r.bottom <= 512;
     }, pa);
     check(fight, `${mode}: in a fight the bubble is over your fighter`);
+    // A lead's plain pixel body dances in PixelLab frames (tools/dance_art.py); in a look, or in the vector build, it
+    // keeps the code moves.
+    const frames = await a.evaluate(async () => {
+      const seat = (peer, wear) => { const m = document.createElement('div'); m.className = 'pt-mem'; m.dataset.peer = peer; m.style.cssText = 'position:fixed;left:300px;top:300px';
+        m.innerHTML = `<div class="pt-stage" data-spr="kai" data-wear="${wear}"><div class="champ-spr" style="width:63px;height:104px"></div></div>`; document.body.appendChild(m); return m; };
+      const m1 = seat('fr-plain', ''), m2 = seat('fr-look', 'look-santa');
+      SD.emote.show('fr-plain', 'dance'); SD.emote.show('fr-look', 'dance');
+      await new Promise(r => setTimeout(r, 600));
+      const pic = document.querySelector('.emo-dance[data-for="fr-plain"]'), spr = m1.querySelector('.champ-spr'), spr2 = m2.querySelector('.champ-spr');
+      const out = { pic: !!pic && /dance-kai\.webp/.test(pic.style.backgroundImage), hidden: spr.style.visibility === 'hidden',
+        look: !document.querySelector('.emo-dance[data-for="fr-look"]') && /translate/.test(spr2.style.transform) };
+      await new Promise(r => setTimeout(r, 3800));
+      out.gone = !document.querySelector('.emo-dance') && spr.style.visibility === '';
+      m1.remove(); m2.remove();
+      return out;
+    });
+    if (vector) check(!frames.pic && frames.look, `vector: dances stay code moves (${JSON.stringify(frames)})`);
+    else check(frames.pic && frames.hidden && frames.look && frames.gone, `pixel: a lead's plain body dances in frames, a look keeps the code moves, then it settles (${JSON.stringify(frames)})`);
     await a.waitForTimeout(2600);
 
     // An action: the seat's picture moves on both tabs (dance flips and hops), then settles back.
@@ -106,14 +124,14 @@ const server = http.createServer((req, res) => {
       const sent = SD.emote.send('dance'), locked = SD.emote.send('groove');
       await new Promise(r => setTimeout(r, 700));
       const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`);
-      return { sent, locked, moving: !!el && /translate/.test(el.style.transform), bub: !!document.querySelector(`.emo-bub[data-for="${p}"]`) };
+      return { sent, locked, moving: !!el && (/translate/.test(el.style.transform) || !!document.querySelector(`.emo-dance[data-for="${p}"]`)), bub: !!document.querySelector(`.emo-bub[data-for="${p}"]`) };
     }, pa);
-    check(danced.sent && danced.moving && !danced.bub, `${mode}: an action moves your seat's picture, no bubble (${JSON.stringify(danced)})`);
+    check(danced.sent && danced.moving && !danced.bub, `${mode}: an action moves your seat's picture (code moves, or a lead's dance frames), no bubble (${JSON.stringify(danced)})`);
     check(danced.locked === false, `${mode}: an action from an unbought pack can't be sent`);
-    const otherDance = await b.waitForFunction(p => { const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`); return el && /scale\(-1/.test(el.style.transform); }, pa, { timeout: 3000 }).then(() => true).catch(() => false);
+    const otherDance = await b.waitForFunction(p => { const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`); return el && (/scale\(-1/.test(el.style.transform) || !!document.querySelector(`.emo-dance[data-for=\"${p}\"]`)); }, pa, { timeout: 3000 }).then(() => true).catch(() => false);
     check(otherDance, `${mode}: the other tab sees you dance`);
     await a.waitForTimeout(4200);
-    check(await b.evaluate(p => (document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`) || {}).style.transform === '', pa), `${mode}: and the dance ends`);
+    check(await b.evaluate(p => { const el = document.querySelector(`.pt-mem[data-peer="${p}"] .pt-stage > .champ-spr`); return !!el && el.style.transform === '' && el.style.visibility === '' && !document.querySelector('.emo-dance'); }, pa), `${mode}: and the dance ends`);
 
     const shop = await a.evaluate(() => {
       SD.state.save.mp = SD.state.save.mp || {}; SD.state.save.mp.marks = { n: 500, owned: [] };
