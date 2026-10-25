@@ -19,17 +19,19 @@ With this, Cloudflare redeploys the game by itself every time a PR is merged int
 
 1. **Create a Cloudflare account** at https://dash.cloudflare.com/sign-up. The Workers Free plan needs no card.
 2. **Create the Worker from the repo.** In the dashboard, open **Workers & Pages** and select **Create application**. Choose **GitHub**, sign in to GitHub when asked, and let Cloudflare's GitHub app see `loyeleye/isekaid-into-the-cloud` (picking only that repo is enough). Then select the repo.
-3. **Fill in the project settings** on the next screen:
+3. **Fill in the "Create and deploy" form:**
    - **Project name:** `isekaid-into-the-cloud`. It has to match `"name"` in `cloudflare/wrangler.jsonc` exactly, or every build fails.
-   - **Root directory** (under the advanced or build settings): `cloudflare`. This is the important one: the Wrangler file is in that folder, not at the top of the repo.
    - **Build command:** leave empty. The game has no build step.
    - **Deploy command:** `npx wrangler deploy` (the default).
-   - **Production branch:** `main`.
-4. Select **Save and Deploy** (or **Deploy**). The first build takes a few minutes: it installs Wrangler from `cloudflare/package.json` and uploads about 3,000 files from `game/`. You can watch it under the Worker's **Deployments** tab, **View build history**.
+   - **Preview command:** leave as it is; it's unused once previews are off.
+   - **Enable Preview builds:** turn it **off**. Feature threads push many branches, and with previews on each push builds a separate copy. Only `main` needs deploying.
+   - **Advanced settings > Path:** `cloudflare` (spelled out in full). This is the important one: the Wrangler file is in that folder, not at the top of the repo.
+   - **API token:** leave **Create new token**; Cloudflare makes one for the builds by itself.
+   - There is no production branch field on this form. Cloudflare uses the repo's default branch, `main`. To check or change it later: the Worker's **Settings** > **Build** > **Branch control**, which also has the preview builds switch.
+4. Select **Deploy**. The first build takes a few minutes: it installs Wrangler from `cloudflare/package.json` and uploads about 3,000 files from `game/`. You can watch it under the Worker's **Deployments** tab, **View build history**.
 5. **Open the game.** When the build is green, the Worker's page shows its address, like `https://isekaid-into-the-cloud.<your-subdomain>.workers.dev`. The first time, Cloudflare may ask you to pick the `<your-subdomain>` part for your account.
-6. **Turn off preview builds** (recommended). Go to the Worker's **Settings** > **Build** > **Branch control** and clear **Enable Preview Builds**. Feature threads push many branches; with previews on, each push builds a separate preview copy. Only `main` needs deploying.
 
-If you created the Worker another way first (for example with `npx wrangler deploy` below), connect it instead: **Workers & Pages** > `isekaid-into-the-cloud` > **Settings** > **Builds** > **Connect**, and use the same settings as step 3.
+If you created the Worker another way first (for example with `npx wrangler deploy` below), connect it instead: **Workers & Pages** > `isekaid-into-the-cloud` > **Settings** > **Builds** > **Connect**, and use the same settings as step 3 (the dashboard may call the root directory **Path** or **Root directory**).
 
 ## Setup: deploy from your computer
 
@@ -53,6 +55,22 @@ After the first deploy, on the `workers.dev` address:
 3. Multiplayer: open the game in two different browsers (or one normal and one private window), take both to the Deny Mines cave mouth, host a party in one and join it from the other.
 
 Saves live in each browser and belong to the site's address, so a save on the claude.ai artifact doesn't appear on the Cloudflare copy, and the `workers.dev` address and a custom domain each keep their own.
+
+## An anonymous copy
+
+`npm run deploy:anon` deploys a copy of the game with nothing in its files that names you, to share it without your name on it (Reddit, Discord). Deploy it from a **separate free Cloudflare account** whose email isn't tied to you, with a `workers.dev` subdomain that doesn't name you either, and deploy it by hand from your computer. Don't connect that account to GitHub or use `deploy:anon` as a dashboard deploy command: the connection would tie the anonymous account to your GitHub account.
+
+```sh
+cd cloudflare
+npm install
+npx wrangler logout     # if you're signed in to your main account
+npx wrangler login      # sign in to the separate account
+npm run deploy:anon
+```
+
+`anon-build.js` copies `game/` to `cloudflare/dist-anon/` (ignored by git) and, in every text file, replaces the author's first name (code comments, the credits file), unlinks the links to the author's GitHub repositories and replaces their names, and points any claude.ai link to the game at the site itself. It stops the deploy if any of them is left. `wrangler.anon.jsonc` is `wrangler.jsonc` serving that copy. To update the anonymous copy, pull the latest `main` and run `npm run deploy:anon` again while signed in to that account.
+
+What it can't hide: if the repository is public, searching the game's title or its dialogue finds it. Players never see commit authors, the account's email, or how it was deployed.
 
 ## Try it locally first
 
@@ -92,7 +110,7 @@ https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
 ## If something goes wrong
 
 - **The build fails right away about the Worker's name:** the project name in the dashboard isn't `isekaid-into-the-cloud`. Rename it, or change `"name"` in `wrangler.jsonc` to match, and push.
-- **The build says it can't find a Wrangler configuration, or opens an "automatic configuration" PR:** the root directory isn't set to `cloudflare`. Close that PR without merging, fix the root directory in **Settings** > **Builds**, and retry the build.
+- **The build says it can't find a Wrangler configuration, or opens an "automatic configuration" PR:** the root directory (**Path**) isn't set to `cloudflare`, or is misspelled. Close that PR without merging, fix the root directory in **Settings** > **Builds**, and retry the build.
 - **The game loads but no one can find a party:** check `/api/hello` (step 2 of "Check it works"). If it doesn't answer, look at the latest deploy's log; if it answers 429, a free daily limit is used up until 00:00 UTC.
 - **A file in `game/` is over 25 MiB:** the deploy fails. Split or compress it before merging.
 
