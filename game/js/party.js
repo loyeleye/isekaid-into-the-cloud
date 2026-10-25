@@ -16,6 +16,10 @@
 //                              leader's Add a bot, in the open seat; botChamp(peer, champ): the leader picks a bot's
 //                              champion (its card's Change champion turns the roster into that bot's picker)
 //     P.leave()             -> stops listening
+//   Swaps (Ladi, 2026-10-25: a full party had no free champion to move to): tapping a champion another player holds
+//   asks them to swap; they see Swap / No thanks on their page, and a yes trades the two champions at once. Tapping a
+//   bot's champion swaps with the bot straight away (the mode gives it yours: raid.js fixBots), and the leader picking
+//   for a bot can swap it with another bot's.
 //   While joined, the room's emotes show over the seats and the raid's fighters, and the bar has an Emote button (js/emote.js).
 //
 // Names: you arrive as the first free "Player N" (N counts from your seat), or as the name you saved last time
@@ -77,6 +81,29 @@
 .pt-champ.sel { background: var(--mi-sun); box-shadow: 0 3px 0 var(--mi-ink); }
 .pt-champ.taken { background: #f3f0f8; cursor: not-allowed; }
 .pt-champ.taken::after { content: attr(data-by); position: absolute; top: 4px; right: 4px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 9px var(--f-body, system-ui); background: var(--mi-ink); color: #fff; border-radius: 6px; padding: 1px 4px; }
+.pt-champ.taken.swap { cursor: pointer; }
+.pt-champ.asked { outline: 3px dashed var(--mi-ink); outline-offset: 2px; }
+.pt-swap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 600 13px var(--f-body, system-ui); background: var(--mi-sun); color: var(--mi-ink); border: 2px solid var(--mi-ink); border-radius: 10px; padding: 6px 10px; }
+.pt-swap span { flex: 1 1 180px; }
+.pt-sw-back { position: fixed; inset: 0; z-index: 60; background: rgba(24, 18, 40, .45); display: grid; align-items: end; justify-items: center; padding: 16px; }
+@media (min-width: 560px) { .pt-sw-back { align-items: center; } }
+.pt-sw { width: min(380px, 100%); background: #fff; color: var(--mi-ink); border: 3px solid var(--mi-ink); border-radius: 18px; box-shadow: 0 6px 0 var(--mi-ink); padding: 16px; display: grid; gap: 12px; }
+.pt-sw.in { animation: pt-sw-in .18s ease-out; }
+@keyframes pt-sw-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pt-sw.in { animation: none; } .pt-sw-time i { animation: none !important; } }
+.pt-sw h3 { margin: 0; font: 700 18px var(--f-head, system-ui); }
+.pt-sw p { margin: 0; font: 600 14px var(--f-body, system-ui); }
+.pt-sw-pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; justify-items: center; gap: 6px; }
+.pt-sw-pair figure { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.pt-sw-pair .pic { height: 72px; display: grid; place-items: end center; }
+.pt-sw-pair figcaption { font: 700 12px var(--f-body, system-ui); text-align: center; } .pt-sw-pair figcaption small { display: block; font-weight: 600; color: var(--mi-muted); }
+.pt-sw-pair .arrow { font: 700 22px var(--f-head, system-ui); align-self: center; }
+.pt-sw-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pt-sw-acts .mi-btn { min-height: 44px; width: 100%; }
+.pt-sw-time { height: 6px; border-radius: 3px; background: #ece8f3; overflow: hidden; }
+.pt-sw-time i { display: block; height: 100%; background: var(--mi-ink); transform-origin: left; animation: pt-sw-t linear forwards; }
+@keyframes pt-sw-t { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.pt-sw small.more { color: var(--mi-muted); font: 600 12px var(--f-body, system-ui); }
 .pt-champ.lock { background: #ece8f3; cursor: not-allowed; }
 .pt-champ.lock .pic { filter: brightness(0) opacity(.35); }
 .pt-deck { display: grid; gap: 8px; }
@@ -150,11 +177,19 @@
     let champ = null, ready = false, named = false, warm = false;
     // Set when someone here already had this player's champion: { was, by }, for a line saying why it changed.
     let bumped = null;
+    // Swaps. ask: the one this player asked for, { to, nick, want, give }; offers: asks from others, by their peer,
+    // { nick, give, want } (give: what they'd hand over); grace: right after a swap, both still show the old champions
+    // for a moment, so that clash is let be until it ends; said: a line about the last ask's answer.
+    let ask = null, grace = null, said = null, dialogFor = null, backTo = null;
+    const offers = {}, offerT = {};
+    // How long a swap ask stays up before it counts as a no.
+    const SWAP_WAIT = 20000;
+    const swapTo = (champId, peer) => { grace = { peer, champ: champId, until: Date.now() + 4000 }; champ = champId; bumped = null; CH.setMine(champId); };
     // The leader's page only: the bot whose champion the roster is picking right now (its peer key), else null.
     let editing = null, refocus = null;
     // When this player arrived: in a clash of names or champions, whoever came later gives way.
     const since = Date.now();
-    const unsub = [];
+    const unsub = [() => Object.values(offerT).forEach(clearTimeout)];
     const members = () => room.peers().filter(p => p.presence && p.presence.kind === kind)
       .map(p => ({ peer: p.peer, isMe: p.isMe, nick: p.isMe ? me.nick : net.clean(p.presence.nick, 24) || 'A hero', champ: CH && CH.get(p.isMe ? champ : p.presence.champ) ? (p.isMe ? champ : p.presence.champ) : null, ready: p.isMe ? ready : !!p.presence.ready, since: p.isMe ? since : +p.presence.since || 0,
         wear: SD.wear ? (p.isMe ? SD.wear.worn() : SD.wear.clean(p.presence.wear)) : [] }));
@@ -186,7 +221,14 @@
       // Two players can't share a name or a champion: whoever arrived later gives way.
       const clashN = others().find(m => m.nick.toLowerCase() === me.nick.toLowerCase());
       if (clashN && before(clashN)) { hub.setNick(pickName(), true); changed = true; }
-      const clashC = champ && takenBy(champ);
+      const clashC0 = champ && takenBy(champ);
+      const clashC = clashC0 && !(grace && Date.now() < grace.until && clashC0.peer === grace.peer && champ === grace.champ) ? clashC0 : null;
+      // An ask or offer goes stale once either side's champion changes.
+      const byPeer = k => others().find(m => m.peer === k);
+      // They took this player's champion: they said yes, even if their answer hasn't arrived yet.
+      if (ask && champ === ask.give && byPeer(ask.to) && byPeer(ask.to).champ === ask.give) { const a = ask; ask = null; said = null; swapTo(a.want, a.to); changed = true; }
+      if (ask && (!byPeer(ask.to) || byPeer(ask.to).champ !== ask.want || champ !== ask.give)) { ask = null; changed = true; }
+      Object.keys(offers).forEach(k => { const o = offers[k], m = byPeer(k); if (!m || m.champ !== o.give || champ !== o.want) { delete offers[k]; changed = true; } });
       if (!champ || (clashC && before(clashC)) || !CH.unlocked(champ)) {
         const c = pickChamp();
         if (c !== champ) { if (champ && clashC && before(clashC)) bumped = { was: champ, by: clashC.nick }; champ = c; changed = true; }
@@ -198,6 +240,24 @@
       const d = msg.data || {};
       if (msg.isMe || d.peer !== me.peer || !opts.leader || opts.leader() !== msg.peer) return;
       if (opts.onKick) opts.onKick();
+    }));
+    unsub.push(room.on('swap', msg => {
+      const d = msg.data || {}, m = others().find(x => x.peer === msg.peer);
+      if (msg.isMe || d.to !== me.peer || !m || m.bot) return;
+      if (d.cancel) { clearTimeout(offerT[msg.peer]); if (offers[msg.peer]) { delete offers[msg.peer]; if (opts.onChange) opts.onChange(); } return; }
+      if (d.want !== champ || d.give !== m.champ || !CH.get(d.give)) return;
+      offers[msg.peer] = { nick: m.nick, give: d.give, want: d.want, at: Date.now() };
+      clearTimeout(offerT[msg.peer]);
+      offerT[msg.peer] = setTimeout(() => { if (offers[msg.peer]) { delete offers[msg.peer]; room.emit('swap-re', { to: msg.peer, late: true }); if (opts.onChange) opts.onChange(); } }, SWAP_WAIT);
+      if (opts.onChange) opts.onChange();
+    }));
+    unsub.push(room.on('swap-re', msg => {
+      const d = msg.data || {};
+      if (msg.isMe || d.to !== me.peer || !ask || ask.to !== msg.peer) return;
+      const a = ask; ask = null;
+      if (d.yes && d.give === a.want && d.want === a.give && champ === a.give) { swapTo(a.want, msg.peer); said = null; }
+      else said = d.late ? `${a.nick} didn't answer, so you're still ${CH.get(champ) ? CH.get(champ).name : 'as you were'}.` : `${a.nick} would rather keep ${CH.get(a.want) ? CH.get(a.want).name : 'theirs'}.`;
+      if (opts.onChange) opts.onChange();
     }));
     // Give the room a moment to list who's here before choosing a name, and before deciding it's full.
     const warmT = setTimeout(() => { warm = true; settle(); }, 400);
@@ -237,16 +297,37 @@
       if (list.length < max) seats.push(`<div class="pt-mem empty"><div class="pt-stage"></div><b>Open seat</b><span class="as">${max - list.length > 1 ? `${max - list.length} seats free. ` : ''}Share the code${ctx.listed ? ', or wait for the Quest Board' : ''}${iLead && ctx.addBot ? ', or fill it with a bot' : ''}.</span>${iLead && ctx.addBot ? '<button class="mi-btn sm" type="button" id="pt-bot">Add a bot</button>' : ''}</div>`);
       // Who holds what. A bot's champion stays open to people (the bot moves to a free one); picking for a bot,
       // every champion someone else holds is off.
-      const taken = {}, heldBot = {};
-      list.forEach(m => { if (!m.champ || m === ed || (!ed && m.isMe)) return; if (m.bot && !ed) heldBot[m.champ] = m.nick; else taken[m.champ] = m.nick; });
+      // A champion another person holds can be asked for (a swap); picking for a bot, another bot's can be swapped.
+      const taken = {}, heldBot = {}, swapWith = {};
+      list.forEach(m => {
+        if (!m.champ || m === ed || (!ed && m.isMe)) return;
+        if (m.bot) heldBot[m.champ] = m.nick;
+        else { taken[m.champ] = m.nick; if (!ed && !m.isMe && champ) swapWith[m.champ] = m; }
+      });
       const regions = CH.regions.map(r => {
         const cs = CH.list.filter(c => c.region === r);
         return `<div class="pt-region"><span>${esc(r)}</span>${cs.map(c => {
           const lock = !CH.unlocked(c.id), boss = CH.bossConflict(c.id, ctx.boss), by = taken[c.id], hb = !by && heldBot[c.id];
-          const off = lock || by || boss;
-          return `<button type="button" class="pt-champ${c.id === pick ? ' sel' : ''}${lock ? ' lock' : ''}${by || boss ? ' taken' : ''}${hb ? ' held' : ''}" data-ch="${c.id}" ${by ? `data-by="${esc(by)}"` : boss ? 'data-by="BOSS"' : hb ? `data-by="${esc(hb)}" title="${esc(hb)} will switch to a free champion"` : ''} ${off ? 'aria-disabled="true"' : ''} aria-pressed="${c.id === pick}"><span class="pic" data-spr="${lock ? 'lock:' : ''}${c.id}"></span><b>${lock ? '???' : esc(c.short)}</b>${lock ? `<small>${esc(c.how)}</small>` : boss ? '<small>She\'s the boss</small>' : ''}</button>`;
+          const sw = !lock && !boss && swapWith[c.id] && !CH.bossConflict(champ, ctx.boss) ? swapWith[c.id] : null, asked = sw && ask && ask.to === sw.peer;
+          const off = lock || (by && !sw) || boss;
+          const tip = sw ? (asked ? `Asked ${sw.nick} to swap. Tap again to take it back` : `Ask ${sw.nick} to swap with you`) : hb ? (ed ? `${hb} swaps to ${CH.get(ed.champ) ? CH.get(ed.champ).name : 'this one'}` : `${hb} swaps with you${CH.get(champ) ? ' and plays ' + CH.get(champ).name : ''}`) : '';
+          return `<button type="button" class="pt-champ${c.id === pick ? ' sel' : ''}${lock ? ' lock' : ''}${by || boss ? ' taken' : ''}${sw ? ' swap' : ''}${asked ? ' asked' : ''}${hb ? ' held' : ''}" data-ch="${c.id}" ${sw ? `data-swap="${esc(sw.peer)}" ` : ''}${by ? `data-by="${esc(asked ? 'Asked' : by)}"` : boss ? 'data-by="BOSS"' : hb ? `data-by="${esc(hb)}"` : ''}${tip ? ` title="${esc(tip)}"` : ''} ${off ? 'aria-disabled="true"' : ''} aria-pressed="${c.id === pick}"><span class="pic" data-spr="${lock ? 'lock:' : ''}${c.id}"></span><b>${lock ? '???' : esc(c.short)}</b>${lock ? `<small>${esc(c.how)}</small>` : boss ? '<small>She\'s the boss</small>' : ''}</button>`;
         }).join('')}</div>`;
       }).join('');
+      const nm = id => esc(CH.get(id) ? CH.get(id).name : id);
+      // One ask at a time, oldest first, as a dialog over the room: what you'd play, both answers named for what they do,
+      // Escape or the timer as a no. It redraws in place with the room, so its focus and timer carry on.
+      const oq = Object.keys(offers).sort((a, b) => offers[a].at - offers[b].at), ok0 = oq[0], o0 = ok0 && offers[ok0];
+      const fresh = o0 && dialogFor !== ok0;
+      const dialog = !o0 || ed ? '' : `<div class="pt-sw-back"><div class="pt-sw${fresh ? ' in' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="pt-sw-h" aria-describedby="pt-sw-d" data-from="${esc(ok0)}">
+          <h3 id="pt-sw-h">Swap champions?</h3>
+          <p id="pt-sw-d"><b>${esc(o0.nick)}</b> wants to swap with you. Play as ${nm(o0.give)}?</p>
+          <div class="pt-sw-pair" aria-hidden="true"><figure><span class="pic" data-spr="${esc(o0.want)}"></span><figcaption>${nm(o0.want)}<small>You now</small></figcaption></figure><span class="arrow">→</span><figure><span class="pic" data-spr="${esc(o0.give)}"></span><figcaption>${nm(o0.give)}<small>You'd play</small></figcaption></figure></div>
+          <div class="pt-sw-time" role="presentation" title="It closes on its own if you don't answer"><i style="animation-duration:${SWAP_WAIT}ms;animation-delay:-${Date.now() - o0.at}ms"></i></div>
+          <div class="pt-sw-acts"><button class="mi-btn" type="button" id="pt-swap-no" data-swap-no="${esc(ok0)}">Keep ${nm(o0.want)}</button><button class="mi-btn go" type="button" id="pt-swap-yes" data-swap-yes="${esc(ok0)}">Play as ${nm(o0.give)}</button></div>
+          ${oq.length > 1 ? `<small class="more">${oq.length - 1} more ${oq.length > 2 ? 'asks' : 'ask'} after this one.</small>` : ''}</div></div>`;
+      const swaps = (ask ? `<div class="pt-swap" role="status"><span>Asked ${esc(ask.nick)} to swap ${nm(ask.give)} for ${nm(ask.want)}.</span><button class="mi-btn sm" type="button" id="pt-swap-x">Take it back</button></div>`
+          : said ? `<div class="pt-swap" role="status"><span>${esc(said)}</span></div>` : '');
       const sig = ctx.deck && pick && CH.cards[pick] ? sigCards(pick, ed) : '';
       const why = ctx.startWhy ? ctx.startWhy() : null;
       const notReady = list.filter(m => m.peer !== leaderPeer && !m.ready).length;
@@ -268,8 +349,9 @@
           ${ctx.settings || vis ? `<div class="pt-set">${ctx.settings || ''}${vis}</div>` : ''}</div>
         ${ctx.note ? `<p class="pt-note">${ctx.note}</p>` : ''}
         <div class="pt-members">${seats.join('')}</div>
-        <div class="pt-lbl" id="pt-lbl">${ed ? `<span class="pt-for" aria-live="polite">Choosing for ${esc(ed.nick)} <button class="mi-btn sm pt-chg" type="button" id="pt-done">Done</button></span><small>Tap a champion for ${esc(ed.nick)}, or Done to keep this one.</small>` : `<span aria-live="polite">Your champion</span>${bumped && CH.get(bumped.was) && CH.get(champ) ? `<span class="pt-bump" role="status">${esc(bumped.by)} already has ${esc(CH.get(bumped.was).name)}, so you're ${esc(CH.get(champ).name)} for now. Tap any free champion to change.</span>` : ''}<small>${ctx.deck ? 'Each brings three signature cards to the raid. ' : ''}Two players can't pick the same one; a bot moves aside for you. Reach more of them in the game to unlock them.</small>`}<div class="pt-roster">${regions}</div></div>
+        <div class="pt-lbl" id="pt-lbl">${ed ? `<span class="pt-for" aria-live="polite">Choosing for ${esc(ed.nick)} <button class="mi-btn sm pt-chg" type="button" id="pt-done">Done</button></span><small>Tap a champion for ${esc(ed.nick)}, or Done to keep this one.</small>` : `<span aria-live="polite">Your champion</span>${bumped && CH.get(bumped.was) && CH.get(champ) ? `<span class="pt-bump" role="status">${esc(bumped.by)} already has ${esc(CH.get(bumped.was).name)}, so you're ${esc(CH.get(champ).name)} for now. Tap any free champion to change.</span>` : ''}<small>${ctx.deck ? 'Each brings three signature cards to the raid. ' : ''}Two players can't pick the same one: tap someone else's to ask them to swap. Tap a bot's and you swap with it. Reach more of them in the game to unlock them.</small>`}${swaps}<div class="pt-roster">${regions}</div></div>
         ${sig}
+        ${dialog}
         <div class="pt-bar"><p>${status}</p><div class="pt-acts">${SD.emote ? SD.emote.button() : ''}${btn}</div></div></div></div>`;
       root.querySelectorAll('[data-spr]').forEach(el => {
         const v = el.dataset.spr; if (!v) return;
@@ -293,8 +375,39 @@
         if (b.getAttribute('aria-disabled') === 'true') return;
         if (ed) { const k = ed.peer; editing = null; refocus = k; if (id !== ed.champ) ctx.botChamp(k, id); redraw(); return; }
         if (id === champ) return;
-        champ = id; bumped = null; CH.setMine(id); if (opts.onChange) opts.onChange();
+        const to = b.dataset.swap;
+        if (to) {
+          const m = others().find(x => x.peer === to); if (!m) return;
+          if (ask && ask.to === to) { room.emit('swap', { to, cancel: true }); ask = null; }
+          else { if (ask) room.emit('swap', { to: ask.to, cancel: true }); ask = { to, nick: m.nick, want: id, give: champ }; said = null; room.emit('swap', { to, want: id, give: champ }); }
+          redraw(); return;
+        }
+        if (ask) { room.emit('swap', { to: ask.to, cancel: true }); ask = null; }
+        champ = id; bumped = null; said = null; CH.setMine(id); if (opts.onChange) opts.onChange();
       });
+      root.querySelectorAll('[data-swap-yes]').forEach(b => b.onclick = () => {
+        const k = b.dataset.swapYes, o = offers[k], m = others().find(x => x.peer === k);
+        delete offers[k]; Object.values(offerT).forEach(clearTimeout);
+        if (!o || !m || m.champ !== o.give || champ !== o.want) { redraw(); return; }
+        Object.keys(offers).forEach(j => { room.emit('swap-re', { to: j }); delete offers[j]; });
+        if (ask) { room.emit('swap', { to: ask.to, cancel: true }); ask = null; }
+        room.emit('swap-re', { to: k, yes: true, give: o.want, want: o.give });
+        swapTo(o.give, k); said = null;
+        if (opts.onChange) opts.onChange();
+      });
+      root.querySelectorAll('[data-swap-no]').forEach(b => b.onclick = () => { const k = b.dataset.swapNo; delete offers[k]; clearTimeout(offerT[k]); room.emit('swap-re', { to: k }); redraw(); });
+      const dlg = root.querySelector('.pt-sw');
+      if (dlg) {
+        // A new ask takes focus (on its yes), and focus goes back where it was once the dialog is gone.
+        if (dialogFor !== dlg.dataset.from) { if (!dialogFor) backTo = keep; dialogFor = dlg.dataset.from; root.querySelector('#pt-swap-yes').focus(); }
+        dlg.onkeydown = e => {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); root.querySelector('#pt-swap-no').click(); return; }
+          if (e.key !== 'Tab') return;
+          const bs = [...dlg.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+          e.preventDefault(); bs[(i + (e.shiftKey ? bs.length - 1 : 1)) % bs.length].focus();
+        };
+      } else if (dialogFor) { dialogFor = null; const k = backTo && root.querySelector(backTo); backTo = null; if (k) k.focus(); }
+      const sx = root.querySelector('#pt-swap-x'); if (sx) sx.onclick = () => { if (ask) room.emit('swap', { to: ask.to, cancel: true }); ask = null; redraw(); };
       const stopEdit = () => { refocus = editing; editing = null; redraw(); };
       root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
         if (editing === b.dataset.edit) return stopEdit();

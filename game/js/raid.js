@@ -1666,30 +1666,39 @@
       const taken = Object.keys(G.players).filter(j => j !== k).map(j => G.players[j].n.toLowerCase()).concat(party ? party.members().map(m => m.nick.toLowerCase()) : []);
       if (!taken.includes(c.short.toLowerCase())) b.n = c.short;
     }
-    // The leader picks a bot's champion: any unlocked one nobody else holds (not Kyu against her own boss).
+    // The leader picks a bot's champion: any unlocked one no person holds (not Kyu against her own boss); another bot's is swapped.
     function botChamp(k, c) {
       const CH = SD.champions;
       if (!CH || G.ph !== 'lobby' || G.rs || !isBot(k) || typeof c !== 'string' || !CH.get(c) || !CH.unlocked(c) || CH.bossConflict(c, kyuBoss())) return false;
-      const used = Object.keys(G.players).filter(j => j !== k).map(j => G.players[j].c).concat(party ? party.members().map(m => m.champ) : []);
+      const used = Object.keys(G.players).filter(j => j !== k && !isBot(j)).map(j => G.players[j].c).concat(party ? party.members().map(m => m.champ) : []);
       if (used.includes(c)) return false;
+      // Another bot's champion: the two bots swap (a full party has no free one to move to).
+      const other = botKeys().find(j => j !== k && G.players[j].c === c);
+      if (other) { const was = G.players[k].c; G.players[other].c = was; G.players[other].deck = botDeck(was); nameBot(other); }
       G.players[k].c = c; G.players[k].deck = botDeck(c); nameBot(k);
       return true;
     }
     // A bot gives way: a champion a human holds (or one locked on this page, or Kyu against her own boss) is swapped for
     // the first free one, with that champion's deck. Returns whether anything changed.
+    // A person who takes a bot's champion swaps with it: the bot gets the champion that person just left (Ladi,
+    // 2026-10-25), else the first free one. wasC: each person's champion as of the last fix.
+    const wasC = {};
     function fixBots() {
       const CH = SD.champions;
       if (!CH || G.ph !== 'lobby' || G.rs) return false;
-      const used = new Set(Object.keys(G.players).filter(k => !isBot(k)).map(k => G.players[k].c).concat(party ? party.members().map(m => m.champ) : []));
+      const people = Object.keys(G.players).filter(k => !isBot(k)).map(k => ({ peer: k, c: G.players[k].c })).concat(party ? party.members().map(m => ({ peer: m.peer, c: m.champ })) : []);
+      const used = new Set(people.map(m => m.c));
       let changed = false;
       botKeys().forEach(k => {
-        const b = G.players[k], ok = id => CH.get(id) && CH.unlocked(id) && !used.has(id) && !CH.bossConflict(id, kyuBoss());
-        if (!ok(b.c)) {
-          const c = CH.list.find(x => ok(x.id) && !botKeys().some(j => j !== k && G.players[j].c === x.id));
+        const b = G.players[k], ok = id => CH.get(id) && CH.unlocked(id) && !used.has(id) && !CH.bossConflict(id, kyuBoss()) && !botKeys().some(j => j !== k && G.players[j].c === id);
+        if (!(CH.get(b.c) && CH.unlocked(b.c) && !used.has(b.c) && !CH.bossConflict(b.c, kyuBoss()))) {
+          const took = people.find(m => m.c && m.c === b.c), left = took && wasC[took.peer];
+          const c = left && ok(left) ? CH.get(left) : CH.list.find(x => ok(x.id));
           b.c = c ? c.id : null; b.deck = botDeck(b.c); nameBot(k); changed = true;
         }
         used.add(b.c);
       });
+      people.forEach(m => { if (m.c) wasC[m.peer] = m.c; });
       return changed;
     }
     const RANK = { basic: 0, common: 1, uncommon: 2, rare: 3 };

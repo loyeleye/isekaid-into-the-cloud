@@ -8,6 +8,7 @@
 //                                      PAY.rightCap), times PAY.withHuman when humans >= 2. Adds them, returns n.
 //   SD.marks.ITEMS                     the shop: [{ id, name, slot, tier, cost }]
 //   SD.marks.owns(id), owned(), buy(id) -> true when bought; never twice (a pack and its emotes count as each other)
+//   SD.marks.set(n)                    the Debug menu's: sets the balance to n (0 to 999999)
 //   SD.marks.price(id)                 its price (a pack's is full price even when you have some of it)
 //
 // Saved at S.save.mp.marks = { n, owned: [id] }. Where the full profile's economy is loaded (js/economy.js), a buy is
@@ -78,6 +79,11 @@
   M.earned = ({ right, humans } = {}) => {
     const P = M.PAY;
     return (P.clear + P.perRight * Math.min(Math.max(right | 0, 0), P.rightCap)) * ((humans | 0) >= 2 ? P.withHuman : 1);
+  };
+  // The Debug menu's Raid Marks box (js/demo-select.js): any whole amount from 0 up. Returns the new balance.
+  M.set = function (n) {
+    st().n = Math.max(0, Math.min(999999, Math.floor(+n) || 0)); S.persist();
+    return st().n;
   };
   M.pay = function (r) {
     const n = M.earned(r);
