@@ -748,6 +748,8 @@ body.cut #dialog[data-who="narr"] .dlg-box { background: rgba(43, 35, 64, .82); 
 
 /* Combat */
 .combat { display: grid; gap: 10px; padding-top: 6px; }
+/* The two halves of a fight (enemy side, hand side): no box of their own, except in a phone's landscape layout (js/ux-phone.js). */
+.combat > :is(.cb-l, .cb-r) { display: contents; }
 .foe-zone { display: flex; gap: 14px; align-items: center; padding: 12px; border: 3px solid var(--ink); border-radius: 16px; background: linear-gradient(90deg, #ffe3ec, #fff); box-shadow: 0 4px 0 var(--ink); }
 .foe-zone:has(.stage) { display: grid; gap: 10px; padding: 0 0 12px; overflow: hidden; background: #fff; }
 .foe-zone:has(.stage) .foe-info { padding: 0 12px; }

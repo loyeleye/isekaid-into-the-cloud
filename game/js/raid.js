@@ -2441,15 +2441,15 @@
       // Runbook Ready: the cards this player is looking at, to take some into hand.
       const peek = mine && mine.peek.length ? `<div class="rd-peek"><p class="muted small">Runbook Ready: take ${mine.take} of these. The rest go to the bottom.</p><div class="cardgrid pick">${mine.peek.map((id, i) => `<div ${mine.ready ? '' : sendAttr({ k: 'peek', i })} class="rd-pickc">${chtml(id, { i })}</div>`).join('')}</div></div>` : '';
       paint(`${hud()}<div class="combat${G.tier === 'boss' ? ' bossfight' : ''}">
-        <div class="foe-zone">${stageHtml(e)}${info}</div>
+        <div class="cb-l"><div class="foe-zone">${stageHtml(e)}${info}</div>
         <div class="clog" aria-live="polite">${esc(G.log || 'Plan together, then play.')}</div>
-        <div class="me-zone"><div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div><div class="infra">${slots}</div></div>
-        ${mates ? `<div class="rd-team">${mates}</div>` : ''}
+        <div class="me-zone"><div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div><div class="infra">${slots}</div></div></div>
+        <div class="cb-r">${mates ? `<div class="rd-team">${mates}</div>` : ''}
         ${mine ? `<div class="hand-zone"><div class="hand-top"><div class="energy" aria-label="Capacity ${mine.cap}"><b>${mine.cap}</b><span>CAP</span></div>
             <span class="muted small">Turn ${G.turn} · Draw ${mine.draw.length} · Discard ${mine.disc.length}</span>${stChips(mine.st, ME_ST)}
             <button class="${mine.ready ? 'ghost' : 'primary'}" type="button" id="rd-ready">${mine.ready ? 'Not ready yet' : 'Ready'}</button></div>
           ${mine.ready ? '<p class="rd-wait">Waiting for the others. The foe acts when everyone is ready.</p>' : ''}${incoming}${peek}${asking}${chooser}
-          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}
+          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
       </div>`);
       // A rare draws its question here (the pair's partner answers the same one); a card that names a player asks who.
       const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };

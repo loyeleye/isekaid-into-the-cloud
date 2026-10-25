@@ -1329,7 +1329,7 @@
     const pct = Math.max(0, run.sla / S.maxSla() * 100);
     $('#run').innerHTML = `
       <div class="combat${C.boss ? ' bossfight' : ''}">
-        <div class="foe-zone">
+        <div class="cb-l"><div class="foe-zone">
           ${stageHtml(e, foeCol)}
           ${grouped() ? groupInfoHtml() : `<div class="foe-info">
             <div class="foe-name">${U.esc(e.name)} ${C.boss ? '<span class="tier boss">BOSS</span>' : C.elite ? '<span class="tier elite">ELITE</span>' : '<span class="tier">INCIDENT</span>'}</div>
@@ -1345,13 +1345,13 @@
           <div class="hud-sla"><span>SLA</span><div class="bar sla"><i style="width:${pct}%"></i></div><b>${Math.max(0, run.sla)}/${S.maxSla()}</b></div>
           <div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div>
           <div class="infra">${[0, 1, 2, 3].map(i => C.infra[i] ? `<span class="slot on" title="${U.esc(SD.cards[C.infra[i].id].text)}">${U.esc(SD.cards[C.infra[i].id].name)}</span>` : '<span class="slot">Infra slot</span>').join('')}</div>
-        </div>
-        <div class="hand-zone">
+        </div></div>
+        <div class="cb-r"><div class="hand-zone">
           <div class="hand-top"><div class="energy" aria-label="Capacity ${C.energy}"><b>${C.energy}</b><span>CAP</span></div>
             <span class="muted small">Draw ${C.draw.length} · Discard ${C.disc.length}</span>
             ${hook('combatButtons', C) || ''}<button class="primary" id="end-turn">End turn</button></div>
           <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy })).join('')}</div>
-        </div>
+        </div></div>
       </div>`;
     $('#run').querySelectorAll('.hand .card').forEach(el => {
       el.onclick = () => playCard(+el.dataset.i);
