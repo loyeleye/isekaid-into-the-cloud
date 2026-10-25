@@ -104,6 +104,7 @@ Everything else is drawn in code: portraits for characters without a painted one
 | `m-c6-sad` | "At the end of hope (loop)" | Emma_MA, https://opengameart.org/content/at-the-end-of-hope | CC0 | Chapter 6's sad moments (`c6sad`) |
 | `m-c6-mirror` | "Mirror Lake" | Joth, https://opengameart.org/content/mirror-lake | CC0 | The lake (`c6mirror`) |
 | `m-journey` | "Orchestral: Our Journey Awaits" | Techspired Minds (joschjava), https://opengameart.org/content/orchestral-our-journey-awaits | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Story moments (`journey`) |
+| `m-multiplayer` | "Medieval: King's Feast" (the author's loop version, raised 4.5 dB) | RandomMind, https://opengameart.org/content/medieval-kings-feast | CC0 | The Multiplayer screen and its parties (`multiplayer`) |
 | `m-goddess` | "Fluffing a Duck" | Kevin MacLeod (incompetech.com) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | Uptima's scenes (`goddess`) |
 | `m-village` | "Hot Springs Town" | Kistol, https://opengameart.org/content/hot-springs-town | CC0 | Town |
 | `m-quest` | "Cozy Puzzle In-Game 1" | MintoDog, https://opengameart.org/content/cozy-puzzle-in-game-1 | CC0 | Quests and lessons |

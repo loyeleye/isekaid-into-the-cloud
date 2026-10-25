@@ -214,7 +214,9 @@
     // yoga studio, Aigerim's card shop, and Kagemaru's cave (a music box). Rooms otherwise keep the music from outside.
     isles: 'm-isles', gym: 'm-gym', studio: 'm-studio', shop: 'm-shop', cave: 'm-cave',
     // Kyu's themes, from the first game's chapter 10: hers, her flashbacks, and the fight with her.
-    kyu: 'm-kyu', kyusad: 'm-kyusad', kyuboss: 'm-kyuboss' };
+    kyu: 'm-kyu', kyusad: 'm-kyusad', kyuboss: 'm-kyuboss',
+    // The Multiplayer screen's own theme (js/raid-finder.js), so the party list doesn't borrow the first game's town.
+    multiplayer: 'm-multiplayer' };
   // A carefree music-box tune held in reserve as Freya's Chapter 1 theme, in case the waltz rotting doesn't land
   // (Ladi, Oct 22); the 🐞 Debug menu switches it in for this browser (js/demo-select.js).
   const THEMES = { waltz: 'm-c1-freya', tune: 'm-c1-freya-tune' };
@@ -225,7 +227,7 @@
   try { const v = localStorage.getItem('sd-freya-theme'); if (THEMES[v]) SONG.freya = THEMES[v]; } catch (e) { /* the waltz */ }
   // Songs without a synth version fall back to this one if the file fails to load.
   const FALLBACK = { journey: 'title', quest: 'town', story: 'town', guild: 'town', freya: 'story', virus: 'story', camp: 'story', road: 'explore', brookfall: 'explore', temple: 'explore', map1: 'explore', map2: 'explore', map3: 'explore', map4: 'explore', map5: 'explore',
-    isles: 'explore', gym: 'explore', studio: 'heaven', shop: 'town', cave: 'isles', kyu: 'story', kyusad: 'story', kyuboss: 'boss' };
+    isles: 'explore', gym: 'explore', studio: 'heaven', shop: 'town', cave: 'isles', kyu: 'story', kyusad: 'story', kyuboss: 'boss', multiplayer: 'town' };
   // Per-song loudness: the piano is gentle on purpose, and the chapter maps are mastered hotter than explore.
   const SONG_VOL = { map2: 0.6, map3: 0.7, map4: 0.65, map5: 0.65, studio: 0.8, shop: 0.85, cave: 0.8 };
   const JING = { victory: 'j-victory', defeat: 'j-defeat', gary: 'j-gary' };
