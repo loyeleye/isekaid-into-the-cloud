@@ -600,7 +600,8 @@
   // its puzzle, the rest. The climb-only slice (js/vec-ch2.js) has its own version; the viewer lists all three.
   const climbBunker = SD.reel.get('2/bunker');
   cut.def('bunker', 'The bunker', v => v === 'climb' ? SD.reel.steps(climbBunker) : vnL(v === 'after' ? [
-      ['cut', 'the-bunker'],
+      // After the puzzle the script opens on black: back to Seymour at the slot, or his first line plays on a black screen.
+      ['cut', 'the-bunker'], ['cg', 'cut-the-bunker-5'],
       ['seymour', 'Compliance mode would have done, if anyone had set it before she came. Nobody did. So the tape stays down here, where nothing can reach it.'],
       ['dutch', 'So we take root back.'],
       ['seymour', 'And keep the tape where nobody can touch it. Yes. Close the hatch on your way out.']

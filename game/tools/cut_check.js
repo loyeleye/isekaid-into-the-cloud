@@ -50,7 +50,7 @@ function check(inline) {
   (function walk(o, depth) {
     if (!o || typeof o !== 'object' || seen.has(o) || depth > 6) return;
     seen.add(o);
-    if (isSteps(o)) return scripts.push(o);
+    if (isSteps(o)) return scripts.push(Object.assign(o, { name: 'chapter 3-5 data' }));
     Object.values(o).forEach(v => walk(v, depth + 1));
   })([SD.c3story, SD.c4data, SD.c5data], 0);
   // chapter 2's scripts, as js/reel.js builds them for each lead and version
@@ -59,7 +59,7 @@ function check(inline) {
   SD.reel.list.filter(e => /^2/.test(e.ch) && !e.run).forEach(e => (e.alts || [[null, undefined]]).forEach(([, arg]) => LEADS.forEach(lead => {
     S.save = JSON.parse(snap);
     S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
-    scripts.push(SD.reel.steps(e, arg));
+    scripts.push(Object.assign(SD.reel.steps(e, arg), { name: e.key + (arg === undefined ? '' : ' (' + arg + ')') }));
   })));
   // chapter 7's too, the same way: its versions (the vault hatch, Kagemaru's three endings) branch inside one vn([...])
   // call, and the culprits' endings are built from the save, so build each version with every culprit reckoned with or
@@ -68,7 +68,7 @@ function check(inline) {
   SD.reel.list.filter(e => e.ch === '7' && !e.run).forEach(e => (e.alts || [[null, undefined]]).forEach(([, arg]) => [{}, RECKONED].forEach(r => LEADS.forEach(lead => {
     S.save = Object.assign(JSON.parse(snap), JSON.parse(JSON.stringify(r)));
     S.save.c1 = Object.assign({ f: {}, deck: [] }, S.save.c1 || {}, { lead });
-    try { scripts.push(SD.reel.steps(e, arg)); } catch (x) { /* a scene that needs a running world plays only in the story */ }
+    try { scripts.push(Object.assign(SD.reel.steps(e, arg), { name: e.key + (arg === undefined ? '' : ' (' + arg + ')') })); } catch (x) { /* a scene that needs a running world plays only in the story */ }
   }))));
   S.save = JSON.parse(snap); S.persist = persist;
   const match = (shots, text) => {
@@ -94,10 +94,15 @@ function check(inline) {
   });
   // a line's text for a lead: a string, or { <lead>: ..., other: ... }
   const pick = (t, lead) => (t && typeof t === 'object' ? (t[lead] || t.other) : t);
+  // A script opens on black (js/vn.js), and 'fx' 'black' goes back to it; a backdrop, a still or a line's shot lifts it.
+  // A line spoken while it's still black has its text box under the black too: the player sees a black screen.
+  const dark = new Set();
   scripts.forEach(steps => LEADS.forEach(lead => {
-    let cut = null;
+    let cut = null, black = true;
     steps.forEach(([k, t]) => {
-      if (k === 'bg') { cut = null; return; }
+      if (k === 'bg') { cut = null; black = false; return; }
+      if (k === 'cg') { black = false; return; }
+      if (k === 'fx') { if (t === 'black') black = true; else if (t === 'unblack') black = false; return; }
       if (k === 'cut') { cut = named(t) || cut; return; }
       if (CMD.has(k)) return;
       const text = pick(t, lead);
@@ -105,12 +110,13 @@ function check(inline) {
       const open = cuts.find(c => match(c.slice(0, 1), text));
       if (open) cut = open;
       const id = cut && match(cut, text);
-      if (id) shown.add(id);
+      if (id) { shown.add(id); black = false; }
+      else if (black) dark.add(steps.name + ': "' + text.slice(0, 60) + '"');
     });
   }));
   const missing = cuts.flatMap(c => c.map(([id]) => id).filter(id => !shown.has(id)));
   const sheets = [...new Set(cuts.flatMap(c => c.map(([id]) => SD.vn.art.scenes[id] && SD.vn.art.scenes[id].sheet)))];
-  return { cuts: cuts.length, shots: cuts.reduce((n, c) => n + c.length, 0), scripts: scripts.length + inline.length, missing, sheets };
+  return { cuts: cuts.length, shots: cuts.reduce((n, c) => n + c.length, 0), scripts: scripts.length + inline.length, missing, sheets, dark: [...dark] };
 }
 
 (async () => {
@@ -120,14 +126,22 @@ function check(inline) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(base + 'index.html?vector', { waitUntil: 'load' });
-  await page.waitForFunction(() => window.SD && SD.vn && SD.reel && SD.c3story && SD.c4data && SD.c5data);
-  const r = await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js', 'js/c7-world.js'].flatMap(vnCalls));
+  // Chapter 2's scenes are the vector demo's (js/vec-ch2.js) in index.html?vector, and its pixel world's (js/c2-world.js)
+  // with &ch2: check both.
+  const rs = [];
+  for (const q of ['vector', 'vector&ch2']) {
+    await page.goto(base + 'index.html?' + q, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.SD && SD.vn && SD.reel && SD.c3story && SD.c4data && SD.c5data);
+    rs.push(await page.evaluate(check, ['js/c4-world.js', 'js/c5-world.js', 'js/c6-world.js', 'js/c7-world.js'].flatMap(vnCalls)));
+  }
+  const r = Object.assign({}, rs[0], { scripts: rs[0].scripts + rs[1].scripts, missing: rs[0].missing.filter(id => rs[1].missing.includes(id)),
+    sheets: [...new Set(rs.flatMap(x => x.sheets))], dark: [...new Set(rs.flatMap(x => x.dark))] });
   const noSheet = r.sheets.filter(s => !s || !fs.existsSync(path.join(ROOT, s)));
   await browser.close(); server.close();
   if (errors.length) console.log('page errors:\n  ' + errors.join('\n  '));
   if (r.missing.length) console.log(`${r.missing.length} shots never shown:\n  ` + r.missing.join('\n  '));
   if (noSheet.length) console.log('missing sheets:\n  ' + noSheet.join('\n  '));
-  if (errors.length || r.missing.length || noSheet.length) process.exit(1);
+  if (r.dark.length) console.log(`${r.dark.length} lines play on a black screen (no backdrop or still before them):\n  ` + r.dark.join('\n  '));
+  if (errors.length || r.missing.length || noSheet.length || r.dark.length) process.exit(1);
   console.log(`OK: all ${r.shots} shots in ${r.cuts} cutscenes show, matched over ${r.scripts} scripts.`);
 })();
