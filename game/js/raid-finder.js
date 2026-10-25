@@ -163,7 +163,7 @@
   const P = () => SD.marks.PAY;
   const earnLines = () => [`${P().clear} ✦ for each clear`, `+${P().perRight} ✦ for each of your answers right, up to ${P().rightCap}`, `Doubled when another player is still in the party at the end`];
   // The Raid shop (Ladi, 2026-10-25): a tab per kind of cosmetic, each item a card with its preview, its rarity and
-  // its price. Buying takes two taps (Buy, then Confirm), what you can't afford says how far off it is, and an emote
+  // its price. Buying takes two taps (Buy, then Confirm), what you can't afford says how many marks you still need, and an emote
   // pack lists its emotes under it with what the pack saves. Prices are js/marks.js's placeholders.
   const KINDS = [['outfit', 'Outfits'], ['look', 'Looks'], ['effect', 'Effects'], ['frame', 'Frames'], ['emote', 'Emotes']];
   const kindOf = it => (SD.marks.isEmote(it) ? 'emote' : it.slot);
@@ -180,8 +180,6 @@
       if (it.emote) return `<div class="rs-pv" aria-hidden="true">${emoteSvg(it.emote)}</div>`;
       return `<div class="rs-pv" aria-hidden="true">${W && W.swatch ? W.swatch(it.id) : ''}</div>`;
     };
-    // A clear with every answer right, solo: the fewest clears it takes to earn the rest.
-    const clears = need => Math.max(1, Math.ceil(need / M.earned({ right: P().rightCap, humans: 1 })));
     const card = (it, worn) => {
       const own = M.owns(it.id), on = worn.includes(it.id), cost = M.price(it.id), need = cost - M.balance();
       const has = it.has || [];
@@ -191,7 +189,7 @@
       let act;
       if (own) act = M.isEmote(it) ? '<p class="rs-own">✓ Owned · on your Emote button</p>'
         : W && W.equip ? `<p class="rs-own">✓ Owned${on ? ' · wearing' : ''}</p><button class="mi-btn sm${on ? '' : ' go'}" type="button" data-wear="${esc(it.id)}" aria-pressed="${on}">${on ? 'Take off' : 'Wear'}</button>` : '<p class="rs-own">✓ Owned</p>';
-      else if (need > 0) act = `<button class="mi-btn sm" type="button" disabled>${cost} ✦</button><small>Need ${need} more · about ${clears(need)} clear${clears(need) === 1 ? '' : 's'}</small>`;
+      else if (need > 0) act = `<button class="mi-btn sm" type="button" disabled>${cost} ✦</button><small>Need ${need} more</small>`;
       else act = armed === it.id ? `<button class="mi-btn sm confirm" type="button" data-buy="${esc(it.id)}">Confirm: ${cost} ✦</button><small>Tap again to buy</small>`
         : `<button class="mi-btn go sm" type="button" data-buy="${esc(it.id)}">Buy · ${cost} ✦</button>`;
       return `<li class="rs-item${it.tier ? ' t-' + it.tier : ''}${own ? ' own' : ''}" data-item="${esc(it.id)}">${preview(it)}
