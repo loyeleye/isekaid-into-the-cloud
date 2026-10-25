@@ -36,6 +36,12 @@ const fail = [];
     await page.waitForSelector('#ds-new', { timeout: 10000 });
   };
 
+  // The press-start screen shows the same line, not a chapter's own.
+  await page.goto(url);
+  await page.waitForSelector('#t-start, #ds-new', { timeout: 30000 });
+  const foot0 = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');
+  if (foot0 !== 'Built on the AWS documentation · Saves automatically') fail.push('press-start foot line: ' + foot0);
+
   await toTitle();
   const foot = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');
   if (foot !== 'Built on the AWS documentation · Saves automatically') fail.push('title foot line: ' + foot);
