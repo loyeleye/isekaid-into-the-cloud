@@ -139,7 +139,7 @@ const server = http.createServer((req, res) => {
       // The Wardrobe's way into the Raid shop (js/raid-finder.js).
       const sb = document.querySelector('#panel #wd-shop');
       if (sb) sb.click();
-      out.shopBtn = !SD.mp || (!!sb && document.querySelectorAll('#panel .mp-list li').length === (SD.marks ? SD.marks.ITEMS.length : -1));
+      out.shopBtn = !SD.mp || (!!sb && document.querySelectorAll('#panel #rs [data-tab]').length === 5 && document.querySelectorAll('#panel #rs .rs-item').length > 0);
       SD.ui.closePanel(); Object.assign(W, was); W.unequip('frame');
       W.owns = shopOwns;
       out.shop = !SD.marks || (W.owns('fx-soot') === false && W.equip('fx-soot') === false);

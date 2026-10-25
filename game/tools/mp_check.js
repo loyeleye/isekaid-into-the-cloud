@@ -2,8 +2,9 @@
 // Multiplayer on the title, and the finder lists the Deny Mines and the Sorting Floors and nothing later. One tab hosts
 // the Deny Mines from the finder, the other finds the party on the list and joins, the leader adds two bots and
 // starts, and both tabs clear both floors (fights won through SD.test.raid.win). Each player gets the replay's XP and
-// doubled Raid Marks (another person was in the party), no tape, and no story flag or chapter save changes. The Raid
-// shop sells its cheapest item once, and the finder's shop button lists it as yours. Back leaves to the title. Fails on any page or console error.
+// doubled Raid Marks (another person was in the party), no tape, and no story flag or chapter save changes. An
+// expedition the story hasn't let you into yet is locked. The Raid shop sells its cheapest item once, its tabs list
+// every item with that one owned, and a buy from the panel takes Buy then Confirm. Back leaves to the title. Fails on any page or console error.
 // Run from game/:  node tools/mp_check.js
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -100,6 +101,18 @@ function step(who) {
     }, lead);
     await page.click('#t-start');
     await page.waitForSelector('#t-mp', { timeout: 10000 });
+    // Only expeditions the story has let you into (Ladi, 2026-10-25): before chapter 2's stair the Sorting Floors are
+    // locked, and the story starting them unlocks them.
+    const gate = await page.evaluate(() => {
+      const S = SD.state, a = S.save.c2.f.act1;
+      S.save.c2.f.act1 = false;
+      const c2 = SD.mp.eligible().find(c => c.ch === '2'), before = { open: c2.xps.map(x => x.id).join(','), locked: c2.locked.map(x => x.id).join(',') };
+      (S.save.mp || (S.save.mp = {})).reached = ['sortingfloors'];
+      const now = SD.mp.reached('sortingfloors');
+      S.save.mp.reached = []; S.save.c2.f.act1 = a;
+      return { before, now };
+    });
+    if (gate.before.open !== '' || gate.before.locked !== 'sortingfloors' || !gate.now) errors.push(name + ': the story gate went ' + JSON.stringify(gate));
     const elig = await page.evaluate(() => SD.mp.eligible().map(c => c.ch + ':' + c.xps.map(x => x.id).join(',')).join(' '));
     if (elig !== '1:denymines 2:sortingfloors') errors.push(name + ': eligible expeditions were ' + elig);
     await page.click('#t-mp');
@@ -146,10 +159,28 @@ function step(who) {
     await t.page.click('#rd-leave');
     await t.page.waitForSelector('#mp-back', { timeout: 10000 });
     await t.page.click('#mp-shop');
-    await t.page.waitForSelector('#panel [data-buy]', { timeout: 10000 });
-    const row = await t.page.evaluate(id => { const li = [...document.querySelectorAll('#panel .mp-list li')], i = SD.marks.ITEMS.findIndex(x => x.id === id); return { n: li.length, yours: !!li[i] && li[i].textContent.includes('yours') }; }, shop.item);
-    if (row.n !== shop.n || !row.yours) errors.push(name + ': the Raid shop panel showed ' + JSON.stringify(row));
-    await t.page.evaluate(() => SD.ui.closePanel());
+    await t.page.waitForSelector('#panel .rs-item', { timeout: 10000 });
+    // Every item is on one of the tabs, and the one bought shows as owned on its own.
+    const tabs = await t.page.evaluate(() => [...document.querySelectorAll('#panel [data-tab]')].map(b => b.dataset.tab));
+    let cards = 0, owned = false;
+    for (const k of tabs) {
+      await t.page.click(`#panel [data-tab="${k}"]`);
+      const r = await t.page.evaluate(id => { const c = document.querySelector(`#panel [data-item="${id}"]`); return { n: document.querySelectorAll('#panel .rs-item').length, own: !!c && c.textContent.includes('Owned') }; }, shop.item);
+      cards += r.n; owned = owned || r.own;
+    }
+    if (cards !== shop.n || !owned) errors.push(name + ': the Raid shop panel showed ' + JSON.stringify({ cards, n: shop.n, owned }));
+    // Buying from the panel takes two taps: Buy arms it, Confirm spends.
+    const pick = await t.page.evaluate(() => { const M = SD.marks; while (M.balance() < 500) M.pay({ right: 5 }); const it = M.ITEMS.find(x => x.slot === 'outfit' && !M.owns(x.id)); return { id: it.id, cost: M.price(it.id), b: M.balance() }; });
+    await t.page.click('#panel [data-tab="outfit"]');
+    await t.page.click(`#panel [data-item="${pick.id}"] [data-buy]`);
+    const armed = await t.page.evaluate(() => SD.marks.balance());
+    await t.page.click(`#panel [data-item="${pick.id}"] [data-buy]`);
+    const after = await t.page.evaluate(id => ({ n: SD.marks.balance(), own: SD.marks.owns(id), wear: !!document.querySelector(`#panel [data-item="${id}"] [data-wear]`) }), pick.id);
+    if (armed !== pick.b || after.n !== pick.b - pick.cost || !after.own || !after.wear) errors.push(name + ': the two-tap buy went ' + JSON.stringify({ pick, armed, after }));
+    await t.page.click('#panel-x');
+    await t.page.waitForSelector('#mp-back', { timeout: 10000 });
+    const pill = await t.page.evaluate(() => document.querySelector('#mp-marks').textContent);
+    if (pill !== after.n + ' ✦') errors.push(name + ': the finder shows ' + pill + ' after the buy, not ' + after.n + ' ✦');
     await t.page.click('#mp-back');
     await t.page.waitForSelector('#t-mp', { timeout: 10000 });
   }

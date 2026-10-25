@@ -14,6 +14,7 @@
 //   SD.wear.trophy(id)      -> true for a trophy you've earned (ITEMS[id].trophy: Restored, for beating Freya), shop or not
 //   SD.wear.price           -> set by the shop: id -> a short price label for an item you don't own yet
 //   SD.wear.open()          -> the Wardrobe panel
+//   SD.wear.swatch(id)      -> an item's preview swatch (the Wardrobe's buttons, the Raid shop's cards)
 //
 // What's worn is S.save.fg.wear = { outfit, effect, frame, look }. Buying is the shop's job; ITEMS' tiers are a guide for it.
 (function () {
@@ -430,6 +431,8 @@ ${spots}
     if (it.slot === 'effect') return `<span class="wd-sw" style="background:#2b2340">${W.fx(id)}</span>`;
     return `<span class="wd-sw ${id}" style="background:var(--wf-bg);box-shadow:inset 0 0 0 3px var(--wf-line)"></span>`;
   }
+  // The Raid shop's previews (js/raid-finder.js) are the Wardrobe's swatches; lead defaults to yours.
+  W.swatch = (id, lead) => (ITEMS[id] ? swatch(id, lead || W.lead() || 'kai') : '');
   W.open = function () {
     css();
     const U = SD.ui, esc = s => U.esc(s);
@@ -453,7 +456,7 @@ ${spots}
           ${SD.mp && SD.mp.shop && SD.marks ? `<p class="small" style="margin:0 0 8px"><button class="mi-btn sm" type="button" id="wd-shop">Raid shop</button> <span class="muted">${SD.marks.balance()} ✦ to spend</span></p>` : ''}
           ${SLOTS.map(slot).join('')}</div>`, { title: 'WARDROBE' });
       // The Raid shop lives in Multiplayer (js/raid-finder.js); the Wardrobe has a way in too (Ladi, 2026-10-25).
-      const sh = b.querySelector('#wd-shop'); if (sh) sh.onclick = () => SD.mp.shop();
+      const sh = b.querySelector('#wd-shop'); if (sh) sh.onclick = () => SD.mp.shop({ onClose: () => W.open() });
       if (!vec && outfit && !look && fig === standSrc(lead)) W.recolor(standSrc(lead), standMask(lead), outfit, u => { const el = b.querySelector('#wd-fig'); if (el) el.style.backgroundImage = `url(${u})`; });
       b.querySelectorAll('[data-wear]').forEach(el => { el.onclick = () => { if (W.equip(el.dataset.wear)) draw(); }; });
       b.querySelectorAll('[data-off]').forEach(el => { el.onclick = () => { W.unequip(el.dataset.off); draw(); }; });
