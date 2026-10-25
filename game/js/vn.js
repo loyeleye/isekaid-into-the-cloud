@@ -184,7 +184,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     if (root) return;
     root = document.createElement('div');
     root.id = 'vn'; root.hidden = true;
-    root.innerHTML = `<div class="vn-cam"><div class="vn-layer vn-bg"></div><div class="vn-layer vn-cg"></div></div>
+    root.innerHTML = `<div class="vn-fill" aria-hidden="true"></div><div class="vn-cam"><div class="vn-layer vn-bg"></div><div class="vn-layer vn-cg"></div></div>
       <canvas class="vn-rain"></canvas><div class="vn-cast"></div><div class="vn-flash"></div><div class="vn-act"></div>
       <div class="vn-box" hidden><div class="vn-name"></div><div class="vn-text" aria-live="polite"></div>
         <div class="vn-foot"><span class="vn-more">▼</span><button class="vn-skip">Skip</button></div></div>
@@ -224,6 +224,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     el.className = 'vn-pic' + (pan && !reduce() ? ' kb kb-' + pan : '') + (cut ? ' on cut' : '') + (soft ? ' soft' : '') + ((V.art.scenes[id] || {}).dream ? ' dream' : '');
     el.innerHTML = sceneHTML(id);
     host.appendChild(el);
+    if (sel === '.vn-cg') fill(id);
     // A still fades in over the last one, which stays solid until it's covered: fading both at once let the backdrop
     // underneath show through mid-crossfade.
     const keep = sel === '.vn-cg' && !cut;
@@ -247,6 +248,9 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
       setTimeout(() => go(), 2500);
     });
   }
+  // Held upright, a still is shown whole in a band across the screen (index.html, #vn.vn-incg), over a blurred copy
+  // of itself that fills the rest of the screen.
+  function fill(id) { root.querySelector('.vn-fill').innerHTML = sceneHTML(id); }
   function clearCG() { [...cam.querySelector('.vn-cg').children].forEach(o => { o.classList.remove('on'); setTimeout(() => o.remove(), 900); }); root.classList.remove('vn-incg'); }
 
   function show(who, face, pos) {
@@ -573,7 +577,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
   async function revealCG(id, x, y, ms) {
     if (skipping || reduce()) { setLayer('.vn-cg', id, 'still', true); return; }
     const host = cam.querySelector('.vn-cg'), old = [...host.children];
-    root.dataset.cg = id;
+    root.dataset.cg = id; fill(id);
     const el = document.createElement('div');
     el.className = 'vn-pic on cut';
     el.innerHTML = sceneHTML(id);
@@ -649,7 +653,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     await Promise.all([loaded(id), from && loaded(from)]);
     const A = from && shotCanvas(from, w, h), B = shotCanvas(id, w, h);
     if (!B) { setLayer('.vn-cg', id, 'still', true); return; }
-    lastCG = from; root.dataset.cg = id;
+    lastCG = from; root.dataset.cg = id; fill(id);
     // Coarse to fine, as blocks across the width, starting near the pixel art's own grain; the last is the shot itself.
     const levels = [150, 220, 320, 470, 700].map(n => mosaic(B, w / n)).concat([B]);
     const el = document.createElement('div');
