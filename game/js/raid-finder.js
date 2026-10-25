@@ -243,12 +243,14 @@
     U.closePanel();
     if (from === 'menu') SD.main.haltWorlds();
     SD.main.show('run');
-    if (SD.audio) SD.audio.music('town');
+    if (SD.audio) SD.audio.music('multiplayer');
     let hub = null, dir = null, note = '';
     try {
       hub = await SD.net.open();
       dir = await hub.directory('raid');
       for (let first = true; ; first = false) {
+        // Back to the Multiplayer theme each time the list shows, after a raid's battle music too.
+        if (SD.audio) SD.audio.music('multiplayer');
         const pick = first && code ? { code } : await finder(dir, note);
         note = '';
         if (!pick) break;
