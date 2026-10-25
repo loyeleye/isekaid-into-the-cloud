@@ -16,6 +16,7 @@
 //                              leader's Add a bot, in the open seat; botChamp(peer, champ): the leader picks a bot's
 //                              champion (its card's Change champion turns the roster into that bot's picker)
 //     P.leave()             -> stops listening
+//   While joined, the room's emotes show over the seats and the raid's fighters, and the bar has an Emote button (js/emote.js).
 //
 // Names: you arrive as the first free "Player N" (N counts from your seat), or as the name you saved last time
 // if nobody here has it. Saving a new name in the room remembers it (js/net.js, setNick).
@@ -96,6 +97,7 @@
 .pt-bar { position: sticky; bottom: max(10px, env(safe-area-inset-bottom, 0px)); z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--mi-cream); border: 2.5px solid var(--mi-ink); border-radius: 14px; padding: 10px 12px; box-shadow: 0 4px 0 rgba(43,35,64,.25); }
 .pt-bar p { margin: 0; font-size: 14px; color: var(--mi-muted); }
 .pt-bar .mi-btn.done { background: var(--mi-mint); color: #fff; }
+.pt-acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pt-bump { font: 600 13px var(--f-body, system-ui); background: var(--mi-sun); color: var(--mi-ink); border: 2px solid var(--mi-ink); border-radius: 10px; padding: 4px 10px; justify-self: start; }
 .pt-note { font-size: 13px; background: var(--mi-paper); border-radius: 10px; padding: 6px 10px; margin: 0; }
 .pt-vis { display: inline-flex; border: 2.5px solid var(--mi-ink); border-radius: 10px; overflow: hidden; }
@@ -204,6 +206,8 @@
     unsub.push(() => clearTimeout(fullT));
     // The first pick happens before the mode has its party object, so it doesn't call back.
     const cb = opts.onChange; opts.onChange = null; settle(); opts.onChange = cb;
+    // Emotes over the seats and the fighters, for as long as this player is in the party (js/emote.js).
+    if (SD.emote) unsub.push(SD.emote.attach(room, me));
 
     const P = {
       members, champ: () => champ, ready: () => ready,
@@ -266,7 +270,7 @@
         <div class="pt-members">${seats.join('')}</div>
         <div class="pt-lbl" id="pt-lbl">${ed ? `<span class="pt-for" aria-live="polite">Choosing for ${esc(ed.nick)} <button class="mi-btn sm pt-chg" type="button" id="pt-done">Done</button></span><small>Tap a champion for ${esc(ed.nick)}, or Done to keep this one.</small>` : `<span aria-live="polite">Your champion</span>${bumped && CH.get(bumped.was) && CH.get(champ) ? `<span class="pt-bump" role="status">${esc(bumped.by)} already has ${esc(CH.get(bumped.was).name)}, so you're ${esc(CH.get(champ).name)} for now. Tap any free champion to change.</span>` : ''}<small>${ctx.deck ? 'Each brings three signature cards to the raid. ' : ''}Two players can't pick the same one; a bot moves aside for you. Reach more of them in the game to unlock them.</small>`}<div class="pt-roster">${regions}</div></div>
         ${sig}
-        <div class="pt-bar"><p>${status}</p>${btn}</div></div></div>`;
+        <div class="pt-bar"><p>${status}</p><div class="pt-acts">${SD.emote ? SD.emote.button() : ''}${btn}</div></div></div></div>`;
       root.querySelectorAll('[data-spr]').forEach(el => {
         const v = el.dataset.spr; if (!v) return;
         const lock = v.startsWith('lock:'), id = lock ? v.slice(5) : v, c = CH.get(id); if (!c) return;
@@ -306,6 +310,7 @@
       const ab = root.querySelector('#pt-bot'); if (ab) ab.onclick = () => ctx.addBot();
       const st = root.querySelector('#pt-start'); if (st) st.onclick = () => { if (!block) ctx.start(); };
       const rd = root.querySelector('#pt-ready'); if (rd) rd.onclick = () => P.setReady(!ready);
+      if (SD.emote) SD.emote.wire(root);
       if (ctx.bind) ctx.bind(root);
     };
     return P;

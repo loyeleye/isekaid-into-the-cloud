@@ -1,6 +1,6 @@
 // Raid Marks (Ladi, 2026-10-24): the raid finder's own currency, for cosmetics only. Every replay clear in the
 // Multiplayer finder (js/raid-finder.js) pays them, solo, with bots or with friends, and more when another person
-// is still in the party at the end. They buy outfit recolors, follow-along effects and portrait frames at the Raid shop; what's worn and how it's drawn is
+// is still in the party at the end. They buy outfit recolors, follow-along effects, portrait frames and emote packs (js/emote.js) at the Raid shop; what's worn and how it's drawn is
 // js/wear.js. No power, no story: the story's currencies (shards, tapes) never mix with marks.
 //
 //   SD.marks.balance()                 marks you have
@@ -17,9 +17,9 @@
   // A solo or bot clear with every question right pays 20; the same clear with another person pays 40.
   M.PAY = Object.freeze({ clear: 10, perRight: 2, rightCap: 5, withHuman: 2 });
   // What the shop sells: swap this list (and SLOTS) to change the stock; nothing else names an item. The ids, names
-  // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames). Each tier has
+  // and tiers are js/wear.js's (Ladi, 2026-10-24: recolors, follow-along effects and portrait frames) and js/emote.js's. Each tier has
   // one price for now; Ladi settles the final prices once every cosmetic is built.
-  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame' });
+  M.SLOTS = Object.freeze({ outfit: 'Outfit', effect: 'Effect', frame: 'Frame', emote: 'Emote pack' });
   M.TIERS = Object.freeze({ common: 60, rare: 150, legendary: 260 });
   M.ITEMS = Object.freeze([
     ['frame-cafe', 'Café frame', 'frame', 'common'], ['frame-pager', '3 a.m. pager', 'frame', 'common'],
@@ -30,7 +30,9 @@
     ['outfit-harvest', 'Harvest', 'outfit', 'rare'], ['outfit-winterfest', 'Winterfest', 'outfit', 'rare'],
     ['outfit-lunar', 'Lunar New Year', 'outfit', 'rare'], ['outfit-spring', 'Spring bloom', 'outfit', 'rare'],
     ['fx-stardust', 'Stardust', 'effect', 'rare'], ['fx-snow', 'Snowfall', 'effect', 'rare'], ['fx-embers', 'Embers', 'effect', 'rare'],
-    ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary']
+    ['fx-soot', 'Soot puffs', 'effect', 'legendary'], ['fx-firework', 'Victory fireworks', 'effect', 'legendary'],
+    // Emote packs (js/emote.js): four emotes each for the Emote button in the party room and the raid.
+    ['emo-tavern', 'Tavern pack', 'emote', 'common'], ['emo-cloud', 'Cloud jokes pack', 'emote', 'rare'], ['emo-season', 'Seasonal pack', 'emote', 'rare']
   ].map(([id, name, slot, tier]) => Object.freeze({ id, name, slot, tier, cost: M.TIERS[tier] })));
   const st = () => { const s = S.save; const mp = s.mp || (s.mp = {}); return mp.marks || (mp.marks = { n: 0, owned: [] }); };
   M.balance = () => st().n;
