@@ -58,8 +58,16 @@
       }
       q = SD.exam.swap(q);
     }
-    return new Promise(resolve => {
+    return new Promise(done => {
       const t0 = Date.now();
+      // opts.closable (Coo's lost letters, js/c2-world.js): the panel gets the usual ✕, and Esc works too. Before you
+      // commit an answer it puts the question down, records nothing and resolves { closed: true }; after, it does
+      // what the panel's main button does.
+      let onX = () => resolve({ closed: true });
+      const esc = e => { const x = e.key === 'Escape' && document.querySelector('#panel:not([hidden]) #panel-x'); if (x) { e.preventDefault(); x.click(); } };
+      if (opts.closable) window.addEventListener('keydown', esc);
+      const resolve = v => { window.removeEventListener('keydown', esc); done(v); };
+      const panel = (h, fixed) => U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: fixed || !opts.closable, cls: 'quiz', onClose: () => onX() });
       // opts.tally (an expedition's questions, js/raid.js): Trust Policy, the confidence tally (SD.state.tally). Each
       // confidence button shows what it does to it, and the verdict carries it before and after. opts.heal(ok, tally),
       // when given, says on the Continue button what this answer heals; opts.stakeNote ends the tap-to-open explanation under the Trust line below the buttons;
@@ -80,7 +88,7 @@
         if (thinking) {
           h += `<div class="say-first"><p>Answer it in your own words first, out loud or in your head, the way you would in the room.</p>
             <button class="primary" id="q-said">I've said it. Show the options</button></div>`;
-          const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+          const b = panel(h);
           const sb = b.querySelector('#q-said');
           sb.onclick = () => { thinking = false; render(); };
           sb.focus();
@@ -105,7 +113,7 @@
         h += `<div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
           ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}>${t}${T ? `<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small>` : ''}</button>`).join('')}</div>
           ${T ? `<details class="muted small stake-help"><summary>🎯 Your Trust Policy is <b>${tal0}</b>.</summary><p>Right / wrong moves it by the numbers on each button. Say how sure you really are.${opts.stakeNote ? ' ' + U.esc(opts.stakeNote) : ''}</p></details>` : ''}</div>`;
-        const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+        const b = panel(h);
         b.querySelectorAll('[data-o]').forEach(el => el.onclick = () => { pick = +el.dataset.o; render(); });
         b.querySelectorAll('[data-ord]').forEach(el => el.onclick = () => { order.push(+el.dataset.ord); render(); });
         b.querySelectorAll('[data-m]').forEach(el => el.onclick = () => { const i = +el.dataset.m; multi.has(i) ? multi.delete(i) : multi.add(i); render(); });
@@ -147,7 +155,7 @@
       async function checkTyped(conf, ms) {
         const E = SD.embed;
         if (typed && E && !E.ready && !E.failed) {
-          U.panel('<p class="muted">Reading your answer...</p>', { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+          panel('<p class="muted">Reading your answer...</p>', true);
           await Promise.race([E.load(), new Promise(r => setTimeout(r, 6000))]);
         }
         const found = typed ? Q.rubric(typed, q.points) : q.points.map(() => ({ hit: null }));
@@ -161,7 +169,8 @@
               <input type="checkbox" data-r="${i}" ${ticks[i] ? 'checked' : ''} ${typed ? '' : 'disabled'}> <span><b>${U.esc(p.t)}</b>${evText(found[i]) ? `<br><span class="muted small">${evText(found[i])}</span>` : ''}</span></label>`).join('')}</div>`;
           if (typed) h += `<p class="muted small">${E && E.ready ? 'Ticks are the game\'s guess.' : 'Only exact terms were checked this time.'} Tick what your answer really said; you need ${need} of ${q.points.length}.</p>`;
           h += `<p><b>Model answer:</b> ${U.esc(q.model)}</p><button class="primary" id="q-confirm">${typed ? 'Confirm' : 'Continue'}</button>`;
-          const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+          onX = () => b.querySelector('#q-confirm').click();
+          const b = panel(h);
           b.querySelectorAll('[data-r]').forEach(el => el.onchange = () => { ticks[+el.dataset.r] = el.checked; el.closest('.rp').classList.toggle('on', el.checked); });
           b.querySelector('#q-confirm').onclick = () => {
             const score = ticks.filter(Boolean).length, ok = !!typed && score >= need;
@@ -211,6 +220,7 @@
           <div class="qr-body">${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>${body}</div></details>`;
       }
       function feedback(ok, conf, ms, page, score) {
+        onX = () => resolve({ ok, conf, ms, score });
         let right = '';
         if (q.type === 'mc') right = q.opts[q.a];
         if (q.type === 'num') right = q.ans;
@@ -288,7 +298,7 @@
           h += `<div class="compass"><div class="q-ctx">Confusion compass <span class="muted small">(optional)</span></div><p class="small">What tripped you up? Tap one to save it to your notebook.</p>
             <div class="opts">${prompts.map((p, i) => `<button class="opt" data-p="${i}">${U.esc(p)}</button>`).join('')}</div></div>`;
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
-          const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+          const b = panel(h);
           help(b);
           const nx = b.querySelector('#q-next');
           b.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
@@ -301,7 +311,7 @@
           nx.onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score }); };
         } else {
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
-          const b = U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: true, cls: 'quiz' });
+          const b = panel(h);
           help(b);
           b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score }); };
           b.querySelector('#q-next').focus();

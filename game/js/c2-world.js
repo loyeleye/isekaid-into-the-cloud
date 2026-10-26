@@ -826,11 +826,15 @@
       return say([['coo', left ? `${left} still out there, somewhere. Some of them only show through your lens, I'd bet.` : 'All five, delivered. At least once. I checked twice.', 'smile']]);
     }
     await say([['coo', 'Oh! Before I deliver it, tell me what you\'ve learned. A postman checks.', 'smile']]);
+    let n = 0;
     for (const i of owed) {
       const r = await G.letter(i);
-      w().given.push(i); S.persist();
+      // ✕ puts the letter back in your bag, for another time.
+      if (r && r.closed) break;
+      w().given.push(i); S.persist(); n++;
       R.gainXp(r && r.ok ? 10 : 4);
     }
+    if (!n) return;
     if (w().given.length === 5 && !flag('letters')) {
       setFlag('letters');
       c2().bonus = Object.assign(c2().bonus || {}, { idem: true });
