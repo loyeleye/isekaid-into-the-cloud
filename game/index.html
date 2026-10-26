@@ -8,6 +8,14 @@
 <script>
 // index.html?vector (or vector.html) plays the vector-art proof of concept: every picture drawn in code (js/vec-*.js),
 // on its own save. Set before anything loads, so no painted image is ever requested.
+// The Cloudflare build (cloudflare/, which serves this file as it is) plays the full game, as the claude.ai artifact
+// does: vector art, chapter 2's world and the 🐞 Debug menu's chapter select (js/demo-select.js). It's known by the
+// Server-Timing mark on this page's own response (game/_headers), as in js/cloud.js, or a workers.dev address.
+(function () {
+  let cf = /\.workers\.dev$/.test(location.hostname);
+  try { const nav = performance.getEntriesByType('navigation')[0]; cf = cf || !!(nav && Array.isArray(nav.serverTiming) && nav.serverTiming.some(t => t.name === 'sd-cloud')); } catch (e) { /* no timing API */ }
+  if (cf) window.SD_VECTOR = window.SD_CH2 = window.SD_DEMO = true;
+})();
 window.SD_VECTOR = /[?&]vector\b/.test(location.search) || /vector/.test(location.hash) || !!window.SD_VECTOR;
 if (window.SD_VECTOR) document.documentElement.classList.add('vector');
 </script>
