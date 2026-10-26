@@ -409,6 +409,6 @@
   ];
   G.letter = function (i) {
     const L = G.LETTERS[i];
-    return Q.ask(SD.qpick(L.pool, { c: L.c }), { title: 'A LOST LETTER', context: 'To: ' + L.to });
+    return Q.ask(SD.qpick(L.pool, { c: L.c }), { title: 'A LOST LETTER', context: 'To: ' + L.to, closable: true });
   };
 })();
