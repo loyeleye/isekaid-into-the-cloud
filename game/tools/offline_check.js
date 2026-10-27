@@ -9,13 +9,16 @@
 //   node tools/offline_check.js
 //
 // For a local copy on desktop (music and voices saved too) and a Cloudflare copy (Server-Timing: sd-cloud, with
-// api/hello) on an iPhone 13 that has said no to music on this connection:
-//   - online: the service worker saves core (and, on desktop, music and voices), and Menu > Offline play says so
+// api/hello) on an iPhone 13 that leaves music out:
+//   - off by default: no service worker until Menu > Play offline is switched on; switching it on warns how many MB
+//     it downloads (with and without music and voices), then saves core (and, on desktop, music and voices), and
+//     the switch says so
 //   - offline: the game reloads from the cache with no request reaching the server; the Cloudflare copy still knows
 //     it's the Cloudflare copy (vector art, its own save); music and voice lines play from the cache (a byte range
 //     comes back as a 206); the typed-answer model loads; the cloud and multiplayer answer "offline" at once instead
 //     of waiting, and the raid finder says so; progress saves; a chapter 1 dungeon fight plays a card and a turn;
 //     no broken images and no page errors
+//   - switching it off warns, then deletes the saved copy and unregisters the worker; the game still opens online
 //   - a deploy: a changed file is picked up on the next launch, and a list naming a file the server doesn't have yet
 //     keeps the old version
 // Needs Playwright (preinstalled in cloud sessions; run with NODE_PATH=$(npm root -g) if it isn't found).
@@ -61,19 +64,36 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     console.log(`-- ${name}`);
     cloud = isCloud; down = false; hits.length = 0;
     const ctx = await browser.newContext(dev);
-    // Browser tests skip the service worker (js/offline.js) unless they ask for it. The phone says no to music.
-    await ctx.addInitScript(phone => {
-      try { localStorage.setItem('isekai-cloud-sw', '1'); if (phone) localStorage.setItem('isekai-cloud-offline-music', '0'); } catch (e) { /* about:blank */ }
-    }, isCloud);
+    // Browser tests skip the service worker (js/offline.js) unless they ask for it.
+    await ctx.addInitScript(() => { try { localStorage.setItem('isekai-cloud-sw', '1'); } catch (e) { /* about:blank */ } });
     const page = await ctx.newPage();
     const errs = [];
     page.on('pageerror', e => errs.push(e.message));
     const opened = () => page.waitForFunction(() => window.SD && SD.main && SD.state && SD.state.save && document.querySelector('#title-actions button'), null, { timeout: 30000 });
 
-    // ---- Online: the first visit saves the game ----
+    // ---- Online: off until the player switches it on ----
     await page.goto(base + 'index.html');
     await opened();
     check(await page.evaluate(() => SD.offline.supported()), 'the game can be saved for offline here');
+    await page.waitForTimeout(500);
+    check(await page.evaluate(async () => !SD.offline.enabled() && !(await navigator.serviceWorker.getRegistrations()).length), 'off by default: no service worker');
+    await page.evaluate(() => SD.main.menu());
+    const row = await page.waitForSelector('#m-offline', { timeout: 5000 }).then(el => el.evaluate(e => ({ on: e.getAttribute('aria-checked'), text: e.textContent })), () => null);
+    check(row && row.on === 'false' && /Play offline: Off/.test(row.text), `the menu has a Play offline switch, off ${JSON.stringify(row)}`);
+    if (row) await page.click('#m-offline');
+    const warn = await page.waitForSelector('#of-on', { timeout: 5000 }).then(() => page.evaluate(() => {
+      const with_ = document.querySelector('#of-on').textContent; document.querySelector('#of-mu').click();
+      const without = document.querySelector('#of-on').textContent; document.querySelector('#of-mu').click();
+      return { with_, without, music: document.querySelector('#of-mu').checked };
+    }), () => null);
+    const mbOf = t => +((/(\d+) MB/.exec(t || '') || [])[1] || 0);
+    check(warn && mbOf(warn.with_) > mbOf(warn.without) + 100 && mbOf(warn.without) > 20, `switching it on warns how much it downloads ${JSON.stringify(warn)}`);
+    // Desktop takes the music and voices; the phone leaves them out.
+    if (warn && warn.music === isCloud) await page.click('#of-mu');
+    await page.click('#of-on');
+    await page.waitForSelector('#m-offline', { timeout: 5000 }).catch(() => null);
+    check(await page.evaluate(() => SD.offline.enabled() && document.querySelector('#m-offline').getAttribute('aria-checked') === 'true'), 'Download turns the switch on and goes back to the menu');
+    await page.evaluate(() => SD.ui.closePanel());
     const [, coreMs] = await ms(() => page.waitForFunction(() => SD.offline.ready(), null, { timeout: 180000 }).catch(() => null));
     check(await page.evaluate(() => SD.offline.ready()), `core saved (${(coreMs / 1000).toFixed(1)} s)`);
     if (!isCloud) {
@@ -146,15 +166,11 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     await page.evaluate(() => { SD.state.save.shards = 1234; SD.state.persist(); });
     check(await page.evaluate(k => JSON.parse(localStorage.getItem(k) || '{}').shards === 1234, saveKey), 'offline: progress saves in this browser');
 
-    // Menu > Offline play.
+    // The switch's line in the menu.
     await page.waitForFunction(() => SD.offline.ready(), null, { timeout: 10000 }).catch(() => null);
     await page.evaluate(() => SD.main.menu());
-    check(await page.evaluate(() => /Offline play: Ready/.test((document.querySelector('#m-offline') || {}).textContent || '')), 'offline: the menu lists Offline play as ready');
-    await page.evaluate(() => document.querySelector('#m-offline').click());
-    const panel = await page.evaluate(() => document.querySelector('#of-st').textContent);
-    check(/saved on this device/.test(panel) && (isCloud ? /aren't saved yet/.test(panel) : /Music and voices too/.test(panel)), `offline: Menu > Offline play says what's saved ("${panel}")`);
-    await page.evaluate(() => document.querySelector('#of-back').click());
-    check(await page.evaluate(() => !!document.querySelector('#m-offline')), 'offline: Back returns to the menu');
+    const line = await page.evaluate(() => document.querySelector('#m-offline').textContent);
+    check(/Play offline: On/.test(line) && /Saved on this device/.test(line) && (isCloud ? /no music/.test(line) : /with music and voices/.test(line)), `offline: the switch says what's saved ("${line}")`);
     await page.evaluate(() => SD.ui.closePanel());
 
     // A chapter 1 dungeon fight: a card, End turn.
@@ -171,11 +187,14 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     if (inFight) {
       await page.waitForFunction(() => { const C = SD.run.api.combat(); return C && !C.busy && C.hand.length; }, null, { timeout: 10000 }).catch(() => null);
       await page.waitForTimeout(500);
-      const before = await page.evaluate(() => SD.run.api.combat().hand.length);
+      // A card that draws keeps the hand's size, so count the hand, the discard and the capacity.
+      const snap = () => page.evaluate(() => { const C = SD.run.api.combat(); return [C.hand.length, C.disc.length, C.energy]; });
+      const before = await snap();
       const i = await page.evaluate(() => [...document.querySelectorAll('#run .hand .card')].findIndex(c => !c.classList.contains('dim')));
       await (isCloud ? page.tap(`#run .hand .card >> nth=${i}`) : page.click(`#run .hand .card >> nth=${i}`));
       await page.waitForTimeout(700);
-      check(await page.evaluate(n => SD.run.api.combat().hand.length < n, before), 'offline: a card plays');
+      const after = await snap();
+      check(after[0] < before[0] || after[1] > before[1] || after[2] < before[2], `offline: a card plays ${JSON.stringify([before, after])}`);
       const turn = await page.evaluate(() => SD.run.api.combat().turn);
       await (isCloud ? page.tap('#end-turn') : page.click('#end-turn'));
       const ended = await page.waitForFunction(t => { const C = SD.run.api.combat(); return C.over || (!C.busy && C.turn > t); }, turn, { timeout: 10000 }).then(() => true, () => false);
@@ -187,6 +206,24 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     check(!m.length, 'offline: no request reached the server' + (m.length ? ': ' + m.slice(0, 8).join(', ') : ''));
     down = false;
     await ctx.setOffline(false);
+
+    // ---- Switching it off ----
+    await page.goto(base + 'index.html');
+    await opened();
+    await page.evaluate(() => SD.main.menu());
+    await page.click('#m-offline');
+    const del = await page.waitForSelector('#of-off', { timeout: 5000 }).then(() => page.evaluate(() => document.querySelector('#panel').textContent), () => '');
+    check(/delete/i.test(del) && /\d+ MB/.test(del) && /download it again/.test(del), `switching it off warns that the download is deleted ("${del.replace(/\s+/g, ' ').slice(0, 90)}…")`);
+    await page.click('#of-off');
+    await page.waitForSelector('#m-offline', { timeout: 5000 }).catch(() => null);
+    const gone = await page.evaluate(async () => ({
+      on: SD.offline.enabled(), sw: (await navigator.serviceWorker.getRegistrations()).length,
+      caches: (await caches.keys()).filter(k => /^isekai-cloud-(offline|fonts)/.test(k)), row: document.querySelector('#m-offline').getAttribute('aria-checked')
+    }));
+    check(!gone.on && !gone.sw && !gone.caches.length && gone.row === 'false', `Turn off and delete: nothing saved, no worker, switch off ${JSON.stringify(gone)}`);
+    await page.goto(base + 'index.html');
+    await opened();
+    check(await page.evaluate(() => !navigator.serviceWorker.controller), 'after switching off, the game opens from the network');
     check(!errs.length, 'no page errors' + (errs.length ? ': ' + errs.join(' | ') : ''));
     await ctx.close();
   }
@@ -196,7 +233,9 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     console.log('-- deploy');
     cloud = false; down = false;
     const ctx = await browser.newContext();
-    await ctx.addInitScript(() => { try { localStorage.setItem('isekai-cloud-sw', '1'); localStorage.setItem('isekai-cloud-offline-music', '0'); } catch (e) { /* about:blank */ } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('isekai-cloud-sw', '1'); } catch (e) { /* about:blank */ } });
+    // Switched on without music, as the warning does.
+    await ctx.addInitScript(() => { try { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('isekai-cloud-offline', '1'); localStorage.setItem('isekai-cloud-offline-music', '0'); sessionStorage.setItem('seeded', '1'); } } catch (e) { /* about:blank */ } });
     const page = await ctx.newPage();
     await page.goto(base + 'index.html');
     await page.waitForFunction(() => window.SD && SD.offline && SD.offline.ready(), null, { timeout: 180000 });

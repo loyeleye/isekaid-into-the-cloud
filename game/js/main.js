@@ -64,7 +64,7 @@
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-say">Say it first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
       <button class="opt" id="m-typed">Typed answers: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
-      ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline">Offline play: <b>${SD.offline.label()}</b></button>` : ''}
+      ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
       <button class="opt" id="m-name">Change name</button>
       <button class="opt" id="m-credits">Credits</button>
@@ -76,9 +76,18 @@
     b.querySelector('#m-music').onclick = () => { AU.set('music', !p.music); menu(); M.hud(); };
     b.querySelector('#m-sfx').onclick = () => { AU.set('sfx', !p.sfx); menu(); M.hud(); };
     b.querySelector('#m-credits').onclick = credits;
-    // Whether the game is saved on this device for play with no connection (js/offline.js).
+    // Play offline (js/offline.js): its warning (download size, or deleting the download) decides the switch, and the
+    // line under it shows the download's progress.
     const mo = b.querySelector('#m-offline');
-    if (mo) mo.onclick = () => SD.offline.open();
+    if (mo) {
+      mo.onclick = () => SD.offline.toggle();
+      const off = SD.offline.onState(() => {
+        if (!mo.isConnected) return off();
+        mo.setAttribute('aria-checked', SD.offline.enabled());
+        mo.querySelector('b').textContent = SD.offline.enabled() ? 'On' : 'Off';
+        mo.querySelector('#m-offline-d').textContent = SD.offline.label();
+      });
+    }
     // Say it first (js/quiz.js): hide multiple choice options until you've answered in your own words.
     b.querySelector('#m-say').onclick = () => {
       if (!S.save) return;
