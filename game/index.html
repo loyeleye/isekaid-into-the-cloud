@@ -14,6 +14,8 @@
 (function () {
   let cf = /\.workers\.dev$/.test(location.hostname);
   try { const nav = performance.getEntriesByType('navigation')[0]; cf = cf || !!(nav && Array.isArray(nav.serverTiming) && nav.serverTiming.some(t => t.name === 'sd-cloud')); } catch (e) { /* no timing API */ }
+  // A page the offline service worker (sw.js) serves may not carry the mark, so js/cloud.js remembers it.
+  try { cf = cf || localStorage.getItem('isekai-cloud-marked') === '1'; } catch (e) { /* private mode */ }
   if (cf) window.SD_VECTOR = window.SD_CH2 = window.SD_DEMO = true;
 })();
 window.SD_VECTOR = /[?&]vector\b/.test(location.search) || /vector/.test(location.hash) || !!window.SD_VECTOR;
@@ -1359,6 +1361,7 @@ body { background: var(--bg); }
 <script src="js/audio-chapters.js"></script>
 <script src="js/art.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/offline.js"></script>
 <script src="js/quiz.js"></script>
 <script src="js/tapes.js"></script>
 <script src="js/embed.js"></script>

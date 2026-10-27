@@ -248,6 +248,8 @@
     try {
       hub = await SD.net.open();
       dir = await hub.directory('raid');
+      // Offline (js/offline.js): say why no one else's party shows.
+      if (hub.offline && !code) note = 'You\'re offline, so parties only reach your other tabs of this browser for now. Solo raids with bots play as usual.';
       for (let first = true; ; first = false) {
         // Back to the Multiplayer theme each time the list shows, after a raid's battle music too.
         if (SD.audio) SD.audio.music('multiplayer');

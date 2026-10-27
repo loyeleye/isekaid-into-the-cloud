@@ -2,7 +2,7 @@
 
 This folder hosts the game on Cloudflare Workers. It is the first game's Worker (Isekai'd Into Prod, `loyeleye/system-design-study`, branch `claude/pixellab-art-upgrade-68vl3t`, `cloudflare/`), reused as it is with its directory list extended for the Borderlands. One Worker serves everything:
 
-- **The game itself:** every file in `game/` (except `game/tools/`, see `game/.assetsignore`) as static assets: the page, the scripts, the art, every voice line in `assets/audio/vo/` as its own file, and the typed-answer model (`assets/model/potion-base-8m.i8`, served as is, so no base64 copy is needed). Static requests are free and not metered. There is no build step: Cloudflare uploads `game/` exactly as it is in the repo.
+- **The game itself:** every file in `game/` (except `game/tools/`, see `game/.assetsignore`) as static assets: the page, the scripts, the art, every voice line in `assets/audio/vo/` as its own file, and the typed-answer model (`assets/model/potion-base-8m.i8`, served as is, so no base64 copy is needed). Static requests are free and not metered. The only build step is `wrangler.jsonc`'s build command, which Wrangler runs before every deploy: it writes `game/offline-files.json`, the list of files the offline service worker (`game/sw.js`) saves on each device. Otherwise Cloudflare uploads `game/` exactly as it is in the repo.
 - **Multiplayer rooms:** `/api/room/<name>`, a WebSocket per table (Durable Object `Room`). Same shape as the claude.ai `room` capability, so the Borderlands parties (chapter 1's Deny Mines, `game/js/raid.js`) run unchanged.
 - **Open lobbies:** `/api/lobby/<game>`, one party directory per game (Durable Object `Directory`): the first 10 open parties, oldest first, and how many are open in all, pushed live to everyone looking for one at the cave mouth.
 - **Cloud saves:** `/api/save/<code>` (Durable Object `SaveSlot`). Each browser gets a 32-character save code. The game doesn't use them yet; they're kept for playing on another device later.
@@ -21,7 +21,7 @@ With this, Cloudflare redeploys the game by itself every time a PR is merged int
 2. **Create the Worker from the repo.** In the dashboard, open **Workers & Pages** and select **Create application**. Choose **GitHub**, sign in to GitHub when asked, and let Cloudflare's GitHub app see `loyeleye/isekaid-into-the-cloud` (picking only that repo is enough). Then select the repo.
 3. **Fill in the "Create and deploy" form:**
    - **Project name:** `isekaid-into-the-cloud`. It has to match `"name"` in `cloudflare/wrangler.jsonc` exactly, or every build fails.
-   - **Build command:** leave empty. The game has no build step.
+   - **Build command:** leave empty. Wrangler runs the offline file list's build command (in `wrangler.jsonc`) by itself.
    - **Deploy command:** `npx wrangler deploy` (the default).
    - **Preview command:** leave as it is; it's unused once previews are off.
    - **Enable Preview builds:** turn it **off**. Feature threads push many branches, and with previews on each push builds a separate copy. Only `main` needs deploying.

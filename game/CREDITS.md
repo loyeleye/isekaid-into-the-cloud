@@ -152,6 +152,7 @@ Chapters 2 to 6 (`assets/audio/s-x-*.mp3`, registered in `js/audio-chapters.js` 
 | Code | Author and source | License | Used for |
 | --- | --- | --- | --- |
 | The Borderlands engine (`js/raid.js`), the party room (`js/party.js`), the networking (`js/net.js`, `js/cloud.js`) and the Cloudflare Worker (`cloudflare/`, with `_headers` and `.assetsignore`) | Written for the first game, [Isekai'd Into Prod](https://github.com/loyeleye/system-design-study) (branch `claude/pixellab-art-upgrade-68vl3t`: its Expedition Raid, party room, Guild Hall networking and Worker), ported on 2026-10-21 with the changes listed at the top of each file | Same as the game's code | Chapter 1's Deny Mines, solo with bots or in a party, and open lobbies on the Cloudflare build |
+| Offline play: the service worker (`sw.js`), its loader and Menu > Offline play panel (`js/offline.js`), and its file list builder (`tools/offline_files.js`) | Written for the first game, [Isekai'd Into Prod](https://github.com/loyeleye/system-design-study) (PR #221), ported on 2026-10-27 with the changes listed at the top of each file | Same as the game's code | Single player plays with no connection on the Cloudflare build |
 
 ## Fonts
 
