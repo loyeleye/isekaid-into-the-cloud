@@ -1,0 +1,17 @@
+{
+  "name": "Isekai'd Into the Cloud",
+  "short_name": "Into the Cloud",
+  "description": "Keys to the Cloud: a comedy isekai card battler for the AWS Certified Developer - Associate exam.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#0c0b12",
+  "background_color": "#0c0b12",
+  "icons": [
+    { "src": "assets/app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/app/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
