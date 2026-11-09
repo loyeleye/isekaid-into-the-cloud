@@ -82,7 +82,7 @@
     delete S().save.examInProgress;
     if (isDone) {
       const wall = S().save.wall = S().save.wall || [];
-      run.qs.forEach((q, i) => { if (!s.ok[i] && !wall.some(w => w.id === q.id)) wall.push({ id: q.id, t: m.t, rights: [] }); });
+      run.qs.forEach((q, i) => { if (s.ok[i]) return; if (SD.today && SD.today.wallAdd) SD.today.wallAdd(q.id, m.t); else if (!wall.some(w => w.id === q.id)) wall.push({ id: q.id, t: m.t, rights: [] }); });
     }
     E.recordMock(m);   // persists
     return { m, s };

@@ -1316,6 +1316,35 @@ body { background: var(--bg); }
   #vn .vn-text { font-size: 14px; line-height: 1.45; min-height: 2.9em; }
   #vn .vn-foot { bottom: 3px; }
 }
+
+#panel .m-group { margin: 6px 0 -2px; }
+/* Type it first and its recall check (js/quiz.js, js/recall.js); Why not this one. */
+.type-first { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff8e6; border: 2px dashed #e7b84a; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.type-first > * { min-width: 0; }
+.type-first p { margin: 0; }
+.tf-row { display: flex; gap: 8px; align-items: stretch; }
+.tf-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+.tf-row input::placeholder { color: #6e6680; }
+.tf-row .primary { white-space: nowrap; padding: 6px 12px; font-size: 15px; flex: none; }
+.tf-idk { justify-self: start; background: none; border: 0; padding: 4px 0; font: inherit; font-weight: 700; color: var(--blue); text-decoration: underline; cursor: pointer; }
+.win.typing .q-q { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tf-said { margin: 8px 0 0; padding: 4px 0 4px 10px; border-left: 3px solid #e7b84a; font-size: 14px; }
+.tf-said .q-ctx, .rc-said .q-ctx { display: block; margin: 0; font-size: 11px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rc-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--ink); font-weight: 800; font-size: 13px; transform: rotate(-3deg); }
+.rc-badge.mem { background: #dff5e9; color: #1f6b46; }
+.rc-badge.opt { background: #fff1c9; color: #7a5200; }
+.rc-badge.unsure { background: #ece8f2; color: #4a4258; }
+.recall { margin-top: 10px; padding: 8px 10px; border-radius: 0 10px 10px 0; border-left: 4px solid #8a7f9c; background: #f6f3fa; display: grid; gap: 6px; }
+.recall.rc-memory { border-left-color: var(--mint); background: #eefaf3; }
+.recall.rc-options, .recall.rc-none { border-left-color: #d39a00; background: #fffaeb; }
+.recall p { margin: 0; }
+.recall .rc-b { justify-self: start; font-size: 14px; padding: 6px 10px; }
+.whynot { margin-top: 10px; padding: 8px 10px; border: 2px dashed #b9a6ff; border-radius: 12px; background: #faf8ff; }
+.whynot summary { cursor: pointer; font-size: 14px; }
+.whynot p { margin: 6px 0 0; }
+.whynot .wn-opt { font-weight: 700; }
+.whynot .wn-b { font-size: 14px; padding: 6px 10px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -1376,6 +1405,7 @@ body { background: var(--bg); }
 <script src="js/quiz.js"></script>
 <script src="js/tapes.js"></script>
 <script src="js/embed.js"></script>
+<script src="js/recall.js"></script>
 <script src="js/explain-data.js"></script>
 <script src="js/eli5.js"></script>
 <script src="js/dungeon-art.js"></script>
@@ -1527,6 +1557,7 @@ body { background: var(--bg); }
 <!-- /Chapter 6 -->
 <!-- Exam prep: held-out mock questions, exam mode, task concepts -->
 <script src="js/exam-heldout.js"></script>
+<script src="js/twins-data.js"></script>
 <script src="js/exam.js"></script>
 <script src="js/exam-help.js"></script>
 <script src="js/exam-hall.js"></script>

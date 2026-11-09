@@ -57,6 +57,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const p = document.querySelector('#panel'), q = SD.today.current();
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const said = p.querySelector('#q-said'); if (said) { said.click(); await wait(10); }
+    const tf = p.querySelector('#tf-idk'); if (tf) { tf.click(); await wait(10); }
     if (q.type === 'mc') {
       const want = right ? q.a : q.opts.findIndex((o, i) => i !== q.a);
       p.querySelector(`[data-o="${want}"]`).click();

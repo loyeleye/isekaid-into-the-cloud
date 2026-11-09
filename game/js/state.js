@@ -145,19 +145,29 @@
     return false;
   };
   // conf: 0 guess, 1 think so, 2 sure. Overconfident misses come back soonest (gap seeking).
-  S.recordAnswer = function (id, ok, conf, ms, qid) {
+  // extra.recog (js/quiz.js, Type it first): a right pick you recognized among the options but didn't recall before
+  // seeing them. It moves the review box like a Guess, so it comes back sooner.
+  S.recordAnswer = function (id, ok, conf, ms, qid, extra) {
     const c = S.concept(id);
+    // First sight or seen before (S.sight below): read before noteAnswer logs this answer.
+    const log = S.save.qlog || {}, first = qid ? !log[qid] : null;
     if (SD.exam) SD.exam.noteAnswer(id, qid, ok);
     c.seen = true;
     c.hist.push({ ok, conf, ms, t: Date.now() });
     if (c.hist.length > 12) c.hist.shift();
-    if (ok) c.box = Math.min(BOX_DAYS.length - 1, c.box + (conf === 2 ? 1 : conf === 1 ? 1 : 0) + (c.box === 0 ? 1 : 0));
+    const bc = ok && extra && extra.recog ? 0 : conf;
+    if (ok) c.box = Math.min(BOX_DAYS.length - 1, c.box + (bc === 2 ? 1 : bc === 1 ? 1 : 0) + (c.box === 0 ? 1 : 0));
     else c.box = conf === 2 ? 0 : Math.max(0, c.box - 1);
     if (SD.exam) c.box = Math.min(c.box, SD.exam.boxCap(id));
     c.due = Date.now() + BOX_DAYS[c.box] * DAY;
     // Exam mode: no gap longer than a quarter of the days left, nothing due after the exam (js/exam.js).
     if (SD.exam) c.due = SD.exam.capDue(c.due);
     S.save.stats.answered++; if (ok) S.save.stats.correct++;
+    if (qid && first !== null) {
+      // [time, 1 first sight / 0 seen before, right, 1 if the idea (concept) had been answered before]
+      const practised = c.hist.length > 1 ? 1 : 0;
+      S.save.sight = (Array.isArray(S.save.sight) ? S.save.sight : []).concat([[Date.now(), first ? 1 : 0, ok ? 1 : 0, practised]]).slice(-SIGHT_N);
+    }
     // The confidence tally's window (S.tally below).
     S.save.tally = (Array.isArray(S.save.tally) ? S.save.tally : []).concat([[ok ? 1 : 0, [0, 1, 2].includes(conf) ? conf : 0]]).slice(-TALLY_N);
     // A notebook page appears once a concept is answered right twice in a row.
@@ -167,6 +177,17 @@
       return 'page';
     }
     return null;
+  };
+  // Type it first's corrections (js/quiz.js): the player says the matcher was wrong about a right answer. recog true
+  // takes back the box step a recalled answer earned; false gives back the step a recognised one didn't get.
+  S.adjustRecog = function (id, conf, recog) {
+    const c = S.concept(id), step = conf >= 1 ? 1 : 0;
+    if (!step) return;
+    c.box = recog ? Math.max(1, c.box - step) : Math.min(BOX_DAYS.length - 1, c.box + step);
+    if (SD.exam) c.box = Math.min(c.box, SD.exam.boxCap(id));
+    c.due = Date.now() + BOX_DAYS[c.box] * DAY;
+    if (SD.exam) c.due = SD.exam.capDue(c.due);
+    S.persist();
   };
   S.mastery = function (id) {
     const c = S.concept(id);
@@ -186,6 +207,21 @@
   // +2, -1. Sure: +3, -5. It's capped at TALLY_MAX after each answer, so three confident misses take a full tally
   // back to 0 and nobody coasts. A raid's debrief heals by it (js/raid.js).
   S.TALLY = [[1, 0], [2, -1], [3, -5]];
+  // First sight against seen before (the readiness board, js/today.js): over the last 21 days, how you do on questions
+  // you've never answered, on ideas you have practised, against questions you have answered before. Repeats come
+  // back because they're due or missed, so the gap only shows once each side has SIGHT_MIN answers.
+  const SIGHT_N = 400;
+  S.SIGHT_MIN = 30;
+  S.sight = function (days) {
+    const since = Date.now() - (days || 21) * DAY, out = { fresh: [0, 0], again: [0, 0] };
+    (Array.isArray(S.save.sight) ? S.save.sight : []).forEach(([t, first, ok, practised]) => {
+      if (t < since) return;
+      const k = first ? (practised ? 'fresh' : null) : 'again';
+      if (!k) return;
+      out[k][1]++; if (ok) out[k][0]++;
+    });
+    return out;
+  };
   S.TALLY_MAX = 15;
   S.tally = function () {
     return (Array.isArray(S.save.tally) ? S.save.tally : []).reduce((a, x) => Math.max(-S.TALLY_MAX, Math.min(S.TALLY_MAX, a + ((S.TALLY[x[1]] || S.TALLY[0])[x[0] ? 0 : 1]))), 0);
@@ -241,6 +277,8 @@
     const all = S.questionsFor(conceptId), qs = all.filter(q => !(avoid || []).includes(q.id));
     const list = qs.length ? qs : all;
     if (SD.exam && SD.exam.isTaskConcept(conceptId) && list.length) return SD.exam.pickTask(list);
+    // Skip the questions asked most recently while the concept has others (js/qpick.js), as chapter spots do.
+    if (SD.qpick && list.length && list.every(q => q.id)) return SD.qpick(list, { c: conceptId });
     return list[Math.floor(Math.random() * list.length)];
   };
 })();

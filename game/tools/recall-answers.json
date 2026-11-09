@@ -1,0 +1,226 @@
+{
+ "option_words": {
+  "dva-3-326": [
+   "escape hatch, defaultChild and addPropertyOverride",
+   "use the L1 CfnBucket via node.defaultChild"
+  ],
+  "dva-2-228": [
+   "force a new deployment",
+   "redeploy the service so tasks restart"
+  ],
+  "dva-2-322": [
+   "aws sso login with identity center",
+   "IAM Identity Center profile"
+  ],
+  "dva-3-705": [
+   "weighted alias routing 5%",
+   "alias routing config with version 8 at 5 percent"
+  ],
+  "dva-3-407": [
+   "listener rule on http header",
+   "ALB rule matching the custom header"
+  ],
+  "dva-2-311": [
+   "switch the kms key and back to recreate the grant",
+   "change key then change it back"
+  ],
+  "dva-1-04": [
+   "FIFO with message group id per account",
+   "fifo queue, group id = account id"
+  ],
+  "dva-2-11": [
+   "secrets manager with rotation",
+   "secrets manager auto rotation"
+  ],
+  "dva-1-602": [
+   "delete the delete marker",
+   "DeleteObject on the delete marker version id"
+  ],
+  "dva-1-331": [
+   "MaximumRecordAgeInSeconds 300 plus on-failure destination",
+   "max record age 5 minutes and failure destination"
+  ],
+  "dva-2-109": [
+   "remove the env var keys",
+   "delete the access keys from the startup script"
+  ],
+  "dva-1-240": [
+   "DAX doesn't cache strongly consistent reads",
+   "consistent reads pass through to dynamodb"
+  ],
+  "saa-2-07": [
+   "store sessions in elasticache",
+   "external session store like dynamodb"
+  ],
+  "dva-3-810": [
+   "rollback breaks because of the schema change",
+   "blue can't read the new schema so you can't roll back"
+  ],
+  "dva-3-222": [
+   "PollForSourceChanges false",
+   "turn off polling on the source action"
+  ],
+  "dva-2-759": [
+   "it can't be used but you can cancel deletion",
+   "pending deletion, cancel it"
+  ],
+  "dva-1-601": [
+   "a delete marker was added, versions still there",
+   "delete marker is current version"
+  ],
+  "dva-4-401": [
+   "allow route 53 health checker IPs in the security group",
+   "security group blocks the health checkers"
+  ],
+  "dva-2-15": [
+   "certificate in us-east-1",
+   "request the cert in us-east-1"
+  ],
+  "dva-3-927": [
+   ".ebextensions config file",
+   "ebextensions packages"
+  ],
+  "dva-3-910": [
+   "secrets-manager in buildspec env",
+   "env secrets-manager mapping"
+  ],
+  "dva-2-855": [
+   "enable the key",
+   "EnableKey, it's disabled after cancel"
+  ],
+  "dva-4-311": [
+   "add a timestamp to the json logs",
+   "timestamp field in RFC 3339"
+  ],
+  "dva-1-322": [
+   "map attribute with UpdateItem SET",
+   "update expression SET on a nested map"
+  ],
+  "dva-2-104": [
+   "aws:SourceVpce condition",
+   "exempt the vpc endpoint id in the deny"
+  ],
+  "dva-1-16": [
+   "step functions standard with wait for task token",
+   "task token callback"
+  ],
+  "dva-2-870": [
+   "revoke active sessions",
+   "revoke sessions on the role"
+  ],
+  "dva-3-924": [
+   "CodeArtifact with npm upstream",
+   "codeartifact"
+  ],
+  "dva-1-203": [
+   "async retry attempts 0 and on-failure destination",
+   "set retries to zero, failure destination"
+  ],
+  "dva-2-757": [
+   "anyone with the url can download it until expiry",
+   "anyone can use it"
+  ],
+  "dva-2-902": [
+   "deny with aws:TokenIssueTime DateLessThan",
+   "DateLessThan TokenIssueTime"
+  ],
+  "dva-3-908": [
+   "BeforeInstall AfterInstall AfterAllowTestTraffic BeforeAllowTraffic AfterAllowTraffic",
+   "includes AfterAllowTestTraffic"
+  ],
+  "dva-2-614": [
+   "ssm:GetParameter on the parameter arn",
+   "GetParameter scoped to that ARN"
+  ],
+  "dva-3-932": [
+   "mock the sdk",
+   "stub the SDK clients"
+  ],
+  "dva-2-603": [
+   "403 access denied",
+   "403"
+  ],
+  "dva-4-800": [
+   "data events not enabled",
+   "GetObject is a data event"
+  ],
+  "dva-3-124": [
+   "rollback trigger with the alarm, 15 min monitoring",
+   "cloudformation rollback triggers"
+  ],
+  "dva-1-208": [
+   "publish a new version and move the alias",
+   "publish version, update alias"
+  ],
+  "dva-2-407": [
+   "aggregate on X-Forwarded-For",
+   "forwarded ip config in the rate rule"
+  ],
+  "dva-3-219": [
+   "cron.yaml",
+   "worker environment cron.yaml"
+  ]
+ },
+ "principle_words": {
+  "dva-1-04": [
+   "order per account but parallel across accounts"
+  ],
+  "dva-2-228": [
+   "tasks only read secrets at startup so restart them"
+  ],
+  "dva-2-322": [
+   "short lived creds via single sign on"
+  ],
+  "dva-3-705": [
+   "send a small slice of traffic to the new version via the alias"
+  ],
+  "dva-2-311": [
+   "lambda lost its grant on the key, reset it"
+  ],
+  "dva-1-602": [
+   "remove the marker so the old version shows again"
+  ],
+  "dva-2-109": [
+   "env vars win in the credential chain, get rid of them"
+  ],
+  "dva-1-240": [
+   "dax only caches eventually consistent reads"
+  ],
+  "saa-2-07": [
+   "make the app stateless, keep sessions outside the servers"
+  ],
+  "dva-3-222": [
+   "both polling and the event rule trigger it, turn polling off"
+  ],
+  "dva-2-759": [
+   "pending deletion means unusable but you can cancel"
+  ],
+  "dva-4-401": [
+   "the health checkers can't reach it, open the firewall to them"
+  ],
+  "dva-2-15": [
+   "cloudfront certs have to live in virginia"
+  ],
+  "dva-2-855": [
+   "after cancelling it's disabled, turn it back on"
+  ],
+  "dva-2-870": [
+   "deny tokens issued before now"
+  ],
+  "dva-1-203": [
+   "no retries for async invoke and send failures somewhere"
+  ],
+  "dva-2-757": [
+   "it's a bearer link, whoever has it can get the file"
+  ],
+  "dva-4-800": [
+   "object level calls aren't logged by default"
+  ],
+  "dva-1-208": [
+   "versions are frozen, need a new one for the alias"
+  ],
+  "dva-3-219": [
+   "beanstalk worker periodic task file"
+  ]
+ }
+}

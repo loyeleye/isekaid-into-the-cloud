@@ -62,8 +62,12 @@
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
-      <button class="opt" id="m-say">Say it first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
-      <button class="opt" id="m-typed">Typed answers: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
+      <p class="q-ctx m-group">Before the options</p>
+      <button class="opt" id="m-type">Type it first: <b>${{ missed: 'Questions I missed', all: 'Every question', off: 'Off' }[SD.quiz.typeMode()]}</b></button>
+      <button class="opt" id="m-say">Say it in my head first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
+      <p class="q-ctx m-group">After the answer</p>
+      <button class="opt" id="m-whynot">Why not this one: <b>${SD.quiz.whyNot() ? 'On' : 'Off'}</b></button>
+      <button class="opt" id="m-typed">Explain questions: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
       ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
       <button class="opt" id="m-name">Change name</button>
@@ -93,6 +97,13 @@
       if (!S.save) return;
       const m = SD.quiz.SAY_MODES; S.save.sayFirst = m[(m.indexOf(SD.quiz.sayMode()) + 1) % m.length]; S.persist(); menu();
     };
+    // Type it first (js/quiz.js, js/recall.js): type a few words before the options show, on questions you missed.
+    b.querySelector('#m-type').onclick = () => {
+      if (!S.save) return;
+      const m = SD.quiz.TYPE_MODES; S.save.typeFirst = m[(m.indexOf(SD.quiz.typeMode()) + 1) % m.length]; S.persist(); menu();
+    };
+    // Why not this one (js/quiz.js): a folded card after a right answer about the closest wrong option.
+    b.querySelector('#m-whynot').onclick = () => { if (!S.save) return; S.save.whyNot = !SD.quiz.whyNot(); S.persist(); menu(); };
     // Typed answers (js/explain-data.js, checked on-device by js/embed.js): sometimes explain a concept instead of picking.
     b.querySelector('#m-typed').onclick = () => { if (!S.save) return; S.save.typed = S.save.typed === false; S.persist(); menu(); };
     // Testing only (js/debug.js), shown once the debug code is in (js/debug-gate.js): a separate save that starts on any

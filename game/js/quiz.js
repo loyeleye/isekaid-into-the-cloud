@@ -15,6 +15,26 @@
     return m === 'all' || (m === 'boss' && (opts.think || /BOSS|DUEL|TWIST/.test(opts.title || '')));
   };
 
+  // Type it first (js/recall.js): on a multiple choice question you missed last time, and in Wall drills, the options
+  // stay hidden until you type a few words. The feedback then says whether you recalled the answer or recognised it.
+  // Modes: 'missed' (the default), 'all' or 'off' (Menu). Callers force it with opts.typeFirst (true or false).
+  // Never for options that are JSON, policies or commands, which nobody should type on a phone.
+  Q.TYPE_MODES = ['missed', 'all', 'off'];
+  Q.typeMode = () => (SD.state.save && Q.TYPE_MODES.includes(SD.state.save.typeFirst)) ? SD.state.save.typeFirst : 'missed';
+  const typeFirst = (q, opts) => {
+    if (q.type !== 'mc' || opts.noThink || !SD.recall || SD.recall.codey(q.opts) || opts.typeFirst === false) return false;
+    const m = Q.typeMode();
+    if (m === 'off') return false;
+    if (opts.typeFirst || m === 'all') return true;
+    const l = q.id && SD.state.save && SD.state.save.qlog && SD.state.save.qlog[q.id];
+    return !!(l && !l[1]);
+  };
+  // Why not this one? After a right answer, a folded card asks why the closest wrong option fails here before it
+  // shows that option's "why not" line. On by default; Menu turns it off.
+  Q.whyNot = () => !(SD.state.save && SD.state.save.whyNot === false);
+  // The Today card's hosts (js/today.js) speak only in its own sets; elsewhere the copy stays plain.
+  const host = opts => (/TODAY|WALL|DRILL/.test(opts.title || '') && SD.today && SD.today.uptima ? (SD.today.uptima() ? 'uptima' : 'kyu') : null);
+
   // Typed answers (type 'explain', data in js/explain-data.js): which rubric points does the text cover?
   // A point counts as found when one of its key terms appears, or when a clause of the answer means nearly the same
   // as one of its example phrasings (on-device embeddings, js/embed.js). The player confirms every tick, so this
@@ -59,7 +79,7 @@
       q = SD.exam.swap(q);
     }
     return new Promise(done => {
-      const t0 = Date.now();
+      let t0 = Date.now();
       // opts.closable (Coo's lost letters, js/c2-world.js): the panel gets the usual ✕, and Esc works too. Before you
       // commit an answer it puts the question down, records nothing and resolves { closed: true }; after, it does
       // what the panel's main button does.
@@ -74,7 +94,9 @@
       // opts.credNote ends the "Why Trust" breakdown above Continue.
       const T = opts.tally && SD.state.tally && SD.state.TALLY ? SD.state.TALLY : null, tal0 = T ? SD.state.tally() : 0;
       const sgn = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n);
-      let thinking = sayFirst(q, opts);
+      let typing = typeFirst(q, opts), first = null;   // first: what you typed before the options ('' = I don't know)
+      let thinking = !typing && sayFirst(q, opts);
+      if (typing && SD.embed) SD.embed.load();
       let pick = null, order = [], multi = new Set(), typed = '';
       if (q.type === 'explain' && SD.embed) SD.embed.load();
       let optOrder = null;
@@ -85,6 +107,25 @@
       const concept = SD.concepts[q.c];
       function render() {
         let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>`;
+        if (typing) {
+          const who = host(opts);
+          const line = who === 'uptima' ? 'This one got away from you last time. Type it before you peek. I\'m not looking. I\'m looking a bit.'
+            : who === 'kyu' ? 'You missed this idea last time. Write it before you look. — K.' : 'You missed this idea last time. Answer in a few words before you see the options.';
+          h += `<div class="type-first"><p><b>Type it first.</b> ${U.esc(line)}</p>
+            <form class="tf-row" id="tf-form"><label class="sr" for="tf-in">Your answer</label><input id="tf-in" type="text" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="200" placeholder="A few words. Names are enough.">
+            <button class="primary" id="tf-go" type="submit">Show options</button></form>
+            <button class="tf-idk" id="tf-idk" type="button">I don't know yet</button></div>`;
+          const b = panel(h);
+          const inp = b.querySelector('#tf-in'), win = b.closest('.win');
+          const go = v => { first = v.trim(); typing = false; if (win) win.classList.remove('typing'); t0 = Date.now(); render(); };
+          b.querySelector('#tf-form').onsubmit = e => { e.preventDefault(); go(inp.value); };
+          b.querySelector('#tf-idk').onclick = () => go('');
+          // Phones: no autofocus (the keyboard would hide the question); once you tap in, the question shrinks to three
+          // lines so the box stays above the keyboard.
+          inp.onfocus = () => { if (win) win.classList.add('typing'); setTimeout(() => inp.scrollIntoView({ block: 'nearest' }), 250); };
+          if (window.matchMedia && matchMedia('(pointer: fine)').matches) setTimeout(() => inp.focus(), 50);
+          return;
+        }
         if (thinking) {
           h += `<div class="say-first"><p>Answer it in your own words first, out loud or in your head, the way you would in the room.</p>
             <button class="primary" id="q-said">I've said it. Show the options</button></div>`;
@@ -94,6 +135,7 @@
           sb.focus();
           return;
         }
+        if (first !== null) h += `<p class="tf-said"><span class="q-ctx">You wrote</span> ${first ? U.esc(first) : '<i>I don\'t know yet</i>'}</p>`;
         if (q.type === 'mc') {
           h += '<div class="opts">' + optOrder.map(i => `<button class="opt${pick === i ? ' on' : ''}${hidden === i ? ' struck' : ''}" data-o="${i}" ${hidden === i ? 'disabled' : ''}>${U.esc(q.opts[i])}</button>`).join('') + '</div>';
         } else if (q.type === 'num') {
@@ -146,11 +188,20 @@
           score = 0; q.items.forEach((it, i) => { if (multi.has(i)) score += it.ok ? 1 : -1; });
           ok = score >= q.items.filter(i => i.ok).length - 1;
         }
+        // Type it first: did your own words match the right option before you saw the options?
+        //   memory   sure match on the right option        none     "I don't know yet" or nothing typed
+        //   options  sure match on a wrong option          unsure   no clear match; you're asked
+        if (first !== null) {
+          const m = first ? SD.recall.match(first, q.opts) : null;
+          recall = !m ? { kind: 'none' } : !m.sure ? { kind: 'unsure', near: m.best } : { kind: m.best === q.a ? 'memory' : 'options', near: m.best };
+        }
+        const recog = ok && recall && (recall.kind === 'none' || recall.kind === 'options');
         let page = null;
-        if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, ms, q.id);
+        if (q.c && !opts.noRecord) page = SD.state.recordAnswer(q.c, ok, conf, ms, q.id, recog ? { recog: true } : null);
         SD.state.persist();
         feedback(ok, conf, ms, page, score);
       }
+      let recall = null;
       // Typed answer: the game pre-ticks the rubric points it can see, and the player confirms or corrects them.
       async function checkTyped(conf, ms) {
         const E = SD.embed;
@@ -219,8 +270,58 @@
         return `<details class="q-recap"><summary><span class="qr-lbl">The question</span><span class="qr-peek">${U.esc(q.q)}</span></summary>
           <div class="qr-body">${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>${body}</div></details>`;
       }
+      // Type it first's verdict: your words next to the right answer, and what the game made of them.
+      function recallBlock(ok, right) {
+        const who = host(opts), k = recall.kind;
+        const near = recall.near != null ? q.opts[recall.near] : '';
+        const said = first ? `<p class="rc-said"><span class="q-ctx">You wrote</span> ${U.esc(first)}</p>` : '';
+        const ans = `<p class="rc-said"><span class="q-ctx">Right answer</span> ${U.esc(right)}</p>`;
+        let txt = '', more = '';
+        if (k === 'memory') {
+          txt = ok ? (who === 'uptima' ? 'You wrote it before you looked. I\'m putting that on the fridge.' : who === 'kyu' ? 'Wrote it before you looked. That\'s knowing. — K.' : 'Your words matched the right answer before you saw the options.')
+            : (who === 'kyu' ? 'Your first answer was right. You talked yourself out of it. — K.' : 'Your typed answer matched the right one, then the options talked you out of it. Trust your first answer.');
+        } else if (k === 'options') {
+          txt = `Your words were closest to "${U.esc(near)}".` + (ok ? (who === 'uptima' ? ' You knew it when you saw it. I knew the Cloud when I saw it for ten thousand years. Didn\'t mean I could run it.' : ' You knew it when you saw it, so it comes back sooner.') : '');
+          if (ok) more = '<button class="ghost rc-b" id="rc-meant" type="button">Not what I meant: my words meant the right answer</button>';
+        } else if (k === 'none') {
+          if (!ok) return '';
+          txt = 'You picked it once you saw the options. It comes back sooner, so next time you can write it first.';
+        } else {
+          txt = 'Your words don\'t clearly match one option.' + (ok ? ' Did they mean the right answer?' : ' Compare them with the right answer.');
+          if (ok) more = '<div class="row"><button class="ghost rc-b" data-rc="1" type="button">Yes, I had it</button><button class="ghost rc-b" data-rc="0" type="button">No</button></div>';
+        }
+        return `<div class="recall rc-${k}" id="rc-box">${said}${k === 'memory' && ok ? '' : ans}<p class="small">${txt}</p>${more}<p class="small rc-done" id="rc-done" hidden></p></div>`;
+      }
+      // The buttons inside the verdict: the recall check's corrections and Why not this one.
+      function wire(b) {
+        const done = t => { const d = b.querySelector('#rc-done'); b.querySelectorAll('.rc-b').forEach(x => x.remove()); if (d) { d.textContent = t; d.hidden = false; } };
+        const meant = b.querySelector('#rc-meant');
+        if (meant) meant.onclick = () => { if (q.c && !opts.noRecord) SD.state.adjustRecog(q.c, lastConf, false); recall.kind = 'memory'; done('Counted as from memory.'); };
+        b.querySelectorAll('[data-rc]').forEach(el => el.onclick = () => {
+          const yes = el.dataset.rc === '1';
+          if (!yes && q.c && !opts.noRecord) SD.state.adjustRecog(q.c, lastConf, true);
+          recall.kind = yes ? 'memory' : 'options';
+          done(yes ? 'Counted as from memory.' : 'Counted as from the options. It comes back sooner.');
+        });
+        const rev = b.querySelector('#wn-rev');
+        if (rev) rev.onclick = () => { rev.remove(); b.querySelector('#wn-a').hidden = false; };
+        b.querySelectorAll('[data-wn]').forEach(el => el.onclick = () => {
+          const had = el.dataset.wn === '1', say = b.querySelector('#wn-say');
+          b.querySelectorAll('[data-wn]').forEach(x => x.remove());
+          if (!had) {
+            const sv = SD.state.save, opt = q.opts[wn], clip = opt.length > 48 ? opt.slice(0, 46).replace(/\s+\S*$/, '') + '…' : opt;
+            const p = `Why doesn't "${clip}" work here?`;
+            sv.openQs = sv.openQs || []; if (!sv.openQs.includes(p)) sv.openQs.push(p); if (sv.openQs.length > 40) sv.openQs.shift();
+            SD.state.persist();
+          }
+          say.textContent = had ? 'Pip: "Oh good. So it wasn\'t luck. I hate luck."' : 'Saved to your notebook\'s open questions.';
+          say.hidden = false;
+        });
+      }
+      let lastConf = 0, wn = -1;
       function feedback(ok, conf, ms, page, score) {
-        onX = () => resolve({ ok, conf, ms, score });
+        lastConf = conf;
+        onX = () => resolve({ ok, conf, ms, score, recall: recall && recall.kind });
         let right = '';
         if (q.type === 'mc') right = q.opts[q.a];
         if (q.type === 'num') right = q.ans;
@@ -240,10 +341,13 @@
           healTxt = opts.heal ? opts.heal(ok, t1) : '';
           credMore = `<details class="cred-more"><summary>🎯 Why Trust ${sgn(d)}?</summary><p>You said <b>${['Guess', 'Think so', 'Sure'][conf] || 'Guess'}</b> and were ${ok ? 'right' : 'wrong'}: ${sgn(st)}.${d !== st ? ` Trust counts only your last 20 answers and never goes above ${SD.state.TALLY_MAX}, so it moved ${sgn(d)}.` : ''} Every answer you commit moves it: Guess ${sgn(T[0][0])} / ${sgn(T[0][1])}, Think so ${sgn(T[1][0])} / ${sgn(T[1][1])}, Sure ${sgn(T[2][0])} / ${sgn(T[2][1])}.${opts.credNote ? ' ' + U.esc(opts.credNote) : ''}</p></details>`;
         }
-        let h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? (conf === 0 ? 'CORRECT... BUT A GUESS' : 'CORRECT!') : 'NOT QUITE!'}</div>${cred}</div>`;
+        const RB = { memory: ['mem', 'From memory'], options: ['opt', 'From the options'], none: ['opt', 'From the options'], unsure: ['unsure', 'Can\'t tell'] };
+        const rb = recall && (ok || recall.kind === 'memory' || recall.kind === 'unsure') ? RB[recall.kind] : null;
+        let h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? (conf === 0 ? 'CORRECT... BUT A GUESS' : 'CORRECT!') : 'NOT QUITE!'}</div>${rb ? `<span class="rc-badge ${rb[0]}">${rb[1]}</span>` : ''}${cred}</div>`;
         if (over) h += `<p class="warn small">You were sure and it was wrong. That gap is the most valuable thing you found today, so this comes back first.</p>`;
         if (ok && conf === 0) h += `<p class="muted small">A lucky guess is not knowledge yet. It will come back soon.</p>`;
         h += recap(right);
+        if (recall) h += recallBlock(ok, right);
         if (q.type === 'explain') h += `<p class="muted small">You covered ${score} of ${q.points.length} points.</p>`;
         const showAns = q.type !== 'explain' && (!ok || conf === 0) && !q.tiers;
         h += `<div class="why">${showAns ? `<p class="why-a"><span class="q-ctx">Answer</span><b>${U.esc(right)}</b></p>` : ''}<p>${U.esc(q.why || '')}</p></div>`;
@@ -252,9 +356,20 @@
           h += `<div class="nots tiers"><div class="q-ctx">The ranking, weakest first</div><ol>${q.items.map((t, i) =>
             `<li><span class="tier tier-${U.esc(q.tiers[i].toLowerCase())}">${U.esc(q.tiers[i])}</span> <b>${U.esc(t)}</b>${q.notes && q.notes[i] ? `<br>${U.esc(q.notes[i])}` : ''}</li>`).join('')}</ol></div>`;
         }
+        // Why not this one? (Q.whyNot): after a right answer you meant, the closest wrong option, folded. Its line moves
+        // out of "Why not the others" so the card's reveal isn't given away.
+        wn = ok && conf > 0 && q.type === 'mc' && Array.isArray(q.no) && Q.whyNot() && SD.recall ? SD.recall.closest(q.opts, q.a, i => !!q.no[i]) : -1;
+        if (wn >= 0) {
+          h += `<details class="whynot"><summary><b>Pip:</b> "I almost picked this one. Why is it wrong?"</summary>
+            <p class="wn-opt">${U.esc(q.opts[wn])}</p><p class="muted small">Say why it fails here, then check.</p>
+            <button class="ghost wn-b" id="wn-rev" type="button">Show why</button>
+            <div id="wn-a" hidden><p>${U.esc(q.no[wn])}</p><p class="small">Was that your reason?</p>
+            <div class="row"><button class="ghost wn-b" data-wn="1" type="button">I had it</button><button class="ghost wn-b" data-wn="0" type="button">I didn't</button></div>
+            <p class="small wn-say" id="wn-say" hidden></p></div></details>`;
+        }
         // Why each wrong option is wrong here (and, for real techniques, when it would be right).
         if (q.type === 'mc' && Array.isArray(q.no)) {
-          const nots = optOrder.filter(i => i !== q.a && q.no[i]);
+          const nots = optOrder.filter(i => i !== q.a && q.no[i] && i !== wn);
           if (nots.length) h += notsBlock(nots, i => i === pick, i => q.opts[i], i => q.no[i]);
         }
         // Select-all: why each item that doesn't belong is wrong, marking the ones you picked.
@@ -299,7 +414,7 @@
             <div class="opts">${prompts.map((p, i) => `<button class="opt" data-p="${i}">${U.esc(p)}</button>`).join('')}</div></div>`;
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
           const b = panel(h);
-          help(b);
+          help(b); wire(b);
           const nx = b.querySelector('#q-next');
           b.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
             const sv = SD.state.save; sv.openQs = sv.openQs || [];
@@ -308,12 +423,12 @@
             SD.state.persist();
             b.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', x === el));
           });
-          nx.onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score }); };
+          nx.onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
         } else {
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
           const b = panel(h);
-          help(b);
-          b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score }); };
+          help(b); wire(b);
+          b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
           b.querySelector('#q-next').focus();
         }
         if (page) U.system('CHEAT SHEET PAGE RESTORED!', U.esc(SD.concepts[q.c].name) + ': a page in Uptima\'s handwriting fades back in.', 'gold');

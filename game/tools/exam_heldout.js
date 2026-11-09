@@ -32,7 +32,7 @@ function load() {
 
 const { SD, srcs } = load();
 const named = new Set();
-for (const s of srcs.filter(s => !/^js\/(bank-|exam)/.test(s))) {
+for (const s of srcs.filter(s => !/^js\/(bank-|exam|twins-data)/.test(s))) {
   for (const m of fs.readFileSync(path.join(ROOT, s), 'utf8').matchAll(/['"]((?:dva|saa)-\d-\d{2,3})['"]/g)) named.add(m[1]);
 }
 const inGame = new Set(SD.questions.map(q => q.id));

@@ -35,3 +35,22 @@
     return opts.c ? Object.assign({}, q, { c: opts.c }) : Object.assign({}, q);
   };
 })();
+
+// A question's twin (js/twins-data.js, made by tools/twins.js): another question on the same rule in a different
+// scenario, so a missed question can come back as one the player hasn't seen. Never a held-out question, nor one
+// in `avoid`; the one never answered first, then the one answered longest ago. Returns a copy filed under `c`
+// (default: the original's concept), or null when the question has no twin the player can be asked.
+(function () {
+  SD.qtwin = function (q, opts) {
+    opts = opts || {};
+    const ids = (q && q.id && SD.twins && SD.twins[q.id]) || [];
+    const E = SD.exam, avoid = opts.avoid || [];
+    const find = id => (E && E.find ? E.find(id) : (SD.bank || []).find(x => x.id === id));
+    const list = ids.filter(id => !avoid.includes(id)).map(find).filter(x => x && (!E || E.allowed(x)));
+    if (!list.length) return null;
+    const log = (SD.state && SD.state.save && SD.state.save.qlog) || {};
+    const t = x => (log[x.id] ? log[x.id][0] : 0) + Math.random();
+    const pick = list.slice().sort((a, b) => t(a) - t(b))[0];
+    return Object.assign({}, pick, { c: opts.c || q.c || pick.c });
+  };
+})();
