@@ -1322,9 +1322,26 @@ body { background: var(--bg); }
 #qs-pause .win-b { padding: 16px; }
 #qs-pause .primary { width: 100%; margin-top: 6px; }
 .qs-resume small { display: block; font-family: var(--f-body, 'Nunito', sans-serif); font-variant: normal; text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 700; opacity: .9; margin-top: 2px; }
-/* The fight's pause tile: a full 48px target, kept well clear of End turn so a slip doesn't end the turn. */
-.qs-btn { min-width: 48px; min-height: 48px; padding: 0 10px; margin-right: 14px; flex: none; }
-.qs-btn .qs-ico { width: 16px; height: 18px; }
+/* The fight's pause chip: a system control on the incident art's top-left corner (the incidents stand on the right), away from the cards and End turn.
+   44px round, with a 52px tap area. */
+.foe-zone { position: relative; }
+.qs-chip { position: absolute; top: 8px; left: 8px; z-index: 3; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 3px solid var(--ink); border-radius: 50%; background: var(--bone, #fff); color: var(--ink); box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.qs-chip::after { content: ''; position: absolute; inset: -6px; }
+.qs-chip:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.qs-chip:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.qs-chip .qs-ico { width: 14px; height: 16px; vertical-align: 0; }
+/* The bookmark: hangs from the pause screen's title bar and drops in once, a small "your place is kept". */
+.qs-rb { fill: var(--pink); stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.qs-ck { fill: none; stroke: var(--sun); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+#qs-pause .win { overflow: visible; }
+#qs-pause .win-h { position: relative; border-radius: 13px 13px 0 0; }
+#qs-pause .qs-mark { position: absolute; right: 18px; top: -6px; width: 30px; height: 47px; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .35)); transform-origin: top center; animation: qsDrop .5s .12s cubic-bezier(.3, 1.5, .5, 1) both; }
+#qs-pause .win-b > p:first-child { padding-right: 34px; }
+@keyframes qsDrop { from { transform: translateY(-60%) scaleY(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #qs-pause .qs-mark { animation: none; } }
+.qs-mark-i { width: .75em; height: 1.15em; vertical-align: -.2em; }
+.qs-mark-i .qs-rb { stroke-width: 3; }
+.qs-mark-i .qs-ck { stroke-width: 3.6; }
 /* While paused, the game's own animations hold still. */
 body.qs-paused *:not(#qs-pause):not(#qs-pause *) { animation-play-state: paused !important; }
 .qs-ico { width: .8em; height: .95em; fill: currentColor; vertical-align: -.08em; }

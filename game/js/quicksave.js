@@ -22,6 +22,11 @@
   const Q = SD.quick = {};
   // A pause sign drawn in code (the title font has no ⏸).
   Q.icon = '<svg class="qs-ico" viewBox="0 0 10 12" aria-hidden="true"><rect x="1" y="1" width="3" height="10" rx="1"/><rect x="6" y="1" width="3" height="10" rx="1"/></svg>';
+  // The "saved" emblem: a bookmark ribbon (your place is kept), pink with an ink outline and a gold check. Q.mark
+  // hangs from the pause screen's title bar; Q.markIcon is the same shape at text size, for the buttons that save.
+  const RIBBON = '<path class="qs-rb" d="M3 2h22v38l-11-8-11 8z"/><path class="qs-ck" d="M8.5 15.5l4 4 7.5-8.5"/>';
+  Q.mark = `<svg class="qs-mark" viewBox="0 0 28 44" aria-hidden="true">${RIBBON}</svg>`;
+  Q.markIcon = `<svg class="qs-ico qs-mark-i" viewBox="0 0 28 44" aria-hidden="true">${RIBBON}</svg>`;
   // And a play sign for Resume, which does the opposite of pausing.
   Q.play = '<svg class="qs-ico" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1.2v9.6c0 .6.6.9 1.1.6l6.4-4.8c.4-.3.4-.9 0-1.2L3.1.6C2.6.3 2 .6 2 1.2z"/></svg>';
   let paused = false;
@@ -54,7 +59,7 @@
     const el = document.createElement('div');
     el.id = 'qs-pause';
     el.innerHTML = `<div class="win" role="dialog" aria-modal="true" aria-labelledby="qs-h" aria-describedby="qs-d">
-      <div class="win-h"><span id="qs-h">QUICK SAVED</span></div>
+      <div class="win-h"><span id="qs-h">QUICK SAVED</span>${Q.mark}</div>
       <div class="win-b" id="qs-d"><p><b>Paused right here${q.fight ? ', mid-fight' : ''}.</b></p>
         <p>Safe to close the app. <b>Resume quick save</b> on the title screen brings you back to this moment, once.</p>
         ${q.fight ? '' : '<p class="muted small">Mid-conversation? That scene restarts from its first line.</p>'}

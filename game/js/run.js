@@ -131,7 +131,7 @@
       <div class="map-wrap"><div class="map-title">${U.esc(chap().name.replace(/^the /, '').toUpperCase())} · ${chap().rank}-RANK <span class="muted">Pick a path. ${U.esc(SD.enemies[bossId()].name)} waits at the end.</span>
         ${curseChips()}</div>
       <div class="map" style="height:${rows * 118}px"><canvas class="map-bg" aria-hidden="true"></canvas>${svg}${nodes}</div></div>
-      <div class="run-foot"><button class="ghost" id="deck-btn">Deck (${run.deck.length})</button><button class="ghost" id="codex-btn2">Cheat sheet</button><button class="ghost" id="qs-map">${SD.quick ? SD.quick.icon : ''} Quick save</button><button class="ghost danger" id="abandon">Abandon run</button></div>`;
+      <div class="run-foot"><button class="ghost" id="deck-btn">Deck (${run.deck.length})</button><button class="ghost" id="codex-btn2">Cheat sheet</button><button class="ghost" id="qs-map">${SD.quick ? SD.quick.markIcon : ''} Quick save</button><button class="ghost danger" id="abandon">Abandon run</button></div>`;
     paintMap($('#run .map'), floors, xy, bend, rows, cur);
     $('#run').querySelectorAll('.node.can').forEach(b => b.onclick = () => enterNode(findNode(b.dataset.n)));
     $('#deck-btn').onclick = showDeck;
@@ -1333,6 +1333,7 @@
     $('#run').innerHTML = `
       <div class="combat${C.boss ? ' bossfight' : ''}">
         <div class="cb-l"><div class="foe-zone">
+          ${SD.quick ? `<button class="qs-chip" id="qs-fight" type="button" aria-label="Quick save and pause" title="Quick save and pause">${SD.quick.icon}</button>` : ''}
           ${stageHtml(e, foeCol)}
           ${grouped() ? groupInfoHtml() : `<div class="foe-info">
             <div class="foe-name">${U.esc(e.name)} ${C.boss ? '<span class="tier boss">BOSS</span>' : C.elite ? '<span class="tier elite">ELITE</span>' : '<span class="tier">INCIDENT</span>'}</div>
@@ -1352,7 +1353,7 @@
         <div class="cb-r"><div class="hand-zone">
           <div class="hand-top"><div class="energy" aria-label="Capacity ${C.energy}"><b>${C.energy}</b><span>CAP</span></div>
             <span class="muted small">Draw ${C.draw.length} · Discard ${C.disc.length}</span>
-            ${hook('combatButtons', C) || ''}<button class="ghost qs-btn" id="qs-fight" aria-label="Quick save and pause" title="Quick save and pause">${SD.quick ? SD.quick.icon : 'II'}</button><button class="primary" id="end-turn">End turn</button></div>
+            ${hook('combatButtons', C) || ''}<button class="primary" id="end-turn">End turn</button></div>
           <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy })).join('')}</div>
         </div></div>
       </div>`;

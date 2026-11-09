@@ -59,7 +59,7 @@
     const mp = SD.mp && SD.mp.available() && $('#screen-run').hidden;
     const qs = SD.quick && $('#screen-title').hidden && !(SD.mp && SD.mp.inRaid && SD.mp.inRaid());
     const b = U.panel(`<div class="opts">
-      ${qs ? `<button class="opt" id="m-quick">${SD.quick.icon} Quick save and pause</button>` : ''}
+      ${qs ? `<button class="opt" id="m-quick">${SD.quick.markIcon} Quick save and pause</button>` : ''}
       ${mp ? '<button class="opt" id="m-mp">Multiplayer: expedition raids</button>' : ''}
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
