@@ -517,7 +517,7 @@
   function guess(p, title) {
     return new Promise(res => {
       const b = U.panel(`<div class="q-ctx">Predict first</div><p class="q-q">${U.esc(p.q)}</p>
-        <div class="opts">${p.opts.map((o, i) => `<button class="opt" data-pr="${i}">${U.esc(o)}</button>`).join('')}</div>
+        <div class="opts">${Q.shuffle(p.opts.map((o, i) => i)).map(i => `<button class="opt" data-pr="${i}">${U.esc(p.opts[i])}</button>`).join('')}</div>
         <p class="muted small">A quick guess, not scored. Then try it and see.</p>`, { title: title || 'PREDICT', noClose: true, cls: 'quiz' });
       b.querySelectorAll('[data-pr]').forEach(el => el.onclick = () => {
         const ok = +el.dataset.pr === p.a;

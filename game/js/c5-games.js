@@ -62,7 +62,7 @@
   function predict(b, p, concept) {
     return new Promise(res => {
       const box = document.createElement('div'); box.className = 'g5-predict';
-      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${p.opts.map((o, i) => `<button class="opt" data-p="${i}">${esc(o.t)}</button>`).join('')}</div><p class="g5-note"></p>`;
+      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${shuffle(p.opts.map((o, i) => i)).map(i => `<button class="opt" data-p="${i}">${esc(p.opts[i].t)}</button>`).join('')}</div><p class="g5-note"></p>`;
       b.appendChild(box);
       box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
         const o = p.opts[+el.dataset.p];
@@ -241,7 +241,7 @@
         const i = queue[0], q = o.qs[i];
         G.cur.q = q;
         const box = b.querySelector('#g5-q');
-        box.innerHTML = `<p><b>${esc(steps[at] + '%')}:</b> ${esc(q.q)}</p><div class="opts col">${q.opts.map((t, k) => `<button class="opt" data-k="${k}">${esc(t)}</button>`).join('')}</div>`;
+        box.innerHTML = `<p><b>${esc(steps[at] + '%')}:</b> ${esc(q.q)}</p><div class="opts col">${shuffle(q.opts.map((t, k) => k)).map(k => `<button class="opt" data-k="${k}">${esc(q.opts[k])}</button>`).join('')}</div>`;
         box.querySelectorAll('[data-k]').forEach(el => el.onclick = async () => {
           const ok = +el.dataset.k === q.a;
           S.recordAnswer(q.c || 'shifting', ok, 1, 20000);
