@@ -145,7 +145,7 @@
   // A refactored (or tempered) utility card of cost 2 or more costs 1 less, each.
   const costOf = id => { const d = card(id); if (d.xcost) return 0; let c = d.cost; for (let k = d.abs || d.mit ? 0 : lvlOf(id); k > 0 && c > 1; k--) c--; return c; };
   const chtml = (id, o) => {
-    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
+    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), powUp: isTp(id) ? 1 : 0, plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
     return isTp(id) ? h.replace('<div class="c-name">', '<div class="c-name"><span class="rd-tp" title="Tempered: +3 to its numbers for this fight">⚒</span> ') : h;
   };
 
@@ -2403,7 +2403,7 @@
       if (G.lt.length) { const m = G.lt.reduce((a, x) => a + x[1], 0), a = G.lt.reduce((n, x) => n + x[2], 0); chips.push(`<span class="chip rd-st" title="Played for later: it lands at the start of next turn.">Next turn: ${[m && `Mitigate ${m}`, a && `Absorb ${a}`].filter(Boolean).join(', ')}</span>`); }
       if (G.bk > 0 && mine && mine.hand.some(id => card(id).restoreAbs)) chips.push(`<span class="chip rd-st" title="Restore Backup brings back up to this much: the absorb in play when the foes last acted.">Backup ${G.bk}</span>`);
       const mates = Object.keys(G.players).filter(k => k !== me.peer).map(k => { const p = G.players[k]; return `<div class="rd-mate${p.ready ? ' ready' : ''}"><b>${esc(p.n)}</b><span>${p.cap} Capacity left · ${p.hand.length} cards</span>${stChips(p.st, ME_ST)}<span class="rd-played">${p.played.length ? 'Played ' + p.played.map(id => esc(card(id).name)).join(', ') : 'Nothing played yet'}</span>${p.ready ? '<span>Ready</span>' : ''}</div>`; }).join('');
-      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(card(G.infra[i].id).text)}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
+      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(SD.ui.cardText({ id: base(G.infra[i].id), up: lvlOf(G.infra[i].id), powUp: isTp(G.infra[i].id) ? 1 : 0 }))}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
       const tier = { boss: 'BOSS', elite: 'ELITE', fight: 'INCIDENT' }[G.tier] || 'RAID';
       // What's known about the targeted enemy's weaknesses.
       const tf = G.foes[tg >= 0 ? tg : 0], weak = Object.keys(e.weak).filter(t => tf.known.includes('w:' + t)), res = Object.keys(e.resist).filter(t => tf.known.includes('r:' + t));
@@ -2452,7 +2452,7 @@
           <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
       </div>`);
       // A rare draws its question here (the pair's partner answers the same one); a card that names a player asks who.
-      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
+      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; if (d.pow && costFor(mine, id) <= mine.cap) SD.ui.powTip(); send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
       root.querySelectorAll('[data-mate]').forEach(b => { b.onclick = () => { if (ui.mate) playIt(ui.mate.i, b.dataset.mate); }; });
       const mx = root.querySelector('#rd-mate-x'); if (mx) mx.onclick = () => { ui.mate = null; render(); };
       root.querySelectorAll('.hand .card').forEach(el => {

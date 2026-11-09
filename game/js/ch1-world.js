@@ -383,8 +383,7 @@
     const card = T.leads[lead()].card;
     c1().deck.push({ id: card, up: false });
     S.seeConcept('roles');
-    const n = U.cardNums(card);
-    U.system('NEW CARD: ' + SD.cards[card].name.toUpperCase(), U.esc(SD.cards[card].text.replace(/\{(\w+)\}/g, (_, k) => n[k] != null ? n[k] : '')), 'gold');
+    U.system('NEW CARD: ' + SD.cards[card].name.toUpperCase(), U.esc(U.cardText(card)), 'gold');
     await say(T.mission);
     setFlag('brief');
     AU.music('camp');

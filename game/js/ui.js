@@ -108,8 +108,9 @@
 
   // ---- Toasts ----
   const sq = []; let showing = false;
-  U.system = function (title, body, kind) {
-    sq.push({ title, body, kind }); if (!showing) pump();
+  // ms: how long it stays up (default 3 seconds), for a longer one-time tip.
+  U.system = function (title, body, kind, ms) {
+    sq.push({ title, body, kind, ms }); if (!showing) pump();
     if (SD.audio) SD.audio.sfx(kind === 'gold' ? 'coin' : kind === 'red' ? 'wrong' : 'blip');
   };
   function pump() {
@@ -123,8 +124,9 @@
     const bar = ['#hud', '.run-hud'].map(q => $(q)).find(h => h && h.offsetParent);
     $('#notes').style.top = (bar ? Math.max(12, bar.getBoundingClientRect().bottom + 8) : 12) + 'px';
     $('#notes').appendChild(el);
-    setTimeout(() => el.classList.add('out'), 2600);
-    setTimeout(() => { el.remove(); pump(); }, 3000);
+    const ms = n.ms || 3000;
+    setTimeout(() => el.classList.add('out'), ms - 400);
+    setTimeout(() => { el.remove(); pump(); }, ms);
   }
 
   // ---- Modal panels ----
@@ -142,25 +144,46 @@
   U.closePanel = function () { $('#panel').hidden = true; $('#panel').innerHTML = ''; };
 
   // ---- Cards ----
-  U.cardDef = function (c) { return SD.cards[c.id || c]; };
+  // c: a card id, { id, up } (a card in a deck), or a card definition itself.
+  U.cardDef = function (c) { return c && typeof c === 'object' && c.text != null ? c : SD.cards[c.id || c]; };
+  // The numbers a card's text shows, with its upgrades in. c.up: true for a refactored card, or its level (Expedition
+  // Raid passes Refactor plus Temper). Each level adds 3 to Mitigate and Absorb and 2 to what infra absorbs each turn,
+  // as both battle engines do (js/run.js playCard, js/raid.js fxApply). c.powUp: the levels that add to the hit, when
+  // that differs (the raid engine adds 3 to a hit only for a Temper).
   U.cardNums = function (c) {
-    const d = U.cardDef(c), up = c.up ? 3 : 0;
+    const d = U.cardDef(c), lvl = c.up ? (+c.up || 1) : 0, up = 3 * lvl;
     const n = {};
     if (d.abs) for (const k in d.abs) n[k] = d.abs[k] + up;
     if (d.mit) n.mit = d.mit + up;
+    if (d.each) for (const k in d.each) n['each.' + k] = d.each[k] + 2 * lvl;
+    // pow: the hit a card lands on the incident, full if a tag is its weakness, half if neutral, none if resisted.
+    // The card face shows only the most it can do (the ⚔ badge), so the weakness stays yours to work out.
+    if (d.pow) n.pow = d.pow + 3 * (c.powUp != null ? +c.powUp : lvl);
     return n;
+  };
+  // A card's text with its numbers filled in ({mit}, {any}, {each.any} and the like).
+  U.cardText = function (c) {
+    const d = U.cardDef(c), n = U.cardNums(c);
+    return d.text.replace(/\{([\w.]+)\}/g, (_, k) => n[k] != null ? n[k] : '');
+  };
+  // The first ⚔ card you ever play: say once how its hit works (the card face shows only the badge).
+  U.powTip = function () {
+    const sv = SD.state && SD.state.save;
+    if (!sv || !sv.flags || sv.flags.powTip) return;
+    sv.flags.powTip = true; SD.state.persist();
+    U.system('⚔ Cards that fit also fix', 'A ⚔ card hits the incident too: the full number if it is weak to that card, half if neutral, nothing if it resists.', '', 7000);
   };
   U.cardHtml = function (c, opts) {
     opts = opts || {};
     const d = U.cardDef(c); const n = U.cardNums(c);
-    const text = d.text.replace(/\{(\w+)\}/g, (_, k) => n[k] != null ? n[k] : '');
+    const text = U.cardText(c);
     const tagHue = { cache: 190, replica: 160, cdn: 210, shard: 280, lb: 45, hscale: 45, stateless: 45, salting: 190, coalesce: 320, ttl: 320, invalidate: 0, cp: 0, ap: 120, idgen: 260, nosql: 280, sql: 30, '302': 210, vscale: 30 };
     const tag = (d.tags || [])[0];
     const hue = tag != null && tagHue[tag] != null ? tagHue[tag] : 220;
     const cost = d.xcost ? 'X' : opts.cost != null ? opts.cost : d.cost;
-    return `<div class="card ${d.kind} r-${d.rarity}${opts.dim ? ' dim' : ''}" style="--h:${hue}" data-i="${opts.i != null ? opts.i : ''}" tabindex="0" role="button" aria-label="${U.esc(d.name)}, cost ${cost}. ${U.esc(text)}">
-      <div class="c-cost">${cost}</div>
-      <div class="c-name">${U.esc(d.name)}${c.up ? '+' : ''}${c.replay ? ` <b title="Replay ${c.replay}">⟳${c.replay}</b>` : ''}</div>
+    return `<div class="card ${d.kind} r-${d.rarity}${n.pow ? ' has-pow' : ''}${opts.dim ? ' dim' : ''}" style="--h:${hue}" data-i="${opts.i != null ? opts.i : ''}" tabindex="0" role="button" aria-label="${U.esc(d.name)}, cost ${cost}.${n.pow ? ` Hits up to ${n.pow}.` : ''} ${U.esc(text)}">
+      <div class="c-cost">${cost}</div>${n.pow ? `<div class="c-pow" title="Hits the incident for up to ${n.pow}: full if it's weak to this card, half if neutral, none if it resists" aria-hidden="true">⚔${n.pow}</div>` : ''}
+      <div class="c-name">${U.esc(d.name)}${c.up && c.plus !== false ? '+' : ''}${c.replay ? ` <b title="Replay ${c.replay}">⟳${c.replay}</b>` : ''}</div>
       <div class="c-art">${SD.art.glyph(d.art, `hsl(${hue},70%,38%)`)}</div>
       <div class="c-kind">${d.kind === 'infra' ? 'INFRA' : 'ACTION'}${d.concept ? ' · ' + U.esc(SD.concepts[d.concept].name) : ''}</div>
       <div class="c-text">${U.esc(text)}</div></div>`;

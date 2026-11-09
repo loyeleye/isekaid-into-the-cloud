@@ -85,13 +85,13 @@
   const card = (name, cost, kind, pow, tags, art, rarity, concept, text, o) => Object.assign({ name, cost, kind, pow, tags, art, rarity, concept, ch: 2, text }, o);
   Object.assign(SD.cards, {
     ondest: card('On-Failure Destination', 1, 'action', 8, ['destination'], 'cyl', 'common', 'lambdaasync', 'After the last retry, Lambda sends the failed event and its error to a queue, topic, bus or bucket you can read.'),
-    layer: card('Shared Layer', 1, 'infra', 5, ['layer'], 'note', 'common', 'lambdapack', 'Infra. Each turn absorb 2 load. One layer of shared tools, under /opt for every clerk.', { each: { any: 2 } }),
+    layer: card('Shared Layer', 1, 'infra', 5, ['layer'], 'note', 'common', 'lambdapack', 'Infra. Each turn absorb {each.any} load. One layer of shared tools, under /opt for every clerk.', { each: { any: 2 } }),
     tunemem: card('Measure, Then Size', 1, 'action', 8, ['memory', 'tune'], 'pulse', 'common', 'lambdacfg', 'Read Max Memory Used and the duration, then set memory where the work stops getting faster. Memory buys CPU.'),
     timeoutup: card('Timeout Above the Work', 1, 'action', 7, ['timeout'], 'pulse', 'common', 'lambdacfg', 'Set the timeout above the slowest real run, and the client\'s own timeout below it.'),
     bisect: card('Bisect on Error', 1, 'action', 8, ['bisect'], 'eraser', 'common', 'kinesislambda', 'Split a failing batch in half, and again, until the one bad record is alone.'),
     parallel: card('Parallelization Factor', 2, 'action', 10, ['shard', 'parallel'], 'bolt2', 'uncommon', 'kinesislambda', 'Read up to ten batches from each shard at once, still in order for each partition key.'),
     reqvalid: card('Request Validator', 1, 'action', 7, ['validator'], 'gate', 'common', 'apigw', 'A JSON schema at the door: a bad body gets 400 before it reaches a clerk.'),
-    throttlecap: card('Usage Plan Throttle', 2, 'infra', 6, ['ratelimit', 'throttle'], 'gate', 'uncommon', 'apigw', 'Infra. Each turn absorb 2 load. Rate and burst per caller; the rest get 429.', { each: { any: 2 } }),
+    throttlecap: card('Usage Plan Throttle', 2, 'infra', 6, ['ratelimit', 'throttle'], 'gate', 'uncommon', 'apigw', 'Infra. Each turn absorb {each.any} load. Rate and burst per caller; the rest get 429.', { each: { any: 2 } }),
     retrycatch: card('Retry and Catch', 2, 'action', 10, ['catch', 'orch'], 'note', 'uncommon', 'stepfn', 'Retry the error that passes, with backoff and jitter. Catch the rest and route them on.'),
     dlqalarm: card('Alarm on the DLQ', 1, 'action', 7, ['alarm'], 'eye', 'common', 'sqsalarm', 'Visible messages in the dead-letter queue above 0: page a person. Reveals the enemy\'s weaknesses.', { reveal: true }),
     redrive: card('Start a Redrive', 1, 'action', 9, ['redrive'], 'cyl', 'uncommon', 'dlqredrive', 'The bug is fixed: move every message in the dead-letter queue back to its source.'),
