@@ -245,7 +245,9 @@ a.help-b { text-decoration: none; color: var(--ink); }
 .tier { display: inline-block; font-size: 0.78em; font-weight: 800; padding: 0 6px; border-radius: 6px; background: #eee; }
 .tier-broken { background: #f3d3d3; color: #8a2020; } .tier-bad { background: #fde3e3; color: #b23b3b; }
 .tier-good { background: #fff1c2; color: #7a5a00; } .tier-great { background: #e3f5e9; color: #1d7a43; }
-.q-text { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; }
+/* The typed answer: light paper and ink text whatever the root colour-scheme, and 16px so iOS doesn't zoom in on focus. */
+.q-text { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; line-height: 1.4; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; background: #fffdf7; color: var(--ink, #2b2340); color-scheme: light; }
+.q-text::placeholder { color: #5e566b; opacity: 1; }
 blockquote.typed { margin: 6px 0; padding: 6px 10px; border-left: 4px solid #b9a6ff; background: #f7f4ff; border-radius: 0 10px 10px 0; white-space: pre-wrap; }
 /* A boss step's evidence (js/quiz.js q.ev): an error, a CloudTrail event or a metric, as it would appear on screen */
 pre.q-ev { margin: 4px 0 10px; padding: 8px 10px; border-left: 4px solid #e0a030; background: #1b1724; color: #f1ecff; border-radius: 0 8px 8px 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto; }
@@ -886,7 +888,7 @@ body.cut #dialog[data-who="narr"] .dlg-box { background: rgba(43, 35, 64, .82); 
 @keyframes garyIn { 0% { opacity: 0; } 8% { opacity: 1; } 80% { opacity: 1; } to { opacity: 0; } }
 @keyframes slam { from { transform: scale(3) rotate(-6deg); opacity: 0; } }
 @keyframes flashOut { from { opacity: 1; } to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition: none !important; transition-delay: 0s !important; } }
 @media (max-width: 520px) { .foe { width: 88px; height: 88px; } .stage .foe { width: 100px; height: 100px; } .bossfight .stage .foe { width: 124px; height: 124px; } .stage .hero { transform: scale(1.8); } .foe-name { font-size: 17px; } .card { width: 120px; } }
 /* Group fights (js/run.js): 2-3 incidents side by side; tap one to target it. */
 .stage.group .hero { left: 6%; }
