@@ -81,8 +81,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const panelText = () => page.textContent('#panel');
 
   // ---- The wall asks a twin, typed first ----
-  await page.evaluate(() => { SD.state.save.wall = [{ id: 'dva-1-01', t: Date.now() - 3 * 86400000, rights: [] }, { id: 'dva-1-240', t: Date.now() - 2 * 86400000, rights: [] }]; SD.state.persist(); SD.today.render(); });
-  check(await page.evaluate(() => SD.today.hasTwin('dva-1-01') && !SD.today.hasTwin('dva-1-240')), 'dva-1-01 has a twin (js/twins-data.js) and dva-1-240 has none');
+  await page.evaluate(() => { SD.state.save.wall = [{ id: 'dva-1-01', t: Date.now() - 3 * 86400000, rights: [] }, { id: 'dva-1-238', t: Date.now() - 2 * 86400000, rights: [] }]; SD.state.persist(); SD.today.render(); });
+  check(await page.evaluate(() => SD.today.hasTwin('dva-1-01') && !SD.today.hasTwin('dva-1-238')), 'dva-1-01 has a twin (js/twins-data.js) and dva-1-238 has none');
   await page.evaluate(() => SD.today.wallPanel()); await wait(30);
   const wt = await panelText();
   check(/WANTED/.test(wt) && /needs a twin/.test(wt), 'posters read WANTED, and the one without a twin says "needs a twin"');
@@ -111,7 +111,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => { const r = SD.state.save.wall.find(w => w.id === 'dva-1-01').rights; return r.length === 1 && ['dva-1-320', 'dva-1-754'].includes(r[0].q); }), 'a right twin counts toward its poster, logged under the twin\'s id');
   // The poster without a twin: the question itself, typed first; "I don't know yet", then right.
   await page.waitForSelector('#panel #tf-idk');
-  check(await page.evaluate(() => SD.today.current().id) === 'dva-1-240', 'a poster without a twin asks its own question');
+  check(await page.evaluate(() => SD.today.current().id) === 'dva-1-238', 'a poster without a twin asks its own question');
   await page.click('#tf-idk');
   await page.evaluate(async () => { const q = SD.today.current(); document.querySelector(`[data-o="${q.a}"]`).click(); await new Promise(r => setTimeout(r, 20)); document.querySelector('[data-c="2"]').click(); });
   await wait(50);
