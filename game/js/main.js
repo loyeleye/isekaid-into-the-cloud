@@ -57,12 +57,15 @@
     const p = AU.prefs;
     // Multiplayer (js/raid-finder.js): not from inside a dungeon, which is already a party of its own.
     const mp = SD.mp && SD.mp.available() && $('#screen-run').hidden;
+    const qs = SD.quick && $('#screen-title').hidden && !(SD.mp && SD.mp.inRaid && SD.mp.inRaid());
     const b = U.panel(`<div class="opts">
+      ${qs ? `<button class="opt" id="m-quick">${SD.quick.icon} Quick save and pause</button>` : ''}
       ${mp ? '<button class="opt" id="m-mp">Multiplayer: expedition raids</button>' : ''}
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-say">Say it first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
+      ${SD.quick ? `<button class="opt" id="m-qauto" role="switch" aria-checked="${SD.quick.auto()}">Auto quick save when you leave the app: <b>${SD.quick.auto() ? 'On' : 'Off'}</b></button>` : ''}
       <button class="opt" id="m-typed">Typed answers: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
       ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
@@ -72,6 +75,8 @@
       ${SD.debugGate && SD.debugGate.open() ? `<button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button>` : ''}</div>
       <p class="muted small">Progress saves automatically${S.db ? ' to your claude.ai account, so it follows you across devices' : ' in this browser'}.</p>`, { title: 'MENU' });
     b.querySelector('#m-help').onclick = help;
+    if (qs) b.querySelector('#m-quick').onclick = () => { U.closePanel(); SD.quick.pause(); };
+    if (SD.quick) b.querySelector('#m-qauto').onclick = () => { SD.quick.setAuto(!SD.quick.auto()); menu(); };
     if (mp) b.querySelector('#m-mp').onclick = () => SD.mp.open('menu');
     b.querySelector('#m-music').onclick = () => { AU.set('music', !p.music); menu(); M.hud(); };
     b.querySelector('#m-sfx').onclick = () => { AU.set('sfx', !p.sfx); menu(); M.hud(); };

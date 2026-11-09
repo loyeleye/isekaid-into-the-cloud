@@ -1316,6 +1316,14 @@ body { background: var(--bg); }
   #vn .vn-text { font-size: 14px; line-height: 1.45; min-height: 2.9em; }
   #vn .vn-foot { bottom: 3px; }
 }
+/* Quick save (js/quicksave.js): the pause screen over everything, and the title's Resume quick save */
+#qs-pause { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 7, 12, .72); padding: 16px; }
+#qs-pause .win { width: min(420px, 100%); }
+#qs-pause .win-b { padding: 16px; }
+#qs-pause .primary { width: 100%; margin-top: 6px; }
+.qs-resume small { display: block; font-size: 12px; font-weight: 600; opacity: .85; }
+.qs-btn { padding-left: 14px; padding-right: 14px; }
+.qs-ico { width: .8em; height: .95em; fill: currentColor; vertical-align: -.08em; }
 </style>
 </head>
 <body>
@@ -1543,6 +1551,8 @@ body { background: var(--bg); }
 <script src="js/ux-phone.js"></script>
 <!-- Debug start (testing only; needs the debug code on a public host, see js/debug-gate.js) -->
 <script src="js/debug.js"></script>
+<!-- Quick save: pause anywhere and come back to that moment, even after the page closes -->
+<script src="js/quicksave.js"></script>
 <!-- @page-end -->
 </body>
 </html>
