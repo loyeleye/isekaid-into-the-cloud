@@ -1409,6 +1409,7 @@
       if (grouped()) { C.foes[C.fi].e = C.e; C.foes[C.fi].known = C.known; }
     }
     Object.assign(run, q.run);
+    C.log = 'Back where you left off. Your turn.';
     S.persist();
     AU.music(C.boss ? 'boss' : 'battle');
     SD.main.show('run');

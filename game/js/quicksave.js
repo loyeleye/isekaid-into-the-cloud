@@ -22,6 +22,8 @@
   const Q = SD.quick = {};
   // A pause sign drawn in code (the title font has no ⏸).
   Q.icon = '<svg class="qs-ico" viewBox="0 0 10 12" aria-hidden="true"><rect x="1" y="1" width="3" height="10" rx="1"/><rect x="6" y="1" width="3" height="10" rx="1"/></svg>';
+  // And a play sign for Resume, which does the opposite of pausing.
+  Q.play = '<svg class="qs-ico" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1.2v9.6c0 .6.6.9 1.1.6l6.4-4.8c.4-.3.4-.9 0-1.2L3.1.6C2.6.3 2 .6 2 1.2z"/></svg>';
   let paused = false;
 
   Q.saved = function () {
@@ -36,7 +38,9 @@
   function capture(how) {
     if (!playing()) return null;
     S.persist();
-    const q = { v: 1, at: Date.now(), how, fight: SD.run && SD.run.quickFight ? SD.run.quickFight() : null };
+    const run = S.save.run;
+    // runAt ties a dungeon fight to its run, so a run started since (or none at all) drops it at the title.
+    const q = { v: 1, at: Date.now(), how, runAt: run ? run.startedAt : null, fight: SD.run && SD.run.quickFight ? SD.run.quickFight() : null };
     return store.set(key(), JSON.stringify(q)) ? q : null;
   }
 
@@ -44,17 +48,21 @@
   Q.pause = function () {
     if (paused) return;
     const q = capture('pause');
-    if (!q) return;
+    // Storage full or blocked: say so, rather than a button that seems to do nothing.
+    if (!q) { if (playing()) U.system('COULDN\'T QUICK SAVE', 'This browser won\'t store it right now. Everything up to this fight is still saved as usual.', 'red'); return; }
     paused = true;
     const el = document.createElement('div');
     el.id = 'qs-pause';
-    el.innerHTML = `<div class="win" role="dialog" aria-modal="true" aria-labelledby="qs-h">
+    el.innerHTML = `<div class="win" role="dialog" aria-modal="true" aria-labelledby="qs-h" aria-describedby="qs-d">
       <div class="win-h"><span id="qs-h">QUICK SAVED</span></div>
-      <div class="win-b"><p><b>Paused right here${q.fight ? ', mid-fight' : ''}.</b></p>
-        <p>You can close the app. When you open it again, <b>Resume quick save</b> on the title screen puts you back at this moment. The quick save is deleted once you're back.</p>
-        ${q.fight ? '' : '<p class="muted small">A conversation or cutscene you were partway through starts again from its first line.</p>'}
-        <button class="primary" id="qs-go">Resume</button></div></div>`;
+      <div class="win-b" id="qs-d"><p><b>Paused right here${q.fight ? ', mid-fight' : ''}.</b></p>
+        <p>Safe to close the app. <b>Resume quick save</b> on the title screen brings you back to this moment, once.</p>
+        ${q.fight ? '' : '<p class="muted small">Mid-conversation? That scene restarts from its first line.</p>'}
+        <button class="primary" id="qs-go">${Q.play} Resume</button></div></div>`;
     document.body.appendChild(el);
+    document.body.classList.add('qs-paused');
+    // Everything behind the pause screen is out of reach, for taps, Tab and screen readers alike.
+    document.querySelectorAll('body > *').forEach(n => { if (n !== el && n.tagName !== 'SCRIPT') n.inert = true; });
     el.querySelector('#qs-go').onclick = Q.resumeHere;
     setTimeout(() => { const b = el.querySelector('#qs-go'); if (b) b.focus(); }, 50);
   };
@@ -63,10 +71,15 @@
     paused = false;
     Q.clear();
     const el = $('#qs-pause'); if (el) el.remove();
+    document.body.classList.remove('qs-paused');
+    document.querySelectorAll('body > *').forEach(n => { n.inert = false; });
   };
   // While paused, keys don't reach the game underneath (the pause screen's own button still works).
+  // Escape resumes.
   window.addEventListener('keydown', e => {
-    if (!paused || (e.target && e.target.closest && e.target.closest('#qs-pause'))) return;
+    if (!paused) return;
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); return Q.resumeHere(); }
+    if (e.target && e.target.closest && e.target.closest('#qs-pause')) return;
     e.stopPropagation(); e.preventDefault();
   }, true);
 
@@ -84,24 +97,26 @@
   const CONTINUE = '#ds-go, #t-go, #dbg-go, [id^="t-c"][id$="go"]';
   function ago(t) {
     const m = Math.round((Date.now() - t) / 60000);
-    return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago';
+    return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + (m < 2880 ? ' day ago' : ' days ago');
   }
   function patchTitle() {
     const box = $('#title-actions'), q = Q.saved();
     if (!box || !q || box.querySelector('#t-start')) return;
-    const go = box.querySelector(CONTINUE);
-    // No save to continue (it was erased since): the quick save has nothing to return to.
-    if (!go) { Q.clear(); return; }
+    const go = box.querySelector(CONTINUE), run = S.save.run;
+    // No save to continue (it was erased since), or the dungeon run it was in has ended or been replaced (New game):
+    // the quick save has nothing to return to.
+    if (!go || (q.fight && !q.fight.story && (!run || run.startedAt !== q.runAt))) { Q.clear(); return; }
     const was = go.onclick;
     go.classList.add('qs-resume');
-    go.innerHTML = `${Q.icon} Resume quick save<small>${q.fight ? 'Mid-fight · ' : ''}saved ${ago(q.at)}</small>`;
+    const when = 'saved ' + ago(q.at);
+    go.innerHTML = `${Q.play} Resume quick save<small>${q.fight ? 'Mid-fight · ' + when : when[0].toUpperCase() + when.slice(1)}</small>`;
     go.onclick = ev => {
       Q.clear();
       if (q.fight && SD.run.armQuick) SD.run.armQuick(q.fight);
       if (was) was.call(go, ev);
     };
-    // Starting something else instead (New game, the chapter select...) drops it.
-    box.querySelectorAll('button').forEach(b => { if (b !== go) b.addEventListener('click', Q.clear, { once: true }); });
+    // Other title buttons leave it alone (How to play, a New game you cancel): a new game's run no longer matches
+    // runAt, so the next title drops it then.
   }
   const boot = () => {
     const M = SD.main, title = M.title;
