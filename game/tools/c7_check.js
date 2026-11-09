@@ -134,6 +134,7 @@ function step([WIN, LEAD]) {
     }
     // Questions: the typed ones get the right number, or an answer that covers their points.
     if ((x = b('#q-said'))) return click(x) && 'said';
+    if ((x = b('#tf-idk'))) return click(x) && 'type-first';
     if ((x = p.querySelector('#q-num')) && !x.value) {
       const t = p.textContent;
       x.value = /RPO this gives/.test(t) ? '190' : /RTO this gives/.test(t) ? '60' : /Replication Time Control/.test(t) ? '15' : /dollars a day/.test(t) ? '90' : /longest one KMS allows/.test(t) ? '30' : /in days/.test(t) ? '7' : '1';

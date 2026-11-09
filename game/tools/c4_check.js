@@ -80,6 +80,7 @@ function step([WIN, LEAD, CHOICE]) {
     }
     // Questions: the typed ones get an answer that covers their points.
     if ((x = b('#q-said'))) return click(x) && 'said';
+    if ((x = b('#tf-idk'))) return click(x) && 'type-first';
     if ((x = p.querySelector('#q-num')) && !x.value) {
       const t = p.textContent;
       x.value = /kilobytes/.test(t) ? '4' : /how many hours/.test(t) ? '1' : /in days/.test(t) ? '7' : '1';

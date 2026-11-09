@@ -63,6 +63,7 @@ function step([LEAD, MODE]) {
     const title = ((p.querySelector('.panel-title, .p-title, h2') || {}).textContent || '').trim().slice(0, 40).replace(/[^A-Za-z0-9]+/g, '-');
     if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (once('lead')) return 'scene:lead-select'; return click(x) && 'lead'; }
     if ((x = b('#q-said'))) return click(x) && 'said';
+    if ((x = b('#tf-idk'))) return click(x) && 'type-first';
     // Chapter 2's minigames, played right.
     if ((x = p.querySelector('[data-k="ring"]')) && !p.querySelector('.hit')) { if (once('notes')) return 'scene:mg-notes'; return click(x) && 'mg:notes'; }
     if (p.querySelector('#hx-go')) {
