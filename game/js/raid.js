@@ -145,7 +145,7 @@
   // A refactored (or tempered) utility card of cost 2 or more costs 1 less, each.
   const costOf = id => { const d = card(id); if (d.xcost) return 0; let c = d.cost; for (let k = d.abs || d.mit ? 0 : lvlOf(id); k > 0 && c > 1; k--) c--; return c; };
   const chtml = (id, o) => {
-    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
+    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), powUp: isTp(id) ? 1 : 0, plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
     return isTp(id) ? h.replace('<div class="c-name">', '<div class="c-name"><span class="rd-tp" title="Tempered: +3 to its numbers for this fight">⚒</span> ') : h;
   };
 
@@ -858,11 +858,13 @@
           const tags = d.tags || [], pw = d.pow + (o.tp ? 3 : 0);
           const rs = tags.find(x => e.resist[x]), wk = d.wild ? Object.keys(e.weak)[0] : tags.find(x => e.weak[x]);
           if (wk) {
-            log += `${who}EFFECTIVE! ${e.weak[wk]} `; mt(M(pw)); G.known.push('w:' + wk);
+            // The log says what the hit did against the card's ⚔: the full number, half, or none.
+            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${e.weak[wk]} `; G.known.push('w:' + wk);
             // A Tag Team: the second player to land an effective card this turn.
             if (!G.eff.includes(peer)) { G.eff.push(peer); if (G.eff.length === 2) log += `TAG TEAM! Mitigated ${mitigate(G, TAG_TEAM)} more. `; }
-          } else if (rs) { log += `${who}RESISTED. ${e.resist[rs]} `; G.known.push('r:' + rs); }
-          else { mt(Math.floor(M(pw) / 2)); log += `${who}Partial: it helps a little. `; }
+          } else if (rs) { log += `${who}RESISTED: 0 of ⚔${pw}. ${e.resist[rs]} `; G.known.push('r:' + rs); }
+          // No tag of it is a weakness or a resistance here, so the badges can show half from now on ('n:').
+          else { log += `${who}Partial: ${mt(Math.floor(M(pw) / 2))} of ⚔${pw}, half. `; tags.forEach(x => G.known.push('n:' + x)); }
         }
         // Statuses on the incident (the target). They stack.
         if (d.leak && aimed) G.leak += d.leak;
@@ -1996,7 +1998,7 @@
         const f = {}; FOE.forEach((k, i) => { f[k] = a[i]; });
         ['sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'ease', 'dl'].forEach(k => { f[k] = Math.round(num(f[k], 99999)); });
         f.max = Math.max(1, f.max); f.pw = Math.max(0.1, Math.min(2.5, Number(f.pw) || 1));
-        f.known = Array.isArray(f.known) ? f.known.filter(x => typeof x === 'string').slice(0, 40) : [];
+        f.known = Array.isArray(f.known) ? f.known.filter(x => typeof x === 'string').slice(0, 80) : [];
         const db = obj(f.db);
         f.db = ['brittle', 'weakMe', 'techdebt', 'pager'].includes(db.kind) && Number.isInteger(db.move) ? { kind: db.kind, move: db.move, n: Math.max(1, Math.min(4, db.n | 0)) } : null;
         return f;
@@ -2468,10 +2470,11 @@
       if (G.lt.length) { const m = G.lt.reduce((a, x) => a + x[1], 0), a = G.lt.reduce((n, x) => n + x[2], 0); chips.push(`<span class="chip rd-st" title="Played for later: it lands at the start of next turn.">Next turn: ${[m && `Mitigate ${m}`, a && `Absorb ${a}`].filter(Boolean).join(', ')}</span>`); }
       if (G.bk > 0 && mine && mine.hand.some(id => card(id).restoreAbs)) chips.push(`<span class="chip rd-st" title="Restore Backup brings back up to this much: the absorb in play when the foes last acted.">Backup ${G.bk}</span>`);
       const mates = Object.keys(G.players).filter(k => k !== me.peer).map(k => { const p = G.players[k]; return `<div class="rd-mate${p.ready ? ' ready' : ''}"><b>${esc(p.n)}</b><span>${p.cap} Capacity left · ${p.hand.length} cards</span>${stChips(p.st, ME_ST)}<span class="rd-played">${p.played.length ? 'Played ' + p.played.map(id => esc(card(id).name)).join(', ') : 'Nothing played yet'}</span>${p.ready ? '<span>Ready</span>' : ''}</div>`; }).join('');
-      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(card(G.infra[i].id).text)}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
+      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(SD.ui.cardText({ id: base(G.infra[i].id), up: lvlOf(G.infra[i].id), powUp: isTp(G.infra[i].id) ? 1 : 0 }))}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
       const tier = { boss: 'BOSS', elite: 'ELITE', fight: 'INCIDENT' }[G.tier] || 'RAID';
       // What's known about the targeted enemy's weaknesses.
       const tf = G.foes[tg >= 0 ? tg : 0], weak = Object.keys(e.weak).filter(t => tf.known.includes('w:' + t)), res = Object.keys(e.resist).filter(t => tf.known.includes('r:' + t));
+      const foe = { e, has: k => tf.known.includes(k) };   // for the hand's ⚔ badges (SD.ui.powMatch)
       const tags = `<div class="tags">${weak.length ? `<span>${n > 1 ? esc(foeName(G, tg)) + ' weak' : 'Weak'} to: <b>${weak.map(esc).join(', ')}</b></span>` : ''}${res.length ? `<span>Resists: <b>${res.map(esc).join(', ')}</b></span>` : ''}${!weak.length && !res.length ? `<span class="muted">${n > 1 ? esc(foeName(G, tg)) + ': weaknesses' : 'Weaknesses'} unknown. Read the intent and experiment.</span>` : ''}${n > 1 ? '<span class="muted">Tap an enemy to target it.</span>' : ''}</div>`;
       let info;
       if (n > 1) {
@@ -2507,17 +2510,17 @@
       const peek = mine && mine.peek.length ? `<div class="rd-peek"><p class="muted small">Runbook Ready: take ${mine.take} of these. The rest go to the bottom.</p><div class="cardgrid pick">${mine.peek.map((id, i) => `<div ${mine.ready ? '' : sendAttr({ k: 'peek', i })} class="rd-pickc">${chtml(id, { i })}</div>`).join('')}</div></div>` : '';
       paint(`${hud()}<div class="combat${G.tier === 'boss' ? ' bossfight' : ''}">
         <div class="cb-l"><div class="foe-zone">${stageHtml(e)}${info}</div>
-        <div class="clog" aria-live="polite">${esc(G.log || 'Plan together, then play.')}</div>
+        <div class="clog" aria-live="polite">${esc(G.log || 'Plan together, then play.')}${ui.tip ? `<div class="pow-tip">${esc(ui.tip)}</div>` : ''}</div>
         <div class="me-zone"><div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div><div class="infra">${slots}</div></div></div>
         <div class="cb-r">${mates ? `<div class="rd-team">${mates}</div>` : ''}
         ${mine ? `<div class="hand-zone"><div class="hand-top"><div class="energy" aria-label="Capacity ${mine.cap}"><b>${mine.cap}</b><span>CAP</span></div>
             <span class="muted small">Turn ${G.turn} · Draw ${mine.draw.length} · Discard ${mine.disc.length}</span>${stChips(mine.st, ME_ST)}
             <button class="${mine.ready ? 'ghost' : 'primary'}" type="button" id="rd-ready">${mine.ready ? 'Not ready yet' : 'Ready'}</button></div>
           ${mine.ready ? '<p class="rd-wait">Waiting for the others. The foe acts when everyone is ready.</p>' : ''}${incoming}${peek}${asking}${chooser}
-          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
+          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, foe, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
       </div>`);
       // A rare draws its question here (the pair's partner answers the same one); a card that names a player asks who.
-      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
+      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; ui.tip = d.pow && costFor(mine, id) <= mine.cap ? SD.ui.powTip(SD.ui.cardNums({ id: base(id), up: lvlOf(id), powUp: isTp(id) ? 1 : 0 }).pow) : ''; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
       root.querySelectorAll('[data-mate]').forEach(b => { b.onclick = () => { if (ui.mate) playIt(ui.mate.i, b.dataset.mate); }; });
       const mx = root.querySelector('#rd-mate-x'); if (mx) mx.onclick = () => { ui.mate = null; render(); };
       root.querySelectorAll('.hand .card').forEach(el => {

@@ -47,7 +47,7 @@ SD.links = [
 SD.cards = {
   hotfix:      { name: 'Hotfix', cost: 1, kind: 'action', mit: 6, text: 'Mitigate {mit}.', art: 'wrench', rarity: 'basic' },
   bigmem:      { name: 'More Memory', cost: 1, kind: 'action', abs: { any: 6 }, pow: 3, tags: ['memory'], text: 'Absorb {any} load. Lambda adds CPU in proportion to memory, so each run finishes sooner.', art: 'box', rarity: 'basic', concept: 'lambdaconc' },
-  sqsbuffer:   { name: 'SQS Buffer', cost: 2, kind: 'infra', pow: 6, tags: ['queue'], each: { any: 3 }, text: 'Infra. Each turn absorb 3 load. Bursts shrink: the queue holds them and consumers work through them.', art: 'cols', rarity: 'common', concept: 'sqs' },
+  sqsbuffer:   { name: 'SQS Buffer', cost: 2, kind: 'infra', pow: 6, tags: ['queue'], each: { any: 3 }, text: 'Infra. Each turn absorb {each.any} load. Bursts shrink: the queue holds them and consumers work through them.', art: 'cols', rarity: 'common', concept: 'sqs' },
   reserved:    { name: 'Reserved Concurrency', cost: 1, kind: 'action', pow: 7, tags: ['concurrency'], text: 'Set aside part of the account\'s concurrency for one function. Other functions can no longer starve it.', art: 'lock', rarity: 'common', concept: 'lambdaconc' },
   provisioned: { name: 'Provisioned Concurrency', cost: 2, kind: 'action', pow: 9, tags: ['provisioned'], text: 'Initialize environments before requests arrive, so they skip the cold start. Billed while configured.', art: 'bolt', rarity: 'uncommon', concept: 'lambdaconc' },
   vistimeout:  { name: 'Longer Visibility Timeout', cost: 1, kind: 'action', pow: 7, tags: ['visibility'], text: 'Keep a received message hidden for longer than the work takes, so nobody else picks it up mid-job.', art: 'clock', rarity: 'common', concept: 'sqs' },
