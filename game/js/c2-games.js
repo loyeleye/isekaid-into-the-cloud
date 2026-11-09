@@ -95,11 +95,13 @@
     const go = document.createElement('button'); go.className = 'primary'; go.textContent = label || 'Continue';
     b.appendChild(go); go.focus(); go.onclick = () => { U.closePanel(); res(); };
   });
+  // Options are shown in a random order; each button keeps its option's original index, so the checks still match.
+  const shuffle = a => (Q && Q.shuffle ? Q.shuffle(a.slice()) : a.slice().sort(() => Math.random() - 0.5));
   // A prediction: pick one, see whether it was right and why. Resolves true if it was.
   function predict(b, p, concept) {
     return new Promise(res => {
       const box = document.createElement('div'); box.className = 'g2-predict';
-      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${p.opts.map((o, i) => `<button class="opt" data-p="${i}">${esc(o.t)}</button>`).join('')}</div><p class="g2-note"></p>`;
+      box.innerHTML = `<b>PREDICT FIRST</b><p>${esc(p.q)}</p><div class="opts col">${shuffle(p.opts.map((o, i) => i)).map(i => `<button class="opt" data-p="${i}">${esc(p.opts[i].t)}</button>`).join('')}</div><p class="g2-note"></p>`;
       b.appendChild(box);
       box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
         const o = p.opts[+el.dataset.p];
@@ -161,7 +163,7 @@
       const g = b.querySelector('.g2');
       if (o.predict) await predict(g, o.predict, c);
       const box = document.createElement('div');
-      box.innerHTML = `<p class="vn-q"><b>${esc(o.q)}</b></p><div class="opts col">${o.opts.map((x, i) => `<button class="opt" data-o="${i}">${esc(x.t)}</button>`).join('')}</div><p class="g2-note"></p>`;
+      box.innerHTML = `<p class="vn-q"><b>${esc(o.q)}</b></p><div class="opts col">${shuffle(o.opts.map((x, i) => i)).map(i => `<button class="opt" data-o="${i}">${esc(o.opts[i].t)}</button>`).join('')}</div><p class="g2-note"></p>`;
       g.appendChild(box);
       let first = null;
       box.querySelectorAll('[data-o]').forEach(el => el.onclick = async () => {
