@@ -70,7 +70,7 @@ const concepts = Object.keys(SD.concepts);
 
 // ---- 1. Held-out questions are unreachable ----
 const named = new Map();   // bank id -> the scripts that name it (SD.qpick pools and single asks)
-for (const s of srcs.filter(s => !/^js\/(bank-|exam)/.test(s))) {
+for (const s of srcs.filter(s => !/^js\/(bank-|exam|twins-data)/.test(s))) {
   for (const m of fs.readFileSync(path.join(ROOT, s), 'utf8').matchAll(/['"]((?:dva|saa)-\d-\d{2,3})['"]/g)) {
     if (!named.has(m[1])) named.set(m[1], new Set());
     named.get(m[1]).add(s);

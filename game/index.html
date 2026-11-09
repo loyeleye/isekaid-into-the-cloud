@@ -150,6 +150,10 @@ body:has(#dialog:not([hidden])) .hub-hint { display: none; }
 #panel { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(43, 35, 64, .45); padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .win { position: relative; width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; background: var(--cream); border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 6px 0 var(--ink); animation: winIn .25s cubic-bezier(.2, 1.4, .4, 1); overflow: hidden; }
 .win.wide { width: min(860px, 100%); }
+/* A redraw of the window that's already open (js/ui.js U.panel: same title and class) stays put instead of popping in again. */
+.win.still { animation: none; }
+/* Phones: a quiz window sits at the top instead of the centre, so it doesn't jump when an answer changes its height. */
+@media (max-width: 600px) { .win.quiz { align-self: start; } }
 .win-h { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 3px solid var(--ink); font-family: var(--f-head); font-weight: 600; font-size: 16px; color: #fff; background: var(--blue); }
 .win-h .x { background: #fff; border: 2px solid var(--ink); color: var(--ink); font-size: 13px; width: 28px; height: 28px; border-radius: 50%; padding: 0; line-height: 1; }
 .win-b { padding: 16px; overflow-y: auto; min-height: 0; }
@@ -241,7 +245,9 @@ a.help-b { text-decoration: none; color: var(--ink); }
 .tier { display: inline-block; font-size: 0.78em; font-weight: 800; padding: 0 6px; border-radius: 6px; background: #eee; }
 .tier-broken { background: #f3d3d3; color: #8a2020; } .tier-bad { background: #fde3e3; color: #b23b3b; }
 .tier-good { background: #fff1c2; color: #7a5a00; } .tier-great { background: #e3f5e9; color: #1d7a43; }
-.q-text { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; }
+/* The typed answer: light paper and ink text whatever the root colour-scheme, and 16px so iOS doesn't zoom in on focus. */
+.q-text { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; line-height: 1.4; padding: 8px 10px; border: 3px solid var(--ink, #2b2340); border-radius: 12px; resize: vertical; background: #fffdf7; color: var(--ink, #2b2340); color-scheme: light; }
+.q-text::placeholder { color: #5e566b; opacity: 1; }
 blockquote.typed { margin: 6px 0; padding: 6px 10px; border-left: 4px solid #b9a6ff; background: #f7f4ff; border-radius: 0 10px 10px 0; white-space: pre-wrap; }
 /* A boss step's evidence (js/quiz.js q.ev): an error, a CloudTrail event or a metric, as it would appear on screen */
 pre.q-ev { margin: 4px 0 10px; padding: 8px 10px; border-left: 4px solid #e0a030; background: #1b1724; color: #f1ecff; border-radius: 0 8px 8px 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow-y: auto; }
@@ -891,7 +897,7 @@ body.cut #dialog[data-who="narr"] .dlg-box { background: rgba(43, 35, 64, .82); 
 @keyframes garyIn { 0% { opacity: 0; } 8% { opacity: 1; } 80% { opacity: 1; } to { opacity: 0; } }
 @keyframes slam { from { transform: scale(3) rotate(-6deg); opacity: 0; } }
 @keyframes flashOut { from { opacity: 1; } to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition: none !important; transition-delay: 0s !important; } }
 @media (max-width: 520px) { .foe { width: 88px; height: 88px; } .stage .foe { width: 100px; height: 100px; } .bossfight .stage .foe { width: 124px; height: 124px; } .stage .hero { transform: scale(1.8); } .foe-name { font-size: 17px; } .card { width: 120px; } }
 /* Group fights (js/run.js): 2-3 incidents side by side; tap one to target it. */
 .stage.group .hero { left: 6%; }
@@ -1328,6 +1334,35 @@ body { background: var(--bg); }
   #vn .vn-text { font-size: 14px; line-height: 1.45; min-height: 2.9em; }
   #vn .vn-foot { bottom: 3px; }
 }
+
+#panel .m-group { margin: 6px 0 -2px; }
+/* Type it first and its recall check (js/quiz.js, js/recall.js); Why not this one. */
+.type-first { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fff8e6; border: 2px dashed #e7b84a; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.type-first > * { min-width: 0; }
+.type-first p { margin: 0; }
+.tf-row { display: flex; gap: 8px; align-items: stretch; }
+.tf-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+.tf-row input::placeholder { color: #6e6680; }
+.tf-row .primary { white-space: nowrap; padding: 6px 12px; font-size: 15px; flex: none; }
+.tf-idk { justify-self: start; background: none; border: 0; padding: 4px 0; font: inherit; font-weight: 700; color: var(--blue); text-decoration: underline; cursor: pointer; }
+.win.typing .q-q { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tf-said { margin: 8px 0 0; padding: 4px 0 4px 10px; border-left: 3px solid #e7b84a; font-size: 14px; }
+.tf-said .q-ctx, .rc-said .q-ctx { display: block; margin: 0; font-size: 11px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rc-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--ink); font-weight: 800; font-size: 13px; transform: rotate(-3deg); }
+.rc-badge.mem { background: #dff5e9; color: #1f6b46; }
+.rc-badge.opt { background: #fff1c9; color: #7a5200; }
+.rc-badge.unsure { background: #ece8f2; color: #4a4258; }
+.recall { margin-top: 10px; padding: 8px 10px; border-radius: 0 10px 10px 0; border-left: 4px solid #8a7f9c; background: #f6f3fa; display: grid; gap: 6px; }
+.recall.rc-memory { border-left-color: var(--mint); background: #eefaf3; }
+.recall.rc-options, .recall.rc-none { border-left-color: #d39a00; background: #fffaeb; }
+.recall p { margin: 0; }
+.recall .rc-b { justify-self: start; font-size: 14px; padding: 6px 10px; }
+.whynot { margin-top: 10px; padding: 8px 10px; border: 2px dashed #b9a6ff; border-radius: 12px; background: #faf8ff; }
+.whynot summary { cursor: pointer; font-size: 14px; }
+.whynot p { margin: 6px 0 0; }
+.whynot .wn-opt { font-weight: 700; }
+.whynot .wn-b { font-size: 14px; padding: 6px 10px; margin-top: 6px; }
 /* Quick save (js/quicksave.js): the pause screen over everything, and the title's Resume quick save */
 #qs-pause { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 7, 12, .72); padding: 16px; }
 #qs-pause .win { width: min(420px, 100%); }
@@ -1417,6 +1452,7 @@ body.qs-paused *:not(#qs-pause):not(#qs-pause *) { animation-play-state: paused 
 <script src="js/quiz.js"></script>
 <script src="js/tapes.js"></script>
 <script src="js/embed.js"></script>
+<script src="js/recall.js"></script>
 <script src="js/explain-data.js"></script>
 <script src="js/eli5.js"></script>
 <script src="js/dungeon-art.js"></script>
@@ -1568,6 +1604,7 @@ body.qs-paused *:not(#qs-pause):not(#qs-pause *) { animation-play-state: paused 
 <!-- /Chapter 6 -->
 <!-- Exam prep: held-out mock questions, exam mode, task concepts -->
 <script src="js/exam-heldout.js"></script>
+<script src="js/twins-data.js"></script>
 <script src="js/exam.js"></script>
 <script src="js/exam-help.js"></script>
 <script src="js/exam-hall.js"></script>

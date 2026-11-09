@@ -72,6 +72,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
         if ((x = p.querySelector(`[data-lead="${LEAD}"]`))) { if (once('lead')) return 'scene:lead-select'; return click(x) && 'lead'; }
         if (p.querySelector('.g3, .quiz, .opts') && once('tiny' + title)) { const n = tiny(p); if (n) window.__tiny = (window.__tiny || []).concat(title + ': ' + n); }
         if ((x = b('#q-said'))) return click(x) && 'said';
+        if ((x = b('#tf-idk'))) return click(x) && 'type-first';
         // A Policy Sort (js/raid.js): sort every row, then submit.
         if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) { if (once('sort' + title)) return 'scene:sort-' + title.toLowerCase().replace(/\W+/g, '-'); return click(x.querySelector('button')) && 'sort'; }
         if ((x = b('.ps-n'))) return click(x) && 'sort-go';

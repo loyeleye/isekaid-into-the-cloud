@@ -74,6 +74,7 @@ function step([WIN, LEAD, CHOICE]) {
     if ((x = p.querySelector('#q-num')) && !x.value) { x.value = /minutes before the fight/.test(p.textContent) ? '20' : /visibility timeout/i.test(p.textContent) ? '180' : '3'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'num'; }
     if ((x = p.querySelector('#q-text')) && !x.value) { x.value = 'A dead-letter queue keeps what failed so someone can read it, fix the cause, and redrive it back to the source queue.'; x.dispatchEvent(new Event('input', { bubbles: true })); return 'text'; }
     if ((x = b('#q-said'))) return click(x) && 'said';
+    if ((x = b('#tf-idk'))) return click(x) && 'type-first';
     if ((x = b('#q-confirm, #q-next, #x2-ok'))) return click(x) && 'next';
     if ((x = b('.ps-n'))) return click(x) && 'sort-n';
     if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-tag';

@@ -130,16 +130,28 @@
   }
 
   // ---- Modal panels ----
+  // Calling it again while a window with the same title and class is open (a quiz redrawing after a tap) redraws that
+  // window where it is: the new window gets .win.still, so it doesn't pop in again (winIn), and its body keeps the old
+  // one's scroll position (unless opts.keepScroll is false). A different title or class opens a window that pops in.
+  // The old window's nodes are swapped out whole, not emptied, so code that set them aside and puts them back
+  // afterwards (js/raid.js askHere, js/c2x-world.js) still gets them intact.
   U.panel = function (html, opts) {
     opts = opts || {};
     const p = $('#panel');
-    p.innerHTML = `<div class="win ${opts.cls || ''}" role="dialog" aria-modal="true">
-      <div class="win-h"><span>${U.esc(opts.title || 'SYSTEM')}</span>${opts.noClose ? (U.quitGame ? '<button class="x quit" id="panel-quit" aria-label="Leave the mini-game">✕ Leave</button>' : '') : '<button class="x" id="panel-x" aria-label="Close">✕</button>'}</div>
+    const title = opts.title || 'SYSTEM', cls = opts.cls || '';
+    const prev = !p.hidden && p.firstElementChild;
+    const same = !!prev && prev.classList.contains('win') && prev.dataset.title === title && prev.dataset.cls === cls;
+    const top = same && prev.querySelector(':scope > .win-b') ? prev.querySelector(':scope > .win-b').scrollTop : 0;
+    p.innerHTML = `<div class="win ${cls}${same ? ' still' : ''}" role="dialog" aria-modal="true">
+      <div class="win-h"><span>${U.esc(title)}</span>${opts.noClose ? (U.quitGame ? '<button class="x quit" id="panel-quit" aria-label="Leave the mini-game">✕ Leave</button>' : '') : '<button class="x" id="panel-x" aria-label="Close">✕</button>'}</div>
       <div class="win-b">${html}</div></div>`;
+    const win = p.firstElementChild, b = win.querySelector(':scope > .win-b');
+    win.dataset.title = title; win.dataset.cls = cls;
     p.hidden = false;
+    if (top && opts.keepScroll !== false) b.scrollTop = top;
     if (!opts.noClose) $('#panel-x').onclick = () => { U.closePanel(); if (opts.onClose) opts.onClose(); };
     else if (U.quitGame) $('#panel-quit').onclick = () => U.quitGame();
-    return p.querySelector('.win-b');
+    return b;
   };
   U.closePanel = function () { $('#panel').hidden = true; $('#panel').innerHTML = ''; };
 

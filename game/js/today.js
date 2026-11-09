@@ -131,25 +131,46 @@
   }
   function wallSet() {
     // Only the chosen exam's posters (and untagged ones): the other exam's wait on the wall until you switch back.
+    // Each poster comes back as its twin when it has one (js/qpick.js SD.qtwin): the same rule in a scenario you
+    // haven't seen, so the drill tests the idea, not your memory of the question. Without a twin it's the question
+    // itself, typed before the options show (js/quiz.js, opts.typeFirst).
     const mine = w => { const q = E().find(w.id); return !q || !E().offTrack(q); };
-    const items = wall().filter(mine).sort((a, b) => a.t - b.t).slice(0, 10).map(w => ({ q: w.id, wall: 1 })).filter(it => resolve(it));
+    const used = new Set(), items = [];
+    wall().filter(mine).sort((a, b) => a.t - b.t).slice(0, 10).forEach(w => {
+      const orig = E().find(w.id), tw = orig && SD.qtwin ? SD.qtwin(orig, { avoid: [...used, w.id] }) : null;
+      const it = tw ? { q: tw.id, c: conceptOf(tw), wall: w.id, twin: 1 } : { q: w.id, wall: 1 };
+      if (resolve(it)) { items.push(it); used.add(it.q); }
+    });
     return { kind: 'wall', items, i: 0, right: 0 };
   }
 
   // ---- The wall ----
-  const days = rights => new Set((rights || []).map(t => new Date(t).toDateString())).size;
-  T.wallNote = function (qid, ok) {
-    const list = wall(), k = list.findIndex(w => w.id === qid);
+  // A poster stands for an idea: the question that put it up and that question's twins (js/twins-data.js). It comes
+  // down after right answers to two different questions on the idea, on two different days. A poster whose question
+  // has no twin yet needs only two right days, and is marked "needs a twin" so one gets written.
+  const days = rights => new Set((rights || []).map(r => new Date(typeof r === 'number' ? r : r.t).toDateString())).size;
+  const asked = (w, rights) => new Set((rights || []).map(r => (typeof r === 'number' ? w.id : r.q))).size;
+  const twinsOf = id => (SD.twins && SD.twins[id]) || [];
+  T.hasTwin = id => { const q = E().find(id); return !!(q && SD.qtwin && SD.qtwin(q)); };
+  // The poster a question counts toward: its own, or the one whose twin it is.
+  const posterFor = qid => wall().findIndex(w => {
+    const idea = [w.id].concat(twinsOf(w.id));
+    return idea.includes(qid) || twinsOf(qid).some(id => idea.includes(id));
+  });
+  T.wallDone = w => days(w.rights) >= 2 && (!T.hasTwin(w.id) || asked(w, w.rights) >= 2);
+  T.wallNote = function (qid, ok, poster) {
+    const list = wall(), k = poster ? list.findIndex(w => w.id === poster) : posterFor(qid);
     if (k < 0) return null;
     const w = list[k];
     if (!ok) { w.rights = []; return 'reset'; }
-    w.rights = (w.rights || []).concat(Date.now());
-    if (days(w.rights) >= 2) { list.splice(k, 1); return 'down'; }
+    w.rights = (w.rights || []).concat({ t: Date.now(), q: qid });
+    if (T.wallDone(w)) { list.splice(k, 1); return 'down'; }
     return 'up';
   };
-  T.wallAdd = function (qid) {
-    const w = wall().find(x => x.id === qid);
-    if (w) w.rights = []; else wall().push({ id: qid, t: Date.now(), rights: [] });
+  // A miss on a question (or a twin of one) already up resets that poster instead of adding a second.
+  T.wallAdd = function (qid, t) {
+    const k = posterFor(qid);
+    if (k >= 0) wall()[k].rights = []; else wall().push({ id: qid, t: t || Date.now(), rights: [] });
   };
 
   // ---- Running a set ----
@@ -166,13 +187,15 @@
     h.appendChild(el);
     el.querySelector('#td-stop').onclick = T.stop;
   }
-  function settle(s, it, ok, conf) {
+  function settle(s, it, ok, conf, recall) {
     it.ok = ok ? 1 : 0; if (conf != null) it.conf = conf;
+    // Type it first (js/quiz.js): how many you wrote from memory before the options showed.
+    if (recall) { s.typed = (s.typed | 0) + 1; if (recall === 'memory' && ok) s.mem = (s.mem | 0) + 1; }
     if (ok) s.right++;
-    const note = T.wallNote(it.q, ok);
+    const note = T.wallNote(it.q, ok, typeof it.wall === 'string' ? it.wall : null);
     // Sure and wrong goes up on the wall.
     if (!ok && conf === 2 && s.kind !== 'wall') T.wallAdd(it.q);
-    if (note === 'down') U.system('POSTER DOWN', 'Right on two different days. It comes off the wall.', 'gold');
+    if (note === 'down') U.system('POSTER DOWN', T.uptima() ? 'Down it comes. I\'d have taken it down after one. That\'s why I don\'t run the wall.' : 'Two questions. Two days. It comes down. — K.', 'gold');
     s.i++;
     if (s.kind === 'daily') sv().todayLast = today();
     S.persist();
@@ -187,9 +210,10 @@
       S.seeConcept(q.c);
       live.q = q; live.t0 = Date.now();
       const name = SD.concepts[q.c] ? SD.concepts[q.c].name : E().NAME;
-      const r = await SD.quiz.ask(q, { title: TITLE[s.kind], context: `${name} · ${s.i + 1}/${s.items.length}`, noSwap: true });
+      const ctx = it.twin ? 'Same idea, a question you haven\'t seen' : name;
+      const r = await SD.quiz.ask(q, { title: TITLE[s.kind], context: `${ctx} · ${s.i + 1}/${s.items.length}`, noSwap: true, typeFirst: s.kind === 'wall' || null });
       if (!live || live.tok !== tok) return;
-      settle(s, it, r.ok, r.conf);
+      settle(s, it, r.ok, r.conf, r.recall);
     }
     live = null;
     finish(s);
@@ -231,8 +255,9 @@
     } else if (s.kind === 'drill') {
       h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">Domain ${s.dom}: ${esc(E().DOMAINS[s.dom])}.</p>`;
     } else {
-      h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">${plural(wall().length, 'poster')} still up. Each comes down after two right answers on different days.</p>`;
+      h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">${plural(wall().length, 'poster')} still up. Each comes down after two different questions on its idea are right, on different days.</p>`;
     }
+    if (s.typed) h += `<p class="small"><span class="rc-badge mem">From memory</span> ${s.mem | 0} of ${s.typed} you typed first.</p>`;
     const b = U.panel(`${h}<div class="row">${more ? '<button class="primary" id="td-again">+10 more</button>' : ''}<button class="ghost" id="td-done">Done</button></div>`, { title: TITLE[s.kind], onClose: T.render });
     b.querySelector('#td-done').onclick = () => { U.closePanel(); T.render(); };
     const m = b.querySelector('#td-again'); if (m) m.onclick = T.more;
@@ -297,6 +322,25 @@
     const log = qlog();
     return { x: [...ids].filter(id => log[id]).length, n: ids.size };
   };
+  // New questions against repeats (S.sight): the honest number between mocks. A big gap means some answers are
+  // remembered, not understood.
+  function sightBox() {
+    const g = S.sight ? S.sight(21) : null;
+    if (!g) return '';
+    const pc = x => Math.round(x[0] / x[1] * 100), MIN = S.SIGHT_MIN;
+    const bar = (label, x, cls) => `<div class="td-sb"><span>${label}</span><div class="bar"><i class="${cls}" style="width:${x[1] ? pc(x) : 0}%"></i></div><b>${x[1] ? pc(x) + '%' : '–'}</b><span class="muted small">${x[1]} answer${x[1] === 1 ? '' : 's'}</span></div>`;
+    let read;
+    if (g.fresh[1] < MIN || g.again[1] < MIN) read = `It reads the gap once each side has ${MIN} answers in 21 days.`;
+    else {
+      const gap = pc(g.again) - pc(g.fresh);
+      read = gap >= 15 ? `You do ${gap} points better on questions you've seen. Some of those answers are remembered, not understood: the wall's new questions will find them.`
+        : gap <= -5 ? 'You do as well or better on new questions. That\'s understanding, not memory.'
+        : `A ${Math.max(gap, 0)}-point gap: what you know carries over to new questions.`;
+    }
+    return `<div class="td-sight"><p class="td-head">New questions vs repeats <span class="muted small">(21 days)</span></p>
+      ${bar('New question, idea you\'ve practised', g.fresh, 'td-sf')}${bar('A question you\'ve answered before', g.again, 'td-sa')}
+      <p class="muted small">${read} Mocks only use questions you've never seen.</p></div>`;
+  }
   T.board = function () {
     const m = E().lastMock(), acc = E().reviewAccuracy(), pooled = { 1: 0, 2: 0, 3: 0, 4: 0 };
     E().mocks().filter(x => x.done && x.dom).forEach(x => [1, 2, 3, 4].forEach(d => { pooled[d] += (x.dom[d] || [0, 0])[1]; }));
@@ -312,21 +356,43 @@
     const pct = seen.n ? Math.round(seen.x / seen.n * 100) : 0;
     const b = U.panel(`<p class="td-head">Reviews: what feels true · Mock: what is true</p>
       <div class="opts">${rows}</div>
-      <div class="td-seen"><span>Seen ${seen.x} of ${seen.n} ${esc(E().NAME)} questions</span><div class="bar"><i style="width:${pct}%;background:var(--mint)"></i></div></div>`, { title: 'READINESS', onClose: T.render });
+      <div class="td-seen"><span>Seen ${seen.x} of ${seen.n} ${esc(E().NAME)} questions</span><div class="bar"><i style="width:${pct}%;background:var(--mint)"></i></div></div>
+      ${sightBox()}`, { title: 'READINESS', onClose: T.render });
     b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => T.drill(+el.dataset.d));
+  };
+  // The wall: one WANTED poster per idea, named by its topic and exam task. The question that put it up stays behind
+  // a tap, so the wall doesn't keep showing you the item you're trying not to memorize.
+  const fmtDay = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  T.posterName = function (q) {
+    if (!q) return 'An idea';
+    const topic = String(q.topic || '').replace(/-/g, ' ').toUpperCase();
+    const task = E().taskOf(q);
+    return (topic || 'AN IDEA') + (task ? ' · task ' + task : '');
   };
   T.wallPanel = function () {
     const list = wall().slice().sort((a, b) => a.t - b.t);
-    const clip = t => (t.length > 110 ? t.slice(0, 108).replace(/\s+\S*$/, '') + '…' : t);
-    const rows = list.map(w => {
-      const q = E().find(w.id);
-      return `<li class="td-poster"><span>${esc(q ? clip(q.q) : w.id)}</span><span class="muted small">Up since ${new Date(w.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${days(w.rights)} of 2 right days</span></li>`;
+    const rows = list.map((w, i) => {
+      const q = E().find(w.id), twin = T.hasTwin(w.id), rs = (w.rights || []).map(r => (typeof r === 'number' ? { t: r, q: w.id } : r));
+      const seal = k => { const r = rs[k]; return `<span class="td-seal${r ? ' on' : ''}" title="${r ? 'Right on ' + fmtDay(r.t) : 'Not yet'}">${r ? '✓ ' + esc(fmtDay(r.t)) : k + 1}</span>`; };
+      const need = twin ? 'Two different questions on this idea, on two different days.' : 'No twin question yet, so this one comes back, typed first. Two right days.';
+      return `<li class="td-poster"><span class="td-wanted">WANTED</span><b class="td-pn">${esc(T.posterName(q))}</b>
+        <span class="td-seals">${seal(0)}${seal(1)}${twin ? '' : '<span class="td-needs">needs a twin</span>'}</span>
+        <span class="muted small">${esc(need)} Up since ${esc(fmtDay(w.t))}.</span>
+        ${q ? `<details class="td-orig"><summary>The question that put it up</summary><p class="small">${esc(q.q)}</p></details>` : ''}</li>`;
     }).join('');
-    const b = U.panel(`<p class="td-head">The only honest posters in the Cloud</p>
+    const lonely = list.filter(w => !T.hasTwin(w.id)).map(w => w.id);
+    const b = U.panel(`<p class="td-head">${T.uptima() ? 'Wanted: ideas that got away. I drew the faces myself.' : 'The only honest posters in the Cloud'}</p>
       ${list.length ? `<ul class="td-wall">${rows}</ul>` : '<p class="muted">Nothing on the wall. Mock misses and sure-but-wrong answers go up here.</p>'}
-      <p class="muted small">A poster comes down after two right answers on different days.</p>
+      <p class="muted small">Drilling the wall asks a question you haven't seen on the same idea when there is one. A poster comes down after two different questions on its idea are right, on two different days.</p>
+      ${lonely.length ? `<p class="muted small">Posters marked "needs a twin" get a new question written for them. <button class="td-link" id="td-twins">Copy their IDs</button> <span id="td-twins-ok" class="small" hidden>Copied.</span></p>` : ''}
       <div class="row">${list.length ? '<button class="primary" id="td-wall-go">Drill the wall</button>' : ''}</div>`, { title: 'THE WALL', onClose: T.render });
     const g = b.querySelector('#td-wall-go'); if (g) g.onclick = T.drillWall;
+    const cp = b.querySelector('#td-twins');
+    if (cp) cp.onclick = () => {
+      const txt = 'Wall posters that need a twin: ' + lonely.join(', ');
+      const ok = () => { b.querySelector('#td-twins-ok').hidden = false; };
+      try { navigator.clipboard.writeText(txt).then(ok, () => { U.system('NEEDS A TWIN', esc(txt)); }); } catch (e) { U.system('NEEDS A TWIN', esc(txt)); }
+    };
   };
   function hall(form) {
     if (!SD.examHall || !SD.examHall.open) { U.system('EXAM HALL', 'Exam Hall coming soon.'); return; }
@@ -514,9 +580,23 @@
     .td-dn { font-weight: 700; }
     .td-ds b { font: 700 18px var(--f-head); }
     .td-early { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 8px; background: #fff0b8; border: 1px solid var(--ink); margin-left: 6px; }
+    .td-sight { margin-top: 14px; display: grid; gap: 6px; }
+    .td-sb { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; font-size: 14px; font-weight: 700; }
+    .td-sb .bar { grid-column: 1 / -1; } .td-sb .muted { grid-column: 1 / -1; }
+    .td-sb > span:first-child { grid-column: 1; } .td-sb b { grid-column: 2; grid-row: 1; }
+    .td-sf { background: var(--blue, #2f4a6b); } .td-sa { background: #8a7f9c; }
     .td-seen { margin-top: 14px; display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
     .td-wall { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; }
-    .td-poster { display: grid; gap: 2px; padding: 8px 10px; background: #fff; border: 2px solid var(--ink); border-radius: 4px; box-shadow: 2px 3px 0 rgba(43,35,64,.6); overflow-wrap: anywhere; }
+    .td-poster { display: grid; gap: 4px; padding: 8px 10px; background: #fffdf6; border: 2px solid var(--ink); border-radius: 4px; box-shadow: 2px 3px 0 rgba(43,35,64,.6); overflow-wrap: anywhere; }
+    .td-poster:nth-child(odd) { transform: rotate(-.6deg); } .td-poster:nth-child(even) { transform: rotate(.5deg); }
+    .td-wanted { font-family: var(--f-head); font-weight: 700; letter-spacing: .18em; font-size: 12px; color: #8a5a00; }
+    .td-pn { font-size: 16px; }
+    .td-seals { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .td-seal { min-width: 28px; padding: 2px 8px; border: 2px dashed rgba(43,35,64,.45); border-radius: 999px; font-size: 12px; font-weight: 800; text-align: center; color: rgba(43,35,64,.55); }
+    .td-seal.on { border-style: solid; border-color: var(--mint); color: #1f6b46; background: #e7f8ef; }
+    .td-needs { font-size: 12px; font-weight: 800; color: #8a5a00; background: #fff3cf; border-radius: 6px; padding: 2px 6px; }
+    .td-orig summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--blue, #2f4a6b); }
+    @media (prefers-reduced-motion: reduce) { .td-poster:nth-child(n) { transform: none; } }
     @media (min-width: 900px) { .td-card { padding: 14px 18px 12px; } }`;
   document.head.appendChild(css);
 })();

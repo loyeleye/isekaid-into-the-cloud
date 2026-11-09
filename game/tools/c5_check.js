@@ -88,6 +88,7 @@ function step([WIN, LEAD, CHOICE]) {
     }
     // Questions: the typed ones get an answer that covers their points.
     if ((x = b('#q-said'))) return click(x) && 'said';
+    if ((x = b('#tf-idk'))) return click(x) && 'type-first';
     if ((x = p.querySelector('#q-num')) && !x.value) {
       const t = p.textContent;
       x.value = /how many days of management events/.test(t) ? '90' : /minutes/.test(t) ? '2' : '1';
