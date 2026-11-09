@@ -715,6 +715,7 @@
     C.sev = Math.max(0, C.sev - n);
     if (n > 0) { U.float(foeEl(), '-' + n, cls || 'hit'); U.burst(foeEl(), cls === 'crit'); heroAnim('cast'); flash(foeSel(), 'hitflash'); if (cls === 'crit') U.shake('.stage'); }
     if (why) C.log = why;
+    return n;
   }
 
   // `again` is a card already played, going again for its Replay: free, and it stays where it went.
@@ -724,7 +725,7 @@
     const d = SD.cards[c.id], cost = again ? 0 : costOf(c);
     if (cost > C.energy) { C.log = 'Not enough Capacity.'; renderCombat(); return; }
     C.energy -= cost;
-    if (!again) C.hand.splice(i, 1);
+    if (!again) { C.hand.splice(i, 1); C.tip = ''; }
     // A chapter can take over a card (js/ch1.js: AccessDenied before you're granted anything, Kyu's Deny).
     // A hook that returns true has dealt with it: the card is discarded and its effects don't happen.
     if (!again && await hook('play', C, c, d)) { if (!C.over) { C.disc.push(c); renderCombat(); } return; }
@@ -804,15 +805,21 @@
         const rs = tags.find(t => C.e.resist[t]);
         // The Oracle's rare card is always effective: it names the incident's first weakness.
         const wk = d.wild ? Object.keys(C.e.weak)[0] : tags.find(t => C.e.weak[t]);
-        if (wk) { mitigate(boost(d.pow + up), 'EFFECTIVE! ' + C.e.weak[wk], 'crit'); C.known.add('w:' + wk); U.shake(foeSel()); AU.sfx('crit'); }
+        // The log says what the hit did against what the badge showed: the full ⚔, half of it, or none.
+        if (wk) { const got = mitigate(boost(d.pow + up), '', 'crit'); C.log = `EFFECTIVE! ${got} of ⚔${d.pow + up}. ` + C.e.weak[wk]; C.known.add('w:' + wk); U.shake(foeSel()); AU.sfx('crit'); }
         else if (rs) {
-          C.log = 'RESISTED. ' + C.e.resist[rs]; C.known.add('r:' + rs); U.float(foeEl(), 'RESISTED', 'res'); AU.sfx('resist');
+          C.log = `RESISTED: 0 of ⚔${d.pow + up}. ` + C.e.resist[rs]; C.known.add('r:' + rs); U.float(foeEl(), 'RESISTED', 'res'); AU.sfx('resist');
           // Wen's Bottomless Mug: once a fight, a resisted card hands its Capacity back.
           if (dev('mug') && !C.mugUsed) { C.energy += cost; C.mugUsed = true; C.log += ' The mug refilled your Capacity.'; }
         }
-        else { mitigate(boost(Math.floor((d.pow + up) / 2)), 'Partial: it helps a little, but this incident is not about that.', 'hit'); AU.sfx('hit'); }
+        else {
+          const got = mitigate(boost(Math.floor((d.pow + up) / 2)), '', 'hit');
+          C.log = `Partial: ${got} of ⚔${d.pow + up}, half. It helps a little, but this incident is not about that.`; AU.sfx('hit');
+          // None of its tags is a weakness or a resistance here, so the badge can show half from now on.
+          tags.forEach(t => C.known.add('n:' + t));
+        }
         saveKnown();
-        U.powTip();
+        C.tip = C.tip || U.powTip(d.pow + up);
       }
     };
     if (d.all) eachFoe(hit); else hit();
@@ -1297,6 +1304,7 @@
   })();
   function renderCombat() {
     const run = S.save.run, e = C.e;
+    const foe = { e, has: k => C.known.has(k) };   // for the ⚔ badges (U.powMatch)
     const weak = Object.keys(e.weak).filter(t => C.known.has('w:' + t));
     const res = Object.keys(e.resist).filter(t => C.known.has('r:' + t));
     const foeCol = SD.art.enemyColor(e.sprite);
@@ -1341,7 +1349,7 @@
             <div class="tags">${weak.length ? `<span>Weak to: <b>${weak.map(U.esc).join(', ')}</b></span>` : ''}${res.length ? `<span>Resists: <b>${res.map(U.esc).join(', ')}</b></span>` : ''}${!weak.length && !res.length ? '<span class="muted">Weaknesses unknown. Diagnose or experiment.</span>' : ''}</div>
           </div>`}
         </div>
-        <div class="clog${C.coach ? ' coach' : ''}" aria-live="polite">${U.esc(C.log || 'Your turn. Play cards, then end the turn to face the next intent.')}</div>
+        <div class="clog${C.coach ? ' coach' : ''}" aria-live="polite">${U.esc(C.log || 'Your turn. Play cards, then end the turn to face the next intent.')}${C.tip ? `<div class="pow-tip">${U.esc(C.tip)}</div>` : ''}</div>
         <div class="me-zone">
           <div class="hud-sla"><span>SLA</span><div class="bar sla"><i style="width:${pct}%"></i></div><b>${Math.max(0, run.sla)}/${S.maxSla()}</b></div>
           <div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div>
@@ -1351,7 +1359,7 @@
           <div class="hand-top"><div class="energy" aria-label="Capacity ${C.energy}"><b>${C.energy}</b><span>CAP</span></div>
             <span class="muted small">Draw ${C.draw.length} · Discard ${C.disc.length}</span>
             ${hook('combatButtons', C) || ''}<button class="primary" id="end-turn">End turn</button></div>
-          <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy })).join('')}</div>
+          <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy, foe })).join('')}</div>
         </div></div>
       </div>`;
     $('#run').querySelectorAll('.hand .card').forEach(el => {

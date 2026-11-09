@@ -157,7 +157,6 @@
     if (d.mit) n.mit = d.mit + up;
     if (d.each) for (const k in d.each) n['each.' + k] = d.each[k] + 2 * lvl;
     // pow: the hit a card lands on the incident, full if a tag is its weakness, half if neutral, none if resisted.
-    // The card face shows only the most it can do (the ⚔ badge), so the weakness stays yours to work out.
     if (d.pow) n.pow = d.pow + 3 * (c.powUp != null ? +c.powUp : lvl);
     return n;
   };
@@ -166,13 +165,33 @@
     const d = U.cardDef(c), n = U.cardNums(c);
     return d.text.replace(/\{([\w.]+)\}/g, (_, k) => n[k] != null ? n[k] : '');
   };
-  // The first ⚔ card you ever play: say once how its hit works (the card face shows only the badge).
-  U.powTip = function () {
-    const sv = SD.state && SD.state.save;
-    if (!sv || !sv.flags || sv.flags.powTip) return;
-    sv.flags.powTip = true; SD.state.persist();
-    U.system('⚔ Cards that fit also fix', 'A ⚔ card hits the incident too: the full number if it is weak to that card, half if neutral, nothing if it resists.', '', 7000);
+  // What a ⚔ card's hit will do to an incident, from what the player has found out (has('w:tag'), 'r:tag', and
+  // 'n:tag' for a tag that landed a partial hit), worked out the way both engines resolve it: a weakness first, then a
+  // resistance, else half. Returns 'weak', 'resist', 'neutral', or null while it's still unknown.
+  U.powMatch = function (d, e, has) {
+    if (!d.pow || !e) return null;
+    if (d.wild) return 'weak';
+    const tags = d.tags || [];
+    if (tags.some(t => has('w:' + t))) return 'weak';
+    const allWeak = Object.keys(e.weak || {}).every(t => has('w:' + t)), allRes = Object.keys(e.resist || {}).every(t => has('r:' + t));
+    // A tag nobody has tried could still be a weakness, unless every weakness is already known.
+    const settled = t => has('r:' + t) || has('n:' + t) || allWeak;
+    if (!tags.every(settled)) return null;
+    if (tags.some(t => has('r:' + t))) return 'resist';
+    return tags.every(t => has('n:' + t)) || allRes ? 'neutral' : null;
   };
+  // The badge's number: the full hit, half, 0, or "≤N" (the most it can do) while the match is unknown.
+  U.powShow = function (n, m) { return m === 'weak' ? '' + n : m === 'neutral' ? '' + Math.floor(n / 2) : m === 'resist' ? '0' : '≤' + n; };
+  // The first ⚔ card you ever play: once, a line under the battle log that says how its hit works, with its numbers.
+  // Returns the line, or '' after the first time.
+  U.powTip = function (n) {
+    const sv = SD.state && SD.state.save;
+    if (!sv || !sv.flags || sv.flags.powTip) return '';
+    sv.flags.powTip = true; SD.state.persist();
+    return `⚔ ${n} hits the incident too: ${n} if it's weak to the card, ${Math.floor(n / 2)} if neutral, 0 if it resists. The badge shows the real number once you know. Mitigate in a card's text always lands in full.`;
+  };
+  // A small sword (game-icons' crossed swords), or the ⚔ character if the icon set isn't loaded.
+  const sword = () => (SD.art && SD.art.icon && SD.art.icon('crossed-swords', 'currentColor')) || '⚔';
   U.cardHtml = function (c, opts) {
     opts = opts || {};
     const d = U.cardDef(c); const n = U.cardNums(c);
@@ -181,10 +200,15 @@
     const tag = (d.tags || [])[0];
     const hue = tag != null && tagHue[tag] != null ? tagHue[tag] : 220;
     const cost = d.xcost ? 'X' : opts.cost != null ? opts.cost : d.cost;
-    return `<div class="card ${d.kind} r-${d.rarity}${n.pow ? ' has-pow' : ''}${opts.dim ? ' dim' : ''}" style="--h:${hue}" data-i="${opts.i != null ? opts.i : ''}" tabindex="0" role="button" aria-label="${U.esc(d.name)}, cost ${cost}.${n.pow ? ` Hits up to ${n.pow}.` : ''} ${U.esc(text)}">
-      <div class="c-cost">${cost}</div>${n.pow ? `<div class="c-pow" title="Hits the incident for up to ${n.pow}: full if it's weak to this card, half if neutral, none if it resists" aria-hidden="true">⚔${n.pow}</div>` : ''}
+    // The ⚔ badge, on the art row: in a fight (opts.foe: { e, has }) it shows what the hit will do once the player
+    // knows; otherwise, and until then, "≤N".
+    const m = n.pow && opts.foe ? U.powMatch(d, opts.foe.e, opts.foe.has) : null;
+    const powSay = !n.pow ? '' : m === 'weak' ? `Hits the incident for ${n.pow}: it's weak to this card.` : m === 'neutral' ? `Hits the incident for ${Math.floor(n.pow / 2)}, half of ${n.pow}: it isn't weak to this card.` : m === 'resist' ? `The incident resists this card: its hit of ${n.pow} does nothing.` : `Hits the incident for up to ${n.pow}: ${n.pow} if it's weak to this card, half if neutral, nothing if it resists.`;
+    const pow = n.pow ? `<div class="c-pow${m ? ' ' + m : ''}" title="${U.esc(powSay)}" aria-hidden="true">${sword()}<b>${U.powShow(n.pow, m)}</b></div>` : '';
+    return `<div class="card ${d.kind} r-${d.rarity}${n.pow ? ' has-pow' : ''}${opts.dim ? ' dim' : ''}" style="--h:${hue}" data-i="${opts.i != null ? opts.i : ''}" tabindex="0" role="button" aria-label="${U.esc(d.name)}, cost ${cost}.${n.pow ? ' ' + U.esc(powSay) : ''} ${U.esc(text)}">
+      <div class="c-cost">${cost}</div>
       <div class="c-name">${U.esc(d.name)}${c.up && c.plus !== false ? '+' : ''}${c.replay ? ` <b title="Replay ${c.replay}">⟳${c.replay}</b>` : ''}</div>
-      <div class="c-art">${SD.art.glyph(d.art, `hsl(${hue},70%,38%)`)}</div>
+      <div class="c-art">${SD.art.glyph(d.art, `hsl(${hue},70%,38%)`)}${pow}</div>
       <div class="c-kind">${d.kind === 'infra' ? 'INFRA' : 'ACTION'}${d.concept ? ' · ' + U.esc(SD.concepts[d.concept].name) : ''}</div>
       <div class="c-text">${U.esc(text)}</div></div>`;
   };
