@@ -3,6 +3,7 @@
 // reload), paying XP; the done-for-today state and +10 more; a wall poster that comes down only after right answers on
 // two different days (the clock is faked); Kyu's note against Uptima's card by story flag; the readiness board.
 // Fails on any page error or console error, and on horizontal scroll at 375px.
+// The page clock starts at a fixed date (see START), so the check doesn't depend on the real date.
 // Run from game/:  node tools/today_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -75,6 +76,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, [right, conf]);
   const next = () => page.click('#q-next');
 
+  // A fixed start date, so the date-bound steps (missed days, mock day, the 41-due pile) pass on any real date. Oct 23,
+  // 2026 sits after a Nov 5 exam's first suggested mock (Oct 22) and before a 60-day-out exam's (Oct 29). The clock
+  // still ticks from there, so timers run as normal. TODAY=YYYY-MM-DD overrides it.
+  const START = new Date((process.env.TODAY || '2026-10-23') + 'T12:00:00');
+  await page.clock.install({ time: START });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
   await boot();
 
@@ -188,7 +194,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => SD.state.save.wall.length === 0), 'a right answer on another day takes the poster down');
 
   // ---- Back after missed days, mock day, day before ----
-  // A date two months out, so no suggested mock falls due today whatever the real date is.
+  // A date two months out, so no suggested mock falls due on the fixed start date.
   await page.evaluate(() => { SD.state.save.examDate = (() => { const d = new Date(Date.now() + 60 * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(); SD.state.save.todaySet = null; SD.state.save.todayLast = new Date(Date.now() - 4 * 86400000).toDateString(); SD.today.render(); });
   check(await state() === 'back' && /today's set/i.test(await page.textContent('.td-line')), 'back after missed days: "start with today\'s set", no guilt');
   await page.evaluate(() => { SD.state.save.examDate = '2026-11-05'; SD.today.render(); });

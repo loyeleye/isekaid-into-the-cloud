@@ -145,7 +145,7 @@
   // A refactored (or tempered) utility card of cost 2 or more costs 1 less, each.
   const costOf = id => { const d = card(id); if (d.xcost) return 0; let c = d.cost; for (let k = d.abs || d.mit ? 0 : lvlOf(id); k > 0 && c > 1; k--) c--; return c; };
   const chtml = (id, o) => {
-    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
+    const h = SD.ui.cardHtml({ id: base(id), up: lvlOf(id), powUp: isTp(id) ? 1 : 0, plus: isUp(id) }, Object.assign({ cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costOf(id) }, o));
     return isTp(id) ? h.replace('<div class="c-name">', '<div class="c-name"><span class="rd-tp" title="Tempered: +3 to its numbers for this fight">⚒</span> ') : h;
   };
 
@@ -337,6 +337,20 @@
     st.id = 'rd-css';
     st.textContent = `
 .rd { display: grid; gap: 10px; }
+/* Leave: kept quiet and apart from the hand (an outline, no fill or shadow), as it's the one button that ends the run. */
+.rd-exit { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .12); }
+.rd-leave-b { min-height: 44px; padding: 0 14px; background: transparent; color: inherit; border: 2px solid currentColor; border-radius: 10px; box-shadow: none; font-size: 13px; opacity: .8; }
+.rd-leave-b:hover, .rd-leave-b:focus-visible { opacity: 1; }
+#rd-confirm { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 7, 12, .72); padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); overscroll-behavior: contain; touch-action: none; animation: rdc-bg .16s ease-out; }
+#rd-confirm .win { width: min(420px, 100%); animation: rdc-in .18s cubic-bezier(.2, .8, .2, 1); }
+#rd-confirm .win-b { padding: 16px; }
+#rd-confirm .win-b p { margin: 0 0 10px; }
+#rd-confirm .rdc-where { font-size: 13px; letter-spacing: .04em; text-transform: uppercase; opacity: .75; }
+#rd-confirm button { display: block; width: 100%; min-height: 48px; }
+#rd-confirm .rdc-leave { margin-top: 18px; }
+@keyframes rdc-bg { from { opacity: 0; } }
+@keyframes rdc-in { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) { #rd-confirm, #rd-confirm .win { animation: none; } }
 .rd .infra { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rd .slot small { display: block; font-weight: 600; color: var(--muted); }
 .rd-team { display: grid; gap: 6px; }
@@ -844,11 +858,13 @@
           const tags = d.tags || [], pw = d.pow + (o.tp ? 3 : 0);
           const rs = tags.find(x => e.resist[x]), wk = d.wild ? Object.keys(e.weak)[0] : tags.find(x => e.weak[x]);
           if (wk) {
-            log += `${who}EFFECTIVE! ${e.weak[wk]} `; mt(M(pw)); G.known.push('w:' + wk);
+            // The log says what the hit did against the card's ⚔: the full number, half, or none.
+            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${e.weak[wk]} `; G.known.push('w:' + wk);
             // A Tag Team: the second player to land an effective card this turn.
             if (!G.eff.includes(peer)) { G.eff.push(peer); if (G.eff.length === 2) log += `TAG TEAM! Mitigated ${mitigate(G, TAG_TEAM)} more. `; }
-          } else if (rs) { log += `${who}RESISTED. ${e.resist[rs]} `; G.known.push('r:' + rs); }
-          else { mt(Math.floor(M(pw) / 2)); log += `${who}Partial: it helps a little. `; }
+          } else if (rs) { log += `${who}RESISTED: 0 of ⚔${pw}. ${e.resist[rs]} `; G.known.push('r:' + rs); }
+          // No tag of it is a weakness or a resistance here, so the badges can show half from now on ('n:').
+          else { log += `${who}Partial: ${mt(Math.floor(M(pw) / 2))} of ⚔${pw}, half. `; tags.forEach(x => G.known.push('n:' + x)); }
         }
         // Statuses on the incident (the target). They stack.
         if (d.leak && aimed) G.leak += d.leak;
@@ -1275,7 +1291,55 @@
       if (j !== sentP) { sentP = j; room.presence(v); }
     };
     let left = false;
-    const leave = why => { if (left) return; left = true; unsub.forEach(f => f()); if (party) party.leave(); clearInterval(iv); clearInterval(bt); clearTimeout(lone); room.leave(); done(typeof why === 'string' ? why : undefined); };
+    const leave = why => { if (left) return; left = true; closeAsk(); unsub.forEach(f => f()); if (party) party.leave(); clearInterval(iv); clearInterval(bt); clearTimeout(lone); room.leave(); done(typeof why === 'string' ? why : undefined); };
+    // Leave the expedition? (Ladi, 2026-11-09: a misclick right before a boss ended the run with no warning.) Once the
+    // expedition has started and until its end card, the button asks first, leading with what leaving costs; Keep going
+    // is the default (it has focus, and Escape or a tap outside picks it). In the party room or on the end card it leaves
+    // at once, as nothing is lost. Same overlay as the quick save's pause screen (#qs-pause). The game carries on
+    // underneath for the rest of the party, so its text follows each redraw (askText), and anything that needs this
+    // player (a question, a page, a scene: askHere, panelHere, queue) closes it first rather than open behind it.
+    let askEl = null;
+    function closeAsk() {
+      if (!askEl) return;
+      const b = askEl.ret; askEl.remove(); askEl = null;
+      document.removeEventListener('keydown', askKeys, true);
+      [...document.body.children].forEach(n => { if (n.dataset.rdInert) { n.inert = false; delete n.dataset.rdInert; } });
+      if (b && b.isConnected) b.focus(); else { const n = root.querySelector('#rd-leave'); if (n) n.focus(); }
+    }
+    function askKeys(e) {
+      if (!askEl || !askEl.contains(document.activeElement) && e.key !== 'Escape') return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAsk(); }
+      else if (e.key === 'Tab') { const bs = [...askEl.querySelectorAll('button')], i = bs.indexOf(document.activeElement); e.preventDefault(); bs[(i + (e.shiftKey ? bs.length - 1 : 1)) % bs.length].focus(); }
+    }
+    function askText() {
+      const fs = floorsOf(X()), f = fs[G.fl], others = seatsHere().filter(k => k !== me.peer && !isBot(k)).length;
+      const foe = G.ph === 'fight' && SD.enemies[G.main], boss = !!(foe && foe.boss);
+      const cost = STORYMODE ? `You head back to camp, and ${esc(X().name)} starts again from floor 1.` : 'This expedition ends for you.';
+      const now = boss ? ' · mid-boss fight' : G.ph === 'fight' ? ' · mid-fight' : '';
+      return `<p class="rdc-where">Floor ${G.fl + 1} of ${fs.length}${f && f.name ? ` · ${esc(f.name)}` : ''}${now}</p><p><b>${cost}</b></p>${others ? '<p>The rest of the party carries on without you. The game keeps going while this is open.</p>' : ''}`;
+    }
+    function askLeave() {
+      if (left || askEl) return;
+      if (['lobby', 'done', 'over'].includes(G.ph) || !X()) return leave();
+      if (busy) return;
+      const word = STORYMODE ? 'dungeon' : 'expedition';
+      askEl = document.createElement('div');
+      askEl.id = 'rd-confirm';
+      askEl.ret = document.activeElement;
+      askEl.innerHTML = `<div class="win" role="alertdialog" aria-modal="true" aria-labelledby="rdc-h" aria-describedby="rdc-d">
+        <div class="win-h"><span id="rdc-h">LEAVE THE ${word.toUpperCase()}?</span></div>
+        <div class="win-b"><div id="rdc-d" aria-live="polite">${askText()}</div>
+          <button class="primary rdc-stay" type="button">Keep going</button><button class="danger rdc-leave" type="button">Leave the ${word}</button></div></div>`;
+      // A tap outside keeps going, but not in the first 300ms: the second tap of a double tap on Leave shouldn't make it flash and vanish.
+      const t0 = Date.now();
+      askEl.onclick = e => { if (e.target === askEl && Date.now() - t0 > 300) closeAsk(); };
+      askEl.querySelector('.rdc-stay').onclick = closeAsk;
+      askEl.querySelector('.rdc-leave').onclick = () => leave();
+      [...document.body.children].forEach(n => { if (!n.inert && n.tagName !== 'SCRIPT') { n.inert = true; n.dataset.rdInert = 1; } });
+      document.body.appendChild(askEl);
+      document.addEventListener('keydown', askKeys, true);
+      askEl.querySelector('.rdc-stay').focus();
+    }
     if (o.bind) o.bind(leave);
     const X = () => xpOf(G.xp), FL = () => floorsOf(X())[G.fl] || null;
     // Kyu can't fight her own raid boss (js/champions.js bossConflict).
@@ -1934,7 +1998,7 @@
         const f = {}; FOE.forEach((k, i) => { f[k] = a[i]; });
         ['sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'ease', 'dl'].forEach(k => { f[k] = Math.round(num(f[k], 99999)); });
         f.max = Math.max(1, f.max); f.pw = Math.max(0.1, Math.min(2.5, Number(f.pw) || 1));
-        f.known = Array.isArray(f.known) ? f.known.filter(x => typeof x === 'string').slice(0, 40) : [];
+        f.known = Array.isArray(f.known) ? f.known.filter(x => typeof x === 'string').slice(0, 80) : [];
         const db = obj(f.db);
         f.db = ['brittle', 'weakMe', 'techdebt', 'pager'].includes(db.kind) && Number.isInteger(db.move) ? { kind: db.kind, move: db.move, n: Math.max(1, Math.min(4, db.n | 0)) } : null;
         return f;
@@ -2085,7 +2149,7 @@
     // One at a time, in order. A question borrows the game's panel, which holds the Guild Hall (closing that panel
     // leaves the party), and hands it back afterwards.
     let shows = Promise.resolve(), busy = 0;
-    const queue = f => { busy++; shows = shows.then(f).catch(() => {}).then(() => { busy--; if (!left) render(); }); };
+    const queue = f => { busy++; shows = shows.then(() => { closeAsk(); return f(); }).catch(() => {}).then(() => { busy--; if (!left) render(); }); };
     const cast = who => (who && SD.cast && SD.cast[who] ? who : 'narr');
     const lines = list => (Array.isArray(list) ? list : []).filter(l => l && l.text).map(l => ({ s: cast(l.who), t: String(l.text) }));
     const dialog = list => (o.say ? (lines(list).length ? Promise.resolve(o.say(list)) : Promise.resolve()) : SD.ui && SD.ui.dialog && document.getElementById('dialog') && lines(list).length ? SD.ui.dialog(lines(list)) : Promise.resolve());
@@ -2100,6 +2164,7 @@
       });
     }
     async function askHere(q, opts) {
+      closeAsk();
       const U = SD.ui, p = document.getElementById('panel');
       if (!SD.quiz || !p) return { ok: false };
       const keep = [...p.childNodes], hid = p.hidden, close = U.closePanel;
@@ -2139,6 +2204,7 @@
     // The game's panel for a page of the story's own (Field Notes, Policy Sort), borrowed as askHere borrows it.
     // html is the panel's body; wire(el, done) binds its buttons and calls done(value) to close it.
     function panelHere(html, title, wire) {
+      closeAsk();
       const U = SD.ui, p = document.getElementById('panel');
       if (!U || !U.panel || !p) return Promise.resolve(null);
       const keep = [...p.childNodes], hid = p.hidden, close = U.closePanel;
@@ -2273,8 +2339,9 @@
     const tallyHelp = t => `Your Trust Policy is how far the team trusts your calls: it scores your last 20 answers anywhere in the game by how sure you said you were: Guess +1 right, 0 wrong; Think so +2, −1; Sure +3, −5; never above ${HEAL}. After each won fight a right debrief answer heals the team by it${t < LOW ? `. Under ${LOW} you get two easier-paying questions instead, ${LOW_HEAL} SLA each, so a few honest answers will lift you` : ''}.`;
     function paint(html) {
       const h = root.querySelector('.hand'), sx = h ? h.scrollLeft : 0, sc = root.closest('.win-b'), sy = sc ? sc.scrollTop : 0;
-      root.innerHTML = `<div class="rd" data-ph="${esc(G.ph)}">${html}<div class="row" style="justify-content:flex-end"><button class="ghost" type="button" id="rd-leave">${STORYMODE ? 'Leave the dungeon' : 'Leave the expedition'}</button></div></div>`;
-      root.querySelector('#rd-leave').onclick = leave;
+      root.innerHTML = `<div class="rd" data-ph="${esc(G.ph)}">${html}<div class="rd-exit"><button class="rd-leave-b" type="button" id="rd-leave">${STORYMODE ? 'Leave the dungeon' : 'Leave the expedition'}</button></div></div>`;
+      root.querySelector('#rd-leave').onclick = askLeave;
+      if (askEl) { if (['lobby', 'done', 'over'].includes(G.ph) || !X()) closeAsk(); else { const d = askEl.querySelector('#rdc-d'), t = askText(); if (d.innerHTML !== t) d.innerHTML = t; } }
       const h2 = root.querySelector('.hand'); if (h2 && sx) h2.scrollLeft = sx;
       if (sc) sc.scrollTop = sy;
       root.querySelectorAll('[data-send]').forEach(b => { b.onclick = () => { ui.pick = null; send(JSON.parse(b.dataset.send)); }; });
@@ -2403,10 +2470,11 @@
       if (G.lt.length) { const m = G.lt.reduce((a, x) => a + x[1], 0), a = G.lt.reduce((n, x) => n + x[2], 0); chips.push(`<span class="chip rd-st" title="Played for later: it lands at the start of next turn.">Next turn: ${[m && `Mitigate ${m}`, a && `Absorb ${a}`].filter(Boolean).join(', ')}</span>`); }
       if (G.bk > 0 && mine && mine.hand.some(id => card(id).restoreAbs)) chips.push(`<span class="chip rd-st" title="Restore Backup brings back up to this much: the absorb in play when the foes last acted.">Backup ${G.bk}</span>`);
       const mates = Object.keys(G.players).filter(k => k !== me.peer).map(k => { const p = G.players[k]; return `<div class="rd-mate${p.ready ? ' ready' : ''}"><b>${esc(p.n)}</b><span>${p.cap} Capacity left · ${p.hand.length} cards</span>${stChips(p.st, ME_ST)}<span class="rd-played">${p.played.length ? 'Played ' + p.played.map(id => esc(card(id).name)).join(', ') : 'Nothing played yet'}</span>${p.ready ? '<span>Ready</span>' : ''}</div>`; }).join('');
-      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(card(G.infra[i].id).text)}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
+      const slots = Array.from({ length: SLOTS }, (_, i) => G.infra[i] ? `<span class="slot on" title="${esc(SD.ui.cardText({ id: base(G.infra[i].id), up: lvlOf(G.infra[i].id), powUp: isTp(G.infra[i].id) ? 1 : 0 }))}">${esc(card(G.infra[i].id).name)}${isUp(G.infra[i].id) ? '+' : ''}<small>${esc((G.players[G.infra[i].by] || {}).n || '')}</small></span>` : '<span class="slot">Infra slot</span>').join('');
       const tier = { boss: 'BOSS', elite: 'ELITE', fight: 'INCIDENT' }[G.tier] || 'RAID';
       // What's known about the targeted enemy's weaknesses.
       const tf = G.foes[tg >= 0 ? tg : 0], weak = Object.keys(e.weak).filter(t => tf.known.includes('w:' + t)), res = Object.keys(e.resist).filter(t => tf.known.includes('r:' + t));
+      const foe = { e, has: k => tf.known.includes(k) };   // for the hand's ⚔ badges (SD.ui.powMatch)
       const tags = `<div class="tags">${weak.length ? `<span>${n > 1 ? esc(foeName(G, tg)) + ' weak' : 'Weak'} to: <b>${weak.map(esc).join(', ')}</b></span>` : ''}${res.length ? `<span>Resists: <b>${res.map(esc).join(', ')}</b></span>` : ''}${!weak.length && !res.length ? `<span class="muted">${n > 1 ? esc(foeName(G, tg)) + ': weaknesses' : 'Weaknesses'} unknown. Read the intent and experiment.</span>` : ''}${n > 1 ? '<span class="muted">Tap an enemy to target it.</span>' : ''}</div>`;
       let info;
       if (n > 1) {
@@ -2442,17 +2510,17 @@
       const peek = mine && mine.peek.length ? `<div class="rd-peek"><p class="muted small">Runbook Ready: take ${mine.take} of these. The rest go to the bottom.</p><div class="cardgrid pick">${mine.peek.map((id, i) => `<div ${mine.ready ? '' : sendAttr({ k: 'peek', i })} class="rd-pickc">${chtml(id, { i })}</div>`).join('')}</div></div>` : '';
       paint(`${hud()}<div class="combat${G.tier === 'boss' ? ' bossfight' : ''}">
         <div class="cb-l"><div class="foe-zone">${stageHtml(e)}${info}</div>
-        <div class="clog" aria-live="polite">${esc(G.log || 'Plan together, then play.')}</div>
+        <div class="clog" aria-live="polite">${esc(G.log || 'Plan together, then play.')}${ui.tip ? `<div class="pow-tip">${esc(ui.tip)}</div>` : ''}</div>
         <div class="me-zone"><div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div><div class="infra">${slots}</div></div></div>
         <div class="cb-r">${mates ? `<div class="rd-team">${mates}</div>` : ''}
         ${mine ? `<div class="hand-zone"><div class="hand-top"><div class="energy" aria-label="Capacity ${mine.cap}"><b>${mine.cap}</b><span>CAP</span></div>
             <span class="muted small">Turn ${G.turn} · Draw ${mine.draw.length} · Discard ${mine.disc.length}</span>${stChips(mine.st, ME_ST)}
             <button class="${mine.ready ? 'ghost' : 'primary'}" type="button" id="rd-ready">${mine.ready ? 'Not ready yet' : 'Ready'}</button></div>
           ${mine.ready ? '<p class="rd-wait">Waiting for the others. The foe acts when everyone is ready.</p>' : ''}${incoming}${peek}${asking}${chooser}
-          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
+          <div class="hand">${mine.hand.map((id, i) => chtml(id, { i, foe, cost: card(id).unplayable ? '–' : card(id).xcost ? undefined : costFor(mine, id), dim: mine.ready || card(id).unplayable || costFor(mine, id) > mine.cap })).join('')}</div></div>` : '<p class="muted small">You\'re watching this expedition.</p>'}</div>
       </div>`);
       // A rare draws its question here (the pair's partner answers the same one); a card that names a player asks who.
-      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
+      const playIt = (i, w) => { const id = mine.hand[i], d = card(id), A = obj(d.ask), q = d.ask && A.who !== 'ally' ? RD.rareQuestion(id, ASKED) : null; ui.mate = null; ui.tip = d.pow && costFor(mine, id) <= mine.cap ? SD.ui.powTip(SD.ui.cardNums({ id: base(id), up: lvlOf(id), powUp: isTp(id) ? 1 : 0 }).pow) : ''; send({ k: 'play', i, t: aimHere(), w: w || undefined, q: q ? q.id : undefined }); };
       root.querySelectorAll('[data-mate]').forEach(b => { b.onclick = () => { if (ui.mate) playIt(ui.mate.i, b.dataset.mate); }; });
       const mx = root.querySelector('#rd-mate-x'); if (mx) mx.onclick = () => { ui.mate = null; render(); };
       root.querySelectorAll('.hand .card').forEach(el => {

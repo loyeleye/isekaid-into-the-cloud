@@ -55,7 +55,7 @@
     assumerole:  { name: 'AssumeRole', cost: 1, kind: 'action', pow: 7, tags: ['assume'], text: 'Put on the mask: STS returns temporary credentials (a key ID, a secret key and a session token) that expire.', art: 'key', rarity: 'basic', concept: 'roles', ch: 1 },
     trustpol:    { name: 'Fix the Trust Policy', cost: 1, kind: 'action', pow: 7, tags: ['trust'], text: 'Name the caller as a Principal in the role\'s trust policy, which decides who may assume the role.', art: 'note', rarity: 'common', concept: 'roles', ch: 1 },
     respol:      { name: 'Resource Policy', cost: 1, kind: 'action', pow: 7, tags: ['resource'], text: 'Grant access on the resource itself, naming a principal from another account. Across accounts both sides must allow.', art: 'gate', rarity: 'common', concept: 'respolicy', ch: 1 },
-    sessionlen:  { name: 'Set the Session Length', cost: 1, kind: 'infra', pow: 5, tags: ['expiry'], each: { any: 2 }, text: 'Infra. Each turn absorb 2 load. Ask for a DurationSeconds that covers the job, up to the role\'s maximum session duration.', art: 'clock', rarity: 'common', concept: 'roles', ch: 1 },
+    sessionlen:  { name: 'Set the Session Length', cost: 1, kind: 'infra', pow: 5, tags: ['expiry'], each: { any: 2 }, text: 'Infra. Each turn absorb {each.any} load. Ask for a DurationSeconds that covers the job, up to the role\'s maximum session duration.', art: 'clock', rarity: 'common', concept: 'roles', ch: 1 },
     mfasession:  { name: 'MFA Session', cost: 1, kind: 'action', pow: 7, tags: ['mfa'], text: 'Get temporary credentials with an MFA code, so aws:MultiFactorAuthPresent is true on every request they sign.', art: 'lock', rarity: 'common', concept: 'conditions', ch: 1 },
     httpsonly:   { name: 'HTTPS Only', cost: 1, kind: 'action', abs: { any: 5 }, pow: 4, tags: ['tls'], text: 'Absorb {any} load. Send every request over TLS, so aws:SecureTransport is true.', art: 'globe', rarity: 'common', concept: 'conditions', ch: 1 },
     decodemsg:   { name: 'Decode the Message', cost: 1, kind: 'action', reveal: true, draw: 1, text: 'Reveal this incident\'s weaknesses and draw 1. sts:DecodeAuthorizationMessage says why a request was denied.', art: 'eye', rarity: 'common', concept: 'iam', ch: 1 },
@@ -69,7 +69,7 @@
     peakstyle:   { name: 'Burning Peak Style', cost: 2, kind: 'action', mit: 14, text: 'Mitigate {mit}. Every master in the Alliance can name it on sight.', art: 'bolt2', rarity: 'rare', ch: 1, quest: true },
     masterkey:   { name: 'Master Key', cost: 1, kind: 'action', reveal: true, draw: 2, text: 'Reveal the incident\'s weaknesses and draw 2. Every room in the Arcanum, on one ring.', art: 'key', rarity: 'rare', ch: 1, quest: true },
     // The last night: what the four do to Kyu.
-    deletestmt:  { name: 'Delete the Statement', cost: 0, kind: 'action', mit: 999, exhaust: true, text: 'Freya\'s gift. Remove the Deny from the policy. It can\'t be put back.', art: 'aistop', rarity: 'rare', ch: 1, quest: true }
+    deletestmt:  { name: 'Delete the Statement', cost: 0, kind: 'action', mit: 999, exhaust: true, text: 'Freya\'s gift. Remove the Deny from the policy, and the incident is over. Exhaust. It can\'t be put back.', art: 'aistop', rarity: 'rare', ch: 1, quest: true }
   });
   SD.cards.finddeny.ch = 1; SD.cards.leastpriv.ch = 1;
   // The deck chapter 1 starts from, before your lead's own card goes in.

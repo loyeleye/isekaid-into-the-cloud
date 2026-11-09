@@ -72,7 +72,7 @@
     'r7-mfa':       card('MFA on Root', 1, { pow: 9, tags: ['mfa', 'root'], art: 'key', concept: 'rootuser', text: 'A second factor on the one sign-in that can do everything.' }),
     'r7-nokeys':    card('No Root Keys', 1, { pow: 8, draw: 1, tags: ['root', 'nokeys'], art: 'lock', concept: 'rootuser', text: 'Draw 1. The root user has no access keys. None. Ever.' }),
     'r7-shared':    card('Whose Job Is It?', 1, { pow: 8, mit: 2, tags: ['shared'], art: 'globe', concept: 'sharedresp', text: 'Mitigate {mit}. AWS: the building. You: everything you put in it.' }),
-    'r7-config':    card('Config Rule', 2, { kind: 'infra', each: { any: 2 }, pow: 6, tags: ['config'], art: 'eye', concept: 'compliance7', text: 'Infra. Each turn absorb 2 load. It checks every resource, every time it changes.' }),
+    'r7-config':    card('Config Rule', 2, { kind: 'infra', each: { any: 2 }, pow: 6, tags: ['config'], art: 'eye', concept: 'compliance7', text: 'Infra. Each turn absorb {each.any} load. It checks every resource, every time it changes.' }),
     'r7-artifact':  card('AWS Artifact', 1, { pow: 7, draw: 1, tags: ['artifact', 'shared'], art: 'note', concept: 'compliance7', text: 'Draw 1. AWS\'s own audit reports, downloaded. Their half, proved.' }),
     'r7-pack':      card('Conformance Pack', 2, { pow: 11, tags: ['config', 'artifact'], art: 'box', rarity: 'uncommon', concept: 'compliance7', text: 'A whole set of rules, deployed as one, to every account.' }),
     // The Free Tier
@@ -84,7 +84,7 @@
     'r7-unused':    card('Unused Access', 2, { pow: 11, mit: 2, tags: ['least', 'unused'], art: 'trace', rarity: 'uncommon', concept: 'leastpriv', text: 'Mitigate {mit}. Every role and permission nobody has used in 90 days, across the organization.' }),
     // The roof and the Top
     'r7-ou':        card('Organizational Unit', 1, { pow: 8, tags: ['org', 'ou'], art: 'box', concept: 'orgs', text: 'Every band in its own account, and the accounts in OUs. A policy on the OU reaches all of them.' }),
-    'r7-tower':     card('Control Tower', 2, { kind: 'infra', each: { any: 3 }, pow: 6, tags: ['tower', 'scp'], art: 'gate', concept: 'controltower', text: 'Infra. Each turn absorb 3 load. A landing zone, and controls on every OU.' }),
+    'r7-tower':     card('Control Tower', 2, { kind: 'infra', each: { any: 3 }, pow: 6, tags: ['tower', 'scp'], art: 'gate', concept: 'controltower', text: 'Infra. Each turn absorb {each.any} load. A landing zone, and controls on every OU.' }),
     'r7-idc':       card('IAM Identity Center', 1, { pow: 9, draw: 1, tags: ['idc', 'mfa'], art: 'key', concept: 'controltower', text: 'Draw 1. One sign-in, with MFA, and a permission set in each account.' }),
     'r7-hub':       card('Security Hub', 1, { pow: 8, reveal: true, tags: ['hub', 'ir'], art: 'eye', concept: 'ir7', text: 'Reveal weaknesses. Every finding from every account, in one place.' }),
     'r7-detective': card('Detective', 1, { pow: 9, tags: ['detective', 'ir'], art: 'trace', concept: 'ir7', text: 'What else that role did, from where, and since when.' }),

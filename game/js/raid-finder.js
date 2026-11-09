@@ -69,6 +69,8 @@
   };
   const ids = () => [].concat(...MP.eligible().map(c => c.xps.map(x => x.id)));
   MP.available = () => !!(SD.net && SD.raid && SD.raid.available() && SD.party);
+  // In the raid finder or a raid (js/quicksave.js doesn't quick save these: the party won't wait).
+  MP.inRaid = () => busy;
 
   // The replay's say: the floors' lines in your party's voices, without the story's cues (a { who: 'c4' } line plays a
   // chapter's own scene and sets its flags) and with per-lead lines picked for your lead.

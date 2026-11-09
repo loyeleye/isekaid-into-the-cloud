@@ -202,7 +202,8 @@ function step([WIN, LEAD, CHOICE]) {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 390), height: Number(process.env.H || 844) } });
   const errors = [];
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.goto(url);

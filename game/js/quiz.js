@@ -87,7 +87,8 @@
       const esc = e => { const x = e.key === 'Escape' && document.querySelector('#panel:not([hidden]) #panel-x'); if (x) { e.preventDefault(); x.click(); } };
       if (opts.closable) window.addEventListener('keydown', esc);
       const resolve = v => { window.removeEventListener('keydown', esc); done(v); };
-      const panel = (h, fixed) => U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: fixed || !opts.closable, cls: 'quiz', onClose: () => onX() });
+      // top: a new step (the feedback after an answer) starts at the top instead of keeping the scroll.
+      const panel = (h, fixed, top) => U.panel(h, { title: opts.title || 'WHITEBOARD', noClose: fixed || !opts.closable, cls: 'quiz', onClose: () => onX(), keepScroll: !top });
       // opts.tally (an expedition's questions, js/raid.js): Trust Policy, the confidence tally (SD.state.tally). Each
       // confidence button shows what it does to it, and the verdict carries it before and after. opts.heal(ok, tally),
       // when given, says on the Continue button what this answer heals; opts.stakeNote ends the tap-to-open explanation under the Trust line below the buttons;
@@ -206,7 +207,7 @@
       async function checkTyped(conf, ms) {
         const E = SD.embed;
         if (typed && E && !E.ready && !E.failed) {
-          panel('<p class="muted">Reading your answer...</p>', true);
+          panel('<p class="muted">Reading your answer...</p>', true, true);
           await Promise.race([E.load(), new Promise(r => setTimeout(r, 6000))]);
         }
         const found = typed ? Q.rubric(typed, q.points) : q.points.map(() => ({ hit: null }));
@@ -221,7 +222,7 @@
           if (typed) h += `<p class="muted small">${E && E.ready ? 'Ticks are the game\'s guess.' : 'Only exact terms were checked this time.'} Tick what your answer really said; you need ${need} of ${q.points.length}.</p>`;
           h += `<p><b>Model answer:</b> ${U.esc(q.model)}</p><button class="primary" id="q-confirm">${typed ? 'Confirm' : 'Continue'}</button>`;
           onX = () => b.querySelector('#q-confirm').click();
-          const b = panel(h);
+          const b = panel(h, false, true);
           b.querySelectorAll('[data-r]').forEach(el => el.onchange = () => { ticks[+el.dataset.r] = el.checked; el.closest('.rp').classList.toggle('on', el.checked); });
           b.querySelector('#q-confirm').onclick = () => {
             const score = ticks.filter(Boolean).length, ok = !!typed && score >= need;
@@ -413,7 +414,7 @@
           h += `<div class="compass"><div class="q-ctx">Confusion compass <span class="muted small">(optional)</span></div><p class="small">What tripped you up? Tap one to save it to your notebook.</p>
             <div class="opts">${prompts.map((p, i) => `<button class="opt" data-p="${i}">${U.esc(p)}</button>`).join('')}</div></div>`;
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
-          const b = panel(h);
+          const b = panel(h, false, true);
           help(b); wire(b);
           const nx = b.querySelector('#q-next');
           b.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
@@ -426,7 +427,7 @@
           nx.onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
         } else {
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
-          const b = panel(h);
+          const b = panel(h, false, true);
           help(b); wire(b);
           b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
           b.querySelector('#q-next').focus();

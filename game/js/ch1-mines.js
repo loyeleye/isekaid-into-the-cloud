@@ -56,7 +56,7 @@
   // What the mines teach, found in its card rewards (SD.champions.rewards) and from Freya's trade on floor 2.
   Object.assign(SD.cards, {
     splitarn:  { name: 'Split the ARNs', cost: 1, kind: 'action', pow: 7, tags: ['arn'], art: 'note', rarity: 'common', concept: 's3arn', ch: 1, text: 'Two statements, two ARNs: s3:ListBucket on the bucket, s3:GetObject on bucket/*. Each action meets the resource it acts on.' },
-    defchain:  { name: 'Default Credential Chain', cost: 1, kind: 'infra', pow: 5, each: { any: 2 }, tags: ['chain'], art: 'key', rarity: 'common', concept: 'credchain', ch: 1, text: 'Infra. Each turn absorb 2 load. The SDK takes the first keys it finds: environment, shared files, container, instance profile.' },
+    defchain:  { name: 'Default Credential Chain', cost: 1, kind: 'infra', pow: 5, each: { any: 2 }, tags: ['chain'], art: 'key', rarity: 'common', concept: 'credchain', ch: 1, text: 'Infra. Each turn absorb {each.any} load. The SDK takes the first keys it finds: environment, shared files, container, instance profile.' },
     readbound: { name: 'Read the Boundary', cost: 1, kind: 'action', pow: 8, tags: ['boundary'], art: 'gate', rarity: 'uncommon', concept: 'guardrails', ch: 1, text: 'A permissions boundary only caps; it never grants. What you can do is the overlap of the boundary and your policies.' },
     extid:     { name: 'Require an ExternalId', cost: 2, kind: 'action', pow: 11, tags: ['externalid'], art: 'lock', rarity: 'uncommon', concept: 'xacct', ch: 1, text: 'The trust policy requires sts:ExternalId, so a deputy acting for someone else can\'t put on your role.' }
   });

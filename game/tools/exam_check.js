@@ -16,6 +16,11 @@
 //   7. The standard game: with no exam date, with exam prep off, or after the exam, exam mode is off, the exam-task
 //      concepts aren't reviewable, and reviews and chapters ask both exams' questions.
 //   8. A practice mock for each exam has 65 questions on that exam only, split by the guide's weights, mc and multi only.
+//   9. Each form covers every task in proportion (Nov 9): within each domain, a form's count for a task is within one
+//      question of the task's share of the domain scaled to the form's size, with at least 1 per task on the half form
+//      and 2 on A and B. Every question on the forms is on an in-scope service and isn't a variant.
+//  10. The forms are frozen: js/exam-heldout.js holds exactly the forms in tools/exam_forms.lock.json, so a bank
+//      change can't reshuffle a form already taken. Only tools/exam_heldout.js --rebuild changes the lock.
 //
 //   node tools/exam_check.js          print a summary, exit 1 if any check fails
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -242,6 +247,42 @@ for (const tr of ['DVA', 'SAA']) {
 }
 setTrack('DVA');
 check(8, 'A practice mock of each exam: 65 of its own questions, split by its guide', mockBad, mockSizes.join(', '));
+
+// ---- 9. Each form covers every task in proportion ----
+// Same list as tools/exam_heldout.js: not on the DVA-C02 guide v2.1 in-scope services list.
+const OUT_OF_SCOPE = new Set(['codeguru', 'verifiedpermissions', 'sar']);
+const taskBad = [], FLOOR = { half: 1, A: 2, B: 2 };
+const formQs = f => ((SD.examForms || {})[f] || []).map(id => bankById.get(id)).filter(Boolean);
+for (const d of [1, 2, 3, 4]) {
+  const tasks = Object.keys(E.TASKS).filter(t => +t[0] === d);
+  const per = f => { const c = {}; tasks.forEach(t => { c[t] = formQs(f).filter(q => q.dva === t).length; }); return c; };
+  const counts = {}; Object.keys(WANT).forEach(f => { counts[f] = per(f); });
+  const need = Object.keys(WANT).reduce((n, f) => n + WANT[f].d[d], 0);
+  for (const t of tasks) {
+    const tot = Object.keys(WANT).reduce((n, f) => n + counts[f][t], 0);
+    for (const f of Object.keys(WANT)) {
+      const ideal = tot * WANT[f].d[d] / need, n = counts[f][t];
+      if (Math.abs(n - ideal) >= 1) taskBad.push(`${f}: task ${t} has ${n}, its share is ${ideal.toFixed(1)}`);
+      if (n < FLOOR[f]) taskBad.push(`${f}: task ${t} has ${n}, want at least ${FLOOR[f]}`);
+    }
+  }
+}
+for (const f of Object.keys(WANT)) for (const q of formQs(f)) {
+  if (OUT_OF_SCOPE.has(q.topic)) taskBad.push(`${f}: ${q.id} is on ${q.topic}, not an in-scope DVA-C02 service`);
+  if (q.variant) taskBad.push(`${f}: ${q.id} is a variant`);
+}
+check(9, 'Each form covers every task in proportion, in-scope services only', taskBad,
+  Object.keys(WANT).map(f => `${f} ` + Object.keys(E.TASKS).map(t => formQs(f).filter(q => q.dva === t).length).join(' ')).join(' | '));
+
+// ---- 10. The forms are frozen ----
+const lockBad = [];
+let lock = null;
+try { lock = JSON.parse(fs.readFileSync(path.join(__dirname, 'exam_forms.lock.json'), 'utf8')); } catch (e) { lockBad.push('tools/exam_forms.lock.json: ' + e.message); }
+if (lock) for (const f of Object.keys(WANT)) {
+  const a = (SD.examForms || {})[f] || [], b = (lock.forms || {})[f] || [];
+  if (a.join() !== b.join()) lockBad.push(`${f}: js/exam-heldout.js differs from the lock (${a.filter(id => !b.includes(id)).length} added, ${b.filter(id => !a.includes(id)).length} dropped${a.length === b.length && a.every(id => b.includes(id)) ? ', reordered' : ''})`);
+}
+check(10, 'The forms match tools/exam_forms.lock.json', lockBad, lock ? Object.keys(lock.picked || {}).map(f => `${f} picked ${lock.picked[f]}`).join(', ') : '');
 
 console.log(`Exam mode for DVA-C02 and SAA-C03 on ${E.date()}: ${SD.bank.length} bank questions, ${SD.questions.length} in the chapters, ${concepts.length} concepts`);
 errors.forEach(e => console.log('load error: ' + e));

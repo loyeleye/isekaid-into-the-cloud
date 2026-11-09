@@ -131,10 +131,11 @@
       <div class="map-wrap"><div class="map-title">${U.esc(chap().name.replace(/^the /, '').toUpperCase())} · ${chap().rank}-RANK <span class="muted">Pick a path. ${U.esc(SD.enemies[bossId()].name)} waits at the end.</span>
         ${curseChips()}</div>
       <div class="map" style="height:${rows * 118}px"><canvas class="map-bg" aria-hidden="true"></canvas>${svg}${nodes}</div></div>
-      <div class="run-foot"><button class="ghost" id="deck-btn">Deck (${run.deck.length})</button><button class="ghost" id="codex-btn2">Cheat sheet</button><button class="ghost danger" id="abandon">Abandon run</button></div>`;
+      <div class="run-foot"><button class="ghost" id="deck-btn">Deck (${run.deck.length})</button><button class="ghost" id="codex-btn2">Cheat sheet</button><button class="ghost" id="qs-map">${SD.quick ? SD.quick.markIcon : ''} Quick save</button><button class="ghost danger" id="abandon">Abandon run</button></div>`;
     paintMap($('#run .map'), floors, xy, bend, rows, cur);
     $('#run').querySelectorAll('.node.can').forEach(b => b.onclick = () => enterNode(findNode(b.dataset.n)));
     $('#deck-btn').onclick = showDeck;
+    $('#qs-map').onclick = () => SD.quick && SD.quick.pause();
     $('#codex-btn2').onclick = () => U.codex();
     $('#abandon').onclick = () => {
       const b = U.panel('<p>Abandon this run? You will respawn on the same morning. You keep XP, shards and everything you learned.</p><div class="row"><button class="danger" id="ab-y">Abandon</button><button class="ghost" id="ab-n">Keep going</button></div>', { title: 'CONFIRM' });
@@ -526,6 +527,8 @@
 
   // ---------- Combat ----------
   function fight(eid, opts, done) {
+    // A quick save's fight (js/quicksave.js) comes back as it was, in place of a fresh one.
+    const q = quickFor(eid); if (q) return quickFight(q, done);
     const run = S.save.run, e = SD.enemies[eid];
     S.seeConcept(e.concept);
     run.log.concepts[e.concept] = (run.log.concepts[e.concept] || 0) + 1;
@@ -537,7 +540,7 @@
       draw: opts.tutorial ? deck : Q.shuffle(deck), hand: [], disc: [], exh: [], infra: [],
       sh: zero(), stale: 0, jitter: false, choice: null, known: new Set(known), diagBonus: 0,
       elite: !!opts.elite, boss: !!opts.boss, done, twistAsked: false, mercyScale: run.firstFight ? 0.75 : 1, log: '',
-      budget: dev('halo') ? 5 : 0, whistled: false, breakerUsed: false, vuln: 0, carry: 0, fuses: []
+      budget: dev('halo') ? 5 : 0, whistled: false, breakerUsed: false, vuln: 0, carry: 0, fuses: [], eid0: eid
     };
     // Deeper chapters hit harder; Form 27B takes 10% off bosses.
     const scale = (opts.sevScale || 1) * (opts.tutorial ? 1 : chap().sevMult || 1) * (opts.boss && dev('form27b') ? 0.9 : 1);
@@ -715,6 +718,7 @@
     C.sev = Math.max(0, C.sev - n);
     if (n > 0) { U.float(foeEl(), '-' + n, cls || 'hit'); U.burst(foeEl(), cls === 'crit'); heroAnim('cast'); flash(foeSel(), 'hitflash'); if (cls === 'crit') U.shake('.stage'); }
     if (why) C.log = why;
+    return n;
   }
 
   // `again` is a card already played, going again for its Replay: free, and it stays where it went.
@@ -724,7 +728,7 @@
     const d = SD.cards[c.id], cost = again ? 0 : costOf(c);
     if (cost > C.energy) { C.log = 'Not enough Capacity.'; renderCombat(); return; }
     C.energy -= cost;
-    if (!again) C.hand.splice(i, 1);
+    if (!again) { C.hand.splice(i, 1); C.tip = ''; }
     // A chapter can take over a card (js/ch1.js: AccessDenied before you're granted anything, Kyu's Deny).
     // A hook that returns true has dealt with it: the card is discarded and its effects don't happen.
     if (!again && await hook('play', C, c, d)) { if (!C.over) { C.disc.push(c); renderCombat(); } return; }
@@ -804,14 +808,21 @@
         const rs = tags.find(t => C.e.resist[t]);
         // The Oracle's rare card is always effective: it names the incident's first weakness.
         const wk = d.wild ? Object.keys(C.e.weak)[0] : tags.find(t => C.e.weak[t]);
-        if (wk) { mitigate(boost(d.pow + up), 'EFFECTIVE! ' + C.e.weak[wk], 'crit'); C.known.add('w:' + wk); U.shake(foeSel()); AU.sfx('crit'); }
+        // The log says what the hit did against what the badge showed: the full ⚔, half of it, or none.
+        if (wk) { const got = mitigate(boost(d.pow + up), '', 'crit'); C.log = `EFFECTIVE! ${got} of ⚔${d.pow + up}. ` + C.e.weak[wk]; C.known.add('w:' + wk); U.shake(foeSel()); AU.sfx('crit'); }
         else if (rs) {
-          C.log = 'RESISTED. ' + C.e.resist[rs]; C.known.add('r:' + rs); U.float(foeEl(), 'RESISTED', 'res'); AU.sfx('resist');
+          C.log = `RESISTED: 0 of ⚔${d.pow + up}. ` + C.e.resist[rs]; C.known.add('r:' + rs); U.float(foeEl(), 'RESISTED', 'res'); AU.sfx('resist');
           // Wen's Bottomless Mug: once a fight, a resisted card hands its Capacity back.
           if (dev('mug') && !C.mugUsed) { C.energy += cost; C.mugUsed = true; C.log += ' The mug refilled your Capacity.'; }
         }
-        else { mitigate(boost(Math.floor((d.pow + up) / 2)), 'Partial: it helps a little, but this incident is not about that.', 'hit'); AU.sfx('hit'); }
+        else {
+          const got = mitigate(boost(Math.floor((d.pow + up) / 2)), '', 'hit');
+          C.log = `Partial: ${got} of ⚔${d.pow + up}, half. It helps a little, but this incident is not about that.`; AU.sfx('hit');
+          // None of its tags is a weakness or a resistance here, so the badge can show half from now on.
+          tags.forEach(t => C.known.add('n:' + t));
+        }
         saveKnown();
+        C.tip = C.tip || U.powTip(d.pow + up);
       }
     };
     if (d.all) eachFoe(hit); else hit();
@@ -1296,6 +1307,7 @@
   })();
   function renderCombat() {
     const run = S.save.run, e = C.e;
+    const foe = { e, has: k => C.known.has(k) };   // for the ⚔ badges (U.powMatch)
     const weak = Object.keys(e.weak).filter(t => C.known.has('w:' + t));
     const res = Object.keys(e.resist).filter(t => C.known.has('r:' + t));
     const foeCol = SD.art.enemyColor(e.sprite);
@@ -1330,6 +1342,7 @@
     $('#run').innerHTML = `
       <div class="combat${C.boss ? ' bossfight' : ''}">
         <div class="cb-l"><div class="foe-zone">
+          ${SD.quick ? `<button class="qs-chip" id="qs-fight" type="button" aria-label="Quick save and pause" title="Quick save and pause">${SD.quick.icon}</button>` : ''}
           ${stageHtml(e, foeCol)}
           ${grouped() ? groupInfoHtml() : `<div class="foe-info">
             <div class="foe-name">${U.esc(e.name)} ${C.boss ? '<span class="tier boss">BOSS</span>' : C.elite ? '<span class="tier elite">ELITE</span>' : '<span class="tier">INCIDENT</span>'}</div>
@@ -1340,17 +1353,17 @@
             <div class="tags">${weak.length ? `<span>Weak to: <b>${weak.map(U.esc).join(', ')}</b></span>` : ''}${res.length ? `<span>Resists: <b>${res.map(U.esc).join(', ')}</b></span>` : ''}${!weak.length && !res.length ? '<span class="muted">Weaknesses unknown. Diagnose or experiment.</span>' : ''}</div>
           </div>`}
         </div>
-        <div class="clog${C.coach ? ' coach' : ''}" aria-live="polite">${U.esc(C.log || 'Your turn. Play cards, then end the turn to face the next intent.')}</div>
+        <div class="clog${C.coach ? ' coach' : ''}" aria-live="polite">${U.esc(C.log || 'Your turn. Play cards, then end the turn to face the next intent.')}${C.tip ? `<div class="pow-tip">${U.esc(C.tip)}</div>` : ''}</div>
         <div class="me-zone">
           <div class="hud-sla"><span>SLA</span><div class="bar sla"><i style="width:${pct}%"></i></div><b>${Math.max(0, run.sla)}/${S.maxSla()}</b></div>
           <div class="chips">${chips.join('') || '<span class="muted small">No defences up.</span>'}</div>
-          <div class="infra">${[0, 1, 2, 3].map(i => C.infra[i] ? `<span class="slot on" title="${U.esc(SD.cards[C.infra[i].id].text)}">${U.esc(SD.cards[C.infra[i].id].name)}</span>` : '<span class="slot">Infra slot</span>').join('')}</div>
+          <div class="infra">${[0, 1, 2, 3].map(i => C.infra[i] ? `<span class="slot on" title="${U.esc(U.cardText(C.infra[i]))}">${U.esc(SD.cards[C.infra[i].id].name)}</span>` : '<span class="slot">Infra slot</span>').join('')}</div>
         </div></div>
         <div class="cb-r"><div class="hand-zone">
           <div class="hand-top"><div class="energy" aria-label="Capacity ${C.energy}"><b>${C.energy}</b><span>CAP</span></div>
             <span class="muted small">Draw ${C.draw.length} · Discard ${C.disc.length}</span>
             ${hook('combatButtons', C) || ''}<button class="primary" id="end-turn">End turn</button></div>
-          <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy })).join('')}</div>
+          <div class="hand">${C.hand.map((c, i) => U.cardHtml(c, { i, cost: costOf(c), dim: costOf(c) > C.energy, foe })).join('')}</div>
         </div></div>
       </div>`;
     $('#run').querySelectorAll('.hand .card').forEach(el => {
@@ -1363,6 +1376,54 @@
       el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); target(+el.dataset.fi); } };
     });
     hook('combatWire', C, $('#run'), renderCombat);
+    const qb = $('#qs-fight'); if (qb) qb.onclick = () => SD.quick && SD.quick.pause();
+    keepIdle();
+  }
+
+  // ---------- Quick save (js/quicksave.js) ----------
+  // The fight as it last stood waiting for you, never mid-animation or mid-card: a quick save taken during the
+  // incident's turn or a card's question brings back the moment before you pressed End turn or played the card.
+  // The incident's definition and the callback for after the fight aren't saved: they come back from the content and
+  // from whichever node or story beat starts the same fight again.
+  let idle = null, armed = null;
+  const NOT_SAVED = new Set(['e', 'done', 'finish']);
+  function keepIdle() {
+    const run = S.save.run;
+    if (!C || C.busy || C.over || C.tutorial || C.coach || C.finish || !run) return;
+    idle = {
+      eid0: C.eid0, node: run.pending || null, story: !!run.story, ch: run.ch || 1,
+      c: JSON.stringify(C, (k, v) => NOT_SAVED.has(k) ? undefined : v instanceof Set ? { __set: Array.from(v) } : v),
+      run: { sla: run.sla, mercy: run.mercy, halted: run.halted, stamp: run.stamp }
+    };
+  }
+  R.quickFight = () => (C && !C.over && idle && idle.eid0 === C.eid0 && !$('#screen-run').hidden && $('#run .combat') ? idle : null);
+  R.armQuick = q => { armed = q || null; };
+  // The armed fight is used by the next fight that starts, if it's the same one: in a dungeon, the same map node
+  // (any incident for a plain fight or elite node, whose incident is picked at random each time) and in a story
+  // fight the same incident. Any other fight drops it.
+  function quickFor(eid) {
+    const q = armed, run = S.save.run; armed = null;
+    if (!q || !run || !!run.story !== q.story || (run.ch || 1) !== q.ch) return null;
+    if (q.story) return q.eid0 === eid ? q : null;
+    const n = run.pending && findNode(run.pending);
+    if (!n || run.pending !== q.node) return null;
+    return q.eid0 === eid || ((n.type === 'fight' || n.type === 'elite') && !n.eid) ? q : null;
+  }
+  function quickFight(q, done) {
+    const run = S.save.run;
+    C = JSON.parse(q.c, (k, v) => v && Array.isArray(v.__set) ? new Set(v.__set) : v);
+    C.done = done;
+    C.e = SD.enemies[C.eid];
+    if (C.foes) {
+      C.foes.forEach(f => { f.e = SD.enemies[f.eid]; });
+      if (grouped()) { C.foes[C.fi].e = C.e; C.foes[C.fi].known = C.known; }
+    }
+    Object.assign(run, q.run);
+    C.log = 'Back where you left off. Your turn.';
+    S.persist();
+    AU.music(C.boss ? 'boss' : 'battle');
+    SD.main.show('run');
+    renderCombat();
   }
 
   // ---------- Gary: the deus ex machina ----------

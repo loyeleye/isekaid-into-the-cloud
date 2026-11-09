@@ -150,8 +150,7 @@
   // effect; the rest is flavour. "Infra." is dropped, as the card's kind tag says it. {mit} and the like are filled in.
   const RULE = /^(Mitigate|Absorb|Draw \d|The team loses|[+-]\d|Exhaust\.|Remove all Stale|Reveal|Always hits|This turn|For \d+ turns|Double all|Your absorb|(Flood|Scan) intents|Bad deploys)/;
   PT.sigText = function (d) {
-    const n = Object.assign({}, d.abs, d.mit != null ? { mit: d.mit } : null);
-    const all = d.text.replace(/\{(\w+)\}/g, (_, k) => n[k] != null ? n[k] : '').replace(/^Infra\.\s*/, '');
+    const all = SD.ui.cardText(d).replace(/^Infra\.\s*/, '');
     const parts = all.split(/(?<=[.!?])\s+(?=\S)/);
     let i = 0;
     while (i < parts.length && RULE.test(parts[i])) i++;

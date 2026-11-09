@@ -467,8 +467,7 @@
       await walk('freya', P.x + 1, P.y); faceTo('freya', 'you'); faceTo('you', 'freya');
       AU.music('freya');
       await say(T.cartWon);
-      const n = U.cardNums('adminaccess');
-      U.system('NEW CARD: ADMINISTRATORACCESS', U.esc(SD.cards.adminaccess.text.replace(/\{(\w+)\}/g, (_, k) => n[k] != null ? n[k] : '')), 'gold');
+      U.system('NEW CARD: ADMINISTRATORACCESS', U.esc(U.cardText('adminaccess')), 'gold');
       await walk('freya', HOME.freya[0], HOME.freya[1]); sc.actors.freya.face = 'south';
       U.system('[COLDSTART] THE NOTICE BOARD', 'Read the trail rules before you set off.');
       AU.music('camp');
