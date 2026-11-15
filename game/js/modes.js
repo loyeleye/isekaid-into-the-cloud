@@ -111,7 +111,8 @@
 
   // ---- Asking ----
   // Stop for now in the quiz window's title bar (as Today's sets have it), while opts.onStop is set.
-  let stopWatch = null, stopFn = null;
+  let stopWatch = null, stopFn = null, cur = null;
+  M.current = () => cur;   // the question SD.modes.ask is showing (headless checks)
   function stopBar() {
     if (!stopFn) return;
     const h = document.querySelector('#panel .win.quiz .win-h');
@@ -143,6 +144,7 @@
     if (opts.clues === true) opts.clues = M.split(q, opts.clueLabels);
     if (opts.clues) opts.noThink = true;
     if (q.c) S.seeConcept(q.c);
+    cur = q;
     const t0 = Date.now();
     // opts.tally here is the mode's calibration tally, not js/quiz.js's Trust Policy switch of the same name.
     const tally = opts.tally || null, qo = Object.assign({}, opts);
