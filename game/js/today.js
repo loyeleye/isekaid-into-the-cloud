@@ -173,6 +173,19 @@
     if (k >= 0) wall()[k].rights = []; else wall().push({ id: qid, t: t || Date.now(), rights: [] });
   };
 
+  // One answer's effect on the wall: a right answer counts toward its poster (or the named one), a miss resets it, and
+  // Sure and wrong puts it up (unless noAdd: the wall's own drill). Game modes (js/modes.js) use it too.
+  T.wallSettle = function (qid, ok, conf, poster, noAdd) {
+    const note = T.wallNote(qid, ok, poster || null);
+    if (!ok && conf === 2 && !noAdd) T.wallAdd(qid);
+    if (note === 'down') U.system('POSTER DOWN', T.uptima() ? 'Down it comes. I\'d have taken it down after one. That\'s why I don\'t run the wall.' : 'Two questions. Two days. It comes down. — K.', 'gold');
+    return note;
+  };
+  // For game modes (js/modes.js): a bank question with the concept it records under, and a concept's next question.
+  T.resolveItem = it => resolve(typeof it === 'string' ? { q: it } : it);
+  T.conceptOf = q => conceptOf(q);
+  T.pickQ = (c, used) => pickQ(c, used || new Set());
+
   // ---- Running a set ----
   let live = null, watcher = null;
   T.current = () => (live ? live.q : null);
@@ -192,10 +205,7 @@
     // Type it first (js/quiz.js): how many you wrote from memory before the options showed.
     if (recall) { s.typed = (s.typed | 0) + 1; if (recall === 'memory' && ok) s.mem = (s.mem | 0) + 1; }
     if (ok) s.right++;
-    const note = T.wallNote(it.q, ok, typeof it.wall === 'string' ? it.wall : null);
-    // Sure and wrong goes up on the wall.
-    if (!ok && conf === 2 && s.kind !== 'wall') T.wallAdd(it.q);
-    if (note === 'down') U.system('POSTER DOWN', T.uptima() ? 'Down it comes. I\'d have taken it down after one. That\'s why I don\'t run the wall.' : 'Two questions. Two days. It comes down. — K.', 'gold');
+    T.wallSettle(it.q, ok, conf, typeof it.wall === 'string' ? it.wall : null, s.kind === 'wall');
     s.i++;
     if (s.kind === 'daily') sv().todayLast = today();
     S.persist();
@@ -547,7 +557,7 @@
       ${extra}
       <button class="primary td-main" id="${main[0]}">${esc(main[1])}</button>
       <div class="td-links">${alt}${st === 'first' || st === 'off' ? '<button class="td-link" id="td-settings">Exam settings</button>'
-        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}${st !== 'first' && SD.topicDrill ? '<button class="td-link" id="td-topic">Topic drill</button>' : ''}</div>`;
+        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}${st !== 'first' && SD.topicDrill ? '<button class="td-link" id="td-topic">Topic drill</button>' : ''}${st !== 'first' && SD.modes && SD.modes.list().length ? '<button class="td-link td-play" id="td-play">▶ Play</button>' : ''}</div>`;
     const on = (id, f) => { const el = card.querySelector('#' + id); if (el) el.onclick = f; };
     on('td-date', T.datePicker);
     on('td-setdate', () => {
@@ -568,6 +578,7 @@
     on('td-ready', T.board);
     on('td-wallb', T.wallPanel);
     on('td-topic', T.topicPanel);
+    on('td-play', () => SD.modes.open());
   };
   // From the title: hidden on the press-start screen, shown above Continue and New game after it.
   T.mount = function (started) {
