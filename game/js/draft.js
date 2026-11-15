@@ -118,6 +118,20 @@
   DR.cardOk = (q, i) => (isMulti(q) ? !!(q.items[i] && q.items[i].ok) : i === q.a);
   DR.cardNo = (q, i) => (isMulti(q) ? (q.items[i] && q.items[i].no) || '' : (Array.isArray(q.no) && q.no[i]) || '');
   const verified = q => !!(SD.topicDrill && SD.topicDrill.isVerified(q));
+  // The scroll as clues (design doc, Choice and exploration), from the shell's split (js/modes.js SD.modes.split): the
+  // stem's scenario sentences are clues, one tap each to open; the question line, its qualifier and the Select TWO hint
+  // always show, and so does any scenario sentence with a qualifier in it. A stem with fewer than two closed clues
+  // shows whole. Every clue is one tap away, so nothing that decides the answer can be missed, and the inspection
+  // shows the whole scroll.
+  const QUAL = /\b(MOST|LEAST|FEWEST|NOT|EXCEPT)\b/;
+  DR.split = function (q) {
+    const x = M().split(q);
+    const clues = x.items.map(it => ({ t: it.text, label: it.label, ev: q.ev && it.text === q.ev ? 1 : 0, pin: QUAL.test(it.text) }));
+    if (clues.filter(c => !c.pin).length < 2) clues.forEach(c => { c.pin = true; });
+    // A one-sentence stem comes back with its Select hint still on the question line; the hint shows on its own.
+    const ask = x.ask.replace(/\s*\((?:Select|Choose) [A-Z]+\.?\)\s*$/i, '');
+    return { clues, ask, pick: x.pick, qual: x.qual };
+  };
   function conceptOf(q) {
     if (q.c && SD.concepts[q.c]) return q.c;
     const t = E().taskOf(q);
@@ -234,7 +248,7 @@
       <div class="opts">${cards}</div>
       ${waiting ? `<p class="small muted">${plural(waiting, 'more contract')} waiting behind these.</p>` : ''}
       <div class="row"><button class="ghost" id="dr-quarter">🏘 The Quarter</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'ARCHITECT\'S DRAFT', cls: 'dr-win' });
-    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { r.open = +el.dataset.k; r.slots = []; r.flips = []; r.tok = 0; persist(); contract(r.open); });
+    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { r.open = +el.dataset.k; r.slots = []; r.flips = []; r.tok = 0; r.seen = []; persist(); contract(r.open); });
     b.querySelector('#dr-quarter').onclick = () => DR.quarter(board);
     b.querySelector('#dr-stop').onclick = stop;
   }
@@ -247,6 +261,8 @@
     const c = cl(it.client), n = DR.slotsOf(q), cards = DR.cards(q);
     r.slots = (r.slots || []).filter(i => i >= 0 && i < cards.length).slice(0, n);
     r.flips = r.flips || [];
+    r.seen = r.seen || [];
+    const sc = DR.split(q);
     let flipping = false;
     const t0 = Date.now();
     if (SD.state.seeConcept && conceptOf(q)) S.seeConcept(conceptOf(q));
@@ -265,7 +281,10 @@
       const st = stakes();
       const b = U.panel(`<div class="dr-client">${portrait(it.client, 56)}<div><b>${esc(c.name)}</b> <span class="small muted">· ${esc(c.bld)} · ${esc(DR.STREETS[E().domainOf(q)] || '')}</span><p class="small">"${esc(c.arrive)}"</p></div></div>
         <div class="q-ctx">The requirements scroll · ${n === 1 ? 'one card' : `choose ${n}`}</div>
-        ${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}<p class="q-q dr-q">${esc(q.q)}</p>
+        <div class="dr-clues">${sc.clues.map((cu, j) => cu.pin || r.seen.includes(j)
+          ? (cu.ev ? `<pre class="q-ev">${esc(cu.t)}</pre>` : `<p class="dr-clue open small">${esc(cu.t)}</p>`)
+          : `<button class="dr-clue" data-clue="${j}">🔎 ${esc(cu.label)} · tap to read</button>`).join('')}</div>
+        <p class="q-q dr-q">${esc(sc.ask)}${sc.pick ? ` <span class="dr-pick">${esc(sc.pick)}</span>` : ''}</p>
         <div class="q-ctx">Blueprint</div><div class="dr-slots">${slotH}</div>
         <div class="q-ctx">Service cards${flipping ? ' · tap one to flip it' : ''}</div><div class="opts dr-cards">${cardH}</div>
         <div class="row dr-tools">${r.tokens > 0 && !flipping ? `<button class="ghost" id="dr-tok">🔍 Inspector's token (${r.tokens} left)</button>` : ''}${flipping ? '<button class="ghost" id="dr-tok-x">Keep the token</button>' : ''}</div>
@@ -273,6 +292,7 @@
         <div class="conf"><span class="muted small">${full ? 'Seal the blueprint. How sure are you? Each slot is judged on its own.' : `Fill ${plural(n - r.slots.length, 'more slot')} to seal.`}</span><div class="conf-b">
           ${CONF.map((t, i) => `<button data-c="${i}" ${full && !(capped && i === 2) ? '' : 'disabled'}>${t}<small class="stake"><span class="up">${sgn(st[i][0])}</span> / <span class="dn">${sgn(st[i][1])}</span> a slot</small></button>`).join('')}</div></div>
         <div class="row"><button class="ghost" id="dr-back">Back to the board</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'ARCHITECT\'S DRAFT · CONTRACT', cls: 'dr-win', noClose: true });
+      b.querySelectorAll('[data-clue]').forEach(el => el.onclick = () => { const j = +el.dataset.clue; if (!r.seen.includes(j)) r.seen.push(j); persist(); render(); });
       b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { r.slots.splice(+el.dataset.s, 1); persist(); render(); });
       b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => {
         const i = +el.dataset.i;
@@ -300,6 +320,11 @@
       let delta = 0;
       per.forEach(x => { const s = stake(x.ok, conf); x.d = s; delta += s; M().note(r.tally, x.ok, conf); });
       const wrong = per.filter(x => !x.ok).length;
+      // Evidence from play (stealth assessment, design doc): how many clues were open when you sealed, and how it went.
+      const closed = sc.clues.filter(cu => !cu.pin).length;
+      const log = sv().clueLog = Array.isArray(sv().clueLog) ? sv().clueLog : [];
+      log.push({ q: q.id, t: Date.now(), clues: closed, read: r.seen.length, ok: allOk ? 1 : 0, conf, tok: r.tok ? 1 : 0 });
+      if (log.length > 300) log.splice(0, log.length - 300);
       // The question as a whole is right only when every slot is, as on the exam.
       const cid = conceptOf(q);
       if (cid) S.recordAnswer(cid, allOk, conf, Date.now() - t0, q.id);
@@ -316,8 +341,8 @@
       town[q.id] = { q: q.id, d, client: it.client, floors, cracks, scaf: !allOk || (prev && prev.scaf && DR.posterUp(q.id)) || false, t: prev ? prev.t : Date.now(), last: Date.now(), idea: DR.ideaOf(q) };
       if (allOk && prev && prev.scaf && !DR.posterUp(q.id)) town[q.id].fin = 1;
       r.floors += delta; if (!allOk) r.misses++; if (!allOk && conf === 2) r.sure++;
-      it.done = 1; it.ok = allOk ? 1 : 0; it.conf = conf; it.d = delta; it.slots = r.slots.slice(); it.wrong = wrong;
-      r.open = null; r.slots = []; r.flips = []; r.tok = 0;
+      it.done = 1; it.ok = allOk ? 1 : 0; it.conf = conf; it.d = delta; it.slots = r.slots.slice(); it.wrong = wrong; it.read = r.seen.length; it.clues = closed;
+      r.open = null; r.slots = []; r.flips = []; r.tok = 0; r.seen = [];
       persist();
       const lm = !lmBefore && DR.district(d).landmark;
       inspect(q, it, per, conf, delta, town[q.id], lm);
@@ -343,6 +368,7 @@
       <ul class="dr-slotres small">${slotRows}</ul>`;
     if (!allOk) h += `<div class="q-ctx">The scroll needed</div><ul class="small dr-need">${right.map(i => `<li>${esc(cards[i])}</li>`).join('')}</ul>
       <p class="small dr-wallnote">📌 It's on the Wall now. Bring that poster down (capture it in Monster Hunt, or in a Wall drill) and the scaffolding comes off.</p>`;
+    if (it.clues) h += `<details class="dr-full"><summary class="small">The whole scroll (you opened ${it.read} of ${plural(it.clues, 'clue')})</summary><p class="small">${esc(q.q)}</p>${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}</details>`;
     if (lm) h += `<p class="small dr-lm">🏛 <b>${esc(SD.draftArt.LANDMARKS[bld.d])}</b> goes up on ${esc(DR.STREETS[bld.d])}. ${esc(WREN.landmark)}</p>`;
     h += `<div class="why"><p>${esc(q.why || '')}</p></div>`;
     h += '<div class="nots">';
@@ -377,7 +403,7 @@
     const topics = [...new Set(r.items.map(i => find(i.q)).filter(Boolean).map(DR.ideaOf))];
     const paid = M().pay('draft');
     const b = U.panel(`<p class="small muted">${esc(WREN.end)}</p>
-      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span><span class="chip">📌 Sure misses to the Wall: ${r.sure}</span></div>
+      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span><span class="chip">📌 Sure misses to the Wall: ${r.sure}</span><span class="chip">🔎 Clues read: ${r.items.reduce((a, i) => a + (i.read | 0), 0)} of ${r.items.reduce((a, i) => a + (i.clues | 0), 0)}</span></div>
       ${paid ? `<p class="small">${esc(paid)}</p>` : ''}
       ${M().calibHtml(r.tally, 'How sure you were, slot by slot')}
       <div class="q-ctx">Ideas touched</div><ul class="small">${topics.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
@@ -475,6 +501,11 @@
 .dr-client p { margin: 4px 0 0; }
 .dr-scroll { font-style: italic; overflow-wrap: anywhere; }
 .dr-q { font-size: 16px; }
+.dr-win .win-b { overflow-wrap: anywhere; }
+.dr-clues { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.dr-clue { text-align: left; padding: 8px 10px; border: 2px dashed var(--ink); border-radius: 10px; background: #fff; font-weight: 700; }
+.dr-clue.open { border: 0; border-left: 4px solid #e0a030; border-radius: 0 8px 8px 0; background: #fffaf0; margin: 0; padding: 6px 10px; font-weight: 400; overflow-wrap: anywhere; }
+.dr-full { margin: 6px 0; }
 .dr-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .dr-slot { display: flex; flex-direction: column; gap: 2px; text-align: left; min-height: 64px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
 .dr-slot.empty { border-style: dashed; background: transparent; }

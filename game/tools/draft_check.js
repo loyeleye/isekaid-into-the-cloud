@@ -112,6 +112,28 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.$$eval('#panel .dr-slot', els => els.length) === c0.n, 'one slot per answer the question needs');
   check(await page.$$eval('#panel [data-i]', els => els.length) === c0.cards, 'the question\'s options are dealt as cards');
   check(await page.$eval('#panel [data-c="0"]', el => el.disabled), 'sealing waits until every slot is filled');
+  // ---- Clues: the scenario as tap-to-open clues, the question line always visible ----
+  const sp = await page.evaluate(() => {
+    const qs = SD.topicDrill.base().filter(q => q.type === 'multi' || q.type === 'mc');
+    const norm = s => s.replace(/\s+/g, ' ').trim();
+    const lost = qs.filter(q => { const x = SD.draft.split(q); return norm(x.clues.filter(c => !c.ev).map(c => c.t).concat(x.ask).join(' ')) !== norm(q.q.replace(/\s*\((?:Select|Choose) [A-Z]+\.?\)\s*$/i, '')); }).map(q => q.id);
+    const noAsk = qs.filter(q => !SD.draft.split(q).ask.trim()).map(q => q.id);
+    const qual = qs.filter(q => /\b(MOST|LEAST)\b/.test(q.q)).filter(q => { const x = SD.draft.split(q); return !/\b(MOST|LEAST)\b/.test(x.ask) && !x.clues.some(c => c.pin && /\b(MOST|LEAST)\b/.test(c.t)); }).map(q => q.id);
+    const gamed = qs.filter(q => SD.draft.split(q).clues.some(c => !c.pin)).length;
+    return { n: qs.length, lost, noAsk, qual, gamed };
+  });
+  check(!sp.lost.length, `splitting a stem into clues and its question line loses nothing (${sp.n} questions)${sp.lost.length ? ': ' + sp.lost.slice(0, 5).join(', ') : ''}`);
+  check(!sp.noAsk.length, 'every question keeps a visible question line' + (sp.noAsk.length ? ': ' + sp.noAsk.slice(0, 5).join(', ') : ''));
+  check(!sp.qual.length, 'MOST and LEAST are always visible, never inside a closed clue' + (sp.qual.length ? ': ' + sp.qual.slice(0, 5).join(', ') : ''));
+  check(sp.gamed > sp.n / 2, `most questions have clues to open (${sp.gamed} of ${sp.n})`);
+  const closedN = await page.$$eval('#panel [data-clue]', els => els.length);
+  const clueQ = await page.evaluate(() => { const r = SD.draft.run(); return SD.draft.split(SD.exam.find(r.items[r.open].q)); });
+  check(closedN === clueQ.clues.filter(c => !c.pin).length, `the contract shows its closed clues as buttons (${closedN})`);
+  check(await page.evaluate(ask => document.querySelector('#panel .dr-q').textContent.startsWith(ask), clueQ.ask), 'the question line shows without opening anything');
+  if (closedN) {
+    await page.click('#panel [data-clue]');
+    check((await run()).seen.length === 1 && await page.$$eval('#panel [data-clue]', els => els.length) === closedN - 1, 'one tap opens a clue, and it stays open');
+  }
   await noHScroll('contract');
   await shot('contract');
   await page.click('#panel [data-i="0"]');
@@ -146,6 +168,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   for (const i of info0.right.slice(0, info0.n)) await page.click(`#panel [data-i="${i}"]`);
   check(await page.$eval('#panel [data-c="2"]', el => el.disabled) && !await page.$eval('#panel [data-c="1"]', el => el.disabled), 'after a token, Sure is disabled and Think so is open');
   const xp0 = await page.evaluate(() => SD.state.save.shards | 0);
+  const qid0Pre = await page.evaluate(() => { const r = SD.draft.run(); return r.items[r.open].q; });
   await page.click('#panel [data-c="1"]');
   await wait(20);
   check(await title() === 'INSPECTION', 'sealing opens the inspection');
@@ -153,8 +176,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(r.items[k0].done && r.items[k0].ok && r.floors === 2 * info0.n, `all right at Think so: +2 floors a slot (${r.floors})`);
   const insp = await page.evaluate(() => document.querySelector('#panel .win-b').textContent);
   check(/IT STANDS/.test(insp), 'a fully right blueprint stands');
+  const lg = await page.evaluate(() => (SD.draft.save().clueLog || []).slice(-1)[0]);
+  check(!!lg && lg.q === qid0Pre && typeof lg.read === 'number' && typeof lg.clues === 'number', 'sealing logs how many clues were opened, of how many');
   check(/Inspection: the cards left on the table/.test(insp) && /Not here, because/.test(insp), 'inspection flips every card left on the table to its no line');
   check(/Verified|Not verified yet/.test(insp) && /AWS docs/.test(insp), 'inspection shows the verified record and AWS docs');
+  check(!clueQ.clues.some(c => !c.pin) || /The whole scroll/.test(insp), 'inspection offers the whole scroll');
   check(await page.evaluate(() => { const c = document.querySelector('#panel .dr-cv'); return !!c && c.width > 0; }), 'the building is drawn');
   const qid0 = r.items[k0].q;
   check(await page.evaluate(id => { const b = SD.draft.save().town[id]; return b && !b.scaf && b.floors > 0; }, qid0), 'the building joins the Quarter, standing');
@@ -204,6 +230,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Sure misses to the Wall: 1/.test(res), 'results count Sure misses added to the Wall');
   check(/How sure you were/.test(res) && /Think so/.test(res), 'results show calibration');
   check(/Ideas touched/.test(res), 'results list the ideas touched');
+  check(/Clues read: \d+ of \d+/.test(res), 'results count the clues read');
   check(/Why did that work/.test(res), 'Pip asks his question');
   check(await page.evaluate(() => SD.state.save.shards | 0) === xp0 + 5, 'the session pays 5 shards');
   await noHScroll('results');
