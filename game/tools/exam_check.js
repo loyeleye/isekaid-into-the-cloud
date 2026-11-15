@@ -250,7 +250,7 @@ check(8, 'A practice mock of each exam: 65 of its own questions, split by its gu
 
 // ---- 9. Each form covers every task in proportion ----
 // Same list as tools/exam_heldout.js: not on the DVA-C02 guide v2.1 in-scope services list.
-const OUT_OF_SCOPE = new Set(['codeguru', 'verifiedpermissions', 'sar']);
+const OUT_OF_SCOPE = new Set(E.OUT_OF_SCOPE.DVA);   // the list lives in js/exam.js
 const taskBad = [], FLOOR = { half: 1, A: 2, B: 2 };
 const formQs = f => ((SD.examForms || {})[f] || []).map(id => bankById.get(id)).filter(Boolean);
 for (const d of [1, 2, 3, 4]) {
@@ -283,6 +283,34 @@ if (lock) for (const f of Object.keys(WANT)) {
   if (a.join() !== b.join()) lockBad.push(`${f}: js/exam-heldout.js differs from the lock (${a.filter(id => !b.includes(id)).length} added, ${b.filter(id => !a.includes(id)).length} dropped${a.length === b.length && a.every(id => b.includes(id)) ? ', reordered' : ''})`);
 }
 check(10, 'The forms match tools/exam_forms.lock.json', lockBad, lock ? Object.keys(lock.picked || {}).map(f => `${f} picked ${lock.picked[f]}`).join(', ') : '');
+
+// ---- 11. Questions on services the guide doesn't list never come up in DVA-C02 prep ----
+// Reviews, Today's set and drills (task concepts and SD.exam.allowed), swaps, practice mocks and the Wall's filter.
+const scopeBad = [];
+setTrack('DVA'); setMode(true);
+const oos = SD.bank.filter(q => (q.exam === 'DVA' || q.exam === 'both') && OUT_OF_SCOPE.has(q.topic));
+if (!oos.length) scopeBad.push('no out-of-scope DVA questions found: the check would pass on nothing');
+const oosIds = new Set(oos.map(q => q.id));
+oos.forEach(q => {
+  if (E.inTrack(q)) scopeBad.push(`${q.id} (${q.topic}) counts as on DVA-C02`);
+  if (E.allowed(q)) scopeBad.push(`${q.id} (${q.topic}) is allowed in reviews`);
+  if (!E.offTrack(q)) scopeBad.push(`${q.id} (${q.topic}) passes the Wall's track filter`);
+  const sw = E.swap(q);
+  if (sw && oosIds.has(sw.id)) scopeBad.push(`${q.id} swaps to ${sw.id}, also out of scope`);
+});
+Object.keys(E.TASKS).forEach(t => E.taskQuestions(E.taskConcept(t)).forEach(q => { if (oosIds.has(q.id)) scopeBad.push(`task ${t} reviews ${q.id}`); }));
+for (let i = 0; i < 5; i++) E.drawMock(true).forEach(q => { if (oosIds.has(q.id)) scopeBad.push(`practice mock draws ${q.id}`); });
+// A 'both' question on one of these is still fair game for SAA-C03.
+setTrack('SAA');
+oos.filter(q => q.exam === 'both').forEach(q => { if (!E.inTrack(q)) scopeBad.push(`${q.id} dropped from SAA-C03 too`); });
+setTrack('DVA');
+check(11, 'No question on an out-of-scope service comes up in DVA-C02 prep', [...new Set(scopeBad)], `${oos.length} out of scope: ${oos.map(q => q.id).join(', ')}`);
+
+// ---- 12. Every doc link is its own URL ----
+const docBad = [];
+SD.bank.forEach(q => E.docs(q).forEach(u => { if (!/^https:\/\/[^\s,]+$/.test(u)) docBad.push(`${q.id}: ${u.slice(0, 80)}`); }));
+const multi = SD.bank.filter(q => E.docs(q).length > 1).length;
+check(12, 'SD.exam.docs splits every question\'s doc links into single URLs', docBad, `${multi} questions with 2+ links`);
 
 console.log(`Exam mode for DVA-C02 and SAA-C03 on ${E.date()}: ${SD.bank.length} bank questions, ${SD.questions.length} in the chapters, ${concepts.length} concepts`);
 errors.forEach(e => console.log('load error: ' + e));

@@ -114,9 +114,17 @@
   E.isHeld = q => !!q && E.heldOut().has(q.id);
   E.isSaa = q => !!q && q.exam === 'SAA';
   E.isDva = q => !!q && (q.exam === 'DVA' || q.exam === 'both');
-  // On the chosen exam (or on both). Untagged questions (a chapter's own) are on neither, and never off-track.
-  E.inTrack = (q, t) => !!q && (q.exam === 'both' || q.exam === (t || E.track()));
-  E.offTrack = (q, t) => !!q && !!q.exam && q.exam !== 'both' && q.exam !== (t || E.track());
+  // Services the exam guide doesn't list, by bank topic. DVA-C02 guide v2.1 (checked Nov 9, 2026) removed CodeGuru,
+  // and never listed Verified Permissions or the Serverless Application Repository. A question on one is off that
+  // exam's track: not in its reviews, drills, mocks or Wall drills (tools/exam_heldout.js keeps them off the forms).
+  E.OUT_OF_SCOPE = { DVA: ['codeguru', 'verifiedpermissions', 'sar'], SAA: [] };
+  E.outOfScope = (q, t) => !!q && !!q.topic && (E.OUT_OF_SCOPE[t || E.track()] || []).includes(q.topic);
+  // On the chosen exam (or on both), and in its scope. Untagged questions (a chapter's own) are on neither, and never
+  // off-track.
+  E.inTrack = (q, t) => !!q && (q.exam === 'both' || q.exam === (t || E.track())) && !E.outOfScope(q, t);
+  E.offTrack = (q, t) => !!q && !!q.exam && ((q.exam !== 'both' && q.exam !== (t || E.track())) || E.outOfScope(q, t));
+  // A question's AWS docs links as a list: q.doc is one URL or an array of them.
+  E.docs = q => [].concat((q && q.doc) || []).filter(u => typeof u === 'string' && u);
   // A question the exam layer allows in reviews, quizzes and chapters: not held out, and not on the other exam only
   // while exam mode is on.
   E.allowed = q => !!q && !E.isHeld(q) && !(E.on() && E.offTrack(q));

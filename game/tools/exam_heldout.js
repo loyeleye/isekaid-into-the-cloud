@@ -46,7 +46,7 @@ const dva = SD.bank.filter(q => q.exam === 'DVA' || q.exam === 'both');
 // Not on the DVA-C02 guide v2.1 in-scope services list (checked Nov 9, 2026): v2.1 removed CodeGuru, and Verified
 // Permissions and the Serverless Application Repository were never listed. Variants (variant: true) are written for
 // sibling retries, so they stay reachable.
-const OUT_OF_SCOPE = new Set(['codeguru', 'verifiedpermissions', 'sar']);
+const OUT_OF_SCOPE = new Set(SD.exam.OUT_OF_SCOPE.DVA);   // the list lives in js/exam.js
 const free = q => !inGame.has(q.id) && !named.has(q.id) && (q.type === 'mc' || q.type === 'multi') && !OUT_OF_SCOPE.has(q.topic) && !q.variant;
 // Each form's questions per domain: the real exam's 65 split 21/17/15/12 (32/26/24/18%), and half of that for the
 // baseline.
