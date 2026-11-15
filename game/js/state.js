@@ -16,7 +16,7 @@
     };
   }
 
-  const S = SD.state = { save: fresh(), db: null, uid: null };
+  const S = SD.state = { save: fresh(), cloud: null };
 
   // A stored save over the defaults. Shard prices went up about twentyfold (economy 2),
   // so balances from older saves scale with them.
@@ -26,52 +26,121 @@
     return Object.assign(fresh(), d);
   }
 
+  // Whether this browser had a save of its own when the game opened. Without one, the cloud's save always wins:
+  // a fresh start is never newer than real progress, even after a few seconds of play stamped it.
+  let hadLocal = false;
   S.load = function () {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) S.save = revive(raw);
+      if (raw) { S.save = revive(raw); hadLocal = true; }
     } catch (e) { /* storage blocked: play without a local save */ }
     // Saves from before a chapter existed: clearing the chapter before it opens it.
     S.syncChapter();
     connectCloud();
   };
 
-  let cloudTimer = null;
+  // S.cloud is set once the cloud's save has been read: { where: 'claude' | 'code', get(), set(doc) }.
+  // `checking` holds cloud writes while this tab asks whether another device saved since (see refresh below).
+  let cloudTimer = null, checking = false;
+  function push() {
+    clearTimeout(cloudTimer); cloudTimer = null;
+    if (!S.cloud || checking) return;
+    S.cloud.set({ json: JSON.stringify(S.save), updatedAt: S.save.updatedAt }).catch(() => {});
+  }
   S.persist = function () {
     S.save.updatedAt = Date.now();
     const json = JSON.stringify(S.save);
     try { localStorage.setItem(KEY, json); } catch (e) { /* ignore */ }
-    if (S.db && S.uid) {
-      clearTimeout(cloudTimer);
-      cloudTimer = setTimeout(() => {
-        S.db.doc('data/users/' + S.uid + '/save').set({ json, updatedAt: S.save.updatedAt }).catch(() => {});
-      }, 800);
-    }
+    if (!S.cloud || checking) return;
+    // Going out of sight (js/quicksave.js saves then): send now, since a phone may stop the page before a timer fires.
+    if (document.visibilityState === 'hidden') push();
+    else { clearTimeout(cloudTimer); cloudTimer = setTimeout(push, 800); }
   };
 
   S.reset = function () { S.save = fresh(); S.persist(); };
 
-  // Cloud save, so a run started on a phone continues on a laptop.
-  async function connectCloud() {
-    if (!window.claude || !window.claude.use) return;
-    try {
-      const user = await window.claude.use('user');
-      const db = await window.claude.use('db');
-      if (!user || !db) return;
-      const uid = await user.id();
-      if (!uid) return;
-      S.db = db; S.uid = uid;
-      const snap = await db.doc('data/users/' + uid + '/save').get();
-      const d = snap.exists ? snap.data() : null;
-      if (d && d.json && d.updatedAt > (S.save.updatedAt || 0)) {
-        S.save = revive(d.json);
-        try { localStorage.setItem(KEY, d.json); } catch (e) { /* ignore */ }
-        if (SD.onCloudLoad) SD.onCloudLoad();
-      } else {
-        S.persist();
-      }
-    } catch (e) { /* cloud unavailable: local save only */ }
+  // Cloud save, so progress on a phone continues on a laptop: the claude.ai account's db on claude.ai, or the
+  // Cloudflare Worker's save slot for this browser's save code (js/cloud.js, Menu > Play on another device).
+  // Ported from the first game (Isekai'd Into Prod, game/js/state.js), which has the save-code store.
+  async function claudeStore() {
+    if (!window.claude || !window.claude.use) return null;
+    const user = await window.claude.use('user');
+    const db = await window.claude.use('db');
+    if (!user || !db) return null;
+    const uid = await user.id();
+    if (!uid) return null;
+    const doc = db.doc('data/users/' + uid + '/save');
+    return {
+      where: 'claude',
+      async get() { const snap = await doc.get(); return snap.exists ? snap.data() : null; },
+      set: d => doc.set(d)
+    };
   }
+  async function codeStore() {
+    if (!SD.cloud || !SD.cloud.saves || !(await SD.cloud.available())) return null;
+    return { where: 'code', get: SD.cloud.saves.get, set: SD.cloud.saves.set };
+  }
+  // Take a save from the cloud. With `reload`, or anywhere but the title screen, the page reloads onto it, so no
+  // chapter scene, cutscene or dungeon keeps running on the old save and writes it back; otherwise it's stored and
+  // the title redrawn.
+  function adopt(json, reload) {
+    try { localStorage.setItem(KEY, json); } catch (e) { /* ignore */ }
+    // A quick save here belongs to this device's older moment, not to the save just loaded.
+    if (SD.quick && SD.quick.clear) SD.quick.clear();
+    const title = document.getElementById('screen-title');
+    if (reload || (title && title.hidden)) { checking = true; location.reload(); return; }
+    S.save = revive(json);
+    S.syncChapter();
+    if (SD.onCloudLoad) SD.onCloudLoad();
+  }
+  let connecting = null, started = false;
+  function connectCloud() {
+    started = true;
+    if (S.cloud || connecting) return connecting;
+    connecting = (async () => {
+      try {
+        const cloud = (await claudeStore().catch(() => null)) || (await codeStore());
+        if (!cloud) return;
+        // Read the cloud's save before anything can write to it: a persist while this waits stays local.
+        const d = await cloud.get();
+        S.cloud = cloud;
+        if (d && d.json && (!hadLocal || (d.updatedAt || 0) > (S.save.updatedAt || 0))) adopt(d.json);
+        else S.persist();
+      } catch (e) { /* cloud unavailable: local save only */ }
+    })().finally(() => { connecting = null; });
+    return connecting;
+  }
+  // Coming back to a tab that stayed open (a phone keeps them for days), or back online: another device may have
+  // saved since, and this tab's older save must not overwrite it. Hold cloud writes, ask, and take the cloud's save
+  // if it's newer; if this tab is newer (played offline), send it.
+  async function refresh() {
+    if (!started) return;   // the debug start (js/debug.js) keeps its own save and never touches the cloud
+    if (!S.cloud) return connectCloud();
+    if (checking) return;
+    checking = true;
+    let d, ok = true;
+    try { d = await S.cloud.get(); } catch (e) { ok = false; }
+    checking = false;
+    if (!ok) return;   // offline: keep playing here, and send once back
+    if (d && d.json && (d.updatedAt || 0) > (S.save.updatedAt || 0)) adopt(d.json, true);
+    else if (!d || (d.updatedAt || 0) < (S.save.updatedAt || 0)) push();
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+  window.addEventListener('online', () => refresh());
+  // The player typed another device's save code (Cloudflare build). That device's save replaces this browser's,
+  // whichever is newer, since this one is usually a fresh start. With no save under the code yet, this browser's
+  // save goes there. Resolves 'loaded', 'moved', or 'bad' for a code that isn't 32 characters.
+  S.useSaveCode = async function (code) {
+    const c = SD.cloud && SD.cloud.cleanCode(code);
+    if (!S.cloud || S.cloud.where !== 'code' || !c || c.length !== 32) return 'bad';
+    // Read it first: if the server can't be reached, this browser keeps its own code and save.
+    const d = await SD.cloud.saves.get(c);
+    clearTimeout(cloudTimer); cloudTimer = null;
+    SD.cloud.saves.setCode(c);
+    if (d && d.json) { adopt(d.json); return 'loaded'; }
+    S.persist();
+    return 'moved';
+  };
 
   // ---- Progression ----
   S.xpFor = lvl => 60 + lvl * 50;

@@ -73,11 +73,12 @@
       <button class="opt" id="m-typed">Explain questions: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
       ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
+      ${S.cloud && S.cloud.where === 'code' ? '<button class="opt" id="m-code">Play on another device: your save code</button>' : ''}
       <button class="opt" id="m-name">Change name</button>
       <button class="opt" id="m-credits">Credits</button>
       <button class="opt" id="m-reset">Erase save and start over</button>
       ${SD.debugGate && SD.debugGate.open() ? `<button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button>` : ''}</div>
-      <p class="muted small">Progress saves automatically${S.db ? ' to your claude.ai account, so it follows you across devices' : ' in this browser'}.${SD.quick ? ' A quick save also keeps a fight in progress.' : ''}</p>`, { title: 'MENU' });
+      <p class="muted small">Progress saves automatically${!S.cloud ? ' in this browser' : S.cloud.where === 'claude' ? ' to your claude.ai account, so it follows you across devices' : ', and your save code brings it to another device'}.${SD.quick ? ' A quick save also keeps a fight in progress.' : ''}</p>`, { title: 'MENU' });
     b.querySelector('#m-help').onclick = help;
     if (qs) b.querySelector('#m-quick').onclick = () => { U.closePanel(); SD.quick.pause(); };
     if (SD.quick) b.querySelector('#m-qauto').onclick = () => { SD.quick.setAuto(!SD.quick.auto()); menu(); };
@@ -122,10 +123,37 @@
     const ml = b.querySelector('#m-lens');
     if (ml) ml.onclick = () => { if (!S.save) return; S.save.lensFree = !SD.lens.unlimited(); S.persist(); menu(); M.hud(); };
     b.querySelector('#m-name').onclick = () => askName(() => { U.closePanel(); M.hud(); });
+    const mc = b.querySelector('#m-code'); if (mc) mc.onclick = saveCode;
     b.querySelector('#m-reset').onclick = () => {
       const c = U.panel('<p>Erase everything: levels, shards and cheat sheet pages? This cannot be undone.</p><div class="row"><button class="danger" id="r-y">Erase</button><button class="ghost" id="r-n">Cancel</button></div>', { title: 'ARE YOU SURE?' });
       c.querySelector('#r-y').onclick = () => { M.haltWorlds(); S.reset(); U.closePanel(); M.title(); };
       c.querySelector('#r-n').onclick = U.closePanel;
+    };
+  }
+  // Cloudflare build (js/cloud.js): the save code that carries this save to another device. Anyone with the code
+  // can load the save, so it's shown only here. Ported from the first game (Isekai'd Into Prod, game/js/main.js).
+  function saveCode() {
+    const code = SD.cloud.saves.code(), pretty = code.match(/.{4}/g).join('-');
+    const c = U.panel(`<p class="small">To keep playing on another device, open the game there at the same address, go to Menu > Play on another device, and type this code. After that, both devices share one save: whichever you played last is what the other one opens. Keep the code to yourself: anyone with it can load your save.</p>
+      <p><b id="sc-code" style="font: 600 17px var(--f-head); letter-spacing: 1px; word-break: break-all;">${pretty}</b></p>
+      <div class="row"><button class="ghost" id="sc-copy">Copy code</button></div>
+      <label class="num">Code from another device <input id="sc-in" maxlength="48" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <div class="row"><button class="primary" id="sc-use">Use that save here</button></div>
+      <p class="muted small" id="sc-msg"></p>`, { title: 'SAVE CODE' });
+    const msg = c.querySelector('#sc-msg');
+    c.querySelector('#sc-copy').onclick = e => {
+      try { navigator.clipboard.writeText(pretty).then(() => { e.target.textContent = 'Copied'; }, () => { e.target.textContent = 'Copy failed'; }); } catch (err) { e.target.textContent = 'Copy failed'; }
+    };
+    c.querySelector('#sc-use').onclick = async () => {
+      const v = c.querySelector('#sc-in').value;
+      if (SD.cloud.cleanCode(v) === code) { msg.textContent = 'That is already this device\'s code.'; return; }
+      msg.textContent = 'Loading…';
+      let r;
+      try { r = await S.useSaveCode(v); } catch (e) { msg.textContent = 'Could not reach the save server. Nothing changed here. Try again in a moment.'; return; }
+      if (r === 'bad') { msg.textContent = 'A save code is 32 letters and digits.'; return; }
+      U.closePanel();
+      U.system('SAVE CODE', r === 'loaded' ? 'Your save from the other device is loaded.' : 'No save under that code yet, so this device\'s save now lives there.', 'gold');
+      M.hud();
     };
   }
   // Keep this list in step with CREDITS.md: every asset the game ships needs its line here too.

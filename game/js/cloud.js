@@ -9,7 +9,7 @@
 //   await SD.cloud.available()  -> true when this copy is served by the Worker
 //   await SD.cloud.room()       -> the hub's lobby, shaped like a room; join(name) opens a table's room
 //   SD.cloud.directory(game)    -> that game's open tables: tables(), count(), onTables(fn), host(info), unhost(), leave()
-//   SD.cloud.saves              -> { code(), setCode(c), get(), set({ json, updatedAt }) }
+//   SD.cloud.saves              -> { code(), setCode(c), get(code?), set({ json, updatedAt }) }
 (function () {
   const C = SD.cloud = SD.cloud || {};
   const CODE_KEY = 'sd-save-code';
@@ -197,8 +197,9 @@
       store.set(CODE_KEY, c);
       return true;
     },
-    async get() {
-      const r = await fetch(api('save/' + C.saves.code()), { cache: 'no-store' });
+    // get(code) reads another device's code without switching to it, so a failed read leaves this browser as it was.
+    async get(code) {
+      const r = await fetch(api('save/' + (code || C.saves.code())), { cache: 'no-store' });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error('save ' + r.status);
       // Before the first save the Worker answers { json: null }.
@@ -206,7 +207,9 @@
       return d && typeof d.json === 'string' ? d : null;
     },
     async set(doc) {
-      const r = await fetch(api('save/' + C.saves.code()), { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(doc) });
+      const body = JSON.stringify(doc);
+      // keepalive lets the write finish after the page is hidden or closed; browsers allow it up to 64 KB.
+      const r = await fetch(api('save/' + C.saves.code()), { method: 'PUT', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 });
       if (!r.ok && r.status !== 409) throw new Error('save ' + r.status);
     }
   };
