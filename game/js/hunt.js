@@ -294,7 +294,8 @@
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
     // Clues (SD.modes.ask opts.clues): the stem's scenario as tap-to-open tiles, and which ones were open is logged.
-    const clues = shared && SD.modes.split ? { clues: true, act: ACT[step] } : {};
+    // Track keeps Type it first, which shows the whole stem before you write, so clues are for Fight.
+    const clues = shared && SD.modes.split && step !== 'track' ? { clues: true, act: ACT[step] } : shared && SD.modes.split ? { act: ACT[step] } : {};
     const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.i + 1} / ${h.mons.length}` },
       clues, shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
@@ -564,7 +565,7 @@
 
   // ---- Home: the shared Play button's mode picker, or a link on the Today card until it lands ----
   H.MODE = { id: 'hunt', name: 'Monster Hunt', blurb: 'Catch 3 ideas from your Wall, three ways each.', minutes: 10, host: 'Bru', start: () => H.open(), status: () => H.status() };
-  const reg = () => { if (!H.registered && SD.modes && SD.modes.register) { SD.modes.register(H.MODE); H.registered = true; } };
+  const reg = () => { if (!H.registered && SD.modes && SD.modes.register) { H.registered = true; SD.modes.register(H.MODE); } };   // flag first: register() re-renders the Today card, which calls reg again
   reg();
   document.addEventListener('DOMContentLoaded', reg);
   const T = TD();
