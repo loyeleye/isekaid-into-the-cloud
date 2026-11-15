@@ -54,7 +54,7 @@ SD.bank.push(
       "Event history keeps 90 days of management events, one account and Region at a time.",
       null,
       "That's a store you'd have to build, run and query yourself, and DynamoDB doesn't run SQL over the events."],
-    why: "CloudTrail Lake collects events into event data stores, which can cover a whole organization and keep events for years, and runs SQL queries over them directly, with no tables or partitions to manage.",
+    why: "CloudTrail Lake collects events into event data stores, which can cover a whole organization and keep events for years, and runs SQL queries over them directly, with no tables or partitions to manage. Since May 31, 2026, CloudTrail Lake is closed to new customers, and AWS points them to CloudWatch instead.",
     doc: ["https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-lake.html", "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/query-create-edit-query.html"] },
 
   { id: "dva-4-803", exam: "DVA", dva: "4.1", topic: "cloudtrail", type: "mc",

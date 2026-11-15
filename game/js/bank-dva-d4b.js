@@ -169,7 +169,7 @@ SD.bank.push(
     no: [null,
       "On-demand still limits each partition to 1,000 write units per second, and one item lives on one partition.",
       "Table capacity isn't the limit. One partition can take at most 1,000 write units per second.",
-      "DAX is a read cache. Writes go through to the table and still hit the same partition."],
+      "DAX is a write-through cache. Writes still go to the table and hit the same partition."],
     why: "Each partition supports at most 1,000 write units per second. Adding a suffix to the key spreads one hot key's writes over several partitions; reads then combine the shards.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"] },
 
@@ -273,7 +273,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html"] },
 
   { id: "dva-4-220", exam: "DVA", dva: "4.3", topic: "s3", type: "multi", hint: "Select TWO.",
-    q: "A batch job on EC2 downloads 8 GB objects from an S3 bucket in the same Region, transforms them, and uploads 8 GB results to the same bucket. Each transfer uses a single request and is far slower than the instance's network bandwidth. Which changes will speed up the transfers? (Select TWO.)",
+    q: "A batch job on EC2 downloads 4 GB objects from an S3 bucket in the same Region, transforms them, and uploads 4 GB results to the same bucket. Each transfer uses a single request and is far slower than the instance's network bandwidth. Which changes will speed up the transfers? (Select TWO.)",
     items: [
       { t: "Download each object with several parallel GET requests, each for a different byte range of it.", ok: true },
       { t: "Upload each result as a multipart upload, sending several parts in parallel over separate connections.", ok: true },

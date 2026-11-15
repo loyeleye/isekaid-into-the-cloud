@@ -51,12 +51,12 @@ SD.bank.push(
     q: "A developer on a Mac with Apple silicon packages a Python Lambda function that uses a library with compiled C extensions. The function uses the x86_64 architecture. Packages built with a plain pip install on the Mac fail in Lambda because the library's native code won't load. Which approaches will produce a working package? (Select TWO.)",
     items: [
       { t: "Build with sam build --use-container, so dependencies are installed inside a Lambda-like Docker container.", ok: true },
-      { t: "Install with pip using --platform manylinux2014_x86_64 and --only-binary=:all:, so pip fetches Linux wheels.", ok: true },
+      { t: "Install with pip using a manylinux x86_64 --platform tag and --only-binary=:all:, so pip fetches Linux wheels.", ok: true },
       { t: "Keep the __pycache__ folders from the Mac build in the package, so Lambda doesn't compile the code again.", ok: false, no: "AWS advises leaving __pycache__ out, because bytecode built on another OS or architecture may not be compatible." },
       { t: "Switch the function to the arm64 architecture, since the Mac's own processor is also an ARM design.", ok: false, no: "The Mac build produces macOS binaries. Lambda runs Linux, so they still won't load on arm64." },
       { t: "Raise the function's memory to 3,008 MB, so the native library has enough room to load at startup.", ok: false, no: "Memory doesn't change which operating system the binaries were compiled for." }
     ],
-    why: "Native extensions must be built for Linux and for the function's architecture. A Lambda-like build container, or manylinux wheels chosen with pip's --platform option, both give that.",
+    why: "Native extensions must be built for Linux and for the function's architecture. A Lambda-like build container, or manylinux wheels chosen with pip's --platform option, both give that. For Python 3.12 and later, AWS points to the manylinux_2_28 tags.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/python-package.html", "https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html"] },
 
   { id: "dva-3-105", exam: "DVA", dva: "3.1", topic: "lambda", type: "multi", hint: "Select TWO.",
