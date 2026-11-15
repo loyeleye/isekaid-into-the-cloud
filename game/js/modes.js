@@ -17,6 +17,9 @@
 //                                         names the poster an answer counts toward), Stop for now (opts.onStop), r.pts.
 //                                         Same result shape as SD.quiz.ask: { ok, conf, ms, score, recall, closed }.
 //                                         r.stopped when Stop for now was pressed before an answer was committed.
+//   SD.modes.ask(q, { clues: true, clueLabels, onClue(i, clue), opened, clueCost, act: { label, icon } })   the stem as
+//                                         tap-to-open clues (SD.modes.split) with r.clues = { opened, total, before },
+//                                         and options shown as actions in the world
 //   SD.modes.note(tally, ok, conf), SD.modes.sureMiss(qid)   for modes that judge answers themselves (per-slot drafts)
 //   SD.modes.newTally(), SD.modes.calibHtml(tally)           the calibration readout
 //   SD.modes.walkFirst(id, screens), SD.modes.walk(id, screens)   screens: [{ title, html }]; Promises
@@ -119,9 +122,26 @@
     h.appendChild(el);
     el.querySelector('#md-stop').onclick = () => { if (stopFn) stopFn(); };
   }
+  // ---- Clues: the stem as a place to explore (Nov 15 revision) ----
+  // The scenario sentences (and q.ev) become clues; the question line, its MOST/LEAST qualifier and any "Select TWO"
+  // hint stay visible. labels: names for the clues in order (cycled), e.g. ['Logs', 'Metrics', 'Traces'].
+  M.split = function (q, labels) {
+    const hint = /\s*\((?:Select|Choose) [A-Z]+\.?\)\s*$/i;
+    const parts = String(q.q || '').trim().replace(hint, '').split(/(?<=[.?!])\s+(?=[A-Z0-9"'(])/);
+    const ask = parts.length > 1 ? parts.pop() : '';
+    const m = /\b(MOST|LEAST|most|least|quickest|fastest|fewest|simplest|cheapest|lowest|best)\b[^?.,;]*/.exec(ask);
+    const qual = m ? m[0].replace(/^\w+/, w => w.toUpperCase()) : '';
+    const L = Array.isArray(labels) && labels.length ? labels : null;
+    const texts = (q.ev ? [q.ev] : []).concat(ask ? parts : []);
+    const items = texts.map((text, i) => ({ label: L ? L[i % L.length] + (i >= L.length ? ' ' + (Math.floor(i / L.length) + 1) : '') : (q.ev && !i ? 'Evidence' : 'Clue ' + (i + 1 - (q.ev ? 1 : 0))), text }));
+    return { items, ask: ask || q.q, qual, pick: q.type === 'multi' ? (q.hint || 'Select all that apply.') : '', scenario: parts.join(' ') };
+  };
+
   M.ask = async function (q, opts) {
     opts = Object.assign({ source: true, noSwap: true, stakes: M.STAKES, stakeHelp: M.STAKE_HELP }, opts || {});
     if (q && !q.c && SD.today && SD.today.resolveItem) q = SD.today.resolveItem({ q: q.id }) || q;
+    if (opts.clues === true) opts.clues = M.split(q, opts.clueLabels);
+    if (opts.clues) opts.noThink = true;
     if (q.c) S.seeConcept(q.c);
     const t0 = Date.now();
     // opts.tally here is the mode's calibration tally, not js/quiz.js's Trust Policy switch of the same name.
@@ -282,6 +302,12 @@
     .md-pip .tf-row { display: flex; gap: 6px; margin-top: 6px; }
     .md-pip input { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; }
     .mode-note { margin: 4px 0; }
+    .q-clues { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+    .clue { text-align: left; min-height: 44px; padding: 8px 10px; border: 2px dashed var(--ink, #222); border-radius: 8px; background: #fffdf6; font: inherit; overflow-wrap: anywhere; }
+    .clue.on { border-style: solid; background: #fff; font-size: 15px; line-height: 1.4; }
+    .q-qual { margin: 2px 0 6px; }
+    .act-l { margin: 8px 0 2px; }
+    .opt.act { border-style: solid; border-left-width: 6px; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }`;
   document.head.appendChild(css);
 })();

@@ -143,6 +143,25 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const rs = await page.evaluate(() => [window.__r, window.__stopped, document.querySelector('#panel').hidden]);
   check(rs[0] && rs[0].stopped && !rs[0].committed && rs[1] === 1 && rs[2], 'Stop for now before answering closes the quiz and resolves { stopped }');
 
+  // ---- Clues and actions ----
+  const cq = await page.evaluate(() => SD.topicDrill.pool(SD.topicDrill.preset('pack-trouble')).find(q => q.type === 'mc' && /\bLEAST\b/.test(q.q) && q.q.split('. ').length > 2).id);
+  await page.evaluate(id => { window.__opened = []; window.__mq = SD.exam.find(id); window.__r = null; SD.modes.ask(window.__mq, { title: 'TEST', clues: true, clueLabels: ['Logs', 'Metrics'], onClue: i => { window.__opened.push(i); return i !== 1; }, act: { label: 'Apply a fix', icon: '🛠' } }).then(r => { window.__r = r; }); }, cq);
+  await page.waitForSelector('#panel .win.quiz .q-clues');
+  const sp = await page.evaluate(id => SD.modes.split(SD.exam.find(id), ['Logs', 'Metrics']), cq);
+  check(sp.items.length >= 2 && /LEAST/.test(sp.qual) && /\?$/.test(sp.ask), `split: ${sp.items.length} clues, the question line and the qualifier (${sp.qual})`);
+  check(await page.$$eval('.clue[data-cl]', b => b.length) === sp.items.length, 'every clue starts closed');
+  check((await page.textContent('.q-q')) === sp.ask && /Asks for: LEAST/.test(await page.textContent('.q-qual')), 'the question line and the qualifier are always visible');
+  check(/Apply a fix/.test(await page.textContent('.act-l')) && (await page.$$('.opt.act')).length >= 2, 'options are shown as actions');
+  await page.click('[data-cl="0"]');
+  check(/Logs/.test(await page.textContent('.clue.on')), 'tapping a clue opens it');
+  await page.click('[data-cl="1"]');
+  check(!!await page.$('[data-cl="1"]'), 'onClue returning false keeps a clue closed');
+  await noHScroll('clues');
+  await shot('clues');
+  await answer(true, 1); await next(); await page.waitForTimeout(30);
+  const rc = await page.evaluate(() => window.__r.clues);
+  check(rc && rc.total === sp.items.length && JSON.stringify(rc.opened) === '[0]', 'the result logs which clues were open before the answer (' + JSON.stringify(rc) + ')');
+
   // ---- Calibration ----
   const cal = await page.evaluate(() => { const t = { 0: [1, 4], 1: [3, 5], 2: [2, 5] }; const d = document.createElement('div'); d.innerHTML = SD.modes.calibHtml(t); return [[...d.querySelectorAll('tr')].map(tr => [...tr.children].map(x => x.textContent.trim()).join(' ')).join(' | '), SD.modes.points(t)]; });
   check(/Sure 2 of 5 right \(40%\) ↓ Too sure/.test(cal[0]), 'calibration: Sure at 40% reads "Too sure" in words');
