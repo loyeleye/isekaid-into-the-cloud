@@ -95,6 +95,9 @@
       // opts.credNote ends the "Why Trust" breakdown above Continue.
       const T = opts.tally && SD.state.tally && SD.state.TALLY ? SD.state.TALLY : null, tal0 = T ? SD.state.tally() : 0;
       const sgn = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n);
+      // opts.stakes (game modes, js/modes.js): points by confidence, [[right, wrong], ...] for Guess, Think so, Sure,
+      // shown on each button and on the verdict. Ignored when opts.tally is on.
+      const SK = !T && Array.isArray(opts.stakes) ? opts.stakes : null;
       let typing = typeFirst(q, opts), first = null;   // first: what you typed before the options ('' = I don't know)
       let thinking = !typing && sayFirst(q, opts);
       if (typing && SD.embed) SD.embed.load();
@@ -106,6 +109,7 @@
       if (q.type === 'multi') optOrder = shuffle(q.items.map((o, i) => i));
       const hidden = opts.hideOne && q.type === 'mc' ? optOrder.find(i => i !== q.a) : null;
       const concept = SD.concepts[q.c];
+      // opts.act ({ label, icon }, game modes): the options are actions in the world, with the label above them.
       function render() {
         let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>`;
         if (typing) {
@@ -136,9 +140,10 @@
           sb.focus();
           return;
         }
+        if (opts.act && opts.act.label) h += `<p class="act-l"><b>${U.esc(opts.act.icon || '')} ${U.esc(opts.act.label)}</b></p>`;
         if (first !== null) h += `<p class="tf-said"><span class="q-ctx">You wrote</span> ${first ? U.esc(first) : '<i>I don\'t know yet</i>'}</p>`;
         if (q.type === 'mc') {
-          h += '<div class="opts">' + optOrder.map(i => `<button class="opt${pick === i ? ' on' : ''}${hidden === i ? ' struck' : ''}" data-o="${i}" ${hidden === i ? 'disabled' : ''}>${U.esc(q.opts[i])}</button>`).join('') + '</div>';
+          h += '<div class="opts">' + optOrder.map(i => `<button class="opt${opts.act ? ' act' : ''}${pick === i ? ' on' : ''}${hidden === i ? ' struck' : ''}" data-o="${i}" ${hidden === i ? 'disabled' : ''} aria-pressed="${pick === i}">${opts.act && opts.act.icon ? U.esc(opts.act.icon) + ' ' : ''}${pick === i ? '✓ ' : ''}${U.esc(q.opts[i])}</button>`).join('') + '</div>';
         } else if (q.type === 'num') {
           h += `<label class="num"><input id="q-num" type="number" inputmode="decimal" placeholder="Your estimate" value="${pick != null ? pick : ''}"> <span>${U.esc(q.unit || '')}</span></label>`;
         } else if (q.type === 'order') {
@@ -149,12 +154,13 @@
           h += `<textarea id="q-text" class="q-text" rows="4" placeholder="Answer in a sentence or two, as you'd say it to the interviewer.">${U.esc(typed)}</textarea>
             <p class="muted small">Typed answers are checked on your device. Nothing you write leaves the browser.</p>`;
         } else if (q.type === 'multi') {
-          h += `<p class="muted small">${U.esc(q.hint || 'Select all that apply.')}</p><div class="opts">` + optOrder.map(i => `<button class="opt${multi.has(i) ? ' on' : ''}" data-m="${i}" aria-pressed="${multi.has(i)}">${U.esc(q.items[i].t)}</button>`).join('') + '</div>';
+          h += `<p class="muted small">${U.esc(q.hint || 'Select all that apply.')}</p><div class="opts">` + optOrder.map(i => `<button class="opt${opts.act ? ' act' : ''}${multi.has(i) ? ' on' : ''}" data-m="${i}" aria-pressed="${multi.has(i)}">${opts.act && opts.act.icon ? U.esc(opts.act.icon) + ' ' : ''}${multi.has(i) ? '✓ ' : ''}${U.esc(q.items[i].t)}</button>`).join('') + '</div>';
         }
         const words = t => t.trim().split(/\s+/).filter(Boolean).length;
         const ready = q.type === 'mc' ? pick != null : q.type === 'num' ? true : q.type === 'order' ? order.length === q.items.length : q.type === 'explain' ? words(typed) >= 3 : multi.size > 0;
         h += `<div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
-          ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}>${t}${T ? `<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small>` : ''}</button>`).join('')}</div>
+          ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}${SK ? ` aria-label="${t}: right ${sgn(SK[i][0])}, wrong ${sgn(SK[i][1])}"` : ''}>${t}${T ? `<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small>` : SK ? `<small class="stake"><span class="up">✓${sgn(SK[i][0])}</span> <span class="dn">✗${sgn(SK[i][1])}</span></small>` : ''}</button>`).join('')}</div>
+          ${SK && opts.stakeHelp ? `<p class="muted small stake-help">${U.esc(opts.stakeHelp)}</p>` : ''}
           ${T ? `<details class="muted small stake-help"><summary>🎯 Your Trust Policy is <b>${tal0}</b>.</summary><p>Right / wrong moves it by the numbers on each button. Say how sure you really are.${opts.stakeNote ? ' ' + U.esc(opts.stakeNote) : ''}</p></details>` : ''}</div>`;
         const b = panel(h);
         b.querySelectorAll('[data-o]').forEach(el => el.onclick = () => { pick = +el.dataset.o; render(); });
@@ -356,7 +362,8 @@
         }
         const RB = { memory: ['mem', 'From memory'], options: ['opt', 'From the options'], none: ['opt', 'From the options'], unsure: ['unsure', 'Can\'t tell'] };
         const rb = recall && (ok || recall.kind === 'memory' || recall.kind === 'unsure') ? RB[recall.kind] : null;
-        let h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? (conf === 0 ? 'CORRECT... BUT A GUESS' : 'CORRECT!') : 'NOT QUITE!'}</div>${rb ? `<span class="rc-badge ${rb[0]}">${rb[1]}</span>` : ''}${cred}</div>`;
+        if (SK) { const st = (SK[conf] || SK[0])[ok ? 0 : 1]; cred = `<span class="cred-badge ${st > 0 ? 'up' : st < 0 ? 'dn' : ''}">${['Guess', 'Think so', 'Sure'][conf] || 'Guess'}, ${ok ? 'right' : 'wrong'}: <b>${sgn(st)}</b></span>`; }
+        let h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? (conf === 0 ? 'CORRECT... BUT A GUESS' : 'CORRECT!') : 'NOT QUITE!'}</div>${rb ? `<span class="rc-badge ${rb[0]}">${rb[1]}</span>` : ''}${cred}</div>${opts.verdictNote ? `<p class="small mode-note">${opts.verdictNote(ok, conf)}</p>` : ''}`;
         if (over) h += `<p class="warn small">You were sure and it was wrong. That gap is the most valuable thing you found today, so this comes back first.</p>`;
         if (ok && conf === 0) h += `<p class="muted small">A lucky guess is not knowledge yet. It will come back soon.</p>`;
         h += recap(right);
