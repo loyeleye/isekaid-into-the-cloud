@@ -40,8 +40,8 @@
 
   // ---- Lines (barks: no numbers, no AWS claims) ----
   const SAY = {
-    open: 'Kyu held the Cloud\'s pager for ten thousand years. I\'m the secondary. Tonight it\'s yours. Wake me if the error budget hits zero. Don\'t wake me.',
-    wave: [null, 'Wave two. I\'m asleep. This is a recording of me being asleep.', 'Wave three. Kyu did this every night. Every. Night.', 'Last wave. Close these and the pager goes back in the drawer.'],
+    open: 'Kyu held the Cloud\'s pager since before the first server booted. I\'m the secondary. Tonight it\'s yours. Wake me if the error budget hits zero. Don\'t wake me.',
+    wave: [null, 'Next wave. I\'m asleep. This is a recording of me being asleep.', 'Still going. Kyu did this every night. Every. Night.', 'Last wave. Close these and the pager goes back in the drawer.'],
     overtime: 'Overtime. The ones that got away came back. They always come back.',
     sureRight: 'Resolved, and you were Sure. I\'m writing that in the postmortem. In gold.',
     right: 'Resolved. One less red light. I like fewer red lights.',
@@ -50,7 +50,7 @@
     sureMiss: 'You were Sure. I was Sure once. I was a goddess. Look at me now.',
     timeout: 'That one paged twice. It comes back next wave, in a new disguise.',
     pick: 'Between waves. Somebody\'s offering to help. Take it. I never did.',
-    zero: 'I am risen! Thy goddess is... oh. Oh no. Kyu never woke me. Not once in ten thousand years.',
+    zero: 'I am risen! Thy goddess is... oh. Oh no. Kyu never woke me. Not once.',
     end: 'Shift over. Hand me the pager. ...Actually, keep it till morning.'
   };
   // Between-wave picks (spec v4): incomparable, one per break, from the second shift on.
@@ -329,7 +329,7 @@
         ${sp ? `<div class="md-eg"><p class="small"><b>${esc(sp.ask)}</b></p>${sp.qual ? `<p class="small">★ Asks for: <b>${esc(sp.qual)}</b></p>` : ''}</div>` : ''}
         <p class="small">Open it to read the whole question. The star line is the qualifier: MOST cost-effective and LEAST overhead pick different fixes.</p>` },
       { title: 'Apply a fix', html: `<p>Name the cause in your own words, then the fixes show. Apply one and say how sure you are:</p>
-        ${M.stakeTable()}<p class="small">Right resolves it. Wrong: after the explanation, it stays open as the same fault in a new scenario, so you can try again straight away.</p>` },
+        ${M.stakeTable()}<p class="small">Right resolves it. Wrong: after the explanation, it stays open as the same fault in a new scenario, so you get one more try straight away. Miss that too and it goes to review.</p>` },
       { title: 'Clocks and budget', html: `<p>Every answer ticks every other incident's clock by one (●●○ is two ticks left). The board waits while you read: there's no real-time clock.</p>
         <p>A clock at zero pages: ${TIMEOUT}% error budget, and the incident comes back next wave in a new disguise. A Sure miss costs ${SURE_MISS}%. Points come from the table, budget is just for surviving.</p>
         <p class="small">${WAVES.length} waves. It saves after every answer: stop any time.</p>` }
