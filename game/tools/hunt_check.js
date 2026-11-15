@@ -25,11 +25,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: SHOTS ? 2 : 1 });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
-  const shot = async name => { if (SHOTS) await page.waitForTimeout(500); if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'hunt-' + name + '.png') }); };
+  const shot = async name => { if (SHOTS) await page.waitForTimeout(500); if (SHOTS) await page.evaluate(() => document.querySelectorAll('.sysnote').forEach(e => e.remove())); if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'hunt-' + name + '.png') }); };
   const boot = async () => {
     await page.goto(url);
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
