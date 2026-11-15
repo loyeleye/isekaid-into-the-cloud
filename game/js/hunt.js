@@ -421,7 +421,7 @@
     const b = U.panel(`<p class="td-big">${h.right} right · ${h.wrong} wrong · ${sgn(h.pts)} pts</p>
       ${h.paid ? `<p class="small">${esc(h.paid)}</p>` : '<p class="muted small">Today\'s pay is already taken: extra practice, all learning.</p>'}
       <ul class="hn-results">${rows}</ul>
-      ${draft.map(d => `<p class="small">That finishes ${esc(d.client)}'s ${esc(d.building)}.</p>`).join('')}
+      ${draft.map(d => `<p class="small">That capture finishes ${esc(d.building)} in the Quarter.</p>`).join('')}
       ${h.sureMiss ? `<p class="small">${h.sureMiss === 1 ? 'One Sure miss' : 'Sure misses'} went back on the Wall: those come back first.</p>` : ''}
       <p class="muted small">Topics: ${topics.map(esc).join(', ')}.</p>
       ${calibHtml(h.tally)}
