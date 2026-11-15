@@ -1,114 +1,143 @@
-// Architect's Draft (Nov 15 design doc, Mode 5): an arena draft crossed with a town builder, for the exam's
-// multiple-response questions ("Select TWO", "Select THREE"), with single-answer questions as one-slot jobs.
-// A client brings a requirements scroll (the question's stem) with one slot per answer it needs; the question's own
-// options are dealt face up as service cards. Draft a card into each slot, swap until you seal, then seal with Guess,
-// Think so or Sure. Each slot is judged on its own with the shared stake table (Guess +1/0, Think so +2/-1,
-// Sure +3/-3, as floors). A fully right blueprint stands in the Architects' Quarter; one with any wrong slot stands
-// under scaffolding, and its question goes on the Wall (js/today.js), so bringing that poster down (Monster Hunt or
-// a Wall drill) finishes the building. After sealing, every card left on the table flips to show its "why not" line.
+// Architect's Draft (design doc, Build spec v4): an arena draft crossed with a town builder, for the exam's
+// multiple-response questions ("Select TWO", "Select THREE"), with single-answer questions as one-slot jobs. It is set
+// in Pingsby's Quarter (js/c2-world.js: the scrap field's north end, where Freya's delete markers stand over the old
+// houses), on a screen of its own, not the walkable town. Ayo is the foreman (Coo runs the yard until Ayo is back,
+// after chapter 5) and Sir Seymour Backups is the inspector.
 //
-// Rules from the design doc: bank questions only; verified-only with the topic drill's fallback (unchecked ones carry
-// the "Not verified yet" mark, js/topic-drill.js); spacing picks the contracts and nothing can
-// be dodged (you choose the order on the contract board, never whether); no clock; save after every contract.
-// Inspector's tokens (2 a session) flip one card early, and a blueprint sealed after one pays at most Think so.
-// Five standing buildings in a district unlock its landmark. Host: Elder Wren, the Quarter's inspector. Clients are
-// the camp's people (Story Bible: camp-side, chapter 2 arrivals and the four), and their lines never state a number.
+// The loop: pick a client from three on the board (a client you pass on stays there, so you choose the order, never
+// whether). Their scroll is the question's whole stem, free to read; its options are option cards, and you draft as
+// many as it asks into the blueprint's slots. Seal it with Guess, Think so or Sure: each slot is judged on its own
+// with the shared stake table (right +1/+2/+3, wrong 0/−1/−3, as floors). No hint of any kind before the seal. After
+// the verdict come the explanation, every card's "why not" line, and then the building's placement: you choose a plot
+// (a ghost building under a delete marker) on the Quarter's own map, in at most four map actions, with a Map as list
+// view one tap away. A blueprint with a wrong slot stands under scaffolding and its question goes on the Wall
+// (js/today.js), so bringing that poster down (Monster Hunt or a Wall drill) finishes the building.
 //
-// The shared shell (js/modes.js, from the Incident Commander build) gives the Play button's mode picker, the stake
-// table, question picking, calibration, the first-run walkthrough, pay and Pip's line.
-//   SD.draft.open(preset)   the contract board (preset: a topic-drill preset id, or none for every topic)
-//   SD.draft.quarter()      the Architects' Quarter
-//   SD.draft.scaffoldFor(qid)  { client, building } when that question's building is under scaffolding, else null
+// Rules, one new one per night of play (v4: one new rule per night; scheduled play reaches nights 1 and 2 before
+// Nov 30): night 1, clients, the draft, the seal and placement. Night 2, materials: a building gets one for each
+// neighbour of its own exam domain, and two buy an immediate retry on a scaffolded building's twin. Night 3,
+// reputation: a standing building on a riverside plot earns it, and it brings a second tier of clients to the board. The travelling client
+// and buying land wait until after the exam.
+//
+// The shared shell (js/modes.js) gives the mode picker, the stake table, question picking, calibration, the
+// first-run walkthrough, pay, Pip's line and the simulator's answers. tools/modes_sim.js plays this mode's rules
+// (SD.draft.sim) with fixed policies; tools/draft_check.js drives it at 375px.
+//   SD.draft.open(preset)   the client board (preset: a topic-drill preset id, or none for every topic)
+//   SD.draft.quarter()      Pingsby's Quarter, its map and its list
+//   SD.draft.scaffoldFor(qid)  { client, building, floors } when that question's building is under scaffolding, else null
 (function () {
   const DR = SD.draft = {};
   const S = SD.state, U = SD.ui, E = () => SD.exam, M = () => SD.modes || {};
   const esc = s => U.esc(s);
-  const SESSION = 7, BOARD = 3, TOKENS = 2, LANDMARK_AT = 5;
+  const SESSION = 7, BOARD = 3, MAP_ACTIONS = 4, RETRY_COST = 2, TIER2_REP = 3;
+  const COLS = 5, ROWS = 6, RIVER = [2];   // the river runs below row 3, so row 3 is the riverside
   const CONF = ['Guess', 'Think so', 'Sure'];
-    const today = () => new Date().toDateString();
+  const today = () => new Date().toDateString();
   const sgn = n => (n > 0 ? '+' + n : n < 0 ? '−' + (-n) : '0');
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  DR.SESSION = SESSION; DR.MAP_ACTIONS = MAP_ACTIONS; DR.RETRY_COST = RETRY_COST;
 
   // ---- The cast ----
-  DR.HOST = { id: 'wren', name: 'Elder Wren' };
-  const WREN = {
-    intro: 'The Free Cloud needs a quarter. Everyone here wants something built, and nobody wants what they need. Build what the scroll says, not what they say.',
-    token: 'Wren turns the card over and says nothing for a long time. Then he taps the back of it.',
-    clean: 'Wren walks round it once and nods. That\'s all you get.',
-    scaf: 'Wren raps the scaffolding with his staff. "It stays up until you\'ve earned it down."',
-    landmark: 'Wren stands at the end of the street for a long time. "Now it\'s a street."',
-    end: 'Wren banks the fire. "Same again tomorrow. Bring the scroll."'
+  // Ayo runs the yard once he's free (chapter 5 cleared); until then Coo does. Seymour inspects. Barks never state
+  // a number or an AWS fact.
+  const FOREMEN = {
+    ayo: { name: 'Ayo', title: 'the foreman',
+      intro: 'Pingsby\'s Quarter! Freya deleted it, so we build it back. Pick a client, read the whole scroll, build what it says. Not what they say. What it says. HA!',
+      place: 'Where does it go? Put it with its own kind and they\'ll lend you materials.',
+      river: 'By the river, the whole camp walks past it. Good for the name.',
+      end: 'Good day\'s work. The forge stays lit.' },
+    coo: { name: 'Postmaster Coo', title: 'running the yard',
+      intro: 'Coo. Pingsby\'s Quarter, under delete markers, all of it. Clients are waiting. Read the whole scroll. Build what it says.',
+      place: 'Coo. Every building needs an address. Pick one.',
+      river: 'Coo. A riverside address. People will write.',
+      end: 'Coo. Filed. Same again tomorrow.' }
   };
-  // District d is exam domain d. Two clients per district; a question's client is fixed by its id.
+  DR.foremanId = () => (S.save && S.save.flags && S.save.flags.ch5 ? 'ayo' : 'coo');
+  DR.foreman = () => FOREMEN[DR.foremanId()];
+  const SEYMOUR = {
+    name: 'Sir Seymour Backups',
+    clean: 'HALT! ...I have checked it. And checked it again. It stands.',
+    scaf: 'The scaffolding stays up. I don\'t sign for what I haven\'t seen hold on two different days.',
+    retry: 'A second blueprint on the same rule? Bring it here. I\'ll inspect it. Thoroughly.',
+    half: 'One signature on the permit. The other comes on another day. Those are the rules. I wrote them down. Twice.'
+  };
+  DR.SEYMOUR = SEYMOUR;
+  // Clients. Tier 1 is on the board from the first night; tier 2 arrives with reputation (night 3). Coo joins tier 2
+  // once Ayo has taken over the yard.
   DR.CLIENTS = {
-    coo: { name: 'Postmaster Coo', d: 1, bld: 'sorting office', sign: 'POST', roof: '#c0503a', wall: '#efe2c6',
-      arrive: 'Coo. Requirements, in writing. Delivered to you at least once.',
-      right: 'Coo-ah. Every pigeonhole where I\'d have put it.',
-      wrong: 'Coo. This goes back to the sender. That\'s you.',
-      sure: 'You signed for that with great confidence. Coo. I keep the receipts.' },
-    mira: { name: 'Mira', d: 1, bld: 'infirmary', sign: 'WARD', roof: '#3a4157', wall: '#e8ebf0',
+    mira: { name: 'Mira', tier: 1, bld: 'infirmary', sign: 'WARD', roof: '#3a4157', wall: '#e8ebf0',
       arrive: 'Sit down. I\'ll tell you what I need, and then you\'ll build exactly that.',
       right: 'Good. Clean lines. Nothing I\'ll have to stitch later.',
       wrong: 'Hold still. That one\'s wrong, and I\'m going to show you where.',
       sure: 'You were sure. I hear that a lot from people on my table. Look again.' },
-    seoyeon: { name: 'Seo-yeon', d: 2, bld: 'gatehouse', sign: 'GATE', roof: '#8d1d29', wall: '#f2efe8',
+    seoyeon: { name: 'Seo-yeon', tier: 1, bld: 'gatehouse', sign: 'GATE', roof: '#8d1d29', wall: '#f2efe8',
       arrive: 'I would be honoured if you built this correctly. I mention it only once.',
       right: 'Acceptable. I will try not to look impressed.',
       wrong: 'How generous of you, leaving the door open. For everyone.',
       sure: 'Such certainty. It must be restful.' },
-    seymour: { name: 'Sir Seymour Backups', d: 2, bld: 'tape vault', sign: 'VAULT', roof: '#5a606c', wall: '#d8dce4',
-      arrive: 'HALT! Before you draw a single line: I have a list. Three lists. Copies of each.',
-      right: 'It stands. I shall check it. Then check it again. Then once more, for luck.',
-      wrong: 'This is why I keep backups of my backups.',
-      sure: 'Sure? Sure is how tapes go missing.' },
-    dutch: { name: 'Dutch', d: 3, bld: 'night office', sign: 'OFFICE', roof: '#24345e', wall: '#d8d4c8',
+    dutch: { name: 'Dutch', tier: 1, bld: 'night office', sign: 'OFFICE', roof: '#24345e', wall: '#d8d4c8',
       arrive: 'Kid. One line in that scroll decides it. Find it before you build.',
       right: 'Huh. It holds. Don\'t let it go to your head.',
       wrong: 'Wrong door, kid. Read the scroll again. Slower.',
       sure: 'You went with your gut. I know how that ends. Sit down.' },
-    marrow: { name: 'Goodwife Marrow', d: 3, bld: 'bell house', sign: 'BELL', roof: '#6a3a4a', wall: '#e8dcc4',
-      arrive: 'I need a bell that rings for the right thing, and only the right thing.',
-      right: 'That\'ll ring true. I can hear it already.',
-      wrong: 'That would ring at the wrong hour. Half the camp would come running for nothing.',
-      sure: 'Loud and wrong. That\'s the worst kind of bell.' },
-    kai: { name: 'Kai', d: 4, bld: 'kitchen annex', sign: 'KITCHEN', roof: '#d84a3a', wall: '#f2efe6',
+    kai: { name: 'Kai', tier: 1, bld: 'kitchen annex', sign: 'KITCHEN', roof: '#d84a3a', wall: '#f2efe6',
       arrive: 'I want it fast, I want it hot, and I wanted it yesterday. Yes, chef? Yes, chef.',
       right: 'Look at that. It doesn\'t even fall over when I lean on it.',
       wrong: 'That\'s not what I ordered. I\'ll fix it. ...No. You fix it.',
       sure: 'You plated that like it was perfect. It\'s raw in the middle.' },
-    pip: { name: 'Pip', d: 4, bld: 'lost and found', sign: 'FOUND', roof: '#3b8bff', wall: '#e6f4ff',
+    marrow: { name: 'Goodwife Marrow', tier: 2, bld: 'bell house', sign: 'BELL', roof: '#6a3a4a', wall: '#e8dcc4',
+      arrive: 'I need a bell that rings for the right thing, and only the right thing.',
+      right: 'That\'ll ring true. I can hear it already.',
+      wrong: 'That would ring at the wrong hour. Half the camp would come running for nothing.',
+      sure: 'Loud and wrong. That\'s the worst kind of bell.' },
+    pip: { name: 'Pip', tier: 2, bld: 'lost and found', sign: 'FOUND', roof: '#3b8bff', wall: '#e6f4ff',
       arrive: 'Sorry to be a bother. Could it be a little building? For things that went missing?',
       right: 'Oh! It\'s just right. Why did that work?',
       wrong: 'Oh. I think something\'s missing. Sorry. I would know.',
-      sure: 'You sounded so sure that I believed you too. Why didn\'t that work?' }
+      sure: 'You sounded so sure that I believed you too. Why didn\'t that work?' },
+    coo: { name: 'Postmaster Coo', tier: 2, ayo: true, bld: 'post office', sign: 'POST', roof: '#c0503a', wall: '#efe2c6',
+      arrive: 'Coo. Requirements, in writing. Delivered to you at least once.',
+      right: 'Coo-ah. Every pigeonhole where I\'d have put it.',
+      wrong: 'Coo. This goes back to the sender. That\'s you.',
+      sure: 'You signed for that with great confidence. Coo. I keep the receipts.' }
   };
-  const BY_D = { 1: ['coo', 'mira'], 2: ['seoyeon', 'seymour'], 3: ['dutch', 'marrow'], 4: ['kai', 'pip'] };
-  DR.STREETS = { 1: 'Dispatch Row', 2: 'Lockside', 3: 'Pipeline Lane', 4: 'Lantern Street' };
-  const hashId = s => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
-  DR.clientFor = function (q) {
-    const d = E().domainOf(q) || 1, ids = BY_D[d] || BY_D[1];
-    return ids[hashId(q.id) % ids.length];
-  };
-  const cl = id => DR.CLIENTS[id] || DR.CLIENTS.coo;
-  const bldName = id => `${cl(id).name.split(' ').slice(-1)[0] === 'Backups' ? 'Seymour' : cl(id).name.replace(/^(Postmaster|Goodwife|Sir) /, '')}'s ${cl(id).bld}`;
+  const cl = id => DR.CLIENTS[id] || DR.CLIENTS.mira;
+  const bldName = id => `${cl(id).name.replace(/^(Postmaster|Goodwife) /, '')}'s ${cl(id).bld}`;
   DR.buildingName = bldName;
-  // The cast's PixelLab portraits (assets/img/portraits, credited in CREDITS.md). Elder Wren's is the faithful's
-  // ("faithful is Elder Wren", js/vec-cast.js). Drawn straight from the files, so the mode doesn't depend on which
-  // chapter has registered which faces.
-  const FACE = { coo: 'coo', mira: 'mira', seoyeon: 'seoyeon', seymour: 'seymour', dutch: 'dutch', marrow: 'marrow', kai: 'kai', pip: 'pip', wren: 'faithful' };
+  // The cast's PixelLab portraits (assets/img/portraits, credited in CREDITS.md), drawn straight from the files.
+  const FACE = { mira: 'mira', seoyeon: 'seoyeon', dutch: 'dutch', kai: 'kai', marrow: 'marrow', pip: 'pip', coo: 'coo', ayo: 'ayo', seymour: 'seymour' };
   function portrait(who, size) {
     if (FACE[who] && !window.SD_VECTOR) return `<span class="bust dr-bust px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${FACE[who]}-neutral.webp" alt="" draggable="false"></span>`;
     try { return SD.art && SD.art.portrait ? SD.art.portrait(who, size) : ''; } catch (e) { return ''; }
   }
+  // Exam domains on the map: a shape and a number, never colour alone.
+  DR.SHAPE = { 1: '▲', 2: '■', 3: '●', 4: '◆' };
+  const dom = d => `${DR.SHAPE[d] || '·'} D${d}`;
+  const domName = d => (E().DOMAINS && E().DOMAINS[d]) || 'Domain ' + d;
 
   // ---- Save ----
   const sv = () => {
     const s = S.save;
     if (!s.draft || typeof s.draft !== 'object') s.draft = {};
-    if (!s.draft.town || typeof s.draft.town !== 'object') s.draft.town = {};
-    return s.draft;
+    const d = s.draft;
+    if (!d.town || typeof d.town !== 'object') d.town = {};
+    if (!Array.isArray(d.nights)) d.nights = [];
+    d.mat = d.mat | 0; d.rep = d.rep | 0;
+    return d;
   };
   DR.save = sv;
+  const persist = () => S.persist && S.persist();
+  const find = id => E().find(id);
+
+  // ---- Rules by night ----
+  // Night n is the nth day a session was started. Each night opens at most one new rule.
+  DR.level = () => Math.max(1, Math.min(3, sv().nights.length));
+  DR.RULES = {
+    2: { title: 'New tonight: materials', html: `<p class="small">A building now gets <b>🧱 materials</b> from its neighbours: one for each building of its own exam domain on a plot beside it (up, down, left or right).</p>
+      <p class="small">Spend them on a <b>retry</b>: when a blueprint ends up under scaffolding, ${RETRY_COST} materials buy its twin question right away, a different scenario on the same rule. Get it right and it counts toward that poster.</p>` },
+    3: { title: 'New tonight: reputation', html: `<p class="small">A building that stands on a riverside plot now earns <b>⭐ reputation</b>, because the whole camp walks past it. Scaffolding by the river earns none.</p>
+      <p class="small">Reputation brings new clients: once you have enough, a second tier joins the board.</p>` }
+  };
 
   // ---- Questions ----
   const isMulti = q => q && q.type === 'multi' && Array.isArray(q.items);
@@ -118,20 +147,9 @@
   DR.cardOk = (q, i) => (isMulti(q) ? !!(q.items[i] && q.items[i].ok) : i === q.a);
   DR.cardNo = (q, i) => (isMulti(q) ? (q.items[i] && q.items[i].no) || '' : (Array.isArray(q.no) && q.no[i]) || '');
   const verified = q => !!(SD.topicDrill && SD.topicDrill.isVerified(q));
-  // The scroll as clues (design doc, Choice and exploration), from the shell's split (js/modes.js SD.modes.split): the
-  // stem's scenario sentences are clues, one tap each to open; the question line, its qualifier and the Select TWO hint
-  // always show, and so does any scenario sentence with a qualifier in it. A stem with fewer than two closed clues
-  // shows whole. Every clue is one tap away, so nothing that decides the answer can be missed, and the inspection
-  // shows the whole scroll.
-  const QUAL = /\b(MOST|LEAST|FEWEST|NOT|EXCEPT)\b/;
-  DR.split = function (q) {
-    const x = M().split(q);
-    const clues = x.items.map(it => ({ t: it.text, label: it.label, ev: q.ev && it.text === q.ev ? 1 : 0, pin: QUAL.test(it.text) }));
-    if (clues.filter(c => !c.pin).length < 2) clues.forEach(c => { c.pin = true; });
-    // A one-sentence stem comes back with its Select hint still on the question line; the hint shows on its own.
-    const ask = x.ask.replace(/\s*\((?:Select|Choose) [A-Z]+\.?\)\s*$/i, '');
-    return { clues, ask, pick: x.pick, qual: x.qual };
-  };
+  // The Select hint shows beside the question, so the stem shows without it; nothing else is taken out.
+  const HINT = /\s*\((?:Select|Choose) [A-Z]+\.?\)\s*$/i;
+  DR.stem = q => ({ text: String(q.q).replace(HINT, ''), pick: (String(q.q).match(HINT) || [''])[0].trim().replace(/^\(|\)$/g, '') });
   function conceptOf(q) {
     if (q.c && SD.concepts[q.c]) return q.c;
     const t = E().taskOf(q);
@@ -142,31 +160,56 @@
     return con ? con.name.replace(/^[A-Z]+ \d\.\d+: /, '') : (q.topic || 'An idea');
   };
   const base = () => SD.topicDrill.base().filter(q => isMulti(q) || isMc(q));
-  // A session's contracts, from the shared picker (js/modes.js: verified-only with the topic drill's fallback, due and
+  // Clients on the board tonight: tier 1, plus tier 2 once reputation is in play and earned.
+  DR.clientsOpen = function () {
+    const ayo = DR.foremanId() === 'ayo', t2 = DR.level() >= 3 && sv().rep >= TIER2_REP;
+    return Object.keys(DR.CLIENTS).filter(id => { const c = DR.CLIENTS[id]; return (c.tier === 1 || t2) && (!c.ayo || ayo); });
+  };
+  // A session's contracts, from the shared picker (verified-only with the topic drill's fallback, due and
   // never-asked first, about one in four from other topics): multiple-response, plus one single-answer job, or more
-  // when the preset has few multiple-response questions.
+  // when the preset has few multiple-response questions. Clients take turns, so the board never shows one twice
+  // while there are three to show; a rebuilt question keeps its building's client.
   DR.pickSession = function (preset, n) {
     n = n || SESSION;
     const a = M().pick({ preset, n: n - 1, filter: isMulti }).items;
     const b = M().pick({ preset, n: n - a.length, filter: isMc, avoid: a.map(i => i.q) }).items;
-    // A rebuilt question keeps its building's client; otherwise each street's two clients take turns.
-    const turn = {}, town = sv().town;
+    const open = SD.quiz.shuffle(DR.clientsOpen()), town = sv().town;
+    let k = 0;
     return SD.quiz.shuffle(a.concat(b)).map(it => {
       const q = find(it.q); if (!q) return null;
-      const d = E().domainOf(q) || 1, ids = BY_D[d] || BY_D[1];
-      turn[d] = turn[d] == null ? hashId(q.id) % ids.length : (turn[d] + 1) % ids.length;
-      return { q: q.id, client: town[q.id] ? town[q.id].client : ids[turn[d]], other: it.other || 0 };
+      return { q: q.id, client: town[q.id] ? town[q.id].client : open[k++ % open.length], other: it.other || 0 };
     }).filter(Boolean);
   };
-
-  // ---- The shared shell (js/modes.js) ----
   const stake = (ok, conf) => M().stake(ok, conf);
   const stakes = () => M().STAKES;
 
-  // ---- The Wall and the Quarter ----
+  // ---- The map: plots, neighbours, the river ----
+  const R = DR.rules = {
+    COLS, ROWS, RIVER, N: COLS * ROWS,
+    name: p => 'ABCDE'[p % COLS] + (Math.floor(p / COLS) + 1),
+    riverside: p => RIVER.includes(Math.floor(p / COLS)),
+    around: p => { const x = p % COLS, y = Math.floor(p / COLS), out = []; if (x > 0) out.push(p - 1); if (x < COLS - 1) out.push(p + 1); if (y > 0) out.push(p - COLS); if (y < ROWS - 1) out.push(p + COLS); return out; },
+    // What building domain d on plot p earns, given grid (plot -> domain), tonight's rule level and whether it stands:
+    // materials from same-domain neighbours; reputation from the riverside, only for a building that stands.
+    gains(grid, p, d, level, stands) {
+      const mat = level >= 2 ? R.around(p).filter(o => grid[o] === d).length : 0;
+      const rep = level >= 3 && R.riverside(p) && stands !== false ? 1 : 0;
+      return { mat, rep };
+    }
+  };
+  // Buildings from before plots existed get the first free plots.
+  function grid() {
+    const town = sv().town, g = {}, list = Object.values(town).sort((a, b) => a.t - b.t);
+    list.forEach(b => { if (b.plot != null && g[b.plot] == null) g[b.plot] = b; else b.plot = null; });
+    return g;
+  }
+  DR.grid = grid;
+  const domGrid = g => { const o = {}; Object.keys(g).forEach(p => { o[p] = g[p].d; }); return o; };
+  DR.freePlots = () => { const g = grid(); return Array.from({ length: R.N }, (_, p) => p).filter(p => !g[p]); };
+
+  // ---- The Wall ----
   const wall = () => (Array.isArray(S.save.wall) ? S.save.wall : []);
   const twins = id => (SD.twins && SD.twins[id]) || [];
-  // Is a poster up for this question's idea (the question itself or one of its twins)?
   DR.posterUp = function (qid) {
     const idea = [qid].concat(twins(qid));
     return wall().some(w => [w.id].concat(twins(w.id)).some(id => idea.includes(id)));
@@ -184,41 +227,61 @@
     const b = Object.values(town).find(x => x.scaf && [x.q].concat(twins(x.q)).some(id => idea.includes(id)));
     return b ? { client: cl(b.client).name, building: bldName(b.client), floors: b.floors } : null;
   };
-  DR.district = function (d) {
-    const list = Object.values(refresh()).filter(b => b.d === d).sort((a, b) => a.t - b.t);
-    return { list, standing: list.filter(b => !b.scaf).length, scaf: list.filter(b => b.scaf).length, landmark: list.filter(b => !b.scaf).length >= LANDMARK_AT };
+  // A scaffolded building's twin, as a retry can ask it: a draftable question, never the building's own.
+  DR.twinFor = function (qid) {
+    const q = find(qid); if (!q || !SD.qtwin) return null;
+    const avoid = [qid];
+    for (let i = 0; i < 4; i++) {
+      const t = SD.qtwin(q, { avoid });
+      if (!t) return null;
+      if (isMulti(t) || isMc(t)) return t;
+      avoid.push(t.id);
+    }
+    return null;
   };
-  DR.landmarks = () => [1, 2, 3, 4].filter(d => DR.district(d).landmark);
+  DR.canRetry = qid => { const b = sv().town[qid]; return !!(b && b.scaf && DR.level() >= 2 && sv().mat >= RETRY_COST && DR.twinFor(qid)); };
 
   // ---- The run ----
   DR.run = () => { const r = sv().run; return r && Array.isArray(r.items) ? r : null; };
   DR.status = function () {
     const r = DR.run(), town = Object.values(refresh());
-    if (r) { const done = r.items.filter(i => i.done).length; return `Resume · contract ${Math.min(done + 1, r.items.length)} of ${r.items.length}`; }
-    return town.length ? `${plural(town.filter(b => !b.scaf).length, 'building')} standing` : null;
+    if (r) { const done = r.items.filter(i => i.done).length; return `Resume · client ${Math.min(done + 1, r.items.length)} of ${r.items.length}`; }
+    return town.length ? `${plural(town.filter(b => !b.scaf).length, 'building')} standing in Pingsby's Quarter` : null;
   };
   function newRun(preset) {
+    const d = sv();
+    if (d.nights[d.nights.length - 1] !== today()) d.nights.push(today());
+    if (d.nights.length > 30) d.nights.splice(0, d.nights.length - 30);
     const items = DR.pickSession(preset);
-    return (sv().run = { preset: preset || null, items, tokens: TOKENS, tally: M().newTally(), floors: 0, misses: 0, sure: 0, t0: Date.now(), open: null, slots: [], flips: [] });
+    return (d.run = { preset: preset || null, items, tally: M().newTally(), floors: 0, misses: 0, sure: 0, mat: 0, rep: 0, t0: Date.now(), qMs: 0, mapMs: 0, open: null, since: '', level: DR.level() });
   }
-  const persist = () => S.persist && S.persist();
-  const find = id => E().find(id);
 
-  // The contract board: the first three unbuilt contracts. You choose the order, never whether.
+  // Where to go: a retry or a placement in progress first, then the open contract, then the board.
   DR.open = async function (preset) {
+    const d = sv();
+    if (d.retry) return contract(d.retry, retryDone);
     let r = DR.run();
+    if (d.placing && find(d.placing.q) && d.town[d.placing.q]) return place(d.placing.q);
     if (r && preset !== undefined && preset !== null && r.preset !== preset && !r.items.some(i => i.done)) r = null;
     if (!r) {
       await walkthrough();
+      const before = DR.level();
       r = newRun(preset);
       persist();
+      if (DR.level() > before && DR.RULES[DR.level()]) await newRule(DR.level());
     }
     if (!r.items.length) return empty();
-    if (r.open != null && r.items[r.open] && !r.items[r.open].done) return contract(r.open);
+    if (r.open != null && r.items[r.open] && !r.items[r.open].done) return contract(r.items[r.open], sessionDone);
     board();
   };
+  function newRule(n) {
+    return new Promise(res => {
+      const b = U.panel(`${portrait(DR.foremanId(), 56)}${DR.RULES[n].html}<button class="primary" id="dr-rule">Got it</button>`, { title: DR.RULES[n].title.toUpperCase(), cls: 'dr-win', noClose: true });
+      b.querySelector('#dr-rule').onclick = res;
+    });
+  }
   function empty() {
-    const b = U.panel(`<p>No contracts fit this topic yet. Try another preset, or every topic.</p><div class="row"><button class="primary" id="dr-any">Every topic</button><button class="ghost" id="dr-x">Close</button></div>`, { title: 'ARCHITECT\'S DRAFT' });
+    const b = U.panel(`<p>No clients have work for this topic yet. Try another preset, or every topic.</p><div class="row"><button class="primary" id="dr-any">Every topic</button><button class="ghost" id="dr-x">Close</button></div>`, { title: 'ARCHITECT\'S DRAFT' });
     sv().run = null; persist();
     b.querySelector('#dr-any').onclick = () => DR.open(null);
     b.querySelector('#dr-x').onclick = U.closePanel;
@@ -227,131 +290,142 @@
     const p = r.preset && SD.topicDrill ? SD.topicDrill.preset(r.preset) : null;
     return p ? p.name : 'Every topic';
   }
+  const resChips = () => {
+    const d = sv(), lv = DR.level();
+    return `${lv >= 2 ? `<span class="chip">🧱 Materials: ${d.mat}</span>` : ''}${lv >= 3 ? `<span class="chip">⭐ Reputation: ${d.rep}</span>` : ''}`;
+  };
+
+  // The client board: the first three unbuilt contracts, each a client. Pass on one and it stays.
   function board() {
     const r = DR.run();
+    if (!r) return DR.quarter();
     const left = r.items.map((it, i) => [it, i]).filter(([it]) => !it.done);
     if (!left.length) return results();
-    const done = r.items.length - left.length;
+    const done = r.items.length - left.length, F = DR.foreman();
     const cards = left.slice(0, BOARD).map(([it, i]) => {
       const q = find(it.q); if (!q) return '';
-      const c = cl(it.client), n = DR.slotsOf(q), d = E().domainOf(q);
-      const scroll = String(q.q).split(/(?<=[.?!])\s+/)[0];
+      const c = cl(it.client), n = DR.slotsOf(q), d = E().domainOf(q) || 1;
       return `<button class="opt dr-contract" data-k="${i}">
-        <span class="dr-who">${portrait(it.client, 44)}<span><b>${esc(c.name)}</b><br><span class="small muted">wants a ${esc(c.bld)} · ${esc(DR.STREETS[d] || '')}</span></span></span>
-        <span class="small dr-scroll">"${esc(scroll.length > 140 ? scroll.slice(0, 137) + '…' : scroll)}"</span>
-        <span class="chips"><span class="chip">${n === 1 ? '1 slot · one card' : `${n} slots · choose ${n}`}</span><span class="chip">${verified(q) ? '✓ Verified' : 'Not verified yet'}</span></span></button>`;
+        <span class="dr-who">${portrait(it.client, 44)}<span><b>${esc(c.name)}</b><br><span class="small muted">wants a ${esc(c.bld)}${sv().town[q.id] ? ' rebuilt' : ''}</span></span></span>
+        <span class="chips"><span class="chip">${esc(dom(d))} · ${esc(domName(d))}</span><span class="chip">${n === 1 ? 'one card' : `choose ${n}`}</span><span class="chip">${verified(q) ? '✓ Verified' : 'Not verified yet'}</span></span></button>`;
     }).join('');
     const waiting = left.length - Math.min(BOARD, left.length);
-    const host = done ? '' : `<div class="dr-client">${portrait('wren', 44)}<p class="small"><b>Elder Wren:</b> "${esc(WREN.intro)}"</p></div>`;
-    const b = U.panel(`${host}<div class="dr-head"><span class="chip">${esc(presetName(r))}</span><span class="chip">Contract ${done + 1} of ${r.items.length}</span><span class="chip">🔍 Tokens: ${r.tokens}</span><span class="chip">🏗 Floors today: ${r.floors}</span></div>
-      <p class="small muted">Pick which contract to build next. Every contract stays on the board until it's built, so you choose the order, not whether.</p>
+    const host = done ? '' : `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small"><b>${esc(F.name)}:</b> "${esc(F.intro)}"</p></div>`;
+    const b = U.panel(`${host}${r.since ? `<p class="small dr-since">${esc(r.since)}</p>` : ''}
+      <div class="dr-head"><span class="chip">${esc(presetName(r))}</span><span class="chip">Client ${done + 1} of ${r.items.length}</span><span class="chip">🏗 Floors today: ${sgn(r.floors)}</span>${resChips()}</div>
+      <p class="small muted">Pick a client. The ones you pass on stay on the board until you've built for them, so you choose the order, not whether.</p>
       <div class="opts">${cards}</div>
-      ${waiting ? `<p class="small muted">${plural(waiting, 'more contract')} waiting behind these.</p>` : ''}
-      <div class="row"><button class="ghost" id="dr-quarter">🏘 The Quarter</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'ARCHITECT\'S DRAFT', cls: 'dr-win' });
-    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { r.open = +el.dataset.k; r.slots = []; r.flips = []; r.tok = 0; r.seen = []; persist(); contract(r.open); });
+      ${waiting ? `<p class="small muted">${plural(waiting, 'more client')} waiting behind these.</p>` : ''}
+      <div class="row"><button class="ghost" id="dr-quarter">🏘 Pingsby's Quarter</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'ARCHITECT\'S DRAFT', cls: 'dr-win' });
+    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { r.open = +el.dataset.k; r.since = ''; persist(); contract(r.items[r.open], sessionDone); });
     b.querySelector('#dr-quarter').onclick = () => DR.quarter(board);
     b.querySelector('#dr-stop').onclick = stop;
   }
   function stop() { persist(); U.closePanel(); if (SD.today && SD.today.render) SD.today.render(); }
 
-  // One contract: the scroll, its slots, the cards, an inspector's token and the seal.
-  function contract(k) {
-    const r = DR.run(), it = r.items[k], q = find(it.q);
-    if (!q) { it.done = 1; r.open = null; persist(); return board(); }
-    const c = cl(it.client), n = DR.slotsOf(q), cards = DR.cards(q);
-    r.slots = (r.slots || []).filter(i => i >= 0 && i < cards.length).slice(0, n);
-    r.flips = r.flips || [];
-    r.seen = r.seen || [];
-    const sc = DR.split(q);
-    let flipping = false;
+  // One contract: the client, the whole scroll, the slots, the cards and the seal. No hint before the seal.
+  // it: { q, client, pick: [card indices], retry?: { poster } }. done(it, verdict) runs after the seal.
+  function contract(it, done) {
+    const q = find(it.q), r = DR.run();
+    if (!q) { it.done = 1; if (r) r.open = null; if (it.retry) sv().retry = null; persist(); return it.retry ? retryBack(it) : board(); }
+    const c = cl(it.client), n = DR.slotsOf(q), cards = DR.cards(q), stem = DR.stem(q);
+    it.pick = (it.pick || []).filter(i => i >= 0 && i < cards.length).slice(0, n);
     const t0 = Date.now();
-    if (SD.state.seeConcept && conceptOf(q)) S.seeConcept(conceptOf(q));
+    if (S.seeConcept && conceptOf(q)) S.seeConcept(conceptOf(q));
     function render() {
-      const full = r.slots.length === n, capped = !!r.tok;
+      const full = it.pick.length === n, st = stakes();
       const slotH = Array.from({ length: n }, (_, s) => {
-        const ci = r.slots[s];
+        const ci = it.pick[s];
         return ci == null ? `<div class="dr-slot empty"><span class="q-ctx">Slot ${s + 1}</span><span class="small muted">Empty: tap a card below</span></div>`
           : `<button class="dr-slot" data-s="${s}" aria-label="Slot ${s + 1}: ${esc(cards[ci])}. Tap to take it back"><span class="q-ctx">Slot ${s + 1} · tap to take back</span><span class="small">${esc(cards[ci])}</span></button>`;
       }).join('');
       const cardH = cards.map((t, i) => {
-        const at = r.slots.indexOf(i), fl = r.flips.includes(i);
-        const back = fl ? `<span class="dr-back small">${DR.cardOk(q, i) ? '🔍 Inspector: no objection to this one here.' : '🔍 Not here: ' + esc(DR.cardNo(q, i) || 'it doesn\'t meet the scroll.')}</span>` : '';
-        return `<button class="opt dr-card${at >= 0 ? ' on' : ''}${flipping ? ' flip' : ''}" data-i="${i}" aria-pressed="${at >= 0}">${at >= 0 ? `<span class="chip">In slot ${at + 1}</span> ` : ''}${esc(t)}${back}</button>`;
+        const at = it.pick.indexOf(i);
+        return `<button class="opt dr-card${at >= 0 ? ' on' : ''}" data-i="${i}" aria-pressed="${at >= 0}">${at >= 0 ? `<span class="chip">In slot ${at + 1}</span> ` : ''}${esc(t)}</button>`;
       }).join('');
-      const st = stakes();
-      const b = U.panel(`<div class="dr-client">${portrait(it.client, 56)}<div><b>${esc(c.name)}</b> <span class="small muted">· ${esc(c.bld)} · ${esc(DR.STREETS[E().domainOf(q)] || '')}</span><p class="small">"${esc(c.arrive)}"</p></div></div>
+      const b = U.panel(`<div class="dr-client">${portrait(it.client, 56)}<div><b>${esc(c.name)}</b> <span class="small muted">· ${esc(c.bld)} · ${esc(dom(E().domainOf(q) || 1))}${it.retry ? ' · retry on its twin' : ''}</span><p class="small">"${esc(it.retry ? SEYMOUR.retry : c.arrive)}"</p></div></div>
         <div class="q-ctx">The requirements scroll · ${n === 1 ? 'one card' : `choose ${n}`}</div>
-        <div class="dr-clues">${sc.clues.map((cu, j) => cu.pin || r.seen.includes(j)
-          ? (cu.ev ? `<pre class="q-ev">${esc(cu.t)}</pre>` : `<p class="dr-clue open small">${esc(cu.t)}</p>`)
-          : `<button class="dr-clue" data-clue="${j}">🔎 ${esc(cu.label)} · tap to read</button>`).join('')}</div>
-        <p class="q-q dr-q">${esc(sc.ask)}${sc.pick ? ` <span class="dr-pick">${esc(sc.pick)}</span>` : ''}</p>
+        ${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}
+        <p class="q-q dr-q">${esc(stem.text)}${stem.pick ? ` <span class="dr-pick">${esc(stem.pick)}</span>` : ''}</p>
         <div class="q-ctx">Blueprint</div><div class="dr-slots">${slotH}</div>
-        <div class="q-ctx">Service cards${flipping ? ' · tap one to flip it' : ''}</div><div class="opts dr-cards">${cardH}</div>
-        <div class="row dr-tools">${r.tokens > 0 && !flipping ? `<button class="ghost" id="dr-tok">🔍 Inspector's token (${r.tokens} left)</button>` : ''}${flipping ? '<button class="ghost" id="dr-tok-x">Keep the token</button>' : ''}</div>
-        ${capped ? '<p class="small dr-cap">🔍 Inspected: this blueprint pays at most Think so.</p>' : ''}
-        <div class="conf"><span class="muted small">${full ? 'Seal the blueprint. How sure are you? Each slot is judged on its own.' : `Fill ${plural(n - r.slots.length, 'more slot')} to seal.`}</span><div class="conf-b">
-          ${CONF.map((t, i) => `<button data-c="${i}" ${full && !(capped && i === 2) ? '' : 'disabled'}>${t}<small class="stake"><span class="up">${sgn(st[i][0])}</span> / <span class="dn">${sgn(st[i][1])}</span> a slot</small></button>`).join('')}</div></div>
-        <div class="row"><button class="ghost" id="dr-back">Back to the board</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'ARCHITECT\'S DRAFT · CONTRACT', cls: 'dr-win', noClose: true });
-      b.querySelectorAll('[data-clue]').forEach(el => el.onclick = () => { const j = +el.dataset.clue; if (!r.seen.includes(j)) r.seen.push(j); persist(); render(); });
-      b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { r.slots.splice(+el.dataset.s, 1); persist(); render(); });
+        <div class="q-ctx">Option cards</div><div class="opts dr-cards">${cardH}</div>
+        <div class="conf"><span class="muted small">${full ? 'Seal the blueprint. How sure are you? Each slot is judged on its own.' : `Fill ${plural(n - it.pick.length, 'more slot')} to seal.`}</span><div class="conf-b">
+          ${CONF.map((t, i) => `<button data-c="${i}" ${full ? '' : 'disabled'}>${t}<small class="stake"><span class="up">${sgn(st[i][0])}</span> / <span class="dn">${sgn(st[i][1])}</span> a slot</small></button>`).join('')}</div></div>
+        <div class="row">${it.retry ? '' : '<button class="ghost" id="dr-back">Back to the board</button>'}<button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: it.retry ? 'ARCHITECT\'S DRAFT · RETRY' : 'ARCHITECT\'S DRAFT · CONTRACT', cls: 'dr-win', noClose: true });
+      b.querySelectorAll('[data-s]').forEach(el => el.onclick = () => { it.pick.splice(+el.dataset.s, 1); persist(); render(); });
       b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => {
-        const i = +el.dataset.i;
-        if (flipping) {
-          if (!r.flips.includes(i)) { r.flips.push(i); r.tokens--; r.tok = 1; }
-          flipping = false; persist(); U.system('INSPECTOR', WREN.token, 'gold'); return render();
-        }
-        const at = r.slots.indexOf(i);
-        if (at >= 0) r.slots.splice(at, 1);
-        else if (r.slots.length < n) r.slots.push(i);
-        else r.slots[n - 1] = i;   // all slots full: the new card swaps into the last slot
+        const i = +el.dataset.i, at = it.pick.indexOf(i);
+        if (at >= 0) it.pick.splice(at, 1);
+        else if (it.pick.length < n) it.pick.push(i);
+        else it.pick[n - 1] = i;   // all slots full: the new card swaps into the last slot
         persist(); render();
       });
-      const tok = b.querySelector('#dr-tok'); if (tok) tok.onclick = () => { flipping = true; render(); };
-      const tx = b.querySelector('#dr-tok-x'); if (tx) tx.onclick = () => { flipping = false; render(); };
       b.querySelectorAll('[data-c]').forEach(el => el.onclick = () => seal(+el.dataset.c));
-      // Leaving the contract keeps it on the board (and its cards in their slots): nothing can be dodged.
-      b.querySelector('#dr-back').onclick = () => { r.open = null; persist(); board(); };
+      // Leaving the contract keeps it on the board, cards and all: nothing can be dodged.
+      const bk = b.querySelector('#dr-back'); if (bk) bk.onclick = () => { r.open = null; persist(); board(); };
       b.querySelector('#dr-stop').onclick = stop;
     }
     function seal(conf) {
-      if (r.tok && conf > 1) conf = 1;
-      const per = r.slots.map(i => ({ i, ok: DR.cardOk(q, i) }));
-      const allOk = per.every(x => x.ok) && per.length === n;
+      const per = it.pick.map(i => ({ i, ok: DR.cardOk(q, i) }));
+      const allOk = per.length === n && per.every(x => x.ok);
+      const run = DR.run();
       let delta = 0;
-      per.forEach(x => { const s = stake(x.ok, conf); x.d = s; delta += s; M().note(r.tally, x.ok, conf); });
+      per.forEach(x => { x.d = stake(x.ok, conf); delta += x.d; if (run) M().note(run.tally, x.ok, conf); });
       const wrong = per.filter(x => !x.ok).length;
-      // Evidence from play (stealth assessment, design doc): how many clues were open when you sealed, and how it went.
-      const closed = sc.clues.filter(cu => !cu.pin).length;
-      const log = sv().clueLog = Array.isArray(sv().clueLog) ? sv().clueLog : [];
-      log.push({ q: q.id, t: Date.now(), clues: closed, read: r.seen.length, ok: allOk ? 1 : 0, conf, tok: r.tok ? 1 : 0 });
-      if (log.length > 300) log.splice(0, log.length - 300);
+      const ms = Date.now() - t0;
       // The question as a whole is right only when every slot is, as on the exam.
       const cid = conceptOf(q);
-      if (cid) S.recordAnswer(cid, allOk, conf, Date.now() - t0, q.id);
-      // Every miss goes up (not only Sure ones): a blueprint with a wrong slot stands under scaffolding until its poster
-    // comes down. wallSettle counts a right answer toward its poster, and puts up a Sure miss.
-    if (SD.today.wallSettle) SD.today.wallSettle(q.id, allOk, conf, null, false);
-    if (!allOk && conf < 2) M().sureMiss(q.id);
-      // The building: one per question, floors never below zero, scaffolding while its poster is up.
-      const town = sv().town, d = E().domainOf(q) || 1;
-      const prev = town[q.id];
+      if (cid) S.recordAnswer(cid, allOk, conf, ms, q.id);
+      const poster = it.retry ? it.retry.poster : null;
+      // Every miss goes up, not only Sure ones: a building with a wrong slot stays under scaffolding until its poster
+      // comes down. A retry counts toward the building's own poster and never puts up another.
+      if (SD.today.wallSettle) SD.today.wallSettle(q.id, allOk, conf, poster, !!poster);
+      if (!allOk && conf < 2 && !poster) M().sureMiss(q.id);
+      const town = sv().town, key = poster || q.id, prev = town[key], d = prev ? prev.d : (E().domainOf(q) || 1);
       const floors = Math.max(0, (prev ? prev.floors : 0) + delta);
       const cracks = (prev ? prev.cracks | 0 : 0) + (conf === 2 ? wrong : 0);
-      const lmBefore = DR.district(d).landmark;
-      town[q.id] = { q: q.id, d, client: it.client, floors, cracks, scaf: !allOk || (prev && prev.scaf && DR.posterUp(q.id)) || false, t: prev ? prev.t : Date.now(), last: Date.now(), idea: DR.ideaOf(q) };
-      if (allOk && prev && prev.scaf && !DR.posterUp(q.id)) town[q.id].fin = 1;
-      r.floors += delta; if (!allOk) r.misses++; if (!allOk && conf === 2) r.sure++;
-      it.done = 1; it.ok = allOk ? 1 : 0; it.conf = conf; it.d = delta; it.slots = r.slots.slice(); it.wrong = wrong; it.read = r.seen.length; it.clues = closed;
-      r.open = null; r.slots = []; r.flips = []; r.tok = 0; r.seen = [];
+      const scaf = poster ? DR.posterUp(poster) : (!allOk || (prev && prev.scaf && DR.posterUp(q.id)) || false);
+      town[key] = Object.assign({}, prev || {}, { q: key, d, client: prev ? prev.client : it.client, floors, cracks, scaf, t: prev ? prev.t : Date.now(), last: Date.now(), idea: prev && prev.idea ? prev.idea : DR.ideaOf(q), plot: prev ? prev.plot : null });
+      if (!scaf && prev && prev.scaf) town[key].fin = 1;
+      if (run) { run.floors += delta; run.qMs = (run.qMs | 0) + ms; if (!allOk) run.misses++; if (!allOk && conf === 2) run.sure++; }
+      Object.assign(it, { done: 1, ok: allOk ? 1 : 0, conf, d: delta, slots: it.pick.slice(), wrong, ms });
+      if (run && !poster) run.open = null;
       persist();
-      const lm = !lmBefore && DR.district(d).landmark;
-      inspect(q, it, per, conf, delta, town[q.id], lm);
+      inspect(q, it, per, conf, delta, town[key], () => done(it, town[key]));
     }
     render();
   }
+  // After a session contract: a new building goes to placement; a rebuilt one is already on its plot.
+  function sessionDone(it, bld) {
+    const r = DR.run();
+    if (bld.plot == null) { sv().placing = { q: bld.q, sel: null, acts: 0, ms: 0 }; persist(); return place(bld.q); }
+    if (r) r.since = `Since your last move: ${bldName(bld.client)} on ${R.name(bld.plot)} ${bld.scaf ? 'is under scaffolding' : 'stands'}, ${plural(bld.floors, 'floor')}.`;
+    persist(); board();
+  }
+  // A retry on a scaffolded building's twin, paid for in materials. It stays open (and saved) until it's sealed.
+  DR.retry = function (qid, back) {
+    const b = sv().town[qid];
+    if (!DR.canRetry(qid)) return false;
+    const t = DR.twinFor(qid);
+    sv().mat -= RETRY_COST;
+    sv().retry = { q: t.id, client: b.client, pick: [], retry: { poster: qid }, back: back === board ? 'board' : 'quarter' };
+    persist();
+    contract(sv().retry, retryDone);
+    return true;
+  };
+  function retryDone(it, bld) {
+    const r = DR.run();
+    sv().retry = null;
+    const line = !bld.scaf ? `Since your last move: the twin held and the poster came down, so ${bldName(bld.client)} stands.` : it.ok ? `Since your last move: the twin held. ${SEYMOUR.half}` : `Since your last move: the twin didn't hold. ${bldName(bld.client)} keeps its scaffolding.`;
+    if (r) r.since = line;
+    persist();
+    retryBack(it, line);
+  }
+  function retryBack(it, line) { if (it.back === 'board' && DR.run()) return board(); DR.quarter(DR.run() ? board : null, line); }
 
-  // Inspection: the verdict per slot, the client's word, then every card left on the table with its "why not" line.
-  function inspect(q, it, per, conf, delta, bld, lm) {
+  // Inspection: the verdict per slot, the client's and Seymour's word, the explanation, every card's "why not" line
+  // and the question's sources (era notes included).
+  function inspect(q, it, per, conf, delta, bld, next) {
     const c = cl(it.client), cards = DR.cards(q), allOk = !!it.ok;
     const line = allOk ? c.right : conf === 2 ? c.sure : c.wrong;
     const slotRows = per.map((x, s) => `<li class="${x.ok ? 'ok' : 'bad'}">${x.ok ? '✓ Right' : '✗ Wrong'} · slot ${s + 1}: <b>${esc(cards[x.i])}</b> · ${sgn(x.d)} ${Math.abs(x.d) === 1 ? 'floor' : 'floors'}${!x.ok && conf === 2 ? ', a crack' : ''}</li>`).join('');
@@ -360,28 +434,27 @@
     const missed = right.filter(i => !it.slots.includes(i));
     const left = cards.map((t, i) => i).filter(i => !it.slots.includes(i) && !DR.cardOk(q, i));
     const notLi = i => `<li><b>${esc(cards[i])}</b><br>Not here, because ${esc(lower(DR.cardNo(q, i) || 'it doesn\'t meet the scroll.'))}</li>`;
-    let h = `<div class="verdict-row"><div class="verdict ${allOk ? 'ok' : 'bad'}">${allOk ? '🏛 IT STANDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
+    const sey = it.retry ? (allOk ? (bld.scaf ? SEYMOUR.half : SEYMOUR.clean) : SEYMOUR.scaf) : allOk ? SEYMOUR.clean : SEYMOUR.scaf;
+    let h = `<div class="verdict-row"><div class="verdict ${allOk ? 'ok' : 'bad'}">${allOk ? '🏛 IT HOLDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
       <div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
-      <p class="small"><b>${esc(bldName(it.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
+      <p class="small"><b>${esc(bldName(bld.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
       <p class="small"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
-      <p class="small muted">${esc(allOk ? WREN.clean : WREN.scaf)}</p></div></div>
+      <div class="dr-who">${portrait('seymour', 36)}<p class="small"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
       <ul class="dr-slotres small">${slotRows}</ul>`;
     if (!allOk) h += `<div class="q-ctx">The scroll needed</div><ul class="small dr-need">${right.map(i => `<li>${esc(cards[i])}</li>`).join('')}</ul>
-      <p class="small dr-wallnote">📌 It's on the Wall now. Bring that poster down (capture it in Monster Hunt, or in a Wall drill) and the scaffolding comes off.</p>`;
-    if (it.clues) h += `<details class="dr-full"><summary class="small">The whole scroll (you opened ${it.read} of ${plural(it.clues, 'clue')})</summary><p class="small">${esc(q.q)}</p>${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}</details>`;
-    if (lm) h += `<p class="small dr-lm">🏛 <b>${esc(SD.draftArt.LANDMARKS[bld.d])}</b> goes up on ${esc(DR.STREETS[bld.d])}. ${esc(WREN.landmark)}</p>`;
+      <p class="small dr-wallnote">📌 ${bld.scaf ? 'Its question is on the Wall. Bring that poster down (capture it in Monster Hunt, or in a Wall drill) and the scaffolding comes off.' : 'Its poster is already down, so the building still stands.'}${!it.retry && DR.level() >= 2 ? ` Once it's placed, ${RETRY_COST} materials buy a retry on its twin.` : ''}</p>`;
     h += `<div class="why"><p>${esc(q.why || '')}</p></div>`;
     h += '<div class="nots">';
     if (mine.length) h += `<div class="mypick"><div class="q-ctx">Why your card doesn't fit</div>${mine.map(i => `<p><b>${esc(cards[i])}</b><br>${esc(DR.cardNo(q, i) || 'It doesn\'t meet the scroll.')}</p>`).join('')}</div>`;
     if (missed.length) h += `<div class="q-ctx">The card${missed.length > 1 ? 's' : ''} you left out</div><ul>${missed.map(i => `<li><b>${esc(cards[i])}</b></li>`).join('')}</ul>`;
     if (left.length) h += `<div class="q-ctx">Inspection: the cards left on the table</div><ul>${left.map(notLi).join('')}</ul>`;
-    h += '</div>' + sourceBlock(q) + `<button class="primary" id="dr-next">Continue</button>`;
+    h += '</div>' + sourceBlock(q) + `<button class="primary" id="dr-next">${!it.retry && bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
     const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
-    b.querySelector('#dr-next').onclick = () => board();
+    b.querySelector('#dr-next').onclick = next;
   }
   const lower = s => String(s).replace(/^[A-Z](?=[a-z ])/, ch => ch.toLowerCase());
-  // The question's AWS docs and its verified record (as js/quiz.js shows them for topic drills).
+  // The question's AWS docs, its verified record and its era note (as js/quiz.js shows them for topic drills).
   function sourceBlock(q) {
     const D = SD.topicDrill; if (!D) return '';
     const rec = D.record(q), urls = D.docs(q);
@@ -396,98 +469,242 @@
     return h + '</div>';
   }
 
-  // The results screen: right and wrong, floors, sure misses added to the Wall, topics, calibration, and Pip's question.
+  // ---- Placement: the Quarter's map, on its own screen, never beside a question ----
+  // Each tap on a plot is a map action and shows what that plot would earn; the build is the last one. At most
+  // MAP_ACTIONS a building: after three looks, only the chosen plot can be built on. Saved after every action.
+  function place(qid) {
+    const d = sv(), P = d.placing, bld = d.town[qid], r = DR.run();
+    if (!P || !bld) { d.placing = null; persist(); return board(); }
+    const g = grid(), free = DR.freePlots(), lv = DR.level(), F = DR.foreman();
+    const t0 = Date.now();
+    if (!free.length) {
+      // No land left: the building waits on the books (buying land comes after the exam).
+      d.placing = null; if (r) r.since = `Since your last move: ${bldName(bld.client)} is on the books. Every plot is built on.`; persist();
+      return board();
+    }
+    const gain = p => R.gains(domGrid(g), p, bld.d, lv, !bld.scaf);
+    const gainTxt = p => {
+      const x = gain(p), out = [];
+      if (lv >= 2) out.push(`+${x.mat} 🧱`);
+      if (lv >= 3) out.push(`+${x.rep} ⭐`);
+      return out.join(' ');
+    };
+    const desc = p => {
+      const nb = R.around(p).map(o => g[o]).filter(Boolean);
+      const same = nb.filter(b => b.d === bld.d).length;
+      return `${R.name(p)}${R.riverside(p) ? ' · by the river' : ''} · ${nb.length ? `next to ${plural(nb.length, 'building')}, ${same} of them ${dom(bld.d)}` : 'no neighbours yet'}${lv >= 2 ? ' · ' + gainTxt(p) : ''}`;
+    };
+    function render() {
+      const list = !!P.list, sel = P.sel, locked = P.acts >= MAP_ACTIONS - 1;
+      const pv = sel != null ? `<p class="small dr-preview" aria-live="polite"><b>Chosen:</b> ${esc(desc(sel))}</p>` : '<p class="small muted dr-preview">Tap a ghost building under a delete marker to see what that plot earns.</p>';
+      let body;
+      if (list) {
+        body = `<ul class="dr-plist">${free.map(p => `<li><button class="dr-prow${p === sel ? ' on' : ''}" data-p="${p}" ${locked && p !== sel ? 'disabled' : ''} aria-pressed="${p === sel}">${esc(desc(p))}</button></li>`).join('')}</ul>
+          <p class="small muted">${plural(R.N - free.length, 'plot')} already built on.</p>`;
+      } else body = mapHtml(g, { sel, locked, bld });
+      const b = U.panel(`<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small"><b>${esc(F.name)}:</b> "${esc(lv >= 3 ? F.river : F.place)}"</p></div>
+        <div class="dr-head"><span class="chip">Placing: ${esc(bldName(bld.client))} · ${esc(dom(bld.d))}${bld.scaf ? ' · 🚧' : ''}</span><span class="chip">Map actions: ${P.acts} of ${MAP_ACTIONS}</span>${resChips()}</div>
+        <div class="row dr-view"><button class="ghost${list ? '' : ' on'}" id="dr-vmap" aria-pressed="${!list}">Map</button><button class="ghost${list ? ' on' : ''}" id="dr-vlist" aria-pressed="${list}">Map as list</button></div>
+        ${body}${pv}
+        ${locked && sel != null ? `<p class="small muted">Seymour is tapping his clipboard. Build on ${esc(R.name(sel))}.</p>` : ''}
+        <div class="row"><button class="primary" id="dr-build" ${sel == null ? 'disabled' : ''}>Build here</button><button class="ghost" id="dr-stop">Stop for now</button></div>`, { title: 'PINGSBY\'S QUARTER · PLACE IT', cls: 'dr-win', noClose: true });
+      b.querySelectorAll('[data-p]').forEach(el => el.onclick = () => {
+        const p = +el.dataset.p;
+        if (p === sel || P.acts >= MAP_ACTIONS - 1 || g[p]) return;
+        P.sel = p; P.acts++; tick(); persist(); render();
+      });
+      b.querySelector('#dr-vmap').onclick = () => { P.list = 0; persist(); render(); };
+      b.querySelector('#dr-vlist').onclick = () => { P.list = 1; persist(); render(); };
+      b.querySelector('#dr-build').onclick = build;
+      b.querySelector('#dr-stop').onclick = () => { tick(); persist(); stop(); };
+      drawMap(b, g, bld);
+    }
+    let last = t0;
+    function tick() { const now = Date.now(); P.ms = (P.ms | 0) + (now - last); last = now; }
+    function build() {
+      const p = P.sel; if (p == null || g[p]) return;
+      P.acts++; tick();
+      const x = gain(p);
+      bld.plot = p;
+      d.mat += x.mat; d.rep += x.rep;
+      const log = d.mapLog = Array.isArray(d.mapLog) ? d.mapLog : [];
+      log.push({ q: qid, t: Date.now(), plot: p, acts: P.acts, ms: P.ms, mat: x.mat, rep: x.rep });
+      if (log.length > 300) log.splice(0, log.length - 300);
+      if (r) {
+        r.mapMs = (r.mapMs | 0) + P.ms; r.mat += x.mat; r.rep += x.rep;
+        const got = [x.mat ? `+${x.mat} 🧱` : '', x.rep ? `+${x.rep} ⭐` : ''].filter(Boolean).join(', ');
+        r.since = `Since your last move: ${bldName(bld.client)} went up on ${R.name(p)}${R.riverside(p) ? ' by the river' : ''}${bld.scaf ? ', under scaffolding' : ''}${got ? ', ' + got : ''}.`;
+      }
+      d.placing = null;
+      persist();
+      if (bld.scaf && DR.canRetry(qid)) return offerRetry(qid);
+      board();
+    }
+    render();
+  }
+  // Right after placing a scaffolded building with materials to spare: retry its twin now, or keep the materials.
+  function offerRetry(qid) {
+    const bl = sv().town[qid];
+    const b = U.panel(`<div class="dr-who">${portrait('seymour', 44)}<p class="small"><b>Seymour:</b> "${esc(SEYMOUR.retry)}"</p></div>
+      <p class="small">${esc(bldName(bl.client))} is under scaffolding. ${RETRY_COST} of your ${sv().mat} materials buy a retry on its twin now: a different scenario on the same rule. Right, and it counts toward the poster.</p>
+      <div class="row"><button class="primary" id="dr-rt">Retry the twin (🧱 ${RETRY_COST})</button><button class="ghost" id="dr-keep">Keep the materials</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win', noClose: true });
+    b.querySelector('#dr-rt').onclick = () => DR.retry(qid, board);
+    b.querySelector('#dr-keep').onclick = board;
+  }
+
+  // The map: five columns, six rows, the river between rows three and four. Built plots show their building, their
+  // domain's shape and number, and a word for scaffolding; empty ones are ghost buildings under delete markers.
+  function mapHtml(g, o) {
+    o = o || {};
+    let h = '<div class="dr-map" role="grid" aria-label="Pingsby\'s Quarter">';
+    for (let y = 0; y < ROWS; y++) {
+      if (y === RIVER[0] + 1) h += '<div class="dr-river" aria-hidden="true">〰 the river 〰</div>';
+      h += '<div class="dr-mrow" role="row">';
+      for (let x = 0; x < COLS; x++) {
+        const p = y * COLS + x, b = g[p], name = R.name(p), riv = R.riverside(p);
+        if (b) h += `<button class="dr-plot built${b.scaf ? ' scaf' : ''}" role="gridcell" data-bq="${esc(b.q)}" ${o.interactive ? '' : 'tabindex="-1"'} aria-label="${esc(name)}: ${esc(bldName(b.client))}, ${b.scaf ? 'under scaffolding' : 'standing'}, domain ${b.d}"><canvas class="dr-pcv" data-q="${esc(b.q)}" aria-hidden="true"></canvas><span class="dr-ptag">${esc(DR.SHAPE[b.d])}${b.d}${b.scaf ? ' 🚧' : ''}</span></button>`;
+        else h += `<button class="dr-plot ghost${o.sel === p ? ' on' : ''}${riv ? ' riv' : ''}" role="gridcell" data-p="${p}" ${o.locked && o.sel !== p ? 'disabled' : ''} ${o.view ? 'tabindex="-1"' : ''} aria-label="${esc(name)}${riv ? ', by the river' : ''}: empty, a ghost under a delete marker" aria-pressed="${o.sel === p}"><canvas class="dr-pcv" data-ghost="1" aria-hidden="true"></canvas><span class="dr-ptag">${esc(name)}${o.sel === p ? ' ✓' : ''}</span></button>`;
+      }
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+  function drawMap(b, g) {
+    if (!SD.draftArt) return;
+    b.querySelectorAll('.dr-pcv').forEach(cv => {
+      if (cv.dataset.ghost) return SD.draftArt.ghost(cv);
+      const bl = sv().town[cv.dataset.q]; if (!bl) return;
+      SD.draftArt.building(cv, { client: cl(bl.client), floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    });
+  }
+
+  // The results screen: right and wrong, floors, what the Quarter earned, sure misses added to the Wall,
+  // calibration, the ideas touched, and Pip's question.
   function results() {
-    const r = DR.run();
+    const r = DR.run(), lv = DR.level();
     const n = r.items.length, ok = r.items.filter(i => i.ok).length;
     const topics = [...new Set(r.items.map(i => find(i.q)).filter(Boolean).map(DR.ideaOf))];
     const paid = M().pay('draft');
-    const b = U.panel(`<p class="small muted">${esc(WREN.end)}</p>
-      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span><span class="chip">📌 Sure misses to the Wall: ${r.sure}</span><span class="chip">🔎 Clues read: ${r.items.reduce((a, i) => a + (i.read | 0), 0)} of ${r.items.reduce((a, i) => a + (i.clues | 0), 0)}</span></div>
+    const b = U.panel(`<p class="small muted">${esc(DR.foreman().end)}</p>
+      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span>${lv >= 2 ? `<span class="chip">🧱 Materials earned: ${r.mat}</span>` : ''}${lv >= 3 ? `<span class="chip">⭐ Reputation earned: ${r.rep}</span>` : ''}<span class="chip">📌 Sure misses to the Wall: ${r.sure}</span></div>
       ${paid ? `<p class="small">${esc(paid)}</p>` : ''}
       ${M().calibHtml(r.tally, 'How sure you were, slot by slot')}
       <div class="q-ctx">Ideas touched</div><ul class="small">${topics.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
       ${M().pipHtml()}
-      <div class="row"><button class="primary" id="dr-q">🏘 See the Quarter</button><button class="ghost" id="dr-done">Done</button></div>`, { title: 'ARCHITECT\'S DRAFT · RESULTS', cls: 'dr-win' });
+      <div class="row"><button class="primary" id="dr-q">🏘 See Pingsby's Quarter</button><button class="ghost" id="dr-done">Done</button></div>`, { title: 'ARCHITECT\'S DRAFT · RESULTS', cls: 'dr-win' });
     M().pipWire(b, 'Architect\'s Draft');
     const end = () => {
       const d = sv();
-      d.last = { t: Date.now(), n, ok, floors: r.floors };
+      d.last = { t: Date.now(), n, ok, floors: r.floors, qMs: r.qMs | 0, mapMs: r.mapMs | 0 };
       d.run = null; persist();
     };
     b.querySelector('#dr-q').onclick = () => { end(); DR.quarter(); };
     b.querySelector('#dr-done').onclick = () => { end(); U.closePanel(); if (SD.today && SD.today.render) SD.today.render(); };
   }
 
-  // ---- The Architects' Quarter ----
-  DR.quarter = function (back) {
-    const town = Object.values(refresh());
-    const st = town.filter(b => !b.scaf).length;
-    let h = `<p class="small muted">The camp's new quarter. Each building is a blueprint you sealed; each street is an exam domain. ${LANDMARK_AT} standing buildings on a street raise its landmark.</p>
-      <div class="dr-head"><span class="chip">🏛 Standing: ${st}</span><span class="chip">🚧 Scaffolding: ${town.length - st}</span><span class="chip">Landmarks: ${DR.landmarks().length} of 4</span></div>`;
-    [1, 2, 3, 4].forEach(d => {
-      const D = DR.district(d);
-      h += `<section class="dr-street"><div class="q-ctx">${esc(DR.STREETS[d])} · ${esc(E().DOMAINS[d] || 'Domain ' + d)}</div>
-        <p class="small muted">${D.landmark ? `🏛 ${esc(SD.draftArt.LANDMARKS[d])} stands here.` : `${D.standing} of ${LANDMARK_AT} standing for ${esc(SD.draftArt.LANDMARKS[d])}.`}${D.list.length ? '' : ' An empty street: nothing built here yet.'}</p><div class="dr-lots">`;
-      if (D.landmark) h += `<div class="dr-lot lm"><canvas class="dr-cv" data-lm="${d}" width="96" height="96" aria-hidden="true"></canvas><span class="small"><b>${esc(SD.draftArt.LANDMARKS[d])}</b><br>Landmark</span></div>`;
-      D.list.forEach(b => {
-        h += `<button class="dr-lot" data-q="${esc(b.q)}"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><span class="small"><b>${esc(bldName(b.client))}</b><br>${plural(b.floors, 'floor')} · ${b.scaf ? '🚧 Scaffolding' : '🏛 Standing'}</span></button>`;
-      });
-      for (let i = D.list.length; i < Math.min(LANDMARK_AT, D.list.length + 3) || i < 2; i++) h += `<div class="dr-lot empty"><canvas class="dr-cv" data-empty="1" width="96" height="96" aria-hidden="true"></canvas><span class="small muted">Empty lot</span></div>`;
-      h += '</div></section>';
-    });
-    h += `<div class="row">${typeof back === 'function' ? '<button class="ghost" id="dr-qb">Back to the board</button>' : ''}${DR.run() ? '' : '<button class="primary" id="dr-new">Take on contracts</button>'}</div>`;
-    const b = U.panel(h, { title: 'THE ARCHITECTS\' QUARTER', cls: 'dr-win' });
-    b.querySelectorAll('.dr-cv').forEach(cv => {
-      if (cv.dataset.lm) return SD.draftArt.landmark(cv, +cv.dataset.lm);
-      if (cv.dataset.empty) return SD.draftArt.lot(cv);
-      const q = cv.closest('[data-q]').dataset.q, bl = sv().town[q];
-      SD.draftArt.building(cv, { client: cl(bl.client), floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
-    });
-    b.querySelectorAll('[data-q]').forEach(el => el.onclick = () => plaque(el.dataset.q, back));
+  // ---- Pingsby's Quarter: the map or its list, every building's plaque ----
+  DR.quarter = function (back, note) {
+    refresh();
+    const d = sv(), g = grid(), town = Object.values(d.town), st = town.filter(b => !b.scaf).length, list = !!d.qList;
+    const placed = Object.keys(g).map(Number).sort((a, b) => a - b);
+    const books = town.filter(b => b.plot == null);
+    const listH = `<ul class="dr-plist">${placed.map(p => { const b = g[p]; return `<li><button class="dr-prow" data-bq="${esc(b.q)}">${esc(R.name(p))}${R.riverside(p) ? ' · by the river' : ''} · ${esc(bldName(b.client))} · ${esc(dom(b.d))} · ${plural(b.floors, 'floor')} · ${b.scaf ? '🚧 Scaffolding' : '🏛 Standing'}</button></li>`; }).join('')}
+      ${books.map(b => `<li><button class="dr-prow" data-bq="${esc(b.q)}">On the books · ${esc(bldName(b.client))} · ${esc(dom(b.d))} · ${b.scaf ? '🚧 Scaffolding' : '🏛 Standing'}</button></li>`).join('')}</ul>
+      <p class="small muted">${plural(R.N - placed.length, 'empty plot')} under delete markers.</p>`;
+    let h = `${note ? `<p class="small dr-since">${esc(note)}</p>` : ''}<p class="small muted">Pingsby's Quarter, at the scrap field's north end. Every ghost under a delete marker is a plot; every building is a blueprint you sealed, marked with its exam domain.</p>
+      <div class="dr-head"><span class="chip">🏛 Standing: ${st}</span><span class="chip">🚧 Scaffolding: ${town.length - st}</span>${resChips()}</div>
+      <div class="row dr-view"><button class="ghost${list ? '' : ' on'}" id="dr-vmap" aria-pressed="${!list}">Map</button><button class="ghost${list ? ' on' : ''}" id="dr-vlist" aria-pressed="${list}">Map as list</button></div>
+      ${list ? listH : mapHtml(g, { view: true, interactive: true })}
+      <p class="small muted">Tap a building for its plaque.</p>
+      <div class="row">${typeof back === 'function' ? '<button class="ghost" id="dr-qb">Back to the board</button>' : ''}${DR.run() ? '' : '<button class="primary" id="dr-new">Take on clients</button>'}</div>`;
+    const b = U.panel(h, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
+    drawMap(b, g);
+    b.querySelectorAll('[data-p]').forEach(el => { el.disabled = true; });
+    b.querySelectorAll('[data-bq]').forEach(el => el.onclick = () => plaque(el.dataset.bq, back));
+    b.querySelector('#dr-vmap').onclick = () => { d.qList = 0; persist(); DR.quarter(back); };
+    b.querySelector('#dr-vlist').onclick = () => { d.qList = 1; persist(); DR.quarter(back); };
     const qb = b.querySelector('#dr-qb'); if (qb) qb.onclick = back;
     const nw = b.querySelector('#dr-new'); if (nw) nw.onclick = () => DR.open(null);
   };
   function plaque(qid, back) {
     const bl = sv().town[qid], q = find(qid);
     if (!bl || !q) return DR.quarter(back);
-    const c = cl(bl.client);
+    const c = cl(bl.client), can = DR.canRetry(qid);
+    const retryLine = bl.scaf && DR.level() >= 2 ? (can ? `<button class="primary" id="dr-rt">Retry its twin (🧱 ${RETRY_COST})</button>` : `<p class="small muted">${sv().mat < RETRY_COST ? `A retry on its twin takes ${RETRY_COST} materials; you have ${sv().mat}.` : 'This one has no twin to retry yet.'}</p>`) : '';
     const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
-      <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${esc(DR.STREETS[bl.d])} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
+      <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${bl.plot != null ? esc(R.name(bl.plot)) + (R.riverside(bl.plot) ? ' · by the river' : '') : 'On the books'} · ${esc(dom(bl.d))} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its question is on the Wall: bring that poster down (Monster Hunt or a Wall drill) to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its poster came down.' : '🏛 Standing.'}</p></div></div>
-      <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(String(q.q).split(/(?<=[.?!])\s+/)[0])}</p></div>
-      <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'THE ARCHITECTS\' QUARTER', cls: 'dr-win' });
+      <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
+      ${retryLine}
+      <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
     SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
+    const rt = b.querySelector('#dr-rt'); if (rt) rt.onclick = () => DR.retry(qid, back);
   }
 
   // ---- First run: three screens on a real question ----
   function walkScreens() {
     const q = base().filter(isMulti).find(x => DR.slotsOf(x) === 2) || base()[0];
     const cards = q ? DR.cards(q) : [];
-    const s1 = q ? `<p class="small">${esc(WREN.intro)}</p><div class="q-ctx">A requirements scroll · choose ${DR.slotsOf(q)}</div><p class="small"><b>${esc(q.q)}</b></p>
-      <p class="small muted">It has one slot per answer it needs. The question's own options are your service cards:</p><ul class="small">${cards.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : `<p class="small">${esc(WREN.intro)}</p>`;
+    const F = DR.foreman();
+    const s1 = `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small"><b>${esc(F.name)}</b>, ${esc(F.title)}: "${esc(F.intro)}"</p></div>
+      ${q ? `<div class="q-ctx">A requirements scroll · choose ${DR.slotsOf(q)}</div><p class="small"><b>${esc(q.q)}</b></p>
+      <p class="small muted">You always see the whole scroll. It has one slot per answer it needs, and the question's own options are your option cards:</p><ul class="small">${cards.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
     return [
-      { title: 'A client brings a scroll', html: s1 },
-      { title: 'Draft, then seal', html: `<p class="small">Tap a card to put it in the next empty slot, and tap a slot to take its card back. Swap as much as you like. Then seal with how sure you are. Each slot is judged on its own:</p>
+      { title: 'Pingsby\'s Quarter', html: s1 },
+      { title: 'Draft, then seal', html: `<p class="small">Pick a client from the board. Tap a card to put it in the next empty slot, and tap a slot to take its card back. Then seal with how sure you are. Each slot is judged on its own:</p>
         <ul class="small"><li><b>Guess</b>: +1 floor if right, 0 if wrong.</li><li><b>Think so</b>: +2 if right, −1 if wrong.</li><li><b>Sure</b>: +3 if right, −3 and a crack if wrong.</li></ul>
-        <p class="small muted">Honest confidence wins: Guess when you're under about half sure, Sure only above about two in three. Twice a session an Inspector's token flips a card early, but that blueprint then pays at most Think so.</p>` },
-      { title: 'The Quarter', html: `<p class="small">A blueprint with every slot right stands as a building on its domain's street. One wrong slot and it stands under scaffolding, and its question goes on the Wall: bring that poster down in Monster Hunt or a Wall drill to finish it.</p>
-        <p class="small">After every seal, the cards left on the table flip to show why they don't fit. ${LANDMARK_AT} standing buildings on a street raise a landmark. A session is ${SESSION} contracts, about 15 minutes, and it saves after every one.</p>` }
+        <p class="small muted">Honest confidence wins: Guess when you're under about half sure, Sure only above about two in three. There are no hints before you seal. Seymour, the inspector, shows you why every card fits or doesn't afterwards.</p>` },
+      { title: 'Place it', html: `<p class="small">After the verdict, you place the building on one of the Quarter's plots: ghost buildings under Freya's delete markers. You get ${MAP_ACTIONS} map actions to look and build, and a Map as list view is always one tap away.</p>
+        <p class="small">A blueprint with every slot right stands. One wrong slot and it stands under scaffolding, and its question goes on the Wall: bring that poster down in Monster Hunt or a Wall drill to finish it.</p>
+        <p class="small muted">A session is ${SESSION} clients, about 15 minutes, and it saves after every move. New rules arrive one night at a time.</p>` }
     ];
   }
   const walkthrough = () => M().walkFirst('draft', walkScreens());
   DR.walk = () => M().walk('draft', walkScreens());
+
+  // ---- Simulation (tools/modes_sim.js) ----
+  // One session on this mode's rules, with every rule open (night 3), on a Quarter already a third built, without
+  // touching the save. Answers come from the shell's SD.modes.simAnswer, one draw a slot. policy.route: 'near' builds
+  // beside its own domain (materials), 'far' builds by the river (reputation). A miss is retried on a twin whenever two
+  // materials are in hand. Points are floors plus what the Quarter earned (materials and reputation).
+  DR.sim = async function (policy, rng) {
+    const P = M(), pool = base().filter(q => (E().domainOf(q) || 0) > 0);
+    const g = {};
+    for (let i = 0; i < R.N / 3; i++) { const p = Math.floor(rng() * R.N); if (g[p] == null) g[p] = 1 + Math.floor(rng() * 4); }
+    let floors = 0, mat = 0, rep = 0, qs = 0, acts = 0;
+    const ask = q => { qs++; let ok = true, d = 0; for (let k = 0; k < DR.slotsOf(q); k++) { const a = P.simAnswer(q, policy, rng); ok = ok && a.ok; d += a.pts; } return { ok, d }; };
+    for (let k = 0; k < SESSION; k++) {
+      const q = pool[Math.floor(rng() * pool.length)], dm = E().domainOf(q);
+      const v = ask(q); floors += v.d;
+      const free = Array.from({ length: R.N }, (_, p) => p).filter(p => g[p] == null);
+      if (!free.length) continue;
+      const gain = p => R.gains(g, p, dm, 3, v.ok);
+      const near = free.slice().sort((x, y) => gain(y).mat - gain(x).mat)[0];
+      const far = free.find(R.riverside);
+      const p = policy.route === 'far' && far != null ? far : near;
+      acts += 2;   // one look, one build
+      const x = gain(p); g[p] = dm; mat += x.mat; rep += x.rep;
+      if (!v.ok && mat >= RETRY_COST) {
+        mat -= RETRY_COST;
+        const twin = pool.filter(t => E().domainOf(t) === dm && t.id !== q.id);
+        floors += ask(twin[Math.floor(rng() * twin.length)] || q).d;
+      }
+    }
+    const secs = qs * P.SIM_Q_SECS + acts * P.SIM_MAP_SECS;
+    return { pts: floors + mat + rep, minutes: secs / 60, mapShare: acts * P.SIM_MAP_SECS / secs, questions: qs, zero: floors <= 0 };
+  };
 
   // ---- Register with the mode picker ----
   function register() {
     if (!M().register || DR.registered) return;
     DR.registered = true;
     M().register({
-      id: 'draft', name: 'Architect\'s Draft', minutes: 15, host: 'Elder Wren', icon: '🏛',
-      blurb: 'Clients bring requirement scrolls. Draft the right service cards into each slot, seal with how sure you are, and raise the Architects\' Quarter. Built for Select TWO and Select THREE.',
+      id: 'draft', name: 'Architect\'s Draft', minutes: 15, host: DR.foreman().name, icon: '🏛',
+      blurb: 'Clients in Pingsby\'s Quarter bring requirement scrolls. Draft the right option cards into each slot, seal with how sure you are, then place the building. Built for Select TWO and Select THREE.',
       start: opts => DR.open(opts && opts.preset),
-      status: DR.status
+      status: DR.status,
+      sim: DR.sim
     });
   }
   register();
@@ -498,37 +715,42 @@
 .dr-contract { display: flex; flex-direction: column; gap: 6px; }
 .dr-who, .dr-client, .dr-pip { display: flex; gap: 10px; align-items: flex-start; }
 .dr-who > :first-child, .dr-client > :first-child, .dr-pip > :first-child { flex: none; }
-.dr-client p { margin: 4px 0 0; }
-.dr-scroll { font-style: italic; overflow-wrap: anywhere; }
+.dr-client p, .dr-who p { margin: 4px 0 0; }
 .dr-q { font-size: 16px; }
+.dr-pick { font-weight: 700; white-space: nowrap; }
 .dr-win .win-b { overflow-wrap: anywhere; }
-.dr-clues { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
-.dr-clue { text-align: left; padding: 8px 10px; border: 2px dashed var(--ink); border-radius: 10px; background: #fff; font-weight: 700; }
-.dr-clue.open { border: 0; border-left: 4px solid #e0a030; border-radius: 0 8px 8px 0; background: #fffaf0; margin: 0; padding: 6px 10px; font-weight: 400; overflow-wrap: anywhere; }
-.dr-full { margin: 6px 0; }
+.dr-since { background: #eef6ff; border-left: 4px solid #3b8bff; border-radius: 0 8px 8px 0; padding: 6px 10px; }
 .dr-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .dr-slot { display: flex; flex-direction: column; gap: 2px; text-align: left; min-height: 64px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
 .dr-slot.empty { border-style: dashed; background: transparent; }
 .dr-slot .q-ctx { margin: 0; }
-.dr-card { overflow-wrap: anywhere; }
-.dr-card.flip { border-style: dashed; }
+.dr-cards { display: flex; flex-direction: column; }
+.dr-cards .dr-card { width: 100%; overflow-wrap: anywhere; }
 .dr-card .chip { margin-right: 4px; }
-.dr-back { display: block; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: #fff7d6; border: 1px dashed var(--ink); }
-.dr-cap { color: #7a5200; }
 .dr-result { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
 .dr-result p { margin: 0 0 4px; }
 .dr-cv { width: 96px; height: 96px; flex: none; display: block; }
 .dr-slotres { padding-left: 18px; margin: 4px 0 8px; }
 .dr-slotres li { margin: 3px 0; }
 .dr-slotres li.ok { color: #17834f; } .dr-slotres li.bad { color: #b23b3b; }
-.dr-wallnote, .dr-lm { background: #fff1c9; border-radius: 8px; padding: 6px 8px; }
-.dr-calib ul { margin: 4px 0; padding-left: 18px; }
+.dr-wallnote { background: #fff1c9; border-radius: 8px; padding: 6px 8px; }
 .dr-pip { margin: 10px 0; } .dr-pip label { flex: 1; min-width: 0; } .dr-pip input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; }
-.dr-street { margin: 12px 0; }
-.dr-lots { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
-.dr-lot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; text-align: center; min-width: 0; overflow-wrap: anywhere; }
-.dr-lot.empty { border-style: dashed; background: transparent; }
-.dr-lot.lm { background: #fff1c9; }
+.dr-view button.on { background: var(--ink); color: #fff; }
+.dr-map { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; padding: 6px; border-radius: 12px; background: #c9c0a6; }
+.dr-mrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.dr-river { text-align: center; font-size: 12px; font-weight: 700; color: #fff; background: #5bb2e6; border-radius: 6px; padding: 3px 0; letter-spacing: 1px; }
+.dr-plot { position: relative; display: flex; flex-direction: column; align-items: center; padding: 2px; min-width: 0; min-height: 64px; border: 2px solid var(--ink); border-radius: 8px; background: #f4ecd4; }
+.dr-plot.ghost { border-style: dashed; background: #e6e0d0; }
+.dr-plot.ghost.riv { box-shadow: inset 0 -4px 0 #5bb2e6; }
+.dr-plot.ghost.on { border: 3px solid #e0a030; background: #fff1c9; }
+.dr-plot:disabled { opacity: .55; }
+.dr-plot.built.scaf { background: #fbe3c0; }
+.dr-pcv { width: 100%; height: 44px; display: block; }
+.dr-ptag { font-size: 11px; font-weight: 700; line-height: 1.1; }
+.dr-preview { margin: 6px 0; }
+.dr-plist { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
+.dr-prow { width: 100%; text-align: left; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; font-size: 13px; overflow-wrap: anywhere; }
+.dr-prow.on { border-color: #e0a030; background: #fff1c9; }
 .dr-plaque { border: 2px solid var(--ink); border-radius: 10px; padding: 8px 10px; background: #f6ecd2; margin: 8px 0; }
 `;
   const st = document.createElement('style'); st.id = 'draft-css'; st.textContent = css; document.head.appendChild(st);

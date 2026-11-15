@@ -1,4 +1,4 @@
-// Architect's Draft (js/draft.js): the Architects' Quarter's buildings, drawn in code in chapter 1's overworld style
+// Architect's Draft (js/draft.js): Pingsby's Quarter's buildings, drawn in code in chapter 1's overworld style
 // (js/ch1-art.js), so no PixelLab generations are spent on them. One building per contract: its storeys stack as it
 // earns floors, its roof and sign are its client's, and a blueprint with a wrong slot stands under scaffolding until
 // its Wall poster comes down. Each district's landmark is a set piece of its own.
@@ -53,6 +53,21 @@
     ctx.setLineDash([]);
     g.line(14, -3, 14, -12).stroke('#9a7a50', 0.9); g.rect(9, -16, 10, 5, 0.6).fill('#f4ecd4', 0.6);
     g.text('LOT', 14, -12.4, 3.2, '#7a6a50');
+  };
+
+  // An empty plot in Pingsby's Quarter: a ghost of the old house, faint, with Freya's delete marker hung on it.
+  A.ghost = function (cv) {
+    const { ctx, H } = setup(cv), g = G(ctx);
+    ground(g);
+    const top = -Math.min(H - 6, 24);
+    ctx.globalAlpha = 0.35;
+    g.rect(16, top + 8, 32, -top - 8).fill('#d8d4e4', 0.7);
+    g.poly(12, top + 9, 32, top - 2, 52, top + 9).fill('#a8a0bc', 0.7);
+    g.rect(28, -8, 8, 8, 0.6).fill('#a8a0bc', 0.6);
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([2, 2]); g.rect(16, top + 8, 32, -top - 8).stroke('rgba(43,35,64,.5)', 0.7); ctx.setLineDash([]);
+    g.rect(14, top + 12, 36, 8, 1).fill('#c0503a', 0.6);
+    g.text('DELETE', 32, top + 18, 5.6, '#fff');
   };
 
   // A building: base, storeys, roof, the client's sign. o: { client: { roof, wall, sign, trim }, floors, scaf, cracks }
