@@ -124,16 +124,24 @@
   const mine = w => { const q = find(w.id); return !!q && !E().offTrack(q) && E().allowed(q); };
   const topicOf = q => String((q && q.topic) || 'idea');
   H.name = q => (TD() && TD().posterName ? TD().posterName(q) : topicOf(q).toUpperCase());
-  // Fight: a twin of the poster's question that this monster hasn't been fought with, verified first, then the one
-  // answered longest ago. Null when the idea has no twin (the Wall then needs only two right days).
-  function pickTwin(id, avoid) {
+  // Up to n twins of the poster's question, ones this monster hasn't been fought with first, then verified first,
+  // then the one answered longest ago. Empty when the idea has no twin (the Wall then needs only two right days).
+  function pickTwins(id, avoid, n) {
     const ids = (SD.twins && SD.twins[id]) || [];
     const all = ids.map(find).filter(q => q && E().allowed(q) && q.type !== 'explain');
-    if (!all.length) return null;
-    const fresh = all.filter(q => !avoid.includes(q.id)), notLast = all.filter(q => q.id !== avoid[avoid.length - 1]);
-    const list = fresh.length ? fresh : notLast.length ? notLast : all;
-    const ver = list.filter(verified), from = ver.length ? ver : list;
-    return from.slice().sort((a, b) => lastAsked(a) + Math.random() - lastAsked(b) - Math.random())[0];
+    const key = q => (avoid.includes(q.id) ? 2 : 0) + (verified(q) ? 0 : 1) + (lastAsked(q) + Math.random()) / 1e14;
+    return all.slice().sort((a, b) => key(a) - key(b)).slice(0, n);
+  }
+  const pickTwin = (id, avoid) => pickTwins(id, avoid, 1)[0] || null;
+  // A monster's encounters (build spec v4): Track is a twin, typed first; Fight is a second twin, or the original when
+  // the idea has only one; Pin it down uses the Fight question. A wounded monster skips Track. No twin at all: Track is
+  // the original, typed first, as the Wall asks it.
+  function plan(id, rec) {
+    const tw = pickTwins(id, rec.twins || [], 2);
+    if (rec.wounded) return { steps: ['fight', 'pin'], qs: { fight: (tw[0] || { id }).id } };
+    if (tw.length >= 2) return { steps: ['track', 'fight', 'pin'], qs: { track: tw[0].id, fight: tw[1].id } };
+    if (tw.length === 1) return { steps: ['track', 'fight', 'pin'], qs: { track: tw[0].id, fight: id } };
+    return { steps: ['track', 'pin'], qs: { track: id } };
   }
   // A wild monster: a bank question on the sighting's topic that has never been answered, verified first.
   function pickWild(pid, used) {
@@ -203,15 +211,9 @@
   function newHunt() {
     const M = mons(), list = [], used = new Set();
     H.board().forEach(w => {
-      const q = find(w.id), m = M[w.id] || {};
-      const tw = pickTwin(w.id, m.twins || []);
-      const steps = [];
-      if (!m.wounded) steps.push('track');
-      if (tw) steps.push('fight');
-      else if (m.wounded) steps.push('track');   // no twin: the question itself is the only one there is
-      steps.push('pin');
-      list.push({ id: w.id, name: H.name(q), steps, k: 0, qs: { track: w.id, fight: tw ? tw.id : null }, res: {}, pin: null, out: null, wounded: !!m.wounded });
-      used.add(w.id); if (tw) used.add(tw.id);
+      const q = find(w.id), m = M[w.id] || {}, pl = plan(w.id, m);
+      list.push({ id: w.id, name: H.name(q), steps: pl.steps, k: 0, qs: pl.qs, res: {}, pin: null, out: null, wounded: !!m.wounded, pts: 0 });
+      used.add(w.id); Object.values(pl.qs).forEach(x => used.add(x));
     });
     H.wildOpen().forEach(s => {
       if (list.length >= H.SIZE) return;
@@ -243,7 +245,8 @@
     wounded: ['It\'s limping. Back tomorrow, and it won\'t get far.', 'Wounded. I\'ll leave the scrap field gate open for it.'],
     escaped: ['EHHH?! It was right there! ...Fine. I\'ll walk the scrap field tonight and check the doors myself.', '¡Ay! It slipped the marker. It\'ll be back, and so will you.'],
     wildOk: '¡Bien! Driven off before it could put down roots.',
-    wildBad: 'It got away into the scrap field. It\'s on the Wall now, with the others.'
+    wildBad: 'It got away into the scrap field. It\'s on the Wall now, with the others.',
+    trail: 'Tracks lead out past the delete marker. Stay close. Things in here have versions.'
   };
   const PIP = ['Pip: "Sorry to be a bother. Why did that work?"', 'Pip: "I wrote down nothing, because I have no notebook. You should, though."', 'Pip: "So it wasn\'t luck. I hate luck."'];
 
@@ -263,7 +266,7 @@
   }
   function record(h, m, step, ok, conf, pts) {
     m.res[step] = { ok: ok ? 1 : 0, conf };
-    h.pts += pts | 0;
+    h.pts += pts | 0; m.pts = (m.pts | 0) + (pts | 0);
     if (ok) h.right++; else h.wrong++;
     if (!ok && conf === 2) h.sureMiss++;
     m.k++;
@@ -293,19 +296,62 @@
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    // Clues (SD.modes.ask opts.clues): the stem's scenario as tap-to-open tiles, and which ones were open is logged.
-    // Track keeps Type it first, which shows the whole stem before you write, so clues are for Fight.
-    const clues = shared && SD.modes.split && step !== 'track' ? { clues: true, act: ACT[step] } : shared && SD.modes.split ? { act: ACT[step] } : {};
     const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.i + 1} / ${h.mons.length}` },
-      clues, shared ? { onStop: () => {} } : {}, live.opts));
+      { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();
-    logClues(h, q, r);
     record(h, m, step, r.ok, r.conf, r.pts != null ? r.pts : stake(r.ok, r.conf));
+    // Help comes after the verdict (v4): a miss is followed straight away by a retry on a twin you haven't had today.
+    if (!r.ok) { const t = retryTwin(m, q); if (t) { m.retry = t; S.persist(); } }
     // A wild miss goes on the Wall at any confidence: a practice-test topic you just missed again is a real gap.
     if (m.wild && !r.ok && TD().wallAdd) TD().wallAdd(q.id);
     if (r.stopped) stopHunt();
+  }
+  // The retry after a miss: a twin of the missed question (or of the poster's) that this monster hasn't asked, never
+  // the same question.
+  function retryTwin(m, q) {
+    const seen = new Set([m.id, q.id].concat(Object.values(m.qs)).filter(Boolean));
+    const ids = ((SD.twins && SD.twins[q.id]) || []).concat((m.id && SD.twins && SD.twins[m.id]) || [], m.id ? [m.id] : []);
+    const ok = ids.map(find).filter(x => x && !seen.has(x.id) && E().allowed(x) && x.type !== 'explain');
+    const ver = ok.filter(verified);
+    return (ver[0] || ok[0] || {}).id || null;
+  }
+  H._retryTwin = retryTwin;   // for tools/hunt_check.js
+  async function retryStep(h, m, tok) {
+    const q = withConcept(find(m.retry));
+    if (!q) { delete m.retry; S.persist(); return; }
+    S.seeConcept(q.c);
+    live.q = q; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
+    const shared = !!(SD.modes && SD.modes.ask);
+    live.inAsk = shared;
+    const r = await shell().ask(q, Object.assign({ title: TITLE, context: `${m.name} · Retry: same idea, a new scenario`, progress: `${h.i + 1} / ${h.mons.length}` },
+      shared ? { onStop: () => {} } : {}, live.opts));
+    if (live) live.inAsk = false;
+    if (!live || live.tok !== tok || !r || r.closed) return;
+    if (r.stopped && !r.committed) return stopHunt();
+    const pts = r.pts != null ? r.pts : stake(r.ok, r.conf);
+    m.res.retry = { ok: r.ok ? 1 : 0, conf: r.conf, q: q.id };
+    h.pts += pts | 0; m.pts = (m.pts | 0) + (pts | 0);
+    if (r.ok) h.right++; else h.wrong++;
+    delete m.retry;
+    S.persist();
+    if (r.stopped) stopHunt();
+  }
+  // The trail (session 1): between monsters, the scrap field as a list, the one line of what happened since your last
+  // move, and one tap on. The map never shares a screen with a question, and its time is logged (h.mapMs).
+  function trail(h) {
+    return new Promise(done => {
+      const m = h.mons[h.i], t0 = Date.now();
+      const row = (x, k) => {
+        const here = k === h.i, mark = x.out ? (OUT[x.out] || OUT.escaped)[0] : here ? '▸' : '○';
+        return `<li class="hn-trail${x.out ? ' done' : ''}${here ? ' tgt' : ''}"><span class="hn-ico" aria-hidden="true">${mark}</span><span><b>${esc(x.name)}</b>${x.out ? `<br><span class="small">${esc((OUT[x.out] || OUT.escaped)[1])}</span>` : here ? '<br><span class="small">Fresh tracks. This way.</span>' : '<br><span class="muted small">Further along the trail</span>'}</span></li>`;
+      };
+      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head">${esc(BRU.trail)}</p>`}
+        <ol class="hn-map" aria-label="The trail, as a list"><li class="hn-trail done"><span class="hn-ico" aria-hidden="true">⛺</span><span><b>Scrap field gate</b><br><span class="small">Free Cloud camp · ${sgn(h.pts)} pts</span></span></li>${h.mons.map(row).join('')}</ol>
+        <button class="primary td-main" id="hn-follow">Follow the tracks</button>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
+      b.querySelector('#hn-follow').onclick = () => { h.mapMs = (h.mapMs | 0) + (Date.now() - t0); m.arrived = 1; S.persist(); done(); };
+    });
   }
   function stopHunt() {
     live = null;
@@ -328,10 +374,11 @@
       rec.wounded = m.out === 'wounded';
       // Escaped: its rights reset, as a miss on the Wall does, even if a later encounter today was right.
       if (m.out === 'escaped') { const w = wall().find(x => x.id === m.id); if (w) w.rights = []; }
-      if (m.out === 'escaped' && m.qs.fight) rec.twins = (rec.twins || []).concat(m.qs.fight).slice(-6);
+      if (m.out === 'escaped') rec.twins = (rec.twins || []).concat([m.qs.track, m.qs.fight].filter(x => x && x !== m.id)).slice(-6);
       if (m.out === 'captured') { delete M[m.id]; addBeast(m); }
     }
     if (m.wild) { const s = sightings().find(x => x.t === m.sid); if (s) s.done = true; }
+    h.since = `${(OUT[m.out] || OUT.escaped)[1]}: ${m.name}, ${sgn(m.pts | 0)} pts.`;
     h.i++;
     S.persist();
     const line = m.out === 'captured' ? rand(BRU.captured) : m.out === 'wounded' ? rand(BRU.wounded) : m.out === 'escaped' ? rand(BRU.escaped) : m.out === 'driven' ? BRU.wildOk : BRU.wildBad;
@@ -359,8 +406,10 @@
     if (!watcher && window.MutationObserver) { watcher = new MutationObserver(bar); watcher.observe(document.querySelector('#panel'), { childList: true }); }
     while (h.i < h.mons.length) {
       const m = h.mons[h.i];
-      if (m.k >= m.steps.length) { close(h, m); continue; }
-      await runStep(h, m, tok);
+      if (!m.arrived) await trail(h);
+      else if (m.retry) await retryStep(h, m, tok);
+      else if (m.k >= m.steps.length) { close(h, m); continue; }
+      else await runStep(h, m, tok);
       if (!live || live.tok !== tok) return;
     }
     h.done = true;
@@ -372,7 +421,13 @@
   H.stop = function () {
     if (!live) return;
     const h = sv().hunt, m = h && h.mons[h.i], q = live.q, l = q && qlog()[q.id];
-    if (m && q && l && l[0] >= live.t0 && m.steps[m.k] !== 'pin') {
+    if (m && m.retry && q && q.id === m.retry && l && l[0] >= live.t0) {
+      const hist = sv().concepts[q.c] && sv().concepts[q.c].hist.slice(-1)[0];
+      const conf = hist && hist.t >= live.t0 ? hist.conf : 0, ok = !!l[1];
+      const pts = settleAnswer(q, ok, conf, live.opts);
+      m.res.retry = { ok: ok ? 1 : 0, conf, q: q.id }; h.pts += pts; if (ok) h.right++; else h.wrong++;
+      delete m.retry;
+    } else if (m && q && l && l[0] >= live.t0 && m.steps[m.k] !== 'pin') {
       const hist = sv().concepts[q.c] && sv().concepts[q.c].hist.slice(-1)[0];
       const conf = hist && hist.t >= live.t0 ? hist.conf : 0, ok = !!l[1];
       const pts = settleAnswer(q, ok, conf, live.opts);   // the shell's ask never got to settle it
@@ -384,18 +439,6 @@
 
   // Options as actions where you corner the monster (SD.modes.ask opts.act).
   const ACT = { track: { label: 'Set a trap on its trail', icon: '🪤' }, fight: { label: 'Make your move', icon: '⚔️' } };
-  // Stealth evidence (design doc, Choice and exploration): which clues were open when each answer was committed, in
-  // S.save.huntLog (the last 200), and a running count on the hunt for its results screen.
-  function logClues(h, q, r) {
-    const c = r && r.clues;
-    if (!c || !c.total) return;
-    const opened = (c.opened || []).slice();
-    h.clues = h.clues || [0, 0]; h.clues[0] += opened.length; h.clues[1] += c.total;
-    const log = Array.isArray(sv().huntLog) ? sv().huntLog : (sv().huntLog = []);
-    log.push({ t: Date.now(), q: q.id, opened, total: c.total, ok: r.ok ? 1 : 0, conf: r.conf });
-    if (log.length > 200) log.splice(0, log.length - 200);
-  }
-  H._logClues = logClues;   // for tools/hunt_check.js
 
   // Pin it down: the option, three reasons, then a confidence to commit. The verdict is one line plus the real reason.
   function pinIt(m, ctx) {
@@ -405,7 +448,7 @@
       const T = stakesOf();
       const draw = () => {
         const h = `<div class="q-ctx">${esc(ctx)}</div>
-          <p class="q-q hn-pinq">Why doesn't this fit here?</p>
+          <p class="q-q hn-pinq">Why doesn't this fit here? Pin the right reason to Bru's poster.</p>
           <blockquote class="hn-opt">${esc(p.opt)}</blockquote>
           ${q ? `<details class="q-recap"><summary><span class="qr-lbl">The scenario</span><span class="qr-peek">${esc(q.q)}</span></summary><div class="qr-body">${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}<p class="q-q">${esc(q.q)}</p></div></details>` : ''}
           <div class="opts">${p.reasons.map((r, i) => `<button class="opt${pick === i ? ' on' : ''}" data-pr="${i}" aria-pressed="${pick === i}">${esc(r)}</button>`).join('')}</div>
@@ -438,7 +481,6 @@
     const draft = SD.draft && SD.draft.scaffoldFor ? h.mons.filter(m => m.out === 'captured').map(m => SD.draft.scaffoldFor(m.id)).filter(Boolean) : [];
     if (h.paid == null) { h.paid = pay('hunt') || ''; S.persist(); }
     const b = U.panel(`<p class="td-big">${h.right} right · ${h.wrong} wrong · ${sgn(h.pts)} pts</p>
-      ${h.clues && h.clues[1] ? `<p class="muted small">You opened ${h.clues[0]} of ${h.clues[1]} clues before acting.</p>` : ''}
       ${h.paid ? `<p class="small">${esc(h.paid)}</p>` : '<p class="muted small">Today\'s pay is already taken: extra practice, all learning.</p>'}
       <ul class="hn-results">${rows}</ul>
       ${draft.map(d => `<p class="small">That capture finishes ${esc(d.building)} in the Quarter.</p>`).join('')}
@@ -465,7 +507,7 @@
     if (list) rows = list;
     else {
       const M = mons();
-      rows = H.board().map(w => { const m = M[w.id] || {}; const tw = pickTwin(w.id, m.twins || []); return { id: w.id, name: H.name(find(w.id)), steps: (m.wounded ? [] : ['track']).concat(tw ? ['fight'] : m.wounded ? ['track'] : []).concat('pin'), k: -1, res: {}, wounded: !!m.wounded }; });
+      rows = H.board().map(w => { const m = M[w.id] || {}; return { id: w.id, name: H.name(find(w.id)), steps: plan(w.id, m).steps, k: -1, res: {}, wounded: !!m.wounded }; });
       H.wildOpen().slice(0, Math.max(0, H.SIZE - rows.length)).forEach(s => { const p = SD.topicDrill.preset(s.p); rows.push({ wild: s.p, name: 'WILD · ' + (p ? p.name.toUpperCase() : 'SIGHTING'), steps: ['fight', 'pin'], k: -1, res: {} }); });
     }
     const first = !beasts().length && !(sv().walked && sv().walked.hunt);
@@ -490,7 +532,7 @@
     const q = m ? find(m.qs.track || m.qs.fight) : (H.board()[0] ? find(H.board()[0].id) : null);
     return [
       { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
-      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> The question that put it up. Type your answer before the options show.</li><li><b>Fight.</b> Its twin: the same rule in a scenario you haven't seen.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pick the real reason.</li></ol>` },
+      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A second twin, where you corner it.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
       { title: 'MONSTER HUNT · 3 OF 3', html: `<p class="small">Commit every answer with <b>Guess</b> (+1 / ±0), <b>Think so</b> (+2 / −1) or <b>Sure</b> (+3 / −3). Say how sure you really are: that's how you score most.</p>
         <ul class="hn-how"><li><b>✓ Captured:</b> right on two different questions, on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> right today. Back tomorrow, weaker.</li><li><b>↺ Escaped:</b> a miss. It comes back on a later day with a different twin.</li></ul>
         <p class="muted small">Kyu's note on the board: "Two copies. Test them."</p>` }

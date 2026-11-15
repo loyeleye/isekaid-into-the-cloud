@@ -81,6 +81,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return txt;
   };
   const hunt = () => page.evaluate(() => SD.state.save.hunt);
+  // The trail screen between monsters: one tap on.
+  const follow = async () => { await page.waitForSelector('#hn-follow'); await page.click('#hn-follow'); await page.waitForTimeout(40); };
+  // After a miss: the retry on a twin, answered right.
+  const retry = async () => {
+    const has = await page.evaluate(() => { const h = SD.state.save.hunt, m = h.mons[h.i]; return !!(m && m.retry); });
+    if (has) { await page.waitForSelector('#panel .win.quiz', { timeout: 3000 }).catch(async () => { console.log('PANEL:', (await page.textContent('#panel')).slice(0, 300), errors); }); await answer(true, 1); await next(); }
+    return has;
+  };
   const step = () => page.evaluate(() => { const h = SD.state.save.hunt; const m = h && h.mons[h.i]; return m ? m.steps[m.k] : null; });
 
   await page.clock.install({ time: new Date('2026-11-16T12:00:00') });
@@ -133,6 +141,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click(WN); await page.click(WN);
   check(/Captured/.test(await page.textContent('#panel')) && /Wounded/.test(await page.textContent('#panel')), 'walkthrough screen 3 explains the outcomes');
   await page.click(WN);
+  await page.waitForSelector('#hn-follow');
+  check(/Scrap field gate/.test(await page.textContent('#panel')) && (await page.$$('.hn-trail')).length === 4, 'the trail: the gate and three monsters, as a list');
+  check(!await page.$('#panel .q-q'), 'the trail never shares a screen with a question');
+  await noHScroll('trail');
+  await shot('trail');
+  await follow();
   await page.waitForSelector('#panel .win.quiz ' + STOP);
 
   // ---- Monster 1: Track, Fight, Pin, all right, captured (yesterday's right + today = two days) ----
@@ -142,13 +156,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('track');
   await shot('track');
   const t1 = await answer(true, 2);
-  check(t1 === posters[0], 'Track asks the poster\'s own question');
+  check(await page.evaluate(([p, t]) => SD.twins[p].includes(t), [posters[0], t1]), 'Track asks a twin, not the poster\'s own question');
   check(!!await page.$('.q-src'), 'the verdict shows the verified source block');
   await noHScroll('verdict');
   await next();
   check(await step() === 'fight', 'then Fight');
   const f1 = await answer(true, 1);
-  check(await page.evaluate(([p, f]) => SD.twins[p].includes(f), [posters[0], f1]), 'Fight asks a twin');
+  check(f1 !== t1 && await page.evaluate(([p, f]) => SD.twins[p].includes(f) || (f === p && SD.twins[p].length === 1), [posters[0], f1]), 'Fight asks a second twin, or the original when there is only one');
   await next();
   check(await step() === 'pin', 'then Pin it down');
   check(/Why doesn't this fit here\?/.test(await page.textContent('#panel')) && (await page.$$('#panel [data-pr]')).length === 3, 'Pin it down: one option, three reasons');
@@ -166,16 +180,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => SD.state.save.bestiary.length === 1 && !!SD.state.save.bestiary[0].lesson), 'and it goes into the bestiary with its lesson');
   check(await page.evaluate(() => SD.state.save.hunt.mons[0].out === 'captured'), 'outcome: captured');
 
-  // ---- Monster 2: Track missed, escaped ----
-  await answer(false, 0); await next();
+  // ---- Monster 2: Track missed, a retry on another twin, escaped ----
+  await follow();
+  check(/Captured/.test(await page.evaluate(() => SD.state.save.hunt.since)), 'the trail says what happened since your last move');
+  const t2 = await answer(false, 0); await next();
+  const r2 = await page.evaluate(() => { const h = SD.state.save.hunt; return h.mons[h.i].retry; });
+  const canRetry = await page.evaluate(([p, t]) => { const h = SD.state.save.hunt, m = h.mons[h.i], used = new Set([p, t].concat(Object.values(m.qs))); return (SD.twins[t] || []).concat(SD.twins[p] || [], [p]).some(id => !used.has(id) && SD.exam.allowed(SD.exam.find(id))); }, [posters[1], t2]);
+  check(canRetry ? !!r2 && r2 !== t2 : !r2, `a miss: a retry straight away on a different question (${canRetry ? 'one exists' : 'none left for this idea, so none'})`);
+  await retry();
   const f2 = await answer(true, 1); await next();
   await pin(true, 1);
   const m2 = await page.evaluate(id => ({ out: SD.state.save.hunt.mons[1].out, mon: SD.state.save.huntMon[id], up: SD.state.save.wall.find(w => w.id === id) }), posters[1]);
   check(m2.out === 'escaped', 'a miss: escaped');
   check(m2.up && m2.up.rights.length === 0, 'its rights reset, as on the Wall');
-  check(m2.mon && m2.mon.twins.includes(f2), 'it remembers the twin it fought, for a different one next time');
+  check(m2.mon && m2.mon.twins.includes(t2), 'it remembers the twins it was hunted with, for different ones next time');
 
   // ---- Monster 3: Stop for now on Fight, resume on the same encounter, then wounded ----
+  await follow();
   await answer(true, 1); await next();
   check(await step() === 'fight', 'monster 3 at Fight');
   const fq = await page.evaluate(() => SD.hunt.live().q.id);
@@ -208,8 +229,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#hn-board');
   check(await page.evaluate(() => JSON.stringify(SD.hunt.board().map(w => w.id))) === JSON.stringify([posters[3]]), 'same day: only the unhunted poster is on the board');
   await page.click('#hn-go');
+  await follow();
   await page.waitForSelector('#panel .win.quiz ' + STOP);
-  await answer(true, 1); await next(); await answer(true, 1); await next(); await pin(true, 1);
+  for (let k = 0; k < 3 && await step() !== 'pin'; k++) { await answer(true, 1); await next(); }
+  await pin(true, 1);
   await page.waitForSelector('.hn-results');
   check(/Today's pay is already taken/.test(await page.textContent('#panel')), 'a second hunt the same day doesn\'t pay again');
 
@@ -228,13 +251,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.clock.setSystemTime(new Date('2026-11-17T12:00:00'));
   await page.evaluate(() => { SD.state.save.hunt = null; SD.hunt.open(); });
   await page.click('#hn-go');
-  await page.waitForSelector('#panel .win.quiz');
+  await page.waitForSelector('#hn-follow');
   const h2 = await hunt();
   const wm = h2.mons.find(m => m.id === posters[2]), em = h2.mons.find(m => m.id === posters[1]);
   check(wm && wm.steps[0] !== 'track', 'the wounded monster comes back without Track');
   const twinsOf1 = await page.evaluate(id => SD.twins[id].length, posters[1]);
-  check(em && (twinsOf1 < 2 || em.qs.fight !== f2), 'the escaped monster fights a different twin (' + twinsOf1 + ' twins)');
-  await page.click(STOP);
+  check(em && (twinsOf1 < 2 || em.qs.track !== t2), 'the escaped monster is tracked with a different twin (' + twinsOf1 + ' twins)');
+  await page.evaluate(() => SD.hunt.stop());
 
   // ---- Sightings ----
   await page.evaluate(() => { SD.state.save.hunt = null; SD.state.save.wall = []; SD.hunt.open(); });
@@ -251,10 +274,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#hn-sdone');
   check((await page.$$('.hn-mon')).length === 2 && /SIGHTED/.test(await page.textContent('#panel')), 'each sighting is a wild monster on the board');
   await page.click('#hn-go');
+  await follow();
   await page.waitForSelector('#panel .win.quiz ' + STOP);
   const wq = await page.evaluate(() => SD.hunt.live().q);
   check(await page.evaluate(id => !(SD.state.save.qlog || {})[id] && SD.topicDrill.pool(SD.topicDrill.preset('t-sfn')).some(q => q.id === id), wq.id), 'a wild monster asks an unseen question on its topic');
   await answer(false, 0); await next();
+  await retry();
   await pin(true, 0);
   check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id), wq.id), 'a wild miss goes up on the Wall');
   await page.evaluate(() => SD.hunt.stop());
@@ -270,21 +295,21 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const vpick = await page.evaluate(vf => {
     const keep = SD.verified; SD.verified = { [vf.want]: { on: '2026-11-16', src: [] } };
     const out = new Set();
-    for (let i = 0; i < 8; i++) { SD.state.save.wall = [{ id: vf.id, t: 1, rights: [] }]; SD.state.save.huntMon = {}; SD.state.save.hunt = null; SD.state.save.sightings = []; out.add(SD.hunt._newHunt().mons[0].qs.fight); }
+    for (let i = 0; i < 8; i++) { SD.state.save.wall = [{ id: vf.id, t: 1, rights: [] }]; SD.state.save.huntMon = {}; SD.state.save.hunt = null; SD.state.save.sightings = []; out.add(SD.hunt._newHunt().mons[0].qs.track); }
     SD.verified = keep; SD.state.save.hunt = null;
     return [...out];
   }, vf);
-  check(vpick.length === 1 && vpick[0] === vf.want, 'Fight picks a verified twin over an unverified one');
+  check(vpick.length === 1 && vpick[0] === vf.want, 'Track picks a verified twin over an unverified one');
 
-  // ---- Clue log ----
-  const cl = await page.evaluate(() => {
-    const h = { clues: [0, 0] }, n = (SD.state.save.huntLog || []).length;
-    SD.hunt._logClues(h, { id: 'dva-1-02' }, { ok: true, conf: 1, clues: { opened: [0, 2], total: 3 } });
-    SD.hunt._logClues(h, { id: 'dva-1-04' }, { ok: false, conf: 0 });
-    const log = SD.state.save.huntLog;
-    return { h: h.clues, grew: log.length - n, last: log[log.length - 1] };
+  // ---- The retry after a miss ----
+  const rt = await page.evaluate(() => {
+    const ok = id => { const q = SD.exam.find(id); return q && SD.exam.allowed(q); };
+    const p = Object.keys(SD.twins).find(k => ok(k) && SD.twins[k].filter(ok).length >= 3);
+    const tw = SD.twins[p].filter(ok), m = { id: p, qs: { track: tw[0], fight: tw[1] } };
+    const r = SD.hunt._retryTwin(m, SD.exam.find(tw[0]));
+    return { p, r, used: [p, tw[0], tw[1]] };
   });
-  check(cl.grew === 1 && cl.h.join() === '2,3' && cl.last.q === 'dva-1-02' && cl.last.opened.join() === '0,2' && cl.last.total === 3, 'the clue log records which clues were open per answer, and skips answers without clues');
+  check(!!rt.r && !rt.used.includes(rt.r), 'a missed question\'s retry is a twin not asked yet, never the same question (' + rt.p + ' → ' + rt.r + ')');
 
   // ---- No sightings in the last days ----
   await page.clock.setSystemTime(new Date('2026-11-28T12:00:00'));
