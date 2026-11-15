@@ -533,7 +533,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals.html"] },
 
   { id: "dva-3-905", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc",
-    q: "A pipeline execution reached a manual approval action on a Friday. The approver was on leave and nobody acted on it. Eight days later, the team looks at the pipeline. What is the state of that execution?",
+    q: "A pipeline execution reached a manual approval action, which uses the default timeout, on a Friday. The approver was on leave and nobody acted on it. Eight days later, the team looks at the pipeline. What is the state of that execution?",
     opts: [
       "The approval is still waiting, because approval actions stay open until someone with permission approves or rejects them.",
       "The approval was approved automatically after 72 hours, and the change was deployed to the next stage of the pipeline.",
@@ -541,11 +541,11 @@ SD.bank.push(
       "The approval failed after seven days with no response, so the stage failed and this execution didn't go any further."
     ], a: 3,
     no: [
-      "Approvals don't wait forever. With no response in seven days the action fails.",
+      "Approvals don't wait forever. With the default timeout, no response in seven days fails the action.",
       "CodePipeline never approves automatically. A missing response counts as a failure.",
       "Failed executions stay in the history; the team can review them and retry the stage.",
       null],
-    why: "If no one approves or rejects within seven days of the pipeline reaching the action, the result is the same as a failed action: the stage fails and the execution stops.",
+    why: "If no one approves or rejects within the timeout (seven days by default, configurable per action up to 60 days), the result is the same as a failed action: the stage fails and the execution stops.",
     doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals.html"] },
 
   { id: "dva-3-906", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "multi", hint: "Select TWO.",

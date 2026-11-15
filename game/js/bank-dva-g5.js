@@ -26,11 +26,11 @@ SD.bank.push(
     items: [
       { t: "aws ec2 describe-volumes --filters Name=status,Values=available --query 'Volumes[?Size > `100`].VolumeId' --output text", ok: true },
       { t: "aws ec2 describe-volumes --query 'Volumes[?State==`available` && Size > `100`].VolumeId' --output text", ok: true },
-      { t: "aws ec2 describe-volumes --filters Name=status,Values=available Name=size,Values=100 --query 'Volumes[].VolumeId' --output text", ok: false, no: "Server-side filters match exact values, so the size filter returns only volumes of exactly 100 GiB." },
+      { t: "aws ec2 describe-volumes --filters Name=status,Values=available Name=size,Values=100 --query 'Volumes[].VolumeId' --output text", ok: false, no: "Server-side filters can't compare numbers, so the size filter returns only volumes of exactly 100 GiB." },
       { t: "aws ec2 describe-volumes --filters Name=status,Values=available --max-items 100 --query 'Volumes[].VolumeId' --output text", ok: false, no: "--max-items caps how many volumes the CLI returns; it says nothing about their size." },
       { t: "aws ec2 describe-volumes --query 'Volumes[?Size > `100`].VolumeId' --output text", ok: false, no: "This returns every volume over 100 GiB, including volumes that are attached to instances." }
     ],
-    why: "--filters is applied by the service and matches exact values, while --query runs a JMESPath expression on the client that can compare numbers. Filtering the state on the server, or putting both conditions in the query, gives the right IDs, and --output text prints them plainly.",
+    why: "--filters is applied by the service and matches the listed values, with no greater-than test, while --query runs a JMESPath expression on the client that can compare numbers. Filtering the state on the server, or putting both conditions in the query, gives the right IDs, and --output text prints them plainly.",
     doc: ["https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-filter.html", "https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-volumes.html"] },
 
   { id: "dva-1-403", exam: "DVA", dva: "1.1", topic: "ebs", type: "mc",
