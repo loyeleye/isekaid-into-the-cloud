@@ -276,6 +276,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, vf);
   check(vpick.length === 1 && vpick[0] === vf.want, 'Fight picks a verified twin over an unverified one');
 
+  // ---- Clue log ----
+  const cl = await page.evaluate(() => {
+    const h = { clues: [0, 0] }, n = (SD.state.save.huntLog || []).length;
+    SD.hunt._logClues(h, { id: 'dva-1-02' }, { ok: true, conf: 1, clues: { opened: [0, 2], total: 3 } });
+    SD.hunt._logClues(h, { id: 'dva-1-04' }, { ok: false, conf: 0 });
+    const log = SD.state.save.huntLog;
+    return { h: h.clues, grew: log.length - n, last: log[log.length - 1] };
+  });
+  check(cl.grew === 1 && cl.h.join() === '2,3' && cl.last.q === 'dva-1-02' && cl.last.opened.join() === '0,2' && cl.last.total === 3, 'the clue log records which clues were open per answer, and skips answers without clues');
+
   // ---- No sightings in the last days ----
   await page.clock.setSystemTime(new Date('2026-11-28T12:00:00'));
   await page.evaluate(() => SD.hunt.open());

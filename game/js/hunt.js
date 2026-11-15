@@ -293,11 +293,14 @@
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
+    // Clues (SD.modes.ask opts.clues): the stem's scenario as tap-to-open tiles, and which ones were open is logged.
+    const clues = shared && SD.modes.split ? { clues: true, act: ACT[step] } : {};
     const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.i + 1} / ${h.mons.length}` },
-      shared ? { onStop: () => {} } : {}, live.opts));
+      clues, shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();
+    logClues(h, q, r);
     record(h, m, step, r.ok, r.conf, r.pts != null ? r.pts : stake(r.ok, r.conf));
     // A wild miss goes on the Wall at any confidence: a practice-test topic you just missed again is a real gap.
     if (m.wild && !r.ok && TD().wallAdd) TD().wallAdd(q.id);
@@ -378,6 +381,21 @@
     stopHunt();
   };
 
+  // Options as actions where you corner the monster (SD.modes.ask opts.act).
+  const ACT = { track: { label: 'Set a trap on its trail', icon: '🪤' }, fight: { label: 'Make your move', icon: '⚔️' } };
+  // Stealth evidence (design doc, Choice and exploration): which clues were open when each answer was committed, in
+  // S.save.huntLog (the last 200), and a running count on the hunt for its results screen.
+  function logClues(h, q, r) {
+    const c = r && r.clues;
+    if (!c || !c.total) return;
+    const opened = (c.opened || []).slice();
+    h.clues = h.clues || [0, 0]; h.clues[0] += opened.length; h.clues[1] += c.total;
+    const log = Array.isArray(sv().huntLog) ? sv().huntLog : (sv().huntLog = []);
+    log.push({ t: Date.now(), q: q.id, opened, total: c.total, ok: r.ok ? 1 : 0, conf: r.conf });
+    if (log.length > 200) log.splice(0, log.length - 200);
+  }
+  H._logClues = logClues;   // for tools/hunt_check.js
+
   // Pin it down: the option, three reasons, then a confidence to commit. The verdict is one line plus the real reason.
   function pinIt(m, ctx) {
     const p = m.pin, q = find(p.q);
@@ -419,6 +437,7 @@
     const draft = SD.draft && SD.draft.scaffoldFor ? h.mons.filter(m => m.out === 'captured').map(m => SD.draft.scaffoldFor(m.id)).filter(Boolean) : [];
     if (h.paid == null) { h.paid = pay('hunt') || ''; S.persist(); }
     const b = U.panel(`<p class="td-big">${h.right} right · ${h.wrong} wrong · ${sgn(h.pts)} pts</p>
+      ${h.clues && h.clues[1] ? `<p class="muted small">You opened ${h.clues[0]} of ${h.clues[1]} clues before acting.</p>` : ''}
       ${h.paid ? `<p class="small">${esc(h.paid)}</p>` : '<p class="muted small">Today\'s pay is already taken: extra practice, all learning.</p>'}
       <ul class="hn-results">${rows}</ul>
       ${draft.map(d => `<p class="small">That capture finishes ${esc(d.building)} in the Quarter.</p>`).join('')}
