@@ -20,6 +20,11 @@
   const need = q => q.items.filter(it => it.ok).length;
   const stem = q => q.type === 'multi' ? q.q.replace(/\s*\((select|choose)\s+\w+\.?\)\s*$/i, '') + ` (Choose ${need(q)})` : q.q;
   const scaled = pct => Math.max(100, Math.min(1000, Math.round(pct * 1000)));
+  // One link per page: q.doc can hold several, and joined into one href they make a broken URL.
+  const docLinks = q => {
+    const d = E.docs(q);
+    return d.length ? `<p class="small xh-doc">${d.map((u, i) => `<a href="${U.esc(u)}" target="_blank" rel="noopener noreferrer">AWS docs${d.length > 1 ? ' ' + (i + 1) : ''} ↗</a>`).join(' · ')}</p>` : '';
+  };
   const answered = (q, a) => q.type === 'multi' ? Array.isArray(a) && a.length === need(q) : a != null;
 
   let run = null;    // the session in progress: { qs, ord, ans, flags, at, form, practice, full, base, since, limit }
@@ -271,7 +276,7 @@
     const items = r.qs.map((q, i) => `<details class="q-recap xh-item ${s.ok[i] ? 'ok' : 'bad'}" data-ok="${s.ok[i] ? 1 : 0}">
       <summary><span class="xh-mk" aria-label="${s.ok[i] ? 'Right' : 'Wrong'}">${s.ok[i] ? '✓' : '✗'}</span><span class="qr-lbl">Q${i + 1}${r.flags[i] ? ' ⚑' : ''}</span><span class="qr-peek">${U.esc(q.q)}</span></summary>
       <div class="qr-body">${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(stem(q))}</p>${recapOf(q, r.ans[i], r.ord[i])}
-      <div class="why"><p>${U.esc(q.why || '')}</p></div>${q.doc ? `<p class="small xh-doc"><a href="${U.esc(q.doc)}" target="_blank" rel="noopener noreferrer">AWS docs ↗</a></p>` : ''}</div></details>`).join('');
+      <div class="why"><p>${U.esc(q.why || '')}</p></div>${docLinks(q)}</div></details>`).join('');
     const missed = s.ok.filter(x => !x).length;
     const b = draw(`<div class="q-ctx">${U.esc(E.cfg(m.exam).name)} · ${U.esc(formName(m.form))}</div>
       ${m.practice ? '<p class="xh-practice">Practice: from the bank, questions you haven\'t answered first</p>' : ''}

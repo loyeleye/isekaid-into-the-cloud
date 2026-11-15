@@ -154,6 +154,11 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); };
   await look('result');
   await page.click('.xh-item.bad summary');
   await look('result-open');
+  // Each doc link opens one page: a question with several links gets one link each, never a joined href.
+  const hrefs = await page.$$eval('.xh-doc a', as => as.map(a => a.getAttribute('href')));
+  check(hrefs.length > 0, 'review has no AWS docs links');
+  check(hrefs.every(h => /^https:\/\/[^\s,]+$/.test(h)), 'a review doc link is not a single URL: ' + hrefs.find(h => !/^https:\/\/[^\s,]+$/.test(h)));
+  check(await page.$$eval('.xh-doc', ps => ps.some(p => p.querySelectorAll('a').length > 1)), 'no question in the half mock shows 2+ doc links');
   await page.click('#xh-done');
   await page.waitForFunction(() => window._xhDone);
   const rec = await page.evaluate(() => window._xhDone);
