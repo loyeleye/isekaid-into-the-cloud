@@ -243,6 +243,18 @@
           `<p><b>${U.esc(name(i))}</b><br>${U.esc(why(i))}</p>`).join('')}</div>` : ''}${rest.length
           ? `<details><summary class="q-ctx">Why not the others (${rest.length})</summary><ul>${rest.map(li).join('')}</ul></details>` : ''}</div>`;
       }
+      function sourceBlock(q) {
+        const D = SD.topicDrill, rec = D.record(q), urls = D.docs(q);
+        const fmt = iso => { const [y, m, d] = String(iso || '').split('-').map(Number); return y ? new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
+        const quotes = rec && Array.isArray(rec.src) ? rec.src.filter(x => x && x.quote) : [];
+        let h = `<div class="q-src ${rec ? 'ok' : 'un'}">`;
+        h += rec ? `<p class="small"><span class="src-badge ok">✓ Verified${rec.on ? ' ' + U.esc(fmt(rec.on)) : ''}</span> Checked against the current AWS docs.</p>`
+          : '<p class="small"><span class="src-badge un">Not verified yet</span> Check any number, default or limit on the AWS docs page before you trust it.</p>';
+        if (quotes.length) h += `<details class="src-q"><summary>What the docs say</summary>${quotes.map(x => `<blockquote>${U.esc(x.quote)}${x.url ? ` <a href="${U.esc(x.url)}" target="_blank" rel="noopener noreferrer">source ↗</a>` : ''}</blockquote>`).join('')}</details>`;
+        if (rec && rec.era) h += `<p class="small src-era"><b>Heads up:</b> ${U.esc(rec.era)}</p>`;
+        if (urls.length) h += `<div class="q-ctx">AWS docs</div><ul class="src-docs">${urls.map(u => `<li><a href="${U.esc(u)}" target="_blank" rel="noopener noreferrer">${U.esc(D.docLabel(u))} ↗</a></li>`).join('')}</ul>`;
+        return h + '</div>';
+      }
       // The question again, folded under the verdict: its full text and what you answered against the right answer.
       function recap(right) {
         let body = '';
@@ -352,6 +364,9 @@
         if (q.type === 'explain') h += `<p class="muted small">You covered ${score} of ${q.points.length} points.</p>`;
         const showAns = q.type !== 'explain' && (!ok || conf === 0) && !q.tiers;
         h += `<div class="why">${showAns ? `<p class="why-a"><span class="q-ctx">Answer</span><b>${U.esc(right)}</b></p>` : ''}<p>${U.esc(q.why || '')}</p></div>`;
+        // opts.source (topic drills, js/today.js): the AWS docs behind the answer, and whether the accuracy check has
+        // confirmed it (SD.verified, through js/topic-drill.js): the date, the sentence from the docs, any caution.
+        if (opts.source && SD.topicDrill) h += sourceBlock(q);
         // A ranking can name each rung (bad, good, great) and say why it sits there: the ranking is the lesson.
         if (q.type === 'order' && q.tiers) {
           h += `<div class="nots tiers"><div class="q-ctx">The ranking, weakest first</div><ol>${q.items.map((t, i) =>

@@ -13,7 +13,7 @@
   // other dates by the plan's length.
   const PLAN_FROM = '2026-10-20', REF_SPAN = 41, MOCK_AT = [['half', 35], ['A', 15], ['B', 6]];
   const FORM_NAME = { half: 'The baseline', A: 'Mock A', B: 'Mock B' };
-  const TITLE = { daily: 'TODAY\'S SET', drill: 'DOMAIN DRILL', wall: 'THE WALL' };
+  const TITLE = { daily: 'TODAY\'S SET', drill: 'DOMAIN DRILL', wall: 'THE WALL', topic: 'TOPIC DRILL' };
 
   const sv = () => S.save;
   const today = () => new Date().toDateString();
@@ -209,9 +209,9 @@
       if (!q) { s.items.splice(s.i, 1); continue; }
       S.seeConcept(q.c);
       live.q = q; live.t0 = Date.now();
-      const name = SD.concepts[q.c] ? SD.concepts[q.c].name : E().NAME;
+      const name = s.kind === 'topic' && s.name ? s.name : SD.concepts[q.c] ? SD.concepts[q.c].name : E().NAME;
       const ctx = it.twin ? 'Same idea, a question you haven\'t seen' : name;
-      const r = await SD.quiz.ask(q, { title: TITLE[s.kind], context: `${ctx} · ${s.i + 1}/${s.items.length}`, noSwap: true, typeFirst: s.kind === 'wall' || null });
+      const r = await SD.quiz.ask(q, { title: TITLE[s.kind], context: `${ctx} · ${s.i + 1}/${s.items.length}`, noSwap: true, typeFirst: s.kind === 'wall' || null, source: s.kind === 'topic' });
       if (!live || live.tok !== tok) return;
       settle(s, it, r.ok, r.conf, r.recall);
     }
@@ -252,6 +252,16 @@
       const first = !s.paid, got = first ? pay(s) : 'Extra practice: no pay, all learning.';
       h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p>${esc(got)}</p>`;
       more = true;
+    } else if (s.kind === 'topic') {
+      const unv = s.items.length - s.verified;
+      h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">${esc(s.name)}. ${s.verified} of ${s.items.length} verified against AWS docs${unv ? `; ${unv} not verified yet, so check their numbers on the docs page` : ''}.</p>`;
+      const b = U.panel(`${h}<div class="row"><button class="primary" id="td-tagain">Another ${s.items.length}</button><button class="ghost" id="td-tpick">Pick a topic</button><button class="ghost" id="td-done">Done</button></div>`, { title: TITLE.topic, onClose: T.render });
+      b.querySelector('#td-done').onclick = () => { U.closePanel(); T.render(); };
+      b.querySelector('#td-tagain').onclick = () => T.topicDrill(s.pid);
+      b.querySelector('#td-tpick').onclick = T.topicPanel;
+      S.persist();
+      T.render();
+      return;
     } else if (s.kind === 'drill') {
       h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">Domain ${s.dom}: ${esc(E().DOMAINS[s.dom])}.</p>`;
     } else {
@@ -279,6 +289,52 @@
     run(s);
   };
   T.drill = d => { U.closePanel(); const s = drillSet(d); if (s.items.length) run(s); else T.render(); };
+  // ---- Topic drills (js/topic-drill.js) ----
+  // Settings: S.save.topicPrefs = { n: 10|15|20, v: verified only (default on) }.
+  const tprefs = () => {
+    const p = sv().topicPrefs = sv().topicPrefs || {};
+    if (!SD.topicDrill.SIZES.includes(p.n)) p.n = 10;
+    if (p.v !== false) p.v = true;
+    return p;
+  };
+  T.topicDrill = function (pid) {
+    const D = SD.topicDrill, p = D && D.preset(pid);
+    U.closePanel();
+    if (!p) return T.render();
+    const pr = tprefs(), d = D.build(p, pr.n, pr.v);
+    if (!d.items.length) { U.system('TOPIC DRILL', `No ${esc(E().NAME)} questions on ${esc(p.name)} yet.`); return T.topicPanel(); }
+    sv().topicLast = pid; S.persist();
+    const s = { kind: 'topic', pid, name: p.name, items: d.items, i: 0, right: 0, verified: d.verified };
+    if (pr.v && d.topped && !d.avail.v) U.system('NOT VERIFIED YET', `None of the ${esc(p.name)} questions are verified yet, so this drill uses unchecked ones. Each is marked "Not verified yet".`);
+    else if (pr.v && d.topped) U.system('NOT ALL VERIFIED', `Only ${plural(d.avail.v, 'question')} on ${esc(p.name)} ${d.avail.v === 1 ? 'is' : 'are'} verified so far, so ${d.topped} unchecked ${d.topped === 1 ? 'one fills' : 'ones fill'} the drill. Each is marked "Not verified yet".`);
+    else if (pr.v && d.items.length < pr.n) U.system('VERIFIED ONLY', `${esc(p.name)} has ${plural(d.avail.v, 'verified question')}, so this drill is ${d.items.length} long.`);
+    run(s);
+  };
+  T.topicPanel = function () {
+    const D = SD.topicDrill;
+    if (!D) return;
+    const pr = tprefs(), base = D.base(), nv = base.filter(D.isVerified).length;
+    const status = nv ? `${nv} of ${base.length} ${esc(E().NAME)} questions are verified against AWS docs so far.`
+      : `No questions are verified yet: the accuracy check against AWS docs is still running. Until it lands, drills use unchecked questions, each marked "Not verified yet".`;
+    const groups = [];
+    D.presets().forEach(p => {
+      const c = D.counts(p);
+      if (c.n < 3) return;
+      let g = groups.find(x => x.name === p.group);
+      if (!g) groups.push(g = { name: p.group, rows: [] });
+      const vl = c.v ? `${c.v} verified` : 'none verified yet';
+      g.rows.push(`<button class="opt td-topic${sv().topicLast === p.id ? ' on' : ''}" data-tp="${esc(p.id)}"><span class="td-dn">${esc(p.name)}</span>${p.note ? `<span class="muted small">${esc(p.note)}</span>` : ''}<span class="small td-tc"><b class="${c.v ? 'td-vok' : 'td-vno'}">${vl}</b> · ${c.n} questions</span></button>`);
+    });
+    const size = n => `<label class="td-sz"><input type="radio" name="td-tn" value="${n}" ${pr.n === n ? 'checked' : ''}><span>${n}</span></label>`;
+    const b = U.panel(`<p class="td-head">Pick a topic. Each answer shows the explanation and the AWS docs behind it.</p>
+      <div class="td-trow"><span class="small"><b>Questions</b></span><div class="td-szs" role="radiogroup" aria-label="Questions per drill">${D.SIZES.map(size).join('')}</div></div>
+      <label class="td-pick"><input type="checkbox" id="td-tv" ${pr.v ? 'checked' : ''}><span><b>Verified only</b> Questions checked against the current AWS docs. A topic with fewer than ${D.MIN_VERIFIED} verified tops up with unchecked ones, marked.</span></label>
+      <p class="muted small td-vstat">${status}</p>
+      ${groups.map(g => `<p class="td-head td-grp">${esc(g.name)}</p><div class="opts">${g.rows.join('')}</div>`).join('')}`, { title: TITLE.topic, onClose: T.render });
+    b.querySelectorAll('input[name="td-tn"]').forEach(r => r.onchange = () => { pr.n = +r.value; S.persist(); });
+    b.querySelector('#td-tv').onchange = e => { pr.v = e.target.checked; S.persist(); };
+    b.querySelectorAll('[data-tp]').forEach(el => el.onclick = () => T.topicDrill(el.dataset.tp));
+  };
   T.drillWall = () => { U.closePanel(); const s = wallSet(); if (s.items.length) run(s); else T.render(); };
 
   // ---- Panels ----
@@ -357,7 +413,9 @@
     const b = U.panel(`<p class="td-head">Reviews: what feels true · Mock: what is true</p>
       <div class="opts">${rows}</div>
       <div class="td-seen"><span>Seen ${seen.x} of ${seen.n} ${esc(E().NAME)} questions</span><div class="bar"><i style="width:${pct}%;background:var(--mint)"></i></div></div>
-      ${sightBox()}`, { title: 'READINESS', onClose: T.render });
+      ${sightBox()}
+      ${SD.topicDrill ? '<div class="row"><button class="ghost" id="td-totopic">Drill a topic instead</button></div>' : ''}`, { title: 'READINESS', onClose: T.render });
+    const tt = b.querySelector('#td-totopic'); if (tt) tt.onclick = T.topicPanel;
     b.querySelectorAll('[data-d]').forEach(el => el.onclick = () => T.drill(+el.dataset.d));
   };
   // The wall: one WANTED poster per idea, named by its topic and exam task. The question that put it up stays behind
@@ -489,7 +547,7 @@
       ${extra}
       <button class="primary td-main" id="${main[0]}">${esc(main[1])}</button>
       <div class="td-links">${alt}${st === 'first' || st === 'off' ? '<button class="td-link" id="td-settings">Exam settings</button>'
-        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}</div>`;
+        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}${st !== 'first' && SD.topicDrill ? '<button class="td-link" id="td-topic">Topic drill</button>' : ''}</div>`;
     const on = (id, f) => { const el = card.querySelector('#' + id); if (el) el.onclick = f; };
     on('td-date', T.datePicker);
     on('td-setdate', () => {
@@ -509,6 +567,7 @@
     on('td-more', T.more);
     on('td-ready', T.board);
     on('td-wallb', T.wallPanel);
+    on('td-topic', T.topicPanel);
   };
   // From the title: hidden on the press-start screen, shown above Continue and New game after it.
   T.mount = function (started) {
@@ -596,6 +655,27 @@
     .td-seal.on { border-style: solid; border-color: var(--mint); color: #1f6b46; background: #e7f8ef; }
     .td-needs { font-size: 12px; font-weight: 800; color: #8a5a00; background: #fff3cf; border-radius: 6px; padding: 2px 6px; }
     .td-orig summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--blue, #2f4a6b); }
+    .td-topic { display: flex; flex-direction: column; gap: 2px; }
+    .td-tc { font-weight: 700; } .td-vok { color: #1f6b46; } .td-vno { color: #8a5a00; }
+    .td-grp { margin: 12px 0 4px !important; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+    .td-trow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; }
+    .td-szs { display: flex; gap: 6px; }
+    .td-sz { position: relative; }
+    .td-sz input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .td-sz span { display: inline-block; min-width: 44px; min-height: 40px; line-height: 36px; text-align: center; border: 2px solid var(--ink); border-radius: 8px; background: #fff; font-weight: 800; }
+    .td-sz input:checked + span { background: var(--ink); color: #fff; }
+    .td-sz input:focus-visible + span { outline: 3px solid var(--blue, #2f4a6b); outline-offset: 2px; }
+    .q-src { margin: 8px 0; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fffdf6; overflow-wrap: anywhere; }
+    .q-src.ok { border-color: #1f6b46; } .q-src.un { border-style: dashed; }
+    .src-badge { display: inline-block; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px; margin-right: 4px; }
+    .src-badge.ok { background: #e7f8ef; color: #1f6b46; border: 1px solid #1f6b46; }
+    .src-badge.un { background: #fff3cf; color: #8a5a00; border: 1px solid #8a5a00; }
+    .src-q summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--blue, #2f4a6b); }
+    .src-q blockquote { margin: 6px 0; padding-left: 8px; border-left: 3px solid #1f6b46; font-size: 13px; }
+    .src-era { color: #8a5a00; }
+    .src-docs { margin: 2px 0 0; padding-left: 18px; font-size: 14px; }
+    .src-docs li { margin: 4px 0; }
+    .src-docs a { display: inline-block; min-height: 28px; }
     @media (prefers-reduced-motion: reduce) { .td-poster:nth-child(n) { transform: none; } }
     @media (min-width: 900px) { .td-card { padding: 14px 18px 12px; } }`;
   document.head.appendChild(css);
