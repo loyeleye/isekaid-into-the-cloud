@@ -1,147 +1,223 @@
-// Incident Commander (design doc "Five game modes for exam prep", mode 2): one on-call shift of 5 waves on a pager
-// board. Every incident is a bank question shown as its symptom (the stem's scenario sentences, with its MOST/LEAST
-// qualifier), and the right answer is the fix. Aimed at Troubleshooting (the Troubleshooting pack, Domain 4), with
-// about 1 in 4 incidents due from other topics (SD.modes.pick).
-//   - Pick which incident to work: the one about to blow, or the one you're surest of. Say it first is on.
-//   - Every answer advances every other open incident's clock by one tick. Time is counted in answers, never seconds.
-//   - Right: resolved (Sure and right also pays budget). Wrong: it stays open as its twin when it has one (the same
-//     cause, a scenario you haven't seen), else it's handed to the next wave. A clock at zero costs error budget and the
-//     incident comes back next wave, so every question gets answered. Left over at the end: first thing next shift.
-//   - Between waves, the config shop (Throttle Defense): standing fixes from the camp vendors, each with its real
-//     trade-off, each bought by answering a verified question on that feature. A fix adds 2 ticks to the first
-//     incident it matches in each later wave.
-//   - Saves after every incident (S.save.ic). Host: Uptima, the secondary pager (Story review: Kyu held the pager).
+// Incident Commander (design doc "Five game modes for exam prep", build spec v4): one on-call shift of 4 waves on the
+// camp's pager board. Every incident is a bank question from Domain 4 (Troubleshooting) or Domain 1 (Development) on
+// a service of the request path (API Gateway, Lambda, DynamoDB, SQS, S3), plus about 1 in 4 due from other topics
+// (SD.modes.pick). The whole stem is free to read; the right answer is the fix.
+//   - Clocks start at 5, 7 or 9 ticks. Answering an incident costs every other open clock 1 tick. Opening a question
+//     freezes the board: time is counted in answers, never seconds.
+//   - Right: resolved. Wrong: after the verdict it stays open as its twin (the same cause in a scenario you haven't
+//     seen), one retry right there; after a second miss, or without a twin, it's logged as missed and comes back through spaced review.
+//   - A clock at zero pages: 15% of the error budget, and the incident returns next wave as its twin. A Sure miss
+//     costs 5%. The error budget is only for survival; points come from the shared stake table (js/modes.js).
+//   - Between waves, from the second shift on (one new rule per night): one free pick from Dutch, Coo or Bru.
+//   - At 0% the shift stops, and "Retry this wave" restarts the wave in one tap; answers already given stay logged.
+//   - Saves after every answer and every pick (S.save.ic). Host: Uptima, the secondary pager (Story review: Kyu held
+//     the pager). The request-path map with Logs, Metrics, Trace, Config and Changes lenses comes next (Nov 19).
 (function () {
   if (!SD.modes) return;
-  const M = SD.modes, U = SD.ui, S = SD.state, E = () => SD.exam, D = () => SD.topicDrill;
+  const M = SD.modes, U = SD.ui, S = SD.state, E = () => SD.exam;
   const esc = s => U.esc(s);
-  const ID = 'ic', TITLE = 'INCIDENT COMMANDER', PRESET = 'pack-trouble';
-  const WAVES = [2, 3, 3, 3, 3];          // incidents landing in each wave: 14 in all
-  const OVERTIME = 2;                     // extra waves after wave 5 for carried and still-waiting incidents; open ones wait for next shift
-  const TIMEOUT = 20, SURE_MISS = 10, SURE_PAY = 5;   // error budget, in %
-  const FIX_COST = 3, FIX_TICKS = 2;      // a fix costs 3 points and adds 2 ticks
+  const ID = 'ic', TITLE = 'INCIDENT COMMANDER';
+  const WAVES = [3, 3, 3, 3];             // incidents landing in each wave: 12 in all
+  const OVERTIME = 1;                     // one extra wave after wave 4 for incidents that timed out in it
+  const CLOCKS = [5, 7, 9];
+  const TIMEOUT = 15, SURE_MISS = 5;      // error budget, in %
   const IC = SD.ic = {};
   const sv = () => S.save;
   const shift = () => sv().ic || null;
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  // ---- Uptima's lines (barks: no numbers, no AWS claims) ----
+  // ---- The request path: the services incidents land on (the map's nodes from Nov 19) ----
+  IC.NODES = [
+    { id: 'apigw', name: 'API Gateway', topics: ['apigateway'] },
+    { id: 'lambda', name: 'Lambda', topics: ['lambda'] },
+    { id: 'ddb', name: 'DynamoDB', topics: ['dynamodb', 'dax'] },
+    { id: 'sqs', name: 'SQS', topics: ['sqs'] },
+    { id: 's3', name: 'S3', topics: ['s3'] }
+  ];
+  IC.nodeOf = q => (q && IC.NODES.find(n => n.topics.includes(q.topic))) || null;
+  // Incidents: Domain 4 and Domain 1 questions on a request-path service.
+  IC.match = q => [1, 4].includes(E().domainOf(q)) && !!IC.nodeOf(q);
+
+  // ---- Lines (barks: no numbers, no AWS claims) ----
   const SAY = {
     open: 'Kyu held the Cloud\'s pager for ten thousand years. I\'m the secondary. Tonight it\'s yours. Wake me if the error budget hits zero. Don\'t wake me.',
-    wave: [null, 'Wave two. I\'m asleep. This is a recording of me being asleep.',
-      'Wave three. Halfway. Kyu did this every night. Every. Night.', 'Wave four. If anyone asks, I was supervising.', 'Last wave. Close these and the pager goes back in the drawer.'],
+    wave: [null, 'Wave two. I\'m asleep. This is a recording of me being asleep.', 'Wave three. Kyu did this every night. Every. Night.', 'Last wave. Close these and the pager goes back in the drawer.'],
     overtime: 'Overtime. The ones that got away came back. They always come back.',
     sureRight: 'Resolved, and you were Sure. I\'m writing that in the postmortem. In gold.',
     right: 'Resolved. One less red light. I like fewer red lights.',
-    wrong: 'Still open. Read the stem again. The stem is always telling on someone.',
+    wrong: 'Still open. Same fault, different symptoms. Read it all again. The stem is always telling on someone.',
+    missed: 'That one got away. It\'ll page you again some other night. They always do.',
     sureMiss: 'You were Sure. I was Sure once. I was a goddess. Look at me now.',
-    timeout: 'That one paged twice. It goes to the next wave. They always come back.',
-    shop: 'Between waves. The vendors are awake, which is more than I can say for me.',
+    timeout: 'That one paged twice. It comes back next wave, in a new disguise.',
+    pick: 'Between waves. Somebody\'s offering to help. Take it. I never did.',
     zero: 'I am risen! Thy goddess is... oh. Oh no. Kyu never woke me. Not once in ten thousand years.',
     end: 'Shift over. Hand me the pager. ...Actually, keep it till morning.'
   };
-
-  // ---- Fixes (the config shop). Trade-offs as the AWS docs state them; no numbers. ----
-  const answerText = q => (q.type === 'mc' ? q.opts[q.a] : (q.items || []).filter(i => i.ok).map(i => i.t).join(' '));
-  const stemText = q => [q.q].concat(q.opts || [], (q.items || []).map(i => i.t)).join(' ');
-  IC.FIXES = [
-    { id: 'rc', name: 'Reserved concurrency', vendor: 'Kai', line: 'Six burners. Nobody else gets them. And I never light a seventh.',
-      trade: 'Guarantees a function that much concurrency and also caps it there, so above the cap it throttles.',
-      hits: q => /concurren|throttl|\b429\b|TooManyRequests/i.test(q.q), about: q => /reserved concurrency/i.test(answerText(q)) },
-    { id: 'apic', name: 'API Gateway cache', vendor: 'Wen', line: 'A lunch box is a cache, dear.',
-      trade: 'Caches responses for REST APIs only; HTTP APIs have no cache. Repeated requests skip the backend until the entry expires.',
-      hits: q => /API Gateway/i.test(q.q) && /latenc|slow|backend|repeat|cach/i.test(q.q), about: q => /cach/i.test(answerText(q)) && /API Gateway|stage/i.test(answerText(q) + ' ' + q.q) },
-    { id: 'dax', name: 'DAX', vendor: 'Wen', line: 'The bowls people ask for most, I keep by the door. Ask for one fresh from the pot and you still wait for the pot.',
-      trade: 'Speeds up eventually consistent reads. Strongly consistent reads and writes go through to DynamoDB, no faster.',
-      hits: q => /DynamoDB/.test(q.q) && /read|latenc|hot|throttl/i.test(q.q), about: q => /\bDAX\b/.test(answerText(q)) },
-    { id: 'sqs', name: 'SQS buffer', vendor: 'Coo', line: 'Coo. Every letter held until a clerk is free. Delivered at least once. Repeats are your concern.',
-      trade: 'A queue holds a burst until consumers are free. Standard queues deliver at least once, so consumers must handle repeats.',
-      hits: q => /spike|burst|overwhelm|\bSQS\b|queue|asynchron/i.test(q.q), about: q => /\bSQS\b|queue/i.test(answerText(q)) && /spike|burst|buffer|decouple|absorb|overwhelm|peak|backlog|at least once|duplicate|idempoten/i.test(q.q + ' ' + answerText(q)) },
-    { id: 'back', name: 'Retries with backoff', vendor: 'Doug', line: 'Kevin waits. Then he waits longer. Then longer again, a bit random. It\'s very boring. Nothing falls over.',
-      trade: 'Spaces out retries, with random jitter, so clients don\'t retry in lockstep. It doesn\'t raise any limit.',
-      hits: q => /throttl|retr|\b429\b|\b503\b|ThrottlingException|ProvisionedThroughputExceeded|backoff/i.test(q.q), about: q => /backoff|jitter/i.test(answerText(q)) }
+  // Between-wave picks (spec v4): incomparable, one per break, from the second shift on.
+  IC.PICKS = [
+    { id: 'dutch', who: 'Dutch', what: '+2 ticks on one clock you choose', line: 'Point at a door. Nobody pages through it while I\'m standing there.' },
+    { id: 'coo', who: 'Coo', what: 'The next timeout costs half', line: 'Coo. The next letter that goes astray, I\'ll catch half of it.' },
+    { id: 'bru', who: 'Bru', what: 'Your next answer ticks no other clock', line: 'I\'ll walk the doors myself while you work. Go. ¡Ándale!' }
   ];
-  const fix = id => IC.FIXES.find(f => f.id === id);
-  // The verified questions a fix can be bought with (Rule 1: verified only; no verified question, no fix yet).
-  IC.fixQuestions = f => D().base().filter(q => (q.type === 'mc' || q.type === 'multi') && D().isVerified(q) && f.about(q));
-  IC.shopOpen = () => !!(SD.verified && Object.keys(SD.verified).length) && IC.FIXES.some(f => IC.fixQuestions(f).length);
+  const pickDef = id => IC.PICKS.find(p => p.id === id);
+  IC.picksOn = () => ((sv().modes && sv().modes.icShifts) | 0) >= 1;
 
-  // ---- The incident card: the question line and its qualifier; the scenario is clues (SD.modes.split) ----
-  IC.CLUES = ['Logs', 'Metrics', 'Traces', 'Config'];
-  IC.split = q => M.split(q, IC.CLUES);
+  const answerText = q => (q.type === 'mc' ? q.opts[q.a] : (q.items || []).filter(i => i.ok).map(i => i.t).join(' '));
   const find = id => (SD.today && SD.today.resolveItem ? SD.today.resolveItem({ q: id }) : E().find(id));
-  const rollClock = () => 3 + Math.floor(Math.random() * 3);
+  const twinOf = (s, id) => {
+    const q = E().find(id), used = s.log.map(x => x.q).concat(s.board.map(x => x.q), s.queue.map(x => x.q), s.carry.map(x => x.q), s.seen || []);
+    return q && SD.qtwin ? SD.qtwin(q, { avoid: used.concat(id) }) : null;
+  };
 
-  // ---- A shift ----
-  function newShift() {
-    const back = (sv().icBacklog || []).filter(it => E().find(it.q)).slice(0, 6);
+  // ---- The shift: a state machine the board UI and the simulator (tools/modes_sim.js) share ----
+  IC.newShift = function (opts) {
+    opts = opts || {};
+    const back = opts.sim ? [] : (sv().icBacklog || []).filter(it => E().find(it.q)).slice(0, 4);
     const want = WAVES.reduce((a, b) => a + b, 0) - back.length;
-    const r = M.pick({ preset: PRESET, n: Math.max(0, want), avoid: back.map(it => it.q) });
-    sv().icBacklog = [];
-    const s = sv().ic = {
-      v: 1, t: Date.now(), wave: 0, phase: 'board', budget: 100, pts: 0, tally: M.newTally(),
+    const r = M.pick({ match: IC.match, n: Math.max(0, want), avoid: back.map(it => it.q) });
+    const s = {
+      v: 2, t: Date.now(), sim: !!opts.sim, rng: undefined, wave: 0, phase: 'board', budget: 100, pts: 0, tally: M.newTally(),
       queue: back.map(it => ({ q: it.q, other: it.other | 0, back: 1 })).concat(r.items.map(it => ({ q: it.q, other: it.other }))),
-      board: [], carry: [], log: [], fixes: [], shopAt: 0, bought: 0, verified: r.verified, topped: r.topped, msg: ''
+      board: [], carry: [], log: [], seen: [], perks: {}, picked: [], verified: r.verified, topped: r.topped, msg: '', since: '', answers: 0,
+      picksOn: opts.sim ? !!opts.picks : IC.picksOn()
     };
-    landWave(s);
-    S.persist();
+    if (!opts.sim) { sv().icBacklog = []; sv().ic = s; }
+    IC.land(s, opts.rng);
+    save(s);
     return s;
-  }
+  };
+  const save = s => { if (!s.sim) S.persist(); };
   const lastWave = s => s.wave >= WAVES.length + OVERTIME || (s.wave >= WAVES.length && !s.carry.length && !s.queue.length);
-  function landWave(s) {
+  IC.land = function (s, rng) {
+    const R = rng || Math.random;
     s.wave++;
-    // Carried incidents land first, so a wave with carries brings fewer new ones; overtime lands what's still waiting.
     const size = s.wave <= WAVES.length ? WAVES[s.wave - 1] : 3;
     const take = s.carry.splice(0);
     while (take.length < size && s.queue.length) take.push(s.queue.shift());
-    s.board = take.map(it => ({ q: it.q, orig: it.orig || it.q, other: it.other | 0, back: it.back | 0, clock: rollClock(), max: 0, tries: it.tries | 0, timeouts: it.timeouts | 0, fix: '' }));
-    // Each fix bought adds ticks to the first incident it matches in each later wave.
-    s.fixes.forEach(fid => {
-      const f = fix(fid), inc = f && s.board.find(b => !b.fix && f.hits(E().find(b.q) || {}));
-      if (inc) { inc.clock += FIX_TICKS; inc.fix = fid; }
+    s.board = take.map(it => {
+      const c = CLOCKS[Math.floor(R() * CLOCKS.length)];
+      return { q: it.q, orig: it.orig || it.q, other: it.other | 0, back: it.back | 0, clock: c, max: c, tries: it.tries | 0, timeouts: it.timeouts | 0, dutch: 0 };
     });
-    s.board.forEach(b => { b.max = b.clock; });
+    // Snapshot for "Retry this wave" (answers already given stay logged).
+    s.waveStart = { board: JSON.parse(JSON.stringify(s.board)), carry: [], queue: s.queue.slice(), budget: s.budget, perks: Object.assign({}, s.perks) };
     s.msg = s.wave <= WAVES.length ? SAY.wave[s.wave - 1] || SAY.open : SAY.overtime;
-  }
+    s.since = '';
+  };
   const logOf = (s, b) => {
     let l = s.log.find(x => x.orig === b.orig);
     if (!l) s.log.push(l = { orig: b.orig, q: b.q, ok: 0, tries: 0, timeouts: 0, other: b.other });
     return l;
   };
+  const nodeName = id => { const n = IC.nodeOf(E().find(id)); return n ? n.name : 'Elsewhere'; };
+  // One answer: r = { ok, conf, pts }. Returns what changed, for the "Since your last answer" line.
+  IC.settle = function (s, inc, r) {
+    const l = logOf(s, inc), conf = [0, 1, 2].includes(r.conf) ? r.conf : 0, notes = [];
+    s.pts += r.pts || 0; s.answers++;
+    l.tries++; l.q = inc.q;
+    s.seen.push(inc.q);
+    const idx = s.board.indexOf(inc);
+    if (r.ok) {
+      l.ok = 1;
+      s.board.splice(idx, 1);
+      s.msg = conf === 2 ? SAY.sureRight : SAY.right;
+      notes.push(`✓ ${nodeName(inc.q)} resolved`);
+    } else {
+      inc.tries++;
+      if (conf === 2) { s.budget -= SURE_MISS; notes.push(`Sure miss −${SURE_MISS}% budget`); }
+      const tw = inc.tries <= 1 ? twinOf(s, inc.q) : null;   // one retry on the twin, then it's logged as missed
+      if (tw) { inc.q = tw.id; s.msg = conf === 2 ? SAY.sureMiss : SAY.wrong; notes.push(`↻ ${nodeName(inc.q)} still open, as a new scenario`); }
+      else { s.board.splice(idx, 1); s.msg = conf === 2 ? SAY.sureMiss : SAY.missed; notes.push(`✗ ${nodeName(inc.q)} missed: it comes back in review`); }
+    }
+    // Every answer ticks every other open clock, unless Bru is covering this one.
+    if (s.perks.bru) { s.perks.bru = 0; notes.push('Bru covered the other clocks'); }
+    else s.board.filter(b => b !== inc).forEach(b => { b.clock--; });
+    const out = s.board.filter(b => b.clock <= 0);
+    out.forEach(b => {
+      let cost = TIMEOUT;
+      if (s.perks.coo) { s.perks.coo = 0; cost = Math.ceil(TIMEOUT / 2); }
+      s.budget -= cost; b.timeouts++;
+      logOf(s, b).timeouts++;
+      s.board.splice(s.board.indexOf(b), 1);
+      // It comes back next wave as its twin (the same question when it has none: it was never answered).
+      const tw = twinOf(s, b.q);
+      s.carry.push({ q: tw ? tw.id : b.q, orig: b.orig, other: b.other, tries: b.tries, timeouts: b.timeouts });
+      notes.push(`⏱ ${nodeName(b.q)} paged: −${cost}% budget, back next wave`);
+    });
+    if (out.length) s.msg = SAY.timeout;
+    const ticked = s.board.filter(b => b !== inc && !out.includes(b)).map(b => `${nodeName(b.q)} ${b.clock}`);
+    if (ticked.length && !notes.some(n => /Bru/.test(n))) notes.push('clocks: ' + ticked.join(', '));
+    s.budget = Math.max(0, s.budget);
+    s.since = 'Since your last answer: ' + notes.join(' · ') + '.';
+    return out.length;
+  };
+  // What comes after an answer or a pick: 'zero', 'board', 'pick', or 'done'.
+  IC.next = function (s, rng) {
+    if (s.budget <= 0) return 'zero';
+    if (s.board.length) return 'board';
+    if (lastWave(s)) return 'done';
+    if (s.picksOn && s.wave < WAVES.length && s.picked.length < s.wave) return 'pick';
+    IC.land(s, rng);
+    return 'board';
+  };
+  IC.applyPick = function (s, id, rng) {
+    s.picked.push(id);
+    if (id === 'coo') s.perks.coo = 1;
+    if (id === 'bru') s.perks.bru = 1;
+    if (id === 'dutch') s.perks.dutch = 1;
+    IC.land(s, rng);
+    s.msg = `${pickDef(id).who}: ${pickDef(id).line}`;
+  };
+  IC.useDutch = function (s, i) {
+    const b = s.board[i];
+    if (!s.perks.dutch || !b) return false;
+    s.perks.dutch = 0; b.clock += 2; b.max = Math.max(b.max, b.clock); b.dutch = 1;
+    s.since = `Dutch is standing at ${nodeName(b.q)}: +2 ticks.`;
+    return true;
+  };
+  IC.retryWave = function (s) {
+    const w = s.waveStart;
+    s.board = JSON.parse(JSON.stringify(w.board)); s.carry = []; s.queue = w.queue.slice(); s.budget = Math.max(w.budget, TIMEOUT + 1);
+    s.perks = Object.assign({}, w.perks); s.phase = 'board'; s.zero = false; s.retries = (s.retries | 0) + 1;
+    s.msg = 'Again. I\'ll pretend I didn\'t see that.'; s.since = '';
+  };
 
   // ---- The board ----
-  const sev = c => (c <= 1 ? ['🔥', 'SEV-1'] : c === 2 ? ['⚠', 'SEV-2'] : ['ⓘ', 'SEV-3']);
-  function cardHtml(b, i) {
+  const sev = c => (c <= 2 ? ['🔥', 'SEV-1'] : c <= 4 ? ['⚠', 'SEV-2'] : ['ⓘ', 'SEV-3']);
+  function cardHtml(s, b, i) {
     const q = find(b.q);
     if (!q) return '';
-    const sp = IC.split(q), [ic, lv] = sev(b.clock);
+    const sp = M.split(q), [ic, lv] = sev(b.clock), node = IC.nodeOf(q);
     const pips = Array.from({ length: Math.max(b.max, b.clock) }, (_, k) => (k < b.clock ? '●' : '○')).join('');
-    const topic = String(q.topic || '').replace(/-/g, ' ').toUpperCase();
-    const f = b.fix && fix(b.fix);
-    return `<button class="opt ic-card ic-${lv.toLowerCase()}" data-inc="${i}" aria-label="Incident ${i + 1}, ${lv}, ${plural(b.clock, 'tick')} left">
-      <span class="ic-top"><b class="ic-sev">${ic} ${lv}</b><span class="ic-clock" aria-hidden="true">${pips}</span><span class="small"><b>${plural(b.clock, 'tick')} left</b></span></span>
+    return `<div class="ic-inc ic-${lv.toLowerCase()}"><button class="opt ic-card" data-inc="${i}" aria-label="Incident at ${esc(node ? node.name : 'another service')}, ${lv}, ${plural(b.clock, 'tick')} left. Open it">
+      <span class="ic-top"><b class="ic-sev">${ic} ${lv}</b><b>${esc(node ? node.name : String(q.topic || '').toUpperCase())}</b><span class="small"><b>${plural(b.clock, 'tick')} left</b></span></span>
+      <span class="ic-clock" aria-hidden="true">${pips}</span>
       <span class="ic-sym">${esc(sp.ask)}</span>
-      ${sp.items.length ? `<span class="small ic-cl">🔎 ${plural(sp.items.length, 'clue')} to read: ${esc(sp.items.map(c => c.label).join(', '))}</span>` : ''}
       ${sp.qual ? `<span class="ic-qual">★ Asks for: <b>${esc(sp.qual)}</b></span>` : ''}${sp.pick ? `<span class="ic-qual">☰ ${esc(sp.pick)}</span>` : ''}
-      <span class="muted small ic-tags">${esc(topic || 'INCIDENT')}${b.other ? ' · from another topic' : ''}${b.back ? ' · back from last shift' : ''}${b.tries ? ` · ✗ ${b.tries === 1 ? 'one failed fix' : plural(b.tries, 'failed fix')}` : ''}${b.timeouts ? ' · ⏱ paged before' : ''}${f ? ` · 🛠 ${esc(f.name)} +${FIX_TICKS}` : ''}</span></button>`;
+      <span class="muted small ic-tags">${b.other ? 'From another topic' : 'Request path'}${b.back ? ' · back from last shift' : ''}${b.tries ? ' · ↻ new scenario after a miss' : ''}${b.timeouts ? ' · ⏱ paged before' : ''}${b.dutch ? ' · 🛡 Dutch is here' : ''}</span></button>
+      ${s.perks.dutch ? `<button class="ghost ic-dutch" data-dutch="${i}">🛡 Send Dutch here (+2 ticks)</button>` : ''}</div>`;
   }
-  function budgetHtml(s) {
+  function hud(s) {
     const b = Math.max(0, s.budget);
+    const perks = [s.perks.coo ? '🪶 Coo: next timeout costs half' : '', s.perks.bru ? '🚪 Bru: next answer ticks no clock' : '', s.perks.dutch ? '🛡 Dutch: +2 on one clock' : ''].filter(Boolean);
     return `<div class="ic-hud"><span><b>Wave ${Math.min(s.wave, WAVES.length)}${s.wave > WAVES.length ? ' · overtime' : ''}</b> of ${WAVES.length}</span>
       <span>Error budget <b>${b}%</b></span><span>Points <b>${M.sgn(s.pts)}</b></span></div>
-      <div class="bar ic-bar" role="img" aria-label="Error budget ${b}%"><i style="width:${b}%"></i></div>`;
+      <div class="bar ic-bar" role="img" aria-label="Error budget ${b}%"><i style="width:${b}%"></i></div>
+      ${perks.length ? `<p class="small ic-perks">${perks.map(esc).join(' · ')}</p>` : ''}`;
   }
   IC.board = function () {
     const s = shift();
     if (!s) return;
-    if (s.phase === 'shop') return shopPanel(s);
+    if (s.phase === 'pick') return pickPanel(s);
+    if (s.phase === 'zero') return zeroPanel(s);
     if (s.phase === 'done') return results(s);
     const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
-      ${budgetHtml(s)}
-      <p class="small">Pick an incident to work. Every answer ticks the others' clocks.</p>
-      <div class="opts ic-board">${s.board.map(cardHtml).join('')}</div>
+      ${s.since ? `<p class="small ic-since">${esc(s.since)}</p>` : ''}
+      ${hud(s)}
+      <p class="small">Pick an incident to work. Every answer ticks the other clocks by one. The board waits while you read.</p>
+      <div class="ic-board">${s.board.map((x, i) => cardHtml(s, x, i)).join('')}</div>
       <div class="row"><button class="ghost" id="ic-how">How to play</button><button class="ghost" id="ic-stop">Stop for now</button></div>`, { title: TITLE, onClose: stopNow });
     b.querySelectorAll('[data-inc]').forEach(el => el.onclick = () => work(+el.dataset.inc));
+    b.querySelectorAll('[data-dutch]').forEach(el => el.onclick = () => { IC.useDutch(s, +el.dataset.dutch); save(s); IC.board(); });
     b.querySelector('#ic-stop').onclick = () => { U.closePanel(); stopNow(); };
     b.querySelector('#ic-how').onclick = () => M.walk(ID, walkScreens(s)).then(IC.board);
   };
@@ -151,203 +227,175 @@
     const s = shift(), inc = s && s.board[i];
     if (!inc) return;
     const q = find(inc.q);
-    if (!q) { s.board.splice(i, 1); S.persist(); return after(s); }
-    const sp = IC.split(q);
+    if (!q) { s.board.splice(i, 1); save(s); return after(s); }
+    const node = IC.nodeOf(q);
     const r = await M.ask(q, {
-      title: TITLE, tally: s.tally, clues: true, clueLabels: IC.CLUES, act: { label: 'Apply a fix', icon: '🛠' },
-      context: `Incident · wave ${Math.min(s.wave, WAVES.length)} · ${plural(inc.clock, 'tick')} left${sp.qual ? ' · asks for ' + sp.qual : ''}`,
+      title: TITLE, tally: s.tally, think: true, act: { label: `Apply a fix${node ? ' at ' + node.name : ''}`, icon: '🛠' },
+      context: `Incident${node ? ' at ' + node.name : ''} · wave ${Math.min(s.wave, WAVES.length)} · ${plural(inc.clock, 'tick')} left${inc.tries ? ' · a new scenario of the same fault' : ''}`,
       progress: `Wave ${Math.min(s.wave, WAVES.length)}`, onStop: () => {}
     });
     if (r.stopped && !r.committed) return stopNow();
     if (r.closed) return IC.board();
-    settle(s, inc, r);
-    if (r.stopped) return stopNow();
+    IC.settle(s, inc, r);
+    if (IC.settleNotes(s)) U.system('PAGED', esc(s.since.replace(/^Since your last answer: /, '')), 'red');
+    save(s);
+    if (r.stopped) { s.phase = phaseAfter(s); save(s); return stopNow(); }
     after(s);
   }
-  function settle(s, inc, r) {
-    const l = logOf(s, inc), conf = [0, 1, 2].includes(r.conf) ? r.conf : 0;
-    s.pts += r.pts || 0;
-    l.tries++; l.q = inc.q;
-    // Evidence from play (stealth assessment): how much of the scenario was read before each fix.
-    if (r.clues) (l.ev = l.ev || []).push([r.clues.opened.length, r.clues.total, r.ok ? 1 : 0]);
-    const idx = s.board.indexOf(inc);
-    if (r.ok) {
-      l.ok = 1;
-      s.board.splice(idx, 1);
-      if (conf === 2) s.budget = Math.min(100, s.budget + SURE_PAY);
-      s.msg = conf === 2 ? SAY.sureRight : SAY.right;
-    } else {
-      inc.tries++;
-      if (conf === 2) { s.budget -= SURE_MISS; s.msg = SAY.sureMiss; } else s.msg = SAY.wrong;
-      // The same cause in a scenario you haven't seen stays on the board; without a twin it goes to the next wave.
-      const orig = E().find(inc.orig), used = s.log.map(x => x.q).concat(s.board.map(x => x.q), s.queue.map(x => x.q));
-      const tw = orig && SD.qtwin ? SD.qtwin(orig, { avoid: used.concat(inc.q) }) : null;
-      if (tw) inc.q = tw.id;
-      else { s.board.splice(idx, 1); s.carry.push({ q: inc.q, orig: inc.orig, other: inc.other, tries: inc.tries, timeouts: inc.timeouts }); }
-    }
-    // Every answer ticks every other open incident.
-    s.board.filter(b => b !== inc).forEach(b => { b.clock--; });
-    const out = s.board.filter(b => b.clock <= 0);
-    out.forEach(b => {
-      s.budget -= TIMEOUT; b.timeouts++;
-      logOf(s, b).timeouts++;
-      s.board.splice(s.board.indexOf(b), 1);
-      s.carry.push({ q: b.q, orig: b.orig, other: b.other, tries: b.tries, timeouts: b.timeouts });
-    });
-    if (out.length) { s.msg = SAY.timeout; U.system('PAGED', `${out.length === 1 ? 'An incident' : plural(out.length, 'incident')} timed out: −${TIMEOUT * out.length}% error budget. ${out.length === 1 ? 'It comes' : 'They come'} back next wave.`, 'red'); }
-    s.budget = Math.max(0, s.budget);
-    S.persist();
+  IC.settleNotes = s => /paged/.test(s.since || '');
+  function phaseAfter(s) {
+    const n = IC.next(s);
+    return n === 'zero' ? 'zero' : n === 'done' ? 'done' : n === 'pick' ? 'pick' : 'board';
   }
   function after(s) {
-    if (s.budget <= 0) return end(s, true);
-    if (s.board.length) return IC.board();
-    if (lastWave(s)) return end(s, false);
-    // Between waves: the shop, once per break, after waves 1 to 4.
-    if (s.wave < WAVES.length && IC.shopOpen() && s.shopAt < s.wave) { s.phase = 'shop'; S.persist(); return shopPanel(s); }
-    landWave(s); S.persist();
+    s.phase = phaseAfter(s);
+    if (s.phase === 'done') return end(s);
+    save(s);
     IC.board();
   }
 
-  // ---- The config shop ----
-  // A fix's verified questions not already in tonight's shift, longest unasked first.
-  function shopQs(s, f) {
-    const asked = new Set(s.log.map(x => x.q).concat(s.queue.map(x => x.q), s.board.map(x => x.q), s.carry.map(x => x.q), s.shopQs || []));
-    const log = sv().qlog || {};
-    return IC.fixQuestions(f).filter(q => !asked.has(q.id)).sort((a, b) => (log[a.id] ? log[a.id][0] : 0) - (log[b.id] ? log[b.id][0] : 0));
+  // ---- Between waves: one free pick ----
+  function pickPanel(s) {
+    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(SAY.pick)}</p>
+      ${hud(s)}
+      <p class="small">Wave ${s.wave} cleared. Take one, free. It lasts until it's used.</p>
+      <div class="opts">${IC.PICKS.map(p => `<button class="opt ic-pick" data-pick="${p.id}"><b>${esc(p.who)}:</b> ${esc(p.what)}<br><span class="small"><i>"${esc(p.line)}"</i></span></button>`).join('')}</div>`, { title: TITLE, onClose: stopNow });
+    b.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => { IC.applyPick(s, el.dataset.pick); s.phase = 'board'; save(s); IC.board(); });
   }
-  function shopPanel(s) {
-    const rows = IC.FIXES.map(f => {
-      const owned = s.fixes.includes(f.id), all = IC.fixQuestions(f).length, n = shopQs(s, f).length;
-      const why = owned ? '✓ Installed' : !all ? 'Closed: no verified question on it yet' : !n ? 'Closed tonight: its verified questions are already on your shift' : s.pts < FIX_COST ? `Needs ${FIX_COST} points` : `Answer one verified question · ${FIX_COST} points`;
-      const can = !owned && n && s.pts >= FIX_COST;
-      return `<div class="ic-fix${owned ? ' on' : ''}"><p><b>${esc(f.name)}</b> <span class="muted small">from ${esc(f.vendor)}</span></p>
-        <p class="small"><i>${esc(f.vendor)}: "${esc(f.line)}"</i></p>
-        <p class="small"><b>Trade-off:</b> ${esc(f.trade)}</p>
-        ${can ? `<button class="primary" data-fix="${f.id}">Buy · ${esc(why)}</button>` : `<p class="small ic-fs"><b>${esc(why)}</b></p>`}</div>`;
-    }).join('');
-    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(SAY.shop)}</p>
-      ${budgetHtml(s)}
-      <p class="small">One fix per break. A fix adds ${FIX_TICKS} ticks to the first incident it matches in each later wave. You buy it by answering a verified question on it: right installs it for ${FIX_COST} points, wrong costs nothing extra.</p>
-      ${rows}
-      <div class="row"><button class="ghost" id="ic-skip">Back on call</button></div>`, { title: 'CONFIG SHOP', onClose: stopNow });
-    b.querySelector('#ic-skip').onclick = () => leaveShop(s);
-    b.querySelectorAll('[data-fix]').forEach(el => el.onclick = () => buy(s, fix(el.dataset.fix)));
-  }
-  function leaveShop(s) { s.shopAt = s.wave; s.phase = 'board'; landWave(s); S.persist(); IC.board(); }
-  async function buy(s, f) {
-    const list = shopQs(s, f), q = list[0] && find(list[0].id);
-    if (!q) return shopPanel(s);
-    const r = await M.ask(q, { title: 'CONFIG SHOP', tally: s.tally, context: `${f.name}, from ${f.vendor}`, progress: 'Shop', onStop: () => {} });
-    if (r.stopped && !r.committed) return stopNow();
-    s.shopQs = (s.shopQs || []).concat(q.id);
-    s.pts += r.pts || 0;
-    if (r.ok) { s.pts -= FIX_COST; s.fixes.push(f.id); U.system('FIX INSTALLED', `${esc(f.name)}: +${FIX_TICKS} ticks on the first matching incident in each later wave.`, 'gold'); }
-    else U.system('NOT INSTALLED', `${esc(f.vendor)} keeps the ${esc(f.name)} for now. Read why, then try another break.`);
-    s.bought++;
-    s.shopAt = s.wave; s.phase = 'board';
-    landWave(s);
-    S.persist();
-    if (r.stopped) return stopNow();
-    IC.board();
+
+  // ---- 0% budget: retry the wave, or end the shift ----
+  function zeroPanel(s) {
+    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(SAY.zero)}</p>
+      ${hud(s)}
+      <p>The error budget hit 0% in wave ${Math.min(s.wave, WAVES.length)}. Your answers so far are logged.</p>
+      <div class="row"><button class="primary" id="ic-retry">Retry this wave</button><button class="ghost" id="ic-end">End the shift</button></div>`, { title: TITLE, onClose: stopNow });
+    b.querySelector('#ic-retry').onclick = () => { IC.retryWave(s); save(s); IC.board(); };
+    b.querySelector('#ic-end').onclick = () => { s.zero = true; end(s); };
   }
 
   // ---- The end of a shift ----
-  function end(s, zero) {
+  function end(s) {
     const left = s.board.concat(s.carry).map(b => ({ q: b.q, other: b.other }));
     sv().icBacklog = left;
-    s.phase = 'done'; s.zero = !!zero; s.left = left.length; s.board = []; s.carry = [];
+    s.phase = 'done'; s.left = left.length; s.board = []; s.carry = [];
+    const st = sv().modes = sv().modes || {};
+    st.icShifts = (st.icShifts | 0) + 1;
     s.paid = M.pay(ID);
-    S.persist();
+    save(s);
     results(s);
   }
+  // One thing to do differently (Extra Credits, "When Difficult Is Fun").
+  function advice(s) {
+    const t = s.tally, rate = c => (t[c] && t[c][1] ? t[c][0] / t[c][1] : null);
+    const timeouts = s.log.reduce((a, l) => a + l.timeouts, 0);
+    if (rate(2) !== null && t[2][1] >= 3 && rate(2) < 2 / 3) return 'Next shift: press Sure only when you\'d bet on it. Your Sure answers were right less than 2 times in 3, and each miss costs 3.';
+    if (timeouts) return 'Next shift: work the lowest clock first. A page costs more budget than a slow answer.';
+    if (rate(1) !== null && t[1][1] >= 3 && rate(1) >= 2 / 3) return 'Next shift: you were right on most Think so answers. Some of those were Sure.';
+    if (rate(0) !== null && t[0][1] >= 3 && rate(0) >= 0.5) return 'Next shift: your guesses were right half the time or more. Say Think so on those.';
+    return 'Next shift: keep it up, and read every line of the stem before you apply a fix.';
+  }
   function results(s) {
-    const right = s.log.filter(l => l.ok).length, sure = [0, 1, 2].reduce((a, c) => a + (s.tally[c] || [0, 0])[1], 0);
+    const right = s.log.filter(l => l.ok).length, n = [0, 1, 2].reduce((a, c) => a + (s.tally[c] || [0, 0])[1], 0);
     const sureMiss = (s.tally[2] || [0, 0])[1] - (s.tally[2] || [0, 0])[0];
     const topics = [...new Set(s.log.map(l => { const q = E().find(l.q); return q && q.topic ? String(q.topic).replace(/-/g, ' ') : null; }).filter(Boolean))];
     const clip = t => (t.length > 120 ? t.slice(0, 118).replace(/\s+\S*$/, '') + '…' : t);
     const rows = s.log.map(l => {
       const q = E().find(l.q);
       if (!q) return '';
-      return `<li><b>${l.ok ? '✓ Resolved' : '✗ Still open'}</b> <span class="muted small">${esc(String(q.topic || '').replace(/-/g, ' '))}${l.timeouts ? ' · ⏱ timed out' : ''}${l.tries > 1 ? ` · ${l.tries} tries` : ''}</span><br><span class="small">${esc(clip(answerText(q)))}</span></li>`;
+      return `<li><b>${l.ok ? '✓ Resolved' : '✗ Missed'}</b> <span class="muted small">${esc(nodeName(l.q))} · ${esc(String(q.topic || '').replace(/-/g, ' '))}${l.timeouts ? ' · ⏱ paged' : ''}${l.tries > 1 ? ` · ${l.tries} tries` : ''}</span><br><span class="small">${esc(clip(answerText(q)))}</span></li>`;
     }).join('');
     const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(s.zero ? SAY.zero : SAY.end)}</p>
       <p class="td-big">${right} of ${s.log.length} incidents resolved.</p>
-      <p class="small">${s.zero ? 'The error budget hit 0%, so the shift ended early.' : `Error budget left: <b>${s.budget}%</b>.`} Points: <b>${M.sgn(s.pts)}</b> from ${plural(sure, 'answer')}.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}${s.fixes.length ? ` Fixes: ${s.fixes.map(id => esc(fix(id).name)).join(', ')}.` : ''}</p>
+      <p class="small">${s.zero ? 'The error budget hit 0%, so the shift ended early.' : `Error budget left: <b>${s.budget}%</b>.`} Points: <b>${M.sgn(s.pts)}</b> from ${plural(n, 'answer')}.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
+      <p class="small ic-advice"><b>${esc(advice(s))}</b></p>
       ${s.left ? `<p class="small">⏱ ${plural(s.left, 'incident')} still open ${s.left === 1 ? 'starts' : 'start'} your next shift.</p>` : ''}
       ${s.paid ? `<p class="small"><b>${esc(s.paid)}</b></p>` : ''}
-      <p class="muted small">${s.verified} of tonight's ${plural(s.log.length, 'incident')} were verified against AWS docs before the shift.${s.topped ? ` ${s.topped} unchecked ones filled in, marked "Not verified yet".` : ''} Topics: ${esc(topics.join(', ') || 'none')}.</p>
+      <p class="muted small">${s.verified} of the shift's incidents were verified against AWS docs.${s.topped ? ` ${s.topped} unchecked ones filled in, marked "Not verified yet".` : ''} Topics: ${esc(topics.join(', ') || 'none')}.</p>
       <details class="ic-log" open><summary class="q-ctx">Every incident's fix</summary><ul>${rows}</ul></details>
-      ${evidenceHtml(s)}
       ${M.calibHtml(s.tally, 'How sure you were this shift')}
       ${M.pipHtml()}
       <div class="row"><button class="primary" id="ic-again">New shift</button><button class="ghost" id="ic-done">Done</button></div>`, { title: TITLE, onClose: stopNow });
     M.pipWire(b, 'Incident Commander');
     b.querySelector('#ic-done').onclick = () => { U.closePanel(); stopNow(); };
-    b.querySelector('#ic-again').onclick = () => { newShift(); IC.board(); };
-  }
-
-  // Investigate or act: fixes made after reading every clue against fixes made with clues still closed.
-  function evidenceHtml(s) {
-    const all = [].concat(...s.log.map(l => l.ev || [])).filter(e => e[1] > 0);
-    if (!all.length) return '';
-    const full = all.filter(e => e[0] >= e[1]), part = all.filter(e => e[0] < e[1]);
-    const row = (name, l) => `<tr><th scope="row">${name}</th><td>${l.length ? `${l.filter(e => e[2]).length} of ${l.length} right` : 'none'}</td></tr>`;
-    const opened = all.reduce((a, e) => a + e[0], 0), total = all.reduce((a, e) => a + e[1], 0);
-    return `<div class="md-cal"><p class="td-head">Investigate or act</p>
-      <table class="md-calt"><caption class="sr">Fixes by how many clues were open</caption><tbody>${row('🔎 Read every clue first', full)}${row('⚡ Fixed with clues closed', part)}</tbody></table>
-      <p class="muted small">You opened ${opened} of ${total} clues before your fixes.</p></div>`;
+    b.querySelector('#ic-again').onclick = () => { IC.newShift(); IC.board(); };
   }
 
   // ---- First run ----
   function walkScreens(s) {
-    const first = s && s.board[0], q = first && find(first.q), sp = q ? IC.split(q) : null;
+    const first = s && s.board[0], q = first && find(first.q), sp = q ? M.split(q) : null, node = q && IC.nodeOf(q);
     return [
       { title: 'An incident', html: `<p><b>Uptima:</b> "${esc(SAY.open)}"</p>
-        <p>Each incident is a real exam question. The card shows what's being asked; the details are clues in its logs, metrics and traces. Here's one from tonight's first wave:</p>
-        ${sp ? `<div class="md-eg"><p class="small"><b>${esc(sp.ask)}</b></p>${sp.qual ? `<p class="small">★ Asks for: <b>${esc(sp.qual)}</b></p>` : ''}${sp.items[0] ? `<p class="small">🔎 ${esc(sp.items[0].label)}: ${esc(sp.items[0].text)}</p>` : ''}</div>` : ''}
-        <p class="small">The star line is the qualifier. MOST cost-effective and LEAST overhead pick different fixes, so it never hides.</p>` },
-      { title: 'Work it', html: `<p>Tap a card. Open as many clues as you need, then apply a fix and say how sure you are:</p>
-        ${M.stakeTable()}<p class="small">A right answer resolves it. A wrong one keeps it open as the same cause in a new scenario, or hands it to the next wave.</p>` },
-      { title: 'Clocks and budget', html: `<p>Every answer ticks every other incident's clock (●●○ means 2 ticks left). There's no real-time clock.</p>
-        <p>A clock at zero costs ${TIMEOUT}% error budget, and the incident comes back next wave. A Sure miss costs ${SURE_MISS}% more; Sure and right pays ${SURE_PAY}% back.</p>
-        <p class="small">${WAVES.length} waves. Between waves, the config shop sells standing fixes, each bought with a verified question. It saves after every incident: stop any time.</p>` }
+        <p>Each incident is a real exam question about a service on the request path. Here's one from tonight's first wave${node ? `, at ${esc(node.name)}` : ''}:</p>
+        ${sp ? `<div class="md-eg"><p class="small"><b>${esc(sp.ask)}</b></p>${sp.qual ? `<p class="small">★ Asks for: <b>${esc(sp.qual)}</b></p>` : ''}</div>` : ''}
+        <p class="small">Open it to read the whole question. The star line is the qualifier: MOST cost-effective and LEAST overhead pick different fixes.</p>` },
+      { title: 'Apply a fix', html: `<p>Name the cause in your own words, then the fixes show. Apply one and say how sure you are:</p>
+        ${M.stakeTable()}<p class="small">Right resolves it. Wrong: after the explanation, it stays open as the same fault in a new scenario, so you can try again straight away.</p>` },
+      { title: 'Clocks and budget', html: `<p>Every answer ticks every other incident's clock by one (●●○ is two ticks left). The board waits while you read: there's no real-time clock.</p>
+        <p>A clock at zero pages: ${TIMEOUT}% error budget, and the incident comes back next wave in a new disguise. A Sure miss costs ${SURE_MISS}%. Points come from the table, budget is just for surviving.</p>
+        <p class="small">${WAVES.length} waves. It saves after every answer: stop any time.</p>` }
     ];
   }
 
   IC.start = async function () {
     let s = shift();
-    if (!s || s.phase === 'done') {
-      s = newShift();
-      if (!s.board.length) { U.system(TITLE, 'No Troubleshooting questions on this exam yet.'); return; }
+    if (!s || s.phase === 'done' || s.v !== 2) {
+      s = IC.newShift();
+      if (!s.board.length) { U.system(TITLE, 'No request-path questions on this exam yet.'); return; }
       await M.walkFirst(ID, walkScreens(s));
     }
     IC.board();
   };
+
+  // ---- Simulator hook (tools/modes_sim.js): plays a whole shift on the real state machine, no UI, no saves ----
+  // policy.route: 'near' works the lowest clock first, 'far' the highest; policy.pick: which between-wave pick.
+  IC.sim = async function (policy, rng) {
+    const s = IC.newShift({ sim: true, rng, picks: !!policy.picks });
+    let map = 0, guard = 0;
+    for (;;) {
+      if (++guard > 200) break;
+      if (s.phase === 'pick') { IC.applyPick(s, policy.pick || IC.PICKS[Math.floor(rng() * 3)].id, rng); map++; s.phase = 'board'; continue; }
+      if (s.phase === 'zero') { s.zero = true; break; }
+      if (s.phase === 'done' || !s.board.length) { const n = IC.next(s, rng); s.phase = n; if (n === 'done') break; continue; }
+      const order = s.board.map((b, i) => [b.clock, i]).sort((a, b) => (policy.route === 'far' ? b[0] - a[0] : a[0] - b[0]));
+      const inc = s.board[order[0][1]];
+      map++;   // tapping the card
+      const q = E().find(inc.q);
+      const r = M.simAnswer(q, policy, rng);
+      IC.settle(s, inc, r);
+      s.phase = IC.next(s, rng);
+      if (s.phase === 'done') break;
+    }
+    const qs = s.answers, secs = qs * M.SIM_Q_SECS + map * M.SIM_MAP_SECS;
+    return { pts: s.pts, budget: s.budget, minutes: secs / 60, mapShare: (map * M.SIM_MAP_SECS) / secs, questions: qs, zero: !!s.zero, resolved: s.log.filter(l => l.ok).length };
+  };
+
   M.register({
     id: ID, name: 'Incident Commander', minutes: '15 to 20', host: 'Uptima, the secondary pager',
-    blurb: 'One on-call shift: 5 waves of incidents on a pager board. The right answer is the fix. Troubleshooting first.',
-    start: IC.start,
-    status: () => { const s = shift(); return s && s.phase !== 'done' ? `Resume · wave ${Math.min(s.wave, WAVES.length)} of ${WAVES.length}, ${Math.max(0, s.budget)}% budget` : ''; }
+    blurb: 'One on-call shift: 4 waves of incidents on the request path. The right answer is the fix.',
+    start: IC.start, sim: IC.sim,
+    status: () => { const s = shift(); return s && s.v === 2 && s.phase !== 'done' ? `Resume · wave ${Math.min(s.wave, WAVES.length)} of ${WAVES.length}, ${Math.max(0, s.budget)}% budget` : ''; }
   });
 
   const css = document.createElement('style');
   css.textContent = `
     .ic-say { margin: 0 0 8px; }
+    .ic-since { margin: 0 0 8px; padding: 6px 8px; border-left: 4px solid var(--ink, #222); overflow-wrap: anywhere; }
     .ic-hud { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; }
     .ic-bar { margin: 4px 0 8px; }
     .ic-bar i { background: var(--mint, #5bc08a); }
-    .ic-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; }
+    .ic-perks { margin: 0 0 6px; }
+    .ic-board { display: flex; flex-direction: column; gap: 10px; }
+    .ic-inc { display: flex; flex-direction: column; gap: 4px; }
+    .ic-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; width: 100%; }
     .ic-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
     .ic-sev { font-size: 13px; letter-spacing: .04em; }
     .ic-clock { letter-spacing: 2px; }
-    .ic-sev-1 { border-width: 3px; border-style: double; }
-    .ic-sym { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+    .ic-sev-1 .ic-card { border-width: 3px; border-style: double; }
+    .ic-sym { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
     .ic-qual { font-size: 14px; }
-    .ic-cl { overflow-wrap: anywhere; }
     .ic-tags { overflow-wrap: anywhere; }
-    .ic-fix { border: 2px solid var(--ink, #222); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
-    .ic-fix.on { border-style: double; border-width: 4px; }
-    .ic-fix p { margin: 2px 0; overflow-wrap: anywhere; }
+    .ic-dutch { min-height: 44px; }
+    .ic-pick { text-align: left; }
     .ic-log ul { padding-left: 18px; margin: 4px 0; }
     .ic-log li { margin: 6px 0; overflow-wrap: anywhere; }`;
   document.head.appendChild(css);

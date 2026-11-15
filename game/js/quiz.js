@@ -109,27 +109,7 @@
       if (q.type === 'multi') optOrder = shuffle(q.items.map((o, i) => i));
       const hidden = opts.hideOne && q.type === 'mc' ? optOrder.find(i => i !== q.a) : null;
       const concept = SD.concepts[q.c];
-      // opts.clues (game modes, js/modes.js SD.modes.split): { items: [{ label, text }], ask, qual, pick }. The stem's
-      // scenario becomes tap-to-open clue tiles; the question line, its MOST/LEAST qualifier and any Select TWO hint stay
-      // visible. opts.onClue(i, clue) runs on each open (return false to refuse it); opts.opened pre-opens some. The
-      // result carries clues: { opened, total, before } (the clues open when the answer was committed).
-      // opts.act ({ label, icon }): the options are actions in the world, with the label above them.
-      const CL = opts.clues && Array.isArray(opts.clues.items) ? opts.clues : null;
-      const opened = new Set(Array.isArray(opts.opened) ? opts.opened : []);
-      let openedAt = null;
-      const out = (ok, conf, ms, score) => {
-        const r = { ok, conf, ms, score, recall: recall && recall.kind };
-        if (CL) r.clues = { opened: openedAt || [...opened], total: CL.items.length, before: true };
-        return r;
-      };
-      function clueView() {
-        const tiles = CL.items.map((c, i) => opened.has(i)
-          ? `<div class="clue on"><span class="q-ctx">${U.esc(c.label)}</span> ${U.esc(c.text)}</div>`
-          : `<button class="clue" data-cl="${i}" aria-label="${U.esc(c.label)}: closed. Tap to open">🔎 ${U.esc(c.label)} <span class="muted small">· tap to open${opts.clueCost ? ' · ' + U.esc(opts.clueCost) : ''}</span></button>`).join('');
-        return `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>
-          ${CL.items.length ? `<div class="q-clues"><p class="muted small">Clues: ${opened.size} of ${CL.items.length} open</p>${tiles}</div>` : ''}
-          <p class="q-q">${U.esc(CL.ask || q.q)}</p>${CL.qual ? `<p class="q-qual">★ Asks for: <b>${U.esc(CL.qual)}</b></p>` : ''}`;
-      }
+      // opts.act ({ label, icon }, game modes): the options are actions in the world, with the label above them.
       function render() {
         let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>`;
         if (typing) {
@@ -160,7 +140,6 @@
           sb.focus();
           return;
         }
-        if (CL) h = clueView();
         if (opts.act && opts.act.label) h += `<p class="act-l"><b>${U.esc(opts.act.icon || '')} ${U.esc(opts.act.label)}</b></p>`;
         if (first !== null) h += `<p class="tf-said"><span class="q-ctx">You wrote</span> ${first ? U.esc(first) : '<i>I don\'t know yet</i>'}</p>`;
         if (q.type === 'mc') {
@@ -184,11 +163,6 @@
           ${SK && opts.stakeHelp ? `<p class="muted small stake-help">${U.esc(opts.stakeHelp)}</p>` : ''}
           ${T ? `<details class="muted small stake-help"><summary>🎯 Your Trust Policy is <b>${tal0}</b>.</summary><p>Right / wrong moves it by the numbers on each button. Say how sure you really are.${opts.stakeNote ? ' ' + U.esc(opts.stakeNote) : ''}</p></details>` : ''}</div>`;
         const b = panel(h);
-        b.querySelectorAll('[data-cl]').forEach(el => el.onclick = () => {
-          const i = +el.dataset.cl;
-          if (opts.onClue && opts.onClue(i, CL.items[i]) === false) return;
-          opened.add(i); render();
-        });
         b.querySelectorAll('[data-o]').forEach(el => el.onclick = () => { pick = +el.dataset.o; render(); });
         b.querySelectorAll('[data-ord]').forEach(el => el.onclick = () => { order.push(+el.dataset.ord); render(); });
         b.querySelectorAll('[data-m]').forEach(el => el.onclick = () => { const i = +el.dataset.m; multi.has(i) ? multi.delete(i) : multi.add(i); render(); });
@@ -212,7 +186,6 @@
       }
       function submit(conf) {
         const ms = Date.now() - t0;
-        openedAt = [...opened];
         if (q.type === 'explain') return checkTyped(conf, ms);
         let ok = false, score = null;
         if (q.type === 'mc') ok = pick === q.a;
@@ -367,7 +340,7 @@
       let lastConf = 0, wn = -1;
       function feedback(ok, conf, ms, page, score) {
         lastConf = conf;
-        onX = () => resolve(out(ok, conf, ms, score));
+        onX = () => resolve({ ok, conf, ms, score, recall: recall && recall.kind });
         let right = '';
         if (q.type === 'mc') right = q.opts[q.a];
         if (q.type === 'num') right = q.ans;
@@ -473,12 +446,12 @@
             SD.state.persist();
             b.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', x === el));
           });
-          nx.onclick = () => { U.closePanel(); resolve(out(ok, conf, ms, score)); };
+          nx.onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
         } else {
           h += `<div class="q-foot">${credMore}<button class="primary" id="q-next">Continue${healTxt ? ` <span class="heal-on">· ${U.esc(healTxt)}</span>` : ''}</button></div>`;
           const b = panel(h, false, true);
           help(b); wire(b);
-          b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve(out(ok, conf, ms, score)); };
+          b.querySelector('#q-next').onclick = () => { U.closePanel(); resolve({ ok, conf, ms, score, recall: recall && recall.kind }); };
           b.querySelector('#q-next').focus();
         }
         if (page) U.system('CHEAT SHEET PAGE RESTORED!', U.esc(SD.concepts[q.c].name) + ': a page in Uptima\'s handwriting fades back in.', 'gold');

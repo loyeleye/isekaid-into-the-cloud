@@ -1,6 +1,6 @@
 // Headless check of the game modes shell (js/modes.js) at phone width (375px): the Play button once a mode registers,
 // the mode picker, the shared stake table (and that always pressing Sure doesn't pay), SD.modes.ask's stakes, verdict,
-// Wall and Stop for now, the calibration readout, the first-run walkthrough, and question picking (verified only, about
+// Wall and Stop for now, options as actions with the whole stem, own pools, the simulator hook, the calibration readout, the first-run walkthrough, and question picking (verified only, about
 // 1 in 4 from other topics, the unchecked top-up).
 // Run from game/:  node tools/modes_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
@@ -143,24 +143,27 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const rs = await page.evaluate(() => [window.__r, window.__stopped, document.querySelector('#panel').hidden]);
   check(rs[0] && rs[0].stopped && !rs[0].committed && rs[1] === 1 && rs[2], 'Stop for now before answering closes the quiz and resolves { stopped }');
 
-  // ---- Clues and actions ----
-  const cq = await page.evaluate(() => SD.topicDrill.pool(SD.topicDrill.preset('pack-trouble')).find(q => q.type === 'mc' && /\bLEAST\b/.test(q.q) && q.q.split('. ').length > 2).id);
-  await page.evaluate(id => { window.__opened = []; window.__mq = SD.exam.find(id); window.__r = null; SD.modes.ask(window.__mq, { title: 'TEST', clues: true, clueLabels: ['Logs', 'Metrics'], onClue: i => { window.__opened.push(i); return i !== 1; }, act: { label: 'Apply a fix', icon: '🛠' } }).then(r => { window.__r = r; }); }, cq);
-  await page.waitForSelector('#panel .win.quiz .q-clues');
-  const sp = await page.evaluate(id => SD.modes.split(SD.exam.find(id), ['Logs', 'Metrics']), cq);
-  check(sp.items.length >= 2 && /LEAST/.test(sp.qual) && /\?$/.test(sp.ask), `split: ${sp.items.length} clues, the question line and the qualifier (${sp.qual})`);
-  check(await page.$$eval('.clue[data-cl]', b => b.length) === sp.items.length, 'every clue starts closed');
-  check((await page.textContent('.q-q')) === sp.ask && /Asks for: LEAST/.test(await page.textContent('.q-qual')), 'the question line and the qualifier are always visible');
-  check(/Apply a fix/.test(await page.textContent('.act-l')) && (await page.$$('.opt.act')).length >= 2, 'options are shown as actions');
-  await page.click('[data-cl="0"]');
-  check(/Logs/.test(await page.textContent('.clue.on')), 'tapping a clue opens it');
-  await page.click('[data-cl="1"]');
-  check(!!await page.$('[data-cl="1"]'), 'onClue returning false keeps a clue closed');
-  await noHScroll('clues');
-  await shot('clues');
+  // ---- Whole stem, options as actions (build spec v4: no clues, no hints before committing) ----
+  const cq = await page.evaluate(() => SD.topicDrill.pool(SD.topicDrill.preset('pack-trouble')).find(q => q.type === 'mc' && /\bLEAST\b/.test(q.q)).id);
+  await page.evaluate(id => { window.__mq = SD.exam.find(id); window.__r = null; SD.modes.ask(window.__mq, { title: 'TEST', act: { label: 'Apply a fix', icon: '🛠' } }).then(r => { window.__r = r; }); }, cq);
+  await page.waitForSelector('#panel .win.quiz .opt.act');
+  const sp = await page.evaluate(id => SD.modes.split(SD.exam.find(id)), cq);
+  check(/LEAST/.test(sp.qual) && /\?$/.test(sp.ask), `split: the question line and its qualifier (${sp.qual})`);
+  check((await page.textContent('.q-q')) === await page.evaluate(() => window.__mq.q), 'the whole stem shows, free to read');
+  check(!await page.$('.clue, .whynot:not([hidden])'), 'no clues or hints before committing');
+  check(/Apply a fix/.test(await page.textContent('.act-l')) && (await page.$$('.opt.act')).length >= 2, 'options are shown as full-width actions');
+  await page.click('.opt.act');
+  check(/^🛠 ✓ /.test((await page.textContent('.opt.act.on')).trim()), 'the chosen action is marked with a tick, not only colour');
+  await noHScroll('actions');
+  await shot('actions');
   await answer(true, 1); await next(); await page.waitForTimeout(30);
-  const rc = await page.evaluate(() => window.__r.clues);
-  check(rc && rc.total === sp.items.length && JSON.stringify(rc.opened) === '[0]', 'the result logs which clues were open before the answer (' + JSON.stringify(rc) + ')');
+  check(await page.evaluate(() => window.__r && window.__r.ok === true && window.__r.pts === 2), 'an action answer resolves like any other');
+
+  // ---- Own pools and the simulator hook ----
+  const own = await page.evaluate(() => { const r = SD.modes.pick({ match: q => q.topic === 'lambda', n: 8 }); return [r.items.length, r.items.filter(it => !it.other).every(it => SD.exam.find(it.q).topic === 'lambda'), r.items.filter(it => it.other).every(it => SD.exam.find(it.q).topic !== 'lambda'), r.items.filter(it => it.other).length]; });
+  check(own[0] === 8 && own[1] && own[2] && own[3] === 2, `pick({ match }): a mode's own pool, with 1 in 4 from elsewhere (${own[3]} of ${own[0]})`);
+  const sa = await page.evaluate(() => { let x = 0.3; const rng = () => (x = (x * 9301 + 49297) % 233280 / 233280); const q = SD.exam.find('dva-4-01'); const before = JSON.stringify(SD.state.save.qlog || {}); const r = [0.45, 0.6, 0.9].map(p => SD.modes.simAnswer(q, { p, conf: 'honest' }, rng).conf); return [r, before === JSON.stringify(SD.state.save.qlog || {}), document.querySelector('#panel').hidden]; });
+  check(JSON.stringify(sa[0]) === '[0,1,2]' && sa[1] && sa[2], 'simAnswer: honest confidence follows p, records nothing and opens nothing');
 
   // ---- Calibration ----
   const cal = await page.evaluate(() => { const t = { 0: [1, 4], 1: [3, 5], 2: [2, 5] }; const d = document.createElement('div'); d.innerHTML = SD.modes.calibHtml(t); return [[...d.querySelectorAll('tr')].map(tr => [...tr.children].map(x => x.textContent.trim()).join(' ')).join(' | '), SD.modes.points(t)]; });

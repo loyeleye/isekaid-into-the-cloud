@@ -1,8 +1,9 @@
-// Headless check of Incident Commander (js/mode-ic.js) at phone width (375px): the Play button and picker, the first-run
-// walkthrough on a real incident, the pager board (symptom, qualifier, clocks in words), Say it first and the scenario
-// repeated in the quiz window, the shared stakes, clocks ticking per answer, a timeout costing budget and coming back
-// next wave, a wrong answer staying open, saving after every incident and resuming, the config shop (verified
-// questions only, the corrected trade-offs), the results screen, and an early end at 0% with the backlog carried over.
+// Headless check of Incident Commander (js/mode-ic.js, build spec v4) at phone width (375px): the Play button and
+// picker, the first-run walkthrough on a real incident, 4 waves of Domain 1 and 4 incidents on the request path with
+// clocks of 5, 7 or 9, the whole stem free in the question (never on the board's screen), the shared stakes, every
+// answer ticking the other clocks, a wrong answer retried as its twin, a 15% timeout returning next wave, saving and
+// resuming, results with one thing to do differently, Dutch, Coo and Bru from the second shift, and 0% with "Retry
+// this wave".
 // Run from game/:  node tools/ic_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -78,6 +79,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const next = () => page.click('#q-next');
   const ic = () => page.evaluate(() => JSON.parse(JSON.stringify(SD.state.save.ic)));
   const txt = sel => page.textContent(sel);
+  const work = async (i, ok, conf) => { await page.click(`[data-inc="${i}"]`); await page.waitForSelector('#panel .win.quiz'); await answer(ok, conf); await next(); await page.waitForTimeout(40); };
 
   await page.clock.install({ time: new Date('2026-11-17T20:00:00') });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
@@ -91,42 +93,45 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('[data-mode="ic"]');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
   const s0 = await ic();
-  const firstQ = await page.evaluate(id => SD.ic.split(SD.exam.find(id)).ask, s0.board[0].q);
-  check((await txt('.md-walk')).includes(firstQ.slice(0, 60)), 'step 1 shows a real incident from the first wave');
+  const firstAsk = await page.evaluate(id => SD.modes.split(SD.exam.find(id)).ask, s0.board[0].q);
+  check((await txt('.md-walk')).includes(firstAsk.slice(0, 50)), 'step 1 shows a real incident from the first wave');
   check(/Kyu held the Cloud's pager/.test(await txt('.md-walk')), 'Uptima is the secondary pager (Story Bible)');
   await noHScroll('walkthrough');
   await shot('walk');
   await page.click('#md-next'); await page.click('#md-next'); await page.click('#md-next');
   await page.waitForSelector('.ic-board');
 
-  // ---- The board ----
-  check(s0.board.length === 2 && s0.wave === 1, 'wave 1 lands 2 incidents');
-  check(s0.queue.length + s0.board.length === 14, 'a shift holds 14 incidents (' + (s0.queue.length + s0.board.length) + ')');
-  const other = s0.queue.concat(s0.board).filter(x => x.other).length;
-  check(other >= 3 && other <= 4, `about 1 in 4 incidents come from other topics (${other})`);
+  // ---- The shift and the board ----
+  check(s0.board.length === 3 && s0.wave === 1, 'wave 1 lands 3 incidents');
+  check(s0.queue.length + s0.board.length === 12, 'a shift holds 12 incidents over 4 waves (' + (s0.queue.length + s0.board.length) + ')');
+  const all0 = s0.queue.concat(s0.board);
+  const other = all0.filter(x => x.other).length;
+  check(other === 3, `1 in 4 incidents are due from other topics (${other})`);
+  const own = await page.evaluate(ids => ids.map(id => { const q = SD.exam.find(id); return [SD.exam.domainOf(q), q.topic, !!SD.ic.nodeOf(q)]; }), all0.filter(x => !x.other).map(x => x.q));
+  check(own.every(x => [1, 4].includes(x[0]) && x[2]), 'the rest are Domain 1 and 4 questions on request-path services (' + [...new Set(own.map(x => x[1]))].join(', ') + ')');
+  check(own.some(x => x[0] === 1), 'Development (Domain 1) questions are in the shift');
+  check(s0.board.every(b => [5, 7, 9].includes(b.clock)), 'clocks start at 5, 7 or 9 ticks (' + s0.board.map(b => b.clock).join(', ') + ')');
   const cards = await page.$$eval('.ic-card', els => els.map(e => e.textContent.replace(/\s+/g, ' ')));
   check(cards.every(c => /SEV-\d/.test(c) && /\d ticks? left/.test(c)), 'each card shows its severity and ticks left in words');
-  check(s0.board.every(b => b.clock >= 3 && b.clock <= 5), 'clocks start at 3 to 5 ticks');
+  check(cards.every(c => /API Gateway|Lambda|DynamoDB|SQS|S3|[A-Z]{2,}/.test(c)), 'each card names its service');
   await noHScroll('board');
   await shot('board');
-  // Qualifiers: every pack question whose question line asks for MOST or LEAST keeps it on its card.
   const qual = await page.evaluate(() => {
-    const pool = SD.topicDrill.pool(SD.topicDrill.preset('pack-trouble'));
+    const pool = SD.topicDrill.base().filter(SD.ic.match);
     const withQ = pool.filter(q => /\b(MOST|LEAST)\b/.test(q.q.split(/(?<=[.?!])\s+(?=[A-Z0-9"'(])/).slice(-1)[0]));
-    return [withQ.length, withQ.filter(q => /^(MOST|LEAST)\b/.test(SD.ic.split(q).qual)).length];
+    return [withQ.length, withQ.filter(q => /^(MOST|LEAST)\b/.test(SD.modes.split(q).qual)).length, pool.length];
   });
-  check(qual[0] > 0 && qual[1] === qual[0], `the MOST/LEAST qualifier is pulled onto the card (${qual[1]} of ${qual[0]})`);
-  check(cards.every(c => /clues? to read|Asks for|\?/.test(c)), 'each card shows the question line, and the scenario as clues to read');
+  check(qual[0] > 0 && qual[1] === qual[0], `the MOST/LEAST qualifier shows on the card (${qual[1]} of ${qual[0]}; pool ${qual[2]})`);
 
-  // ---- Work an incident: right and Sure ----
-  const c1 = s0.board[1].clock;
+  // ---- Work an incident: the whole stem, right and Sure ----
+  const others0 = s0.board.slice(1).map(b => b.clock);
   await page.click('[data-inc="0"]');
   await page.waitForSelector('#panel .win.quiz');
-  const sp0 = await page.evaluate(() => SD.ic.split(SD.modes.current()));
-  check(await page.$$eval('.clue[data-cl]', b => b.length) === sp0.items.length, `the scenario's ${sp0.items.length} clues start closed in the quiz window`);
-  check((await txt('.q-q')) === sp0.ask, 'the question line stays visible');
-  check((await page.$$('.opt.act')).length >= 2 && /Apply a fix/.test(await txt('.act-l')), 'the options are fixes to apply');
-  if (sp0.items.length) await page.click('[data-cl="0"]');
+  const isMc = await page.evaluate(() => SD.modes.current().type === 'mc');
+  check(!isMc || !!await page.$('#q-said'), 'Say it first: name the cause before the fixes show');
+  check(!await page.$('.ic-board'), 'the board and the question never share the screen');
+  const stem = await page.evaluate(() => SD.modes.current().q);
+  check((await txt('.q-q')) === stem, 'the whole stem shows, free to read');
   check(!!await page.$('#md-stop'), 'the quiz window keeps Stop for now');
   await noHScroll('incident quiz');
   await answer(true, 2);
@@ -135,114 +140,113 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await next();
   await page.waitForSelector('.ic-board');
   let s1 = await ic();
-  check(s1.pts === 3 && s1.board.length === 1 && s1.log.length === 1 && s1.log[0].ok === 1, 'right: the incident is resolved and pays +3');
-  check(s1.board[0].clock === c1 - 1, 'the answer ticked the other incident by one');
-  check(s1.budget === 100, 'the budget stays capped at 100%');
-  check(JSON.stringify(s1.log[0].ev) === JSON.stringify([[sp0.items.length ? 1 : 0, sp0.items.length, 1]]), 'the log records how many clues were open before the fix (' + JSON.stringify(s1.log[0].ev) + ')');
+  check(s1.pts === 3 && s1.board.length === 2 && s1.log[0].ok === 1, 'right: the incident is resolved and pays +3');
+  check(JSON.stringify(s1.board.map(b => b.clock)) === JSON.stringify(others0.map(c => c - 1)), 'the answer ticked every other clock by one');
+  check(s1.budget === 100, 'a right answer leaves the budget alone (budget is only for survival)');
+  check(/Since your last answer: .*resolved/.test(await txt('.ic-since')), 'the board says what changed since your last answer');
 
-  // ---- Wrong: it stays open (as its twin) or goes to the next wave ----
+  // ---- Wrong: a retry on its twin, or missed ----
   const before = s1.board[0];
-  await page.click('[data-inc="0"]');
-  await answer(false, 1);
-  await next();
-  await page.waitForTimeout(40);
+  await work(0, false, 1);
   let s2 = await ic();
-  const stayed = s2.board.length === 1 && s2.board[0].orig === before.orig && s2.board[0].q !== before.q;
-  const carried = s2.carry.some(x => x.orig === before.orig) || (s2.wave === 2 && s2.board.some(b => b.orig === before.orig));
-  check(stayed || carried, `wrong: the incident stays open (${stayed ? 'as its twin' : 'handed to the next wave'})`);
+  const twin = s2.board.find(b => b.orig === before.orig);
+  check(twin ? twin.q !== before.q : s2.log.some(l => l.orig === before.orig && !l.ok), `wrong: ${twin ? 'it stays open as its twin, never the same question' : 'no twin, so it is logged as missed'}`);
   check(s2.pts === 2, 'Think so and wrong costs 1 point');
-  // Resolve what's left of wave 1.
-  const clear = async (conf) => {
-    for (let k = 0; k < 6; k++) {
-      const st = await ic();
-      if (st.phase !== 'board' || !st.board.length) break;
-      if (!await page.$('[data-inc="0"]')) break;
-      await page.click('[data-inc="0"]'); await answer(true, conf == null ? 1 : conf); await next(); await page.waitForTimeout(40);
-    }
-  };
-  if (stayed) await clear();
 
-  // ---- The shop after wave 1 ----
-  let s3 = await ic();
-  check(s3.phase === 'shop', 'after wave 1 the config shop opens (verified questions have landed)');
-  const shop = (await txt('#panel')).replace(/\s+/g, ' ');
-  check(/also caps it there, so above the cap it throttles/.test(shop), 'shop: reserved concurrency also caps (corrected fact)');
-  check(/REST APIs only; HTTP APIs have no cache/.test(shop), 'shop: the API Gateway cache is REST-only (corrected fact)');
-  check(/Speeds up eventually consistent reads. Strongly consistent reads and writes go through/.test(shop), 'shop: DAX speeds up eventually consistent reads only (corrected fact)');
-  check(/DAX.*Closed: no verified question on it yet/.test(shop), 'shop: a fix with no verified question stays closed');
-  await noHScroll('shop');
-  await shot('shop');
-  const fq = await page.evaluate(() => SD.ic.FIXES.map(f => [f.id, SD.ic.fixQuestions(f).every(q => SD.topicDrill.isVerified(q)), SD.ic.fixQuestions(f).length]));
-  check(fq.every(x => x[1]), 'shop questions are verified only (' + fq.map(x => x[0] + ' ' + x[2]).join(', ') + ')');
-  check(s3.pts >= 3 || !await page.$('[data-fix]'), 'under 3 points no fix can be bought');
-  await page.evaluate(() => { SD.state.save.ic.pts = 5; SD.state.persist(); SD.ic.board(); });
-  s3 = await ic();
-  const buyable = await page.$('[data-fix]');
-  check(!!buyable, 'with 3 points a fix can be bought');
-  const fid = await buyable.getAttribute('data-fix');
-  await buyable.click();
-  await page.waitForSelector('#panel .win.quiz');
-  const sq = await page.evaluate(() => SD.modes.current().id);
-  check(await page.evaluate(([id, f]) => SD.topicDrill.isVerified(SD.exam.find(id)) && SD.ic.FIXES.find(x => x.id === f).about(SD.exam.find(id)), [sq, fid]), 'buying asks a verified question about that feature');
-  await answer(true, 1);
-  await next();
-  await page.waitForSelector('.ic-board');
-  let s4 = await ic();
-  check(s4.fixes.includes(fid) && s4.pts === s3.pts + 2 - 3, `right: the fix is installed for 3 points (${s3.pts} → ${s4.pts})`);
-  check(s4.wave === 2 && s4.board.length >= 3 || s4.board.length >= 3, 'wave 2 lands');
-
-  // ---- A timeout: costs budget and comes back next wave ----
+  // ---- A timeout: 15%, back next wave as its twin ----
   await page.evaluate(() => { const s = SD.state.save.ic; s.board.forEach((b, i) => { if (i) b.clock = 1; }); SD.state.persist(); SD.ic.board(); });
   const s5 = await ic();
-  check(/SEV-1/.test(await txt('.ic-board')), 'a card at one tick reads SEV-1');
-  await page.click('[data-inc="0"]'); await answer(true, 1); await next(); await page.waitForTimeout(60);
-  const s6 = await ic();
-  const timedOut = s5.board.length - 1;
-  check(s6.budget === s5.budget - 20 * timedOut, `a timeout costs 20% budget each (${s5.budget}% → ${s6.budget}%)`);
-  check(s6.carry.length === timedOut || s6.wave === s5.wave + 1, 'timed-out incidents go to the next wave, not skipped');
+  if (s5.board.length > 1) {
+    check(/SEV-1/.test(await txt('.ic-board')), 'a card at one tick reads SEV-1');
+    await work(0, true, 1);
+    const s6 = await ic();
+    const n = s5.board.length - 1;
+    check(s6.budget === 100 - 15 * n, `a timeout costs 15% of the budget each (100% → ${s6.budget}%)`);
+    const paged = s5.board.slice(1);
+    const back = s6.carry.concat(s6.board);
+    check(paged.every(p => back.some(b => b.orig === p.orig)), 'timed-out incidents come back next wave, not skipped');
+    const tw = await page.evaluate(([paged, back]) => paged.every(p => { const b = back.find(x => x.orig === p.orig); return b && (b.q !== p.q || !SD.qtwin(SD.exam.find(p.q))); }), [paged, back]);
+    check(tw, 'and come back as their twin where one exists');
+  }
 
-  // ---- Saved after every incident: reload and resume ----
+  // ---- Saved after every answer: reload and resume ----
+  const s6b = await ic();
   await page.evaluate(() => sessionStorage.setItem('keep', '1'));
   await page.reload();
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
   await page.click('#td-play');
-  check(/Resume · wave \d of 5/.test(await txt('[data-mode="ic"]')), 'after a reload the picker offers Resume with the wave');
+  check(/Resume · wave \d of 4/.test(await txt('[data-mode="ic"]')), 'after a reload the picker offers Resume with the wave');
   await page.click('[data-mode="ic"]');
-  await page.waitForSelector('.ic-board, .ic-fix');
+  await page.waitForSelector('.ic-board');
   const s7 = await ic();
-  check(JSON.stringify(s7.board) === JSON.stringify(s6.board) && s7.pts === s6.pts, 'resuming lands on the same board');
+  check(JSON.stringify(s7.board) === JSON.stringify(s6b.board) && s7.pts === s6b.pts, 'resuming lands on the same board');
 
-  // ---- Play the shift out ----
+  // ---- Play the shift out (first shift: no between-wave picks) ----
+  let sawPick = false;
   for (let k = 0; k < 40; k++) {
     const st = await ic();
     if (st.phase === 'done') break;
-    if (st.phase === 'shop') { await page.click('#ic-skip'); await page.waitForTimeout(30); continue; }
-    await page.click('[data-inc="0"]'); await answer(true, 1); await next(); await page.waitForTimeout(40);
+    if (st.phase === 'pick') { sawPick = true; await page.click('[data-pick="coo"]'); continue; }
+    if (st.phase === 'zero') { await page.click('#ic-retry'); continue; }
+    await work(0, true, 1);
   }
   const s8 = await ic();
-  check(s8.phase === 'done', 'the shift ends after wave 5');
-  check(s8.log.length === 14, `every incident was worked (${s8.log.length} logged, ${s8.left || 0} left over, ${s8.queue.length} never landed)`);
+  check(!sawPick, 'the first shift has no between-wave picks (one new rule per night)');
+  check(s8.phase === 'done' && s8.wave >= 4, 'the shift ends after wave 4');
+  check(s8.log.length === 12, `every incident was worked (${s8.log.length})`);
   const res = (await txt('#panel')).replace(/\s+/g, ' ');
   check(/incidents resolved/.test(res) && /Points: [+−±]\d+/.test(res), 'results: incidents resolved and points');
+  check(/Next shift: /.test(res), 'results: one thing to do differently');
   check(await page.$$eval('.ic-log li', l => l.length) === s8.log.length, 'results: every incident\'s fix in one line');
   check(/Think so \d+ of \d+ right/.test(await page.$$eval('.md-calt tr', t => t.map(r => [...r.children].map(c => c.textContent).join(' ')).join(' | '))), 'results: the calibration readout');
   check(/Why did that work/.test(res), 'results: Pip asks why it worked');
-  check(/Investigate or act/.test(res) && /clues before your fixes/.test(res), 'results: investigate or act, from the clue log');
   check(/\+20 XP · \+5 shards/.test(res), 'results: the shift pays XP and shards');
   await noHScroll('results');
   await shot('results');
 
-  // ---- Budget at 0 ends early, and what's open starts the next shift ----
+  // ---- Second shift: between-wave picks ----
   await page.click('#ic-again');
   await page.waitForSelector('.ic-board');
-  await page.evaluate(() => { SD.state.save.ic.budget = 10; SD.state.persist(); SD.ic.board(); });
-  const open = (await ic()).board.map(b => b.q);
-  await page.click('[data-inc="0"]'); await answer(false, 2); await next(); await page.waitForTimeout(60);
-  const s9 = await ic();
-  check(s9.phase === 'done' && s9.zero, 'a Sure miss at 10% budget ends the shift at 0%');
+  check((await ic()).picksOn, 'from the second shift, between-wave picks are on');
+  for (let k = 0; k < 6; k++) { const st = await ic(); if (st.phase !== 'board' || st.wave > 1) break; await work(0, true, 1); }
+  check((await ic()).phase === 'pick' && /Dutch/.test(await txt('#panel')) && /Coo/.test(await txt('#panel')) && /Bru/.test(await txt('#panel')), 'after wave 1: one free pick from Dutch, Coo or Bru');
+  await noHScroll('pick');
+  await shot('pick');
+  await page.click('[data-pick="dutch"]');
+  await page.waitForSelector('.ic-board');
+  const d0 = (await ic()).board[1].clock;
+  await page.click('[data-dutch="1"]');
+  check((await ic()).board[1].clock === d0 + 2 && !await page.$('[data-dutch]'), 'Dutch: +2 ticks on the clock you choose, once');
+  // Coo and Bru, on the state machine directly.
+  const perks = await page.evaluate(() => {
+    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true;
+    s.perks = { coo: 1 }; s.budget = 100; s.board.forEach((b, i) => { b.clock = i ? 1 : 5; });
+    const n = s.board.length - 1; SD.ic.settle(s, s.board[0], { ok: true, conf: 1, pts: 2 });
+    const coo = s.budget;
+    const t = JSON.parse(JSON.stringify(SD.state.save.ic)); t.sim = true; t.perks = { bru: 1 };
+    const c0 = t.board.slice(1).map(b => b.clock); SD.ic.settle(t, t.board[0], { ok: true, conf: 1, pts: 2 });
+    return [n, coo, JSON.stringify(c0) === JSON.stringify(t.board.map(b => b.clock))];
+  });
+  check(perks[1] === 100 - Math.ceil(15 / 2) - 15 * (perks[0] - 1), `Coo: the next timeout costs half (${perks[1]}%)`);
+  check(perks[2], 'Bru: the next answer ticks no other clock');
+
+  // ---- 0%: retry the wave in one tap, or end ----
+  await page.evaluate(() => { SD.state.save.ic.budget = 5; SD.state.persist(); SD.ic.board(); });
+  const pre = await ic();
+  await work(0, false, 2);
+  check((await ic()).phase === 'zero' && /Retry this wave/.test(await txt('#panel')), 'a Sure miss at 5% stops the shift at 0% with "Retry this wave"');
   check(/Kyu never woke me/.test(await txt('#panel')), 'Uptima wakes up at 0%');
+  const logged = (await ic()).log.length;
+  await page.click('#ic-retry');
+  const r1 = await ic();
+  check(r1.phase === 'board' && r1.budget > 0 && r1.board.length === r1.waveStart.board.length && r1.log.length === logged, 'retry restarts the wave and keeps the answers logged');
+  await page.evaluate(() => { SD.state.save.ic.budget = 5; SD.state.persist(); SD.ic.board(); });
+  await work(0, false, 2);
+  await page.click('#ic-end');
+  const s9 = await ic();
+  check(s9.phase === 'done' && s9.zero, 'End the shift: results at 0%');
   check(!/\+20 XP/.test(await txt('#panel')), 'the second shift today pays nothing more');
   const back = await page.evaluate(() => SD.state.save.icBacklog.map(x => x.q));
   check(back.length >= 1, `the open incidents wait for the next shift (${back.length})`);
@@ -250,8 +254,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('.ic-board');
   const s10 = await ic();
   check(back.every(id => s10.board.concat(s10.queue).some(x => x.q === id)), 'the next shift starts with them');
-  const missQ = await page.evaluate(() => SD.state.save.wall.map(w => w.id));
-  check(missQ.length >= 1, 'the Sure miss went up on the Wall');
+  check(await page.evaluate(() => SD.state.save.wall.length >= 1), 'Sure misses went up on the Wall');
 
   await browser.close(); server.close();
   errors.forEach(e => console.log(e));
