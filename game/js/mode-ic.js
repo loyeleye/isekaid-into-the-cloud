@@ -546,7 +546,7 @@
       <div class="row"><button class="primary" id="ic-done">Done</button><button class="ghost" id="ic-again">New shift</button></div>`, { title: TITLE, onClose: stopNow });
     M.pipWire(b, 'Incident Commander');
     b.querySelector('#ic-done').onclick = () => { U.closePanel(); stopNow(); };
-    b.querySelector('#ic-again').onclick = () => IC.start();
+    b.querySelector('#ic-again').onclick = () => IC.startBoard();
   }
 
   // ---- First run (and the map's first night) ----
@@ -569,7 +569,21 @@
     return screens;
   }
 
-  IC.start = async function () {
+  // Two kinds of shift (Ladi, Nov 16: "a Live shift in Incident Commander"): the pager board, or the live request
+  // path (js/ic-live.js). A shift in progress of either kind can be resumed from here.
+  IC.start = function () {
+    const live = SD.icLive && SD.icLive.start;
+    if (!live) return IC.startBoard();
+    const s = shift(), resume = s && s.v === 3 && s.phase !== 'done';
+    const b = U.panel(`<p class="ic-say" data-vo="${esc(voOf(SAY.open))}"><b>Uptima:</b> ${esc(SAY.open)}</p>
+      <div class="opts">
+        <button class="opt md-mode" id="ic-pager"><span class="md-n">📋 ${resume ? 'Resume the pager board' : 'Pager board shift'}</span><span class="small">Exam questions as incidents on the board, against the clocks.${resume ? ` Wave ${s.wave}, ${Math.max(0, s.budget)}% budget.` : ''}</span></button>
+        <button class="opt md-mode" id="ic-live"><span class="md-n">🖥 ${SD.icLive.inProgress() ? 'Resume the live shift' : 'Live shift: the request path'}</span><span class="small">Three outages on a running request path. Predict what it does, turn the real settings, run the minute.${SD.icLive.inProgress() ? ' ' + esc(SD.icLive.status()) + '.' : ''}</span></button>
+      </div>`, { title: TITLE, onClose: stopNow });
+    b.querySelector('#ic-pager').onclick = () => IC.startBoard();
+    b.querySelector('#ic-live').onclick = () => SD.icLive.start();
+  };
+  IC.startBoard = async function () {
     let s = shift();
     if (!s || s.phase === 'done' || s.v !== 3) {
       s = IC.newShift();
@@ -626,7 +640,7 @@
     id: ID, name: 'Incident Commander', minutes: '15 to 20', host: 'Uptima, the secondary pager',
     blurb: 'One on-call shift: 3 waves of incidents on the request path, then a major incident. The right answer is the fix.',
     start: IC.start, sim: IC.sim,
-    status: () => { const s = shift(); return s && s.v === 3 && s.phase !== 'done' ? `Resume · ${isMajor(s) ? 'major incident' : `wave ${s.wave} of ${waves()}`}, ${Math.max(0, s.budget)}% budget` : ''; }
+    status: () => { const s = shift(); return s && s.v === 3 && s.phase !== 'done' ? `Resume · ${isMajor(s) ? 'major incident' : `wave ${s.wave} of ${waves()}`}, ${Math.max(0, s.budget)}% budget` : SD.icLive && SD.icLive.status ? SD.icLive.status() : ''; }
   });
 
   const css = document.createElement('style');

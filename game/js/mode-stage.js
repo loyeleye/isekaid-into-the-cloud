@@ -32,6 +32,8 @@
   const U = SD.ui, AU = SD.audio, $ = s => document.querySelector(s);
   const esc = s => U.esc(String(s == null ? '' : s));
   const LOOPS = ['duel', 'draft', 'pop', 'hunt', 'ic', 'sprint'];
+  // A mode with no card loop of its own borrows a sibling's: the Sorting Floor plays in the Lost and Found's storeroom.
+  const LOOP_OF = { floor: 'pop' };
   const LINGER = 450;
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
   const PLATES = [];
@@ -70,8 +72,8 @@
     if (PLATES.includes(id)) {
       bg.style.backgroundImage = ''; bg.innerHTML = `<picture><source media="(orientation: portrait)" srcset="assets/img/stage/${id}-tall.webp">
         <img src="assets/img/stage/${id}-wide.webp" alt="" draggable="false"></picture>`;
-    } else if (LOOPS.includes(id)) {
-      const v = `assets/video/cards/${id}`;
+    } else if (LOOPS.includes(LOOP_OF[id] || id)) {
+      const v = `assets/video/cards/${LOOP_OF[id] || id}`;
       bg.style.backgroundImage = `url(${v}.webp)`;
       bg.innerHTML = still() ? '' : `<video muted loop playsinline autoplay preload="auto" poster="${v}.webp" src="${v}.mp4" disablepictureinpicture></video>`;
       const vid = bg.querySelector('video');

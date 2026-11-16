@@ -330,6 +330,13 @@
     .fl-what summary { cursor: pointer; font-weight: 700; min-height: 32px; }
     .fl-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
     .fl-dock button { min-height: 44px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
-    .fl-dock .primary { flex: 1 1 auto; }`;
+    .fl-dock .primary { flex: 1 1 auto; }
+    /* Boxes painted light keep dark ink, also on the full-screen stage's dark glass (js/mode-stage.js). */
+    :is(.fl-chute, .fl-desk, .fl-tk, .fl-card, .fl-result, .fl-piece, .fl-door:not(.fl-boss), .fl-stool, .fl-takes, .fl-bolt, .fl-proof, .fl-since, .fl-head) { color: #17131f; }
+    :is(.fl-chute, .fl-desk, .fl-tk, .fl-card, .fl-stool, .fl-cost, .fl-takes, .fl-bolt) { border-color: #17131f; }
+    .fl-tk.down { color: #fff; }
+    .fl-card .fl-tag { color: #3f5f80; } .fl-card .fl-why, .fl-result.spilt { color: #9e3a34; }
+    .fl-zone:not(.fl-chute) { background: rgba(226, 219, 203, .12); }
+    .fl-zone.fl-rack.none { background: transparent; }`;
   document.head.appendChild(css);
 })();
