@@ -2502,5 +2502,1337 @@ SD.bank.push(
       "That tests the function in AWS, but the developer wants to test the image on the laptop before pushing it.",
       "The client already takes the handler from CMD. Nothing serves the local endpoint until the emulator runs."],
     why: "AWS base images include the runtime interface emulator, but an image built on another base has only the runtime interface client. Running the emulator, built into the image or mounted from the laptop, provides the local endpoint that the event JSON is posted to.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/python-image.html"] }
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/python-image.html"] },
+
+  // ---------------------------------------------------------------- Batch 4 (Nov 16): twins for Security (2.2, 2.3) and
+  // Deployment (3.1, 3.4) questions that had none. Facts checked against the linked AWS docs on Nov 16, 2026 (js/verified.js).
+  // SSE-C presigned URLs need the key headers (twin of dva-2-758)
+  { id: "dva-2-450", exam: "DVA", dva: "2.2", topic: "s3", type: "mc", variant: true, twin: ["dva-2-758"],
+    q: "A support tool creates presigned GET URLs for objects stored with SSE-C, and staff paste them into a browser. S3 rejects the requests, though the URLs are unexpired, correctly signed and use HTTPS. What should the developer do?",
+    opts: [
+      "Fetch each object in code with its presigned URL, and send the SSE-C algorithm, key and key MD5 headers too.",
+      "Give the signing role kms:Decrypt on the bucket's KMS key, so that S3 can decrypt objects for the URLs.",
+      "Create the URLs with a longer expiry time, so that S3 has time to load each object's stored key first.",
+      "Turn on SSE-S3 default encryption for the bucket, so the existing objects can be read without a key."
+    ], a: 0,
+    no: [null,
+      "SSE-C doesn't use KMS. S3 decrypts only with the key sent in the request headers. kms:Decrypt matters for SSE-KMS objects.",
+      "S3 doesn't store SSE-C keys, only a salted HMAC to check them. Expiry only limits how long a URL stays valid.",
+      "Default encryption doesn't change objects already in the bucket. Objects stored with SSE-C still need their key on every GET."],
+    why: "S3 keeps no copy of an SSE-C key, so every GET must carry the key in the SSE-C headers. A browser can't add those headers to a pasted URL, so presigned URLs for SSE-C objects work only from code.",
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html"] },
+
+  // Multi-Region keys are enabled and disabled one by one (twin of dva-2-854)
+  { id: "dva-2-451", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-854"],
+    q: "After an incident, an admin disables a multi-Region primary KMS key in us-east-1. An hour later, an app in eu-west-1 still decrypts data with the key's replica there. All use of the key must stop in both Regions now. What should the admin do?",
+    opts: [
+      "Disable the replica key in eu-west-1 as well, since each related multi-Region key is enabled or disabled on its own.",
+      "Wait for KMS to copy the disabled state to the replica, which it does at the primary key's next automatic rotation.",
+      "Remove the eu-west-1 app's role from the primary key's key policy, since the replica is governed by that same policy.",
+      "Schedule the primary key for deletion, since deleting a primary key also deletes each of its replica keys with it."
+    ], a: 0,
+    no: [null,
+      "Rotation is shared between related keys, but key state isn't. Each key is enabled or disabled separately.",
+      "Each multi-Region key has its own key policy. The replica's policy, not the primary's, controls access in eu-west-1.",
+      "KMS won't delete a primary key until all its replicas are deleted, so this does nothing to stop the replica now."],
+    why: "Related multi-Region keys share key material, key ID and rotation, but each one is managed on its own: its key policy, grants, aliases and whether it's enabled. Disabling the primary leaves the replica enabled, so it must be disabled too.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html"] },
+
+  // Cancel, then enable (twin of dva-2-855), flip: EnableKey alone is now the trap
+  { id: "dva-2-452", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-855"],
+    q: "A developer scheduled a customer managed KMS key for deletion by mistake, and the key is still in its waiting period. Apps that use the key now fail. What must the developer do so the apps can decrypt with the key again?",
+    opts: [
+      "Call EnableKey on the key, which ends the pending deletion and sets the key state back to Enabled.",
+      "Call CancelKeyDeletion on the key and then call EnableKey, since a cancelled key is left Disabled.",
+      "Call CancelKeyDeletion on the key only, which puts it back in the state it had before it was scheduled.",
+      "Create a new key and import the old key's material into it, since a pending key can't be brought back."
+    ], a: 1,
+    no: [
+      "A key pending deletion can't be enabled: EnableKey fails with KMSInvalidStateException. The deletion must be cancelled first.",
+      null,
+      "Cancelling always leaves the key Disabled, whatever its state was before. It needs EnableKey before it can be used.",
+      "A key can be recovered while it's pending deletion, by cancelling. Importing material is for keys created without key material."],
+    why: "A key pending deletion can't be used or enabled until its deletion is cancelled. CancelKeyDeletion then leaves the key Disabled, so EnableKey is needed as well before the apps can use it.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/deleting-keys-cancelling-key-deletion.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/key-state.html"] },
+
+  // Grant token for a brand-new grant (twin of dva-2-204)
+  { id: "dva-2-453", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-204"],
+    q: "An orchestrator calls CreateGrant to let a job's role call Decrypt on a KMS key, then starts the job at once. The job's first Decrypt call sometimes fails with AccessDeniedException, and the same call works a minute later. It must work on the first try. What should the developer change?",
+    opts: [
+      "Pass the grant token that CreateGrant returns to the job, and send it in GrantTokens on each Decrypt call.",
+      "Have the job call ListGrants on the key first, and send the grant token it finds in its own Decrypt calls.",
+      "Pass the grant ID that CreateGrant returns to the job, and send it as the KeyId on each of its Decrypt calls.",
+      "Name the job's role as the grant's retiring principal, so that the grant applies to the role straight away."
+    ], a: 0,
+    no: [null,
+      "CreateGrant is the only operation that returns a grant token. ListGrants returns grant IDs, which are for managing grants.",
+      "KeyId names the KMS key. A grant ID identifies the grant for retiring or revoking it, not for using its permissions.",
+      "A retiring principal is only allowed to retire the grant. It does nothing about how fast a new grant takes effect."],
+    why: "Grants are eventually consistent, so a brand-new grant can briefly be unknown to parts of KMS. Sending the grant token from CreateGrant lets the grantee use the grant's permissions immediately.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/using-grant-token.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/grants.html"] },
+
+  // ReEncrypt has its own permissions (twin of dva-2-205)
+  { id: "dva-2-454", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-205"],
+    q: "A migration script calls ReEncrypt to move stored ciphertexts from KMS key A to key B. Its role is allowed kms:Decrypt on key A and kms:Encrypt on key B, yet every call fails with AccessDeniedException. What should the developer change?",
+    opts: [
+      "Allow the role kms:ReEncryptFrom on key A and kms:ReEncryptTo on key B, in each key's key policy.",
+      "Allow the role kms:Decrypt on key B as well, so that KMS can check the new ciphertext it returns.",
+      "Allow the role kms:GenerateDataKey on key B, so KMS can make a new data key for each ciphertext.",
+      "Allow the role kms:CreateGrant on key A, so KMS can pass each ciphertext on to key B for the role."
+    ], a: 0,
+    no: [null,
+      "ReEncrypt checks only kms:ReEncryptFrom and kms:ReEncryptTo. kms:Decrypt is for Decrypt calls, which return plaintext to the caller.",
+      "GenerateDataKey makes new data keys for envelope encryption. ReEncrypt doesn't use it; it needs its own two permissions.",
+      "CreateGrant lets the role give others permissions on key A. It doesn't stand in for the permissions ReEncrypt checks."],
+    why: "ReEncrypt decrypts and re-encrypts inside KMS, and it has its own permissions: kms:ReEncryptFrom on the source key and kms:ReEncryptTo on the destination key. Decrypt and Encrypt permissions don't cover it.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/APIReference/API_ReEncrypt.html"] },
+
+  // Single-Region keys can't become multi-Region (twin of dva-2-207), flip: re-encrypting is now required
+  { id: "dva-2-455", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-207"],
+    q: "Records in us-east-1 are encrypted under an existing single-Region KMS key and copied to eu-west-1. During a us-east-1 outage, the eu-west-1 app must decrypt them without calling KMS in us-east-1. What should the developer do?",
+    opts: [
+      "Call ReplicateKey on the existing key to make a replica in eu-west-1, and decrypt the records with it.",
+      "Set the existing key's MultiRegion property to true, then replicate it so eu-west-1 can decrypt them.",
+      "Create a multi-Region primary key with an eu-west-1 replica, and re-encrypt the records under it.",
+      "Create a grant on the existing key for the eu-west-1 app's role, so it can decrypt from either Region."
+    ], a: 2,
+    no: [
+      "ReplicateKey works only on a multi-Region primary key. An existing single-Region key can't be replicated.",
+      "The multi-Region property is set when a key is created. It can't be changed on an existing key.",
+      null,
+      "A grant adds permission, but the key still lives only in us-east-1, so every call goes to the Region that's down."],
+    why: "A single-Region key can't be converted to a multi-Region key or replicated. To move existing data into a multi-Region setup, you create a new multi-Region key, replicate it, and re-encrypt the data under it. Then either Region can decrypt locally.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html",
+      "https://docs.aws.amazon.com/kms/latest/APIReference/API_ReplicateKey.html"] },
+
+  // Data key caching with thresholds (twin of dva-2-209)
+  { id: "dva-2-456", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-209"],
+    q: "A Lambda function uses the AWS Encryption SDK to encrypt each order event before writing it to DynamoDB, with a new data key per event. At peak, GenerateDataKey calls get ThrottlingException. Security allows each data key to protect up to 500 events within 5 minutes. What should the developer do?",
+    opts: [
+      "Use a caching cryptographic materials manager with a local cache, a 5-minute maximum age and a 500-message limit.",
+      "Turn on an S3 Bucket Key for the function's KMS key, so KMS reuses one key to make the data keys for many events.",
+      "Keep one data key in Secrets Manager, and have each invocation fetch it and encrypt that invocation's events with it.",
+      "Create a second KMS key and send half the GenerateDataKey calls to it, so that each key gets its own request quota."
+    ], a: 0,
+    no: [null,
+      "S3 Bucket Keys cut KMS calls for SSE-KMS objects in S3. They're a bucket setting and do nothing for events written to DynamoDB.",
+      "That stores one plaintext data key indefinitely, with no age or message limits, and moves the request load to Secrets Manager.",
+      "The quota for cryptographic operations is shared by all symmetric keys in the account and Region, so a second key adds none."],
+    why: "Data key caching lets the Encryption SDK reuse a data key within thresholds you set, such as maximum age and maximum messages encrypted. Fewer GenerateDataKey calls mean lower cost and less throttling.",
+    doc: ["https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/thresholds.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/requests-per-second.html"] },
+
+  // Verify in KMS when checks must be logged (twin of dva-2-210), flip: the public key download is now the trap
+  { id: "dva-2-457", exam: "DVA", dva: "2.2", topic: "kms", type: "mc", variant: true, twin: ["dva-2-210"],
+    q: "An internal service on AWS must check signatures that another service made with an asymmetric SIGN_VERIFY KMS key. Auditors require a CloudTrail record of every check, and access to verify must be controlled by the key policy. How should the service check each signature?",
+    opts: [
+      "Call the KMS Verify operation with the key ID, the message, the signature and the signing algorithm.",
+      "Call GetPublicKey once, cache the public key, and verify each signature locally with a crypto library.",
+      "Call the KMS VerifyMac operation with the key ID and the signature, so that each check is logged.",
+      "Call the KMS Decrypt operation on the signature, and compare its output with a hash of the message."
+    ], a: 0,
+    no: [null,
+      "Local checks aren't logged in CloudTrail, and the key policy can't control them. They suit verifiers that can't call KMS.",
+      "VerifyMac checks HMAC tags made with a GENERATE_VERIFY_MAC key. Signatures from a SIGN_VERIFY key are checked with Verify.",
+      "Decrypt needs a key with ENCRYPT_DECRYPT key usage. A SIGN_VERIFY key works only for signing and verifying."],
+    why: "Verify runs inside KMS, so each check is logged in CloudTrail, and key policy and IAM policy decide who may verify. Downloading the public key is the choice when verifiers can't call KMS.",
+    doc: ["https://docs.aws.amazon.com/kms/latest/APIReference/API_Verify.html"] },
+
+  // ACM renews only certificates in use (twin of dva-2-211), flip: the CNAME is fine this time
+  { id: "dva-2-458", exam: "DVA", dva: "2.2", topic: "acm", type: "mc", variant: true, twin: ["dva-2-211"],
+    q: "A public ACM certificate validated by DNS was taken off an ALB during a migration. It hasn't been attached to anything or exported since, and its validation CNAME record is still in the public zone. ACM didn't renew it at its renewal check. What is the most likely cause?",
+    opts: [
+      "It isn't in use by any AWS service, which ACM checks before it renews a DNS-validated certificate.",
+      "The CNAME record must be deleted and added again before each renewal, so that ACM sees it as new.",
+      "ACM renews only certificates that are imported into it, so an issued one must be requested again.",
+      "ACM switches to email validation for certificates not in use, and nobody approved the renewal email."
+    ], a: 0,
+    no: [null,
+      "ACM checks that the existing record is present and resolvable. Leaving it in place is what lets renewal work.",
+      "It's the other way round: imported certificates aren't eligible for managed renewal, and ACM-issued ones are.",
+      "ACM re-validates with the method chosen when the certificate was issued, here DNS. It doesn't switch to email."],
+    why: "At renewal, ACM renews a DNS-validated certificate only if it's in use by an AWS service and every validation CNAME record is still in public DNS. Here the record is fine, but nothing uses the certificate.",
+    doc: ["https://docs.aws.amazon.com/acm/latest/userguide/dns-renewal-validation.html",
+      "https://docs.aws.amazon.com/acm/latest/userguide/renew-publicly-trusted.html",
+      "https://docs.aws.amazon.com/acm/latest/userguide/managed-renewal.html"] },
+
+  // Require one KMS key with the key ID condition (twin of dva-2-212)
+  { id: "dva-2-459", exam: "DVA", dva: "2.2", topic: "s3", type: "mc", variant: true, twin: ["dva-2-212"],
+    q: "A bucket must hold only objects encrypted with one customer managed KMS key. Its policy denies s3:PutObject when s3:x-amz-server-side-encryption isn't aws:kms. Uploads that name a different KMS key, or the AWS managed key, still succeed. What should the developer change?",
+    opts: [
+      "Deny s3:PutObject when s3:x-amz-server-side-encryption-aws-kms-key-id isn't the required key's full ARN.",
+      "Set the bucket's default encryption to the required key, so that S3 uses that key for every upload.",
+      "Turn on an S3 Bucket Key for the bucket, so every object's data key is made from the required key.",
+      "Deny s3:PutObject when the KMS key ID header is Null, so every upload has to name a KMS key itself."
+    ], a: 0,
+    no: [null,
+      "Default encryption applies only when a request has no encryption headers. A request that names another key still gets that key.",
+      "A Bucket Key lowers the cost of KMS requests for SSE-KMS. It doesn't stop a request from naming a different key.",
+      "That only checks that some key ID is sent. An upload that names any other KMS key still passes."],
+    why: "The s3:x-amz-server-side-encryption-aws-kms-key-id condition key checks which KMS key S3 will use, and S3 denies the upload unless it matches the key ARN in the policy. Checking for aws:kms alone accepts any KMS key.",
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html"] },
+
+  // DSSE-KMS by request header (twin of dva-2-213)
+  { id: "dva-2-460", exam: "both", dva: "2.2", saa: "1.3", topic: "s3", type: "mc", variant: true, twin: ["dva-2-213"],
+    q: "A data team's upload tool sends each PutObject with x-amz-server-side-encryption set to aws:kms and a customer managed key ID. An auditor says the files now need two independent layers of encryption at rest, applied by S3 with that same key. What should the developer change?",
+    opts: [
+      "Set the x-amz-server-side-encryption header to aws:kms:dsse, and keep the same customer managed key ID.",
+      "Add x-amz-server-side-encryption-bucket-key-enabled set to true, so a bucket-level key adds a layer.",
+      "Also send SSE-C headers with a key the tool generates, so S3 encrypts with both that key and KMS.",
+      "Turn on S3 Object Lock in compliance mode, so that the encrypted files can't be overwritten or deleted."
+    ], a: 0,
+    no: [null,
+      "Bucket Keys cut the cost of SSE-KMS requests. They add no layer, and DSSE-KMS doesn't support them.",
+      "S3 can't apply two types of server-side encryption to one object. SSE-C is for keys you send with every request.",
+      "Object Lock gives write-once-read-many retention. It doesn't change how many encryption layers protect a file."],
+    why: "DSSE-KMS is requested with the header value aws:kms:dsse and uses a KMS key to apply two independent layers of AES-256 encryption, where standard SSE-KMS applies one.",
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-dsse-encryption.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingDSSEncryption.html"] },
+
+  // Client-side encryption with a key kept outside KMS (twin of dva-2-215)
+  { id: "dva-2-461", exam: "DVA", dva: "2.2", topic: "s3", type: "mc", variant: true, twin: ["dva-2-215"],
+    q: "An on-premises Java backup tool uploads archives to S3. A new rule says AWS must never receive the archives in plaintext, and the key that protects them must stay on premises, so it can't be placed in KMS. What should the developer do?",
+    opts: [
+      "Use the Amazon S3 Encryption Client with a Raw AES-GCM wrapping key, so archives are encrypted before upload.",
+      "Upload with SSE-C, sending the company's 256-bit key with each request, so S3 never stores the key itself.",
+      "Import the company's key material into a KMS key, and upload the archives with SSE-KMS using that key.",
+      "Upload with DSSE-KMS and a customer managed key, so that two independent layers of encryption protect each archive."
+    ], a: 0,
+    no: [null,
+      "With SSE-C, S3 receives the plaintext and the key and encrypts the data itself. SSE-C is for server-side encryption with your own key.",
+      "This puts the key in KMS, which the rule forbids, and S3 still receives the plaintext to encrypt it.",
+      "Both layers are applied by S3 after it receives the plaintext. DSSE-KMS is for multilayer encryption at rest."],
+    why: "Client-side encryption encrypts each object locally with a unique data key, so S3 only ever receives ciphertext. The S3 Encryption Client can wrap the data keys with a Raw AES-GCM key you hold yourself instead of a KMS key.",
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingClientSideEncryption.html",
+      "https://docs.aws.amazon.com/amazon-s3-encryption-client/latest/developerguide/concepts.html"] },
+
+  // Switch an existing table's key type (twin of dva-2-216), flip: the AWS managed key is now the answer
+  { id: "dva-2-462", exam: "DVA", dva: "2.2", topic: "dynamodb", type: "mc", variant: true, twin: ["dva-2-216"],
+    q: "A DynamoDB table uses the default AWS owned key. Auditors now need to see each use of the table's key in CloudTrail. The team doesn't need to edit the key's policy, wants no monthly key fee, and can't take the table offline. Which solution needs the LEAST effort?",
+    opts: [
+      "Switch the table's encryption to a customer managed KMS key that the team creates for this table.",
+      "Switch the table's encryption to the AWS managed key aws/dynamodb, which is kept in the account.",
+      "Create a new table encrypted with aws/dynamodb, copy every item into it, and point the app at it.",
+      "Turn on CloudTrail data events for the table, so that every read and write on it is logged."
+    ], a: 1,
+    no: [
+      "Its use shows in CloudTrail too, but a customer managed key has a monthly fee. It's for when you must control the key policy.",
+      null,
+      "The key type can be switched on the existing table at any time, so recreating it is extra work.",
+      "Data events log calls to the table. An AWS owned key's use still can't be audited in your CloudTrail."],
+    why: "DynamoDB lets you switch an existing table between key types at any time. An AWS managed key sits in your account, its use can be audited in CloudTrail, and it has no monthly fee. An AWS owned key's use can't be audited.",
+    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EncryptionAtRest.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html"] },
+
+  // Public vs private certificates (twin of dva-2-220), flip: browsers must trust it, so a public ACM certificate
+  { id: "dva-2-463", exam: "both", dva: "2.2", saa: "1.3", topic: "acm", type: "mc", variant: true, twin: ["dva-2-220"],
+    q: "A customer-facing web app runs behind an Application Load Balancer at shop.example.com, with DNS in Route 53. Customers' browsers must trust the certificate, and the team wants renewals to happen with no manual steps. Which solution meets these requirements?",
+    opts: [
+      "Request a private certificate through ACM from an AWS Private CA, and attach it to the HTTPS listener.",
+      "Request a public ACM certificate with email validation, and attach it to the load balancer's listener.",
+      "Request a public ACM certificate with DNS validation, keep its CNAME record, and attach it to the listener.",
+      "Buy a certificate from a public CA, import it into ACM, and attach it to the load balancer's HTTPS listener."
+    ], a: 2,
+    no: [
+      "Private certificates are trusted only where the CA's root is installed, so browsers reject them. Private CA is for internal services.",
+      "Renewing an email-validated certificate needs the domain owner to act on an email, so it isn't hands-off.",
+      null,
+      "Browsers trust it, but ACM doesn't renew imported certificates. Someone must get and reimport each renewal."],
+    why: "Public ACM certificates are trusted by browsers. With DNS validation, ACM renews the certificate automatically as long as it's in use and its CNAME record stays in place.",
+    doc: ["https://docs.aws.amazon.com/acm/latest/userguide/dns-validation.html",
+      "https://docs.aws.amazon.com/acm/latest/userguide/renew-private-cert.html"] },
+
+  // Session Manager in a subnet without internet (twin of dva-2-301)
+  { id: "dva-2-464", exam: "DVA", dva: "2.2", topic: "ssm", type: "mc", variant: true, twin: ["dva-2-301"],
+    q: "EC2 instances in a private subnet with no internet or NAT route must be reached with Session Manager. They have an instance profile with AmazonSSMManagedInstanceCore and a current SSM Agent, but they never show up as managed nodes. What should the developer do?",
+    opts: [
+      "Create interface endpoints for ssm, ssmmessages and ec2messages, with a security group allowing HTTPS from the subnet.",
+      "Create a gateway endpoint for Systems Manager, and add it to the subnet's route table so the agent can reach it.",
+      "Allow inbound HTTPS on the instances' security group from Systems Manager, so the service can reach each agent.",
+      "Turn on Default Host Management Configuration, so Systems Manager can manage the instances without the profile."
+    ], a: 0,
+    no: [null,
+      "Gateway endpoints exist only for Amazon S3 and DynamoDB. Systems Manager is reached through interface endpoints.",
+      "SSM Agent opens every connection outbound, so no inbound rule is needed. The agent still has no path to the service.",
+      "It replaces instance profiles, and the profile is already in place. The agent still has no network path to the service."],
+    why: "SSM Agent initiates all connections to Systems Manager over HTTPS. Without internet or NAT access, the subnet needs interface VPC endpoints for ssm, ssmmessages and ec2messages, and the endpoints' security group must allow port 443 from the instances.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/setup-create-vpc.html",
+      "https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html"] },
+
+  // Reimport needs the existing ARN (twin of dva-2-324)
+  { id: "dva-2-465", exam: "DVA", dva: "2.2", topic: "acm", type: "mc", variant: true, twin: ["dva-2-324"],
+    q: "An imported ACM certificate from a third-party authority is attached to an ALB listener and expires next week. A developer runs import-certificate with the renewed certificate's files, and it returns a new ARN. The listener still serves the old certificate and must not be edited. What should the developer do?",
+    opts: [
+      "Run import-certificate again with --certificate-arn set to the old certificate's ARN, replacing it in place.",
+      "Delete the old imported certificate, so the listener moves to the newest certificate for the same domain.",
+      "Call RenewCertificate on the old certificate, so ACM pulls the renewed one from the third-party authority.",
+      "Wait for the old certificate to expire, after which ACM moves the listener to the newer import for the domain."
+    ], a: 0,
+    no: [null,
+      "ACM won't delete a certificate that another service is using, and a listener doesn't switch certificates on its own.",
+      "ACM has no managed renewal for imported certificates. RenewCertificate is for eligible certificates that ACM issued.",
+      "ACM doesn't move associations between certificates. An import without the ARN is a separate, unattached certificate."],
+    why: "To renew an imported certificate, you reimport it with the existing certificate's ARN. That replaces it while keeping its ARN and service associations, so the listener serves the renewed certificate. Leaving the ARN out imports a new certificate.",
+    doc: ["https://docs.aws.amazon.com/acm/latest/userguide/import-reimport.html",
+      "https://docs.aws.amazon.com/acm/latest/APIReference/API_ImportCertificate.html"] },
+
+  // Everything cross-account secret access needs (twin of dva-2-328)
+  { id: "dva-2-466", exam: "DVA", dva: "2.2", topic: "secrets", type: "mc", variant: true, twin: ["dva-2-328"],
+    q: "A Lambda function in account B must read a database secret owned by account A in the same Region, using its own execution role without assuming a role in account A. Which setup lets the function read the secret?",
+    opts: [
+      "A customer managed key that allows the role, a resource policy and role policy that allow it, and the full ARN as SecretId.",
+      "A customer managed key that allows the role, a resource policy and role policy that allow it, and the name as SecretId.",
+      "The aws/secretsmanager key, a resource policy and role policy that allow the role, and the full ARN as SecretId.",
+      "A customer managed key that allows the role, only a role policy that allows the secret, and the full ARN as SecretId."
+    ], a: 0,
+    no: [null,
+      "To read a secret from another account, GetSecretValue must be given its ARN. A name is for secrets in the caller's own account.",
+      "The AWS managed key can't be used for cross-account access, so decryption would fail. It suits same-account secrets.",
+      "Cross-account access must be allowed in both a resource policy on the secret and an identity policy."],
+    why: "Cross-account access to a secret needs a resource policy on the secret and an identity policy that both allow it, a customer managed key whose key policy lets the identity decrypt, and the secret's ARN as SecretId.",
+    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_examples_cross.html",
+      "https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html"] },
+
+  // Regional custom domain certificate (twin of dva-2-15), flip: us-east-1 is now the wrong Region
+  { id: "dva-2-467", exam: "DVA", dva: "2.2", topic: "acm", type: "mc", variant: true, twin: ["dva-2-15"],
+    q: "A developer adds the custom domain api.example.com to a Regional REST API in eu-west-1 that public clients call. Out of habit, the ACM certificate was requested in us-east-1, and it doesn't appear in the list. The API must stay Regional. What should the developer do?",
+    opts: [
+      "Request or import a certificate for api.example.com in ACM in eu-west-1, and choose it for the domain.",
+      "Wait for ACM to copy the us-east-1 certificate to eu-west-1, which it does for API Gateway domains.",
+      "Issue a private certificate for the domain from AWS Private CA in eu-west-1, and choose that instead.",
+      "Attach the us-east-1 certificate to the API's default execute-api endpoint, then add the domain again."
+    ], a: 0,
+    no: [null,
+      "ACM certificates are Regional resources and aren't copied between Regions. Only edge-optimized domains use us-east-1.",
+      "Public clients don't trust a private CA. Private certificates are for internal clients that trust the CA's root.",
+      "The default endpoint uses a certificate managed by AWS. You can't attach your own certificate to it."],
+    why: "A Regional custom domain needs an ACM certificate in the same Region as the API. Only edge-optimized custom domains, which are served through CloudFront, need a certificate in us-east-1.",
+    doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-regional-api-custom-domain-create.html",
+      "https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-edge-optimized-custom-domain-name.html"] },
+
+  // GetParameters vs GetParametersByPath (twin of dva-2-222), flip: named parameters across hierarchies
+  { id: "dva-2-468", exam: "DVA", dva: "2.3", topic: "ssm", type: "mc", variant: true, twin: ["dva-2-222"],
+    q: "At startup, a Lambda function needs exactly three SecureString parameters from different hierarchies: /shared/db/password, /billing/prod/api-key and /auth/prod/signing-key. Its role already allows reading them and kms:Decrypt on their key. The developer wants a single API call. Which call should the function make?",
+    opts: [
+      "Call GetParametersByPath with Path /billing/prod, and set Recursive and WithDecryption to true.",
+      "Call GetParameters with the three names in Names, and set WithDecryption to true in the request.",
+      "Call GetParameters with the three names in Names, and set WithDecryption to false in the request.",
+      "Call Secrets Manager BatchGetSecretValue with the three parameter names in its SecretIdList."
+    ], a: 1,
+    no: [
+      "It returns only parameters under /billing/prod, so the other two hierarchies are missed. It's for loading one hierarchy.",
+      null,
+      "Without decryption, SecureString values come back encrypted. False suits callers that don't need the plaintext.",
+      "BatchGetSecretValue reads Secrets Manager secrets. These values are Parameter Store parameters, not secrets."],
+    why: "GetParameters takes a list of exact names, wherever they sit, and WithDecryption returns SecureString values in plaintext. GetParametersByPath is for every parameter under one hierarchy.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameters.html",
+      "https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParametersByPath.html"] },
+
+  // Labels only help selector reads (twin of dva-2-223), flip: the app reads the latest version, so moving a label does nothing
+  { id: "dva-2-469", exam: "DVA", dva: "2.3", topic: "ssm", type: "mc", variant: true, twin: ["dva-2-223"],
+    q: "An app reads the parameter /app/limits by its name alone, with no version or label. A bad value was just saved as version 8, and version 7 was the last good one. The team must roll back in seconds without changing the app's code or configuration. What should the developer do?",
+    opts: [
+      "Attach a live label to version 7, so that the app's requests for /app/limits resolve to the good value.",
+      "Save version 7's value again with PutParameter and Overwrite, so it becomes version 9, the latest one.",
+      "Delete version 8 of the parameter, so that Parameter Store serves version 7 as the latest version again.",
+      "Attach an Expiration policy that runs right away, so that version 8 is removed from the parameter's history."
+    ], a: 1,
+    no: [
+      "A label matters only when the request names it, as in name:label. A request by name alone gets the latest version.",
+      null,
+      "DeleteParameter removes the whole parameter, not one version, so the app would get no value at all.",
+      "An Expiration policy deletes the whole parameter, not one version, and it needs the advanced tier."],
+    why: "A request that names no version or label gets the latest version. Saving the good value again with Overwrite makes a new latest version. Labels help only apps that read name:label.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-versions.html",
+      "https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-labels.html"] },
+
+  // Staging labels in a rotation function's test step (twin of dva-2-227), flip: here the call with no stage is the wrong one, and AWSPENDING is right
+  { id: "dva-2-470", exam: "DVA", dva: "2.3", topic: "secrets", type: "mc", variant: true, twin: ["dva-2-227"],
+    q: "A developer writes a custom Secrets Manager rotation function for a partner API key. In its testSecret step, the function calls GetSecretValue with no VersionStage and tries the key it gets back. Rotations always pass this test, even when the new key turns out to be broken. What should the testSecret step do instead?",
+    opts: [
+      "Call GetSecretValue with VersionStage set to AWSPENDING, and test that new key against the partner API.",
+      "Keep calling GetSecretValue with no VersionStage, but retry the test three times before it passes.",
+      "Call GetSecretValue with VersionStage set to AWSPREVIOUS, and compare the new key with the old one.",
+      "Move the AWSCURRENT label to the new version first, then test it with a GetSecretValue call with no stage."
+    ], a: 0,
+    no: [null,
+      "With no stage the call returns AWSCURRENT, the old key that still works, so every retry tests the wrong key.",
+      "AWSPREVIOUS is an older version kept as the last known good one. Testing it says nothing about the new key.",
+      "Moving AWSCURRENT is the finishSecret step. Doing it first hands apps an untested key before the test can catch it."],
+    why: "During rotation the new value is stored under the AWSPENDING label, and testSecret is the step that tests that version. A call with no stage returns AWSCURRENT, which stays on the old value until finishSecret moves the label.",
+    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotate-secrets_lambda-functions.html",
+      "https://docs.aws.amazon.com/secretsmanager/latest/userguide/whats-in-a-secret.html"] },
+
+  // Default at-rest encryption vs encryption helpers (twin of dva-2-229), flip: the default AWS managed key is the right answer
+  { id: "dva-2-471", exam: "DVA", dva: "2.3", topic: "lambda", type: "mc", variant: true, twin: ["dva-2-229"],
+    q: "A Lambda function keeps a log level and a public endpoint URL in environment variables. An audit now requires every function's environment variables to be encrypted at rest with AWS KMS. The values aren't secret, so engineers may still read them in the console. Which approach needs the LEAST effort?",
+    opts: [
+      "Keep Lambda's default encryption at rest with the AWS managed key, which already meets the rule.",
+      "Enable the console encryption helpers with a customer managed key, and decrypt the values in code.",
+      "Set a customer managed key for encryption at rest, and grant the engineers kms:Decrypt on that key.",
+      "Move the values to Parameter Store SecureString parameters, and read them when the function starts."
+    ], a: 0,
+    no: [null,
+      "Helpers add client-side encryption for values that must stay hidden, plus decrypt code and a permission this audit doesn't need.",
+      "It works, but a customer managed key adds KMS charges and key permissions. It's for teams that must control the key.",
+      "It works, but it means code changes and new parameters. SecureString is for secrets kept outside the function."],
+    why: "Lambda always encrypts environment variables at rest with a KMS key, by default an AWS managed key that needs no setup, permissions or charges. Customer managed keys and encryption helpers are for controlling the key or hiding values from console users.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars-encryption.html"] },
+
+  // Custom data identifier keywords (twin of dva-2-230)
+  { id: "dva-2-472", exam: "both", dva: "2.3", saa: "1.2", topic: "macie", type: "mc", variant: true, twin: ["dva-2-230"],
+    q: "A retailer's CSV exports in S3 hold 8-digit loyalty card numbers in a column named loyalty_card. Other columns, such as order_id, also hold 8-digit numbers, which aren't sensitive. The team wants Amazon Macie to report only the loyalty card numbers. What should the developer do?",
+    opts: [
+      "Create a custom data identifier with an 8-digit regex and the keyword loyalty_card, and use it in a job.",
+      "Create a custom data identifier with an 8-digit regex and the ignore word order_id, and use it in a job.",
+      "Create an allow list with a regular expression for 8-digit numbers, and add that list to the job.",
+      "Run a discovery job with Macie's recommended managed data identifiers, which already find card numbers."
+    ], a: 0,
+    no: [null,
+      "An ignore word drops a match only when the matched text contains it. Order IDs are plain digits, so they'd still be reported.",
+      "An allow list tells Macie to ignore matching text, so it would hide the loyalty card numbers as well.",
+      "Managed identifiers cover standard types such as payment card numbers. A company's own format needs a custom identifier."],
+    why: "A custom data identifier pairs a regex with optional keywords. In CSV files, Macie reports a match when a keyword is in the name of the column that holds it, so the loyalty_card keyword keeps the order IDs out of the results.",
+    doc: ["https://docs.aws.amazon.com/macie/latest/user/cdis-options.html",
+      "https://docs.aws.amazon.com/macie/latest/user/custom-data-identifiers.html"] },
+
+  // Session tags + PrincipalTag for tenant isolation, on DynamoDB (twin of dva-2-232)
+  { id: "dva-2-473", exam: "DVA", dva: "2.3", topic: "iam", type: "multi", hint: "Select TWO.", variant: true, twin: ["dva-2-232"],
+    q: "A SaaS service keeps every tenant's items in one DynamoDB table whose partition key is TenantId. For each request, a broker assumes one shared IAM role on the calling tenant's behalf. IAM itself must stop a request from touching another tenant's items, with no new roles or policies per tenant. Which steps meet these requirements? (Select TWO.)",
+    items: [
+      { t: "Have the broker pass the tenant ID as a session tag on AssumeRole, and allow sts:TagSession in the trust policy.", ok: true },
+      { t: "Allow GetItem, PutItem and Query only when dynamodb:LeadingKeys matches ${aws:PrincipalTag/tenant}.", ok: true },
+      { t: "Tag the DynamoDB table with each tenant's ID, and add aws:ResourceTag conditions to the shared role's policy.", ok: false,
+        no: "Tags apply to the whole table, not to its items, so they can't separate tenants who share one table." },
+      { t: "Keep full table access for the role, and add a FilterExpression on TenantId to every Query the service runs.", ok: false,
+        no: "Isolation would rest on app code alone, and a filter is applied after items are read. IAM wouldn't stop anything." },
+      { t: "Add a statement for each tenant to the table's resource-based policy that names that tenant's TenantId value.", ok: false,
+        no: "That means a policy change for every new tenant, which the requirement rules out." }
+    ],
+    why: "Session tags carry the tenant ID into the role session as a principal tag. A ForAllValues:StringEquals condition on dynamodb:LeadingKeys, the partition key, set to ${aws:PrincipalTag/tenant} limits each session to its own tenant's items, so one role and one policy cover every tenant.",
+    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html",
+      "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/specifying-conditions.html"] },
+
+  // secretsmanager dynamic reference with a JSON key (twin of dva-2-234)
+  { id: "dva-2-474", exam: "DVA", dva: "2.3", topic: "cloudformation", type: "mc", variant: true, twin: ["dva-2-234"],
+    q: "A CloudFormation template creates an ElastiCache replication group. Its AuthToken must come from an existing Secrets Manager secret named cache-auth, which holds JSON with a token key and will be rotated later. The token must never appear in the template, its parameters or stack outputs. How should the developer set AuthToken?",
+    opts: [
+      "Set AuthToken to {{resolve:secretsmanager:cache-auth:SecretString:token}} in the resource.",
+      "Set AuthToken to {{resolve:ssm-secure:cache-auth}}, so that CloudFormation reads the secure value.",
+      "Add a NoEcho parameter whose Default is the token, and set AuthToken with a Ref to that parameter.",
+      "Export the token as an output of the stack that made the secret, and read it with Fn::ImportValue."
+    ], a: 0,
+    no: [null,
+      "ssm-secure reads Parameter Store SecureString parameters. The token is in a Secrets Manager secret, which needs the secretsmanager reference.",
+      "NoEcho masks the value in CloudFormation's responses, but a Default puts the plaintext token in the template itself.",
+      "Output values are stored and shown in plain text. Exports are for sharing values such as resource IDs between stacks."],
+    why: "A secretsmanager dynamic reference makes CloudFormation fetch the value at deploy time, and its json-key segment picks one field of the JSON. The resolved value isn't kept in logs, and a reference with no version uses AWSCURRENT, which suits rotation.",
+    doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references-secretsmanager.html",
+      "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references-ssm-secure-strings.html"] },
+
+  // Standard vs advanced tier (twin of dva-2-235), flip: the value fits and needs no policies, so the standard tier wins
+  { id: "dva-2-475", exam: "DVA", dva: "2.3", topic: "ssm", type: "mc", variant: true, twin: ["dva-2-235"],
+    q: "An app needs a 2 KB database connection string stored encrypted in Parameter Store. It needs no parameter policies and no sharing with other accounts. A teammate says encrypted values need the advanced tier. Which option is the MOST cost-effective?",
+    opts: [
+      "Create it as a standard-tier SecureString parameter, since the standard tier supports SecureString.",
+      "Create it as an advanced-tier SecureString parameter, since standard-tier values can't be encrypted.",
+      "Create it as a standard-tier String parameter, and limit who can read it with an IAM policy instead.",
+      "Store it as a Secrets Manager secret, and read it through the Parameter Store reference path in code."
+    ], a: 0,
+    no: [null,
+      "The standard tier supports SecureString. Advanced parameters cost extra and are for larger values, policies or sharing.",
+      "A String parameter stores the value unencrypted, and the requirement is that it be stored encrypted.",
+      "A secret has its own monthly charge, and Secrets Manager is for features such as rotation that this value doesn't need."],
+    why: "The standard tier has no additional charge, holds values up to 4 KB and supports every data type except url, json and jsonc, so a 2 KB SecureString fits. The advanced tier is for values up to 8 KB, parameter policies and sharing, and charges apply.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html"] },
+
+  // Single user vs alternating users (twin of dva-2-307), flip: an interactive user, where single user is what AWS recommends
+  { id: "dva-2-476", exam: "DVA", dva: "2.3", topic: "secrets", type: "mc", variant: true, twin: ["dva-2-307"],
+    q: "A data analyst signs in to an RDS for PostgreSQL database by hand, using credentials kept in a Secrets Manager secret. Security now wants the analyst's password rotated every 30 days. A teammate suggests alternating users so the analyst's open sessions survive rotation. Which approach does AWS recommend here?",
+    opts: [
+      "Single user rotation, which AWS recommends for interactive users and which keeps open connections.",
+      "Alternating users rotation, with a superuser secret so the function can clone the analyst's user.",
+      "Turn on automatic rotation for the KMS key that encrypts the secret, so the password is renewed.",
+      "Store the password as a Parameter Store SecureString with an Expiration policy set to 30 days."
+    ], a: 0,
+    no: [null,
+      "Alternating users suits apps that need high availability. AWS recommends single user for interactive users, and open connections stay up either way.",
+      "Rotating the KMS key changes the key that encrypts the secret, not the database password inside it.",
+      "An Expiration policy deletes the parameter when the time comes. It never changes the database password."],
+    why: "AWS recommends single user rotation for one-time or interactive users, and open database connections aren't dropped when the secret rotates. Alternating users is for apps that need high availability, and it needs a superuser secret to create the clone.",
+    doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotation-strategy.html",
+      "https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-policies.html"] },
+
+  // Sampling vs full analysis (twin of dva-2-309), flip: every object must be checked, so a full job beats automated discovery
+  { id: "dva-2-477", exam: "DVA", dva: "2.3", topic: "macie", type: "mc", variant: true, twin: ["dva-2-309"],
+    q: "Before a company shares one S3 bucket of support-ticket exports with a contractor, legal wants a one-time report of every object in it that holds personal data, such as names and phone numbers. Macie isn't analyzing the bucket yet. Which solution meets this requirement?",
+    opts: [
+      "Run a one-time Macie sensitive data discovery job on the bucket with a sampling depth of 100%.",
+      "Turn on Macie automated sensitive data discovery, and then read the bucket's sensitivity score.",
+      "Run a one-time Macie sensitive data discovery job on the bucket with a sampling depth of 20%.",
+      "Turn on Amazon GuardDuty S3 Protection, and list the objects named in its findings for the bucket."
+    ], a: 0,
+    no: [null,
+      "Automated discovery samples representative objects across buckets. It's for a broad, ongoing view, not a report on every object.",
+      "Macie would analyze only about a fifth of the objects, picked at random, so objects with personal data could be missed.",
+      "GuardDuty S3 Protection looks for threats such as data exfiltration. It doesn't inspect objects for personal data."],
+    why: "A discovery job can run once, and its sampling depth sets the percentage of eligible objects it analyzes, so 100% covers them all. Automated discovery samples representative objects, which suits broad visibility rather than a full report.",
+    doc: ["https://docs.aws.amazon.com/macie/latest/user/discovery-jobs-scope.html",
+      "https://docs.aws.amazon.com/macie/latest/user/discovery-asdd.html"] },
+
+  // WriteAttributes default on a second app client (twin of dva-2-315)
+  { id: "dva-2-478", exam: "DVA", dva: "2.3", topic: "cognito", type: "mc", variant: true, twin: ["dva-2-315"],
+    q: "A user pool has two app clients. The web client's WriteAttributes leave out custom:role, which the backend reads from tokens to grant admin rights. The mobile client was created without setting WriteAttributes. A tester used a mobile token to call UpdateUserAttributes and became an admin. What should the developer do?",
+    opts: [
+      "Set WriteAttributes on the mobile client to only the attributes users may edit, leaving out custom:role.",
+      "Remove custom:role from the mobile client's ReadAttributes, so mobile tokens no longer carry the claim.",
+      "Turn on attribute verification for custom:role, so a changed value only counts once it is confirmed.",
+      "Shorten the mobile client's refresh token expiration, so a changed value lasts only until that token expires."
+    ], a: 0,
+    no: [null,
+      "Read access doesn't limit writes, and attributes are shared, so the new value still shows up in the web client's tokens.",
+      "Only email and phone_number can be verified. Verification proves contact details, not who may change a value.",
+      "The change is saved on the user's profile, so every new token carries it. Refresh token lifetime only limits sessions."],
+    why: "An app client with no WriteAttributes set can write every standard and custom attribute, and attributes are shared across the pool's clients. An attribute used for authorization must be left out of every client's WriteAttributes and set only through admin APIs.",
+    doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html"] },
+
+  // Suppression rule vs allow list (twin of dva-2-330), flip: findings must be kept, so a suppression rule is right
+  { id: "dva-2-479", exam: "DVA", dva: "2.3", topic: "macie", type: "mc", variant: true, twin: ["dva-2-330"],
+    q: "Macie jobs keep reporting names and phone numbers in an S3 bucket that holds the company's published staff directory. Security has reviewed these findings and wants future ones for that bucket archived automatically. Macie must keep analyzing the bucket, and the findings must still be kept for audits. What should the developer do?",
+    opts: [
+      "Create a Macie suppression rule that matches that bucket and those sensitive data types.",
+      "Create a Macie allow list of the directory's names and numbers, and add it to the jobs.",
+      "Remove the name and phone number managed data identifiers from the jobs for that bucket.",
+      "Exclude the directory bucket from the jobs, and run a separate job on it once a year."
+    ], a: 0,
+    no: [null,
+      "Macie would stop reporting the matching text, so no findings would exist for audits. Allow lists suit text you never want reported.",
+      "Macie would stop looking for names and phone numbers there, so no new findings would be created to keep.",
+      "Macie would stop analyzing the bucket for most of the year, which the requirement rules out."],
+    why: "A suppression rule archives matching findings automatically. Macie still generates them and keeps them until they expire, while an allow list stops Macie from reporting the matching data at all.",
+    doc: ["https://docs.aws.amazon.com/macie/latest/user/findings-suppression.html",
+      "https://docs.aws.amazon.com/macie/latest/user/allow-lists.html"] },
+
+  // A moved tag doesn't reach a deployed image function (twin of dva-3-106), flip: the tag moved by accident, so "nothing changes" is the right outcome
+  { id: "dva-3-450", exam: "DVA", dva: "3.1", topic: "lambda", type: "mc", variant: true, twin: ["dva-3-106"],
+    q: "A Lambda function was created from the container image tagged billing:prod in Amazon ECR. While testing, a developer accidentally pushes a broken build with the prod tag. Nobody has updated the function since. What happens to the function?",
+    opts: [
+      "It keeps running the original image, because Lambda stored that image's digest when the code was set.",
+      "New execution environments start the broken build, because Lambda pulls the prod tag at each cold start.",
+      "$LATEST picks up the broken build at its next daily refresh, while published versions keep the original.",
+      "It fails until the tag is fixed, because its stored digest no longer matches the prod tag in Amazon ECR."
+    ], a: 0,
+    no: [null,
+      "Lambda doesn't look the tag up again at cold starts. Every environment runs the digest it resolved at deployment.",
+      "There is no periodic refresh from ECR. $LATEST changes only when its code is updated.",
+      "The function never checks that its digest still matches the tag. It runs the image it was given."],
+    why: "For an image function, Lambda resolves the tag to an image digest when the code is set and keeps that digest. A tag that moves later doesn't change the function, but the next code update that names billing:prod would deploy the broken build, so the tag should be fixed first.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/api/API_UpdateFunctionCode.html"] },
+
+  // gp3 performance is set apart from size (twin of dva-3-401)
+  { id: "dva-3-451", exam: "both", dva: "3.1", saa: "4.1", topic: "ebs", type: "mc", variant: true, twin: ["dva-3-401"],
+    q: "A database on EC2 uses a 500 GiB gp2 volume holding 300 GiB of data. It needs a steady 5,000 IOPS, but the volume's baseline is 1,500 IOPS and its burst credits keep running out. The volume must stay attached and online. Which change meets the need MOST cost-effectively?",
+    opts: [
+      "Grow the gp2 volume to 1,700 GiB with Elastic Volumes, so its baseline rises to 5,100 IOPS.",
+      "Change the volume type to io2 with 5,000 provisioned IOPS, using Elastic Volumes while attached.",
+      "Change the volume type to gp3 with 5,000 IOPS, using Elastic Volumes while it stays attached.",
+      "Change the volume type to st1 with Elastic Volumes, since HDD volumes don't depend on burst credits."
+    ], a: 2,
+    no: [
+      "It works, but it buys 1,200 GiB of storage the data doesn't need just to reach the IOPS.",
+      "io2 also gives steady IOPS, but at a higher price than gp3 for the same 5,000 IOPS.",
+      null,
+      "Throughput Optimized HDD suits large sequential reads. A database's small random I/O needs SSD IOPS."],
+    why: "gp2 IOPS grow with size at 3 IOPS per GiB, so more IOPS means more storage. gp3 includes 3,000 IOPS at any size and lets you provision more apart from size, and Elastic Volumes can change gp2 to gp3 without detaching the volume.",
+    doc: ["https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html",
+      "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html"] },
+
+  // A path call is authorized against the path (twin of dva-3-404), flip: here a deny is the fix, as long as it covers the ancestor paths
+  { id: "dva-3-452", exam: "DVA", dva: "3.1", topic: "ssm", type: "mc", variant: true, twin: ["dva-3-404"],
+    q: "A dev role has an AWS managed policy that allows ssm:GetParameter* on every parameter, and the team can't change that policy. Prod settings are String parameters under /prod/. The dev role must not read any prod value by any Parameter Store call. What should the developer add to the role?",
+    opts: [
+      "A deny of ssm:GetParameter* on /prod/*, which covers all four retrieval actions on every prod parameter.",
+      "A deny of ssm:GetParametersByPath on the /prod path, since that is the one call authorized against a path.",
+      "A deny of kms:Decrypt on the aws/ssm key, so the dev role can't decrypt any value it reads under /prod/.",
+      "A deny of ssm:GetParameter* on /prod/*, plus ssm:GetParametersByPath denied on the paths /prod and /."
+    ], a: 3,
+    no: [
+      "A path call on /prod or / is authorized against that path, not the prod ARNs, so it still returns every prod value.",
+      "GetParameter on a single prod name stays open, and a path call on the root path / still returns everything under /prod.",
+      "kms:Decrypt matters only for SecureString values. These are String parameters, which come back as plain text.",
+      null],
+    why: "Each retrieval action is authorized on its own, and GetParametersByPath is checked against the requested path, not the parameters it returns. Hiding /prod values from a broad allow means denying every GetParameter action on them and the path call on each ancestor path.",
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-retrieval-authorization.html",
+      "https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-restrict-parameter-access.html"] },
+
+  // 250 MB unzipped covers code plus layers (twin of dva-3-921), flip: it fits, so a layer is right and an image isn't needed
+  { id: "dva-3-453", exam: "DVA", dva: "3.1", topic: "lambda", type: "mc", variant: true, twin: ["dva-3-921"],
+    q: "Six Python Lambda functions each bundle the same 140 MB (unzipped) data library, and each function's own code is under 5 MB. Updating the library means rebuilding all six packages. The team wants to keep .zip deployments and maintain the library in one place. What should the developer do?",
+    opts: [
+      "Package each function as a container image with the library, and push the images to Amazon ECR.",
+      "Publish the library as a Lambda layer, and add that layer version to each of the six functions.",
+      "Upload the library to an S3 bucket once, and point each function's code at that same S3 object.",
+      "Set each function's ephemeral storage to 1 GB, and copy the library to a shared /tmp folder once."
+    ], a: 1,
+    no: [
+      "Images would work for size, but the team wants to keep .zip deployments, and each image still carries its own copy.",
+      null,
+      "S3 is only a route for uploading a package. Each function still gets its own copy, holding its code too.",
+      "/tmp belongs to one execution environment and starts empty, so functions can't share files there."],
+    why: "A layer is a .zip archive that any number of functions can use, so the library is updated once and attached by version. Each function's code plus its layers must stay within 250 MB unzipped, and 140 MB plus 5 MB fits easily.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html"] },
+
+  // Native code must match the function's platform (twin of dva-3-926), flip: changing the architecture is now the fix
+  { id: "dva-3-454", exam: "DVA", dva: "3.1", topic: "sam", type: "mc", variant: true, twin: ["dva-3-926"],
+    q: "A CI pipeline runs sam build on an arm64 (Graviton) Amazon Linux runner for a Python function with compiled C extensions. The template sets the function's Architectures to x86_64, and the deployed function fails at import loading the extension. The team wants to keep the runner and build steps as they are. What should the developer change?",
+    opts: [
+      "Raise the function's memory to 2,048 MB, so it has room to load the compiled extension at start-up.",
+      "Set the function's Architectures to arm64, so it runs on the platform the extensions were built for.",
+      "Move the library into a Lambda layer, so Lambda prepares it for the function's x86_64 architecture.",
+      "Change the Runtime to a newer Python version, whose runtime loads extensions built on other CPUs."
+    ], a: 1,
+    no: [
+      "Memory doesn't change the CPU type. Code built for arm64 won't load on x86_64 at any memory size.",
+      null,
+      "Lambda extracts a layer into /opt as it is. Arm64 binaries in a layer fail the same way on x86_64.",
+      "Every Python runtime still runs on the function's chosen architecture. A newer version can't load arm64 code on x86_64."],
+    why: "A function's code, including compiled dependencies, must match the function's instruction set architecture. Binaries built on an arm64 Linux host load on an arm64 function, so changing the architecture fixes the mismatch without changing the build.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html"] },
+
+  // Immutable tags (twin of dva-3-928), flip: immutability blocks the push, and that's correct, so ship a new tag
+  { id: "dva-3-455", exam: "DVA", dva: "3.1", topic: "ecr", type: "mc", variant: true, twin: ["dva-3-928"],
+    q: "An ECR repository has tag immutability turned on. The pipeline released api:2.3.0 last week. Now a rebuilt image with a bug fix fails to push as api:2.3.0 with ImageTagAlreadyExistsException. A release tag must never point to a different image. What should the team do?",
+    opts: [
+      "Switch the repository to MUTABLE for this push, then turn immutability back on once 2.3.0 has moved.",
+      "Delete the old 2.3.0 image with BatchDeleteImage, then push the rebuilt image with the same tag again.",
+      "Push the rebuilt image as api:2.3.0 to a replica repository in another Region where the tag is free.",
+      "Tag the rebuilt image as a new release such as api:2.3.1, push it, and deploy that tag instead."
+    ], a: 3,
+    no: [
+      "The push would succeed, but 2.3.0 would then point to a different image, which the rule forbids.",
+      "Deleting frees the tag, but 2.3.0 then names a different image than the one released last week.",
+      "Replication copies images between Regions. The same tag naming different images per Region breaks the rule.",
+      null],
+    why: "With tag immutability on, ECR rejects a push that reuses an existing tag. The error is the setting doing its job: a fix ships under a new tag, so 2.3.0 always means the image that was first released.",
+    doc: ["https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html"] },
+
+  // Leave out what the runtime already provides (twin of dva-3-929)
+  { id: "dva-3-456", exam: "DVA", dva: "3.1", topic: "lambda", type: "mc", variant: true, twin: ["dva-3-929"],
+    q: "A Node.js 20 Lambda function is built by sam build with BuildMethod esbuild. Its bundle is 6 MB, mostly @aws-sdk/client-dynamodb and the packages it pulls in. The team is happy to use the SDK version the runtime includes. Which change makes the bundle smaller?",
+    opts: [
+      "Set Minify to true in BuildProperties, so esbuild trims the unused SDK code from the bundle.",
+      "List @aws-sdk/* under External in BuildProperties, so esbuild leaves the SDK out of the bundle.",
+      "Set Format to esm in BuildProperties, so the runtime loads the SDK modules instead of the bundle.",
+      "Set SourcesContent to false in BuildProperties, so the SDK's source isn't copied into the bundle."
+    ], a: 1,
+    no: [
+      "Minify is already true by default for esbuild in SAM, so this changes nothing.",
+      null,
+      "Format only sets the output module style. The SDK code is bundled either way.",
+      "SourcesContent only affects what goes into a source map file, not the bundled code."],
+    why: "All supported Node.js runtimes include version 3 of the AWS SDK for JavaScript. Marking it External tells esbuild not to bundle it, so the function loads the runtime's copy and ships only its own code.",
+    doc: ["https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-build-typescript.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html"] },
+
+  // Sharing an SAR application (twin of dva-3-501), flip: shared privately, so no license is needed
+  { id: "dva-3-457", exam: "both", dva: "3.1", saa: "2.1", topic: "sar", type: "multi", hint: "Select TWO.", variant: true, twin: ["dva-3-501"],
+    q: "A platform team publishes an internal serverless application to the AWS Serverless Application Repository. Only accounts in the company's AWS Organization may deploy it. The application has no license, and its packaged artifacts sit in an S3 bucket that blocks all public access. Which steps are required? (Select TWO.)",
+    items: [
+      { t: "Add a bucket policy that lets serverlessrepo.amazonaws.com get the packaged objects, limited to the team's own account.", ok: true },
+      { t: "Share the application privately with the company's AWS Organization, in the application policy on its Sharing tab.", ok: true },
+      { t: "Set a LicenseUrl and a SemanticVersion, then share the application publicly so that every organization account sees it.", ok: false,
+        no: "Public sharing opens it to every AWS customer. A license is needed only for public sharing, not for sharing privately." },
+      { t: "Create an AWS RAM resource share for the application, and associate the organization with that resource share.", ok: false,
+        no: "RAM shares resources such as subnets. An SAR application is shared through its own application policy." },
+      { t: "Turn off Block Public Access on the bucket, and make the packaged artifacts readable by everyone on the internet.", ok: false,
+        no: "The service reads the artifacts through a bucket policy for its principal. Public objects would only add risk." }
+    ],
+    why: "Publishing needs a bucket policy that grants the service read access to the artifacts. Applications start private, and an application policy can share one with specific accounts or an organization. A license and semantic version are required only to share publicly.",
+    doc: ["https://docs.aws.amazon.com/serverlessrepo/latest/devguide/serverlessrepo-how-to-publish.html"] },
+
+  // Linear vs canary (twin of dva-3-808), flip: one slice then the rest is now what's wanted, on ECS
+  { id: "dva-3-458", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-808"],
+    q: "A team uses CodeDeploy blue/green deployments for an Amazon ECS service. Each release must send 10 percent of production traffic to the new task set, hold there for 15 minutes while alarms watch it, and then move the rest in one step. Which deployment configuration should the team use?",
+    opts: [
+      "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+      "CodeDeployDefault.ECSAllAtOnce, with a 15-minute wait",
+      "CodeDeployDefault.ECSCanary10Percent15Minutes",
+      "CodeDeployDefault.ECSLinear10PercentEvery1Minutes"
+    ], a: 2,
+    no: [
+      "Linear keeps moving 10 percent every three minutes. It never holds at one slice for 15 minutes.",
+      "All at once moves every request to the new task set at the start, so nothing is tested on a slice.",
+      null,
+      "Another linear option: ten equal steps a minute apart, with no long hold at 10 percent."],
+    why: "A canary configuration moves one slice of traffic, waits, then moves the rest at once, so ECSCanary10Percent15Minutes holds 10 percent for 15 minutes. Linear configurations move equal slices with the same wait between each.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html"] },
+
+  // Alarm on the new version during the shift (twin of dva-3-809), flip: the risk is latency, so Errors is the wrong metric
+  { id: "dva-3-459", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-809"],
+    q: "A CodeDeploy canary deployment shifts 10 percent of a Lambda alias's traffic to a new version. Past bad releases didn't fail; their responses just got much slower. The deployment must roll back on its own if the new version slows down while it serves real traffic. What should the team set up?",
+    opts: [
+      "An alarm on Errors for the alias, which the deployment group watches to fire above the normal rate.",
+      "An alarm on Duration for the alias and new version, which the deployment group watches for slowness.",
+      "A BeforeAllowTraffic hook function that times a few test calls to the new version before the shift.",
+      "An AfterAllowTraffic hook function that times calls to the alias and fails the deployment if they lag."
+    ], a: 1,
+    no: [
+      "Slow responses that still succeed don't count as errors, so this alarm stays quiet.",
+      null,
+      "That hook runs before any real traffic reaches the new version, so it can't watch it during the canary wait.",
+      "That hook runs only after all traffic has shifted, too late to catch the problem on the 10 percent slice."],
+    why: "CodeDeploy stops and rolls back a deployment when an alarm it watches crosses its threshold. Duration measures how long the code takes per event, and the ExecutedVersion dimension splits an alias's metrics by version, so the alarm can watch the new version alone.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html"] },
+
+  // Backward-compatible schema change keeps blue/green rollback (twin of dva-3-810)
+  { id: "dva-3-460", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-810"],
+    q: "A shop's EC2 app is released with CodeDeploy blue/green, and both fleets use one shared RDS database. The next release must replace the phone column with a new contact_phone column. If the release goes wrong, traffic must be able to move back to the blue fleet. Which approach keeps that rollback safe?",
+    opts: [
+      "Add contact_phone and keep phone for now, so both versions can run; drop phone in a later release.",
+      "Rename phone to contact_phone in green's AfterInstall hook, so the change lands right before traffic moves.",
+      "Copy the database to a new green database at deploy time, and point only the green fleet at that copy.",
+      "Turn on automatic rollback on alarm thresholds, so CodeDeploy reverts the database when errors rise."
+    ], a: 0,
+    no: [null,
+      "Blue still reads phone. Once it's renamed, moving traffic back to blue breaks the old code.",
+      "Orders written to the copy after the switch are missing from blue's database, so a rollback loses data.",
+      "A rollback redeploys an earlier app revision. It doesn't undo changes made to the database."],
+    why: "Blue and green share the database during and after the switch, so each schema change must work for both versions. Adding the new column first and removing the old one in a later release keeps the old version working, so moving traffic back stays safe.",
+    doc: ["https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/best-practices-for-managing-data-synchronization-and-schema-changes.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html"] },
+
+  // Overridden StackSet parameters keep their value on updates (twin of dva-3-853), flip: remove the override
+  { id: "dva-3-461", exam: "DVA", dva: "3.4", topic: "cloudformation", type: "mc", variant: true, twin: ["dva-3-853"],
+    q: "A StackSet deploys one template to five Regions. Last year the eu-west-1 stack instance got an override of InstanceType=t3.small. The team has now updated the StackSet's InstanceType value to t3.large for every Region, but eu-west-1 still runs t3.small. From now on, eu-west-1 must follow the StackSet's value. What should the developer do?",
+    opts: [
+      "Override InstanceType on the eu-west-1 stack instance again, this time with the new t3.large value.",
+      "Run drift detection on the StackSet, then resolve the drift reported for the eu-west-1 stack instance.",
+      "Set eu-west-1's InstanceType back to the StackSet value, which removes the override, and update it.",
+      "Update the StackSet again with t3.large and select every Region, so that eu-west-1 is included too."
+    ], a: 2,
+    no: [
+      "It fixes today's value, but eu-west-1 still has an override, so the next StackSet change would skip it again.",
+      "Drift detection finds changes made outside CloudFormation. An override is part of the StackSet, so it isn't drift.",
+      null,
+      "Overridden values aren't updated by StackSet updates, however many Regions are selected."],
+    why: "Each stack instance can override a StackSet parameter, and that override is kept through later StackSet updates. To make a stack follow the StackSet's value again, set its parameter back to the StackSet value, which removes the override when the stacks are updated.",
+    doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stackinstances-override.html"] },
+
+  // Rollback on failure vs on alarm (twin of dva-3-202), flip: the failure is the trigger, no alarm needed
+  { id: "dva-3-462", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-202"],
+    q: "A CodeDeploy in-place deployment's ValidateService script runs health checks and exits with an error when they fail, which fails the deployment. When that happens, the instances must go back to the last working revision without anyone acting. There's no CloudWatch alarm for the app. What should the developer configure?",
+    opts: [
+      "Turn on the deployment group's automatic rollback option to roll back when a deployment fails.",
+      "Use CodeDeployDefault.OneAtATime, so the failed revision only ever reaches one of the instances.",
+      "Raise the minimum healthy hosts value, so CodeDeploy restores the instances that become unhealthy.",
+      "Deploy with ignoreApplicationStopFailures, so the next deployment starts from the last good revision."
+    ], a: 0,
+    no: [null,
+      "One at a time limits how far a bad revision spreads, but nothing redeploys the last working one.",
+      "Minimum healthy hosts only decides when CodeDeploy fails a deployment. It doesn't restore anything.",
+      "That flag only lets a deployment carry on when the old ApplicationStop script fails. It redeploys nothing."],
+    why: "Rollback on deployment failure needs no alarm: when a hook script fails the deployment, CodeDeploy redeploys the last known good revision as a new deployment. Alarm-based rollback is for problems that don't fail the deployment on their own.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/instances-health.html"] },
+
+  // fileExistsBehavior (twin of dva-3-203), flip: RETAIN is right
+  { id: "dva-3-463", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-203"],
+    q: "Each EC2 instance has a hand-edited settings.conf in the app folder, placed before CodeDeploy was used. The revision ships a default settings.conf for new instances. The first deployment fails because the file already exists. Existing instances must keep their own copy, and new ones must get the default. What should the developer do?",
+    opts: [
+      "Create the deployment with the file exists behavior set to OVERWRITE, so the revision's copy is installed.",
+      "Create the deployment with the file exists behavior set to RETAIN, so the copy on each instance is kept.",
+      "Add a BeforeInstall script that deletes settings.conf, so the revision's copy can then be installed.",
+      "Add settings.conf to the permissions section of the appspec.yml, so the agent leaves the file alone."
+    ], a: 1,
+    no: [
+      "OVERWRITE replaces each instance's own settings with the default, which loses the hand-edited copies.",
+      null,
+      "Deleting the file clears the error, but the hand-edited settings are lost and replaced by the default.",
+      "The permissions section sets owners and modes on installed files. It doesn't decide how existing files are handled."],
+    why: "A file in a target location that the last deployment didn't install fails the deployment by default (DISALLOW). RETAIN keeps the file already on the instance, while an instance without the file gets the revision's copy as usual.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_CreateDeployment.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html"] },
+
+  // ApplicationStop runs the previous revision's script (twin of dva-3-204)
+  { id: "dva-3-464", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-204"],
+    q: "Revision 8 adds a step to the ApplicationStop script that drains a job queue before the app stops. Revision 8 deploys over revision 7 and succeeds, but the queue was never drained during that deployment. The step works when run by hand. Why didn't it run?",
+    opts: [
+      "ApplicationStop ran revision 7's script; revision 8's version first runs in the deployment after this one.",
+      "ApplicationStop only runs in the first deployment to an instance, before any revision has been installed.",
+      "ApplicationStop is skipped in in-place deployments and only runs for blue/green deployments to instances.",
+      "A hook entry without a timeout value is skipped, so the ApplicationStop script needs a timeout set on it."
+    ], a: 0,
+    no: [null,
+      "It's the reverse: ApplicationStop doesn't run on the first deployment, since there's no earlier AppSpec file yet.",
+      "In-place deployments run ApplicationStop. It's the first event of every deployment after the first.",
+      "The timeout is optional and defaults to 3600 seconds. Leaving it out doesn't skip the script."],
+    why: "ApplicationStop happens before the new revision is even downloaded, so the agent uses the AppSpec file and scripts of the last successful revision. A change to the stop script takes effect one deployment later.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/troubleshooting-deployments.html"] },
+
+  // Instance profile reads the revision (twin of dva-3-205)
+  { id: "dva-3-465", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-205"],
+    q: "New EC2 instances run the CodeDeploy agent, which picks up deployments. Each deployment then fails in the DownloadBundle event with an S3 access denied error for the revision bucket. The instances' instance profile role only allows writing to CloudWatch Logs. What should the developer do?",
+    opts: [
+      "Give the CodeDeploy service role s3:Get* and s3:List* on the revision bucket, so CodeDeploy can copy it.",
+      "Add a bucket policy that lets the codedeploy.amazonaws.com service principal read the revision bucket.",
+      "Open inbound port 443 in the instances' security group, so CodeDeploy can push the revision to them.",
+      "Add s3:Get* and s3:List* on the revision bucket to the role in the instances' instance profile."
+    ], a: 3,
+    no: [
+      "The service role is what CodeDeploy itself uses. The agent on each instance downloads the bundle with the instance's role.",
+      "The download is made by the agent with the instance's credentials, not by the CodeDeploy service.",
+      "The agent polls CodeDeploy over outbound HTTPS, and it's already getting deployments. Nothing connects in.",
+      null],
+    why: "On EC2, the CodeDeploy agent itself downloads the revision from S3 during DownloadBundle, using the role in the instance profile. If that role can't read the bucket, the agent gets the deployment but can't fetch the files.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started-create-iam-instance-profile.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html"] },
+
+  // Blue/green is for EC2 only (twin of dva-3-206), flip: on-premises means in-place
+  { id: "dva-3-466", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-206"],
+    q: "An app runs on 8 on-premises servers registered with CodeDeploy. The team likes how blue/green works for their EC2 apps and wants releases here that never leave fewer than half of the servers serving, finishing as fast as possible within that limit. Which deployment setup works for these servers?",
+    opts: [
+      "A blue/green deployment group that names a second set of on-premises servers by tag as the green fleet.",
+      "An in-place deployment group using CodeDeployDefault.HalfAtATime, which updates up to 4 of the 8 servers at once.",
+      "An in-place deployment group using CodeDeployDefault.AllAtOnce, with rollback on deployment failure.",
+      "An in-place group using CodeDeployDefault.LambdaCanary10Percent5Minutes, to update 10% of servers first."
+    ], a: 1,
+    no: [
+      "On the EC2/On-Premises platform, blue/green works with EC2 instances only, so on-premises servers must use in-place.",
+      null,
+      "AllAtOnce updates as many servers as it can at the same time, so far fewer than half may be serving.",
+      "Lambda configurations shift traffic between function versions. They can't be used for server deployments."],
+    why: "Blue/green on the EC2/On-Premises platform needs EC2 instances, so on-premises servers get in-place deployments. HalfAtATime updates up to half the servers at a time, the quickest predefined setting that keeps half serving.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/welcome.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html"] },
+
+  // Hook must be allowed to report its status (twin of dva-3-207)
+  { id: "dva-3-467", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-207"],
+    q: "An ECS blue/green deployment runs an AfterAllowTestTraffic Lambda hook. The function's tests pass, and it then calls PutLifecycleEventHookExecutionStatus, which returns an AccessDeniedException. The deployment waits at that event and fails after an hour. What should the developer do?",
+    opts: [
+      "Add codedeploy:PutLifecycleEventHookExecutionStatus to the CodeDeploy service role for the ECS service.",
+      "Add lambda:InvokeFunction for CodeDeploy to the hook function's resource-based policy for the deployment.",
+      "Add codedeploy:PutLifecycleEventHookExecutionStatus to the hook function's own Lambda execution role.",
+      "Move the tests to a BeforeAllowTraffic hook, which completes as soon as the function returns its result."
+    ], a: 2,
+    no: [
+      "The function makes the call, using its execution role. The CodeDeploy service role isn't used for it.",
+      "CodeDeploy already invoked the function, since its tests ran. The failing call is the one the function makes.",
+      null,
+      "Every Lambda hook has to report its result with the same call, so it would be denied there too."],
+    why: "A Lambda hook reports Succeeded or Failed by calling PutLifecycleEventHookExecutionStatus with its own execution role, so that role needs the permission. If CodeDeploy isn't told within one hour, the deployment fails.",
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/tutorial-ecs-with-hooks-create-hooks.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html"] },
+
+  // ECS blue/green with a Network Load Balancer (twin of dva-3-209), flip: NLB is kept, so all-at-once
+  { id: "dva-3-468", exam: "DVA", dva: "3.4", topic: "ecs", type: "mc", variant: true, twin: ["dva-3-209"],
+    q: "A Fargate service uses the CODE_DEPLOY deployment controller behind a Network Load Balancer, with two target groups. The team's deployment config, ECSCanary10Percent5Minutes, isn't supported for it. The load balancer must stay, and releases must still be CodeDeploy blue/green. Which deployment configuration should the developer use?",
+    opts: [
+      "CodeDeployDefault.ECSLinear10PercentEvery1Minutes, to move traffic in small steps instead.",
+      "CodeDeployDefault.ECSAllAtOnce, to move all of the traffic to the new task set in a single step.",
+      "CodeDeployDefault.AllAtOnce, the predefined all-at-once setting for blue/green deployments.",
+      "CodeDeployDefault.LambdaCanary10Percent5Minutes, to keep the same 10% canary shift timing."
+    ], a: 1,
+    no: [
+      "Linear shifting isn't supported with a Network Load Balancer either. It needs an Application Load Balancer.",
+      null,
+      "That one is for the EC2/On-Premises platform. ECS deployments use the configurations starting with ECS.",
+      "Lambda configurations shift traffic between function versions. They can't be used for an ECS service."],
+    why: "With a Network Load Balancer, CodeDeploy blue/green for ECS supports only CodeDeployDefault.ECSAllAtOnce. Canary and linear shifting for ECS need an Application Load Balancer.",
+    doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html"] },
+
+  // SAM Alarms vs Hooks (twin of dva-3-210), flip: Alarms is right
+  { id: "dva-3-469", exam: "DVA", dva: "3.4", topic: "sam", type: "mc", variant: true, twin: ["dva-3-210"],
+    q: "A SAM function uses AutoPublishAlias and a Canary10Percent10Minutes DeploymentPreference. If the new version's Errors metric climbs while it serves its 10% of traffic, the deployment must roll back on its own before the rest of the traffic moves. What should the developer add?",
+    opts: [
+      "A PostTraffic hook under DeploymentPreference Hooks, with a function that checks the new version's errors.",
+      "A CloudWatch alarm on the new version's errors, listed under the DeploymentPreference Alarms property.",
+      "A PreTraffic hook under DeploymentPreference Hooks, with a function that runs a smoke test on the version.",
+      "An AWS::Lambda::EventInvokeConfig on the alias, with an on-failure destination for the failed requests."
+    ], a: 1,
+    no: [
+      "PostTraffic runs after all traffic has moved, too late to stop the shift during the canary.",
+      null,
+      "PreTraffic runs once before any traffic moves, so it can't see errors from real requests during the canary.",
+      "Destinations receive results of asynchronous invocations. They don't watch metrics or roll anything back."],
+    why: "CloudWatch alarms listed under DeploymentPreference Alarms roll the deployment back when they go off during it, including partway through a canary. Hooks run tests before the shift starts and after it ends.",
+    doc: ["https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/automating-updates-to-serverless-apps.html"] },
+
+  // Image must be in ECR in the function's Region (twin of dva-3-212)
+  { id: "dva-3-470", exam: "DVA", dva: "3.4", topic: "lambda", type: "mc", variant: true, twin: ["dva-3-212"],
+    q: "A developer builds a Lambda container image from the AWS base image for Python and pushes it to a private ECR repository in us-east-1. The same function must now also run in eu-west-1, but creating it there from the us-east-1 image URI fails. What should the developer do?",
+    opts: [
+      "Replicate the image to an ECR repository in eu-west-1, and create the function from that image's URI.",
+      "Add a repository policy in us-east-1 that lets the Lambda service in eu-west-1 pull the image from it.",
+      "Add the runtime interface client to the image, rebuild it, and push it again to the us-east-1 repository.",
+      "Rebuild it as one multi-architecture image, so that Lambda in any Region can run the same image tag."
+    ], a: 0,
+    no: [null,
+      "Permissions don't help here. Lambda only creates functions from an ECR repository in the function's own Region.",
+      "AWS base images already include a runtime interface client. Adding one changes nothing about the Region problem.",
+      "Lambda doesn't support multi-architecture images, and architecture has nothing to do with which Region can pull it."],
+    why: "Lambda pulls a function's image from an Amazon ECR repository in the same Region as the function, though it can be in another account. ECR can replicate images across Regions, so a copy in eu-west-1 works. The AWS base image already has the runtime interface client.",
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/images-create.html",
+      "https://docs.aws.amazon.com/AmazonECR/latest/userguide/replication.html"] },
+
+  // In place vs blue/green for platform updates (twin of dva-3-216), flip: a patch in the same branch, so no new environment
+  { id: "dva-3-471", exam: "both", dva: "3.4", saa: "2.2", topic: "beanstalk", type: "mc", variant: true, twin: ["dva-3-216"],
+    q: "A Node.js app runs on an Elastic Beanstalk environment. AWS has released a new patch version in the environment's current platform branch. The team wants this patch, and every later one, applied automatically with no downtime and the least ongoing work. What should the developer do?",
+    opts: [
+      "Turn on managed platform updates with the update level set to patch, in a weekly maintenance window.",
+      "For each patch, launch a new environment on it, deploy and test there, then swap the environment URLs.",
+      "For each patch, choose Rebuild environment, so that every instance is replaced on the new platform version.",
+      "Set the deployment policy to Immutable, so the newest platform patch is installed with each app deployment."
+    ], a: 0,
+    no: [null,
+      "Blue/green suits a move to a different platform branch. Within a branch, managed updates do this with no manual work.",
+      "Rebuilding terminates all of the environment's resources and replaces them, so the app goes down. It's for repairing broken environments.",
+      "A deployment policy controls how app versions roll out. It doesn't move the environment to a new platform version."],
+    why: "Managed platform updates apply patch, or minor and patch, versions within the current branch during a weekly window, using immutable updates with no downtime. A move to a different branch, which can be incompatible, is where AWS recommends a new environment and a URL swap.",
+    doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environment-platform-update-managed.html",
+      "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.platform.upgrade.html"] },
+
+  // container_commands on every instance (twin of dva-3-217), flip: leader_only is the wrong choice here
+  { id: "dva-3-472", exam: "DVA", dva: "3.4", topic: "beanstalk", type: "mc", variant: true, twin: ["dva-3-217"],
+    q: "An Elastic Beanstalk web app runs on four instances behind a load balancer. On every deployment, each instance must compile the new version's stylesheets into the app's public folder after the source is extracted and before the new version is deployed. What should the developer add to a file in .ebextensions?",
+    opts: [
+      "A container_commands entry that runs the compile step, with no leader_only setting.",
+      "A container_commands entry that runs the compile step, with leader_only set to true.",
+      "A commands entry that runs the compile step in the app's folder on every instance.",
+      "An option_settings entry that sets the compile command as an environment property."
+    ], a: 0,
+    no: [null,
+      "leader_only runs the command on one instance only, so the other three would deploy without the compiled files.",
+      "The commands key runs before the source bundle is extracted, so the new version's files aren't there yet.",
+      "An environment property only holds a value. Nothing runs it during the deployment."],
+    why: "container_commands run in the staging directory after the source is extracted and before it's deployed, and changes made there ship with the version. Without leader_only they run on every instance; leader_only is for one-off steps like a schema migration.",
+    doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/customize-containers-ec2.html"] },
+
+  // Platform hook stages (twin of dva-3-218)
+  { id: "dva-3-473", exam: "DVA", dva: "3.4", topic: "beanstalk", type: "mc", variant: true, twin: ["dva-3-218"],
+    q: "An app runs on an Elastic Beanstalk Amazon Linux 2023 platform. On each app deployment, a script must edit a file in the new version's staging directory after the platform sets up the app and web server, but before they are deployed to their final location. Where should the script go?",
+    opts: [
+      "In .platform/hooks/predeploy, as an executable file that starts with a #! line.",
+      "In .platform/hooks/postdeploy, as an executable file that starts with a #! line.",
+      "In .platform/hooks/prebuild, as an executable file that starts with a #! line.",
+      "In .platform/confighooks/predeploy, as an executable file with a #! line."
+    ], a: 0,
+    no: [null,
+      "postdeploy runs last, after the app and proxy server are already deployed, so it's too late for the staging directory.",
+      "prebuild runs right after the bundle is extracted, before the platform sets up the app and web server.",
+      "confighooks run only on configuration deployments, such as an environment property change, not when a new source bundle is deployed."],
+    why: "Hooks in .platform/hooks run on application deployments in order: prebuild after the bundle is extracted, predeploy after the app and web server are set up but before they're deployed, and postdeploy last. prebuild and predeploy run in the staging directory.",
+    doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html"] },
+
+  // Once per environment vs once per instance (twin of dva-3-219), flip: the job must run on every instance, so not cron.yaml
+  { id: "dva-3-474", exam: "DVA", dva: "3.4", topic: "beanstalk", type: "mc", variant: true, twin: ["dva-3-219"],
+    q: "An Elastic Beanstalk worker environment runs three instances. Each instance writes scratch files to its own local disk. Every hour, every instance must delete its own scratch files that are older than one hour. What should the developer do?",
+    opts: [
+      "Add an .ebextensions files entry that writes a cron file to /etc/cron.d on each instance, running the cleanup hourly.",
+      "Add a cron.yaml file with an hourly task whose url is /cleanup, so the worker daemon POSTs the cleanup job to the app.",
+      "Add a container_commands entry with leader_only set to true that schedules the hourly cleanup on the leader instance.",
+      "Create an EventBridge Scheduler schedule that sends one cleanup message to the worker environment's queue each hour."
+    ], a: 0,
+    no: [null,
+      "A periodic task is queued once per run by one leader instance, so only the instance that receives it cleans its disk.",
+      "Leader-only commands run on one instance, and only during environment creation and deployments.",
+      "Each SQS message is processed by one instance, so the other two disks never get cleaned. Scheduler fits jobs that run once per schedule."],
+    why: "cron.yaml makes one queue message per scheduled run, so the job runs once for the whole environment. Files created with .ebextensions are set up on every instance as it is provisioned or updated, so a cron file there runs on each instance.",
+    doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features-managing-env-tiers.html",
+      "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/customize-containers-ec2.html"] },
+
+  // minimumHealthyPercent and maximumPercent (twin of dva-3-220), flip: no extra tasks allowed, so the lower floor is right
+  { id: "dva-3-475", exam: "DVA", dva: "3.4", topic: "ecs", type: "mc", variant: true, twin: ["dva-3-220"],
+    q: "An ECS service with the rolling update deployment type runs 4 tasks. A licence allows at most 4 copies of the app to run at any time, even during a deployment. Running on only 2 tasks for a few minutes is fine. Which deployment setup meets this?",
+    opts: [
+      "Set minimumHealthyPercent to 50 and maximumPercent to 100 in the deployment configuration.",
+      "Set minimumHealthyPercent to 100 and maximumPercent to 200 in the deployment configuration.",
+      "Switch to a blue/green deployment, so the new version comes up beside the old one before traffic moves.",
+      "Turn on the deployment circuit breaker with rollback, so failed new tasks are stopped and rolled back."
+    ], a: 0,
+    no: [null,
+      "A ceiling of 200 percent lets ECS start 4 new tasks before stopping the old ones, so 8 copies could run.",
+      "Blue/green runs a full new set of tasks beside the old set, so 8 copies would run during the switch.",
+      "The circuit breaker detects failed deployments and rolls back. It doesn't cap how many tasks run at once."],
+    why: "maximumPercent is the ceiling on running tasks as a percent of the desired count, so 100 means never more than 4. minimumHealthyPercent is the floor, so 50 lets ECS stop 2 old tasks before it starts 2 new ones.",
+    doc: ["https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html"] },
+
+  // Event-based change detection for an S3 source (twin of dva-3-222), flip: polling is off, so the EventBridge rule is the fix
+  { id: "dva-3-476", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-222"],
+    q: "A pipeline defined in CloudFormation has an S3 source action on a versioned bucket, with PollForSourceChanges set to false. Uploads to the bucket never start the pipeline. The team wants event-based change detection, not polling. What should the developer do?",
+    opts: [
+      "Turn on EventBridge for the bucket, then add an Object Created rule targeting the pipeline, via a role that can start it.",
+      "Add an S3 event notification for Object Created events to the bucket, with the pipeline's ARN as its destination.",
+      "Have the bucket's event notifications publish to an SNS topic, and subscribe the pipeline to that topic so uploads start it.",
+      "Remove PollForSourceChanges from the action and also add an EventBridge rule, so both methods catch uploads."
+    ], a: 0,
+    no: [null,
+      "S3 notifications go only to SNS, SQS, Lambda or EventBridge. A pipeline isn't a valid destination.",
+      "A pipeline can't subscribe to an SNS topic. SNS delivers to subscribers such as SQS queues, Lambda functions or HTTPS endpoints.",
+      "Leaving PollForSourceChanges out turns polling back on, so each upload would start two executions."],
+    why: "With PollForSourceChanges set to false, nothing detects uploads until there is an EventBridge rule for the bucket's events, with the pipeline as target and a role that allows codepipeline:StartPipelineExecution.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/create-S3-source-events-cli.html",
+      "https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-S3.html"] },
+
+  // Cross-Region artifact store and key (twin of dva-3-223)
+  { id: "dva-3-477", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-223"],
+    q: "A pipeline in us-west-2 encrypts its artifacts with a customer managed KMS key, which security policy requires for every artifact store. A developer uses the CLI to add a Lambda invoke action in ap-southeast-2. What should the ap-southeast-2 entry in artifactStores use?",
+    opts: [
+      "A bucket in ap-southeast-2 in the pipeline's account, with a customer managed key created in ap-southeast-2 in that account.",
+      "A bucket in ap-southeast-2 in the pipeline's account, with the existing us-west-2 key's ARN set as its encryptionKey id.",
+      "No new entry: turn on S3 Cross-Region Replication from the us-west-2 artifact bucket to a bucket in ap-southeast-2.",
+      "No new entry: set the action's region field, and CodePipeline reads the input artifacts from the us-west-2 store."
+    ], a: 0,
+    no: [null,
+      "The encryption key must be in the same Region as the cross-Region action, not the pipeline's Region.",
+      "CodePipeline copies artifacts between Regions itself, but only into an artifact store declared for that Region.",
+      "A cross-Region action needs an artifact bucket in its own Region, declared in artifactStores."],
+    why: "Each Region with an action needs its own artifact bucket and encryption key, both in that Region and in the pipeline's account. CodePipeline then copies the action's input artifacts there.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/actions-create-cross-region.html"] },
+
+  // Cross-account action role (twin of dva-3-224)
+  { id: "dva-3-478", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-224"],
+    q: "A pipeline in a tools account deploys with CodeDeploy into a production account. Artifacts use a customer managed KMS key shared with production, and the bucket policy lets production read them. The deploy action still fails, because it runs as the tools account's pipeline service role. What should the developer do?",
+    opts: [
+      "Create a production role trusting the service role, with deploy and artifact access; let the service role assume it; set it as roleArn.",
+      "Allow the CodeDeploy actions on production's application and deployment group ARNs in the pipeline service role's identity policy.",
+      "Store a production IAM user's access keys in Secrets Manager, and reference that secret in the deploy action's configuration.",
+      "Allow sts:AssumeRole on a production role in the pipeline service role's policy, and leave the deploy action's settings as they are."
+    ], a: 0,
+    no: [null,
+      "A tools account policy alone can't grant access to production's resources, and CodeDeploy has no resource-based policies to grant it there.",
+      "Actions don't sign in with stored keys. Secrets Manager holds secrets for code to fetch; a cross-account action uses its roleArn.",
+      "Without roleArn set on the action, it still runs as the tools account's service role and never uses the production role."],
+    why: "A cross-account action runs as a role in the other account. That role trusts the pipeline's service role, the service role's policy allows assuming it, and the action names it in roleArn.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/pipelines-create-cross-account.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/security_iam_service-with-iam.html"] },
+
+  // Variable namespaces (twin of dva-3-225), flip: the value is an implicit variable, so the codepipeline namespace is right
+  { id: "dva-3-479", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-225"],
+    q: "A pipeline has an S3 source action with the namespace SourceVariables, then a CloudFormation deploy action, and no build stage. The deploy action's parameter overrides must include the ID of the current pipeline execution, so each stack update can be traced to its run. What should the developer reference?",
+    opts: [
+      "#{codepipeline.PipelineExecutionId}, from the reserved namespace that each execution provides.",
+      "#{SourceVariables.PipelineExecutionId}, from the namespace that the S3 source action outputs.",
+      "#{variables.ExecutionId}, a pipeline-level variable declared with a default value at creation.",
+      "#{SourceVariables.VersionId}, since the object version of each new upload is unique to its run."
+    ], a: 0,
+    no: [null,
+      "The S3 source action outputs only ETag and VersionId. The execution ID lives in the codepipeline namespace.",
+      "Pipeline-level values come from the definition or whoever starts the run, and neither knows the new execution's ID.",
+      "VersionId identifies the S3 object version. Releasing the same upload again reuses it, so it doesn't identify the run."],
+    why: "The codepipeline namespace is reserved for the implicit variables every execution has, such as PipelineExecutionId. Action namespaces hold only what that action outputs, which for S3 is ETag and VersionId.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-variables.html"] },
+
+  // Push trigger filters, here on file paths (twin of dva-3-226)
+  { id: "dva-3-480", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-226"],
+    q: "A V2 pipeline builds a monorepo from GitHub through a CodeConnections connection, and it runs on every push to main. It must now start only for pushes to main that change files under services/payments/. What should the developer do?",
+    opts: [
+      "Edit the push trigger to include branch main and the file path services/payments/**, so other pushes are ignored.",
+      "Set the source action's BranchName to main/services/payments, so only changes under that folder start a run.",
+      "Add a first-stage CodeBuild action that fails the run whenever a commit changes no files under services/payments/.",
+      "Move the pipeline to the V1 type, whose change detection compares a commit's file paths before a run starts."
+    ], a: 0,
+    no: [null,
+      "BranchName names a single branch. It can't hold a folder, and it doesn't filter on file paths.",
+      "The pipeline still starts on every push, and unrelated pushes show up as failed runs. A trigger filter stops them from starting.",
+      "V1 pipelines don't support triggers or filters. Filtering on branches, tags or file paths is a V2 feature."],
+    why: "In V2 pipelines, a push trigger can filter on branches, file paths or Git tags, and several filters can be combined in one trigger. Including main and the payments path starts runs only for those pushes.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/pipelines-filter.html",
+      "https://docs.aws.amazon.com/codepipeline/latest/userguide/pipeline-types-planning.html"] },
+
+  // Retry vs rollback on stage failure (twin of dva-3-227), flip: a transient failure, so retry is right and rollback is wrong
+  { id: "dva-3-481", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-227"],
+    q: "A V2 pipeline's Deploy stage updates an ECS service. Now and then the deploy action fails on a brief throttling error, and an engineer reruns it by hand and it succeeds. The team wants that second try of the new release to happen once, automatically. What should the developer configure?",
+    opts: [
+      "Automatic rollback on stage failure for the Deploy stage, so it reruns with the last successful execution's artifacts.",
+      "Automatic retry on stage failure for the Deploy stage, with the retry mode set to retry only the failed actions.",
+      "A manual approval action before the deploy action, so that someone confirms the dependency is healthy first.",
+      "Automatic rollback on failure for the Source stage, so the pipeline fetches the commit again and reruns every stage."
+    ], a: 1,
+    no: [
+      "Rollback redeploys the previous release. Here the new release only needs a second try.",
+      null,
+      "An approval pauses the run before the deploy. It can't rerun the deploy action after it fails.",
+      "A source stage can't be rolled back, and rerunning the whole pipeline isn't what the team asked for."],
+    why: "V2 pipelines can retry a failed stage automatically, once, either all of its actions or only the failed ones. Rollback is for returning to the last good release, not for giving a new release a second try.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/stage-retry.html",
+      "https://docs.aws.amazon.com/codepipeline/latest/userguide/stage-rollback-auto.html"] },
+
+  // VPC builds reach the internet through NAT, not an internet gateway (twin of dva-3-228)
+  { id: "dva-3-482", exam: "DVA", dva: "3.4", topic: "codebuild", type: "mc", variant: true, twin: ["dva-3-228"],
+    q: "A CodeBuild project was given VPC settings so its tests can reach an ElastiCache cluster. It uses a public subnet whose route table sends 0.0.0.0/0 to an internet gateway. The tests reach the cache, but npm install now times out on the public registry. What should the developer do?",
+    opts: [
+      "Move the build to private subnets whose 0.0.0.0/0 route goes to a NAT gateway in a public subnet.",
+      "Attach an Elastic IP address to the network interface that CodeBuild creates in the public subnet.",
+      "Remove the project's VPC settings, so that the build uses CodeBuild's default network to reach npm.",
+      "Add an inbound HTTPS rule from 0.0.0.0/0 to the build's security group, so registry replies get in."
+    ], a: 0,
+    no: [null,
+      "CodeBuild doesn't support Elastic IPs on its network interfaces. A NAT gateway's Elastic IP is how VPC builds get a fixed address.",
+      "Without VPC settings, builds can't reach resources inside the VPC, so the cache tests would fail.",
+      "AWS advises allowing no inbound traffic to builds. The problem is the way out: the build has no public IP to use the internet gateway."],
+    why: "CodeBuild's network interfaces in a VPC get no public IP address, so an internet gateway route doesn't work for them. Private subnets that route through a NAT gateway give the build internet access while it still reaches the cache.",
+    doc: ["https://docs.aws.amazon.com/codebuild/latest/userguide/vpc-support.html"] },
+
+  // Local vs S3 cache (twin of dva-3-229), flip: frequent builds of Docker images, so the local cache is right
+  { id: "dva-3-483", exam: "DVA", dva: "3.4", topic: "codebuild", type: "mc", variant: true, twin: ["dva-3-229"],
+    q: "A CodeBuild project on a Linux image, not in a VPC, builds a large Docker image on every commit, dozens of times an hour. Each build pulls and rebuilds the same base layers. The team wants the fastest reuse of those layers between builds. What should the developer do?",
+    opts: [
+      "Configure an Amazon S3 cache on the project, and list the folder that holds the Dockerfile under cache paths.",
+      "Configure a local cache with Docker layer cache mode, and run the project's builds in privileged mode.",
+      "Configure a local cache with source cache mode, so that later builds pull only the commits that changed.",
+      "Choose a larger compute type for the project, so that the base layers download and build faster."
+    ], a: 1,
+    no: [
+      "That saves files from the source folder, not image layers. An S3 cache suits dependency files and builds that run less often.",
+      null,
+      "Source cache keeps Git metadata, so only the source download gets faster. The image layers are still rebuilt.",
+      "More CPU and memory still pull and rebuild the same layers on every build."],
+    why: "A local cache sits on the build host and is available right away, which suits frequent builds. Docker layer cache mode keeps existing image layers there, and it requires privileged mode.",
+    doc: ["https://docs.aws.amazon.com/codebuild/latest/userguide/caching-local.html",
+      "https://docs.aws.amazon.com/codebuild/latest/userguide/build-caching.html"] },
+
+  // Docker daemon vs ECR login (twin of dva-3-231), flip: the build works and the push fails, so the ECR login is right
+  { id: "dva-3-484", exam: "DVA", dva: "3.4", topic: "codebuild", type: "mc", variant: true, twin: ["dva-3-231"],
+    q: "A CodeBuild project builds a Docker image, and docker build succeeds. The next command, docker push to an ECR repository in the same account and Region, fails with: no basic auth credentials. The buildspec has no login step. What should the developer do?",
+    opts: [
+      "Turn on privileged mode in the project's environment settings, so that Docker can reach the ECR registry.",
+      "Allow ecr:GetAuthorizationToken and the ECR upload and PutImage actions, then run docker login first.",
+      "Install Docker in the install phase of the buildspec, so that the push uses a fresh Docker client.",
+      "Turn on the local Docker layer cache, so that layers already on the host don't need to be pushed."
+    ], a: 1,
+    no: [
+      "docker build already ran, so the daemon works. Privileged mode lets Docker run in the build; it doesn't sign in to ECR.",
+      null,
+      "docker build already worked, so Docker isn't the problem. The push has no credentials for the registry.",
+      "A layer cache speeds up builds. It doesn't give docker push any credentials for the registry."],
+    why: "Pushing to ECR needs an authorization token from GetAuthorizationToken, passed to docker login (aws ecr get-login-password does this), and the service role needs the layer upload and PutImage permissions. Without a login, Docker has no credentials for the registry.",
+    doc: ["https://docs.aws.amazon.com/AmazonECR/latest/userguide/registry_auth.html",
+      "https://docs.aws.amazon.com/codebuild/latest/userguide/sample-docker.html"] },
+
+  // Branch autodetection on patterns (twin of dva-3-234)
+  { id: "dva-3-485", exam: "DVA", dva: "3.4", topic: "amplify", type: "mc", variant: true, twin: ["dva-3-234"],
+    q: "An app on Amplify Hosting is connected to a private GitHub repository. Every new branch whose name starts with feature or hotfix must deploy to its own URL once it's pushed, without anyone adding it in the console, and those deployments must be password protected. What should the developer do?",
+    opts: [
+      "Turn on branch autodetection with the patterns feature*, hotfix*, and turn on autodetection access control.",
+      "Turn on web previews for pull requests on main, and set a password on the main branch's access control.",
+      "Add each new branch on the Branch settings page when it's pushed, and set a password on each branch added.",
+      "Create a Deploy without Git app for each branch, and upload each branch's zipped build output to it."
+    ], a: 0,
+    no: [null,
+      "Previews deploy pull requests, not branches, so a pushed branch with no pull request isn't deployed.",
+      "It works, but someone has to add every branch in the console, which the team ruled out.",
+      "Manual deploys aren't connected to Git, so pushing a branch deploys nothing. They suit sites with no repository."],
+    why: "Branch autodetection connects new branches that match its patterns and deploys each to its own URL. Autodetection access control password protects the branches it creates.",
+    doc: ["https://docs.aws.amazon.com/amplify/latest/userguide/pattern-based-feature-branch-deployments.html",
+      "https://docs.aws.amazon.com/amplify/latest/userguide/pr-previews.html"] },
+
+  // Synth vs diff (twin of dva-3-310), flip: templates as files for a scanner, so synth is right
+  { id: "dva-3-486", exam: "DVA", dva: "3.4", topic: "cdk", type: "mc", variant: true, twin: ["dva-3-310"],
+    q: "A security scanner reads CloudFormation templates. A new CDK app with three stacks has never been deployed. Before the first deployment, a CI step must give the scanner each stack's template as a file, without deploying anything. Which command should the CI step run?",
+    opts: [
+      "cdk synth, which writes a cloud assembly with each stack's template to the cdk.out folder.",
+      "cdk diff, which compares each stack in the app with the stack that is deployed in the account.",
+      "cdk watch, which deploys each stack and deploys it again whenever a file in the app changes.",
+      "cdk bootstrap, which deploys the CDKToolkit stack that stores templates and assets for deploys."
+    ], a: 0,
+    no: [null,
+      "It reports differences against deployed stacks, and none are deployed. Producing template files is what synth is for.",
+      "It deploys, which the CI step must not do. It's for fast feedback while developing.",
+      "Bootstrapping prepares an account for deployments. It doesn't produce the app's own templates."],
+    why: "cdk synth synthesizes the app into a cloud assembly, which includes a CloudFormation template for each stack. With several stacks it writes them to cdk.out, and nothing is deployed.",
+    doc: ["https://docs.aws.amazon.com/cdk/v2/guide/ref-cli-cmd-synth.html"] },
+
+  // Cached context (twin of dva-3-311), flip: the cached value must be refreshed on purpose, so resetting it is right
+  { id: "dva-3-487", exam: "DVA", dva: "3.4", topic: "cdk", type: "mc", variant: true, twin: ["dva-3-311"],
+    q: "A CDK app uses Vpc.fromLookup, and its cdk.context.json is committed, so every build produces the same template. The network team has added subnets to the VPC on purpose, but synthesis still uses the old subnet list. The app must pick up the new subnets and stay repeatable. What should the developer do?",
+    opts: [
+      "Run cdk context --reset on the VPC lookup's key, run cdk synth, and commit the updated cdk.context.json.",
+      "Delete the local cdk.out folder and run cdk synth again, so that the templates are synthesized from scratch.",
+      "Add cdk.context.json to .gitignore, so that every pipeline build looks up the VPC's current subnets.",
+      "Run cdk bootstrap again in the account, so that the CDK records the VPC's current subnet details."
+    ], a: 0,
+    no: [null,
+      "cdk.out holds synthesized output. Cached lookups live in cdk.context.json, so the old subnets come back.",
+      "The new subnets appear, but builds then look the VPC up each time and can drift again.",
+      "Bootstrapping deploys the CDK's own S3 bucket and ECR repository. It doesn't touch cached context."],
+    why: "Lookup results are cached in cdk.context.json. Resetting a cached key makes the next synth look it up again, and committing the updated file keeps every build the same.",
+    doc: ["https://docs.aws.amazon.com/cdk/v2/guide/context.html",
+      "https://docs.aws.amazon.com/cdk/v2/guide/ref-cli-cmd-context.html"] },
+
+  // Who may approve: PutApprovalResult on the approver (twin of dva-3-320)
+  { id: "dva-3-488", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-320"],
+    q: "A pipeline pauses at a manual approval action, and its SNS email reaches the release managers. A manager signs in to the console with the ReleaseManager role and chooses Approve, but gets an AccessDenied error. Only that role may approve this action. What should the developer do?",
+    opts: [
+      "Allow codepipeline:PutApprovalResult on the action's ARN, and read access to the pipeline, in the ReleaseManager role.",
+      "Allow codepipeline:PutApprovalResult in the pipeline's service role, which CodePipeline uses to run every action.",
+      "Allow codepipeline:StartPipelineExecution in the ReleaseManager role, so that a manager can restart the run.",
+      "Allow sns:Publish on the approval topic in the ReleaseManager role, so that a manager can reply to approve."
+    ], a: 0,
+    no: [null,
+      "The service role is what CodePipeline uses to run the pipeline. The manager acts with the ReleaseManager role's permissions.",
+      "That starts a new execution. It doesn't approve or reject the one that is paused.",
+      "Replying to the email doesn't approve anything. sns:Publish lets a principal send messages to a topic."],
+    why: "Approving or rejecting is done with the approver's own permissions: codepipeline:PutApprovalResult, which can be scoped to one action's ARN, plus permission to view the pipeline. The AWSCodePipelineApproverAccess managed policy grants this for every pipeline.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-iam-permissions.html",
+      "https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals.html"] },
+
+  // CloudFormation action modes: update now, keep failed stacks (twin of dva-3-321), flip: no review, so CREATE_UPDATE is right
+  { id: "dva-3-489", exam: "DVA", dva: "3.4", topic: "codepipeline", type: "mc", variant: true, twin: ["dva-3-321"],
+    q: "A pipeline's test stage deploys a CloudFormation stack with one CloudFormation action. On every commit the test stack must be created or updated right away, with no review. If an update leaves the stack in a failed state, it must be kept, not deleted, so the team can debug it. Which action mode should the action use?",
+    opts: [
+      "CREATE_UPDATE, which creates the stack if it's missing and updates it in place when it already exists.",
+      "CHANGE_SET_REPLACE, which builds a change set from the new template for the stack on each commit.",
+      "CHANGE_SET_EXECUTE, which applies the latest set of template changes to the stack on each commit.",
+      "REPLACE_ON_FAILURE, which creates the stack if it's missing and updates it if it isn't failed."
+    ], a: 0,
+    no: [null,
+      "It only creates the change set, and the stack isn't changed until a CHANGE_SET_EXECUTE action runs. That pair is for review gates.",
+      "It runs a change set that already exists, so it needs a CHANGE_SET_REPLACE action before it. Alone it has nothing to apply.",
+      "When the stack is in a failed state, this mode deletes it and creates a new one, losing what the team wanted to debug."],
+    why: "CREATE_UPDATE changes the stack in one step, and unlike REPLACE_ON_FAILURE it never deletes and replaces a failed stack. Change set modes split an update in two, which pays off when someone reviews the change set before it runs.",
+    doc: ["https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-CloudFormation.html"] },
+
+  // A stage runs a deployment snapshot (twin of dva-3-322), flip: the fix is in the API, so a new deployment is right
+  { id: "dva-3-490", exam: "DVA", dva: "3.4", topic: "apigateway", type: "mc", variant: true, twin: ["dva-3-322"],
+    q: "A developer fixed a broken mapping template on a REST API's POST /orders method in the API Gateway console and saved it. Calls to the prod stage still use the broken template. What should the developer do so prod serves the fix?",
+    opts: [
+      "Create a new deployment of the API and associate it with the prod stage, so prod's snapshot has the fix.",
+      "On prod's Deployment history tab, choose the most recent deployment and choose Change active deployment.",
+      "Flush the prod stage's API cache, so that the next requests to prod go through the saved mapping template.",
+      "Run aws apigateway put-rest-api in merge mode with the API's exported definition, so prod picks up the fix."
+    ], a: 0,
+    no: [null,
+      "Every existing deployment is a snapshot taken before the fix. Change active deployment is for rolling a stage back to one of them.",
+      "The cache only stores responses. Prod still runs its old deployment, so new requests still use the broken template.",
+      "put-rest-api updates the API's definition, which already has the fix. A stage only sees it after a new deployment."],
+    why: "A stage points at a deployment, a snapshot of the API taken when it was deployed. Changes to methods, integrations or mapping templates reach a stage only when the API is redeployed to it.",
+    doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-deploy-api.html",
+      "https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-deployments.html"] },
+
+  // sam pipeline bootstrap runs per stage (twin of dva-3-329)
+  { id: "dva-3-491", exam: "DVA", dva: "3.4", topic: "sam", type: "mc", variant: true, twin: ["dva-3-329"],
+    q: "A developer runs sam pipeline init to build a pipeline with a staging stage and a prod stage, each in its own AWS account. It asks for each stage's pipeline execution role, CloudFormation execution role and artifact bucket, and none of them exist yet. What should the developer do first?",
+    opts: [
+      "Run sam pipeline bootstrap once for each stage, using that stage's account credentials and Region.",
+      "Run sam pipeline bootstrap once in the staging account, since the roles it creates serve every stage.",
+      "Run sam deploy --guided once in each account, so that SAM creates the roles and a bucket in each one.",
+      "Run cdk bootstrap in both accounts, so that the pipeline can use the CDK's staging bucket and roles."
+    ], a: 0,
+    no: [null,
+      "Bootstrap must run for each deployment stage. It creates resources in the account it runs against, so prod would have none.",
+      "sam deploy --guided deploys the app and saves its settings. It doesn't create a stage's pipeline and CloudFormation execution roles.",
+      "cdk bootstrap prepares an account for CDK deploys. A SAM pipeline expects the resources that sam pipeline bootstrap creates."],
+    why: "sam pipeline bootstrap creates one stage's pipeline credentials, CloudFormation execution role and artifact bucket in the account it runs against. It must run for every stage before sam pipeline init, which then writes a two-stage pipeline configuration.",
+    doc: ["https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-pipeline-bootstrap.html",
+      "https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-generating-example-ci-cd.html"] },
+
+  // Version lifecycle policy (twin of dva-3-330), flip: no audit need, so deleting the source bundles is right
+  { id: "dva-3-492", exam: "DVA", dva: "3.4", topic: "beanstalk", type: "mc", variant: true, twin: ["dva-3-330"],
+    q: "A pipeline creates an Elastic Beanstalk application version on every merge, and the account is close to the application version quota. The team only rolls back to versions from the last 60 days, nobody needs old source bundles, and the S3 bill for them keeps growing. What should the developer do?",
+    opts: [
+      "Set an application version lifecycle policy with a maximum age of 60 days, and keep the source bundles in S3.",
+      "Set an application version lifecycle policy with a maximum age of 60 days, and delete the source bundles from S3.",
+      "Add an S3 Lifecycle rule to the Elastic Beanstalk bucket that expires source bundles once they are 60 days old.",
+      "Turn on S3 Intelligent-Tiering for the Elastic Beanstalk bucket, so that old bundles move to cheaper tiers."
+    ], a: 1,
+    no: [
+      "It fixes the quota, but the bundles stay in S3 and the bill keeps growing. Keeping bundles is for audit or recovery needs.",
+      null,
+      "Elastic Beanstalk still tracks the versions, so the quota is still reached. S3 Lifecycle rules only manage the bucket's objects.",
+      "It lowers storage cost but deletes nothing, so every version still counts toward the quota."],
+    why: "A lifecycle policy deletes application versions past a set age or count, but never one an environment is using. By default it leaves each deleted version's source bundle in S3, and it can delete the bundle too to save space.",
+    doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/applications-lifecycle.html",
+      "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/applications-versions.html"] },
+
+  // Target group stickiness for weighted groups (twin of dva-3-402)
+  { id: "dva-3-493", exam: "DVA", dva: "3.4", topic: "elb", type: "mc", variant: true, twin: ["dva-3-402"],
+    q: "An ALB listener's default rule forwards to TG-v1 with weight 80 and TG-v2 with weight 20. Both target groups have duration-based stickiness turned on. Users still switch between v1 and v2 during a session, which empties their carts. What should the developer do?",
+    opts: [
+      "Turn on target group stickiness in the rule's forward action, so an AWSALBTG cookie pins each user's target group.",
+      "Switch both target groups to application-based stickiness, naming the app's own session cookie in each one.",
+      "Raise the stickiness duration on both target groups to 7 days, so their AWSALB cookies last whole sessions.",
+      "Set both target groups' routing algorithm to weighted random, so the 80/20 split is made per user instead."
+    ], a: 0,
+    no: [null,
+      "Application-based stickiness doesn't work with weighted target groups. It's for pinning users to one target inside a group.",
+      "Target-level cookies pin a target inside a group. Without target group stickiness, the rule can still pick the other group.",
+      "Weighted random spreads requests across targets inside one group, and it can't be used with sticky sessions."],
+    why: "Weights split requests between target groups, and target-level stickiness alone doesn't hold a user to one group. Target group stickiness on the forward action adds an AWSALBTG cookie, and requests that carry it go back to the same target group.",
+    doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/application/rule-action-types.html",
+      "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html"] },
+
+  // ssm dynamic reference resolves the latest public AMI (twin of dva-3-403)
+  { id: "dva-3-494", exam: "DVA", dva: "3.4", topic: "ssm", type: "mc", variant: true, twin: ["dva-3-403"],
+    q: "A CloudFormation launch template hard-codes an Amazon Linux 2023 AMI ID, and the stack runs in four Regions. The team wants each stack create or update to pick up the latest AL2023 AMI for its Region, written inline in ImageId with no new template parameters. What should ImageId hold?",
+    opts: [
+      "An ssm dynamic reference to the public AL2023 AMI parameter, with no version number given.",
+      "An ssm-secure dynamic reference to the public AL2023 AMI parameter, so its value is protected.",
+      "An ssm dynamic reference to the public AL2023 AMI parameter, pinned to version 1 of the parameter.",
+      "A secretsmanager dynamic reference to the public AL2023 AMI parameter's name under /aws/service/."
+    ], a: 0,
+    no: [null,
+      "ssm-secure reads SecureString parameters and doesn't support public parameters. An AMI ID isn't secret, so ssm fits.",
+      "A version number pins the value, so every stack keeps getting that one old AMI. Leaving it out gets the latest.",
+      "Public AMI parameters live in Parameter Store, not Secrets Manager. secretsmanager references are for secrets such as passwords."],
+    why: "An ssm dynamic reference without a version makes CloudFormation use the parameter's latest value whenever the stack is created or updated. The public parameters under /aws/service/ami-amazon-linux-latest/ hold each Region's latest Amazon Linux AMI ID.",
+    doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references-ssm.html",
+      "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references-ssm-secure-strings.html"] },
+
+  // Deregistration delay sized to requests (twin of dva-3-405), flip: lower the delay instead of raising it
+  { id: "dva-3-495", exam: "DVA", dva: "3.4", topic: "elb", type: "mc", variant: true, twin: ["dva-3-405"],
+    q: "A CodeDeploy in-place deployment behind an Application Load Balancer is slow: each instance spends 5 minutes in the BlockTraffic step, its target shown as draining. The target group has default settings, and every request the app serves finishes within 2 seconds. What should the developer do to speed up releases safely?",
+    opts: [
+      "Lower the target group's deregistration delay to about 30 seconds, still well above the slowest request.",
+      "Lower the target group's slow start duration, so that instances get their full share of requests sooner.",
+      "Set the target group's healthy threshold count to 2, so that instances pass health checks and rejoin sooner.",
+      "Set the routing algorithm to least outstanding requests, so that draining targets are sent fewer requests."
+    ], a: 0,
+    no: [null,
+      "Slow start ramps up traffic to newly registered targets. It doesn't change how long a deregistering target drains.",
+      "Health check settings decide when a target counts as healthy. The 5-minute wait is the draining target's deregistration delay.",
+      "A draining target gets no new requests anyway. The wait comes from the deregistration delay, not the routing choice."],
+    why: "A deregistering target gets no new requests, and the load balancer waits up to the deregistration delay, 300 seconds by default, for in-flight ones to finish. With 2-second requests, a much shorter delay keeps releases fast and still safe.",
+    doc: ["https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html"] },
+
+  // Capabilities match what the template does (twin of dva-3-08), flip: a transform, so AUTO_EXPAND is right
+  { id: "dva-3-496", exam: "DVA", dva: "3.4", topic: "cloudformation", type: "mc", variant: true, twin: ["dva-3-08"],
+    q: "A template uses the AWS::Include transform to pull in a shared snippet from S3 that defines an SNS topic and an SQS queue. It creates no IAM resources. Running aws cloudformation create-stack fails with InsufficientCapabilitiesException: Requires capabilities: [CAPABILITY_AUTO_EXPAND]. What should the developer do?",
+    opts: [
+      "Acknowledge CAPABILITY_AUTO_EXPAND on create-stack, since the template uses a transform.",
+      "Acknowledge CAPABILITY_NAMED_IAM on create-stack, since it also covers lower capabilities.",
+      "Give the caller s3:GetObject on the snippet, so that CloudFormation is able to read it.",
+      "Add a stack policy that allows Update:* on every resource the included snippet defines."
+    ], a: 0,
+    no: [null,
+      "NAMED_IAM acknowledges IAM resources with custom names. It doesn't cover macros, and this template has no IAM resources.",
+      "The error names a missing capability, not a missing permission. s3:GetObject lets a caller read objects.",
+      "Stack policies protect resources from changes during updates. They don't acknowledge what a transform does."],
+    why: "AWS::Include and AWS::Serverless are macros hosted by CloudFormation. Creating a stack straight from a template with macros, without reviewing a change set first, needs CAPABILITY_AUTO_EXPAND.",
+    doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_CreateStack.html"] },
+
+  // Secrets Manager values in a buildspec, with a JSON key (twin of dva-3-11)
+  { id: "dva-3-497", exam: "DVA", dva: "3.4", topic: "codebuild", type: "mc", variant: true, twin: ["dva-3-11"],
+    q: "A Secrets Manager secret named vendor-creds holds JSON with two keys, username and apiToken. A CodeBuild build needs only the apiToken value, in an API_TOKEN variable, and the value must not appear in the buildspec, the repository or the project's settings. Which buildspec setting does this?",
+    opts: [
+      "Under env secrets-manager, map API_TOKEN to \"vendor-creds:apiToken\" for the build.",
+      "Under env parameter-store, map API_TOKEN to \"vendor-creds:apiToken\" for the build.",
+      "Under env variables, set API_TOKEN to the token encrypted with the project's KMS key.",
+      "Under env exported-variables, list API_TOKEN so that CodeBuild loads it from vendor-creds."
+    ], a: 0,
+    no: [null,
+      "parameter-store reads a Parameter Store parameter by its name. It doesn't take a Secrets Manager secret ID and JSON key.",
+      "The ciphertext then sits in the buildspec, and CodeBuild doesn't decrypt env values. The project's KMS key encrypts build output.",
+      "exported-variables passes a build's variables on to later pipeline stages. It doesn't fetch anything from Secrets Manager."],
+    why: "env secrets-manager takes the secret's name or ARN plus an optional JSON key, and CodeBuild fetches the value at build time, so it never sits in the buildspec. Without the key it gets the whole secret text. The project's service role must be allowed to read the secret.",
+    doc: ["https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html"] }
 );
