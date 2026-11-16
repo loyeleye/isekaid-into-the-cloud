@@ -217,7 +217,10 @@
     </svg>`;
   };
   const portrait = who => { try { return SD.art && SD.art.portrait ? SD.art.portrait(who, 56) : ''; } catch (e) { return ''; } };
-  const host = (who, name, lines) => `<div class="sp-host">${portrait(who)}<div><b>${esc(name)}</b>${lines.map(l => `<p>${l}</p>`).join('')}</div></div>`;
+  // Each line is HTML; its spoken part (the quotes, or the whole line when it has none) is the voice key (js/vo-modes.js).
+  const unq = h => String(h).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const spoken = h => { const t = unq(h), q = t.match(/"[^"]+"/g); return q ? q.map(x => x.slice(1, -1)).join(' ') : t; };
+  const host = (who, name, lines) => `<div class="sp-host">${portrait(who)}<div><b>${esc(name)}</b>${lines.map(l => `<p data-vo="${esc(who + '|' + spoken(l))}">${l}</p>`).join('')}</div></div>`;
 
   // ---- The UI ----
   let run = null, body = null, tick = null, hidAt = 0, stemAt = 0, pickAt = 0, temp = null, guardTo = 0, sealTo = null, note = '', filter = 'all', aside = '';
