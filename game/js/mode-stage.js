@@ -377,13 +377,16 @@
     ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt) { background: rgba(29, 61, 107, .85); border: 1.5px dashed rgba(234, 242, 255, .55); box-shadow: none; }
     ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt):not(:disabled):hover { background: #2b5289; border-style: solid; }
     ${FRAME('draft')} .win-b .primary { background: #eaf2ff; color: #1d3d6b; border-color: #fff; }
-    /* ---- The Look-Alike Cup: the frame only, a lacquered card table ---- */
-    ${FRAME('duel')} .win { padding: 10px; border: 0; border-radius: 22px; -webkit-backdrop-filter: none; backdrop-filter: none;
-      background: linear-gradient(135deg, #3a1d14, #1c0d09 45%, #33180f);
-      box-shadow: 0 0 0 2px #0c0504, inset 0 0 0 2px rgba(214, 178, 84, .55), inset 0 0 0 3px #0c0504, 0 26px 60px rgba(0, 0, 0, .7); }
-    ${FRAME('duel')} .win-h { padding: 2px 10px 8px; border: 0; background: none; color: #e9c56d; letter-spacing: .12em; }
-    ${FRAME('duel')} .win-b { border-radius: 14px; box-shadow: inset 0 0 0 2px #0c0504, inset 0 8px 40px rgba(0, 0, 0, .65);
-      background: radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 80% at 50% 0, #4a4458, #2c2836 70%, #211e29); }
+    /* ---- The Look-Alike Cup: the whole screen is his stall, edge to edge (no box): a lacquered table under lamplight ---- */
+    body.in-mode[data-stage="duel"] #panel { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    ${FRAME('duel')} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: inset 0 2px 0 rgba(214, 178, 84, .45);
+      background: radial-gradient(90% 60% at 50% 0, rgba(233, 197, 109, .14), transparent 70%), linear-gradient(135deg, rgba(58, 29, 20, .94), rgba(28, 13, 9, .96) 45%, rgba(51, 24, 15, .94)); }
+    ${FRAME('duel')} .win-h { width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #e9c56d; letter-spacing: .12em; }
+    ${FRAME('duel')} .win-h > span:first-child { visibility: hidden; }
+    ${FRAME('duel')} .win-b { border-radius: 0; box-shadow: none;
+      padding: 12px max(16px, calc((100% - 1148px) / 2)) calc(24px + env(safe-area-inset-bottom, 0px));
+      background: radial-gradient(rgba(255, 255, 255, .03) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 70% at 50% 0, rgba(74, 68, 88, .55), transparent 75%); }
     /* ---- The Lost and Found: the frame only, a storeroom shelf with a claim sheet ---- */
     ${FRAME('pop')} .win { padding: 12px 10px 10px; border: 0; border-radius: 6px; -webkit-backdrop-filter: none; backdrop-filter: none;
       background: repeating-linear-gradient(1deg, rgba(0, 0, 0, .14) 0 2px, transparent 2px 8px), linear-gradient(#6a4a2c, #46301c);
@@ -392,7 +395,7 @@
     ${FRAME('pop')} .win-b { border-radius: 3px; background: linear-gradient(#ecd9a8, #dcc68e); box-shadow: inset 0 0 0 1px rgba(120, 85, 30, .5), inset 0 0 36px rgba(120, 85, 30, .25), 0 3px 10px rgba(0, 0, 0, .5); }
     ${FRAME('pop')} .win-b { --cream: #e6d29f; }
     @media (max-width: 600px) {
-      ${FRAME('draft')} .win, ${FRAME('duel')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
+      ${FRAME('draft')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
     }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }
