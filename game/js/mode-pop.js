@@ -150,8 +150,8 @@
   // never s.night directly, so the order stays in one place. day: the local date (YYYY-MM-DD) the night is played.
   // The rule freeze (Nov 16): nothing night 4 or later adds appears before Dec 1, 2026, the day after the exam. A
   // night 4 or 5 before then plays night 3's rule set (level 3: no cat, no room modifiers, no home turf, night 3's
-  // map, no 1 in 4 unstamped); its light and the Hunch's size still go by the night itself (pop-n4, pop-n5). The
-  // date taper below applies either way.
+  // map); its light and the Hunch's size still go by the night itself (pop-n4, pop-n5). Night 5's 1 in 4 unstamped
+  // checks stay: they're exam-like, not a new mechanic. The date taper below applies either way.
   P.FREEZE = '2026-12-01';
   P.rules = function (n, day) {
     const d = day || new Date().toISOString().slice(0, 10);
@@ -165,7 +165,7 @@
       maxFormats: bare ? 0 : lateTaper ? 1 : 99,      // format checks a night
       bigClaim: m >= 3, postmortem: m >= 3,
       cat: m >= 4, modifiers: m >= 4, homeTurf: m >= 4,
-      unstamped: bare ? 1 : m >= 5 ? 0.25 : 0,        // share of bank checks left unstamped
+      unstamped: bare ? 1 : n >= 5 ? 0.25 : 0,        // share of bank checks left unstamped (not frozen: exam-like)
       prep: !bare,                                    // domain stamps on the map, and Prepared tokens
       homes: m >= 3 ? ['thornwick', 'peak', 'halcyon', 'arcanum'] : ['thornwick', 'peak'],
       hunchSays: n >= 3 ? 'Gut says so' : n >= 2 ? 'I can always tell' : 'Trust me'
@@ -1072,8 +1072,8 @@
     .pop-dom { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 0 3px; border: 3px double #9e3a34; border-radius: 4px; color: #9e3a34; background: rgba(255, 250, 240, .75); font-size: 10.5px; font-weight: 800; white-space: nowrap; transform: rotate(-4deg); }
     .pop-door.fog .pop-dom, .pop-door.here .pop-dom { color: #fff; border-color: #fff; background: transparent; }
     .pop-door .pop-dom .pop-gi { width: 12px; height: 12px; flex: 0 0 12px; }
-    /* The Prepared tag, tied to a claim's door with a string. */
-    .pop-ptag { position: absolute; top: -10px; right: -6px; display: flex; align-items: center; gap: 1px; padding: 1px 4px 1px 2px; border: 2px solid var(--ink, #17131f); border-radius: 3px 8px 8px 3px; background: #f3d36b; color: #17131f; font-size: 10px; transform: rotate(8deg); box-shadow: -6px 4px 0 -4px var(--ink, #17131f); }
+    /* The Prepared tag, tied to a claim's door with a string, left of the claim's crossed-swords badge. */
+    .pop-ptag { position: absolute; top: -10px; right: 24px; display: flex; align-items: center; gap: 1px; padding: 1px 4px 1px 2px; border: 2px solid var(--ink, #17131f); border-radius: 3px 8px 8px 3px; background: #f3d36b; color: #17131f; font-size: 10px; transform: rotate(-5deg); box-shadow: -6px 4px 0 -4px var(--ink, #17131f); }
     .pop-door .pop-ptag .pop-gi { width: 12px; height: 12px; }
     .pop-stage .pop-tags .pop-gi { width: 14px; height: 14px; vertical-align: -2px; }
 `;

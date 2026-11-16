@@ -15,7 +15,7 @@
 //     from a lead's homeland, that lead's cards get +2 (Fan-Out +1).
 //   - Every night has its own light, and the Hunch is a little bigger each night.
 //   - The rule freeze: before Dec 1, 2026 a night 4 or 5 plays night 3's rule set (SD.pop.rules level 3): night 3's
-//     map, no cat, no modifiers, no home turf. It keeps its own light and Hunch.
+//     map, no cat, no modifiers, no home turf. It keeps its own light and Hunch, and night 5 its unstamped checks.
 //   - Preparing (every night): a Lost item or break room stamped D offers "check it first": one room check in D, no
 //     stake, before the room's usual choice. A Vault's seal and the cat take their check in their door's domain too.
 //     Right gives a Prepared: D token (SD.pop.prepGain), spent by the next claim stamped D (js/mode-pop.js). The

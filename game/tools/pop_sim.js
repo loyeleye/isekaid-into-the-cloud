@@ -15,6 +15,8 @@
 // included) on the pooled night score at every accuracy, and reading the map or the same homeland should beat it at
 // one at least. With 9 room checks the first claim (always row 1) spends most of them, so a token is earned and spent
 // on well under one night in two, and its effect stays inside the sampling noise at x1, x1.25, x1.5 and x2.5.
+// Tried and reverted (Nov 16): a Lost item beside the first claim on nights 2 to 4. Plan then prepares about once a
+// night, but skipping that claim costs its clear, and the pooled score fell 3 to 6 at every accuracy.
 // The rule freeze: night 4 runs on Dec 1, 2026 (its cat and modifiers); a night 4 before then has neither.
 // Run from game/:  node tools/pop_sim.js [nights per cell, default 200]
 const { chromium } = require('playwright');
@@ -119,7 +121,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     `before Dec 1, night 4 has no cat, no room modifiers and no home turf (Nov 20: cat ${fz.before.cat}, ${fz.before.mods} modifiers; Nov 30: cat ${fz.eve.cat}, ${fz.eve.mods} modifiers)`);
   check(fz.before.lost === 0 && fz.after.lost === 1, 'before Dec 1, night 4 has night 3\'s map (its last row has no Lost item)');
   check(fz.after.cat && fz.after.mods === 2 && fz.after.turf && fz.after.level === 4, `from Dec 1, night 4 has the cat, two modifiers and home turf (cat ${fz.after.cat}, ${fz.after.mods} modifiers)`);
-  check(fz.eve.un5 === 0 && fz.after.un5 === 0.25, 'night 5\'s 1 in 4 unstamped checks wait for Dec 1 too');
+  check(fz.before.un5 === 0.25 && fz.after.un5 === 0.25, 'night 5\'s 1 in 4 unstamped checks aren\'t frozen (exam-like, not a new rule)');
   check([1, ...N].every(n => P.some(p => out[n + ':' + p].plan.prepN > 0 && out[n + ':' + p].plan.prepUsed > 0)), 'the plan route prepares and spends Prepared tokens on every night');
   console.log('  reading the map (plan) against claims first: ' + N.map(n => `night ${n} ` + P.map(p => (out[n + ':' + p].plan.score - out[n + ':' + p].honest.score).toFixed(1)).join(' / ')).join(', ') + ' (score difference at 45 / 60 / 80%)');
   // Routes, nights 1 to 4 pooled: claims first ('honest'), other rooms first ('far'), the same homeland ('home'), and
