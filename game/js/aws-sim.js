@@ -301,12 +301,13 @@
   // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html
   // keyMode: 'hot' (one low-cardinality value, such as status = ACTIVE), 'shard' (value + suffix) or 'unique' (a
   // high-cardinality key, such as orderId). Returns the partition each write lands on.
-  AS.partitionOf = (keyMode, id, parts) => (keyMode === 'hot' ? 0 : idNum({ id: keyMode + ':' + id }) % parts);
+  // Its own name: js/aws-sim-ops.js (the Fire Drill) defines AS.partitionOf with other arguments and loads later.
+  const writePartition = AS.writePartition = (keyMode, id, parts) => (keyMode === 'hot' ? 0 : idNum({ id: keyMode + ':' + id }) % parts);
   // One turn of writes: [{ id }] against `parts` partitions of `cap` writes each. Returns { ok: [ids], throttled: [ids],
   // load: [writes per partition] }. A throttled write is a throttling error the SDK retries.
   AS.writeTurn = function (writes, keyMode, parts, cap) {
     const load = Array.from({ length: parts }, () => 0), ok = [], throttled = [];
-    writes.forEach(x => { const p = AS.partitionOf(keyMode, x.id, parts); if (load[p] < cap) { load[p]++; ok.push(x.id); } else { load[p]++; throttled.push(x.id); } });
+    writes.forEach(x => { const p = writePartition(keyMode, x.id, parts); if (load[p] < cap) { load[p]++; ok.push(x.id); } else { load[p]++; throttled.push(x.id); } });
     return { ok, throttled, load };
   };
 

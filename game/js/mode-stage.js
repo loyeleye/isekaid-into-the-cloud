@@ -40,9 +40,9 @@
   // (project files game-modes/multiplayer-real/art-and-music.md).
   const PLATES = ['floor', 'drill'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
-  const MUSIC = { floor: 'm-floor' };
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill' };
   // Mode id: { win, lose } jingle files in assets/audio/.
-  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' } };
+  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
   let cur = null, el = null, bar = null, timer = null;
 
@@ -116,7 +116,8 @@
   }
   function untune() {
     if (!mine) return;
-    if (AU.loopName === mine) { if (before) AU.music(before); else AU.stop(); }
+    // A mode may swap in a track of its own named after the stage's (the Fire Drill's bosses: stage-drill-boss).
+    if (AU.loopName === mine || String(AU.loopName || '').startsWith(mine + '-')) { if (before) AU.music(before); else AU.stop(); }
     mine = before = null;
   }
   ST.sting = function (id, kind) {
@@ -335,15 +336,24 @@
     ${FRAME('hunt')} .win-b > :is(p, .td-head, .td-big, .verdict-row) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
     ${FRAME('hunt')} :is(.hn-bt, .hn-res, .hn-opt, .hn-since, .hn-hp.hn-inq, .hb-hud, .hb-bru, .hb-log, .hb-card, .hb-res) { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018; text-shadow: none; }
     /* The notices spread across a wide screen instead of one long column. */
-    @media (min-width: 900px) { ${FRAME('hunt')} :is(.hn-bts, .hn-results, .hb-hand, .hb-yard) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
-    ${FRAME('hunt')} :is(.hn-bt, .hn-res) { position: relative; margin-top: 6px; border: 0; border-radius: 2px; background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 3px 8px rgba(60, 40, 10, .45); }
-    ${FRAME('hunt')} :is(.hn-bt, .hn-res)::before { content: ''; position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #c9993a 45%, #6b4a14); box-shadow: 0 2px 3px rgba(0, 0, 0, .55); }
-    ${FRAME('hunt')} :is(.hn-bts, .hn-results) { gap: 16px; }
-    ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(odd) { transform: rotate(-.5deg); }
-    ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(even) { transform: rotate(.45deg); }
-    ${FRAME('hunt')} .hn-bt.done { background: #e2d6b6; box-shadow: none; outline: 2px dashed #8a7550; }
+    @media (min-width: 900px) { ${FRAME('hunt')} :is(.hn-results, .hb-hand, .hb-yard) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
+    ${FRAME('hunt')} .hn-res { position: relative; margin-top: 6px; border: 0; border-radius: 2px; background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 3px 8px rgba(60, 40, 10, .45); }
+    ${FRAME('hunt')} .hn-res::before { content: ''; position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #c9993a 45%, #6b4a14); box-shadow: 0 2px 3px rgba(0, 0, 0, .55); }
+    ${FRAME('hunt')} .hn-results { gap: 16px; }
+    ${FRAME('hunt')} .hn-results > :nth-child(odd) { transform: rotate(-.5deg); }
+    ${FRAME('hunt')} .hn-results > :nth-child(even) { transform: rotate(.45deg); }
+    /* Wanted posters (js/hunt.js), tacked to Bru's plank board on the night street. On a wide screen they stand side
+       by side, a column each. */
+    ${FRAME('hunt')} :is(.hn-bts, .hn-board) { gap: 18px; margin: 4px 0 14px; padding: 16px 12px; border-radius: 4px;
+      background: linear-gradient(rgba(0, 0, 0, .18), rgba(0, 0, 0, .32)), repeating-linear-gradient(180deg, #5a3e26 0 46px, #2e1f12 46px 48px, #4d3420 48px 94px, #2e1f12 94px 96px);
+      box-shadow: inset 0 0 0 3px #24170c, inset 0 0 30px rgba(0, 0, 0, .55), 0 8px 18px rgba(0, 0, 0, .5); }
+    @media (min-width: 900px) { ${FRAME('hunt')} :is(.hn-bts, .hn-board) { grid-template-columns: repeat(auto-fit, minmax(290px, 340px)); justify-content: center; gap: 28px; padding: 28px 24px; } }
+    ${FRAME('hunt')} :is(.hn-bts, .hn-board) > :nth-child(odd) { transform: rotate(-.8deg); }
+    ${FRAME('hunt')} :is(.hn-bts, .hn-board) > :nth-child(even) { transform: rotate(.7deg); }
+    ${FRAME('hunt')} .hn-wp::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px;
+      background: linear-gradient(135deg, #c4a468 0 50%, transparent 50%); }
+    ${FRAME('hunt')} .hn-wp.done { box-shadow: 0 2px 5px rgba(0, 0, 0, .45); }
     ${FRAME('hunt')} :is(.hn-opt, .hn-since) { background: #f3e9d2; border-left-color: #8a1f1f; }
-    ${FRAME('hunt')} .hn-hp.hn-inq { background: #fbf5e3; border: 1.5px solid #6a5a48; }
     /* ---- Exam Sprint: an exam booklet on a clipboard ---- */
     ${FRAME('sprint')} .win { padding: 26px 10px 10px; border: 0; border-radius: 12px; -webkit-backdrop-filter: none; backdrop-filter: none;
       background: radial-gradient(rgba(0, 0, 0, .14) 1px, transparent 1.5px) 0 0 / 6px 6px, linear-gradient(#9a7448, #6f5030);
@@ -367,13 +377,16 @@
     ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt) { background: rgba(29, 61, 107, .85); border: 1.5px dashed rgba(234, 242, 255, .55); box-shadow: none; }
     ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt):not(:disabled):hover { background: #2b5289; border-style: solid; }
     ${FRAME('draft')} .win-b .primary { background: #eaf2ff; color: #1d3d6b; border-color: #fff; }
-    /* ---- The Look-Alike Cup: the frame only, a lacquered card table ---- */
-    ${FRAME('duel')} .win { padding: 10px; border: 0; border-radius: 22px; -webkit-backdrop-filter: none; backdrop-filter: none;
-      background: linear-gradient(135deg, #3a1d14, #1c0d09 45%, #33180f);
-      box-shadow: 0 0 0 2px #0c0504, inset 0 0 0 2px rgba(214, 178, 84, .55), inset 0 0 0 3px #0c0504, 0 26px 60px rgba(0, 0, 0, .7); }
-    ${FRAME('duel')} .win-h { padding: 2px 10px 8px; border: 0; background: none; color: #e9c56d; letter-spacing: .12em; }
-    ${FRAME('duel')} .win-b { border-radius: 14px; box-shadow: inset 0 0 0 2px #0c0504, inset 0 8px 40px rgba(0, 0, 0, .65);
-      background: radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 80% at 50% 0, #4a4458, #2c2836 70%, #211e29); }
+    /* ---- The Look-Alike Cup: the whole screen is his stall, edge to edge (no box): a lacquered table under lamplight ---- */
+    body.in-mode[data-stage="duel"] #panel { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    ${FRAME('duel')} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: inset 0 2px 0 rgba(214, 178, 84, .45);
+      background: radial-gradient(90% 60% at 50% 0, rgba(233, 197, 109, .14), transparent 70%), linear-gradient(135deg, rgba(58, 29, 20, .94), rgba(28, 13, 9, .96) 45%, rgba(51, 24, 15, .94)); }
+    ${FRAME('duel')} .win-h { width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #e9c56d; letter-spacing: .12em; }
+    ${FRAME('duel')} .win-h > span:first-child { visibility: hidden; }
+    ${FRAME('duel')} .win-b { border-radius: 0; box-shadow: none;
+      padding: 12px max(16px, calc((100% - 1148px) / 2)) calc(24px + env(safe-area-inset-bottom, 0px));
+      background: radial-gradient(rgba(255, 255, 255, .03) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 70% at 50% 0, rgba(74, 68, 88, .55), transparent 75%); }
     /* ---- The Lost and Found: no window box (Ladi, Nov 16: every mode gets its own edge-to-edge layout) ---- */
     /* The storeroom fills the stage under the bar behind a darker wash, like Monster Hunt. The reading keeps a
        comfortable column in the middle; the answers are paper claim tags on the scene, so they stay easy to read. */
@@ -397,7 +410,7 @@
     ${FRAME('pop')} .win :is(.opt, .conf-b button):not(.primary):not(:disabled):hover { background: #fffaf0; }
     ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"] { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
     @media (max-width: 600px) {
-      ${FRAME('draft')} .win, ${FRAME('duel')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
+      ${FRAME('draft')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
     }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }

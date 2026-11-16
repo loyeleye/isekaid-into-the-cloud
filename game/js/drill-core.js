@@ -246,6 +246,18 @@
     const inflight = [];   // { end, items: [msg], fail: bool }
     const groupOf = r => (cfg.queue.fifo ? (cfg.queue.groups === 'customer' ? r.cust : 'all') : null);
     const last = D.TICKS + D.DRAIN;
+    // Frames for the board's playback (js/mode-drill.js): per tick, what changed and what each station holds.
+    const frames = [];
+    let before = Object.assign({}, m);
+    const snap = t => {
+      const d = {};
+      Object.keys(m).forEach(k => { if (typeof m[k] === 'number' && m[k] !== before[k]) d[k] = m[k] - before[k]; });
+      const parts = [0, 0, 0]; tickWrites.forEach(w => { parts[w.part] = (parts[w.part] | 0) + 1; });
+      frames.push({ t, d, tokens: Math.max(0, Math.floor(gate.tokens)), burst: gate.burst, retry: retries.length,
+        qv: q.items.filter(x => x.vis <= t).length, qh: q.items.filter(x => x.vis > t).length, dlq: q.dlq.length, infl: inflight.length,
+        busy: path === 'sync' ? envs.filter(x => x.busy === t).length : inflight.length, warm: envs.length, parts });
+      before = Object.assign({}, m);
+    };
     for (let t = 0; t < last; t++) {
       tickWrites = [];
       AS.gateRefill(gate);
@@ -270,7 +282,7 @@
         if (path === 'sync') sync(r, t);
         else { q.items.push({ r, vis: t, recv: 0, sentAt: t }); m.sent++; }
       });
-      if (path !== 'async') continue;
+      if (path !== 'async') { snap(t); continue; }
       // Finish batches that end this tick.
       for (let i = inflight.length - 1; i >= 0; i--) {
         const b = inflight[i];
@@ -324,11 +336,23 @@
         m.maxConc = Math.max(m.maxConc, inflight.length);
       }
       q.items.forEach(x => { m.maxAge = Math.max(m.maxAge, (t - x.sentAt) * D.TICK_S); });
+      snap(t);
     }
     m.left = q.items.filter(x => !x.r.poison).length;
     m.poisonLoose = q.items.filter(x => x.r.poison).length;
     m.ok = path === 'async' ? Object.keys(written).length : m.ok;
-    return { m, lines: pager(d, cfg, m), nodes: nodes(d, cfg, m) };
+    return { m, lines: pager(d, cfg, m), nodes: nodes(d, cfg, m), frames };
+  };
+
+  // Per-tick series for each station's metrics (the console's small charts). Small: 20 numbers each.
+  D.sparks = function (frames) {
+    const by = f => frames.map(fr => f(fr.d, fr) | 0);
+    return {
+      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => d.throttles429), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
+      queue: { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
+      fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy) },
+      store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
+    };
   };
 
   // ---- The run's cost to the error budget ----
@@ -400,7 +424,8 @@
     const f = { drill, cfg, v, deploys: 0, changes: [], log: [], state: 'read' };
     // The warm-up run: the fault in place, free.
     const r = D.run(drill, cfg, v);
-    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true });
+    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames) });
+    D.lastFrames = r.frames;
     return f;
   };
   // Why a card can't be placed now, or ''.
@@ -425,6 +450,8 @@
     const r = D.run(f.drill, f.cfg, f.v);
     const ok = d.ok(r.m);
     const e = { m: r.m, lines: r.lines, nodes: r.nodes, cost: D.cost(f.drill, r.m), ok, changes: f.changes.slice() };
+    e.spark = D.sparks(r.frames);
+    D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
     f.cfg.queue.purge = false;
     if (ok) f.state = 'contained'; else if (f.deploys >= D.DEPLOYS) f.state = 'escalated';
