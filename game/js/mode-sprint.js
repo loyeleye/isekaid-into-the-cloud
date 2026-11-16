@@ -29,7 +29,7 @@
   const sv = () => S.save;
   const store = () => {
     const s = sv().sprint = sv().sprint || {};
-    s.done = s.done || {}; s.results = s.results || []; s.fam = s.fam || {}; s.lead = s.lead || [];
+    s.done = s.done || {}; s.results = s.results || []; s.fam = s.fam || {}; s.lead = s.lead || []; s.slip = s.slip || []; s.checks = s.checks || [];
     return s;
   };
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -330,6 +330,7 @@
 
   // ---- The gate ----
   SP.open = function () {
+    SP.settleChecks();
     const c = cur();
     if (c && c.ids && c.ids.every(find)) { run = c; return resumeCard(); }
     gate();
@@ -359,6 +360,7 @@
         </ul></details>
       <p class="sp-note small" id="sp-gnote" aria-live="polite"></p>
       ${procTable()}
+      ${SP.rematches().length ? `<button class="ghost sp-wide sp-rmb" id="sp-rmlist">Rematches · ${SP.rematches().length} rustling in the grass</button>` : ''}
       <div class="sp-foot">
         ${first ? `<button class="ghost" id="sp-later">Not yet</button><button class="primary" id="sp-practice">Try the practice patch</button>
           <button class="ghost sp-wide" id="sp-go">Skip to the road</button>`
@@ -366,6 +368,7 @@
       </div></div>`);
     const go = (k) => { store().seen = 1; S.persist(); start(k); };
     b.querySelector('#sp-go').onclick = () => go(key);
+    const rm = b.querySelector('#sp-rmlist'); if (rm) rm.onclick = () => rematchList();
     const pr = b.querySelector('#sp-practice'); if (pr) pr.onclick = () => go('practice');
     const mp = b.querySelector('#sp-myplan'); if (mp) mp.onclick = () => { store().planOk = Date.now(); S.persist(); mp.disabled = true; mp.textContent = 'Plan confirmed ✓'; };
     b.querySelector('#sp-later').onclick = () => { b.querySelector('#sp-gnote').textContent = 'The road will wait.'; setTimeout(() => { U.closePanel(); leave(); }, 700); };
@@ -380,7 +383,7 @@
     (SD.bank || []).forEach(q => { if (E().isDva(q)) { const id = SP.famOf(q).id; counts[id] = (counts[id] | 0) + 1; } });
     const next = D.families.filter(x => !f[x.id] && x.id !== 'wild').sort((a, b) => (counts[b.id] | 0) - (counts[a.id] | 0)).slice(0, 3);
     return `<details class="sp-proc"><summary>Process Table · ${plural(met.length, 'family')} met · ${caught.length} caught</summary>
-      <ul class="sp-procl">${met.map(id => { const x = SP.famById(id), r = f[id]; return `<li>${daemon(x, 40, r.caught === 0 ? false : r.loose && !r.settled)}<span class="small">${r.caught ? `caught ×${r.caught}${r.gold ? ' · ★' + r.gold : ''}` : 'slipped out'}</span></li>`; }).join('')}</ul>
+      <ul class="sp-procl">${met.map(id => { const x = SP.famById(id), r = f[id]; return `<li>${daemon(x, 40, r.caught === 0 ? false : r.loose && !r.settled)}<span class="small">${r.caught ? `caught ×${r.caught}${r.gold ? ' · ★' + r.gold : ''}` : 'slipped out'}${r.checked ? ' <span class="sp-stamp">CHECKED</span>' : ''}</span></li>`; }).join('')}</ul>
       ${next.length ? `<p class="small">Next to find: ${next.map(x => esc(x.name)).join(', ')}.</p>` : ''}</details>`;
   }
   function resumeCard() {
@@ -612,9 +615,11 @@
         const f = st.fam[r.fam.id] = st.fam[r.fam.id] || { caught: 0, gold: 0, slipped: 0 };
         if (r.ok) { f.caught++; if (r.kind === 'gold') f.gold++; if (r.kind === 'loose') f.loose = 1; else f.settled = 1; } else f.slipped++;
         if (!r.ok || r.kind === 'loose') st.lead.push({ q: r.id, day: new Date().toDateString(), t: now });
+        if (!r.ok) st.slip.push({ q: r.id, fam: r.fam.id, t: now });
+        else SP.addCheck(r.id, r.fam.id, now);
       }
     });
-    st.lead = st.lead.slice(-20);
+    st.lead = st.lead.slice(-20); st.slip = st.slip.slice(-30);
     if (run.practice) st.practiced = now;
     else if (run.key !== 'free') st.done[run.key] = now;
     const res = { key: run.key, t: now, right: sc.right, n: sc.n, pts: sc.pts, tax: sc.tax, d13: sc.d13, med: sc.med, long: sc.long, reopenT: sc.reopenT,
@@ -644,6 +649,9 @@
         ${r ? `<rect x="${x}" y="${y(f + r)}" width="${bw}" height="${y(f) - y(f + r)}" fill="url(#sp-hatch)" stroke="${INK}" stroke-width="1.5"/>` : ''}
         <text x="${x + bw / 2}" y="${base + 14}" text-anchor="middle" font-size="11">${i + 1}${over ? '▲' : ''}</text>`;
     }).join('');
+    // Proctor's Pass: Route 1's first pass per patch as dashed outlines (the Nov 24 ghost).
+    const ghostRes = run.exam ? store().results.filter(x => x.key === 'r1').slice(-1)[0] : null;
+    const ghost = ghostRes ? ghostRes.first.map((f, i) => { const x = 34 + i * (bw + 6); return `<rect x="${x - 2}" y="${y(f)}" width="${bw + 4}" height="${base - y(f)}" fill="none" stroke="${INK}" stroke-width="1.2" stroke-dasharray="3 2"/>`; }).join('') : '';
     const line = (t, lab, dash) => `<line x1="30" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="${INK}" stroke-width="1.5"${dash ? ' stroke-dasharray="4 3"' : ''}/><text x="${W}" y="${dash ? y(t) + 11 : y(t) - 3}" text-anchor="end" font-size="10" font-weight="700">${lab}</text>`;
     const s4 = run.startLeft[3], s8 = run.startLeft[7];
     const chk = run.practice ? '' : `<li>Checkpoints: patch 4 started with ${s4 == null ? '—' : clockText(s4)} left (mark 14:00) · patch 8 with ${s8 == null ? '—' : clockText(s8)} left (mark 6:00)</li>`;
@@ -655,9 +663,9 @@
         <defs><pattern id="sp-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><rect width="2" height="5" fill="${INK}"/></pattern></defs>
         <line x1="30" x2="30" y1="${top}" y2="${base}" stroke="${INK}"/>
         ${[0, 1, 2, 3, 4].map(m => `<text x="26" y="${y(m * MIN) + 4}" text-anchor="end" font-size="10">${m}:00</text>`).join('')}
-        ${bars}${line(OVER, '2:00')}${run.practice ? '' : line(PACE, 'Coo 1:45', true)}
+        ${bars}${ghost}${line(OVER, '2:00')}${run.practice ? '' : line(PACE, 'Coo 1:45', true)}
       </svg>
-      <p class="small muted">▲ over 2:00 · hatched top = reopen time</p>
+      <p class="small muted">▲ over 2:00 · hatched top = reopen time${ghost ? ' · dashed outline = Route 1 on Nov 24' : ''}</p>
       <ul class="sp-facts small">
         <li>${t13}</li>
         ${run.practice ? '' : `<li>Dither on patches 4 to 10: ${mmss(sc.med)} median · patches reaching 2:30: ${sc.long}</li>`}
@@ -825,11 +833,98 @@
     b.querySelector('#sp-done').focus();
   }
 
+  // ---- Rematches (drop 2): a plain list of the daemons that slipped out ----
+  // One question per daemon per day and one per idea per day, labelled "Twin" (its unseen twin) or "Same idea" (an
+  // unseen question on the same exam task and topic), verified first; with neither, "No twin yet" and it waits.
+  const DAY = 86400000;
+  const today = () => new Date().toDateString();
+  const conceptOf = q => (SD.today && SD.today.conceptOf ? SD.today.conceptOf(q) : null);
+  SP.rematchQ = function (id, used) {
+    const q = find(id);
+    if (!q) return null;
+    const avoid = [...(used || [])], Dr = SD.topicDrill, log = sv().qlog || {};
+    const tw = SD.qtwin ? SD.qtwin(q, { avoid }) : null;
+    if (tw) return { q: tw, label: 'Twin', ver: Dr.isVerified(tw) };
+    const same = Dr.base().filter(x => x.id !== q.id && !avoid.includes(x.id) && !log[x.id] && x.topic === q.topic && E().taskOf(x) === E().taskOf(q) && (x.type === 'mc' || x.type === 'multi'));
+    const pick = same.filter(Dr.isVerified)[0] || same[0];
+    return pick ? { q: pick, label: 'Same idea', ver: Dr.isVerified(pick) } : null;
+  };
+  SP.rematches = () => store().slip.filter(x => !x.won);
+  function rematchList(msg) {
+    const st = store(), day = today();
+    const ideas = new Set(st.slip.filter(x => x.day === day).map(x => x.c));
+    const rows = SP.rematches().map((x, k) => {
+      const f = SP.famById(x.fam);
+      if (x.day === day) return `<li class="sp-rm">${daemon(f, 48)}<span class="small">Tried today. Back tomorrow.</span></li>`;
+      const rq = SP.rematchQ(x.q);
+      const c = rq && conceptOf(rq.q);
+      if (!rq) return `<li class="sp-rm">${daemon(f, 48)}<span class="small">No twin yet. It waits in the grass.</span></li>`;
+      if (c && ideas.has(c)) return `<li class="sp-rm">${daemon(f, 48)}<span class="small">One question on this idea a day. Back tomorrow.</span></li>`;
+      return `<li class="sp-rm">${daemon(f, 48)}<span class="small">${rq.label}${rq.ver ? '' : ' · Not verified yet'}</span><button class="primary" data-rm="${st.slip.indexOf(x)}">Rematch</button></li>`;
+    }).join('');
+    const b = draw(`<div class="sp-gate">
+      <p class="td-head">Rematches</p>
+      ${msg ? `<p class="sp-card">${msg}</p>` : ''}
+      <p class="small muted">Daemons that slipped out wait in the grass. One question each a day, untimed, with the answer right after.</p>
+      ${rows ? `<ul class="sp-rml">${rows}</ul>` : '<p>Nothing is rustling in the grass.</p>'}
+      <div class="sp-foot"><button class="ghost" id="sp-rback">Back to the road</button></div></div>`);
+    b.querySelector('#sp-rback').onclick = () => gate();
+    b.querySelectorAll('[data-rm]').forEach(el => el.onclick = () => rematch(st.slip[+el.dataset.rm]));
+  }
+  async function rematch(x) {
+    const rq = SP.rematchQ(x.q);
+    if (!rq) return rematchList();
+    const q = Object.assign({}, rq.q, { c: conceptOf(rq.q) });
+    x.day = today(); x.c = q.c; x.tries = (x.tries | 0) + 1;
+    S.persist();
+    const r = await M.ask(q, { noWall: false });
+    const f = SP.famById(x.fam), st = store();
+    if (r.closed || r.skipped || r.stopped) return rematchList();
+    if (r.ok) {
+      x.won = Date.now();
+      const fr = st.fam[f.id] = st.fam[f.id] || { caught: 0, gold: 0, slipped: 0 };
+      fr.caught++; fr.settled = 1;
+      SP.addCheck(rq.q.id, f.id, x.won);
+      S.persist();
+      return rematchList(`Caught! ${esc(f.name)} hops into a jar. A check question on its idea comes in 2 or 3 days.`);
+    }
+    S.persist();
+    rematchList(`${esc(f.name)} slipped away again. It'll be back in the grass tomorrow.`);
+  }
+
+  // ---- Spaced checks (drop 2): 2 or 3 days after a catch, one check question on the same idea in Today's set ----
+  // Right with Think so or Sure gives the family a CHECKED stamp (evolution waits until after Nov 30).
+  SP.addCheck = function (id, fam, t) {
+    const st = store();
+    st.checks.push({ q: id, fam, due: t + 2 * DAY });
+    st.checks = st.checks.slice(-40);
+  };
+  SP.settleChecks = function () {
+    const st = sv().sprint;
+    if (!st || !st.checks) return;
+    const log = sv().qlog || {}, day = today();
+    st.checks.forEach(ch => {
+      if (ch.done || !ch.pid) return;
+      const l = log[ch.pid];
+      if (l && l[0] >= ch.at) {
+        ch.done = l[0];
+        const c = conceptOf(find(ch.pid) || {}), hist = (c && sv().concepts[c] && sv().concepts[c].hist) || [];
+        const h = hist.filter(x => Math.abs(x.t - l[0]) < 5000).slice(-1)[0];
+        if (l[1] && h && h.conf >= 1) {
+          ch.checked = 1;
+          const f = st.fam[ch.fam] = st.fam[ch.fam] || { caught: 0, gold: 0, slipped: 0 };
+          f.checked = (f.checked | 0) + 1;
+        }
+      } else if (ch.pickDay && ch.pickDay !== day) { delete ch.pid; delete ch.pickDay; }
+    });
+  };
+
   // ---- Tomorrow's set (js/today.js T.build): one question on the idea of each empty and loose jar ----
   // From the next day on, once each: its twin when it has one, else an unseen question on the same task and topic.
   SP.leadItems = function (used) {
     const st = sv().sprint;
-    if (!st || !st.lead || !st.lead.length) return [];
+    if (!st) return [];
+    st.lead = st.lead || [];
     const day = new Date().toDateString(), out = [], log = sv().qlog || {};
     st.lead.forEach(l => {
       if (l.used || l.day === day || out.length >= 4) return;
@@ -846,6 +941,19 @@
       if (!c) return;
       used.add(pick.id);
       out.push({ c, q: pick.id, lead: 1 });
+    });
+    // Spaced checks that are due: up to 2 more.
+    SP.settleChecks();
+    let nc = 0;
+    (st.checks || []).forEach(ch => {
+      if (ch.done || ch.pid || ch.due > Date.now() || nc >= 2) return;
+      const rq = SP.rematchQ(ch.q, used);
+      const c = rq && conceptOf(rq.q);
+      if (!rq || !c) return;
+      used.add(rq.q.id);
+      ch.pid = rq.q.id; ch.at = Date.now(); ch.pickDay = day;
+      out.push({ c, q: rq.q.id, lead: 1, check: 1 });
+      nc++;
     });
     if (out.length) S.persist();
     return out;
@@ -969,6 +1077,12 @@
     .sp-porch .sp-dae.loose { outline-color: #fff; }
     .sp-gold { position: absolute; top: 0; right: 0; color: var(--sun); font-size: 18px; }
     .sp-bub { min-height: 1.3em; font-weight: 700; }
+    .sp-rml { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .sp-rm { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; }
+    .sp-rm .small { flex: 1; }
+    .sp-rm button { min-height: 44px; }
+    .sp-rmb { width: 100%; min-height: 48px; margin: 6px 0; }
+    .sp-stamp { display: inline-block; padding: 0 4px; border: 2px solid #7a1f1f; border-radius: 4px; color: #7a1f1f; font-size: 10px; font-weight: 800; transform: rotate(-4deg); }
     .sp-proc ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .sp-proc li { display: flex; flex-direction: column; align-items: center; }
     .sp-proc .sp-shadow { width: 40px; height: 40px; }
