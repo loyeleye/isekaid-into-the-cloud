@@ -67,8 +67,10 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'ic-live-' + name + '.png') }); };
+  let noBeats = false;
   const boot = async () => {
     await page.goto(url);
+    if (noBeats) await page.evaluate(() => { window.__iclNoBeats = true; });
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     await page.click('#t-start');
     await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.persist(); });
@@ -111,7 +113,16 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
     const pick = right ? truth : await page.evaluate(t => [...document.querySelectorAll('[data-pred]')].map(e => +e.dataset.pred).find(v => v !== t), truth);
     await page.click(`[data-pred="${pick}"]`);
     await page.click(`[data-conf="${conf}"]`);
+    await skipPlay();
   };
+  // The minute plays out after a prediction and after each run; Skip ends it, and Skip again moves on.
+  const skipPlay = async () => {
+    await page.waitForSelector('.icl-play');
+    await page.click('#icl-skip');
+    if (await page.evaluate(() => SD.state.save.icLive.phase === 'play')) await page.click('#icl-skip');
+    await page.waitForFunction(() => SD.state.save.icLive.phase !== 'play');
+  };
+  const run = async () => { await page.click('#icl-run'); await skipPlay(); };
 
   await boot();
   await page.evaluate(() => SD.modes.open());
@@ -121,7 +132,19 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await noHScroll('chooser');
   await shot('chooser');
   await page.click('#ic-live');
+  // The first beat: the interface pulls down and Uptima, standing in the room, says the page. A tap moves on.
+  await page.waitForSelector('#icl-vn');
+  check(await page.evaluate(() => document.body.classList.contains('icl-beat') && !!document.querySelector('#icl-scene .icl-upt .icl-uf')), 'a beat: the interface pulls down and Uptima stands in the room');
+  check(/Live shift/.test(await txt('#icl-vn')), 'she opens the shift in the dialogue box');
+  await shot('beat');
+  const faces = await page.evaluate(() => new Promise(r => { const seen = new Set(), t0 = Date.now(); const iv = setInterval(() => { const f = document.querySelector('#icl-scene .icl-uf'); if (f) seen.add(f.src.replace(/.*uptima-face-|\.webp/g, '')); if (Date.now() - t0 > 1500) { clearInterval(iv); r([...seen]); } }, 40); }));
+  check(faces.some(f => /talk/.test(f)), `her mouth moves while she talks (${faces.join(', ')})`);
+  await page.click('#icl-vn');
+  check(/Checkout is spinning/.test(await txt('#icl-vn')), 'then she reads the page');
+  while (await page.$('#icl-vn')) await page.click('#icl-vn');
   await page.waitForSelector('.icl-machine');
+  check(await page.evaluate(() => !document.body.classList.contains('icl-beat') && !document.querySelector('#icl-vn')), 'the interface comes back up after the last line');
+  noBeats = true; await page.evaluate(() => { window.__iclNoBeats = true; });
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: the live shift starts on the page');
   check(/Checkout is spinning/.test(await txt('.icl-page')), 'incident 1 is launch night, with its page');
   check(await page.$$eval('.icl-part', p => p.length) === 4, 'the machine shows the request path\'s four parts');
@@ -138,7 +161,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await predict(false, 2);
   let s = await st();
   check(s.phase === 'fix' && s.predOut && !s.predOut.ok && s.pts === -3, 'a wrong Sure prediction costs 3, and the fix screen opens');
-  check(/You said .* it was 10/.test(await txt('.icl-verdict')), 'the verdict gives the true count');
+  check(/You said .* it was 10/.test(await txt('.icl-verdict')) && !!await page.$('.icl-vs.no'), 'the verdict is a stamp with the true count');
   check(/429 × \d+/.test(await txt('.icl-machine')), 'the machine shows the throttles on orders-fn');
   check(await page.$$eval('[data-part="orders"] .icl-env.bounce img[src*="env-429"]', i => i.length) > 0, 'bounced envelopes at orders-fn show the 429s');
   check(await page.$eval('#icl-run', b => b.disabled), 'Run waits for a change');
@@ -152,13 +175,21 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   check(/floor and a ceiling/.test(await txt('.icl-teach')), 'the first turn of a knob teaches it in one line');
   await setKnob('orders', 'reserve', 2);
   check(!await page.$('.icl-teach'), 'and only once');
-  await page.click('#icl-run');
+  await run();
   s = await st();
   check(s.phase === 'result' && !s.last.slo && !!await page.$('#icl-again'), 'reserving 2 misses the SLO, with one more try');
   await shot('result-red');
   await page.click('#icl-again');
   await setKnob('orders', 'reserve', 4);
+  check(await page.$$eval('.icl-sb.res', b => b.length) === 4 && !!await page.$('.icl-knob.changed .icl-chg'), 'reserving 4 lights four stools on the knob, marked changed');
+  check(await page.$$eval('.icl-cc i.on', i => i.length) === 1, 'the change counter shows one of two');
+  // This one plays out in full: envelopes fly, the clock runs, and the lamp lights green.
   await page.click('#icl-run');
+  await page.waitForSelector('.icl-play .icl-fly');
+  check(await page.$$eval('.icl-stop', e => e.length) === 2 && await page.$$eval('.icl-fly', e => e.length) > 0, 'the minute plays: envelopes walk from the gate to orders-fn');
+  await page.waitForSelector('#icl-lamp.green', { timeout: 20000 });
+  check(/SLO met/.test(await txt('#icl-lamp')), 'at the end of the minute the SLO lamp lights green');
+  await page.waitForFunction(() => SD.state.save.icLive.phase === 'result', null, { timeout: 5000 });
   s = await st();
   check(s.last.slo && s.last.stamps.small && s.last.stamps.rule, 'reserving 4 meets the SLO with all three stamps');
   check(await page.$$eval('.icl-stool[src*="stool-orders"]', i => i.length) === 4 && await page.$$eval('.icl-stool[src*="stool-reports"]', i => i.length) === 6, 'four stools reserved for orders-fn leave reports-job six');
@@ -188,7 +219,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await predict(true, 0);
   await setKnob('worker', 'partial', 1);
   await setKnob('dlq', 'dlq', 5);
-  await page.click('#icl-run');
+  await run();
   s = await st();
   check(s.last.slo && s.last.stamps.rule && /parked/.test(await txt('.icl-machine')), 'partial batch responses and a DLQ at 5: SLO met, the bad message parked');
   await page.click('#icl-on');
@@ -198,7 +229,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await page.waitForSelector('.icl-machine');
   await predict(true, 1);
   await setKnob('queue', 'vis', 360);
-  await page.click('#icl-run');
+  await run();
   s = await st();
   check(s.last.slo && s.last.stamps.rule, 'a visibility timeout of 360 s (6 x 60 s): SLO met, documented setting');
   await page.click('#icl-on');
@@ -206,6 +237,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await page.waitForSelector('#icl-done');
   s = await st();
   check(s.phase === 'done' && s.stamps.length === 3, 'the shift ends after three incidents');
+  check(/uptima-pose-yawn/.test(await page.$eval('#icl-scene .icl-ub', e => e.src).catch(() => '')), 'at dawn Uptima yawns (her pose swaps in)');
   check(/of 9 stamps/.test(await txt('.icl-total')), 'the end screen counts the stamps');
   check(/How sure you were/.test(await txt('#panel')) && !!await page.$('.md-pip'), 'calibration and Pip\'s line on the end screen');
   check(/XP/.test(await txt('.icl-total')), 'it pays once a day');

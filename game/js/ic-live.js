@@ -21,13 +21,19 @@
   const save = s => { sv().icLive = s; S.persist(); };
   const taught = () => (sv().icLiveTaught = sv().icLiveTaught || {});
   const plural = (n, a, b) => `${n} ${n === 1 ? a : (b || a + 's')}`;
+  // Uptima's lines, in her prequel voice (Ladi, Nov 16: "more naturally sounding ... her usual incompetent self"):
+  // grand, vain and no help at all, while the facts on the board, the page and the debrief stay exact.
   const SAY = {
-    open: 'Live shift. The request path is right here on the board, running. Tonight you fix it by touching it.',
-    right: 'Called it.',
-    wrong: 'Not what it did. Remember what it did instead.',
-    met: 'Green. Leave it alone now.',
-    unmet: 'Still red. One more change.',
-    end: 'Three pages, three fixes. Go to sleep.'
+    open: 'Live shift! Kyu\'s asleep, so tonight I\'m in charge. Which means you\'re in charge. I\'ll supervise. From over here. Supportively.',
+    next: 'Another page. Don\'t panic. I\'m panicking enough for both of us.',
+    ask: 'Before you touch anything, guess what it does. I always guess. I\'m right every single time I\'m right.',
+    right: 'You called it! I also called it. In my head. Very loudly.',
+    wrong: 'Nope, that\'s not what it did. Remember what it really did. Write it on your hand. That\'s what I do.',
+    met: 'GREEN! Five nines! Don\'t touch anything. Don\'t even breathe on it.',
+    unmet: 'Still red. One more change. I believe in you. I believe in me more, but you\'re a close second.',
+    lastRed: 'Still red, and the shift keeps going. The debrief explains it. I\'d explain, but I\'m busy looking calm.',
+    debrief: 'One question on what you just did. It\'s open book. I lost the book.',
+    end: 'Three pages, three fixes. I\'m putting my name on the incident report. Go to sleep.'
   };
   const NAMES = {
     apigw: 'API Gateway', orders: 'orders-fn', pool: 'Account concurrency', reports: 'reports-job', queue: 'SQS queue',
@@ -41,8 +47,11 @@
     twice: /visibility timeout|idempoten|attribute_not_exists|conditional write|at-least-once/i
   };
   const say = (line, cls) => `<p class="ic-say${cls ? ' ' + cls : ''}" data-vo="${esc('uptima|' + line)}"><b>Uptima:</b> ${esc(line)}</p>`;
+  // On a wide full-screen stage the machine sits on the left and the page, the question and the buttons on the right;
+  // on a phone they stack in reading order: the page, the machine, then what to do.
+  const cols = (a, m, b) => `<div class="icl-cols"><div class="icl-a">${a}</div><div class="icl-m">${m}</div><div class="icl-b">${b}</div></div>`;
   const panel = (html, o) => U.panel(`<div class="icl">${html}</div>`, Object.assign({ title: TITLE, onClose: stopNow }, o || {}));
-  function stopNow() { const s = cur(); if (s) save(s); untune(); if (SD.today && SD.today.render) SD.today.render(); }
+  function stopNow() { const s = cur(); if (s) save(s); untune(); scene(false); if (SD.today && SD.today.render) SD.today.render(); }
 
   // ---- Music (Mureka, CREDITS.md): the live incident loop while a shift is open, a sting on each run's result.
   // Like the Look-Alike Cup, it saves what was playing and puts it back when the shift closes.
@@ -98,7 +107,142 @@
   }
   function draw(s) {
     if (s.phase === 'done') untune(); else tune();
-    ({ page: pageScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
+    const live = scene(true);
+    if (live && beatFor(s)) return;
+    react(s);
+    ({ page: pageScreen, play: playScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
+  }
+
+  // ---- Uptima in the room (Ladi, Nov 16: "draw full sized characters in the setting and have the interface get pulled
+  // down during certain beats ... see Uptima as a backdrop in the setting talking to you (living, breathing, blinking
+  // and reacting to you)"). She stands in the watch room (her desk is empty while she's up), breathes, blinks, moves
+  // her mouth while she talks, and her face follows how the shift is going. Painted with Gemini (tools/ic_live_uptima.py):
+  // one body and a face patch per frame, so the frames swap in place. At the beats (a new page, your call, the
+  // result, the end) the interface slides down and she says her lines; a tap moves on.
+  const FACE_BOX = { left: 29.948, top: 9.448, width: 37.76, height: 18.168 };   // % of the body canvas
+  const FACES = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk'];
+  const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '', pose: null, idle: 0 };
+  // Whole-body poses (Ladi's pose sheets, repainted on her canvas): the yawn at dawn, and dozing off if you leave her waiting.
+  const POSES = ['yawn', 'asleep'], DOZE_MS = 30000;
+  function pose(name) {
+    const u = document.querySelector('#icl-scene .icl-upt'); if (!u) return;
+    UP.pose = name || null;
+    u.querySelector('.icl-ub').src = name ? `${IMG}uptima-pose-${name}.webp` : `${IMG}uptima-body.webp`;
+    u.classList.toggle('posed', !!name); u.classList.toggle('asleep', name === 'asleep');
+  }
+  // Any tap or key wakes her: the bubble pops and she's back, pretending she never slept.
+  function wake() {
+    UP.idle = Date.now();
+    const u = document.querySelector('#icl-scene .icl-upt');
+    if (UP.pose !== 'asleep' || !u) return;
+    u.classList.add('pop'); UP.pose = 'waking';
+    UP.timers.push(setTimeout(() => { u.classList.remove('pop'); pose(null); }, 260));
+  }
+  function dozeCheck() {
+    const s = cur();
+    if (UP.pose || !s || !['page', 'fix'].includes(s.phase) || document.body.classList.contains('icl-beat')) return;
+    if (Date.now() - UP.idle > DOZE_MS) pose('asleep');
+  }
+  const face = () => UP.blink ? 'blink' : UP.open ? (UP.mood === 'neutral' ? 'talk' : UP.mood + '-talk') : UP.mood;
+  function paintFace() { const f = document.querySelector('#icl-scene .icl-uf'); if (f) f.src = `${IMG}uptima-face-${face()}.webp`; }
+  function scene(on) {
+    const stage = document.getElementById('mode-stage');
+    let el = document.getElementById('icl-scene');
+    if (!on || !stage || !document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic') {
+      UP.timers.forEach(clearTimeout); UP.timers = []; clearInterval(UP.watch); UP.watch = 0;
+      ['pointerdown', 'keydown'].forEach(e => document.removeEventListener(e, wake, true));
+      if (el) el.remove();
+      const vn = document.getElementById('icl-vn'); if (vn) vn.remove();
+      document.body.classList.remove('icl-on', 'icl-beat');
+      return false;
+    }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'icl-scene';
+      el.innerHTML = `<picture class="icl-room"><source media="(orientation: portrait)" srcset="${IMG}room-tall.webp"><img src="${IMG}room-wide.webp" alt="" draggable="false"></picture>
+        <div class="icl-upt"><img class="icl-ub" src="${IMG}uptima-body.webp" alt="" draggable="false">
+          <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%">
+        <span class="icl-snot" aria-hidden="true"></span></div>
+        <div class="icl-bubble" hidden></div>`;
+      stage.appendChild(el);
+      FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
+      POSES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-pose-${f}.webp`; });
+      blinkSoon();
+      UP.idle = Date.now(); UP.pose = null;
+      ['pointerdown', 'keydown'].forEach(e => document.addEventListener(e, wake, true));
+      // Home, or anything else that closes the panel, takes her away with it.
+      UP.watch = setInterval(() => { const pn = document.getElementById('panel'); if (!document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic' || (pn && pn.hidden)) scene(false); else dozeCheck(); }, 400);
+    }
+    document.body.classList.add('icl-on');
+    return true;
+  }
+  function blinkSoon() {
+    UP.timers.push(setTimeout(() => {
+      UP.blink = true; paintFace();
+      UP.timers.push(setTimeout(() => { UP.blink = false; paintFace(); blinkSoon(); }, 130));
+    }, 1800 + Math.random() * 3600));
+  }
+  // Her mouth moves for about as long as the line takes to say.
+  function talk(line) {
+    UP.talkUntil = Date.now() + Math.min(4200, 400 + line.length * 45);
+    const flap = () => {
+      if (!document.getElementById('icl-scene')) return;
+      if (Date.now() > UP.talkUntil) { UP.open = false; paintFace(); return; }
+      UP.open = !UP.open; paintFace();
+      UP.timers.push(setTimeout(flap, UP.open ? 120 : 90 + Math.random() * 80));
+    };
+    flap();
+  }
+  function speak(line, mood) {
+    if (mood) UP.mood = mood;
+    paintFace();
+    const bub = document.querySelector('#icl-scene .icl-bubble');
+    if (bub && line && line !== UP.line) { bub.hidden = false; bub.textContent = line; talk(line); }
+    else if (bub && !line) bub.hidden = true;
+    UP.line = line || '';
+  }
+  // How she looks while you work: what she last said, or the knob you just touched.
+  function react(s) {
+    const x = inc(s), p = s.predOut, sum = s.last;
+    if (s.phase === 'fix' && s.teach) return speak(s.teach, 'neutral');
+    if (s.phase === 'page') return speak(s.i === 0 ? SAY.open : SAY.next, x.sev === 1 ? 'stern' : 'neutral');
+    if (s.phase === 'play') return speak('', s.playing === 'last' ? 'neutral' : UP.mood);
+    if (s.phase === 'fix') return speak(!s.runs && p ? (p.ok ? SAY.right : SAY.wrong) : SAY.unmet, !s.runs && p ? (p.ok ? 'happy' : 'stern') : 'worried');
+    if (s.phase === 'result') return speak(sum.slo ? SAY.met : SAY.unmet, sum.slo ? 'happy' : 'worried');
+    if (s.phase === 'debrief') return speak(SAY.debrief, 'neutral');
+    if (s.phase === 'done') { pose('yawn'); return speak(SAY.end, 'happy'); }
+  }
+  // The beats: the interface slides away and she talks. Each beat plays once.
+  function beatFor(s) {
+    const x = inc(s), p = s.predOut, sum = s.last;
+    let key = null, lines = null, mood = 'neutral';
+    if (s.phase === 'page') { key = 'p' + s.i; lines = [s.i === 0 ? SAY.open : SAY.next, x.page, SAY.ask]; mood = x.sev === 1 ? 'stern' : 'neutral'; }
+    else if (s.phase === 'fix' && !s.runs && p) { key = 'v' + s.i; lines = [p.ok ? SAY.right : SAY.wrong, `You said ${p.v}. It was ${p.truth}.`]; mood = p.ok ? 'happy' : 'stern'; }
+    else if (s.phase === 'result' && sum) { key = 'r' + s.i + ':' + s.runs; lines = [sum.slo ? SAY.met : s.runs < 2 ? SAY.unmet : SAY.lastRed, sum.sloLine]; mood = sum.slo ? 'happy' : 'worried'; }
+    else if (s.phase === 'done') { key = 'end'; lines = [SAY.end]; mood = 'happy'; }
+    pose(s.phase === 'done' ? 'yawn' : null);
+    if (!key || s.beat === key) return false;
+    s.beat = key; save(s);
+    if (window.__iclNoBeats) return false;
+    beat(lines, mood, () => { if (cur() === s) draw(s); });
+    return true;
+  }
+  function beat(lines, mood, then) {
+    document.body.classList.add('icl-beat');
+    let vn = document.getElementById('icl-vn');
+    if (!vn) { vn = document.createElement('button'); vn.id = 'icl-vn'; vn.type = 'button'; document.body.appendChild(vn); }
+    let i = 0;
+    const show = () => {
+      const line = lines[i];
+      vn.innerHTML = `<b class="icl-vn-name">Uptima</b><span class="icl-vn-line" data-vo="${esc('uptima|' + line)}" aria-live="polite">${esc(line)}</span><span class="icl-vn-more" aria-hidden="true">▸</span>`;
+      vn.setAttribute('aria-label', `Uptima: ${line}. Tap to continue.`);
+      UP.line = ''; speak('', mood); talk(line);
+    };
+    vn.onclick = () => {
+      if (++i < lines.length) return show();
+      vn.remove(); document.body.classList.remove('icl-beat');
+      then();
+    };
+    show(); vn.focus({ preventScroll: true });
   }
 
   // ---- The machine: the incident's parts in request order, each with its settings and what it did last minute ----
@@ -149,10 +293,32 @@
     const ev = x.evidence[p];
     return `<div class="icl-open">${ev ? `<pre class="icl-ev">${esc(ev)}</pre>` : ''}
       ${knobs.map(id => {
-        const kn = x.knobs[id];
-        return `<div class="icl-knob" role="group" aria-label="${esc(kn.name)}"><span class="small"><b>${esc(kn.name)}</b>${kn.unit ? ` (${esc(kn.unit)})` : ''}</span>
-          <span class="icl-vals">${kn.values.map(v => `<button class="${s.k[id] === v.v ? 'on' : ''}" data-knob="${id}" data-v="${v.v}" aria-pressed="${s.k[id] === v.v}">${esc(v.label)}</button>`).join('')}</span></div>`;
+        const kn = x.knobs[id], changed = s.k[id] !== kn.start;
+        return `<div class="icl-knob${changed ? ' changed' : ''}" role="group" aria-label="${esc(kn.name)}"><span class="small"><b>${esc(kn.name)}</b>${kn.unit ? ` (${esc(kn.unit)})` : ''}${changed ? ' <span class="icl-chg">✎ changed</span>' : ''}</span>
+          ${control(id, kn, s.k[id])}</div>`;
       }).join('')}</div>`;
+  }
+  // The knobs as things: stools you tap to reserve, a lever for on and off, a dial for a timeout or a count, a tray
+  // of envelopes for a batch. Every one is a row of buttons underneath (data-knob, data-v), named in words.
+  function control(id, kn, v) {
+    const btn = (val, inner, cls, label) => `<button class="${cls || ''}${v === val ? ' on' : ''}" data-knob="${id}" data-v="${val}" aria-pressed="${v === val}" aria-label="${esc(label || String(val))}">${inner}</button>`;
+    const vals = kn.values.map(o => o.v);
+    if (id === 'reserve') {
+      const snap = i => vals.filter(u => u >= i).sort((a, b) => a - b)[0];
+      const max = Math.max.apply(null, vals);
+      return `<div class="icl-sp"><span class="icl-stools">${Array.from({ length: max }, (_, i) => btn(snap(i + 1), img(i < v ? 'stool-orders' : 'stool', 'icl-stool'), 'icl-sb' + (i < v ? ' res' : ''), `Reserve ${snap(i + 1)}`)).join('')}</span>
+        ${btn(0, 'None', 'icl-none', 'No reservation')}<span class="small muted">Tap a stool to reserve up to it for orders-fn.</span></div>`;
+    }
+    if (vals.length === 2 && vals[0] === 0 && vals[1] === 1) {
+      return `<div class="icl-switch${v ? ' up' : ''}">${kn.values.map(o => btn(o.v, esc(o.label), 'icl-sw', o.label)).join('')}<i aria-hidden="true"></i></div>`;
+    }
+    if (id === 'batch') {
+      return `<div class="icl-tray">${kn.values.map(o => btn(o.v, Array.from({ length: o.v }, () => img('env', 'icl-te')).join(''), 'icl-tb', `${o.v} per batch`)).join('')}</div>`;
+    }
+    // A dial: the pointer turns to the setting; the settings sit around it.
+    const n = kn.values.length, idx = Math.max(0, vals.indexOf(v)), ang = i => -120 + (240 * i) / Math.max(1, n - 1);
+    return `<div class="icl-dial"><div class="icl-face" aria-hidden="true"><i style="transform:rotate(${ang(idx)}deg)"></i></div>
+      <div class="icl-ticks">${kn.values.map(o => btn(o.v, esc(o.label), 'icl-tk', o.label)).join('')}</div></div>`;
   }
   // The minute, turn by turn (30 s each), in words and icons.
   function strip(sum) {
@@ -173,13 +339,13 @@
   function pageScreen(s) {
     const x = inc(s), pc = L.predictChoices(x);
     const first = s.i === 0;
-    const b = panel(`${hud(s)}${say(first ? SAY.open : 'Next page.')}
-      <p class="icl-page">📟 <b>${esc(x.page)}</b></p>
-      ${machine(s, x, null, null)}
-      <div class="icl-pred"><p><b>${esc(x.predict.q)}</b></p>
+    const b = panel(cols(`${hud(s)}${say(first ? SAY.open : 'Next page.')}
+      <p class="icl-page">📟 <b>${esc(x.page)}</b></p>`,
+      machine(s, x, null, null),
+      `<div class="icl-pred"><p><b>${esc(x.predict.q)}</b></p>
         <div class="icl-vals" role="group" aria-label="Your prediction">${pc.choices.map(v => `<button class="${s.pred && s.pred.v === v ? 'on' : ''}" data-pred="${v}" aria-pressed="${!!(s.pred && s.pred.v === v)}">${v}</button>`).join('')}</div>
         ${s.pred ? `<p class="small">How sure are you?</p><div class="row icl-conf">${M.CONF.map((c, i) => `<button class="ghost" data-conf="${i}">${c} <span class="small">✓${M.sgn(M.STAKES[i][0])} ✗${M.sgn(M.STAKES[i][1])}</span></button>`).join('')}</div>` : '<p class="muted small">Pick a number first. Nothing is shown until you commit.</p>'}</div>
-      <div class="row"><button class="ghost" id="icl-stop">Stop for now</button></div>`);
+      <div class="row"><button class="ghost" id="icl-stop">Stop for now</button></div>`));
     b.querySelectorAll('[data-pred]').forEach(el => el.onclick = () => { s.pred = { v: +el.dataset.pred }; save(s); pageScreen(s); });
     b.querySelectorAll('[data-conf]').forEach(el => el.onclick = () => {
       const conf = +el.dataset.conf, ok = s.pred.v === pc.truth;
@@ -189,27 +355,91 @@
       s.before = L.run(x, s.k);
       s.predOut = { ok, conf, pts, truth: pc.truth, v: s.pred.v };
       s.log.push({ inc: x.id, kind: 'predict', ok, conf, pts });
-      s.phase = 'fix';
+      s.phase = 'play'; s.playing = 'before';
       save(s); draw(s);
     });
     b.querySelector('#icl-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
+
+  // ---- The minute, played: requests walk the path as envelopes, 30 s a turn, and the SLO lamp lights at the end ----
+  // Each event in the turn is one envelope with its own motion: through to the end (done), bounced back (429, a failed
+  // batch, a second charge blocked), dropped in the bin (parked in the DLQ), doubled (done twice) or lost at the gate.
+  const PLAY_MS = 900, PER_TYPE = 6;
+  function lane(x) { return x.parts.filter(p => p !== 'pool' && p !== 'reports'); }
+  function motions(x) {
+    const L0 = lane(x), first = L0[0], last = L0[L0.length - 1], fn = x.id === 'launch' ? 'orders' : 'worker';
+    return {
+      done: { from: first, to: last, how: 'go', img: 'env-done' },
+      throttled: { from: first, to: fn, how: 'back', img: 'env-429' },
+      gaveUp: { from: first, to: first, how: 'lost', img: 'env-429' },
+      unanswered: { from: first, to: fn, how: 'go', img: 'env' },
+      fail: { from: first, to: fn, how: 'back', img: 'env-poison' },
+      dlq: { from: fn, to: 'dlq', how: 'drop', img: 'env-poison' },
+      dupe: { from: first, to: last, how: 'go', img: 'env-twice' },
+      dupeBlocked: { from: first, to: last, how: 'back', img: 'env-twice' }
+    };
+  }
+  const GLYPH = { done: '✓', throttled: '⛔', gaveUp: '✗', unanswered: '✉', fail: '⚠', dlq: '🪦', dupe: '×2', dupeBlocked: '🛡' };
+  function playScreen(s) {
+    const x = inc(s), sum = s.playing === 'before' ? s.before : s.last, L0 = lane(x);
+    const pos = p => Math.max(0, L0.indexOf(p)) / Math.max(1, L0.length - 1);
+    const turns = sum.turns.map((t, i) => ({ t, i })).filter(o => Object.keys(o.t).some(k => GLYPH[k]));
+    const b = panel(`${hud(s)}
+      <div class="icl-play" role="img" aria-label="The minute playing out on the request path">
+        <div class="icl-lane">${L0.map(p => `<div class="icl-stop" style="left:${(pos(p) * 100).toFixed(1)}%">${ART[p] ? img(ART[p], 'icl-big') : ''}<span>${esc(partName(x, p))}</span></div>`).join('')}
+          <div class="icl-envs" aria-hidden="true"></div></div>
+        ${x.parts.includes('pool') ? `<div class="icl-pstools">${stools(x, s.playing === 'before' ? L.startKnobs(x) : s.k)}</div>` : ''}
+        <div class="icl-clock"><b id="icl-t">0:00</b><span id="icl-tally" class="icl-tally"></span></div>
+        <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div>
+      </div>
+      <div class="row"><button class="ghost" id="icl-skip">Skip</button></div>`);
+    const box = b.querySelector('.icl-envs'), clock = b.querySelector('#icl-t'), tally = b.querySelector('#icl-tally'), lamp = b.querySelector('#icl-lamp');
+    const mv = motions(x), seen = {};
+    let k = 0, timer = null, over = false;
+    const finish = () => {
+      if (over) return; over = true; clearTimeout(timer);
+      if (s.playing === 'last') {
+        lamp.className = 'icl-lamp ' + (sum.slo ? 'green' : 'red');
+        lamp.innerHTML = `<i></i><b>${sum.slo ? 'SLO met' : 'SLO not met'}</b>`;
+        sting(sum.slo);
+      }
+      const next = () => { if (cur() !== s || s.phase !== 'play') return; s.phase = s.playing === 'before' ? 'fix' : 'result'; s.playing = null; save(s); draw(s); };
+      timer = setTimeout(next, still() ? 0 : 1800);
+      b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); next(); };
+    };
+    const step = () => {
+      if (cur() !== s || s.phase !== 'play') return;
+      if (k >= turns.length) return finish();
+      const { t, i } = turns[k++];
+      clock.textContent = `${Math.floor((i + 1) * L.TURN_SECS / 60)}:${String((i + 1) * L.TURN_SECS % 60).padStart(2, '0')}`;
+      box.innerHTML = Object.keys(t).filter(ty => mv[ty]).map(ty => {
+        const m = mv[ty], n = Math.min(PER_TYPE, t[ty]);
+        seen[ty] = (seen[ty] | 0) + t[ty];
+        return Array.from({ length: n }, (_, j) => `<span class="icl-fly ${m.how}" style="--a:${(pos(m.from) * 100).toFixed(1)}%;--b:${(pos(m.to) * 100).toFixed(1)}%;--d:${(j * 70)}ms;--y:${(j % 3) * 9}px">${img(m.img, '')}</span>`).join('');
+      }).join('');
+      tally.innerHTML = Object.keys(GLYPH).filter(ty => seen[ty]).map(ty => `<span>${GLYPH[ty]} ${seen[ty]}</span>`).join('');
+      timer = setTimeout(step, PLAY_MS);
+    };
+    b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); k = turns.length; box.innerHTML = ''; finish(); };
+    if (still()) finish(); else step();
+  }
+  const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ---- 3: fix it on the machine ----
   function fixScreen(s) {
     const x = inc(s), sum = s.last || s.before, p = s.predOut;
     const changed = L.changes(x, s.k);
     const top = !s.runs && p
-      ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict small">You said <b>${p.v}</b>, it was <b>${p.truth}</b> (${M.CONF[p.conf]}, ${M.sgn(p.pts)}). The machine shows the minute it just ran.</p>`
+      ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict"><span class="icl-vs ${p.ok ? 'ok' : 'no'}">${p.ok ? '✓' : '✗'} You said <b>${p.v}</b> · it was <b>${p.truth}</b></span> <span class="icl-pts">${esc(M.CONF[p.conf])} ${M.sgn(p.pts)}</span></p>`
       : say(SAY.unmet);
     const teach = s.teach ? `<p class="icl-teach small">💡 ${esc(s.teach)}</p>` : '';
-    const b = panel(`${hud(s)}${top}
-      <p class="icl-page">📟 ${esc(x.page)}</p>
-      ${machine(s, x, sum, s.open)}
-      ${teach}
-      ${strip(sum)}
-      <p class="small icl-changes">${changed.length ? `Changed: ${changed.map(id => esc(x.knobs[id].name)).join('; ')}.` : 'Nothing changed yet. Tap a part for its evidence and settings.'} ${changed.length > L.MAX_CHANGES ? '<b>More than two changes: the smallest-change stamp is off.</b>' : `The smallest correct change is two knobs or fewer.`}</p>
-      <div class="row"><button class="primary" id="icl-run"${changed.length ? '' : ' disabled'}>▶ Run the next minute</button><button class="ghost" id="icl-stop">Stop for now</button></div>`);
+    const b = panel(cols(`${hud(s)}${top}
+      <p class="icl-page">📟 ${esc(x.page)}</p>`,
+      `${machine(s, x, sum, s.open)}${teach}`,
+      `${strip(sum)}
+      <p class="icl-changes"><span class="icl-cc${changed.length > L.MAX_CHANGES ? ' over' : ''}" aria-label="${changed.length} of ${L.MAX_CHANGES} changes">${Array.from({ length: Math.max(L.MAX_CHANGES, changed.length) }, (_, i) => `<i class="${i < changed.length ? 'on' : ''}">✎</i>`).join('')}</span>
+        <span class="small">${changed.length ? (changed.length > L.MAX_CHANGES ? '<b>Over two: no smallest-change stamp</b>' : `${changed.length} of ${L.MAX_CHANGES} changes`) : 'Tap a part to open it'}</span></p>
+      <div class="row"><button class="primary" id="icl-run"${changed.length ? '' : ' disabled'}>▶ Run the next minute</button><button class="ghost" id="icl-stop">Stop for now</button></div>`));
     b.querySelectorAll('[data-part]').forEach(el => el.onclick = () => { s.open = s.open === el.dataset.part ? null : el.dataset.part; s.teach = null; save(s); fixScreen(s); });
     b.querySelectorAll('[data-knob]').forEach(el => el.onclick = () => {
       const id = el.dataset.knob, v = +el.dataset.v;
@@ -220,7 +450,7 @@
       save(s); fixScreen(s);
     });
     b.querySelector('#icl-run').onclick = () => {
-      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'result'; sting(s.last.slo);
+      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'play'; s.playing = 'last';
       save(s); draw(s);
     };
     b.querySelector('#icl-stop').onclick = () => { U.closePanel(); stopNow(); };
@@ -230,13 +460,13 @@
   function resultScreen(s) {
     const x = inc(s), sum = s.last, st = sum.stamps, more = !sum.slo && s.runs < 2;
     const stamp = (on, label) => `<li class="${on ? 'on' : ''}">${on ? '✓' : '○'} ${esc(label)}</li>`;
-    const b = panel(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.')}
-      ${machine(s, x, sum, null)}
-      <p class="icl-slo"><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}:</b> ${esc(sum.sloLine)}</p>
-      ${strip(sum)}
+    const b = panel(cols(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : SAY.lastRed)}
+      <p class="icl-slo"><span class="icl-lamp ${sum.slo ? 'green' : 'red'}"><i></i><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}</b></span><span class="small">${esc(sum.sloLine)}</span></p>`,
+      machine(s, x, sum, null),
+      `${strip(sum)}
       <ul class="icl-stamps">${stamp(st.slo, 'SLO met')}${stamp(st.small, 'Two knobs or fewer')}${stamp(st.rule, 'The documented setting')}</ul>
-      <p class="small">${esc(sum.ruleLine)}</p>
-      <div class="row">${more ? '<button class="primary" id="icl-again">One more change</button><button class="ghost" id="icl-on">Leave it red, go to the debrief</button>' : '<button class="primary" id="icl-on">Debrief</button>'}</div>`);
+      <p class="small icl-rule">📘 ${esc(sum.ruleLine)}</p>
+      <div class="row">${more ? '<button class="primary" id="icl-again">One more change</button><button class="ghost" id="icl-on">Leave it red, go to the debrief</button>' : '<button class="primary" id="icl-on">Debrief</button>'}</div>`));
     const again = b.querySelector('#icl-again');
     if (again) again.onclick = () => { s.phase = 'fix'; save(s); draw(s); };
     b.querySelector('#icl-on').onclick = () => {
@@ -286,6 +516,61 @@
   const css = document.createElement('style');
   css.textContent = `
     .icl-hud { margin: 0 0 6px; }
+    /* ---- Uptima in the room ---- */
+    #icl-scene { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+    #icl-scene .icl-room img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    #icl-scene::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(rgba(12, 8, 4, .35), transparent 30%, transparent 70%, rgba(12, 8, 4, .45)); }
+    .icl-upt { position: absolute; z-index: 1; bottom: 0; right: 4vw; height: min(calc(100vh - 70px), 1000px); aspect-ratio: 576 / 1032; transform-origin: 50% 100%;
+      animation: icl-breathe 4.2s ease-in-out infinite; transition: right .5s ease, height .5s ease, opacity .4s; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .55)); }
+    .icl-upt img { position: absolute; display: block; user-select: none; }
+    .icl-ub { inset: 0; width: 100%; height: 100%; }
+    .icl-upt.posed .icl-uf { display: none; }
+    /* Asleep: a snot bubble at her nose (44.9%, 20.2% of her canvas) swells and shrinks with her breath, and pops when you wake her. */
+    .icl-snot { display: none; position: absolute; left: 40.5%; top: 18%; width: 6%; aspect-ratio: 1; border-radius: 50%; transform-origin: 80% 30%; pointer-events: none;
+      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .95) 0 12%, rgba(200, 235, 255, .45) 13% 55%, rgba(160, 210, 240, .6) 70%, rgba(120, 180, 220, .75) 100%);
+      box-shadow: inset 0 0 0 1px rgba(90, 140, 180, .6); animation: icl-snot 3.6s ease-in-out infinite; }
+    .icl-upt.asleep .icl-snot { display: block; }
+    .icl-upt.pop .icl-snot { display: block; animation: icl-pop .25s ease-out forwards; }
+    @keyframes icl-snot { 0%, 100% { transform: scale(.35); } 55% { transform: scale(1.15); } }
+    @keyframes icl-pop { 0% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+    @keyframes icl-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.004, 1.012) translateY(-1px); } }
+    .icl-bubble { position: absolute; z-index: 2; right: calc(4vw + min(calc(100vh - 70px), 1000px) * .5); top: calc(70px + 6vh); max-width: min(340px, 30vw); padding: 12px 16px; border-radius: 14px;
+      background: #fbf5e3; color: #2a2018; font-size: 16px; line-height: 1.4; box-shadow: 0 6px 16px rgba(0, 0, 0, .55); }
+    .icl-bubble::after { content: ''; position: absolute; right: -14px; top: 22px; border: 8px solid transparent; border-left: 14px solid #fbf5e3; border-right: 0; }
+    .icl-bubble[hidden] { display: none; }
+    /* Wide: the work on the left, Uptima standing on the right, the room lit around her. */
+    @media (min-width: 900px) {
+      body.icl-on[data-stage="ic"] #panel .win { background: linear-gradient(90deg, rgba(14, 9, 5, .88), rgba(14, 9, 5, .8) 50%, rgba(14, 9, 5, .1) 66%, transparent 75%) !important; }
+      body.icl-on[data-stage="ic"] #panel .win-b { padding-left: max(16px, 3vw) !important; padding-right: calc(4vw + min(calc(100vh - 70px), 1000px) * .56 + 24px) !important; }
+      body.icl-on[data-stage="ic"] #panel .win.quiz .win-b { padding-left: max(16px, calc((100% - 760px) / 2)) !important; padding-right: max(16px, calc((100% - 760px) / 2)) !important; }
+      body.icl-on .icl-cols { display: block; }
+      body.icl-on #panel .ic-say { display: none; }
+    }
+    @media (min-width: 1700px) { body.icl-on .icl-cols { display: grid; } }
+    /* Narrow: she stands behind the work, dimmed, and the note carries her words. */
+    @media (max-width: 899px) {
+      .icl-upt { right: -14vw; height: 74vh; opacity: .5; }
+      .icl-bubble { display: none; }
+    }
+    /* A beat: the interface pulls down out of the way, she steps forward and talks. */
+    body.icl-on #panel { transition: transform .45s ease, opacity .3s; }
+    body.icl-beat #panel { transform: translateY(104%); opacity: 0; pointer-events: none; }
+    body.icl-beat .icl-upt { right: 50%; transform: translateX(50%); animation: none; opacity: 1; height: min(calc(100vh - 70px), 1000px); }
+    body.icl-beat .icl-bubble { display: none; }
+    #icl-vn { position: fixed; z-index: 21; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(860px, calc(100% - 32px)); min-height: 110px;
+      display: block; padding: 16px 20px 18px; text-align: left; border: 2px solid #140b05; border-radius: 12px; color: #2a2018; font: inherit; font-size: 18px; line-height: 1.45; cursor: pointer;
+      background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 0 0 2px rgba(233, 197, 109, .6), 0 12px 30px rgba(0, 0, 0, .6); animation: icl-vn-in .35s ease; }
+    .icl-vn-name { position: absolute; top: -16px; left: 18px; padding: 3px 12px; border-radius: 6px; background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; font-size: 14px; letter-spacing: .06em; border: 2px solid #140b05; }
+    .icl-vn-line { display: block; overflow-wrap: anywhere; }
+    .icl-vn-more { position: absolute; right: 14px; bottom: 8px; color: #8a5608; animation: icl-more 1s ease-in-out infinite; }
+    @keyframes icl-vn-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes icl-more { 50% { transform: translateX(4px); } }
+    @media (prefers-reduced-motion: reduce) { .icl-upt, #icl-vn, .icl-vn-more, .icl-snot { animation: none !important; } #panel, .icl-upt { transition: none !important; } }
+    @media (min-width: 900px) {
+      body.in-mode .icl-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: 'm a' 'm b'; gap: 0 28px; align-items: start; }
+      body.in-mode .icl-a { grid-area: a; } body.in-mode .icl-m { grid-area: m; } body.in-mode .icl-b { grid-area: b; }
+      body.in-mode .icl-m .icl-machine { margin-top: 0; }
+    }
     .icl-page { margin: 6px 0; overflow-wrap: anywhere; }
     .icl-machine { display: flex; flex-direction: column; align-items: stretch; gap: 2px; margin: 8px 0; }
     .icl-part { border: 2px solid var(--ink, #222); border-radius: 8px; background: var(--paper, #fff); }
@@ -297,7 +582,12 @@
     .icl-tap { margin-left: auto; text-decoration: underline; }
     .icl-arrow { text-align: center; line-height: 1; opacity: .7; }
     .icl-open { padding: 4px 8px 8px; }
-    .icl-ev { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; margin: 4px 0 8px; padding: 6px 8px; border-left: 4px solid var(--ink, #222); background: rgba(0, 0, 0, .06); }
+    /* The evidence: a log scroll, unrolled. */
+    .icl-ev { position: relative; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.45; margin: 12px 4px 12px; padding: 10px 14px; color: #2a2018; text-shadow: none;
+      background: repeating-linear-gradient(transparent 0 18px, rgba(90, 70, 40, .08) 18px 19px), linear-gradient(90deg, #e9dcb8, #f8f0da 12%, #f8f0da 88%, #e9dcb8);
+      border-radius: 2px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+    .icl-ev::before, .icl-ev::after { content: ''; position: absolute; left: -4px; right: -4px; height: 9px; border-radius: 5px; background: linear-gradient(#c9b48a, #8a7550 60%, #5e4c30); box-shadow: 0 2px 3px rgba(0, 0, 0, .45); }
+    .icl-ev::before { top: -6px; } .icl-ev::after { bottom: -6px; }
     .icl-knob { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
     .icl-vals { display: flex; flex-wrap: wrap; gap: 6px; }
     .icl-vals button { min-width: 44px; min-height: 40px; padding: 4px 10px; border: 2px solid var(--ink, #222); border-radius: 6px; background: var(--paper, #fff); color: inherit; font: inherit; }
@@ -313,6 +603,15 @@
     .icl-stamps li { margin: 4px 0; overflow-wrap: anywhere; }
     .icl-stamps li.on { font-weight: 700; }
     .icl-slo, .icl-verdict, .icl-changes { overflow-wrap: anywhere; }
+    .icl-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 8px; }
+    .icl-vs { display: inline-block; padding: 4px 10px; border: 3px double currentColor; border-radius: 4px; font-weight: 800; letter-spacing: .02em; transform: rotate(-2deg); }
+    .icl-vs.ok { color: #7fd06a; } .icl-vs.no { color: #ff8a70; }
+    .icl-pts { font-weight: 800; }
+    .icl-changes { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+    .icl-cc { display: inline-flex; gap: 4px; } .icl-cc i { font-style: normal; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(233, 197, 109, .5); opacity: .45; }
+    .icl-cc i.on { opacity: 1; background: #e9c56d; color: #2a1c08; } .icl-cc.over i.on { background: #d2503a; color: #fff; }
+    .icl-slo { display: flex; flex-direction: column; gap: 2px; } .icl-slo .icl-lamp { margin: 0; }
+    .icl-lamp b { font-size: 18px; }
     .icl-art { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; flex: none; }
     .icl-stools { display: flex; flex-wrap: wrap; gap: 1px; width: 100%; }
     .icl-stool { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; }
@@ -325,6 +624,59 @@
     @keyframes icl-bounce { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(18px); } 55% { transform: translateX(-6px) rotate(-12deg); } }
     @keyframes icl-through { 0% { transform: translateX(-10px); opacity: 0; } 15%, 80% { opacity: 1; } 100% { transform: translateX(60px); opacity: 0; } }
     @keyframes icl-drop { 0% { transform: translateY(-10px); opacity: 0; } 30% { opacity: 1; } 70%, 100% { transform: translateY(2px); } }
-    @media (prefers-reduced-motion: reduce) { .icl-env { animation: none !important; } }`;
+    .icl-knob.changed { padding-left: 8px; border-left: 3px solid #e9c56d; }
+    .icl-chg { font-size: 11px; font-weight: 800; color: #e9c56d; letter-spacing: .04em; }
+    .icl-sp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+    .icl-sp .icl-stools { width: auto; gap: 2px; }
+    .icl-sb { min-width: 34px; min-height: 44px; padding: 2px; border: 2px solid transparent; border-radius: 6px; background: rgba(0, 0, 0, .25); }
+    .icl-sb .icl-stool { width: 28px; height: 28px; }
+    .icl-sb.res { background: rgba(80, 120, 200, .3); border-color: rgba(140, 180, 255, .5); }
+    .icl-sb:hover { border-color: #e9c56d; }
+    .icl-none, .icl-sw, .icl-tk, .icl-tb { min-height: 44px; padding: 4px 12px; border: 2px solid var(--ink, #222); border-radius: 6px; background: var(--paper, #fff); color: inherit; font: inherit; }
+    .icl-none.on, .icl-tk.on, .icl-tb.on { border-color: #e9c56d; box-shadow: 0 0 0 2px rgba(233, 197, 109, .5); font-weight: 800; }
+    .icl-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0; width: max-content; padding: 3px; border-radius: 24px; background: #1a110a; box-shadow: inset 0 2px 6px rgba(0, 0, 0, .7); }
+    .icl-switch .icl-sw { position: relative; z-index: 1; min-width: 92px; border: 0; border-radius: 20px; background: none; color: #bfb39a; }
+    .icl-switch .icl-sw.on { color: #2a1c08; font-weight: 800; }
+    .icl-switch i { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 20px; background: linear-gradient(#dcb65e, #a67c2c); box-shadow: 0 2px 4px rgba(0, 0, 0, .6); transition: transform .2s; }
+    .icl-switch.up i { transform: translateX(100%); background: linear-gradient(#bfe6a0, #4f9a3c); }
+    .icl-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+    .icl-tb { display: inline-flex; gap: 0; align-items: center; }
+    .icl-te { width: 22px; height: 22px; image-rendering: pixelated; margin-left: -6px; } .icl-te:first-child { margin-left: 0; }
+    .icl-dial { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .icl-face { position: relative; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6a5236, #2c1c10 70%); border: 3px solid #140b05; box-shadow: 0 3px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(233, 197, 109, .3); flex: none; }
+    .icl-face i { position: absolute; left: 50%; top: 6px; bottom: 50%; width: 4px; margin-left: -2px; border-radius: 2px; background: #e9c56d; transform-origin: 50% 100%; transition: transform .25s; }
+    .icl-ticks { display: flex; flex-wrap: wrap; gap: 6px; }
+    .icl-play { position: relative; max-width: 760px; margin: 10px auto; padding: 10px 0 6px; }
+    .icl-lane { position: relative; height: 128px; margin: 0 44px; }
+    .icl-lane::before { content: ''; position: absolute; left: 0; right: 0; top: 46px; border-top: 3px dashed rgba(233, 197, 109, .45); }
+    .icl-stop { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 88px; text-align: center; font-size: 12px; font-weight: 700; }
+    .icl-big { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .6)); }
+    .icl-envs { position: absolute; inset: 0; pointer-events: none; }
+    .icl-fly { position: absolute; top: calc(30px + var(--y, 0px)); left: var(--a); width: 28px; height: 28px; margin-left: -14px; opacity: 0;
+      animation: .62s ease-in-out var(--d, 0ms) forwards; }
+    .icl-fly img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
+    .icl-fly.go { animation-name: icl-go; } .icl-fly.back { animation-name: icl-back; } .icl-fly.lost { animation-name: icl-lost; } .icl-fly.drop { animation-name: icl-dropto; }
+    @keyframes icl-go { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { left: var(--b); opacity: .85; } }
+    @keyframes icl-back { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 50% { left: var(--b); transform: rotate(0); } 62% { transform: rotate(-25deg) scale(1.15); } 100% { left: var(--a); opacity: .2; transform: rotate(-40deg); } }
+    @keyframes icl-lost { 0% { left: var(--a); opacity: 1; } 100% { left: var(--a); opacity: 0; transform: translate(-14px, 40px) rotate(-60deg); } }
+    @keyframes icl-dropto { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 60% { left: var(--b); transform: translateY(0); } 100% { left: var(--b); opacity: 1; transform: translateY(26px) rotate(15deg); } }
+    @media (min-width: 900px) {
+      body.in-mode .icl-play { max-width: 900px; padding-top: 40px; }
+      body.in-mode .icl-lane { height: 190px; margin: 0 70px; } body.in-mode .icl-lane::before { top: 70px; }
+      body.in-mode .icl-stop { width: 140px; font-size: 15px; } body.in-mode .icl-big { width: 120px; height: 120px; }
+      body.in-mode .icl-fly { top: calc(50px + var(--y, 0px)); width: 40px; height: 40px; margin-left: -20px; } body.in-mode .icl-fly img { width: 40px; height: 40px; }
+      body.in-mode .icl-pstools .icl-stool { width: 30px; height: 30px; }
+      body.in-mode .icl-clock b { font-size: 28px; } body.in-mode .icl-tally { font-size: 20px; }
+    }
+    .icl-pstools { display: flex; justify-content: flex-end; margin: -6px 0 10px; }
+    .icl-pstools .icl-stools { width: auto; }
+    .icl-clock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-variant-numeric: tabular-nums; }
+    .icl-clock b { font-size: 20px; color: #e9c56d; min-width: 52px; }
+    .icl-tally { display: flex; flex-wrap: wrap; gap: 4px 12px; font-weight: 700; }
+    .icl-lamp { display: flex; align-items: center; gap: 10px; min-height: 40px; margin-top: 8px; font-size: 18px; }
+    .icl-lamp i { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #140b05; }
+    .icl-lamp.green i { background: radial-gradient(circle at 35% 30%, #c9ffb0, #3fae3a 60%, #1f5e1c); box-shadow: 0 0 18px 6px rgba(80, 220, 80, .55); }
+    .icl-lamp.red i { background: radial-gradient(circle at 35% 30%, #ffc0b0, #d23a2a 60%, #6a1610); box-shadow: 0 0 18px 6px rgba(240, 70, 50, .55); }
+    @media (prefers-reduced-motion: reduce) { .icl-env, .icl-fly { animation: none !important; opacity: 1; } }`;
   document.head.appendChild(css);
 })();
