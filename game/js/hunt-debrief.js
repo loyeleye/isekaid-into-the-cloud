@@ -43,7 +43,8 @@
       ${HB.bruHtml()}
       <div class="hd-jars">${ms.map(x => `<div class="hd-mon ${x.caught ? 'jarred' : 'loose'}" role="img" aria-label="${esc(x.name)}, ${x.caught ? 'caught in its jar' : 'loose: it got away'}">
         <span class="hd-jar" aria-hidden="true"><img class="hd-spr" src="assets/img/hunt/${esc(x.id)}.webp" alt="" decoding="async"></span></div>`).join('')}<div class="hd-hp"></div></div>
-      <div class="hd-stamp" role="status"></div>
+      <div class="hd-verdict"><div class="hd-stamp" role="status"></div>
+        <button type="button" class="hd-nbk" aria-controls="hd-notes" aria-expanded="false" hidden><img src="assets/img/hunt/notebook.webp" alt="" decoding="async"><span>Bru's notes</span></button></div>
       <p class="hs-say hd-say" aria-live="polite" hidden></p>`;
     st = { m, scene, ms, caught, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
     st.obs = new MutationObserver(wrap);
@@ -105,7 +106,7 @@
     sat.addEventListener('scroll', () => { st.sTop = sat.scrollTop; }, { passive: true });
     if (mode === 'f' && st.mode !== 'f') verdict(b);
     if (mode === 'f') beats(win, card, inn, sat);
-    else { win.classList.remove('hd-notes-open'); st.scene.querySelector('.hd-stamp').innerHTML = ''; }
+    else { win.classList.remove('hd-notes-open'); st.scene.querySelector('.hd-stamp').innerHTML = ''; st.scene.querySelector('.hd-nbk').hidden = true; }
     // Phones: after picking an answer, bring the confidence buttons into view in the satchel.
     const conf = sat.querySelector('.conf');
     if (mode === 'q' && conf && innerWidth <= 700 && sat.querySelector('[data-o].on') && sat.scrollHeight > sat.clientHeight)
@@ -161,21 +162,49 @@
     box = document.createElement('div'); box.className = 'hd-why';
     talk.forEach(k => box.appendChild(k));
     say.appendChild(box); say.hidden = false; say.classList.add('hd-long');
-    // Bru's notes: closed until you ask.
+    // Bru's notes (Ladi, Nov 16): a notebook under the verdict; tap it and it flies up and opens onto a high-tech
+    // notebook screen with the rest of the feedback, sections listed along the top. Same nodes, same handlers.
     card.classList.add('hd-notes'); card.id = 'hd-notes';
-    card.querySelector('.hd-tag').textContent = 'Bru\'s notes';
-    let btn = sat.querySelector('.hd-nb');
-    if (!btn) {
-      btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost hd-nb'; btn.setAttribute('aria-controls', 'hd-notes');
-      const n = inn.querySelectorAll(':scope > :is(.nots, .whynot, .compass)').length;
-      btn.innerHTML = `📜 Bru's notes <span class="small">${n ? 'why not the others, ' : ''}the AWS docs, help</span>`;
-      sat.prepend(btn);
-    }
-    const set = on => { win.classList.toggle('hd-notes-open', on); btn.setAttribute('aria-expanded', String(on)); btn.firstChild.textContent = on ? '📜 Close the notes ' : '📜 Bru\'s notes '; if (on && !still()) { card.classList.remove('hd-drop'); void card.offsetWidth; card.classList.add('hd-drop'); } fit(); };
-    btn.onclick = () => set(!win.classList.contains('hd-notes-open'));
-    set(!!st.notes);
-    btn.addEventListener('click', () => { st.notes = win.classList.contains('hd-notes-open'); });
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Bru\'s notes');
+    const tag = card.querySelector('.hd-tag'); if (tag) tag.remove();
+    const SEC = [['.q-recap', 'The question'], ['[class^="rc-"], .recall', 'What you wrote'], ['.q-src', 'AWS docs'], ['.tiers', 'The ranking'], ['.whynot', 'Pip\'s almost-pick'], ['.nots', 'Why not the others'], ['.help-row', 'Help'], ['.compass', 'What tripped you up']];
+    const secs = [];
+    [...inn.children].forEach(k => { const f = SEC.find(([q]) => k.matches(q)); if (f && !secs.some(x => x[1] === f[1])) { k.dataset.sec = f[1]; secs.push([k, f[1]]); } });
+    const head = document.createElement('div'); head.className = 'hd-nh';
+    head.innerHTML = `<img src="assets/img/hunt/notebook.webp" alt="" class="hd-nhi"><div class="hd-nht"><b>BRU'S NOTES</b><span>${esc(st.ms.map(x => x.name).join(' · ') || 'Debrief')}</span></div>
+      <button type="button" class="hd-nx" aria-label="Close Bru's notes">✕</button>
+      <nav class="hd-nav" aria-label="Sections">${secs.map(([, n], i) => `<button type="button" data-i="${i}">${esc(n)}</button>`).join('')}</nav>`;
+    card.prepend(head);
+    head.querySelectorAll('.hd-nav button').forEach(b => b.onclick = () => { const k = secs[+b.dataset.i][0]; inn.scrollTo({ top: k.offsetTop - 8, behavior: still() ? 'auto' : 'smooth' }); if (k.tagName === 'DETAILS') k.open = true; });
+    const book = st.scene.querySelector('.hd-nbk');
+    book.hidden = false;
+    const set = (on, anim) => {
+      win.classList.toggle('hd-notes-open', on); book.setAttribute('aria-expanded', String(on)); st.notes = on;
+      fit();   // first: on a phone the verdict hides while the notes are open, and a hidden button can't take focus
+      if (on) { if (anim && !still()) openAnim(book, card); head.querySelector('.hd-nx').focus({ preventScroll: true }); }
+      else if (anim) { book.focus({ preventScroll: true }); requestAnimationFrame(() => { if (document.activeElement !== book && book.isConnected) book.focus({ preventScroll: true }); }); }
+    };
+    book.onclick = () => set(!win.classList.contains('hd-notes-open'), true);
+    head.querySelector('.hd-nx').onclick = () => set(false, true);
+    card.onkeydown = e => { if (e.key === 'Escape') { e.stopPropagation(); set(false, true); } };
+    set(!!st.notes, false);
     sat.classList.remove('empty');
+  }
+
+  // The notebook flies up from under the verdict, its cover swings open, and the notes screen grows out of it.
+  function openAnim(book, card) {
+    const img = book.querySelector('img'), r = img.getBoundingClientRect(), c = card.getBoundingClientRect();
+    if (!r.width || !c.width || !img.animate) return;
+    const fly = document.createElement('div'); fly.className = 'hd-fly';
+    fly.innerHTML = `<div class="hd-fly-p"></div><img class="hd-fly-c" src="${img.src}" alt="">`;
+    const w = Math.min(220, c.width * .5), h = w * r.height / r.width;
+    Object.assign(fly.style, { left: (c.left + c.width / 2 - w / 2) + 'px', top: (c.top + c.height / 2 - h / 2) + 'px', width: w + 'px', height: h + 'px' });
+    document.body.appendChild(fly);
+    const dx = r.left - (c.left + c.width / 2 - w / 2), dy = r.top - (c.top + c.height / 2 - h / 2), k = r.width / w;
+    fly.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${k})` }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.3, 1.2, .5, 1)' });
+    fly.querySelector('.hd-fly-c').animate([{ transform: 'perspective(900px) rotateY(0)' }, { transform: 'perspective(900px) rotateY(0)', offset: .45 }, { transform: 'perspective(900px) rotateY(-165deg)', opacity: .9 }], { duration: 620, easing: 'ease-in', fill: 'forwards' });
+    card.animate([{ opacity: 0, transform: 'scale(.35)' }, { opacity: 0, transform: 'scale(.35)', offset: .55 }, { opacity: 1, transform: 'none' }], { duration: 760, easing: 'cubic-bezier(.2, 1.1, .4, 1)' });
+    fly.animate([{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: 0 }], { duration: 760 }).onfinish = () => fly.remove();
   }
 
   // Where Bru, her line and the jar stand: worked out from the card and the satchel, so her face stays in the gap
@@ -221,7 +250,7 @@
       const notes = win.classList.contains('hd-notes-open');
       const fbh = wide ? bh : cl(H * .34, H * .44, (satTop - 60));
       sc.style.setProperty('--hd-bh', Math.round(fbh) + 'px');
-      const fbw = fbh * 475 / 900, stamp = sc.querySelector('.hd-stamp');
+      const fbw = fbh * 475 / 900, stamp = sc.querySelector('.hd-verdict');
       if (wide) {
         const x = bl + fbw * .78;
         set(say, '--hd-sx', x); set(say, '--hd-sw', Math.min(640, W - x - js - 60)); say.style.top = Math.round(H - fbh * .98) + 'px';
@@ -349,8 +378,20 @@
     .hd-sat .q-foot .cred-more { color: #e6d3a6; }
     .hd-sat > #q-confirm { margin: 0 0 12px; width: 100%; }
     /* The verdict beat */
-    .hd-stamp { position: absolute; z-index: 5; left: var(--hd-tx, 10px); top: var(--hd-ty, 8px); pointer-events: none; }
+    .hd-verdict { position: absolute; z-index: 5; left: var(--hd-tx, 10px); top: var(--hd-ty, 8px); pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     .hd-stamp:empty { display: none; }
+    /* The notebook under the verdict: tap it for the rest of the feedback */
+    .hd-nbk { pointer-events: auto; display: flex; align-items: center; gap: 8px; margin: 2px 0 0 14px; padding: 4px 12px 4px 4px; border: 0; border-radius: 30px; background: rgba(8, 14, 24, .72); box-shadow: 0 0 0 1px rgba(95, 224, 255, .35), 0 6px 14px rgba(0, 0, 0, .5);
+      color: #bfefff; font: 700 13px/1.1 var(--f-body, sans-serif); cursor: pointer; transform: rotate(-3deg); }
+    .hd-nbk img { width: 52px; height: auto; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .6)) drop-shadow(0 0 8px rgba(95, 224, 255, .35)); animation: hdNbk 2.8s ease-in-out infinite; transition: transform .15s; }
+    .hd-nbk:hover img, .hd-nbk:focus-visible img { transform: translateY(-3px) rotate(-6deg) scale(1.08); }
+    .hd-nbk:focus-visible { outline: 3px solid #5fe0ff; outline-offset: 2px; }
+    .hd-nbk[aria-expanded="true"] { opacity: .35; }
+    @keyframes hdNbk { 50% { filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .6)) drop-shadow(0 0 14px rgba(95, 224, 255, .75)); } }
+    #panel .win.hd-win > .win-b { pointer-events: none; } #panel .win.hd-win > .win-b > :not(.hd-gap) { pointer-events: auto; }
+    .hd-fly { position: fixed; z-index: 9999; pointer-events: none; transform-style: preserve-3d; }
+    .hd-fly-p { position: absolute; inset: 4% 4% 4% 10%; border-radius: 4px; background: repeating-linear-gradient(#0d1522 0 13px, rgba(95, 224, 255, .25) 13px 14px), #0d1522; box-shadow: 0 0 24px rgba(95, 224, 255, .5); }
+    .hd-fly-c { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 12% 50%; backface-visibility: hidden; }
     .hd-stamp .verdict-row { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; }
     .hd-stamp .verdict { margin: 0; padding: 4px 14px 2px; border: 4px double currentColor; border-radius: 8px; transform: rotate(-7deg); background: rgba(10, 8, 6, .35);
       font: 800 clamp(24px, 4.2vw, 42px)/1.05 var(--f-head, serif); letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 2px 0 rgba(0, 0, 0, .6); box-shadow: 0 0 22px rgba(0, 0, 0, .5); }
@@ -365,7 +406,7 @@
     .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say { width: var(--hd-sw); box-sizing: border-box; font-size: 14px; padding: 10px 12px; }
     .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say::before { left: 44px; top: auto; bottom: -14px; border: 8px solid transparent; border-top: 14px solid #2a2018; border-bottom: 0; }
     .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say::after { left: 46px; top: auto; bottom: -10px; border: 6px solid transparent; border-top: 11px solid #fbf5e3; border-bottom: 0; }
-    .hd-scene.hd-quiet .hs-say.hd-say, .hd-scene.hd-quiet .hd-stamp { visibility: hidden; }
+    .hd-scene.hd-quiet .hs-say.hd-say, .hd-scene.hd-quiet .hd-verdict { visibility: hidden; }
     .hd-why { margin-top: 8px; color: #2a2018; }
     .hd-why > p, .hd-why .why p { margin: 6px 0 0; }
     .hd-why .why { margin: 0; padding: 0; border: 0; background: none; }
@@ -374,12 +415,40 @@
     .hd-why .warn { color: #8a2a1a; font-weight: 600; }
     .hd-why .muted { color: #6a5a48; }
     #panel .win.hd-win.hd-f:not(.hd-notes-open) .hd-card { display: none; }
-    #panel .win.hd-win.hd-f .hd-card.hd-notes { max-height: 70cqh; }
-    @media (min-width: 701px) { #panel .win.hd-win.hd-f .hd-card.hd-notes { margin-left: auto; margin-right: 12px; width: min(620px, 56cqw); } #panel .win.hd-win.hd-f .hd-card::after { display: none; } }
-    .hd-sat .hd-nb { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 8px; width: 100%; text-align: left; font: 600 14px/1.3 var(--f-body, sans-serif); text-transform: none; letter-spacing: 0; color: #f0d68a; border-color: #8a6a36; background: rgba(30, 22, 12, .85); }
-    .hd-sat .hd-nb .small { color: #c9bca4; font-weight: 400; }
+    /* Bru's notes: a high-tech notebook over the street. Dark glass, faint ruled grid, cyan trim; the quiz's own
+       feedback nodes inside, restyled for it. */
+    #panel .win.hd-win.hd-f .hd-card.hd-notes { position: absolute; z-index: 8; inset: 10px; margin: 0 auto; width: auto; max-width: 780px; max-height: none; border-radius: 16px; overflow: hidden;
+      background: radial-gradient(120% 60% at 50% 0, rgba(95, 224, 255, .12), transparent 60%), repeating-linear-gradient(0deg, rgba(95, 224, 255, .045) 0 1px, transparent 1px 26px), repeating-linear-gradient(90deg, rgba(95, 224, 255, .03) 0 1px, transparent 1px 26px), linear-gradient(#0f1828, #0a0f19);
+      box-shadow: 0 0 0 1px rgba(95, 224, 255, .5), 0 0 0 5px rgba(7, 12, 20, .9), 0 0 0 6px rgba(184, 146, 58, .55), 0 0 40px rgba(95, 224, 255, .18), 0 24px 50px rgba(0, 0, 0, .7);
+      --cream: #142033; --paper: #111b2b; --bone: #16233a; --ink: #dbe8f5; --muted: #8fa6bd; --line: rgba(95, 224, 255, .28); --blue: #5fe0ff; --blue-d: #9be9ff; --sun: #e0b85a; --mi-ink: #dbe8f5; --mi-muted: #8fa6bd; color: #dbe8f5; }
+    #panel .win.hd-win.hd-f .hd-card.hd-notes::after { display: none; }
+    .hd-nh { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 12px 14px 8px; border-bottom: 1px solid rgba(95, 224, 255, .3); background: linear-gradient(rgba(95, 224, 255, .1), transparent); }
+    .hd-nhi { width: 40px; height: auto; filter: drop-shadow(0 0 6px rgba(95, 224, 255, .5)); }
+    .hd-nht { display: grid; min-width: 0; } .hd-nht b { font: 800 16px/1.1 var(--f-head, serif); letter-spacing: .16em; color: #9be9ff; text-shadow: 0 0 10px rgba(95, 224, 255, .6); }
+    .hd-nht span { font-size: 12px; color: #8fa6bd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hd-nx { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(95, 224, 255, .5); background: rgba(95, 224, 255, .08); color: #bfefff; font-size: 16px; cursor: pointer; }
+    .hd-nx:hover, .hd-nx:focus-visible { background: rgba(95, 224, 255, .22); outline: none; box-shadow: 0 0 0 2px #5fe0ff; }
+    .hd-nav { grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+    .hd-nav button { flex: none; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(95, 224, 255, .35); background: rgba(95, 224, 255, .06); color: #bfefff; font: 600 12px/1.3 var(--f-body, sans-serif); letter-spacing: .02em; cursor: pointer; }
+    .hd-nav button:hover, .hd-nav button:focus-visible { background: rgba(95, 224, 255, .2); outline: none; border-color: #5fe0ff; }
+    #panel .hd-card.hd-notes .hd-in { flex: 1; padding: 14px 16px 18px; background: none; }
+    #panel .hd-card.hd-notes .hd-in > * { margin-top: 0; margin-bottom: 14px; }
+    #panel .hd-card.hd-notes [data-sec] { position: relative; padding: 10px 12px; border: 1px solid rgba(95, 224, 255, .22); border-radius: 10px; background: rgba(13, 21, 34, .75); box-shadow: inset 3px 0 0 rgba(95, 224, 255, .55); }
+    #panel .hd-card.hd-notes [data-sec]:is(.help-row, .compass, [class^="rc-"])::before { content: attr(data-sec); display: block; margin: 0 0 6px; font: 700 10.5px/1 var(--f-body, sans-serif); letter-spacing: .14em; text-transform: uppercase; color: #5fe0ff; }
+    #panel .hd-card.hd-notes :is(.q-ctx, .qr-lbl) { color: #5fe0ff; }
+    #panel .hd-card.hd-notes :is(summary, details) { color: #dbe8f5; }
+    #panel .hd-card.hd-notes :is(.qr-peek, .muted, .small) { color: #a9bccf; }
+    #panel .hd-card.hd-notes a { color: #9be9ff; }
+    #panel .hd-card.hd-notes :is(.whynot, .q-src, .nots, .q-recap, .compass) { border-style: solid !important; }
+    #panel .hd-card.hd-notes :is(.opt, .ghost, .row button, .help-b):not(.primary):not(.hd-nx) { background: rgba(95, 224, 255, .07); color: #dbe8f5; border: 1px solid rgba(95, 224, 255, .4); box-shadow: none; }
+    #panel .hd-card.hd-notes :is(.opt, .ghost, .help-b):not(.hd-nx):hover { background: rgba(95, 224, 255, .18); }
+    #panel .hd-card.hd-notes .helpbox { background: rgba(95, 224, 255, .06); color: #dbe8f5; border-color: rgba(95, 224, 255, .3); }
+    #panel .hd-card.hd-notes .hn-hp, #panel .hd-card.hd-notes .hn-hp * { color: #a9bccf; }
+    #panel .hd-card.hd-notes .help-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    #panel .hd-card.hd-notes .help-row::before { flex-basis: 100%; }
+    #panel .hd-card.hd-notes .src-badge.un { background: #3a2c10; color: #f0d68a; }
     @media (prefers-reduced-motion: reduce) {
-      .hd-stamp.slam .verdict { animation: none !important; }
+      .hd-stamp.slam .verdict, .hd-nbk img { animation: none !important; }
       .hd-spr, .hd-mon.rattle .hd-jar, .hd-mon.rattle .hd-spr, .hd-mon.loose.rattle .hd-jar, .hd-card.hd-drop { animation: none !important; }
       .hd-mon.cowed .hd-spr { transition: none; }
     }
