@@ -187,11 +187,16 @@
   M.askFormat = async function (item, opts) {
     opts = opts || {};
     if (!SD.qf || !item) return null;
-    const r = await SD.qf.ask(item, { shell: true, title: opts.title, context: opts.context, stakes: M.STAKES });
+    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols).
+    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols'];
+    const qo = { shell: true, title: opts.title, context: opts.context, stakes: M.STAKES };
+    pass.forEach(k => { if (opts[k] !== undefined) qo[k] = opts[k]; });
+    const r = await SD.qf.ask(item, qo);
     if (!r) return null;
     const scored = !!r.scored, ok = r.ok === true, conf = [0, 1, 2].includes(r.conf) ? r.conf : 0;
     const out = { ok: scored ? ok : r.ok !== false, conf, pts: scored ? M.stake(ok, conf) : 0, scored, mode: r.mode, fmt: true };
     if (r.partial != null) out.partial = r.partial;
+    if (r.col) { out.col = r.col; out.row = r.row; }
     if (scored && opts.tally) M.note(opts.tally, ok, conf);
     return out;
   };

@@ -191,9 +191,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // Compare with several deciding rows (keys[]): any of them is right.
   const cmp = await page.evaluate(() => {
     SD.qf.exposure('compare').known = true; window.__fr = null;
-    const base = SD.fmtItems.find(i => i.type === 'compare'), other = base.rows.findIndex((r, i) => i !== base.key);
+    const base = SD.fmtItems.find(i => i.type === 'compare' && !i.keys), other = base.rows.findIndex((r, i) => i !== base.key);
     const it = Object.assign({}, base, { id: 'test-keys', keys: [base.key, other] });
-    SD.modes.askFormat(it, { title: 'TEST' }).then(r => { window.__fr = r; });
+    SD.modes.askFormat(it, { title: 'TEST', bands: true }).then(r => { window.__fr = r; });
     return [it.a, other, SD.qf.keysOf(it).length, SD.qf.keysOf(base).length];
   });
   await page.waitForSelector('#panel .qf');
@@ -201,6 +201,43 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Deciding rows \(any one is right\)/.test(await page.textContent('#panel')), 'compare lists every deciding row in its feedback');
   await page.click('#q-next'); await page.waitForTimeout(30);
   check(cmp[2] === 2 && cmp[3] === 1 && await page.evaluate(() => window.__fr && window.__fr.ok === true), 'compare: a second deciding row counts as right (keys[]), and items with one key still work');
+
+  // Compare options for modes: colFirst, the phone row bands, gradeOn 'col', feedback off, a note, practice,
+  // mode 'scored' and shuffleCols.
+  const c1 = await page.evaluate(() => {
+    SD.qf.resetExposure(); window.__fr = null;
+    const it = SD.fmtItems.find(i => i.id === 'fmt-compare-01');
+    SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', colFirst: true, gradeOn: 'col', feedback: false }).then(r => { window.__fr = r; });
+    return [it.a, it.rows.findIndex((r, i) => !SD.qf.keysOf(it).includes(i))];
+  });
+  await page.waitForSelector('#panel .qf');
+  check(!await page.$('#qf-got') && !await page.$('.qf-hint'), 'mode "scored" skips the worked and hint rounds, even for a new format');
+  check(!await page.$('.qf-bands, .qf-cmp-grid, .qf-card') && (await page.$$('.qf-cols [data-qf-col]')).length === 3, 'colFirst: only the stem and the column names before a pick');
+  await page.click(`[data-qf-col="${c1[0]}"]`);
+  check(await page.$$eval('.qf-bands .qf-band:not(.qf-band-head)', b => b.length === 4 && b.every(x => x.querySelectorAll('.qf-band-c').length === 3)), 'after the pick, a phone shows each row as a band with its three cells side by side');
+  check(!await page.$('.qf-bands [data-qf-col]'), 'and the column pick holds once the table shows');
+  await noHScroll('compare bands');
+  await shot('compare-bands');
+  await page.click(`[data-qf-row="${c1[1]}"]`); await page.click('#qf-submit'); await page.click('[data-c="2"]'); await page.waitForTimeout(30);
+  const cr1 = await page.evaluate(() => [window.__fr, document.querySelector('#panel').hidden]);
+  check(cr1[1] && cr1[0] && cr1[0].ok === true && cr1[0].pts === 3 && cr1[0].col.ok === true && cr1[0].row.ok === false && cr1[0].row.pick === c1[1], 'gradeOn "col": the column is graded and staked, the row is reported apart, and feedback: false skips the feedback screen');
+  await page.evaluate(() => { window.__fr = null; const it = SD.fmtItems.find(i => i.id === 'fmt-compare-01'); SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', practice: true, note: 'Duel note line.', bands: true }).then(r => { window.__fr = r; }); });
+  await page.waitForSelector('#panel .qf');
+  check(!!await page.$('.qf-hint .qf-practice') && !await page.$('.qf-hint-t'), 'practice: true shows the Practice label, with no hint round');
+  check(!await page.$('.qf-car') && (await page.$$('.qf-band-head [data-qf-col]')).length === 3, 'bands: true replaces the swipe cards on a phone, with the column picks on the band header');
+  await page.click('.qf-band-head [data-qf-col="0"]');
+  await page.click('[data-qf-row="2"]'); await page.click('#qf-submit'); await page.click('[data-c="1"]');
+  check(/Duel note line\./.test(await page.textContent('#panel .qf-note')), 'opts.note adds one line to the feedback screen');
+  await page.click('#q-next'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.scored === false && window.__fr.pts === 0), 'and a practice item is never scored');
+  const sh = await page.evaluate(() => {
+    const it = SD.fmtItems.find(i => i.id === 'fmt-compare-10'); const orders = new Set(); let same = true;
+    for (let n = 0; n < 40; n++) { const s = SD.qf.shuffleCompare(it); orders.add(s.cols.join('|')); same = same && s.cols[s.a] === it.cols[it.a] && s.cells.every((r, ri) => r.every((c, ci) => c === it.cells[ri][s.colMap[ci]])) && (s.no || []).every((w, ci) => w === (it.no || [])[s.colMap[ci]]); }
+    return [orders.size, same];
+  });
+  check(sh[0] > 1 && sh[1], `shuffleCols: columns come in new orders (${sh[0]} seen) with answer, cells and "why not" lines moved with them`);
+  const k5 = await page.evaluate(() => ['01', '03', '10', '20', '21'].map(n => SD.qf.keysOf(SD.fmtItems.find(i => i.id === 'fmt-compare-' + n)).join(',')).join(' '));
+  check(k5 === '2,0 1,2 1,0,2 0,1,2 1,0,2', 'the Duel\'s deciding rows are on items 01, 03, 10, 20 and 21 (' + k5 + ')');
 
   // ---- Calibration ----
   const cal = await page.evaluate(() => { const t = { 0: [1, 4], 1: [3, 5], 2: [2, 5] }; const d = document.createElement('div'); d.innerHTML = SD.modes.calibHtml(t); return [[...d.querySelectorAll('tr')].map(tr => [...tr.children].map(x => x.textContent.trim()).join(' ')).join(' | '), SD.modes.points(t)]; });
