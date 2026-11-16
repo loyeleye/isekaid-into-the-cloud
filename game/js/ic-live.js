@@ -153,6 +153,7 @@
       ['pointerdown', 'keydown'].forEach(e => document.removeEventListener(e, wake, true));
       if (el) el.remove();
       const vn = document.getElementById('icl-vn'); if (vn) vn.remove();
+      const bb = document.getElementById('icl-bubble'); if (bb) bb.remove();
       document.body.classList.remove('icl-on', 'icl-beat');
       return false;
     }
@@ -161,9 +162,10 @@
       el.innerHTML = `<picture class="icl-room"><source media="(orientation: portrait)" srcset="${IMG}room-tall.webp"><img src="${IMG}room-wide.webp" alt="" draggable="false"></picture>
         <div class="icl-upt"><img class="icl-ub" src="${IMG}uptima-body.webp" alt="" draggable="false">
           <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%">
-        <span class="icl-snot" aria-hidden="true"></span></div>
-        <div class="icl-bubble" hidden></div>`;
+        <span class="icl-snot" aria-hidden="true"></span></div>`;
       stage.appendChild(el);
+      // Her bubble floats above the work (the panel's wash would dim it), so it lives on the body like the talk box.
+      const bub = document.createElement('div'); bub.id = 'icl-bubble'; bub.className = 'icl-bubble'; bub.hidden = true; document.body.appendChild(bub);
       FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
       POSES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-pose-${f}.webp`; });
       blinkSoon();
@@ -195,7 +197,7 @@
   function speak(line, mood) {
     if (mood) UP.mood = mood;
     paintFace();
-    const bub = document.querySelector('#icl-scene .icl-bubble');
+    const bub = document.getElementById('icl-bubble');
     if (bub && line && line !== UP.line) { bub.hidden = false; bub.textContent = line; talk(line); }
     else if (bub && !line) bub.hidden = true;
     UP.line = line || '';
@@ -287,7 +289,8 @@
           ${tappable ? `<span class="icl-tap small">${open === p ? 'Close' : knobs.length ? 'Evidence and settings' : 'Evidence'}</span>` : ''}</button>
         ${open === p ? partOpen(s, x, p, knobs) : ''}</div>${arrow}`;
     }).join('');
-    return `<div class="icl-machine" role="group" aria-label="The request path">${parts}</div>`;
+    const cols = x.parts.length + x.parts.filter((p, i) => i < x.parts.length - 1 && !(p === 'pool' || p === 'reports')).length;
+    return `<div class="icl-machine" role="group" aria-label="The request path" style="--cols:${cols}">${parts}</div>`;
   }
   function partOpen(s, x, p, knobs) {
     const ev = x.evidence[p];
@@ -534,19 +537,58 @@
     @keyframes icl-snot { 0%, 100% { transform: scale(.35); } 55% { transform: scale(1.15); } }
     @keyframes icl-pop { 0% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
     @keyframes icl-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.004, 1.012) translateY(-1px); } }
-    .icl-bubble { position: absolute; z-index: 2; right: calc(4vw + min(calc(100vh - 70px), 1000px) * .5); top: calc(70px + 6vh); max-width: min(340px, 30vw); padding: 12px 16px; border-radius: 14px;
+    .icl-bubble { position: fixed; z-index: 21; pointer-events: none; right: calc(4vw + min(calc(100vh - 70px), 1000px) * .5); top: calc(70px + 6vh); max-width: min(340px, 30vw); padding: 12px 16px; border-radius: 14px;
       background: #fbf5e3; color: #2a2018; font-size: 16px; line-height: 1.4; box-shadow: 0 6px 16px rgba(0, 0, 0, .55); }
     .icl-bubble::after { content: ''; position: absolute; right: -14px; top: 22px; border: 8px solid transparent; border-left: 14px solid #fbf5e3; border-right: 0; }
     .icl-bubble[hidden] { display: none; }
+    body:has(#panel .win.quiz) .icl-bubble, body:has(#panel[hidden]) .icl-bubble { display: none; }
     /* Wide: the work on the left, Uptima standing on the right, the room lit around her. */
     @media (min-width: 900px) {
       body.icl-on[data-stage="ic"] #panel .win { background: linear-gradient(90deg, rgba(14, 9, 5, .88), rgba(14, 9, 5, .8) 50%, rgba(14, 9, 5, .1) 66%, transparent 75%) !important; }
       body.icl-on[data-stage="ic"] #panel .win-b { padding-left: max(16px, 3vw) !important; padding-right: calc(4vw + min(calc(100vh - 70px), 1000px) * .56 + 24px) !important; }
       body.icl-on[data-stage="ic"] #panel .win.quiz .win-b { padding-left: max(16px, calc((100% - 760px) / 2)) !important; padding-right: max(16px, calc((100% - 760px) / 2)) !important; }
-      body.icl-on .icl-cols { display: block; }
+      body.icl-on.in-mode .icl-cols { display: block; }
       body.icl-on #panel .ic-say { display: none; }
+      /* Her bubble sits left of her head, in a top band the page text keeps clear of, so it never covers the work. */
+      .icl-bubble { right: calc(4vw + min(calc(100vh - 70px), 1000px) * .4); top: calc(70px + 12px); max-width: min(360px, 28vw); }
+      body.icl-on #panel .win:not(.quiz) .icl-a { margin-right: max(0px, calc(min(360px, 28vw) - min(calc(100vh - 70px), 1000px) * .16 + 8px)); min-height: 150px; }
     }
-    @media (min-width: 1700px) { body.icl-on .icl-cols { display: grid; } }
+    /* The wall board (wide screens): the parts hang on the wall map as things in the camp, joined by a rope, with
+       brass name plaques and red tags for trouble. Tapping one pins a paper tag under the row with its log and control. */
+    @media (min-width: 1180px) {
+      body.icl-on .icl-machine { display: grid; grid-template-columns: repeat(var(--cols), auto); grid-template-rows: auto auto; justify-content: start; align-items: start; gap: 6px 4px; margin: 10px 0 14px; }
+      body.icl-on .icl-part { display: contents; }
+      body.icl-on .icl-ph { grid-row: 1; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 4px; width: auto; max-width: 180px; min-width: 112px; padding: 6px 4px; text-align: center; border-radius: 10px; color: #f3e9d2; text-shadow: 0 2px 3px #000; cursor: pointer; }
+      body.icl-on .icl-ph:not(:disabled):hover, body.icl-on .icl-part.open .icl-ph { background: rgba(233, 197, 109, .14); box-shadow: inset 0 0 0 2px rgba(233, 197, 109, .55); }
+      body.icl-on .icl-ph .icl-art { width: 92px; height: 92px; filter: drop-shadow(0 5px 5px rgba(0, 0, 0, .7)); }
+      body.icl-on .icl-part.hot .icl-art { filter: drop-shadow(0 0 12px rgba(255, 70, 50, .95)) drop-shadow(0 4px 4px #000); }
+      body.icl-on .icl-ph > b { display: inline-block; padding: 2px 10px; border-radius: 5px; background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; text-shadow: none; border: 2px solid #140b05; font-size: 15px; }
+      body.icl-on .icl-ph .icl-set { border: 0; background: rgba(20, 12, 6, .78); color: #efe6d2; text-shadow: none; }
+      body.icl-on .icl-ph .icl-did { padding: 1px 8px; border-radius: 10px; background: #a8322a; color: #fff; text-shadow: none; font-size: 12px; }
+      body.icl-on .icl-part:not(.hot) .icl-did { background: #2f7a3c; }
+      body.icl-on .icl-ph .icl-stools { justify-content: center; width: 200px; padding: 4px; border-radius: 8px; background: rgba(20, 12, 6, .55); }
+      body.icl-on .icl-ph .icl-stool { width: 18px; height: 18px; }
+      body.icl-on .icl-ph .icl-flow { justify-content: center; }
+      body.icl-on .icl-ph .icl-tap { margin: 0; font-size: 12px; color: #e9c56d; }
+      body.icl-on .icl-arrow { grid-row: 1; align-self: start; width: 36px; margin-top: 44px; height: 0; overflow: hidden; color: transparent; border-top: 4px dashed #e9c56d; opacity: .8; }
+      body.icl-on .icl-open { grid-row: 2; grid-column: 1 / -1; position: relative; max-width: 560px; padding: 12px 14px; color: #2a2018; text-shadow: none; background: #f8f0da; border-radius: 4px; box-shadow: 0 8px 20px rgba(0, 0, 0, .6); }
+      body.icl-on .icl-open .muted { color: #6b5a40; }
+      body.icl-on .icl-open .icl-sb { background: rgba(60, 40, 20, .15); }
+      body.icl-on .icl-open .icl-none, body.icl-on .icl-open .icl-tk, body.icl-on .icl-open .icl-tb { background: #fff8e6; color: #2a2018; border-color: #6b4f22; }
+      /* The lever stays in reach while a tag is open. */
+      body.icl-on .icl-b > .row { position: sticky; bottom: 8px; z-index: 3; }
+      body.icl-on .icl-open .icl-sb.res { background: rgba(80, 120, 200, .3); }
+      body.icl-on .icl-open .icl-chg { color: #8a5608; }
+      body.icl-on .icl-open .icl-knob.changed { border-left-color: #a67c2c; }
+      /* The page and the HUD as a brass plaque and a pager note; the guess in her talk box. */
+      body.icl-on .icl-hud { display: inline-block; padding: 6px 12px; border-radius: 6px; background: rgba(20, 12, 6, .85); border: 2px solid #e9c56d; }
+      body.icl-on .icl-pred { position: relative; margin: 18px 0 8px; padding: 18px 18px 14px; color: #2a2018; text-shadow: none; border: 2px solid #140b05; border-radius: 12px;
+        background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 0 0 2px rgba(233, 197, 109, .6), 0 10px 24px rgba(0, 0, 0, .55); }
+      body.icl-on .icl-pred::before { content: 'Uptima'; position: absolute; top: -15px; left: 16px; padding: 2px 12px; border-radius: 6px; background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; font-size: 13px; letter-spacing: .06em; border: 2px solid #140b05; }
+      body.icl-on .icl-pred .muted { color: #6b5a40; }
+      body.icl-on .icl-pred .icl-vals button { min-width: 64px; min-height: 48px; font-size: 20px; font-weight: 800; background: #fff8e6; color: #2a2018; border-color: #6b4f22; }
+      body.icl-on .icl-pred .icl-conf button { color: #2a2018; border-color: #6b4f22; background: #fff8e6; }
+    }
     /* Narrow: she stands behind the work, dimmed, and the note carries her words. */
     @media (max-width: 899px) {
       .icl-upt { right: -14vw; height: 74vh; opacity: .5; }
