@@ -834,7 +834,11 @@
         <p class="small">A miss comes back changed, tonight if there's room, first thing tomorrow if not. It saves after every step: stop any time.</p>` }
     ];
   }
+  // From Nov 16 the Cup is the Counterfeit Table (js/mode-table.js). A night saved under these old rules finishes
+  // the old way; every new night opens the table.
+  DU.oldNight = () => { const s = night(); return !!(s && s.v === 1 && s.phase !== 'done' && s.n === store().nights + 1); };
   DU.start = async function () {
+    if (!DU.oldNight() && SD.duelTable && !DU.forceOld) return SD.duelTable.start();
     let s = night();
     if (s && s.v === 1 && s.phase !== 'done' && s.n === store().nights + 1) {
       s.tick = Date.now();
@@ -932,9 +936,9 @@
 
   M.register({
     id: ID, name: 'The Look-Alike Cup', minutes: '15 to 20', host: 'Kagemaru, after the market shuts',
-    blurb: 'A board game at his stall. Name the real service to place a stone; three in a line wins.',
+    blurb: 'A board game at his stall. Every square is a job: lay a service pin that really does it, or call his pin a fake. Three in a line wins.',
     start: DU.start, sim: DU.sim,
-    status: () => { const s = night(); return s && s.v === 1 && s.phase !== 'done' && s.n === store().nights + 1 ? `Resume · night ${s.n}${s.b ? `, board ${s.boards.length + 1}` : ''}` : ''; }
+    status: () => { const s = night(); return DU.oldNight() ? `Resume · night ${s.n}${s.b ? `, board ${s.boards.length + 1}` : ''}` : SD.duelTable ? SD.duelTable.status() : ''; }
   });
 
   const css = document.createElement('style');
