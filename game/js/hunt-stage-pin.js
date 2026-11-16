@@ -178,7 +178,6 @@
        screen, which would leave it at the left edge, in front of Bru. */
     .hd-scene.hd-st-pin .hd-jars { left: auto !important; right: var(--hd-fx, 6%) !important; }
     .hd-scene.hd-st-pin.hd-fb.hd-wide .hd-verdict { left: var(--hdp-tx, 40%) !important; top: auto !important; bottom: var(--hdp-tb, 90px); }
-    .hd-scene.hd-st-pin.hd-fb:not(.hd-wide) .hs-say.hd-say { margin-top: var(--hdp-wh, 0px); max-height: calc(var(--hd-sh, 400px) - var(--hdp-wh, 0px)); }
     .hd-scene.hd-st-pin .hd-stamp .hn-pts { padding: 2px 10px; border: 2px solid #f0d68a; border-radius: 14px; background: rgba(10, 8, 6, .72); color: #f0d68a; font-weight: 800; text-shadow: none; opacity: 1; }
     /* The poster in the street, over the monster: shown once you've thrown */
     .hd-st-pin .hdp-board { display: none; position: relative; width: var(--hdp-bw, 240px); margin: 0 0 8px; transform-origin: 50% 0; }

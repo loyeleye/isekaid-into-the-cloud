@@ -85,14 +85,8 @@
     const say = scene.querySelector('.hd-say'), ver = scene.querySelector('.hd-verdict'), bru = scene.querySelector('.hs-bru'), foe = scene.querySelector('.hd-foe');
     const rel = el => { const r = el.getBoundingClientRect(); return { l: r.left - sr.left, t: r.top - sr.top, r: r.right - sr.left, b: r.bottom - sr.top, w: r.width, h: r.height }; };
     if (!say || !ver) return;
-    if (wide) {
-      // The stamp column (stamp, badges, notes) stands top right; the line ends left of it.
-      const wh = scene.parentElement && scene.parentElement.querySelector(':scope > .win-h');
-      ver.style.setProperty('--hd-ty', Math.round(Math.max(6, wh ? wh.getBoundingClientRect().bottom - sr.top + 10 : 6)) + 'px');
-      const v = rel(ver), s = rel(say);
-      const sw = Math.round(Math.max(260, v.l - s.l - 20));
-      if (Math.abs(sw - s.w) > 2) say.style.setProperty('--hd-sw', sw + 'px');
-    } else {
+    // Wide: hunt-debrief.js lays the stamp column over her line already.
+    if (!wide) {
       // Under the stamp column (its notes button shows after the first layout), not under the button.
       const v = rel(ver), top = Math.round(v.b + 10), cur = parseFloat(say.style.top) || 0;
       if (top > cur + 1) {

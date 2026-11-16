@@ -360,14 +360,27 @@
       const fbw = fbh * 475 / 900, stamp = sc.querySelector('.hd-verdict');
       if (wide) {
         const x = bl + fbw * .78;
+        if (st.bt) {
+          // A fight: the foe holds the right of the street, so the stamp column (stamp, badges, notebook) sits over
+          // her line, under the title bar, and her line runs below it up to the foe.
+          const wh = win.querySelector(':scope > .win-h'), ty = 8 + (wh && getComputedStyle(wh).position !== 'absolute' ? wh.offsetHeight : 0);
+          const fs = parseFloat(jars.style.getPropertyValue('--hd-fs')) || 200, sw = Math.max(300, Math.min(640, W - x - fs - W * .06 - 40));
+          set(stamp, '--hd-tx', x); set(stamp, '--hd-ty', ty);
+          const sTop = Math.max(ty + (stamp.offsetHeight || 120) + 10, Math.round(H - fbh * .98));
+          set(say, '--hd-sx', x); set(say, '--hd-sw', sw); say.style.top = sTop + 'px';
+          set(say, '--hd-sh', Math.max(120, satTop - sTop - 16)); say.style.removeProperty('--hd-sb');
+        } else {
         set(say, '--hd-sx', x); set(say, '--hd-sw', Math.min(640, W - x - js - 60)); say.style.top = Math.round(H - fbh * .98) + 'px';
         set(say, '--hd-sh', Math.max(120, satTop - (H - fbh * .98) - 16)); say.style.removeProperty('--hd-sb');
         set(jars, '--hd-jx', x + Math.min(640, W - x - js - 60) + 24);
         set(stamp, '--hd-tx', x + Math.min(640, W - x - js - 60) + 8); set(stamp, '--hd-ty', Math.max(10, H - fbh * .98 - 6));
+        }
       } else {
-        set(say, '--hd-sx', 8); set(say, '--hd-sw', W - 16); const sTop = (stamp.offsetHeight || 60) + 18; say.style.top = sTop + 'px';
+        const wh = win.querySelector(':scope > .win-h'), ty = 8 + (wh && getComputedStyle(wh).position !== 'absolute' ? wh.offsetHeight : 0);
+        set(stamp, '--hd-tx', 12); set(stamp, '--hd-ty', ty);
+        // Her line starts under the stamp column (stamp, badges, notebook), wherever the title bar put it.
+        set(say, '--hd-sx', 8); set(say, '--hd-sw', W - 16); const sTop = ty + (stamp.offsetHeight || 60) + 10; say.style.top = sTop + 'px';
         set(say, '--hd-sh', Math.max(60, H - fbh * .97 - sTop - 14));
-        const wh = win.querySelector(':scope > .win-h'); set(stamp, '--hd-tx', 12); set(stamp, '--hd-ty', 8 + (wh && getComputedStyle(wh).position !== 'absolute' ? wh.offsetHeight : 0));
         jars.style.right = '8px'; set(jars, '--hd-jb', H - satTop + 4);
       }
       sc.classList.toggle('hd-wide', wide); sc.classList.add('hd-fb'); sc.classList.toggle('hd-quiet', notes && !wide);
@@ -487,7 +500,7 @@
     .hd-sat .q-foot .cred-more { color: #e6d3a6; }
     .hd-sat > #q-confirm { margin: 0 0 12px; width: 100%; }
     /* The fight: it squares up across the street; the answers are Bru's attack cards */
-    .hd-scene.hd-battle .hd-jars { left: auto !important; right: var(--hd-fx, 6%); bottom: var(--hd-jb, 30%); }
+    .hd-scene.hd-battle .hd-jars { left: auto !important; right: var(--hd-fx, 6%) !important; bottom: var(--hd-jb, 30%); }
     .hd-foe .hd-jar { width: var(--hd-fs, 170px); height: var(--hd-fs, 170px); }
     .hd-foe .hd-spr { width: 100%; animation: hdSquare 1.8s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255, 70, 40, .7)) drop-shadow(0 10px 6px rgba(0, 0, 0, .7)) !important; transform-origin: 50% 90%; }
     @keyframes hdSquare { 50% { transform: translateY(-5px) scale(1.03, .98); } }
@@ -519,6 +532,7 @@
       box-shadow: inset 0 0 0 2px #1a1218, 0 0 0 2px rgba(255, 120, 60, .4), 0 0 18px rgba(255, 100, 40, .6), 0 3px 0 #0c0a10; transform: translateY(-4px); }
     /* The verdict beat */
     .hd-verdict { position: absolute; z-index: 5; left: var(--hd-tx, 10px); top: var(--hd-ty, 8px); pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .hd-scene.hd-battle.hd-wide.hd-fb .hd-verdict { flex-direction: row; align-items: center; gap: 18px; }
     .hd-stamp:empty { display: none; }
     /* The notebook under the verdict: tap it for the rest of the feedback */
     .hd-nbk { pointer-events: auto; display: flex; align-items: center; gap: 8px; margin: 2px 0 0 14px; padding: 4px 12px 4px 4px; border: 0; border-radius: 30px; background: rgba(8, 14, 24, .72); box-shadow: 0 0 0 1px rgba(95, 224, 255, .35), 0 6px 14px rgba(0, 0, 0, .5);
