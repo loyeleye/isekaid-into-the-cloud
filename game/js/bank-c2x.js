@@ -33,7 +33,7 @@ SD.bank.push(
       "Read the receipt handle, which SQS lengthens by one segment on every delivery, and count its segments each time."
     ], a: 1,
     no: [
-      "Other consumers deliver the same message too, and a restart loses the counts.",
+      "A restart loses the counts, and deliveries to any other consumer are never counted.",
       null,
       "A message can wait in the queue without being received, so elapsed time doesn't count deliveries.",
       "A receipt handle is an opaque token that changes on each receive; its length means nothing."],

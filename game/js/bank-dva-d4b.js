@@ -231,12 +231,12 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/adding-cloudfront-headers.html", "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-origin-requests.html"] },
 
   { id: "dva-4-217", exam: "DVA", dva: "4.3", topic: "cloudfront", type: "multi", hint: "Select TWO.",
-    q: "A single-page app is served from S3 through CloudFront with a 24-hour TTL. After a release, users keep getting the old /js/app.js for up to a day. The team releases several times a week. Which approaches make users get the new file after a release? (Select TWO.)",
+    q: "A single-page app is served from S3 through CloudFront with a 24-hour minimum TTL. After a release, users keep getting the old /js/app.js for up to a day. The team releases several times a week. Which approaches make users get the new file after a release? (Select TWO.)",
     items: [
       { t: "Give each release's file a versioned name, such as app.4f2c1.js, and update index.html to reference it.", ok: true },
       { t: "Create a CloudFront invalidation for the /js/app.js path as a step in each release's deployment.", ok: true },
       { t: "Turn on S3 Versioning for the bucket, so that CloudFront can tell when a new app.js is uploaded.", ok: false, no: "CloudFront serves its cached copy until it expires and doesn't check S3 for new versions." },
-      { t: "Upload the new app.js with a Cache-Control: no-cache header, so that edge locations fetch it from S3 again.", ok: false, no: "The header applies only once the new object is fetched. Copies of the old object stay cached until they expire." },
+      { t: "Upload the new app.js with a Cache-Control: no-cache header, so that edge locations fetch it from S3 again.", ok: false, no: "With a minimum TTL above 0, CloudFront ignores no-cache, and copies of the old object stay cached until they expire." },
       { t: "Enable Origin Shield on the S3 origin, so that the edge locations share one up-to-date cache layer.", ok: false, no: "Origin Shield reduces load on the origin. Edge locations still serve their cached old copy." }
     ],
     why: "An invalidation removes the file from edge caches, and a new file name is a new cache key. AWS recommends versioned names for frequent updates: they also beat browser and proxy caches and avoid invalidation charges.",

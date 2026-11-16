@@ -206,7 +206,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-benefits.html", "https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-health-checks.html"] },
 
   { id: "saa-2-07", exam: "both", dva: "1.1", saa: "2.1", topic: "caching", type: "mc",
-    q: "A web app keeps user sessions in each EC2 instance's memory. When Auto Scaling removes an instance, its users are logged out. The company wants scaling to be invisible to users. What should a solutions architect do?",
+    q: "A web app keeps user sessions in each EC2 instance's memory. When Auto Scaling removes an instance, its users are logged out. The company wants to keep scaling in when traffic drops, without logging users out. What should a solutions architect do?",
     opts: [
       "Store the sessions in ElastiCache or DynamoDB, so that any instance can read any user's session.",
       "Turn on sticky sessions at the load balancer, so each user stays on the same instance.",
@@ -215,10 +215,10 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Users are still logged out when their instance is removed.",
-      "That pays for peak capacity all the time, and sessions are still lost when an instance fails.",
+      "Then the group can't scale in when traffic drops, and sessions are still lost when an instance fails.",
       "The volume belongs to one instance, so other instances can't read those sessions."],
     why: "Keeping session state outside the instances makes the web tier stateless, so any instance can serve any request and instances can come and go.",
-    doc: ["https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/elasticache-use-cases.html"] },
+    doc: ["https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_mitigate_interaction_failure_stateless.html", "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/elasticache-use-cases.html"] },
 
   // Domain 3: Design High-Performing Architectures (24%)
   { id: "saa-3-01", exam: "SAA", saa: "3.1", topic: "efs", type: "mc",

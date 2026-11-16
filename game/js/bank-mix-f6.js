@@ -350,9 +350,9 @@ SD.bank.push(
 
   // DVA Domain 4
   { id: "dva-4-501", exam: "DVA", dva: "4.1", topic: "qdeveloper", type: "mc",
-    q: "A developer gets an error in the AWS Lambda console while adding an SQS trigger to a function. The developer wants an explanation of the error's likely cause and step-by-step instructions to fix it, generated inside the console, without opening a support case. The developer's IAM role already allows the Amazon Q troubleshooting actions. What should the developer do?",
+    q: "A developer gets an error in the AWS Lambda console while adding an SQS trigger to a function. The developer wants an explanation of the error's likely cause and step-by-step instructions to fix it, generated inside the console, without opening a support case. The developer's IAM role already allows the console error diagnosis actions. What should the developer do?",
     opts: [
-      "Choose the Diagnose with Amazon Q button in the error message, and follow the resolution steps that Amazon Q Developer provides.",
+      "Choose the Diagnose with AWS assistant button in the error message, and follow the steps to fix it that the AWS assistant gives.",
       "Search the CloudTrail event history for the failed API call, and read its error code to work out which permission is missing.",
       "Run IAM Access Analyzer policy generation on the function's execution role to build a policy from the role's recent activity.",
       "Open AWS Trusted Advisor, and review its checks for the function to find the configuration problem that caused the error."
@@ -361,6 +361,6 @@ SD.bank.push(
       "CloudTrail shows the call and its error code, but it doesn't explain the cause or give steps to fix it.",
       "Policy generation builds a policy from CloudTrail activity over a period of time. It doesn't diagnose an error in the console.",
       "Trusted Advisor checks an account against best practices. It doesn't diagnose a specific console error."],
-    why: "When Amazon Q Developer can help with a console error, the error message shows a Diagnose with Amazon Q button. Amazon Q explains the error and gives steps to resolve it, for common errors in consoles such as Lambda, EC2, ECS, S3 and Step Functions.",
-    doc: ["https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/diagnose-console-errors.html"] }
+    why: "When a supported console error occurs, the error message shows a Diagnose with AWS assistant button. The AWS assistant explains the error and gives steps to fix it, for errors in consoles such as Lambda, EC2, ECS, S3 and Step Functions, and for IAM permission errors on any console page.",
+    doc: ["https://docs.aws.amazon.com/assistant/latest/userguide/diagnose-errors.html"] }
 );

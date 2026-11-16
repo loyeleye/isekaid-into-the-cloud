@@ -214,11 +214,11 @@ SD.bank.push(
 
   // Step Functions
   { id: "dva-1-115", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "multi", hint: "Select TWO.",
-    q: "A Task state calls a Lambda function that sometimes throws RateLimited, which passes on its own after a short wait, and sometimes throws InvalidOrder, which never succeeds on a retry. RateLimited must be retried up to 4 times with growing waits. Any error that remains must go to a NotifyFailure state. Which should the developer add to the Task state? (Select TWO.)",
+    q: "A Task state calls a Lambda function that sometimes throws RateLimited, which passes on its own after a short wait, and sometimes throws InvalidOrder, which never succeeds on a retry. RateLimited must be retried up to 4 times with growing waits, and InvalidOrder must not be retried. Any error that remains must go to a NotifyFailure state. Which should the developer add to the Task state? (Select TWO.)",
     items: [
       { t: "A Retry field with ErrorEquals [\"RateLimited\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: true },
       { t: "A Catch field with ErrorEquals [\"States.ALL\"] and Next set to \"NotifyFailure\".", ok: true },
-      { t: "A Retry field with ErrorEquals [\"States.ALL\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: false, no: "That also retries InvalidOrder four times, which can never succeed and only delays the failure." },
+      { t: "A Retry field with ErrorEquals [\"States.ALL\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: false, no: "That also retries InvalidOrder, which must not be retried and can never succeed." },
       { t: "A Choice state after the task that checks $.errorType and goes to NotifyFailure when it is set.", ok: false, no: "An uncaught error fails the execution. It never reaches the next state as data." },
       { t: "A TimeoutSeconds of 4 on the task, so that each failed attempt ends quickly and the next one starts.", ok: false, no: "A timeout limits how long the task runs. It doesn't retry or route errors." }
     ],
@@ -567,7 +567,7 @@ SD.bank.push(
       "Launch the instance with the configuration and terminate it at once, since a short run is billed for nothing."
     ], a: 0,
     no: [null,
-      "--max-items limits output for list commands. It doesn't stop run-instances from launching.",
+      "--max-items is a pagination option, and run-instances isn't paginated, so it doesn't accept it or check permissions.",
       "Permission to describe instances says nothing about permission to launch them.",
       "It launches an instance, which the developer wants to avoid, and billed time is charged."],
     why: "With --dry-run, EC2 checks permissions without making the request. It returns DryRunOperation if the call would be allowed, and UnauthorizedOperation if not.",
