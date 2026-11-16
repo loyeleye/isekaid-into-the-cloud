@@ -154,8 +154,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     else await page.evaluate(() => { const x = [...document.querySelectorAll('#panel .win button.primary')].pop(); if (x) x.click(); });
   };
 
-  check(!!await page.$('#td-play'), 'the Today card has a Play button');
-  await page.click('#td-play');
+  check(!!await page.$('.tg-card[data-game="duel"]'), 'the title carousel has a Look-Alike Cup card');
+  await page.evaluate(() => SD.modes.open());
   check(/The Look-Alike Cup/.test(await txt('#panel')), 'the picker lists the Look-Alike Cup');
   await page.click('[data-mode="duel"]');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
@@ -262,7 +262,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await fast();
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
-    await page.click('#td-play');
+    await page.evaluate(() => SD.modes.open());
     check(/Resume · night 1/.test(await txt('[data-mode="duel"]')), 'after a reload the picker offers Resume with the night');
     await page.click('[data-mode="duel"]');
     check(/BACK AT THE TABLE/.test(await txt('#panel')), 'resume opens on "Back at the table"');
@@ -304,7 +304,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // Night 3: two boards.
   await page.evaluate(() => { SD.state.save.duel.nights = 2; SD.state.persist(); });
-  await page.click('#td-play');
+  await page.evaluate(() => SD.modes.open());
   await page.click('[data-mode="duel"]');
   await page.waitForSelector('[data-rival]');
   check(/Two boards/.test(await txt('#panel')), 'night 3: two boards and the Last Stand');

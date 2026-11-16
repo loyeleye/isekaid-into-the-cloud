@@ -32,9 +32,9 @@ const ok = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   const title = async () => {
-    await page.waitForSelector('#t-start, #ds-new', { timeout: 30000 });
+    await page.waitForSelector('#t-start, #ds-new', { state: 'attached', timeout: 30000 });
     if (await page.$('#t-start')) await page.click('#t-start');
-    await page.waitForSelector('#ds-new', { timeout: 10000 });
+    await page.waitForSelector('#ds-new', { state: 'attached', timeout: 10000 });
     await page.waitForTimeout(300);
   };
   const bug = () => page.evaluate(() => !!document.querySelector('#ds-dbg'));

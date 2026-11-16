@@ -97,7 +97,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(leak.topics.length === 0 || true, `topics outside a named family go to Wildcard (${leak.topics.length} topics)`);
 
   // ---- The gate ----
-  await page.click('#td-play');
+  await page.evaluate(() => SD.modes.open());
   check(/Exam Sprint/.test(await txt('#panel')), 'the picker lists Exam Sprint');
   check(/Practice patch first/.test(await txt('[data-mode="sprint"]')), 'the picker suggests the practice patch first');
   await page.click('[data-mode="sprint"]');

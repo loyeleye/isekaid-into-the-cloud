@@ -102,8 +102,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- In the picker ----
   check(await page.evaluate(() => !!SD.modes.get('draft')), 'Architect\'s Draft registers with the mode picker');
-  check(!!await page.$('#td-play'), 'the Today card has a Play button');
-  await page.click('#td-play');
+  check(!!await page.$('.tg-card'), 'the title has the games carousel (js/title-games.js)');
+  await page.evaluate(() => SD.modes.open());
   check(!!await page.$('#panel [data-mode="draft"]'), 'the picker lists Architect\'s Draft');
   await shot('picker');
   await page.click('#panel [data-mode="draft"]');
