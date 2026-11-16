@@ -40,36 +40,29 @@
   // whatever the room shows right now, cut out with a matte (room-leads-mask.png, from a segmentation model), so they
   // stand in front of her. While she talks (.rm.talk) all four leads turn see-through and soft over her (see the CSS).
   R.IDLE_POSE = 'smug';
-  const OVER = { x0: .31, x1: .642, y0: .08, y1: .67 }, VX = .010417, VW = .979167;
+  const VX = .010417, VW = .979167;
   R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
-        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="rm-emote"></span></div>
-        <canvas class="rm-over" width="480" height="476" aria-hidden="true"></canvas>`;
+        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()"></span><span class="rm-emote"></span></div>
+        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}</div>
+        <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
   function drawOver(c) {
     const rm = c.closest('.rm'); if (!rm) return;
-    if (!matte) { matte = new Image(); matte.src = 'assets/img/drill/room-leads-mask.png'; }
-    if (!matte.complete || !matte.naturalWidth) return;
+    if (!matte) { matte = new Image(); matte.src = 'assets/img/drill/room-leads-matte.png'; }
+    const im = rm.querySelector('.rm-plate');
+    if (!matte.complete || !matte.naturalWidth || !im || !im.complete || !im.naturalWidth) return;
     const vids = [...rm.querySelectorAll('.rm-vid video.on')].filter(v => v.readyState >= 2 && v.videoWidth);
     const v = vids.find(x => x.classList.contains('rm-v-mood')) || vids[0];
-    let src, sx, sy, sw, sh;
-    if (v) {
-      const W = v.videoWidth, H = v.videoHeight;
-      src = v; sx = (OVER.x0 - VX) / VW * W; sw = (OVER.x1 - OVER.x0) / VW * W; sy = OVER.y0 * H; sh = (OVER.y1 - OVER.y0) * H;
-    } else {
-      const im = rm.querySelector('.rm-plate');
-      if (!im || !im.complete || !im.naturalWidth) return;
-      if (c.dataset.drawn === 'plate') return;
-      const W = im.naturalWidth, H = im.naturalHeight;
-      src = im; sx = OVER.x0 * W; sw = (OVER.x1 - OVER.x0) * W; sy = OVER.y0 * H; sh = (OVER.y1 - OVER.y0) * H;
-    }
-    const g = c.getContext('2d');
+    if (!v && c.dataset.drawn === 'plate') return;
+    const g = c.getContext('2d'), w = c.width, h = c.height;
     g.globalCompositeOperation = 'source-over';
-    g.clearRect(0, 0, c.width, c.height);
-    g.drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    g.clearRect(0, 0, w, h);
+    g.drawImage(im, 0, 0, w, h);
+    if (v) g.drawImage(v, VX * w, 0, VW * w, h);   // the clips frame the plate's middle 1880 of 1920 px
     g.globalCompositeOperation = 'destination-in';
-    g.drawImage(matte, 0, 0, c.width, c.height);
+    g.drawImage(matte, 0, 0, w, h);
     g.globalCompositeOperation = 'source-over';
     c.dataset.drawn = v ? 'video' : 'plate';
   }
@@ -290,7 +283,17 @@
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
     .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none;
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
-    .rm-over { position: absolute; left: 31%; top: 8%; width: 33.2%; height: 59%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
+    /* Between lines she lazes on a cloud far back, up by the window, small and off to the side so the leads keep the
+       stage (Ladi, Nov 16). The leads are redrawn over her. While she talks she stands behind the desk instead. */
+    .rm-cloud { position: absolute; left: 67%; top: 1.5%; width: 27%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
+      animation: rmcloud 7s ease-in-out infinite; }
+    .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
+    .rm-cloud .up-fig img { object-position: center; }
+    @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
+    .rm-up { display: none; }
+    .rm.talk .rm-up { display: block; }
+    .rm.talk .rm-cloud { display: none; }
+    .rm-over { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
     /* While she talks: the room behind the leads (room-empty.webp, the plate with the leads painted out and
        softened), then her, then the leads alone (the room cut through room-leads-matte.png), see-through and
        out of focus. She stays behind the counter. */
@@ -308,7 +311,7 @@
     @keyframes uptalk { 0%, 49% { opacity: 1; } 50% { opacity: 0; } }
     .rm-up .up-fig { filter: drop-shadow(0 .8cqi .8cqi rgba(0, 0, 0, .55)); animation: upbreathe 3.8s ease-in-out infinite; transform-origin: 50% 100%; }
     @keyframes upbreathe { 50% { transform: scaleY(1.008) translateY(-.15%); } }
-    .rm-emote { position: absolute; left: 40%; top: 0; font-size: 3.2cqi; opacity: 0; pointer-events: none; }
+    .rm-emote { position: absolute; left: 30%; top: -8%; font-size: 3.2cqi; opacity: 0; pointer-events: none; }
     .rm-emote.go { animation: rmemote 1.4s ease-out; }
     @keyframes rmemote { 0% { opacity: 0; transform: translateY(1cqi) scale(.6); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-1cqi); } }
     .rm-fly { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
@@ -320,7 +323,7 @@
     .rm-callers .db-num { font-size: max(13px, 1.8cqi); } .rm-callers .db-cap, .rm-callers .db-bad { font-size: max(10px, 1.1cqi); }
     .rm-clock { position: absolute; left: 50%; top: 2%; transform: translateX(-50%); z-index: 7; }
     .rm-tick:not(:empty) { display: inline-block; padding: .2cqi 1.2cqi; border-radius: 1cqi; background: rgba(12, 10, 16, .85); font-size: max(11px, 1.3cqi); font-weight: 800; color: #f3d36b; }
-    .rm.zoom .rm-col:not(.at), .rm.zoom .rm-callers, .rm.zoom .rm-up { opacity: 0; pointer-events: none; }
+    .rm.zoom .rm-col:not(.at), .rm.zoom .rm-callers, .rm.zoom .rm-cloud { opacity: 0; pointer-events: none; }
     .rm.zoom .rm-col.at { opacity: 0; }
     .rm.playing .rm-st { cursor: default; }
     .rm-chat { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
@@ -334,6 +337,6 @@
       .rm-chat .rm-say { display: block; }
       .rm-plq span { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig { animation: none !important; } }`;
+    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud { animation: none !important; } }`;
   document.head.appendChild(css);
 })();
