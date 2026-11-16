@@ -23,7 +23,11 @@ SD.eli5 = SD.eli5 || {};
     'dva-3-936': 'The shop isn\'t built yet, so put up a cardboard shopkeeper who always says the agreed line. The other team can practice talking to it now.',
     'dva-3-937': 'A practice copy of the database that lives on your own laptop. Real moves, real rules, no gold spent and nobody else\'s save in it.',
     'dva-3-938': 'Poke the real function with a sample letter, from the console\'s Test button or from your terminal (sam remote invoke), and read what it says back.',
-    'dva-3-939': 'When the stack is built, it posts a notice board of addresses (outputs). Tests read the board each time instead of remembering old addresses.'
+    'dva-3-939': 'When the stack is built, it posts a notice board of addresses (outputs). Tests read the board each time instead of remembering old addresses.',
+    // The Proving Road's spare questions (js/sprint-data.js names them, so the help check asks for their lines here).
+    'dva-1-117': 'Thirty items to inspect, and the inspector only lets five people in at once. Send the whole list through one conveyor (a Map state) that lets five through at a time (MaxConcurrency 5).',
+    'dva-3-101': 'You packed your spell scroll but left the spellbook it quotes on your desk at home. Pack the book in the same backpack, right next to the scroll (install it into the .zip\'s top folder).',
+    'dva-1-318': 'Your bookmark crumbles if you leave it more than 5 minutes. After a long break, make a new bookmark that starts just after the last page you finished (AFTER_SEQUENCE_NUMBER).'
   };
   Object.keys(E).forEach(id => { if (!SD.eli5[id]) SD.eli5[id] = E[id]; });
 })();
