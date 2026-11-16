@@ -469,7 +469,7 @@
   const emb = id => EMB[id] || EMB.dq;
   // Freya's ring stays under his glove until he shows it in chapter 6's bunker (as js/vec-cast.js's portraits).
   const kage = () => { const c6 = SD.state.save && SD.state.save.c6; return `assets/img/portraits/kagemaru-${c6 && c6.w && c6.w.x && c6.w.x.reveal ? 'neutral' : 'gloved'}.webp`; };
-  const say = t => `<div class="du-say"><img src="${kage()}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
+  const say = t => `<div class="du-say" data-vo="${esc('kagemaru|' + t)}"><img src="${kage()}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
   const rname = id => (rival(id) ? rival(id).name : id === 'partner' ? 'Partner' : 'Due');
 
   // ---- The board screen ----
@@ -717,7 +717,7 @@
   // ---- First run and resume ----
   function walkScreens() {
     return [
-      { title: 'His table', html: `<p><b>Kagemaru:</b> "${esc(SAY.walkup)}"</p><p>A felt board of nine squares. Three in a line wins a board. You hold three cards.</p>
+      { title: 'His table', html: `<p data-vo="${esc('kagemaru|' + SAY.walkup)}"><b>Kagemaru:</b> "${esc(SAY.walkup)}"</p><p>A felt board of nine squares. Three in a line wins a board. You hold three cards.</p>
         <p class="small"><b>CASE</b> cards are exam questions. <b>COMPARE</b> cards show three look-alikes: name the one that fits from memory, then the table opens and you pick the row that decided it.</p>` },
       { title: 'Stones and his move', html: `<p>Tap a card, then an empty square. Right: your stone goes there. Wrong: he takes his square, by a rule printed under the board.</p>
         ${M.stakeTable()}<p class="small">Win a board with casts to spare and he pays +1 for each one left. A Compare card is a trade: on a right name you place a stone, and then he takes his square too. Name and row both right earn a spark; two sparks make a Parry, which stops his move on a miss.</p>` },

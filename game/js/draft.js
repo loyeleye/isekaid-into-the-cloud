@@ -357,7 +357,7 @@
         <span class="chips"><span class="chip">${esc(dom(d))} · ${esc(domName(d))}</span><span class="chip">${n === 1 ? 'one card' : `choose ${n}`}</span><span class="chip">${verified(q) ? '✓ Verified' : 'Not verified yet'}</span></span></button>`;
     }).join('');
     const waiting = left.length - Math.min(BOARD, left.length);
-    const host = done ? '' : `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small"><b>${esc(F.name)}:</b> "${esc(F.intro)}"</p></div>`;
+    const host = done ? '' : `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small" data-vo="${esc(DR.foremanId() + '|' + F.intro)}"><b>${esc(F.name)}:</b> "${esc(F.intro)}"</p></div>`;
     const b = U.panel(`${host}${r.since ? `<p class="small dr-since">${esc(r.since)}</p>` : ''}
       <div class="dr-head"><span class="chip">${esc(presetName(r))}</span><span class="chip">Client ${done + 1} of ${r.items.length}</span><span class="chip">🏗 Floors today: ${sgn(r.floors)}</span>${resChips()}</div>
       <p class="small muted">Pick a client. The ones you pass on stay on the board until you've built for them, so you choose the order, not whether.</p>
@@ -494,8 +494,8 @@
     const h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? '🏛 IT HOLDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
       <div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p class="small"><b>${esc(bldName(bld.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
-      <p class="small"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
-      <div class="dr-who">${portrait('seymour', 36)}<p class="small"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
+      <p class="small" data-vo="${esc(it.client + '|' + line)}"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
+      <div class="dr-who">${portrait('seymour', 36)}<p class="small" data-vo="${esc('seymour|' + sey)}"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
       <p class="small muted">A build order scores as a whole: ${ok ? 'every step in place' : `${inPlace} of ${n} steps in place, and with any step out of place it doesn't count`}${!ok && conf === 2 ? ', and a Sure miss cracks the wall' : ''}.</p>
       ${!ok ? `<p class="small dr-wallnote">📐 ${bld.scaf ? 'This build order comes back first on a later night. Get it right then and the scaffolding comes off.' : 'The building already stood, so it keeps standing. The build order comes back on a later night.'}</p>` : ''}
       <button class="primary" id="dr-next">${bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
@@ -560,8 +560,8 @@
     let h = `<div class="verdict-row"><div class="verdict ${allOk ? 'ok' : 'bad'}">${allOk ? '🏛 IT HOLDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
       <div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p class="small"><b>${esc(bldName(bld.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
-      <p class="small"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
-      <div class="dr-who">${portrait('seymour', 36)}<p class="small"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
+      <p class="small" data-vo="${esc(it.client + '|' + line)}"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
+      <div class="dr-who">${portrait('seymour', 36)}<p class="small" data-vo="${esc('seymour|' + sey)}"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
       <ul class="dr-slotres small">${slotRows}</ul>
       <p class="small muted">The blueprint scores as a whole, like the exam: ${allOk ? 'every slot right' : 'one wrong slot and it doesn\'t count'}${!allOk && conf === 2 ? ', and a Sure miss cracks the wall' : ''}.</p>`;
     if (!allOk) h += `<div class="q-ctx">The scroll needed</div><ul class="small dr-need">${right.map(i => `<li>${esc(cards[i])}</li>`).join('')}</ul>
@@ -574,7 +574,7 @@
     // A missed blueprint gets its twin, free, right away (when it has one).
     const twin = !allOk && !it.retry && DR.twinFor(bld.q);
     const nextLabel = it.retry ? (it.back === 'place' ? 'Place the building' : 'Continue') : bld.plot == null ? 'Place the building' : 'Continue';
-    h += '</div>' + sourceBlock(q) + (twin ? `<div class="dr-retry"><p class="small"><b>Seymour:</b> "${esc(SEYMOUR.retry)}" Its twin is a different scenario on the same rule, free.</p><div class="row"><button class="primary" id="dr-twin">Retry its twin now</button><button class="ghost" id="dr-next">${nextLabel}</button></div></div>` : `<button class="primary" id="dr-next">${nextLabel}</button>`);
+    h += '</div>' + sourceBlock(q) + (twin ? `<div class="dr-retry"><p class="small"><b data-vo="${esc('seymour|' + SEYMOUR.retry)}">Seymour:</b> "${esc(SEYMOUR.retry)}" Its twin is a different scenario on the same rule, free.</p><div class="row"><button class="primary" id="dr-twin">Retry its twin now</button><button class="ghost" id="dr-next">${nextLabel}</button></div></div>` : `<button class="primary" id="dr-next">${nextLabel}</button>`);
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
     const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
     b.querySelector('#dr-next').onclick = next;
@@ -710,7 +710,7 @@
     const topics = [...new Set(r.items.map(i => (i.seq ? (seqFind(i.q) || {}).title : (find(i.q) ? DR.ideaOf(find(i.q)) : null))).filter(Boolean))];
     const paid = M().pay('draft');
     const g = grid();
-    const b = U.panel(`<p class="small muted">${esc(DR.foreman().end)}</p>
+    const b = U.panel(`<p class="small muted" data-vo="${esc(DR.foremanId() + '|' + DR.foreman().end)}">${esc(DR.foreman().end)}</p>
       <div class="q-ctx">Tonight in Pingsby's Quarter</div>${mapHtml(g, { view: true, tonight: r.built || [], open: R.open(lv) })}
       <p class="small muted">Tonight's buildings are outlined in gold and marked ✦.</p>
       <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span>${r.retries ? `<span class="chip">🔁 Twin retries: ${r.retries}</span>` : ''}${lv >= 2 ? `<span class="chip">🧱 Materials earned: ${r.mat}</span>` : ''}${lv >= 3 ? `<span class="chip">⭐ Reputation earned: ${r.rep}</span>` : ''}${seqs.length ? `<span class="chip">📐 Build orders: ${seqOk} of ${seqs.length}</span>` : ''}<span class="chip">📌 Misses to the Wall: ${r.misses}</span></div>
@@ -788,7 +788,7 @@
     const q = base().filter(isMulti).find(x => DR.slotsOf(x) === 2) || base()[0];
     const cards = q ? DR.cards(q) : [];
     const F = DR.foreman();
-    const s1 = `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small"><b>${esc(F.name)}</b>, ${esc(F.title)}: "${esc(F.intro)}"</p></div>
+    const s1 = `<div class="dr-client">${portrait(DR.foremanId(), 44)}<p class="small" data-vo="${esc(DR.foremanId() + '|' + F.intro)}"><b>${esc(F.name)}</b>, ${esc(F.title)}: "${esc(F.intro)}"</p></div>
       ${q ? `<div class="q-ctx">A requirements scroll · choose ${DR.slotsOf(q)}</div><p class="small"><b>${esc(q.q)}</b></p>
       <p class="small muted">You always see the whole scroll. It has one slot per answer it needs, and the question's own options are your option cards:</p><ul class="small">${cards.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
     return [
