@@ -16,7 +16,7 @@
 //     next night; with 1, next night; with none, the question itself next night. At most 3 open the next night.
 //   - Saves after every step (S.save.pop). The night score is proofs held, claims cleared and points.
 // Shared by the UI and the simulator (tools/pop_sim.js, tools/modes_sim.js): SD.pop.newNight, go, lock, settle,
-// basic, endTurn, escalate, finish.
+// basic, endTurn, escalate, finish. Nights 2 to 5 live in js/mode-pop-rooms.js, through the hooks marked "hook".
 (function () {
   if (!SD.modes) return;
   const M = SD.modes, U = SD.ui, S = SD.state, E = () => SD.exam, D = () => SD.topicDrill;
@@ -81,6 +81,10 @@
         a: ['That\'s mine. Was mine. Is mine.', 'Prove it.', '...Forms.'], fix: 'Let Seo-yeon mend it' } }
   };
   const H = P.HOMES;
+  // hook: nights 2 to 5 (js/mode-pop-rooms.js) add room types, screens, simulator steps and a claim per fight.
+  P.ROOMS = {}; P.SCREENS = {}; P.SIM = {};
+  P.claimOf = f => H[f.home].claim;
+  const X = (s, where) => (P.xtra ? P.xtra(s, where) || '' : '');
   // The ledger: 12 finds, 3 per homeland (storyboard frame 19).
   P.ITEMS = [
     { id: 'bell', home: 'thornwick', icon: 'ringing-bell', name: 'a Thornwick bell with no clapper', line: ['mira', 'warm', 'Marrow\'s. She\'ll want that back.'] },
@@ -221,6 +225,9 @@
       rooms, core, asked: 0, log: [], map: { rows: P.genMap(), row: -1, col: null }, fight: null,
       cleared: 0, fled: 0, fights: 0, turns: 0, moves: 0, found: [], lastStake: {}, esc: 0, carryNext: [], msg: null
     };
+    const t = new Date(); s.iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    if (s.night > 1) s.map.rows = P.genMap(s.night, s);   // hook: a map per night
+    if (P.onNight) P.onNight(s);
     if (!opts.sim) { sv().popCarry = []; sv().pop = s; }
     RNG = prev;
     save(s);
@@ -236,16 +243,19 @@
     s.map.row = row; s.map.col = i; node.visited = 1; s.moves++; s.entry = s.budget; s.msg = null;
     if (node.type === 'claim') {
       if (!s.rooms.length) { node.fled = 1; s.fled++; s.msg = SAY.flee; s.phase = 'map'; return 'fled'; }
-      startFight(s, 'claim', node.home);
-    } else if (node.type === 'lost') s.phase = 'lost';
+      startFight(s, 'claim', node.home, node);
+    } else if (P.ROOMS[node.type]) P.ROOMS[node.type](s, node);   // hook: vaults, the shortcut, the records vault
+    else if (node.type === 'lost') s.phase = 'lost';
     else s.phase = 'break';
     return node.type;
   };
   P.node = s => (s.map.row >= 0 ? s.map.rows[s.map.row][s.map.col] : null);
-  function startFight(s, kind, home) {
+  function startFight(s, kind, home, node) {
     const f = { kind, home, turn: 0, draw: shuffle(s.deck.map((x, i) => i)), discard: [], hand: [], sel: [], guard: 0, setup: 0, nextSetup: 0, extra: 0 };
-    if (kind === 'claim') { const c = H[home].claim; f.sev = f.max = c.sev; }
+    if (node) { if (node.big) f.big = 1; if (node.variant) f.variant = 1; if (node.mod) f.mod = node.mod; }
+    if (kind === 'claim') { const c = P.claimOf(f); f.sev = f.max = c.sev; }
     s.fight = f; s.fights++;
+    if (P.onFight) P.onFight(s, f);   // hook: relics, room modifiers
     newTurn(s);
   }
   P.startHunch = function (s) {
@@ -273,6 +283,7 @@
     f.extra = 0; f.setup = f.nextSetup | 0; f.nextSetup = 0;
     f.turn++; s.turns++;
     f.guard = 0; f.locked = false; f.check = null; f.result = null; f.basics = []; f.capLeft = CAP;
+    if (P.onTurn) P.onTurn(s, f);   // hook: relics, room modifiers
     f.sel = P.stakeAll(s);
     s.phase = 'stake';
   }
@@ -281,7 +292,9 @@
     const c = C[e.id], u = (e.up | 0) * 3, f = s.fight;
     let hit = c.hit ? c.hit + u : 0;
     if (c.finish && f && f.kind === 'claim' && f.sev < f.max / 2) hit = c.finish + u;
-    return { hit, guard: c.guard ? c.guard + u : 0, boost: c.boost ? c.boost + (e.up | 0) : 0, setup: c.setup ? c.setup + 2 * (e.up | 0) : 0, redrive: c.redrive | 0 };
+    const o = { hit, guard: c.guard ? c.guard + u : 0, boost: c.boost ? c.boost + (e.up | 0) : 0, setup: c.setup ? c.setup + 2 * (e.up | 0) : 0, redrive: c.redrive | 0 };
+    if (P.numsHook && f) P.numsHook(s, e, o);   // hook: home turf
+    return o;
   }
   // What a stake (hand positions) would land at x1: boosts and the setup bonus included. At the Hunch, all Guard.
   P.stakeOf = function (s, sel) {
@@ -299,6 +312,7 @@
     let best = [], bt = -1;
     for (let m = 1; m < (1 << n); m++) {
       const sel = []; for (let k = 0; k < n; k++) if (m & (1 << k)) sel.push(k);
+      if (sel.some(h => C[s.deck[f.hand[h]].id].noStake)) continue;
       const st = P.stakeOf(s, sel);
       if (st.cost > CAP) continue;
       if (st.total > bt || (st.total === bt && sel.length > best.length)) { best = sel; bt = st.total; }
@@ -316,6 +330,7 @@
   P.toggle = function (s, h) {
     const f = s.fight, i = f.sel.indexOf(h);
     if (i >= 0) { f.sel.splice(i, 1); return true; }
+    if (C[s.deck[f.hand[h]].id].noStake) return false;
     const st = P.stakeOf(s, f.sel.concat(h));
     if (st.cost > CAP) return false;
     f.sel = f.sel.concat(h).sort((a, b) => a - b);
@@ -390,7 +405,7 @@
     const f = s.fight;
     if (!f) return 0;
     if (f.kind === 'hunch') return P.hunchHit(s);
-    const hs = H[f.home].claim.hits;
+    const hs = P.claimOf(f).hits;
     return hs[(f.turn - 1) % hs.length];
   };
   // After the land: 'cleared', 'won', 'lost' (the Hunch checked out), 'zero', 'fled' or 'turn'.
@@ -423,6 +438,7 @@
     if (item) s.found.push(item.id);
     const pool = H[home].reward.concat(rnd() < 0.5 ? 'condwrite' : 'dataevents');
     s.reward = { home, cards: pool, item: item ? item.id : null };
+    if (P.onClear) P.onClear(s, f);   // hook: keys, the Big Claim's truth
     s.fight = null; s.phase = 'reward';
     return 'cleared';
   }
@@ -489,21 +505,21 @@
 
   function hud(s, extra) {
     const b = Math.max(0, s.budget);
-    return `<div class="pop-hud"><span>Budget <b>${b}%</b></span><span>Room checks <b>${s.rooms.length}</b></span><span>Points <b>${M.sgn(s.pts)}</b></span>${extra ? `<span>${extra}</span>` : ''}</div>
+    return `<div class="pop-hud"><span>Budget <b>${b}%</b></span><span>Room checks <b>${s.rooms.length}</b></span><span>Points <b>${M.sgn(s.pts)}</b></span>${X(s, 'hud')}${extra ? `<span>${extra}</span>` : ''}</div>
       <div class="bar pop-bar" role="img" aria-label="Budget ${b}%"><i style="width:${b}%"></i></div>`;
   }
   const dock = html => `<div class="pop-dock">${html}</div>`;
   const stopBtn = '<button class="ghost pop-stop" id="pop-stop">☰ Stop for now</button>';
   function wireStop(b) { const x = b.querySelector('#pop-stop'); if (x) x.onclick = () => { U.closePanel(); stopNow(); }; }
   function stopNow() { const s = cur(); if (s) save(s); if (SD.today) SD.today.render(); }
-  const panel = (html, cls) => U.panel(`<div class="pop">${html}</div>`, { title: TITLE, onClose: stopNow, cls: cls || '' });
+  const panel = (html, cls) => U.panel(`<div class="pop pop-n${Math.min(5, (cur() && cur().night) || 1)}">${html}</div>`, { title: TITLE, onClose: stopNow, cls: cls || '' });
 
   P.draw = function () {
     const s = cur();
     if (!s) return;
     const f = {
       arrive, map: mapScreen, stake: stakeScreen, locked: lockedScreen, land: landScreen, reward: rewardScreen,
-      lost: lostScreen, break: breakScreen, zero: zeroScreen, sheet: sheetScreen
+      lost: lostScreen, break: breakScreen, zero: zeroScreen, sheet: sheetScreen, ...P.SCREENS
     }[s.phase];
     (f || mapScreen)(s);
   };
@@ -511,15 +527,16 @@
   function arrive(s) {
     const first = s.night === 1;
     const lines = first ? SAY.arrive : SAY.again;
-    const b = panel(`<p class="pop-night">Night ${s.night}</p>
+    const b = panel(`<p class="pop-night">Night ${s.night}${X(s, 'title')}</p>
       <div class="pop-sky">${P.HUNCH_SVG}<span class="pop-cap">The Hunch</span></div>
       ${first ? `<p class="pop-speaker">📢 <b>Freya:</b> ${esc(SAY.freya)}</p>` : ''}
-      ${lines.map(l => say('dutch', 'neutral', l)).join('')}
+      ${lines.map(l => say('dutch', 'neutral', l)).join('')}${X(s, 'arrive')}
       <p class="small muted">Tonight: ${plural(s.rooms.length, 'room check')} for the rooms, 3 proofs for the Hunch.</p>
       ${dock('<button class="primary" id="pop-in">Walk in</button>')}`);
     b.querySelector('#pop-in').onclick = () => { s.phase = 'map'; save(s); P.draw(); };
   }
 
+  P.doorLabel = doorLabel; P.doorIcon = n => doorIcon(n);
   function doorLabel(n, fog) {
     const home = n.home ? H[n.home].name : '';
     if (fog) return n.type === 'break' ? 'Break?' : `${home}?`;
@@ -534,14 +551,14 @@
       const reach = r === next && open.includes(i), here = r === s.map.row && i === s.map.col, fog = r > next + 1;
       const state = n.cleared ? 'cleared' : n.fled ? 'fled' : n.visited ? 'visited' : '';
       const tag = n.cleared ? '✓ Cleared' : n.fled ? 'Fled' : here ? 'You are here' : n.visited ? 'Done' : reach ? 'Open' : r < next ? 'Passed by' : 'Fogged';
-      return `<button class="pop-door${reach ? ' reach' : ''}${fog ? ' fog' : ''}${here ? ' here' : ''}${state ? ' ' + state : ''}" ${reach ? `data-door="${i}"` : 'disabled'} aria-label="${esc(doorLabel(n, fog))}, ${tag}">
-        ${icon(doorIcon(n))}${n.type === 'claim' && !fog ? icon('crossed-swords', 'badge') : ''}<span class="pop-dl">${esc(doorLabel(n, fog))}</span><span class="pop-dt">${tag}</span></button>`;
+      return `<button class="pop-door${reach ? ' reach' : ''}${fog ? ' fog' : ''}${here ? ' here' : ''}${state ? ' ' + state : ''}" ${reach ? `data-door="${i}"` : 'disabled'} aria-label="${esc(P.doorLabel(n, fog))}, ${tag}">
+        ${icon(P.doorIcon(n))}${n.type === 'claim' && !fog ? icon('crossed-swords', 'badge') : ''}<span class="pop-dl">${esc(P.doorLabel(n, fog))}</span><span class="pop-dt">${tag}</span>${P.doorExtra ? P.doorExtra(s, n, r, i, fog) : ''}</button>`;
     }).join('')}</div>`;
     const top = P.atHunch(s);
     const b = panel(`${hud(s)}
       <button class="pop-hunchdoor${top ? ' reach' : ''}" id="pop-hunch" ${top ? '' : 'disabled'} aria-label="The Hunch, 3 core proofs${top ? ', open' : ', at the top of the heap'}">${P.HUNCH_SVG}<span><b>The Hunch</b> · 3 core proofs${top ? ` · ${s.rooms.length ? plural(s.rooms.length, 'loose proof') + ' waiting' : 'no loose proofs'}` : ''}</span></button>
       <div class="pop-map">${rows.map((row, r) => ({ row, r })).reverse().map(x => rowHtml(x.row, x.r)).join('')}</div>
-      ${s.msg ? sayL(s.msg) : ''}
+      ${s.msg ? sayL(s.msg) : ''}${X(s, 'map')}
       <p class="small">${top ? 'The heap\'s top. Every room check you didn\'t spend comes with you as a loose proof.' : `Tap a door to walk there. ${plural(s.rooms.length, 'room check')} left: a claim takes about 3. A claim with none left flees.`}</p>
       ${dock(stopBtn + (top ? '<button class="primary" id="pop-climb">Climb to the Hunch</button>' : ''))}`);
     b.querySelectorAll('[data-door]').forEach(el => el.onclick = () => { P.go(s, +el.dataset.door); save(s); P.draw(); });
@@ -556,20 +573,21 @@
       const marks = f.order.concat(f.check ? [f.check] : []);
       const looseOpen = f.looseWaiting | 0;
       const plate = [0, 1, 2].map(k => k < f.proofs.length ? (f.proofs[k] ? '<i class="pm held" title="held">✓</i>' : '<i class="pm failed" title="failed">✗</i>') : '<i class="pm wait" title="waiting">?</i>').join('') + Array.from({ length: looseOpen }, () => '<i class="pm loose" title="loose proof">+</i>').join('');
-      return `<div class="pop-stage hunch"><div class="pop-foe">${P.HUNCH_SVG}</div><div class="pop-intent">💭 "${esc(SAY.hunchSays)}": hits <b>${P.hunchHit(s)}</b>
+      return `<div class="pop-stage hunch"><div class="pop-foe">${P.HUNCH_SVG}</div><div class="pop-intent">💭 "${esc(P.rules(s.night, s.iso).hunchSays)}": hits <b>${P.hunchHit(s)}</b>
         <div class="pop-plate" aria-label="Core proofs: ${f.proofs.filter(Boolean).length} held, ${f.proofs.filter(x => !x).length} failed; ${plural(looseOpen, 'loose proof')} waiting">${plate}</div>
         <span class="small">${marks.length ? `${plural(marks.filter(c => c.kind === 'loose').length, 'loose proof')} then ${plural(marks.filter(c => c.kind !== 'loose').length, 'core proof')} to go` : ''}</span></div></div>`;
     }
-    const c = H[f.home].claim, pct = Math.round(100 * f.sev / f.max);
+    const c = P.claimOf(f), pct = Math.round(100 * f.sev / f.max);
     return `<div class="pop-stage ${f.home}"><div class="pop-foe">${SD.art && SD.art.enemy ? SD.art.enemy(c.sprite) : ''}</div>
       <div class="pop-intent"><span class="pop-home">${icon(H[f.home].icon)} ${esc(H[f.home].name)}</span>
       <b>${esc(c.name)}</b> · severity ${f.sev} of ${f.max}<div class="bar pop-sev" role="img" aria-label="Severity ${f.sev} of ${f.max}"><i style="width:${pct}%"></i></div>
-      <span>"${esc(c.says)}": hits <b>${P.intent(s)}</b></span></div></div>`;
+      <span>"${esc(c.says)}": hits <b>${P.intent(s)}</b></span>${X(s, 'stage')}</div></div>`;
   }
   function cardBtn(s, h, o) {
     const f = s.fight, e = s.deck[f.hand[h]], c = C[e.id];
     const on = f.sel.includes(h);
     const who = c.who === 'basic' ? 'basic' : `${c.who} · ${c.verb}`;
+    if (c.noStake) o = Object.assign({}, o, { lock: true });
     return `<button class="pop-card${on ? ' on' : ''}${o.lock ? ' locked' : ''}" data-card="${h}" aria-pressed="${on}" ${o.lock ? 'disabled' : ''} aria-label="${esc(c.name)}${e.up ? ' plus ' + e.up : ''}, ${esc(who)}, ${esc(P.cardText(e))}, costs ${c.cost}${on ? ', staked' : ''}">
       ${icon(c.icon)}<span class="pop-cn"><b>${esc(c.name)}${e.up ? ' +' + e.up : ''}</b><span class="small muted">${esc(who)}</span></span>
       <span class="pop-ct">${esc(P.cardText(e))}</span>${c.cost !== 1 ? `<span class="pop-cost">${c.cost}</span>` : ''}<span class="pop-tag">${on ? 'staked' : ''}${o.lock ? ' 🔒' : ''}</span></button>`;
@@ -666,7 +684,7 @@
       ${sayL(barkFor(out))}
       ${left > 0 && free.length ? `<p class="small">${t <= 3 ? 'Staking costs Capacity. What\'s left plays small. ' : ''}${plural(left, 'Capacity')} left: ${hunch ? `play a card as Guard ${BASIC}` : `pick a card to play as Patch ${BASIC} or Guard ${BASIC}`}.</p>
         <div class="pop-basics">${free.map(h => { const c = C[s.deck[f.hand[h]].id]; return `<div class="pop-bas"><span>${icon(c.icon)} ${esc(c.name)}</span>${hunch ? '' : `<button class="ghost" data-bas="${h}" data-k="patch">Patch ${BASIC}</button>`}<button class="ghost" data-bas="${h}" data-k="guard">Guard ${BASIC}</button></div>`; }).join('')}</div>` : ''}
-      ${f.basics.length ? `<p class="small muted">Played small: ${f.basics.map(x => `${C[s.deck[f.hand[x.h]].id].name} as ${x.kind === 'patch' ? 'Patch' : 'Guard'} ${BASIC}`).join(', ')}.</p>` : ''}
+      ${f.basics.length ? `<p class="small muted">Played small: ${f.basics.map(x => x.label || `${C[s.deck[f.hand[x.h]].id].name} as ${x.kind === 'patch' ? 'Patch' : 'Guard'} ${BASIC}`).join(', ')}.</p>` : ''}${X(s, 'land')}
       <p class="small">${f.kind === 'claim' && f.sev <= 0 ? 'The claim is cleared.' : `Guard up: <b>${f.guard}</b>. Next it hits ${P.intent(s)}${f.guard ? `, so you take ${Math.max(0, P.intent(s) - f.guard)}` : ''}.`}</p>
       ${dock(stopBtn + `<button class="primary" id="pop-end">${f.kind === 'claim' && f.sev <= 0 ? 'Claim cleared' : 'End turn'}</button>`)}`);
     b.querySelectorAll('[data-bas]').forEach(el => el.onclick = () => { P.basic(s, +el.dataset.bas, el.dataset.k); save(s); landScreen(s, out); });
@@ -683,7 +701,7 @@
     const rw = s.reward, home = H[rw.home], item = rw.item && P.ITEMS.find(i => i.id === rw.item);
     const b = panel(`${hud(s)}
       <p class="pop-banner">CLAIM CLEARED · ${esc(home.name)}</p>
-      ${sayL(home.cleared)}
+      ${sayL(home.cleared)}${X(s, 'reward')}
       <p class="small">Take one card, or skip. ${esc(home.name)}'s cards are ${esc(home.lead)}'s. Dutch always has one in his pocket.</p>
       <div class="pop-hand">${rw.cards.map(id => { const c = C[id], e = { id, up: 0 }; return `<button class="pop-card" data-take="${id}" aria-label="Take ${esc(c.name)}: ${esc(P.cardText(e))}, costs ${c.cost}">${icon(c.icon)}<span class="pop-cn"><b>${esc(c.name)}</b><span class="small muted">${esc(c.who)} · ${esc(c.verb)}</span></span><span class="pop-ct">${esc(P.cardText(e))}</span>${c.cost !== 1 ? `<span class="pop-cost">${c.cost}</span>` : ''}</button>`; }).join('')}</div>
       ${item ? `<p class="pop-find">${icon(item.icon)} <span>Found in the rubble: ${esc(item.name)}.</span></p>${item.line ? sayL(item.line) : ''}` : ''}
@@ -700,13 +718,13 @@
   function lostScreen(s) {
     const n = P.node(s), L = n && n.home ? H[n.home].lost : null;
     const who = L ? L.who : 'dutch';
-    const lines = L ? [say(who, 'smile', L.a[0]), say('dutch', 'neutral', L.a[1]), say(who, 'tired', L.a[2])].join('') : '';
+    const lines = L ? (L.lines ? L.lines.map(sayL).join('') : [say(who, 'smile', L.a[0]), say('dutch', 'neutral', L.a[1]), say(who, 'tired', L.a[2])].join('')) : '';
     const b = panel(`${hud(s)}
       <p class="pop-banner">LOST ITEM${n && n.home ? ' · ' + esc(H[n.home].name) : ''}</p>
       <p class="pop-find">${icon(n && n.home ? H[n.home].icon : 'swap-bag')} <span>${esc(L ? L.text : 'Something in the heap, waiting to be claimed.')}</span></p>
       ${lines}
       <div class="opts"><button class="opt" id="pop-fix"><b>${esc(L ? L.fix : 'Fix it')}</b> (−8% budget): upgrade one card, +3 to its numbers.</button>
-      <button class="opt" id="pop-leave"><b>Leave the marker:</b> ${esc(SAY.leave)} +6% budget.</button></div>
+      <button class="opt" id="pop-leave"><b>Leave the marker:</b> ${esc((L && L.leave) || SAY.leave)} +6% budget.</button></div>
       <p class="small muted">Either way it goes in the ledger. No question here.</p>`);
     b.querySelector('#pop-fix').onclick = () => pickCard(s, 'Upgrade which card?', i => { P.lostChoice(s, 'fix', i); save(s); P.draw(); });
     b.querySelector('#pop-leave').onclick = () => { P.lostChoice(s, 'leave'); save(s); P.draw(); };
@@ -746,10 +764,10 @@
     const head1 = s.how === 'won' ? 'The Hunch didn\'t check out.' : s.how === 'lost' ? 'The Hunch checked out.' : 'You retreated.';
     const finds = s.found.map(id => P.ITEMS.find(i => i.id === id)).filter(Boolean);
     const b = panel(`<p class="pop-banner">PROOF SHEET · Night ${s.night}</p>
-      ${s.how === 'won' ? `<div class="pop-sky flat">${P.HUNCH_FLAT}<span class="pop-cap">Pffffbbbt.</span></div>${say('dutch', 'surprised', SAY.won)}<p class="small muted"><i>The badge rolls to his boots. He doesn't pick it up.</i></p>` : say('dutch', 'tired', s.how === 'lost' ? SAY.lost : SAY.retreat)}
+      ${s.how === 'won' ? `<div class="pop-sky flat">${P.HUNCH_FLAT}<span class="pop-cap">Pffffbbbt.</span></div>${say('dutch', 'surprised', (P.deflate && P.deflate(s)) || SAY.won)}<p class="small muted"><i>The badge rolls to his boots. He doesn't pick it up.</i></p>` : say('dutch', 'tired', s.how === 'lost' ? SAY.lost : SAY.retreat)}
       <p class="td-big">${head1} ${right} of ${first.length} proven.</p>
       <p class="small">Night score: <b>${plural(s.heldN | 0, 'proof')} held</b> · <b>${plural(s.cleared, 'claim')} cleared</b> · <b>${M.sgn(s.pts)} points</b>.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
-      ${finds.length ? `<p class="small">Found tonight: ${finds.map(i => `${icon(i.icon)} ${esc(i.name)}`).join(' · ')}</p>` : ''}
+      ${X(s, 'sheet')}${finds.length ? `<p class="small">Found tonight: ${finds.map(i => `${icon(i.icon)} ${esc(i.name)}`).join(' · ')}</p>` : ''}
       <p class="small"><b>Study:</b> tomorrow's topic drill is ${esc(domName(top))}, the domain Today's set most needs.</p>
       <p class="small"><b>${esc(habit(s))}</b></p>
       ${s.carryNext.length ? `<p class="small">${plural(Math.min(3, s.carryNext.length), 'missed idea')} ${Math.min(3, s.carryNext.length) === 1 ? 'comes' : 'come'} back tomorrow night, in a different coat.</p>` : ''}
@@ -767,7 +785,7 @@
     const b = panel(`<p class="pop-banner">THE LEDGER · ${n} of ${P.ITEMS.length}</p>
       ${say('dutch', 'neutral', 'Somebody owned all this. Nobody\'s come to claim it. Till they do, it goes in the book.')}
       ${Object.keys(homes).map(h => { const its = P.ITEMS.filter(i => i.home === h); return `<div class="pop-lrow"><b>${esc(homes[h])} · ${its.filter(i => L[i.id]).length} of 3</b><div>${its.map(i => L[i.id] ? `<span class="pop-li">${icon(i.icon)} ${esc(i.name)}</span>` : `<span class="pop-li blank" aria-label="Not found yet">${icon(i.icon)} ?</span>`).join('')}</div></div>`; }).join('')}
-      ${dock('<button class="primary" id="pop-lback">Done</button>')}`);
+      ${X(null, 'ledger')}${dock('<button class="primary" id="pop-lback">Done</button>')}`);
     b.querySelector('#pop-lback').onclick = back;
   }
 
@@ -796,8 +814,8 @@
   };
 
   // ---- Simulator hook: a whole night on the real state machine, no UI, no saves ----
-  // policy: { p, conf, route: 'near' (claims first) | 'far' (other rooms first), stake: 'all' | 'none' | 'honest',
-  //           escalate, p2 (accuracy at the Hunch, default p) }.
+  // policy: { p, conf, route: 'near' (claims first) | 'far' (other rooms first) | 'home' (policy.home's doors first) | 'plan',
+  //           stake: 'all' | 'none' | 'honest', escalate, p2 (accuracy at the Hunch, default p), night (nights before this one) }.
   P.sim = async function (policy, rng) {
     const prev = RNG; RNG = rng || Math.random;
     try {
@@ -809,7 +827,7 @@
         if (s.phase === 'map') {
           if (P.atHunch(s)) { P.startHunch(s); map++; continue; }
           const doors = P.doors(s), row = s.map.rows[s.map.row + 1];
-          const pref = policy.route === 'far' ? doors.filter(i => row[i].type !== 'claim') : doors.filter(i => row[i].type === 'claim');
+          const pref = policy.route === 'plan' && P.simRoute ? P.simRoute(s, doors, row) : policy.route === 'far' ? doors.filter(i => row[i].type !== 'claim') : policy.route === 'home' ? doors.filter(i => row[i].home === policy.home) : doors.filter(i => row[i].type === 'claim');
           const pick = (pref.length ? pref : doors)[Math.floor(RNG() * (pref.length ? pref.length : doors.length))];
           P.go(s, pick); map++;
           continue;
@@ -817,6 +835,7 @@
         if (s.phase === 'lost') { P.lostChoice(s, s.budget > 50 ? 'fix' : 'leave', 0); map++; continue; }
         if (s.phase === 'break') { if (s.budget < 70) P.breakChoice(s, 'rest'); else P.breakChoice(s, 'sharpen', 0); map++; continue; }
         if (s.phase === 'reward') { P.take(s, s.reward.cards[0]); map++; continue; }
+        if (P.SIM[s.phase]) { P.SIM[s.phase](s, policy, answer); map++; continue; }   // hook: nights 2 to 5's rooms
         if (s.phase === 'zero') { if (policy.escalate) P.escalate(s); else P.retreat(s); map++; continue; }
         if (s.phase === 'stake') {
           const f = s.fight;
@@ -825,6 +844,7 @@
           f.sel = sk === 'none' ? [] : sk === 'honest' ? (policy.p >= 0.45 ? P.stakeAll(s) : []) : P.stakeAll(s);
           const ck = P.lock(s);
           P.settle(s, answer(ck)); turns++;
+          if (P.simLand) P.simLand(s);
           while (P.basicsLeft(s) > 0) {
             const fr = s.fight.hand.map((x, h) => h).find(h => !s.fight.played.includes(h) && !s.fight.basics.some(b => b.h === h));
             if (fr == null) break;
@@ -837,9 +857,12 @@
       }
       const secs = s.asked * M.SIM_Q_SECS + map * M.SIM_MAP_SECS + turns * 4;
       return { pts: s.pts, budget: s.budget, minutes: secs / 60, mapShare: (map * M.SIM_MAP_SECS) / secs, questions: s.asked, zero: s.how === 'retreat',
-        won: s.how === 'won', held: s.heldN | 0, cleared: s.cleared, fled: s.fled, how: s.how, score: (s.heldN | 0) * 10 + s.cleared * 5 + s.pts };
+        won: s.how === 'won', held: s.heldN | 0, cleared: s.cleared, fled: s.fled, how: s.how, score: (s.heldN | 0) * 10 + s.cleared * 5 + s.pts, ...(P.simOut ? P.simOut(s) : {}) };
     } finally { RNG = prev; }
   };
+
+  // hook: what js/mode-pop-rooms.js shares with this file.
+  P._ = { miss, ageOf, save, find, say, sayL, icon, panel, hud, dock, stopBtn, wireStop, pickCard, stopNow, nextFind, ledger, rnd, shuffle, plural, esc, SAY, NAMES, BASIC };
 
   M.register({
     id: ID, name: 'The Lost and Found', minutes: 'about 18', host: 'Dutch',
