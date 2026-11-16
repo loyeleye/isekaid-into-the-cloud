@@ -47,7 +47,16 @@
     save(s);
     draw(s);
   }
+  // The war room's music (Mureka, Nov 16): the stage plays m-drill; the two bosses swap in m-drill-boss while they run.
+  function music(s) {
+    const A = SD.audio, ST = SD.modeStage;
+    if (!A || !A.music || !ST || ST.active() !== ID) return;
+    const boss = s.drill && (s.phase === 'drill' || s.phase === 'debrief') && D.DRILLS[s.drill.drill].boss;
+    if (boss) { if (A.add) A.add({ songs: { 'stage-drill-boss': 'm-drill-boss' } }); A.music('stage-drill-boss'); }
+    else if (A.loopName === 'stage-drill-boss') A.music('stage-drill');
+  }
   function draw(s) {
+    music(s);
     ({ map: mapScreen, drill: drillScreen, debrief: debriefScreen, end: endScreen, zero: endScreen }[s.phase] || mapScreen)(s);
   }
   function budgetJar(s) {
@@ -202,6 +211,7 @@
     const k = keep(), zero = s.phase === 'zero';
     if (!s.paid) {
       s.paid = M.pay(ID) || ' ';
+      if (SD.modeStage && SD.modeStage.sting) SD.modeStage.sting(ID, zero ? 'lose' : 'win');
       k.night = s.night; k.taught = s.taught;
       if (!k.best || s.budget > k.best) k.best = Math.max(0, s.budget);
     }
@@ -272,7 +282,7 @@
     .dr-res { padding: 6px 8px; border: 3px double var(--ink, #17131f); border-radius: 8px; background: #fff; color: #17131f; font-size: 14px; display: flex; gap: 6px; align-items: flex-start; }
     .dr-res.good { border-color: var(--mint, #4f7f5c); }
     .dr-res.bad { border-color: var(--red, #9e3a34); color: var(--red, #9e3a34); display: block; }
-    .dr-reveal { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid var(--ink, #17131f); background: var(--bone, #e2dbcb); font-size: 14px; }
+    .dr-reveal { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid #17131f; background: #e2dbcb; color: #17131f; font-size: 14px; }
     .dr-reveal .dr-gi { width: 26px; height: 26px; }
     .dr-pager { border: 2px solid var(--ink, #17131f); border-radius: 10px; padding: 6px 8px; background: #20242f; color: #e8f0e0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
     .dr-ph { display: flex; gap: 4px; align-items: center; color: #f3d36b; font-family: var(--f-body, inherit); }

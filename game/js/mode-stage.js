@@ -40,9 +40,9 @@
   // (project files game-modes/multiplayer-real/art-and-music.md).
   const PLATES = ['floor', 'drill'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
-  const MUSIC = { floor: 'm-floor' };
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill' };
   // Mode id: { win, lose } jingle files in assets/audio/.
-  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' } };
+  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
   let cur = null, el = null, bar = null, timer = null;
 
@@ -116,7 +116,8 @@
   }
   function untune() {
     if (!mine) return;
-    if (AU.loopName === mine) { if (before) AU.music(before); else AU.stop(); }
+    // A mode may swap in a track of its own named after the stage's (the Fire Drill's bosses: stage-drill-boss).
+    if (AU.loopName === mine || String(AU.loopName || '').startsWith(mine + '-')) { if (before) AU.music(before); else AU.stop(); }
     mine = before = null;
   }
   ST.sting = function (id, kind) {
