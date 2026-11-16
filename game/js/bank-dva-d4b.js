@@ -231,7 +231,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/adding-cloudfront-headers.html", "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-origin-requests.html"] },
 
   { id: "dva-4-217", exam: "DVA", dva: "4.3", topic: "cloudfront", type: "multi", hint: "Select TWO.",
-    q: "A single-page app is served from S3 through CloudFront with a 24-hour minimum TTL. After a release, users keep getting the old /js/app.js for up to a day. The team releases several times a week. Which approaches make users get the new file after a release? (Select TWO.)",
+    q: "A single-page app is served from S3 through CloudFront. Its /js/* cache behavior has a 24-hour minimum TTL, and index.html isn't cached. After a release, users keep getting the old /js/app.js for up to a day. The team releases several times a week. Which approaches make users get the new file after a release? (Select TWO.)",
     items: [
       { t: "Give each release's file a versioned name, such as app.4f2c1.js, and update index.html to reference it.", ok: true },
       { t: "Create a CloudFront invalidation for the /js/app.js path as a step in each release's deployment.", ok: true },

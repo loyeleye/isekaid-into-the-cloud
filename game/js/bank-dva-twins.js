@@ -3913,7 +3913,7 @@ SD.bank.push(
     a: 1,
     no: ["Each receive returns a different receipt handle, so a redelivered message gets a new key. Handles are for deleting and changing visibility.",
       null,
-      "Deduplication IDs belong to FIFO queues and are set by the sender. This is a standard queue.",
+      "Deduplication IDs belong to FIFO queues, set by the sender or made by SQS from the body. This is a standard queue.",
       "Many messages can share a millisecond, so different jobs could share a key and be skipped."],
     why: "SQS assigns each message a message ID when it's sent, and it identifies that message. A receipt handle belongs to one receive, not to the message, so it changes every time the message is received again.",
     doc: ["https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-queue-message-identifiers.html"] },
@@ -4319,7 +4319,7 @@ SD.bank.push(
       "Replace TimeoutSeconds with HeartbeatSeconds 30, since States.ALL doesn't match a missed heartbeat."
     ],
     a: 1,
-    no: ["Retriers are checked in order, so the States.ALL retrier matches the timeout first and retries it.",
+    no: ["States.ALL must be in the last retrier, so this is invalid. A States.Timeout retrier has to come before it.",
       null,
       "MaxAttempts 0 means the error is never retried, so every error would skip its retries, not just timeouts.",
       "A missed heartbeat is also reported as States.Timeout, which States.ALL matches, so it would still be retried."],
@@ -4346,12 +4346,12 @@ SD.bank.push(
     q: "An AppSync API for a review site uses API_KEY as its default authorization mode, so anyone can read reviews. A new deleteReview mutation, which returns a Review, must be callable only by signed-in Cognito user pool users in the moderators group. Public reads must keep working. Which steps should the developer take? (Select TWO.)",
     items: [
       {"t":"Add AMAZON_COGNITO_USER_POOLS as an additional authorization mode on the API, using the site's user pool.","ok":true},
-      {"t":"Mark deleteReview with @aws_cognito_user_pools(cognito_groups: [\"moderators\"]), and the Review type too.","ok":true},
+      {"t":"Mark deleteReview with @aws_cognito_user_pools(cognito_groups: [\"moderators\"]), and mark Review with it and @aws_api_key.","ok":true},
       {"t":"Mark deleteReview with @aws_auth(cognito_groups: [\"moderators\"]), and keep API_KEY as the API's only mode.","ok":false,"no":"@aws_auth is enforced only when user pools is the API's sole mode. With additional modes, @aws_cognito_user_pools replaces it."},
       {"t":"Make AMAZON_COGNITO_USER_POOLS the default mode instead, and leave the review queries with no directive.","ok":false,"no":"Fields with no directive use the default mode, so every public read would then need a user pool token."},
       {"t":"Create a second API key just for moderators, and have the resolver check which API key the request used.","ok":false,"no":"An API key identifies the app, not a signed-in user, so it can't prove group membership."}
     ],
-    why: "Fields and types without a directive use the default mode. Directives work at the field level, so the mutation and the Review type it returns both need @aws_cognito_user_pools; Review keeps @aws_api_key for public reads. The directive takes the same cognito_groups argument as @aws_auth.",
+    why: "Fields and types without a directive use the default mode. Directives work at the field level, so the mutation and the Review type it returns both need @aws_cognito_user_pools; Review also gets @aws_api_key, so public reads keep working. The directive takes the same cognito_groups argument as @aws_auth.",
     doc: ["https://docs.aws.amazon.com/appsync/latest/devguide/security-authz.html"] },
   // Unit vs pipeline resolvers (twin of dva-1-314), flip: one data source, so a unit resolver is enough
   { id: "dva-1-483", exam: "DVA", dva: "1.1", topic: "appsync", type: "mc", variant: true, twin: ["dva-1-314"],
@@ -4583,13 +4583,13 @@ SD.bank.push(
     opts: [
       "Turn on S3 Versioning on both buckets, so that each new log file replaces the older one under its key.",
       "Create a log bucket in the same Region, with logging turned off on it, and send both buckets' logs there.",
-      "Send both buckets' logs to a new log bucket in another Region, so log traffic stays apart from the apps.",
+      "Set a target prefix such as logs/ on both buckets, so the log files stay apart from the apps' own objects.",
       "Turn on S3 Object Lock in governance mode on both buckets, so delivered log files can't be rewritten."
     ],
     a: 1,
     no: ["Versioning keeps old versions of objects, so it adds storage. It does nothing to stop new log files arriving.",
       null,
-      "Server access logs must go to a bucket in the same Region and account as the source bucket.",
+      "A prefix only changes where the log files land. Each delivery is still logged by the other bucket, so the loop goes on.",
       "Buckets with Object Lock on can't be access log destinations, and locking files doesn't stop new deliveries."],
     why: "Every log delivery is itself a request on the destination bucket. When that bucket also logs, each delivery makes a new log record, which makes another delivery, and so on. AWS says the destination should not have server access logging turned on.",
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html","https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html"] },
@@ -5043,7 +5043,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData-discoverable-fields.html","https://docs.aws.amazon.com/lambda/latest/dg/monitoring-cloudwatchlogs-logformat.html"] },
   // Console error diagnosis with the AWS assistant, including its permissions (twin of dva-4-501)
   { id: "dva-4-481", exam: "DVA", dva: "4.1", topic: "qdeveloper", type: "mc", variant: true, twin: ["dva-4-501"],
-    q: "A developer hits an IAM permission error on an S3 console page and wants an in-console explanation of the cause with steps to fix it, without opening a support case. The developer's role has no AWS assistant permissions yet. What should be done?",
+    q: "A developer hits an IAM permission error on an S3 console page and wants an in-console explanation of the cause with steps to fix it, without opening a support case. The developer's role has only S3 permissions so far. What should be done?",
     opts: [
       "Allow the assistant's troubleshooting actions, such as q:StartTroubleshootingAnalysis, then choose Diagnose with AWS assistant.",
       "Allow cloudtrail:LookupEvents, then find the failed call in CloudTrail event history and read its error code and message.",
