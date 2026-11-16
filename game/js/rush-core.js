@@ -22,12 +22,15 @@
 //     in the tank. The ledger is an idempotency record in DynamoDB: before the work, Mira writes the ticket's key
 //     with a conditional write (attribute_not_exists). A repeat fails the condition and is dropped at once.
 //   - Night Orders (one of two picked before each claim, and they stack): optional twists on these rules.
-//       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes twice as long. That's a
-//               Lambda cold start (a new execution environment starts before your code runs).
+//     Each has a catch and an upside.
+//       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes three times as long.
+//               That's a Lambda cold start (a new execution environment starts before your code runs). Upside: a
+//               coin at the start of every wave from wave 2 (Lambda only bills while it runs, so idle is savings).
 //       herd:   bounced callers all retry at the same moment instead of on their own backoff. That's a thundering
-//               herd; real clients add jitter (a random wait) to spread their retries out.
+//               herd; real clients add jitter (a random wait) to spread their retries out. Upside: they try 4 times
+//               before giving up, not 3 (SDKs let you set the number of attempts).
 //       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
-//               (1 minute to 14 days in SQS; seconds here).
+//               (1 minute to 14 days in SQS; seconds here). Upside: the rack is free (SQS's free tier).
 //     Letters (questions between waves), stakes and the timeout are Night Orders too, but they're about the
 //     questions, so they live in js/rush.js.
 (function (root) {
@@ -78,15 +81,16 @@
     let a = seed >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
-  function create(seed, claim, orders) {
+  // coins: what's left over from the last claim, on top of the usual 2.
+  function create(seed, claim, orders, coins) {
     const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
       claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
-      orders: new Set(orders || []), lastFree: Array(STOOLS).fill(-99), colds: 0, expired: 0, herds: 0,
+      orders: new Set(orders || []), maxThrottles: (orders || []).includes('herd') ? MAX_THROTTLES + 1 : MAX_THROTTLES, saved: 0, lastFree: Array(STOOLS).fill(-99), colds: 0, expired: 0, herds: 0,
       clerk: C.clerk, twiceCosts: !!C.twiceCosts, belt: (C.belt || ['rack', 'reserve', 'bin', 'bell']).slice(), ledger: false, keys: new Set(), paidTwice: 0, dropped: 0, resends: 0,
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
-      rack: false, reserve: false, bin: false, coins: 2, bonusGiven: false,
+      rack: false, reserve: false, bin: false, coins: 2 + (coins || 0), bonusGiven: false,
       spill: 0, cap: CAP, handled: 0, binned: 0, twins: 0, throttles: 0, lost: 0,
       placed: [], events: [], clogT: 0, allSpawned: false
     };
@@ -126,19 +130,21 @@
     return -1;
   }
   const ev = (S, type, data) => S.events.push(Object.assign({ type, t: S.time }, data || {}));
+  // Shelf life's upside: the rack is free.
+  function costOf(S, tool) { return tool === 'rack' && S.orders.has('shelf') ? 0 : TOOLS[tool].cost; }
   function canPlace(S, tool) {
     const d = TOOLS[tool];
     if (!d) return 'unknown';
     if (S.locked.includes(tool) || !S.belt.includes(tool)) return 'locked';
     if (S[tool]) return 'placed';
-    if (S.coins < d.cost) return 'coins';
+    if (S.coins < costOf(S, tool)) return 'coins';
     if (S.over) return 'over';
     return '';
   }
   function place(S, tool) {
     const why = canPlace(S, tool);
     if (why) return why;
-    S[tool] = true; S.coins -= TOOLS[tool].cost; S.placed.push(tool);
+    S[tool] = true; S.coins -= costOf(S, tool); S.placed.push(tool);
     // Tickets already waiting their turn to retry walk onto the new rack.
     ev(S, 'place', { tool });
     return '';
@@ -169,7 +175,7 @@
     if (i >= 0) { k.stool = k.seat = i; k.from = 'chute'; go(k, 'walk', T.walk); return; }
     k.throttles++; S.throttles++;
     ev(S, 'throttle', { id: k.id, n: k.throttles });
-    if (k.throttles >= MAX_THROTTLES) { go(k, 'splat', T.splat); return; }
+    if (k.throttles >= S.maxThrottles) { go(k, 'splat', T.splat); return; }
     go(k, 'bounce', T.bounce);
   }
   function finishWork(S, k) {
@@ -203,7 +209,9 @@
     // Waves and the bonus coin after wave 2.
     while (S.spawns.length && S.spawns[0].t <= tt) {
       const sp = S.spawns.shift();
-      if (sp.wave !== S.wave) { S.wave = sp.wave; ev(S, 'wave', { wave: sp.wave }); if (sp.wave === 3 && !S.bonusGiven) { S.bonusGiven = true; S.coins++; ev(S, 'coin'); } }
+      if (sp.wave !== S.wave) { S.wave = sp.wave; ev(S, 'wave', { wave: sp.wave }); if (sp.wave === 3 && !S.bonusGiven) { S.bonusGiven = true; S.coins++; ev(S, 'coin'); }
+        // Cold stools' upside: idle stools cost nothing, and the savings come back as a coin each wave.
+        if (sp.wave >= 2 && S.orders.has('cold')) { S.coins++; S.saved++; ev(S, 'saved'); } }
       spawn(S, sp);
     }
     if (!S.spawns.length) S.allSpawned = true;
@@ -298,6 +306,6 @@
   }
   function drain(S) { const e = S.events; S.events = []; return e; }
   const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'stakes', 'timeout'];
-  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
+  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, costOf, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);

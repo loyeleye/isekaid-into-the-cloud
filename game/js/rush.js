@@ -37,7 +37,7 @@
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
     desk: { x: 660, y: 1024, h: 160 }, tank: { x: 640, y: 560, h: 220 }, bin: { x: 104, y: 1222, h: 92 },
     bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
-    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 150, w: 736 }, fs: 1.7
+    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
@@ -46,9 +46,10 @@
   // Carried across claims: a wrong answer tears an option off the next letter, wherever it arrives.
   const carry = { torn: false };
   // The run: the Night Orders pinned so far. The pick before the Rush takes them all down.
-  const run = { orders: [] };
+  // bank: coins left over at the end of a won claim, carried into the next one.
+  const run = { orders: [], bank: 0 };
   function reset(seed, claim) {
-    S = R.create(seed, claim || 'rush', run.orders); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
+    S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0;
     qEl.className = ''; qEl.innerHTML = '';
     if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
@@ -89,23 +90,26 @@
   // ---- Night Orders: one of two pinned before each claim from claim 2 on. Dutch explains each when it goes up ----
   const ORDER = {
     letters: { name: 'Letters', tag: 'Letters', aws: 'Exam-style questions',
-      rule: 'Between waves the Post Office sends a question. The room waits while you read. Right: a coin. Wrong: the next letter arrives torn, one option missing.',
+      rule: 'Between waves the Post Office sends a question, and the room waits while you read. Wrong: the next letter arrives torn, one option missing.', up: 'A coin for every right answer.',
       dutch: 'The Post Office wants proof we know what we\'re doing, so they\'ll be writing in. They write like the exam does: a situation, then the best fix. Get one wrong and the next arrives torn. Could be the bit with the answer on it. Very dramatic people, the Post Office.' },
     cold: { name: 'Cold stools', tag: 'Cold stools', aws: 'Lambda cold starts',
       rule: 'A stool nobody has sat on for 2 seconds goes cold. The next ticket there takes three times as long.',
-      dutch: 'Cold stools. Leave one empty for a bit and Mira has to warm it up again: lamp on, coat off, find the good pen. That\'s a Lambda cold start. A new execution environment boots and runs your setup code before the handler sees the event. Provisioned concurrency keeps some warm for you, at a price. I\'ve seen the price.' },
+      up: 'A coin at the start of every wave from wave 2.',
+      dutch: 'Cold stools. Leave one empty for a bit and Mira has to warm it up again: lamp on, coat off, find the good pen. That\'s a Lambda cold start. A new execution environment boots and runs your setup code before the handler sees the event. The good news: Lambda only bills while it runs, so an empty stool costs nothing. You keep the savings, a coin a wave. I checked. It\'s not a trick.' },
     herd: { name: 'The stampede', tag: 'Stampede', aws: 'Retries and jitter',
       rule: 'Bounced callers all come back at the same moment, instead of each on their own timer.',
-      dutch: 'The callers have started talking to each other. Bounce them and they agree to come back at the same moment, so they all bounce again, together. That\'s a thundering herd. Real clients add jitter, a random bit of extra wait on each retry, so they spread out. Ours haven\'t read the docs.' },
+      up: 'Callers try 4 times before giving up, not 3.',
+      dutch: 'The callers have started talking to each other. Bounce them and they agree to come back at the same moment, so they all bounce again, together. That\'s a thundering herd. Real clients add jitter, a random bit of extra wait on each retry, so they spread out. Ours haven\'t read the docs. On the bright side, a herd is stubborn: four tries before they give up, not three. The AWS SDKs let you set the number of attempts too.' },
     shelf: { name: 'Shelf life', tag: 'Shelf life', aws: 'SQS message retention',
       rule: 'A ticket that has waited on the rack for 20 seconds expires, and that\'s a lost request.',
-      dutch: 'Tickets on the rack go off now, like milk. Twenty seconds and it\'s gone. SQS does the same: a queue keeps a message for its retention period, four days unless you change it and fourteen at most, then deletes it, read or not. Ours is stricter. Keep enough stools going that nothing sits.' },
+      up: 'The rack is free.',
+      dutch: 'Tickets on the rack go off now, like milk. Twenty seconds and it\'s gone. SQS does the same: a queue keeps a message for its retention period, four days unless you change it and fourteen at most, then deletes it, read or not. Ours is stricter. To make up for it, the rack is free. SQS gives you your first million requests a month for nothing, and I\'m passing that on.' },
     stakes: { name: 'High stakes', tag: 'Stakes', aws: 'Exam tip: never leave a blank',
-      needs: 'letters', rule: 'Bet up to 2 coins on each letter. A right answer pays the bet back double. A wrong one loses it.',
+      needs: 'letters', rule: 'Bet up to 2 coins on each letter. A wrong answer loses the bet.', up: 'A right answer pays the bet back double.',
       dutch: 'You can bet on the letters now. Sure of yourself? Put coins down. Not sure? Put nothing down, and still answer. The real exam works like that: a blank scores the same as a wrong answer, so never leave one. In here a wrong answer costs you. I\'ll mind the coins.' },
     timeout: { name: 'Timeout', tag: 'Timeout', aws: 'Lambda and API Gateway timeouts',
-      needs: 'letters', rule: 'Each letter has 20 seconds on the clock. Run out and it counts as wrong.',
-      dutch: 'The Post Office has put a clock on its letters. Twenty seconds, then it gives up on you. Lambda does that to every function: 3 seconds unless you set it, 15 minutes at most, and then the invocation fails. Put API Gateway in front and you get about 29 seconds. Don\'t take it personally. I do.' }
+      needs: 'letters', rule: 'Each letter has 20 seconds on the clock. Run out and it counts as wrong.', up: 'Answer right in under 10 seconds for an extra coin.',
+      dutch: 'The Post Office has put a clock on its letters. Twenty seconds, then it gives up on you. Lambda does that to every function: 3 seconds unless you set it, 15 minutes at most, and then the invocation fails. Put API Gateway in front and you get about 29 seconds. Be quick, though, and there\'s an extra coin in it. Lambda bills by the millisecond, so fast is cheap.' }
   };
   const LETTER_SECS = 20;
   // Two notices from the orders not pinned yet, so one you pass on can come back before a later claim. The first pick
@@ -116,14 +120,14 @@
     return pool.slice(0, 2);
   }
   function showPick(claim, opts) {
-    if (claim === 'rush') run.orders = [];
+    if (claim === 'rush') { run.orders = []; run.bank = 0; }
     const two = opts || offer(claim), title = R.CLAIMS[claim].title;
     if (!two.length) { reset(SEED + Math.floor(Math.random() * 1000), claim); return; }
     qEl.className = 'on orders';
     const have = run.orders.length ? `<p class="no-have">Already pinned: ${run.orders.map(o => ORDER[o].name).join(', ')}</p>` : '';
     qEl.innerHTML = `<div class="no-board"><p class="no-kind">Night Orders · before ${title}</p>
       <h2 id="q-h">Pin one up. It stays for the rest of the night.</h2>
-      <div class="no-cards">${two.map((o, n) => `<button type="button" class="no-card" data-o="${o}"><kbd>${n + 1}</kbd><b>${ORDER[o].name}</b><span>${ORDER[o].rule}</span><small>${ORDER[o].aws}</small></button>`).join('')}</div>${have}</div>`;
+      <div class="no-cards">${two.map((o, n) => `<button type="button" class="no-card" data-o="${o}"><kbd>${n + 1}</kbd><b>${ORDER[o].name}</b><span>${ORDER[o].rule}</span><span class="no-up">Upside: ${ORDER[o].up}</span><small>${ORDER[o].aws}</small></button>`).join('')}</div>${have}</div>`;
     qEl.querySelectorAll('.no-card').forEach(b => b.addEventListener('click', () => explainOrder(claim, b.dataset.o, two)));
     qEl.querySelector('.no-card').focus();
   }
@@ -134,7 +138,7 @@
     qEl.innerHTML = `<div class="no-board"><p class="no-kind">Night Orders · ${ORDER[o].aws}</p>
       <h2 id="q-h">${ORDER[o].name}</h2>
       <div class="no-dutch"><img src="${SRC['dutch-' + (o === 'herd' ? 'surprised' : o === 'stakes' ? 'smile' : 'tired')]}" alt="Dutch"><p>${ORDER[o].dutch}</p></div>
-      <p class="no-rule">${ORDER[o].rule}</p>
+      <p class="no-rule">${ORDER[o].rule}<br><span class="no-up">Upside: ${ORDER[o].up}</span></p>
       <button type="button" class="no-go">Pin it up</button>${other ? `<button type="button" class="no-back">I'll take ${ORDER[other].name.replace(/^The /, 'the ')} instead</button>` : ''}</div>`;
     const go = qEl.querySelector('.no-go');
     go.addEventListener('click', () => { run.orders.push(o); reset(SEED + Math.floor(Math.random() * 1000), claim); });
@@ -248,13 +252,14 @@
     draw();
     requestAnimationFrame(frame);
   }
-  function popAt(p, text, col, size) { pops.push({ x: p[0], y: p[1], text, col, size: size || 34, t: 0 }); }
+  function popAt(p, text, col, size) { pops.push({ x: Math.max(130, Math.min(L.W - 130, p[0])), y: p[1], text, col, size: size || 34, t: 0 }); }
   function onEvent(e) {
     const k = S.tickets.find(x => x.id === e.id);
     switch (e.type) {
       case 'lever': leverT = 1; if (saying && said.intro && sayQ.indexOf(saying) < 0 && /pull the lever/.test(saying.text)) saying = null; break;
       case 'wave': popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); if (e.wave >= 2 && letters.length) letterAnim = { t: 0, L: letters.shift() }; break;
       case 'coin': coinPulse = 1.5; say('coin', 'smile', LINES.coin); break;
+      case 'saved': coinPulse = 1.5; popAt([L.W / 2, L.H * 0.36 + 60], '+1 coin, idle stools saved', '#ffdc78', 30); break;
       case 'throttle': popAt([L.foot[0] + 20 + (Math.random() - .5) * 60, L.foot[1] - 70 - Math.random() * 40], '429', '#ff8a7a', 40); flashT = .25; say('throttle', 'tired', LINES.throttle); break;
       case 'spill':
         popAt([L.puddle.x, L.puddle.y - 60], '-1', '#9cc8ff', 36);
@@ -466,16 +471,14 @@
   function drawOrders() {
     if (!run.orders.length) return;
     const f = 13 * L.fs; cx.save(); cx.font = `800 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; cx.textBaseline = 'middle';
-    let x = L.title[0], y = L.title[1] + (L.coinsAt ? 128 : 92) * L.fs;
-    if (L.coinsAt) { x = L.W - 16; cx.textAlign = 'right'; y = L.title[1] + 56 * L.fs; }
-    const tags = run.orders.map(o => ORDER[o].tag);
-    if (L.coinsAt) tags.reverse();
-    for (const t of tags) {
-      const w = cx.measureText(t).width + 18, x0 = L.coinsAt ? x - w : x;
+    // Their own row under the wave dots (on the phone, between those and Dutch's box).
+    let x = L.title[0]; const y = L.title[1] + (L.coinsAt ? 90 : 92) * L.fs;
+    for (const t of run.orders.map(o => ORDER[o].tag)) {
+      const w = cx.measureText(t).width + 18, x0 = x;
       rrect(x0, y - f * .8, w, f * 1.6, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#6b4e24'; cx.stroke();
       cx.fillStyle = '#b23a2f'; cx.beginPath(); cx.arc(x0 + w / 2, y - f * .8, 4 * L.fs, 0, Math.PI * 2); cx.fill();
       cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.fillText(t, x0 + w / 2, y + 1);
-      x = L.coinsAt ? x0 - 8 : x0 + w + 8;
+      x = x0 + w + 8;
     }
     cx.restore();
   }
@@ -502,7 +505,7 @@
     const [bx, by, bw, bh] = beltRect();
     cx.save(); rrect(bx, by, bw, bh, 22); cx.fillStyle = 'rgba(24,20,30,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
     TOOLS.forEach((t, i) => {
-      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), poor = !used && !locked && S.coins < 1;
+      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), cost = R.costOf(S, t), poor = !used && !locked && S.coins < cost;
       const hot = drag && drag.tool === t;
       cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = used ? 'rgba(30,26,34,1)' : 'rgba(58,48,62,1)'; cx.fill();
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
@@ -511,7 +514,7 @@
       cx.fillText(used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t], r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
       if (!used && !locked) {
         cx.save(); cx.beginPath(); cx.arc(r[0] + r[2] - 10, r[1] + 10, 13 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 2.5; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
-        text('1', r[0] + r[2] - 10, r[1] + 11, 15, '#2b1a08');
+        text(String(cost), r[0] + r[2] - 10, r[1] + 11, 15, '#2b1a08');
       }
       if (!used && !locked) text(String(i + 1), r[0] + 12, r[1] + 12, 14, '#9d90a8');
     });
@@ -616,11 +619,12 @@
       if (letterClock) letterClock.done = true;
       const tornNote = torn && answer === -1 ? ' The answer was on the strip that got torn off.' : '';
       const s = n => n + (n > 1 ? ' coins' : ' coin');
-      const head = right ? (bet ? `Right. A coin, and your ${s(bet)} back double.` : 'Right. Here\'s a coin.')
+      const quick = right && letterClock && letterClock.left >= LETTER_SECS / 2 ? 1 : 0;
+      const head = right ? (bet ? `Right. A coin, and your ${s(bet)} back double.` : 'Right. Here\'s a coin.') + (quick ? ' Quick, too: one more.' : '')
         : (b ? 'Not quite.' : 'Time\'s up.') + (bet ? ` That's ${s(bet)} gone.` : '') + ' The next letter will arrive torn.';
       why.innerHTML = `<b>${head}</b> ${Lt.why}${tornNote}`; why.classList.add('on');
       goBtn.classList.add('on'); goBtn.focus();
-      if (right) { S.coins += 1 + bet; coinPulse = 1.5; S.lettersRight = (S.lettersRight || 0) + 1; } else { S.coins -= bet; carry.torn = true; S.lettersWrong = (S.lettersWrong || 0) + 1; }
+      if (right) { S.coins += 1 + bet + quick; coinPulse = 1.5; S.lettersRight = (S.lettersRight || 0) + 1; } else { S.coins -= bet; carry.torn = true; S.lettersWrong = (S.lettersWrong || 0) + 1; }
     }
     qEl.querySelectorAll('.lt-opts button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) settle(b); }));
     letterClock = S.orders.has('timeout') ? { left: LETTER_SECS, done: false, timeUp: () => settle(null) } : null;
@@ -631,6 +635,8 @@
   // The end of a claim: the stamp stays on the room, with a small strip along the bottom.
   function showEnd() {
     const won = S.over === 'win';
+    // Coins left over from a win carry into the next claim. Losing keeps what you started this claim with.
+    if (won) run.bank = S.next ? S.coins : 0;
     // Won with a claim after it: on to that one. Lost: this claim again. Won the last: back to the start.
     const nextClaim = won ? (S.next || 'rush') : S.claim;
     const againLabel = won && S.next ? 'Next claim: ' + R.CLAIMS[S.next].title : won && S.claim !== 'rush' ? 'Play again from the Rush' : 'Try ' + R.CLAIMS[S.claim].title + ' again';
@@ -639,6 +645,7 @@
     if (S.claim === 'double') bits.push(`${S.paidTwice} paid twice`, `${S.dropped} repeats stopped`);
     const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
     bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
+    if (won && S.next && S.coins) bits.push(`${S.coins} coin${S.coins > 1 ? 's' : ''} carried over`);
     if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;

@@ -102,6 +102,7 @@ async function playOut(pg, policy, seen) {
     if (st.sw > st.w) bad(name, 'horizontal scroll');
     if (!/Next claim: the Bell/.test(st.next)) bad(name, 'no next-claim button:', st.next);
     // The pick before claim 2: two notices, never letters again. Read one, switch to the other, pin it.
+    const left1 = await pg.evaluate(() => SD_RUSH.S.coins);
     await pg.click('.end-go');
     const offered = await pg.evaluate(() => [...document.querySelectorAll('.no-card')].map(b => b.dataset.o));
     if (offered.length !== 2 || offered[0] === offered[1] || offered.includes('letters')) bad(name, 'claim 2 offer:', offered);
@@ -116,6 +117,7 @@ async function playOut(pg, policy, seen) {
     await pg.click('.no-go');
     const r2 = await pg.evaluate(() => ({ claim: SD_RUSH.S.claim, orders: SD_RUSH.run.orders.slice(), q: document.getElementById('q').className }));
     if (r2.claim !== 'bell' || r2.orders.join() !== 'letters,stakes' || r2.q) bad(name, 'pinning did not start the Bell with stakes', JSON.stringify(r2));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== 2 + left1) bad(name, 'leftover coins should carry into the Bell', left1);
     // Claim 2, the Bell.
     await pg.evaluate(() => SD_RUSH.reset(7, 'bell'));
     await pg.waitForTimeout(400);
@@ -186,12 +188,15 @@ async function playOut(pg, policy, seen) {
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=bell&orders=cold,herd,shelf`);
     await pg.waitForTimeout(600);
     if (await pg.evaluate(() => document.getElementById('q').className)) bad(name, '?orders should skip the pick');
-    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
+    // Shelf life makes the rack free; cold stools pay a coin a wave from wave 2; the stampede allows 4 tries.
+    await pg.evaluate(() => SD_RUSH.place('rack'));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins + ':' + SD_RUSH.S.maxThrottles)) !== '2:4') bad(name, 'shelf life should make the rack free, and the stampede allow 4 tries');
+    await pg.evaluate(() => SD_RUSH.start());
     await pg.waitForTimeout(9000);
     await pg.screenshot({ path: `${OUT}/${name}-12-orders.png` });
-    const os = await pg.evaluate(() => ({ colds: SD_RUSH.S.colds, herds: SD_RUSH.S.herds, orders: [...SD_RUSH.S.orders].join() }));
+    const os = await pg.evaluate(() => ({ colds: SD_RUSH.S.colds, saved: SD_RUSH.S.saved, herds: SD_RUSH.S.herds, orders: [...SD_RUSH.S.orders].join() }));
     console.log(name, 'orders', JSON.stringify(os));
-    if (!os.colds || os.orders !== 'cold,herd,shelf') bad(name, 'room orders', JSON.stringify(os));
+    if (!os.colds || !os.saved || os.orders !== 'cold,herd,shelf') bad(name, 'room orders', JSON.stringify(os));
     if (errs.length) bad(name, 'errors:', errs);
     await pg.close();
   }
