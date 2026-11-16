@@ -415,20 +415,25 @@
     };
   }
   const GLYPH = { done: '✓', throttled: '⛔', gaveUp: '✗', unanswered: '✉', fail: '⚠', dlq: '🪦', dupe: '×2', dupeBlocked: '🛡' };
+  // The minute plays on the board itself: the same parts, stools and plaques as the fix screen, with each envelope
+  // flying from one part's picture to another's. Positions are read off the board once it is laid out.
   function playScreen(s) {
-    const x = inc(s), sum = s.playing === 'before' ? s.before : s.last, L0 = lane(x);
-    const pos = p => Math.max(0, L0.indexOf(p)) / Math.max(1, L0.length - 1);
+    const x = inc(s), sum = s.playing === 'before' ? s.before : s.last;
+    const sk = Object.assign({}, s, { k: s.playing === 'before' ? L.startKnobs(x) : s.k });
     const turns = sum.turns.map((t, i) => ({ t, i })).filter(o => Object.keys(o.t).some(k => GLYPH[k]));
-    const b = panel(`${hud(s)}
-      <div class="icl-play" role="img" aria-label="The minute playing out on the request path">
-        <div class="icl-lane">${L0.map(p => `<div class="icl-stop" style="left:${(pos(p) * 100).toFixed(1)}%">${ART[p] ? img(ART[p], 'icl-big') : ''}<span>${esc(partName(x, p))}</span></div>`).join('')}
-          <div class="icl-envs" aria-hidden="true"></div></div>
-        ${x.parts.includes('pool') ? `<div class="icl-pstools">${stools(x, s.playing === 'before' ? L.startKnobs(x) : s.k)}</div>` : ''}
-        <div class="icl-clock"><b id="icl-t">0:00</b><span id="icl-tally" class="icl-tally"></span></div>
-        <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div>
-      </div>
-      <div class="row"><button class="ghost" id="icl-skip">Skip</button></div>`);
-    const box = b.querySelector('.icl-envs'), clock = b.querySelector('#icl-t'), tally = b.querySelector('#icl-tally'), lamp = b.querySelector('#icl-lamp');
+    const b = panel(cols(`${hud(s)}
+      <div class="icl-clock"><b id="icl-t">0:00</b><span id="icl-tally" class="icl-tally"></span></div>
+      <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div>`,
+      `<div class="icl-play" role="img" aria-label="The minute playing out on the request path">${machine(sk, x, null, null)}<div class="icl-envs" aria-hidden="true"></div></div>`,
+      `<div class="row"><button class="ghost" id="icl-skip">Skip</button></div>`));
+    const play = b.querySelector('.icl-play'), box = b.querySelector('.icl-envs'), clock = b.querySelector('#icl-t'), tally = b.querySelector('#icl-tally'), lamp = b.querySelector('#icl-lamp');
+    // Where each part's picture sits inside the board, in px from the board's corner.
+    const at = p => {
+      const el = play.querySelector(`[data-part="${p}"] .icl-art`) || play.querySelector(`[data-part="${p}"]`);
+      if (!el) return { x: 0, y: 0 };
+      const r = el.getBoundingClientRect(), o = play.getBoundingClientRect();
+      return { x: r.left - o.left + r.width / 2, y: r.top - o.top + r.height * 0.45 };
+    };
     const mv = motions(x), seen = {};
     let k = 0, timer = null, over = false;
     const finish = () => {
@@ -448,15 +453,20 @@
       const { t, i } = turns[k++];
       clock.textContent = `${Math.floor((i + 1) * L.TURN_SECS / 60)}:${String((i + 1) * L.TURN_SECS % 60).padStart(2, '0')}`;
       box.innerHTML = Object.keys(t).filter(ty => mv[ty]).map(ty => {
-        const m = mv[ty], n = Math.min(PER_TYPE, t[ty]);
+        const m = mv[ty], n = Math.min(PER_TYPE, t[ty]), a = at(m.from), z = at(m.to);
         seen[ty] = (seen[ty] | 0) + t[ty];
-        return Array.from({ length: n }, (_, j) => `<span class="icl-fly ${m.how}" style="--a:${(pos(m.from) * 100).toFixed(1)}%;--b:${(pos(m.to) * 100).toFixed(1)}%;--d:${(j * 70)}ms;--y:${(j % 3) * 9}px">${img(m.img, '')}</span>`).join('');
+        return Array.from({ length: n }, (_, j) => `<span class="icl-fly ${m.how}" style="--a:${a.x | 0}px;--b:${z.x | 0}px;--ya:${(a.y | 0) + (j % 3) * 9 - 9}px;--yb:${(z.y | 0) + (j % 3) * 9 - 9}px;--d:${(j * 70)}ms">${img(m.img, '')}</span>`).join('');
       }).join('');
       tally.innerHTML = Object.keys(GLYPH).filter(ty => seen[ty]).map(ty => `<span>${GLYPH[ty]} ${seen[ty]}</span>`).join('');
+      // The part the envelopes are bouncing off glows while it happens.
+      play.querySelectorAll('.icl-part').forEach(el => el.classList.remove('hot'));
+      const hit = t.throttled || t.fail ? (x.id === 'launch' ? 'orders' : 'worker') : t.gaveUp ? 'apigw' : null;
+      const he = hit && play.querySelector(`[data-part="${hit}"]`);
+      if (he) he.parentNode.classList.add('hot');
       timer = setTimeout(step, PLAY_MS);
     };
     b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); k = turns.length; box.innerHTML = ''; finish(); };
-    if (still()) finish(); else step();
+    if (still()) finish(); else requestAnimationFrame(step);
   }
   const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -747,25 +757,25 @@
     .icl-face { position: relative; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6a5236, #2c1c10 70%); border: 3px solid #140b05; box-shadow: 0 3px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(233, 197, 109, .3); flex: none; }
     .icl-face i { position: absolute; left: 50%; top: 6px; bottom: 50%; width: 4px; margin-left: -2px; border-radius: 2px; background: #e9c56d; transform-origin: 50% 100%; transition: transform .25s; }
     .icl-ticks { display: flex; flex-wrap: wrap; gap: 6px; }
-    .icl-play { position: relative; max-width: 760px; margin: 10px auto; padding: 10px 0 6px; }
+    .icl-play { position: relative; }
     .icl-lane { position: relative; height: 128px; margin: 0 44px; }
     .icl-lane::before { content: ''; position: absolute; left: 0; right: 0; top: 46px; border-top: 3px dashed rgba(233, 197, 109, .45); }
     .icl-stop { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 88px; text-align: center; font-size: 12px; font-weight: 700; }
     .icl-big { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .6)); }
     .icl-envs { position: absolute; inset: 0; pointer-events: none; }
-    .icl-fly { position: absolute; top: calc(30px + var(--y, 0px)); left: var(--a); width: 28px; height: 28px; margin-left: -14px; opacity: 0;
+    .icl-fly { position: absolute; top: var(--ya); left: var(--a); margin-top: -14px; width: 28px; height: 28px; margin-left: -14px; opacity: 0;
       animation: .62s ease-in-out var(--d, 0ms) forwards; }
     .icl-fly img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
     .icl-fly.go { animation-name: icl-go; } .icl-fly.back { animation-name: icl-back; } .icl-fly.lost { animation-name: icl-lost; } .icl-fly.drop { animation-name: icl-dropto; }
-    @keyframes icl-go { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { left: var(--b); opacity: .85; } }
-    @keyframes icl-back { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 50% { left: var(--b); transform: rotate(0); } 62% { transform: rotate(-25deg) scale(1.15); } 100% { left: var(--a); opacity: .2; transform: rotate(-40deg); } }
+    @keyframes icl-go { 0% { left: var(--a); top: var(--ya); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { left: var(--b); top: var(--yb); opacity: .85; } }
+    @keyframes icl-back { 0% { left: var(--a); top: var(--ya); opacity: 0; } 12% { opacity: 1; } 50% { left: var(--b); top: var(--yb); transform: rotate(0); } 62% { transform: rotate(-25deg) scale(1.3); } 100% { left: var(--a); top: var(--ya); opacity: .2; transform: rotate(-40deg); } }
     @keyframes icl-lost { 0% { left: var(--a); opacity: 1; } 100% { left: var(--a); opacity: 0; transform: translate(-14px, 40px) rotate(-60deg); } }
-    @keyframes icl-dropto { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 60% { left: var(--b); transform: translateY(0); } 100% { left: var(--b); opacity: 1; transform: translateY(26px) rotate(15deg); } }
+    @keyframes icl-dropto { 0% { left: var(--a); top: var(--ya); opacity: 0; } 12% { opacity: 1; } 60% { left: var(--b); top: var(--yb); transform: translateY(0); } 100% { left: var(--b); top: var(--yb); opacity: 1; transform: translateY(26px) rotate(15deg); } }
     @media (min-width: 900px) {
-      body.in-mode .icl-play { max-width: 900px; padding-top: 40px; }
+      
       body.in-mode .icl-lane { height: 190px; margin: 0 70px; } body.in-mode .icl-lane::before { top: 70px; }
       body.in-mode .icl-stop { width: 140px; font-size: 15px; } body.in-mode .icl-big { width: 120px; height: 120px; }
-      body.in-mode .icl-fly { top: calc(50px + var(--y, 0px)); width: 40px; height: 40px; margin-left: -20px; } body.in-mode .icl-fly img { width: 40px; height: 40px; }
+      body.in-mode .icl-fly { width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; } body.in-mode .icl-fly img { width: 40px; height: 40px; }
       body.in-mode .icl-pstools .icl-stool { width: 30px; height: 30px; }
       body.in-mode .icl-clock b { font-size: 28px; } body.in-mode .icl-tally { font-size: 20px; }
     }
