@@ -111,7 +111,15 @@
     heldN = n; unused = {};
     return (held = new Set((SD.examHeldOut || []).filter(id => !used.has(id))));
   };
-  E.isHeld = q => !!q && E.heldOut().has(q.id);
+  // The Proving Road's reserved questions (js/sprint-data.js, js/mode-sprint.js) are held out the same way until the run
+  // that owns them is finished, so no other mode, Today's set or twin pick serves one first. They never join a mock.
+  E.isReserved = function (q) {
+    const R = SD.sprintData, id = q && (q.id || q);
+    if (!R || !id) return false;
+    const done = (save().sprint && save().sprint.done) || {};
+    return Object.keys(R.runs).some(k => !done[k] && (R.runs[k].ids.includes(id) || R.runs[k].spares.includes(id)));
+  };
+  E.isHeld = q => !!q && (E.heldOut().has(q.id) || E.isReserved(q));
   E.isSaa = q => !!q && q.exam === 'SAA';
   E.isDva = q => !!q && (q.exam === 'DVA' || q.exam === 'both');
   // Services the exam guide doesn't list, by bank topic. DVA-C02 guide v2.1 (checked Nov 9, 2026) removed CodeGuru,
