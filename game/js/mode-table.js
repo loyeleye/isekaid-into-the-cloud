@@ -58,8 +58,18 @@
     edge: 'You won the Cup last time, so the house opens on the centre. Genuine, before you ask.',
     resume: 'Oh, you\'re back. I kept your seat, and the pins exactly where they were.'
   };
-  const kage = () => { const c6 = sv() && sv().c6; return `assets/img/portraits/kagemaru-${c6 && c6.w && c6.w.x && c6.w.x.reveal ? 'neutral' : 'gloved'}.webp`; };
-  const say = t => `<div class="du-say" data-vo="${esc('kagemaru|' + t)}"><img src="${kage()}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
+  // His pose at the table (PixelLab, assets/img/table/kage-<pose>.webp, CREDITS.md), by line. Freya's ring stays under
+  // his glove until chapter 6's reveal, so after it he's the plain unmasked portrait, as js/vec-cast.js does.
+  const POSE = { walkup: 'lay', sit: 'lay', lay: 'lay', edge: 'lay', line: 'hover', held: 'pay', boardMe: 'caught', callFake: 'caught', won: 'pay',
+    failed: 'smug', callReal: 'smug', boardHim: 'smug', lost: 'smug', hisPick: 'ledger', myPick: 'hover', bill: 'ledger', billNone: 'ledger',
+    rack: 'hover', sudden: 'hover', resume: 'lay' };
+  const revealed = () => { const c6 = sv() && sv().c6; return !!(c6 && c6.w && c6.w.x && c6.w.x.reveal); };
+  const kage = t => {
+    const k = Object.keys(SAY).find(x => SAY[x] === t);
+    if (!revealed() && k && POSE[k]) return `assets/img/table/kage-${POSE[k]}.webp`;
+    return `assets/img/portraits/kagemaru-${revealed() ? 'neutral' : 'gloved'}.webp`;
+  };
+  const say = t => `<div class="du-say ct-say" data-vo="${esc('kagemaru|' + t)}"><img src="${kage(t)}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
   const teachLine = (s, key) => { const t = T.teach(s, key); return t ? `<p class="ct-teach" role="status">${esc(t)}</p>` : ''; };
   const panel = (html, title) => U.panel(`<div class="ct">${html}</div>`, { title: title || TITLE, onClose: stopNow, cls: 'du-win ct-win' });
   function stopNow() { const s = cur(); if (s) save(s); untune(); if (SD.today && SD.today.render) SD.today.render(); }
@@ -67,10 +77,11 @@
   // ---- Pieces ----
   const SETC = { dq: '#3f5f80', kr: '#b8923a', sc: '#4f7f5c', tw: '#a8652d', kk: '#9e3a34' };
   const pinName = id => T.PINS[id].name;
-  // An enamel pin (drawn; generated art replaces the disc when it's in, assets/img/table/pin-<id>.webp).
+  // An enamel pin: PixelLab art (assets/img/table/pin-<id>.webp, CREDITS.md) for the ids in PIN_ART, else a drawn disc.
+  const PIN_ART = new Set(Object.keys(T.PINS));
   function pinHtml(id, o) {
     o = o || {};
-    const P = T.PINS[id], img = SD.tableArt && SD.tableArt.pin ? SD.tableArt.pin(id) : '';
+    const P = T.PINS[id], img = PIN_ART.has(id) ? `<img src="assets/img/table/pin-${id}.webp" alt="" width="48" height="48">` : '';
     return `<span class="ct-pin${o.cls ? ' ' + o.cls : ''}" style="--pc:${SETC[P.set]}">${img || `<i aria-hidden="true">${esc(P.name.replace(/^(Beanstalk: |CloudWatch |CloudTrail |SQS |KMS |X-Ray |Lambda)/, '').slice(0, 2))}</i>`}<span>${esc(P.name)}</span></span>`;
   }
   const jobTitle = j => j.needs.map(n => T.NEEDS[n].t).join(' + ');
@@ -157,6 +168,7 @@
     const held = r.test.ok;
     const body = panel(`${say(msg)}${teachLine(s, tk)}${j.needs.length > 1 ? teachLine(s, 'chalk') : ''}
       <div class="ct-test ${held ? 'held' : 'cracked'}" style="--sc:${SETC[j.set]}">
+        <img class="ct-scene" src="assets/img/table/scene-${j.set}.webp" alt="" width="192" height="96">
         <p class="small"><b>The test</b> · ${esc(T.SQ[r.sq])} · ${esc(T.SETS[j.set].name)}</p>
         <div class="ct-test-pin">${pinHtml(r.pin, { cls: held ? '' : 'cracked' })}<b class="ct-stamp ${held ? 'ok' : 'crack'}">${held ? 'HOLDS' : 'CRACKS'}</b></div>
         <ul class="ct-lines">${lines}</ul>
@@ -368,6 +380,8 @@
 
   const css = document.createElement('style');
   css.textContent = `
+    .ct-say img { image-rendering: pixelated; object-fit: cover; object-position: center top; background: #2a2433; }
+    .ct-scene { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 6px; margin: 0 0 6px; }
     .ct-teach { margin: 4px 0 6px; padding: 4px 8px; border-left: 4px solid var(--sun, #b8923a); font-size: 14px; }
     .ct-felt { max-width: 380px; }
     .ct-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: #2f5a3f; border-radius: 8px; padding: 4px; }
@@ -379,6 +393,7 @@
     .ct-sq.taken.him { background: #ded6ea; }
     .ct-job { font: 700 11.5px/1.15 var(--f-body, sans-serif); overflow-wrap: anywhere; }
     .ct-sq.taken .ct-job { font-size: 10px; opacity: .75; }
+    .ct-sq.hard .ct-job { padding: 0 9px; }
     .ct-two { position: absolute; top: 1px; right: 4px; font: 800 10px var(--f-body, sans-serif); color: var(--sc); }
     .ct-own { position: absolute; bottom: 2px; left: 0; right: 0; font: 800 10px var(--f-body, sans-serif); letter-spacing: .05em; text-transform: uppercase; }
     .ct-own.me { color: #2d5a2a; } .ct-own.him { color: #4a3a6e; }
@@ -388,7 +403,7 @@
     .ct-hand svg { width: 34px; height: auto; }
     .ct-pin { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; text-align: left; font: 700 12px/1.15 var(--f-body, sans-serif); }
     .ct-pin > i, .ct-pin > img { flex: none; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8 0 18%, transparent 19%), var(--pc); border: 2px solid #b8923a; color: #fff; font: 800 11px/26px var(--f-body, sans-serif); text-align: center; font-style: normal; box-shadow: 0 2px 0 #17131f55; }
-    .ct-pin > img { object-fit: contain; background: none; border: 0; box-shadow: none; }
+    .ct-pin > img { object-fit: contain; background: none; border: 0; box-shadow: none; image-rendering: pixelated; }
     .ct-pin > span { overflow-wrap: anywhere; }
     .ct-pin.sm { flex-direction: column; gap: 1px; font-size: 9.5px; text-align: center; }
     .ct-pin.sm > i, .ct-pin.sm > img { width: 24px; height: 24px; font-size: 9px; line-height: 20px; }
