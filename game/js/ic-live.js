@@ -42,7 +42,44 @@
   };
   const say = (line, cls) => `<p class="ic-say${cls ? ' ' + cls : ''}" data-vo="${esc('uptima|' + line)}"><b>Uptima:</b> ${esc(line)}</p>`;
   const panel = (html, o) => U.panel(`<div class="icl">${html}</div>`, Object.assign({ title: TITLE, onClose: stopNow }, o || {}));
-  function stopNow() { const s = cur(); if (s) save(s); if (SD.today && SD.today.render) SD.today.render(); }
+  function stopNow() { const s = cur(); if (s) save(s); untune(); if (SD.today && SD.today.render) SD.today.render(); }
+
+  // ---- Music (Mureka, CREDITS.md): the live incident loop while a shift is open, a sting on each run's result.
+  // Like the Look-Alike Cup, it saves what was playing and puts it back when the shift closes.
+  const AU = () => SD.audio && SD.audio.music ? SD.audio : null;
+  if (AU() && SD.audio.add) SD.audio.add({ songs: { iclive: 'm-ic-live' }, jingles: { icmet: 'j-ic-met', icred: 'j-ic-red' } });
+  let before = null;
+  const tune = () => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && a.loopName !== 'iclive' ? a.loopName : ''; if (a.loopName !== 'iclive') a.music('iclive'); };
+  const untune = () => { const a = AU(); if (!a || before === null) return; a.music(before || null); before = null; };
+  const sting = ok => { const a = AU(); if (a && a.jingle) a.jingle(ok ? 'icmet' : 'icred', 'iclive'); };
+
+  // ---- Art (PixelLab, CREDITS.md; tools/ic_live_art.py): each part is a thing in Uptima's camp, beside its name.
+  const IMG = 'assets/img/ic-live/';
+  const ART = { apigw: 'gate', orders: 'desk', worker: 'desk', reports: 'reports', queue: 'rack', dlq: 'bin', table: 'vault' };
+  const img = (f, cls) => `<img class="${cls}" src="${IMG}${f}.webp" alt="" draggable="false">`;
+  // Account concurrency as stools, one per concurrent execution: blue are reserved for orders-fn, grey are taken by
+  // reports-job (it wants 8 of whatever is unreserved), and the rest are free to share.
+  function stools(x, k) {
+    const pool = 10, res = k.reserve || 0, rep = Math.min(8, pool - res), free = pool - res - rep;
+    const row = [].concat(Array(res).fill('stool-orders'), Array(rep).fill('stool-reports'), Array(free).fill('stool'));
+    return `<span class="icl-stools" aria-hidden="true">${row.map(f => img(f, 'icl-stool')).join('')}</span>`;
+  }
+  // What the requests did last minute, as envelopes at the part: bounced off a full desk (429), parked in the bin,
+  // done twice, waiting in the rack, or through. At most five each; the words beside them carry the counts.
+  function flow(x, p, sum) {
+    if (!sum) return '';
+    const n = v => Math.min(5, v | 0), out = [];
+    if (p === 'orders' && sum.throttled) out.push(['env-429', 'bounce', n(sum.throttled)]);
+    if (p === 'orders' && !sum.throttled && x.id === 'launch') out.push(['env-done', 'through', 3]);
+    if (p === 'queue' && sum.backlog) out.push(['env', 'wait', n(sum.backlog)]);
+    if (p === 'dlq' && sum.parked) out.push(['env-poison', 'drop', n(sum.parked)]);
+    if (p === 'worker' && x.id === 'poison' && sum.fails) out.push(['env-poison', 'bounce', n(sum.fails)]);
+    if (p === 'table' && sum.dupes) out.push(['env-twice', 'wait', n(sum.dupes)]);
+    if (p === 'table' && sum.blocked) out.push(['env-done', 'through', n(sum.blocked)]);
+    if (!out.length) return '';
+    return `<span class="icl-flow" aria-hidden="true">${out.map(([f, how, c]) => Array.from({ length: c }, (_, i) =>
+      `<span class="icl-env ${how}" style="animation-delay:${(i * 0.18).toFixed(2)}s">${img(f, '')}</span>`).join('')).join('')}</span>`;
+  }
 
   IL.inProgress = () => { const s = cur(); return !!(s && s.v === 1 && s.phase !== 'done'); };
   IL.status = () => { const s = cur(); return IL.inProgress() ? `Live shift · incident ${s.i + 1} of ${L.INCIDENTS.length}` : ''; };
@@ -60,6 +97,7 @@
     s.k = L.startKnobs(x); s.runs = 0; s.pred = null; s.last = null; s.before = null; s.open = null; s.phase = 'page'; s.teach = null;
   }
   function draw(s) {
+    if (s.phase === 'done') untune(); else tune();
     ({ page: pageScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
   }
 
@@ -100,8 +138,8 @@
       const arrow = i < x.parts.length - 1 && !(p === 'pool' || p === 'reports') ? '<span class="icl-arrow" aria-hidden="true">↓</span>' : '';
       return `<div class="icl-part${open === p ? ' open' : ''}${st.did.some(d => /⛔|⚠|×2|✗|✉|📥/.test(d)) ? ' hot' : ''}">
         <button class="icl-ph" data-part="${p}" ${tappable ? '' : 'disabled'} aria-expanded="${open === p}" aria-label="${esc(label)}">
-          <b>${esc(partName(x, p))}</b>${st.out.map(o => `<span class="icl-set">${esc(o)}</span>`).join('')}
-          ${st.did.map(d => `<span class="icl-did">${esc(d)}</span>`).join('')}
+          ${ART[p] ? img(ART[p], 'icl-art') : ''}<b>${esc(partName(x, p))}</b>${p === 'pool' ? stools(x, s.k) : ''}${st.out.map(o => `<span class="icl-set">${esc(o)}</span>`).join('')}
+          ${st.did.map(d => `<span class="icl-did">${esc(d)}</span>`).join('')}${flow(x, p, sum)}
           ${tappable ? `<span class="icl-tap small">${open === p ? 'Close' : knobs.length ? 'Evidence and settings' : 'Evidence'}</span>` : ''}</button>
         ${open === p ? partOpen(s, x, p, knobs) : ''}</div>${arrow}`;
     }).join('');
@@ -182,7 +220,7 @@
       save(s); fixScreen(s);
     });
     b.querySelector('#icl-run').onclick = () => {
-      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'result';
+      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'result'; sting(s.last.slo);
       save(s); draw(s);
     };
     b.querySelector('#icl-stop').onclick = () => { U.closePanel(); stopNow(); };
@@ -274,6 +312,19 @@
     .icl-stamps { list-style: none; padding: 0; margin: 6px 0; }
     .icl-stamps li { margin: 4px 0; overflow-wrap: anywhere; }
     .icl-stamps li.on { font-weight: 700; }
-    .icl-slo, .icl-verdict, .icl-changes { overflow-wrap: anywhere; }`;
+    .icl-slo, .icl-verdict, .icl-changes { overflow-wrap: anywhere; }
+    .icl-art { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; flex: none; }
+    .icl-stools { display: flex; flex-wrap: wrap; gap: 1px; width: 100%; }
+    .icl-stool { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; }
+    .icl-flow { display: flex; flex-wrap: wrap; gap: 2px; width: 100%; min-height: 24px; overflow: hidden; }
+    .icl-env { display: inline-block; width: 22px; height: 22px; }
+    .icl-env img { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; }
+    .icl-env.bounce { animation: icl-bounce 1.6s ease-in-out infinite; }
+    .icl-env.through { animation: icl-through 2.4s linear infinite; }
+    .icl-env.drop { animation: icl-drop 1.8s ease-in infinite; }
+    @keyframes icl-bounce { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(18px); } 55% { transform: translateX(-6px) rotate(-12deg); } }
+    @keyframes icl-through { 0% { transform: translateX(-10px); opacity: 0; } 15%, 80% { opacity: 1; } 100% { transform: translateX(60px); opacity: 0; } }
+    @keyframes icl-drop { 0% { transform: translateY(-10px); opacity: 0; } 30% { opacity: 1; } 70%, 100% { transform: translateY(2px); } }
+    @media (prefers-reduced-motion: reduce) { .icl-env { animation: none !important; } }`;
   document.head.appendChild(css);
 })();
