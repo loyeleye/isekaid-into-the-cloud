@@ -25,6 +25,7 @@
     clerk: { x: 360, y: 628, h: 190 }, puddle: { x: 520, y: 652 },
     rack: { x: 720, y: 630, h: 200 }, stools: { xs: [1080, 1030, 980, 930, 880, 830], y: 636, h: 72 },
     desk: { x: 1215, y: 632, h: 180 }, tank: { x: 1190, y: 245, h: 230 }, bin: { x: 1272, y: 742, h: 104 },
+    bell: { x: 606, y: 652, h: 64 }, tray: [462, 606], reports: [1250, 96],
     belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 400, y: 36, w: 600 }, fs: 1
   };
   const TALL = {
@@ -34,17 +35,19 @@
     clerk: { x: 108, y: 1048, h: 170 }, puddle: { x: 300, y: 1020 },
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
     desk: { x: 660, y: 1024, h: 160 }, tank: { x: 640, y: 560, h: 220 }, bin: { x: 104, y: 1222, h: 92 },
+    bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 150, w: 736 }, fs: 1.7
   };
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
   // ---- State ----
-  let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse;
-  function reset(seed) {
-    S = R.create(seed); fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
+  let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT;
+  function reset(seed, claim) {
+    S = R.create(seed, claim || 'rush'); ringT = 0; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0;
     qEl.classList.remove('on'); qEl.innerHTML = '';
-    say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
+    if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
+    else say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
   }
 
   // ---- Dutch: one line per lesson, once per claim ----
@@ -57,7 +60,11 @@
     reserve: 'Reserved stools. Four are bolted down for Mira and nobody else can sit on them. She can\'t use more than four, either.',
     bin: 'A dead-letter bin. A ticket that fails three times off the rack goes in here instead of going round forever.',
     binNoRack: 'It only catches tickets that fail off the rack. A caller at the desk gets the error straight back.',
-    bell: 'The bell is for the next claim.',
+    bellLocked: 'The bell is for the next claim.',
+    bell: 'A bell. Ring it once and everyone who signed up gets their own copy. Mira stops copying them out for Reports.',
+    ribbon: 'Ribboned ones go to Reports too. Mira copies each one out by hand, so her stool\'s tied up twice as long.',
+    tray: 'Reports\' copies wait in its tray until one of its stools is free. Nobody bounces.',
+    close: 'Shutters down. Whatever\'s still in the room is lost.',
     throttle: 'Bounced. Two free stools, more people than that. Do the sums.',
     splat: 'Third bounce and they give up. That\'s a lost request, and it goes in the tank.',
     poison: 'That one\'s poison. It fails every time, however often you try it.',
@@ -104,6 +111,7 @@
   function spot(tool) {
     if (tool === 'rack') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
     if (tool === 'bin') { const b = L.bin, w = b.h * 0.95; return [b.x - w / 2, b.y - b.h - 6, w, b.h + 12]; }
+    if (tool === 'bell') { const b = L.bell, w = b.h * 1.5; return [b.x - w / 2, b.y - b.h - 8, w, b.h + 16]; }
     if (tool === 'reserve') { const xs = L.stools.xs.slice(0, 4), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
     return null;
   }
@@ -126,9 +134,10 @@
       case 'slide': return { p: chutePos(ease(u)), rot: u < 0.8 ? chuteAngle() : chuteAngle() * (1 - (u - .8) / .2) };
       case 'shelf': return qi < RACK_SLOTS ? { p: rackSlot(Math.max(0, qi)), s: 0.42 } : null;
       case 'hidden': return { p: [L.rack.x + L.rack.h * 0.32, L.rack.y - L.rack.h * 0.95], s: 0.42, a: 0.35 };
-      case 'walk': { const src = k.from === 'rack' ? fromRack() : L.foot; return { p: arc(src, stoolPos(k.stool), 60, ease(u)), s: lerp(k.from === 'rack' ? .42 : .5, .5, u) }; }
+      case 'tray': return null;
+      case 'walk': { const src = k.from === 'rack' ? fromRack() : k.from === 'tray' ? L.tray : L.foot; return { p: arc(src, stoolPos(k.stool), 60, ease(u)), s: lerp(k.from === 'rack' ? .42 : .5, .5, u) }; }
       case 'work': return { p: stoolPos(k.stool), ring: u };
-      case 'done': return { p: arc(stoolPos(k.seat || 0), L.handled, 120, ease(u)), s: lerp(.5, .3, u), img: 'envDone' };
+      case 'done': return { p: arc(stoolPos(k.seat || 0), k.desk === 'reports' ? L.reports : L.handled, 120, ease(u)), s: lerp(.5, .3, u), img: 'envDone' };
       case 'bounce': return { p: arc(L.foot, L.hatch, 180, ease(u)), rot: -0.6 + u * 4, img: 'env429' };
       case 'splat': return { p: arc(L.foot, [L.puddle.x, L.puddle.y - 6], 60, u), rot: u * 2, img: 'env429', a: 1 - u * .3 };
       case 'tobin': return { p: arc(stoolPos(k.seat || 0), [L.bin.x, L.bin.y - L.bin.h * .7], 140, ease(u)), rot: u * 6, s: lerp(.5, .3, u) };
@@ -164,6 +173,8 @@
       case 'twin': popAt(rackSlot(0), 'x2', '#ffb27a', 38); say('twin', 'neutral', LINES.twin); break;
       case 'binned': popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'binned', '#d59cff', 28); break;
       case 'clog': say('clog', 'tired', LINES.clog); break;
+      case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
+      case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
       case 'win': stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
       case 'lose': stamp = { text: 'FLOODED', col: '#c8473b', t: 0 }; endAt = 1.8; break;
     }
@@ -173,6 +184,8 @@
     fx.forEach(f => { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 600 * dt; }); fx = fx.filter(f => f.t < .8);
     flashT = Math.max(0, flashT - dt); coinPulse = Math.max(0, coinPulse - dt);
     if (leverT) leverT = Math.max(0, leverT - dt * 0.7);
+    if (ringT) ringT = Math.max(0, ringT - dt * 1.6);
+    if (S.started && !S.bell && S.tickets.some(k => k.ribbon && k.phase === 'work')) say('ribbon', 'tired', LINES.ribbon);
     if (!saying && sayQ.length) saying = Object.assign(sayQ.shift(), { t: 0 });
     if (saying) { saying.t += dt; if (saying.t > saying.secs) saying = null; }
     if (stamp) stamp.t += dt;
@@ -251,6 +264,19 @@
     shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb');
     plaque('Mira', L.desk.x, L.desk.y - L.desk.h - 4);
     drawStools(dragging === 'reserve');
+    // The bell, or its glowing spot, and the Reports tray.
+    if (S.bell) {
+      const b = L.bell, wob = ringT ? Math.sin(ringT * 40) * .25 * ringT : 0;
+      shadow(b.x, b.y + 2, b.h); img('bell', b.x, b.y + 4, b.h, 'mb', 1, wob);
+      if (ringT) text('ding', b.x + b.h * 1.1, b.y - b.h * .7 - (1 - ringT) * 20, 22, '#ffe08a');
+      plaque('Bell · SNS topic', b.x, b.y - b.h - 16 * L.fs);
+    } else if (dragging === 'bell' || (!drag && !S.started && S.claim === 'bell' && !S.placed.length)) glowSpot(spot('bell'), dragging === 'bell');
+    const trayN = S.tray.length;
+    if (S.claim === 'bell') {
+      for (let i = 0; i < Math.min(trayN, 6); i++) { const p = [L.tray[0] + (i % 2) * 6, L.tray[1] - i * 7]; img('env', p[0], p[1], 0, 'mm', 1, (i % 2 ? .08 : -.06), 46); ribbon(p, 46, 0); }
+      if (trayN > 6) text('+' + (trayN - 6), L.tray[0] + 34, L.tray[1] - 44, 22, '#cfe0ff');
+      plaque('Reports', L.clerk.x, L.clerk.y - L.clerk.h - 12 * L.fs);
+    }
     // The bin.
     if (S.bin) { shadow(L.bin.x, L.bin.y + 2, L.bin.h * .8); img('bin', L.bin.x, L.bin.y + 4, L.bin.h, 'mb'); plaque('Bin · DLQ', L.bin.x, L.bin.y - L.bin.h - 14); if (S.binned) text(String(S.binned), L.bin.x + L.bin.h * .4, L.bin.y - L.bin.h * .55, 24, '#e5b8ff'); }
     else if (dragging === 'bin') glowSpot(spot('bin'), true);
@@ -258,8 +284,9 @@
     const waitN = S.tickets.filter(k => k.phase === 'wait').length;
     for (const k of S.tickets) {
       const d = ticketDraw(k); if (!d) continue;
-      const key = d.img || (k.poison ? 'envPoison' : 'env');
-      img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, 110 * (d.s || .5));
+      const key = d.img || (k.poison ? 'envPoison' : 'env'), ew = 110 * (d.s || .5);
+      img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, ew);
+      if ((k.ribbon || k.desk === 'reports') && !d.img) ribbon(d.p, ew, d.rot || 0, d.a);
       if (k.twin && (k.phase === 'work' || k.phase === 'walk')) text('x2', d.p[0] + 26, d.p[1] - 20, 18, '#ffb27a');
       if (d.ring != null) {
         cx.save(); cx.lineWidth = 6; cx.strokeStyle = k.poison ? '#d59cff' : '#8fe68f'; cx.beginPath();
@@ -275,6 +302,12 @@
     drawHud(); drawBelt(); drawSay();
     if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85);
     if (stamp) drawStamp();
+  }
+  // A ribbon across an envelope: this one goes to Reports too.
+  function ribbon(p, w, rot, a) {
+    cx.save(); cx.globalAlpha = a == null ? 1 : a; cx.translate(p[0], p[1]); if (rot) cx.rotate(rot);
+    cx.fillStyle = '#3f7fe0'; cx.strokeStyle = '#13294d'; cx.lineWidth = 1.5;
+    cx.fillRect(-w * .5, -w * .07, w, w * .14); cx.strokeRect(-w * .5, -w * .07, w, w * .14); cx.restore();
   }
   function drawTank() {
     const t = L.tank, im = IMG.tank; if (!im) return;
@@ -294,17 +327,18 @@
       const x = st.xs[i];
       shadow(x, st.y + 2, st.h * .8);
       img(S.reserve && own[i] === 'mira' ? 'bolted' : 'stool', x, st.y + 6, st.h, 'mb', own[i] === 'clerk' ? .9 : 1);
-      if (own[i] === 'clerk') {
+      if (own[i] === 'clerk' && S.claim === 'rush') {
         // The Night Clerk's papers hold this stool.
         cx.save(); for (let j = 0; j < 3; j++) { cx.fillStyle = j % 2 ? '#e8dcc0' : '#f7efdc'; cx.strokeStyle = '#6b5a3a'; cx.lineWidth = 1.5; rrect(x - 18 + j * 2, st.y - st.h - 4 - j * 5, 36, 10, 2); cx.fill(); cx.stroke(); }
         cx.fillStyle = '#5a7fc0'; cx.fillRect(x - 3, st.y - st.h - 18, 6, 16); cx.restore();
       }
     });
     const mira = own.filter(o => o === 'mira').length;
-    plaque(S.reserve ? `Mira ${mira} reserved · Night Clerk ${6 - mira}` : `Night Clerk ${6 - mira} · Mira ${mira}`, (st.xs[0] + st.xs[st.xs.length - 1]) / 2, st.y - st.h - 44 - 10 * L.fs);
+    const other = S.claim === 'bell' ? 'Reports' : 'Night Clerk';
+    plaque(S.reserve ? `Mira ${mira} reserved · ${other} ${6 - mira}` : `${other} ${6 - mira} · Mira ${mira}`, (st.xs[0] + st.xs[st.xs.length - 1]) / 2, st.y - st.h - 44 - 10 * L.fs);
   }
   function drawHud() {
-    text('THE RUSH', L.title[0], L.title[1] + 16 * L.fs, 32, '#fff0d2', 'left');
+    text(S.name, L.title[0], L.title[1] + 16 * L.fs, 32, '#fff0d2', 'left');
     for (let i = 0; i < 4; i++) {
       const x = L.title[0] + 12 * L.fs + i * 28 * L.fs, y = L.title[1] + 56 * L.fs;
       cx.save(); cx.beginPath(); cx.arc(x, y, 10 * L.fs, 0, Math.PI * 2); cx.fillStyle = i < S.wave ? '#ffd666' : 'rgba(50,44,60,.9)'; cx.fill();
@@ -312,12 +346,17 @@
     }
     img('envDone', L.handled[0] - 30 - 16 * L.fs, L.handled[1], 0, 'mm', 1, 0, 52 * L.fs);
     text(String(S.handled), L.handled[0], L.handled[1], 34, '#bff5b4', 'left');
+    if (S.claim === 'bell') { plaque('Reports ' + S.reports, L.reports[0] - 10, L.reports[1]); }
+    if (S.started && S.close) {
+      const left = Math.max(0, Math.ceil(S.close - S.time));
+      text(`Shutters in ${left}s`, L.title[0] + 128 * L.fs, L.title[1] + 56 * L.fs, 18, left <= 10 ? '#ff9a8a' : '#e8dcc4', 'left');
+    }
   }
   function drawBelt() {
     const [bx, by, bw, bh] = beltRect();
     cx.save(); rrect(bx, by, bw, bh, 22); cx.fillStyle = 'rgba(24,20,30,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
     TOOLS.forEach((t, i) => {
-      const r = slotRect(i), used = S[t], locked = R.TOOLS[t].locked, poor = !used && !locked && S.coins < 1;
+      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), poor = !used && !locked && S.coins < 1;
       const hot = drag && drag.tool === t;
       cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = used ? 'rgba(30,26,34,1)' : 'rgba(58,48,62,1)'; cx.fill();
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
@@ -368,6 +407,11 @@
       opts: ['Set reserved concurrency on the checkout function', 'Turn on provisioned concurrency for the batch function', 'Increase the checkout function\'s memory', 'Turn on X-Ray tracing for the checkout function'],
       why: 'Reserved concurrency sets aside that many concurrent executions for one function, and no other function can use them. It is also that function\'s ceiling. Provisioned concurrency keeps environments initialised to cut cold starts; it doesn\'t stop one function from using capacity another needs.'
     },
+    bell: {
+      q: 'Every time an order is placed, an order function must tell a billing function and an analytics function. Today it calls both itself, one after the other, so orders slow down and fail whenever analytics is down. Which change decouples them with the least code?',
+      opts: ['Publish each order to an SNS topic with both functions subscribed', 'Send each order to one SQS queue that both functions poll', 'Raise the order function\'s timeout', 'Set reserved concurrency on the order function'],
+      why: 'Publishing once to an SNS topic delivers a copy to every subscriber, and SNS invokes each subscribed Lambda function asynchronously, so the order function no longer waits on either one. With one SQS queue polled by both, each message goes to only one of them. A longer timeout or reserved concurrency still leaves the order function calling both itself.'
+    },
     bin: {
       q: 'A Lambda function processes messages from an SQS standard queue. One malformed message fails every time, reappears after its visibility timeout and is retried over and over. What should you configure?',
       opts: ['A redrive policy that moves a message to a dead-letter queue after a set maxReceiveCount', 'A visibility timeout of 0 seconds', 'Long polling on the queue', 'A larger batch size on the event source mapping'],
@@ -375,6 +419,7 @@
     }
   };
   function pickQ() {
+    if (S.claim === 'bell') return 'bell';
     if (S.bin && S.rack && S.binned) return 'bin';
     if (S.rack && !S.bin && S.lost) return 'bin';
     if (S.rack) return 'rack';
@@ -385,11 +430,14 @@
   function showQuestion() {
     const key = pickQ(), Q = QS[key], order = shuffle([0, 1, 2, 3], Math.random);
     const won = S.over === 'win';
-    const sum = `${S.handled} handled · ${S.lost} lost · ${S.throttles} bounces${S.twins ? ` · ${S.twins} twins` : ''}${S.binned ? ` · ${S.binned} binned` : ''}`;
+    // Won with a claim after it: on to that one. Lost: this claim again. Won the last: back to the start.
+    const nextClaim = won ? (S.next || 'rush') : S.claim;
+    const againLabel = won && S.next ? 'Next claim: ' + R.CLAIMS[S.next].title : won && S.claim !== 'rush' ? 'Play again from the Rush' : 'Try ' + R.CLAIMS[S.claim].title + ' again';
+    const sum = `${S.handled} handled${S.claim === 'bell' ? ` · ${S.reports} reports` : ''} · ${S.lost} lost · ${S.throttles} bounces${S.twins ? ` · ${S.twins} twins` : ''}${S.binned ? ` · ${S.binned} binned` : ''}`;
     qEl.innerHTML = `<div class="q-card"><h2 id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</h2><p class="q-sum">${sum}</p>
       <p class="q-ask">Exam question</p><p class="q-text">${Q.q}</p>
       <div class="q-opts">${order.map(i => `<button type="button" data-i="${i}">${Q.opts[i]}</button>`).join('')}</div>
-      <p class="q-why"></p><button type="button" class="q-again">Play again</button></div>`;
+      <p class="q-why"></p><button type="button" class="q-again">${againLabel}</button></div>`;
     qEl.classList.add('on');
     const why = qEl.querySelector('.q-why'), again = qEl.querySelector('.q-again');
     qEl.querySelectorAll('.q-opts button').forEach(b => b.addEventListener('click', () => {
@@ -398,7 +446,7 @@
       if (i !== 0) b.classList.add('wrong');
       why.innerHTML = `<b>${i === 0 ? 'Right.' : 'Not quite.'}</b> ${Q.why}`; why.classList.add('on'); again.classList.add('on'); again.focus();
     }));
-    again.addEventListener('click', () => reset(SEED + Math.floor(Math.random() * 1000)));
+    again.addEventListener('click', () => reset(SEED + Math.floor(Math.random() * 1000), nextClaim));
     const first = qEl.querySelector('.q-opts button'); if (first) first.focus();
   }
 
@@ -406,7 +454,7 @@
   function toStage(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / scale, (e.clientY - r.top - oy) / scale]; }
   function tryPlace(tool, where) {
     const why = R.canPlace(S, tool);
-    if (why === 'locked') { say('bell', 'neutral', LINES.bell); said.bell = 0; return; }
+    if (why === 'locked') { say('bellLocked', 'neutral', LINES.bellLocked); said.bellLocked = 0; return; }
     if (why === 'coins') { popAt(where || [L.W / 2, beltRect()[1] - 20], 'No coins', '#ffdc78', 28); return; }
     if (why) return;
     R.place(S, tool);
@@ -448,7 +496,7 @@
     scale = Math.min(w / L.W, h / L.H); ox = (w - L.W * scale) / 2; oy = (h - L.H * scale) / 2;
   }
   addEventListener('resize', resize);
-  resize(); reset(SEED);
+  resize(); reset(SEED, qs.get('claim') || 'rush');
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {

@@ -12,6 +12,11 @@
 //   - The bin is a dead-letter queue on the rack (a redrive policy, maxReceiveCount 3). A poison ticket fails every
 //     time; after a failure it stays hidden for the visibility timeout, then comes back. With no bin it never leaves.
 //   - The tank is the error budget. Lost requests fill it; when it's full the claim fails.
+//   - Claim 2, the Bell: ribboned tickets must reach Mira's function and the Reports function, which sits at the Night
+//     Clerk's stools tonight. Without the bell, Mira copies each one out for Reports herself (her stool is held twice
+//     as long: the producer calling every consumer itself). The bell is an SNS topic with both as subscribers: one
+//     ring and each gets its own copy. SNS invokes Lambda asynchronously, so Reports' copies wait in Lambda's own
+//     event queue (the tray) until a Reports stool is free, instead of bouncing.
 (function (root) {
   const SD = root.SD = root.SD || {};
   const T = {
@@ -26,19 +31,34 @@
     { n: 12, secs: 5, poison: 3 },
     { n: 24, secs: 6, poison: 2 }
   ];
+  // The claims, played in order. A claim's locked tools show on the belt as "next claim".
+  const CLAIMS = {
+    rush: { name: 'THE RUSH', title: 'the Rush', waves: WAVES, locked: ['bell'], next: 'bell', close: 95 },
+    bell: {
+      name: 'THE BELL', title: 'the Bell', locked: [], next: null, close: 70,
+      waves: [
+        { n: 10, secs: 5, poison: 0, ribbon: 0.8 },
+        { n: 14, secs: 5, poison: 0, ribbon: 0.8 },
+        { n: 14, secs: 5, poison: 2, ribbon: 0.7 },
+        { n: 20, secs: 6, poison: 1, ribbon: 0.8 }
+      ]
+    }
+  };
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
     bin: { name: 'Dead-letter bin', aws: 'Dead-letter queue', cost: 1 },
-    bell: { name: 'Bell', aws: 'SNS fan-out', cost: 1, locked: true }
+    bell: { name: 'Bell', aws: 'SNS topic (fan-out)', cost: 1 }
   };
   function rng(seed) {
     let a = seed >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
-  function create(seed) {
+  function create(seed, claim) {
+    const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
-      seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null,
+      claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
+      seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
       rack: false, reserve: false, bin: false, coins: 2, bonusGiven: false,
       spill: 0, cap: CAP, handled: 0, binned: 0, twins: 0, throttles: 0, lost: 0,
@@ -46,10 +66,13 @@
     };
     // Spawn times: each wave spreads its tickets over its seconds, with a little jitter, poison mixed in.
     let t = 0.4;
-    WAVES.forEach((w, wi) => {
+    C.waves.forEach((w, wi) => {
       const poisonAt = new Set();
       while (poisonAt.size < w.poison) poisonAt.add(2 + Math.floor(S.rand() * (w.n - 2)));
-      for (let i = 0; i < w.n; i++) S.spawns.push({ t: t + (i / w.n) * w.secs + S.rand() * 0.25, wave: wi + 1, poison: poisonAt.has(i) });
+      for (let i = 0; i < w.n; i++) {
+        const poison = poisonAt.has(i);
+        S.spawns.push({ t: t + (i / w.n) * w.secs + S.rand() * 0.25, wave: wi + 1, poison, ribbon: !poison && S.rand() < (w.ribbon || 0) });
+      }
       t += w.secs + T.gap;
     });
     S.spawns.sort((a, b) => a.t - b.t);
@@ -64,16 +87,18 @@
     const own = owners(S), busy = new Set(S.tickets.filter(k => k.stool != null).map(k => k.stool));
     return own.map((o, i) => ({ owner: o, ticket: busy.has(i) ? S.tickets.find(k => k.stool === i).id : null }));
   }
-  function freeStool(S) {
-    const s = seats(S);
-    for (let i = 0; i < s.length; i++) if (s[i].owner === 'mira' && s[i].ticket == null) return i;
+  // In the Rush the Night Clerk's papers hold his stools; in the Bell they're the Reports function's.
+  function freeStool(S, owner) {
+    const s = seats(S), o = owner || 'mira';
+    if (o === 'clerk' && S.claim === 'rush') return -1;
+    for (let i = 0; i < s.length; i++) if (s[i].owner === o && s[i].ticket == null) return i;
     return -1;
   }
   const ev = (S, type, data) => S.events.push(Object.assign({ type, t: S.time }, data || {}));
   function canPlace(S, tool) {
     const d = TOOLS[tool];
     if (!d) return 'unknown';
-    if (d.locked) return 'locked';
+    if (S.locked.includes(tool)) return 'locked';
     if (S[tool]) return 'placed';
     if (S.coins < d.cost) return 'coins';
     if (S.over) return 'over';
@@ -90,13 +115,20 @@
   function start(S) { if (!S.started && !S.over) { S.started = true; ev(S, 'lever'); } }
   function go(k, phase, dur) { k.phase = phase; k.t = 0; k.dur = dur; }
   function spawn(S, sp) {
-    const k = { id: S.nextId++, wave: sp.wave, poison: sp.poison, twin: false, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
+    const k = { id: S.nextId++, wave: sp.wave, poison: sp.poison, ribbon: sp.ribbon, desk: 'mira', twin: false, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
     go(k, 'slide', T.slide);
     S.tickets.push(k);
   }
   function remove(S, k) { S.tickets = S.tickets.filter(x => x !== k); }
   // The ticket reaches the bottom of the chute.
   function arrive(S, k) {
+    // The bell rings once and Reports gets its own copy, which waits in the tray.
+    if (k.ribbon && S.bell) {
+      k.ribbon = false; S.rings++;
+      const c = { id: S.nextId++, wave: k.wave, poison: false, ribbon: false, desk: 'reports', twin: false, throttles: 0, receives: 0, stool: null, from: 'tray', phase: '', t: 0, dur: 0 };
+      go(c, 'tray', 0); S.tickets.push(c); S.tray.push(c.id);
+      ev(S, 'ring', { id: k.id, copy: c.id });
+    }
     if (S.rack) { go(k, 'shelf', 0); S.queue.push(k.id); return; }
     const i = freeStool(S);
     if (i >= 0) { k.stool = k.seat = i; k.from = 'chute'; go(k, 'walk', T.walk); return; }
@@ -108,6 +140,7 @@
   function finishWork(S, k) {
     const viaRack = k.from === 'rack';
     k.stool = null;
+    if (k.desk === 'reports') { go(k, 'done', T.done); return; }
     if (!k.poison) {
       go(k, 'done', T.done);
       // At-least-once delivery: now and then the rack hands the same ticket over again.
@@ -142,12 +175,14 @@
     // Advance every ticket.
     for (const k of S.tickets.slice()) {
       k.t += dt;
-      if (k.phase === 'shelf' || k.t < k.dur) continue;
+      if (k.phase === 'shelf' || k.phase === 'tray' || k.t < k.dur) continue;
       switch (k.phase) {
         case 'slide': arrive(S, k); break;
-        case 'walk': go(k, 'work', T.work); break;
+        case 'walk': go(k, 'work', k.ribbon ? T.work * 2 : T.work); break;
         case 'work': finishWork(S, k); break;
-        case 'done': S.handled++; remove(S, k); ev(S, 'handled', { id: k.id, twin: k.twin }); break;
+        case 'done':
+          if (k.desk === 'reports') S.reports++; else { S.handled++; if (k.ribbon) S.reports++; }
+          remove(S, k); ev(S, 'handled', { id: k.id, twin: k.twin, desk: k.desk, copied: !!k.ribbon }); break;
         case 'bounce': go(k, 'wait', T.backoff[k.throttles - 1] || 1); break;
         case 'wait': go(k, 'slide', T.slide); break;
         case 'splat': remove(S, k); lose1(S, k, k.poison ? 'error' : 'throttled'); break;
@@ -166,6 +201,20 @@
         k.receives++; k.stool = k.seat = i; k.from = 'rack'; go(k, 'walk', T.walk);
       }
     }
+    // Reports takes copies from its tray at its own stools.
+    let j;
+    while (S.tray.length && (j = freeStool(S, 'clerk')) >= 0) {
+      const id = S.tray.shift(), k = S.tickets.find(x => x.id === id);
+      if (!k) continue;
+      k.stool = k.seat = j; go(k, 'walk', T.walk);
+    }
+    // Shutters down: whatever is still in the room at closing time is lost.
+    if (S.close && S.time >= S.close) {
+      const left = S.tickets.slice();
+      ev(S, 'close', { n: left.length });
+      for (const k of left) { remove(S, k); lose1(S, k, 'closed'); if (S.over) return; }
+      S.over = 'win'; ev(S, 'win'); return;
+    }
     // The end: every ticket resolved. Poison going round and round with no bin never resolves; after a while the
     // night calls it, and each one counts as two lost requests (it held up a stool every lap).
     if (S.allSpawned) {
@@ -182,6 +231,6 @@
     }
   }
   function drain(S) { const e = S.events; S.events = []; return e; }
-  SD.rushCore = { T, WAVES, TOOLS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
+  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
