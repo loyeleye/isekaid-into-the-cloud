@@ -58,7 +58,7 @@
     edge: 'You won the Cup last time, so the house opens on the centre. Genuine, before you ask.',
     resume: 'Oh, you\'re back. I kept your seat, and the pins exactly where they were.'
   };
-  // His pose at the table (PixelLab, assets/img/table/kage-<pose>.webp, CREDITS.md), by line. Freya's ring stays under
+  // His pose at the table (assets/img/table/kage-<pose>.webp, CREDITS.md), by line. Freya's ring stays under
   // his glove until chapter 6's reveal, so after it he's the plain unmasked portrait, as js/vec-cast.js does.
   const POSE = { walkup: 'lay', sit: 'lay', lay: 'lay', edge: 'lay', line: 'hover', held: 'pay', boardMe: 'caught', callFake: 'caught', won: 'pay',
     failed: 'smug', callReal: 'smug', boardHim: 'smug', lost: 'smug', hisPick: 'ledger', myPick: 'hover', bill: 'ledger', billNone: 'ledger',
@@ -66,7 +66,7 @@
   const revealed = () => { const c6 = sv() && sv().c6; return !!(c6 && c6.w && c6.w.x && c6.w.x.reveal); };
   // Painted poses (Ladi's Sogni renders) as they arrive; until a pose is painted he holds the painted 'lay' pose, so
   // the big figure never switches between pixel and painted art mid-scene. The reactions are animation on top.
-  const PAINTED = new Set(['lay']);
+  const PAINTED = new Set(['lay', 'hover', 'ledger', 'pay', 'smug']);
   const kage = t => {
     const k = Object.keys(SAY).find(x => SAY[x] === t);
     if (!revealed()) return `assets/img/table/kage-${k && PAINTED.has(POSE[k]) ? POSE[k] : 'lay'}.webp`;
