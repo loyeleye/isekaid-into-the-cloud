@@ -81,8 +81,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return txt;
   };
   const hunt = () => page.evaluate(() => SD.state.save.hunt);
-  // The trail screen between monsters: one tap on.
-  const follow = async () => { await page.waitForSelector('#hn-follow'); await page.click('#hn-follow'); await page.waitForTimeout(40); };
+  // Between battles: pick the next monster (the first one not yet battled).
+  const follow = async () => { await page.waitForSelector('[data-mon]'); await page.click('[data-mon]'); await page.waitForTimeout(40); };
+  // The health bar on the question window: "HP n/m".
+  const hp = () => page.evaluate(() => { const e = document.querySelector('#panel .hn-hp.hn-inq'); return e ? e.getAttribute('aria-label').replace(/^.*health /, '') : null; });
   // After a miss: the retry on a twin, answered right.
   const retry = async () => {
     const has = await page.evaluate(() => { const h = SD.state.save.hunt, m = h.mons[h.i]; return !!(m && m.retry); });
@@ -141,20 +143,19 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click(WN); await page.click(WN);
   check(/Captured/.test(await page.textContent('#panel')) && /Wounded/.test(await page.textContent('#panel')), 'walkthrough screen 3 explains the outcomes');
   await page.click(WN);
-  await page.waitForSelector('#hn-follow');
-  check(/Scrap field gate/.test(await page.textContent('#panel')) && (await page.$$('.hn-trail')).length === 8, 'the trail as a list: the gate, four forks (the last on the way home) and three monsters');
-  check(await page.evaluate(() => SD.state.save.hunt.stamina === 10) && /10 stamina/.test(await page.textContent('#panel')), 'the hunt starts with 10 stamina');
-  const sideBtns = (await page.$$('[data-side]')).length;
-  check(sideBtns >= 1 && sideBtns <= 2, 'a fork offers 1 or 2 side paths besides the main trail (' + sideBtns + ')');
-  check(/A fork in the fog/.test(await page.textContent('#panel')), 'forks further on are fog');
-  check(!await page.$('#panel .q-q'), 'the trail never shares a screen with a question');
-  await noHScroll('trail');
-  await shot('trail');
+  await page.waitForSelector('[data-mon]');
+  check((await page.$$('.hn-bt')).length === 3 && (await page.$$('[data-mon]')).length === 3, 'the battle picker: three monsters, each one a battle you can choose');
+  check((await page.$$('.hn-bt .hn-pipd.on')).length === 3 + 3 + 3, 'each monster starts at full health: three pips');
+  check(!await page.$('#panel .q-q'), 'the picker never shares a screen with a question');
+  check(await page.evaluate(() => !SD.state.save.hunt.forks && SD.state.save.hunt.stamina == null), 'no forks and no stamina');
+  await noHScroll('picker');
+  await shot('pick');
   await follow();
   await page.waitForSelector('#panel .win.quiz ' + STOP);
 
   // ---- Monster 1: Track, Fight, Pin, all right, captured (yesterday's right + today = two days) ----
   check(await step() === 'track', 'the hunt starts with Track');
+  check(await hp() === '3 of 3', 'Track shows the monster\'s health bar: 3 of 3');
   check(!!await page.$('#tf-in'), 'Track: Type it first, options hidden');
   check(!!await page.$('#tf-idk'), 'Track: "I don\'t know yet" is in view');
   await noHScroll('track');
@@ -165,10 +166,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('verdict');
   await next();
   check(await step() === 'fight', 'then Fight');
+  check(await hp() === '2 of 3', 'a right Track lands a hit: 2 of 3');
   const f1 = await answer(true, 1);
   check(f1 !== t1 && await page.evaluate(([p, f]) => SD.twins[p].includes(f) || (f === p && SD.twins[p].length === 1), [posters[0], f1]), 'Fight asks a second twin, or the original when there is only one');
   await next();
   check(await step() === 'pin', 'then Pin it down');
+  check(await hp() === '1 of 3', 'Pin it down shows the bar too: 1 of 3');
   check(/Why doesn't this fit here\?/.test(await page.textContent('#panel')) && (await page.$$('#panel [data-pr]')).length === 3, 'Pin it down: one option, three reasons');
   const pinOk = await page.evaluate(([f]) => {
     const h = SD.state.save.hunt, p = h.mons[0].pin, q = SD.exam.find(f);
@@ -186,11 +189,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- Monster 2: Track missed, a retry on another twin, escaped ----
   await follow();
-  check(/Captured/.test(await page.evaluate(() => SD.state.save.hunt.since)), 'the trail says what happened since your last move');
+  check(/Captured/.test(await page.evaluate(() => SD.state.save.hunt.since)), 'the picker says what happened since your last move');
   const t2 = await answer(false, 0); await next();
   const r2 = await page.evaluate(() => { const h = SD.state.save.hunt; return h.mons[h.i].retry; });
   const canRetry = await page.evaluate(([p, t]) => { const h = SD.state.save.hunt, m = h.mons[h.i], used = new Set([p, t].concat(Object.values(m.qs))); return (SD.twins[t] || []).concat(SD.twins[p] || [], [p]).some(id => !used.has(id) && SD.exam.allowed(SD.exam.find(id))); }, [posters[1], t2]);
   check(canRetry ? !!r2 && r2 !== t2 : !r2, `a miss: a retry straight away on a different question (${canRetry ? 'one exists' : 'none left for this idea, so none'})`);
+  if (r2) { await page.waitForSelector('#panel .win.quiz'); check(/hit back/.test(await page.textContent('#panel .q-ctx')) && await hp() === '3 of 3', 'a miss: it hits back, and its health stays'); }
   await retry();
   const f2 = await answer(true, 1); await next();
   await pin(true, 1);
@@ -210,22 +214,21 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.reload();
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
-  if (SHELL) check(/Resume · monster 3 of 3/.test(await page.evaluate(() => SD.modes.get('hunt').status())), 'after a reload the mode picker offers to resume');
+  if (SHELL) check(/Resume · battling/.test(await page.evaluate(() => SD.modes.get('hunt').status())), 'after a reload the mode picker offers to resume');
   else check(/resume/.test(await page.textContent('#td-hunt')), 'after a reload the Today card offers to resume');
   await openHunt();
-  check(/Resume the hunt · 2 of 3 hunted/.test(await page.textContent('#hn-go')), 'the board says Resume the hunt · 2 of 3 hunted');
+  check(/Resume the hunt · 2 of 3 battled/.test(await page.textContent('#hn-go')), 'the board says Resume the hunt · 2 of 3 battled');
   await page.click('#hn-go');
   await page.waitForSelector('#panel .win.quiz ' + STOP);
   check(await page.evaluate(() => SD.hunt.live().q.id) === fq, 'resume lands on the same encounter');
   await answer(true, 1); await next();
   await pin(false, 0);
   check(await page.evaluate(() => SD.state.save.hunt.mons[2].out === 'wounded'), 'right today but not two days: wounded');
-  await follow();   // the way home
   await page.waitForSelector('.hn-results');
   const res = await page.textContent('#panel');
   check(/✓\s*.*Captured/.test(res) && /Escaped · back next hunt/.test(res) && /Wounded · back tomorrow/.test(res), 'results: each outcome as a word and a shape');
   check(/How sure you were/.test(res) && /Sure\s*:?\s*2 of 2 right/.test(res), 'results: the calibration readout');
-  check(/stamina left at dusk: \+10 pts/.test(res), 'results: stamina left at dusk scores a point each');
+  check(!/stamina/.test(res), 'results: no stamina points');
   check(/\+20 XP · \+5 shards/.test(res) && await page.evaluate(() => SD.state.save.modes.paid.hunt === new Date().toDateString()), 'results: pays XP and shards once a day, marked where the shared shell marks it');
   check(/Pip: "Sorry to be a bother\. Why did that work\?"/.test(res), 'Pip gets the last word');
   await noHScroll('results');
@@ -235,26 +238,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#hn-board');
   check(await page.evaluate(() => JSON.stringify(SD.hunt.board().map(w => w.id))) === JSON.stringify([posters[3]]), 'same day: only the unhunted poster is on the board');
   await page.click('#hn-go');
-  await page.waitForSelector('#hn-follow');
-  await page.evaluate(() => { const h = SD.state.save.hunt; h.forks[0].sides = ['camp']; SD.state.persist(); SD.ui.closePanel(); SD.hunt.stop(); });
-  await page.evaluate(() => SD.hunt.start());
-  await page.waitForSelector('[data-side="camp"]');
-  await page.click('[data-side="camp"]');
-  check(await page.evaluate(() => SD.state.save.hunt.stamina === 8), 'a side path costs stamina (camp: 2)');
-  await page.waitForSelector('#hn-rest');
-  await noHScroll('camp');
-  await shot('camp');
-  await page.click('#hn-rest');
-  await page.waitForSelector('#hn-follow');
-  check(await page.evaluate(() => SD.state.save.hunt.stamina === 11) && /rested at the camp/.test(await page.textContent('#panel')), 'resting gives stamina back, and the fork says so');
-  check(!await page.$('[data-side]'), 'one detour per fork');
-  await noHScroll('fork');
-  await shot('fork');
   await follow();
   await page.waitForSelector('#panel .win.quiz ' + STOP);
   for (let k = 0; k < 3 && await step() !== 'pin'; k++) { await answer(true, 1); await next(); }
   await pin(true, 1);
-  await follow();
   await page.waitForSelector('.hn-results');
   check(/Today's pay is already taken/.test(await page.textContent('#panel')), 'a second hunt the same day doesn\'t pay again');
 
@@ -273,22 +260,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.clock.setSystemTime(new Date('2026-11-17T12:00:00'));
   await page.evaluate(() => { SD.state.save.hunt = null; SD.hunt.open(); });
   await page.click('#hn-go');
-  await page.waitForSelector('#hn-follow');
+  await page.waitForSelector('[data-mon]');
   const h2 = await hunt();
   const wm = h2.mons.find(m => m.id === posters[2]), em = h2.mons.find(m => m.id === posters[1]);
   check(wm && wm.steps[0] !== 'track', 'the wounded monster comes back without Track');
   const twinsOf1 = await page.evaluate(id => SD.twins[id].length, posters[1]);
   check(em && (twinsOf1 < 2 || em.qs.track !== t2), 'the escaped monster is tracked with a different twin (' + twinsOf1 + ' twins)');
-  // Out of stamina: a camp detour with 2 left, then reread a page instead of resting.
-  await page.evaluate(() => { const h = SD.state.save.hunt; h.stamina = 2; h.forks[0].sides = ['camp']; SD.state.persist(); SD.hunt.stop(); });
-  await page.evaluate(() => SD.hunt.start());
-  await page.click('[data-side="camp"]');
-  await page.click('#hn-read');
-  await page.click('#hn-on');
-  await page.waitForSelector('.hn-results');
-  const tired = await page.textContent('#panel');
-  check(/Out of stamina: the hunt ended where you stood/.test(tired) && /Not reached · waits for tomorrow/.test(tired), 'at 0 stamina the hunt ends, and unreached monsters wait for tomorrow');
-  check(await page.evaluate(() => SD.hunt.board().length === 0), 'and they don\'t come back today');
+  // You choose the order: battle the second monster first. The wounded one shows Track's pip already gone.
+  await page.waitForSelector('[data-mon="1"]');
+  const wi = h2.mons.indexOf(h2.mons.find(m => m.id === posters[2]));
+  check((await page.$$(`.hn-bt:nth-child(${wi + 1}) .hn-pipd.on`)).length === 2, 'the wounded monster comes back with 2 of 3 pips');
+  await noHScroll('picker, next day');
+  await shot('pick2');
+  await page.click('[data-mon="1"]');
+  await page.waitForSelector('#panel .win.quiz ' + STOP);
+  check(await page.evaluate(() => SD.state.save.hunt.i === 1 && SD.hunt.live().m === SD.state.save.hunt.mons[1]), 'you pick which monster to battle next');
+  await page.evaluate(() => SD.hunt.stop());
 
   // ---- Sightings ----
   await page.evaluate(() => { SD.state.save.hunt = null; SD.state.save.wall = []; SD.hunt.open(); });
@@ -303,19 +290,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('sightings');
   await shot('sightings');
   await page.click('#hn-sdone');
-  check(/Rare monsters wait on the tower stairs/.test(await page.textContent('#panel')), 'sightings wait on the tower stairs as optional detours');
+  check((await page.$$('.hn-mon')).length === 2 && /SIGHTED/.test(await page.textContent('#panel')), 'each sighting is a wild monster on the board');
   await page.click('#hn-go');
-  await page.waitForSelector('[data-side="rare"]');
-  await page.click('[data-side="rare"]');
-  await page.waitForSelector('#panel .win.quiz ' + STOP);
-  const wq = await page.evaluate(() => SD.hunt.live().q);
-  check(await page.evaluate(id => !(SD.state.save.qlog || {})[id] && SD.topicDrill.pool(SD.topicDrill.preset('t-sfn')).some(q => q.id === id), wq.id), 'a rare monster asks an unseen question on its sighting\'s topic');
-  await answer(false, 0); await next();
-  check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id), wq.id), 'a rare miss goes up on the Wall');
-  await page.waitForSelector('#hn-follow');
-  check(/rare one got away/.test(await page.textContent('#panel')), 'the fork says what happened since your last move');
   await follow();
-  await page.waitForSelector('#hn-done');
+  await page.waitForSelector('#panel .win.quiz ' + STOP);
+  check(await hp() === '2 of 2', 'a wild monster has two pips');
+  const wq = await page.evaluate(() => SD.hunt.live().q);
+  check(await page.evaluate(id => !(SD.state.save.qlog || {})[id] && SD.topicDrill.pool(SD.topicDrill.preset('t-sfn')).some(q => q.id === id), wq.id), 'a wild monster asks an unseen question on its sighting\'s topic');
+  await answer(false, 0); await next();
+  await retry();
+  await pin(true, 0);
+  check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id), wq.id), 'a wild miss goes up on the Wall');
+  await page.evaluate(() => SD.hunt.stop());
 
   // ---- Verified first ----
   const vf = await page.evaluate(() => {
@@ -334,16 +320,6 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, vf);
   check(vpick.length === 1 && vpick[0] === vf.want, 'Track picks a verified twin over an unverified one');
 
-  // ---- Fresh prints: a due question from another topic ----
-  const de = await page.evaluate(() => {
-    const T = SD.today, c = Object.keys(SD.concepts).find(id => SD.state.reviewable(id) && SD.exam.isTrackConcept(id) && SD.state.questionsFor(id).some(q => q.type === 'mc' && q.topic && q.topic !== 'lambda'));
-    const sc = SD.state.concept(c); sc.seen = true; sc.due = 0;
-    const h = { mons: [{ id: 'dva-1-02', qs: { track: 'dva-1-02' } }], asked: [] };
-    const q = SD.hunt._dueElsewhere(h);
-    return { n: T.dueList().length, q: q && q.id, topic: q && q.topic, c: q && q.c };
-  });
-  check(de.n > 0 && !!de.q && de.topic !== 'lambda' && !!de.c, 'fresh prints ask a due question from another topic (' + de.q + ', ' + de.topic + ')');
-
   // ---- Simulation hook ----
   const simr = await page.evaluate(async () => {
     const out = {};
@@ -357,8 +333,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   });
   console.log('     sim (honest confidence): ' + JSON.stringify(simr));
   check(Object.values(simr).every(r => r.max <= 20 && r.share <= 0.2), 'simulated hunts stay under 20 minutes with under 20% of the time on the map');
-  const best = p => (simr['near' + p].pts >= simr['far' + p].pts ? 'near' : 'far');
-  check(best(0.45) !== best(0.8), `no route policy always wins: ${best(0.45)} at 45% right, ${best(0.8)} at 80%`);
+  check([0.45, 0.8].every(p => Math.abs(simr['near' + p].pts - simr['far' + p].pts) <= 0.05 * Math.max(1, Math.abs(simr['near' + p].pts))), 'battle order is a tie: the choice that scores is confidence, not order');
 
   // ---- The retry after a miss ----
   const rt = await page.evaluate(() => {
