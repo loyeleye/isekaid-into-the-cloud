@@ -594,21 +594,27 @@
 
   // ---- A night: the state the screen and the simulator share ----
   // phase: pick → board → bill → (counter → board → bill → rack) → done
+  // One new thing a night: 1 Dupli-Queue alone, one board · 2 a partner set mixed in, a pick of two rivals ·
+  // 3 two boards, the counter-pick and the Counterfeit Rack · 4 your weakest set (by the bill) is always offered ·
+  // 5 the house edge: after a won Cup he opens on the centre.
   T.newNight = function (o) {
     o = o || {};
     const n = o.night || 1;
     return {
       v: 2, n, seed: (o.seed == null ? 1 : o.seed) >>> 0, phase: 'pick', boards: [], score: [0, 0], b: null, rack: null,
       honest: o.honest == null ? T.HONEST : o.honest, owed: [], bill: null, log: [], taught: Object.assign({}, o.taught || {}),
-      offers: null, counter: null, secs: 0, carry: (o.carry || []).slice()
+      offers: null, counter: null, secs: 0, carry: (o.carry || []).slice(), edge: !!o.edge, weak: (o.weak || []).slice()
     };
   };
   T.boardsTonight = s => (s.n >= 3 ? 2 : 1);
   T.partnerFor = (s, lead) => (s.n === 1 ? null : T.SETS[lead].partner);
   // Two rivals to pick from: night 1 is Dupli-Queue (the set the Sorting Floor already taught); then two by seed.
+  // From night 4 the first offer is the set your bill says you're weakest on (s.weak, weakest first).
   T.offers = function (s, not) {
     if (s.n === 1 && !s.boards.length) return ['dq'];
     const R = T.rng(s), pool = shuffle(T.RIVALS.filter(r => !(not || []).includes(r)), R);
+    const weak = s.n >= 4 ? (s.weak || []).find(r => pool.includes(r)) : null;
+    if (weak) return [weak].concat(pool.filter(r => r !== weak)).slice(0, 2);
     return pool.slice(0, 2);
   };
   T.startBoard = function (s, lead) {
@@ -622,6 +628,12 @@
     };
     T.draw(b, R);
     s.b = b; s.phase = 'board';
+    // The house edge (from night 5): after a won Cup he opens the night already holding the centre, genuine.
+    if (s.n >= 5 && s.edge && !s.boards.length) {
+      const h = T.holders(jobs[4]);
+      b.stock[4] = { pin: h[0], real: true };
+      b.cells[4] = 'him'; b.pins[4] = h[0]; b.state[4] = 'stood'; b.edge = 1;
+    }
     T.hisMove(s);
     return b;
   };

@@ -119,6 +119,17 @@ check(holds('kds', 'replay', 'order') && !holds('eb', 'replay', 'order') && !hol
   T.startBoard(s, 'dq');
   check(s.b.jobs.every(j => j.set === 'dq') && !s.b.partner, 'night 1: every job is Dupli-Queue');
 }
+// Nights 4 and 5: the weakest set is offered first; after a won Cup he opens on the centre.
+{
+  const s4 = T.newNight({ night: 4, seed: 2, weak: ['tw', 'kr'] });
+  check(T.offers(s4)[0] === 'tw', 'night 4: your weakest set (by the bill) is always offered');
+  const s3 = T.newNight({ night: 3, seed: 2, weak: ['tw'] });
+  check(T.offers(s3).length === 2, 'night 3: two rivals by the seed');
+  const s5 = T.newNight({ night: 5, seed: 2, edge: true }); T.startBoard(s5, 'sc');
+  check(s5.b.cells[4] === 'him' && s5.b.stock[4].real && s5.b.open !== 4 && s5.b.open >= 0, 'night 5, after a won Cup: he opens on the centre with a genuine pin, then lays another');
+  const s5b = T.newNight({ night: 5, seed: 2, edge: false }); T.startBoard(s5b, 'sc');
+  check(!s5b.b.edge, 'no edge after a lost Cup');
+}
 // His line waits for your answer: you may still call it.
 {
   const s = T.newNight({ night: 4, seed: 11 });

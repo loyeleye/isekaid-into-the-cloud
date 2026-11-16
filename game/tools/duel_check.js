@@ -157,7 +157,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
 
   check(!!await page.$('.tg-card[data-game="duel"]'), 'the title carousel has a Look-Alike Cup card');
-  await page.evaluate(() => SD.modes.open());
+  // From Nov 16 new nights open the Counterfeit Table (tools/table_check.js). These checks cover the old rules, which a
+  // night saved before then still finishes on.
+  await page.evaluate(() => { SD.duel.forceOld = true; SD.modes.open(); });
   check(/The Look-Alike Cup/.test(await txt('#panel')), 'the picker lists the Look-Alike Cup');
   await page.click('[data-mode="duel"]');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
@@ -280,7 +282,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await fast();
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
-    await page.evaluate(() => SD.modes.open());
+    await page.evaluate(() => { SD.duel.forceOld = true; SD.modes.open(); });
     check(/Resume · night 1/.test(await txt('[data-mode="duel"]')), 'after a reload the picker offers Resume with the night');
     await page.click('[data-mode="duel"]');
     check(/BACK AT THE TABLE/.test(await txt('#panel')), 'resume opens on "Back at the table"');
