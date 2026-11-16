@@ -22,7 +22,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"] },
 
   { id: "dva-1-102", exam: "DVA", dva: "1.1", topic: "sqs", type: "mc",
-    q: "Workers process video jobs from an SQS queue. Most jobs finish in under a minute, but a few take up to 40 minutes, and nobody can tell in advance which. The team doesn't want a crashed worker's job to stay hidden for 40 minutes before another worker retries it. What should the developer do?",
+    q: "Workers process video jobs from an SQS queue. Most jobs finish in under a minute, but a few take up to 40 minutes, and nobody can tell in advance which. If a worker crashes, its job must become visible to other workers again within a few minutes. What should the developer do?",
     opts: [
       "Keep a short visibility timeout, and have the worker call ChangeMessageVisibility every few minutes while the job runs.",
       "Set the queue's visibility timeout to 12 hours, so that even the longest job is finished well before its message can reappear.",
@@ -30,7 +30,7 @@ SD.bank.push(
       "Set the queue's visibility timeout to 0, so that every job is visible to all workers at once and the fastest worker wins it."
     ], a: 0,
     no: [null,
-      "Every job then works, but a crashed worker's job stays hidden for 12 hours before anyone retries it.",
+      "A crashed worker's job would stay hidden for up to 12 hours, not a few minutes, before another worker could retry it.",
       "A message timer only delays the first delivery. It doesn't extend the time a worker has after receiving the job.",
       "Every worker would receive and process the same job, which multiplies the work instead of sharing it."],
     why: "ChangeMessageVisibility extends the timeout for one received message, using its receipt handle. A worker that keeps extending it acts as a heartbeat, and a crashed worker's job reappears soon after the last extension.",
@@ -153,7 +153,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html", "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html"] },
 
   { id: "dva-1-111", exam: "DVA", dva: "1.1", topic: "eventbridge", type: "mc",
-    q: "An EventBridge rule sends EC2 state-change events to an SNS topic that emails the operations team. The team wants each email to read like \"Instance i-0abc is now stopped\" instead of the full event JSON. The developer wants no code to maintain. What should the developer do?",
+    q: "An EventBridge rule sends EC2 state-change events to an SNS topic that emails the operations team. The team wants each email to read like \"Instance i-0abc is now stopped\" instead of the full event JSON, without writing or running any custom code. What should the developer do?",
     opts: [
       "Add an input transformer to the rule's target, mapping the instance ID and state to variables used in a template.",
       "Change the target's input to part of the matched event, with the path $.detail.state, so that only the state is sent.",
@@ -163,7 +163,7 @@ SD.bank.push(
     no: [null,
       "That sends only the state value, without the instance ID or the sentence around it.",
       "Filter policies decide which messages a subscription gets. They don't rewrite the message.",
-      "It works, but it adds a function to write and maintain, which the team wants to avoid."],
+      "A Lambda function is custom code to write and run, which the requirement rules out."],
     why: "An input transformer pulls values out of the event with JSON paths and places them into a template, so the target receives custom text instead of the original event.",
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html"] },
 
@@ -198,7 +198,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-archive.html", "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-replay-archived-event.html"] },
 
   { id: "dva-1-114", exam: "both", dva: "1.1", saa: "2.1", topic: "eventbridge", type: "mc",
-    q: "Orders arrive in an SQS queue. Only orders whose priority field is \"high\" should start a Step Functions workflow, and each must first be enriched with customer details from an internal HTTP API. The team wants to avoid writing integration code. Which solution meets these requirements?",
+    q: "Orders arrive in an SQS queue. Only orders whose priority field is \"high\" should start a Step Functions workflow, and each must first be enriched with customer details from an internal HTTP API. The solution must not need any custom code to write or run. Which solution meets these requirements?",
     opts: [
       "Create an EventBridge pipe with the queue as source, a filter on priority, the API as enrichment, and the workflow as target.",
       "Add a Lambda event source mapping on the queue with a filter on priority, and code that calls the API and starts the workflow.",
@@ -206,7 +206,7 @@ SD.bank.push(
       "Create an EventBridge rule on the default bus that matches messages from the queue with a high priority, targeting the workflow."
     ], a: 0,
     no: [null,
-      "It works, but the function is integration code the team must write and maintain.",
+      "The function is custom code to write and run, which the requirement rules out.",
       "A queue can be a subscriber of a topic, not a publisher to one, and Step Functions isn't an SNS subscription type.",
       "SQS doesn't send each message to an event bus, so the rule never sees the orders."],
     why: "EventBridge Pipes connect one source to one target, with optional filtering and enrichment in between, so no glue code is needed.",

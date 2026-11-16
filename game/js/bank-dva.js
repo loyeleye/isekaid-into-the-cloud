@@ -26,7 +26,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc-internet.html", "https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html"] },
 
   { id: "dva-1-02", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
-    q: "An order service invokes a Lambda function asynchronously. The team wants every successful result sent to an SQS queue for billing, and every event that still fails after Lambda's retries sent to an SNS topic that pages the on-call developer. What should the developer configure?",
+    q: "An order service invokes a Lambda function asynchronously. The team wants every successful result sent to an SQS queue for billing, and every event that still fails after Lambda's retries sent to an SNS topic that pages the on-call developer. The order service must not change. What should the developer configure?",
     opts: [
       "An on-success destination for the SQS queue and an on-failure destination for the SNS topic, on the function.",
       "A dead-letter queue that points at the SQS queue, plus handler code that publishes to the SNS topic on errors.",
@@ -36,7 +36,7 @@ SD.bank.push(
     no: [null,
       "A dead-letter queue only receives failed events, so it can't carry successful results, and a handler can't report a crash it doesn't survive.",
       "An event source mapping makes Lambda read from the queue, the opposite direction. Log groups don't deliver to SNS topics.",
-      "It works, but it moves retries and routing into the order service when Lambda can route results itself."],
+      "That changes the order service, which must stay as it is, and moves retries and routing into its code."],
     why: "Destinations for asynchronous invocations send a record on success and on failure, including the request and the response. A dead-letter queue only keeps failed events.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-retain-records.html"] },
 
@@ -210,7 +210,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html"] },
 
   { id: "dva-1-15", exam: "DVA", dva: "1.1", topic: "eventbridge", type: "mc",
-    q: "A developer must run a Lambda function that archives old records every night at 02:00 UTC. The team doesn't want any servers to maintain. What should the developer do?",
+    q: "A developer must run a Lambda function that archives old records every night at 02:00 UTC, without running any servers. What should the developer do?",
     opts: [
       "Create an EventBridge Scheduler schedule with a cron expression for 02:00 UTC, targeting the function.",
       "Run a cron job on a small EC2 instance in an Auto Scaling group of one that calls the Lambda Invoke API at 02:00 UTC every night.",
@@ -218,7 +218,7 @@ SD.bank.push(
       "Subscribe the function to an SQS delay queue with a 24-hour delay that sends a message to itself."
     ], a: 0,
     no: [null,
-      "It works, but it adds an instance to patch and pay for, which the team wants to avoid.",
+      "An EC2 instance is a server to patch and pay for, which the requirement rules out.",
       "Alarms change state on metric thresholds, not on a clock.",
       "SQS delays go up to 15 minutes, not 24 hours."],
     why: "EventBridge Scheduler invokes targets on cron or rate schedules, with time zones and retries, and there is nothing to run in between.",
@@ -572,7 +572,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-deployments.html"] },
 
   { id: "dva-3-04", exam: "DVA", dva: "3.3", topic: "lambda", type: "mc",
-    q: "QA runs integration tests against a Lambda function while developers keep changing its code. QA needs the code under test to stay fixed until they approve the next build. What should the developer do?",
+    q: "QA runs integration tests against a Lambda function while developers keep changing its code. QA needs the code under test to stay fixed until they approve the next build, and QA's test setup must not change between builds. What should the developer do?",
     opts: [
       "Publish a version for each build, and point a qa alias at it. QA always calls the alias.",
       "Have QA call $LATEST, and ask the developers not to deploy while a test run is in progress.",
@@ -581,7 +581,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "$LATEST changes with every update, so the code under test isn't fixed.",
-      "It works, but each copy needs its own configuration and permissions. Versions do this natively.",
+      "QA would have to switch to a new function name for every build, and its test setup must not change.",
       "Code signing checks who signed a package, not which build QA is testing."],
     why: "A published version is an immutable snapshot of code and configuration. An alias is a named pointer that moves to the next approved version without callers changing.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html"] },
@@ -824,7 +824,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html"] },
 
   { id: "dva-4-08", exam: "DVA", dva: "4.3", topic: "sns", type: "mc",
-    q: "An SNS topic carries all order events to several SQS queues. The refunds service's Lambda function receives every event and throws away the 95% that aren't refunds. How should the developer cut this wasted work?",
+    q: "An SNS topic carries all order events to several SQS queues. The refunds service's Lambda function receives every event and throws away the 95% that aren't refunds. How should the developer cut this wasted work without changing the order service?",
     opts: [
       "Add a filter policy to the refunds queue's subscription that matches only refund events.",
       "Create a separate topic for refunds, and have the order service publish refund events to both topics.",
@@ -832,7 +832,7 @@ SD.bank.push(
       "Make the refunds queue a FIFO queue, so non-refund events are deduplicated away."
     ], a: 0,
     no: [null,
-      "It works, but now the publisher has to know about each consumer, which a filter policy avoids.",
+      "The order service would have to publish refunds twice, which the requirement rules out. Subscription filter policies need no publisher changes.",
       "The function still receives every event and pays for it.",
       "Deduplication removes repeats of the same message, not other kinds of event."],
     why: "A subscription filter policy makes SNS deliver only the messages whose attributes or body match it, so unwanted events never reach the queue.",

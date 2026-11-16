@@ -275,7 +275,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html"] },
 
   { id: "dva-4-320", exam: "DVA", dva: "4.3", topic: "lambda", type: "mc",
-    q: "A Lambda function processes messages from an SQS queue and calls a partner's API for currency exchange rates on every invocation. The partner has started rate-limiting these calls. Rates change every 10 minutes, and values up to 5 minutes old are acceptable. The team wants a fix that adds no infrastructure or cost. What should the developer do?",
+    q: "A Lambda function processes messages from an SQS queue and calls a partner's API for currency exchange rates on every invocation. The partner has started rate-limiting these calls. Rates change every 10 minutes, and values up to 5 minutes old are acceptable. The fix must not add any new AWS resources or cost. What should the developer do?",
     opts: [
       "Keep the rates in a variable declared outside the handler, with the time they were fetched, and fetch again only when older than 5 minutes.",
       "Store the rates in an ElastiCache cluster with a 5-minute TTL, and read them from the cluster before calling the partner's API.",
@@ -283,7 +283,7 @@ SD.bank.push(
       "Turn on API Gateway caching with a 5-minute TTL for the partner's API, so repeated calls are answered from the cache instead."
     ], a: 0,
     no: [null,
-      "It works, but it adds a cluster to run and pay for, which the team ruled out.",
+      "An ElastiCache cluster is a new resource with its own cost, which the fix must not add.",
       "Warm environments still call the partner on every invocation unless the code caches the rates.",
       "API Gateway caches responses of APIs that run in API Gateway. It can't cache a partner's API that the function calls directly."],
     why: "Code outside the handler runs once per execution environment, and its variables persist across the invocations that environment handles. A cached value with its fetch time cuts calls to the partner while keeping staleness under 5 minutes.",
