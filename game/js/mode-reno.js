@@ -70,18 +70,31 @@
   }
   const jobOf = (s, i) => R.job(s.jobs[i].id, s.jobs[i].seed);
 
-  // ---- The night's board: five jobs in a row, the Grand Opening at the end in view (L7) ----
+  // ---- The night's board: the jobs pinned on a map of Pingsby's Quarter, the Grand Opening's ribbon in the square (L7) ----
+  // Pin spots are fractions of assets/img/reno/quarter-map.webp: Beanstalk Row's houses top left, the Shrine Bridge
+  // over the river, the Blueprint Office in the middle, and the market square (where every Grand Opening is held).
+  const SPOTS = { eb: [[15, 22], [27, 24], [33, 36], [8, 38]], lam: [[47, 62], [57, 64], [44, 76], [60, 78]], cfn: [[52, 36], [62, 38], [48, 48], [64, 50]], grand: [[82, 57]] };
+  function mapHtml(s) {
+    const used = {};
+    const pins = s.jobs.map((j, i) => {
+      const job = jobOf(s, i), k = job.grand ? 'grand' : job.d, n = used[k] = (used[k] || 0) + 1;
+      const [x, y] = SPOTS[k][(n - 1) % SPOTS[k].length];
+      const st = j.done ? (j.pass ? 'ok' : 'bad') : i === s.at ? 'on' : '';
+      return `<span class="rn-pin ${st}${job.grand ? ' grand' : ''}" style="left:${x}%;top:${y}%">${job.grand ? sprite('ribbon', 'rn-ribbon', 'the Grand Opening ribbon') : ''}${sprite('pin', 'rn-pinsp', '')}<b>${j.done ? (j.pass ? '✓' : '✗') : i + 1}</b></span>`;
+    }).join('');
+    return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${sprite('quarter-map', 'rn-mapsp', '')}${pins}</div>`;
+  }
   function boardScreen(s) {
     const F = DR.foreman(), first = s.at === 0 && !s.jobs[0].plans.length;
     const rows = s.jobs.map((j, i) => {
       const job = jobOf(s, i), dd = R.DISTRICTS[job.d];
       const st = j.done ? (j.pass ? '✓ signed' : '✗ scaffolding') : i === s.at ? '▶ next' : '';
-      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}">${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(dd.name)}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
+      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}"><span class="rn-num">${i + 1}</span>${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(job.grand ? 'the market square' : dd.name)}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
     }).join('');
     const newD = s.night <= 3 ? R.DISTRICTS[Object.keys(R.DISTRICTS).find(d => R.DISTRICTS[d].night === s.night)] : null;
     const b = panel(`<p class="rn-night">Night ${s.night}${newD ? `: ${esc(newD.name)} opens` : ''}</p>
       ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : F.intro) : ''}
-      <ol class="rn-jobs">${rows}</ol>
+      <div class="rn-boardgrid">${mapHtml(s)}<ol class="rn-jobs">${rows}</ol></div>
       <div class="rn-dock"><button class="primary" id="rn-go">${s.jobs[s.at].plans.length ? 'Back to the job' : 'Take the job'}</button><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     b.querySelector('#rn-go').onclick = () => { s.phase = 'plan'; save(s); draw(s); };
     b.querySelector('#rn-q').onclick = () => DR.quarter(() => draw(cur()));
@@ -98,14 +111,22 @@
     blueGreen: 'Builds a whole new street on its own address, then swaps the signposts.'
   };
   const LAM_TEXT = { all: 'AllAtOnce: the signpost swings in one go.', canary: 'Canary: 10% of walkers, then the rest after the wait.', linear: 'Linear: 10% more walkers every interval.' };
+  // Number choices are brass plaques on the scaffolding; on/off choices are a lever between its two plaques.
+  const TOGGLE = ['ignoreHC', 'publish', 'alarm', 'pre', 'post'];
   function seg(name, opts, val, label) {
-    return `<div class="rn-knob"><span class="small">${esc(label)}</span><div class="rn-seg">${opts.map(o => `<button data-k="${name}" data-v="${esc(o[0])}" class="${String(o[0]) === String(val) ? 'on' : ''}" aria-pressed="${String(o[0]) === String(val)}">${esc(o[1])}</button>`).join('')}</div></div>`;
+    const btn = o => `<button data-k="${name}" data-v="${esc(o[0])}" class="${String(o[0]) === String(val) ? 'on' : ''}" aria-pressed="${String(o[0]) === String(val)}">${esc(o[1])}</button>`;
+    if (TOGGLE.includes(name)) {
+      const on = String(val) === 'true';
+      return `<div class="rn-knob rn-lk"><span class="small">${esc(label)}</span><div class="rn-seg rn-lever">${btn(opts[0])}<button class="rn-lv${on ? ' up' : ''}" data-flip="${name}" aria-label="${esc(label)}: pull the lever">${sprite('lever-off', '', '')}</button>${btn(opts[1])}</div></div>`;
+    }
+    return `<div class="rn-knob"><span class="small">${esc(label)}</span><div class="rn-seg">${opts.map(btn).join('')}</div></div>`;
   }
+  // The slate: what the client needs, chalked on a board nailed to the gate.
   function slateHtml(job, res) {
-    return `<ul class="rn-slate">${job.lines.map((t, i) => {
+    return `<div class="rn-chalk"><p class="rn-chalkh">The slate</p><ul class="rn-slate">${job.lines.map((t, i) => {
       const r = res && res.lines[i];
       return `<li class="${r ? (r.ok ? 'ok' : 'bad') : ''}">${r ? (r.ok ? '✓ ' : '✗ ') : '▢ '}${esc(t)}${r ? ` <span class="small">(${esc(r.got)})</span>` : ''}</li>`;
-    }).join('')}</ul>`;
+    }).join('')}</ul></div>`;
   }
   function planOf(s, job) {
     const j = s.jobs[s.at];
@@ -116,16 +137,18 @@
     const job = jobOf(s, s.at), j = s.jobs[s.at], p = planOf(s, job);
     const left = R.PLANS - j.plans.length;
     let cards = '', knobs = '', scene = '';
+    const bp = (attr, id, on, name, text) => `<button class="rn-card${on ? ' on' : ''}" ${attr}="${id}" aria-pressed="${on}">${on ? sprite('pin', 'rn-tack', '') : ''}${sprite('blueprint', 'rn-bpsp', '')}<b>${esc(name)}</b><span class="small">${esc(text)}</span></button>`;
     if (job.d === 'eb') {
-      const st = job.street;
-      scene = `<div class="rn-street-info small">${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}</div>${streetRow(job, { houses: Array.from({ length: st.houses }, (_, i) => ({ id: i, env: 'a', v: 'old', st: 'up' })) })}`;
-      cards = job.hand.map(id => `<button class="rn-card${p.policy === id ? ' on' : ''}" data-pol="${id}" aria-pressed="${p.policy === id}"><b>${esc(AD.EB_NAME[id])}</b><span class="small">${esc(POLICY_TEXT[id])}</span></button>`).join('');
+      const st = job.street, g = ghostOf(job, p);
+      scene = streetRow(job, { houses: g.houses }, { ghost: g, slate: slateHtml(job), info: `${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}`, folk: st.demand ? residents({ served: Math.min(st.demand, 8) }) : '' });
+      cards = job.hand.map(id => bp('data-pol', id, p.policy === id, AD.EB_NAME[id], POLICY_TEXT[id])).join('');
       if (p.policy === 'rolling' || p.policy === 'rollingBatch') knobs = seg('batch', [[1, '1 house'], [2, '2 houses'], [3, '3 houses']], p.batch, 'Batch size (fixed)') + seg('ignoreHC', [['false', 'Off'], ['true', 'On']], String(!!p.ignoreHC), 'Ignore health check');
       if (p.policy === 'split') knobs = seg('split', [[10, '10%'], [25, '25%'], [50, '50%']], p.split, 'Traffic split') + seg('evalT', [[2, '2 ticks'], [3, '3 ticks'], [4, '4 ticks']], p.evalT, 'Evaluation time');
       if (p.policy === 'blueGreen') knobs = seg('wait', [[0, 'Right away'], [2, 'After 2 ticks']], p.wait, 'Tear down the old street');
     } else if (job.d === 'lam') {
-      scene = `<div class="rn-street-info small">${plural(job.fn.demand, 'walker')} a minute cross the bridge${job.fn.first ? ' · this function has never shipped a version' : ' · the live alias points at the current version'}</div>${bridgeRow(0, 0, { alarm: p.alarm })}`;
-      cards = ['all', 'canary', 'linear'].map(id => `<button class="rn-card${p.cfg === id ? ' on' : ''}" data-cfg="${id}" aria-pressed="${p.cfg === id}"><b>${esc(id === 'all' ? 'All at once' : id[0].toUpperCase() + id.slice(1))}</b><span class="small">${esc(LAM_TEXT[id])}</span></button>`).join('');
+      const w0 = p.cfg === 'all' ? 1 : 0.1;
+      scene = `<div class="rn-street rn-river"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">${plural(job.fn.demand, 'walker')} a minute cross the bridge${job.fn.first ? ' · this function has never shipped a version' : ' · the live alias points at the current version'}</p>${bridgeRow(w0, 0, { alarm: p.alarm, ghost: true })}</div>`;
+      cards = ['all', 'canary', 'linear'].map(id => bp('data-cfg', id, p.cfg === id, id === 'all' ? 'All at once' : id[0].toUpperCase() + id.slice(1), LAM_TEXT[id])).join('');
       if (p.cfg === 'canary') knobs += seg('wait', AD.CANARY.map(m => [m, m + ' min']), p.wait, 'Wait before the other 90%');
       if (p.cfg === 'linear') knobs += seg('every', AD.LINEAR.map(m => [m, 'every ' + m]), p.every, 'Minutes between steps');
       knobs += `<p class="small rn-cfg">Deployment configuration: <b>${esc(AD.cfgName(p))}</b></p>`;
@@ -135,17 +158,16 @@
         + seg('post', [['false', 'None'], ['true', 'Test function']], String(!!p.post), 'Post-traffic hook (AfterAllowTraffic)');
       if (job.crack) scene += `<p class="small rn-crack">Seymour's cracked run: ${job.crack === 'test' ? 'a crack a test can find' : 'a crack that only shows under real traffic'}.</p>`;
     } else {
-      scene = `<div class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</div>${stackRow(job)}`;
+      scene = `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
       knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
     }
     const refused = j.refused ? `<div class="rn-refused">${say(job.client, j.refused)}${j.teachRef || ''}</div>` : '';
     const b = panel(`<div class="rn-top">${head(job.client)}<div><p class="rn-title">${esc(job.title)}</p><p class="small">${esc(NAMES[job.client])} · ${esc(R.DISTRICTS[job.d].name)}</p></div></div>
       <p class="rn-scroll">“${esc(job.scroll)}”</p>
-      <p class="q-ctx">The slate</p>${slateHtml(job)}
-      ${scene}
+      <div class="rn-bleed">${scene}</div>
       ${refused}
-      ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy' : 'Traffic shifting'}</p><div class="rn-cards">${cards}</div>` : ''}
-      ${knobs ? `<div class="rn-knobs">${knobs}</div>` : ''}
+      ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
+      ${knobs ? `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     const redraw = () => { j.refused = null; j.teachRef = ''; save(s); planScreen(s); };
@@ -157,6 +179,7 @@
       else p[k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v;
       redraw();
     });
+    b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(); });
     b.querySelector('#rn-run').onclick = () => run(s, job);
     b.querySelector('#rn-board').onclick = () => { s.phase = 'board'; save(s); draw(s); };
     b.querySelector('#rn-stop').onclick = () => { save(s); U.closePanel(); stopNow(); };
@@ -169,23 +192,51 @@
   const sprite = (n, cls, alt) => `<img class="rn-sp ${cls || ''}" src="${IMG(n)}" alt="${esc(alt || '')}" draggable="false">`;
   const HOUSE = { up: { old: 'house-old', new: 'house-new' }, scaf: { old: 'house-scaf', new: 'house-scaf' }, dark: { old: 'house-dark', new: 'house-dark' } };
   const HOUSE_SAYS = { up: { old: 'old version, open', new: 'new version, open' }, scaf: { old: 'under scaffolding', new: 'under scaffolding' }, dark: { old: 'dark: failed its health check', new: 'dark: failed its health check' } };
-  function streetRow(job, tick) {
-    const hs = tick.houses || [];
-    const row = env => hs.filter(h => h.env === env).map(h => `<span class="rn-h ${h.st} ${h.v}${h.rented ? ' rented' : ''}">${sprite((HOUSE[h.st] || HOUSE.up)[h.v] || 'house-old', '', (h.rented ? 'rented house, ' : 'house, ') + ((HOUSE_SAYS[h.st] || HOUSE_SAYS.up)[h.v] || ''))}</span>`).join('');
-    const a = row('a'), bb = row('b');
-    return `<div class="rn-street"><div class="rn-lane">${sprite('gate', 'rn-gatesp', 'the gate: the load balancer')}${a || sprite('lot-rented', '', 'an empty lot')}</div>${bb ? `<div class="rn-lane b"><span class="rn-lab small">New street</span>${bb}</div>` : ''}</div>`;
+  // The plan, ghosted onto the street in blueprint ink: which houses go in which batch, and what gets built beside them.
+  function ghostOf(job, p) {
+    const n = job.street.houses, bsz = p.batch || 1;
+    const houses = Array.from({ length: n }, (_, i) => ({ id: i, env: 'a', v: 'old', st: 'up' }));
+    const g = { houses, extra: 0, lane: 0, tag: '' };
+    if (p.policy === 'allAtOnce') { houses.forEach(h => { h.g = 1; }); g.tag = 'every house at once'; }
+    if (p.policy === 'rolling' || p.policy === 'rollingBatch') {
+      houses.forEach((h, i) => { h.g = Math.floor(i / bsz) + 1; });
+      if (p.policy === 'rollingBatch') g.extra = bsz;
+      g.tag = `batches of ${plural(bsz, 'house')}${g.extra ? ', one extra batch rented first' : ''}`;
+    }
+    if (p.policy === 'immutable') { g.lane = n; g.tag = 'a new set beside the old: one house first, then the rest'; }
+    if (p.policy === 'split') { g.lane = n; g.tag = `a new set takes ${p.split}% of residents for ${plural(p.evalT, 'tick')}`; }
+    if (p.policy === 'blueGreen') { g.lane = n; g.tag = 'a whole new street on its own address'; }
+    return g;
   }
-  // The residents this tick: who got in, who got soot, who was turned away at the gate.
+  const ghostHouse = i => `<span class="rn-h rn-ghost">${sprite('house-new', '', 'planned new house')}${i ? `<i class="rn-bn">+</i>` : ''}</span>`;
+  // The street scene: sky, the backdrop, the gate (with the slate chalked on it while planning), the houses, and the road.
+  function streetRow(job, tick, o) {
+    o = o || {};
+    const hs = tick.houses || [], gh = o.ghost;
+    const row = env => hs.filter(h => h.env === env).map(h => `<span class="rn-h ${h.st} ${h.v}${h.rented ? ' rented' : ''}${h.g ? ' g' + (h.g % 2) : ''}">${sprite((HOUSE[h.st] || HOUSE.up)[h.v] || 'house-old', '', (h.rented ? 'rented house, ' : 'house, ') + ((HOUSE_SAYS[h.st] || HOUSE_SAYS.up)[h.v] || ''))}${h.g ? `<i class="rn-bn">${h.g}</i>` : ''}</span>`).join('');
+    const a = row('a') + (gh ? Array.from({ length: gh.extra }, () => ghostHouse(1)).join('') : '');
+    const bb = row('b') || (gh && gh.lane ? Array.from({ length: gh.lane }, () => ghostHouse(0)).join('') : '');
+    return `<div class="rn-street${o.slate ? ' rn-plan' : ''}">
+      ${o.slate ? `<div class="rn-gatepost">${o.slate}</div>` : ''}
+      ${o.info ? `<p class="rn-street-info small">${esc(o.info)}</p>` : ''}
+      ${gh && gh.tag ? `<p class="rn-planpin small">${sprite('blueprint', 'rn-mini', '')} Blueprint: ${esc(gh.tag)}</p>` : ''}
+      <div class="rn-lanes">${bb ? `<div class="rn-lane b${gh && !row('b') ? ' ghosted' : ''}"><span class="rn-lab small">New street</span>${bb}</div>` : ''}
+        <div class="rn-lane">${sprite('gate', 'rn-gatesp', 'the gate: the load balancer')}${a || sprite('lot-rented', '', 'an empty lot')}</div></div>
+      <div class="rn-road">${o.folk || ''}</div></div>`;
+  }
+  // The residents this tick, walking up the road to the gate: who got in, who got soot, who was turned away.
   function residents(tick) {
     const sooty = Math.min(tick.soot || 0, 12), ok = Math.min(Math.max(0, (tick.served || 0) - (tick.soot || 0)), 12 - sooty), turned = Math.min(tick.turned || 0, 8);
-    if (!sooty && !ok && !turned) return '<p class="small muted">Nobody on the street this tick.</p>';
-    return `<div class="rn-folk" aria-label="${tick.served || 0} got in, ${tick.soot || 0} with soot, ${tick.turned || 0} turned away">${Array.from({ length: ok }, () => sprite('resident')).join('')}${Array.from({ length: sooty }, () => sprite('resident-soot')).join('')}${Array.from({ length: turned }, () => `<span class="rn-turn">${sprite('resident', 'rn-out')}<b>✗</b></span>`).join('')}</div>`;
+    if (!sooty && !ok && !turned) return '<p class="small rn-empty">Nobody on the road this tick.</p>';
+    const walk = (n, i) => ` style="animation-delay:${-(i * 0.13).toFixed(2)}s"`;
+    return `<div class="rn-folk" aria-label="${tick.served || 0} got in, ${tick.soot || 0} with soot, ${tick.turned || 0} turned away">${Array.from({ length: ok }, (_, i) => `<span class="rn-walk"${walk(0, i)}>${sprite('resident')}</span>`).join('')}${Array.from({ length: sooty }, (_, i) => `<span class="rn-walk"${walk(0, i + ok)}>${sprite('resident-soot')}</span>`).join('')}${Array.from({ length: turned }, () => `<span class="rn-turn">${sprite('resident', 'rn-out')}<b>✗</b></span>`).join('')}</div>`;
   }
   function bridgeRow(w, soot, o) {
     o = o || {};
     const pct = Math.round(w * 100);
     return `<div class="rn-bridgebox">${sprite('bridge', 'rn-bridgesp', 'the bridge to the shrine, its signpost with two arms')}${o.alarm ? sprite('bell', 'rn-bell' + (o.rang ? ' rang' : ''), o.rang ? 'the alarm bell, ringing' : 'the alarm bell') : ''}</div>
-      <div class="rn-bridge" aria-label="${pct}% of walkers on the new version"><span class="rn-arm old" style="flex:${100 - pct || 0.001}">old ${100 - pct}%</span><span class="rn-arm new" style="flex:${pct || 0.001}">${pct ? 'new ' + pct + '%' : ''}</span></div>${soot ? `<p class="small rn-sootline">${Array.from({ length: Math.min(soot, 10) }, () => sprite('resident-soot', 'rn-mini')).join('')} ${plural(soot, 'walker')} hit the crack</p>` : ''}`;
+      ${o.ghost ? `<p class="rn-planpin small">${sprite('blueprint', 'rn-mini', '')} Blueprint: the first swing of the signpost</p>` : ''}
+      <div class="rn-bridge${o.ghost ? ' rn-ghost' : ''}" aria-label="${pct}% of walkers on the new version"><span class="rn-arm old" style="flex:${100 - pct || 0.001}">old ${100 - pct}%</span><span class="rn-arm new" style="flex:${pct || 0.001}">${pct ? 'new ' + pct + '%' : ''}</span></div>${soot ? `<p class="small rn-sootline">${Array.from({ length: Math.min(soot, 10) }, () => sprite('resident-soot', 'rn-mini')).join('')} ${plural(soot, 'walker')} hit the crack</p>` : ''}`;
   }
   const RES_SP = { ec2: 'house-old', rds: 'well', ddb: 'ledger', s3: 'board' };
   function stackRow(job) {
@@ -248,9 +299,9 @@
       const turned = upto.reduce((a, x) => a + (x.turned || 0), 0), soot = upto.reduce((a, x) => a + (x.soot || 0), 0);
       tk.textContent = job.d === 'lam' ? `minute ${tick.t}` : `tick ${tick.t}`;
       if (job.d === 'eb') {
-        view.innerHTML = `${streetRow(job, tick)}${residents(tick)}<p class="small rn-gate">Gate: ${turned ? `<span class="rn-red">${'✗'.repeat(Math.min(turned, 24))}</span> ${turned} turned away` : 'nobody turned away'}${soot ? ` · <span class="rn-soot">${'●'.repeat(Math.min(soot, 24))}</span> ${soot} soot` : ''}</p>`;
+        view.innerHTML = `${streetRow(job, tick, { folk: residents(tick) })}<p class="small rn-gate">Gate: ${turned ? `<span class="rn-red">${'✗'.repeat(Math.min(turned, 24))}</span> ${turned} turned away` : 'nobody turned away'}${soot ? ` · <span class="rn-soot">${'●'.repeat(Math.min(soot, 24))}</span> ${soot} soot` : ''}</p>`;
       } else {
-        view.innerHTML = bridgeRow(tick.w, soot, { alarm: !!planNow.alarm, rang: tick.note === 'rollback' }) + (tick.note === 'pre' ? '<p class="small">The test walker crosses first.</p>' : tick.note === 'post' ? '<p class="small">The post-traffic test walker checks it.</p>' : tick.note === 'rollback' ? '<p class="small"><b>The signpost swings back.</b></p>' : tick.note === 'stuck' ? '<p class="small">Nobody notices the crack.</p>' : '');
+        view.innerHTML = '<div class="rn-street rn-river">' + bridgeRow(tick.w, soot, { alarm: !!planNow.alarm, rang: tick.note === 'rollback' }) + (tick.note === 'pre' ? '<p class="small">The test walker crosses first.</p>' : tick.note === 'post' ? '<p class="small">The post-traffic test walker checks it.</p>' : tick.note === 'rollback' ? '<p class="small"><b>The signpost swings back.</b></p>' : tick.note === 'stuck' ? '<p class="small">Nobody notices the crack.</p>' : '') + '</div>';
       }
       if (i === r.ticks.length - 1) sum.textContent = runSummary(job, r, which);
     });
@@ -435,34 +486,21 @@
     .rn-top { display: flex; gap: 10px; align-items: center; }
     .rn-jobs { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
     .rn-job { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 2px solid var(--ink, #17131f); border-radius: 10px; background: #f6ecd2; }
-    .rn-job > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .rn-job > span:nth-child(3) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
     .rn-job.on { border-width: 3px; border-color: #e0a030; background: #fff1c9; }
     .rn-job.done { opacity: .75; }
     .rn-job.grand { box-shadow: inset 0 -4px 0 #e0a030; }
     .rn-st { white-space: nowrap; font-weight: 700; }
     .rn-scroll { font-style: italic; background: #f3e7c8; border: 2px solid #b79a62; border-radius: 10px; padding: 8px 10px; overflow-wrap: anywhere; }
-    .rn-slate { list-style: none; margin: 0; padding: 8px 10px; border-radius: 10px; background: #2f3a33; color: #f1f1e6; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
     .rn-slate li.ok { color: #9be3b0; } .rn-slate li.bad { color: #ffb1a1; }
     .rn-cards { display: flex; flex-direction: column; gap: 6px; }
-    .rn-card { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; border: 2px solid var(--ink, #17131f); border-radius: 10px; background: #fff; color: #17131f; overflow-wrap: anywhere; }
-    .rn-card.on { border-width: 3px; border-color: #e0a030; background: #fff1c9; color: #17131f; box-shadow: 0 0 0 3px #e0a030; }
-    .rn-knobs { display: flex; flex-direction: column; gap: 6px; }
     .rn-knob { display: flex; flex-direction: column; gap: 3px; }
     .rn-seg { display: flex; flex-wrap: wrap; gap: 4px; }
-    .rn-seg button { flex: 1 1 auto; min-height: 40px; padding: 6px 8px; border: 2px solid var(--ink, #17131f); border-radius: 8px; background: #fff; color: #17131f; font-size: 13px; }
-    .rn-seg button.on { background: #e0a030; color: #17131f; font-weight: 700; }
     .rn-dock { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .rn-street { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 10px; background: #c9c0a6; }
-    .rn-lane { display: flex; flex-wrap: wrap; gap: 3px; align-items: flex-end; }
-    .rn-lane.b { border-top: 2px dashed #8a7f63; padding-top: 4px; }
     .rn-lab { flex: 0 0 100%; font-weight: 700; }
     .rn-sp { image-rendering: pixelated; display: block; }
-    .rn-h { width: 44px; height: 46px; display: inline-flex; align-items: flex-end; justify-content: center; border-radius: 6px; }
-    .rn-h .rn-sp { width: 42px; height: auto; }
     .rn-h.rented { background: rgba(224,160,48,.35); box-shadow: inset 0 -3px 0 #e0a030; }
-    .rn-gatesp { width: 30px; height: auto; margin-right: 2px; }
     .rn-folk { display: flex; flex-wrap: wrap; gap: 1px; align-items: flex-end; min-height: 30px; }
-    .rn-folk .rn-sp { width: 22px; height: auto; }
     .rn-turn { position: relative; display: inline-block; }
     .rn-turn .rn-out { opacity: .45; }
     .rn-turn b { position: absolute; left: 4px; top: 2px; color: #b23b3b; font-size: 18px; }
@@ -495,7 +533,7 @@
     .rn-bcv { width: 96px; height: 96px; flex: none; }
     .rn-wallnote { background: #fff1c9; border-radius: 8px; padding: 6px 8px; }
     /* Light paper inside the blueprint frame (js/mode-stage.js makes --ink light): keep dark ink on it. */
-    .rn :is(.rn-job, .rn-scroll, .rn-run, .rn-street, .rn-stack, .rn-wallnote, .rn-crack, .rn-cfg, .rn-refused .rn-say, .rn-bridge) { color: #17131f; }
+    .rn :is(.rn-job, .rn-scroll, .rn-run, .rn-stack, .rn-wallnote, .rn-crack, .rn-cfg, .rn-refused .rn-say, .rn-bridge) { color: #17131f; }
     .rn .rn-run .muted { color: #5a5266; }
   `;
   // Edge to edge (Ladi, Nov 16: every mode fills the screen like Monster Hunt, PR #179): no window box around the
@@ -505,7 +543,8 @@
   const FULL = 'body.in-mode[data-stage="draft"] #panel:has(.rn)';
   css.textContent += `
     /* The stage's generic pressed-button style (js/mode-stage.js) would turn a chosen card translucent blue: keep it gold. */
-    body.in-mode #panel .win .rn :is(.rn-card.on, .rn-seg button.on)[aria-pressed="true"] { background: #ffd98a; border-color: #e0a030; color: #17131f; }
+    body.in-mode #panel .win .rn .rn-card.on[aria-pressed="true"] { background-color: #2c69b5; border-color: #ffd45a; color: #fff; }
+    body.in-mode #panel .win .rn .rn-seg button.on[aria-pressed="true"] { background: linear-gradient(#ffe58a, #e0a030); border-color: #5a3a12; color: #2a1a06; }
     ${FULL} { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
     ${FULL} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
       padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: #1d3d6b; }
@@ -518,7 +557,109 @@
       ${FULL} .rn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
       ${FULL} .rn-knobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
       ${FULL} .rn-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-      ${FULL} .rn-h { width: 64px; height: 66px; } ${FULL} .rn-h .rn-sp { width: 60px; }
     }`;
+  // The scene (Ladi, Nov 16: "I don't want it to be another basic text game"): the street fills the screen, the slate is
+  // chalk on the gate, policies are blueprints, knobs are brass plaques and levers on the scaffolding, the board is a map.
+  css.textContent += `
+    ${FULL} .win-b { padding-left: 0; padding-right: 0; }
+    ${FULL} :is(.win, .win.wide) { animation: none; } /* a full-screen scene doesn't pop in like a window */
+    ${FULL} .rn { max-width: none; }
+    ${FULL} .rn > * { width: 100%; max-width: 1180px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; box-sizing: border-box; }
+    ${FULL} .rn > .rn-bleed { max-width: none; padding-left: 0; padding-right: 0; }
+    ${FULL} .rn > .rn-runs { padding-left: 0; padding-right: 0; }
+    ${FULL} .rn > .rn-runs { max-width: 1400px; padding-left: 12px; padding-right: 12px; }
+    .rn-street { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; color: #fff;
+      background: url(assets/img/reno/street-bg.webp) center bottom 30px / auto calc(100% - 30px) repeat-x, linear-gradient(#f2a65a 0%, #f7cf8a 45%, #3b2a2a 100%);
+      image-rendering: pixelated; min-height: 230px; overflow: hidden; }
+    .rn-run .rn-street { min-height: 190px; border-radius: 8px; }
+    .rn-street-info, .rn-planpin { align-self: flex-start; background: rgba(23,19,31,.72); color: #fff; border-radius: 8px; padding: 3px 8px; }
+    .rn-planpin { background: rgba(31,78,140,.92); border: 1px dashed #bfe0ff; display: flex; gap: 6px; align-items: center; }
+    .rn-lanes { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+    .rn-lane { display: flex; gap: 2px; align-items: flex-end; min-width: 0; }
+    .rn-lane.b { transform-origin: bottom center; padding: 0 6% 0 10%; }
+    .rn-lane.b .rn-h { opacity: .95; flex-basis: 64px; }
+    .rn-lane.ghosted .rn-lab { background: rgba(31,78,140,.92); }
+    .rn-lab { flex: 0 0 auto; align-self: center; background: rgba(23,19,31,.72); color: #fff; border-radius: 6px; padding: 1px 6px; margin-right: 4px; font-weight: 700; white-space: nowrap; }
+    .rn-gatesp { flex: 0 1 64px; min-width: 26px; width: 64px; height: auto; margin-right: 4px; }
+    .rn-h { position: relative; flex: 0 1 92px; min-width: 0; display: flex; align-items: flex-end; justify-content: center; border-radius: 6px; }
+    .rn-h .rn-sp { width: 100%; height: auto; }
+    .rn-h.rented { background: rgba(224,160,48,.35); box-shadow: inset 0 -3px 0 #e0a030; }
+    .rn-h.rn-ghost .rn-sp { filter: grayscale(1) brightness(1.5) sepia(1) hue-rotate(175deg) saturate(4); opacity: .6; }
+    .rn-h.rn-ghost { outline: 2px dashed #bfe0ff; outline-offset: -2px; }
+    .rn-h.g1, .rn-h.g0 { outline: 2px dashed #bfe0ff; outline-offset: -2px; } .rn-h.g0 { outline-color: #ffd45a; }
+    .rn-bn { position: absolute; top: 2px; left: 2px; font-style: normal; font-weight: 800; font-size: 12px; min-width: 18px; text-align: center; border-radius: 9px; background: #1f4e8c; color: #fff; border: 1px solid #bfe0ff; }
+    .rn-road { min-height: 34px; margin: 0 -12px; padding: 4px 12px; display: flex; align-items: flex-end;
+      background: repeating-linear-gradient(90deg, #5b4a3c 0 14px, #6a5746 14px 28px); border-top: 3px solid #3b2f27; }
+    .rn-empty { color: #e9dcc7; }
+    .rn-folk { display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end; min-height: 28px; }
+    .rn-folk .rn-sp { width: 22px; height: auto; }
+    .rn-walk { display: inline-block; animation: rn-walk .5s steps(3) both; }
+    @keyframes rn-walk { from { transform: translateX(40px); opacity: .2; } to { transform: none; opacity: 1; } }
+    .rn-turn { animation: rn-away .5s steps(3) both; }
+    @keyframes rn-away { from { transform: none; } to { transform: translateX(10px); } }
+    /* The slate: chalk on a board nailed to the gate. */
+    .rn-gatepost { align-self: stretch; }
+    .rn-chalk { position: relative; background: #2d3a31; border: 6px solid #7a5230; border-radius: 6px; box-shadow: 0 3px 0 #3b2716, inset 0 0 18px rgba(0,0,0,.45); padding: 6px 10px 8px; color: #f4f1e6;
+      font-family: 'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive; }
+    .rn-chalk::before, .rn-chalk::after { content: ''; position: absolute; top: -4px; width: 6px; height: 6px; border-radius: 50%; background: #c9c3b6; }
+    .rn-chalk::before { left: 6px; } .rn-chalk::after { right: 6px; }
+    .rn-chalkh { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; opacity: .85; border-bottom: 1px dashed rgba(244,241,230,.4); margin-bottom: 3px !important; }
+    .rn-slate { list-style: none; margin: 0; padding: 0; font-size: 16px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; text-shadow: 0 0 1px rgba(255,255,255,.5); }
+    .rn-slate .small { opacity: .8; }
+    .rn-after .rn-chalk { max-width: 640px; }
+    /* Policies are blueprints you pin onto the street. */
+    .rn-card { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid #9cc7f2; border-radius: 6px; color: #fff; overflow-wrap: anywhere;
+      background: linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px) 0 0 / 14px 14px, #1f4e8c; box-shadow: 0 3px 0 #10284a; }
+    .rn-card b { font-family: var(--f-head); } .rn-card .rn-bpsp { grid-row: span 2; width: 40px; height: auto; }
+    .rn-card .small { color: #dbeaff; }
+    .rn-card.on { transform: rotate(-1deg); border: 3px solid #ffd45a; box-shadow: 0 0 0 3px rgba(255,212,90,.35), 0 4px 0 #10284a; }
+    .rn-tack { position: absolute; top: -10px; right: 12px; width: 14px; height: auto; }
+    /* The scaffolding: brass plaques and levers on wooden planks. */
+    .rn-knobs { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 6px; border: 3px solid #4a2f18; color: #fff4dc;
+      background: repeating-linear-gradient(0deg, #8a5a32 0 22px, #7a4e2b 22px 24px, #95653a 24px 46px, #6e4526 46px 48px); }
+    .rn-knob > .small { font-weight: 700; text-shadow: 0 1px 0 #2a1a0c; }
+    .rn-seg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .rn-seg button { flex: 1 1 auto; min-height: 40px; padding: 6px 10px; border: 2px solid #3a2410; border-radius: 6px; font-size: 13px; font-weight: 700; color: #3a2a12;
+      background: linear-gradient(#e6d3a3, #b99b5e); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 0 #3a2410; }
+    .rn-seg button.on { background: linear-gradient(#ffe58a, #e0a030); color: #2a1a06; box-shadow: inset 0 2px 3px rgba(90,58,18,.6), 0 0 10px rgba(255,212,90,.8); }
+    .rn-lever { flex-wrap: nowrap; }
+    .rn-lever button[data-k] { flex: 1 1 0; }
+    .rn .rn-seg .rn-lv { flex: 0 0 56px; min-height: 48px; padding: 0; border: 0; background: none; box-shadow: none; }
+    .rn-lv img { width: 48px; height: auto; image-rendering: pixelated; transition: transform .15s; }
+    .rn-lv.up img { transform: scaleX(-1); filter: drop-shadow(0 0 4px #6dff8e); }
+    .rn-knobs .rn-cfg { color: #17131f; }
+    /* The board: tonight's jobs pinned on the map of the Quarter. */
+    .rn-boardgrid { display: flex; flex-direction: column; gap: 10px; }
+    .rn-map { position: relative; width: 100%; max-width: 720px; margin: 0 auto; filter: drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
+    .rn-mapsp { width: 100%; height: auto; }
+    .rn-pin { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .rn-pinsp { width: clamp(22px, 6vw, 34px); height: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.5)); }
+    .rn-pin b { position: absolute; bottom: 58%; left: 58%; font-size: 13px; background: #fff3d6; color: #17131f; border: 2px solid #17131f; border-radius: 50%; min-width: 20px; height: 20px; display: grid; place-items: center; text-shadow: none; font-size: 12px; color: #fff; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
+    .rn-pin.on .rn-pinsp { animation: rn-bob .7s ease-in-out infinite alternate; filter: drop-shadow(0 0 4px #ffd45a); }
+    .rn-pin.ok b { background: #9be3b0; } .rn-pin.bad b { background: #bbb; } .rn-pin.on b { background: #ffd45a; }
+    .rn-ribbon { width: clamp(40px, 11vw, 84px); height: auto; margin-bottom: -4px; }
+    @keyframes rn-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+    .rn-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #b23b3b; color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+    .rn-job.grand { box-shadow: inset 0 -4px 0 #b23b3b; }
+    .rn-river { background: linear-gradient(#8fc6e8, #cfe8d0 55%, #4d8fb0 56%, #2f6d8f); color: #17131f; padding-bottom: 8px; }
+    .rn-river .rn-bridgesp { width: min(320px, 90%); }
+    .rn-office { background: linear-gradient(#e9dcc0, #c9b48a); color: #17131f; padding-bottom: 10px; }
+    .rn-bridge.rn-ghost { border-style: dashed; opacity: .85; }
+    @media (min-width: 900px) {
+      .rn-street { min-height: 400px; padding: 14px 18px 0; }
+      .rn-h { flex-basis: 140px; } .rn-gatesp { flex-basis: 96px; width: 96px; } .rn-lane.b .rn-h { flex-basis: 90px; }
+      .rn-run .rn-h { flex-basis: 84px; } .rn-run .rn-gatesp { flex-basis: 60px; width: 60px; } .rn-folk .rn-sp { width: 30px; }
+      .rn-run .rn-street { min-height: 240px; }
+      .rn-plan.rn-street { padding-left: 380px; }
+      .rn-plan .rn-gatepost { position: absolute; left: 18px; top: 14px; width: 340px; }
+      .rn-river .rn-gatepost, .rn-office .rn-gatepost { max-width: 520px; }
+      .rn-road { margin: 0 -18px; padding: 4px 18px; }
+      .rn-plan .rn-road { margin-left: -380px; padding-left: 380px; }
+      .rn-boardgrid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); align-items: start; }
+      ${FULL} .rn-boardgrid .rn-jobs { display: flex; }
+      .rn-pin b { min-width: 24px; height: 24px; font-size: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .rn-walk, .rn-turn, .rn-pin.on .rn-pinsp { animation: none; } }
+  `;
   document.head.appendChild(css);
 })();

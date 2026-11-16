@@ -73,6 +73,7 @@ Everything here was first made for or gathered by the first game, [Isekai'd Into
 
 Everything else is drawn in code: portraits for characters without a painted one and the System windows in `js/art.js` and `index.html`, chapter 1's whole overworld (the ground, river, buildings, props, the temple, and every character walking about) in `js/ch1-art.js`, and the Deny Mines' enemies in `js/ch1-mines-art.js`.
 | The Renovation's sprites, Architect's Draft (`assets/img/reno`): one cottage in four states (old, renovated, under scaffolding, broken), the rented lot, the gate, a resident and a sooty resident, the bridge with its signpost, the alarm bell, the snapshot jar, the records well, the ledger and the notice board | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription on 2026-11-16 by `tools/reno_art.py` (14 `generate-image-v2` calls, one pick per item, with a Proving Road landmark from `assets/img/sprint/land` as the style image; the three later houses also took the picked old house as a reference image), trimmed with hard alpha edges and converted to lossless WebP | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Architect's Draft, the Renovation (`js/mode-reno.js`) |
+| The Renovation's scene sprites, Architect's Draft (`assets/img/reno`): the street backdrop, the map of Pingsby's Quarter, the blueprint, the lever, the Grand Opening ribbon and the map pin | Generated for this game with [PixelLab](https://pixellab.ai) on Ladi's subscription on 2026-11-16 by `tools/reno_art.py` (7 `generate-image-v2` calls, one pick per item from six of them, with the same Proving Road style image), trimmed with hard alpha edges and converted to lossless WebP; the lever's "on" position is the same sprite mirrored | Used under PixelLab's [Terms of Service](https://pixellab.ai/termsofservice) | Architect's Draft, the Renovation (`js/mode-reno.js`): the street scene, the blueprint cards, the scaffolding levers and the night's map |
 
 ## Model
 
@@ -193,7 +194,7 @@ Chapters 2 to 6 (`assets/audio/s-x-*.mp3`, registered in `js/audio-chapters.js` 
 
 ## Fonts
 
-Loaded from Google Fonts under the SIL Open Font License: Fredoka (Milena Brandão, Hafontia) and Nunito (Vernon Adams, Jacques Le Bailly).
+Loaded from Google Fonts under the SIL Open Font License: Fredoka (Milena Brandão, Hafontia), Nunito (Vernon Adams, Jacques Le Bailly) and Patrick Hand (Patrick Wagesreiter; the Renovation's chalk slate).
 
 ## Learning sources
 
