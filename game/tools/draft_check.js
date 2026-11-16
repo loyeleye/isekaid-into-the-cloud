@@ -103,8 +103,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- The session ----
   let r = await run();
   const kinds = await page.evaluate(() => SD.draft.run().items.map(it => SD.exam.find(it.q).type));
-  check(r.items.length === 7, `a session is 7 clients (${r.items.length})`);
-  check(kinds.filter(k => k === 'multi').length === 6 && kinds.filter(k => k === 'mc').length === 1, `6 multiple-response contracts and 1 single-answer job (${kinds.join(',')})`);
+  check(r.items.length === 6, `a session is 6 clients (${r.items.length})`);
+  check(kinds.filter(k => k === 'multi').length === 5 && kinds.filter(k => k === 'mc').length === 1, `5 multiple-response contracts and 1 single-answer job (${kinds.join(',')})`);
   const unverified = await page.evaluate(() => SD.draft.run().items.filter(it => !SD.topicDrill.isVerified(SD.exam.find(it.q))).length);
   check(unverified === 0, 'every contract is verified (verified-only, enough verified questions)');
   check(r.tokens === undefined && !await page.$('#dr-tok'), 'no inspector\'s tokens: nothing helps before the seal');
@@ -118,6 +118,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/choose the order, not whether/.test(boardTxt), 'the board says you choose the order, not whether');
   check(/choose (2|3)|one card/.test(boardTxt) && /Verified/.test(boardTxt) && /D[1-4]/.test(boardTxt), 'each client card shows its slots, its domain and its verified mark');
   check(!/🧱|⭐/.test(boardTxt), 'night 1 shows no materials or reputation yet');
+  check(await page.$$eval('#panel .dr-bark', els => els.length) === 3, 'each client\'s line is on the board, not on the question');
   await noHScroll('board');
   await shot('board');
 
@@ -136,6 +137,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const shownStem = await page.evaluate(() => document.querySelector('#panel .dr-q').textContent);
   check(shownStem.startsWith(c0.stem), 'the contract shows the whole stem, free to read');
   check(!await page.$('#panel [data-clue]') && !await page.$('#panel .dr-map'), 'no closed clues, and no map beside the question');
+  check(await page.evaluate(() => { const r = SD.draft.run(), c = SD.draft.CLIENTS[r.items[r.open].client]; return !document.querySelector('#panel .win-b').textContent.includes(c.arrive) && document.querySelector('#panel .dr-for').textContent.includes(c.name); }), 'only the client\'s name sits above the scroll');
   check(await page.$$eval('#panel .dr-slot', els => els.length) === c0.n, 'one slot per answer the question needs');
   check(await page.$$eval('#panel [data-i]', els => els.length) === c0.cards, 'the question\'s options are dealt as cards');
   check(await page.$$eval('#panel .dr-card', els => els.every(el => el.getBoundingClientRect().width > 280)), 'option cards are full-width rows');
@@ -168,7 +170,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await wait(20);
   check(await title() === 'INSPECTION', 'sealing opens the inspection');
   r = await run();
-  check(r.items[k0].done && r.items[k0].ok && r.floors === 2 * info0.n, `all right at Think so: +2 floors a slot (${r.floors})`);
+  check(r.items[k0].done && r.items[k0].ok && r.floors === 2, `all right at Think so: +2 floors for the whole blueprint (${r.floors})`);
   const insp = await txt();
   check(/IT HOLDS/.test(insp) && /Seymour:/.test(insp), 'a fully right blueprint holds, and Seymour says so');
   check(/Inspection: the cards left on the table/.test(insp) && /Not here, because/.test(insp), 'after the verdict, every card left on the table shows its "why not" line');
@@ -184,17 +186,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- Placement: its own screen, four map actions, Map as list, saved after each ----
   check(await title() === 'PINGSBY\'S QUARTER · PLACE IT', 'placement opens on its own screen');
   check(!await page.$('#panel .dr-q') && !await page.$('#panel [data-c]'), 'the map never shares the screen with a question');
-  check(await page.$$eval('#panel .dr-plot', els => els.length) === 30 && await page.$$eval('#panel .dr-plot.ghost', els => els.length) === 30, 'thirty plots, every one a ghost under a delete marker');
-  check(await page.$$eval('#panel .dr-plot.riv', els => els.length) === 5 && !!await page.$('#panel .dr-river'), 'a row of riverside plots, with the river drawn beside them');
+  check(await page.$$eval('#panel .dr-plot', els => els.length) === 30 && await page.$$eval('#panel .dr-plot.ghost', els => els.length) === 6 && await page.$$eval('#panel .dr-plot.lockd', els => els.length) === 24, 'night 1 opens six plots, ghosts under delete markers; the rest open on later nights');
+  check(await page.$$eval('#panel .dr-plot.riv', els => els.length) === 3 && !!await page.$('#panel .dr-river'), 'three of them are by the river, with the river drawn beside them');
   check(await page.$$eval('#panel .dr-pcv', els => els.every(c => c.width > 0)), 'every plot is drawn');
   await noHScroll('placement map');
   await shot('place-map');
-  await page.click('#panel [data-p="7"]'); await wait(10);
+  await page.click('#panel [data-p="11"]'); await wait(10);
   let P = await page.evaluate(() => JSON.parse(JSON.stringify(SD.draft.save().placing)));
-  check(P.sel === 7 && P.acts === 1, 'tapping a plot is a map action, and it saves');
-  check(/Chosen:/.test(await txt()) && /B2/.test(await txt()), 'a chosen plot says what it is in words');
+  check(P.sel === 11 && P.acts === 1, 'tapping a plot is a map action, and it saves');
+  check(/Chosen:/.test(await txt()) && /B3/.test(await txt()), 'a chosen plot says what it is in words');
+  check(/From tomorrow: \+\d 🧱 here/.test(await txt()), 'on night 1 the preview says what the plot pays from tomorrow');
   await page.click('#dr-vlist'); await wait(10);
-  check(await page.$$eval('#panel .dr-prow', els => els.length) === 30 && !await page.$('#panel .dr-map'), 'Map as list is one tap away, every plot in words');
+  check(await page.$$eval('#panel .dr-prow', els => els.length) === 6 && !await page.$('#panel .dr-map') && /24 open on later nights/.test(await txt()), 'Map as list is one tap away, every open plot in words');
   check(/by the river/.test(await txt()), 'the list says which plots are by the river');
   await noHScroll('placement list');
   await shot('place-list');
@@ -203,7 +206,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#panel [data-p="13"]'); await wait(10);
   P = await page.evaluate(() => JSON.parse(JSON.stringify(SD.draft.save().placing)));
   check(P.acts === 3 && P.sel === 13, `three looks (${P.acts})`);
-  check(await page.$$eval('#panel .dr-plot.ghost:disabled', els => els.length) === 29, 'after three looks, only the chosen plot can be built on');
+  check(await page.$$eval('#panel .dr-plot.ghost:disabled', els => els.length) === 5, 'after three looks, only the chosen plot can be built on');
   // Stop mid-placement and resume: same plot, same count.
   await page.click('#dr-stop');
   await page.evaluate(() => SD.draft.open()); await wait(20);
@@ -223,7 +226,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const info1 = await draftAndSeal(1, 2);
   r = await run();
   check(!r.items[k1].ok, 'one wrong slot means the blueprint isn\'t right');
-  check(r.floors - f1 === 3 * (info1.n - 1) - 3, `Sure: +3 a right slot, −3 the wrong one (${r.floors - f1})`);
+  check(r.floors - f1 === -3, `Sure with one wrong slot: −3 for the whole blueprint (${r.floors - f1})`);
   check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id), info1.q), 'a Sure miss goes on the Wall');
   check(await page.evaluate(id => { const b = SD.draft.save().town[id]; return b.scaf && b.cracks === 1; }, info1.q), 'its building stands under scaffolding, with a crack');
   check(await page.evaluate(id => !!SD.draft.scaffoldFor(id), info1.q), 'scaffoldFor reports it (for Monster Hunt\'s cards)');
@@ -233,14 +236,32 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(!/materials buy a retry/.test(insp1), 'night 1 doesn\'t offer the retry yet');
   await shot('inspect-wrong');
   await page.click('#dr-next'); await wait(20);
-  await placeAt(14);
-  check(await page.evaluate(() => /🚧/.test(document.querySelector('#panel .win-b').textContent) || true), 'placed under scaffolding');
+  await placeAt();
 
-  // A wrong slot at Guess also goes up (every miss leaves scaffolding).
+  // A wrong slot at Guess also goes up (every miss leaves scaffolding), and gets a free retry on its twin.
+  await page.evaluate(() => {
+    const r = SD.draft.run(), it = r.items.find(i => !i.done), used = r.items.map(i => i.q), town = SD.draft.save().town;
+    const q = SD.topicDrill.base().find(x => x.type === 'multi' && SD.draft.twinFor(x.id) && !used.includes(x.id) && !town[x.id]);
+    it.q = q.id; it.pick = []; SD.state.persist(); SD.draft.open();
+  });
+  await wait(20);
   await openFirst();
   const info2 = await draftAndSeal(1, 0);
   check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id) && SD.draft.save().town[id].scaf, info2.q), 'a Guess miss also goes on the Wall, under scaffolding');
+  check(!!await page.$('#dr-twin') && /free/.test(await txt()), 'a miss offers a free retry on its twin, right away');
+  await shot('free-retry');
+  const fl2 = (await run()).floors;
+  await page.click('#dr-twin'); await wait(20);
+  const rt2 = await page.evaluate(() => JSON.parse(JSON.stringify(SD.draft.save().retry)));
+  check(await title() === 'ARCHITECT\'S DRAFT · RETRY' && rt2.q !== info2.q && rt2.retry.poster === info2.q && !rt2.paid, 'the free retry asks its twin, not the same question');
+  check(await page.evaluate(() => SD.draft.save().mat) === 0, 'the free retry costs nothing');
+  const tw2 = await page.evaluate(() => { const q = SD.exam.find(SD.draft.save().retry.q); return { n: SD.draft.slotsOf(q), right: SD.draft.cards(q).map((t, i) => i).filter(i => SD.draft.cardOk(q, i)) }; });
+  for (const i of tw2.right.slice(0, tw2.n)) await page.click(`#panel [data-i="${i}"]`);
+  await page.click('#panel [data-c="0"]'); await wait(20);
+  check(await title() === 'INSPECTION' && !await page.$('#dr-twin'), 'the retry has its own inspection, with no retry of its own');
+  check((await run()).floors === fl2 + 1, 'a right retry at Guess adds its floor to the building');
   await page.click('#dr-next'); await wait(20);
+  check(await title() === 'PINGSBY\'S QUARTER · PLACE IT', 'after the retry, the building goes to placement');
   await placeAt();
   await page.evaluate(id => { const w = SD.state.save.wall; w.splice(w.findIndex(x => x.id === id), 1); }, info2.q);
   check(await page.evaluate(id => { SD.draft.town(); const b = SD.draft.save().town[id]; return !b.scaf && b.fin === 1; }, info2.q), 'when its poster comes down, the scaffolding comes off for good');
@@ -255,9 +276,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }
   check(await title() === 'ARCHITECT\'S DRAFT · RESULTS', 'after the last client, the results screen');
   const res = await txt();
-  check(/Standing: 5/.test(res) && /Scaffolding: 2/.test(res), 'results count standing and scaffolding');
-  check(/Sure misses to the Wall: 1/.test(res), 'results count Sure misses added to the Wall');
-  check(/How sure you were/.test(res) && /Think so/.test(res), 'results show calibration');
+  check(/Standing: 4/.test(res) && /Scaffolding: 2/.test(res), 'results count standing and scaffolding');
+  check(/Misses to the Wall: 2/.test(res), 'results count every miss that went on the Wall');
+  check(/Twin retries: 1/.test(res), 'results count the twin retries');
+  check(/Tonight in Pingsby's Quarter/.test(res) && await page.$$eval('#panel .dr-plot.tonight', els => els.length) === 6, 'results open on the Quarter, with tonight\'s six buildings outlined');
+  check(/How sure you were/.test(res) && /blueprint by blueprint/.test(res), 'results show calibration per blueprint');
+  check(await page.evaluate(() => { const t = SD.draft.run().tally; return [0, 1, 2].reduce((a, c) => a + t[c][1], 0); }) === 7, 'calibration counts one entry per question (six blueprints and one retry)');
   check(/Ideas touched/.test(res) && /Why did that work/.test(res), 'results list the ideas touched, and Pip asks his question');
   check(await page.evaluate(() => SD.state.save.shards | 0) === xp0 + 5, 'the session pays 5 shards');
   const share = await page.evaluate(() => { const r = SD.draft.run(); return r.mapMs / Math.max(1, r.mapMs + r.qMs); });
@@ -269,7 +293,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- Pingsby's Quarter ----
   check(await title() === 'PINGSBY\'S QUARTER', 'the results open Pingsby\'s Quarter');
-  check(await page.$$eval('#panel .dr-plot.built', els => els.length) === 7, 'seven buildings on the map');
+  check(await page.$$eval('#panel .dr-plot.built', els => els.length) === 6, 'six buildings on the map');
   check(await page.$$eval('#panel .dr-ptag', els => els.some(e => /[▲■●◆][1-4] 🚧/.test(e.textContent))), 'a building\'s tag shows its domain as a shape and a number, and scaffolding as an icon');
   await noHScroll('quarter');
   await shot('quarter');
