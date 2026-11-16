@@ -278,6 +278,53 @@
   // Anything still moving: queued messages, stools at work, retries waiting.
   AS.idle = w => !w.pending.length && w.desks.every(d => !d.busy.length) && !(w.queue && w.queue.items.length);
 
+  // ---- Added for Monster Hunt's boards (js/hunt-core.js, design: project files game-modes/monster-hunt/real-game-design.md) ----
+  // The client's wait before retry number `attempts` (1, 2, ...): the same rule as throttle() above. Immediate: next
+  // turn. Backoff: 1, 2, 4 ... turns, plus jitter that spreads neighbours apart (deterministic: odd ids one turn later).
+  AS.retryWait = (attempts, backoff, id) => (backoff ? Math.pow(2, attempts - 1) + (idNum({ id }) % 2) : 1);
+  AS.idNum = id => idNum({ id });
+
+  // API Gateway throttling: a token bucket. The bucket holds up to `burst` tokens and refills at `rate` per turn; each
+  // request takes one, and a request that finds the bucket empty gets 429 Too Many Requests. Real quotas: 10,000
+  // requests per second with a burst of 5,000 per account per Region (2,500 / 1,250 in some newer Regions), and AWS
+  // sets the account-level burst; customers can't change it.
+  // https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html
+  // https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html
+  AS.bucket = (rate, burst) => ({ rate, burst, tokens: burst });
+  AS.refill = b => { b.tokens = Math.min(b.burst, b.tokens + b.rate); return b.tokens; };
+  AS.take = b => { if (b.tokens > 0) { b.tokens--; return true; } return false; };
+
+  // DynamoDB partitions: items with the same partition key value live in one partition, and each partition supports up
+  // to 3,000 RCU and 1,000 WCU whatever the capacity mode (so neither more table capacity nor on-demand lifts it). Write
+  // sharding adds a random or calculated suffix to the key so the writes spread across partitions.
+  // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html
+  // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html
+  // keyMode: 'hot' (one low-cardinality value, such as status = ACTIVE), 'shard' (value + suffix) or 'unique' (a
+  // high-cardinality key, such as orderId). Returns the partition each write lands on.
+  AS.partitionOf = (keyMode, id, parts) => (keyMode === 'hot' ? 0 : idNum({ id: keyMode + ':' + id }) % parts);
+  // One turn of writes: [{ id }] against `parts` partitions of `cap` writes each. Returns { ok: [ids], throttled: [ids],
+  // load: [writes per partition] }. A throttled write is a throttling error the SDK retries.
+  AS.writeTurn = function (writes, keyMode, parts, cap) {
+    const load = Array.from({ length: parts }, () => 0), ok = [], throttled = [];
+    writes.forEach(x => { const p = AS.partitionOf(keyMode, x.id, parts); if (load[p] < cap) { load[p]++; ok.push(x.id); } else { load[p]++; throttled.push(x.id); } });
+    return { ok, throttled, load };
+  };
+
+  // IAM policy evaluation for one request. Everything starts implicitly denied; an explicit Deny in any applicable
+  // policy beats every Allow. In one account, an Allow in either the identity-based or the resource-based policy is
+  // enough (for S3); across accounts both sides must allow. Assuming a role: the role's trust policy is its
+  // resource-based policy, and it must allow the caller (an identity Allow for sts:AssumeRole alone is not enough).
+  // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html
+  // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html
+  // p: { deny, idAllow, resAllow, cross, assume, trust }. Returns { allowed, why: 'deny' | 'implicit' | 'trust' | 'allow' }.
+  // Here an assume's trust names the caller's own ARN, so in one account it needs nothing else.
+  AS.iamEval = function (p) {
+    if (p.deny) return { allowed: false, why: 'deny' };
+    if (p.assume) { const ok = !!p.trust && (!p.cross || !!p.idAllow); return { allowed: ok, why: ok ? 'allow' : p.trust ? 'implicit' : 'trust' }; }
+    const allowed = p.cross ? !!(p.idAllow && p.resAllow) : !!(p.idAllow || p.resAllow);
+    return { allowed, why: allowed ? 'allow' : 'implicit' };
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = AS;
   if (root && root.SD) root.SD.awsSim = AS;
 })(typeof window !== 'undefined' ? window : globalThis);
