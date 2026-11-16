@@ -4,6 +4,9 @@
 // Shortcut (skip a row), the Records vault and the Blameless Postmortem (played, never staked), Halcyon and the
 // Arcanum with their claims and Lost items, the Big Claim and its truth, the marsh cat (caught with one room check),
 // room modifiers and home turf, and the night's deflate line. No horizontal scroll, no page errors.
+// Domain stamps and preparing (Nov 16): every door wears its domain stamp, a Lost item or break room's "check it first"
+// earns a Prepared tag (first-use line once), and the tag hangs on the next matching claim's door. The rule freeze:
+// nights 2 and 3 play on Nov 17, night 4 on Dec 1 (its cat and modifiers); a night 4 on Nov 17 has neither.
 // Run from game/:  node tools/pop_rooms_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -110,6 +113,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const WIDTHS = { 2: '1,3,3,3,3', 3: '1,3,3,3,3', 4: '1,3,3,3,3' };
   for (const N of [2, 3, 4]) {
     console.log(`-- night ${N}`);
+    if (N === 4) await page.clock.setSystemTime(new Date('2026-12-01T20:00:00'));
     await page.evaluate(n => { const s = SD.state.save; s.modes.popNights = n - 1; delete s.pop; s.popCarry = []; SD.state.persist(); SD.ui.closePanel && SD.ui.closePanel(); }, N);
     await page.evaluate(() => SD.modes.open());
     await page.click('[data-mode="pop"]');
@@ -144,6 +148,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       check(!!await page.$('.pop-door .pop-cat'), 'the cat sits by its door');
       check(nodes.filter(n => n.mod).length === 2, 'two claims carry a room modifier');
     } else check(!s.cat, 'no cat before night 4');
+    const stamps = await page.$$eval('.pop-door', els => els.filter(e => e.querySelector('.pop-dom svg') && /\w/.test(e.querySelector('.pop-dom').textContent)).length);
+    check(stamps === nodes.length && nodes.every(n => n.d >= 1 && n.d <= 4), `every door wears Dutch's domain stamp, an icon and a word (${stamps} of ${nodes.length})`);
     await noHScroll(`night ${N} map`);
     await shot(N + '-map');
 
@@ -237,6 +243,25 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
         await page.click('#pop-catch');
         continue;
       }
+      if ((s.phase === 'lost' || s.phase === 'break') && !did.has('prep') && await page.$('[data-popx="prep"]:not([disabled])')) {
+        did.add('prep');
+        const d = s.map.rows[s.map.row][s.map.col].d, r0 = s.rooms.length;
+        const seen = await page.evaluate(() => !!SD.state.save.popPrepSeen);
+        await page.click('[data-popx="prep"]');
+        const t = await pop();
+        check(t.phase === 'seal' && t.seal.why === 'prep' && t.seal.ck.d === d && t.rooms.length === r0 - 1, 'check it first: one room check in the room\'s domain, no stake');
+        await page.click('#pop-sopen');
+        await ask(true, 1);
+        const b = await txt('#panel'), u = await pop();
+        check(/PREPARED/.test(b) && u.prep.includes(d), 'right: a Prepared token in that domain');
+        check(seen ? !/ties the tag to the next/.test(b) : /ties the tag to the next/.test(b), `the first token ever earned says what it does, once (${seen ? 'not the first' : 'the first'})`);
+        await noHScroll(`night ${N} prepared`);
+        await page.click('#pop-son');
+        check((await pop()).phase === s.phase && !await page.$('[data-popx="prep"]'), 'back in the room, its usual choice still to make');
+        const ahead = u.map.rows.slice(u.map.row + 1).flat().some(x => x.type === 'claim' && x.d === d && !x.visited);
+        if (ahead) { await page.click(s.phase === 'lost' ? '#pop-leave' : '#pop-rest'); check(!!await page.$('.pop-door .pop-ptag'), 'the Prepared tag hangs on the next matching claim\'s door'); }
+        continue;
+      }
       if (s.phase === 'lost') {
         const n = s.map.rows[s.map.row][s.map.col];
         if (n.home === 'halcyon') { did.add('halcyon'); const b = await txt('#panel'); check(/grain scale, cracked/.test(b) && /I'll fix it\./.test(b) && /You won't\./.test(b) && /Yes, chef\./.test(b) && /counterweight/.test(b), 'Halcyon\'s Lost item: the cracked grain scale, Kai, Dutch and "Yes, chef"'); }
@@ -322,9 +347,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.click('#pop-done');
   }
 
+  // ---- The rule freeze: a night 4 on Nov 17 plays night 3's rules (state machine) ----
+  const fz = await page.evaluate(() => { const s = SD.pop.newNight({ sim: true, night: 3, day: '2026-11-17' }); return { night: s.night, cat: !!s.cat, mods: s.map.rows.flat().filter(n => n.mod).length, arrive: SD.pop.xtra(s, 'arrive') }; });
+  check(fz.night === 4 && !fz.cat && !fz.mods && /Nothing new/.test(fz.arrive) && !/cat/.test(fz.arrive), 'before Dec 1, night 4 has no cat and no modifiers, and says nothing new is in the heap');
+
   // ---- The cat, wrong: only its silhouette goes in the ledger (state machine) ----
   const sil = await page.evaluate(() => {
-    const s = SD.pop.newNight({ sim: true, night: 3 }); s.phase = 'map';
+    const s = SD.pop.newNight({ sim: true, night: 3, day: '2026-12-01' }); s.phase = 'map';
     s.cat.r = 0; s.cat.c = 0;
     const r = SD.pop.go(s, 0);
     SD.pop.catchCat(s);

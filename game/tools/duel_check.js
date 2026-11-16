@@ -9,8 +9,10 @@
 //        - the Cup is won under 90% of nights at 75% accuracy;
 //        - the slowest 10% of nights take at most 20 minutes.
 //   3. A night through the screens: the Play picker, the first-run walkthrough, the practice Compare, the board with
-//      his next square shown, a cast in at most 4 taps, the case on its own screen with the whole stem, the shared
+//      chalked hard squares (a card tried on the wrong chalk won't settle, and one line says why),
+//      his next square shown face up (and taken on a miss), a cast in at most 4 taps, the case on its own screen with the whole stem, the shared
 //      stakes, his move, a Compare card on the board, a reload and resume on the same board, the ledger and the pay.
+// Whether placement matters (hard squares, his shown square): tools/duel_squares_check.js.
 // Run from game/:  node tools/duel_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -188,7 +190,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const allowed = await page.evaluate(ids => ids.every(id => { const q = SD.exam.find(id); return q && SD.exam.allowed(q); }), deckIds);
   check(allowed, 'every case card is a bank question the exam allows (no held-out forms)');
   check(s0.b.hand.filter(c => c.ret || c.tag === 'missed' || c.tag === 'wall').length <= 1, 'at most one missed or Wall card in the opening hand');
-  check(/On a miss he takes/.test(await txt('.du-rule')) && (await page.$$('.du-ghost')).length >= 1, 'his rule and his next square show under the board');
+  check(/On a miss he takes/.test(await txt('.du-rule')), 'his rule shows under the board');
+  const hand = await page.$$eval('.du-hand-m', e => e.map(x => [+x.closest('[data-sq]').dataset.sq, x.textContent.trim()]));
+  check(hand.length === 1 && hand[0][0] === s0.b.next && hand[0][1] === 'his next', `his next square is shown face up on the felt, one square, his hand and a word (${JSON.stringify(hand)}, saved ${s0.b.next})`);
+  const chalk = await page.evaluate(() => [...document.querySelectorAll('[data-sq]')].map(el => { const c = el.querySelector('.du-chalk'); return c ? c.firstChild.textContent : null; }));
+  const names = await page.evaluate(() => Object.values(SD.duel.SETS));
+  check([0, 2, 4, 6, 8].every(i => names.includes(chalk[i])) && [1, 3, 5, 7].every(i => chalk[i] === null), `the centre and corners are chalked with a set's name in words, the edges are plain (${chalk.join(' / ')})`);
+  // A card tried on a chalked square of another set: the stone won't settle, and one line says why.
+  const wrong = await page.evaluate(() => { const D = SD.duel, b = SD.state.save.duel.night.b; for (let c = 0; c < b.hand.length; c++) for (const i of D.HARD) if (!b.cells[i] && !D.fits(b, b.hand[c], i)) return [c, i]; return null; });
+  if (wrong) {
+    await page.click(`[data-card="${wrong[0]}"]`);
+    check(await page.$eval(`[data-sq="${wrong[1]}"]`, e => e.classList.contains('nofit')), 'with a card picked, a chalked square it can\'t settle on is dimmed');
+    await page.click(`[data-sq="${wrong[1]}"]`);
+    const line = await txt('.du-hint');
+    check(!await page.$('.du-sheet') && /chalked .*Only a .* card settles there/.test(line), `the stone won't settle on a chalked square of another set, and one line says why ("${line.trim()}")`);
+    await noHScroll('wrong square');
+    await page.click(`[data-card="${wrong[0]}"]`);
+  } else console.log('info every hand card fits every empty hard square on this board: the wrong-square line is not exercised');
   check(!!await page.$('.du-asl'), 'the board has a list view for screen readers');
   check(await page.evaluate(() => SD.audio.loopName === 'duel' && SD.audio.has('duel') && SD.audio.has('duellast')), 'the table track plays under the board (the Last Stand has its own)');
   await noHScroll('board');
@@ -196,10 +214,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // A case: card, square, Cast (3 taps), then the question on its own screen.
   const ci = s0.b.hand.findIndex(c => c.k === 'case');
-  const sq = await page.evaluate(() => SD.duel.rule(SD.state.save.duel.night.b.cells).squares[0]);
+  const sq = await page.evaluate(ci => { const b = SD.state.save.duel.night.b, ok = SD.duel.legal(b, b.hand[ci]); return ok.includes(b.next) ? b.next : ok[0]; }, ci);
   await page.click(`[data-card="${ci}"]`);
   await page.click(`[data-sq="${sq}"]`);
-  check(/Hit: .*Miss: he takes his square/.test(await txt('.du-sheet')), 'the cast sheet says what a hit and a miss do');
+  check(/Hit: .*Miss: he takes his square, the /.test(await txt('.du-sheet')), 'the cast sheet says what a hit and a miss do, naming his square');
   await page.click('#du-cast');
   await page.waitForSelector('#panel .win.quiz');
   check(!await page.$('.du-grid'), 'the board and the question never share the screen (3 taps to a cast)');
@@ -220,8 +238,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const s1b = await night();
   const ci2 = s1b.b.hand.findIndex(c => c.k === 'case');
   if (ci2 >= 0) {
-    const his = await page.evaluate(() => SD.duel.rule(SD.state.save.duel.night.b.cells).squares);
-    const free = s1b.b.cells.findIndex((x, i) => !x && !his.includes(i));
+    const his = [s1b.b.next];
+    const free = await page.evaluate(([ci2, his]) => { const b = SD.state.save.duel.night.b; return SD.duel.legal(b, b.hand[ci2]).find(i => !his.includes(i)); }, [ci2, his]);
     await page.click(`[data-card="${ci2}"]`); await page.click(`[data-sq="${free >= 0 ? free : his[0]}"]`); await page.click('#du-cast');
     await page.waitForSelector('#panel .win.quiz');
     await answerCase(false, 1);
@@ -230,7 +248,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const live = await txt('#du-live');
     const s2 = await night();
     const took = s2.b.cells.findIndex((x, i) => x === 'him' && s1b.b.cells[i] !== 'him');
-    check(his.includes(took), `a miss: he takes the square his rule named (${took})`);
+    check(his.includes(took), `a miss: he takes the square shown face up before the cast (${took}, shown ${his[0]})`);
     check(/He takes the/.test(live), 'his move is read out to screen readers (' + live + ')');
   }
 
@@ -238,7 +256,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const s3 = await night();
   const cj = s3.b.hand.findIndex(c => c.k === 'cmp');
   if (cj >= 0 && !(await page.evaluate(() => SD.duel.forced(SD.state.save.duel.night.b)))) {
-    const free = s3.b.cells.findIndex(x => !x);
+    const free = await page.evaluate(cj => { const b = SD.state.save.duel.night.b; return SD.duel.legal(b, b.hand[cj])[0]; }, cj);
     const hisN = s3.b.cells.filter(x => x === 'him').length;
     await page.click(`[data-card="${cj}"]`); await page.click(`[data-sq="${free}"]`);
     check(/then he takes his square/.test(await txt('.du-sheet')), 'a Compare cast says it is a trade');
@@ -280,7 +298,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     if (f) { await page.click('#du-cast'); }
     else {
       const i = Math.max(0, s.b.hand.findIndex(c => c.k === 'case'));
-      const free = s.b.cells.findIndex(x => !x);
+      const free = await page.evaluate(i => { const b = SD.state.save.duel.night.b; return SD.duel.legal(b, b.hand[i])[0]; }, i);
       await page.click(`[data-card="${i}"]`); await page.click(`[data-sq="${free}"]`); await page.click('#du-cast');
     }
     const card = f || s.b.hand[Math.max(0, s.b.hand.findIndex(c => c.k === 'case'))];

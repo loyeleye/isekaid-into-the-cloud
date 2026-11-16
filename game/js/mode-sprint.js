@@ -14,6 +14,11 @@
 //   - Scoring uses the shared stake table (js/modes.js) as calibration points; a marked or interrupted pick scores as a
 //     Guess and counts as "marked" in calibration. XP and shards once a day. Answers go to spaced review at the Lamp
 //     House, Sure misses go on the Wall, and the empty and loose jars' ideas lead the next day's set (SD.sprint.leadItems).
+//   - Marks (Nov 16): the debrief scores the run's one decision. Marks well spent (marked, came back, changed, ended
+//     right, and marks that turned a wrong first pick right: run.markPick keeps the pick a patch was marked with; older
+//     saves fall back to the first change), misses you didn't mark (Guess ones called out: flag any question you'd
+//     press Guess on), unused markers when there were misses, one if-then line offered to the plan (SP.marksPlan), and
+//     the change since the last run's counts (each result keeps them as res.marks).
 //   - Saves after every commit and marker; a reload returns to the same patch with the same clock.
 (function () {
   if (!SD.modes || !SD.sprintData) return;
@@ -106,7 +111,7 @@
       v: 1, key, practice, exam: !practice && !!(D.runs[key] && D.runs[key].exam), name: practice ? 'Practice patch' : key === 'free' ? 'The free road' : R.name,
       ids, ord: ids.map(id => shuffle(optsOf(find(id)).map((x, i) => i))), limit: practice ? PRACTICE_LIMIT : LIMIT,
       pick: arr(null), conf: arr(null), marked: arr(false), wasMarked: arr(false), reopened: arr(false), inter: arr(false), changed: arr(null), raised: arr(false),
-      first: arr(0), reopen: arr(0), dither: arr(0), changes: arr(0), tfp: arr(null), nudged: arr(false), startLeft: arr(null),
+      first: arr(0), reopen: arr(0), dither: arr(0), changes: arr(0), tfp: arr(null), nudged: arr(false), startLeft: arr(null), markPick: arr(null),
       markers: practice ? 1 : 3, at: 0, phase: 'gate', used: 0, between: 0, list: 0, seals: [], ann: {}, t: Date.now(), sim: !!opts.sim
     };
   };
@@ -123,6 +128,8 @@
     run.pick[i] = pick;
     if (conf == null) {
       if (!run.marked[i] && !reopen) run.markers--;
+      // The pick it was marked with (saves from before Nov 16 have no markPick; SP.marks falls back for those).
+      if (!reopen) { run.markPick = run.markPick || run.ids.map(() => null); if (run.markPick[i] == null) run.markPick[i] = pick == null ? null : JSON.parse(JSON.stringify(pick)); }
       run.marked[i] = true; run.wasMarked[i] = true; run.conf[i] = null;
     } else {
       run.marked[i] = false;
@@ -155,6 +162,41 @@
     rows.forEach(r => { if (r.unans) return; const k = r.counted ? r.conf : 'marked'; tally[k][1]++; if (r.ok) tally[k][0]++; });
     return { rows, right, n: rows.length, pts, firsts, tax, d13, med, long, reopenT, reopenN, dom, tally };
   };
+  // The Marks readout: was each marker well spent, and which misses went unmarked. Only committed picks count as
+  // unmarked misses (a pick cut off by sunset or no answer isn't one); an interrupted patch was capped at Guess, so it
+  // isn't called out as a Guess.
+  SP.marks = function (run, sc) {
+    sc = sc || SP.score(run);
+    const mp = run.markPick || [];
+    const out = { marked: 0, back: 0, changed: 0, right: 0, turned: 0, hurt: 0, missed: 0, guessMiss: 0, unused: Math.max(0, run.markers | 0), notBack: 0, missAt: [], guessAt: [] };
+    sc.rows.forEach(r => {
+      const i = r.i, p = run.pick[i];
+      if (run.wasMarked[i]) {
+        // First pick before marking: recorded since Nov 16; older saves use the first change's "from", else the pick.
+        const was = mp[i] != null ? mp[i] : run.changed[i] ? run.changed[i].from : p;
+        const ch = JSON.stringify(was) !== JSON.stringify(p), wasOk = isRight(r.q, was);
+        out.marked++;
+        if (run.reopened[i]) out.back++; else out.notBack++;
+        if (ch) out.changed++;
+        if (r.ok) out.right++;
+        if (ch && !wasOk && r.ok) out.turned++;
+        if (ch && wasOk && !r.ok) out.hurt++;
+      } else if (!r.ok && !r.unans && run.conf[i] != null) {
+        out.missed++; out.missAt.push(i + 1);
+        if (run.conf[i] === 0 && !run.inter[i]) { out.guessMiss++; out.guessAt.push(i + 1); }
+      }
+    });
+    return out;
+  };
+  // One if-then line for the plan, when the marks call for one (most pressing first).
+  SP.marksPlan = function (m) {
+    if (m.guessMiss) return 'If I\'d press Guess, then I flag it and move on.';
+    if (m.notBack) return 'If I mark a patch, then I walk back to it before I finish.';
+    if (m.hurt) return 'If I come back and find nothing new, then I keep my first pick.';
+    if (m.missed && m.unused) return 'If I still have a marker and any doubt, then I flag it and move on.';
+    return '';
+  };
+
   // Coo's pattern over the seals (the ending's line).
   SP.pattern = function (run) {
     if (run.sunset) return 'out';
@@ -620,12 +662,43 @@
     else if (run.key !== 'free') st.done[run.key] = now;
     const res = { key: run.key, t: now, right: sc.right, n: sc.n, pts: sc.pts, tax: sc.tax, d13: sc.d13, med: sc.med, long: sc.long, reopenT: sc.reopenT,
       first: run.first, reopen: run.reopen, dither: run.dither, changes: run.changes, tfp: run.tfp, inter: run.inter, marked: run.wasMarked, raised: run.raised,
-      between: run.between, list: run.list, used: run.used, ids: run.ids, sunset: !!run.sunset, words: run.ids.map(id => String(find(id).q).split(/\s+/).length) };
+      between: run.between, list: run.list, used: run.used, ids: run.ids, sunset: !!run.sunset, words: run.ids.map(id => String(find(id).q).split(/\s+/).length),
+      marks: markStats(SP.marks(run, sc)) };
     if (!run.practice) st.results.push(res);
     st.results = st.results.slice(-12);
     run.res = res;
     run.payLine = run.practice ? '' : M.pay(ID);
     persist();
+  }
+  // The per-run mark counts kept in the save (a later run shows the change since this one).
+  const MARK_KEYS = ['marked', 'back', 'changed', 'right', 'turned', 'hurt', 'missed', 'guessMiss', 'unused'];
+  const markStats = m => Object.fromEntries(MARK_KEYS.map(k => [k, m[k]]));
+  const pList = a => (a.length === 1 ? 'patch ' + a[0] : 'patches ' + a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+  const trend = (a, b) => `${a} → ${b} (${b < a ? 'fewer' : b > a ? 'more' : 'same'})`;
+  // The Marks card in the debrief: every state in words and an icon.
+  function marksCard(sc, perPatch) {
+    const m = SP.marks(run, sc), st = store();
+    const misses = m.missed;
+    const lines = [];
+    if (m.marked) {
+      lines.push(`<li><b>⚑ Marks well spent:</b> ${m.marked} marked · ↩ ${m.back} came back · ✎ ${m.changed} changed · ✓ ${m.right} ended right</li>`);
+      if (m.turned) lines.push(`<li>✓ ${m.turned === 1 ? '1 mark' : m.turned + ' marks'} turned a wrong first pick into a right one.</li>`);
+      if (m.hurt) lines.push(`<li>× ${m.hurt === 1 ? '1 change' : m.hurt + ' changes'} turned a right first pick wrong.</li>`);
+      if (m.notBack) lines.push(`<li>↩ ${m.notBack} marked and not walked back to.</li>`);
+    } else lines.push('<li>⚑ No marks this run.</li>');
+    if (misses) {
+      lines.push(`<li><b>× Misses you didn't mark:</b> ${misses} (${pList(m.missAt)}).${m.guessMiss ? ` ${m.guessMiss === 1 ? '1 was' : m.guessMiss + ' were'} committed as ${meter(0)} Guess (${pList(m.guessAt)}): you knew you were unsure.` : ''}</li>`);
+      lines.push('<li class="muted">Rule of thumb: on the exam, flag any question you\'d press Guess on.</li>');
+      if (m.unused) lines.push(`<li>⚑ ${m.unused === 1 ? '1 marker' : m.unused + ' markers'} unused, with ${misses === 1 ? '1 miss' : misses + ' misses'} unmarked.</li>`);
+    } else lines.push('<li>✓ Every unmarked patch you committed ended right.</li>');
+    const t = run.res ? run.res.t : Date.now();
+    const prev = st.results.filter(r => r.marks && r.t < t).slice(-1)[0];
+    if (prev) {
+      const p = prev.marks, bits = [`unmarked misses ${trend(p.missed, m.missed)}`];
+      if (p.guessMiss || m.guessMiss) bits.push(`unmarked Guess misses ${trend(p.guessMiss, m.guessMiss)}`);
+      lines.push(`<li>Since last time: ${bits.join(' · ')}.</li>`);
+    }
+    return { m, html: `<div class="sp-dc sp-marks"><b>Marks</b><ul class="small">${lines.join('')}</ul>${perPatch ? `<p class="small sp-mkh">Each marked patch</p><ul class="small">${perPatch}</ul>` : ''}</div>` };
   }
   function house(step) {
     stopTick();
@@ -767,19 +840,23 @@
     const check = run.exam && before ? SP.check(sc, Object.assign({ n: before.ids.length }, before)) : null;
     const pip = sc.rows.find(r => r.ok && r.counted && r.conf === 1);
     const plan = st.plan || PLAN;
+    const mk = marksCard(sc, marks), add = SP.marksPlan(mk.m);
+    // A run recorded before the Marks readout keeps its counts from here on.
+    if (run.res && !run.res.marks) { run.res.marks = markStats(mk.m); const r = st.results.find(x => x.t === run.res.t); if (r) r.marks = run.res.marks; persist(); }
     const b = hdraw(`<div class="sp-house sp-deb">
       <p class="td-head">3. Debrief</p>
       <div class="sp-dc"><b>Pace</b><p class="small">${run.practice ? `The patch took ${mmss(sc.firsts[0])}, dither ${mmss(run.dither[0])}.` : `Patches 1 to 3: ${sgnT(sc.tax)} over 2:00, dither ${mmss(sc.d13)}. Patches 4 to 10: dither ${mmss(sc.med)} median.`}</p></div>
       ${check ? `<div class="sp-dc sp-check"><b>${check.held ? 'Pacing held' : 'Not yet'}</b><ul class="small">${check.parts.map(p => `<li>${p.ok ? '✓' : '·'} ${esc(p.what)}: ${esc(p.line)}${p.ok ? '' : ' (didn\'t hold)'}</li>`).join('')}</ul></div>` : ''}
       <div class="sp-dc"><b>By domain · ${sc.right} of ${sc.n}</b><p class="small">${[1, 2, 3, 4].filter(d => sc.dom[d]).map(d => `${DOM[d - 1]} ${sc.dom[d][0]}/${sc.dom[d][1]}`).join(' · ')}</p>
         <p class="small muted">These are exam-style questions, so a lower score than your drills is expected.</p></div>
-      ${marks ? `<div class="sp-dc"><b>Markers</b><ul class="small">${marks}</ul></div>` : ''}
+      ${mk.html}
       <div class="sp-dc"><b>How sure you were (this run)</b><p class="small">${meter(0)} Guess ${cnt(0)} · ${meter(1)} Think so ${cnt(1)} · ${meter(2)} Sure ${cnt(2)} · ⚑ marked ${cnt('marked')}</p>
         <p class="small muted">Too few to read in one run. Advice comes from all your answers once a level has 20.</p>
         <p class="small">Calibration points: <b>${M.sgn(sc.pts)}</b></p>
         <details class="small"><summary>How points work</summary>${M.stakeTable()}<p>A marked pick scores as a Guess and isn't counted as one.</p></details></div>
       <div class="sp-dc"><b>Your plan${run.exam ? '' : ' for Proctor\'s Pass'}</b>
         <textarea id="sp-plan" rows="3" maxlength="300" aria-label="Your if-then plan">${esc(plan)}</textarea>
+        ${add && !plan.includes(add) ? `<div class="sp-add"><p class="small">⚑ From your marks: "${esc(add)}"</p><button class="ghost" id="sp-addp">Add to my plan</button></div>` : ''}
         <p class="small muted">Try it on your next practice test too. Lexi shows it at the Nov 28 gate.</p></div>
       ${pip ? `<form class="sp-dc sp-pip"><label for="sp-pin"><b>Pip:</b> "Sorry to be a bother. Why did that work?"</label><p class="small muted">"${esc(firstLine(pip.q))}" · ${meter(1)} Think so, right</p>
         <input id="sp-pin" type="text" maxlength="200" autocomplete="off" placeholder="One sentence, in your words">
@@ -788,6 +865,13 @@
     const ta = b.querySelector('#sp-plan');
     ta.onchange = () => { st.plan = ta.value.trim() || PLAN; S.persist(); };
     if (!st.plan) { st.plan = PLAN; S.persist(); }
+    const ap = b.querySelector('#sp-addp');
+    if (ap) ap.onclick = () => {
+      const v = ta.value.trim(), nv = v.includes(add) ? v : (v ? v + ' ' : '') + add;
+      if (nv.length > 300) { ap.previousElementSibling.textContent = 'Your plan is full (300 characters). Shorten it to make room.'; return; }
+      ta.value = nv; st.plan = nv; S.persist();
+      ap.disabled = true; ap.textContent = 'Added to your plan ✓';
+    };
     const f = b.querySelector('.sp-pip');
     if (f) {
       f.onsubmit = e => {
@@ -1063,6 +1147,11 @@
     .sp-dc p { margin: 4px 0; }
     .sp-dc textarea { width: 100%; box-sizing: border-box; font-size: 16px; margin-top: 6px; }
     .sp-pip input { width: 100%; box-sizing: border-box; min-height: 44px; font-size: 16px; }
+    .sp-marks ul { padding-left: 18px; margin: 4px 0; }
+    .sp-marks li { margin: 3px 0; }
+    .sp-mkh { margin: 6px 0 0; font-weight: 800; }
+    .sp-add { margin-top: 6px; }
+    .sp-add button { width: 100%; min-height: 44px; }
     .sp-check b { font-family: var(--f-head); font-size: 17px; }
     .sp-porch { margin: -10px -16px 8px; padding: 12px 16px; background: #262650; color: #fff; border-bottom: 3px solid var(--ink); text-align: center; }
     .sp-endh { margin: 0; font: 700 20px var(--f-head); }
