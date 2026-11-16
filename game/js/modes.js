@@ -187,8 +187,9 @@
   M.askFormat = async function (item, opts) {
     opts = opts || {};
     if (!SD.qf || !item) return null;
-    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols).
-    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols'];
+    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols,
+    // confidenceBefore, rowStep).
+    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols', 'confidenceBefore', 'rowStep'];
     const qo = { shell: true, title: opts.title, context: opts.context, stakes: M.STAKES };
     pass.forEach(k => { if (opts[k] !== undefined) qo[k] = opts[k]; });
     const r = await SD.qf.ask(item, qo);
