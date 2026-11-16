@@ -190,6 +190,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(s0.b.hand.filter(c => c.ret || c.tag === 'missed' || c.tag === 'wall').length <= 1, 'at most one missed or Wall card in the opening hand');
   check(/On a miss he takes/.test(await txt('.du-rule')) && (await page.$$('.du-ghost')).length >= 1, 'his rule and his next square show under the board');
   check(!!await page.$('.du-asl'), 'the board has a list view for screen readers');
+  check(await page.evaluate(() => SD.audio.loopName === 'duel' && SD.audio.has('duel') && SD.audio.has('duellast')), 'the table track plays under the board (the Last Stand has its own)');
   await noHScroll('board');
   await shot('board');
 
@@ -299,6 +300,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#du-walk');
   check(/WALKING BACK/.test(await txt('#panel')), 'Walk back opens Pip\'s question');
   await page.click('#du-done');
+  check(await page.evaluate(() => SD.audio.loopName !== 'duel'), 'standing up hands the music back');
 
   // Night 3: two boards.
   await page.evaluate(() => { SD.state.save.duel.nights = 2; SD.state.persist(); });

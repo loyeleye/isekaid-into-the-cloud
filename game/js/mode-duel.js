@@ -35,6 +35,13 @@
     return d;
   };
   const night = () => store().night || null;
+  // Music (Mureka, Ladi's account, Nov 15): the table under the board, a tenser loop for the Last Stand. Whatever was
+  // playing before the night comes back when you stand up.
+  const AU = () => (SD.audio && SD.audio.music ? SD.audio : null);
+  if (AU() && SD.audio.add) SD.audio.add({ songs: { duel: 'm-duel-table', duellast: 'm-duel-last' } });
+  let before = null;
+  const tune = name => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && !/^duel/.test(a.loopName) ? a.loopName : ''; a.music(name); };
+  const untune = () => { const a = AU(); if (!a || before === null) return; a.music(before || null); before = null; };
   const today = () => new Date().toDateString();
 
   // ---- Rivals (by exam domain) and partner sets ----
@@ -503,6 +510,7 @@
     if (!s) return;
     if (s.phase === 'pick') return pickPanel(s);
     if (s.phase === 'counter') return counterPanel(s);
+    tune(s.phase === 'last' ? 'duellast' : 'duel');
     if (s.phase === 'last') return lastPanel(s);
     if (s.phase === 'done') return results(s);
     const b = s.b, forced = DU.forced(b);
@@ -545,7 +553,7 @@
       }
     }
   };
-  function stopNow() { const s = night(); if (s) save(s); if (SD.today) SD.today.render(); }
+  function stopNow() { const s = night(); if (s) save(s); untune(); if (SD.today) SD.today.render(); }
 
   async function play(parried) {
     const s = night(), b = s.b, forced = DU.forced(b);
