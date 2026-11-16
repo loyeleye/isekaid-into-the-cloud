@@ -24,6 +24,7 @@
     pop: { bg: 2, face: 'dutch' },
     sprint: { bg: 7, face: 'lexi' },
     hunt: { bg: 8, face: 'bru' },
+    duel: { bg: 5, face: 'kagemaru' },
     draft: { bg: 10, face: () => (SD.draft && SD.draft.foremanId ? SD.draft.foremanId() : 'ayo') },
     mp: { bg: 9 }
   };
