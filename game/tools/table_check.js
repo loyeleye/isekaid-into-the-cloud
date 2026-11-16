@@ -129,6 +129,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.click('#ct-place');
     t = await txt('#panel');
     check(/The test/.test(t) && /HOLDS/.test(t) && /It held/.test(t), 'placing runs the test, and its first use teaches one line');
+    check(!!(await page.$('.ct-bench .ct-tok')) && !!(await page.$('.ct-bench .ct-bpin')), 'the test plays on a bench: the job\'s slip runs into the pin');
+    await page.waitForSelector('.ct-bench.done', { timeout: 8000 }).catch(() => {});
+    check(!!(await page.$('.ct-bench.done')) && /✓|✕/.test(await txt('.ct-cap')), 'the bench ends on the stamp and the one line that decided it');
     await noHScroll('test'); await fills('test'); await shot('test');
     await page.click('#ct-next');
   } else check(false, 'a pin in hand holds somewhere');
@@ -191,8 +194,20 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check(await page.$eval('#ct-test', b => b.disabled), 'the Rack tests only once every pin is marked');
     await noHScroll('rack'); await fills('rack'); await shot('rack');
     const truth = await page.evaluate(() => { const K = SD.state.save.table.night.rack; return K.jobs.map((j, i) => SD.table.test(K.stock[i].pin, j).ok); });
-    for (let i = 0; i < truth.length; i++) await page.click(`[data-m="${i}"][data-v="${truth[i] ? 1 : 0}"]`);
+    // Tap-then-tap for the first pin, and a real drag onto the tray or the bin for the rest.
+    await page.click('[data-rk="0"]');
+    check(/Drop it in the tray or the bin/.test(await txt('#panel')), 'tapping a pin on the rack shows its job');
+    await page.click(`.ct-zbtn[data-zone="${truth[0] ? 1 : 0}"]`);
+    for (let i = 1; i < truth.length; i++) {
+      const from = await page.$eval(`[data-rk="${i}"]`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      const to = await page.$eval(`.ct-zone[data-zone="${truth[i] ? 1 : 0}"] .ct-zimg`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      await page.mouse.move(from[0], from[1]); await page.mouse.down();
+      await page.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 }); await page.mouse.move(to[0], to[1], { steps: 4 }); await page.mouse.up();
+    }
+    check(await page.evaluate(n => document.querySelectorAll('.ct-zone .ct-rk').length === n, truth.length), 'every pin dragged off the rack lands in the tray or the bin');
+    await shot('rack-sorted');
     await page.click('#ct-test');
+    await page.waitForSelector('#ct-done', { timeout: 8000 });
     check(/The Rack: 4 of 4 right/.test(await txt('#panel')) && /tin cup is yours/.test(await txt('#panel')), 'marking the truth wins the Cup on the Rack');
     await shot('rack-end');
   } else check(s.phase === 'done', 'night 3 ended on a 2–0 (the Rack only at 1–1)');

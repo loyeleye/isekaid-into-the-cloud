@@ -158,26 +158,61 @@
     save(s);
     testScreen(s, r);
   }
+  // ---- The test bench: the job runs through the pin, one need at a time, and the pin holds or cracks ----
+  const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const CRACK = '<svg class="ct-crk" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 2 L20 14 L28 20 L18 30 L26 36 L22 46 M28 20 L40 16 M18 30 L6 34" fill="none" stroke="#17131f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let benchId = 0;
+  // Plays the steps on a .ct-bench: hammer (a call), then each need's slip runs into the pin and through it (✓) or
+  // drops (✕, the pin cracks), the caption showing that need's line; then the stamp. Instant under reduced motion.
+  function playBench(el, steps, o) {
+    const id = ++benchId, run = el.querySelector('.ct-run'), cap = o.cap;
+    const at = (ms, f) => setTimeout(() => { if (id === benchId && el.isConnected) f(); }, ms);
+    const end = () => { run.classList.remove('go', 'pass', 'drop'); if (!o.held) run.classList.add('cracked'); el.classList.add('done'); cap.innerHTML = o.final; if (o.after) o.after(); };
+    if (still()) return end();
+    let t = 0;
+    if (o.call) { at(t, () => run.classList.add('hit')); t += 650; }
+    steps.forEach(st => {
+      at(t, () => { run.classList.remove('go', 'pass', 'drop'); void run.offsetWidth; run.classList.add('go'); cap.innerHTML = st.need; });
+      t += 650;
+      at(t, () => { run.classList.add(st.ok ? 'pass' : 'drop'); if (!st.ok) run.classList.add('cracked'); cap.innerHTML = st.need + st.line; });
+      t += 1500;
+    });
+    at(t, end);
+  }
+  function benchHtml(pin, set, o) {
+    return `<div class="ct-bench${o.call ? ' call' : ''}${o.held ? ' held' : ' cracked'}" style="--sc:${SETC[set]}">
+      <img class="ct-scene" src="assets/img/table/scene-${set}.webp" alt="" width="192" height="96">
+      <div class="ct-run" aria-hidden="true">
+        <img class="ct-tok" src="assets/img/table/tok-${set}.webp" alt="" width="64" height="64">
+        <span class="ct-bpin"><img src="assets/img/table/pin-${pin}.webp" alt="" width="48" height="48">${CRACK}</span>
+        ${o.call ? '<img class="ct-ham" src="assets/img/table/hammer.webp" alt="" width="64" height="64">' : ''}
+        <span class="ct-goal">✓</span>
+      </div>
+      <b class="ct-stamp ${o.held ? 'ok' : 'crack'}">${o.held ? 'HOLDS' : 'CRACKS'}</b>
+    </div>`;
+  }
   function testScreen(s, r) {
     const b = s.b, j = b.jobs[r.sq];
     const verdict = r.kind === 'call' ? (r.ok ? 'Fake. It cracks, and the square is yours.' : 'Genuine. It holds, and stays his.') : (r.ok ? 'It holds. The square is yours.' : 'It cracks. He takes the square.');
     const msg = r.kind === 'call' ? (r.ok ? SAY.callFake : SAY.callReal) : (r.ok ? SAY.held : SAY.failed);
     const tk = r.kind === 'call' ? (r.ok ? 'callFake' : 'callReal') : (r.ok ? 'hold' : 'fail');
     const extra = r.extra != null ? `<p class="small">He helps himself to the ${esc(T.SQ[r.extra])} as well, with ${esc(pinName(b.pins[r.extra]))}. It stands untested.</p>` : '';
-    const lines = r.test.lines.map(l => `<li class="${l.ok ? 'ok' : 'bad'}"><span class="small">${esc(T.NEEDS[l.need].w[(j.w && j.w[j.needs.indexOf(l.need)]) | 0])}</span><br>${l.ok ? '✓' : '✕'} ${esc(l.line)}</li>`).join('');
+    const words = l => T.NEEDS[l.need].w[(j.w && j.w[j.needs.indexOf(l.need)]) | 0];
+    const steps = r.test.lines.map(l => ({ ok: l.ok, need: `<span class="small ct-capneed">${esc(words(l))}</span>`, line: `<span class="ct-capline ${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✕'} ${esc(l.line)}</span>` }));
     const held = r.test.ok;
     const body = panel(`${say(msg)}${teachLine(s, tk)}${j.needs.length > 1 ? teachLine(s, 'chalk') : ''}
       <div class="ct-test ${held ? 'held' : 'cracked'}" style="--sc:${SETC[j.set]}">
-        <img class="ct-scene" src="assets/img/table/scene-${j.set}.webp" alt="" width="192" height="96">
-        <p class="small"><b>The test</b> · ${esc(T.SQ[r.sq])} · ${esc(T.SETS[j.set].name)}</p>
-        <div class="ct-test-pin">${pinHtml(r.pin, { cls: held ? '' : 'cracked' })}<b class="ct-stamp ${held ? 'ok' : 'crack'}">${held ? 'HOLDS' : 'CRACKS'}</b></div>
-        <ul class="ct-lines">${lines}</ul>
-        <p><b>${esc(verdict)}</b></p>${extra}
+        <p class="small ct-testh"><b>The test</b> · ${esc(T.SQ[r.sq])} · ${esc(T.SETS[j.set].name)} · ${esc(pinName(r.pin))}</p>
+        ${benchHtml(r.pin, j.set, { call: r.kind === 'call', held })}
+        <p class="ct-cap" aria-live="polite"></p>
+        <p class="ct-verdict"><b>${esc(verdict)}</b></p>${extra}
       </div>
-      <div class="row"><button class="primary" id="ct-next">${'Next'}</button></div>`);
-    if (held && U.burst) { const el = body.querySelector('.ct-stamp'); if (el && (r.kind === 'place' || !r.ok)) U.burst(el); }
-    if (!held && r.kind === 'call' && U.burst) { const el = body.querySelector('.ct-stamp'); if (el) U.burst(el); }
+      <div class="row"><button class="primary" id="ct-next">Next</button></div>`);
+    const bench = body.querySelector('.ct-bench');
+    playBench(bench, steps, { call: r.kind === 'call', held, cap: body.querySelector('.ct-cap'), final: steps.map(x => x.need + x.line).join(''),
+      after: () => { if (U.burst && (held ? r.kind === 'place' : r.kind === 'call')) U.burst(bench.querySelector('.ct-stamp')); } });
     body.querySelector('#ct-next').onclick = () => {
+      benchId++;
       const who = T.after(s);
       save(s);
       if (who) return boardOver(s);
@@ -264,18 +299,23 @@
   }
 
   // ---- Picks ----
+  // Each offer is a tray of that set's pins on his counter (a few of the partner's mixed in), with your bill record.
   function rivalBtn(id) {
     const R = T.SETS[id], P = R.partner ? T.SETS[R.partner] : null, rec = keep().rec[id];
-    return `<button class="opt du-rival" data-rival="${id}" style="--sc:${SETC[id]}"><span class="ct-medal" aria-hidden="true"></span><span><b>${esc(R.name)}</b><br>
-      <span class="small">${esc(R.what)}${P ? ` Mixed with ${esc(P.name)}.` : ''}</span><br>
+    const of = x => Object.keys(T.PINS).filter(p => T.PINS[p].set === x);
+    const pins = of(id).slice(0, 5).concat(P ? of(R.partner).slice(0, 2) : []);
+    return `<button class="opt du-rival ct-trayb" data-rival="${id}" style="--sc:${SETC[id]}">
+      <span class="ct-tray" aria-hidden="true"><img class="ct-traybg" src="assets/img/table/pintray.webp" alt="" width="192" height="64"><span class="ct-traypins">${pins.map(p => `<img src="assets/img/table/pin-${p}.webp" alt="" width="48" height="48">`).join('')}</span></span>
+      <span class="ct-trayt"><b>${esc(R.name)}</b><br><span class="small">${esc(R.what)}${P ? ` Mixed with ${esc(P.name)}.` : ''}</span><br>
       <span class="small">Your bill: ${rec && rec[3] ? `${rec[2]} of ${rec[3]} right` : 'nothing owed yet'}</span></span></button>`;
   }
+  const stallHtml = () => `<div class="ct-stall" aria-hidden="true"><img class="ct-stallbg" src="assets/img/table/stall.webp" alt="" width="230" height="100"></div>`;
   function pickScreen(s) {
     s.offers = s.offers || T.offers(s);
     const first = s.n === 1;
-    const body = panel(`${say(first ? SAY.walkup : SAY.sit)}${first ? teachLine(s, 'first') : ''}
-      <p><b>${s.offers.length > 1 ? 'Who do you face first?' : 'Tonight\'s stock'}</b></p>
-      <div class="opts">${s.offers.map(rivalBtn).join('')}</div>
+    const body = panel(`${stallHtml()}${say(first ? SAY.walkup : SAY.sit)}${first ? teachLine(s, 'first') : ''}
+      <p><b>${s.offers.length > 1 ? 'Which tray first?' : 'Tonight\'s stock'}</b></p>
+      <div class="opts ct-trays">${s.offers.map(rivalBtn).join('')}</div>
       <p class="muted small">Night ${s.n}. ${T.boardsTonight(s) > 1 ? 'Two boards, and at one each, the Counterfeit Rack.' : 'One board tonight.'}${s.n >= 4 && s.weak.includes(s.offers[0]) ? ` ${esc(T.SETS[s.offers[0]].name)} is on offer because your bill says it's your weakest.` : ''}</p>
       <div class="row"><button class="ghost" id="ct-stop">Stop for now</button></div>`);
     body.querySelectorAll('[data-rival]').forEach(el => el.onclick = () => { T.startBoard(s, el.dataset.rival); save(s); tableScreen(s, s.b.edge ? SAY.edge : SAY.lay); });
@@ -289,34 +329,80 @@
       body.querySelector('#ct-go').onclick = () => { T.startBoard(s, c.pick); s.counter = null; save(s); tableScreen(s, SAY.lay); };
       return;
     }
-    const body = panel(`${say(SAY.myPick)}<p><b>You lost board 1, so you pick board 2.</b></p><div class="opts">${c.offers.map(rivalBtn).join('')}</div>`);
+    const body = panel(`${stallHtml()}${say(SAY.myPick)}<p><b>You lost board 1, so you pick board 2.</b></p><div class="opts ct-trays">${c.offers.map(rivalBtn).join('')}</div>`);
     body.querySelectorAll('[data-rival]').forEach(el => el.onclick = () => { T.startBoard(s, el.dataset.rival); s.counter = null; save(s); tableScreen(s, SAY.lay); });
   }
 
-  // ---- The Counterfeit Rack ----
-  let marks = null;
+  // ---- The Counterfeit Rack: his pins hang on the rack; drag (or tap, then tap) each into the velvet tray (genuine)
+  // or the scrap bin (fake). Then he takes his hammer to each one. ----
+  let marks = null, rkSel = null;
+  function rackPin(K, i) {
+    const j = K.jobs[i], id = K.stock[i].pin;
+    return `<button class="ct-rk ct-rkpin${rkSel === i ? ' on' : ''}" data-rk="${i}" style="--sc:${SETC[j.set]}" aria-pressed="${rkSel === i}"
+      aria-label="${esc(pinName(id))} for: ${esc(jobWords(j)[0])}${marks[i] === true ? '. In the tray: genuine' : marks[i] === false ? '. In the bin: fake' : ''}">
+      <img src="assets/img/table/pin-${id}.webp" alt="" width="48" height="48">${CRACK}<span class="ct-rkname">${esc(pinName(id))}</span>
+      <span class="ct-rktag">${esc(T.NEEDS[j.needs[0]].t)}</span><b class="ct-rkst" aria-hidden="true"></b></button>`;
+  }
   function rackScreen(s) {
     tune('duellast');
     const K = s.rack;
-    if (!marks || marks.length !== K.jobs.length) marks = Array(K.jobs.length).fill(null);
-    const rows = K.jobs.map((j, i) => `<li class="ct-rk" style="--sc:${SETC[j.set]}"><p class="small"><b>${esc(T.SETS[j.set].name)}</b> · ${esc(jobWords(j)[0])}</p>
-      <div class="ct-rk-row">${pinHtml(K.stock[i].pin)}<span class="ct-mark" role="group" aria-label="${esc(pinName(K.stock[i].pin))}: genuine or fake">
-        <button class="${marks[i] === true ? 'on' : ''}" data-m="${i}" data-v="1" aria-pressed="${marks[i] === true}">Genuine</button><button class="${marks[i] === false ? 'on' : ''}" data-m="${i}" data-v="0" aria-pressed="${marks[i] === false}">Fake</button></span></div></li>`).join('');
+    if (!marks || marks.length !== K.jobs.length) { marks = Array(K.jobs.length).fill(null); rkSel = null; }
+    const idx = K.jobs.map((_, i) => i);
+    const hooks = idx.map(i => `<span class="ct-hook">${marks[i] === null ? rackPin(K, i) : ''}</span>`).join('');
+    const zone = v => `<div class="ct-zone ${v ? 'real' : 'fake'}" data-zone="${v ? 1 : 0}">
+      <img class="ct-zimg" src="assets/img/table/${v ? 'tray-real' : 'bin-fake'}.webp" alt="" width="128" height="64">
+      <button class="ct-zbtn" data-zone="${v ? 1 : 0}" ${rkSel == null ? 'disabled' : ''}>${v ? 'Genuine: in the tray' : 'Fake: in the bin'}</button>
+      <div class="ct-zpins">${idx.filter(i => marks[i] === v).map(i => rackPin(K, i)).join('')}</div></div>`;
+    const sel = rkSel != null ? K.jobs[rkSel] : null;
+    const slip = sel ? `<div class="ct-slip" style="--sc:${SETC[sel.set]}"><p class="small"><b>${esc(pinName(K.stock[rkSel].pin))}</b> · ${esc(T.SETS[sel.set].name)}</p>${jobWords(sel).map(w => `<p class="ct-need">${esc(w)}</p>`).join('')}<p class="small">Drop it in the tray or the bin.</p></div>`
+      : `<p class="small ct-slip muted">${K.jobs.length === 1 ? 'One pin decides the Cup. Tap it to read its job.' : `Two are genuine. ${K.need} of ${K.jobs.length} right wins the Cup. Tap a pin to read its job.`}</p>`;
     const ready = marks.every(x => x !== null);
     const body = panel(`${say(K.jobs.length === 1 ? SAY.sudden : SAY.rack)}
-      <p>${K.jobs.length === 1 ? 'One pin decides the Cup.' : `Mark each pin genuine or fake. Two are genuine. ${K.need} of ${K.jobs.length} right wins the Cup.`}</p>
-      <ul class="ct-rack">${rows}</ul>
-      <div class="row"><button class="primary" id="ct-test" ${ready ? '' : 'disabled'}>Test them all</button></div>`, 'THE COUNTERFEIT RACK');
-    body.querySelectorAll('[data-m]').forEach(el => el.onclick = () => { marks[+el.dataset.m] = el.dataset.v === '1'; rackScreen(s); });
+      <div class="ct-rackwall"><img class="ct-rackbg" src="assets/img/table/rack.webp" alt="" width="256" height="96"><div class="ct-hooks" role="group" aria-label="His rack">${hooks}</div></div>
+      ${slip}
+      <div class="ct-zones">${zone(true)}${zone(false)}</div>
+      <div class="row"><button class="primary" id="ct-test" ${ready ? '' : 'disabled'}>Hammer them all</button></div>`, 'THE COUNTERFEIT RACK');
+    const put = (i, v) => { marks[i] = v; rkSel = null; rackScreen(s); };
+    body.querySelectorAll('[data-rk]').forEach(el => {
+      const i = +el.dataset.rk;
+      el.onclick = () => { if (el.dataset.dragged) return; rkSel = rkSel === i ? null : i; rackScreen(s); };
+      // Drag: the pin follows the finger; let go over the tray or the bin.
+      el.onpointerdown = e => {
+        const x0 = e.clientX, y0 = e.clientY; let moved = false;
+        const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!moved && Math.hypot(dx, dy) < 8) return; moved = true; el.classList.add('drag'); el.style.transform = `translate(${dx}px, ${dy}px)`;
+          body.querySelectorAll('.ct-zone').forEach(z => z.classList.toggle('over', z === (document.elementFromPoint(ev.clientX, ev.clientY) || {}).closest?.('.ct-zone'))); };
+        const up = ev => {
+          removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+          if (!moved) return;
+          el.dataset.dragged = 1; el.style.visibility = 'hidden';
+          const z = (document.elementFromPoint(ev.clientX, ev.clientY) || { closest: () => null }).closest('.ct-zone');
+          el.style.visibility = '';
+          if (z) put(i, z.dataset.zone === '1'); else rackScreen(s);
+        };
+        addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+      };
+    });
+    body.querySelectorAll('.ct-zbtn').forEach(el => el.onclick = () => { if (rkSel != null) put(rkSel, el.dataset.zone === '1'); });
     body.querySelector('#ct-test').onclick = () => {
       if (!marks.every(x => x !== null)) return;
-      const r = T.settleRack(s, marks);
+      const m = marks.slice();
+      const r = T.settleRack(s, m);
       // A wrong mark comes back as tomorrow's first bill item.
-      r.tests.forEach((t, i) => { if (t.ok !== marks[i]) keep().carryPins = keep().carryPins.concat([{ pin: K.stock[i].pin, needs: K.jobs[i].needs }]).slice(-3); });
-      s.rackRes = { right: r.right, won: r.won, lines: r.tests.map((t, i) => ({ ok: t.ok, mark: marks[i], line: t.lines[0].line })) };
-      marks = null;
+      r.tests.forEach((t, i) => { if (t.ok !== m[i]) keep().carryPins = keep().carryPins.concat([{ pin: K.stock[i].pin, needs: K.jobs[i].needs }]).slice(-3); });
+      s.rackRes = { right: r.right, won: r.won, lines: r.tests.map((t, i) => ({ ok: t.ok, mark: m[i], line: t.lines[0].line })) };
+      marks = null; rkSel = null;
       save(s);
-      endScreen(s);
+      // His hammer, one pin at a time: genuine ones ring, fakes crack. Then the end.
+      body.querySelector('#ct-test').disabled = true;
+      body.querySelectorAll('.ct-zbtn').forEach(b => b.disabled = true);
+      const order = idx.slice().sort((a, z) => a - z);
+      if (still()) return endScreen(s);
+      order.forEach((i, k) => setTimeout(() => {
+        const el = body.querySelector(`[data-rk="${i}"]`); if (!el || !el.isConnected) return;
+        el.classList.add('hit', r.tests[i].ok ? 'rang' : 'cracked', r.tests[i].ok === m[i] ? 'right' : 'wrong');
+        el.querySelector('.ct-rkst').textContent = r.tests[i].ok === m[i] ? '✓' : '✕';
+      }, 300 + k * 700));
+      setTimeout(() => { if (body.isConnected) endScreen(s); }, 300 + order.length * 700 + 900);
     };
   }
 
@@ -331,12 +417,17 @@
     const won = T.cupWon(s);
     const tests = s.log.length, held = s.log.filter(l => l.ok).length;
     const calls = s.log.filter(l => l.kind === 'call'), right = calls.filter(l => l.ok).length;
-    const rack = s.rackRes ? `<ul class="ct-lines">${s.rackRes.lines.map((x, i) => `<li class="${x.ok === x.mark ? 'ok' : 'bad'}">${pinHtml(s.rack.stock[i].pin, { cls: 'sm' + (x.ok ? '' : ' cracked') })} ${x.ok ? 'Genuine' : 'Fake'}: ${esc(x.line)} ${x.ok === x.mark ? '✓' : '✕ you marked it ' + (x.mark ? 'genuine' : 'fake')}</li>`).join('')}</ul>` : '';
+    const rack = s.rackRes ? `<div class="ct-rackres">${s.rackRes.lines.map((x, i) => `<div class="ct-rr ${x.ok === x.mark ? 'ok' : 'bad'}">${pinHtml(s.rack.stock[i].pin, { cls: 'sm' + (x.ok ? '' : ' cracked') })}<b>${x.ok === x.mark ? '✓' : '✕'} ${x.ok ? 'Genuine' : 'Fake'}</b></div>`).join('')}</div>
+      <details class="ct-whole" open><summary class="small">Why each one</summary><ul class="ct-lines">${s.rackRes.lines.map((x, i) => `<li class="${x.ok === x.mark ? 'ok' : 'bad'}"><b>${esc(pinName(s.rack.stock[i].pin))}</b>: ${esc(x.line)}${x.ok === x.mark ? '' : ` (you marked it ${x.mark ? 'genuine' : 'fake'})`}</li>`).join('')}</ul></details>` : '';
     const mins = Math.max(1, Math.round(minutes(s)));
     const body = panel(`${say(won ? SAY.won : SAY.lost)}
-      <p class="td-big">${won ? 'The tin cup is yours until tomorrow night.' : 'The cup stays on his shelf tonight.'}</p>
+      <div class="ct-cupst ${won ? 'won' : 'lost'}"><img class="ct-cup" src="assets/img/table/cup.webp" alt="${won ? 'The tin cup, yours' : 'The tin cup, on his shelf'}" width="96" height="96">
+        <p class="td-big">${won ? 'The tin cup is yours until tomorrow night.' : 'The cup stays on his shelf tonight.'}</p></div>
       ${s.rackRes ? `<p><b>The Rack: ${s.rackRes.right} of ${s.rack.jobs.length} right.</b></p>${rack}` : ''}
-      <p class="small"><b>His ledger.</b> Pins tested ${tests}, held ${held} · calls ${calls.length}, ${right} caught a fake · bill ${M.sgn(s.billPts | 0)} · ${mins} ${mins === 1 ? 'minute' : 'minutes'}.</p>
+      <div class="ct-page"><p class="ct-pageh"><img src="assets/img/table/ledger.webp" alt="" width="48" height="32"> His ledger</p>
+        <p><span>Pins tested</span><b>${tests}</b></p><p><span>Held</span><b>${held}</b></p>
+        <p><span>Calls</span><b>${calls.length}</b></p><p><span>Fakes caught</span><b>${right}</b></p>
+        <p><span>The bill</span><b>${M.sgn(s.billPts | 0)}</b></p><p><span>Time at the table</span><b>${mins} ${mins === 1 ? 'min' : 'mins'}</b></p></div>
       ${s.paid ? `<p class="small"><b>${esc(s.paid)}</b></p>` : ''}
       <p class="muted small">Tomorrow the stock rotates. Anything still owed opens the first bill.</p>
       ${M.pipHtml()}
@@ -437,6 +528,95 @@
     .ct-mark { display: flex; gap: 4px; }
     .ct-mark button { min-height: 40px; padding: 4px 10px; }
     .ct-mark button.on { outline: 3px solid var(--sun, #b8923a); font-weight: 800; }
+    /* The test bench: the scene, the job's slip running in from the left, the pin in the middle, the goal on the right */
+    .ct-testh { margin: 0 0 4px; }
+    .ct-bench { position: relative; border-radius: 8px; overflow: hidden; margin: 0 0 6px; }
+    .ct-bench .ct-scene { margin: 0; filter: brightness(.72) saturate(.9); }
+    .ct-run { position: absolute; inset: 0; }
+    .ct-tok, .ct-bpin, .ct-ham, .ct-goal { position: absolute; top: 50%; }
+    .ct-tok { width: 18%; max-width: 72px; height: auto; left: 2%; transform: translateY(-50%); opacity: 0; image-rendering: pixelated; filter: drop-shadow(0 3px 2px #0009); }
+    .ct-bpin { left: 50%; width: 19%; max-width: 96px; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(255, 236, 170, .35), transparent 70%); }
+    .ct-bpin img { width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(0 4px 3px #000a); }
+    .ct-crk { position: absolute; inset: 8%; width: 84%; height: 84%; opacity: 0; }
+    .ct-goal { right: 4%; transform: translateY(-50%); font: 900 clamp(22px, 7vw, 40px) var(--f-body, sans-serif); color: #7fdc8c; opacity: 0; text-shadow: 0 2px 3px #000; }
+    .ct-ham { width: 20%; max-width: 84px; height: auto; left: 56%; top: 4%; transform-origin: 80% 80%; transform: rotate(40deg); opacity: 0; image-rendering: pixelated; }
+    .ct-run.hit .ct-ham { animation: ct-ham .6s ease-in forwards; }
+    @keyframes ct-ham { 0% { opacity: 1; transform: rotate(50deg); } 70% { opacity: 1; transform: rotate(-25deg); } 100% { opacity: 0; transform: rotate(-25deg); } }
+    .ct-run.go .ct-tok { animation: ct-in .6s ease-out forwards; }
+    .ct-run.go.pass .ct-tok { animation: ct-thru .9s ease-in forwards; }
+    .ct-run.go.drop .ct-tok { animation: ct-drop .9s ease-in forwards; }
+    @keyframes ct-in { from { opacity: 0; left: 2%; } 20% { opacity: 1; } to { opacity: 1; left: 32%; } }
+    @keyframes ct-thru { from { opacity: 1; left: 32%; } 60% { opacity: 1; left: 72%; } to { opacity: 0; left: 80%; } }
+    @keyframes ct-drop { from { opacity: 1; left: 32%; transform: translateY(-50%) rotate(0); } to { opacity: 0; left: 36%; transform: translateY(80%) rotate(70deg); } }
+    .ct-run.pass .ct-bpin { animation: ct-glow .9s ease-out; }
+    @keyframes ct-glow { 50% { box-shadow: 0 0 0 6px rgba(127, 220, 140, .6), 0 0 30px rgba(255, 236, 170, .8); } }
+    .ct-run.pass .ct-goal { animation: ct-goal .9s ease-out forwards; }
+    @keyframes ct-goal { from { opacity: 0; transform: translateY(-50%) scale(.4); } 60% { opacity: 1; transform: translateY(-50%) scale(1.2); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+    .ct-run.drop .ct-bpin { animation: ct-shake .5s; }
+    @keyframes ct-shake { 20%, 60% { transform: translate(-54%, -50%) rotate(-6deg); } 40%, 80% { transform: translate(-46%, -50%) rotate(6deg); } }
+    .ct-run.cracked .ct-crk { opacity: 1; }
+    .ct-run.cracked .ct-bpin img { filter: grayscale(.7) brightness(.8) drop-shadow(0 4px 3px #000a); }
+    .ct-bench .ct-stamp { position: absolute; right: 6px; bottom: 6px; background: rgba(236, 230, 216, .92); opacity: 0; transform: rotate(-8deg) scale(2); transition: opacity .25s, transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+    .ct-bench.done .ct-stamp { opacity: 1; transform: rotate(-8deg) scale(1); }
+    .ct-cap { min-height: 3.2em; margin: 4px 0; }
+    .ct-capneed { display: block; opacity: .85; margin-top: 4px; }
+    .ct-capline { display: block; font-weight: 700; } .ct-capline.ok { color: #9fe3a8; } .ct-capline.bad { color: #f0a29b; }
+    .ct-verdict { margin: 4px 0; }
+    .ct-whole summary { cursor: pointer; }
+    /* The Rack: pins on his wall rack, the velvet tray and the scrap bin below */
+    .ct-rackwall { position: relative; border-radius: 8px; overflow: hidden; margin: 4px 0 6px; }
+    .ct-rackbg { display: block; width: 100%; height: auto; min-height: 120px; object-fit: cover; image-rendering: pixelated; filter: brightness(.8); }
+    .ct-hooks { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; justify-items: center; padding: 6px; }
+    .ct-hook { min-width: 0; width: 100%; display: flex; justify-content: center; }
+    .ct-rkpin { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; width: 100%; max-width: 110px; min-height: 0; padding: 4px 2px;
+      border: 2px solid transparent; border-radius: 10px; background: rgba(23, 19, 31, .55) !important; color: #f4ecd8 !important; touch-action: none; cursor: grab; font: inherit; box-shadow: none !important; }
+    .ct-rkpin.on { border-color: var(--sun, #e2c26a); background: rgba(23, 19, 31, .8) !important; }
+    .ct-rkpin.drag { z-index: 5; cursor: grabbing; opacity: .9; }
+    .ct-rkpin > img { width: 44px; height: 44px; image-rendering: pixelated; filter: drop-shadow(0 3px 2px #000a); }
+    .ct-rkpin .ct-crk { inset: 4px auto auto 50%; width: 40px; height: 40px; transform: translateX(-50%); }
+    .ct-rkpin.cracked .ct-crk { opacity: 1; } .ct-rkpin.cracked > img { filter: grayscale(.7) brightness(.8); }
+    .ct-rkname { font: 700 10px/1.1 var(--f-body, sans-serif); text-align: center; overflow-wrap: anywhere; }
+    .ct-rktag { font: 600 9.5px/1.1 var(--f-body, sans-serif); opacity: .8; text-align: center; overflow-wrap: anywhere; }
+    .ct-rkst { position: absolute; top: 0; right: 4px; font: 900 18px var(--f-body, sans-serif); }
+    .ct-rkpin.right .ct-rkst { color: #7fdc8c; } .ct-rkpin.wrong .ct-rkst { color: #f0a29b; }
+    .ct-rkpin.hit { animation: ct-shake .45s; }
+    .ct-rkpin.rang { box-shadow: 0 0 0 3px rgba(226, 194, 106, .8) !important; }
+    .ct-zones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
+    .ct-zone { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 10px; border: 2px dashed rgba(236, 228, 212, .35); min-height: 150px; }
+    .ct-zone.real { background: rgba(47, 90, 63, .35); } .ct-zone.fake { background: rgba(110, 60, 50, .3); }
+    .ct-zone.over { border-style: solid; border-color: var(--sun, #e2c26a); }
+    .ct-zimg { width: 100%; max-width: 160px; height: auto; margin: 0 auto; image-rendering: pixelated; }
+    .ct-zbtn { min-height: 40px; font-size: 13px; }
+    .ct-zpins { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    /* The stall and the pin trays */
+    .ct-stall { position: relative; border-radius: 10px; overflow: hidden; margin: 0 0 6px; }
+    .ct-stallbg { display: block; width: 100%; height: auto; max-height: 220px; object-fit: cover; object-position: 30% 50%; image-rendering: pixelated; }
+    .ct-stallk { position: absolute; left: 50%; bottom: 4%; width: 34%; max-width: 170px; height: auto; transform: translateX(-50%); image-rendering: pixelated; filter: drop-shadow(0 6px 6px #000c); }
+    .ct-trays { display: grid; gap: 8px; }
+    .ct-trayb { display: grid !important; grid-template-columns: 1fr; gap: 6px; text-align: left; padding: 8px !important; border-left: 6px solid var(--sc) !important; }
+    .ct-tray { position: relative; display: block; width: 100%; max-width: 360px; margin: 0 auto; }
+    .ct-traybg { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .ct-traypins { position: absolute; inset: 14% 8% 22%; display: flex; justify-content: space-evenly; align-items: center; }
+    .ct-traypins img { width: 13%; max-width: 48px; height: auto; image-rendering: pixelated; filter: drop-shadow(0 2px 2px #000a); }
+    /* The end: the tin cup and his ledger page */
+    .ct-cupst { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: center; margin: 4px 0 8px; }
+    .ct-cupst .td-big { margin: 0; }
+    .ct-cup { width: 96px; height: 96px; image-rendering: pixelated; }
+    .ct-cupst.won .ct-cup { filter: drop-shadow(0 0 14px rgba(255, 220, 120, .8)); animation: ct-cup 1.2s ease-out; }
+    @keyframes ct-cup { from { transform: translateY(30px) scale(.6); opacity: 0; } 60% { transform: translateY(-6px) scale(1.1); opacity: 1; } }
+    .ct-cupst.lost .ct-cup { filter: grayscale(.6) brightness(.6); }
+    .ct-rackres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0; }
+    .ct-rr { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 12px; }
+    .ct-rr.ok b { color: #9fe3a8; } .ct-rr.bad b { color: #f0a29b; }
+    .ct-page { position: relative; padding: 14px 18px 12px; margin: 8px 0; border-radius: 6px; color: #2a2018;
+      background: repeating-linear-gradient(transparent 0 25px, rgba(80, 60, 40, .08) 25px 26px), linear-gradient(#efe3c2, #e2d2a8); box-shadow: inset 0 0 0 1px rgba(120, 85, 30, .45), inset 0 0 30px rgba(120, 85, 30, .25), 0 4px 12px rgba(0, 0, 0, .5);
+      font: italic 600 15px/1.3 Georgia, 'Times New Roman', serif; display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+    @media (max-width: 420px) { .ct-page { grid-template-columns: 1fr; } }
+    .ct-page p { display: flex; justify-content: space-between; gap: 6px; margin: 0; padding: 3px 0; border-bottom: 1px solid rgba(80, 60, 40, .25); }
+    .ct-page p b { font-style: normal; }
+    .ct-pageh img { width: 48px; height: auto; image-rendering: pixelated; }
+    .ct-pageh { grid-column: 1 / -1; justify-content: center !important; align-items: center; font: 800 13px var(--f-body, sans-serif) !important; letter-spacing: .14em; text-transform: uppercase; border: 0 !important; }
+    @media (prefers-reduced-motion: reduce) { .ct-run *, .ct-cup, .ct-rkpin { animation: none !important; } }
     @media (min-width: 900px) {
       .ct-play { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr); gap: 20px; align-items: start; }
       .ct-felt { max-width: 640px; }
@@ -445,6 +625,8 @@
       .ct-sq.taken .ct-job { font-size: 12px; }
       .ct-pin.sm { font-size: 11px; } .ct-pin.sm > i, .ct-pin.sm > img { width: 34px; height: 34px; }
       .ct-hand svg { width: 44px; }
+      .ct-trays { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .ct-rkname { font-size: 12px; } .ct-rktag { font-size: 11px; } .ct-rkpin > img { width: 56px; height: 56px; }
     }
     @media (prefers-reduced-motion: reduce) { .ct-hpin.on { transform: none; } }`;
   document.head.appendChild(css);
