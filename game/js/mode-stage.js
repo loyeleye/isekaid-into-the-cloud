@@ -16,6 +16,10 @@
 //     palette's variables are swapped inside it, so the modes' own CSS follows. A box a mode paints light itself
 //     (a hard-coded pale background, now with pale text on it) gets .ms-lt, which puts the old palette back inside it, so its text stays dark.
 //   - The stage ends when the mode's last window closes (none opens again within LINGER ms), or another screen shows.
+//   - A mode can have a skin of its own on top of the glass, keyed on body[data-stage="<id>"] (Ladi, Nov 16: "match
+//     the theme of the game"). Incident Commander's is the camp's pager board: a timber frame around cork, incidents
+//     as paper pager slips pinned with brass tacks (a wax-colour edge per severity, lamp-flame clock pips), the error
+//     budget as lamp oil on a brass plate, Uptima's line as a pinned note, and a question as a paper incident report.
 // This file only wraps: no mode file changes. It loads after js/title-games.js.
 // API: SD.modeStage.enter(def), .leave(), .active() the running mode's id or null.
 (function () {
@@ -247,6 +251,60 @@
     body.in-mode #panel .win .ms-lt { --cream: #d6cdb9; --paper: #c7bca4; --bone: #e2dbcb; --ink: #17131f; --muted: #554c5e; --line: #9a8f78;
       --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e; }
     body.in-mode #panel .win .ms-lt-c { color: #17131f; }
+    /* ---- Incident Commander: the camp's pager board ---- */
+    body.in-mode[data-stage="ic"] #panel .win { padding: 10px; border: 0; border-radius: 14px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: repeating-linear-gradient(92deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 9px), linear-gradient(135deg, #5b3b21, #33200f 38%, #4d3119 68%, #2a190b);
+      box-shadow: 0 0 0 2px #140b05, inset 0 0 0 1px rgba(255, 220, 160, .12), 0 26px 60px rgba(0, 0, 0, .7); }
+    body.in-mode[data-stage="ic"] #panel .win-h { padding: 2px 8px 10px; border: 0; background: none; color: #e9c56d; text-shadow: 0 1px 0 #140b05; letter-spacing: .12em; }
+    body.in-mode[data-stage="ic"] #panel .win-b { border-radius: 8px; color: #efe6d2; box-shadow: inset 0 0 0 2px #140b05, inset 0 6px 26px rgba(0, 0, 0, .7);
+      background: radial-gradient(rgba(0, 0, 0, .28) 1px, transparent 1.6px) 0 0 / 7px 7px, radial-gradient(rgba(255, 214, 150, .09) 1px, transparent 1.4px) 3px 4px / 11px 11px,
+        radial-gradient(120% 90% at 50% 0, #6a4a2e, #3f2a19 70%, #2c1c10); }
+    /* Uptima's line: a note pinned to the cork. */
+    body.in-mode[data-stage="ic"] #panel .ic-say, body.in-mode[data-stage="ic"] #panel .ic-since { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; position: relative; margin: 6px 2px 14px; padding: 12px 14px 10px; color: #2a2018;
+      background: linear-gradient(#f8f1df, #ecdfc2); border-radius: 2px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); transform: rotate(-.5deg); }
+    body.in-mode[data-stage="ic"] #panel .ic-since { border-left: 8px solid #a8322a; transform: rotate(.4deg); }
+    body.in-mode[data-stage="ic"] #panel :is(.ic-say, .ic-since, .ic-card)::before { content: ''; position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; margin-left: -6px;
+      border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #c9993a 45%, #6b4a14); box-shadow: 0 2px 3px rgba(0, 0, 0, .55); }
+    /* The error budget: lamp oil, on a brass plate. */
+    body.in-mode[data-stage="ic"] #panel .ic-hud { padding: 7px 12px; border-radius: 5px 5px 0 0; color: #2a1c08; background: linear-gradient(#dcb65e, #a67c2c);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), inset 0 -1px 0 rgba(0, 0, 0, .35), 0 2px 5px rgba(0, 0, 0, .5); text-shadow: 0 1px 0 rgba(255, 240, 200, .45); }
+    body.in-mode[data-stage="ic"] #panel .ic-bar { height: 14px; margin: 0 0 12px; border: 2px solid #140b05; border-radius: 0 0 5px 5px; background: #1a110a; box-shadow: 0 2px 5px rgba(0, 0, 0, .5); }
+    body.in-mode[data-stage="ic"] #panel .ic-bar i { background: linear-gradient(#ffd27a, #e08a1e); box-shadow: 0 0 10px rgba(255, 170, 60, .7); }
+    /* Incidents: paper pager slips, pinned. */
+    body.in-mode[data-stage="ic"] #panel .ic-board { gap: 16px; padding: 8px 2px 4px; }
+    body.in-mode[data-stage="ic"] #panel .win .ic-board .ic-card.opt { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; position: relative; padding: 14px 14px 12px 16px; color: #2a2018; border: 0; border-left: 9px solid #7a8794; border-radius: 2px;
+      background: repeating-linear-gradient(transparent 0 25px, rgba(90, 70, 40, .09) 25px 26px), linear-gradient(#f8f1df, #ecdfc2);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .55); transition: transform .15s ease-out, box-shadow .15s ease-out; }
+    body.in-mode[data-stage="ic"] #panel .ic-inc:nth-child(odd) .ic-card { transform: rotate(-.45deg); }
+    body.in-mode[data-stage="ic"] #panel .ic-inc:nth-child(even) .ic-card { transform: rotate(.4deg); }
+    body.in-mode[data-stage="ic"] #panel .win .ic-board .ic-card.opt:not([aria-disabled="true"]):is(:hover, :focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 18px rgba(0, 0, 0, .6); background-color: #fffaf0; }
+    body.in-mode[data-stage="ic"] #panel .ic-board .ic-card[aria-disabled="true"] { filter: saturate(.6) brightness(.82); }
+    body.in-mode[data-stage="ic"] #panel .win .ic-board .ic-sev-2 .ic-card.opt { border-left-color: #d08a1e; }
+    body.in-mode[data-stage="ic"] #panel .win .ic-board .ic-sev-1 .ic-card.opt { border-left-color: #a8322a; }
+    body.in-mode[data-stage="ic"] #panel .ic-sev { font-family: ui-monospace, "Courier New", monospace; letter-spacing: .06em; color: #4a5560; }
+    body.in-mode[data-stage="ic"] #panel .ic-sev-2 .ic-sev { color: #8a5608; }
+    body.in-mode[data-stage="ic"] #panel .ic-sev-1 .ic-sev { color: #a8322a; }
+    body.in-mode[data-stage="ic"] #panel .ic-clock { font-size: 17px; letter-spacing: 4px; color: #d9701a; text-shadow: 0 0 6px rgba(255, 150, 40, .55); }
+    body.in-mode[data-stage="ic"] #panel .win .ic-board .ic-fmt .ic-card.opt { border-left-style: double; }
+    /* The request path: brass plaques; a red lamp where something is open. */
+    body.in-mode[data-stage="ic"] #panel .ic-node { color: #2a1c08; border: 2px solid #140b05; border-radius: 5px; background: linear-gradient(#dcb65e, #a67c2c); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 2px 5px rgba(0, 0, 0, .5); }
+    body.in-mode[data-stage="ic"] #panel .ic-node.alarm { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 0 0 2px #a8322a, 0 0 14px rgba(230, 70, 50, .75); }
+    body.in-mode[data-stage="ic"] #panel .ic-node.here { border: 4px double #140b05; background: linear-gradient(#f3d98a, #c99a3c); }
+    body.in-mode[data-stage="ic"] #panel .ic-node:disabled:not(.here):not(.alarm) { filter: brightness(.78); }
+    body.in-mode[data-stage="ic"] #panel .ic-link { color: #e9c56d; opacity: .8; }
+    body.in-mode[data-stage="ic"] #panel .ic-best { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018; background: linear-gradient(#f8f1df, #ecdfc2); border: 0; border-left: 8px solid #4f7f5c; border-radius: 2px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); padding: 10px 12px; }
+    /* A question, and the walkthrough: one paper incident report on the cork. */
+    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b, body.in-mode[data-stage="ic"] #panel .win-b:has(> .md-walk) { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018;
+      background: repeating-linear-gradient(transparent 0 27px, rgba(90, 70, 40, .07) 27px 28px), linear-gradient(#f8f1df, #ecdfc2); box-shadow: inset 0 0 0 2px #140b05, inset 0 0 40px rgba(120, 90, 40, .25); }
+    body.in-mode[data-stage="ic"] #panel :is(.win.quiz .win-b, .win-b:has(> .md-walk)) :is(.opt, .ghost, .conf-b button, .row button):not(.primary) { background: #fffaf0; color: #2a2018; border: 1.5px solid #6a5a48; box-shadow: 0 2px 0 rgba(60, 40, 20, .35); }
+    body.in-mode[data-stage="ic"] #panel :is(.win.quiz .win-b, .win-b:has(> .md-walk)) :is(.opt, .ghost, .conf-b button):not(.primary):not(:disabled):hover { background: #fff; }
+    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b :is(.opt.on, button.on[aria-pressed="true"]) { background: #dbe6f0; border-color: #2a4360; }
+    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b .conf-b button[data-c="2"]:not(:disabled) { background: #f0d68a; }
+    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b :is(.conf, .pop-dock) { border-top-color: #b9a780; }
+    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b a { color: #2a4360; }
+    body.in-mode[data-stage="ic"] #panel .win-h .td-stop { background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; border: 1px solid #140b05; }
+    @media (max-width: 600px) { body.in-mode[data-stage="ic"] #panel .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; } }
+    @media (prefers-reduced-motion: reduce) { body.in-mode[data-stage="ic"] #panel .ic-card { transition: none; } }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }
     body.in-mode #panel .win-h:not(:has(> :not(span:first-child, .x))) { display: none; }
     body.in-mode #screen-title .tg-menu { visibility: hidden; }
