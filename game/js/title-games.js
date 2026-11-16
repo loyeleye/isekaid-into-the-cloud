@@ -18,7 +18,7 @@
   const esc = s => U.esc(String(s == null ? '' : s));
   // The vector build draws its own stages (SD.run.stageArt, as js/run.js and js/raid.js use), so no raster is fetched.
   const BG = n => (SD.run && SD.run.stageArt ? SD.run.stageArt(n) : `assets/img/battle/bg-${n}.webp`), FACE = w => `assets/img/portraits/${w}-neutral.webp`;
-  // Mode id: backdrop number and host portrait. A fresh save's story card shows Kagemaru (Ladi, Nov 16).
+  // Mode id: backdrop number and host portrait. A fresh save's story card shows Freya as a silhouette (Ladi, Nov 16).
   const ART = {
     ic: { bg: 1, face: 'uptima' },
     pop: { bg: 2, face: 'dutch' },
@@ -38,7 +38,7 @@
   const chapterOf = () => { const c = latest(); return c ? parseInt(c.n, 10) || 1 : 1; };
   const storyLine = () => { const c = latest(); return c ? `Chapter ${c.n === '2b' ? '2, part 2' : c.n}: ${c.name}` : 'Pick up where you left off'; };
   const leadFace = () => { const l = S.save && S.save.c1 && S.save.c1.lead; return l || 'you'; };
-  const faceHtml = w => w ? `<img class="tg-face" src="${FACE(w)}" alt="" draggable="false" onerror="this.remove()">` : '';
+  const faceHtml = w => w ? `<img class="tg-face${w === 'freya' ? ' tg-sil' : ''}" src="${FACE(w)}" alt="" draggable="false" onerror="this.remove()">` : '';
   const band = (n, face, icon) => `<div class="tg-art" style="background-image:url(${BG(n)})" aria-hidden="true">${icon ? `<span class="tg-icon">${esc(icon)}</span>` : ''}${faceHtml(face)}</div>`;
 
   function card(id, html) {
@@ -66,7 +66,7 @@
     list.className = 'tg-list';
     // Story.
     const ch = go ? chapterOf() : 1, used = [ch];
-    const story = card('story', `${band(ch, go ? leadFace() : 'kagemaru')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
+    const story = card('story', `${band(ch, go ? leadFace() : 'freya')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
       <p class="tg-meta">${go ? esc(storyLine()) : 'The story, from the opening'}</p></div>`);
     list.appendChild(story);
     if (go) { if (!go.classList.contains('qs-resume')) go.textContent = 'Continue'; adopt(story, go, false); }
@@ -176,6 +176,7 @@
     .tg-plain { display: grid; place-items: center; }
     .tg-icon { position: relative; z-index: 1; font-size: 40px; }
     .tg-face { position: absolute; z-index: 1; right: 8px; bottom: -4px; width: 54px; height: auto; image-rendering: pixelated; }
+    .tg-sil { filter: brightness(0) drop-shadow(0 0 3px rgba(214, 178, 84, .85)); }
     .tg-body { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 10px; flex: 1; }
     .tg-name { margin: 0; color: var(--bone, #efe6d2); font-family: Cinzel, serif; font-weight: 700; font-size: 17px; line-height: 1.2; }
     .tg-meta { margin: 0 0 8px; flex: 1; color: #cfc6b4; font: 600 13px/1.35 Nunito, system-ui, sans-serif; }
