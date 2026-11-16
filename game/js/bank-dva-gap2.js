@@ -71,7 +71,7 @@ SD.bank.push(
       null,
       "Parameter Store stores the value, but it has no validators, gradual deployment strategies or alarm-based rollback.",
       "Turning on the feature in code means a redeploy, which the team wants to avoid."],
-    why: "AppConfig separates configuration from code. Validators (a JSON schema or a Lambda function) check a value before deployment, deployment strategies roll it out over time, and a CloudWatch alarm on the environment rolls it back. The AppConfig Lambda extension caches the value for the function.",
+    why: "AppConfig separates configuration from code. Validators (AppConfig's built-in flag schema, plus an optional Lambda function) check a value before deployment, deployment strategies roll it out over time, and a CloudWatch alarm on the environment rolls it back. The AppConfig Lambda extension caches the value for the function.",
     doc: ["https://docs.aws.amazon.com/appconfig/latest/userguide/what-is-appconfig.html", "https://docs.aws.amazon.com/appconfig/latest/userguide/appconfig-creating-deployment-strategy.html"] },
 
   // CodeArtifact
@@ -81,14 +81,14 @@ SD.bank.push(
       "An S3 bucket of package tarballs, with each buildspec running npm install against the bucket's static website endpoint.",
       "A self-managed npm proxy on an EC2 instance, with each CodeBuild project placed in a VPC that has no internet route at all.",
       "A shared CodeBuild cache in S3 that keeps node_modules between builds, so the public npm registry is contacted only the first time.",
-      "An AWS CodeArtifact repository with an upstream connection to the public npm registry, with npm configured to use it in the build."
+      "An AWS CodeArtifact repository with an external connection to the public npm registry, with npm configured to use it in the build."
     ], a: 3,
     no: [
       "An S3 bucket isn't an npm registry. npm can't resolve versions or dependencies from a folder of tarballs.",
       "It could work, but it means running, patching and scaling your own server for something CodeArtifact does as a managed service.",
       "A cache speeds builds up, but packages still come from the public registry and there's nowhere to publish internal packages.",
       null],
-    why: "CodeArtifact is a managed artifact repository for npm, PyPI, Maven and others. A repository can have an upstream (an external connection to the public registry), so it holds internal packages and caches approved public ones. Builds sign in with aws codeartifact login.",
+    why: "CodeArtifact is a managed artifact repository for npm, PyPI, Maven and others. A repository can have an external connection to the public registry, so it holds internal packages and caches approved public ones. Builds sign in with aws codeartifact login.",
     doc: ["https://docs.aws.amazon.com/codeartifact/latest/ug/welcome.html", "https://docs.aws.amazon.com/codeartifact/latest/ug/external-connection.html"] },
 
   // samconfig.toml environments

@@ -206,7 +206,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.rolling-version-deploy.html"] },
 
   { id: "dva-3-215", exam: "both", dva: "3.4", saa: "2.2", topic: "beanstalk", type: "mc",
-    q: "A rolling deployment to an Elastic Beanstalk web environment failed halfway last month and left instances on two versions, which took hours to fix. Deployments must not change the instances that are serving traffic, a failed deployment must leave them in service, and the environment's DNS name must not change. Which deployment policy should the team use?",
+    q: "A rolling deployment to an Elastic Beanstalk web environment failed halfway last month and left instances on two versions, which took hours to fix. Deployments must not change the instances that are serving traffic, a failed deployment must leave them in service, and the environment's DNS records must not change. Which deployment policy should the team use?",
     opts: [
       "Immutable: the new version launches on new instances in a temporary Auto Scaling group.",
       "Rolling with additional batch, which adds one batch of instances first so capacity stays full.",

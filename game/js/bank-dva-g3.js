@@ -313,7 +313,7 @@ SD.bank.push(
 
   // Rollbacks
   { id: "dva-3-322", exam: "DVA", dva: "3.4", topic: "apigateway", type: "multi", hint: "Select TWO.",
-    q: "A new deployment of a REST API to its prod stage broke a mapping template. The previous deployment worked and is still in the stage's deployment history. Prod must return to it within minutes, at the same URL, without rebuilding or re-importing the API. Which actions will do this? (Select TWO.)",
+    q: "A new deployment of a REST API to its prod stage broke a mapping template. The previous deployment worked and is still in the stage's deployment history. Prod must return to it within minutes, at the same URL, with no gap in service and without rebuilding or re-importing the API. Which actions will do this? (Select TWO.)",
     items: [
       { t: "In prod's Deployment history tab in the console, pick the previous deployment and choose Change active deployment.", ok: true },
       { t: "Run aws apigateway update-stage with a replace operation on /deploymentId, set to the previous deployment's ID.", ok: true },
