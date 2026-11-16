@@ -23,6 +23,9 @@
   const NAMES = { dutch: 'Dutch', mira: 'Mira', seoyeon: 'Seo-yeon', kai: 'Kai' };
   const head = (who, mood) => { try { return SD.art && SD.art.portrait ? `<span class="fl-head">${SD.art.portrait(who, 34, mood || 'neutral')}</span>` : ''; } catch (e) { return ''; } };
   const say = (who, mood, line) => `<p class="fl-say" data-vo="${esc(who + '|' + line)}">${head(who, mood)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
+  // The claimants, drawn with PixelLab (tools/floor_art.py, assets/img/monsters/floor-<id>.webp).
+  if (SD.art && SD.art.addFoe) Object.keys(F.CLAIMS).forEach(id => { if (!F.CLAIMS[id].boss) SD.art.addFoe('floor-' + id, { col: '#c9a07a', anim: 'float', src: `assets/img/monsters/floor-${id}.webp` }); });
+  const foe = id => { try { return F.CLAIMS[id].boss ? (SD.pop && SD.pop.HUNCH_SVG) || '' : SD.art.enemy('floor-' + id); } catch (e) { return ''; } };
   const HOME = { thornwick: 'Thornwick', peak: 'Burning Peak', halcyon: 'Halcyon', arcanum: 'the Arcanum' };
   const panel = html => U.panel(`<div class="fl">${html}</div>`, { title: TITLE, onClose: stopNow, cls: 'fl-win' });
   function stopNow() { const s = cur(); if (s) save(s); if (SD.today && SD.today.render) SD.today.render(); }
@@ -127,7 +130,7 @@
         <span class="fl-cost">${F.cost(e)}</span>${icon(c.icon)}<b>${esc(c.name)}${e.up ? ' ✓' : ''}</b>
         <span class="fl-ct">${esc(F.cardText(e))}</span>${why ? `<span class="fl-why">${esc(why)}</span>` : `<span class="fl-tag">${c.kind === 'piece' ? 'Stays on the floor' : 'This turn'}</span>`}</button>`;
     }).join('');
-    const b = panel(`<div class="fl-top"><div><p class="fl-claim">${esc(cl.name)}</p><p class="small">${esc(HOME[cl.home])} · "${esc(cl.says)}"</p></div>
+    const b = panel(`<div class="fl-top"><span class="fl-foe" role="img" aria-label="${esc(cl.name)}">${foe(f.claim)}</span><div class="fl-tn"><p class="fl-claim">${esc(cl.name)}</p><p class="small">${esc(HOME[cl.home])} · "${esc(cl.says)}"</p></div>
         <p class="fl-turn">Turn ${Math.min(f.turn + 1, cl.limit)} of ${cl.limit}<br><span class="small">${plural(Math.max(0, f.waves.length - f.turn), 'wave')} to come</span></p></div>
       ${budgetJar(s)}
       <div class="fl-zone fl-chute"><div class="fl-zh"><b>${icon('direction-signs')}The chute</b><span class="small">${wave.length ? plural(wave.length, 'ticket') + ' this turn' : 'empty'}</span></div>
@@ -231,6 +234,7 @@
       s.paid = M.pay(ID) || ' ';
       k.night = s.night; k.taught = s.taught;
       if (!k.best || s.budget > k.best) k.best = Math.max(0, s.budget);
+      if (SD.modeStage && SD.modeStage.sting) SD.modeStage.sting(ID, zero ? 'lose' : 'win');
     }
     const top = Object.keys(s.used).filter(id => C[id].kind === 'piece').sort((a, b) => s.used[b] - s.used[a])[0];
     const proofs = s.debriefs.filter(d => d.ok).length;
@@ -264,7 +268,10 @@
     .fl p { margin: 0; }
     .fl-gi { width: 18px; height: 18px; vertical-align: -4px; flex: 0 0 auto; }
     .fl-night, .fl-claim { font-family: var(--f-head); font-weight: 700; font-size: 18px; }
-    .fl-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+    .fl-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .fl-foe { flex: 0 0 64px; width: 64px; height: 64px; }
+    .fl-foe svg { width: 64px; height: 64px; }
+    .fl-tn { flex: 1; min-width: 0; }
     .fl-turn { text-align: right; font-weight: 700; font-size: 14px; }
     .fl-say { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; line-height: 1.35; }
     .fl-head { flex: 0 0 34px; width: 34px; height: 40px; overflow: hidden; border-radius: 8px; border: 2px solid var(--ink, #17131f); background: var(--paper, #c7bca4); }

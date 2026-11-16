@@ -36,11 +36,11 @@
   const LOOP_OF = { floor: 'pop' };
   const LINGER = 450;
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
-  const PLATES = [];
+  const PLATES = ['floor'];   // the Sorting Floor's sorting room (Gemini, Nov 16)
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
-  const MUSIC = {};
+  const MUSIC = { floor: 'm-floor' };
   // Mode id: { win, lose } jingle files in assets/audio/.
-  const STINGS = {};
+  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
   let cur = null, el = null, bar = null, timer = null;
 
