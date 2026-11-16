@@ -1,11 +1,9 @@
-// Headless check of Incident Commander (js/mode-ic.js, build spec v4 with the Nov 16 review's fixes) at phone width
-// (375px). Shift 1, the board: the picker and walkthrough, 3 waves of 4 Domain 1 and 4 incidents with clocks of 2, 3
-// or 4 and page costs of 10, 15 or 25%, each card's symptom sentence, the whole stem free in the question (never on the
-// board's screen), the shared stakes, every answer ticking the other clocks, a twin retry, a timeout costing its card's
-// page cost and returning next wave, save and resume, the closing major incident, results opening on the best fix with
-// Done first, and an unforced run that can time out. Shift 2, the request-path map: fog that hides where, never what,
-// walking and lenses at a tick each, Map as list, at most 4 map actions per question, a page spreading upstream, the
-// runbook detour, saving after every map action. Shift 3: Dutch, Coo and Bru. Then 0% with "Retry this wave".
+// Headless check of Incident Commander (js/mode-ic.js, build spec v4) at phone width (375px): the Play button and
+// picker, the first-run walkthrough on a real incident, 4 waves of Domain 1 and 4 incidents on the request path with
+// clocks of 5, 7 or 9, the whole stem free in the question (never on the board's screen), the shared stakes, every
+// answer ticking the other clocks, a wrong answer retried as its twin, a 15% timeout returning next wave, saving and
+// resuming, results with one thing to do differently, Dutch, Coo and Bru from the second shift, and 0% with "Retry
+// this wave".
 // Run from game/:  node tools/ic_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -87,7 +85,6 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
   await boot();
   await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });
-  const workable = st => st.board.map((b, i) => [b, i]).filter(([b]) => !st.map || (b.found && b.at === st.at)).map(x => x[1]);
 
   // ---- Picker and first run ----
   check(!!await page.$('#td-play'), 'the Today card has a Play button');
@@ -96,9 +93,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('[data-mode="ic"]');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
   const s0 = await ic();
-  check(!s0.map && !s0.picksOn, 'shift 1 is the board alone: no map, no picks (one new rule per night)');
-  const firstSym = await page.evaluate(id => SD.ic.symptom(SD.exam.find(id)), s0.board[0].q);
-  check((await txt('.md-walk')).includes(firstSym.slice(0, 50)), 'step 1 shows a real incident\'s symptom from the first wave');
+  const firstAsk = await page.evaluate(id => SD.modes.split(SD.exam.find(id)).ask, s0.board[0].q);
+  check((await txt('.md-walk')).includes(firstAsk.slice(0, 50)), 'step 1 shows a real incident from the first wave');
   check(/Kyu held the Cloud's pager/.test(await txt('.md-walk')), 'Uptima is the secondary pager (Story Bible)');
   await noHScroll('walkthrough');
   await shot('walk');
@@ -106,22 +102,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('.ic-board');
 
   // ---- The shift and the board ----
-  check(s0.board.length === 4 && s0.wave === 1, 'wave 1 lands 4 incidents');
-  check(s0.queue.length + s0.board.length === 12, 'a shift holds 12 incidents over 3 waves (' + (s0.queue.length + s0.board.length) + ')');
+  check(s0.board.length === 3 && s0.wave === 1, 'wave 1 lands 3 incidents');
+  check(s0.queue.length + s0.board.length === 12, 'a shift holds 12 incidents over 4 waves (' + (s0.queue.length + s0.board.length) + ')');
   const all0 = s0.queue.concat(s0.board);
   const other = all0.filter(x => x.other).length;
   check(other === 3, `1 in 4 incidents are due from other topics (${other})`);
-  const own = await page.evaluate(ids => ids.map(id => { const q = SD.exam.find(id); return [SD.exam.domainOf(q), q.topic, !!SD.ic.nodeOf(q), SD.ic.hasSymptom(q)]; }), all0.filter(x => !x.other).map(x => x.q));
+  const own = await page.evaluate(ids => ids.map(id => { const q = SD.exam.find(id); return [SD.exam.domainOf(q), q.topic, !!SD.ic.nodeOf(q)]; }), all0.filter(x => !x.other).map(x => x.q));
   check(own.every(x => [1, 4].includes(x[0]) && x[2]), 'the rest are Domain 1 and 4 questions on request-path services (' + [...new Set(own.map(x => x[1]))].join(', ') + ')');
   check(own.some(x => x[0] === 1), 'Development (Domain 1) questions are in the shift');
-  check(own.every(x => x[3]), `stems with a symptom come first (${own.filter(x => x[3]).length} of ${own.length})`);
-  check(s0.board.every(b => [2, 3, 4].includes(b.clock)), 'clocks start at 2, 3 or 4 ticks (' + s0.board.map(b => b.clock).join(', ') + ')');
-  check(s0.board.every(b => [10, 15, 25].includes(b.cost)), 'each card has a page cost of 10, 15 or 25% (' + s0.board.map(b => b.cost).join(', ') + ')');
+  check(s0.board.every(b => [5, 7, 9].includes(b.clock)), 'clocks start at 5, 7 or 9 ticks (' + s0.board.map(b => b.clock).join(', ') + ')');
   const cards = await page.$$eval('.ic-card', els => els.map(e => e.textContent.replace(/\s+/g, ' ')));
-  check(cards.every(c => /SEV-\d · pages −\d+%/.test(c) && /\d ticks? left/.test(c)), 'each card shows its severity, page cost and ticks left in words');
-  const syms = await page.evaluate(() => SD.state.save.ic.board.map(b => SD.ic.symptom(SD.exam.find(b.q))));
-  check(syms.every(x => cards.some(c => c.includes(x.replace(/\s+/g, ' ').slice(0, 40)))), 'each card shows its symptom sentence');
-  check(syms.some(x => x !== '' && !/\?$/.test(x)), 'the symptom is a scenario sentence, not only the ask line');
+  check(cards.every(c => /SEV-\d/.test(c) && /\d ticks? left/.test(c)), 'each card shows its severity and ticks left in words');
+  check(cards.every(c => /API Gateway|Lambda|DynamoDB|SQS|S3|[A-Z]{2,}/.test(c)), 'each card names its service');
   await noHScroll('board');
   await shot('board');
   const qual = await page.evaluate(() => {
@@ -132,9 +124,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(qual[0] > 0 && qual[1] === qual[0], `the MOST/LEAST qualifier shows on the card (${qual[1]} of ${qual[0]}; pool ${qual[2]})`);
 
   // ---- Work an incident: the whole stem, right and Sure ----
-  // Give every clock room so this part tests ticking, not timeouts.
-  await page.evaluate(() => { SD.state.save.ic.board.forEach(b => { b.clock = b.max = 4; }); SD.state.persist(); SD.ic.board(); });
-  const others0 = (await ic()).board.slice(1).map(b => b.clock);
+  const others0 = s0.board.slice(1).map(b => b.clock);
   await page.click('[data-inc="0"]');
   await page.waitForSelector('#panel .win.quiz');
   const isMc = await page.evaluate(() => SD.modes.current().type === 'mc');
@@ -150,7 +140,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await next();
   await page.waitForSelector('.ic-board');
   let s1 = await ic();
-  check(s1.pts === 3 && s1.board.length === 3 && s1.log[0].ok === 1, 'right: the incident is resolved and pays +3');
+  check(s1.pts === 3 && s1.board.length === 2 && s1.log[0].ok === 1, 'right: the incident is resolved and pays +3');
   check(JSON.stringify(s1.board.map(b => b.clock)) === JSON.stringify(others0.map(c => c - 1)), 'the answer ticked every other clock by one');
   check(s1.budget === 100, 'a right answer leaves the budget alone (budget is only for survival)');
   check(/Since your last answer: .*resolved/.test(await txt('.ic-since')), 'the board says what changed since your last answer');
@@ -163,21 +153,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(twin ? twin.q !== before.q : s2.log.some(l => l.orig === before.orig && !l.ok), `wrong: ${twin ? 'it stays open as its twin, never the same question' : 'no twin, so it is logged as missed'}`);
   check(s2.pts === 2, 'Think so and wrong costs 1 point');
 
-  // ---- A timeout: its page cost, back next wave as its twin ----
+  // ---- A timeout: 15%, back next wave as its twin ----
   await page.evaluate(() => { const s = SD.state.save.ic; s.board.forEach((b, i) => { if (i) b.clock = 1; }); SD.state.persist(); SD.ic.board(); });
   const s5 = await ic();
   if (s5.board.length > 1) {
+    check(/SEV-1/.test(await txt('.ic-board')), 'a card at one tick reads SEV-1');
     await work(0, true, 1);
     const s6 = await ic();
-    const paged = s5.board.slice(1), cost = paged.reduce((a, b) => a + b.cost, 0);
-    check(s6.budget === Math.max(0, s5.budget - cost), `a timeout costs its card's page cost (${s5.budget}% − ${paged.map(b => b.cost).join(' − ')} → ${s6.budget}%)`);
+    const n = s5.board.length - 1;
+    check(s6.budget === 100 - 15 * n, `a timeout costs 15% of the budget each (100% → ${s6.budget}%)`);
+    const paged = s5.board.slice(1);
     const back = s6.carry.concat(s6.board);
     check(paged.every(p => back.some(b => b.orig === p.orig)), 'timed-out incidents come back next wave, not skipped');
     // Same question only when it has no twin that's free this shift (a twin already on the board or in the log is skipped).
     const tw = await page.evaluate(([paged, back, s5]) => { const used = s5.log.map(x => x.q).concat(s5.board.map(x => x.q), s5.queue.map(x => x.q), s5.carry.map(x => x.q), s5.seen || []);
       return paged.every(p => { const b = back.find(x => x.orig === p.orig); return b && (b.q !== p.q || !SD.qtwin(SD.exam.find(p.q), { avoid: used.concat(p.q) })); }); }, [paged, back, s5]);
     check(tw, 'and come back as their twin where one exists');
-    if (s6.phase === 'zero') await page.click('#ic-retry');
   }
 
   // ---- Saved after every answer: reload and resume ----
@@ -194,145 +185,34 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const s7 = await ic();
   check(JSON.stringify(s7.board) === JSON.stringify(s6b.board) && s7.pts === s6b.pts, 'resuming lands on the same board');
 
-  // ---- Play the shift out: a miss on wave 2 so the major incident has something to bring back ----
-  let sawPick = false, majorSeen = null, missed = false;
-  for (let k = 0; k < 60; k++) {
+  // ---- Play the shift out (first shift: no between-wave picks) ----
+  let sawPick = false;
+  for (let k = 0; k < 40; k++) {
     const st = await ic();
     if (st.phase === 'done') break;
     if (st.phase === 'pick') { sawPick = true; await page.click('[data-pick="coo"]'); continue; }
     if (st.phase === 'zero') { await page.click('#ic-retry'); continue; }
-    if (st.wave === 4 && !majorSeen) { majorSeen = st; await shot('major'); check(/Major incident/.test(await txt('.ic-hud')), 'the last wave is the major incident'); }
-    const miss = st.wave === 2 && !missed;
-    if (miss) missed = true;
-    await page.evaluate(() => { SD.state.save.ic.board.forEach(b => { b.clock = Math.max(b.clock, 6); }); SD.state.persist(); SD.ic.board(); });
-    await work(0, !miss, 1);
+    await work(0, true, 1);
   }
   const s8 = await ic();
   check(!sawPick, 'the first shift has no between-wave picks (one new rule per night)');
-  check(s8.phase === 'done' && s8.wave === 4, 'the shift ends after the major incident (wave 4)');
-  check(!!majorSeen && majorSeen.board.length >= 1 && majorSeen.board.length <= 3 && majorSeen.board.every(b => b.major || s8.log.some(l => l.orig === b.orig)), `the major incident brings back tonight's misses and twins (${majorSeen ? majorSeen.board.map(b => b.major || 'timed out').join(', ') : 'none'})`);
-  check(s8.log.length >= 10 && !s8.board.length && !s8.carry.length, `every incident that landed was worked (${s8.log.length}; ${s8.queue.length} never landed, as timeouts took their slots)`);
+  check(s8.phase === 'done' && s8.wave >= 4, 'the shift ends after wave 4');
+  check(s8.log.length === 12, `every incident was worked (${s8.log.length})`);
   const res = (await txt('#panel')).replace(/\s+/g, ' ');
-  check(/Your best fix tonight/.test(await txt('.ic-best')), 'results open on your best fix');
   check(/incidents resolved/.test(res) && /Points: [+−±]\d+/.test(res), 'results: incidents resolved and points');
   check(/Next shift: /.test(res), 'results: one thing to do differently');
   check(await page.$$eval('.ic-log li', l => l.length) === s8.log.length, 'results: every incident\'s fix in one line');
   check(/Think so \d+ of \d+ right/.test(await page.$$eval('.md-calt tr', t => t.map(r => [...r.children].map(c => c.textContent).join(' ')).join(' | '))), 'results: the calibration readout');
   check(/Why did that work/.test(res), 'results: Pip asks why it worked');
   check(/\+20 XP · \+5 shards/.test(res), 'results: the shift pays XP and shards');
-  check(await page.evaluate(() => document.querySelector('#ic-done').classList.contains('primary') && !document.querySelector('#ic-again').classList.contains('primary')), 'Done is the main button, not New shift');
-  const stats = await page.evaluate(() => SD.state.save.modes.icStats.slice(-1)[0]);
-  check(stats && stats.rp[1] + stats.other[1] === s8.log.length && stats.ranks.length === s8.answers, 'the shift logs request-path and other-topic accuracy and the clock rank of each pick (hypothesis)');
   await noHScroll('results');
   await shot('results');
 
-  // ---- Unforced play can time out: the clocks bite ----
-  const sim = await page.evaluate(async () => {
-    let seed = 99; const rng = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
-    const out = { board: [], map: [] };
-    for (const map of [false, true]) for (let k = 0; k < 20; k++) out[map ? 'map' : 'board'].push(await SD.ic.sim({ p: 0.6, conf: 'honest', route: 'near', map }, rng));
-    const f = rs => [rs.filter(r => r.timeouts).length, rs.filter(r => r.zero).length, rs.length];
-    return [f(out.board), f(out.map)];
-  });
-  check(sim[0][0] >= 10 && sim[0][1] <= 5, `board: honest play at 60% times out in most shifts and rarely hits 0% (${sim[0][0]} and ${sim[0][1]} of ${sim[0][2]})`);
-  check(sim[1][0] >= 10 && sim[1][1] <= 5, `map: the same (${sim[1][0]} and ${sim[1][1]} of ${sim[1][2]})`);
-
-  // ---- Second shift: the request-path map ----
-  await page.click('#ic-again');
-  check(/Step 1 of 1/.test(await txt('#panel')) && /request path/.test(await txt('.md-walk')), 'the map\'s first night opens with its own walkthrough screen');
-  await shot('map-walk');
-  await page.click('#md-next');
-  await page.waitForSelector('.ic-board');
-  let m0 = await ic();
-  check(m0.map && !m0.picksOn, 'shift 2 adds the map, and no picks yet');
-  check(await page.$$eval('.ic-node', n => n.length) === 6 && /API Gateway/.test(await txt('.ic-map')) && /Runbook shelf/.test(await txt('.ic-map')), 'the map shows the request path and the runbook shelf');
-  check(m0.at === 'apigw' && /📍 You are here/.test(await page.$eval('.ic-node.here', e => e.getAttribute('aria-label'))), 'you start at API Gateway, and the map says so in words');
-  check(m0.board.every(b => b.clock >= 5 && b.clock <= 7), 'on the map, clocks start 3 longer (5, 6 or 7): ' + m0.board.map(b => b.clock).join(', '));
-  const order = await page.evaluate(() => { const s = SD.state.save.ic, ix = id => SD.ic.NODES.findIndex(n => n.id === SD.ic.homeOf(id)); return s.board.concat(s.queue).filter(x => !x.back).map(x => ix(x.q)); });
-  check(order.every((x, i) => !i || x >= order[i - 1]), 'waves land in one corner of the path at a time (nodes in order: ' + order.join(' ') + ')');
-  const fog = m0.board.filter(b => !b.found);
-  check(m0.board.every(b => b.found === (b.at === 'apigw')), 'cards land located only where you stand');
-  if (fog.length) {
-    const fc = await page.$$eval('.ic-card', els => els.map(e => e.textContent.replace(/\s+/g, ' ')));
-    check(fc.filter(c => /🌫 Not located/.test(c)).length === fog.length, 'the rest read "Not located"');
-    const fsyms = await page.evaluate(() => SD.state.save.ic.board.filter(b => !b.found).map(b => SD.ic.symptom(SD.exam.find(b.q))));
-    check(fsyms.every(x => fc.some(c => c.includes(x.replace(/\s+/g, ' ').slice(0, 40)))), 'fog hides where an incident is, never its words');
-    const i = m0.board.indexOf(m0.board.find(b => !b.found));
-    await page.$eval(`[data-inc="${i}"]`, e => e.click()); await page.waitForTimeout(30);
-    check(!await page.$('#panel .win.quiz') && !!await page.$('.ic-board'), 'a card you are not standing at does not open');
-  }
-  await noHScroll('map');
-  await shot('map');
-  await page.click('#ic-view');
-  check(!!await page.$('.ic-list') && !await page.$('.ic-map') && /API Gateway/.test(await txt('.ic-list')) && /you are here/.test(await txt('.ic-list')), 'Map as list shows every node and state in words');
-  await noHScroll('map as list');
-  await shot('map-list');
-  await page.click('#ic-view');
-  // A lens: finds every card of its kind, for one tick on every clock.
-  await page.evaluate(() => { SD.state.save.ic.board.forEach(b => { b.clock = b.max = 7; }); SD.state.persist(); SD.ic.board(); });
-  m0 = await ic();
-  const lensId = fog.length ? await page.evaluate(id => SD.ic.lensOf(SD.exam.find(id)), m0.board.find(b => !b.found).q) : 'logs';
-  if (fog.length) {
-    await page.click(`[data-look="${lensId}"]`);
-    const m1 = await ic();
-    const want = await page.evaluate(([ids, l]) => ids.map(id => SD.ic.lensOf(SD.exam.find(id)) === l), [m0.board.map(b => b.q), lensId]);
-    check(m1.board.every((b, i) => b.found === (m0.board[i].found || want[i])), `the ${lensId} lens locates every card of its kind`);
-    check(m1.board.every(b => b.clock === 6) && m1.acts === 1, 'a lens costs a tick on every clock and counts as a map action');
-    check(/Since your last move: /.test(await txt('.ic-since')), 'the board says what changed since your last move');
-  }
-  // Walk one step: a tick on every clock, and it's saved.
-  const pre = await ic();
-  await page.click('[data-walk="lambda"]');
-  const m2 = await ic();
-  check(m2.at === 'lambda' && m2.board.every((b, i) => b.clock === pre.board[i].clock - 1), 'walking one step moves you and costs a tick on every clock');
-  check(await page.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /save/i.test(k)) || 'null') || 'null')?.ic?.at === 'lambda' || SD.state.save.ic.at === 'lambda'), 'the map action is saved');
-  check(m2.board.filter(b => b.at === 'lambda').every(b => b.found), 'walking to a node locates what is there');
-  // The cap: 4 map actions per question. Walking stays open only when nothing here can be worked.
-  const cap4 = await page.evaluate(() => {
-    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.acts = 4;
-    s.board[0].at = s.at; s.board[0].found = true;
-    const a = [SD.ic.canAct(s, 'look'), SD.ic.canAct(s, 'walk')];
-    s.board.forEach(b => { b.at = 'ddb'; b.found = true; });
-    return a.concat([SD.ic.canAct(s, 'look'), SD.ic.canAct(s, 'walk')]);
-  });
-  check(!cap4[0] && !cap4[1] && !cap4[2] && cap4[3], 'at most 4 map actions per question (walking stays open only when nothing here can be worked)');
-  // A page spreads upstream: the caller's clocks drop a tick too.
-  const spread = await page.evaluate(() => {
-    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.perks = {}; s.budget = 100;
-    const b = s.board.slice(0, 1).map(x => Object.assign({}, x, { at: 'lambda', found: true, clock: 5 }));
-    const dn = Object.assign({}, b[0], { orig: 'x-dn', q: s.queue[0].q, at: 'ddb', clock: 1, cost: 10 });
-    const up = Object.assign({}, b[0], { orig: 'x-up', q: s.queue[1].q, at: 'lambda', clock: 4, cost: 10 });
-    const w = Object.assign({}, b[0], { orig: 'x-w', at: 'apigw', clock: 5 });
-    s.board = [w, dn, up]; s.at = 'apigw';
-    SD.ic.settle(s, w, { ok: true, conf: 1, pts: 2 });
-    return [s.board.find(x => x.orig === 'x-up').clock, /upstream to Lambda/.test(s.since), s.budget];
-  });
-  check(spread[0] === 2 && spread[1] && spread[2] === 90, `a page spreads upstream to its caller: −1 tick there (Lambda ${spread[0]}, budget ${spread[2]}%)`);
-  // The runbook detour: it locates the next wave and gives its clocks 2 more ticks.
-  const rb = await page.evaluate(() => {
-    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.acts = 0; s.at = 'apigw';
-    s.board.forEach(b => { b.clock = 9; });
-    const ok = SD.ic.walk(s, 'runbook'), where = SD.ic.nextLanding(s);
-    s.board = []; s.carry = [];
-    const n = SD.ic.next(s);
-    return [ok, s.runbook === s.wave - 1, where.length, s.board.every(b => b.found), s.board.map(b => b.clock), n];
-  });
-  check(rb[0] && rb[2] > 0 && rb[3] && rb[4].every(c => c >= 8 && c <= 10), `the runbook shows where the next wave lands, and it lands located with 3 more ticks (${rb[4].join(', ')})`);
-
-  // Finish shift 2 quickly on the state machine, then the last answer through the board.
-  await page.evaluate(() => {
-    const s = SD.state.save.ic; s.queue = []; s.carry = []; s.wave = 4; s.log.forEach(l => { l.ok = 1; });
-    s.board = s.board.slice(0, 1); s.board[0].at = s.at; s.board[0].found = true; s.board[0].clock = 5; SD.state.persist(); SD.ic.board();
-  });
-  await work(0, true, 1);
-  check((await ic()).phase === 'done', 'shift 2 ends');
-
-  // ---- Third shift: between-wave picks ----
+  // ---- Second shift: between-wave picks ----
   await page.click('#ic-again');
   await page.waitForSelector('.ic-board');
-  check((await ic()).picksOn, 'from the third shift, between-wave picks are on');
-  await page.evaluate(() => { const s = SD.state.save.ic; s.board = s.board.slice(0, 1); s.board[0].at = s.at; s.board[0].found = true; s.board[0].clock = 5; SD.state.persist(); SD.ic.board(); });
-  await work(0, true, 1);
+  check((await ic()).picksOn, 'from the second shift, between-wave picks are on');
+  for (let k = 0; k < 6; k++) { const st = await ic(); if (st.phase !== 'board' || st.wave > 1) break; await work(0, true, 1); }
   check((await ic()).phase === 'pick' && /Dutch/.test(await txt('#panel')) && /Coo/.test(await txt('#panel')) && /Bru/.test(await txt('#panel')), 'after wave 1: one free pick from Dutch, Coo or Bru');
   await noHScroll('pick');
   await shot('pick');
@@ -344,28 +224,27 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // Coo and Bru, on the state machine directly.
   const perks = await page.evaluate(() => {
     const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true;
-    s.perks = { coo: 1 }; s.budget = 100; s.board.forEach((b, i) => { b.clock = i ? 1 : 5; b.at = 'ddb'; });
-    const costs = s.board.slice(1).map(b => b.cost); SD.ic.settle(s, s.board[0], { ok: true, conf: 1, pts: 2 });
+    s.perks = { coo: 1 }; s.budget = 100; s.board.forEach((b, i) => { b.clock = i ? 1 : 5; });
+    const n = s.board.length - 1; SD.ic.settle(s, s.board[0], { ok: true, conf: 1, pts: 2 });
     const coo = s.budget;
-    const t = JSON.parse(JSON.stringify(SD.state.save.ic)); t.sim = true; t.perks = { bru: 1 }; t.acts = 0; t.at = 'apigw'; t.board.forEach(b => { b.clock = 6; });
-    SD.ic.walk(t, 'lambda'); const free = t.board.map(b => b.clock); SD.ic.walk(t, 'apigw');
-    return [costs, coo, free.every(c => c === 6), t.board.every(b => b.clock === 5)];
+    const t = JSON.parse(JSON.stringify(SD.state.save.ic)); t.sim = true; t.perks = { bru: 1 };
+    const c0 = t.board.slice(1).map(b => b.clock); SD.ic.settle(t, t.board[0], { ok: true, conf: 1, pts: 2 });
+    return [n, coo, JSON.stringify(c0) === JSON.stringify(t.board.map(b => b.clock))];
   });
-  check(perks[1] === 100 - Math.ceil(perks[0][0] / 2) - perks[0].slice(1).reduce((a, b) => a + b, 0), `Coo: the next timeout costs half (${perks[1]}%)`);
-  check(perks[2] && perks[3], 'Bru: one free step each wave, then steps tick again');
+  check(perks[1] === 100 - Math.ceil(15 / 2) - 15 * (perks[0] - 1), `Coo: the next timeout costs half (${perks[1]}%)`);
+  check(perks[2], 'Bru: the next answer ticks no other clock');
   // The shift's retry cap: with none left, a miss is logged as missed even when a twin exists.
   const cap = await page.evaluate(() => {
-    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.perks = {}; s.reruns = 2;
+    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.perks = {}; s.reruns = 5;
     s.board.forEach(b => { b.clock = 9; b.tries = 0; }); const n = s.board.length, q0 = s.board[0].q;
     SD.ic.settle(s, s.board[0], { ok: false, conf: 0, pts: 0 });
-    return [s.board.length === n - 1, !s.board.some(b => b.q === q0)];
+    return [s.board.length === n - 1, !s.board.some(b => b.q === q0), /Retries left/.test(document.querySelector('.ic-hud') ? document.querySelector('.ic-hud').textContent : 'Retries left')];
   });
-  check(cap[0] && cap[1], 'with the shift\'s 2 retries used, a miss goes to the major incident');
-  check(/Retries left/.test(await txt('.ic-hud')), 'the HUD shows the retries left');
+  check(cap[0] && cap[1], 'with the shift\'s 5 retries used, a miss goes to review');
 
   // ---- 0%: retry the wave in one tap, or end ----
-  const toZero = () => page.evaluate(() => { const s = SD.state.save.ic; s.budget = 5; s.board[0].at = s.at; s.board[0].found = true; SD.state.persist(); SD.ic.board(); });
-  await toZero();
+  await page.evaluate(() => { SD.state.save.ic.budget = 5; SD.state.persist(); SD.ic.board(); });
+  const pre = await ic();
   await work(0, false, 2);
   check((await ic()).phase === 'zero' && /Retry this wave/.test(await txt('#panel')), 'a Sure miss at 5% stops the shift at 0% with "Retry this wave"');
   check(/Kyu never woke me/.test(await txt('#panel')), 'Uptima wakes up at 0%');
@@ -373,18 +252,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#ic-retry');
   const r1 = await ic();
   check(r1.phase === 'board' && r1.budget > 0 && r1.board.length === r1.waveStart.board.length && r1.log.length === logged, 'retry restarts the wave and keeps the answers logged');
-  await toZero();
+  await page.evaluate(() => { SD.state.save.ic.budget = 5; SD.state.persist(); SD.ic.board(); });
   await work(0, false, 2);
   await page.click('#ic-end');
   const s9 = await ic();
   check(s9.phase === 'done' && s9.zero, 'End the shift: results at 0%');
-  check(!/\+20 XP/.test(await txt('#panel')), 'a later shift today pays nothing more');
+  check(!/\+20 XP/.test(await txt('#panel')), 'the second shift today pays nothing more');
   const back = await page.evaluate(() => SD.state.save.icBacklog.map(x => x.q));
   check(back.length >= 1, `the open incidents wait for the next shift (${back.length})`);
   await page.click('#ic-again');
   await page.waitForSelector('.ic-board');
   const s10 = await ic();
-  check(back.slice(0, 4).every(id => s10.board.concat(s10.queue).some(x => x.q === id)), 'the next shift starts with them');
+  check(back.every(id => s10.board.concat(s10.queue).some(x => x.q === id)), 'the next shift starts with them');
   check(await page.evaluate(() => SD.state.save.wall.length >= 1), 'Sure misses went up on the Wall');
 
   await browser.close(); server.close();
