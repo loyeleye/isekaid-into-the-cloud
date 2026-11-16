@@ -18,7 +18,7 @@
   const esc = s => U.esc(String(s == null ? '' : s));
   // The vector build draws its own stages (SD.run.stageArt, as js/run.js and js/raid.js use), so no raster is fetched.
   const BG = n => (SD.run && SD.run.stageArt ? SD.run.stageArt(n) : `assets/img/battle/bg-${n}.webp`), FACE = w => `assets/img/portraits/${w}-neutral.webp`;
-  // Mode id: backdrop number and host portrait.
+  // Mode id: backdrop number and host portrait. A fresh save's story card shows Kagemaru (Ladi, Nov 16).
   const ART = {
     ic: { bg: 1, face: 'uptima' },
     pop: { bg: 2, face: 'dutch' },
@@ -66,7 +66,7 @@
     list.className = 'tg-list';
     // Story.
     const ch = go ? chapterOf() : 1, used = [ch];
-    const story = card('story', `${band(ch, go ? leadFace() : 'you')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
+    const story = card('story', `${band(ch, go ? leadFace() : 'kagemaru')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
       <p class="tg-meta">${go ? esc(storyLine()) : 'The story, from the opening'}</p></div>`);
     list.appendChild(story);
     if (go) { if (!go.classList.contains('qs-resume')) go.textContent = 'Continue'; adopt(story, go, false); }
