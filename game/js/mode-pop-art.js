@@ -13,6 +13,8 @@
   const IMG = 'assets/img/pop/';
   const LABEL = 'The Hunch: a navy sack with one brow, a shouting mouth, a blank clipboard and a crooked badge';
   const FLAT = 'The Hunch, deflated: an empty coat, a clipboard and the badge';
+  // Stylesheet urls go through the published page's image pack (tools/asset_pack.js) too, when there is one.
+  const cssUrl = f => (SD.assetUrl ? SD.assetUrl(IMG + f) : IMG + f);
   const img = (f, cls) => `<img class="${cls}" src="${IMG}${f}.webp" alt="" aria-hidden="true" draggable="false">`;
   P.ART = { hunch: IMG + 'hunch.webp', hit: IMG + 'hunch-hit.webp', flat: IMG + 'hunch-flat.webp', badge: IMG + 'badge.webp', door: IMG + 'door.webp', ash: IMG + 'ash.webp' };
   P.HUNCH_SVG = `<span class="pop-hunch pxh" role="img" aria-label="${LABEL}">${img('hunch', 'pxh-i')}</span>`;
@@ -72,8 +74,8 @@
     }
 
     /* The heap: ash-dirt floor and neutral stone doors (the homeland icon on the door). */
-    .pop .pop-map { background: #6f6a60 url(${IMG}ash.webp) 0 0 / 96px 96px repeat; image-rendering: pixelated; }
-    .pop .pop-door { padding-top: 34px; background-image: url(${IMG}door.webp); background-repeat: no-repeat; background-position: 50% 4px; background-size: 22px 30px; image-rendering: pixelated; }
+    .pop .pop-map { background: #6f6a60 url(${cssUrl('ash.webp')}) 0 0 / 96px 96px repeat; image-rendering: pixelated; }
+    .pop .pop-door { padding-top: 34px; background-image: url(${cssUrl('door.webp')}); background-repeat: no-repeat; background-position: 50% 4px; background-size: 22px 30px; image-rendering: pixelated; }
     .pop .pop-door > .pop-gi:first-child { position: absolute; top: 8px; left: 50%; width: 14px; height: 14px; margin-left: -7px; color: #e2dbcb; fill: #e2dbcb; filter: drop-shadow(0 1px 0 #17131f); }
     .pop .pop-door.fog { background-image: none; padding-top: 4px; }
     .pop .pop-door.fog > .pop-gi:first-child { position: static; width: 22px; height: 22px; margin: 0; filter: none; }
