@@ -32,7 +32,7 @@
   // Looping card videos (Ladi, Nov 16; prompts in project files title-loop/story-craft.md): a card id listed here plays
   // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
   // backdrop and portrait. Only the centred card plays. Reduced motion, Save-Data and the vector build keep the still.
-  const LOOPS = [];
+  const LOOPS = ['story'];
   const VID = id => 'assets/video/cards/' + id;
   const hasLoop = id => LOOPS.includes(id) && !window.SD_VECTOR;
   const still = () => reduced() || !!(navigator.connection && navigator.connection.saveData);
