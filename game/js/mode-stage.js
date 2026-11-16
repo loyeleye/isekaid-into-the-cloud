@@ -206,7 +206,7 @@
   };
 
   // Paper surfaces: dark ink on a light sheet.
-  const LIGHT = 'body.in-mode #panel :is(' + ['sprint', 'pop'].map(id => `body[data-stage="${id}"] .win-b`)
+  const LIGHT = 'body.in-mode #panel :is(' + ['sprint'].map(id => `body[data-stage="${id}"] .win-b`)
     .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)']).join(', ') + ')';
   const FRAME = id => `body.in-mode[data-stage="${id}"] #panel`;
   const css = document.createElement('style');
@@ -387,15 +387,30 @@
     ${FRAME('duel')} .win-b { border-radius: 0; box-shadow: none;
       padding: 12px max(16px, calc((100% - 1148px) / 2)) calc(24px + env(safe-area-inset-bottom, 0px));
       background: radial-gradient(rgba(255, 255, 255, .03) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 70% at 50% 0, rgba(74, 68, 88, .55), transparent 75%); }
-    /* ---- The Lost and Found: the frame only, a storeroom shelf with a claim sheet ---- */
-    ${FRAME('pop')} .win { padding: 12px 10px 10px; border: 0; border-radius: 6px; -webkit-backdrop-filter: none; backdrop-filter: none;
-      background: repeating-linear-gradient(1deg, rgba(0, 0, 0, .14) 0 2px, transparent 2px 8px), linear-gradient(#6a4a2c, #46301c);
-      box-shadow: 0 0 0 2px #1a1007, inset 0 3px 0 rgba(255, 225, 170, .18), inset 0 -4px 0 rgba(0, 0, 0, .35), 0 26px 60px rgba(0, 0, 0, .7); }
-    ${FRAME('pop')} .win-h { padding: 2px 8px 8px; border: 0; background: none; color: #f0d68a; letter-spacing: .1em; }
-    ${FRAME('pop')} .win-b { border-radius: 3px; background: linear-gradient(#ecd9a8, #dcc68e); box-shadow: inset 0 0 0 1px rgba(120, 85, 30, .5), inset 0 0 36px rgba(120, 85, 30, .25), 0 3px 10px rgba(0, 0, 0, .5); }
-    ${FRAME('pop')} .win-b { --cream: #e6d29f; }
+    /* ---- The Lost and Found: no window box (Ladi, Nov 16: every mode gets its own edge-to-edge layout) ---- */
+    /* The storeroom fills the stage under the bar behind a darker wash, like Monster Hunt. The reading keeps a
+       comfortable column in the middle; the answers are paper claim tags on the scene, so they stay easy to read. */
+    body.in-mode[data-stage="pop"] #panel { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    ${FRAME('pop')} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+      background: radial-gradient(120% 90% at 50% 40%, rgba(12, 9, 6, .55), rgba(12, 9, 6, .85)); }
+    ${FRAME('pop')} .win-h { width: 100%; max-width: 940px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #f0d68a; letter-spacing: .1em; }
+    ${FRAME('pop')} .win-b { border-radius: 0; background: none; box-shadow: none; padding: 12px max(16px, calc((100% - 908px) / 2)) 0; }
+    ${FRAME('pop')} .pop-dock { bottom: 0; margin: 4px 0 0; padding: 14px 0 calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 0; background: linear-gradient(rgba(12, 9, 6, 0), rgba(12, 9, 6, .92) 34%); }
+    ${FRAME('pop')} .win-b > :is(p, h2, h3, .td-head, .td-big, .verdict-row, .muted, .small) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+    ${FRAME('pop')} .win :is(.opt, .conf-b button):not(.primary) { --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; color: #2a2018; text-shadow: none;
+      background: linear-gradient(#f8f1df, #ecdfc2); border: 1.5px solid #6a5a48; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+    /* Boxes the nights paint light keep the paper palette (dark ink) on the scene. */
+    ${FRAME('pop')} :is(.pop-stage:not(.hunch):not(.arcanum), .pop-card, .pop-truth, .pop-li:not(.blank), .pop-door:not(.fog):not(.here), .pop-grid, .pop-stamp, .pop-quick button:not(.primary), .pop-cat) {
+      --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018; text-shadow: none; }
+    ${FRAME('pop')} :is(.pop-stamp, .pop-quick button:not(.primary):not(.on)) { background: linear-gradient(#f8f1df, #ecdfc2); }
+    ${FRAME('pop')} .pop-stamp { color: #9e3a34; }
+    ${FRAME('pop')} .pop-card:not(.on) { background: #fffaf0; }
+    ${FRAME('pop')} .pop-li.blank { color: #c9bfae; border-color: #c9bfae; }
+    ${FRAME('pop')} .win :is(.opt, .conf-b button):not(.primary):not(:disabled):hover { background: #fffaf0; }
+    ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"] { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
     @media (max-width: 600px) {
-      ${FRAME('draft')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
+      ${FRAME('draft')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
     }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }

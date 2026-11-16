@@ -47,7 +47,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       const name = await page.evaluate(id => SD.modes.get(id).name, id);
       check(s.active === id && s.stage && s.name === name, `${w}px ${id}: the stage opens with the mode's name in the top bar`);
       check(/cards\/\w+\.webp|stage\/[\w-]+\.webp/.test(s.setting), `${w}px ${id}: its own setting (card loop or painted plate) fills the screen (${s.setting.slice(-30)})`);
-      check(s.underBar && s.tall > .5 && s.titleCovered, `${w}px ${id}: the window fills the stage under the bar and the title is gone (${Math.round(s.tall * 100)}% tall)`);
+      check(s.underBar && s.tall > .5 && s.titleCovered, `${w}px ${id}: the window fills the stage under the bar and the title is gone (${Math.round(s.tall * 100)}% tall${s.underBar ? '' : ', overlaps the bar'}${s.titleCovered ? '' : ', title shows'})`);
       check(!s.wide, `${w}px ${id}: no horizontal scroll`);
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `stage-${id}-${w}.png`) });
       await page.click('#ms-home');

@@ -5,7 +5,7 @@
 // costing three quarters of the stake and going on the Wall, unstaked cards played small, claims cleared with a
 // reward and a find, Lost items and the break room asking nothing, stopping with the stake locked and resuming after
 // a reload, the Hunch with loose and core proofs, 0% with retreat or escalate, the proof sheet and the ledger.
-// Run from game/:  node tools/pop_check.js     SHOTS=dir saves screenshots.
+// Run from game/:  node tools/pop_check.js     SHOTS=dir saves screenshots. W=1280 H=800 runs it at desktop width.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -26,7 +26,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: +(process.env.W || 375), height: +(process.env.H || 667) } });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
