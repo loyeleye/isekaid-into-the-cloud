@@ -2784,16 +2784,16 @@ SD.bank.push(
   { id: "dva-2-466", exam: "DVA", dva: "2.2", topic: "secrets", type: "mc", variant: true, twin: ["dva-2-328"],
     q: "A Lambda function in account B must read a database secret owned by account A in the same Region, using its own execution role without assuming a role in account A. Which setup lets the function read the secret?",
     opts: [
-      "A customer managed key that allows the role, a resource policy and role policy that allow it, and the full ARN as SecretId.",
-      "A customer managed key that allows the role, a resource policy and role policy that allow it, and the name as SecretId.",
-      "The aws/secretsmanager key, a resource policy and role policy that allow the role, and the full ARN as SecretId.",
-      "A customer managed key that allows the role, only a role policy that allows the secret, and the full ARN as SecretId."
+      "A customer managed key allowing the role, a resource policy, a role policy for the secret and key, and the ARN as SecretId.",
+      "A customer managed key allowing the role, a resource policy, a role policy for the secret and key, and the name as SecretId.",
+      "The aws/secretsmanager key, a resource policy, a role policy for the secret and the key, and the full ARN as SecretId.",
+      "A customer managed key allowing the role, a role policy for the secret and key, no resource policy, and the ARN as SecretId."
     ], a: 0,
     no: [null,
       "To read a secret from another account, GetSecretValue must be given its ARN. A name is for secrets in the caller's own account.",
       "The AWS managed key can't be used for cross-account access, so decryption would fail. It suits same-account secrets.",
       "Cross-account access must be allowed in both a resource policy on the secret and an identity policy."],
-    why: "Cross-account access to a secret needs a resource policy on the secret and an identity policy that both allow it, a customer managed key whose key policy lets the identity decrypt, and the secret's ARN as SecretId.",
+    why: "Cross-account access to a secret needs a resource policy on the secret and an identity policy that both allow GetSecretValue, a customer managed key that both the key policy and the identity policy let the role decrypt with, and the secret's ARN as SecretId.",
     doc: ["https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_examples_cross.html",
       "https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html"] },
 
@@ -3177,8 +3177,8 @@ SD.bank.push(
   { id: "dva-3-459", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-809"],
     q: "A CodeDeploy canary deployment shifts 10 percent of a Lambda alias's traffic to a new version. Past bad releases didn't fail; their responses just got much slower. The deployment must roll back on its own if the new version slows down while it serves real traffic. What should the team set up?",
     opts: [
-      "An alarm on Errors for the alias, which the deployment group watches to fire above the normal rate.",
-      "An alarm on Duration for the alias and new version, which the deployment group watches for slowness.",
+      "An alarm on Errors for the alias, added to the group with rollback on alarm turned on as well.",
+      "An alarm on Duration for the new version, added to the group with rollback on alarm turned on.",
       "A BeforeAllowTraffic hook function that times a few test calls to the new version before the shift.",
       "An AfterAllowTraffic hook function that times calls to the alias and fails the deployment if they lag."
     ], a: 1,
@@ -3187,7 +3187,7 @@ SD.bank.push(
       null,
       "That hook runs before any real traffic reaches the new version, so it can't watch it during the canary wait.",
       "That hook runs only after all traffic has shifted, too late to catch the problem on the 10 percent slice."],
-    why: "CodeDeploy stops and rolls back a deployment when an alarm it watches crosses its threshold. Duration measures how long the code takes per event, and the ExecutedVersion dimension splits an alias's metrics by version, so the alarm can watch the new version alone.",
+    why: "An alarm added to a deployment group stops the deployment when it crosses its threshold, and the group's automatic rollback on alarm setting then rolls it back. Duration measures how long the code takes per event, and the ExecutedVersion dimension splits an alias's metrics by version, so the alarm can watch the new version alone.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html",
       "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html"] },
 
@@ -3237,14 +3237,15 @@ SD.bank.push(
     no: [null,
       "One at a time limits how far a bad revision spreads, but nothing redeploys the last working one.",
       "Minimum healthy hosts only decides when CodeDeploy fails a deployment. It doesn't restore anything.",
-      "That flag only lets a deployment carry on when the old ApplicationStop script fails. It redeploys nothing."],
+      "That flag only lets a deployment carry on past a failed ApplicationStop, BeforeBlockTraffic or AfterBlockTraffic event. It redeploys nothing."],
     why: "Rollback on deployment failure needs no alarm: when a hook script fails the deployment, CodeDeploy redeploys the last known good revision as a new deployment. Alarm-based rollback is for problems that don't fail the deployment on their own.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html",
-      "https://docs.aws.amazon.com/codedeploy/latest/userguide/instances-health.html"] },
+      "https://docs.aws.amazon.com/codedeploy/latest/userguide/instances-health.html",
+      "https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_CreateDeployment.html"] },
 
   // fileExistsBehavior (twin of dva-3-203), flip: RETAIN is right
   { id: "dva-3-463", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc", variant: true, twin: ["dva-3-203"],
-    q: "Each EC2 instance has a hand-edited settings.conf in the app folder, placed before CodeDeploy was used. The revision ships a default settings.conf for new instances. The first deployment fails because the file already exists. Existing instances must keep their own copy, and new ones must get the default. What should the developer do?",
+    q: "Each EC2 instance has a hand-edited settings.conf in the app folder, placed before CodeDeploy was used. The revision ships a default settings.conf for new instances. The first deployment fails because the file already exists. Existing instances must keep their own copy in this deployment, and new ones must get the default. What should the developer do?",
     opts: [
       "Create the deployment with the file exists behavior set to OVERWRITE, so the revision's copy is installed.",
       "Create the deployment with the file exists behavior set to RETAIN, so the copy on each instance is kept.",
@@ -3256,7 +3257,7 @@ SD.bank.push(
       null,
       "Deleting the file clears the error, but the hand-edited settings are lost and replaced by the default.",
       "The permissions section sets owners and modes on installed files. It doesn't decide how existing files are handled."],
-    why: "A file in a target location that the last deployment didn't install fails the deployment by default (DISALLOW). RETAIN keeps the file already on the instance, while an instance without the file gets the revision's copy as usual.",
+    why: "A file in a target location that the last deployment didn't install fails the deployment by default (DISALLOW). RETAIN keeps the file already on the instance, while an instance without the file gets the revision's copy as usual. A retained file is recorded as part of this deployment, so the next one removes it; to keep edits for good, leave the file out of the revision.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_CreateDeployment.html",
       "https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html"] },
 
