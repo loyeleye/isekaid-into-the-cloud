@@ -172,6 +172,10 @@
     setTimeout(blink, 1500); tick();
     return o;
   }
+  const bruHtml = () => `<div class="hs-bru" aria-hidden="true" data-pose="three"><div class="hs-fig"><img class="hs-body" src="${BODY('three')}" alt=""><img class="hs-face" src="${FACE('three', 'neutral')}" data-k="three:neutral" alt=""></div></div>`;
+  // For the hunt's other screens in the same street (the bounty board, the Debrief): Bru's markup, and bruOn(root)
+  // on a root that holds .hs-bru and a .hs-say bubble ({ react(mood, ms), say(html), turn('front'|'three'|'side') }).
+  B.bruHtml = bruHtml; B.bruOn = bruOn; B.STREET = STREET; B.SPOT = SPOT;
   // The scene: the HUD on top, the street (it scrolls sideways on a narrow screen), Bru in front at the left, and
   // the satchel along the bottom. Opened once per board and updated in place, so Bru keeps breathing between turns.
   function sceneOpen(b, opts) {
@@ -180,7 +184,7 @@
     const body = U.panel(`<div class="hb hs" data-board="${esc(b.id)}">
         <div class="hs-hud"></div>
         <div class="hs-view"><div class="hs-street"><img class="hs-bg" src="${STREET}" alt="" aria-hidden="true" decoding="async"><div class="hs-layer"></div></div></div>
-        <div class="hs-bru" aria-hidden="true" data-pose="three"><div class="hs-fig"><img class="hs-body" src="${BODY('three')}" alt=""><img class="hs-face" src="${FACE('three', 'neutral')}" data-k="three:neutral" alt=""></div></div>
+        ${bruHtml()}
         <p class="hs-say hb-bru hb-say" aria-live="polite" hidden></p>
         <div class="hs-cut"></div>
         <div class="hs-sat"></div></div>`,
