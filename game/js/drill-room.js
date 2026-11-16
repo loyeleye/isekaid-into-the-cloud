@@ -74,7 +74,7 @@
   }
   R.kickOver = () => { if (!overRaf) overRaf = requestAnimationFrame(overLoop); };
   // A bare room for Uptima's lines: no stations or gauges, the leads faded behind her.
-  R.scene = pose => `<div class="rm talk scene" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
+  R.scene = (pose, talk = true) => `<div class="rm${talk ? ' talk' : ''} scene" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
   // The room. o: { at, zoom, notes: [[station, who, text]], lines: [[who, text]], m, play }
   R.html = function (f, e, o) {
     o = o || {};
@@ -279,7 +279,7 @@
     .rm-say.bad { border-color: #9e3a34; background: #fbe4dc; }
     .rm-note { background: #fff3c4; }
     @keyframes rmsay { from { transform: translateY(.8cqi) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-    .rm-front { position: absolute; inset: 0; z-index: 1; transition: filter .45s ease; }
+    .rm-front { position: absolute; inset: 0; z-index: 1; transition: filter .6s ease, opacity .6s ease; }
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
     .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none;
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
@@ -290,18 +290,19 @@
     .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
     .rm-cloud .up-fig img { object-position: center; }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
-    .rm-up { display: none; }
-    .rm.talk .rm-up { display: block; }
-    .rm.talk .rm-cloud { display: none; }
+    /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
+    .rm-up { opacity: 0; transform: translate(99%, -40%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    .rm.talk .rm-up { opacity: 1; transform: none; }
+    .rm-cloud { transition: opacity .45s ease; }
+    .rm.talk .rm-cloud { opacity: 0; }
     .rm-over { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
     /* While she talks: the room behind the leads (room-empty.webp, the plate with the leads painted out and
        softened), then her, then the leads alone (the room cut through room-leads-matte.png), see-through and
        out of focus. She stays behind the counter. */
-    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: none; user-select: none; pointer-events: none; filter: brightness(.8); }
-    .rm.talk .rm-back { display: block; }
+    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; user-select: none; pointer-events: none; filter: brightness(.8); }
     .rm.talk .rm-front { z-index: 3; opacity: .5; filter: blur(.25cqi);
       -webkit-mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; }
-    .rm.talk .rm-over { display: none; }
+    .rm.talk .rm-over { opacity: 0; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
     .up-fig .up-k, .up-fig .up-t { opacity: 0; }

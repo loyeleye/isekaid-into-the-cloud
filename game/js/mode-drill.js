@@ -43,20 +43,30 @@
   // opening collapsing at "...okay"). One tap per beat; then done().
   function cutScreen(beats, done) {
     let i = 0;
+    const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const show = () => {
       const [pose, text] = beats[i];
       const m = /^([\w-]+)(?:>([\w-]+)@(\d+))?$/.exec(pose) || [0, pose];
+      const first = i === 0 && !calm;
       const b = panel(`<div class="dr-cut">
-        <div class="dr-cut-room">${RM().scene(m[1])}</div>
+        <div class="dr-cut-room">${RM().scene(m[1], !first)}</div>
         <button class="dr-cut-box" id="dr-cut-next" data-vo="${esc('uptima|' + text)}"><b>Uptima</b><span>${esc(text)}</span><i aria-hidden="true">▼</i></button></div>`);
-      const fig = b.querySelector('.up-fig');
+      const rm = b.querySelector('.rm'), fig = b.querySelector('.rm-up .up-fig');
+      // She glides down from her cloud to the desk as the scene opens, and floats back up when it closes.
+      if (first) setTimeout(() => rm.classList.add('talk'), 250);
       if (fig) fig.classList.add('talking');
       RM().mount(b.querySelector('.dr-cut-room'));
       const talkMs = Math.min(11000, 800 + text.length * 62);
       const t1 = m[2] ? setTimeout(() => RM().setPose(fig, m[2]), +m[3]) : 0;
       const t2 = setTimeout(() => fig && fig.classList.remove('talking'), talkMs);
       const next = b.querySelector('#dr-cut-next');
-      next.onclick = () => { clearTimeout(t1); clearTimeout(t2); i++; if (i < beats.length) show(); else done(); };
+      next.onclick = () => {
+        clearTimeout(t1); clearTimeout(t2); i++;
+        if (i < beats.length) return show();
+        if (calm) return done();
+        next.disabled = true; rm.classList.remove('talk');
+        setTimeout(done, 750);
+      };
       next.focus({ preventScroll: true });
     };
     show();

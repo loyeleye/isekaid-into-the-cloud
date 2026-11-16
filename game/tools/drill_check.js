@@ -66,7 +66,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // A run plays out on the board (js/drill-board.js); the checks run it fast and wait for the result.
   const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing, #panel .rm.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
   // Uptima's cutscenes (her lines): one tap each.
-  const cut = async () => { for (let i = 0; i < 4 && await page.$('#dr-cut-next'); i++) await page.click('#dr-cut-next'); };
+  const cut = async () => {   // tap through Uptima's lines; the last tap floats her back to her cloud first
+    for (let i = 0; i < 4 && await page.$('#dr-cut-next:not([disabled])'); i++) { await page.click('#dr-cut-next:not([disabled])'); await page.waitForTimeout(60); }
+    await page.waitForFunction(() => !document.querySelector('#dr-cut-next[disabled]'), null, { timeout: 5000 });
+  };
   const deploy = async () => { await page.click('#dr-deploy'); await settle(); };
   const postmortem = async (right, conf) => {
     await page.click('#dr-next');
