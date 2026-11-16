@@ -90,16 +90,92 @@
     }
     const acting = mon && f && f.evs.some(e => ACTS[mon].includes(e.type));
     const pops = fx && fx.pops[tile] ? fx.pops[tile].map((p, k) => `<span class="hb-pop${p[1] ? ' ' + p[1] : ''}" style="--k:${k}">${esc(p[0])}</span>`).join('') : '';
-    return `<li class="hb-tile hb-place${mon ? ' hb-mon' : ''}" data-tile="${tile}"><div class="hb-scn">
-      <span class="hb-pic"><span class="hb-emo" aria-hidden="true">${TILE_IC[tile]}</span><img src="${PLACE(tile)}" alt="" aria-hidden="true" width="128" height="128" decoding="async" onerror="this.parentNode.classList.add('noimg');this.remove()"></span>
-      ${mon ? sprite(mon, 'hb-stand' + (acting ? ' hb-bite' : '')) : ''}
-      <span class="hb-tn"><b>${TILE[tile]}</b>${sign ? `<span class="hb-sign">${esc(sign)}</span>` : ''}${mon ? `<span class="hb-monb">${esc(HC.MONSTERS[mon].name)}</span>` : ''}</span>
-      <span class="hb-live">${live}</span>${pops ? `<span class="hb-pops" aria-hidden="true">${pops}</span>` : ''}</div>${chips ? `<span class="hb-chips">${chips}</span>` : ''}</li>`;
+    // A spot on the street (see SPOT): the monster stands on the cobbles, the live state floats over the place, the
+    // items you placed hang there (tap one to take it back), and harm pops up above it.
+    const items = here.map(id => `<button class="hb-chip hs-item" data-un="${esc(id)}" aria-label="Take back ${esc(C[id].name)}">${cardIcon(id)}<span class="hs-in">${esc(C[id].name)} <span aria-hidden="true">✕</span></span></button>`).join('');
+    const [x, y] = SPOT[tile];
+    return `<div class="hb-tile hb-place hs-spot${mon ? ' hb-mon' : ''}" data-tile="${tile}" style="--x:${x}%;--y:${y}%">
+      ${mon ? `<span class="hs-mon">${sprite(mon, 'hb-stand' + (acting ? ' hb-bite' : ''))}</span>` : ''}
+      <div class="hs-info"><span class="hb-tn"><b>${TILE[tile]}</b>${sign ? `<span class="hb-sign">${esc(sign)}</span>` : ''}${mon ? `<span class="hb-monb">${esc(HC.MONSTERS[mon].name)}</span>` : ''}</span>
+      <span class="hb-live">${live}</span>${pops ? `<span class="hb-pops" aria-hidden="true">${pops}</span>` : ''}</div>
+      ${items ? `<span class="hb-chips hs-items">${items}</span>` : ''}</div>`;
   }
   const lampHtml = (oil, lamp, drop) => `<span class="hb-lamp" role="img" aria-label="Uptime lamp: ${oil} of ${lamp} oil">${Array.from({ length: lamp }, (_, k) => `<i class="${k < oil ? 'on' : k < oil + (drop | 0) ? 'drip' : ''}"></i>`).join('')}</span>`;
   // The road between two places, with this turn's crates travelling it (and bounced ones coming back up).
-  const roadHtml = (n, back) => `<li class="hb-road" aria-hidden="true"><span class="hb-way">${rep(Math.min(n | 0, 4), k => `<i class="hb-mv" style="--k:${k}"></i>`)}${rep(Math.min(back | 0, 4), k => `<i class="hb-mv back" style="--k:${k}"></i>`)}</span></li>`;
-  const boardHtml = (b, st, f, spec, fx) => `<ol class="hb-row">${b.tiles.map((t, i) => tileHtml(b, t, st, f, spec, fx) + (i < b.tiles.length - 1 ? roadHtml(fx && fx.roads[i], fx && fx.back[i]) : '')).join('')}</ol>`;
+  // ---- The street (Ladi, Nov 16: "draw full sized characters in the setting... living, breathing, blinking and
+  // reacting to you"; "It's still box heavy rather than showing things live in a scene") ----
+  // One painted night street (assets/img/hunt/street.webp) with a spot for each kind of tile, left to right. A board
+  // lights the spots it uses; the rest stay dark. Crates roll along the cobbles between lit spots during a run.
+  // SPOT: x and y (the spot's foot) as % of the street picture.
+  const SPOT = { callers: [10, 66], gate: [29, 66], queue: [44, 66], fn: [60, 66], table: [76, 64], door: [91, 64] };
+  const STREET = 'assets/img/hunt/street.webp';
+  const ROAD_Y = 84;
+  const roadHtml = (b, fx) => {
+    if (!fx) return '';
+    return b.tiles.slice(0, -1).map((t, i) => {
+      const a = SPOT[t][0], z = SPOT[b.tiles[i + 1]][0];
+      return rep(Math.min(fx.roads[i] | 0, 4), k => `<i class="hs-mv" style="--a:${a}%;--b:${z}%;--k:${k}"></i>`) +
+        rep(Math.min(fx.back[i] | 0, 4), k => `<i class="hs-mv back" style="--a:${z}%;--b:${a}%;--k:${k}"></i>`);
+    }).join('');
+  };
+  const boardHtml = (b, st, f, spec, fx) => Object.keys(SPOT).filter(t => !b.tiles.includes(t)).map(t => `<span class="hs-dark" style="--x:${SPOT[t][0]}%" aria-hidden="true"></span>`).join('') +
+    `<div class="hb-row hs-row" role="list" aria-label="The board: ${b.tiles.map(t => TILE[t]).join(', then ')}">${b.tiles.map(t => tileHtml(b, t, st, f, spec, fx)).join('')}</div><div class="hs-road" aria-hidden="true">${roadHtml(b, fx)}</div>`;
+
+  // ---- Bru, full size in the street ----
+  // A body (assets/img/hunt/bru/body.webp) and a face on top that changes: she breathes (CSS), blinks every few
+  // seconds, moves her mouth while a new line comes up, and reacts: smile when you place an item, frown at a refusal
+  // or an escape, wince when the lamp burns oil, grin at a catch.
+  const FACES = ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'];
+  const FACE = m => `assets/img/hunt/bru/face-${m}.webp`;
+  FACES.forEach(m => { const i = new Image(); i.src = FACE(m); });
+  const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function bruOn(root) {
+    const el = root.querySelector('.hs-bru'), face = el.querySelector('.hs-face'), say = root.querySelector('.hs-say');
+    const o = { mood: 'neutral', until: 0, flap: 0, line: null };
+    const show = m => { if (face.dataset.m !== m) { face.dataset.m = m; face.src = FACE(m); } el.dataset.mood = m; };
+    const base = () => (Date.now() < o.until ? o.mood : 'neutral');
+    o.react = (m, ms) => { o.mood = m; o.until = Date.now() + (ms || 1400); show(m); };
+    o.say = (html) => {
+      if (html === o.line) return;
+      o.line = html; say.innerHTML = html || ''; say.hidden = !html;
+      if (!html || still()) return;
+      let n = 0; clearInterval(o.flap);
+      o.flap = setInterval(() => { if (!el.isConnected || ++n > 8) { clearInterval(o.flap); show(base()); return; } if (base() === 'neutral') show(n % 2 ? 'talk' : 'neutral'); }, 150);
+    };
+    const blink = () => {
+      if (!el.isConnected) return;
+      const m = base();
+      if (m === 'neutral' || m === 'smile') { show('blink'); setTimeout(() => el.isConnected && show(base()), 130); }
+      setTimeout(blink, 2200 + Math.random() * 3600);
+    };
+    const tick = () => { if (!el.isConnected) return; if (Date.now() >= o.until && el.dataset.mood !== 'neutral' && el.dataset.mood !== 'talk' && el.dataset.mood !== 'blink') show('neutral'); setTimeout(tick, 250); };
+    setTimeout(blink, 1500); tick();
+    return o;
+  }
+  // The scene: the HUD on top, the street (it scrolls sideways on a narrow screen), Bru in front at the left, and
+  // the satchel along the bottom. Opened once per board and updated in place, so Bru keeps breathing between turns.
+  function sceneOpen(b, opts) {
+    const root0 = document.querySelector('#panel .hs');
+    if (root0 && root0.dataset.board === b.id && B._scene && B._scene.root === root0) return B._scene;
+    const body = U.panel(`<div class="hb hs" data-board="${esc(b.id)}">
+        <div class="hs-hud"></div>
+        <div class="hs-view"><div class="hs-street"><img class="hs-bg" src="${STREET}" alt="" aria-hidden="true" decoding="async"><div class="hs-layer"></div></div></div>
+        <div class="hs-bru" aria-hidden="true"><img class="hs-body" src="assets/img/hunt/bru/body.webp" alt=""><img class="hs-face" src="${FACE('neutral')}" data-m="neutral" alt=""></div>
+        <p class="hs-say hb-bru hb-say" aria-live="polite" hidden></p>
+        <div class="hs-cut"></div>
+        <div class="hs-sat"></div></div>`,
+      { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin hs-win' });
+    const root = body.querySelector('.hs');
+    const sc = B._scene = { root, body, hud: root.querySelector('.hs-hud'), view: root.querySelector('.hs-view'), layer: root.querySelector('.hs-layer'), sat: root.querySelector('.hs-sat'), cut: root.querySelector('.hs-cut') };
+    sc.bru = bruOn(root);
+    // Room for Bru on a wide screen: the street starts at her shoulder, so she stands in front of it, not on a spot.
+    const fit = () => { if (!root.isConnected) return ro.disconnect(); const wide = innerWidth > 700, w = root.querySelector('.hs-bru').getBoundingClientRect().width; root.style.setProperty('--bw', wide ? Math.round(w * .62) + 'px' : '0px'); root.style.setProperty('--bruw', Math.round(w) + 'px'); };
+    const ro = new ResizeObserver(fit); ro.observe(root); fit();
+    // On a narrow screen, start with the monster's spot in view.
+    const m = b.mons.map(x => HC.MONSTERS[x].tile).find(t => SPOT[t]) || b.tiles[0];
+    requestAnimationFrame(() => { const v = sc.view, w = v.scrollWidth; if (w > v.clientWidth) v.scrollLeft = Math.max(0, w * SPOT[m][0] / 100 - v.clientWidth * .55); });
+    return sc;
+  }
   // The board as a night street: places joined by a cobbled road, the live state as things in each place.
   const sceneCss = document.createElement('style');
   sceneCss.textContent = `
@@ -262,7 +338,7 @@
   function planScreen(b, st, opts) {
     return new Promise(done => {
       const spec = b.make(st.seed);
-      let note = st.note || '';
+      let note = st.note || '', mood = null;
       const draw = () => {
         const spent = HC.costOf(st.placed), left = b.budget - spent;
         // An item card: the drawn icon, the name and the cost lead; the AWS setting it makes is one small line under
@@ -276,17 +352,16 @@
                 <span class="hb-where" title="Goes on the ${where}"><span aria-hidden="true">${TILE_IC[c.tile]}</span><span class="sr">, goes on the ${where}</span></span></span>
               ${ref ? '<span class="hb-state">Refused here</span>' : on ? `<span class="hb-state">On the ${where} ✓</span>` : ''}</button>`;
         }).join('');
-        const body = U.panel(`<div class="hb hb-cols"><div class="hb hb-l">
-          <p class="hb-ctx">${esc(opts.ctx || '')}</p>
-          <p class="hb-title"><b>${esc(b.title)}</b></p><p class="small">${esc(b.line)}</p>
-          ${b.mons.map(m => `<p class="hb-mline">${sprite(m, 'hb-sm')} <b>${esc(HC.MONSTERS[m].name)}</b> <span class="small">${esc(HC.MONSTERS[m].what)}</span></p>`).join('')}
-          <div class="hb-hud"><span>${lampHtml(st.oil, b.lamp)}</span><span class="small"><b>🪙 ${left}</b> of ${b.budget} left · Deploy ${st.deploy} of ${HC.deploysOf(b)}</span></div>
-          ${note ? `<p class="hb-bru" aria-live="polite">${note}</p>` : ''}
-          ${boardHtml(b, st, null, spec)}</div><div class="hb hb-r">
-          <p class="td-head">Your hand</p><div class="hb-hand">${hand}</div>
-          <button class="primary hb-go" id="hb-deploy">Deploy</button>
-          ${st.deploy === 1 && !st.placed.length ? '<p class="muted small">Once you deploy, the run plays out on its own. You can change your plan afterwards if the fix didn\'t hold.</p>' : ''}</div></div>`,
-        { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
+        const sc = sceneOpen(b, opts), body = sc.root;
+        if (sc.root.classList.contains('cut')) sc.bru.react('neutral', 0);
+        sc.root.classList.remove('run', 'cut');
+        sc.hud.innerHTML = `<span class="hs-lamp">${lampHtml(st.oil, b.lamp)}</span>
+          <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')}</span><b class="hb-title">${esc(b.title)}</b></span>
+          <span class="hs-coins"><b>🪙 ${left}</b> of ${b.budget} left · Deploy ${st.deploy} of ${HC.deploysOf(b)}</span>`;
+        sc.layer.innerHTML = boardHtml(b, st, null, spec);
+        sc.sat.innerHTML = `<p class="td-head hs-sh">Your hand <span class="small muted">· tap an item to place it at its spot</span></p><button class="primary hb-go" id="hb-deploy">Deploy</button><div class="hb-hand">${hand}</div>`;
+        sc.bru.say(note || `<b>Bru:</b> ${esc(b.line)}${st.deploy === 1 && !st.placed.length ? ' Pick your items, then Deploy. The run plays out on its own.' : ''}`);
+        if (mood) { sc.bru.react(mood[0], mood[1]); mood = null; }
         body.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
           const id = el.dataset.card, c = C[id];
           if (st.placed.includes(id)) { st.placed = st.placed.filter(x => x !== id); note = ''; sfx('blip'); return save(); }
@@ -294,16 +369,27 @@
           if (why) {
             (st.refused = st.refused || {})[id] = 1;
             note = `<b>Bru:</b> ${esc(teachOnce('refused') || '')} ${esc(why)}`;
-            sfx('resist'); return save();
+            mood = ['frown', 2600]; sfx('resist'); return save();
           }
-          if (c.cost > b.budget - HC.costOf(st.placed)) { note = '<b>Bru:</b> Not enough coins for that one. Take something back first.'; return save(); }
-          st.placed = st.placed.concat(id); note = ''; sfx('card'); save();
+          if (c.cost > b.budget - HC.costOf(st.placed)) { note = '<b>Bru:</b> Not enough coins for that one. Take something back first.'; mood = ['frown', 1600]; return save(); }
+          st.placed = st.placed.concat(id); note = `<b>Bru:</b> ${esc(C[id].name)}, on the ${TILE[C[id].tile].toLowerCase()}.`; mood = ['smile', 1500]; sfx('card'); save();
         });
         body.querySelectorAll('[data-un]').forEach(el => el.onclick = () => { st.placed = st.placed.filter(x => x !== el.dataset.un); note = ''; save(); });
         body.querySelector('#hb-deploy').onclick = () => { st.note = ''; if (opts.onSave) opts.onSave(st); done(); };
       };
       const save = () => { if (opts.onSave) opts.onSave(st); draw(); };
       draw();
+      // A new board opens on a cutscene: no HUD, the street leans in on the monster, Bru sets it up. Tap or wait.
+      if (!st.intro) {
+        st.intro = 1; if (opts.onSave) opts.onSave(st);
+        const sc = B._scene, m = b.mons[0], t = HC.MONSTERS[m].tile;
+        sc.root.style.setProperty('--fx', SPOT[t][0] + '%');
+        sc.root.classList.add('intro');
+        sc.bru.say(`<b>Bru:</b> ${esc(HC.MONSTERS[m].name)}. ${esc(HC.MONSTERS[m].what)} ${esc(b.line)}`);
+        const end = () => { if (sc.root.classList.contains('intro')) { sc.root.classList.remove('intro'); draw(); } };
+        sc.root.addEventListener('click', end, { once: true });
+        setTimeout(end, B.STEP_MS * 7);
+      }
     });
   }
   function teachOnce(type) { const t = taught(); if (t[type] || !HC.TEACH[type]) return ''; t[type] = 1; S.persist(); return HC.TEACH[type]; }
@@ -340,12 +426,15 @@
         say = `<span class="muted">Turn ${f.t}:</span> ${esc(sum.join(' · '))}`;
       }
       if (!skip() || k === res.frames.length) {
-        const body = U.panel(`<div class="hb hb-cols"><div class="hb hb-l">
-          <p class="hb-ctx">${esc(opts.ctx || '')} · Deploy ${st.deploy}</p>
-          <div class="hb-hud"><span>${lampHtml(f.oil, b.lamp, fx.drop)}</span><span class="small"><b>Turn ${f.t}</b> of ${HC.TICKS + HC.DRAIN}${f.t > HC.TICKS ? ' · draining' : ''}</span></div>
-          <p class="hb-bru hb-say" aria-live="polite">${say}</p>
-          ${boardHtml(b, st, f, spec, fx)}</div><div class="hb hb-r">
-          <button class="ghost" id="hb-skip">Skip to the end</button></div></div>`, { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
+        const sc = sceneOpen(b, opts);
+        sc.root.classList.add('run'); sc.root.classList.remove('cut', 'intro');
+        sc.hud.innerHTML = `<span class="hs-lamp">${lampHtml(f.oil, b.lamp, fx.drop)}</span>
+          <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')} · Deploy ${st.deploy}</span><b class="hb-title">${esc(b.title)}</b></span>
+          <span class="hs-coins"><b>Turn ${f.t}</b> of ${HC.TICKS + HC.DRAIN}${f.t > HC.TICKS ? ' · draining' : ''}</span>`;
+        sc.layer.innerHTML = boardHtml(b, st, f, spec, fx);
+        if (!sc.sat.querySelector('#hb-skip')) sc.sat.innerHTML = '<button class="ghost" id="hb-skip">Skip to the end</button>';
+        sc.bru.say(say);
+        if (fx.drop) sc.bru.react('wince', 900); else if (kinds.dlq || kinds.dupeBlocked || kinds.blocked) sc.bru.react('smile', 1200);
         if (f.evs.some(e => HC.COST[e.type])) sfx('hit'); else if (f.evs.some(e => e.type === 'dlq')) sfx('sparkle');
         await wait(skip() ? 0 : B.STEP_MS);
         if (opts.gone && opts.gone()) return false;
@@ -381,7 +470,11 @@
       const can = !res.won && left > 0 && res.oilLeft > 0;
       const head = res.won ? `CAUGHT ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}` : res.out ? 'THE LAMP WENT OUT' : 'THE FIX DIDN\'T HOLD';
       const stat = (ic, n, what, cls) => `<span class="hb-st${cls ? ' ' + cls : ''}"><span class="hb-sti" aria-hidden="true">${ic}</span><b>${n}</b><small>${what}</small></span>`;
-      const body = U.panel(`<div class="hb hb-after">
+      // The end of a run is a cutscene over the street: letterbox, the verdict, the monster in a jar or running
+      // off, Bru's reaction and line, and what each item really did.
+      const sc = sceneOpen(b, opts), body = sc.root;
+      sc.root.classList.remove('run', 'intro'); sc.root.classList.add('cut');
+      sc.cut.innerHTML = `<div class="hb hb-after">
         <div class="verdict-row"><div class="verdict ${res.won ? 'ok' : 'bad'}">${head}</div></div>
         <div class="hb-stats"><span class="hb-st hb-stl">${lampHtml(res.oilLeft, b.lamp)}<small>oil ${res.oilLeft} of ${b.lamp}</small></span>
           <span class="hb-vs">${stat('🏆', res.score, 'score', 'hb-big')}${par ? `<span class="hb-vsx" aria-hidden="true">vs</span>${stat('⛳', par.score, 'par')}` : ''}</span>
@@ -391,8 +484,11 @@
         ${res.won && stars < 3 ? `<p class="small muted">${st.deploy > 1 ? 'Catch it on the first deploy for 2 stars.' : 'Par is the best plan within budget. A cheaper plan, or one that burns less oil, gets there.'}</p>` : ''}
         ${can ? `<p class="hb-left"><span class="hb-pips" aria-hidden="true">${'▲'.repeat(left)}</span> <b>${left} deploy${left === 1 ? '' : 's'} left</b> <span class="small">· the oil you burned stays burned</span></p>` : ''}
         ${!res.won && !can ? '<p class="small">No deploys or oil left. It escapes.</p>' : ''}
-        <button class="primary hb-go" id="hb-next">${res.won ? (opts.debrief ? 'Debrief: why did that work?' : 'Done') : can ? 'Change the plan' : 'Continue'}</button></div>`,
-      { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
+        <button class="primary hb-go" id="hb-next">${res.won ? (opts.debrief ? 'Debrief: why did that work?' : 'Done') : can ? 'Change the plan' : 'Continue'}</button></div>`;
+      sc.sat.innerHTML = '';
+      const bodyNext = sc.cut.querySelector('#hb-next');
+      sc.bru.react(res.won ? 'grin' : 'frown', 1e9);
+      sc.bru.say(`<b>Bru:</b> ${res.won ? (stars === 3 ? 'Lid on. Perfect.' : 'Lid on. Got it.') : can ? 'It got away. Change the plan?' : 'Gone into the fog.'}`);
       if (res.won) sfx('levelup'); else sfx('wrong');
       body.querySelector('#hb-next').onclick = () => done({ again: can, stars });
     });
@@ -503,6 +599,123 @@
       save();
     }
   };
+
+
+  // The street scene's layout. The panel's window is the whole stage (js/mode-stage.js); here the scene fills it.
+  const hsCss = document.createElement('style');
+  hsCss.textContent = `
+    .win.hs-win > .win-b { padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; }
+    .hs { position: relative; flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; overflow: hidden; color: #efe6d2; }
+    .hs .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    /* HUD */
+    .hs-win .win-h > span:first-child { display: none; }
+    .hs-hud { position: relative; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 14px; padding: 6px 14px;
+      background: linear-gradient(rgba(6, 5, 10, .85), rgba(6, 5, 10, 0)); text-shadow: 0 1px 3px #000; font-size: 14px; }
+    .hs-title { display: grid; justify-items: center; text-align: center; flex: 1; min-width: 0; }
+    .hs-title .hb-ctx { font-size: 11px; opacity: .7; } .hs-title .hb-title { font: 700 17px/1.15 var(--f-head, serif); color: #f0d68a; }
+    .hs-coins { white-space: nowrap; }
+    /* The street: as tall as the room allows; sideways scroll when it's wider than the screen */
+    .hs-view { position: relative; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; overscroll-behavior-x: contain; container-type: size;
+      background: linear-gradient(rgba(6, 5, 10, .5), rgba(6, 5, 10, .5)), url(${STREET}) left bottom / auto 100% no-repeat; }
+    /* The street keeps the picture's shape (the spots are % of it): as tall as the view, or as wide as what's right of
+       Bru, whichever is bigger, sitting on the bottom edge. --bw: room kept for Bru on a wide screen (set from JS). */
+    .hs-street { position: absolute; bottom: 0; left: var(--bw, 0px); width: max(calc(100cqw - var(--bw, 0px)), calc(100cqh * 1584 / 672)); aspect-ratio: 1584 / 672;
+      transform-origin: var(--fx, 50%) 70%; transition: transform .8s ease; }
+    .hs-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; }
+    .hs-layer { position: absolute; inset: 0; }
+    .hs-dark { position: absolute; top: 0; bottom: 0; left: calc(var(--x) - 9%); width: 18%; background: radial-gradient(60% 60% at 50% 60%, rgba(6, 5, 12, .72), rgba(6, 5, 12, .45) 70%, transparent); pointer-events: none; }
+    .hs-row { position: absolute; inset: 0; margin: 0; padding: 0; background: none; box-shadow: none; border-radius: 0; display: block; }
+    .hs-spot { position: absolute; left: var(--x); top: var(--y); width: 0; height: 0; color: #efe6d2; }
+    .hs-mon { position: absolute; left: 0; top: 0; transform: translate(-50%, -88%); }
+    .hs-mon .hb-spr { position: static; width: clamp(72px, 9vw, 140px); height: auto; transform: none; image-rendering: pixelated; filter: drop-shadow(0 0 10px rgba(255, 70, 40, .6)) drop-shadow(0 6px 4px rgba(0, 0, 0, .7)); animation: hsLurk 2.6s ease-in-out infinite; }
+    .hs-mon .hb-spr.hb-bite { animation: hsBite .35s ease-out; filter: drop-shadow(0 0 14px rgba(255, 40, 30, 1)); }
+    @keyframes hsLurk { 50% { transform: translateY(-3px) scale(1.02); } }
+    @keyframes hsBite { 40% { transform: scale(1.25) rotate(-5deg); } }
+    .hs-info { position: absolute; left: 0; bottom: calc(100% + clamp(70px, 12vh, 150px)); transform: translateX(-50%); display: grid; justify-items: center; gap: 3px; width: max-content; max-width: 30vw; text-align: center; }
+    .hs-spot .hb-tn { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; align-items: baseline; font-size: 12px; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+    .hs-spot .hb-tn b { font: 700 11px/1 var(--f-head, serif); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border: 1px solid #8a6a2a; border-radius: 3px; background: linear-gradient(#3a2c14, #24190c); color: #f0d68a; }
+    .hs-spot .hb-monb { color: #ff9a7a; font-weight: 800; }
+    .hs-spot .hb-sign { color: #e6d3a6; }
+    .hs-spot .hb-live { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px; padding: 4px 8px; border-radius: 10px; background: rgba(8, 6, 12, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+    .hs-spot .hb-live:empty { display: none; }
+    .hs-items { position: absolute; left: 0; top: 4px; transform: translateX(-50%); display: flex; gap: 4px; }
+    .hs-item { display: grid; justify-items: center; gap: 1px; padding: 2px 4px; border: 1px solid #c9a24a; border-radius: 8px; background: rgba(30, 22, 10, .8); color: #ffe2a0; font: 700 10px var(--f-body, sans-serif); cursor: pointer; max-width: 92px; }
+    .hs-item .hb-ic { width: 30px; height: 30px; }
+    .hs-item .hs-in { white-space: normal; line-height: 1.1; }
+    .hs-spot .hb-pops { position: absolute; left: 0; bottom: calc(100% + clamp(130px, 22vh, 240px)); transform: translateX(-50%); }
+    /* crates on the cobbles between spots */
+    .hs-road { position: absolute; inset: 0; pointer-events: none; }
+    .hs-mv { position: absolute; top: ${ROAD_Y}%; left: var(--a); width: 14px; height: 14px; margin: -7px; border: 2px solid #5a3e1c; border-radius: 2px; background: #e2b878;
+      animation: hsRoll ${'${'}B.STEP_MS}ms linear both; animation-delay: calc(var(--k) * 60ms); }
+    .hs-mv.back { background: #d0452f; border-color: #5a1a10; }
+    @keyframes hsRoll { from { left: var(--a); } to { left: var(--b); } }
+    /* Bru */
+    .hs-bru { position: absolute; z-index: 3; left: max(4px, 2vw); bottom: 0; height: min(78%, 620px); aspect-ratio: 341 / 893; pointer-events: none;
+      transform-origin: 50% 100%; animation: hsBreathe 3.8s ease-in-out infinite; filter: drop-shadow(0 0 18px rgba(0, 0, 0, .6)); }
+    .hs-body { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .hs-face { position: absolute; left: 37.83%; top: -.45%; width: 46.33%; height: 21.84%; }
+    @keyframes hsBreathe { 50% { transform: scale(1.006, 1.014); } }
+    .hs-bru[data-mood="wince"] { animation: hsFlinch .4s ease-out, hsBreathe 3.8s ease-in-out .4s infinite; }
+    @keyframes hsFlinch { 30% { transform: translateX(-6px) rotate(-1.5deg); } }
+    .hs-bru[data-mood="grin"] { animation: hsHop .6s ease-out 2, hsBreathe 3.8s ease-in-out 1.2s infinite; }
+    @keyframes hsHop { 40% { transform: translateY(-10px); } }
+    .hs-say { position: absolute; z-index: 5; left: calc(max(4px, 2vw) + min(78%, 620px) * .36); bottom: calc(min(78%, 620px) * .74); max-width: min(420px, 46vw); margin: 0;
+      padding: 10px 14px; border: 2px solid #2a2018; border-radius: 16px; background: #fbf5e3; pointer-events: none; color: #2a2018; font-size: 15px; line-height: 1.35; box-shadow: 0 6px 18px rgba(0, 0, 0, .55); }
+    .hs-say::before { content: ''; position: absolute; left: -12px; bottom: 14px; border: 8px solid transparent; border-right: 12px solid #2a2018; }
+    .hs-say::after { content: ''; position: absolute; left: -8px; bottom: 16px; border: 6px solid transparent; border-right: 10px solid #fbf5e3; }
+    .hs-say[hidden] { display: none; }
+    .hs-say .muted { color: #6a5a48; }
+    /* the satchel: your items along the bottom, Deploy at the end */
+    .hs-sat { position: relative; z-index: 4; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 8px 14px 10px max(14px, var(--bw, 0px));
+      background: linear-gradient(rgba(20, 13, 6, 0), rgba(20, 13, 6, .9) 30%), repeating-linear-gradient(0deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 6px); }
+    .hs-sat:empty { display: none; }
+    .hs-sat .hb-hand { grid-column: 1 / -1; }
+    .hs-sat .hs-sh { margin: 0; color: #e6d3a6; font-size: 13px; text-shadow: 0 1px 2px #000; }
+    .hs-sat .hs-sh .muted { color: #b7a98f; }
+    .hs-sat .hb-hand { display: flex !important; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; scroll-snap-type: x proximity; grid-template-columns: none !important; }
+    .hs-sat .hb-card { flex: 0 0 auto; width: 150px; scroll-snap-align: start; }
+    .hs-sat .hb-go { width: auto; min-width: 140px; margin: 0; }
+    .hs-sat #hb-skip { grid-column: 2; }
+    /* intro cutscene: letterbox, no HUD or satchel, lean in on the monster */
+    .hs::before, .hs::after { content: ''; position: absolute; left: 0; right: 0; z-index: 6; height: 0; background: #000; transition: height .6s ease; pointer-events: none; }
+    .hs::before { top: 0; } .hs::after { bottom: 0; }
+    .hs.intro::before, .hs.intro::after, .hs.cut::before, .hs.cut::after { height: 7%; }
+    .hs.intro .hs-hud, .hs.intro .hs-sat { opacity: 0; pointer-events: none; }
+    .hs-hud, .hs-sat { transition: opacity .5s ease; }
+    .hs.intro .hs-street { transform: scale(1.35); }
+    .hs.intro .hs-info { opacity: 0; }
+    /* the end of a run: a cutscene over the street */
+    .hs-cut { display: none; }
+    .hs.cut .hs-cut { display: block; position: absolute; z-index: 5; left: max(14px, calc(min(78%, 620px) * .3 + 2vw)); right: 14px; top: 9%; bottom: 8%; overflow-y: auto; padding: 4px 6px 10px;
+      background: radial-gradient(80% 70% at 60% 40%, rgba(6, 5, 10, .78), rgba(6, 5, 10, .35)); border-radius: 18px; }
+    .hs.cut .hs-info, .hs.cut .hs-items { opacity: .35; }
+    .hs.cut .hs-say { bottom: auto; top: 10%; left: max(4px, 2vw); max-width: min(260px, 40vw); }
+    .hs.cut .hs-say::before, .hs.cut .hs-say::after { display: none; }
+    .hs-cut .hb-after { gap: 10px; }
+    @media (prefers-reduced-motion: reduce) { .hs-bru, .hs-mon .hb-spr, .hs-mv { animation: none !important; } .hs-street { transition: none; } .hs-mv { left: var(--b); } }
+    /* phones: the street takes the middle and pans; Bru from the waist up at the left, her line by her head; compact items */
+    @media (max-width: 700px) {
+      .hs-hud { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 12px; padding: 4px 10px; }
+      .hs-hud .hs-title { grid-column: 1 / -1; grid-row: 2; justify-items: start; text-align: left; }
+      .hs-hud .hs-coins { justify-self: end; }
+      .hs-title .hb-ctx { display: none; } .hs-title .hb-title { font-size: 14px; }
+      .hb-lamp i { width: 9px; height: 14px; }
+      .hs-bru { height: 52%; left: 0; bottom: 0; }
+      .hs-say { left: calc(var(--bruw, 120px) * .86); right: 8px; bottom: calc(52% * .86); max-width: none; font-size: 13px; padding: 7px 10px; }
+      .hs-sat { padding: 6px 10px 8px; }
+      .hs-sat .hs-sh .muted { display: none; }
+      .hs-sat .hb-go { min-width: 0; padding: 8px 18px; }
+      .hs-sat .hb-card { width: 210px; display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 8px; row-gap: 1px; align-items: start; text-align: left; padding: 6px 8px; }
+      .hs-sat .hb-card > .hb-ic { grid-row: 1 / span 3; width: 38px; height: 38px; }
+      .hs-sat .hb-card .hb-cn { font-size: 13px; text-align: left; }
+      .hs-sat .hb-card .hb-cfg { font-size: 10.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left; }
+      .hs-sat .hb-card .hb-meta { grid-column: 2; }
+      .hs-sat .hb-card .hb-state { grid-column: 1 / -1; }
+      .hs-info { max-width: 46vw; }
+      .hs.cut .hs-cut { left: 8px; right: 8px; top: 8%; bottom: 8%; }
+      .hs.cut .hs-say { display: none; }
+    }`;
+  document.head.appendChild(hsCss);
 
   // ---- Bru's yard: every board, to practise outside the hunt (not on the Wall) ----
   // Starts narrow (L7): the teach boards first; a monster's tight boards open once its teach board is caught, the

@@ -34,7 +34,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const r = await page.evaluate(() => {
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
+      // The street inside .hs-view is a painted panorama that pans sideways on a phone: the view itself must fit.
       document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => {
+        // So does the hand under it, which scrolls sideways as one strip of cards.
+        if ((el.closest('.hs-view') && !el.classList.contains('hs-view')) || (el.closest('.hb-hand') && !el.classList.contains('hb-hand'))) return;
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });
@@ -101,12 +104,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(hand.find(h => h.id === 'dlq').img && /maxReceiveCount 3/.test(hand.find(h => h.id === 'dlq').cfg), 'the DLQ card has its drawn icon, and its setting stays visible');
   await shotAt('hand', '#panel .hb-r');
   const scene = await page.evaluate(() => {
-    const tiles = [...document.querySelectorAll('#panel .hb-place')];
-    return { n: tiles.length, pics: tiles.every(t => t.querySelector('.hb-pic img[src*="place-"][aria-hidden="true"], .hb-pic.noimg .hb-emo')),
-      mon: !!document.querySelector('#panel .hb-place[data-tile="queue"] .hb-spr.hb-stand'), roads: document.querySelectorAll('#panel .hb-road').length,
-      arrows: /↓/.test(document.querySelector('#panel .hb-row').textContent) };
+    const spots = [...document.querySelectorAll('#panel .hs-layer .hs-spot')];
+    return { n: spots.length, bg: !!document.querySelector('#panel .hs-street img.hs-bg[src*="street"]'), bru: !!document.querySelector('#panel .hs-bru img'),
+      mon: !!document.querySelector('#panel .hs-spot[data-tile="queue"] .hs-mon .hb-spr.hb-stand'), road: !!document.querySelector('#panel .hs-road'),
+      arrows: /↓/.test(document.querySelector('#panel .hs-row').textContent) };
   });
-  check(scene.n === 3 && scene.pics && scene.mon && scene.roads === 2 && !scene.arrows, 'the board is a street: each tile a place with its picture (or emoji), the monster standing in the queue, roads between, no arrows');
+  check(scene.n === 3 && scene.bg && scene.bru && scene.mon && scene.road && !scene.arrows, 'the board is a live street: one painted street, Bru standing in it, the monster at the queue, a road, no arrows');
 
   // A look-alike first: the longer visibility timeout.
   await card('vislong');
@@ -191,7 +194,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await shotAt('hand-gate', '#panel .hb-r');
   await page.click('#hb-deploy');
   // Read the stamp and the bucket on the same frame: the run keeps redrawing.
-  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket') && !!p.querySelector('.hb-road .hb-mv.back') && !!p.querySelector('.hb-say[aria-live]') && !p.querySelector('.hb-log'); }, null, { timeout: 5000 }).then(() => true, () => false);
+  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket') && !!p.querySelector('.hs-road .hs-mv.back') && !!p.querySelector('.hb-say[aria-live]') && !p.querySelector('.hb-log'); }, null, { timeout: 5000 }).then(() => true, () => false);
   check(gate, 'the gate: marbles in the bucket, a 429 stamp, crates bouncing back up the road, and one Bru line instead of a log');
   await shot('gate-run');
   await noHScroll('run');
