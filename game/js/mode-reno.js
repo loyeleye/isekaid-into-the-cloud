@@ -498,5 +498,27 @@
     .rn :is(.rn-job, .rn-scroll, .rn-run, .rn-street, .rn-stack, .rn-wallnote, .rn-crack, .rn-cfg, .rn-refused .rn-say, .rn-bridge) { color: #17131f; }
     .rn .rn-run .muted { color: #5a5266; }
   `;
+  // Edge to edge (Ladi, Nov 16: every mode fills the screen like Monster Hunt, PR #179): no window box around the
+  // Renovation's screens. The blueprint sheet is the whole stage under the top bar; the text keeps a readable column,
+  // and on a wide screen Seymour's two runs sit side by side. Scoped to panels holding .rn, so the permit question
+  // (the plain exam screen) and the classic contract loop keep js/mode-stage.js's drafting-table frame.
+  const FULL = 'body.in-mode[data-stage="draft"] #panel:has(.rn)';
+  css.textContent += `
+    /* The stage's generic pressed-button style (js/mode-stage.js) would turn a chosen card translucent blue: keep it gold. */
+    body.in-mode #panel .win .rn :is(.rn-card.on, .rn-seg button.on)[aria-pressed="true"] { background: #ffd98a; border-color: #e0a030; color: #17131f; }
+    ${FULL} { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    ${FULL} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: #1d3d6b; }
+    ${FULL} .win-h { width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #cfe6ff; letter-spacing: .12em; }
+    ${FULL} .win-h > span:first-child { visibility: hidden; }
+    ${FULL} .win-b { border-radius: 0; box-shadow: none; padding: 8px max(16px, calc((100% - 1148px) / 2)) calc(24px + env(safe-area-inset-bottom, 0px)); }
+    ${FULL} .rn { max-width: 1148px; margin: 0 auto; }
+    @media (min-width: 900px) {
+      ${FULL} .rn-runs { display: grid; grid-template-columns: 1fr 1fr; }
+      ${FULL} .rn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+      ${FULL} .rn-knobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+      ${FULL} .rn-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+      ${FULL} .rn-h { width: 64px; height: 66px; } ${FULL} .rn-h .rn-sp { width: 60px; }
+    }`;
   document.head.appendChild(css);
 })();
