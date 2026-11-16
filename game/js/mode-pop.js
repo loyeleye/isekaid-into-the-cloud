@@ -126,6 +126,24 @@
   };
   const NAMES = { dutch: 'Dutch', mira: 'Mira', seoyeon: 'Seo-yeon', kai: 'Kai', freya: 'Freya' };
 
+  // ---- What each night adds (storyboard v7, "Nights"): one new rule set a night. Later nights' code reads this,
+  // never s.night directly, so the order stays in one place. day: the local date (YYYY-MM-DD) the night is played.
+  P.rules = function (n, day) {
+    const d = day || new Date().toISOString().slice(0, 10);
+    const lateTaper = d >= '2026-11-27', bare = d >= '2026-11-28' && d <= '2026-11-29';
+    return {
+      keys: n >= 2,                                   // keys, vaults and the shortcut
+      formats: bare ? [] : n >= 3 ? ['compare', 'spot', 'predict', 'seq'] : n >= 2 ? ['compare', 'spot'] : [],
+      teach: n === 2 ? ['compare', 'spot'] : n === 3 ? ['predict', 'seq'] : [],   // worked and practice items on Lost items
+      maxFormats: bare ? 0 : lateTaper ? 1 : 99,      // format checks a night
+      bigClaim: n >= 3, postmortem: n >= 3,
+      cat: n >= 4, modifiers: n >= 4, homeTurf: n >= 4,
+      unstamped: bare ? 1 : n >= 5 ? 0.25 : 0,        // share of bank checks left unstamped
+      homes: n >= 3 ? ['thornwick', 'peak', 'halcyon', 'arcanum'] : ['thornwick', 'peak'],
+      hunchSays: n >= 3 ? 'Gut says so' : n >= 2 ? 'I can always tell' : 'Trust me'
+    };
+  };
+
   // ---- Picking a night's checks ----
   function score(d) {
     const m = E().lastMock && E().lastMock(), dm = m && m.dom && m.dom[d];
