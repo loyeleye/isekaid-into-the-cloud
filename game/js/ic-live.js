@@ -101,7 +101,7 @@
   }
   function draw(s) {
     if (s.phase === 'done') untune(); else tune();
-    ({ page: pageScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
+    ({ page: pageScreen, play: playScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
   }
 
   // ---- The machine: the incident's parts in request order, each with its settings and what it did last minute ----
@@ -152,10 +152,32 @@
     const ev = x.evidence[p];
     return `<div class="icl-open">${ev ? `<pre class="icl-ev">${esc(ev)}</pre>` : ''}
       ${knobs.map(id => {
-        const kn = x.knobs[id];
-        return `<div class="icl-knob" role="group" aria-label="${esc(kn.name)}"><span class="small"><b>${esc(kn.name)}</b>${kn.unit ? ` (${esc(kn.unit)})` : ''}</span>
-          <span class="icl-vals">${kn.values.map(v => `<button class="${s.k[id] === v.v ? 'on' : ''}" data-knob="${id}" data-v="${v.v}" aria-pressed="${s.k[id] === v.v}">${esc(v.label)}</button>`).join('')}</span></div>`;
+        const kn = x.knobs[id], changed = s.k[id] !== kn.start;
+        return `<div class="icl-knob${changed ? ' changed' : ''}" role="group" aria-label="${esc(kn.name)}"><span class="small"><b>${esc(kn.name)}</b>${kn.unit ? ` (${esc(kn.unit)})` : ''}${changed ? ' <span class="icl-chg">✎ changed</span>' : ''}</span>
+          ${control(id, kn, s.k[id])}</div>`;
       }).join('')}</div>`;
+  }
+  // The knobs as things: stools you tap to reserve, a lever for on and off, a dial for a timeout or a count, a tray
+  // of envelopes for a batch. Every one is a row of buttons underneath (data-knob, data-v), named in words.
+  function control(id, kn, v) {
+    const btn = (val, inner, cls, label) => `<button class="${cls || ''}${v === val ? ' on' : ''}" data-knob="${id}" data-v="${val}" aria-pressed="${v === val}" aria-label="${esc(label || String(val))}">${inner}</button>`;
+    const vals = kn.values.map(o => o.v);
+    if (id === 'reserve') {
+      const snap = i => vals.filter(u => u >= i).sort((a, b) => a - b)[0];
+      const max = Math.max.apply(null, vals);
+      return `<div class="icl-sp"><span class="icl-stools">${Array.from({ length: max }, (_, i) => btn(snap(i + 1), img(i < v ? 'stool-orders' : 'stool', 'icl-stool'), 'icl-sb' + (i < v ? ' res' : ''), `Reserve ${snap(i + 1)}`)).join('')}</span>
+        ${btn(0, 'None', 'icl-none', 'No reservation')}<span class="small muted">Tap a stool to reserve up to it for orders-fn.</span></div>`;
+    }
+    if (vals.length === 2 && vals[0] === 0 && vals[1] === 1) {
+      return `<div class="icl-switch${v ? ' up' : ''}">${kn.values.map(o => btn(o.v, esc(o.label), 'icl-sw', o.label)).join('')}<i aria-hidden="true"></i></div>`;
+    }
+    if (id === 'batch') {
+      return `<div class="icl-tray">${kn.values.map(o => btn(o.v, Array.from({ length: o.v }, () => img('env', 'icl-te')).join(''), 'icl-tb', `${o.v} per batch`)).join('')}</div>`;
+    }
+    // A dial: the pointer turns to the setting; the settings sit around it.
+    const n = kn.values.length, idx = Math.max(0, vals.indexOf(v)), ang = i => -120 + (240 * i) / Math.max(1, n - 1);
+    return `<div class="icl-dial"><div class="icl-face" aria-hidden="true"><i style="transform:rotate(${ang(idx)}deg)"></i></div>
+      <div class="icl-ticks">${kn.values.map(o => btn(o.v, esc(o.label), 'icl-tk', o.label)).join('')}</div></div>`;
   }
   // The minute, turn by turn (30 s each), in words and icons.
   function strip(sum) {
@@ -192,25 +214,90 @@
       s.before = L.run(x, s.k);
       s.predOut = { ok, conf, pts, truth: pc.truth, v: s.pred.v };
       s.log.push({ inc: x.id, kind: 'predict', ok, conf, pts });
-      s.phase = 'fix';
+      s.phase = 'play'; s.playing = 'before';
       save(s); draw(s);
     });
     b.querySelector('#icl-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
+
+  // ---- The minute, played: requests walk the path as envelopes, 30 s a turn, and the SLO lamp lights at the end ----
+  // Each event in the turn is one envelope with its own motion: through to the end (done), bounced back (429, a failed
+  // batch, a second charge blocked), dropped in the bin (parked in the DLQ), doubled (done twice) or lost at the gate.
+  const PLAY_MS = 900, PER_TYPE = 6;
+  function lane(x) { return x.parts.filter(p => p !== 'pool' && p !== 'reports'); }
+  function motions(x) {
+    const L0 = lane(x), first = L0[0], last = L0[L0.length - 1], fn = x.id === 'launch' ? 'orders' : 'worker';
+    return {
+      done: { from: first, to: last, how: 'go', img: 'env-done' },
+      throttled: { from: first, to: fn, how: 'back', img: 'env-429' },
+      gaveUp: { from: first, to: first, how: 'lost', img: 'env-429' },
+      unanswered: { from: first, to: fn, how: 'go', img: 'env' },
+      fail: { from: first, to: fn, how: 'back', img: 'env-poison' },
+      dlq: { from: fn, to: 'dlq', how: 'drop', img: 'env-poison' },
+      dupe: { from: first, to: last, how: 'go', img: 'env-twice' },
+      dupeBlocked: { from: first, to: last, how: 'back', img: 'env-twice' }
+    };
+  }
+  const GLYPH = { done: '✓', throttled: '⛔', gaveUp: '✗', unanswered: '✉', fail: '⚠', dlq: '🪦', dupe: '×2', dupeBlocked: '🛡' };
+  function playScreen(s) {
+    const x = inc(s), sum = s.playing === 'before' ? s.before : s.last, L0 = lane(x);
+    const pos = p => Math.max(0, L0.indexOf(p)) / Math.max(1, L0.length - 1);
+    const turns = sum.turns.map((t, i) => ({ t, i })).filter(o => Object.keys(o.t).some(k => GLYPH[k]));
+    const b = panel(`${hud(s)}
+      <div class="icl-play" role="img" aria-label="The minute playing out on the request path">
+        <div class="icl-lane">${L0.map(p => `<div class="icl-stop" style="left:${(pos(p) * 100).toFixed(1)}%">${ART[p] ? img(ART[p], 'icl-big') : ''}<span>${esc(partName(x, p))}</span></div>`).join('')}
+          <div class="icl-envs" aria-hidden="true"></div></div>
+        ${x.parts.includes('pool') ? `<div class="icl-pstools">${stools(x, s.playing === 'before' ? L.startKnobs(x) : s.k)}</div>` : ''}
+        <div class="icl-clock"><b id="icl-t">0:00</b><span id="icl-tally" class="icl-tally"></span></div>
+        <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div>
+      </div>
+      <div class="row"><button class="ghost" id="icl-skip">Skip</button></div>`);
+    const box = b.querySelector('.icl-envs'), clock = b.querySelector('#icl-t'), tally = b.querySelector('#icl-tally'), lamp = b.querySelector('#icl-lamp');
+    const mv = motions(x), seen = {};
+    let k = 0, timer = null, over = false;
+    const finish = () => {
+      if (over) return; over = true; clearTimeout(timer);
+      if (s.playing === 'last') {
+        lamp.className = 'icl-lamp ' + (sum.slo ? 'green' : 'red');
+        lamp.innerHTML = `<i></i><b>${sum.slo ? 'SLO met' : 'SLO not met'}</b>`;
+        sting(sum.slo);
+      }
+      const next = () => { if (cur() !== s || s.phase !== 'play') return; s.phase = s.playing === 'before' ? 'fix' : 'result'; s.playing = null; save(s); draw(s); };
+      timer = setTimeout(next, still() ? 0 : 1800);
+      b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); next(); };
+    };
+    const step = () => {
+      if (cur() !== s || s.phase !== 'play') return;
+      if (k >= turns.length) return finish();
+      const { t, i } = turns[k++];
+      clock.textContent = `${Math.floor((i + 1) * L.TURN_SECS / 60)}:${String((i + 1) * L.TURN_SECS % 60).padStart(2, '0')}`;
+      box.innerHTML = Object.keys(t).filter(ty => mv[ty]).map(ty => {
+        const m = mv[ty], n = Math.min(PER_TYPE, t[ty]);
+        seen[ty] = (seen[ty] | 0) + t[ty];
+        return Array.from({ length: n }, (_, j) => `<span class="icl-fly ${m.how}" style="--a:${(pos(m.from) * 100).toFixed(1)}%;--b:${(pos(m.to) * 100).toFixed(1)}%;--d:${(j * 70)}ms;--y:${(j % 3) * 9}px">${img(m.img, '')}</span>`).join('');
+      }).join('');
+      tally.innerHTML = Object.keys(GLYPH).filter(ty => seen[ty]).map(ty => `<span>${GLYPH[ty]} ${seen[ty]}</span>`).join('');
+      timer = setTimeout(step, PLAY_MS);
+    };
+    b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); k = turns.length; box.innerHTML = ''; finish(); };
+    if (still()) finish(); else step();
+  }
+  const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ---- 3: fix it on the machine ----
   function fixScreen(s) {
     const x = inc(s), sum = s.last || s.before, p = s.predOut;
     const changed = L.changes(x, s.k);
     const top = !s.runs && p
-      ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict small">You said <b>${p.v}</b>, it was <b>${p.truth}</b> (${M.CONF[p.conf]}, ${M.sgn(p.pts)}). The machine shows the minute it just ran.</p>`
+      ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict"><span class="icl-vs ${p.ok ? 'ok' : 'no'}">${p.ok ? '✓' : '✗'} You said <b>${p.v}</b> · it was <b>${p.truth}</b></span> <span class="icl-pts">${esc(M.CONF[p.conf])} ${M.sgn(p.pts)}</span></p>`
       : say(SAY.unmet);
     const teach = s.teach ? `<p class="icl-teach small">💡 ${esc(s.teach)}</p>` : '';
     const b = panel(cols(`${hud(s)}${top}
       <p class="icl-page">📟 ${esc(x.page)}</p>`,
       `${machine(s, x, sum, s.open)}${teach}`,
       `${strip(sum)}
-      <p class="small icl-changes">${changed.length ? `Changed: ${changed.map(id => esc(x.knobs[id].name)).join('; ')}.` : 'Nothing changed yet. Tap a part for its evidence and settings.'} ${changed.length > L.MAX_CHANGES ? '<b>More than two changes: the smallest-change stamp is off.</b>' : `The smallest correct change is two knobs or fewer.`}</p>
+      <p class="icl-changes"><span class="icl-cc${changed.length > L.MAX_CHANGES ? ' over' : ''}" aria-label="${changed.length} of ${L.MAX_CHANGES} changes">${Array.from({ length: Math.max(L.MAX_CHANGES, changed.length) }, (_, i) => `<i class="${i < changed.length ? 'on' : ''}">✎</i>`).join('')}</span>
+        <span class="small">${changed.length ? (changed.length > L.MAX_CHANGES ? '<b>Over two: no smallest-change stamp</b>' : `${changed.length} of ${L.MAX_CHANGES} changes`) : 'Tap a part to open it'}</span></p>
       <div class="row"><button class="primary" id="icl-run"${changed.length ? '' : ' disabled'}>▶ Run the next minute</button><button class="ghost" id="icl-stop">Stop for now</button></div>`));
     b.querySelectorAll('[data-part]').forEach(el => el.onclick = () => { s.open = s.open === el.dataset.part ? null : el.dataset.part; s.teach = null; save(s); fixScreen(s); });
     b.querySelectorAll('[data-knob]').forEach(el => el.onclick = () => {
@@ -222,7 +309,7 @@
       save(s); fixScreen(s);
     });
     b.querySelector('#icl-run').onclick = () => {
-      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'result'; sting(s.last.slo);
+      s.last = L.run(x, s.k); s.runs++; s.open = null; s.teach = null; s.phase = 'play'; s.playing = 'last';
       save(s); draw(s);
     };
     b.querySelector('#icl-stop').onclick = () => { U.closePanel(); stopNow(); };
@@ -233,11 +320,11 @@
     const x = inc(s), sum = s.last, st = sum.stamps, more = !sum.slo && s.runs < 2;
     const stamp = (on, label) => `<li class="${on ? 'on' : ''}">${on ? '✓' : '○'} ${esc(label)}</li>`;
     const b = panel(cols(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.')}
-      <p class="icl-slo"><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}:</b> ${esc(sum.sloLine)}</p>`,
+      <p class="icl-slo"><span class="icl-lamp ${sum.slo ? 'green' : 'red'}"><i></i><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}</b></span><span class="small">${esc(sum.sloLine)}</span></p>`,
       machine(s, x, sum, null),
       `${strip(sum)}
       <ul class="icl-stamps">${stamp(st.slo, 'SLO met')}${stamp(st.small, 'Two knobs or fewer')}${stamp(st.rule, 'The documented setting')}</ul>
-      <p class="small">${esc(sum.ruleLine)}</p>
+      <p class="small icl-rule">📘 ${esc(sum.ruleLine)}</p>
       <div class="row">${more ? '<button class="primary" id="icl-again">One more change</button><button class="ghost" id="icl-on">Leave it red, go to the debrief</button>' : '<button class="primary" id="icl-on">Debrief</button>'}</div>`));
     const again = b.querySelector('#icl-again');
     if (again) again.onclick = () => { s.phase = 'fix'; save(s); draw(s); };
@@ -304,7 +391,12 @@
     .icl-tap { margin-left: auto; text-decoration: underline; }
     .icl-arrow { text-align: center; line-height: 1; opacity: .7; }
     .icl-open { padding: 4px 8px 8px; }
-    .icl-ev { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; margin: 4px 0 8px; padding: 6px 8px; border-left: 4px solid var(--ink, #222); background: rgba(0, 0, 0, .06); }
+    /* The evidence: a log scroll, unrolled. */
+    .icl-ev { position: relative; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.45; margin: 12px 4px 12px; padding: 10px 14px; color: #2a2018; text-shadow: none;
+      background: repeating-linear-gradient(transparent 0 18px, rgba(90, 70, 40, .08) 18px 19px), linear-gradient(90deg, #e9dcb8, #f8f0da 12%, #f8f0da 88%, #e9dcb8);
+      border-radius: 2px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+    .icl-ev::before, .icl-ev::after { content: ''; position: absolute; left: -4px; right: -4px; height: 9px; border-radius: 5px; background: linear-gradient(#c9b48a, #8a7550 60%, #5e4c30); box-shadow: 0 2px 3px rgba(0, 0, 0, .45); }
+    .icl-ev::before { top: -6px; } .icl-ev::after { bottom: -6px; }
     .icl-knob { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
     .icl-vals { display: flex; flex-wrap: wrap; gap: 6px; }
     .icl-vals button { min-width: 44px; min-height: 40px; padding: 4px 10px; border: 2px solid var(--ink, #222); border-radius: 6px; background: var(--paper, #fff); color: inherit; font: inherit; }
@@ -320,6 +412,15 @@
     .icl-stamps li { margin: 4px 0; overflow-wrap: anywhere; }
     .icl-stamps li.on { font-weight: 700; }
     .icl-slo, .icl-verdict, .icl-changes { overflow-wrap: anywhere; }
+    .icl-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 8px; }
+    .icl-vs { display: inline-block; padding: 4px 10px; border: 3px double currentColor; border-radius: 4px; font-weight: 800; letter-spacing: .02em; transform: rotate(-2deg); }
+    .icl-vs.ok { color: #7fd06a; } .icl-vs.no { color: #ff8a70; }
+    .icl-pts { font-weight: 800; }
+    .icl-changes { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+    .icl-cc { display: inline-flex; gap: 4px; } .icl-cc i { font-style: normal; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(233, 197, 109, .5); opacity: .45; }
+    .icl-cc i.on { opacity: 1; background: #e9c56d; color: #2a1c08; } .icl-cc.over i.on { background: #d2503a; color: #fff; }
+    .icl-slo { display: flex; flex-direction: column; gap: 2px; } .icl-slo .icl-lamp { margin: 0; }
+    .icl-lamp b { font-size: 18px; }
     .icl-art { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; flex: none; }
     .icl-stools { display: flex; flex-wrap: wrap; gap: 1px; width: 100%; }
     .icl-stool { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; }
@@ -332,6 +433,59 @@
     @keyframes icl-bounce { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(18px); } 55% { transform: translateX(-6px) rotate(-12deg); } }
     @keyframes icl-through { 0% { transform: translateX(-10px); opacity: 0; } 15%, 80% { opacity: 1; } 100% { transform: translateX(60px); opacity: 0; } }
     @keyframes icl-drop { 0% { transform: translateY(-10px); opacity: 0; } 30% { opacity: 1; } 70%, 100% { transform: translateY(2px); } }
-    @media (prefers-reduced-motion: reduce) { .icl-env { animation: none !important; } }`;
+    .icl-knob.changed { padding-left: 8px; border-left: 3px solid #e9c56d; }
+    .icl-chg { font-size: 11px; font-weight: 800; color: #e9c56d; letter-spacing: .04em; }
+    .icl-sp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+    .icl-sp .icl-stools { width: auto; gap: 2px; }
+    .icl-sb { min-width: 34px; min-height: 44px; padding: 2px; border: 2px solid transparent; border-radius: 6px; background: rgba(0, 0, 0, .25); }
+    .icl-sb .icl-stool { width: 28px; height: 28px; }
+    .icl-sb.res { background: rgba(80, 120, 200, .3); border-color: rgba(140, 180, 255, .5); }
+    .icl-sb:hover { border-color: #e9c56d; }
+    .icl-none, .icl-sw, .icl-tk, .icl-tb { min-height: 44px; padding: 4px 12px; border: 2px solid var(--ink, #222); border-radius: 6px; background: var(--paper, #fff); color: inherit; font: inherit; }
+    .icl-none.on, .icl-tk.on, .icl-tb.on { border-color: #e9c56d; box-shadow: 0 0 0 2px rgba(233, 197, 109, .5); font-weight: 800; }
+    .icl-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0; width: max-content; padding: 3px; border-radius: 24px; background: #1a110a; box-shadow: inset 0 2px 6px rgba(0, 0, 0, .7); }
+    .icl-switch .icl-sw { position: relative; z-index: 1; min-width: 92px; border: 0; border-radius: 20px; background: none; color: #bfb39a; }
+    .icl-switch .icl-sw.on { color: #2a1c08; font-weight: 800; }
+    .icl-switch i { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 20px; background: linear-gradient(#dcb65e, #a67c2c); box-shadow: 0 2px 4px rgba(0, 0, 0, .6); transition: transform .2s; }
+    .icl-switch.up i { transform: translateX(100%); background: linear-gradient(#bfe6a0, #4f9a3c); }
+    .icl-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+    .icl-tb { display: inline-flex; gap: 0; align-items: center; }
+    .icl-te { width: 22px; height: 22px; image-rendering: pixelated; margin-left: -6px; } .icl-te:first-child { margin-left: 0; }
+    .icl-dial { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .icl-face { position: relative; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6a5236, #2c1c10 70%); border: 3px solid #140b05; box-shadow: 0 3px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px rgba(233, 197, 109, .3); flex: none; }
+    .icl-face i { position: absolute; left: 50%; top: 6px; bottom: 50%; width: 4px; margin-left: -2px; border-radius: 2px; background: #e9c56d; transform-origin: 50% 100%; transition: transform .25s; }
+    .icl-ticks { display: flex; flex-wrap: wrap; gap: 6px; }
+    .icl-play { position: relative; max-width: 760px; margin: 10px auto; padding: 10px 0 6px; }
+    .icl-lane { position: relative; height: 128px; margin: 0 44px; }
+    .icl-lane::before { content: ''; position: absolute; left: 0; right: 0; top: 46px; border-top: 3px dashed rgba(233, 197, 109, .45); }
+    .icl-stop { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 88px; text-align: center; font-size: 12px; font-weight: 700; }
+    .icl-big { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .6)); }
+    .icl-envs { position: absolute; inset: 0; pointer-events: none; }
+    .icl-fly { position: absolute; top: calc(30px + var(--y, 0px)); left: var(--a); width: 28px; height: 28px; margin-left: -14px; opacity: 0;
+      animation: .62s ease-in-out var(--d, 0ms) forwards; }
+    .icl-fly img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
+    .icl-fly.go { animation-name: icl-go; } .icl-fly.back { animation-name: icl-back; } .icl-fly.lost { animation-name: icl-lost; } .icl-fly.drop { animation-name: icl-dropto; }
+    @keyframes icl-go { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { left: var(--b); opacity: .85; } }
+    @keyframes icl-back { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 50% { left: var(--b); transform: rotate(0); } 62% { transform: rotate(-25deg) scale(1.15); } 100% { left: var(--a); opacity: .2; transform: rotate(-40deg); } }
+    @keyframes icl-lost { 0% { left: var(--a); opacity: 1; } 100% { left: var(--a); opacity: 0; transform: translate(-14px, 40px) rotate(-60deg); } }
+    @keyframes icl-dropto { 0% { left: var(--a); opacity: 0; } 12% { opacity: 1; } 60% { left: var(--b); transform: translateY(0); } 100% { left: var(--b); opacity: 1; transform: translateY(26px) rotate(15deg); } }
+    @media (min-width: 900px) {
+      body.in-mode .icl-play { max-width: 900px; padding-top: 40px; }
+      body.in-mode .icl-lane { height: 190px; margin: 0 70px; } body.in-mode .icl-lane::before { top: 70px; }
+      body.in-mode .icl-stop { width: 140px; font-size: 15px; } body.in-mode .icl-big { width: 120px; height: 120px; }
+      body.in-mode .icl-fly { top: calc(50px + var(--y, 0px)); width: 40px; height: 40px; margin-left: -20px; } body.in-mode .icl-fly img { width: 40px; height: 40px; }
+      body.in-mode .icl-pstools .icl-stool { width: 30px; height: 30px; }
+      body.in-mode .icl-clock b { font-size: 28px; } body.in-mode .icl-tally { font-size: 20px; }
+    }
+    .icl-pstools { display: flex; justify-content: flex-end; margin: -6px 0 10px; }
+    .icl-pstools .icl-stools { width: auto; }
+    .icl-clock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-variant-numeric: tabular-nums; }
+    .icl-clock b { font-size: 20px; color: #e9c56d; min-width: 52px; }
+    .icl-tally { display: flex; flex-wrap: wrap; gap: 4px 12px; font-weight: 700; }
+    .icl-lamp { display: flex; align-items: center; gap: 10px; min-height: 40px; margin-top: 8px; font-size: 18px; }
+    .icl-lamp i { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #140b05; }
+    .icl-lamp.green i { background: radial-gradient(circle at 35% 30%, #c9ffb0, #3fae3a 60%, #1f5e1c); box-shadow: 0 0 18px 6px rgba(80, 220, 80, .55); }
+    .icl-lamp.red i { background: radial-gradient(circle at 35% 30%, #ffc0b0, #d23a2a 60%, #6a1610); box-shadow: 0 0 18px 6px rgba(240, 70, 50, .55); }
+    @media (prefers-reduced-motion: reduce) { .icl-env, .icl-fly { animation: none !important; opacity: 1; } }`;
   document.head.appendChild(css);
 })();
