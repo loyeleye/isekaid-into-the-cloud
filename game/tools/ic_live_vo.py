@@ -1,6 +1,6 @@
 """Uptima's Live shift lines, spoken (see CREDITS.md): assets/audio/vo/uptima-mg-icl-<key>.mp3, mapped in js/vo-modes.js.
 
-usage: [VO_VOICE=Achernar] [VO_PITCH=1.0293] ic_live_vo.py [KEY ...]     record the lines (all, or the keys named) with Gemini TTS (needs GEMINI_API_KEY)
+usage: [VO_VOICE=Achernar] [VO_PITCH=1.029302] ic_live_vo.py [KEY ...]     record the lines (all, or the keys named) with Gemini TTS (needs GEMINI_API_KEY)
 
 Her story voice (Achernar on gemini-3.8-flash-tts), in her prequel manner: grand, vain, a little flustered. The text
 is read from js/ic-live.js (SAY) and js/ic-live-core.js (the pages), so the recording always matches the screen.
@@ -10,7 +10,7 @@ GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL, VOICE = 'gemini-3.8-flash-tts', os.environ.get('VO_VOICE', 'Achernar')
 # No acting notes: this model reads them aloud as part of the line (heard() rejects such a take). The punctuation directs her.
 DIRECTION = PAGE_DIRECTION = ''
-PITCH = float(os.environ.get('VO_PITCH', '1'))  # pitch ratio after recording, e.g. 1.0293 is half a semitone up
+PITCH = float(os.environ.get('VO_PITCH', '1'))  # pitch ratio after recording, e.g. 1.029302 is half a semitone up
 
 
 def lines():
@@ -56,7 +56,7 @@ def say(text, direction, dst):
         if heard(pcm, text): break
         print('  retake: she read more than the line: ' + LAST[0][:160], flush=True)
     else: sys.exit('could not get a clean take of: ' + text)
-    pitch = ',rubberband=pitch=%g' % PITCH if PITCH != 1 else ''
+    pitch = ',rubberband=pitch=%g:formant=preserved' % PITCH if PITCH != 1 else ''
     with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as f: f.write(pcm)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', f.name,
                     '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse' + pitch + ',loudnorm=I=-18:TP=-1.5',
