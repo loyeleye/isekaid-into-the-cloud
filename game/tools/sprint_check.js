@@ -2,13 +2,15 @@
 // held out of every other picker, the gate, the practice patch, Route 1 with its aids (the status line, the 2:30 nudge,
 // Coo at the seals, markers, the 30 s away rule, a reload mid-run), Looking back and Finish now, the Lamp House (pace
 // log, jars with the deciding phrase, the contrast line, debrief, Today's road), the next day's lead questions, and
-// Proctor's Pass in exam conditions running out at sunset with the pacing check.
-// Run from game/:  node tools/sprint_check.js     SHOTS=dir saves screenshots.
+// Proctor's Pass in exam conditions running out at sunset with the pacing check. The debrief's Marks readout is checked
+// on Route 1 (two marks, one walked back to and changed from wrong to right, three unmarked misses, one a Guess, a
+// marker unused) after a reload from a save without markPick, and its change since last time on Proctor's Pass.
+// Run from game/:  node tools/sprint_check.js     SHOTS=dir saves screenshots; MARKS_SHOT=file.png saves the Marks one.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const SHOTS = process.env.SHOTS;
+const SHOTS = process.env.SHOTS, MARKS_SHOT = process.env.MARKS_SHOT;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webp': 'image/webp', '.png': 'image/png', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.i8': 'application/octet-stream', '.md': 'text/plain' };
 const server = http.createServer((req, res) => {
   const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]).replace(/\/$/, '/index.html'));
@@ -190,7 +192,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check((await run()).markers === 2, 'marking uses a marker');
   await afterSeal();
   // Patches 3 to 10: a mix, with a Sure miss on one and the away rule on patch 5.
-  const plan = [[true, 2], [true, 1], [true, 0], [false, 2], [true, null], [true, 0], [false, 1], [true, 2]];
+  const plan = [[true, 2], [true, 1], [true, 0], [false, 2], [true, null], [false, 0], [false, 1], [true, 2]];
   for (let k = 0; k < plan.length; k++) {
     await toStem();
     const i = k + 2;
@@ -205,6 +207,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     } else {
       if (i === 5) {
         // Reload mid-run: the same patch and clock.
+        // ...from a save made before markPick existed: patch 2's first pick must come from its first change.
+        await page.evaluate(() => { delete SD.state.save.sprint.cur.markPick; SD.state.persist(); });
         const before = await run();
         await page.evaluate(() => sessionStorage.setItem('keep', '1'));
         await page.reload();
@@ -275,6 +279,26 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/By domain/.test(deb) && /a lower score than your drills is expected/.test(deb), 'the debrief gives the score by domain and says a lower score is expected');
   check(/Patch 2: changed .* to .*, raised the stake; right/.test(deb), 'the debrief logs what reopening changed, with the stake raised');
   check(/⚑ marked/.test(deb) && /Too few to read in one run/.test(deb), 'calibration counts only, with marked picks kept apart');
+  const mtx = (await txt('.sp-marks')).replace(/\s+/g, ' ');
+  check(/⚑ Marks well spent: 2 marked · ↩ 1 came back · ✎ 1 changed · ✓ 2 ended right/.test(mtx), 'Marks: 2 marked, 1 came back, 1 changed, 2 ended right: ' + mtx.slice(0, 120));
+  check(/✓ 1 mark turned a wrong first pick into a right one\./.test(mtx), 'Marks: the change on patch 2 counts as a wrong first pick turned right (old save, no markPick)');
+  check(/↩ 1 marked and not walked back to\./.test(mtx), 'Marks: patch 7 marked and not walked back to');
+  check(/× Misses you didn't mark: 3 \(patches 6, 8 and 9\)\. 1 was committed as Guess \(patch 8\): you knew you were unsure\./.test(mtx), 'Marks: 3 unmarked misses, the Guess one called out');
+  check(/on the exam, flag any question you'd press Guess on/.test(mtx), 'Marks: the Guess rule of thumb');
+  check(/⚑ 1 marker unused, with 3 misses unmarked\./.test(mtx), 'Marks: the unused marker, shown because there were misses');
+  check(!/Since last time/.test(mtx), 'Marks: no "since last time" on the first run with stats');
+  check(/From your marks: "If I'd press Guess, then I flag it and move on\."/.test(deb) && !!await page.$('#sp-addp'), 'the debrief offers the if-then line for the plan');
+  await page.click('#sp-addp');
+  check((await page.inputValue('#sp-plan')).endsWith("If I'd press Guess, then I flag it and move on.") && (await sp()).plan.endsWith('move on.'), 'Add to my plan appends the line to the plan and saves it');
+  const saved = (await run()).res.marks;
+  check(saved && saved.marked === 2 && saved.missed === 3 && saved.guessMiss === 1 && saved.turned === 1 && saved.unused === 1, 'the run\'s mark counts are kept in the save: ' + JSON.stringify(saved));
+  const mp = (await run()).markPick;
+  check(Array.isArray(mp) && mp[1] == null && mp[6] != null, 'markPick is recorded from the reload on (patch 7) and stays empty for the older mark (patch 2)');
+  if (MARKS_SHOT) {
+    await page.evaluate(() => document.querySelector('.sp-marks').scrollIntoView({ block: 'start' }));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: MARKS_SHOT });
+  }
   check(!!await page.$('#sp-plan'), 'the debrief carries the editable if-then plan');
   await noHScroll('debrief');
   await shot('debrief');
@@ -386,6 +410,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   if (!await page.$('.sp-deb')) { for (let k = 0; k < 12 && await page.$('#sp-rest'); k++) { await page.click('#sp-rest'); await tick(800); } await page.click('#sp-next'); }
   await page.waitForSelector('.sp-deb');
   check(/Pacing held|Not yet/.test(await txt('.sp-deb')) && !/failed/i.test(await txt('.sp-deb')), 'the pacing check says "Pacing held" or "Not yet", never "failed"');
+  const m2 = (await txt('.sp-marks')).replace(/\s+/g, ' ');
+  check(/Since last time: unmarked misses 3 → 0 \(fewer\) · unmarked Guess misses 1 → 0 \(fewer\)\./.test(m2), 'Marks: the change since Route 1 in one line: ' + (m2.match(/Since last time[^.]*\./) || [m2.slice(0, 80)])[0]);
+  check(/⚑ No marks this run/.test(m2) && !/marker unused/.test(m2), 'Marks: no unused-marker line without misses');
   await shot('pacing-check');
   await page.click('#sp-next'); await page.waitForSelector('.sp-end');
   check((await txt('.sp-end')).includes('Some letters didn\'t go out before dark'), 'a run that ran out of time ends on Coo\'s promise');
