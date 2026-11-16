@@ -22,6 +22,7 @@
   const ART = {
     ic: { bg: 1, face: 'uptima' },
     pop: { bg: 2, face: 'dutch' },
+    floor: { bg: 3, face: 'dutch' },
     sprint: { bg: 7, face: 'lexi' },
     hunt: { bg: 8, face: 'bru' },
     duel: { bg: 5, face: 'kagemaru' },
