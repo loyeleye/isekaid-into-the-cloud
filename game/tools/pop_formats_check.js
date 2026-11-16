@@ -147,7 +147,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(!(await txt('#panel')).includes(fq.slice(0, 40)), 'the item is never on the stake screen');
   await page.click('.pop-what summary');
   check(!!await page.$('.pop-grid .pop-half') && /×0.5 \/ −\d+%/.test(await txt('.pop-half')), 'the stake grid has the half row: ' + (await txt('.pop-half')).trim());
-  check(!/Wall/.test(await txt('.pop-grid')), 'the grid puts no Wall on a format check');
+  check(/Wall/.test(await txt('.pop-grid')), 'the grid shows a Sure miss on a format check goes on the Wall');
   await noHScroll('format stake');
   await shot('fstake');
   // No hint across formats: nothing planned tonight shares the item's concept unless tagged.
@@ -212,6 +212,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/✓ PROVEN · Sure · ×1.25/.test(await txt('.pop-since')), 'compare right and Sure lands PROVEN at ×1.25');
   check(s.fight.sev === Math.max(0, sev5 - st5.list.reduce((a, c) => a + Math.round(c.hit * 1.25), 0)), 'the staked hits landed at ×1.25');
   check(await page.evaluate(() => SD.state.save.modes.cal[2][1] === 0), 'format checks stay out of the bank calibration');
+  // Sure and wrong on a format check: its bank question goes up on the Wall (a Think so miss doesn't).
+  const sw = await page.evaluate(id => {
+    const s = SD.state.save.pop, ck = { fmt: { id, type: 'compare', home: 'thornwick' }, d: 1 }, w = () => (SD.state.save.wall || []).length;
+    const w0 = w(); SD.pop.fx.miss(s, ck, 1); const w1 = w(); const c1 = s.carryNext.length;
+    SD.pop.fx.miss(s, ck, 2); const w2 = w(), top = (SD.state.save.wall || []).slice(-1)[0];
+    return { think: w1 - w0, sure: w2 - w1, bank: !!(top && SD.exam.find(top.id)), v: SD.pop.fx.verdict({ ok: false, conf: 2, staked: 2, cost: 9 }), carried: c1 > 0 };
+  }, c5.fmt.id);
+  check(sw.think === 0 && sw.sure === 1 && sw.bank && sw.carried, `a Sure miss on a format check puts its bank question on the Wall (Think so: +${sw.think}, Sure: +${sw.sure})`);
+  check(/BACKFIRE · Sure, and wrong · −9% budget · its bank question goes on the Wall/.test(sw.v), 'the Sure miss verdict says so: ' + sw.v);
   await noHScroll('night 5 land');
   // The proof sheet's formats line, and the hypothesis log.
   await page.evaluate(() => { const s = SD.state.save.pop; s.fight = null; SD.pop.finish(s, 'retreat'); SD.state.persist(); SD.pop.draw(); });

@@ -10,7 +10,7 @@
 //     You stake before the item opens, as for a bank question.
 //   - Landing (SD.modes.askFormat's { ok, conf, pts, scored, partial }): spot and sequence can come back partly
 //     right, which pays half the button's right multiplier and costs half its wrong cost, with no Wall. An unscored
-//     round pays 0 and lands nothing. Format items never go on the Wall.
+//     round pays 0 and lands nothing. A Sure miss puts its bank question on the Wall.
 //   - Teaching: a format's worked item, then its practice item (one hint), on its homeland's Lost item screen, never
 //     in a fight. Each takes one of the night's room checks, so the 13-check cap holds. A format is used in fights
 //     only after its practice item (kept in S.save.popFmtTaught across nights).
@@ -50,7 +50,7 @@
     },
     practice: 'Your turn. One hint. Nothing staked, nothing scored.',
     partial: ['dutch', 'neutral', 'Half a proof. Half the payout. The claim keeps the rest.'],
-    sureMiss: ['dutch', 'tired', 'Sure, and wrong. It doesn\'t go on the Wall, but its idea comes back tomorrow night, exam-style.'],
+    sureMiss: ['dutch', 'tired', 'Sure, and wrong. Up on the Wall, as a bank question. Its idea comes back tomorrow night too, exam-style.'],
     unscored: ['dutch', 'neutral', 'Practice. Nothing rides on it.']
   };
 
@@ -209,7 +209,7 @@
       result: !fr.scored ? 'unscored' : fr.ok ? 'right' : fr.partial ? 'partial' : 'wrong', partial: fr.partial, t: Date.now() });
   };
   // A missed format item: a verified bank question on its topic next night (verified, on track, not used tonight).
-  X.miss = function (s, ck) {
+  X.miss = function (s, ck, conf) {
     const it = M.fmtItem(ck.fmt.id);
     if (!it) return;
     const topic = norm(it.topic), task = ftask(it), used = allIds(s), log = sv().qlog || {};
@@ -219,15 +219,17 @@
     const rank = q => (String(E().taskOf(q)) === task ? 0 : 1e15) + (log[q.id] ? log[q.id][0] : 0);
     const q = pool.slice().sort((a, b) => rank(a) - rank(b))[0];
     s.carryNext.push({ q: q.id, why: 'format', from: it.id });
+    // Sure and wrong: its bank question goes up on the Wall, like a bank Sure miss (the Wall drills bank questions only).
+    if (conf === 2 && !s.sim && SD.today && SD.today.wallAdd) { SD.today.wallAdd(q.id); s.fmtWall = (s.fmtWall | 0) + 1; }
   };
   X.verdict = function (out) {
     const C = M.CONF[out.conf];
     const parts = [out.hit ? `Hit ${out.hit} landed` : '', out.guard ? `Guard ${out.guard} up` : ''].filter(Boolean).join(' · ') || 'no numbers staked';
     if (out.unscored) return 'Practice round · not scored, so nothing lands and nothing is lost';
     if (out.ok) return `${out.conf === 2 ? '✓ PROVEN' : '✓ Right'} · ${C} · ×${out.mult}${out.staked ? ' · ' + parts : ' · nothing staked'}`;
-    if (out.partial) return `½ Partly right · ${C} · ×${out.mult}${out.staked ? ' · ' + parts + (out.cost ? ` · −${out.cost}% budget` : '') : ' · nothing staked'} · no Wall`;
+    if (out.partial) return `½ Partly right · ${C} · ×${out.mult}${out.staked ? ' · ' + parts + (out.cost ? ` · −${out.cost}% budget` : '') : ' · nothing staked'} · not on the Wall`;
     if (!out.staked) return `✗ Wrong · ${C} · nothing staked, nothing lost`;
-    return out.conf === 0 ? '✗ Wrong · Guess · your stake fizzled' : out.conf === 1 ? `✗ Wrong · Think so · −${out.cost}% budget` : `✗ BACKFIRE · Sure, and wrong · −${out.cost}% budget · format checks go on no Wall`;
+    return out.conf === 0 ? '✗ Wrong · Guess · your stake fizzled' : out.conf === 1 ? `✗ Wrong · Think so · −${out.cost}% budget` : `✗ BACKFIRE · Sure, and wrong · −${out.cost}% budget · its bank question goes on the Wall`;
   };
   X.bark = out => (out.unscored ? SAY.unscored : out.partial ? SAY.partial : !out.ok && out.conf === 2 ? SAY.sureMiss : null);
 

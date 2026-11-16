@@ -372,7 +372,7 @@
       out.cost = Math.round(st.total * wr);
       s.budget = Math.max(0, s.budget - out.cost);
     }
-    if (!ok) { if (fx) { if (fx.scored) P.fx.miss(s, ck); } else miss(s, ck); }
+    if (!ok) { if (fx) { if (fx.scored) P.fx.miss(s, ck, conf); } else miss(s, ck); }
     if (f.kind === 'hunch') {
       if (ck.kind === 'loose') { f.looseDone++; if (ok) f.looseWaiting = Math.max(0, f.looseWaiting - 1); }
       else f.proofs.push(ok);
@@ -611,7 +611,7 @@
     return `<table class="pop-grid"><thead><tr><th></th><th>Guess</th><th>Think so</th><th>Sure</th></tr></thead><tbody>
       <tr><th>✓</th>${RIGHT.map(m => `<td>×${m}<br><span class="small">${both(m)}</span></td>`).join('')}</tr>
       ${P.fx && ck ? P.fx.halfRow(s, ck, st) : ''}
-      <tr><th>✗</th><td>fizzle</td><td>−${Math.round(st.total * WRONG[1])}%</td><td>−${Math.round(st.total * WRONG[2])}%${ck && ck.fmt ? '' : ', Wall'}</td></tr></tbody></table>`;
+      <tr><th>✗</th><td>fizzle</td><td>−${Math.round(st.total * WRONG[1])}%</td><td>−${Math.round(st.total * WRONG[2])}%, Wall</td></tr></tbody></table>`;
   }
   function stakeScreen(s) {
     const f = s.fight, ck = P.peek(s);
@@ -778,7 +778,7 @@
   function sheetScreen(s) {
     const N = P.needs(), top = [1, 2, 3, 4].sort((a, b) => N[b] - N[a])[0];
     const first = s.log.filter(l => l.kind !== 'practice'), right = first.filter(l => l.ok).length;
-    const sureMiss = s.log.filter(l => !l.ok && l.conf === 2).length;
+    const sureMiss = s.log.filter(l => !l.ok && l.conf === 2).length + (s.fmtWall | 0);
     const head1 = s.how === 'won' ? 'The Hunch didn\'t check out.' : s.how === 'lost' ? 'The Hunch checked out.' : 'You retreated.';
     const finds = s.found.map(id => P.ITEMS.find(i => i.id === id)).filter(Boolean);
     const b = panel(`<p class="pop-banner">PROOF SHEET · Night ${s.night}</p>
