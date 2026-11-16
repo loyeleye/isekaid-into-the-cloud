@@ -116,6 +116,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return out;
   });
   check(posters.length === 4, 'four test posters on four topics (' + posters.join(', ') + ')');
+  // The bank-question battle first: faded items are put aside here and tested on their own below.
+  await page.evaluate(() => { window.__faded = SD.fmtItems.filter(x => x.type === 'faded'); SD.fmtItems = SD.fmtItems.filter(x => x.type !== 'faded'); });
   const SHELL = await page.evaluate(() => !!(SD.modes && SD.modes.ask));
   const WN = SHELL ? '#md-next' : '#hn-wnext', STOP = SHELL ? '#md-stop' : '#hn-stop';
   console.log('     shared modes shell: ' + (SHELL ? 'loaded' : 'not loaded, hunt.js uses its own copy'));
@@ -213,6 +215,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => { const h = SD.state.save.hunt; return h.i === 2 && h.mons[2].k === 1; }), 'the hunt is saved on monster 3, Fight');
   await page.reload();
   await page.click('#t-start');
+  await page.evaluate(() => { window.__faded = SD.fmtItems.filter(x => x.type === 'faded'); SD.fmtItems = SD.fmtItems.filter(x => x.type !== 'faded'); });
   await page.waitForSelector('#today-card:not([hidden])');
   if (SHELL) check(/Resume · battling/.test(await page.evaluate(() => SD.modes.get('hunt').status())), 'after a reload the mode picker offers to resume');
   else check(/resume/.test(await page.textContent('#td-hunt')), 'after a reload the Today card offers to resume');
@@ -302,6 +305,61 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await pin(true, 0);
   check(await page.evaluate(id => SD.state.save.wall.some(w => w.id === id), wq.id), 'a wild miss goes up on the Wall');
   await page.evaluate(() => SD.hunt.stop());
+
+  // ---- Fight as a faded worked example ----
+  await page.evaluate(() => SD.ui.closePanel());
+  const fp = await page.evaluate(() => {
+    SD.fmtItems = SD.fmtItems.concat(window.__faded);
+    const topics = new Set(window.__faded.filter(x => x.tracks.some(t => /^DVA/.test(t))).map(x => x.topic));
+    const ok = id => { const q = SD.exam.find(id); return q && q.type === 'mc' && SD.exam.allowed(q) && !SD.exam.offTrack(q); };
+    const id = Object.keys(SD.twins).find(k => ok(k) && topics.has(SD.exam.find(k).topic) && SD.twins[k].filter(ok).length >= 2);
+    const s = SD.state.save;
+    s.wall = [{ id, t: Date.now() - 86400000 * 5, rights: [] }]; s.huntMon = {}; s.hunt = null; s.sightings = [];
+    if (s.fg && s.fg.fmt) delete s.fg.fmt.faded;
+    SD.state.persist();
+    return { id, topic: SD.exam.find(id).topic };
+  });
+  check(!!fp.id, 'a poster on a topic with faded examples (' + fp.id + ', ' + fp.topic + ')');
+  await page.evaluate(() => SD.hunt.start());
+  await follow();
+  const fm = await page.evaluate(() => { const m = SD.state.save.hunt.mons[0]; return { faded: m.qs.faded, n: m.fadeN }; });
+  check(!!fm.faded && fm.n >= 1, 'a first battle\'s Fight is a faded example on the poster\'s topic, with one pip per blank (' + fm.faded + ', ' + fm.n + ')');
+  check(await hp() === '4 of 4', 'the health bar counts one pip per blank step: 4');
+  await answer(true, 1); await next();
+  // The first faded example is worked through (not scored); the bank twin is then the Fight.
+  await page.waitForSelector('#qf-got');
+  check(await hp() === '3 of 4', 'the health bar shows on the faded example too');
+  await page.click('#qf-got');
+  await page.waitForSelector('#panel .win.quiz ' + STOP);
+  check(await step() === 'fight' && await page.evaluate(() => SD.hunt.live().q && SD.hunt.live().q.id === SD.state.save.hunt.mons[0].qs.fight), 'while the format is new, the bank twin is asked as the Fight');
+  await page.click(STOP);
+  // Once the format is known it's scored: fill one blank right and one wrong.
+  await page.evaluate(() => { const h = SD.state.save.hunt, m = h.mons[0]; delete m.fadedDone; SD.state.save.fg.fmt.faded = { n: 5, last: [true, true], known: true, lastMode: 'scored' }; SD.state.persist(); });
+  await page.evaluate(() => SD.hunt.start());
+  await page.waitForSelector('[data-qf-fill]');
+  await noHScroll('faded example');
+  check((await page.$$('#panel .win-h .td-stop')).length === 1, 'one Stop for now on the faded example');
+  await shot('faded');
+  await page.evaluate(() => {
+    const it = SD.fmtItems.find(x => x.id === SD.state.save.hunt.mons[0].qs.faded);
+    const blanks = [...new Set([...document.querySelectorAll('#panel [data-qf-fill]')].map(b => +b.dataset.qfFill.split(':')[0]))];
+    blanks.forEach((i, k) => {
+      const want = k === 0 ? it.steps[i].opts.indexOf(it.steps[i].t) : it.steps[i].opts.findIndex(o => o !== it.steps[i].t);
+      document.querySelector(`#panel [data-qf-fill="${i}:${want}"]`).click();
+    });
+  });
+  await page.click('#qf-submit');
+  await page.click('#panel [data-c="1"]');
+  await page.waitForSelector('#q-next');
+  await page.click('#q-next');
+  await page.waitForTimeout(60);
+  const fr = await page.evaluate(() => { const m = SD.state.save.hunt.mons[0]; return { res: m.res.fight, retry: m.retry, fight: m.qs.fight }; });
+  check(fr.res && fr.res.hits === 1 && fr.res.ok === 0, 'one step right, one wrong: one hit lands, and it counts as a miss');
+  check(await page.evaluate(() => SD.hunt._hpOf(SD.state.save.hunt.mons[0])) === 2, 'health goes from 3 to 2');
+  check(fr.retry === fr.fight, 'a faded miss is followed by the retry on the bank twin');
+  await page.waitForSelector('#panel .win.quiz ' + STOP);
+  check(/hit back/.test(await page.textContent('#panel .q-ctx')), 'and it hits back');
+  await page.click(STOP);
 
   // ---- Verified first ----
   const vf = await page.evaluate(() => {
