@@ -299,7 +299,7 @@
        out of focus. She stays behind the counter. */
     .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: none; user-select: none; pointer-events: none; filter: brightness(.8); }
     .rm.talk .rm-back { display: block; }
-    .rm.talk .rm-front { z-index: 3; opacity: .38; filter: blur(.25cqi);
+    .rm.talk .rm-front { z-index: 3; opacity: .5; filter: blur(.25cqi);
       -webkit-mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; }
     .rm.talk .rm-over { display: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
