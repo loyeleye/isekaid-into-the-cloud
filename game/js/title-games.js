@@ -29,6 +29,13 @@
     mp: { bg: 9 }
   };
   const SPARE = [6, 4, 5];
+  // Looping card videos (Ladi, Nov 16; prompts in project files title-loop/story-craft.md): a card id listed here plays
+  // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
+  // backdrop and portrait. Only the centred card plays. Reduced motion, Save-Data and the vector build keep the still.
+  const LOOPS = [];
+  const VID = id => 'assets/video/cards/' + id;
+  const hasLoop = id => LOOPS.includes(id) && !window.SD_VECTOR;
+  const still = () => reduced() || !!(navigator.connection && navigator.connection.saveData);
   const CONTINUE = '#ds-go, #t-go, #dbg-go, [id^="t-c"][id$="go"]';
   let hidden = null;
 
@@ -39,7 +46,18 @@
   const storyLine = () => { const c = latest(); return c ? `Chapter ${c.n === '2b' ? '2, part 2' : c.n}: ${c.name}` : 'Pick up where you left off'; };
   const leadFace = () => { const l = S.save && S.save.c1 && S.save.c1.lead; return l || 'you'; };
   const faceHtml = w => w ? `<img class="tg-face${w === 'freya' ? ' tg-sil' : ''}" src="${FACE(w)}" alt="" draggable="false" onerror="this.remove()">` : '';
-  const band = (n, face, icon) => `<div class="tg-art" style="background-image:url(${BG(n)})" aria-hidden="true">${icon ? `<span class="tg-icon">${esc(icon)}</span>` : ''}${faceHtml(face)}</div>`;
+  const band = (n, face, id) => hasLoop(id)
+    ? `<div class="tg-art tg-hasvid" style="background-image:url(${VID(id)}.webp)" aria-hidden="true"><video class="tg-vid" muted loop playsinline preload="none" poster="${VID(id)}.webp" data-src="${VID(id)}.mp4" disablepictureinpicture></video></div>`
+    : `<div class="tg-art" style="background-image:url(${BG(n)})" aria-hidden="true">${faceHtml(face)}</div>`;
+  // Play the centred card's loop and pause the rest. The source is set on first play, so unseen cards fetch nothing.
+  function playOnly(on) {
+    document.querySelectorAll('#title-actions .tg-vid').forEach(v => {
+      const go = v.closest('.tg-card') === on && !still() && !$('#screen-title').hidden && !document.hidden;
+      if (go) { if (!v.src) v.src = v.dataset.src; const p = v.play(); if (p && p.catch) p.catch(() => { /* autoplay refused: the still stays */ }); }
+      else if (!v.paused) v.pause();
+    });
+  }
+  document.addEventListener('visibilitychange', () => playOnly($('#title-actions .tg-card.on')));
 
   function card(id, html) {
     const li = document.createElement('li');
@@ -66,7 +84,7 @@
     list.className = 'tg-list';
     // Story.
     const ch = go ? chapterOf() : 1, used = [ch];
-    const story = card('story', `${band(ch, go ? leadFace() : 'freya')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
+    const story = card('story', `${band(ch, go ? leadFace() : 'freya', 'story')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
       <p class="tg-meta">${go ? esc(storyLine()) : 'The story, from the opening'}</p></div>`);
     list.appendChild(story);
     if (go) { if (!go.classList.contains('qs-resume')) go.textContent = 'Continue'; adopt(story, go, false); }
@@ -78,7 +96,7 @@
       if (bg) used.push(bg);
       let st = ''; try { st = m.status ? m.status() || '' : ''; } catch (e) { st = ''; }
       const face = typeof a.face === 'function' ? a.face() : a.face;
-      const li = card(m.id, `${bg ? band(bg, face) : `<div class="tg-art tg-plain" aria-hidden="true"><span class="tg-icon">${esc(m.icon || '🎴')}</span></div>`}
+      const li = card(m.id, `${bg || hasLoop(m.id) ? band(bg, face, m.id) : `<div class="tg-art tg-plain" aria-hidden="true"><span class="tg-icon">${esc(m.icon || '🎴')}</span></div>`}
         <div class="tg-body"><p class="tg-name">${esc(m.name)}</p>
         <p class="tg-meta">${st ? `<span class="tg-tag">In progress</span> ${esc(st)}` : esc([mins(m), host(m.host) && 'with ' + host(m.host)].filter(Boolean).join(' · '))}</p>
         <button class="ghost tg-go" type="button">${st ? 'Resume' : 'Play'}<span class="sr"> ${esc(m.name)}</span></button></div>`);
@@ -87,7 +105,7 @@
     });
     // Multiplayer.
     if (mp) {
-      const li = card('mp', `${band(ART.mp.bg)}<div class="tg-body"><p class="tg-name">Multiplayer</p><p class="tg-meta">Expedition raids, solo, with bots or friends</p></div>`);
+      const li = card('mp', `${band(ART.mp.bg, null, 'mp')}<div class="tg-body"><p class="tg-name">Multiplayer</p><p class="tg-meta">Expedition raids, solo, with bots or friends</p></div>`);
       mp.textContent = 'Join';
       adopt(li, mp, false);
       list.appendChild(li);
@@ -125,6 +143,7 @@
       cards.forEach((c, k) => c.classList.toggle('on', k === i));
       [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
       prev.disabled = i === 0; next.disabled = i === n - 1;
+      playOnly(cards[i]);
     };
     const go2 = (i, smooth) => track.scrollTo({ left: cards[Math.max(0, Math.min(n - 1, i))].offsetLeft - cards[0].offsetLeft, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
     track.addEventListener('scroll', () => requestAnimationFrame(mark), { passive: true });
@@ -173,6 +192,8 @@
     .tg-card.on { transform: none; filter: none; border-color: #d6b254; }
     .tg-art { position: relative; height: 84px; background: #14121b center / cover no-repeat; image-rendering: pixelated; }
     .tg-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 45%, #2a2536); }
+    .tg-art.tg-hasvid { height: auto; aspect-ratio: 16 / 9; max-height: clamp(84px, 19vh, 140px); image-rendering: auto; }
+    .tg-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     .tg-plain { display: grid; place-items: center; }
     .tg-icon { position: relative; z-index: 1; font-size: 40px; }
     .tg-face { position: absolute; z-index: 1; right: 8px; bottom: -4px; width: 54px; height: auto; image-rendering: pixelated; }
@@ -204,7 +225,7 @@
       #screen-title.has-today #title-actions.tg-on { display: block; width: 100%; max-width: 400px; }
       .tg-card { flex-basis: 168px; }
       #screen-title.has-today:has(.tg-menu:not([hidden])) { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
-      .tg-art { height: 56px; }
+      .tg-art, .tg-art.tg-hasvid { height: 56px; aspect-ratio: auto; }
       .tg-face { width: 38px; }
       .tg-name { font-size: 14px; }
       .tg-meta { font-size: 11.5px; }
