@@ -133,6 +133,7 @@
     const b = panel(`<div class="fl-top"><span class="fl-foe" role="img" aria-label="${esc(cl.name)}">${foe(f.claim)}</span><div class="fl-tn"><p class="fl-claim">${esc(cl.name)}</p><p class="small">${esc(HOME[cl.home])} · "${esc(cl.says)}"</p></div>
         <p class="fl-turn">Turn ${Math.min(f.turn + 1, cl.limit)} of ${cl.limit}<br><span class="small">${plural(Math.max(0, f.waves.length - f.turn), 'wave')} to come</span></p></div>
       ${budgetJar(s)}
+      <div class="fl-play"><div class="fl-board">
       <div class="fl-zone fl-chute"><div class="fl-zh"><b>${icon('direction-signs')}The chute</b><span class="small">${wave.length ? plural(wave.length, 'ticket') + ' this turn' : 'empty'}</span></div>
         <div class="fl-lane">${wave.map(tk => ticket(tk)).join('') || '<span class="muted small">Nothing new. The floor works through what it has.</span>'}</div>
         ${w.pending.length ? `<div class="fl-lane fl-retry"><span class="small"><b>Coming back</b> (bounced callers retrying):</span>${w.pending.map(p => ticket(p.tk, { cls: 'retry', back: p.at - w.t })).join('')}</div>` : ''}</div>
@@ -143,10 +144,12 @@
       ${nc > 0 ? `<p class="small fl-nc">${icon('armchair')}The Night Clerk (batch reports) is sitting on ${plural(nc, 'stool')} of the ${w.pool.total}.</p>` : ''}
       ${pieces.includes('condwrite') ? `<p class="small">${icon('open-book')}Kai's ledger is open: a ticket handled twice spills nothing.</p>` : ''}
       ${pieces.includes('backoff') ? `<p class="small">${icon('hourglass')}Callers who bounce wait 1, then 2 turns before trying again.</p>` : ''}
+      </div><div class="fl-side">
       ${result}
       <p class="fl-cap">Capacity <b>${f.cap}</b> of ${F.CAP}${f.guard ? ` · Mop ready (${f.guard})` : ''}</p>
       <div class="fl-hand">${hand}</div>
       <details class="fl-what small"><summary>What spills</summary><p>Bounced (429) 1 · Gave up 3 · Caller left unanswered 3 · Handled twice 2 · Out of order 2 · Wrong desk 1 · Failed 1 · Leaked 4 · Never handled 2 · Parked in the bin 1.</p></details>
+      </div></div>
       <div class="fl-dock"><button class="ghost" id="fl-stop">☰ Stop</button><button class="primary" id="fl-lever">${icon('spanner')}Pull the lever</button></div>`);
     b.querySelectorAll('[data-h]').forEach(el => el.onclick = () => {
       const h = +el.dataset.h, why = F.why(s, h);
@@ -285,7 +288,7 @@
     .fl-row { display: flex; gap: 6px; justify-content: center; }
     .fl-door { flex: 1 1 0; max-width: 160px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 3px solid var(--ink, #17131f); border-radius: 12px 12px 4px 4px; background: #c9c2b2; color: var(--ink, #17131f); font-size: 13px; }
     .fl-door:disabled { opacity: 1; }
-    .fl-door.reach { background: var(--bone, #e2dbcb); box-shadow: 0 0 0 3px var(--sun, #b8923a); font-weight: 700; }
+    .fl-door.reach { background: #f3ecd9; box-shadow: 0 0 0 3px var(--sun, #b8923a); font-weight: 700; }
     .fl-door.done { background: #9fb09a; }
     .fl-boss { max-width: none; background: #2c3550; color: #fff; }
     .fl-boss.reach { background: #3f5f80; color: #fff; }
@@ -332,7 +335,8 @@
     .fl-ct { font-size: 12px; overflow-wrap: anywhere; }
     .fl-why { font-size: 11px; font-weight: 800; color: var(--red, #9e3a34); }
     .fl-tag { font-size: 11px; font-weight: 800; color: var(--blue, #3f5f80); }
-    .fl-proof, .fl-since { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid var(--ink, #17131f); background: var(--bone, #e2dbcb); }
+    .fl-proof, .fl-since { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid #17131f; background: #e2dbcb; }
+    .fl-proof .muted, .fl-since .muted, .fl-proof .small, .fl-since .small { color: #4a4036; }
     .fl-proof .fl-gi { width: 28px; height: 28px; }
     .fl-what summary { cursor: pointer; font-weight: 700; min-height: 32px; }
     .fl-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
@@ -344,6 +348,26 @@
     .fl-tk.down { color: #fff; }
     .fl-card .fl-tag { color: #3f5f80; } .fl-card .fl-why, .fl-result.spilt { color: #9e3a34; }
     .fl-zone:not(.fl-chute) { background: rgba(226, 219, 203, .12); }
-    .fl-zone.fl-rack.none { background: transparent; }`;
+    .fl-zone.fl-rack.none { background: transparent; }
+    .fl-play, .fl-board, .fl-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    /* Edge to edge (Ladi, Nov 16): no window box. The floor fills the stage under the bar with the sorting room behind
+       a darker wash, like Monster Hunt. On a wide screen the room (chute to desks) sits on the left and the turn's
+       result and your hand on the right, so the whole turn fits on one screen without scrolling. */
+    body.in-mode[data-stage="floor"] #panel { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    body.in-mode[data-stage="floor"] #panel :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+      background: radial-gradient(120% 90% at 50% 40%, rgba(10, 8, 14, .45), rgba(10, 8, 14, .8)); }
+    body.in-mode[data-stage="floor"] #panel .win-h { width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; }
+    body.in-mode[data-stage="floor"] #panel .win-h > span:first-child { visibility: hidden; }
+    body.in-mode[data-stage="floor"] #panel .win-b { border-radius: 0; background: none; box-shadow: none; padding: 12px max(16px, calc((100% - 1148px) / 2)) 0; }
+    body.in-mode[data-stage="floor"] #panel .win-b { display: flex; flex-direction: column; }
+    body.in-mode[data-stage="floor"] #panel .fl { flex: 1 0 auto; }
+    body.in-mode[data-stage="floor"] #panel .fl-dock { bottom: 0; margin: auto 0 0; padding: 14px 0 calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 0;
+      background: linear-gradient(rgba(10, 8, 14, 0), rgba(10, 8, 14, .92) 34%); }
+    body.in-mode[data-stage="floor"] #panel .fl-map { width: 100%; max-width: 760px; align-self: center; }
+    @media (min-width: 900px) {
+      .fl-play { display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); gap: 20px; align-items: start; }
+      body.in-mode[data-stage="floor"] #panel .fl-hand { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    }`;
   document.head.appendChild(css);
 })();

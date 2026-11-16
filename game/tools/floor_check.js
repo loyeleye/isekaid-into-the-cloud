@@ -3,7 +3,7 @@
 // chute / door / router / rack / desks, playing pieces and knobs, the lever, the first 429 taught by one line from
 // Dutch, the debrief on the plain exam screen with the stakes, a proven card, the reward, stopping and resuming after a
 // reload, and a whole night to the Hunch and the end screen.
-// Run from game/:  node tools/floor_check.js     SHOTS=dir saves screenshots.
+// Run from game/:  node tools/floor_check.js     SHOTS=dir saves screenshots. W=1280 H=800 runs it at desktop width.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -23,7 +23,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: +(process.env.W || 375), height: +(process.env.H || 667) } });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
