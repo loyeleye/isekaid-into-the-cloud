@@ -17,11 +17,15 @@
 //     as long: the producer calling every consumer itself). The bell is an SNS topic with both as subscribers: one
 //     ring and each gets its own copy. SNS invokes Lambda asynchronously, so Reports' copies wait in Lambda's own
 //     event queue (the tray) until a Reports stool is free, instead of bouncing.
+//   - Claim 3, the Double-claimer: nervous callers resend the same ticket (a client retrying after a timeout), and
+//     the rack's at-least-once twins are back. Doing the same ticket twice pays out twice, and that's a lost request
+//     in the tank. The ledger is an idempotency record in DynamoDB: before the work, Mira writes the ticket's key
+//     with a conditional write (attribute_not_exists). A repeat fails the condition and is dropped at once.
 (function (root) {
   const SD = root.SD = root.SD || {};
   const T = {
     slide: 0.9, walk: 0.5, work: 1.4, done: 0.7, bounce: 0.9, splat: 0.6, tobin: 0.8, back: 0.5, hidden: 1.6,
-    backoff: [0.6, 1.4], gap: 3, clog: 6
+    backoff: [0.6, 1.4], gap: 3, clog: 6, drop: 0.45
   };
   const STOOLS = 6, CLERK_MAX = 4, RESERVE = 4, CAP = 12, MAX_THROTTLES = 3, MAX_RECEIVES = 3, TWIN_P = 0.1;
   // Each wave: how many tickets, over how many seconds, and how many of them are poison.
@@ -33,9 +37,9 @@
   ];
   // The claims, played in order. A claim's locked tools show on the belt as "next claim".
   const CLAIMS = {
-    rush: { name: 'THE RUSH', title: 'the Rush', waves: WAVES, locked: ['bell'], next: 'bell', close: 95 },
+    rush: { name: 'THE RUSH', title: 'the Rush', waves: WAVES, locked: ['bell'], next: 'bell', close: 95, clerk: 'papers' },
     bell: {
-      name: 'THE BELL', title: 'the Bell', locked: [], next: null, close: 70,
+      name: 'THE BELL', title: 'the Bell', locked: [], next: 'double', close: 70, clerk: 'reports',
       waves: [
         { n: 10, secs: 5, poison: 0, ribbon: 0.8 },
         { n: 14, secs: 5, poison: 0, ribbon: 0.8 },
@@ -44,11 +48,22 @@
       ]
     }
   };
+  CLAIMS.double = {
+    name: 'THE DOUBLE-CLAIMER', title: 'the Double-claimer', locked: [], next: null, close: 80, clerk: 'papers',
+    belt: ['rack', 'reserve', 'bin', 'ledger'], resend: 0.35, twiceCosts: true,
+    waves: [
+      { n: 10, secs: 5, poison: 0 },
+      { n: 12, secs: 5, poison: 0 },
+      { n: 12, secs: 5, poison: 1 },
+      { n: 16, secs: 6, poison: 1 }
+    ]
+  };
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
     bin: { name: 'Dead-letter bin', aws: 'Dead-letter queue', cost: 1 },
-    bell: { name: 'Bell', aws: 'SNS topic (fan-out)', cost: 1 }
+    bell: { name: 'Bell', aws: 'SNS topic (fan-out)', cost: 1 },
+    ledger: { name: 'Ledger', aws: 'DynamoDB conditional write (idempotency)', cost: 1 }
   };
   function rng(seed) {
     let a = seed >>> 0;
@@ -58,6 +73,7 @@
     const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
       claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
+      clerk: C.clerk, twiceCosts: !!C.twiceCosts, belt: (C.belt || ['rack', 'reserve', 'bin', 'bell']).slice(), ledger: false, keys: new Set(), paidTwice: 0, dropped: 0, resends: 0,
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
       rack: false, reserve: false, bin: false, coins: 2, bonusGiven: false,
@@ -71,7 +87,10 @@
       while (poisonAt.size < w.poison) poisonAt.add(2 + Math.floor(S.rand() * (w.n - 2)));
       for (let i = 0; i < w.n; i++) {
         const poison = poisonAt.has(i);
-        S.spawns.push({ t: t + (i / w.n) * w.secs + S.rand() * 0.25, wave: wi + 1, poison, ribbon: !poison && S.rand() < (w.ribbon || 0) });
+        const at = t + (i / w.n) * w.secs + S.rand() * 0.25, key = 'k' + S.spawns.length;
+        S.spawns.push({ t: at, wave: wi + 1, poison, ribbon: !poison && S.rand() < (w.ribbon || 0), key });
+        // A nervous caller sends the same ticket again a moment later.
+        if (!poison && C.resend && S.rand() < C.resend) S.spawns.push({ t: at + 0.8 + S.rand() * 1.6, wave: wi + 1, poison: false, ribbon: false, key, resend: true });
       }
       t += w.secs + T.gap;
     });
@@ -90,7 +109,7 @@
   // In the Rush the Night Clerk's papers hold his stools; in the Bell they're the Reports function's.
   function freeStool(S, owner) {
     const s = seats(S), o = owner || 'mira';
-    if (o === 'clerk' && S.claim === 'rush') return -1;
+    if (o === 'clerk' && S.clerk === 'papers') return -1;
     for (let i = 0; i < s.length; i++) if (s[i].owner === o && s[i].ticket == null) return i;
     return -1;
   }
@@ -98,7 +117,7 @@
   function canPlace(S, tool) {
     const d = TOOLS[tool];
     if (!d) return 'unknown';
-    if (S.locked.includes(tool)) return 'locked';
+    if (S.locked.includes(tool) || !S.belt.includes(tool)) return 'locked';
     if (S[tool]) return 'placed';
     if (S.coins < d.cost) return 'coins';
     if (S.over) return 'over';
@@ -115,7 +134,8 @@
   function start(S) { if (!S.started && !S.over) { S.started = true; ev(S, 'lever'); } }
   function go(k, phase, dur) { k.phase = phase; k.t = 0; k.dur = dur; }
   function spawn(S, sp) {
-    const k = { id: S.nextId++, wave: sp.wave, poison: sp.poison, ribbon: sp.ribbon, desk: 'mira', twin: false, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
+    if (sp.resend) { S.resends++; ev(S, 'resend', { key: sp.key }); }
+    const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
     go(k, 'slide', T.slide);
     S.tickets.push(k);
   }
@@ -145,7 +165,7 @@
       go(k, 'done', T.done);
       // At-least-once delivery: now and then the rack hands the same ticket over again.
       if (viaRack && !k.twin && S.rand() < TWIN_P) {
-        const tw = { id: S.nextId++, wave: k.wave, poison: false, twin: true, throttles: 0, receives: 0, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
+        const tw = { id: S.nextId++, key: k.key, wave: k.wave, poison: false, twin: true, throttles: 0, receives: 0, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
         go(tw, 'shelf', 0); S.tickets.push(tw); S.queue.push(tw.id); S.twins++;
         ev(S, 'twin', { id: tw.id, of: k.id });
       }
@@ -178,10 +198,22 @@
       if (k.phase === 'shelf' || k.phase === 'tray' || k.t < k.dur) continue;
       switch (k.phase) {
         case 'slide': arrive(S, k); break;
-        case 'walk': go(k, 'work', k.ribbon ? T.work * 2 : T.work); break;
+        case 'walk':
+          // The ledger: write this ticket's key only if it isn't there. A repeat fails the condition and is dropped.
+          if (S.ledger && k.desk === 'mira' && !k.poison) {
+            if (S.keys.has(k.key)) { go(k, 'drop', T.drop); S.dropped++; ev(S, 'dropped', { id: k.id }); break; }
+            S.keys.add(k.key);
+          }
+          go(k, 'work', k.ribbon ? T.work * 2 : T.work); break;
+        case 'drop': k.stool = null; remove(S, k); break;
         case 'work': finishWork(S, k); break;
         case 'done':
-          if (k.desk === 'reports') S.reports++; else { S.handled++; if (k.ribbon) S.reports++; }
+          if (k.desk === 'reports') S.reports++;
+          else {
+            S.handled++; if (k.ribbon) S.reports++;
+            // Without the ledger, a key done before means this one paid out twice.
+            if (S.twiceCosts && !S.ledger && k.key) { if (S.keys.has(k.key)) { S.paidTwice++; remove(S, k); lose1(S, k, 'twice'); break; } S.keys.add(k.key); }
+          }
           remove(S, k); ev(S, 'handled', { id: k.id, twin: k.twin, desk: k.desk, copied: !!k.ribbon }); break;
         case 'bounce': go(k, 'wait', T.backoff[k.throttles - 1] || 1); break;
         case 'wait': go(k, 'slide', T.slide); break;

@@ -62,6 +62,24 @@ const srv = http.createServer((q, r) => {
     const bs = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, rings: SD_RUSH.S.rings, q: document.querySelector('.q-text').textContent.slice(0, 40) }));
     console.log(name, 'bell', JSON.stringify(bs));
     if (!bellDone || bs.over !== 'win' || !bs.rings || !/order is placed/.test(bs.q)) { fail++; console.log(name, 'bell claim did not play through'); }
+    // The Bell won: on to claim 3, the Double-claimer.
+    const next3 = await pg.evaluate(() => { document.querySelector('.q-opts button').click(); return document.querySelector('.q-again').textContent; });
+    if (!/Next claim: the Double-claimer/.test(next3)) { fail++; console.log(name, 'no claim 3 button:', next3); }
+    await pg.click('.q-again');
+    await pg.evaluate(() => SD_RUSH.reset(7, 'double'));
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-9-double-build.png` });
+    const [l1x, l1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [l2x, l2y] = await pg.evaluate(() => SD_RUSH.at.spot('ledger'));
+    await pg.mouse.move(l1x, l1y); await pg.mouse.down(); await pg.mouse.move(l2x, l2y, { steps: 8 }); await pg.mouse.up();
+    if (!(await pg.evaluate(() => SD_RUSH.S.ledger))) { fail++; console.log(name, 'ledger drag failed'); }
+    await pg.evaluate(() => { SD_RUSH.place('reserve'); SD_RUSH.start(); });
+    await pg.waitForTimeout(9000);
+    await pg.screenshot({ path: `${OUT}/${name}-10-double.png` });
+    const dDone = await pg.waitForFunction(() => document.getElementById('q').classList.contains('on'), null, { timeout: 120000 }).then(() => true, () => false);
+    await pg.screenshot({ path: `${OUT}/${name}-11-double-question.png` });
+    const ds = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, dropped: SD_RUSH.S.dropped, twice: SD_RUSH.S.paidTwice, q: document.querySelector('.q-text').textContent.slice(0, 50), again: document.querySelector('.q-again').textContent }));
+    console.log(name, 'double', JSON.stringify(ds));
+    if (!dDone || ds.over !== 'win' || !ds.dropped || ds.twice || !/payment function/.test(ds.q)) { fail++; console.log(name, 'double claim did not play through'); }
     if (errs.length) { fail++; console.log(name, 'errors:', errs); }
     if (!done) { fail++; console.log(name, 'claim never finished'); }
     if (st.sw > st.w) { fail++; console.log(name, 'horizontal scroll'); }
