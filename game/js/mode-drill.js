@@ -86,7 +86,9 @@
       s.fresh = false;
       D.startDrill(s, el.dataset.drill, s.night * 7919 + s.row * 31);
       s.at = D.DRILLS[el.dataset.drill].path === 'async' ? 'queue' : 'gate';
-      save(s); draw(s);
+      save(s);
+      if (SD.drillBoard && D.lastFrames) playing = { frames: D.lastFrames, budget0: s.budget, cost: 0 };
+      draw(s);
     });
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
@@ -121,24 +123,55 @@
       <p class="small">${plural(left, 'change')} left for this deploy. Settings say what they set, never whether they help.</p>
       <div class="dr-hand">${cards}</div></div>`;
   }
+  // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
+  let playing = null;
   function drillScreen(s) {
     const f = s.drill, d = D.DRILLS[f.drill], e = f.log[f.log.length - 1];
     const over = f.state === 'contained' || f.state === 'escalated';
-    const teach = e.teach || [];
+    const BD = SD.drillBoard, play = playing;
+    const teach = play ? [] : (e.teach || []);
     const head1 = e.warm ? 'Warm-up run, with the fault in place' : `Deploy ${f.deploys} of ${D.DEPLOYS}`;
-    const verdict = e.warm ? `<p class="ms-lt dr-res">${icon('siren')} Something's wrong. Read the map, tap a station for its metrics, and check the pager.</p>`
+    const verdict = play ? '' : e.warm ? `<p class="ms-lt dr-res">${icon('siren')} Something's wrong. Watch where the orders go wrong, then tap a station to change it.</p>`
       : e.ok ? `<p class="ms-lt dr-res good">${icon('checked-shield')} Contained${D.clean(f) ? ', first deploy: a clean fix' : ''}. ${e.cost ? `It cost ${e.cost}% on the way.` : 'Nothing spilled.'}</p>`
         : `<p class="ms-lt dr-res bad">Not contained. This run cost <b>${e.cost}%</b> of the budget.${f.state === 'escalated' ? ` It escalates: another ${D.ESCALATE}%.` : ''}</p>`;
-    const reveal = f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
-    const b = panel(`<div class="dr-cols"><div class="dr dr-l"><div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
-        <p class="dr-turn">${esc(head1)}</p></div>
-      ${budgetJar(s)}
-      ${traceMap(f, e)}
-      ${verdict}${reveal}
-      <div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>
+    const reveal = !play && f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
+    const lines = play ? '' : BD ? BD.bubbles(e.lines)
+      : `<div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>`;
+    const jarS = play ? Object.assign({}, s, { budget: play.budget0 }) : s;
+    const dock = play ? '<button class="ghost" id="dr-skip">Skip to the end</button>'
+      : `<button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}`;
+    const b = panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
+        <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
+      ${budgetJar(jarS)}
+      ${BD ? BD.html(f, e, s.at) : traceMap(f, e)}
+      <div class="dr-cols"><div class="dr dr-l">${verdict}${reveal}
+      ${lines}
       ${teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
-      <div class="dr dr-r">${over ? '' : stationHtml(s, f, e)}</div></div>
-      <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}</div>`);
+      <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
+      <div class="dr-dock">${dock}</div>`);
+    if (play) {
+      if (play.started) return;
+      play.started = true;
+      const wb = b.closest('.win-b') || b; wb.scrollTop = 0;   // the run plays on the board: start at the top
+      const traced = {}; D.ORDER.forEach(k => { traced[k] = e.nodes[k] && e.nodes[k] !== 'dark' && e.nodes[k] !== 'off'; });
+      let spill = 0;
+      BD.play(b, f, play.frames, {
+        traced, skipBtn: b.querySelector('#dr-skip'), gone: () => !document.body.contains(b),
+        onTick: fr => {
+          const x = fr.d;
+          spill += (x.gaveUp | 0) + (x.fault5xx | 0) + (x.slow | 0) + (x.dupes | 0) + (x.lost | 0) + (x.goodParked | 0);
+          const left = Math.max(0, play.budget0 - Math.min(play.cost, spill));
+          const jar = b.querySelector('.dr-jar'); if (jar) { jar.querySelector('i').style.width = left + '%'; jar.querySelector('b').textContent = left + '%'; }
+        }
+      }).then(() => {
+        if (playing !== play || !document.body.contains(b)) return;
+        playing = null;
+        draw(s);
+        const res = document.querySelector('.dr-res.good');
+        if (res && U.burst) U.burst(res, D.clean(f));
+      });
+      return;
+    }
     b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; save(s); draw(s); });
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
       const id = el.dataset.card, why = D.place(f, id);
@@ -153,15 +186,16 @@
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
     const dep = b.querySelector('#dr-deploy');
     if (dep) dep.onclick = () => {
+      const budget0 = s.budget;
       const r = D.deploy(f);
       r.teach = D.teachFor(f, r, s.taught);
       r.teach.forEach(t => { s.taught[t] = 1; });
       keep().taught = s.taught;
       D.afterDeploy(s, r);
       if (s.phase === 'debrief') s.phase = 'drill';   // show the result first; Debrief moves on
-      save(s); draw(s);
-      const res = document.querySelector('.dr-res.good');
-      if (res && U.burst) U.burst(res, D.clean(f));
+      save(s);
+      if (SD.drillBoard && D.lastFrames) { playing = { frames: D.lastFrames, budget0, cost: r.cost + (f.state === 'escalated' ? D.ESCALATE : 0) }; drillScreen(s); return; }
+      draw(s);
     };
     const nx = b.querySelector('#dr-next');
     if (nx) nx.onclick = () => { s.phase = 'debrief'; save(s); draw(s); };
@@ -325,6 +359,7 @@
       padding: 10px calc(50vw - 50%) calc(10px + env(safe-area-inset-bottom, 0px));
       background: rgba(20, 17, 28, .94); border-top: 2px solid #0c0a10; }
     .dr-cols { display: flex; flex-direction: column; gap: 8px; }
+    .dr-wait { opacity: .55; pointer-events: none; filter: saturate(.6); }
     .dr-l, .dr-r { min-width: 0; }
     .dr-r:empty { display: none; }
     @media (min-width: 900px) {

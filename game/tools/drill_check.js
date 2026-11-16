@@ -32,6 +32,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
+    await page.evaluate(() => { if (SD.drillBoard) SD.drillBoard.STEP_MS = 5; });
   };
   const noHScroll = async where => {
     const r = await page.evaluate(() => {
@@ -62,12 +63,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, [right, conf]);
 
   const place = async id => { await page.evaluate(id => { const s = SD.state.save.drill; s.at = SD.drill.CARDS[id].at; SD.state.persist(); SD.drillUi.draw(); }, id); await page.click(`[data-card="${id}"]`); };
-  const deploy = () => page.click('#dr-deploy');
+  // A run plays out on the board (js/drill-board.js); the checks run it fast and wait for the result.
+  const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
+  const deploy = async () => { await page.click('#dr-deploy'); await settle(); };
   const postmortem = async (right, conf) => {
     await page.click('#dr-next');
     await page.click('#dr-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
-    const plain = await page.evaluate(() => !document.querySelector('#panel .dr-trace, #panel .dr-pager, #panel .dr-station'));
+    const plain = await page.evaluate(() => !document.querySelector('#panel .dr-trace, #panel .dr-pager, #panel .dr-station, #panel .db, #panel .db-chat'));
     const qid = await answer(right, conf);
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
@@ -92,16 +95,17 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('map'); await shot('map');
 
   // ---- Retry Storm: the warm-up shows the fault ----
-  await page.click('.dr-door.reach');
+  await page.click('.dr-door.reach'); await settle();
   let s = await st();
   check(s.phase === 'drill' && s.drill.drill === 'storm' && s.drill.log.length === 1, 'the first door opens Retry Storm with its warm-up run');
   let t = await txt('#panel');
-  check(/Warm-up run/.test(t) && /The pager/.test(t) && /429 Too Many Requests/.test(t), 'the warm-up run and the pager: Seo-yeon reports 429s');
-  check(await page.$$eval('.dr-node', x => x.length) === 4 && await page.$$eval('.dr-node.st-dark', x => x.length) === 3, 'the trace map: callers, Gate, Function and Store, untraced nodes grey');
+  check(/Warm-up run/.test(t) && /429 Too Many Requests/.test(await txt('.db-chat')), 'the warm-up run plays out, then Seo-yeon reports 429s in her bubble');
+  check(await page.$$eval('.db-st', x => x.length) === 4 && await page.$$eval('.db-st.st-dark', x => x.length) === 3, 'the board: callers, Gate, Function and Store, untraced stations grey');
+  check(await page.$$eval('.db-lead', x => x.length) === 3 && await page.$$eval('.db-pips i', x => x.length) > 0, 'the leads stand at their stations, and the Gate shows its token bucket');
   check(/bucket only refills/.test(t), 'the 429 is taught by its first use, in one line');
   check(/4XXError/.test(t) && /Count/.test(t), 'the Gate\'s station shows its real CloudWatch metrics');
   await noHScroll('warm-up'); await shot('warmup');
-  await page.click('.dr-node[data-at="fn"]');
+  await page.click('.db-st[data-at="fn"]');
   check(/The Function/.test(await txt('.dr-station')) && /ConcurrentExecutions/.test(await txt('.dr-station')), 'tapping a node opens that station\'s metrics and settings');
   // A refused setting teaches by refusal.
   await place('burst');
@@ -112,7 +116,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await deploy();
   s = await st();
   check(s.drill.deploys === 1 && s.drill.state === 'read' && s.budget < 100, `a look-alike doesn't contain it, and the run costs budget (${s.budget}%)`);
-  check(await page.$$eval('.dr-node[data-at="gate"]', x => x[0].classList.contains('st-throttle')), 'with stage tracing on, the Gate shows purple: Throttle 429');
+  check(await page.$$eval('.db-st[data-at="gate"]', x => x[0].classList.contains('st-throttle')), 'with stage tracing on, the Gate shows purple: Throttle 429');
   await shot('traced');
   await place('backoff');
   await deploy();
@@ -127,7 +131,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(s.phase === 'map' && s.row === 1 && s.done[0].state === 'contained', 'back on the map, one row up');
 
   // ---- Stop and resume ----
-  await page.click('.dr-door.reach');
+  await page.click('.dr-door.reach'); await settle();
   const before = await st();
   await page.click('#dr-stop');
   await page.evaluate(() => sessionStorage.setItem('keep', '1'));
@@ -147,7 +151,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   for (let guard = 0; guard < 6; guard++) {
     s = await st();
     if (s.phase === 'end' || s.phase === 'zero') break;
-    await page.click('.dr-door.reach');
+    await page.click('.dr-door.reach'); await settle();
     const id = (await st()).drill.drill;
     for (const c of await page.evaluate(id => SD.drill.DRILLS[id].fix[0], id)) await place(c);
     if (id === 'midnight') await shot('boss');
