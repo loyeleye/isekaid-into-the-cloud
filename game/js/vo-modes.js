@@ -58,6 +58,35 @@
     "dutch|Now. Where were you at midnight?": 'dutch-mg-pop-breakin2',
     "mira|Hold still. No, it's not \"just a backfire\". A backfire is what I get from Kai's stove. This is a hole.": 'mira-mg-pop-rest',
     "seoyeon|Rest is over. Forms.": 'seoyeon-mg-pop-breakout',
+    "dutch|Mira doesn't argue. She lines three of them up and points at the row that settles it. Watch.": 'dutch-mg-pop-teach-compare',
+    "dutch|Seo-yeon reads a policy like a confession. One line's lying. Find it, then say why.": 'dutch-mg-pop-teach-spot',
+    "dutch|Kai's question: what does this do when it runs? Not what it's meant to do. What it does.": 'dutch-mg-pop-teach-predict',
+    "dutch|My way. Records. What happened first, what happened next, and what never happened at all.": 'dutch-mg-pop-teach-seq',
+    "dutch|Your turn. One hint. Nothing staked, nothing scored.": 'dutch-mg-pop-practice',
+    "dutch|Half a proof. Half the payout. The claim keeps the rest.": 'dutch-mg-pop-fmt-partial',
+    "dutch|Sure, and wrong. Up on the Wall, as a bank question. Its idea comes back tomorrow night too, exam-style.": 'dutch-mg-pop-fmt-suremiss',
+    "dutch|Practice. Nothing rides on it.": 'dutch-mg-pop-fmt-unscored',
+    "dutch|…It's been wrong before.": 'dutch-mg-pop-deflate2',
+    "dutch|Twenty-five years, and nobody ever made it show its working. Me included.": 'dutch-mg-pop-deflate3',
+    "dutch|Smaller every night. I could get used to that.": 'dutch-mg-pop-deflate4',
+    "dutch|Something big moved into the heap. Says it's AWS. Says it loud.": 'dutch-mg-pop-room-night3',
+    "dutch|There's a cat in my heap.": 'dutch-mg-pop-room-night4',
+    "dutch|Locked. Keys come off cleared claims.": 'dutch-mg-pop-room-locked',
+    "dutch|One key. One check. Then it's yours.": 'dutch-mg-pop-room-vaultopen',
+    "dutch|Seal's off. That's a record.": 'dutch-mg-pop-room-vaultwon',
+    "dutch|Seal held. The key stays in the lock. Happens.": 'dutch-mg-pop-room-vaultlost',
+    "dutch|Back stairs. Skips a row. The checks you'd have spent come up with you.": 'dutch-mg-pop-room-shortcut',
+    "dutch|Up we go. Mind the third step.": 'dutch-mg-pop-room-shorttaken',
+    "dutch|The records vault. Two keys. Nobody gets blamed in here. We just write down what happened.": 'dutch-mg-pop-room-records',
+    "dutch|Blameless Postmortem. It pays for what you proved, not what you bet.": 'dutch-mg-pop-room-recordsopen',
+    "dutch|Suit yourself. It'll keep.": 'dutch-mg-pop-room-pass',
+    "kai|Come here, love.": 'kai-mg-pop-room-catwon',
+    "dutch|Suspect fled the scene. Again.": 'dutch-mg-pop-room-catlost',
+    "dutch|Fine. Go. I've got your description.": 'dutch-mg-pop-room-catgo',
+    "mira|Patient.": 'mira-mg-pop-room-cat1',
+    "kai|Chef.": 'kai-mg-pop-room-cat2',
+    "seoyeon|Honoured Guest.": 'seoyeon-mg-pop-room-cat3',
+    "dutch|Suspect.": 'dutch-mg-pop-room-cat4',
     // Monster Hunt (Bru)
     "bru|Every answer you got wrong is a bounty on my board. Nothing in the Cloud is ever really deleted: your misses have been living in the scrap field behind a delete marker, and they've grown. Ay, no.": 'bru-mg-hunt-board1',
     "bru|I know where everyone in this camp is. Your misses too. Especially your misses.": 'bru-mg-hunt-board2',
@@ -73,6 +102,10 @@
     "bru|¡Ay! It slipped the marker. It'll be back, and so will you.": 'bru-mg-hunt-escaped2',
     "bru|¡Bien! Driven off before it could put down roots.": 'bru-mg-hunt-wildok',
     "bru|It got away into the scrap field. It's on the Wall now, with the others.": 'bru-mg-hunt-wildbad',
+    // Incident Commander (Uptima)
+    "dutch|Point at a door. Nobody pages through it while I'm standing there.": 'dutch-mg-ic-pick',
+    "coo|Coo. The next letter that goes astray, I'll catch half of it.": 'coo-mg-ic-pick',
+    "bru|I'll walk the doors myself while you work. Go. ¡Ándale!": 'bru-mg-ic-pick',
     // Architect's Draft (Coo or Ayo, Sir Seymour, the clients)
     "coo|Coo. Pingsby's Quarter, under delete markers, all of it. Clients are waiting. Read the whole scroll. Build what it says.": 'coo-mg-draft-intro',
     "coo|Coo. Filed. Same again tomorrow.": 'coo-mg-draft-end',
@@ -135,7 +168,7 @@
   // voices them in order (a new screen replaces the queue), and a line that leaves the screen stops. A re-render that
   // keeps the same line on screen doesn't replay it. A toast's line (in #notes) plays out when the toast goes. A line with no recording yet (a 404) goes quiet for the session.
   if (typeof document === 'undefined' || typeof MutationObserver !== 'function') return;
-  let shown = new Set(), queue = [], cur = null, timer = 0, keep = new Set();
+  let shown = new Set(), sfxShown = new Set(), queue = [], cur = null, timer = 0, keep = new Set();
   const missing = new Set();
   const visible = el => el.isConnected && el.getClientRects().length > 0 && !el.closest('[hidden]');
   function next() {
@@ -161,6 +194,10 @@
       if (!shown.has(k) && !fresh.includes(k) && LINES[k] && !missing.has(k)) fresh.push(k);
     });
     shown = now;
+    // A wordless speaker (the Hunch) marks its moment with data-sfx: a synth effect in js/audio.js, once as it appears.
+    const fx = new Set([...document.querySelectorAll('[data-sfx]')].filter(visible).map(el => el.getAttribute('data-sfx')));
+    fx.forEach(n => { if (!sfxShown.has(n) && SD.audio && SD.audio.sfx) SD.audio.sfx(n); });
+    sfxShown = fx;
     if (cur && !now.has(cur) && !keep.has(cur)) { const k = cur; cur = null; queue = []; if (SD.audio && SD.audio.voice) SD.audio.voice(null); missing.delete(k); }
     if (fresh.length) { queue = fresh; if (!cur) next(); }
   }
@@ -168,7 +205,7 @@
   VM.stop = () => { queue = []; if (cur) { cur = null; SD.audio.voice(null); } };
   const watch = () => {
     new MutationObserver(() => { if (!timer) timer = setTimeout(pass, 60); })
-      .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'data-vo', 'class'] });
+      .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'data-vo', 'data-sfx', 'class'] });
     pass();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch, { once: true }); else watch();

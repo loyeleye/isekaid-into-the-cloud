@@ -583,7 +583,7 @@
       const marks = f.order.concat(f.check ? [f.check] : []);
       const looseOpen = f.looseWaiting | 0;
       const plate = [0, 1, 2].map(k => k < f.proofs.length ? (f.proofs[k] ? '<i class="pm held" title="held">✓</i>' : '<i class="pm failed" title="failed">✗</i>') : '<i class="pm wait" title="waiting">?</i>').join('') + Array.from({ length: looseOpen }, () => '<i class="pm loose" title="loose proof">+</i>').join('');
-      return `<div class="pop-stage hunch"><div class="pop-foe">${P.HUNCH_SVG}</div><div class="pop-intent">💭 "${esc(P.rules(s.night, s.iso).hunchSays)}": hits <b>${P.hunchHit(s)}</b>
+      return `<div class="pop-stage hunch"><div class="pop-foe">${P.HUNCH_SVG}</div><div class="pop-intent" data-sfx="hunch">💭 "${esc(P.rules(s.night, s.iso).hunchSays)}": hits <b>${P.hunchHit(s)}</b>
         <div class="pop-plate" aria-label="Core proofs: ${f.proofs.filter(Boolean).length} held, ${f.proofs.filter(x => !x).length} failed; ${plural(looseOpen, 'loose proof')} waiting">${plate}</div>
         <span class="small">${marks.length ? `${plural(marks.filter(c => c.kind === 'loose').length, 'loose proof')} then ${plural(marks.filter(c => c.kind !== 'loose').length, 'core proof')} to go` : ''}</span></div></div>`;
     }
@@ -782,7 +782,7 @@
     const head1 = s.how === 'won' ? 'The Hunch didn\'t check out.' : s.how === 'lost' ? 'The Hunch checked out.' : 'You retreated.';
     const finds = s.found.map(id => P.ITEMS.find(i => i.id === id)).filter(Boolean);
     const b = panel(`<p class="pop-banner">PROOF SHEET · Night ${s.night}</p>
-      ${s.how === 'won' ? `<div class="pop-sky flat">${P.HUNCH_FLAT}<span class="pop-cap">Pffffbbbt.</span></div>${say('dutch', 'surprised', (P.deflate && P.deflate(s)) || SAY.won)}<p class="small muted"><i>The badge rolls to his boots. He doesn't pick it up.</i></p>` : say('dutch', 'tired', s.how === 'lost' ? SAY.lost : SAY.retreat)}
+      ${s.how === 'won' ? `<div class="pop-sky flat" data-sfx="deflate">${P.HUNCH_FLAT}<span class="pop-cap">Pffffbbbt.</span></div>${say('dutch', 'surprised', (P.deflate && P.deflate(s)) || SAY.won)}<p class="small muted"><i>The badge rolls to his boots. He doesn't pick it up.</i></p>` : say('dutch', 'tired', s.how === 'lost' ? SAY.lost : SAY.retreat)}
       <p class="td-big">${head1} ${right} of ${first.length} proven.</p>
       <p class="small">Night score: <b>${plural(s.heldN | 0, 'proof')} held</b> · <b>${plural(s.cleared, 'claim')} cleared</b> · <b>${M.sgn(s.pts)} points</b>.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
       ${P.fx ? P.fx.sheetLine(s) : ''}

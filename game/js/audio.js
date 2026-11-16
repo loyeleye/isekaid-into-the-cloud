@@ -364,6 +364,14 @@
     poof: t => { hiss({ t, dur: 0.3, vol: 0.16, type: 'lowpass', f: 1800, f2: 300 }); tone({ wave: 'sine', f: 520, f2: 880, t: t + 0.03, dur: 0.12, vol: 0.06 }); },
     // Explodia's blast: a crack, a low thump and a long rolling rumble.
     boom: t => { hiss({ t, dur: 0.12, vol: 0.5, f: 2500 }); tone({ wave: 'sine', f: 120, f2: 30, t, dur: 0.6, vol: 0.9, r: 0.4 }); hiss({ t: t + 0.03, dur: 1.6, vol: 0.55, type: 'lowpass', f: 900, f2: 60 }); },
+    // The Hunch (js/mode-pop.js) has no words, only a gut: a pompous brass blat, low then lower ("Trust me").
+    hunch: t => { tone({ wave: 'sawtooth', f: 196, f2: 185, t, dur: 0.22, vol: 0.13, lp: 900, vib: true }); tone({ wave: 'sawtooth', f: 147, f2: 131, t: t + 0.25, dur: 0.42, vol: 0.14, lp: 700, vib: true }); },
+    // ...and its deflation ("Pffffbbbt."): a long hiss of air, then a raspberry flapping down to nothing.
+    deflate: t => { hiss({ t, dur: 0.55, vol: 0.18, type: 'bandpass', f: 2400, f2: 900 }); tone({ wave: 'sawtooth', f: 120, f2: 55, t: t + 0.45, dur: 0.7, vol: 0.12, lp: 500, vib: true }); tone({ wave: 'square', f: 62, f2: 40, t: t + 0.5, dur: 0.6, vol: 0.06, lp: 300 }); },
+    // A Monster Hunt mimic (js/hunt.js): two wooden lid clacks and a low gurgle when it turns up...
+    mimic: t => { [0, 0.11].forEach(d => { hiss({ t: t + d, dur: 0.04, vol: 0.3, type: 'bandpass', f: 1400, f2: 900 }); tone({ wave: 'triangle', f: 260, f2: 170, t: t + d, dur: 0.05, vol: 0.12 }); }); tone({ wave: 'sawtooth', f: 90, f2: 70, t: t + 0.22, dur: 0.38, vol: 0.09, lp: 400, vib: true }); },
+    // ...and a chomp when it bites back (a miss).
+    chomp: t => { hiss({ t, dur: 0.05, vol: 0.35, type: 'bandpass', f: 1100, f2: 600 }); tone({ wave: 'square', f: 140, f2: 60, t, dur: 0.12, vol: 0.12, lp: 600 }); },
     // Synth thunder for when the recorded claps haven't loaded.
     thunder: t => { hiss({ t, dur: 0.08, vol: 0.35, f: 3000 }); hiss({ t: t + 0.05, dur: 2.2, vol: 0.45, type: 'lowpass', f: 500, f2: 50 }); }
   };

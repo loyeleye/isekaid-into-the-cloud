@@ -111,6 +111,8 @@
     { id: 'bru', who: 'Bru', what: 'One free step each wave (on the board: your next answer ticks no other clock)', line: 'I\'ll walk the doors myself while you work. Go. ¡Ándale!' }
   ];
   const pickDef = id => IC.PICKS.find(p => p.id === id);
+  // The voice key of the line on the board (js/vo-modes.js): a helper's line after a pick is in the helper's voice.
+  const voOf = m => { const p = IC.PICKS.find(x => m === `${x.who}: ${x.line}`); return p ? p.id + '|' + p.line : 'uptima|' + m; };
   const shifts = () => (sv().modes && sv().modes.icShifts) | 0;
   IC.mapOn = () => shifts() >= 1;
   IC.picksOn = () => shifts() >= 2;
@@ -412,7 +414,7 @@
     if (s.phase === 'zero') return zeroPanel(s);
     if (s.phase === 'done') return results(s);
     const order = s.board.map((b, i) => i).sort((a, c) => (workable(s, s.board[c]) - workable(s, s.board[a])) || (s.board[a].clock - s.board[c].clock));
-    const b = U.panel(`<p class="ic-say" data-vo="${esc('uptima|' + (s.msg || SAY.open))}"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
+    const b = U.panel(`<p class="ic-say" data-vo="${esc(voOf(s.msg || SAY.open))}"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
       ${s.since ? `<p class="small ic-since">${esc(s.since)}</p>` : ''}
       ${hud(s)}
       ${s.map ? mapHtml(s) : ''}

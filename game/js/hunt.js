@@ -340,7 +340,11 @@
     const body = w.querySelector('.q-ctx');
     if (body) body.insertAdjacentHTML('beforebegin', hpHtml(live.m, 'hn-inq'));
   }
+  // The monsters are mimics (the title card's loop): no words, a synth clatter as one turns up and a chomp when it bites
+  // back on a miss (js/audio.js). The chomp waits a beat, after the wrong-answer sound.
+  const growl = n => { if (SD.audio && SD.audio.sfx) SD.audio.sfx(n); };
   function record(h, m, step, ok, conf, pts) {
+    if (!ok) setTimeout(() => growl('chomp'), 260);
     m.res[step] = { ok: ok ? 1 : 0, conf };
     h.pts += pts | 0; m.pts = (m.pts | 0) + (pts | 0);
     if (ok) h.right++; else h.wrong++;
@@ -350,6 +354,7 @@
   }
   async function runStep(h, m, tok) {
     const step = m.steps[m.k];
+    if (!m.k) growl('mimic');
     const ctx = `${m.name} · ${STEP_NAME[step]} · ${m.k + 1}/${m.steps.length}`;
     if (step === 'pin') {
       if (!m.pin) {
