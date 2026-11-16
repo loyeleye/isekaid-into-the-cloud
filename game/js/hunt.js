@@ -421,9 +421,12 @@
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const dctx = m.qs.board && step === 'fight' ? `${m.name} · Debrief: why did that work? The poster's own question` : ctx;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
+    const debrief = !!m.qs.board && step === 'fight';
+    const dctx = debrief ? `${m.name} · Debrief: why did that work? The poster's own question` : ctx;
+    const ask = () => shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
+    // A board's Debrief is asked by Bru in the street, with the monster in its jar beside her (js/hunt-debrief.js).
+    const r = await (debrief && SD.huntDebrief ? SD.huntDebrief.ask(m, ask) : ask());
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();
