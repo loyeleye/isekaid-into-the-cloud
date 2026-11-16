@@ -38,10 +38,11 @@
   // become semi-transparent and out of focus"): the room (the plate, or its living clips), Uptima standing behind
   // the counter between Mira and Kai at the leads' scale, then a canvas over her box that redraws Mira and Kai from
   // whatever the room shows right now, cut out with a matte (room-leads-mask.png, from a segmentation model), so they
-  // stand in front of her. While she talks (.rm.talk) the room and that overlay fade and blur and she stays sharp.
+  // stand in front of her. While she talks (.rm.talk) all four leads turn see-through and soft over her (see the CSS).
   R.IDLE_POSE = 'smug';
   const OVER = { x0: .31, x1: .642, y0: .08, y1: .67 }, VX = .010417, VW = .979167;
-  R.layers = pose => `<div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
+  R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
+        <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
         <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="rm-emote"></span></div>
         <canvas class="rm-over" width="480" height="476" aria-hidden="true"></canvas>`;
@@ -286,13 +287,18 @@
     .rm-note { background: #fff3c4; }
     @keyframes rmsay { from { transform: translateY(.8cqi) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
     .rm-front { position: absolute; inset: 0; z-index: 1; transition: filter .45s ease; }
-    .rm.talk .rm-front { filter: blur(.3cqi) brightness(.55) saturate(.8); }
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
     .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none;
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
     .rm-over { position: absolute; left: 31%; top: 8%; width: 33.2%; height: 59%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
-    .rm.talk .rm-over { opacity: .32; filter: blur(.3cqi) brightness(.55) saturate(.8); }
-    .rm.talk .rm-up { clip-path: none; }
+    /* While she talks: the room behind the leads (room-empty.webp, the plate with the leads painted out and
+       softened), then her, then the leads alone (the room cut through room-leads-matte.png), see-through and
+       out of focus. She stays behind the counter. */
+    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: none; user-select: none; pointer-events: none; filter: brightness(.8); }
+    .rm.talk .rm-back { display: block; }
+    .rm.talk .rm-front { z-index: 3; opacity: .38; filter: blur(.25cqi);
+      -webkit-mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; }
+    .rm.talk .rm-over { display: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
     .up-fig .up-k, .up-fig .up-t { opacity: 0; }
