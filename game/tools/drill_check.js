@@ -32,7 +32,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
-    await page.evaluate(() => { if (SD.drillBoard) SD.drillBoard.STEP_MS = 5; });
+    await page.evaluate(() => { if (SD.drillBoard) SD.drillBoard.STEP_MS = 5; if (SD.drillRoom) SD.drillRoom.STEP_MS = 5; });
   };
   const noHScroll = async where => {
     const r = await page.evaluate(() => {
@@ -62,19 +62,24 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return q.id;
   }, [right, conf]);
 
-  const place = async id => { await page.evaluate(id => { const s = SD.state.save.drill; s.at = SD.drill.CARDS[id].at; SD.state.persist(); SD.drillUi.draw(); }, id); await page.click(`[data-card="${id}"]`); };
+  const place = async id => { await page.evaluate(id => { const s = SD.state.save.drill; s.at = SD.drill.CARDS[id].at; s.zoom = true; SD.state.persist(); SD.drillUi.draw(); }, id); await page.click(`[data-card="${id}"]`); };
   // A run plays out on the board (js/drill-board.js); the checks run it fast and wait for the result.
-  const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
+  const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing, #panel .rm.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
+  // Uptima's cutscenes (her lines): one tap each.
+  const cut = async () => { for (let i = 0; i < 4 && await page.$('#dr-cut-next'); i++) await page.click('#dr-cut-next'); };
   const deploy = async () => { await page.click('#dr-deploy'); await settle(); };
   const postmortem = async (right, conf) => {
     await page.click('#dr-next');
     await page.click('#dr-ask');
+    check(!!await page.$('#dr-cut-next .dr-cut-box, #dr-cut-next') && /Postmortem time/.test(await txt('#panel')), 'Uptima calls the postmortem in a cutscene');
+    await cut();
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
-    const plain = await page.evaluate(() => !document.querySelector('#panel .dr-trace, #panel .dr-pager, #panel .dr-station, #panel .db, #panel .db-chat'));
+    const plain = await page.evaluate(() => !document.querySelector('#panel .dr-trace, #panel .dr-pager, #panel .dr-station, #panel .db, #panel .db-chat, #panel .rm'));
     const qid = await answer(right, conf);
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
     await page.waitForFunction(() => ['map', 'end'].includes(SD.state.save.drill.phase));
+    await cut();
     return { qid, plain };
   };
 
@@ -89,6 +94,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/The Fire Drill/.test(await txt('#panel')) && /Host: Uptima/.test(await txt('[data-mode="drill"]')), 'the picker lists it, hosted by Uptima');
   await page.click('[data-mode="drill"]');
+  check(/Behold, mortals/.test(await txt('#panel')) && !!await page.$('.dr-cut .up-fig'), 'Uptima opens the night in a cutscene, full size');
+  await shot('cutscene');
+  await cut();
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: it opens on the map');
   check(/Night 1/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.every(x => x.querySelectorAll('.dr-door').length === 1)), 'night 1 is one path');
   check(await page.$$eval('.dr-door.boss', x => x.length) === 2, 'two bosses on the map');
@@ -99,13 +107,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   let s = await st();
   check(s.phase === 'drill' && s.drill.drill === 'storm' && s.drill.log.length === 1, 'the first door opens Retry Storm with its warm-up run');
   let t = await txt('#panel');
-  check(/Warm-up run/.test(t) && /429 Too Many Requests/.test(await txt('.db-chat')), 'the warm-up run plays out, then Seo-yeon reports 429s in her bubble');
-  check(await page.$$eval('.db-st', x => x.length) === 4 && await page.$$eval('.db-st.st-dark', x => x.length) === 3, 'the board: callers, Gate, Function and Store, untraced stations grey');
-  check(await page.$$eval('.db-lead', x => x.length) === 3 && await page.$$eval('.db-pips i', x => x.length) > 0, 'the leads stand at their stations, and the Gate shows its token bucket');
+  check(/Warm-up run/.test(t) && /429 Too Many Requests/.test(await txt('.rm-chat')), 'the warm-up run plays out, then Seo-yeon reports 429s in her bubble');
+  check(await page.$$eval('.rm-st', x => x.length) === 4 && await page.$$eval('.rm-st.st-dark', x => x.length) === 3 && await page.$$eval('.rm-st.st-off', x => x.length) === 1, 'the room: Gate, Function and Store untraced (grey), the Queue off this path');
+  check(!!await page.$('.rm-plate') && !!await page.$('.rm-up .up-fig') && await page.$$eval('.rm-g .db-pips i', x => x.length) > 0, 'the leads stand in the painted room, Uptima sits on the counter, and the Gate shows its token bucket');
   check(/bucket only refills/.test(t), 'the 429 is taught by its first use, in one line');
-  check(/4XXError/.test(t) && /Count/.test(t), 'the Gate\'s station shows its real CloudWatch metrics');
+  await page.click('.rm-st[data-at="gate"]');
+  check(await page.$$eval('.rm.zoom', x => x.length) === 1 && /4XXError/.test(await txt('.dr-tray')) && /Count/.test(await txt('.dr-tray')), 'tapping Seo-yeon pushes in on her and her desk shows the Gate\'s real CloudWatch metrics');
+  await shot('pushin');
+  await page.click('#dr-back');
   await noHScroll('warm-up'); await shot('warmup');
-  await page.click('.db-st[data-at="fn"]');
+  await page.click('.rm-st[data-at="fn"]');
   check(/The Function/.test(await txt('.dr-station')) && /ConcurrentExecutions/.test(await txt('.dr-station')), 'tapping a node opens that station\'s metrics and settings');
   // A refused setting teaches by refusal.
   await place('burst');
@@ -116,7 +127,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await deploy();
   s = await st();
   check(s.drill.deploys === 1 && s.drill.state === 'read' && s.budget < 100, `a look-alike doesn't contain it, and the run costs budget (${s.budget}%)`);
-  check(await page.$$eval('.db-st[data-at="gate"]', x => x[0].classList.contains('st-throttle')), 'with stage tracing on, the Gate shows purple: Throttle 429');
+  check(await page.$$eval('.rm-st[data-at="gate"]', x => x[0].classList.contains('st-throttle')), 'with stage tracing on, the Gate shows purple: Throttle 429');
   await shot('traced');
   await place('backoff');
   await deploy();
@@ -159,6 +170,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check((await st()).drill.state === 'contained', `${id}: the intended fix contains it on the first deploy`);
     await postmortem(true, 1);
   }
+  await cut();
   s = await st();
   check(s.phase === 'end', `the night ends (${s.phase}, budget ${s.budget}%)`);
   const et = await txt('#panel');
@@ -167,6 +179,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#dr-done');
   await page.evaluate(() => SD.modes.open());
   await page.click('[data-mode="drill"]');
+  await cut();
   check(/Night 2/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.some(x => x.querySelectorAll('.dr-door').length === 2)), 'night 2 opens with forks');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
