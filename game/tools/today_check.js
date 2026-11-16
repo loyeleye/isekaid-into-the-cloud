@@ -267,6 +267,31 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await state() === 'first' && await page.evaluate(() => !SD.exam.on() && !SD.state.save.examDate), 'clearing the date goes back to the standard game');
   await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.today.render(); });
 
+  // ---- Every mind-map link reaches two loaded concepts ----
+  // A missed question shows "the concept next door" from SD.links (js/quiz.js). A link to a concept this page doesn't
+  // load (chapter 2's vector-only ones, from js/c3-help.js) threw on the classic page whenever the Today card's miss
+  // landed on one of its concepts, about 1 run in 6. Now: no dangling links, and a miss on each such concept is clean.
+  const dangling = await page.evaluate(() => SD.links.filter(l => !SD.concepts[l.a] || !SD.concepts[l.b]).map(l => l.id));
+  check(!dangling.length, `every SD.links entry names two loaded concepts${dangling.length ? ': ' + dangling.join(', ') : ''}`);
+  for (const c of ['ddbkey', 'ddbstream', 's3class']) {
+    const before = errors.length;
+    const shown = await page.evaluate(async c => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const q = SD.questions.find(x => x.c === c && x.type === 'mc');
+      if (!q) return 'no mc question';
+      const done = SD.quiz.ask(q, { title: 'TODAY', noRecord: true, noThink: true });
+      await wait(20);
+      const p = document.querySelector('#panel');
+      const said = p.querySelector('#q-said'); if (said) { said.click(); await wait(10); }
+      const tf = p.querySelector('#tf-idk'); if (tf) { tf.click(); await wait(10); }
+      p.querySelector(`[data-o="${q.opts.findIndex((o, i) => i !== q.a)}"]`).click(); await wait(10);
+      p.querySelector('[data-c="2"]').click(); await wait(30);
+      const nx = p.querySelector('#q-next'); if (!nx) return 'no Continue button';
+      nx.click(); await done; return 'ok';
+    }, c);
+    check(shown === 'ok' && errors.length === before, `a wrong answer on ${c} shows its feedback with no error (${shown})`);
+  }
+
   // ---- 25 questions on a laptop ----
   await page.setViewportSize({ width: 1280, height: 800 });
   check(await page.evaluate(() => SD.today.size()) === 25, 'the set defaults to 25 questions at 900px and wider');

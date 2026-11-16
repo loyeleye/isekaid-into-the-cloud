@@ -43,14 +43,17 @@
       gist: 'Publishing a version freezes the function\'s code and configuration under a number; $LATEST is the only one you can change. An alias is a named pointer to a version (never $LATEST with weights), so callers use the alias and you move it, or split traffic between two versions with AdditionalVersionWeights. SAM\'s AutoPublishAlias publishes and moves an alias on each deploy, with DeploymentPreference for canary or linear shifts and PreTraffic and PostTraffic hooks. API Gateway stage variables can pick the alias per stage.',
       page: 'live points at 3 until 4 has been tasted. — Kai, on the kitchen whiteboard' }
   });
-  SD.links.push(
+  // Three of these reach chapter 2 concepts (kinesis, lambdasqs, s3life) that only the vector page loads
+  // (js/vec-ch2.js, js/c2-games.js). On the classic page they'd point at nothing, and the quiz's "concept next door",
+  // the mind map and the Break Room would crash on them, so only links whose two ends exist go in.
+  SD.links.push(...[
     { id: 'ddbkey-kinesis', a: 'ddbkey', b: 'kinesis', text: 'A DynamoDB partition key and a Kinesis partition key do the same job: they decide where a record goes, so one hot value overloads one place.' },
     { id: 'ddbstream-lambdasqs', a: 'ddbstream', b: 'lambdasqs', text: 'Lambda reads a DynamoDB stream with an event source mapping, as it reads a queue, with batches, retries and filters.' },
     { id: 'caching-ddbwrite', a: 'caching', b: 'ddbwrite', text: 'A cache is eventually consistent by nature: a strongly consistent read has to skip it.' },
     { id: 's3class-s3life', a: 's3class', b: 's3life', text: 'The same lifecycle rules that expire old versions move current objects down the storage classes.' },
     { id: 'rdsaurora-lambdaconc', a: 'rdsaurora', b: 'lambdaconc', text: 'Every concurrent Lambda execution may open its own database connection; RDS Proxy shares a few among them.' },
     { id: 'lambdaver-lambdaconc', a: 'lambdaver', b: 'lambdaconc', text: 'Provisioned concurrency is set on a version or an alias, never on $LATEST.' }
-  );
+  ].filter(l => SD.concepts[l.a] && SD.concepts[l.b]));
 
   // ---------- Questions ----------
   // Bank questions filed under the chapter's concepts. Rooms, events, Field Notes and collectibles pick from these.
