@@ -447,7 +447,7 @@
           <span class="small">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded ? '◐ Wounded: Track\'s pip is already gone.' : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
           ${m.out ? '' : `<button class="opt hn-fight" data-mon="${i}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
       }).join('');
-      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head">${esc(BRU.pick)}</p>`}
+      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head" data-vo="${esc('bru|' + BRU.pick)}">${esc(BRU.pick)}</p>`}
         <p class="hn-lamp"><b>${sgn(h.pts)} pts</b> · <span class="muted small">${h.mons.filter(m => m.out).length} of ${h.mons.length} battled. Land a hit with each right answer.</span></p>
         <ul class="hn-bts" aria-label="Tonight's monsters">${cards}</ul>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
       b.querySelectorAll('[data-mon]').forEach(el => el.onclick = () => {
@@ -521,7 +521,7 @@
     if (h.mons.every(x => x.out)) h.ended = 'home';
     S.persist();
     const line = m.out === 'captured' ? rand(BRU.captured) : m.out === 'wounded' ? rand(BRU.wounded) : m.out === 'escaped' ? rand(BRU.escaped) : m.out === 'driven' ? BRU.wildOk : BRU.wildBad;
-    U.system(OUT[m.out][1].toUpperCase(), esc(line), m.out === 'captured' || m.out === 'driven' ? 'gold' : m.out === 'wounded' ? '' : 'red', 4000);
+    U.system(OUT[m.out][1].toUpperCase(), `<span data-vo="${esc('bru|' + line)}">${esc(line)}</span>`, m.out === 'captured' || m.out === 'driven' ? 'gold' : m.out === 'wounded' ? '' : 'red', 4000);
   }
   // Outcome labels: a word and a shape, never colour alone.
   const OUT = {
@@ -658,7 +658,7 @@
     const hunted = wall().filter(mine).length - H.board().length;
     const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : '';
     const b = U.panel(`<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>
-      <p class="td-head">${esc(rows.length ? (first ? 'Each poster on your Wall is a monster. Get it right three ways to catch it.' : rand(BRU.board)) : BRU.empty)}</p>
+      ${(() => { const t = rows.length ? (first ? 'Each poster on your Wall is a monster. Get it right three ways to catch it.' : rand(BRU.board)) : BRU.empty; return `<p class="td-head" data-vo="${esc('bru|' + t)}">${esc(t)}</p>`; })()}
       ${rows.length ? `<ul class="td-wall hn-board">${items}</ul>` : ''}
       ${!cur && hunted > 0 ? `<p class="muted small">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}
       ${go ? `<button class="primary td-main" id="hn-go">${esc(go)}</button>` : ''}
@@ -673,7 +673,7 @@
   function walkScreens(m) {
     const q = m ? find(m.qs.track || m.qs.fight) : (H.board()[0] ? find(H.board()[0].id) : null);
     return [
-      { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
+      { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head" data-vo="${esc('bru|' + BRU.board[0])}">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
       { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A worked example with steps missing. Each step you fill right is a hit; a wrong one and it hits back. On a return battle, a second twin.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
       { title: 'MONSTER HUNT · 3 OF 3', html: `<p class="small">Commit every answer with <b>Guess</b> (+1 / ±0), <b>Think so</b> (+2 / −1) or <b>Sure</b> (+3 / −3). Say how sure you really are: that's how you score most.</p>
         <ul class="hn-how"><li><b>✓ Captured:</b> knocked out, and right on two different questions on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> knocked out today. Back tomorrow with one pip gone.</li><li><b>↺ Escaped:</b> it hit back and fled with health left. It comes back on a later day with a different twin.</li></ul>

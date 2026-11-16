@@ -507,7 +507,7 @@
   // ---- Drawing ----
   const icon = (name, cls) => `<svg class="pop-gi${cls ? ' ' + cls : ''}" viewBox="0 0 512 512" aria-hidden="true">${(SD.icons && SD.icons[name]) || ''}</svg>`;
   const head = (who, mood) => { try { return SD.art && SD.art.portrait ? `<span class="pop-head">${SD.art.portrait(who, 34, mood || 'neutral')}</span>` : ''; } catch (e) { return ''; } };
-  const say = (who, mood, line) => `<p class="pop-say">${head(who, mood)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
+  const say = (who, mood, line) => `<p class="pop-say" data-vo="${esc(who + '|' + line)}">${head(who, mood)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   const sayL = l => say(l[0], l[1], l[2]);
   // The Hunch, until its art is made: the silhouette guide from the storyboard.
   P.HUNCH_SVG = '<svg class="pop-hunch" viewBox="0 0 120 110" role="img" aria-label="The Hunch: a navy sack with one brow, a shouting mouth, a blank clipboard and a crooked badge"><ellipse cx="60" cy="104" rx="50" ry="5" fill="#000" opacity=".35"/><path d="M54 14 q6 -10 12 0 q-2 6 -6 6 q-4 0 -6 -6z" fill="#2c3550" stroke="#0e0c14" stroke-width="2"/><path d="M12 72 C10 34 34 18 60 18 C86 18 110 34 108 72 C107 96 88 104 60 104 C32 104 13 96 12 72z" fill="#2c3550" stroke="#0e0c14" stroke-width="3"/><path d="M60 22 L60 100" stroke="#46527a" stroke-width="1.5" stroke-dasharray="3 3"/><path d="M28 44 L54 50" stroke="#0e0c14" stroke-width="5" stroke-linecap="round"/><ellipse cx="44" cy="56" rx="6" ry="2.5" fill="#d8dbe8"/><circle cx="78" cy="55" r="4" fill="#d8dbe8"/><circle cx="78" cy="55" r="1.8" fill="#0e0c14"/><path d="M40 68 Q60 92 82 68 Q60 76 40 68z" fill="#120d18" stroke="#0e0c14" stroke-width="2"/><g stroke="#e8e8f0" stroke-width="2" stroke-linecap="round"><path d="M92 70 l10 -3"/><path d="M93 77 l11 1"/><path d="M91 84 l9 5"/></g><circle cx="74" cy="86" r="8" fill="none" stroke="#5a6283" stroke-width="1.5" stroke-dasharray="1.5 1.5"/><path d="M68 81 h12 v6 q0 6 -6 8 q-6 -2 -6 -8z" fill="#c9ccd6" stroke="#0e0c14" stroke-width="1.5" transform="rotate(-12 74 86)"/><rect x="8" y="62" width="16" height="22" rx="2" fill="#e2dbcb" stroke="#0e0c14" stroke-width="2" transform="rotate(-10 16 73)"/><path d="M104 52 l12 -8" stroke="#2c3550" stroke-width="6" stroke-linecap="round"/></svg>';
@@ -539,7 +539,7 @@
     const lines = first ? SAY.arrive : SAY.again;
     const b = panel(`<p class="pop-night">Night ${s.night}${X(s, 'title')}</p>
       <div class="pop-sky">${P.HUNCH_SVG}<span class="pop-cap">The Hunch</span></div>
-      ${first ? `<p class="pop-speaker">📢 <b>Freya:</b> ${esc(SAY.freya)}</p>` : ''}
+      ${first ? `<p class="pop-speaker" data-vo="${esc('freya|' + SAY.freya)}">📢 <b>Freya:</b> ${esc(SAY.freya)}</p>` : ''}
       ${lines.map(l => say('dutch', 'neutral', l)).join('')}${X(s, 'arrive')}
       <p class="small muted">Tonight: ${plural(s.rooms.length, 'room check')} for the rooms, 3 proofs for the Hunch.</p>
       ${dock('<button class="primary" id="pop-in">Walk in</button>')}`);
@@ -812,7 +812,7 @@
   function walkScreens(s) {
     const ck = s && s.rooms[0], q = ck && find(ck.q), sp = q ? M.split(q) : null;
     return [
-      { title: 'The heap', html: `<p><b>Dutch:</b> "${esc(SAY.arrive[0])}"</p>
+      { title: 'The heap', html: `<p data-vo="${esc('dutch|' + SAY.arrive[0])}"><b>Dutch:</b> "${esc(SAY.arrive[0])}"</p>
         <p>Every room in the heap is a claim, a lost item or the break room. Claims are fights. Each turn Dutch stamps a check with its domain, like this one from tonight (${esc(ck ? domName(ck.d) : 'a domain')}):</p>
         ${sp ? `<div class="md-eg"><p class="small"><b>${esc(sp.ask)}</b></p></div>` : ''}
         <p class="small">You only see the stamp before you stake. The whole question opens on its own screen.</p>` },

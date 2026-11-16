@@ -97,6 +97,23 @@
   const net = SD.net;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const BOT_KEY = /^~b[1-9]$/;
+  // Your champion's word at the start of an expedition and at its end, voiced (js/vo-modes.js). Multiplayer from the
+  // title only: a story raid has its own scenes. Barks: no numbers, no AWS claims.
+  RD.LEAD_SAY = {
+    mira: { start: 'Stay close, and tell me when you\'re hurt. I can\'t fix what nobody tells me about.',
+      won: 'Everyone still breathing? Good. That\'s the only score I keep.',
+      lost: 'Up. Slowly. We find out where it hurt, and we go back in.' },
+    kai: { start: 'Right. Everybody eats after this. Nobody skips dinner by dying.',
+      won: 'HA! That\'s service! Somebody wipe down the floor.',
+      lost: 'Burnt it. Happens. We cook it again.' },
+    seoyeon: { start: 'Eyes up. Guard the one beside you. Begin.',
+      won: 'Clean. Again tomorrow, and cleaner.',
+      lost: 'We lost. Remember exactly how. That is the lesson.' },
+    dutch: { start: 'Keep it tidy. Nobody goes through a door alone.',
+      won: 'Done. Mop\'s in the corner, if anyone wants to make themselves useful.',
+      lost: 'Down. Not out. We go back and ask it better questions.' }
+  };
+  const leadSay = (c, k) => { const t = RD.LEAD_SAY[c] && RD.LEAD_SAY[c][k], n = SD.cast && SD.cast[c] ? SD.cast[c].name : c; return t ? `<p class="rd-say" data-vo="${esc(c + '|' + t)}"><b>${esc(n)}:</b> "${esc(t)}"</p>` : ''; };
   // Balance (Ladi, 2026-10-20): an elite's Severity, and each party size's Severity (on top of 0.4 + 0.6 × seats) and
   // load. Calibrated on 1,100 bot runs a size to about 55% wins, with boss fights about 7.5 turns at every size.
   const ELITE_SEV = 1.2, PARTY = { 2: { sev: 1, dmg: 0.8 }, 3: { sev: 1.15, dmg: 1.03 }, 4: { sev: 1.22, dmg: 1.23 } };
@@ -394,6 +411,7 @@
 .rd-chip { font: 700 12px var(--f-body); border: 2px solid var(--ink); border-radius: 999px; padding: 0 8px; background: #fff; }
 .rd-chip.ok { background: #dff4ea; border-color: #1f8a57; } .rd-chip.no { background: #fde6e6; border-color: #c0392b; }
 .rd-note { font-size: 13px; background: var(--paper, #fff6e0); border-radius: 10px; padding: 6px 10px; margin: 0; }
+.rd-say { font-size: 14px; margin: 0; padding: 6px 10px; border-left: 4px solid var(--ink, #17131f); border-radius: 6px; background: rgba(255, 255, 255, .06); }
 .rd-opt-v { display: block; margin-top: 4px; }
 .rd .opt b { display: block; }
 .rd-opt-say { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
@@ -2360,6 +2378,7 @@
         ${mine ? `<button class="hud-chip" type="button" id="rd-deck" aria-expanded="${ui.deck}">Deck (${mine.deck.length})</button>` : ''}${mine && SD.emote ? SD.emote.button().replace('mi-btn sm', 'hud-chip') : ''}</div>
         ${ui.tally && mine ? `<p class="rd-tally-help">${tallyHelp(mine.tal | 0)}</p>` : ''}
         ${G.note ? `<p class="rd-note" role="status">${esc(G.note)}</p>` : ''}
+        ${mine && !STORYMODE && !G.fl && !G.rooms && G.ph === 'map' ? leadSay(mine.c, 'start') : ''}
         ${ui.deck && mine ? `<div class="cardgrid mini">${mine.deck.map(id => chtml(id)).join('')}</div>` : ''}`;
     }
     // Who's still busy in this room.
@@ -2387,6 +2406,7 @@
         const fs = floorsOf(x), e = G.end || {}, foe = SD.enemies[e.foe];
         paint(`<div class="mi-card rd-end">${head(G.ph === 'done' ? (STORYMODE ? `${x.name} cleared!` : 'Expedition complete!') : 'The expedition is over')}
           <p>${G.ph === 'done' ? `You cleared all ${fs.length} floors of ${esc(x.name)}, ${G.rooms} fights in, with ${G.sla} SLA left.` : `The team went down on floor ${(e.fl | 0) + 1} of ${fs.length} (${esc(fs[e.fl | 0] ? fs[e.fl | 0].name : '')}), after ${e.rooms | 0} fight${(e.rooms | 0) === 1 ? '' : 's'}.${foe ? ` ${esc(foe.short || foe.name)} held on with ${e.sev | 0} severity left.` : ''}`}</p>
+          ${mine && !STORYMODE ? leadSay(mine.c, G.ph === 'done' ? 'won' : 'lost') : ''}
           <p class="muted small">Talk through the room that hurt most: which card, or which path, would have covered it?</p>
           ${STORYMODE ? `<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-back">${esc(obj(x).back || 'Back to the story')}</button></div>` : hosting ? '<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-again">Back to the party room</button></div>' : o.open ? '<div class="row" style="justify-content:center"><button class="primary" type="button" id="rd-out">Back to Multiplayer</button></div>' : ''}</div>`);
         const out = root.querySelector('#rd-out'); if (out) out.onclick = () => leave();

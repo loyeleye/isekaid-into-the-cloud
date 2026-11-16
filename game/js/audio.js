@@ -63,11 +63,16 @@
   };
   // A recorded voice line (assets/audio/vo/<file>.mp3, mapped in js/vo.js), on the sound-effects switch. One plays
   // at a time: the next line, or null, cuts it off. Returns whether it's speaking, so the typewriter can stay quiet.
-  A.voice = function (file) {
-    if (voEl) { voEl.pause(); voEl = null; }
+  // `done` (optional) runs once when this line ends, fails to load or play, or is cut off (js/vo-modes.js chains lines).
+  A.voice = function (file, done) {
+    if (voEl) { const d = voEl.done; voEl.done = null; voEl.pause(); voEl = null; if (d) d(false); }
     if (!file || !prefs.sfx) return false;
-    voEl = new Audio('assets/audio/vo/' + file + '.mp3');
-    voEl.play().catch(() => {});
+    const el = voEl = new Audio('assets/audio/vo/' + file + '.mp3');
+    const end = ok => { const d = el.done; el.done = null; if (voEl === el && ok !== false) voEl = null; if (d) d(ok); };
+    el.done = done || null;
+    el.addEventListener('ended', () => end(true));
+    el.addEventListener('error', () => end('error'));
+    el.play().catch(() => end('error'));
     return true;
   };
   A.toggleAll = function () { const on = A.muted(); A.set('music', on); A.set('sfx', on); return on; };

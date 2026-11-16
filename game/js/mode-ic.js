@@ -412,7 +412,7 @@
     if (s.phase === 'zero') return zeroPanel(s);
     if (s.phase === 'done') return results(s);
     const order = s.board.map((b, i) => i).sort((a, c) => (workable(s, s.board[c]) - workable(s, s.board[a])) || (s.board[a].clock - s.board[c].clock));
-    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
+    const b = U.panel(`<p class="ic-say" data-vo="${esc('uptima|' + (s.msg || SAY.open))}"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
       ${s.since ? `<p class="small ic-since">${esc(s.since)}</p>` : ''}
       ${hud(s)}
       ${s.map ? mapHtml(s) : ''}
@@ -473,7 +473,7 @@
 
   // ---- Between waves: one free pick ----
   function pickPanel(s) {
-    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(SAY.pick)}</p>
+    const b = U.panel(`<p class="ic-say" data-vo="${esc('uptima|' + SAY.pick)}"><b>Uptima:</b> ${esc(SAY.pick)}</p>
       ${hud(s)}
       <p class="small">Wave ${s.wave} cleared. Take one, free. It lasts until it's used.</p>
       <div class="opts">${IC.PICKS.map(p => `<button class="opt ic-pick" data-pick="${p.id}"><b>${esc(p.who)}:</b> ${esc(p.id === 'bru' ? (s.map ? 'One free step each wave' : 'Your next answer ticks no other clock') : p.what)}<br><span class="small"><i>"${esc(p.line)}"</i></span></button>`).join('')}</div>`, { title: TITLE, onClose: stopNow });
@@ -482,7 +482,7 @@
 
   // ---- 0% budget: retry the wave, or end the shift ----
   function zeroPanel(s) {
-    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(SAY.zero)}</p>
+    const b = U.panel(`<p class="ic-say" data-vo="${esc('uptima|' + SAY.zero)}"><b>Uptima:</b> ${esc(SAY.zero)}</p>
       ${hud(s)}
       <p>The error budget hit 0% in ${isMajor(s) ? 'the major incident' : 'wave ' + s.wave}. Your answers so far are logged.</p>
       <div class="row"><button class="primary" id="ic-retry">Retry this wave</button><button class="ghost" id="ic-end">End the shift</button></div>`, { title: TITLE, onClose: stopNow });
@@ -530,7 +530,7 @@
       if (!q) return '';
       return `<li><b>${l.ok ? '✓ Resolved' : '✗ Missed'}</b> <span class="muted small">${isFmt(l.q) ? esc(FMT_NAME[q.type] || 'Check') + ' · ' : ''}${esc(nodeName(l.q))} · ${esc(String(q.topic || '').replace(/-/g, ' '))}${l.timeouts ? ' · ⏱ paged' : ''}${l.tries > 1 ? ` · ${l.tries} tries` : ''}</span><br><span class="small">${esc(clip(answerText(q)))}</span></li>`;
     }).join('');
-    const b = U.panel(`<p class="ic-say"><b>Uptima:</b> ${esc(s.zero ? SAY.zero : SAY.end)}</p>
+    const b = U.panel(`<p class="ic-say" data-vo="${esc('uptima|' + (s.zero ? SAY.zero : SAY.end))}"><b>Uptima:</b> ${esc(s.zero ? SAY.zero : SAY.end)}</p>
       ${bq ? `<div class="ic-best"><p class="small"><b>${best.conf === 2 ? '★ Your best fix tonight, and you were Sure' : '★ Your best fix tonight'}</b> · ${esc(nodeName(best.q))}${best.cost ? ` · a SEV-${best.cost >= 25 ? 1 : best.cost >= 15 ? 2 : 3}` : ''}</p><p class="small">${esc(clip(answerText(bq)))}</p></div>` : ''}
       <p class="td-big">${right} of ${s.log.length} incidents resolved.</p>
       <p class="small">${s.zero ? 'The error budget hit 0%, so the shift ended early.' : `Error budget left: <b>${s.budget}%</b>.`} Points: <b>${M.sgn(s.pts)}</b> from ${plural(n, 'answer')}.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
@@ -551,7 +551,7 @@
   function walkScreens(s) {
     const first = s && s.board[0], q = first && find(first.q), sp = q ? M.split(q) : null;
     const screens = [
-      { title: 'An incident', html: `<p><b>Uptima:</b> "${esc(SAY.open)}"</p>
+      { title: 'An incident', html: `<p data-vo="${esc('uptima|' + SAY.open)}"><b>Uptima:</b> "${esc(SAY.open)}"</p>
         <p>Each incident is a real exam question about a service on the request path. Its card shows the symptom, so you can see what you're walking into:</p>
         ${q ? `<div class="md-eg"><p class="small">${esc(IC.symptom(q))}</p>${sp.qual ? `<p class="small">★ Asks for: <b>${esc(sp.qual)}</b></p>` : ''}</div>` : ''}
         <p class="small">Open it to read the whole question. The star line is the qualifier: MOST cost-effective and LEAST overhead pick different fixes.</p>` },
