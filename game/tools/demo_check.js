@@ -31,14 +31,14 @@ const fail = [];
   const vis = sel => page.evaluate(s => { const el = document.querySelector(s); return !!(el && !el.hidden && el.offsetParent !== null); }, sel);
   const toTitle = async () => {
     await page.goto(url);
-    await page.waitForSelector('#t-start, #ds-new', { timeout: 30000 });
+    await page.waitForSelector('#t-start, #ds-new', { state: 'attached', timeout: 30000 });
     if (await page.$('#t-start')) await page.click('#t-start');
-    await page.waitForSelector('#ds-new', { timeout: 10000 });
+    await page.waitForSelector('#ds-new', { state: 'attached', timeout: 10000 });
   };
 
   // The press-start screen shows the same line, not a chapter's own.
   await page.goto(url);
-  await page.waitForSelector('#t-start, #ds-new', { timeout: 30000 });
+  await page.waitForSelector('#t-start, #ds-new', { state: 'attached', timeout: 30000 });
   const foot0 = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');
   if (foot0 !== 'Built on the AWS documentation · Saves automatically') fail.push('press-start foot line: ' + foot0);
 
@@ -118,7 +118,7 @@ const fail = [];
   if (await page.$('#ds-y')) await page.click('#ds-y');
   await walk('chapter 2');
   await page.click('#w-menu'); await page.click('#m-reset'); await page.click('#r-y');
-  await page.waitForSelector('#t-start, #ds-new');
+  await page.waitForSelector('#t-start, #ds-new', { state: 'attached' });
   if (await page.$('#t-start')) await page.click('#t-start');
   await page.click('#ds-dbg');
   await page.click('.ds-row [data-go="2"][data-how="fresh"]');

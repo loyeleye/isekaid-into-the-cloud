@@ -92,8 +92,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const workable = st => st.board.map((b, i) => [b, i]).filter(([b]) => !st.map || (b.found && b.at === st.at)).map(x => x[1]);
 
   // ---- Picker and first run ----
-  check(!!await page.$('#td-play'), 'the Today card has a Play button');
-  await page.click('#td-play');
+  check(!!await page.$('.tg-card'), 'the title has the games carousel (js/title-games.js)');
+  await page.evaluate(() => SD.modes.open());
   check(/Incident Commander/.test(await txt('#panel')), 'the picker lists Incident Commander');
   await page.click('[data-mode="ic"]');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
@@ -189,7 +189,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
-  await page.click('#td-play');
+  await page.evaluate(() => SD.modes.open());
   check(/Resume · wave \d of 4/.test(await txt('[data-mode="ic"]')), 'after a reload the picker offers Resume with the wave');
   await page.click('[data-mode="ic"]');
   await page.waitForSelector('.ic-board');

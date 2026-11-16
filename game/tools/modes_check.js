@@ -88,8 +88,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     window.__runs = [];
     SD.modes.register({ id: 'test', name: 'Test mode', blurb: 'A check-only mode.', minutes: 5, host: 'Nobody', status: () => 'Resume · 2 of 3', start: o => window.__runs.push(o) });
   });
-  check(!!await page.$('#td-play'), 'once a mode registers, the Today card has a Play button');
-  await page.click('#td-play');
+  check(!!await page.$('.tg-card'), 'the title has the games carousel (js/title-games.js), and the picker opens from the menu');
+  await page.evaluate(() => SD.modes.open());
   const pick = await page.textContent('#panel');
   check(/Test mode/.test(pick) && /About 5 minutes/.test(pick) && /Resume · 2 of 3/.test(pick), 'the picker lists the mode with its length and status line');
   check(/Sure\s*\+3\s*−3 and the Wall/.test(pick.replace(/\s+/g, ' ')), 'the picker shows the shared stake table');
