@@ -150,7 +150,7 @@
   }
   const ageOf = id => { const l = sv().qlog && sv().qlog[id]; return l ? Date.now() - l[0] : Infinity; };
   P.pickChecks = function (sim) {
-    const carry = sim ? [] : (sv().popCarry || []).filter(it => E().find(it.q)).slice(0, 3);
+    const carry = sim ? [] : (sv().popCarry || []).filter(it => { const q = E().find(it.q); return q && E().allowed(q); }).slice(0, 3);
     const quota = P.quotas(sim), avoid = carry.map(c => c.q), picks = [];
     carry.forEach(c => { const d = E().domainOf(E().find(c.q)); if (quota[d] > 0) quota[d]--; });
     [1, 2, 3, 4].forEach(d => {
