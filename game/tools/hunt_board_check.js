@@ -43,6 +43,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check(!r.length, `no horizontal scroll at ${W}px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
   const text = () => page.textContent('#panel');
+  const shotAt = async (name, sel) => { if (!SHOTS) return; await page.evaluate(q => { const e = document.querySelector(q); if (e) e.scrollIntoView({ block: 'start' }); }, sel); await shot(name); };
   const card = id => page.click(`#panel [data-card="${id}"]`);
   const deploy = async () => { await page.click('#hb-deploy'); await page.waitForSelector('#hb-next', { timeout: 20000 }); };
 
@@ -86,6 +87,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { stage: document.body.dataset.stage, w: w.width / innerWidth, top: w.top - b.bottom, bottom: innerHeight - w.bottom }; });
   check(fill.stage === 'hunt' && fill.w > .99 && Math.abs(fill.top) < 2 && fill.bottom < 2, `no window box: the hunt fills the screen under the bar (${Math.round(fill.w * 100)}% wide)`);
   await shot('plan');
+  // The hand reads as items: each card has a drawn icon (or its tile's emoji until one exists), its name, its AWS
+  // setting on one small line, its cost in coins and its tile's marker.
+  await page.waitForFunction(() => document.querySelector('#panel [data-card="dlq"] .hb-ic.img'), null, { timeout: 3000 }).catch(() => {});
+  const hand = await page.evaluate(() => [...document.querySelectorAll('#panel [data-card]')].map(b => ({ id: b.dataset.card, img: b.querySelector('.hb-ic.img img') ? 1 : 0,
+    rune: !b.querySelector('.hb-ic img') && getComputedStyle(b.querySelector('.hb-icf')).visibility === 'visible' ? 1 : 0,
+    cfg: (b.querySelector('.hb-cfg') || {}).textContent || '', cost: !!b.querySelector('.hb-cost'), where: !!b.querySelector('.hb-where') })));
+  check(hand.every(h => (h.img || h.rune) && h.cfg && h.cost && h.where), 'each card shows an icon (or its tile\'s emoji), its AWS setting, its cost and where it goes');
+  check(hand.find(h => h.id === 'dlq').img && /maxReceiveCount 3/.test(hand.find(h => h.id === 'dlq').cfg), 'the DLQ card has its drawn icon, and its setting stays visible');
+  await shotAt('hand', '#panel .hb-r');
 
   // A look-alike first: the longer visibility timeout.
   await card('vislong');
@@ -95,7 +105,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/THE FIX DIDN'T HOLD/.test(a1) && /not contained/.test(a1) && /still comes back, just less often/.test(a1), 'it didn\'t hold: the monster isn\'t contained, and the card says what it really does');
   check(/Change the plan/.test(a1) && /2 deploys left/.test(a1), 'a re-plan is offered, with the deploys left');
   await noHScroll('after');
+  check(!!(await page.$('#panel .hb-back.miss .hb-badge')) && !(await page.$('#panel .hb-back.fix')), 'the card strip marks the look-alike ✗: not part of the fix');
+  check(!!(await page.$('#panel .hb-res.bad .hb-escf .hb-spr')), 'the monster that got away is drawn escaping');
   await shot('after-miss');
+  await shotAt('after-miss-cards', '#panel .hb-results');
   const oil1 = await page.evaluate(() => SD.state.save.hunt.mons[0].sim.oil);
   check(oil1 < 10, 'the oil it burned stays burned (' + oil1 + ' of 10 left)');
 
@@ -117,7 +130,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const a2 = await text();
   check(/CAUGHT ★☆☆/.test(a2) && /dead-letter jar after its 3rd failed receive/.test(a2), 'the DLQ holds: caught, 1 star on a second deploy');
   check(/Debrief: why did that work\?/.test(a2), 'then the Debrief');
+  check(!!(await page.$('#panel .hb-back.fix .hb-badge')) && !!(await page.$('#panel .hb-res.ok .hb-jarf .hb-spr')), 'caught: the monster is in a jar, and the DLQ card is marked ✓');
   await shot('caught');
+  await shotAt('caught-cards', '#panel .hb-results');
   await page.click('#hb-next');
   await page.waitForSelector('#panel .win.quiz');
   check(/Debrief: why did that work/.test(await page.textContent('#panel .q-ctx')), 'the Debrief is on the exam screen, and says so');
@@ -162,6 +177,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => { SD.huntBoard.STEP_MS = 60; });
   await page.click('[data-yb="g-teach"]');
   await page.waitForSelector('#hb-deploy');
+  await shotAt('hand-gate', '#panel .hb-r');
   await page.click('#hb-deploy');
   // Read the stamp and the bucket on the same frame: the run keeps redrawing.
   const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket'); }, null, { timeout: 5000 }).then(() => true, () => false);
