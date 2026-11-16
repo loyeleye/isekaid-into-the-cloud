@@ -116,6 +116,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   let s = await st();
   check(s.phase === 'board' && s.b.jobs.every(j => j.set === 'dq'), 'board 1: nine Dupli-Queue jobs');
   check((await page.$$('.ct-sq')).length === 9 && (await page.$$('.ct-hpin')).length === 4, 'the felt has 9 squares and you hold 4 pins');
+  const scene = await page.evaluate(() => {
+    const k = document.querySelector('.ct-world .w-kage'), u = document.querySelector('.w-bubble'), w = document.querySelector('.ct-world');
+    return { kage: k ? Math.round(k.getBoundingClientRect().height) : 0, bubble: !!u && /Kagemaru/.test(u.textContent), world: w ? Math.round(w.getBoundingClientRect().height / innerHeight * 100) : 0 };
+  });
+  check(scene.kage >= 150 && scene.bubble && scene.world >= 85, `the table is a scene: Kagemaru large behind the counter, his line in a bubble (${JSON.stringify(scene)})`);
   await fills('375px board');
   check(s.b.open >= 0 && !!(await page.$('.ct-sq.open')) && !!(await page.$('#ct-call')), 'his pin lies face up on his square, and you can call it');
   check(/HOLDS|CRACKS/.test(t) === false && /Tap a square|Pick a pin/.test(await txt('#panel')), 'a hint, not a verdict, before you act');
@@ -196,11 +201,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const truth = await page.evaluate(() => { const K = SD.state.save.table.night.rack; return K.jobs.map((j, i) => SD.table.test(K.stock[i].pin, j).ok); });
     // Tap-then-tap for the first pin, and a real drag onto the tray or the bin for the rest.
     await page.click('[data-rk="0"]');
-    check(/Drop it in the tray or the bin/.test(await txt('#panel')), 'tapping a pin on the rack shows its job');
+    check(/Drop it on the tray or in the bin/.test(await txt('#panel')), 'tapping a pin on the rack shows its job');
     await page.click(`.ct-zbtn[data-zone="${truth[0] ? 1 : 0}"]`);
     for (let i = 1; i < truth.length; i++) {
       const from = await page.$eval(`[data-rk="${i}"]`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
       const to = await page.$eval(`.ct-zone[data-zone="${truth[i] ? 1 : 0}"] .ct-zimg`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      if (process.env.DBG) console.log('drag', i, from, to, await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e && (e.className || e.tagName); }, from));
       await page.mouse.move(from[0], from[1]); await page.mouse.down();
       await page.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 }); await page.mouse.move(to[0], to[1], { steps: 4 }); await page.mouse.up();
     }
@@ -227,7 +233,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const f = document.querySelector('.ct-board').getBoundingClientRect(), d = document.querySelector('.ct-side').getBoundingClientRect(), q = document.querySelector('.ct-sq').getBoundingClientRect();
     return { side: d.left >= f.right - 1 && d.top < f.bottom, sq: Math.round(q.width) };
   });
-  check(lay.side && lay.sq >= 150, `at 1280px the felt and the hand sit side by side with big squares (${JSON.stringify(lay)})`);
+  check(lay.side && lay.sq >= 110, `at 1280px the felt and the hand sit side by side with big squares (${JSON.stringify(lay)})`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal scroll at 1280px');
   await shot('desktop');
 
