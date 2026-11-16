@@ -83,7 +83,7 @@
     clog: 'Those will never clear. Nothing takes a bad ticket off the rack.',
     coin: 'Halfway. Have another coin.',
     cold: 'Cold stool. Mira had to warm it up before she could start. A busy stool stays warm.',
-    herd: 'There they all go at once. And there they all bounce at once.',
+    herd: 'There they all go at once. And they\'ve brought a friend. A queue would let them wait instead.',
     expired: 'That one sat on the rack too long and went off. Lost.'
   };
 
@@ -97,9 +97,9 @@
       up: 'A coin at the start of every wave from wave 2.',
       dutch: 'Cold stools. Leave one empty for a bit and Mira has to warm it up again: lamp on, coat off, find the good pen. That\'s a Lambda cold start. A new execution environment boots and runs your setup code before the handler sees the event. The good news: Lambda only bills while it runs, so an empty stool costs nothing. You keep the savings, a coin a wave. I checked. It\'s not a trick.' },
     herd: { name: 'The stampede', tag: 'Stampede', aws: 'Retries and jitter',
-      rule: 'Bounced callers all come back at the same moment, instead of each on their own timer.',
+      rule: 'Bounced callers all come back at the same moment. Every four that land together bring a new caller with them.',
       up: 'Callers try 4 times before giving up, not 3.',
-      dutch: 'The callers have started talking to each other. Bounce them and they agree to come back at the same moment, so they all bounce again, together. That\'s a thundering herd. Real clients add jitter, a random bit of extra wait on each retry, so they spread out. Ours haven\'t read the docs. On the bright side, a herd is stubborn: four tries before they give up, not three. The AWS SDKs let you set the number of attempts too.' },
+      dutch: 'The callers have started talking to each other. Bounce them and they agree to come back at the same moment, so they all bounce again, together. That\'s a thundering herd. And a crowd draws a crowd: every four that land together bring a new caller. That\'s a retry storm, more load on top of the load. Real clients add jitter, a random bit of extra wait on each retry, so they spread out. Ours haven\'t read the docs. On the bright side, a herd is stubborn: four tries before they give up, not three. The AWS SDKs let you set the number of attempts too.' },
     shelf: { name: 'Shelf life', tag: 'Shelf life', aws: 'SQS message retention',
       rule: 'A ticket that has waited on the rack for 20 seconds expires, and that\'s a lost request.',
       up: 'The rack is free.',
@@ -275,7 +275,7 @@
       case 'resend': popAt([L.hatch[0] + 120, L.hatch[1] + 40], 'Sending again!', '#ffb27a', 26); say('resend', 'surprised', LINES.resend); break;
       case 'dropped': if (k) popAt([stoolPos(k.seat || 0)[0], stoolPos(k.seat || 0)[1] - 40], 'already done', '#9be59b', 24); break;
       case 'cold': { const p = stoolPos(e.stool); popAt([p[0], p[1] - 40], 'cold start', '#9fd8ff', 24); say('cold', 'tired', LINES.cold); break; }
-      case 'herd': popAt([L.hatch[0] + 130, L.hatch[1] + 70], 'Stampede! x' + e.n, '#ff9a8a', 34); say('herd', 'surprised', LINES.herd); break;
+      case 'herd': popAt([L.hatch[0] + 130, L.hatch[1] + 70], 'Stampede! x' + e.n, '#ff9a8a', 34); if (e.n >= 4) popAt([L.hatch[0] + 130, L.hatch[1] + 115], '+' + Math.floor(e.n / 4) + ' new caller', '#ffb27a', 26); say('herd', 'surprised', LINES.herd); break;
       case 'expired': popAt(rackSlot(1), 'expired', '#e2c48a', 28); say('expired', 'tired', LINES.expired); break;
       case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;

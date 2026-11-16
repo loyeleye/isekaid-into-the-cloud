@@ -28,7 +28,8 @@
 //               coin at the start of every wave from wave 2 (Lambda only bills while it runs, so idle is savings).
 //       herd:   bounced callers all retry at the same moment instead of on their own backoff. That's a thundering
 //               herd; real clients add jitter (a random wait) to spread their retries out. Upside: they try 4 times
-//               before giving up, not 3 (SDKs let you set the number of attempts).
+//               before giving up, not 3 (SDKs let you set the number of attempts). The bite: every four retries
+//               that land together bring a new caller (a retry storm adds load on top of the load).
 //       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
 //               (1 minute to 14 days in SQS; seconds here). Upside: the rack is free (SQS's free tier).
 //     Letters (questions between waves), stakes and the timeout are Night Orders too, but they're about the
@@ -86,7 +87,7 @@
     const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
       claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
-      orders: new Set(orders || []), maxThrottles: (orders || []).includes('herd') ? MAX_THROTTLES + 1 : MAX_THROTTLES, saved: 0, lastFree: Array(STOOLS).fill(-99), colds: 0, expired: 0, herds: 0,
+      orders: new Set(orders || []), maxThrottles: (orders || []).includes('herd') ? MAX_THROTTLES + 1 : MAX_THROTTLES, saved: 0, storm: 0, lastFree: Array(STOOLS).fill(-99), colds: 0, expired: 0, herds: 0,
       clerk: C.clerk, twiceCosts: !!C.twiceCosts, belt: (C.belt || ['rack', 'reserve', 'bin', 'bell']).slice(), ledger: false, keys: new Set(), paidTwice: 0, dropped: 0, resends: 0,
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
@@ -265,7 +266,11 @@
       }
     }
     // A herd lands: count how many retries came back down together this frame.
-    if (S.orders.has('herd')) { const n = S.tickets.filter(k => k.phase === 'slide' && k.t === 0 && k.throttles).length; if (n >= 3) { S.herds++; ev(S, 'herd', { n }); } }
+    if (S.orders.has('herd')) { const n = S.tickets.filter(k => k.phase === 'slide' && k.t === 0 && k.throttles).length; if (n >= 3) {
+      S.herds++; ev(S, 'herd', { n });
+      // A retry storm draws a crowd: every four retries landing together bring a new caller with them.
+      for (let i = 0; i < Math.floor(n / 4); i++) { spawn(S, { wave: S.wave, poison: false, ribbon: false, key: 'storm' + S.nextId }); S.storm++; }
+    } }
     // Lambda polls the rack: each free stool of Mira's takes the oldest ticket.
     if (S.rack) {
       let i;
