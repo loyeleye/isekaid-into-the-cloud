@@ -311,6 +311,8 @@
       const a = b.querySelector('.rn-after'); if (a) a.hidden = false;
       const sk = b.querySelector('.rn-skipd'); if (sk) sk.remove();
       if (pass && U.burst) { const v = b.querySelector('.verdict'); if (v) U.burst(v); }
+      // The ribbon is cut (Mureka, CREDITS.md): once, when a Grand Opening's plan passes both of Seymour's runs.
+      if (pass && job.grand && SD.modeStage && SD.modeStage.sting) SD.modeStage.sting('draft', 'win');
       wire();
     };
     function wire() {

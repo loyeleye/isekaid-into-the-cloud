@@ -40,9 +40,9 @@
   // (project files game-modes/multiplayer-real/art-and-music.md).
   const PLATES = ['floor', 'drill'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
-  const MUSIC = { floor: 'm-floor' };
+  const MUSIC = { floor: 'm-floor', draft: 'm-reno-street' };
   // Mode id: { win, lose } jingle files in assets/audio/.
-  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' } };
+  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
   let cur = null, el = null, bar = null, timer = null;
 
