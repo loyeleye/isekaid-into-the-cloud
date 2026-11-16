@@ -14,7 +14,17 @@
 //   - At 0% budget: retreat, or escalate (budget min(20%, what you came in with), the Hunch hits 3 harder).
 //   - A miss comes back by the twins rule: with 2+ verified twins one returns 2 checks later as practice and one
 //     next night; with 1, next night; with none, the question itself next night. At most 3 open the next night.
-//   - Saves after every step (S.save.pop). The night score is proofs held, claims cleared and points.
+//   - Domain stamps (Nov 16): every door on the map shows the exam domain of the checks behind it, in words and an
+//     icon, fogged doors too. A claim stamped D takes its room checks in D while any are left. Off on the unstamped
+//     days (rules().prep false). A right room check in a non-claim room stamped D (js/mode-pop-rooms.js: a Lost item
+//     or break room's "check it first", a Vault's seal, the cat) gives a Prepared: D token; the next claim tonight
+//     stamped D spends it, and its staked cards land at PREP (x1.25) times the right multiplier, partly right too.
+//     Wrong costs are unchanged. The check it spends isn't a loose proof at the Hunch: that's the trade-off.
+//     Taught through the world (Ladi): the stamp is Dutch's ink on the door, the token a Prepared tag tied to the
+//     next matching claim's door (P.tagged), and the first token ever earned gets one line saying what it does.
+//     No walkthrough screen. x1.25 barely moves pop_sim's route scores yet: see tools/pop_sim.js's header.
+//   - Saves after every step (S.save.pop). The night score is proofs held, claims cleared and points. A night saved
+//     before the stamps (no node.d, no s.prep) still loads: its doors just show no stamp.
 // Shared by the UI and the simulator (tools/pop_sim.js, tools/modes_sim.js): SD.pop.newNight, go, lock, settle,
 // basic, endTurn, escalate, finish. Nights 2 to 5's rooms live in js/mode-pop-rooms.js, through the hooks marked
 // "hook"; their question formats live in js/mode-pop-formats.js, called through the SD.pop.fx hooks here.
@@ -30,8 +40,9 @@
   const CAP = 3, HAND = 4, ROOM_CHECKS = 9, MAX_CHECKS = 13, BASIC = 3;
   const HUNCH_HIT = 14, LOOSE_HIT = 3, ESC_HIT = 3;
   const RIGHT = [0.75, 1, 1.25], WRONG = [0, 0.25, 0.75];
+  const PREP = 1.25;   // a prepared claim: right lands at PREP x RIGHT[conf] (tools/pop_sim.js tunes it)
   P.QUOTA = { 1: 4, 2: 3, 3: 3, 4: 2 };
-  P.CAP = CAP; P.RIGHT = RIGHT; P.WRONG = WRONG;
+  P.CAP = CAP; P.RIGHT = RIGHT; P.WRONG = WRONG; P.PREP = PREP;
   let RNG = Math.random;
   const rnd = () => RNG();
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -39,6 +50,10 @@
   const find = id => (SD.today && SD.today.resolveItem ? SD.today.resolveItem({ q: id }) : null) || E().find(id);
   const DOM = { 1: 'DEVELOPMENT', 2: 'SECURITY', 3: 'DEPLOYMENT', 4: 'TROUBLESHOOTING' };
   const domName = d => (E().DOMAINS && E().DOMAINS[d]) || DOM[d] || 'Mixed';
+  // The map's domain stamps: one word ("Design" dropped, so the SAA domains differ) and an icon, never colour alone.
+  const DOM_ICON = { 1: 'cog', 2: 'checked-shield', 3: 'cloud-upload', 4: 'magnifying-glass' };
+  const SHORT = { Development: 'Develop', Deployment: 'Deploy', Troubleshooting: 'Troubleshoot', 'High-Performing': 'Speed', 'Cost-Optimized': 'Cost' };
+  const domShort = d => { const w = String(domName(d)).replace(/^Design\s+/, '').split(/\s+/)[0]; return SHORT[w] || w; };
 
   // ---- Cards: one verb per lead (storyboard v7, "The numbers") ----
   P.CARDS = {
@@ -133,18 +148,26 @@
 
   // ---- What each night adds (storyboard v7, "Nights"): one new rule set a night. Later nights' code reads this,
   // never s.night directly, so the order stays in one place. day: the local date (YYYY-MM-DD) the night is played.
+  // The rule freeze (Nov 16): nothing night 4 or later adds appears before Dec 1, 2026, the day after the exam. A
+  // night 4 or 5 before then plays night 3's rule set (level 3: no cat, no room modifiers, no home turf, night 3's
+  // map, no 1 in 4 unstamped); its light and the Hunch's size still go by the night itself (pop-n4, pop-n5). The
+  // date taper below applies either way.
+  P.FREEZE = '2026-12-01';
   P.rules = function (n, day) {
     const d = day || new Date().toISOString().slice(0, 10);
     const lateTaper = d >= '2026-11-27', bare = d >= '2026-11-28' && d <= '2026-11-29';
+    const m = d < P.FREEZE ? Math.min(n, 3) : n;   // the night whose rule set applies
     return {
-      keys: n >= 2,                                   // keys, vaults and the shortcut
-      formats: bare ? [] : n >= 3 ? ['compare', 'spot', 'predict', 'seq'] : n >= 2 ? ['compare', 'spot'] : [],
+      level: m, frozen: m < n,
+      keys: m >= 2,                                   // keys, vaults and the shortcut
+      formats: bare ? [] : m >= 3 ? ['compare', 'spot', 'predict', 'seq'] : m >= 2 ? ['compare', 'spot'] : [],
       teach: n === 2 ? ['compare', 'spot'] : n === 3 ? ['predict', 'seq'] : [],   // worked and practice items on Lost items
       maxFormats: bare ? 0 : lateTaper ? 1 : 99,      // format checks a night
-      bigClaim: n >= 3, postmortem: n >= 3,
-      cat: n >= 4, modifiers: n >= 4, homeTurf: n >= 4,
-      unstamped: bare ? 1 : n >= 5 ? 0.25 : 0,        // share of bank checks left unstamped
-      homes: n >= 3 ? ['thornwick', 'peak', 'halcyon', 'arcanum'] : ['thornwick', 'peak'],
+      bigClaim: m >= 3, postmortem: m >= 3,
+      cat: m >= 4, modifiers: m >= 4, homeTurf: m >= 4,
+      unstamped: bare ? 1 : m >= 5 ? 0.25 : 0,        // share of bank checks left unstamped
+      prep: !bare,                                    // domain stamps on the map, and Prepared tokens
+      homes: m >= 3 ? ['thornwick', 'peak', 'halcyon', 'arcanum'] : ['thornwick', 'peak'],
       hunchSays: n >= 3 ? 'Gut says so' : n >= 2 ? 'I can always tell' : 'Trust me'
     };
   };
@@ -224,10 +247,11 @@
       v: 1, t: Date.now(), day: new Date().toDateString(), sim: !!opts.sim, night: nights + 1, phase: 'arrive',
       budget: 100, entry: 100, pts: 0, tally: M.newTally(), deck: P.STARTER.map(id => ({ id, up: 0 })),
       rooms, core, asked: 0, log: [], map: { rows: P.genMap(), row: -1, col: null }, fight: null,
-      cleared: 0, fled: 0, fights: 0, turns: 0, moves: 0, found: [], lastStake: {}, esc: 0, carryNext: [], msg: null
+      cleared: 0, fled: 0, fights: 0, turns: 0, moves: 0, found: [], lastStake: {}, esc: 0, carryNext: [], msg: null, prep: []
     };
-    const t = new Date(); s.iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const t = new Date(); s.iso = opts.day || `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     if (s.night > 1) s.map.rows = P.genMap(s.night, s);   // hook: a map per night
+    stampMap(s);
     if (P.onNight) P.onNight(s);
     if (!opts.sim) { sv().popCarry = []; sv().pop = s; }
     if (P.fx) P.fx.night(s, opts);   // nights 2 to 5: formats, the taper, unstamped checks (js/mode-pop-formats.js)
@@ -236,6 +260,41 @@
     return s;
   };
   const save = s => { if (s && !s.sim) S.persist(); };
+  // Domain stamps: each row's doors get domains drawn by how many of tonight's room checks are in each (different
+  // domains in a row while there are enough), so a stamp says what's behind the door.
+  function stampMap(s) {
+    if (!P.rules(s.night, s.iso).prep) return;
+    const w = {};
+    s.rooms.forEach(c => { if (c.d >= 1 && c.d <= 4) w[c.d] = (w[c.d] | 0) + 1; });
+    const all = Object.keys(w).map(Number);
+    if (!all.length) return;
+    s.map.rows.forEach(row => {
+      let bag = all.slice();
+      row.forEach(n => {
+        if (!bag.length) bag = all.slice();
+        const tot = bag.reduce((a, d) => a + w[d], 0);
+        let x = rnd() * tot, k = 0;
+        while (k < bag.length - 1 && (x -= w[bag[k]]) >= 0) k++;
+        n.d = bag.splice(k, 1)[0];
+      });
+    });
+  }
+  P.stampMap = stampMap;
+  P.stampOn = s => !!P.rules(s.night, s.iso).prep;
+  // Prepared tokens (s.prep, a list of domains; an old save has none).
+  P.prepHas = (s, d) => !!(s.prep && s.prep.includes(d));
+  P.prepGain = function (s, d) {
+    if (!d || !P.stampOn(s)) return false;
+    s.prep = s.prep || [];
+    if (!s.prep.includes(d)) s.prep.push(d);
+    s.prepN = (s.prepN | 0) + 1;
+    return true;
+  };
+  // A claim stamped d takes its checks in d while any are left: the first one in d moves to the front.
+  function frontD(s, d) {
+    const i = s.rooms.findIndex(c => c.d === d);
+    if (i > 0) s.rooms.unshift(s.rooms.splice(i, 1)[0]);
+  }
   P.checksLeft = s => s.rooms.length;
   P.doors = s => (s.map.row + 1 < s.map.rows.length ? s.map.rows[s.map.row + 1].map((x, i) => i) : []);
   P.atHunch = s => s.map.row >= s.map.rows.length - 1;
@@ -254,8 +313,9 @@
   P.node = s => (s.map.row >= 0 ? s.map.rows[s.map.row][s.map.col] : null);
   function startFight(s, kind, home, node) {
     const f = { kind, home, turn: 0, draw: shuffle(s.deck.map((x, i) => i)), discard: [], hand: [], sel: [], guard: 0, setup: 0, nextSetup: 0, extra: 0 };
-    if (node) { if (node.big) f.big = 1; if (node.variant) f.variant = 1; if (node.mod) f.mod = node.mod; }
+    if (node) { if (node.big) f.big = 1; if (node.variant) f.variant = 1; if (node.mod) f.mod = node.mod; if (node.d && kind === 'claim') f.d = node.d; }
     if (kind === 'claim') { const c = P.claimOf(f); f.sev = f.max = c.sev; }
+    if (f.d && P.prepHas(s, f.d)) { f.prep = f.d; s.prep = s.prep.filter(x => x !== f.d); s.prepUsed = (s.prepUsed | 0) + 1; }   // the claim spends its token
     s.fight = f; s.fights++;
     if (P.onFight) P.onFight(s, f);   // hook: relics, room modifiers
     newTurn(s);
@@ -284,6 +344,7 @@
       f.hand.push(f.draw.shift());
     }
     f.extra = 0; f.setup = f.nextSetup | 0; f.nextSetup = 0;
+    if (f.kind === 'claim' && f.d && !f.turn) frontD(s, f.d);   // its first check is in its stamped domain
     f.turn++; s.turns++;
     f.guard = 0; f.locked = false; f.check = null; f.result = null; f.basics = []; f.capLeft = CAP;
     if (P.onTurn) P.onTurn(s, f);   // hook: relics, room modifiers
@@ -360,7 +421,9 @@
     s.pts += r.pts || 0; s.asked++;
     if (fx) P.fx.log(s, ck, r, fx, f.sel.length);
     else s.log.push({ q: ck.q, d: ck.d, kind: ck.kind, conf, ok, staked: f.sel.length, stamped: ck.stamped !== false, fresh: ageOf(ck.q) === Infinity || !!ck.fresh, near: P.fx ? P.fx.near(s, ck) : false, t: Date.now() });
-    const out = { ok, conf, mult: fx ? fx.mult : ok ? RIGHT[conf] : 0, hit: 0, guard: 0, cost: 0, staked: f.sel.length, kind: ck.kind };
+    const pm = f.prep && f.kind === 'claim' ? P.PREP : 1;   // a prepared claim lands harder when right (or partly right)
+    const out = { ok, conf, mult: (fx ? fx.mult : ok ? RIGHT[conf] : 0) * pm, hit: 0, guard: 0, cost: 0, staked: f.sel.length, kind: ck.kind };
+    if (pm > 1) out.prep = pm;
     if (fx) Object.assign(out, { fmt: ck.fmt.type, partial: fx.partial, unscored: !fx.scored });
     if (out.mult > 0) {
       st.list.forEach(c => { out.hit += Math.round(c.hit * out.mult); out.guard += Math.round(c.guard * out.mult); if (ok && c.setup) f.nextSetup += c.setup; if (ok && c.redrive) f.extra = 1; });
@@ -555,14 +618,29 @@
     return 'Break room';
   }
   function doorIcon(n) { return n.type === 'break' ? 'coffee-mug' : n.type === 'lost' && !n.home ? 'swap-bag' : H[n.home].icon; }
+  // A door's domain stamp, in words and an icon. A claim you hold its token for says so.
+  // Dutch's ink stamp: the domain's icon and one word, on every door (fogged ones too).
+  const doorStamp = (s, n) => (n.d ? `<span class="pop-dom">${icon(DOM_ICON[n.d])}${esc(domShort(n.d))}</span>` : '');
+  // A Prepared token is a tag tied to the door of the next claim stamped with its domain (every such claim in the
+  // nearest row that has one). The fight's stage says what it does when the claim spends it.
+  P.tagged = function (s, r, i) {
+    const n = s.map.rows[r] && s.map.rows[r][i];
+    if (!n || n.type !== 'claim' || n.visited || !P.prepHas(s, n.d) || r <= s.map.row) return false;
+    for (let k = s.map.row + 1; k < r; k++) if (s.map.rows[k].some(x => x.type === 'claim' && x.d === n.d && !x.visited)) return false;
+    return true;
+  };
+  const doorTag = (s, n, r, i) => (P.tagged(s, r, i) ? `<span class="pop-ptag" title="Prepared: ${esc(domShort(n.d))}">${icon('ticket')}<b>Prepared</b></span>` : '');
+  P.domShort = domShort; P.DOM_ICON = DOM_ICON;
+  P.doorStamp = doorStamp;
   function mapScreen(s) {
     const rows = s.map.rows, next = s.map.row + 1, open = P.doors(s);
     const rowHtml = (row, r) => `<div class="pop-row">${row.map((n, i) => {
       const reach = r === next && open.includes(i), here = r === s.map.row && i === s.map.col, fog = r > next + 1;
       const state = n.cleared ? 'cleared' : n.fled ? 'fled' : n.visited ? 'visited' : '';
       const tag = n.cleared ? '✓ Cleared' : n.fled ? 'Fled' : here ? 'You are here' : n.visited ? 'Done' : reach ? 'Open' : r < next ? 'Passed by' : 'Fogged';
-      return `<button class="pop-door${reach ? ' reach' : ''}${fog ? ' fog' : ''}${here ? ' here' : ''}${state ? ' ' + state : ''}" ${reach ? `data-door="${i}"` : 'disabled'} aria-label="${esc(P.doorLabel(n, fog))}, ${tag}">
-        ${icon(P.doorIcon(n))}${n.type === 'claim' && !fog ? icon('crossed-swords', 'badge') : ''}<span class="pop-dl">${esc(P.doorLabel(n, fog))}</span><span class="pop-dt">${tag}</span>${P.doorExtra ? P.doorExtra(s, n, r, i, fog) : ''}</button>`;
+      const dl = n.d ? `, ${domName(n.d)}${P.tagged(s, r, i) ? ', Prepared tag tied on' : ''}` : '';
+      return `<button class="pop-door${reach ? ' reach' : ''}${fog ? ' fog' : ''}${here ? ' here' : ''}${state ? ' ' + state : ''}" ${reach ? `data-door="${i}"` : 'disabled'} aria-label="${esc(P.doorLabel(n, fog) + dl)}, ${tag}">
+        ${icon(P.doorIcon(n))}${n.type === 'claim' && !fog ? icon('crossed-swords', 'badge') : ''}<span class="pop-dl">${esc(P.doorLabel(n, fog))}</span>${doorStamp(s, n)}<span class="pop-dt">${tag}</span>${doorTag(s, n, r, i)}${P.doorExtra ? P.doorExtra(s, n, r, i, fog) : ''}</button>`;
     }).join('')}</div>`;
     const top = P.atHunch(s);
     const b = panel(`${hud(s)}
@@ -591,7 +669,7 @@
     return `<div class="pop-stage ${f.home}"><div class="pop-foe">${SD.art && SD.art.enemy ? SD.art.enemy(c.sprite) : ''}</div>
       <div class="pop-intent"><span class="pop-home">${icon(H[f.home].icon)} ${esc(H[f.home].name)}</span>
       <b>${esc(c.name)}</b> · severity ${f.sev} of ${f.max}<div class="bar pop-sev" role="img" aria-label="Severity ${f.sev} of ${f.max}"><i style="width:${pct}%"></i></div>
-      <span>"${esc(c.says)}": hits <b>${P.intent(s)}</b></span>${X(s, 'stage')}</div></div>`;
+      <span>"${esc(c.says)}": hits <b>${P.intent(s)}</b></span>${f.d ? `<span class="small pop-tags">${icon(DOM_ICON[f.d])} ${esc(domShort(f.d))}${f.prep ? ` · <b>Prepared</b>: right lands ×${P.PREP}` : ''}</span>` : ''}${X(s, 'stage')}</div></div>`;
   }
   function cardBtn(s, h, o) {
     const f = s.fight, e = s.deck[f.hand[h]], c = C[e.id];
@@ -608,8 +686,9 @@
   function grid(s, st, ck) {
     const cell = (m, k) => (st[k] ? `${k === 'hit' ? 'Hit' : 'Guard'} ${Math.round(st[k] * m)}` : '');
     const both = m => [cell(m, 'hit'), cell(m, 'guard')].filter(Boolean).join(', ') || '—';
+    const pm = s.fight && s.fight.prep && s.fight.kind === 'claim' ? P.PREP : 1;
     return `<table class="pop-grid"><thead><tr><th></th><th>Guess</th><th>Think so</th><th>Sure</th></tr></thead><tbody>
-      <tr><th>✓</th>${RIGHT.map(m => `<td>×${m}<br><span class="small">${both(m)}</span></td>`).join('')}</tr>
+      <tr><th>✓</th>${RIGHT.map(m => `<td>×${+(m * pm).toFixed(2)}<br><span class="small">${both(m * pm)}</span></td>`).join('')}</tr>
       ${P.fx && ck ? P.fx.halfRow(s, ck, st) : ''}
       <tr><th>✗</th><td>fizzle</td><td>−${Math.round(st.total * WRONG[1])}%</td><td>−${Math.round(st.total * WRONG[2])}%, Wall</td></tr></tbody></table>`;
   }
@@ -624,7 +703,8 @@
     const same = a => a && a.length === f.sel.length && a.every((x, i) => x === f.sel[i]);
     const hunch = f.kind === 'hunch';
     const what = hunch ? (ck.kind === 'loose' ? `Loose proof · ${f.looseDone + 1}` : `Core proof ${f.proofs.length + 1} of 3`) : 'Sealed';
-    const right = [st.hit ? `Hit ${Math.round(st.hit * RIGHT[2])}` : '', st.guard ? `Guard ${Math.round(st.guard * RIGHT[2])}` : ''].filter(Boolean).join(', ');
+    const top = RIGHT[2] * (f.prep && !hunch ? P.PREP : 1);
+    const right = [st.hit ? `Hit ${Math.round(st.hit * top)}` : '', st.guard ? `Guard ${Math.round(st.guard * top)}` : ''].filter(Boolean).join(', ');
     const b = panel(`${hud(s, hunch ? `Proofs <b>${P.held(s)} of 3</b>` : `Cap <b>${CAP}</b>`)}
       ${stage(s)}
       ${(P.fx && P.fx.stamp(s, ck, what)) || `<div class="pop-stamp"><b>DUTCH'S CHECK</b> <span>${esc(what)} · ${stampOf(ck)} · bank question${ck.kind === 'carry' ? ' · back from last night' : ck.kind === 'practice' ? ' · practice twin' : ''}</span></div>`}
@@ -680,7 +760,7 @@
     if (out.fmt && P.fx) return P.fx.verdict(out);
     if (out.ok) {
       const parts = [out.hit ? `Hit ${out.hit} landed` : '', out.guard ? `Guard ${out.guard} up` : ''].filter(Boolean);
-      return `${out.conf === 2 ? '✓ PROVEN' : '✓ Right'} · ${M.CONF[out.conf]} · ×${out.mult}${out.staked ? ' · ' + (parts.join(' · ') || 'no numbers staked') : ' · nothing staked'}`;
+      return `${out.conf === 2 ? '✓ PROVEN' : '✓ Right'} · ${M.CONF[out.conf]} · ×${+out.mult.toFixed(2)}${out.prep ? ' (prepared)' : ''}${out.staked ? ' · ' + (parts.join(' · ') || 'no numbers staked') : ' · nothing staked'}`;
     }
     if (!out.staked) return `✗ Wrong · ${M.CONF[out.conf]} · nothing staked, nothing lost`;
     return out.conf === 0 ? '✗ Wrong · Guess · your stake fizzled' : out.conf === 1 ? `✗ Wrong · Think so · −${out.cost}% budget` : `✗ BACKFIRE · Sure, and wrong · −${out.cost}% budget · on the Wall`;
@@ -740,17 +820,17 @@
     const b = panel(`${hud(s)}
       <p class="pop-banner">LOST ITEM${n && n.home ? ' · ' + esc(H[n.home].name) : ''}</p>
       <p class="pop-find">${icon(n && n.home ? H[n.home].icon : 'swap-bag')} <span>${esc(L ? L.text : 'Something in the heap, waiting to be claimed.')}</span></p>
-      ${lines}
+      ${lines}${X(s, 'prep')}
       <div class="opts"><button class="opt" id="pop-fix"><b>${esc(L ? L.fix : 'Fix it')}</b> (−8% budget): upgrade one card, +3 to its numbers.</button>
       <button class="opt" id="pop-leave"><b>Leave the marker:</b> ${esc((L && L.leave) || SAY.leave)} +6% budget.</button></div>
-      <p class="small muted">Either way it goes in the ledger. No question here.</p>`);
+      <p class="small muted">Either way it goes in the ledger.${X(s, 'prep') ? '' : ' No question here.'}</p>`);
     b.querySelector('#pop-fix').onclick = () => pickCard(s, 'Upgrade which card?', i => { P.lostChoice(s, 'fix', i); save(s); P.draw(); });
     b.querySelector('#pop-leave').onclick = () => { P.lostChoice(s, 'leave'); save(s); P.draw(); };
   }
   function breakScreen(s) {
     const b = panel(`${hud(s)}
       <p class="pop-banner">${icon('coffee-mug')} BREAK ROOM</p>
-      ${say('dutch', 'neutral', SAY.breakIn[0])}<p class="small muted"><i>(It wobbles.)</i></p>${say('dutch', 'anger', SAY.breakIn[1])}
+      ${say('dutch', 'neutral', SAY.breakIn[0])}<p class="small muted"><i>(It wobbles.)</i></p>${say('dutch', 'anger', SAY.breakIn[1])}${X(s, 'prep')}
       <div class="opts"><button class="opt" id="pop-rest"><b>Rest:</b> +25% budget.</button>
       <button class="opt" id="pop-sharp"><b>Sharpen:</b> upgrade one card, +3 to its numbers.</button></div>`);
     const out = () => U.system('BREAK ROOM', esc(`${NAMES.seoyeon} (on leaving): ${SAY.breakOut[2]}`));
@@ -834,7 +914,8 @@
 
   // ---- Simulator hook: a whole night on the real state machine, no UI, no saves ----
   // policy: { p, conf, route: 'near' (claims first) | 'far' (other rooms first) | 'home' (policy.home's doors first) | 'plan',
-  //           stake: 'all' | 'none' | 'honest', escalate, p2 (accuracy at the Hunch, default p), night (nights before this one) }.
+  //           stake: 'all' | 'none' | 'honest', escalate, p2 (accuracy at the Hunch, default p), night (nights before this one),
+  //           day (the night's local date, YYYY-MM-DD; default today) }. Only 'plan' checks rooms first (P.simPrep).
   P.sim = async function (policy, rng) {
     const prev = RNG; RNG = rng || Math.random;
     try {
@@ -852,6 +933,7 @@
           continue;
         }
         if (s.phase === 'teach') { P.fx.simTeach(s); continue; }
+        if ((s.phase === 'lost' || s.phase === 'break') && P.simPrep && P.simPrep(s, policy, answer)) { map++; continue; }   // hook: check it first
         if (s.phase === 'lost') { P.lostChoice(s, s.budget > 50 ? 'fix' : 'leave', 0); map++; continue; }
         if (s.phase === 'break') { if (s.budget < 70) P.breakChoice(s, 'rest'); else P.breakChoice(s, 'sharpen', 0); map++; continue; }
         if (s.phase === 'reward') { P.take(s, s.reward.cards[0]); map++; continue; }
@@ -878,7 +960,7 @@
       const secs = s.asked * M.SIM_Q_SECS + map * M.SIM_MAP_SECS + turns * 4;
       return { pts: s.pts, budget: s.budget, minutes: secs / 60, mapShare: (map * M.SIM_MAP_SECS) / secs, questions: s.asked, zero: s.how === 'retreat',
         won: s.how === 'won', held: s.heldN | 0, cleared: s.cleared, fled: s.fled, how: s.how, score: (s.heldN | 0) * 10 + s.cleared * 5 + s.pts,
-        formats: s.fx ? s.fx.log.filter(l => !l.teach) : [], ...(P.simOut ? P.simOut(s) : {}) };
+        formats: s.fx ? s.fx.log.filter(l => !l.teach) : [], prepN: s.prepN | 0, prepUsed: s.prepUsed | 0, ...(P.simOut ? P.simOut(s) : {}) };
     } finally { RNG = prev; }
   };
 
@@ -985,6 +1067,15 @@
     .pop-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
     .pop-dock button { min-height: 44px; }
     .pop-dock .primary { flex: 1 1 auto; }
-    .pop .opts .opt { text-align: left; }`;
+    .pop .opts .opt { text-align: left; }
+    /* Dutch's ink stamp on a door: red ink, a double rule, a little crooked. */
+    .pop-dom { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 0 3px; border: 3px double #9e3a34; border-radius: 4px; color: #9e3a34; background: rgba(255, 250, 240, .75); font-size: 10.5px; font-weight: 800; white-space: nowrap; transform: rotate(-4deg); }
+    .pop-door.fog .pop-dom, .pop-door.here .pop-dom { color: #fff; border-color: #fff; background: transparent; }
+    .pop-door .pop-dom .pop-gi { width: 12px; height: 12px; flex: 0 0 12px; }
+    /* The Prepared tag, tied to a claim's door with a string. */
+    .pop-ptag { position: absolute; top: -10px; right: -6px; display: flex; align-items: center; gap: 1px; padding: 1px 4px 1px 2px; border: 2px solid var(--ink, #17131f); border-radius: 3px 8px 8px 3px; background: #f3d36b; color: #17131f; font-size: 10px; transform: rotate(8deg); box-shadow: -6px 4px 0 -4px var(--ink, #17131f); }
+    .pop-door .pop-ptag .pop-gi { width: 12px; height: 12px; }
+    .pop-stage .pop-tags .pop-gi { width: 14px; height: 14px; vertical-align: -2px; }
+`;
   document.head.appendChild(css);
 })();

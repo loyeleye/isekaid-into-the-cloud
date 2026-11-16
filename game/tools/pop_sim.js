@@ -9,7 +9,13 @@
 // Sure behind honest confidence at 45%, keep honest play at 60% retreating on at most 30% of nights, and not let any
 // fixed route (claims first, other rooms first, the same homeland every time) win at every accuracy. The route test
 // is on nights 1 to 4 pooled (night 1's own line is reported). The 'plan' route reads the map (keys to vaults, checks
-// kept for the Big Claim, the cat caught) and is what hands out relics, the Postmortem and Big Claim clears.
+// kept for the Big Claim, the cat caught, rooms checked first to prepare for a claim in their domain) and is what
+// hands out relics, the Postmortem and Big Claim clears.
+// Preparing (Nov 16), a goal it reports but doesn't yet fail on: claims first shouldn't top every other route (plan
+// included) on the pooled night score at every accuracy, and reading the map or the same homeland should beat it at
+// one at least. With 9 room checks the first claim (always row 1) spends most of them, so a token is earned and spent
+// on well under one night in two, and its effect stays inside the sampling noise at x1, x1.25, x1.5 and x2.5.
+// The rule freeze: night 4 runs on Dec 1, 2026 (its cat and modifiers); a night 4 before then has neither.
 // Run from game/:  node tools/pop_sim.js [nights per cell, default 200]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -43,7 +49,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       for (let k = 0; k < RUNS; k++) rs.push(await SD.pop.sim(policy, rng));
       const mean = f => rs.reduce((a, r) => a + f(r), 0) / rs.length;
       return { pts: mean(r => r.pts), score: mean(r => r.score), won: mean(r => (r.won ? 1 : 0)), retreat: mean(r => (r.how === 'retreat' ? 1 : 0)), held: mean(r => r.held), cleared: mean(r => r.cleared), qs: mean(r => r.questions), maxMin: Math.max(...rs.map(r => r.minutes)), meanMin: mean(r => r.minutes),
-        relics: mean(r => r.relics | 0), pm: mean(r => r.pm | 0), big: mean(r => r.big | 0), caught: mean(r => (r.cat === 'caught' ? 1 : 0)), skipped: mean(r => r.skipped | 0) };
+        relics: mean(r => r.relics | 0), pm: mean(r => r.pm | 0), big: mean(r => r.big | 0), caught: mean(r => (r.cat === 'caught' ? 1 : 0)), skipped: mean(r => r.skipped | 0),
+        prepN: mean(r => r.prepN | 0), prepUsed: mean(r => r.prepUsed | 0) };
     };
     const res = {};
     for (const p of P) {
@@ -55,18 +62,24 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
         esc: await cell({ p, conf: 'honest', route: 'near', stake: 'all', escalate: true })
       };
     }
-    // Nights 2 to 4 (policy.night counts the nights before).
+    // Nights 2 to 4 (policy.night counts the nights before). Night 4 is played on Dec 1, after the rule freeze.
     for (const n of [2, 3, 4]) for (const p of P) {
+      const day = n >= 4 ? '2026-12-01' : undefined;
       res[n + ':' + p] = {
-        honest: await cell({ p, conf: 'honest', route: 'near', stake: 'all', night: n - 1 }),
-        none: await cell({ p, conf: 'honest', route: 'near', stake: 'none', night: n - 1 }),
-        sure: await cell({ p, conf: 'sure', route: 'near', stake: 'all', night: n - 1 }),
-        far: await cell({ p, conf: 'honest', route: 'far', stake: 'all', night: n - 1 }),
-        home: await cell({ p, conf: 'honest', route: 'home', home: 'thornwick', stake: 'all', night: n - 1 }),
-        plan: await cell({ p, conf: 'honest', route: 'plan', stake: 'all', night: n - 1 })
+        honest: await cell({ p, conf: 'honest', route: 'near', stake: 'all', night: n - 1, day }),
+        none: await cell({ p, conf: 'honest', route: 'near', stake: 'none', night: n - 1, day }),
+        sure: await cell({ p, conf: 'sure', route: 'near', stake: 'all', night: n - 1, day }),
+        far: await cell({ p, conf: 'honest', route: 'far', stake: 'all', night: n - 1, day }),
+        home: await cell({ p, conf: 'honest', route: 'home', home: 'thornwick', stake: 'all', night: n - 1, day }),
+        plan: await cell({ p, conf: 'honest', route: 'plan', stake: 'all', night: n - 1, day })
       };
     }
-    for (const p of P) res['1:' + p] = Object.assign({ home: await cell({ p, conf: 'honest', route: 'home', home: 'thornwick', stake: 'all' }) }, res[p]);
+    for (const p of P) res['1:' + p] = Object.assign({ home: await cell({ p, conf: 'honest', route: 'home', home: 'thornwick', stake: 'all' }), plan: await cell({ p, conf: 'honest', route: 'plan', stake: 'all' }) }, res[p]);
+    // The rule freeze: a night 4 before Dec 1 plays night 3's rule set.
+    const fz = day => { const s = SD.pop.newNight({ sim: true, night: 3, day }), R = SD.pop.rules(4, day), nodes = s.map.rows.flat();
+      return { cat: !!s.cat, mods: nodes.filter(n => n.mod).length, turf: R.homeTurf, level: R.level, lost: s.map.rows[4].filter(n => n.type === 'lost').length, un5: SD.pop.rules(5, day).unstamped }; };
+    res.freeze = { before: fz('2026-11-20'), eve: fz('2026-11-30'), after: fz('2026-12-01') };
+    res.freeze.sim = await cell({ p: 0.6, conf: 'honest', route: 'plan', stake: 'all', night: 3, day: '2026-11-20' });
     return res;
   }, [P, RUNS]);
   console.log(`pop: ${RUNS} nights a cell`);
@@ -85,10 +98,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(out[0.6].honest.retreat <= 0.3, `honest play at 60% retreats on ${(out[0.6].honest.retreat * 100).toFixed(0)}% of nights (at most 30%)`);
   // Nights 2 to 4.
   const N = [2, 3, 4];
-  console.log('\n  night p     policy   score    pts   won%  retreat%  held  cleared  checks  minutes   relics  postmortem  big  cat  shortcut');
-  for (const n of N) for (const p of P) for (const k of ['honest', 'none', 'sure', 'far', 'home', 'plan']) {
+  console.log('\n  night p     policy   score    pts   won%  retreat%  held  cleared  checks  minutes   relics  postmortem  big  cat  shortcut  prepared/spent');
+  for (const n of [1, ...N]) for (const p of P) for (const k of (n === 1 ? ['home', 'plan'] : ['honest', 'none', 'sure', 'far', 'home', 'plan'])) {
     const c = out[n + ':' + p][k];
-    console.log(`  ${n}     ${p.toFixed(2)}  ${k.padEnd(7)}${c.score.toFixed(1).padStart(7)}${c.pts.toFixed(1).padStart(7)}${(c.won * 100).toFixed(0).padStart(6)}%${(c.retreat * 100).toFixed(0).padStart(8)}%${c.held.toFixed(2).padStart(7)}${c.cleared.toFixed(2).padStart(8)}${c.qs.toFixed(1).padStart(8)}   ${c.meanMin.toFixed(1)}/${c.maxMin.toFixed(1)}${c.relics.toFixed(2).padStart(8)}${c.pm.toFixed(2).padStart(10)}${c.big.toFixed(2).padStart(7)}${c.caught.toFixed(2).padStart(5)}${c.skipped.toFixed(2).padStart(6)}`);
+    console.log(`  ${n}     ${p.toFixed(2)}  ${k.padEnd(7)}${c.score.toFixed(1).padStart(7)}${c.pts.toFixed(1).padStart(7)}${(c.won * 100).toFixed(0).padStart(6)}%${(c.retreat * 100).toFixed(0).padStart(8)}%${c.held.toFixed(2).padStart(7)}${c.cleared.toFixed(2).padStart(8)}${c.qs.toFixed(1).padStart(8)}   ${c.meanMin.toFixed(1)}/${c.maxMin.toFixed(1)}${c.relics.toFixed(2).padStart(8)}${c.pm.toFixed(2).padStart(10)}${c.big.toFixed(2).padStart(7)}${c.caught.toFixed(2).padStart(5)}${c.skipped.toFixed(2).padStart(6)}   ${c.prepN.toFixed(2)}/${c.prepUsed.toFixed(2)}`);
   }
   for (const n of N) {
     const o = p => out[n + ':' + p];
@@ -100,14 +113,28 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(N.some(n => P.some(p => out[n + ':' + p].plan.relics > 0)), 'vaults or the cat hand out relics');
   check([3, 4].every(n => P.some(p => out[n + ':' + p].plan.big > 0)), 'the Big Claim gets cleared on nights 3 and 4');
   check([3, 4].some(n => P.some(p => out[n + ':' + p].plan.pm > 0)), 'the records vault hands out the Postmortem');
-  check(P.some(p => out['4:' + p].plan.caught > 0), 'the cat gets caught on night 4');
+  check(P.some(p => out['4:' + p].plan.caught > 0), 'the cat gets caught on night 4 (Dec 1)');
+  const fz = out.freeze;
+  check(!fz.before.cat && !fz.before.mods && !fz.before.turf && fz.before.level === 3 && !fz.eve.cat && !fz.eve.mods && !fz.eve.turf && out.freeze.sim.caught === 0,
+    `before Dec 1, night 4 has no cat, no room modifiers and no home turf (Nov 20: cat ${fz.before.cat}, ${fz.before.mods} modifiers; Nov 30: cat ${fz.eve.cat}, ${fz.eve.mods} modifiers)`);
+  check(fz.before.lost === 0 && fz.after.lost === 1, 'before Dec 1, night 4 has night 3\'s map (its last row has no Lost item)');
+  check(fz.after.cat && fz.after.mods === 2 && fz.after.turf && fz.after.level === 4, `from Dec 1, night 4 has the cat, two modifiers and home turf (cat ${fz.after.cat}, ${fz.after.mods} modifiers)`);
+  check(fz.eve.un5 === 0 && fz.after.un5 === 0.25, 'night 5\'s 1 in 4 unstamped checks wait for Dec 1 too');
+  check([1, ...N].every(n => P.some(p => out[n + ':' + p].plan.prepN > 0 && out[n + ':' + p].plan.prepUsed > 0)), 'the plan route prepares and spends Prepared tokens on every night');
   console.log('  reading the map (plan) against claims first: ' + N.map(n => `night ${n} ` + P.map(p => (out[n + ':' + p].plan.score - out[n + ':' + p].honest.score).toFixed(1)).join(' / ')).join(', ') + ' (score difference at 45 / 60 / 80%)');
-  // Routes, the five nights pooled: claims first ('honest'), other rooms first ('far'), the same homeland ('home').
+  // Routes, nights 1 to 4 pooled: claims first ('honest'), other rooms first ('far'), the same homeland ('home'), and
+  // reading the map ('plan').
   const pool = (p, k) => [1, 2, 3, 4].reduce((a, n) => a + out[n + ':' + p][k].score, 0) / 4;
-  const routes = ['honest', 'far', 'home'], rname = { honest: 'claims first', far: 'other rooms first', home: 'the same homeland' };
+  const routes = ['honest', 'far', 'home'], rname = { honest: 'claims first', far: 'other rooms first', home: 'the same homeland', plan: 'reading the map' };
   const win = routes.find(k => P.every(p => routes.every(j => j === k || pool(p, k) > pool(p, j) * 1.05)));
   check(!win, `no fixed route wins the night score at every accuracy, nights 1 to 4 pooled${win ? ' (' + rname[win] + ' does)' : ''}: ` + P.map(p => routes.map(k => rname[k] + ' ' + pool(p, k).toFixed(1)).join(', ') + ' at ' + p).join('; '));
-  const maxMin = Math.max(...Object.values(out).flatMap(c => Object.values(c).map(x => x.maxMin)));
+  const all4 = ['honest', 'far', 'home', 'plan'];
+  const tops = P.filter(p => all4.every(j => j === 'honest' || pool(p, 'honest') > pool(p, j)));
+  const beat = P.filter(p => pool(p, 'plan') > pool(p, 'honest') || pool(p, 'home') > pool(p, 'honest'));
+  // Reported, not yet enforced: preparing alone doesn't move the pooled score past sampling noise (see the header).
+  const goal = tops.length < P.length && beat.length > 0;
+  console.log((goal ? 'goal ' : 'GOAL NOT MET ') + `claims first doesn't top the pooled night score at every accuracy, and reading the map or the same homeland beats it at ${beat.length ? beat.join(', ') : 'none'}: ` + P.map(p => all4.map(k => rname[k] + ' ' + pool(p, k).toFixed(1)).join(', ') + ' at ' + p).join('; '));
+  const maxMin = Math.max(...Object.entries(out).filter(([k]) => k !== 'freeze').flatMap(([k, c]) => Object.values(c).map(x => x.maxMin)), out.freeze.sim.maxMin);
   check(maxMin <= 20, `every night fits in 20 minutes (longest ${maxMin.toFixed(1)})`);
   await browser.close(); server.close();
   errors.forEach(e => console.log(e));

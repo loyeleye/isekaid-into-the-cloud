@@ -6,7 +6,8 @@
 // verified bank question on its topic next night; no bank check tonight shares a format item's concept unless it's
 // tagged. Night 5 opens a Thornwick claim with compare (right and Sure lands x1.25), leaves 1 in 4 bank checks
 // unstamped, and the proof sheet has its formats line. The taper by date (one format check from Nov 27, none and all
-// unstamped on Nov 28 and 29), and the simulator's own format accuracy and partial x0.5. No page errors.
+// unstamped on Nov 28 and 29; night 5's 1 in 4 unstamped only from Dec 1, the rule freeze), and the simulator's own
+// format accuracy and partial x0.5. No page errors.
 // Run from game/:  node tools/pop_formats_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -191,7 +192,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { night: s.night, R: SD.pop.fx.rules(s), un: bank.filter(c => c.stamped === false).length, n: bank.length };
   });
   check(n5.night === 5 && n5.R.formats.length === 4 && n5.R.maxFormats > 1, 'night 5 before Nov 27: all four formats');
-  check(n5.un === Math.round(n5.n / 4), `1 in 4 bank checks unstamped on night 5 (${n5.un} of ${n5.n})`);
+  check(n5.un === 1, `night 5 before Dec 1 (the rule freeze): only the third core proof unstamped (${n5.un} of ${n5.n}); 1 in 4 from Dec 1 is checked with the taper`);
   await page.click('[data-door="0"]');
   await page.waitForSelector('.pop-stage');
   s = await pop();
@@ -236,7 +237,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const taper = await page.evaluate(async () => {
     let seed = 99; const rng = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
     const o = {};
-    for (const day of ['2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29', '2026-11-30']) {
+    for (const day of ['2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29', '2026-11-30', '2026-12-01']) {
       let max = 0, any = 0;
       for (let k = 0; k < 30; k++) { const r = await SD.pop.sim({ p: 0.7, pf: 0.6, conf: 'honest', stake: 'all', route: 'near', night: 4, day }, rng); max = Math.max(max, r.formats.length); any += r.formats.length; }
       const s = SD.pop.newNight({ sim: true, night: 4, day }), bank = s.rooms.concat(s.core);
@@ -246,9 +247,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   });
   check(taper['2026-11-26'].max >= 2, `before Nov 27 a night can hold several format checks (up to ${taper['2026-11-26'].max})`);
   check(taper['2026-11-27'].max === 1 && taper['2026-11-27'].R.maxFormats === 1, `from Nov 27 one format check a night (at most ${taper['2026-11-27'].max})`);
-  check(taper['2026-11-27'].un === 3, `Nov 27, night 5: 1 in 4 bank checks unstamped (${taper['2026-11-27'].un} of ${taper['2026-11-27'].n})`);
+  // The rule freeze (js/mode-pop.js): night 5's 1 in 4 unstamped waits for Dec 1, so before then only the third core proof is.
+  check(taper['2026-11-27'].un === 1, `Nov 27, night 5 before the freeze lifts: only the third core proof unstamped (${taper['2026-11-27'].un} of ${taper['2026-11-27'].n})`);
+  check(taper['2026-12-01'].un === 3 && taper['2026-12-01'].R.maxFormats === 1, `Dec 1, night 5: 1 in 4 bank checks unstamped (${taper['2026-12-01'].un} of ${taper['2026-12-01'].n}), one format check`);
   check(['2026-11-28', '2026-11-29'].every(d => taper[d].any === 0 && taper[d].un === taper[d].n), 'Nov 28 and 29: no format checks, every check unstamped');
-  check(taper['2026-11-30'].R.maxFormats === 1 && taper['2026-11-30'].un < taper['2026-11-30'].n, 'Nov 30: one format check again, 1 in 4 unstamped');
+  check(taper['2026-11-30'].R.maxFormats === 1 && taper['2026-11-30'].un < taper['2026-11-30'].n, 'Nov 30: one format check again, and not every check unstamped');
 
   // ================= The simulator: its own format accuracy, partly right at x0.5 =================
   const sim = await page.evaluate(async () => {

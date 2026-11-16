@@ -6,6 +6,7 @@
 //     (Seo-yeon), Halcyon predict (Kai), the Arcanum sequence (Dutch). The item matches the stamped domain (the
 //     item's exam task) and wasn't asked by any mode in the last 7 days (SD.modes.pickFormat). None fits: the bank
 //     question stays, and the stamp says so. At most rules().maxFormats a night (1 from Nov 27, 0 on Nov 28 and 29).
+//     A claim with a domain stamp on the map opens on a check in that domain when one is left.
 //   - The stamp names the format and what it changes ("SPOT THE LINE · SECURITY · 2 steps · half if one's right").
 //     You stake before the item opens, as for a bank question.
 //   - Landing (SD.modes.askFormat's { ok, conf, pts, scored, partial }): spot and sequence can come back partly
@@ -149,7 +150,8 @@
     const x = fx(s), R = rules(s), type = HOME_FMT[f.home];
     if (!type || !R.formats.includes(type) || !x.taught[type] || x.n >= R.maxFormats) return;
     const idx = s.rooms.map((c, i) => [c, i]).filter(([c]) => c.kind === 'room' && !c.fmt);
-    const pick = (idx.find(([c]) => c.stamped !== false) || idx[0]);
+    // A claim stamped with a domain on the map (js/mode-pop.js) opens on a check in that domain when one is left.
+    const pick = (idx.find(([c]) => c.stamped !== false && (!f.d || c.d === f.d)) || idx.find(([c]) => c.stamped !== false) || idx[0]);
     if (!pick) return;
     const ck = pick[0];
     s.rooms.splice(pick[1], 1); s.rooms.unshift(ck);

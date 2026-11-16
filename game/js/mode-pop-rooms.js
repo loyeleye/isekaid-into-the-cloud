@@ -14,6 +14,12 @@
 //     Room modifiers: Cramped (a hand of 3, severity -8) and Loud (hits +2, one more key). Home turf: in a claim
 //     from a lead's homeland, that lead's cards get +2 (Fan-Out +1).
 //   - Every night has its own light, and the Hunch is a little bigger each night.
+//   - The rule freeze: before Dec 1, 2026 a night 4 or 5 plays night 3's rule set (SD.pop.rules level 3): night 3's
+//     map, no cat, no modifiers, no home turf. It keeps its own light and Hunch.
+//   - Preparing (every night): a Lost item or break room stamped D offers "check it first": one room check in D, no
+//     stake, before the room's usual choice. A Vault's seal and the cat take their check in their door's domain too.
+//     Right gives a Prepared: D token (SD.pop.prepGain), spent by the next claim stamped D (js/mode-pop.js). The
+//     simulator's 'plan' route prepares for a claim stamped D still ahead, the weakest domain (SD.pop.needs) first.
 (function () {
   if (!SD.pop || !SD.pop._) return;
   const P = SD.pop, M = SD.modes, U = SD.ui, S = SD.state, E = () => SD.exam;
@@ -130,7 +136,11 @@
     catWonB: 'Everyone flinches. The cat doesn\'t. It drops what it was carrying and leaves.',
     catLost: ['dutch', 'anger', 'Suspect fled the scene. Again.'],
     catLostB: 'It\'s gone over the heap. Only its silhouette goes in the ledger.',
-    catGo: ['dutch', 'anger', 'Fine. Go. I\'ve got your description.']
+    catGo: ['dutch', 'anger', 'Fine. Go. I\'ve got your description.'],
+    frozen: 'Nothing new in the heap tonight. It keeps till after the exam.',
+    prepIn: ['dutch', 'neutral', 'Check it down here, and the claim upstairs finds you ready.'],
+    prepWon: ['dutch', 'smile', 'Ready for it now. It won\'t see that coming.'],
+    prepLost: ['dutch', 'tired', 'Not this time. The claim\'s still up there. So are you.']
   };
   P.deflate = s => (s.night >= 2 ? SAY.deflate[Math.min(4, s.night)] : null);
 
@@ -145,7 +155,7 @@
   const baseMap = P.genMap;
   P.genMap = function (n, s) {
     if (!n || n <= 1) return baseMap();
-    const r = s ? R(s) : P.rules(n), spec = SPEC[Math.min(4, n)];
+    const r = s ? R(s) : P.rules(n), spec = SPEC[Math.min(4, r.level || n)];
     let deal = [];
     const home = () => { if (!deal.length) deal = _.shuffle(r.homes); return deal.shift(); };
     const rows = spec.map((row, k) => (k ? _.shuffle(row) : row).map(t => {
@@ -200,7 +210,7 @@
   P.leaveRoom = s => { s.phase = 'map'; };
   P.openVault = function (s) {
     if (s.keys < 1 || !s.rooms.length) return false;
-    s.keys--; s.seal = { ck: s.rooms.shift(), why: 'vault' }; s.phase = 'seal';
+    s.keys--; s.seal = Object.assign(takeIn(s, P.node(s)), { why: 'vault' }); s.phase = 'seal';
     return true;
   };
   P.takeShortcut = function (s) {
@@ -218,13 +228,33 @@
     s.keys -= 2; s.deck.push({ id: 'postmortem', up: 0 }); s.msg = SAY.recordsOpen; s.phase = 'map';
     return true;
   };
+  // A room's own check is in its door's domain while one is left (then any): { ck, d } where d is set only if it matched.
+  function takeIn(s, n) {
+    const i = n && n.d ? s.rooms.findIndex(c => c.d === n.d) : -1;
+    return { ck: s.rooms.splice(Math.max(0, i), 1)[0], d: i >= 0 ? n.d : null };
+  }
+  // Check it first: a Lost item or break room stamped D, one room check in D, no stake, once a room.
+  P.canPrep = function (s) {
+    const n = P.node(s);
+    if (!n || !n.d || n.type === 'claim' || n.prepped || !P.stampOn(s) || !['lost', 'break'].includes(s.phase)) return false;
+    return s.rooms.some(c => c.d === n.d);
+  };
+  P.prepare = function (s) {
+    if (!P.canPrep(s)) return false;
+    const n = P.node(s);
+    n.prepped = 1;
+    s.seal = Object.assign(takeIn(s, n), { why: 'prep', back: s.phase }); s.phase = 'seal';
+    return true;
+  };
   // A sealed check: one room check, no stake. r = { ok, conf, pts }, as SD.modes.ask returns it.
   P.sealDone = function (s, r) {
     const sl = s.seal, ck = sl.ck, conf = [0, 1, 2].includes(r.conf) ? r.conf : 0, ok = !!r.ok;
     s.pts += r.pts || 0; s.asked++;
     s.log.push({ q: ck.q, d: ck.d, kind: ck.kind === 'room' ? 'seal' : ck.kind, conf, ok, staked: 0, stamped: ck.stamped !== false, fresh: !!ck.fresh || _.ageOf(ck.q) === Infinity, t: Date.now() });
     if (!ok) _.miss(s, ck);
-    sl.ok = ok; sl.conf = conf; sl.relic = ok ? gainRelic(s) : null;
+    sl.ok = ok; sl.conf = conf; sl.relic = ok && sl.why !== 'prep' ? gainRelic(s) : null;
+    sl.prep = ok && sl.d && P.prepGain(s, sl.d) ? sl.d : null;
+    if (sl.why === 'prep') { const n = P.node(s); if (n) n.prepped = ok ? 'ok' : 'no'; }
     if (sl.why === 'cat') {
       s.cat.done = ok ? 'caught' : 'seen';
       if (!s.sim) sv().popCat = ok || sv().popCat === 'caught' ? 'caught' : 'seen';
@@ -235,6 +265,7 @@
   P.sealOn = function (s) {
     const sl = s.seal; s.seal = null;
     if (sl && sl.why === 'cat') return walkOn(s, s.cat.at);
+    if (sl && sl.why === 'prep') { s.phase = sl.back || 'lost'; return s.phase; }
     s.phase = 'map';
     return 'map';
   };
@@ -262,7 +293,8 @@
   };
   P.catchCat = function (s) {
     if (!s.rooms.length || !s.cat) return false;
-    s.seal = { ck: s.rooms.shift(), why: 'cat' }; s.phase = 'seal';
+    const row = s.map.rows[s.map.row + 1];
+    s.seal = Object.assign(takeIn(s, row && row[s.cat.at]), { why: 'cat' }); s.phase = 'seal';
     return true;
   };
   P.letCatGo = s => walkOn(s, s.cat.at);
@@ -274,17 +306,40 @@
   P.SIM.cat = (s, pol, answer) => { if (s.rooms.length > 3 && P.catchCat(s)) P.sealDone(s, answer(s.seal.ck)); else P.letCatGo(s); };
   P.SIM.seal = (s, pol, answer) => P.sealDone(s, answer(s.seal.ck));
   P.SIM.sealout = s => P.sealOn(s);
-  // The simulator's 'plan' route: what a player who reads the map does. Keys go to vaults, the cat gets caught, and
-  // room checks are kept for a Big Claim still ahead.
+  P.simPrep = function (s, pol, answer) {
+    if (pol.route !== 'plan' || !P.canPrep(s)) return false;
+    const n = P.node(s), big = s.map.rows.slice(s.map.row + 1).flat().some(x => x.big && !x.visited);
+    const why = prepFor(s, n.d, s.map.row + 1);
+    if (!why || (why === 2 ? s.rooms.length <= 3 : s.rooms.length - (big ? 5 : 0) <= P.PREP_KEEP)) return false;
+    P.prepare(s);
+    P.sealDone(s, answer(s.seal.ck));
+    return true;
+  };
+  // The simulator's 'plan' route: what a player who reads the map does. Keys go to vaults, the cat gets caught, room
+  // checks are kept for a Big Claim still ahead, a room stamped with an upcoming claim's domain gets checked first
+  // (the weakest domain first), and a claim you hold the token for comes before one you don't.
+  P.PREP_KEEP = 0;   // room checks the plan keeps back before preparing (tried 4, 2, 1: claims eat the checks)
+  // Worth preparing for: 2 when the Big Claim still ahead is stamped d (the checks kept for it can go on preparing
+  // for it), 1 for another claim stamped d, 0 for none.
+  const prepFor = (s, d, from) => {
+    if (!d || P.prepHas(s, d)) return 0;
+    const ahead = s.map.rows.slice(from).flat().filter(n => n.type === 'claim' && n.d === d && !n.visited);
+    return ahead.some(n => n.big) ? 2 : ahead.length ? 1 : 0;
+  };
+  const bigD = s => { const b = s.map.rows.slice(s.map.row + 1).flat().find(n => n.big && !n.visited); return b ? b.d : 0; };
+  const prepW = (s, d) => { const N = P.needs(), top = Math.max(...[1, 2, 3, 4].map(k => N[k])); return top > 0 ? N[d] / top : 0; };
   P.simRoute = function (s, doors, row) {
     const ahead = s.map.rows.slice(s.map.row + 2).flat(), bigAhead = ahead.some(n => n.big), recAhead = ahead.some(n => n.type === 'records');
+    const spare = s.rooms.length - (bigAhead ? 5 : 0);
     const score = i => {
       const n = row[i];
       if (P.catHere(s, s.map.row + 1, i) && s.rooms.length > 3) return 6;
       if (n.type === 'records') return s.keys >= 2 ? 5 : 0;
       if (n.type === 'vault') return s.keys >= (recAhead ? 3 : 1) && s.rooms.length > 3 ? 4 : 0;
       if (n.big) return s.rooms.length >= 3 ? 5 : 0;
-      if (n.type === 'claim') return s.rooms.length - (bigAhead ? 5 : 0) >= 3 ? 3 : 0;
+      if (n.type === 'claim') return spare >= 3 ? (P.prepHas(s, n.d) ? (bigD(s) === n.d ? 2 : 4.5) : 3) : 0;   // keep a Big Claim's token for it
+      const why = ['lost', 'break'].includes(n.type) && P.stampOn(s) && s.rooms.some(c => c.d === n.d) ? prepFor(s, n.d, s.map.row + 2) : 0;
+      if (why === 2 ? s.rooms.length > 3 : why && spare > P.PREP_KEEP) return 3 + why - 1 + prepW(s, n.d);
       return n.type === 'break' && s.budget < 60 ? 2 : 1;
     };
     const best = Math.max(...doors.map(score));
@@ -351,6 +406,7 @@
     if (where === 'arrive') {
       if (s.night === 2) return `<p class="small">${esc(SAY.night2)}</p>`;
       if (s.night === 3) return `${sayL(SAY.night3)}<p class="small">${esc(SAY.night3b)}</p>`;
+      if (r.frozen) return `<p class="small">${esc(SAY.frozen)}</p>`;
       if (s.night === 4) return `${sayL(SAY.night4)}<p class="small">${esc(SAY.night4b)}</p>`;
       return '';
     }
@@ -360,6 +416,14 @@
       return (next.some(n => V[n.type]) ? say('dutch', 'neutral', SAY.keys) : '') +
         (vaults ? `<p class="small">${esc(SAY.vaultHelp + (r.postmortem ? SAY.recordsHelp : ''))}</p>` : '') + catLine(s) +
         ((s.relics || []).length ? `<p class="small muted">Relics: ${s.relics.map(k => esc(P.RELICS[k].name)).join(' · ')}</p>` : '');
+    }
+    if (where === 'prep') {
+      const n = P.node(s);
+      if (!n || !n.d || n.type === 'claim' || !P.stampOn(s)) return '';
+      const dn = esc(P.domShort(n.d)), ahead = s.map.rows.slice(s.map.row + 1).flat().some(x => x.type === 'claim' && x.d === n.d && !x.visited);
+      if (n.prepped) return `<p class="pop-find">${icon(P.DOM_ICON[n.d])} <span>${n.prepped === 'ok' ? `Checked: <b>Prepared: ${dn}</b>.` : 'Checked. Not prepared this time.'}</span></p>`;
+      const can = P.canPrep(s);
+      return `${sayL(SAY.prepIn)}<button class="opt pop-prepbtn" data-popx="prep"${can ? '' : ' disabled'}>${icon(P.DOM_ICON[n.d])} <span><b>Check it first</b> (1 room check in ${dn}, no stake). Right: a Prepared tag for the next ${dn} claim.${can ? '' : ` No ${dn} checks left tonight.`}${ahead ? '' : ` No ${dn} claim is left ahead tonight.`}</span></button>`;
     }
     if (where === 'stage' && f) {
       const bits = [];
@@ -386,6 +450,10 @@
     }
     return '';
   };
+  document.addEventListener('click', ev => {
+    const p = ev.target.closest && ev.target.closest('[data-popx="prep"]'), sp = cur();
+    if (p && sp && P.prepare(sp)) { _.save(sp); P.draw(); }
+  });
   document.addEventListener('click', ev => {
     const t = ev.target.closest && ev.target.closest('[data-popx="pm"]');
     const s = cur();
@@ -422,8 +490,8 @@
   P.SCREENS.seal = function (s) {
     const sl = s.seal, ck = sl.ck;
     const b = panel(`${hud(s)}
-      <div class="pop-stamp"><b>DUTCH'S CHECK</b> <span>${sl.why === 'cat' ? 'The cat' : 'The vault\'s seal'} · ${ck.stamped === false ? 'UNSTAMPED' : esc(String(E().DOMAINS && E().DOMAINS[ck.d] || 'MIXED').toUpperCase())} · bank question · no stake</span></div>
-      ${sl.why === 'cat' ? `<div class="pop-catbig">${icon('cat')}</div>` : say('dutch', 'neutral', SAY.vaultOpen[2])}
+      <div class="pop-stamp"><b>DUTCH'S CHECK</b> <span>${sl.why === 'cat' ? 'The cat' : sl.why === 'prep' ? 'Check it first' : 'The vault\'s seal'} · ${ck.stamped === false ? 'UNSTAMPED' : esc(String(E().DOMAINS && E().DOMAINS[ck.d] || 'MIXED').toUpperCase())} · bank question · no stake</span></div>
+      ${sl.why === 'cat' ? `<div class="pop-catbig">${icon('cat')}</div>` : sl.why === 'prep' ? sayL(SAY.prepIn) : say('dutch', 'neutral', SAY.vaultOpen[2])}
       ${dock(stopBtn + '<button class="primary" id="pop-sopen">Open the check</button>')}`);
     b.querySelector('#pop-sopen').onclick = () => sealAsk(s);
     wireStop(b);
@@ -442,10 +510,24 @@
   }
   P.SCREENS.sealout = function (s) {
     const sl = s.seal, rel = sl.relic && P.RELICS[sl.relic], cat = sl.why === 'cat';
-    const body = sl.ok
+    // The token, taught by first use: the first one you ever earn gets one line on what it does; after that, just the tag.
+    const first = sl.prep && !sv().popPrepSeen;
+    const prepLine = sl.prep ? `<p class="pop-find">${icon('ticket')} <span><b>Prepared: ${esc(P.domShort(sl.prep))}.</b>${first ? ` Dutch ties the tag to the next ${esc(P.domShort(sl.prep))} claim's door. Fight it, and your staked cards land ×${P.PREP} when right.` : ' The tag goes on its door.'}</span></p>` : '';
+    if (first && !s.sim) { sv().popPrepSeen = 1; _.save(s); }
+    if (sl.why === 'prep') {
+      const b = panel(`${hud(s)}
+        <p class="pop-banner">${icon(P.DOM_ICON[sl.d] || 'checklist')} ${sl.ok ? 'PREPARED' : 'NOT PREPARED'}</p>
+        <p class="pop-since">${sl.ok ? '✓ Right' : '✗ Wrong'} · ${M.CONF[sl.conf]} · ${M.sgn(M.stake(sl.ok, sl.conf))} points</p>
+        ${sayL(sl.ok ? SAY.prepWon : SAY.prepLost)}${prepLine}
+        ${dock(stopBtn + '<button class="primary" id="pop-son">Back to the room</button>')}`);
+      b.querySelector('#pop-son').onclick = () => { P.sealOn(s); _.save(s); P.draw(); };
+      wireStop(b);
+      return;
+    }
+    const body = prepLine + (sl.ok
       ? `${cat ? `${sayL(SAY.catWon)}<p class="small muted"><i>${esc(SAY.catWonB)}</i></p>` : sayL(SAY.vaultWon)}
          ${rel ? `<p class="pop-find">${icon(rel.icon)} <span><b>Relic:</b> ${esc(rel.name)}. ${esc(rel.text)}</span></p>` : '<p class="small">Nothing left to find in it but dust: +10% budget.</p>'}`
-      : cat ? `${sayL(SAY.catLost)}<p class="pop-find">${icon('cat', 'sil')} <span>${esc(SAY.catLostB)}</span></p>` : sayL(SAY.vaultLost);
+      : cat ? `${sayL(SAY.catLost)}<p class="pop-find">${icon('cat', 'sil')} <span>${esc(SAY.catLostB)}</span></p>` : sayL(SAY.vaultLost));
     const b = panel(`${hud(s)}
       <p class="pop-banner">${icon(cat ? 'cat' : 'padlock')} ${sl.ok ? (cat ? 'CAUGHT' : 'SEAL BROKEN') : (cat ? 'IT GOT AWAY' : 'SEAL HELD')}</p>
       <p class="pop-since">${sl.ok ? '✓ Right' : '✗ Wrong'} · ${M.CONF[sl.conf]} · ${M.sgn(M.stake(sl.ok, sl.conf))} points</p>
@@ -476,6 +558,8 @@
     .pop-truth { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 3px solid var(--ink, #17131f); border-radius: 10px; background: var(--bone, #e2dbcb); font-size: 15px; }
     .pop-pm { display: flex; align-items: center; gap: 6px; min-height: 44px; text-align: left; }
     .pop-pm .pop-gi { width: 22px; height: 22px; flex: 0 0 22px; }
+    .pop .opts .pop-prepbtn, .pop-prepbtn { display: flex; align-items: flex-start; gap: 6px; min-height: 44px; text-align: left; overflow-wrap: anywhere; }
+    .pop-prepbtn .pop-gi { width: 20px; height: 20px; flex: 0 0 20px; }
     /* A different light each night: dusk, blue with lantern pools, fog and moonlight, clear moonlight, before dawn. */
     .pop-n2 .pop-sky { background: linear-gradient(#1c2f4f, #3f5f80 130%); }
     .pop-n2 .pop-map { background: radial-gradient(circle at 18% 30%, rgba(255, 196, 102, .5) 0 30px, transparent 62px), radial-gradient(circle at 82% 72%, rgba(255, 196, 102, .45) 0 28px, transparent 58px), repeating-linear-gradient(45deg, #4f5f78 0 6px, #485770 6px 12px); }
