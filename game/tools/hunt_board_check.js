@@ -54,6 +54,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
   check(await page.evaluate(() => !!(SD.huntCore && SD.huntBoard && SD.awsSim && SD.awsSim.bucket)), 'the boards and their rules load');
+  // In the page, with every other mode's rules loaded too (js/aws-sim-ops.js has its own AS.partitionOf): sharding
+  // still spreads the hydra's writes, so its boards stay winnable.
+  check(await page.evaluate(() => { const HC = SD.huntCore, b = HC.board('h-teach'); return [1, 2, 3].every(seed => { const r = HC.run(b, seed, ['shard'], b.lamp); return r.won && r.frames.every(f => !f.load || f.load.every(n => Number.isFinite(n))); }); }),
+    'in the page, Write sharding still catches the Hot Key Hydra (no NaN partitions)');
 
   // One SQS poster with a twin.
   const poster = await page.evaluate(() => {
@@ -96,6 +100,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(hand.every(h => (h.img || h.rune) && h.cfg && h.cost && h.where), 'each card shows an icon (or its tile\'s emoji), its AWS setting, its cost and where it goes');
   check(hand.find(h => h.id === 'dlq').img && /maxReceiveCount 3/.test(hand.find(h => h.id === 'dlq').cfg), 'the DLQ card has its drawn icon, and its setting stays visible');
   await shotAt('hand', '#panel .hb-r');
+  const scene = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll('#panel .hb-place')];
+    return { n: tiles.length, pics: tiles.every(t => t.querySelector('.hb-pic img[src*="place-"][aria-hidden="true"], .hb-pic.noimg .hb-emo')),
+      mon: !!document.querySelector('#panel .hb-place[data-tile="queue"] .hb-spr.hb-stand'), roads: document.querySelectorAll('#panel .hb-road').length,
+      arrows: /↓/.test(document.querySelector('#panel .hb-row').textContent) };
+  });
+  check(scene.n === 3 && scene.pics && scene.mon && scene.roads === 2 && !scene.arrows, 'the board is a street: each tile a place with its picture (or emoji), the monster standing in the queue, roads between, no arrows');
 
   // A look-alike first: the longer visibility timeout.
   await card('vislong');
@@ -180,8 +191,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await shotAt('hand-gate', '#panel .hb-r');
   await page.click('#hb-deploy');
   // Read the stamp and the bucket on the same frame: the run keeps redrawing.
-  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket'); }, null, { timeout: 5000 }).then(() => true, () => false);
-  check(gate, 'the gate: marbles in the bucket and a 429 stamp');
+  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket') && !!p.querySelector('.hb-road .hb-mv.back') && !!p.querySelector('.hb-say[aria-live]') && !p.querySelector('.hb-log'); }, null, { timeout: 5000 }).then(() => true, () => false);
+  check(gate, 'the gate: marbles in the bucket, a 429 stamp, crates bouncing back up the road, and one Bru line instead of a log');
   await shot('gate-run');
   await noHScroll('run');
   await page.evaluate(() => { const k = document.querySelector('#hb-skip'); if (k) k.click(); });   // the run may have ended already
