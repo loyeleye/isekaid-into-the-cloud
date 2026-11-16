@@ -1,6 +1,6 @@
 // Recorded voice lines for the title's games (Ladi, Nov 16): 'who|text' to assets/audio/vo/<file>.mp3, as in js/vo.js.
 // Each game marks a spoken line with data-vo="who|text" (js/mode-duel.js, mode-ic.js, mode-pop.js, hunt.js, draft.js,
-// mode-sprint.js, raid.js); the player below voices it when it appears. Change a line's text and it goes quiet until
+// mode-sprint.js, mode-drill.js, raid.js); the player below voices it when it appears. Change a line's text and it goes quiet until
 // it's recorded again (tools/vo_modes_check.js lists what's mapped, missing or unrecorded).
 (function () {
   const LINES = {
@@ -38,6 +38,30 @@
     "kagemaru|Won, have you. I'll have to start pricing you properly.": 'kagemaru-mg-duel-t-won',
     "kagemaru|You won the Cup last time, so the house opens on the centre. Genuine, before you ask.": 'kagemaru-mg-duel-t-edge',
     "kagemaru|Oh, you're back. I kept your seat, and the pins exactly where they were.": 'kagemaru-mg-duel-t-resume',
+    // The Fire Drill (Uptima and the four leads)
+    "uptima|Fire drill. I've copied the order system and broken something in it. Your four leads each run one station. Find it, fix it, keep the error budget.": 'uptima-mg-drill-open',
+    "uptima|Another drill. Same system, different break.": 'uptima-mg-drill-again',
+    "uptima|Every drill closed. That's an on-call rotation I'd sleep through.": 'uptima-mg-drill-won',
+    "uptima|Budget's gone. In a real outage that's the moment you call everyone. We'll run it again tomorrow.": 'uptima-mg-drill-zero',
+    "uptima|Next drill.": 'uptima-mg-drill-next',
+    "uptima|The postmortem question. One answer, and say how sure you are.": 'uptima-mg-drill-postmortem',
+    "seoyeon|The Gate's bucket only refills so fast. A 429 means it was empty.": 'seoyeon-mg-drill-teach-429',
+    "mira|AWS says a queue in front of a function wants a visibility timeout of at least six times the function's timeout.": 'mira-mg-drill-teach-vis',
+    "dutch|The table has room. One partition doesn't. Each one only takes so many writes a second.": 'dutch-mg-drill-teach-hot',
+    "dutch|A KMS key listens to its key policy first. If that doesn't let IAM decide, no IAM policy helps.": 'dutch-mg-drill-teach-kms',
+    "kai|New environment, new start-up. Reserved concurrency saves a place. It doesn't warm it.": 'kai-mg-drill-teach-cold',
+    "mira|One group, one line. The function can only work as many groups as there are.": 'mira-mg-drill-teach-fifo',
+    "kai|Without ReportBatchItemFailures, one bad message sends the whole batch back.": 'kai-mg-drill-teach-poison',
+    "dutch|AWS won't take that one. Read the refusal: it's the lesson.": 'dutch-mg-drill-teach-refused',
+    "seoyeon|Grey on the map means nobody traced it. You can't see what you didn't instrument.": 'seoyeon-mg-drill-teach-grey',
+    "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
+    "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
+    "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
+    "mira|We didn't find it in time. Now we know where to look.": 'mira-mg-drill-lost',
+    "kai|Held. Write it up before you forget why.": 'kai-mg-drill-held',
+    "kai|We didn't find it in time. Now we know where to look.": 'kai-mg-drill-lost',
+    "dutch|Held. Write it up before you forget why.": 'dutch-mg-drill-held',
+    "dutch|We didn't find it in time. Now we know where to look.": 'dutch-mg-drill-lost',
     // Incident Commander (Uptima)
     "uptima|Kyu held the Cloud's pager since before the first server booted. I'm the secondary. Tonight it's yours. Wake me if the error budget hits zero. Don't wake me.": 'uptima-mg-ic-open',
     "uptima|Next wave. I'm asleep. This is a recording of me being asleep.": 'uptima-mg-ic-wave2',

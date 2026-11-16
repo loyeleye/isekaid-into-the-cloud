@@ -15,6 +15,11 @@
 // spawns a wild monster: an unseen bank question on that topic, Fight and Pin it down. A wild miss goes on the Wall.
 // Stakes, the verified source block, calibration and the first-run walkthrough come from the shared modes shell
 // (js/modes.js, SD.modes); until it loads, hunt.js uses its own copies of the same rules (see `shell` below).
+// Boards (Ladi, Nov 16: "a real game", design in project files game-modes/monster-hunt/real-game-design.md): a poster
+// on SQS, API Gateway, DynamoDB or IAM/STS is a monster that IS the failure. Its battle is a board (js/hunt-board.js on
+// js/hunt-core.js): place config cards, deploy, watch the run, re-plan. Then the Debrief, the poster's twin on the
+// plain exam screen with the stakes, is the answer that counts on the Wall. Each catch moves that monster up its
+// ladder of boards (teach, tight, combo, boss). Other topics keep Track / Fight / Pin it down.
 // State: S.save.hunt (the hunt in progress, saved after every encounter), S.save.huntMon (per poster: last day
 // hunted, wounded, twins already used), S.save.bestiary, S.save.sightings.
 (function () {
@@ -23,7 +28,7 @@
   const esc = s => U.esc(s);
   const TITLE = 'MONSTER HUNT';
   H.SIZE = 3;
-  const STEP_NAME = { track: 'Track', fight: 'Fight', pin: 'Pin it down' };
+  const STEP_NAME = { track: 'Track', fight: 'Fight', pin: 'Pin it down', sim: 'Board' };
   const today = () => new Date().toDateString();
   const sv = () => S.save;
   const wall = () => (Array.isArray(sv().wall) ? sv().wall : (sv().wall = []));
@@ -154,8 +159,18 @@
   }
   // The blanks the engine leaves at its scored level (the item's own fade, else 2; 3 blanks every blankable step).
   const blanksOf = it => { const can = it.steps.filter(x => x.blankable !== false).length, lv = it.fade != null ? +it.fade : H.FADE; return Math.max(1, lv >= 3 ? can : Math.min(lv, can)); };
+  // The board for a poster's monster, when its topic has one and the boards are loaded.
+  function boardOf(id, rec) {
+    const HC = SD.huntCore, q = find(id);
+    if (!HC || !SD.huntBoard || !q) return null;
+    const mon = HC.TOPICS[String(q.topic || '')];
+    return mon ? HC.boardFor(mon, (rec && rec.simWins) | 0) : null;
+  }
+  H._boardOf = boardOf;   // for tools/hunt_check.js
   function plan(id, rec) {
     const tw = pickTwins(id, rec.twins || [], 2);
+    const bd = boardOf(id, rec);
+    if (bd) return { steps: ['sim', 'fight'], qs: { board: bd, fight: (tw[0] || { id }).id } };
     if (rec.wounded) return { steps: ['fight', 'pin'], qs: { fight: (tw[0] || { id }).id } };
     if (tw.length >= 2) return { steps: ['track', 'fight', 'pin'], qs: { track: tw[0].id, fight: tw[1].id } };
     if (tw.length === 1) return { steps: ['track', 'fight', 'pin'], qs: { track: tw[0].id, fight: id } };
@@ -257,10 +272,10 @@
     const M = mons(), list = [], used = new Set(), usedFaded = new Set();
     H.board().forEach(w => {
       const q = find(w.id), m = M[w.id] || {}, pl = plan(w.id, m);
-      const f = !m.wounded && pl.steps.includes('fight') ? pickFaded(topicOf(q), usedFaded) : null;
+      const f = !m.wounded && !pl.qs.board && pl.steps.includes('fight') ? pickFaded(topicOf(q), usedFaded) : null;
       if (f) { pl.qs.faded = f.id; usedFaded.add(f.id); }
       list.push({ id: w.id, name: H.name(q), steps: pl.steps, k: 0, qs: pl.qs, res: {}, pin: null, out: null, wounded: !!m.wounded, pts: 0, fadeN: f ? blanksOf(f) : 0 });
-      used.add(w.id); Object.values(pl.qs).forEach(x => used.add(x));
+      used.add(w.id); Object.entries(pl.qs).forEach(([k, x]) => { if (k !== 'board') used.add(x); });
     });
     // Practice-test sightings fill the empty slots as wild monsters: an unseen question on that topic.
     H.wildOpen().forEach(s => {
@@ -322,7 +337,7 @@
   // lands a hit; a wounded monster comes back with Track's pip already gone. A miss is a hit back on you (the stake)
   // and it flees at the end of the battle with health left.
   const worth = (m, s) => (s === 'fight' && m.fadeN ? m.fadeN : 1);
-  const maxHP = m => (m.wild ? 2 : 3 + (m.fadeN ? m.fadeN - 1 : 0));
+  const maxHP = m => (m.wild ? 2 : m.qs && m.qs.board ? 2 : 3 + (m.fadeN ? m.fadeN - 1 : 0));
   const hpOf = m => m.steps.reduce((n, s) => n + worth(m, s), 0) - m.steps.reduce((n, s) => n + (m.res[s] ? (m.res[s].hits != null ? m.res[s].hits : m.res[s].ok ? worth(m, s) : 0) : 0), 0);
   H._hpOf = hpOf;
   function hue(m) { let x = 0; for (const c of String(m.name)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; }
@@ -356,6 +371,7 @@
     const step = m.steps[m.k];
     if (!m.k) growl('mimic');
     const ctx = `${m.name} · ${STEP_NAME[step]} · ${m.k + 1}/${m.steps.length}`;
+    if (step === 'sim') return simStep(h, m, ctx, tok);
     if (step === 'pin') {
       if (!m.pin) {
         const src = (m.qs.track && find(m.qs.track)) || find(m.qs.fight);
@@ -382,7 +398,8 @@
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
+    const dctx = m.qs.board && step === 'fight' ? `${m.name} · Debrief: why did that work? The poster's own question` : ctx;
+    const r = await shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
@@ -393,6 +410,20 @@
     // A wild miss goes on the Wall at any confidence: a practice-test topic you just missed again is a real gap.
     if (m.wild && !r.ok && TD().wallAdd) TD().wallAdd(q.id);
     if (r.stopped) stopHunt();
+  }
+  // The board: plan, deploy, watch, re-plan (js/hunt-board.js). Its state is saved on the monster after every move, so
+  // Stop for now and resume pick up on the same board. Caught: a hit on its health. Not caught: it hits back, and the
+  // Debrief still comes, because the Wall's rule is about the question.
+  async function simStep(h, m, ctx, tok) {
+    live.q = null; live.m = m; live.inAsk = false;
+    const r = await SD.huntBoard.play(m.qs.board, { state: m.sim || null, title: TITLE, ctx, debrief: true,
+      onSave: st => { m.sim = st; S.persist(); }, gone: () => !live || live.tok !== tok });
+    if (!live || live.tok !== tok || !r) return;
+    m.res.sim = { ok: r.won ? 1 : 0, stars: r.stars, hits: r.won ? 1 : 0, fix: r.fix, board: m.qs.board };
+    if (r.won && SD.huntBoard.record) SD.huntBoard.record(m.qs.board, r);
+    if (!r.won) setTimeout(() => growl('chomp'), 260);
+    m.k++;
+    S.persist();
   }
   // Fight as a faded worked example: the procedure with blanks. Each blank filled right lands a hit; each wrong one
   // lets it hit back. The stake is the item's, on the whole answer. While the format is still new (a worked example,
@@ -449,7 +480,7 @@
       const cards = h.mons.map((m, i) => {
         const o = m.out ? (OUT[m.out] || OUT.escaped) : null;
         return `<li class="hn-bt${m.out ? ' done' : ''}">${hpHtml(m)}
-          <span class="small">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded ? '◐ Wounded: Track\'s pip is already gone.' : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
+          <span class="small">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded && !m.qs.board ? '◐ Wounded: Track\'s pip is already gone.' : m.qs.board ? `A board: ${esc((SD.huntCore.board(m.qs.board) || {}).title || '')}.` : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
           ${m.out ? '' : `<button class="opt hn-fight" data-mon="${i}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
       }).join('');
       const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head" data-vo="${esc('bru|' + BRU.pick)}">${esc(BRU.pick)}</p>`}
@@ -504,7 +535,7 @@
   }
   // The monster's outcome once its encounters are done.
   function outcome(m) {
-    const missed = ['track', 'fight'].some(s => m.res[s] && !m.res[s].ok);
+    const missed = ['track', 'fight', 'sim'].some(s => m.res[s] && !m.res[s].ok);
     if (m.wild) return missed ? 'gotaway' : 'driven';
     if (!wall().some(w => w.id === m.id)) return 'captured';
     return missed ? 'escaped' : 'wounded';
@@ -515,6 +546,8 @@
     if (rec) {
       rec.last = today();
       rec.wounded = m.out === 'wounded';
+      // A board caught moves this monster up its ladder, even if the poster stays up for another day.
+      if (m.res.sim && m.res.sim.ok) rec.simWins = (rec.simWins | 0) + 1;
       // Escaped: its rights reset, as a miss on the Wall does, even if a later encounter today was right.
       if (m.out === 'escaped') { const w = wall().find(x => x.id === m.id); if (w) w.rights = []; }
       if (m.out === 'escaped') rec.twins = (rec.twins || []).concat([m.qs.track, m.qs.fight].filter(x => x && x !== m.id)).slice(-6);
@@ -542,8 +575,13 @@
     const fq = m.qs.fight ? find(m.qs.fight) : null, tq = find(m.id);
     const rec = SD.topicDrill && (SD.topicDrill.record(fq) || SD.topicDrill.record(tq));
     beasts().push({ id: m.id, name: m.name, on: Date.now(), twin: m.qs.fight || null,
-      lesson: m.pin && !m.pin.none ? { opt: m.pin.opt, no: m.pin.reasons[m.pin.a] } : null,
+      lesson: m.pin && !m.pin.none ? { opt: m.pin.opt, no: m.pin.reasons[m.pin.a] } : m.res.sim && m.res.sim.ok && SD.huntCore ? simLesson(m.res.sim) : null,
       era: rec && rec.era ? rec.era : null, why: '' });
+  }
+  // A board's bestiary lesson: the fix that held, and what it really does.
+  function simLesson(r) {
+    const C = SD.huntCore.CARDS, ids = (r.fix || []).filter(id => C[id]);
+    return ids.length ? { opt: 'The fix that held: ' + ids.map(id => C[id].name).join(' + '), no: ids.map(id => C[id].back).join(' ') } : null;
   }
   async function run(h) {
     const tok = {};
@@ -644,7 +682,7 @@
   }
   const stepMarks = m => m.steps.map((s, k) => {
     const r = m.res && m.res[s], st = r ? (r.ok ? '✓' : '✗') : k === m.k ? '▸' : '○';
-    return `<span class="hn-step${r ? (r.ok ? ' ok' : ' bad') : ''}">${st} ${STEP_NAME[s]}</span>`;
+    return `<span class="hn-step${r ? (r.ok ? ' ok' : ' bad') : ''}">${st} ${s === 'fight' && m.qs && m.qs.board ? 'Debrief' : STEP_NAME[s]}</span>`;
   }).join('<span aria-hidden="true"> · </span>');
   // Bru's bounty board: the hunt in progress, or the next one.
   H.open = function () {
@@ -654,12 +692,12 @@
     if (list) rows = list;
     else {
       const M = mons();
-      rows = H.board().map(w => { const m = M[w.id] || {}; return { id: w.id, name: H.name(find(w.id)), steps: plan(w.id, m).steps, k: -1, res: {}, wounded: !!m.wounded }; });
+      rows = H.board().map(w => { const m = M[w.id] || {}, pl = plan(w.id, m); return { id: w.id, name: H.name(find(w.id)), steps: pl.steps, qs: pl.qs, k: -1, res: {}, wounded: !!m.wounded }; });
       H.wildOpen().slice(0, Math.max(0, H.SIZE - rows.length)).forEach(s => { const p = SD.topicDrill.preset(s.p); rows.push({ wild: s.p, name: 'WILD · ' + (p ? p.name.toUpperCase() : 'SIGHTING'), steps: ['fight', 'pin'], k: -1, res: {} }); });
     }
     const first = !beasts().length && !(sv().walked && sv().walked.hunt);
     const items = rows.map((m, i) => `<li class="td-poster hn-mon"><span class="td-wanted">${m.wild ? 'SIGHTED' : 'BOUNTY'}</span><b class="td-pn">${esc(m.name)}</b>
-      <span class="hn-track">${stepMarks(m)}</span>${m.wounded ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
+      <span class="hn-track">${stepMarks(m)}</span>${m.wounded && !(m.qs && m.qs.board) ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
     const hunted = wall().filter(mine).length - H.board().length;
     const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : '';
     const b = U.panel(`<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>
@@ -667,19 +705,20 @@
       ${rows.length ? `<ul class="td-wall hn-board">${items}</ul>` : ''}
       ${!cur && hunted > 0 ? `<p class="muted small">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}
       ${go ? `<button class="primary td-main" id="hn-go">${esc(go)}</button>` : ''}
-      <div class="td-links"><button class="td-link" id="hn-book">Bestiary (${beasts().length})</button>${H.sightingsOn() ? '<button class="td-link" id="hn-sight">Report a sighting</button>' : ''}<button class="td-link" id="hn-how">How to play</button>${rows.length ? '' : '<button class="td-link" id="hn-wall">The Wall</button>'}</div>`, { title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render() });
+      <div class="td-links"><button class="td-link" id="hn-book">Bestiary (${beasts().length})</button>${H.sightingsOn() ? '<button class="td-link" id="hn-sight">Report a sighting</button>' : ''}${SD.huntBoard ? '<button class="td-link" id="hn-yard">Bru\'s yard</button>' : ''}<button class="td-link" id="hn-how">How to play</button>${rows.length ? '' : '<button class="td-link" id="hn-wall">The Wall</button>'}</div>`, { title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render() });
     const on = (id, f) => { const el = b.querySelector('#' + id); if (el) el.onclick = f; };
     on('hn-go', () => H.start());
     on('hn-book', H.bestiary);
     on('hn-sight', H.sightPanel);
     on('hn-how', () => (SD.modes && SD.modes.walk ? SD.modes.walk : local.walk)('hunt', walkScreens()).then(H.open));
     on('hn-wall', () => TD().wallPanel());
+    on('hn-yard', () => SD.huntBoard.yard());
   };
   function walkScreens(m) {
     const q = m ? find(m.qs.track || m.qs.fight) : (H.board()[0] ? find(H.board()[0].id) : null);
     return [
       { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head" data-vo="${esc('bru|' + BRU.board[0])}">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
-      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A worked example with steps missing. Each step you fill right is a hit; a wrong one and it hits back. On a return battle, a second twin.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
+      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A worked example with steps missing. Each step you fill right is a hit; a wrong one and it hits back. On a return battle, a second twin.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Some monsters <b>are</b> the failure: an SQS, API Gateway, DynamoDB or IAM poster gets a <b>board</b> instead. Place config cards, deploy, and watch what AWS does. Then the Debrief asks the poster's own question.</p><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
       { title: 'MONSTER HUNT · 3 OF 3', html: `<p class="small">Commit every answer with <b>Guess</b> (+1 / ±0), <b>Think so</b> (+2 / −1) or <b>Sure</b> (+3 / −3). Say how sure you really are: that's how you score most.</p>
         <ul class="hn-how"><li><b>✓ Captured:</b> knocked out, and right on two different questions on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> knocked out today. Back tomorrow with one pip gone.</li><li><b>↺ Escaped:</b> it hit back and fled with health left. It comes back on a later day with a different twin.</li></ul>
         <p class="small">You pick which monster to battle next. Each right answer lands a hit on its health bar; a miss and it hits back. Knock it out to catch it.</p>
@@ -703,7 +742,7 @@
       const tw = c.twin ? find(c.twin) : null;
       return `<li class="hn-card"><span class="hn-stamp" aria-hidden="true">CAPTURED</span><b class="td-pn">${esc(c.name)}</b><span class="muted small">Caught ${esc(fmt(c.on))}</span>
         ${tw ? `<details class="td-orig"><summary>The twin you beat it with</summary><p class="small">${esc(tw.q)}</p></details>` : ''}
-        ${c.lesson ? `<p class="small"><b>Why not:</b> ${esc(c.lesson.opt)}</p><p class="small hn-why">${esc(c.lesson.no)}</p>` : ''}
+        ${c.lesson ? `<p class="small">${/^The fix that held/.test(c.lesson.opt) ? '' : '<b>Why not:</b> '}${esc(c.lesson.opt)}</p><p class="small hn-why">${esc(c.lesson.no)}</p>` : ''}
         ${c.era ? `<p class="small src-era"><b>Heads up:</b> ${esc(c.era)}</p>` : ''}
         <p class="small hn-pipq">Pip: "Sorry to be a bother. Why did that work?"</p>
         ${c.why ? `<p class="small hn-why">${esc(c.why)}</p>` : `<form class="tf-row hn-whyf" data-k="${list.length - 1 - k}"><label class="sr" for="hn-why-${k}">Your answer to Pip</label><input id="hn-why-${k}" type="text" maxlength="200" autocomplete="off" placeholder="One sentence, in your words."><button class="primary" type="submit">Save</button></form>`}</li>`;
