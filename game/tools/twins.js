@@ -6,6 +6,8 @@
 // on-device model (js/embed.js): cosine TWIN or more. Below that, a question on the same task and topic usually
 // tests a neighbouring rule, which wouldn't prove the missed one.
 // Hand-written twins (a question's own `twin: ['id', ...]`, for new variants) are always kept, whatever the score.
+// tools/twin-links.json adds hand-checked links between existing questions ("pairs": [a, b, rule]) and drops
+// embedding matches a review found to test different rules ("not": [a, b, why]).
 //   node tools/twins.js          write js/twins-data.js and print how many questions have a twin
 //   node tools/twins.js --dry    print only
 //   node tools/twins.js ID       list ID's nearest same-task, same-topic questions with their scores
@@ -45,8 +47,18 @@ for (let i = 0; i < bank.length; i++) for (let j = i + 1; j < bank.length; j++) 
   const a = bank[i], b = bank[j];
   if (near(a, b) && score(a, b) >= TWIN) add(a.id, b.id);
 }
+const links = JSON.parse(fs.readFileSync(path.join(__dirname, 'twin-links.json'), 'utf8'));
+const key = (a, b) => [a, b].sort().join(' ');
+const not = new Set((links.not || []).map(([a, b]) => key(a, b)));
+for (const k of Object.keys(twins)) for (const t of [...twins[k]]) if (not.has(key(k, t))) twins[k].delete(t);
+for (const k of Object.keys(twins)) if (!twins[k].size) delete twins[k];
 const ids = new Set(bank.map(q => q.id));
 let bad = 0;
+for (const [a, b] of links.pairs || []) {
+  if (!ids.has(a) || !ids.has(b)) { console.log(`twin-links.json: ${ids.has(a) ? b : a} is not in the bank`); bad++; continue; }
+  if (not.has(key(a, b))) { console.log(`twin-links.json: ${a} and ${b} are both linked and dropped`); bad++; continue; }
+  add(a, b);
+}
 for (const q of bank) for (const t of q.twin || []) {
   if (!ids.has(t)) { console.log(`${q.id}: twin ${t} is not in the bank`); bad++; continue; }
   add(q.id, t);
