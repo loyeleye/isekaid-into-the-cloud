@@ -406,11 +406,14 @@
       ok: ['neutral'], jin: ['neutral', 'smile'], ashgrove: ['neutral'], theo: ['neutral', 'surprised'],
       iris: ['neutral', 'angry'], pella: ['neutral'], ayo: ['neutral'], kaito: ['neutral'], cron: ['neutral'],
       aigerim: ['neutral'], mio: ['neutral'], chad: ['neutral'] };
+    // Kagemaru keeps Freya's ring under his left glove until he shows it in Seymour's bunker, chapter 6's midpoint
+    // (the Story Bible; the same flag js/tapes.js reads): the gloved face before, the ring over the glove after.
+    const kageFace = () => { const c6 = SD.state.save && SD.state.save.c6; return c6 && c6.w && c6.w.x && c6.w.x.reveal ? 'neutral' : 'gloved'; };
     SD.art.portrait = function (who, size, mood) {
       const fs = FACESET[who];
       if (fs) {
         const m = fs.includes(mood) ? mood : 'neutral';
-        const html = `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${m}.webp" alt="" draggable="false"></span>`;
+        const html = `<span class="bust b-${who} px" style="width:${size}px;height:${Math.round(size * 140 / 120)}px"><img src="assets/img/portraits/${who}-${who === 'kagemaru' ? kageFace() : m}.webp" alt="" draggable="false"></span>`;
         return SD.wear ? SD.wear.dressBust(who, m, html) : html;
       }
       let id = who;
