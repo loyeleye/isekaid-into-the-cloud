@@ -1,4 +1,6 @@
-// Headless check of Architect's Draft (js/draft.js, js/draft-art.js) at phone width (375px), on the shared modes shell
+// Headless check of Architect's Draft's classic contract loop (js/draft.js, js/draft-art.js) at phone width (375px).
+// Since Nov 16 the picker opens the Renovation instead (js/mode-reno.js, checked by tools/reno_check.js); this loop
+// stays reachable through SD.draft.open() for the Quarter, its scaffolding and the Wall link, so it's checked here. On the shared modes shell
 // (js/modes.js), against Build spec v4: it's in the Play picker; the first run's walkthrough; a session of
 // multiple-response contracts plus a single-answer job, verified-only with the fallback; a board of three clients you
 // choose the order of; the whole stem free to read, with no hint of any kind before the seal; per-slot stakes as
@@ -106,7 +108,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(!!await page.$('#panel [data-mode="draft"]'), 'the picker lists Architect\'s Draft');
   await shot('picker');
-  await page.click('#panel [data-mode="draft"]');
+  await page.evaluate(() => { SD.ui.closePanel(); SD.draft.open(); });
   await wait(30);
 
   // ---- First run: the walkthrough ----
