@@ -34,6 +34,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     for (const id of ids) {
       await page.evaluate(id => { const c = [...document.querySelectorAll('.tg-card')].find(c => c.dataset.game === id); c.querySelector('.tg-go').click(); }, id);
       await page.waitForSelector('#mode-bar:not([hidden])', { timeout: 5000 }).catch(() => {});
+      // Measure once the window has finished popping in: mid-animation it is scaled, so it reads short and over the bar.
+      await page.evaluate(() => { const w = document.querySelector('#panel:not([hidden]) .win'); return w && Promise.all(w.getAnimations().filter(a => a.effect && a.effect.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))); });
       const s = await page.evaluate(() => {
         const st = document.querySelector('#mode-stage'), bar = document.querySelector('#mode-bar'), win = document.querySelector('#panel:not([hidden]) .win');
         const wr = win && win.getBoundingClientRect(), br = bar.getBoundingClientRect();
