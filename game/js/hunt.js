@@ -340,13 +340,36 @@
   const maxHP = m => (m.wild ? 2 : m.qs && m.qs.board ? 2 : 3 + (m.fadeN ? m.fadeN - 1 : 0));
   const hpOf = m => m.steps.reduce((n, s) => n + worth(m, s), 0) - m.steps.reduce((n, s) => n + (m.res[s] ? (m.res[s].hits != null ? m.res[s].hits : m.res[s].ok ? worth(m, s) : 0) : 0), 0);
   H._hpOf = hpOf;
-  function hue(m) { let x = 0; for (const c of String(m.name)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; }
+  // ---- Wanted posters (Ladi, Nov 16: "I don't want them to be another boring text based game") ----
+  // Every poster carries the monster's portrait. A poster whose topic has a board monster (SD.huntCore.TOPICS) shows
+  // that monster's sprite; any other gets one from the bestiary art, picked by its name so it keeps the same face.
+  const FACES = ['avalanche', 'basilisk', 'bitrot', 'chatwyrm', 'chestboss', 'clicker', 'crawlqueen', 'echo', 'furnace',
+    'ghost', 'glutton', 'gremlin', 'hotshard', 'imp', 'kraken', 'latency', 'leviathan', 'mimic', 'pingswarm', 'pushimp',
+    'revenant', 'slime', 'spamslime', 'unreadimp', 'wisp', 'wyrm'];   // assets/img/monsters/<name>.webp
+  function hash(s) { let x = 0; for (const c of String(s)) x = (x * 31 + c.charCodeAt(0)) % 104729; return x; }
+  function boardMon(m) {
+    const HC = SD.huntCore;
+    if (!HC) return null;
+    let t = m.id ? (find(m.id) || {}).topic : null;
+    if (!t && m.wild && SD.topicDrill) { const p = SD.topicDrill.preset(m.wild); t = p && p.topics && p.topics[0]; }
+    if (HC.TOPICS[String(t || '')]) return HC.TOPICS[String(t)];
+    const b = m.qs && m.qs.board && HC.board ? HC.board(m.qs.board) : null;
+    return b && b.mons && b.mons[0] ? b.mons[0] : null;
+  }
+  const faceOf = m => { const b = boardMon(m); return b ? `assets/img/hunt/${b}.webp` : `assets/img/monsters/${FACES[hash(m.name) % FACES.length]}.webp`; };
+  H._faceOf = faceOf;   // for tools/hunt_check.js
+  const stampOf = m => (m.out ? { captured: 'CAPTURED', wounded: 'WOUNDED', escaped: 'ESCAPED', driven: 'DRIVEN OFF', gotaway: 'GOT AWAY', waiting: '' }[m.out] || '' : '');
+  function portrait(m) {
+    const st = stampOf(m);
+    return `<span class="hn-por" aria-hidden="true"><img src="${faceOf(m)}" alt="" aria-hidden="true" decoding="async">${st ? `<span class="hn-stp">${st}</span>` : ''}</span>`;
+  }
+  const pipsHtml = (hp, mx) => Array.from({ length: mx }, (_, k) => `<span class="hn-pipd${k < hp ? ' on' : ''}" aria-hidden="true"></span>`).join('');
+  const wantedHead = m => `<span class="td-wanted hn-wh">WANTED</span><span class="hn-ws">${m.wild ? 'SIGHTED IN THE WILD' : m.qs && m.qs.board ? 'BOUNTY · ON A BOARD' : 'BOUNTY · BRU\'S BOARD'}</span>`;
   function hpHtml(m, cls) {
     const hp = hpOf(m), mx = maxHP(m);
-    const pips = Array.from({ length: mx }, (_, k) => `<span class="hn-pipd${k < hp ? ' on' : ''}" aria-hidden="true"></span>`).join('');
     return `<div class="hn-hp${cls ? ' ' + cls : ''}" role="img" aria-label="${esc(m.name)}: health ${hp} of ${mx}">
-      <span class="hn-cr" style="--hn-h:${hue(m)}" aria-hidden="true"><i></i><i></i></span>
-      <span class="hn-hpn"><b>${esc(m.name)}</b><span class="hn-pips">${pips}<span class="small">HP ${hp}/${mx}</span></span></span></div>`;
+      ${portrait(m)}
+      <span class="hn-hpn">${cls === 'hn-inq' ? '<span class="hn-wk" aria-hidden="true">WANTED</span>' : ''}<b>${esc(m.name)}</b><span class="hn-pips"><span class="hn-rw">HP</span>${pipsHtml(hp, mx)}<span class="small">${hp}/${mx}</span></span></span></div>`;
   }
   function hpBar() {
     if (!live || !live.m) return;
@@ -479,8 +502,8 @@
       const t0 = Date.now();
       const cards = h.mons.map((m, i) => {
         const o = m.out ? (OUT[m.out] || OUT.escaped) : null;
-        return `<li class="hn-bt${m.out ? ' done' : ''}">${hpHtml(m)}
-          <span class="small">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded && !m.qs.board ? '◐ Wounded: Track\'s pip is already gone.' : m.qs.board ? `A board: ${esc((SD.huntCore.board(m.qs.board) || {}).title || '')}.` : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
+        return `<li class="hn-bt hn-wp${m.out ? ' done' : ''}">${wantedHead(m)}${hpHtml(m)}
+          <span class="small hn-wn">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded && !m.qs.board ? '◐ Wounded: Track\'s pip is already gone.' : m.qs.board ? `A board: ${esc((SD.huntCore.board(m.qs.board) || {}).title || '')}.` : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
           ${m.out ? '' : `<button class="opt hn-fight" data-mon="${i}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
       }).join('');
       const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head" data-vo="${esc('bru|' + BRU.pick)}">${esc(BRU.pick)}</p>`}
@@ -696,8 +719,12 @@
       H.wildOpen().slice(0, Math.max(0, H.SIZE - rows.length)).forEach(s => { const p = SD.topicDrill.preset(s.p); rows.push({ wild: s.p, name: 'WILD · ' + (p ? p.name.toUpperCase() : 'SIGHTING'), steps: ['fight', 'pin'], k: -1, res: {} }); });
     }
     const first = !beasts().length && !(sv().walked && sv().walked.hunt);
-    const items = rows.map((m, i) => `<li class="td-poster hn-mon"><span class="td-wanted">${m.wild ? 'SIGHTED' : 'BOUNTY'}</span><b class="td-pn">${esc(m.name)}</b>
-      <span class="hn-track">${stepMarks(m)}</span>${m.wounded && !(m.qs && m.qs.board) ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
+    // Health shows once it's settled: before a hunt, a Fight that turns out to be a worked example adds pips.
+    const sure = m => !!(cur || m.wild || m.wounded || (m.qs && m.qs.board) || !m.steps.includes('fight'));
+    const items = rows.map(m => `<li class="td-poster hn-mon hn-wp${m.out ? ' done' : ''}">${wantedHead(m)}
+      <div class="hn-wbody">${portrait(m)}<span class="hn-hpn"><b class="td-pn">${esc(m.name)}</b>
+      <span class="hn-track">${stepMarks(m)}</span>${sure(m) ? `<span class="hn-pips" role="img" aria-label="health ${hpOf(m)} of ${maxHP(m)}"><span class="hn-rw" aria-hidden="true">HP</span>${pipsHtml(hpOf(m), maxHP(m))}</span>` : ''}</span></div>
+      ${m.wounded && !(m.qs && m.qs.board) ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
     const hunted = wall().filter(mine).length - H.board().length;
     const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : '';
     const b = U.panel(`<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>
@@ -841,8 +868,7 @@
     .hn-lamp { margin: 0 0 8px; }
     .hn-main { width: 100%; }
     .hn-bts { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 8px; }
-    .hn-bt { display: grid; gap: 6px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
-    .hn-bt.done { background: #f6f3fa; border-style: dashed; }
+    .hn-bt { display: grid; gap: 6px; }
     .hn-fight { width: 100%; }
     .hn-hp { display: flex; gap: 10px; align-items: center; }
     .hn-hp.hn-inq { margin: 0 0 6px; padding: 4px 8px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
@@ -851,11 +877,42 @@
     .hn-pipd { width: 18px; height: 12px; border: 2px solid #0c0a10; border-radius: 3px; background: transparent; }
     .hn-pipd.on { background: #c8323c; }
     .hn-pips .small { margin-left: 4px; }
-    .hn-cr { position: relative; flex: none; width: 40px; height: 34px; border: 2px solid #0c0a10; border-radius: 50% 50% 38% 38%; background: hsl(var(--hn-h) 55% 62%); }
-    .hn-cr i { position: absolute; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 2px solid #0c0a10; }
-    .hn-cr i:first-child { left: 7px; } .hn-cr i:last-child { right: 7px; }
-    .hn-bt.done .hn-cr { filter: grayscale(1); opacity: .6; }
     .hn-dots { text-align: center; letter-spacing: .3em; }
-    .hn-board .td-poster, .hn-book .td-poster { transform: none; }`;
+    .hn-board .td-poster, .hn-book .td-poster { transform: none; }
+    /* Wanted posters: aged paper, a red tack, WANTED in the display font, the monster's portrait and its HP row. */
+    .hn-board { gap: 14px; }
+    .hn-wp, .hn-hp.hn-inq { --ink: #2a1d10; --muted: #6a5236; color: #2a1d10; text-shadow: none;
+      background: radial-gradient(55% 35% at 88% 92%, rgba(120, 70, 20, .2), transparent 70%), radial-gradient(35% 25% at 10% 14%, rgba(140, 90, 30, .16), transparent 70%),
+        radial-gradient(140% 110% at 50% 45%, transparent 55%, rgba(105, 65, 20, .42)), linear-gradient(176deg, #f3e6c2, #e6d09d 60%, #d9bf86); }
+    .hn-wp { position: relative; display: grid; align-content: start; gap: 6px; padding: 22px 12px 12px; border: 0; border-radius: 2px 4px 3px 5px; box-shadow: 0 5px 12px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(90, 60, 20, .3); overflow-wrap: anywhere; }
+    .hn-wp::before { content: ''; position: absolute; z-index: 2; top: 6px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffd2bd, #c0392b 45%, #5a1010); box-shadow: 0 2px 2px rgba(0, 0, 0, .55); }
+    .hn-wp .hn-wh { display: block; text-align: center; font: 800 24px/1 Cinzel, Georgia, serif; letter-spacing: .16em; color: #3a2210; text-shadow: 0 1px 0 rgba(255, 244, 214, .6); }
+    .hn-ws { display: block; margin: 0 2px 2px; padding: 3px 0; text-align: center; font: 800 10px/1.2 var(--f-body); letter-spacing: .18em; color: #6a3e14; border-top: 2px solid #3a2210; border-bottom: 1px solid #3a2210; }
+    .hn-wbody, .hn-wp .hn-hp { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+    .hn-wp .td-pn, .hn-wp .hn-hpn > b { font: 800 17px/1.2 var(--f-body); color: #2a1d10; }
+    .hn-wp .hn-track { color: #2a1d10; }
+    .hn-wp .hn-wn { color: #4a3520; }
+    .hn-por { position: relative; flex: none; display: grid; grid-template: 100% / 100%; place-items: center; width: 100px; height: 100px; margin: 3px; overflow: hidden;
+      border: 3px solid #3a2210; outline: 1px solid #3a2210; outline-offset: 2px; background: radial-gradient(circle at 50% 42%, #f8edd3, #cdb07a); box-shadow: inset 0 0 14px rgba(80, 50, 15, .5); }
+    .hn-por img { grid-area: 1 / 1; width: auto; height: auto; max-width: none; image-rendering: pixelated; filter: sepia(.15) drop-shadow(0 2px 0 rgba(40, 25, 10, .35)); }
+    .hn-stp { grid-area: 1 / 1; z-index: 1; width: 130%; transform: rotate(-16deg); text-align: center; font: 800 12px/1.5 Cinzel, Georgia, serif; letter-spacing: .08em; color: #9b1c1c; border: 2px solid #9b1c1c; border-width: 2px 0; background: rgba(243, 230, 194, .8); }
+    .hn-wp.done .hn-por img { filter: grayscale(1) sepia(.35); opacity: .7; }
+    .hn-wp.done { filter: saturate(.7) brightness(.92); }
+    .hn-rw { font: 800 12px/1 Cinzel, Georgia, serif; letter-spacing: .08em; margin-right: 2px; }
+    .hn-wp .hn-pipd, .hn-inq .hn-pipd { border-color: #2a1d10; }
+    .hn-hp.hn-inq { position: relative; width: fit-content; max-width: 100%; padding: 5px 28px 5px 6px; border: 0; border-radius: 2px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(90, 60, 20, .3); }
+    .hn-inq .hn-por { width: 52px; height: 52px; margin: 2px; border-width: 2px; outline-offset: 1px; }
+    .hn-inq .hn-por img { transform: scale(.5); }
+    .hn-wk { font: 800 11px/1 Cinzel, Georgia, serif; letter-spacing: .16em; color: #6a3e14; }
+    @media (min-width: 900px) {
+      .hn-wp { padding: 26px 16px 14px; }
+      .hn-wbody, .hn-wp .hn-hp { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 8px; }
+      .hn-wp .hn-pips, .hn-wp .hn-track { justify-content: center; }
+      .hn-wp .hn-por { width: 200px; height: 200px; }
+      .hn-wp .hn-por img { transform: scale(2); }
+      .hn-wp .hn-stp { font-size: 20px; }
+      .hn-wn { text-align: center; }
+    }`;
   document.head.appendChild(css);
 })();
