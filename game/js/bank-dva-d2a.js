@@ -251,7 +251,7 @@ SD.bank.push(
       "Add a resource server with custom scopes named after each tenant and plan, and ask for the matching scopes at sign-in."
     ], a: 0,
     no: [null,
-      "It works, but it copies the data into user attributes and depends on another team keeping them in sync, which the stem rules out.",
+      "That copies the data into user attributes, which the requirement rules out, and they're only current if the billing team keeps them in sync.",
       "Post authentication runs after sign-in for logging or analytics. Its response can't change token claims.",
       "Scopes describe what a client may access on a resource server, and the client picks them, so they can't carry per-user data reliably."],
     why: "The pre token generation trigger runs before Cognito issues tokens, so the function can look up current values and add them as claims.",
@@ -552,7 +552,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html", "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html"] },
 
   { id: "dva-2-140", exam: "both", dva: "2.1", saa: "1.1", topic: "s3", type: "mc",
-    q: "A shared artifacts bucket must allow s3:GetObject to principals in any account under the organization's Workloads OU, including its child OUs, but not to the organization's other accounts. Accounts join the OU often, and the team doesn't want to edit the bucket policy when they do. What should the developer put in the bucket policy?",
+    q: "A shared artifacts bucket must allow s3:GetObject to principals in any account under the organization's Workloads OU, including its child OUs, but not to the organization's other accounts. Accounts join the OU often, and the bucket policy must not change when they do. What should the developer put in the bucket policy?",
     opts: [
       "An Allow for Principal * with aws:PrincipalOrgPaths matching the Workloads OU's path plus a wildcard (ForAnyValue:StringLike).",
       "An Allow for Principal * with a condition that aws:PrincipalOrgID equals the ID of the company's organization.",
@@ -561,7 +561,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "That allows every account in the organization, not just the Workloads OU.",
-      "It works, but the policy changes whenever an account joins or leaves the OU, which the team wants to avoid.",
+      "The script rewrites the policy whenever an account joins or leaves the OU, and the policy must not change.",
       "aws:PrincipalAccount is the caller's own account, so this allows only principals in the management account."],
     why: "aws:PrincipalOrgPaths holds the AWS Organizations path of the caller's account. Matching the OU's path with a wildcard covers the OU and its child OUs, and new member accounts need no policy edits.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html"] }

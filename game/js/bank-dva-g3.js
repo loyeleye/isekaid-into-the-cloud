@@ -341,7 +341,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/lambda/latest/api/API_PublishVersion.html"] },
 
   { id: "dva-3-324", exam: "DVA", dva: "3.3", topic: "ecr", type: "mc",
-    q: "A pipeline tags each tested image in ECR as build-118 and so on. When QA approves a build, the same image must also get the tag approved-118 so the production deploy can find it. The image is 3 GB, and the approval step runs on a small runner where pulling and pushing it takes too long. What should the developer do?",
+    q: "A pipeline tags each tested image in ECR as build-118 and so on. When QA approves a build, the same image must also get the tag approved-118 so the production deploy can find it. The image is 3 GB, and the approval step runs on a small runner, so the tag must be added without moving the image's layers. What should the developer do?",
     opts: [
       "Get the image manifest with aws ecr batch-get-image, then call aws ecr put-image with it and --image-tag approved-118.",
       "Run docker pull for build-118 on the runner, then docker tag and docker push the image to ECR as approved-118.",
@@ -349,9 +349,9 @@ SD.bank.push(
       "Add a lifecycle policy rule that adds the approved tag to images once they are older than the QA test period."
     ], a: 0,
     no: [null,
-      "It works, but it moves the whole 3 GB image twice, which the stem rules out.",
+      "Pull and push move all 3 GB of layers through the runner, which the requirement rules out.",
       "Tag immutability stops tags from being moved. It doesn't add tags.",
-      "Lifecycle policies expire images. They don't add tags."],
+      "Lifecycle policies expire or archive images. They don't add tags."],
     why: "ECR can retag an existing image by putting its manifest again with a new tag. No layers move, so it saves time and bandwidth.",
     doc: ["https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-retag.html"] },
 
@@ -373,7 +373,7 @@ SD.bank.push(
 
   // 3.3 IaC
   { id: "dva-3-326", exam: "DVA", dva: "3.3", topic: "cdk", type: "mc",
-    q: "A CDK app creates an S3 bucket with the L2 Bucket construct. A team needs a CloudFormation property of AWS::S3::Bucket that the L2 construct doesn't expose yet. They want to keep using the L2 construct and its grant methods for everything else. What should the developer do?",
+    q: "A CDK app creates an S3 bucket with the L2 Bucket construct. A team needs a CloudFormation property of AWS::S3::Bucket that the L2 construct doesn't expose yet. The bucket must stay an L2 construct so the team keeps its grant methods. What should the developer do?",
     opts: [
       "Get the L1 CfnBucket with bucket.node.defaultChild, and set the property on it or with addPropertyOverride.",
       "Replace the Bucket construct with a CfnBucket, and write the bucket's IAM policies by hand from now on.",
@@ -381,7 +381,7 @@ SD.bank.push(
       "Edit the template in cdk.out after running cdk synth, and deploy that edited template with cdk deploy each time."
     ], a: 0,
     no: [null,
-      "It works, but it loses the L2 construct and its grant methods, which the team wants to keep.",
+      "Swapping to CfnBucket drops the L2 construct and its grant methods, which the bucket must keep.",
       "Tags are key-value labels. They don't set resource properties.",
       "cdk deploy synthesizes again, and cdk.out is overwritten, so the edit is lost."],
     why: "Each L2 construct wraps an L1 construct for its CloudFormation resource. The escape hatch, node.defaultChild, gives access to every CloudFormation property while keeping the L2 construct.",

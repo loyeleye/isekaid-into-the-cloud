@@ -868,7 +868,7 @@ SD.bank.push(
       "Sampling decides which requests get traced. Its counts include every sampled request, not only premium faults.",
       null,
       "Annotations index traces so they can be searched. They aren't CloudWatch metrics, so there's nothing to alarm on.",
-      "That works, but it means changing and redeploying the service, which the team ruled out."],
+      "PutMetricData calls live in the service's code, so this needs a code change and redeploy, which is ruled out."],
     why: "An X-Ray group is defined by a filter expression, which can combine an annotation's value with keywords such as fault. X-Ray publishes the count of matching traces to CloudWatch every minute, so an alarm can watch premium faults with no code change.",
     doc: ["https://docs.aws.amazon.com/xray/latest/devguide/xray-console-groups.html",
       "https://docs.aws.amazon.com/xray/latest/devguide/xray-console-filters.html"] },

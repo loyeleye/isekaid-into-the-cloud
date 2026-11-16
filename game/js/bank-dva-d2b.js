@@ -73,7 +73,7 @@ SD.bank.push(
       "Update the old key's alias to point to the new key, so every later Decrypt request that names the alias uses the new key on the stored data keys."
     ], a: 0,
     no: [null,
-      "It works, but the plaintext data keys pass through the app's memory, which the requirement forbids.",
+      "Decrypt returns the plaintext data keys to the app, outside KMS, which the requirement forbids.",
       "Rotation adds new key material to the same key. It doesn't re-encrypt existing ciphertexts or move them to another key.",
       "The stored ciphertexts were made under the old key, so the new key can't decrypt them, whatever the alias points to."],
     why: "ReEncrypt decrypts and re-encrypts a ciphertext entirely inside KMS, so the plaintext never leaves the service. The caller needs kms:ReEncryptFrom on the source key and kms:ReEncryptTo on the destination key.",
@@ -275,7 +275,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-mutual-tls.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-disable-default-endpoint.html"] },
 
   { id: "dva-2-220", exam: "both", dva: "2.2", saa: "1.3", topic: "acm", type: "mc",
-    q: "A company runs dozens of internal microservices that must talk to each other over TLS using certificates that only the company's own systems trust. The team doesn't want to run its own certificate authority servers, and wants certificates to renew automatically. Which solution meets these requirements?",
+    q: "A company runs dozens of internal microservices that must talk to each other over TLS using certificates that only the company's own systems trust. The company must not run any certificate authority servers itself, and certificates must renew automatically. Which solution meets these requirements?",
     opts: [
       "Create a CA in AWS Private CA, and request private certificates from it through ACM for the services.",
       "Request public ACM certificates for each internal hostname, and attach them to the services' load balancers.",
@@ -284,7 +284,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "Public certificates need publicly resolvable domains and are trusted by everyone, not only by the company.",
-      "That works, but it means running and securing CA servers, which the team wants to avoid.",
+      "That means running and securing CA servers, which the requirement rules out, and renewal depends on a custom script.",
       "Renewing and redistributing dozens of self-signed certificates by hand is error-prone and not automatic."],
     why: "AWS Private CA runs a private CA hierarchy for you. Private certificates requested through ACM are trusted only where you install the CA's certificate, and ACM renews them automatically.",
     doc: ["https://docs.aws.amazon.com/privateca/latest/userguide/PcaWelcome.html", "https://docs.aws.amazon.com/acm/latest/userguide/managed-renewal.html"] },
