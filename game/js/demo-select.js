@@ -303,5 +303,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { boot(); SD.main.title(); }, 0), { once: true });
   else { boot(); SD.main.title(); }
 
-  SD.demo = { chapters: CHAPTERS, select, viewer, watching: false, fresh: n => fresh(CHAPTERS.find(c => c.n === n)) };
+  SD.demo = { chapters: CHAPTERS, latest: () => latest() || null, select, viewer, watching: false, fresh: n => fresh(CHAPTERS.find(c => c.n === n)) };
 })();

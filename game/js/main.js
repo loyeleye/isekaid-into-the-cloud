@@ -59,11 +59,13 @@
     const mp = SD.mp && SD.mp.available() && $('#screen-run').hidden;
     // Game modes (js/modes.js): the same picker as the title's button, not from inside a dungeon run.
     const modes = SD.modes && SD.modes.list().length && $('#screen-run').hidden;
+    const onTitle = !$('#screen-title').hidden, restart = onTitle && SD.titleGames ? SD.titleGames.newGame() : null;
     const qs = SD.quick && $('#screen-title').hidden && !(SD.mp && SD.mp.inRaid && SD.mp.inRaid());
     const b = U.panel(`<div class="opts">
       ${qs ? `<button class="opt" id="m-quick">${SD.quick.markIcon} Quick save and pause</button>` : ''}
       ${modes ? '<button class="opt" id="m-modes">Game modes</button>' : ''}
       ${mp ? '<button class="opt" id="m-mp">Multiplayer: expedition raids</button>' : ''}
+      ${restart ? '<button class="opt" id="m-new">Start the story over</button>' : ''}
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
       <button class="opt" id="m-sfx">Sound effects: <b>${p.sfx ? 'On' : 'Off'}</b></button>
@@ -82,7 +84,10 @@
       <button class="opt" id="m-reset">Erase save and start over</button>
       ${SD.debugGate && SD.debugGate.open() ? `<button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button>` : ''}</div>
       <p class="muted small">Progress saves automatically${!S.cloud ? ' in this browser' : S.cloud.where === 'claude' ? ' to your claude.ai account, so it follows you across devices' : ', and your save code brings it to another device'}.${SD.quick ? ' A quick save also keeps a fight in progress.' : ''}</p>`, { title: 'MENU' });
-    b.querySelector('#m-help').onclick = help;
+    // On the title, How to play and New game are the title's own buttons (js/title-games.js keeps them for the menu),
+    // so a chapter's own How to play and New game confirm still run.
+    b.querySelector('#m-help').onclick = () => { const h = onTitle && SD.titleGames && SD.titleGames.help(); if (h) { U.closePanel(); h.click(); } else help(); };
+    if (restart) b.querySelector('#m-new').onclick = () => { U.closePanel(); restart.click(); };
     if (qs) b.querySelector('#m-quick').onclick = () => { U.closePanel(); SD.quick.pause(); };
     if (SD.quick) b.querySelector('#m-qauto').onclick = () => { SD.quick.setAuto(!SD.quick.auto()); menu(); };
     if (mp) b.querySelector('#m-mp').onclick = () => SD.mp.open('menu');

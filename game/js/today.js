@@ -561,7 +561,7 @@
       ${extra}
       <button class="primary td-main" id="${main[0]}">${esc(main[1])}</button>
       <div class="td-links">${alt}${st === 'first' || st === 'off' ? '<button class="td-link" id="td-settings">Exam settings</button>'
-        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}${st !== 'first' && SD.topicDrill ? '<button class="td-link" id="td-topic">Topic drill</button>' : ''}${st !== 'first' && SD.modes && SD.modes.list().length ? '<button class="td-link td-play" id="td-play">▶ Play</button>' : ''}</div>`;
+        : `${!nm && hasHall && st !== 'mock' ? '<button class="td-link" id="td-practice">Practice mock</button>' : ''}<button class="td-link" id="td-ready">Readiness</button><button class="td-link" id="td-wallb">Wall (${n.wall})</button>`}${st !== 'first' && SD.topicDrill ? '<button class="td-link" id="td-topic">Topic drill</button>' : ''}</div>`;
     const on = (id, f) => { const el = card.querySelector('#' + id); if (el) el.onclick = f; };
     on('td-date', T.datePicker);
     on('td-setdate', () => {
@@ -582,7 +582,6 @@
     on('td-ready', T.board);
     on('td-wallb', T.wallPanel);
     on('td-topic', T.topicPanel);
-    on('td-play', () => SD.modes.open());
   };
   // From the title: hidden on the press-start screen, shown above Continue and New game after it.
   T.mount = function (started) {

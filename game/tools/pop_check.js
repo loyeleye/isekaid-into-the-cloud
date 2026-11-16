@@ -88,7 +88,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });
 
   // ---- Picker and first run ----
-  await page.click('#td-play');
+  await page.evaluate(() => SD.modes.open());
   check(/The Lost and Found/.test(await txt('#panel')), 'the picker lists The Lost and Found');
   check(/Host: Dutch/.test(await txt('[data-mode="pop"]')), 'its host is Dutch');
   await page.click('[data-mode="pop"]');
@@ -218,7 +218,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
-    await page.click('#td-play');
+    await page.evaluate(() => SD.modes.open());
     check(/Resume · \d+ of \d+ checks · Budget \d+%/.test(await txt('[data-mode="pop"]')), 'after a reload the picker offers Resume: ' + (await txt('[data-mode="pop"]')).replace(/\s+/g, ' ').trim().slice(-50));
     await page.click('[data-mode="pop"]');
     await page.waitForSelector('.pop');

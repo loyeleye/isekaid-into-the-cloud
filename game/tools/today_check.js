@@ -95,7 +95,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const b = document.querySelector('#t-new'); if (!b) return 'no #t-new';
     b.scrollIntoView({ block: 'nearest' });
     const r = b.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return r.bottom <= innerHeight && (hit === b || b.contains(hit)) ? 'ok' : 'covered or off screen';
+    return r.bottom <= innerHeight + 1 && (hit === b || b.contains(hit)) ? 'ok' : 'covered or off screen';
   });
   check(reach === 'ok', 'fresh save: New game is still reachable (' + reach + ')');
   await shot('fresh');

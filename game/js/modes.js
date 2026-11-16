@@ -1,5 +1,6 @@
 // Game modes (Nov 15, design doc "Five game modes for exam prep"): the shared shell every mode builds on.
-//   - One Play button on the Today card (js/today.js) opens the mode picker (SD.modes.open).
+//   - The title's games carousel (js/title-games.js) gives every mode its own card; the picker (SD.modes.open) stays
+//     for the ☰ menu. The Today card's small Play link is gone (Ladi, Nov 16).
 //   - One stake table for every mode (Rule 4): a right answer pays 1, 2 or 3 for Guess, Think so or Sure, a wrong one
 //     costs 0, 1 or 3, and a Sure miss goes on the Wall. Guess pays best below 50% sure, Think so from 50% to 67% and
 //     Sure above 67%, so always pressing Sure is not rewarded: honest confidence is the winning strategy.
@@ -14,6 +15,8 @@
 //   SD.modes.titleButton(box)             adds Game modes to the title's buttons (before How to play), called by the
 //                                         title builders (js/main.js, js/demo-select.js), so a fresh save can reach the
 //                                         picker without setting an exam date first (Ladi, Nov 16)
+//                                         (js/title-games.js replaces it with the carousel once that loads)
+//   SD.modes.mins(m)                      "About 18 minutes" from a mode's minutes (18, 'about 18' or '15 to 20')
 //   SD.modes.STAKES, SD.modes.stake(ok, conf)      [[right, wrong]] by conf (0 Guess, 1 Think so, 2 Sure); the delta
 //   SD.modes.ask(q, opts)                 SD.quiz.ask plus: stakes on the buttons, the verified source block, calibration
 //                                         into opts.tally, the Wall (a Sure miss goes up unless opts.noWall; opts.poster
@@ -71,18 +74,24 @@
       try { st = m.status ? m.status() || '' : ''; } catch (e) { st = ''; }
       return `<button class="opt md-mode" data-mode="${esc(m.id)}"><span class="md-n">${esc(m.name)}</span>
         ${m.blurb ? `<span class="small">${esc(m.blurb)}</span>` : ''}
-        <span class="muted small">${[m.minutes ? `About ${esc(m.minutes)} minutes` : '', m.host ? `Host: ${esc(m.host)}` : ''].filter(Boolean).join(' · ')}</span>
+        <span class="muted small">${[M.mins(m), m.host ? `Host: ${esc(m.host)}` : ''].filter(Boolean).join(' · ')}</span>
         ${st ? `<span class="small md-st">▶ ${esc(st)}</span>` : ''}</button>`;
     }).join('');
     const b = U.panel(`<p class="td-head">Every answer is the move. Say how sure you are: it sets the stakes.</p>
       ${stakeTable()}
       <div class="opts">${rows || '<p class="muted">No game modes yet.</p>'}</div>
-      ${calibAll()}`, { title: 'PLAY', onClose: () => SD.today && SD.today.render() });
+      ${calibAll()}`, { title: 'GAME MODES', onClose: () => SD.today && SD.today.render() });
     b.querySelectorAll('[data-mode]').forEach(el => el.onclick = () => {
       const m = M.get(el.dataset.mode);
       U.closePanel();
       if (m) m.start({});
     });
+  };
+  // "About 18 minutes" from 18, 'about 18' or '15 to 20' (no "About about").
+  M.mins = function (m) {
+    const t = String(m && m.minutes != null ? m.minutes : '').trim();
+    if (!t) return '';
+    return /^about /i.test(t) ? `About ${t.slice(6)} minutes` : / to /.test(t) ? `${t} minutes` : `About ${t} minutes`;
   };
   M.titleButton = function (box) {
     if (!box || !modes.length || box.querySelector('#t-modes')) return;
