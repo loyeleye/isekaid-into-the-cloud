@@ -61,16 +61,16 @@
       if (mode === 'q') {
         // The card is the new scenario: Round 2 on its tag.
         const tag = card.querySelector('.hd-tag');
-        if (tag) tag.innerHTML = 'Round 2 <span class="rt-ns">· new scenario</span>';
+        if (tag) tag.textContent = 'Round 2';
       }
       if (rt.intro) return;
       rt.intro = true;
       const foe = scene.querySelector('.hd-foe');
       if (still()) {
-        // No motion: the scar is there, the banner sits small by it, and Bru says what happened.
+        // No motion: the scar is there, the card's tag says Round 2, and Bru says what happened.
         scene.classList.add('rt-after', 'rt-still');
         bru.react('frown', 1200);
-        bru.say('<b>Bru:</b> It hit back! Round 2: same idea, new scenario.');
+        bru.say('<b>Bru:</b> Ow! It hit back. Round 2: make this one count.');
         return;
       }
       // The hit back: it lunges (≈0–380ms), the hit lands (≈300ms: crack, flash, shake, Bru winces), it squares up
@@ -86,14 +86,15 @@
       later(st, 750, () => { re(scene, 'rt-r2'); });
       later(st, 1900, () => {
         scene.classList.remove('rt-intro'); scene.classList.add('rt-after');
-        if (st.mode === 'q') { bru.react('frown', 1400); bru.say('<b>Bru:</b> It hit back! Round 2: same idea, new scenario.'); }
+        if (st.mode === 'q') { bru.react('frown', 1400); bru.say('<b>Bru:</b> Ow! It hit back. Round 2: make this one count.'); }
       });
-      later(st, 2600, () => { if (foe) foe.classList.remove('rt-hitback'); });
+      // Done: drop the beat's classes, or moving the scene into the verdict's window would replay them.
+      later(st, 2300, () => { scene.classList.remove('rt-cracked', 'rt-jolt', 'rt-r2'); if (foe) foe.classList.remove('rt-hitback'); });
     },
 
     strike(ok, guess, { scene, st, bru }) {
       const foe = scene.querySelector('.hd-foe'), calm = still();
-      scene.classList.remove('rt-intro', 'rt-r2'); scene.classList.add('rt-after');
+      scene.classList.remove('rt-intro', 'rt-r2', 'rt-cracked', 'rt-jolt'); scene.classList.add('rt-after');
       if (foe) foe.classList.remove('rt-hitback', 'rt-ko', 'rt-flee', 'rt-gone');
       if (ok) {
         // The finisher: a double slash, a white burst, the crack shatters, and it's knocked flat.
@@ -135,6 +136,9 @@
         svg.querySelectorAll('.rt-scar path').forEach(p => p.setAttribute('d', sc));
       }
       const set = (k, v) => rt.fx.style.setProperty(k, Math.round(v) + 'px');
+      // The glass only cracks over the open street: below the window's title bar, above the satchel (never over text).
+      const body = win.querySelector(':scope > .win-b'), top = body ? body.offsetTop : 0;
+      set('--rt-ct', top); set('--rt-cb', Math.max(0, H - satTop));
       set('--rt-x', x); set('--rt-y', y);
       // ROUND 2 hangs in the open street between the card and the satchel, right of Bru.
       const left = wide ? bl + bw * .9 : bw * .5, gapMid = (cardBottom + satTop) / 2;
@@ -147,9 +151,10 @@
   const css = document.createElement('style');
   css.textContent = `
     .hd-st-retry .rt-fx { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
-    .hd-st-retry .hs-say.hd-say { z-index: 5; }
     /* The crack: a dark seam under a bright edge, so it reads on the light sky and the dark street alike. */
-    .hd-st-retry .rt-glass { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+    .hd-st-retry .rt-glass { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; clip-path: inset(var(--rt-ct, 0px) 0 var(--rt-cb, 0px) 0); }
+    /* It stands across the street on a wide screen too (the scene's own fit sets an inline right: auto). */
+    .hd-st-retry.hd-wide .hd-jars { right: var(--hd-fx, 6%) !important; }
     .hd-st-retry .rt-glass path { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .hd-st-retry .rt-c0, .hd-st-retry .rt-r0 { stroke: rgba(8, 6, 12, .75); stroke-width: 4; }
     .hd-st-retry .rt-c1, .hd-st-retry .rt-r1 { stroke: rgba(235, 248, 255, .95); stroke-width: 1.6; }
@@ -180,15 +185,12 @@
     .hd-st-retry.rt-r2 .rt-banner { animation: rtBanner 1.4s cubic-bezier(.2, 1.4, .4, 1) both; }
     @keyframes rtBanner { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(2.4); } 18% { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
       24% { transform: translate(-50%, -50%) rotate(-4deg) scale(1.06); } 30%, 80% { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(.9); } }
-    .hd-st-retry.rt-still .rt-banner { opacity: 1; font-size: 18px; }
-    .hd-st-retry.rt-still.rt-healed .rt-banner, .hd-st-retry.rt-still .hd-foe.rt-gone ~ .rt-banner { opacity: 0; }
     /* While it hits back, Bru's line waits */
     .hd-st-retry.rt-intro .hs-say.hd-say { opacity: 0; }
     /* The card and the satchel come in once the hit has landed */
     #panel .win.hd-win:has(> .hd-st-retry) .hd-card.rt-late.hd-drop { animation-delay: .8s; }
     #panel .win.hd-win:has(> .hd-st-retry) .hd-sat.rt-late { animation: rtRise .4s cubic-bezier(.2, 1.2, .4, 1) .85s both; }
     @keyframes rtRise { from { transform: translateY(40%); opacity: 0; } to { transform: none; opacity: 1; } }
-    #panel .win.hd-win:has(> .hd-st-retry) .hd-tag .rt-ns { font-weight: 600; letter-spacing: .04em; text-transform: none; color: #ffd8cc; }
     /* The finisher: two slashes crossing, a burst behind it, the screen flashes white */
     .hd-st-retry .rt-x { position: absolute; left: 0; top: 50%; width: 100%; height: 10px; margin-top: -5px; border-radius: 6px; pointer-events: none; transform: rotate(-38deg) scaleX(0);
       background: linear-gradient(90deg, transparent, #fff 25%, #ffe7a0 50%, #fff 75%, transparent); box-shadow: 0 0 18px #ffd27a, 0 0 40px #ff9a3a; }
@@ -198,8 +200,8 @@
     @keyframes rtX1 { 0% { opacity: 1; transform: rotate(-38deg) scaleX(0); } 45% { opacity: 1; transform: rotate(-38deg) scaleX(1.25); } 100% { opacity: 0; transform: rotate(-38deg) scaleX(1.25) translateY(8px); } }
     @keyframes rtX2 { 0% { opacity: 1; transform: rotate(38deg) scaleX(0); } 45% { opacity: 1; transform: rotate(38deg) scaleX(1.25); } 100% { opacity: 0; transform: rotate(38deg) scaleX(1.25) translateY(8px); } }
     .hd-st-retry .hd-foe.rt-ko .hd-spr { animation: rtKo .9s cubic-bezier(.3, 0, .3, 1) .2s both !important; filter: grayscale(.7) brightness(.75) drop-shadow(0 6px 4px rgba(0, 0, 0, .7)) !important; }
-    @keyframes rtKo { 0% { transform: none; filter: brightness(3) drop-shadow(0 0 24px #fff); } 30% { transform: translate(10%, -18%) rotate(40deg) scale(.9); } 70% { transform: translate(6%, 22%) rotate(90deg) scale(.86); }
-      85% { transform: translate(6%, 18%) rotate(84deg) scale(.86); } 100% { transform: translate(6%, 22%) rotate(90deg) scale(.86); } }
+    @keyframes rtKo { 0% { transform: none; filter: brightness(3) drop-shadow(0 0 24px #fff); } 30% { transform: translate(8%, -20%) rotate(-30deg) scale(.9); } 70% { transform: translate(4%, 14%) rotate(-82deg) scale(.86); }
+      85% { transform: translate(4%, 10%) rotate(-76deg) scale(.86); } 100% { transform: translate(4%, 14%) rotate(-82deg) scale(.86); } }
     .hd-st-retry .hd-foe.rt-ko::after { opacity: .4; }
     .hd-st-retry.rt-finish .rt-flash { animation: rtWhite .5s ease-out .15s; background: radial-gradient(circle at 75% 55%, rgba(255, 255, 255, .95), rgba(255, 230, 160, .6) 25%, transparent 70%); }
     @keyframes rtWhite { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
@@ -224,7 +226,7 @@
     @keyframes rtDust { 0% { opacity: .9; transform: scale(.4); } 100% { opacity: 0; transform: translateY(-14px) scale(1.8); } }
     @media (prefers-reduced-motion: reduce) {
       .hd-st-retry, .hd-st-retry *, #panel .win.hd-win:has(> .hd-st-retry) .rt-late { animation: none !important; transition: none !important; }
-      .hd-st-retry .hd-foe.rt-ko .hd-spr { transform: rotate(90deg) scale(.86); }
+      .hd-st-retry .hd-foe.rt-ko .hd-spr { transform: translate(4%, 14%) rotate(-82deg) scale(.86); }
     }`;
   document.head.appendChild(css);
 })();
