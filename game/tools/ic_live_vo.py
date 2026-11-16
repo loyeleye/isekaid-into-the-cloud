@@ -68,5 +68,5 @@ if __name__ == '__main__':
     want = sys.argv[1:]
     for k, (text, d) in lines().items():
         if want and k not in want: continue
-        dst = os.path.join(GAME, 'assets/audio/vo/uptima-mg-icl-%s.mp3' % k)
+        dst = os.path.join(GAME, 'assets/audio/vo/uptima-mg-icl-%s.mp3' % k.lower())
         say(text, d, dst); print(k, '|', text)

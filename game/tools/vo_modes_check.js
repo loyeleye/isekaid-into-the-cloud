@@ -15,7 +15,7 @@ const LINES = SD.voModes.LINES;
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails++; };
 
-const SRC = { duel: ['js/mode-duel.js', 'js/mode-table.js'], ic: 'js/mode-ic.js', pop: ['js/mode-pop.js', 'js/mode-pop-formats.js', 'js/mode-pop-rooms.js'], hunt: 'js/hunt.js', draft: 'js/draft.js', sprint: 'js/mode-sprint.js', drill: ['js/mode-drill.js', 'js/drill-core.js'], mp: 'js/raid.js' };
+const SRC = { duel: ['js/mode-duel.js', 'js/mode-table.js'], ic: 'js/mode-ic.js', pop: ['js/mode-pop.js', 'js/mode-pop-formats.js', 'js/mode-pop-rooms.js'], hunt: 'js/hunt.js', draft: 'js/draft.js', sprint: 'js/mode-sprint.js', drill: ['js/mode-drill.js', 'js/drill-core.js'], icl: ['js/ic-live.js', 'js/ic-live-core.js'], mp: 'js/raid.js' };
 const text = {};
 Object.entries(SRC).forEach(([k, f]) => { text[k] = [].concat(f).map(x => fs.readFileSync(path.join(ROOT, x), 'utf8')).join('\n').replace(/\\'/g, '\'').replace(/\\"/g, '"'); });
 const files = Object.values(LINES), keys = Object.keys(LINES);
