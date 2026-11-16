@@ -42,6 +42,26 @@ const srv = http.createServer((q, r) => {
     const done = await pg.waitForFunction(() => document.getElementById('q').classList.contains('on'), null, { timeout: 120000 }).then(() => true, () => false);
     await pg.screenshot({ path: `${OUT}/${name}-5-question.png` });
     const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth }));
+    // Claim 1 won: the end screen offers claim 2, and taking it starts the Bell.
+    const nextTxt = await pg.evaluate(() => { document.querySelector('.q-opts button').click(); return document.querySelector('.q-again').textContent; });
+    if (!/Next claim: the Bell/.test(nextTxt)) { fail++; console.log(name, 'no next-claim button:', nextTxt); }
+    await pg.click('.q-again');
+    if ((await pg.evaluate(() => SD_RUSH.S.claim)) !== 'bell') { fail++; console.log(name, 'next claim did not start the Bell'); }
+    // Claim 2, the Bell: a few seconds without the bell (Mira copies ribboned tickets by hand), then the bell and the rack.
+    await pg.evaluate(() => SD_RUSH.reset(7, 'bell'));
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-6-bell-build.png` });
+    const [b1x, b1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [b2x, b2y] = await pg.evaluate(() => SD_RUSH.at.spot('bell'));
+    await pg.mouse.move(b1x, b1y); await pg.mouse.down(); await pg.mouse.move(b2x, b2y, { steps: 8 }); await pg.mouse.up();
+    if (!(await pg.evaluate(() => SD_RUSH.S.bell))) { fail++; console.log(name, 'bell drag failed'); }
+    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
+    await pg.waitForTimeout(11000);
+    await pg.screenshot({ path: `${OUT}/${name}-7-bell.png` });
+    const bellDone = await pg.waitForFunction(() => document.getElementById('q').classList.contains('on'), null, { timeout: 120000 }).then(() => true, () => false);
+    await pg.screenshot({ path: `${OUT}/${name}-8-bell-question.png` });
+    const bs = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, rings: SD_RUSH.S.rings, q: document.querySelector('.q-text').textContent.slice(0, 40) }));
+    console.log(name, 'bell', JSON.stringify(bs));
+    if (!bellDone || bs.over !== 'win' || !bs.rings || !/order is placed/.test(bs.q)) { fail++; console.log(name, 'bell claim did not play through'); }
     if (errs.length) { fail++; console.log(name, 'errors:', errs); }
     if (!done) { fail++; console.log(name, 'claim never finished'); }
     if (st.sw > st.w) { fail++; console.log(name, 'horizontal scroll'); }
