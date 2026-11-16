@@ -239,7 +239,7 @@
     .rm-say.bad { border-color: #9e3a34; background: #fbe4dc; }
     .rm-note { background: #fff3c4; }
     @keyframes rmsay { from { transform: translateY(.8cqi) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-    .rm-up { position: absolute; left: 39.5%; top: 40%; height: 59%; aspect-ratio: .62; z-index: 5; pointer-events: none; }
+    .rm-up { position: absolute; left: 35.8%; top: 12%; height: 68%; aspect-ratio: .62; z-index: 5; pointer-events: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
     .up-fig .up-k, .up-fig .up-t { opacity: 0; }
