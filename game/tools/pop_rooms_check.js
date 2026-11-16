@@ -111,7 +111,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   for (const N of [2, 3, 4]) {
     console.log(`-- night ${N}`);
     await page.evaluate(n => { const s = SD.state.save; s.modes.popNights = n - 1; delete s.pop; s.popCarry = []; SD.state.persist(); SD.ui.closePanel && SD.ui.closePanel(); }, N);
-    await page.click('#td-play');
+    await page.evaluate(() => SD.modes.open());
     await page.click('[data-mode="pop"]');
     await page.waitForSelector('#pop-in');
     let s = await pop();
