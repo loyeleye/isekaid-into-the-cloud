@@ -175,12 +175,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await step() === 'pin', 'then Pin it down');
   check(await hp() === '1 of 3', 'Pin it down shows the bar too: 1 of 3');
   check(/Why doesn't this fit here\?/.test(await page.textContent('#panel')) && (await page.$$('#panel [data-pr]')).length === 3, 'Pin it down: one option, three reasons');
-  const pinOk = await page.evaluate(([f]) => {
+  const pinOk = await page.evaluate(([f]) => {   // Pin is built from the Track question
     const h = SD.state.save.hunt, p = h.mons[0].pin, q = SD.exam.find(f);
     const i = q.opts.indexOf(p.opt);
-    return i >= 0 && i !== q.a && q.no[i] === p.reasons[p.a] && p.reasons.every(r => SD.bank.some(x => Array.isArray(x.no) && x.no.includes(r)));
-  }, [f1]);
-  check(pinOk, 'the right reason is that wrong option\'s own "why not" line, and every reason is existing bank text');
+    return i >= 0 && i !== q.a && q.no[i] === p.reasons[p.a] && p.reasons.every(r => SD.bank.some(x => (Array.isArray(x.no) && x.no.includes(r)) || (Array.isArray(x.items) && x.items.some(it => it.no === r))));
+  }, [t1]);
+  check(pinOk, 'Pin comes from the Track question: the right reason is that wrong option\'s own "why not" line, and every reason is existing bank text');
   await noHScroll('pin it down');
   await shot('pin');
   const pv = await pin(true, 2);
