@@ -21,11 +21,19 @@
 //     the rack's at-least-once twins are back. Doing the same ticket twice pays out twice, and that's a lost request
 //     in the tank. The ledger is an idempotency record in DynamoDB: before the work, Mira writes the ticket's key
 //     with a conditional write (attribute_not_exists). A repeat fails the condition and is dropped at once.
+//   - Night Orders (picked before claims 2 on, and they stack): optional twists on these rules.
+//       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes twice as long. That's a
+//               Lambda cold start (a new execution environment starts before your code runs).
+//       herd:   bounced callers all retry at the same moment instead of on their own backoff. That's a thundering
+//               herd; real clients add jitter (a random wait) to spread their retries out.
+//       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
+//               (1 minute to 14 days in SQS; seconds here).
+//     Stakes and the timeout are Night Orders too, but they change the letters, so they live in js/rush.js.
 (function (root) {
   const SD = root.SD = root.SD || {};
   const T = {
     slide: 0.9, walk: 0.5, work: 1.4, done: 0.7, bounce: 0.9, splat: 0.6, tobin: 0.8, back: 0.5, hidden: 1.6,
-    backoff: [0.6, 1.4], gap: 3, clog: 6, drop: 0.45
+    backoff: [0.6, 1.4], gap: 3, clog: 6, drop: 0.45, coldAfter: 2, coldX: 3, herd: 2.5, retain: 20
   };
   const STOOLS = 6, CLERK_MAX = 4, RESERVE = 4, CAP = 12, MAX_THROTTLES = 3, MAX_RECEIVES = 3, TWIN_P = 0.1;
   // Each wave: how many tickets, over how many seconds, and how many of them are poison.
@@ -69,10 +77,11 @@
     let a = seed >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
-  function create(seed, claim) {
+  function create(seed, claim, orders) {
     const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
       claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
+      orders: new Set(orders || []), lastFree: Array(STOOLS).fill(-99), colds: 0, expired: 0, herds: 0,
       clerk: C.clerk, twiceCosts: !!C.twiceCosts, belt: (C.belt || ['rack', 'reserve', 'bin', 'bell']).slice(), ledger: false, keys: new Set(), paidTwice: 0, dropped: 0, resends: 0,
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
@@ -107,6 +116,8 @@
     return own.map((o, i) => ({ owner: o, ticket: busy.has(i) ? S.tickets.find(k => k.stool === i).id : null }));
   }
   // In the Rush the Night Clerk's papers hold his stools; in the Bell they're the Reports function's.
+  // A stool counts as warm while it's in use (a ticket was just freed from it this frame).
+  function busySince(S, i) { return S.lastFree[i] >= S.time; }
   function freeStool(S, owner) {
     const s = seats(S), o = owner || 'mira';
     if (o === 'clerk' && S.clerk === 'papers') return -1;
@@ -139,6 +150,9 @@
     go(k, 'slide', T.slide);
     S.tickets.push(k);
   }
+  // Onto the rack. Retention counts from when the ticket was first sent, not each time it comes back.
+  function enqueue(S, k) { go(k, 'shelf', 0); if (k.queuedAt == null) k.queuedAt = S.time; S.queue.push(k.id); }
+  function free(S, k) { if (k.stool != null) S.lastFree[k.stool] = S.time; k.stool = null; }
   function remove(S, k) { S.tickets = S.tickets.filter(x => x !== k); }
   // The ticket reaches the bottom of the chute.
   function arrive(S, k) {
@@ -149,7 +163,7 @@
       go(c, 'tray', 0); S.tickets.push(c); S.tray.push(c.id);
       ev(S, 'ring', { id: k.id, copy: c.id });
     }
-    if (S.rack) { go(k, 'shelf', 0); S.queue.push(k.id); return; }
+    if (S.rack) { enqueue(S, k); return; }
     const i = freeStool(S);
     if (i >= 0) { k.stool = k.seat = i; k.from = 'chute'; go(k, 'walk', T.walk); return; }
     k.throttles++; S.throttles++;
@@ -159,14 +173,14 @@
   }
   function finishWork(S, k) {
     const viaRack = k.from === 'rack';
-    k.stool = null;
+    free(S, k);
     if (k.desk === 'reports') { go(k, 'done', T.done); return; }
     if (!k.poison) {
       go(k, 'done', T.done);
       // At-least-once delivery: now and then the rack hands the same ticket over again.
       if (viaRack && !k.twin && S.rand() < TWIN_P) {
         const tw = { id: S.nextId++, key: k.key, wave: k.wave, poison: false, twin: true, throttles: 0, receives: 0, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
-        go(tw, 'shelf', 0); S.tickets.push(tw); S.queue.push(tw.id); S.twins++;
+        S.tickets.push(tw); enqueue(S, tw); S.twins++;
         ev(S, 'twin', { id: tw.id, of: k.id });
       }
       return;
@@ -204,8 +218,14 @@
             if (S.keys.has(k.key)) { go(k, 'drop', T.drop); S.dropped++; ev(S, 'dropped', { id: k.id }); break; }
             S.keys.add(k.key);
           }
-          go(k, 'work', k.ribbon ? T.work * 2 : T.work); break;
-        case 'drop': k.stool = null; remove(S, k); break;
+          {
+            let w = k.ribbon ? T.work * 2 : T.work;
+            // Cold start: this stool hasn't been used for a while.
+            if (S.orders.has('cold') && S.time - S.lastFree[k.stool] > T.coldAfter && !busySince(S, k.stool)) { w *= T.coldX; S.colds++; ev(S, 'cold', { id: k.id, stool: k.stool }); }
+            go(k, 'work', w);
+          }
+          break;
+        case 'drop': free(S, k); remove(S, k); break;
         case 'work': finishWork(S, k); break;
         case 'done':
           if (k.desk === 'reports') S.reports++;
@@ -215,15 +235,28 @@
             if (S.twiceCosts && !S.ledger && k.key) { if (S.keys.has(k.key)) { S.paidTwice++; remove(S, k); lose1(S, k, 'twice'); break; } S.keys.add(k.key); }
           }
           remove(S, k); ev(S, 'handled', { id: k.id, twin: k.twin, desk: k.desk, copied: !!k.ribbon }); break;
-        case 'bounce': go(k, 'wait', T.backoff[k.throttles - 1] || 1); break;
+        case 'bounce':
+          // A herd: everyone waits for the same moment instead of their own backoff.
+          if (S.orders.has('herd')) go(k, 'wait', T.herd - (S.time % T.herd) + 0.05);
+          else go(k, 'wait', T.backoff[k.throttles - 1] || 1);
+          break;
         case 'wait': go(k, 'slide', T.slide); break;
         case 'splat': remove(S, k); lose1(S, k, k.poison ? 'error' : 'throttled'); break;
         case 'tobin': remove(S, k); S.binned++; ev(S, 'binned', { id: k.id }); break;
         case 'back': go(k, 'hidden', T.hidden); break;
-        case 'hidden': go(k, 'shelf', 0); S.queue.push(k.id); break;
+        case 'hidden': enqueue(S, k); break;
       }
       if (S.over) return;
     }
+    // Shelf life: a ticket on the rack too long expires.
+    if (S.orders.has('shelf') && S.queue.length) {
+      for (const id of S.queue.slice()) {
+        const k = S.tickets.find(x => x.id === id);
+        if (k && S.time - k.queuedAt > T.retain) { S.queue = S.queue.filter(x => x !== id); remove(S, k); S.expired++; ev(S, 'expired', { id }); lose1(S, k, 'expired'); if (S.over) return; }
+      }
+    }
+    // A herd lands: count how many retries came back down together this frame.
+    if (S.orders.has('herd')) { const n = S.tickets.filter(k => k.phase === 'slide' && k.t === 0 && k.throttles).length; if (n >= 3) { S.herds++; ev(S, 'herd', { n }); } }
     // Lambda polls the rack: each free stool of Mira's takes the oldest ticket.
     if (S.rack) {
       let i;
@@ -263,6 +296,7 @@
     }
   }
   function drain(S) { const e = S.events; S.events = []; return e; }
-  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
+  const ORDERS = ['cold', 'herd', 'shelf', 'stakes', 'timeout'];
+  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
