@@ -21,13 +21,19 @@
   const save = s => { sv().icLive = s; S.persist(); };
   const taught = () => (sv().icLiveTaught = sv().icLiveTaught || {});
   const plural = (n, a, b) => `${n} ${n === 1 ? a : (b || a + 's')}`;
+  // Uptima's lines, in her prequel voice (Ladi, Nov 16: "more naturally sounding ... her usual incompetent self"):
+  // grand, vain and no help at all, while the facts on the board, the page and the debrief stay exact.
   const SAY = {
-    open: 'Live shift. The request path is right here on the board, running. Tonight you fix it by touching it.',
-    right: 'Called it.',
-    wrong: 'Not what it did. Remember what it did instead.',
-    met: 'Green. Leave it alone now.',
-    unmet: 'Still red. One more change.',
-    end: 'Three pages, three fixes. Go to sleep.'
+    open: 'Live shift! Kyu\'s asleep, so tonight I\'m in charge. Which means you\'re in charge. I\'ll supervise. From over here. Supportively.',
+    next: 'Another page. Don\'t panic. I\'m panicking enough for both of us.',
+    ask: 'Before you touch anything, guess what it does. I always guess. I\'m right every single time I\'m right.',
+    right: 'You called it! I also called it. In my head. Very loudly.',
+    wrong: 'Nope, that\'s not what it did. Remember what it really did. Write it on your hand. That\'s what I do.',
+    met: 'GREEN! Five nines! Don\'t touch anything. Don\'t even breathe on it.',
+    unmet: 'Still red. One more change. I believe in you. I believe in me more, but you\'re a close second.',
+    lastRed: 'Still red, and the shift keeps going. The debrief explains it. I\'d explain, but I\'m busy looking calm.',
+    debrief: 'One question on what you just did. It\'s open book. I lost the book.',
+    end: 'Three pages, three fixes. I\'m putting my name on the incident report. Go to sleep.'
   };
   const NAMES = {
     apigw: 'API Gateway', orders: 'orders-fn', pool: 'Account concurrency', reports: 'reports-job', queue: 'SQS queue',
@@ -172,20 +178,20 @@
   function react(s) {
     const x = inc(s), p = s.predOut, sum = s.last;
     if (s.phase === 'fix' && s.teach) return speak(s.teach, 'neutral');
-    if (s.phase === 'page') return speak(s.i === 0 ? SAY.open : 'Next page. Call it before you touch it.', x.sev === 1 ? 'stern' : 'neutral');
+    if (s.phase === 'page') return speak(s.i === 0 ? SAY.open : SAY.next, x.sev === 1 ? 'stern' : 'neutral');
     if (s.phase === 'play') return speak('', s.playing === 'last' ? 'neutral' : UP.mood);
     if (s.phase === 'fix') return speak(!s.runs && p ? (p.ok ? SAY.right : SAY.wrong) : SAY.unmet, !s.runs && p ? (p.ok ? 'happy' : 'stern') : 'worried');
     if (s.phase === 'result') return speak(sum.slo ? SAY.met : SAY.unmet, sum.slo ? 'happy' : 'worried');
-    if (s.phase === 'debrief') return speak('One question on what you just did.', 'neutral');
+    if (s.phase === 'debrief') return speak(SAY.debrief, 'neutral');
     if (s.phase === 'done') return speak(SAY.end, 'happy');
   }
   // The beats: the interface slides away and she talks. Each beat plays once.
   function beatFor(s) {
     const x = inc(s), p = s.predOut, sum = s.last;
     let key = null, lines = null, mood = 'neutral';
-    if (s.phase === 'page') { key = 'p' + s.i; lines = [s.i === 0 ? SAY.open : 'Next page.', x.page]; mood = x.sev === 1 ? 'stern' : 'neutral'; }
+    if (s.phase === 'page') { key = 'p' + s.i; lines = [s.i === 0 ? SAY.open : SAY.next, x.page, SAY.ask]; mood = x.sev === 1 ? 'stern' : 'neutral'; }
     else if (s.phase === 'fix' && !s.runs && p) { key = 'v' + s.i; lines = [p.ok ? SAY.right : SAY.wrong, `You said ${p.v}. It was ${p.truth}.`]; mood = p.ok ? 'happy' : 'stern'; }
-    else if (s.phase === 'result' && sum) { key = 'r' + s.i + ':' + s.runs; lines = [sum.slo ? SAY.met : s.runs < 2 ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.', sum.sloLine]; mood = sum.slo ? 'happy' : 'worried'; }
+    else if (s.phase === 'result' && sum) { key = 'r' + s.i + ':' + s.runs; lines = [sum.slo ? SAY.met : s.runs < 2 ? SAY.unmet : SAY.lastRed, sum.sloLine]; mood = sum.slo ? 'happy' : 'worried'; }
     else if (s.phase === 'done') { key = 'end'; lines = [SAY.end]; mood = 'happy'; }
     if (!key || s.beat === key) return false;
     s.beat = key; save(s);
@@ -427,7 +433,7 @@
   function resultScreen(s) {
     const x = inc(s), sum = s.last, st = sum.stamps, more = !sum.slo && s.runs < 2;
     const stamp = (on, label) => `<li class="${on ? 'on' : ''}">${on ? '✓' : '○'} ${esc(label)}</li>`;
-    const b = panel(cols(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.')}
+    const b = panel(cols(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : SAY.lastRed)}
       <p class="icl-slo"><span class="icl-lamp ${sum.slo ? 'green' : 'red'}"><i></i><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}</b></span><span class="small">${esc(sum.sloLine)}</span></p>`,
       machine(s, x, sum, null),
       `${strip(sum)}

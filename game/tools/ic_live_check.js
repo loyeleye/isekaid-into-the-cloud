@@ -141,7 +141,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   check(faces.some(f => /talk/.test(f)), `her mouth moves while she talks (${faces.join(', ')})`);
   await page.click('#icl-vn');
   check(/Checkout is spinning/.test(await txt('#icl-vn')), 'then she reads the page');
-  await page.click('#icl-vn');
+  while (await page.$('#icl-vn')) await page.click('#icl-vn');
   await page.waitForSelector('.icl-machine');
   check(await page.evaluate(() => !document.body.classList.contains('icl-beat') && !document.querySelector('#icl-vn')), 'the interface comes back up after the last line');
   noBeats = true; await page.evaluate(() => { window.__iclNoBeats = true; });
