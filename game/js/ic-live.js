@@ -119,7 +119,7 @@
   // her mouth while she talks, and her face follows how the shift is going. Painted with Gemini (tools/ic_live_uptima.py):
   // one body and a face patch per frame, so the frames swap in place. At the beats (a new page, your call, the
   // result, the end) the interface slides down and she says her lines; a tap moves on.
-  const FACE_BOX = { left: 26.042, top: 16.715, width: 44.27, height: 21.802 };   // % of the body canvas
+  const FACE_BOX = { left: 29.948, top: 9.448, width: 37.76, height: 18.168 };   // % of the body canvas
   const FACES = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk'];
   const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '' };
   const face = () => UP.blink ? 'blink' : UP.open ? (UP.mood === 'neutral' ? 'talk' : UP.mood + '-talk') : UP.mood;

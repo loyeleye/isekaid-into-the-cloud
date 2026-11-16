@@ -17,15 +17,18 @@ GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL = 'gemini-3-pro-image'
 STYLE = ('Anime visual-novel character art, soft painted cel shading, the same art style, palette and warm lantern '
          'lighting as the reference room painting. ')
-UPTIMA = ('Uptima: a young woman with very long straight peach-blonde hair with blunt bangs, warm amber eyes, a white '
-          'frilled maid headband, a black maid dress with white frilled apron, puffed short sleeves and a red ribbon bow '
-          'at the collar, exactly as in the reference portrait. ')
+UPTIMA = ('Uptima, exactly as on the reference persona sheet: a young woman with very long straight peach-blonde hair with '
+          'blunt bangs, warm amber eyes, a white frilled maid headband, a white collar with a red ribbon bow, a long black '
+          'dress to the ankles with puffed shoulders and long sleeves ending in white cuffs, and a long white frilled apron '
+          'tied with a bow at the back. ')
+# Ladi's persona sheet for her (2026-11-16, given in the Fire Drill thread); the room scenes draw her from it.
+SHEET = os.environ.get('UPTIMA_SHEET', '/mnt/project-files/game-modes/ic-live-assets/uptima-persona-sheet.png')
 FRAMES = {
     'blink': 'Change only her eyes: both eyes gently closed in a natural blink. Everything else stays exactly the same, pixel for pixel.',
     'talk': 'Change only her mouth: slightly open as if mid-word while speaking. Everything else stays exactly the same, pixel for pixel.',
-    'happy': 'Change only her face: a warm, relieved smile with eyes softly curved. Everything else stays exactly the same.',
-    'stern': 'Change only her face: brows slightly lowered, a flat unimpressed mouth, a tired on-call look. Everything else stays exactly the same.',
-    'worried': 'Change only her face: brows raised and tilted in worry, mouth a small tight line. Everything else stays exactly the same.',
+    'happy': 'Change only her face: smug and self-satisfied, taking all the credit: eyes half-lidded, a pleased little smirk, a light blush. Everything else stays exactly the same.',
+    'stern': 'Change only her face: lazy and bored, eyelids drooping heavily, a flat unimpressed mouth, as if this is all beneath her. Everything else stays exactly the same.',
+    'worried': 'Change only her face: caught out and panicking but trying to look calm: eyes wide and darting to the side, a big anime sweat drop on her temple, a nervous toothy grin. Everything else stays exactly the same.',
 }
 
 
@@ -48,7 +51,7 @@ def ask(parts, out, aspect=None):
     sys.exit('no image: ' + json.dumps(res)[:400])
 
 
-FACE = (200, 230, 540, 530)     # the face box on the base's 768 x 1376 canvas: the frames differ only inside it
+FACE = (230, 130, 520, 380)     # the face box on the base's 768 x 1376 canvas (the persona-sheet base, 2026-11-16): the frames differ only inside it
 SCALE = 0.75
 PACK = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk']
 
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     room = os.path.join(GAME, 'assets/video/cards/ic.webp'); face = os.path.join(GAME, 'assets/img/portraits/uptima-neutral.webp')
     if what == 'base':
         for n in range(int(a[2]) if len(a) > 2 else 2):
-            ask([img_part(room), img_part(face), {'text': STYLE + UPTIMA + 'Draw her standing, three-quarter view facing slightly to the left, from the head down to just below the knees, full figure centred with space around her, arms relaxed, one hand holding a small brass pager, a calm tired on-call expression, eyes open looking at the viewer, mouth closed. Plain flat pure green (#00FF00) background, no floor, no shadow on the background, no text.'}],
+            ask([img_part(room), img_part(SHEET), {'text': 'The first image is the room she stands in (for lighting and style only); the second is her persona sheet. ' + STYLE + UPTIMA + 'Draw her standing, three-quarter view facing slightly to the left, from the head down to just below the knees, full figure centred with space around her, arms relaxed, one hand holding a small brass pager, a calm, slightly bored expression, eyes open looking at the viewer, mouth closed. Plain flat pure green (#00FF00) background, no floor, no shadow on the background, no text.'}],
                 os.path.join(out, 'base-%d.png' % n), '9:16')
     elif what == 'frame':
         name = a[4] if len(a) > 4 else a[2]
