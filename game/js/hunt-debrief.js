@@ -43,6 +43,7 @@
       ${HB.bruHtml()}
       <div class="hd-jars">${ms.map(x => `<div class="hd-mon ${x.caught ? 'jarred' : 'loose'}" role="img" aria-label="${esc(x.name)}, ${x.caught ? 'caught in its jar' : 'loose: it got away'}">
         <span class="hd-jar" aria-hidden="true"><img class="hd-spr" src="assets/img/hunt/${esc(x.id)}.webp" alt="" decoding="async"></span></div>`).join('')}<div class="hd-hp"></div></div>
+      <div class="hd-stamp" role="status"></div>
       <p class="hs-say hd-say" aria-live="polite" hidden></p>`;
     st = { m, scene, ms, caught, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
     st.obs = new MutationObserver(wrap);
@@ -103,6 +104,8 @@
     inn.addEventListener('scroll', () => { st.cTop = inn.scrollTop; }, { passive: true });
     sat.addEventListener('scroll', () => { st.sTop = sat.scrollTop; }, { passive: true });
     if (mode === 'f' && st.mode !== 'f') verdict(b);
+    if (mode === 'f') beats(win, card, inn, sat);
+    else { win.classList.remove('hd-notes-open'); st.scene.querySelector('.hd-stamp').innerHTML = ''; }
     // Phones: after picking an answer, bring the confidence buttons into view in the satchel.
     const conf = sat.querySelector('.conf');
     if (mode === 'q' && conf && innerWidth <= 700 && sat.querySelector('[data-o].on') && sat.scrollHeight > sat.clientHeight)
@@ -137,6 +140,42 @@
       st.bru.react('frown', 1e9);
       st.bru.say(`<b>Bru:</b> ${st.caught ? 'Hear that rattle? Not quite. Read why.' : 'Not quite. Read why.'}`);
     }
+  }
+
+  // The verdict as a beat in the scene, not a box (Ladi, Nov 16: "Change the Correct / Not Quite text box"): the
+  // verdict is an ink stamp slammed down by the jar, with its badges (Trust, From memory) under it; Bru says the why
+  // herself, in a big speech bubble (the answer when you missed it, the warning when you were sure and wrong, the
+  // reason); everything else the feedback had (the question, the AWS docs, Pip's almost-pick, why not the others, the
+  // help buttons, the confusion compass) is in Bru's notes, a tap away, pulled down over the street.
+  const TALK = ':scope > :is(.mode-note, .warn, p.muted.small, .why)';
+  function beats(win, card, inn, sat) {
+    const stamp = st.scene.querySelector('.hd-stamp'), say = st.scene.querySelector('.hd-say');
+    const vr = inn.querySelector(':scope > .verdict-row');
+    if (vr) { stamp.innerHTML = ''; stamp.appendChild(vr); if (!still()) { stamp.classList.remove('slam'); void stamp.offsetWidth; stamp.classList.add('slam'); } }
+    // Only the notes that sit before the recap belong to Bru's line (a muted note further down is the notes').
+    const talk = [];
+    for (const k of [...inn.children]) { if (k.matches('.recap, details, .src, .nots, .help-row, .compass')) break; if (k.matches(TALK.replace(':scope > ', ''))) talk.push(k); }
+    const why = inn.querySelector(':scope > .why'); if (why && !talk.includes(why)) talk.push(why);
+    let box = say.querySelector('.hd-why');
+    if (box) box.remove();
+    box = document.createElement('div'); box.className = 'hd-why';
+    talk.forEach(k => box.appendChild(k));
+    say.appendChild(box); say.hidden = false; say.classList.add('hd-long');
+    // Bru's notes: closed until you ask.
+    card.classList.add('hd-notes'); card.id = 'hd-notes';
+    card.querySelector('.hd-tag').textContent = 'Bru\'s notes';
+    let btn = sat.querySelector('.hd-nb');
+    if (!btn) {
+      btn = document.createElement('button'); btn.type = 'button'; btn.className = 'ghost hd-nb'; btn.setAttribute('aria-controls', 'hd-notes');
+      const n = inn.querySelectorAll(':scope > :is(.nots, .whynot, .compass)').length;
+      btn.innerHTML = `📜 Bru's notes <span class="small">${n ? 'why not the others, ' : ''}the AWS docs, help</span>`;
+      sat.prepend(btn);
+    }
+    const set = on => { win.classList.toggle('hd-notes-open', on); btn.setAttribute('aria-expanded', String(on)); btn.firstChild.textContent = on ? '📜 Close the notes ' : '📜 Bru\'s notes '; if (on && !still()) { card.classList.remove('hd-drop'); void card.offsetWidth; card.classList.add('hd-drop'); } fit(); };
+    btn.onclick = () => set(!win.classList.contains('hd-notes-open'));
+    set(!!st.notes);
+    btn.addEventListener('click', () => { st.notes = win.classList.contains('hd-notes-open'); });
+    sat.classList.remove('empty');
   }
 
   // Where Bru, her line and the jar stand: worked out from the card and the satchel, so her face stays in the gap
@@ -177,6 +216,29 @@
       say.style.top = Math.round(cb + 6) + 'px'; say.style.removeProperty('--hd-sb');
       set(say, '--hd-sh', Math.max(40, gapH - 12));
     }
+    if (win.classList.contains('hd-f')) {
+      // The verdict beat: Bru stands taller, her line beside her head (wide) or over it (phone), the stamp by the jar.
+      const notes = win.classList.contains('hd-notes-open');
+      const fbh = wide ? bh : cl(H * .34, H * .44, (satTop - 60));
+      sc.style.setProperty('--hd-bh', Math.round(fbh) + 'px');
+      const fbw = fbh * 475 / 900, stamp = sc.querySelector('.hd-stamp');
+      if (wide) {
+        const x = bl + fbw * .78;
+        set(say, '--hd-sx', x); set(say, '--hd-sw', Math.min(640, W - x - js - 60)); say.style.top = Math.round(H - fbh * .98) + 'px';
+        set(say, '--hd-sh', Math.max(120, satTop - (H - fbh * .98) - 16)); say.style.removeProperty('--hd-sb');
+        set(jars, '--hd-jx', x + Math.min(640, W - x - js - 60) + 24);
+        set(stamp, '--hd-tx', x + Math.min(640, W - x - js - 60) + 8); set(stamp, '--hd-ty', Math.max(10, H - fbh * .98 - 6));
+      } else {
+        set(say, '--hd-sx', 8); set(say, '--hd-sw', W - 16); const sTop = (stamp.offsetHeight || 60) + 18; say.style.top = sTop + 'px';
+        set(say, '--hd-sh', Math.max(60, H - fbh * .97 - sTop - 14));
+        set(stamp, '--hd-tx', 12); set(stamp, '--hd-ty', 8);
+        jars.style.right = '8px'; set(jars, '--hd-jb', H - satTop + 4);
+      }
+      sc.classList.toggle('hd-wide', wide); sc.classList.add('hd-fb'); sc.classList.toggle('hd-quiet', notes && !wide);
+      sc.classList.remove('hd-tight');
+      return;
+    }
+    sc.classList.remove('hd-fb', 'hd-quiet');
     sc.classList.toggle('hd-wide', wide);
     sc.classList.toggle('hd-tight', !wide && gapH < 64);
   }
@@ -259,6 +321,7 @@
     .hd-card a { color: #2a4360; }
     .hd-card .verdict-row { margin-top: 2px; }
     .hd-gap { min-height: 0; }
+    .hd-card { grid-row: 1; } .hd-gap { grid-row: 2; } .hd-sat { grid-row: 3; }
     /* The satchel: the answers as cards along the bottom, your confidence at the end. */
     .hd-sat { position: relative; z-index: 2; min-width: 0; min-height: 0; max-height: 48cqh; overflow-y: auto; overscroll-behavior: contain; padding: 18px 12px 0 max(12px, var(--hd-sl, 0px));
       background: linear-gradient(rgba(20, 13, 6, 0), rgba(20, 13, 6, .88) 22px), repeating-linear-gradient(0deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 6px); scrollbar-width: thin; }
@@ -285,7 +348,38 @@
     .hd-sat .q-foot { position: static; margin: 0 -12px 0 calc(-1 * max(12px, var(--hd-sl, 0px))); padding: 8px 12px 12px max(12px, var(--hd-sl, 0px)); background: rgba(20, 13, 6, .96); border-top: 1px solid rgba(255, 210, 130, .25); }
     .hd-sat .q-foot .cred-more { color: #e6d3a6; }
     .hd-sat > #q-confirm { margin: 0 0 12px; width: 100%; }
+    /* The verdict beat */
+    .hd-stamp { position: absolute; z-index: 5; left: var(--hd-tx, 10px); top: var(--hd-ty, 8px); pointer-events: none; }
+    .hd-stamp:empty { display: none; }
+    .hd-stamp .verdict-row { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; }
+    .hd-stamp .verdict { margin: 0; padding: 4px 14px 2px; border: 4px double currentColor; border-radius: 8px; transform: rotate(-7deg); background: rgba(10, 8, 6, .35);
+      font: 800 clamp(24px, 4.2vw, 42px)/1.05 var(--f-head, serif); letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 2px 0 rgba(0, 0, 0, .6); box-shadow: 0 0 22px rgba(0, 0, 0, .5); }
+    .hd-stamp .verdict.ok { color: #7fe0a0; } .hd-stamp .verdict.bad { color: #ff7a66; }
+    .hd-stamp .verdict-row > :not(.verdict) { transform: rotate(-3deg); margin-left: 10px; }
+    .hd-stamp.slam .verdict { animation: hdSlam .42s cubic-bezier(.3, 1.6, .5, 1) both; }
+    @keyframes hdSlam { from { transform: rotate(-16deg) scale(2.6); opacity: 0; } 60% { opacity: 1; } to { transform: rotate(-7deg) scale(1); } }
+    .hd-scene.hd-fb .hs-say.hd-say { top: auto; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; scrollbar-width: thin; width: auto; max-width: var(--hd-sw, 520px); font-size: 15.5px; line-height: 1.45; padding: 12px 16px; }
+    .hd-scene.hd-fb.hd-wide .hs-say.hd-say { width: var(--hd-sw); }
+    .hd-scene.hd-fb.hd-wide .hs-say.hd-say::before { left: -12px; top: 34px; bottom: auto; border: 8px solid transparent; border-right: 12px solid #2a2018; border-left: 0; }
+    .hd-scene.hd-fb.hd-wide .hs-say.hd-say::after { left: -8px; top: 36px; bottom: auto; border: 6px solid transparent; border-right: 10px solid #fbf5e3; border-left: 0; }
+    .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say { width: var(--hd-sw); box-sizing: border-box; font-size: 14px; padding: 10px 12px; }
+    .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say::before { left: 44px; top: auto; bottom: -14px; border: 8px solid transparent; border-top: 14px solid #2a2018; border-bottom: 0; }
+    .hd-scene.hd-fb:not(.hd-wide) .hs-say.hd-say::after { left: 46px; top: auto; bottom: -10px; border: 6px solid transparent; border-top: 11px solid #fbf5e3; border-bottom: 0; }
+    .hd-scene.hd-quiet .hs-say.hd-say, .hd-scene.hd-quiet .hd-stamp { visibility: hidden; }
+    .hd-why { margin-top: 8px; color: #2a2018; }
+    .hd-why > p, .hd-why .why p { margin: 6px 0 0; }
+    .hd-why .why { margin: 0; padding: 0; border: 0; background: none; }
+    .hd-why .why-a { display: grid; gap: 2px; padding: 6px 10px; border-left: 3px solid #b8923a; background: rgba(184, 146, 58, .14); border-radius: 4px; }
+    .hd-why .q-ctx { color: #6a4a1e; font-size: 11px; }
+    .hd-why .warn { color: #8a2a1a; font-weight: 600; }
+    .hd-why .muted { color: #6a5a48; }
+    #panel .win.hd-win.hd-f:not(.hd-notes-open) .hd-card { display: none; }
+    #panel .win.hd-win.hd-f .hd-card.hd-notes { max-height: 70cqh; }
+    @media (min-width: 701px) { #panel .win.hd-win.hd-f .hd-card.hd-notes { margin-left: auto; margin-right: 12px; width: min(620px, 56cqw); } #panel .win.hd-win.hd-f .hd-card::after { display: none; } }
+    .hd-sat .hd-nb { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 8px; width: 100%; text-align: left; font: 600 14px/1.3 var(--f-body, sans-serif); text-transform: none; letter-spacing: 0; color: #f0d68a; border-color: #8a6a36; background: rgba(30, 22, 12, .85); }
+    .hd-sat .hd-nb .small { color: #c9bca4; font-weight: 400; }
     @media (prefers-reduced-motion: reduce) {
+      .hd-stamp.slam .verdict { animation: none !important; }
       .hd-spr, .hd-mon.rattle .hd-jar, .hd-mon.rattle .hd-spr, .hd-mon.loose.rattle .hd-jar, .hd-card.hd-drop { animation: none !important; }
       .hd-mon.cowed .hd-spr { transition: none; }
     }

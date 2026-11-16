@@ -172,9 +172,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     else q.items.forEach((it, i) => { if (it.ok) document.querySelector(`#panel [data-m="${i}"]`).click(); });
     await wait(10); document.querySelector('#panel [data-c="1"]').click(); await wait(10);
   });
-  const react = await page.evaluate(() => { const sc = document.querySelector('#panel .hd-scene'); return sc && { mood: sc.querySelector('.hs-bru').dataset.mood, pose: sc.querySelector('.hs-bru').dataset.pose, card: !!document.querySelector('#panel .hd-card .verdict.ok') }; });
-  check(react && react.card && ['grin', 'smile'].includes(react.mood) && react.pose === 'front', 'right: the verdict and feedback stay in the scene, and Bru grins, turned to you ' + JSON.stringify(react));
+  const react = await page.evaluate(() => { const sc = document.querySelector('#panel .hd-scene'); return sc && { mood: sc.querySelector('.hs-bru').dataset.mood, pose: sc.querySelector('.hs-bru').dataset.pose, card: !!document.querySelector('#panel .hd-scene .hd-stamp .verdict.ok') && !!document.querySelector('#panel .hd-scene .hd-say .hd-why .why') && !!document.querySelector('#panel .hd-sat .hd-nb[aria-controls="hd-notes"]') }; });
+  check(react && react.card && ['grin', 'smile'].includes(react.mood) && react.pose === 'front', 'right: the verdict is a stamp in the scene, Bru says the why herself (the rest in her notes, a tap away), and she grins, turned to you ' + JSON.stringify(react));
   await shot('debrief-right');
+  // The rest of the feedback is in Bru's notes, a tap away: the question, the docs, why not the others, the help.
+  await page.click('#panel .hd-nb');
+  const notes = await page.evaluate(() => { const c = document.querySelector('#panel .hd-card.hd-notes'); return { shown: !!(c && c.offsetHeight), recap: !!(c && c.querySelector('.recap, details')), help: !!(c && c.querySelector('#q-huh')), exp: document.querySelector('#panel .hd-nb').getAttribute('aria-expanded') }; });
+  check(notes.shown && notes.recap && notes.help && notes.exp === 'true', 'Bru\'s notes open with the rest of the feedback ' + JSON.stringify(notes));
+  await noHScroll('Bru\'s notes');
+  await shot('debrief-notes');
+  await page.click('#panel .hd-nb');
   await page.click('#q-next');
   await page.waitForTimeout(80);
   check(!(await page.$('.hd-scene')), 'the Debrief scene is gone once you continue');
