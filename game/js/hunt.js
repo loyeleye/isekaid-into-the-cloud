@@ -126,10 +126,13 @@
   H.name = q => (TD() && TD().posterName ? TD().posterName(q) : topicOf(q).toUpperCase());
   // Up to n twins of the poster's question, ones this monster hasn't been fought with first, then verified first,
   // then the one answered longest ago. Empty when the idea has no twin (the Wall then needs only two right days).
+  // When every twin has been fought with, the most recently used come first, so two twins swap Track and Fight.
   function pickTwins(id, avoid, n) {
     const ids = (SD.twins && SD.twins[id]) || [];
     const all = ids.map(find).filter(q => q && E().allowed(q) && q.type !== 'explain');
-    const key = q => (avoid.includes(q.id) ? 2 : 0) + (verified(q) ? 0 : 1) + (lastAsked(q) + Math.random()) / 1e14;
+    const used = q => avoid.lastIndexOf(q.id);
+    const key = q => used(q) >= 0 ? 2 + (avoid.length - used(q)) / (avoid.length + 1)
+      : (verified(q) ? 0 : 1) + (lastAsked(q) + Math.random()) / 1e14;
     return all.slice().sort((a, b) => key(a) - key(b)).slice(0, n);
   }
   const pickTwin = (id, avoid) => pickTwins(id, avoid, 1)[0] || null;
