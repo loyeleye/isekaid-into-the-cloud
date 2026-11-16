@@ -25,6 +25,9 @@
 // Compare only: colFirst (the column names first; the table shows once a column is picked, and the pick holds),
 //         bands (on a phone, each row's cells side by side instead of the swipe cards; colFirst implies it),
 //         gradeOn: 'col' (the column decides ok; the row is reported apart), shuffleCols (new column order per ask).
+//         confidenceBefore: 'col' (with colFirst: rate the column before the table opens; the row step then submits
+//         with that rating), rowStep: false (a name-only reading state: no row to pick; with colFirst no table until
+//         the feedback). Items may carry short: [label, ...], shown in the bands' sticky header strip.
 //         Compare results carry col: { pick, ok } (pick is the item's own column index) and row: { pick, ok }.
 // Recently asked (shared by every mode): each item asked is stamped in SD.state.save.fmtAsked[id] (kept 30 days).
 // SD.qf.recent(days = 7) is the set asked in the last `days` days, and SD.qf.pick({ types, filter, days, avoid })
@@ -220,12 +223,15 @@
     },
     // bands: the phone row step. Each row is a band with the three cells side by side, so nothing needs a swipe.
     bands(st, it, review) {
+      // The header is a sticky strip of short labels (it.short, else the column name), so it stays readable over
+      // the rows on a phone even when the columns are shuffled. The full name is the button's label.
+      const lab = i => (it.short && it.short[i]) || it.cols[i];
       const n = it.cols.length, also = i => (it.alsoOk || []).includes(i);
       const hcls = i => review ? (i === it.a ? ' right' : also(i) ? ' also' : st.col === i ? ' wrong' : '') : st.col === i ? ' on' : '';
       const pickable = !review && !st.colLocked;
       let h = `<div class="qf-bands" style="--qf-n:${n}"><div class="qf-band qf-band-head">${it.cols.map((c, i) => pickable
-        ? `<button class="qf-band-h${hcls(i)}" data-qf-col="${i}" aria-pressed="${st.col === i}" aria-label="Pick ${esc(c)}">${esc(c)}<span class="qf-sub">${st.col === i ? 'Picked' : 'Pick'}</span></button>`
-        : `<div class="qf-band-h${hcls(i)}">${review && (i === it.a || also(i) || st.col === i) ? mark(i === it.a || also(i)) : ''}${esc(c)}</div>`).join('')}</div>`;
+        ? `<button class="qf-band-h${hcls(i)}" data-qf-col="${i}" aria-pressed="${st.col === i}" aria-label="Pick ${esc(c)}">${esc(lab(i))}<span class="qf-sub">${st.col === i ? 'Picked' : 'Pick'}</span></button>`
+        : `<div class="qf-band-h${hcls(i)}" title="${esc(c)}">${review && (i === it.a || also(i) || st.col === i) ? mark(i === it.a || also(i)) : ''}${esc(lab(i))}</div>`).join('')}</div>`;
       it.rows.forEach((r, ri) => {
         const key = review && isKey(it, ri);
         h += `<div class="qf-band${key ? ' qf-key' : ''}${ri % 2 ? ' alt' : ''}"><div class="qf-band-r">${esc(r)}</div>${it.cols.map((c, ci) => `<div class="qf-band-c${(review ? ci === it.a : st.col === ci) ? ' on' : ''}" aria-label="${esc(c)}: ${esc(it.cells[ri][ci])}">${esc(it.cells[ri][ci])}</div>`).join('')}</div>`;
@@ -248,7 +254,14 @@
           <p class="muted small">Decide from the question. The table shows after you pick, so you can name the row that decided it.</p>`;
       }
       if (o.colFirst) st.colLocked = true;
-      if (o.colFirst) h += `<p class="qf-pickline">Your column: <b>${esc(it.cols[st.col])}</b></p>`;
+      if (o.colFirst) h += `<p class="qf-pickline">Your column: <b>${esc(it.cols[st.col])}</b>${st.preConf != null ? ` · you said ${['Guess', 'Think so', 'Sure'][st.preConf]}` : ''}</p>`;
+      // rowStep false: a name-only reading state. With colFirst the column names are the whole answer (the table
+      // shows in the feedback); without it, the table is there to read and there's no row to pick.
+      if (!this.rows(it, ctx)) {
+        if (o.colFirst) return h + `<p class="muted small">That's the whole answer. The table shows after you submit.</p>`;
+        if (ctx.wide) h += this.grid(st, it, ctx, false); else h += this.bands(st, it, false);
+        return h + `<p class="muted small">${st.col == null ? 'Read the columns, then pick one.' : 'Submit when you\'re ready.'}</p>`;
+      }
       if (ctx.wide) h += this.grid(st, it, ctx, false);
       else if (o.bands || o.colFirst) h += this.bands(st, it, false);
       else {
@@ -282,15 +295,17 @@
         });
       }
     },
-    ready: st => st.col != null && st.row != null,
-    grade(st, it) {
+    rows: (it, ctx) => !(ctx && ctx.opts && ctx.opts.rowStep === false),
+    ready(st, it, ctx) { return st.col != null && (st.row != null || !this.rows(it, ctx)); },
+    grade(st, it, ctx) {
       const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col), rowOk = isKey(it, st.row);
+      if (!this.rows(it, ctx)) return { ok: colOk, partial: colOk ? 1 : 0, colOk, rowOk: null };
       return { ok: colOk && rowOk, partial: (colOk ? 0.5 : 0) + (rowOk ? 0.5 : 0), colOk, rowOk };
     },
     solve(st, it) { st.col = it.a; st.row = it.key; st.view = it.a; },
     review(st, it, ctx) {
       const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col);
-      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>, decided by <b class="${isKey(it, st.row) ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b></p>`;
+      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>${st.row != null ? `, decided by <b class="${isKey(it, st.row) ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b>` : ''}</p>`;
       h += `<p class="qf-pickline">${keysOf(it).length > 1 ? 'Deciding rows (any one is right)' : 'The deciding row'}: <b>${esc(keysOf(it).map(k => it.rows[k]).join(' · '))}</b></p>`;
       h += ctx.wide ? this.grid(st, it, ctx, true) : (ctx.opts || {}).bands || (ctx.opts || {}).colFirst ? this.bands(st, it, true) : `<div class="qf-stack">${range(it.cols.length).map(i => this.card(st, it, i, true)).join('')}</div>`;
       return h;
@@ -552,7 +567,8 @@
     const map = shuffle(range(it.cols.length)), back = i => map.indexOf(i);
     return Object.assign({}, it, {
       cols: map.map(i => it.cols[i]), cells: it.cells.map(r => map.map(i => r[i])), a: back(it.a),
-      alsoOk: (it.alsoOk || []).map(back), no: it.no ? map.map(i => it.no[i]) : it.no, colMap: map
+      alsoOk: (it.alsoOk || []).map(back), no: it.no ? map.map(i => it.no[i]) : it.no,
+      short: it.short ? map.map(i => it.short[i]) : it.short, colMap: map
     });
   }
   Q.shuffleCompare = shuffleCompare;
@@ -570,6 +586,7 @@
       // Practice: a hint round, or an item the author flagged with practice: true. Neither is scored.
       const practice = mode === 'hint' || !!item.practice || !!opts.practice;
       const ctx = { opts, mode, wide: isWide() };
+      const preCol = item.type === 'compare' && !!opts.colFirst && opts.confidenceBefore === 'col';
       const st = r.init(item, ctx);
       const title = opts.title || 'WHITEBOARD';
       const cls = 'quiz qf-win' + (item.type === 'compare' && ctx.wide ? ' wide' : '');
@@ -589,11 +606,17 @@
       function draw() {
         if (mode === 'worked') return worked();
         lastKey = keyOf(document.activeElement);
-        const ready = r.ready(st, item), state = locked ? 'submitted' : ready ? 'selected' : 'idle';
+        const ready = r.ready(st, item, ctx), state = locked ? 'submitted' : ready ? 'selected' : 'idle';
         let h = head() + (practice ? `<div class="qf-hint"><span class="qf-practice">Practice</span> Not scored.${mode === 'hint' ? ` <span class="qf-hint-t">Hint: ${esc(r.hint(st, item))}</span>` : ''}</div>` : '');
         if (item.type === 'recall' && !st.typed) h += '<div class="qf-recog"><span class="qf-practice">Recognition</span> Word bank: picking from a list counts for less than typing from memory.</div>';
-        h += r.draw(st, item, ctx);
-        h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true, opts.stakes)
+        // confidenceBefore 'col' (compare with colFirst): rate the column before the table opens, so seeing the
+        // deciding row can't turn a wrong pick into a cheap Guess. The row step then submits with that rating.
+        const pre = preCol && st.col != null && st.preConf == null;
+        if (pre) h += `<p class="qf-pickline">Your column: <b>${esc(item.cols[st.col])}</b> <button class="ghost qf-change" id="qf-recol">Change column</button></p>
+          <p class="muted small">Rate it now. The table opens after you do${r.rows(item, ctx) ? ', for the row that decided it' : ''}.</p>` + confBlock(true, opts.stakes);
+        else h += r.draw(st, item, ctx);
+        if (pre) { /* the confidence buttons are the only step */ }
+        else h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true, opts.stakes)
           : `<div class="qf-submit-row"><button class="primary" id="qf-submit" ${ready ? '' : 'disabled'}>Submit</button></div>`;
         if (!root || !root.isConnected) {
           const b = panel(`<div class="qf qf-${item.type}" data-qf-type="${item.type}" data-qf-phase="answer"></div>`, { title, noClose: true, cls });
@@ -602,7 +625,11 @@
         }
         root.dataset.qfState = state;
         root.innerHTML = h;
-        if (locked) {
+        if (pre) {
+          root.querySelector('#qf-recol').onclick = () => { st.col = null; draw(); };
+          root.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { st.preConf = +el.dataset.c; if (r.ready(st, item, ctx) && !r.rows(item, ctx)) submit(st.preConf); else draw(); });
+          const first = root.querySelector('[data-c="1"]'); if (first) first.focus();
+        } else if (locked) {
           root.querySelectorAll('button, input').forEach(el => { if (!el.matches('[data-c], #qf-change, .help-b')) el.disabled = true; });
           root.querySelector('#qf-change').onclick = () => { locked = false; draw(); };
           root.querySelectorAll('[data-c]').forEach(el => el.onclick = () => submit(+el.dataset.c));
@@ -614,7 +641,7 @@
           if (opened) { opened = false; focusFirst(root); }
           else if (lastKey) { const el = root.querySelector(lastKey); if (el && !el.disabled) el.focus({ preventScroll: true }); else focusFirst(root.querySelector('.qf-submit-row #qf-submit:not([disabled])') ? root.querySelector('.qf-submit-row') : root); }
           const sb = root.querySelector('#qf-submit');
-          sb.onclick = () => { if (r.ready(st, item)) { locked = true; draw(); } };
+          sb.onclick = () => { if (r.ready(st, item, ctx)) { if (st.preConf != null) submit(st.preConf); else { locked = true; draw(); } } };
         }
       }
       function worked() {
@@ -637,7 +664,7 @@
       }
       function submit(conf) {
         const ms = Date.now() - t0;
-        const res = r.grade(st, item);
+        const res = r.grade(st, item, ctx);
         const scored = mode === 'scored' && !item.practice && !opts.practice;
         // gradeOn 'col' (compare): the column decides right or wrong; the row is reported on its own.
         if (item.type === 'compare' && opts.gradeOn === 'col') res.ok = res.colOk;
@@ -660,7 +687,7 @@
         if (item.type === 'compare') {
           const orig = i => (item.colMap && i != null ? item.colMap[i] : i);
           out.col = { pick: orig(st.col), ok: !!res.colOk };
-          out.row = { pick: st.row, ok: !!res.rowOk };
+          if (res.rowOk != null) out.row = { pick: st.row, ok: !!res.rowOk };
         }
         return out;
       }
@@ -745,15 +772,15 @@ button.qf-cmp-h:hover { background: #e6f0ff; }
 .qf-cmp-r { font-weight: 700; background: #faf6ee; }
 .qf-cmp-grid .qf-key { background: #fff3c4 !important; box-shadow: inset 0 2px 0 var(--qf-sun), inset 0 -2px 0 var(--qf-sun); font-weight: 700; }
 .qf-car { touch-action: pan-y; }
-.qf-bands { margin: 10px 0; border: 2px solid var(--qf-ink); border-radius: 12px; overflow: hidden; background: #fff; font-size: 13px; }
+.qf-bands { margin: 10px 0; border: 2px solid var(--qf-ink); border-radius: 12px; overflow: clip; background: #fff; font-size: 13px; }
 .qf-band { display: grid; grid-template-columns: repeat(var(--qf-n, 3), minmax(0, 1fr)); border-bottom: 1px solid rgba(43,35,64,.15); }
 .qf-band.alt { background: #faf6ee; }
 .qf-band-r { grid-column: 1 / -1; padding: 6px 8px 2px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted, #6f6787); }
 .qf-band-c { padding: 2px 8px 8px; min-width: 0; overflow-wrap: anywhere; border-left: 1px solid rgba(43,35,64,.12); }
 .qf-band-r + .qf-band-c { border-left: 0; }
 .qf-band-c.on { background: #dcebff; }
-.qf-band-head { background: #f3f8ff; border-bottom: 2px solid var(--qf-ink); }
-.qf-band-h { padding: 8px; min-height: 44px; min-width: 0; overflow-wrap: anywhere; font-family: var(--f-head, system-ui); font-weight: 700; text-align: left; background: transparent; border: 0; border-left: 1px solid rgba(43,35,64,.12); }
+.qf-band-head { position: sticky; top: 0; z-index: 2; background: #f3f8ff; border-bottom: 2px solid var(--qf-ink); box-shadow: 0 2px 4px rgba(43,35,64,.12); }
+.qf-band-h { padding: 8px 4px 8px 6px; min-height: 44px; min-width: 0; overflow-wrap: break-word; font-size: 12px; letter-spacing: 0; font-family: var(--f-head, system-ui); font-weight: 700; text-align: left; background: transparent; border: 0; border-left: 1px solid rgba(43,35,64,.12); }
 .qf-band-h:first-child { border-left: 0; }
 .qf .qf-band-h.on { background: #dcebff; } .qf-band-h.right { background: #eafaf2; color: #1f6a47; } .qf-band-h.also { background: #f2fbf6; } .qf-band-h.wrong { background: #fff1f1; color: #8a2d2d; }
 .qf-band-h .qf-sub { display: block; font-size: 12px; font-weight: 600; color: var(--qf-blue-d); }
