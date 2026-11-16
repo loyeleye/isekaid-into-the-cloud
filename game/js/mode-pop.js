@@ -17,6 +17,7 @@
 //   - Saves after every step (S.save.pop). The night score is proofs held, claims cleared and points.
 // Shared by the UI and the simulator (tools/pop_sim.js, tools/modes_sim.js): SD.pop.newNight, go, lock, settle,
 // basic, endTurn, escalate, finish.
+// Nights 2 to 5's question formats live in js/mode-pop-formats.js, called through the SD.pop.fx hooks here.
 (function () {
   if (!SD.modes) return;
   const M = SD.modes, U = SD.ui, S = SD.state, E = () => SD.exam, D = () => SD.topicDrill;
@@ -222,6 +223,7 @@
       cleared: 0, fled: 0, fights: 0, turns: 0, moves: 0, found: [], lastStake: {}, esc: 0, carryNext: [], msg: null
     };
     if (!opts.sim) { sv().popCarry = []; sv().pop = s; }
+    if (P.fx) P.fx.night(s, opts);   // nights 2 to 5: formats, the taper, unstamped checks (js/mode-pop-formats.js)
     RNG = prev;
     save(s);
     return s;
@@ -237,7 +239,7 @@
     if (node.type === 'claim') {
       if (!s.rooms.length) { node.fled = 1; s.fled++; s.msg = SAY.flee; s.phase = 'map'; return 'fled'; }
       startFight(s, 'claim', node.home);
-    } else if (node.type === 'lost') s.phase = 'lost';
+    } else if (node.type === 'lost') s.phase = P.fx && P.fx.teachAt(s, node) ? 'teach' : 'lost';
     else s.phase = 'break';
     return node.type;
   };
@@ -247,6 +249,7 @@
     if (kind === 'claim') { const c = H[home].claim; f.sev = f.max = c.sev; }
     s.fight = f; s.fights++;
     newTurn(s);
+    if (kind === 'claim' && P.fx) P.fx.claimStart(s, f);   // its first check in the homeland lead's format
   }
   P.startHunch = function (s) {
     s.entry = s.budget; s.moves++;
@@ -335,20 +338,26 @@
   };
   // One answer: r = { ok, conf, pts }. Lands the stake and returns what happened, for the land screen.
   P.settle = function (s, r) {
-    const f = s.fight, ck = f.check, conf = [0, 1, 2].includes(r.conf) ? r.conf : 0, ok = !!r.ok;
+    const f = s.fight, ck = f.check, conf = [0, 1, 2].includes(r.conf) ? r.conf : 0;
+    // A format check lands by js/mode-pop-formats.js: partly right is half the multiplier and half the cost.
+    const fx = ck.fmt && P.fx ? P.fx.land(s, ck, r, conf) : null, ok = fx ? fx.ok : !!r.ok;
     const st = P.stakeOf(s, f.sel);
     s.pts += r.pts || 0; s.asked++;
-    s.log.push({ q: ck.q, d: ck.d, kind: ck.kind, conf, ok, staked: f.sel.length, stamped: ck.stamped !== false, fresh: ageOf(ck.q) === Infinity || !!ck.fresh, t: Date.now() });
-    const out = { ok, conf, mult: ok ? RIGHT[conf] : 0, hit: 0, guard: 0, cost: 0, staked: f.sel.length, kind: ck.kind };
-    if (ok) {
-      st.list.forEach(c => { out.hit += Math.round(c.hit * out.mult); out.guard += Math.round(c.guard * out.mult); if (c.setup) f.nextSetup += c.setup; if (c.redrive) f.extra = 1; });
+    if (fx) P.fx.log(s, ck, r, fx, f.sel.length);
+    else s.log.push({ q: ck.q, d: ck.d, kind: ck.kind, conf, ok, staked: f.sel.length, stamped: ck.stamped !== false, fresh: ageOf(ck.q) === Infinity || !!ck.fresh, near: P.fx ? P.fx.near(s, ck) : false, t: Date.now() });
+    const out = { ok, conf, mult: fx ? fx.mult : ok ? RIGHT[conf] : 0, hit: 0, guard: 0, cost: 0, staked: f.sel.length, kind: ck.kind };
+    if (fx) Object.assign(out, { fmt: ck.fmt.type, partial: fx.partial, unscored: !fx.scored });
+    if (out.mult > 0) {
+      st.list.forEach(c => { out.hit += Math.round(c.hit * out.mult); out.guard += Math.round(c.guard * out.mult); if (ok && c.setup) f.nextSetup += c.setup; if (ok && c.redrive) f.extra = 1; });
       if (f.kind === 'claim') f.sev = Math.max(0, f.sev - out.hit);
       f.guard += out.guard;
-    } else {
-      out.cost = Math.round(st.total * WRONG[conf]);
-      s.budget = Math.max(0, s.budget - out.cost);
-      miss(s, ck);
     }
+    const wr = fx ? fx.wrong : ok ? 0 : WRONG[conf];
+    if (!ok || wr > 0) {
+      out.cost = Math.round(st.total * wr);
+      s.budget = Math.max(0, s.budget - out.cost);
+    }
+    if (!ok) { if (fx) { if (fx.scored) P.fx.miss(s, ck); } else miss(s, ck); }
     if (f.kind === 'hunch') {
       if (ck.kind === 'loose') { f.looseDone++; if (ok) f.looseWaiting = Math.max(0, f.looseWaiting - 1); }
       else f.proofs.push(ok);
@@ -470,8 +479,9 @@
     s.log.forEach(l => { wk.n[l.d] = (wk.n[l.d] | 0) + 1; });
     // Hypothesis log (storyboard v7, L5): first tries on bank questions, kept across nights.
     const h = sv().popHist = sv().popHist || [];
-    s.log.forEach(l => h.push({ q: l.q, d: l.d, conf: l.conf, ok: l.ok ? 1 : 0, kind: l.kind, fresh: l.fresh ? 1 : 0, staked: l.staked, n: s.night, t: l.t }));
+    s.log.forEach(l => l.near || h.push({ q: l.q, d: l.d, conf: l.conf, ok: l.ok ? 1 : 0, kind: l.kind, fresh: l.fresh ? 1 : 0, staked: l.staked, n: s.night, t: l.t }));
     if (h.length > 400) h.splice(0, h.length - 400);
+    if (P.fx) P.fx.finish(s);   // format checks: their own log, never the hypothesis
     s.paid = M.pay(ID);
     s.fight = s.fight ? { kind: s.fight.kind, proofs: s.fight.proofs, looseWaiting: s.fight.looseWaiting } : null;
     return how;
@@ -503,7 +513,7 @@
     if (!s) return;
     const f = {
       arrive, map: mapScreen, stake: stakeScreen, locked: lockedScreen, land: landScreen, reward: rewardScreen,
-      lost: lostScreen, break: breakScreen, zero: zeroScreen, sheet: sheetScreen
+      lost: lostScreen, break: breakScreen, zero: zeroScreen, sheet: sheetScreen, teach: x => P.fx.draw(x)
     }[s.phase];
     (f || mapScreen)(s);
   };
@@ -577,12 +587,13 @@
   const stampOf = ck => (ck.stamped === false ? 'UNSTAMPED' : DOM[ck.d] || 'MIXED');
   const teachTurn = s => (s.night === 1 ? s.turns : 99);
   const gridOn = s => s.night > 1 || s.fights > 1 || s.cleared + s.fled > 0;
-  function grid(s, st) {
+  function grid(s, st, ck) {
     const cell = (m, k) => (st[k] ? `${k === 'hit' ? 'Hit' : 'Guard'} ${Math.round(st[k] * m)}` : '');
     const both = m => [cell(m, 'hit'), cell(m, 'guard')].filter(Boolean).join(', ') || '—';
     return `<table class="pop-grid"><thead><tr><th></th><th>Guess</th><th>Think so</th><th>Sure</th></tr></thead><tbody>
       <tr><th>✓</th>${RIGHT.map(m => `<td>×${m}<br><span class="small">${both(m)}</span></td>`).join('')}</tr>
-      <tr><th>✗</th><td>fizzle</td><td>−${Math.round(st.total * WRONG[1])}%</td><td>−${Math.round(st.total * WRONG[2])}%, Wall</td></tr></tbody></table>`;
+      ${P.fx && ck ? P.fx.halfRow(s, ck, st) : ''}
+      <tr><th>✗</th><td>fizzle</td><td>−${Math.round(st.total * WRONG[1])}%</td><td>−${Math.round(st.total * WRONG[2])}%${ck && ck.fmt ? '' : ', Wall'}</td></tr></tbody></table>`;
   }
   function stakeScreen(s) {
     const f = s.fight, ck = P.peek(s);
@@ -598,7 +609,7 @@
     const right = [st.hit ? `Hit ${Math.round(st.hit * RIGHT[2])}` : '', st.guard ? `Guard ${Math.round(st.guard * RIGHT[2])}` : ''].filter(Boolean).join(', ');
     const b = panel(`${hud(s, hunch ? `Proofs <b>${P.held(s)} of 3</b>` : `Cap <b>${CAP}</b>`)}
       ${stage(s)}
-      <div class="pop-stamp"><b>DUTCH'S CHECK</b> <span>${esc(what)} · ${stampOf(ck)} · bank question${ck.kind === 'carry' ? ' · back from last night' : ck.kind === 'practice' ? ' · practice twin' : ''}</span></div>
+      ${(P.fx && P.fx.stamp(s, ck, what)) || `<div class="pop-stamp"><b>DUTCH'S CHECK</b> <span>${esc(what)} · ${stampOf(ck)} · bank question${ck.kind === 'carry' ? ' · back from last night' : ck.kind === 'practice' ? ' · practice twin' : ''}</span></div>`}
       ${hunch && f.turn === 1 && f.looseDone === 0 && !f.proofs.length ? say('dutch', 'tired', SAY.hunch) : say('dutch', 'neutral', SAY.stake)}
       <div class="pop-quick" role="group" aria-label="Quick stake">
         <button class="ghost${same(all) ? ' on' : ''}" id="pop-all" aria-pressed="${same(all)}">${same(all) ? '● ' : ''}Stake all</button>
@@ -607,7 +618,7 @@
       </div>
       <div class="pop-hand">${f.hand.map((x, h) => cardBtn(s, h, { lock: lockCards })).join('')}</div>
       <p class="small pop-sum">${f.sel.length ? `${plural(st.cost, 'Capacity')} of ${CAP}. Right: up to ${right || 'nothing'}${hunch ? ' (cards land as Guard here)' : ''} · Wrong: up to −${Math.round(st.total * WRONG[2])}% budget` : `Nothing staked: after the check, play up to ${CAP} cards as Patch ${BASIC} or Guard ${BASIC}.`}${lockCards ? ' Card by card staking opens next turn.' : ''}</p>
-      ${gridOn(s) && f.sel.length ? `<details class="pop-what"><summary>What's riding on it ▾</summary>${grid(s, st)}</details>` : ''}
+      ${gridOn(s) && f.sel.length ? `<details class="pop-what"><summary>What's riding on it ▾</summary>${grid(s, st, ck)}</details>` : ''}
       ${dock(stopBtn + '<button class="primary" id="pop-open">Open the check (locks the stake)</button>')}`);
     b.querySelector('#pop-all').onclick = () => { f.sel = all; save(s); P.draw(); };
     b.querySelector('#pop-none').onclick = () => { f.sel = []; save(s); P.draw(); };
@@ -632,7 +643,12 @@
     wireStop(b);
   }
   async function prove(s) {
-    const f = s.fight, ck = f.check, q = ck && find(ck.q);
+    const f = s.fight, ck = f.check;
+    if (ck && ck.fmt && P.fx) {   // a format check (falls back to its bank question if the engine can't ask it)
+      const r = await P.fx.ask(s, ck);
+      if (r) { const out = P.settle(s, r); save(s); return landScreen(s, out); }
+    }
+    const q = ck && find(ck.q);
     if (!q) { f.locked = false; f.check = null; s.phase = 'stake'; save(s); return P.draw(); }
     const r = await M.ask(q, { title: "DUTCH'S CHECK", tally: s.tally, think: true, context: "Dutch's check", progress: `${s.asked + 1} of ${s.asked + 1 + s.rooms.length + (f.order ? f.order.length : 0) + (f.kind === 'claim' ? s.core.length : 0)}`, onStop: () => {} });
     if (r.stopped && !r.committed) return stopNow();
@@ -643,6 +659,7 @@
     landScreen(s, out);
   }
   function verdictLine(s, out) {
+    if (out.fmt && P.fx) return P.fx.verdict(out);
     if (out.ok) {
       const parts = [out.hit ? `Hit ${out.hit} landed` : '', out.guard ? `Guard ${out.guard} up` : ''].filter(Boolean);
       return `${out.conf === 2 ? '✓ PROVEN' : '✓ Right'} · ${M.CONF[out.conf]} · ×${out.mult}${out.staked ? ' · ' + (parts.join(' · ') || 'no numbers staked') : ' · nothing staked'}`;
@@ -651,6 +668,7 @@
     return out.conf === 0 ? '✗ Wrong · Guess · your stake fizzled' : out.conf === 1 ? `✗ Wrong · Think so · −${out.cost}% budget` : `✗ BACKFIRE · Sure, and wrong · −${out.cost}% budget · on the Wall`;
   }
   function barkFor(out) {
+    if (out.fmt && P.fx && P.fx.bark(out)) return P.fx.bark(out);
     if (out.ok) return out.conf === 2 ? SAY.proven : out.conf === 0 ? SAY.guessRight : SAY.right;
     return out.conf === 2 ? SAY.sureMiss : out.conf === 1 ? SAY.wrong : SAY.fizzle;
   }
@@ -749,6 +767,7 @@
       ${s.how === 'won' ? `<div class="pop-sky flat">${P.HUNCH_FLAT}<span class="pop-cap">Pffffbbbt.</span></div>${say('dutch', 'surprised', SAY.won)}<p class="small muted"><i>The badge rolls to his boots. He doesn't pick it up.</i></p>` : say('dutch', 'tired', s.how === 'lost' ? SAY.lost : SAY.retreat)}
       <p class="td-big">${head1} ${right} of ${first.length} proven.</p>
       <p class="small">Night score: <b>${plural(s.heldN | 0, 'proof')} held</b> · <b>${plural(s.cleared, 'claim')} cleared</b> · <b>${M.sgn(s.pts)} points</b>.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
+      ${P.fx ? P.fx.sheetLine(s) : ''}
       ${finds.length ? `<p class="small">Found tonight: ${finds.map(i => `${icon(i.icon)} ${esc(i.name)}`).join(' · ')}</p>` : ''}
       <p class="small"><b>Study:</b> tomorrow's topic drill is ${esc(domName(top))}, the domain Today's set most needs.</p>
       <p class="small"><b>${esc(habit(s))}</b></p>
@@ -801,10 +820,10 @@
   P.sim = async function (policy, rng) {
     const prev = RNG; RNG = rng || Math.random;
     try {
-      const s = P.newNight({ sim: true, night: policy.night | 0 });
+      const s = P.newNight({ sim: true, night: policy.night | 0, day: policy.day });
       s.phase = 'map';
       let map = 1, guard = 0, turns = 0;
-      const answer = ck => { const q = E().find(ck.q); const r = M.simAnswer(q, Object.assign({}, policy, { p: ck.kind === 'core' || ck.kind === 'loose' ? (policy.p2 || policy.p) : policy.p }), RNG); M.note(s.tally, r.ok, r.conf); return r; };
+      const answer = ck => { if (ck.fmt && P.fx) return P.fx.simAnswer(s, ck, policy, RNG); const q = E().find(ck.q); const r = M.simAnswer(q, Object.assign({}, policy, { p: ck.kind === 'core' || ck.kind === 'loose' ? (policy.p2 || policy.p) : policy.p }), RNG); M.note(s.tally, r.ok, r.conf); return r; };
       while (s.phase !== 'sheet' && ++guard < 400) {
         if (s.phase === 'map') {
           if (P.atHunch(s)) { P.startHunch(s); map++; continue; }
@@ -814,6 +833,7 @@
           P.go(s, pick); map++;
           continue;
         }
+        if (s.phase === 'teach') { P.fx.simTeach(s); continue; }
         if (s.phase === 'lost') { P.lostChoice(s, s.budget > 50 ? 'fix' : 'leave', 0); map++; continue; }
         if (s.phase === 'break') { if (s.budget < 70) P.breakChoice(s, 'rest'); else P.breakChoice(s, 'sharpen', 0); map++; continue; }
         if (s.phase === 'reward') { P.take(s, s.reward.cards[0]); map++; continue; }
@@ -837,9 +857,15 @@
       }
       const secs = s.asked * M.SIM_Q_SECS + map * M.SIM_MAP_SECS + turns * 4;
       return { pts: s.pts, budget: s.budget, minutes: secs / 60, mapShare: (map * M.SIM_MAP_SECS) / secs, questions: s.asked, zero: s.how === 'retreat',
-        won: s.how === 'won', held: s.heldN | 0, cleared: s.cleared, fled: s.fled, how: s.how, score: (s.heldN | 0) * 10 + s.cleared * 5 + s.pts };
+        won: s.how === 'won', held: s.heldN | 0, cleared: s.cleared, fled: s.fled, how: s.how, score: (s.heldN | 0) * 10 + s.cleared * 5 + s.pts,
+        formats: s.fx ? s.fx.log.filter(l => !l.teach) : [] };
     } finally { RNG = prev; }
   };
+
+  // For js/mode-pop-formats.js: the drawing helpers and the RNG the simulator seeds.
+  P.ui = { panel, hud, say, sayL, dock, stopBtn, wireStop, icon, save, find, esc, plural, domName, stopNow, NAMES, DOM, MAX_CHECKS };
+  P.rnd = rnd;
+  P.ageOf = ageOf;
 
   M.register({
     id: ID, name: 'The Lost and Found', minutes: 'about 18', host: 'Dutch',
