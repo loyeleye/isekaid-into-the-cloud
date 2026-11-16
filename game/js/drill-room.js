@@ -218,7 +218,7 @@
     @keyframes rmhit { 30% { transform: translateY(-.5%); } }
     .rm-fx { position: absolute; left: 0; right: 0; top: ${CHEST - 12}%; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 6; }
     .rm .db-pop { font-size: max(11px, 1.3cqi); }
-    .rm-col { position: absolute; top: ${COUNTER + 2}%; left: var(--x); transform: translateX(-50%); width: 22%; max-width: 22%; z-index: 4;
+    .rm-col { position: absolute; top: ${COUNTER + 2}%; left: var(--x); transform: translateX(-50%); width: 22%; max-width: 22%; z-index: 6;
       display: flex; flex-direction: column; align-items: center; gap: .5cqi; pointer-events: none; transition: opacity .3s; }
     .rm-col[data-col="gate"] { left: max(var(--x), 11%); } .rm-col[data-col="store"] { left: min(var(--x), 88%); }
     .rm-plq { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .6cqi; padding: .3cqi 1cqi; border-radius: .6cqi;
@@ -264,15 +264,15 @@
     .rm.zoom .rm-col:not(.at), .rm.zoom .rm-callers, .rm.zoom .rm-up { opacity: 0; pointer-events: none; }
     .rm.zoom .rm-col.at { opacity: 0; }
     .rm.playing .rm-st { cursor: default; }
-    .rm-chat { display: none; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .rm-chat { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .rm .rm-note, .rm-chat .rm-say { display: none; }   /* longer notes read below the room; short lines stay in bubbles */
     .rm-chat .rm-say, .rm-chat .rm-note { font-size: 14px; padding: 6px 10px; border-width: 2px; border-radius: 10px; }
     .rm-chat .rm-say::before, .rm-chat .rm-note::before { display: none; }
     @media (max-width: 700px) {
       .rm { border-radius: 0; }
       .rm-col { width: 24%; max-width: 24%; }
       .rm .rm-say { display: none; }
-      .rm-chat { display: flex; }
-      .rm .rm-note { display: none; }
+      .rm-chat .rm-say { display: block; }
       .rm-plq span { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig { animation: none !important; } }`;
