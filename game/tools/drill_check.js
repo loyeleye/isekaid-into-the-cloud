@@ -121,7 +121,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await place('backoff');
   await deploy();
   s = await st();
-  check(s.drill.state === 'contained' && /Contained/.test(await txt('.dr-res')), 'backoff and jitter contains it');
+  check(s.drill.state === 'contained' && /Contained/.test(await txt('.dr-stamp')), 'backoff and jitter contains it, and the board is stamped Contained');
   await noHScroll('contained'); await shot('contained');
   const pm = await postmortem(true, 2);
   check(pm.plain, 'the postmortem is a plain exam screen: no map, pager or station while the stem is open');

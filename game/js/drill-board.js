@@ -26,13 +26,15 @@
   B.path = drill => ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || D.DRILLS[drill].path === 'async'));
 
   // The board, static: totals from the run's metrics. `at` is the station being worked on.
-  B.html = function (f, e, at) {
+  B.html = function (f, e, at, notes) {
     const keys = B.path(f.drill);
+    const note = (notes || []).map(([k, who, text]) => { const i = Math.max(0, keys.indexOf(k));
+      return `<p class="db-note" style="--x:${((i + .5) / keys.length * 100).toFixed(1)}%" data-vo="${esc(who + '|' + text)}">${img(`assets/img/portraits/${who}-neutral.webp`, 'db-nface', '')}<span><b>${esc(D.NAMES[who] || who)}:</b> ${esc(text)}</span></p>`; }).join('');
     const cells = keys.map((k, i) => (i ? `<span class="db-wire" data-w="${keys[i - 1]}-${k}" aria-hidden="true"></span>` : '') + station(f, e, k, at)).join('');
     return `<div class="db" data-path="${D.DRILLS[f.drill].path}" role="group" aria-label="The war room: the request path and its stations">
       <div class="db-lane">${cells}</div>
       <div class="db-clock" aria-hidden="true"><span class="db-tick"></span></div>
-      <div class="db-fly" aria-hidden="true"></div></div>`;
+      <div class="db-fly" aria-hidden="true"></div></div>${note}`;
   };
   function station(f, e, k, at) {
     if (k === 'callers') {
@@ -82,11 +84,18 @@
   }
 
   // The lead's lines after a run, as speech bubbles under the board.
-  B.bubbles = function (lines) {
+  // Each lead's face reacts to what their station saw: a problem there, or not.
+  const TROUBLE = {
+    seoyeon: m => m.throttles429 || m.fault5xx || m.slow,
+    mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost,
+    kai: m => m.timeouts || m.denied || m.hot || m.over || m.errors || m.condBlocked,
+    dutch: m => m.dupes || m.hot + m.over || m.denied
+  };
+  B.bubbles = function (lines, m) {
     const by = {};
     lines.forEach(([w, t]) => { (by[w] = by[w] || []).push(t); });
-    return `<div class="db-chat" aria-live="polite">${Object.keys(by).map(w => `<p class="db-say" data-vo="${esc(w + '|' + by[w][0])}">
-      ${img(`assets/img/portraits/${w}-neutral.webp`, 'db-face', '')}<span class="db-bubble"><b>${esc(D.NAMES[w] || w)}</b> ${by[w].map(esc).join(' ')}</span></p>`).join('')}</div>`;
+    return `<div class="db-chat" aria-live="polite">${Object.keys(by).map(w => `<p class="db-say${m && TROUBLE[w] && TROUBLE[w](m) ? ' bad' : ''}" data-vo="${esc(w + '|' + by[w][0])}">
+      ${img(`assets/img/portraits/${w}-${m && TROUBLE[w] ? (TROUBLE[w](m) ? 'shock' : 'smile') : 'neutral'}.webp`, 'db-face', '')}<span class="db-bubble"><b>${esc(D.NAMES[w] || w)}</b> ${by[w].map(esc).join(' ')}</span></p>`).join('')}</div>`;
   };
 
   // ---- Playback ----
@@ -243,6 +252,12 @@
       transition: transform ${B.STEP_MS + 120}ms cubic-bezier(.3, .1, .4, 1), opacity 120ms; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
     .db-clock { position: absolute; left: 50%; top: 2px; transform: translateX(-50%); z-index: 6; }
     .db-tick:not(:empty) { display: inline-block; padding: 1px 10px; border-radius: 9px; background: rgba(12, 10, 16, .85); font-size: 12px; font-weight: 800; color: #f3d36b; }
+    .db-say.bad .db-bubble { border-color: #9e3a34; }
+    .db-note { position: relative; margin: 10px 0 0; display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #fff3c4; color: #17131f;
+      border: 2px solid #17131f; font-size: 14px; line-height: 1.3; box-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+    .db-note::before { content: ''; position: absolute; top: -10px; left: clamp(12px, calc(var(--x) - 8px), calc(100% - 28px)); border: 8px solid transparent; border-bottom-color: #17131f; border-top: 0; }
+    .db-note::after { content: ''; position: absolute; top: -7px; left: clamp(14px, calc(var(--x) - 6px), calc(100% - 26px)); border: 6px solid transparent; border-bottom-color: #fff3c4; border-top: 0; }
+    .db-nface { width: 30px; height: 34px; object-fit: cover; object-position: top; border-radius: 6px; border: 2px solid #17131f; flex: 0 0 auto; background: #c7bca4; }
     .db-chat { display: flex; flex-direction: column; gap: 6px; }
     .db-say { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
     .db-face { width: 38px; height: 44px; object-fit: cover; object-position: top; border-radius: 8px; border: 2px solid #17131f; background: #c7bca4; flex: 0 0 auto; }

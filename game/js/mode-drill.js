@@ -106,23 +106,61 @@
         ${icon(NODE_ICON[k])}<b>${esc(name)}</b><span class="dr-st">${esc(k === 'callers' ? '' : STATUS[st])}</span></${tag}>`;
     }).join('')}</div>`;
   }
+  // ---- A station's console: its metrics as small charts, its settings as controls (Ladi, Nov 16: less text, as
+  // long as it's more fun or doesn't hurt learning). Dials put a setting's values side by side (30 s, 60 s, 2 m, 6 m),
+  // switches are on or off, looks (observing) are their own row. Each control's full description is its title and
+  // shows in the line under the controls when it's hovered, focused or tapped.
+  const DIALS = {
+    retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
+    vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
+    timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
+    batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
+    key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
+  };
+  const SHORT = { backoff: 'Backoff + jitter', immediate: 'Right away', plan: 'Usage plan: batch client', burst: 'Bigger account burst', gtrace: 'X-Ray on the stage',
+    vis30: '30 s', vis60: '60 s', vis120: '2 min', vis360: '6 min', dlq: 'Redrive → orders-dlq', dlqfifo: 'Redrive → orders-dlq.fifo', groups: 'MessageGroupId = customerId', purge: 'Purge the queue',
+    to30: '30 s', to60: '60 s', to120: '2 min', b1: '1', b3: '3', partial: 'ReportBatchItemFailures', reserved: 'Reserved concurrency 20', prov: 'Provisioned 6 on alias live',
+    provlatest: 'Provisioned 6 on $LATEST', rolekms: 'Role allows kms:Decrypt', admin: 'AdministratorAccess', cond: 'Conditional write', ftrace: 'X-Ray active tracing',
+    kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
+  const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
+    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart' };
+  const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
+  const spark = (arr, bad) => {
+    if (!arr || !arr.length) return '';
+    const max = Math.max(1, ...arr), w = 100, h = 22, n = arr.length;
+    const pts = arr.map((v, i) => `${(i / Math.max(1, n - 1) * w).toFixed(1)},${(h - 1 - v / max * (h - 3)).toFixed(1)}`).join(' ');
+    return `<svg class="dr-spark${bad ? ' bad' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}"/></svg>`;
+  };
+  const BAD = { '4XXError': 1, '5XXError': 1, Errors: 1, WriteThrottleEvents: 1 };
+  function control(f, id, opts) {
+    const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id), placed = f.changes.includes(id);
+    return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text)}">
+      ${opts.icon ? icon(opts.icon) : ''}<span>${esc(SHORT[id] || c.name)}</span>${opts.sw ? `<i class="dr-sw" aria-hidden="true"></i>` : ''}</button>`;
+  }
   function stationHtml(s, f, e) {
     const k = s.at, st = D.STATIONS[k], d = D.DRILLS[f.drill];
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
-    const mt = D.metrics(f.drill, f.cfg, e.m)[k];
+    const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
-    const cards = D.HANDS[k].map(id => {
-      const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id);
-      const placed = f.changes.includes(id);
-      return `<button class="dr-card${on ? ' on' : ''}${why && !on ? ' no' : ''}${c.obs ? ' obs' : ''}" data-card="${id}" aria-pressed="${on}">
-        <b>${c.obs ? icon('radar-sweep') : ''}${esc(c.name)}</b><span class="dr-ct">${esc(c.text)}</span>
-        ${on ? `<span class="dr-tag">${placed ? 'Changed this deploy' : 'Set'}</span>` : why ? `<span class="dr-why">${esc(why)}</span>` : ''}</button>`;
+    const hand = D.HANDS[k];
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k).map(n => {
+      const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
+      return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
+        <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
     }).join('');
-    return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span></div>
-      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b></span>`).join('')}</div>
-      <p class="small">${plural(left, 'change')} left for this deploy. Settings say what they set, never whether they help.</p>
-      <div class="dr-hand">${cards}</div></div>`;
+    const sws = hand.filter(id => !inDial(id) && !C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-tog' + (C[id].once ? ' once' : ''), icon: SW_ICON[id], sw: !C[id].once })).join('');
+    const looks = hand.filter(id => C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-look obs', icon: 'all-seeing-eye' })).join('');
+    return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
+        <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
+      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
+      ${dials}
+      ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
+      ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
+      <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
   }
+  // Where each teach line points on the board ('here': the station being worked on).
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {
@@ -135,7 +173,11 @@
       : e.ok ? `<p class="ms-lt dr-res good">${icon('checked-shield')} Contained${D.clean(f) ? ', first deploy: a clean fix' : ''}. ${e.cost ? `It cost ${e.cost}% on the way.` : 'Nothing spilled.'}</p>`
         : `<p class="ms-lt dr-res bad">Not contained. This run cost <b>${e.cost}%</b> of the budget.${f.state === 'escalated' ? ` It escalates: another ${D.ESCALATE}%.` : ''}</p>`;
     const reveal = !play && f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
-    const lines = play ? '' : BD ? BD.bubbles(e.lines)
+    // The verdict as a stamp across the board (with the cost under it), once the run has played.
+    const stamp = play || !BD ? '' : e.warm ? `<div class="dr-stamp warm" role="status"><b>Find the fault</b><span>Warm-up run, free</span></div>`
+      : e.ok ? `<div class="dr-stamp good" role="status"><b>Contained</b><span>${D.clean(f) ? 'First deploy: a clean fix · ' : ''}${e.cost ? `cost ${e.cost}%` : 'nothing spilled'}</span></div>`
+        : `<div class="dr-stamp bad" role="status"><b>${f.state === 'escalated' ? 'Escalated' : 'Not contained'}</b><span>This run cost ${e.cost}%${f.state === 'escalated' ? ` · escalation ${D.ESCALATE}% more` : ''}</span></div>`;
+    const lines = play ? '' : BD ? BD.bubbles(e.lines, e.m)
       : `<div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>`;
     const jarS = play ? Object.assign({}, s, { budget: play.budget0 }) : s;
     const dock = play ? '<button class="ghost" id="dr-skip">Skip to the end</button>'
@@ -143,10 +185,10 @@
     const b = panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
-      ${BD ? BD.html(f, e, s.at) : traceMap(f, e)}
-      <div class="dr-cols"><div class="dr dr-l">${verdict}${reveal}
+      <div class="dr-bw">${BD ? BD.html(f, e, s.at, teach.map(t => [TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate', D.TEACH[t][0], D.TEACH[t][1]])) : traceMap(f, e)}${stamp}</div>
+      <div class="dr-cols"><div class="dr dr-l">${BD ? '' : verdict}${reveal}
       ${lines}
-      ${teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
+      ${BD ? '' : teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
       <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
       <div class="dr-dock">${dock}</div>`);
     if (play) {
@@ -167,7 +209,7 @@
         if (playing !== play || !document.body.contains(b)) return;
         playing = null;
         draw(s);
-        const res = document.querySelector('.dr-res.good');
+        const res = document.querySelector('.dr-stamp.good, .dr-res.good');
         if (res && U.burst) U.burst(res, D.clean(f));
       });
       return;
@@ -183,6 +225,8 @@
       }
       save(s); draw(s);
     });
+    const tip = b.querySelector('.dr-tip');
+    if (tip) { const base = tip.textContent; b.querySelectorAll('[data-tip]').forEach(el => { const show = () => { tip.textContent = el.dataset.tip; }; el.onmouseenter = show; el.onfocus = show; el.onmouseleave = () => { tip.textContent = base; }; }); }
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
     const dep = b.querySelector('#dr-deploy');
     if (dep) dep.onclick = () => {
@@ -338,6 +382,37 @@
     .dr-why { font-size: 11px; font-weight: 800; color: var(--red, #9e3a34); }
     .dr-tag { font-size: 11px; font-weight: 800; color: #2b4a6b; }
     body.in-mode #panel .win .dr-card.on[aria-pressed="true"] { background: #dbe8f3; border-color: #2a4360; color: #17131f; }
+    .dr-bw { position: relative; }
+    .dr-stamp { position: absolute; z-index: 7; top: 40px; left: 10px; display: flex; flex-direction: column; align-items: center; padding: 4px 14px 5px; transform: rotate(-6deg);
+      border: 4px double currentColor; border-radius: 10px; background: rgba(250, 244, 228, .92); pointer-events: none; animation: drstamp .4s ease-out both; }
+    .dr-stamp { max-width: min(46%, 300px); text-align: center; }
+    .dr-stamp b { font-family: var(--f-head, serif); font-size: 26px; letter-spacing: .08em; text-transform: uppercase; line-height: 1.05; }
+    .dr-stamp span { font-size: 12px; font-weight: 800; color: #3a3346; }
+    .dr-stamp.good { color: #2f6b3f; } .dr-stamp.bad { color: #9e3a34; } .dr-stamp.warm { color: #9a6a12; }
+    @keyframes drstamp { from { transform: rotate(-6deg) scale(.3); opacity: 0; } 70% { transform: rotate(-6deg) scale(1.06); opacity: 1; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+    @media (max-width: 600px) { .dr-stamp { top: 30px; left: 4px; padding: 2px 8px; } .dr-stamp b { font-size: 17px; } .dr-stamp span { font-size: 10px; } }
+    .dr-left { margin-left: auto; display: inline-flex; gap: 3px; } .dr-left i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #17131f; background: transparent; } .dr-left i.on { background: #d6a63a; }
+    .dr-spark { display: block; width: 100%; height: 22px; margin-top: 2px; } .dr-spark polyline { fill: none; stroke: #3f5f80; stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .dr-spark.bad polyline { stroke: #b23a2f; }
+    .dr-dial { display: flex; flex-direction: column; gap: 3px; }
+    .dr-dl { display: inline-flex; gap: 5px; align-items: center; font-weight: 800; font-size: 13px; color: #2a2333; }
+    .dr-seg { display: flex; gap: 0; border: 3px solid #17131f; border-radius: 10px; overflow: hidden; background: #fffaf0; }
+    .dr-seg > * + * { border-left: 2px solid #17131f !important; }
+    body.in-mode #panel .win .dr-card.dr-pick, .dr-card.dr-pick { flex: 1 1 0; min-height: 40px; min-width: 0; border: 0; border-radius: 0; align-items: center; justify-content: center; text-align: center; padding: 4px; font-weight: 800; font-size: 13.5px; box-shadow: none; }
+    .dr-cur { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 12px; font-weight: 800; color: #6a5a48; background: #e6dfd0; }
+    body.in-mode #panel .win .dr-card.dr-pick.on[aria-pressed="true"], .dr-card.dr-pick.on { background: #3f5f80; color: #fff; box-shadow: none; }
+    .dr-card.new { outline: 3px solid #d6a63a; outline-offset: -3px; }
+    .dr-togs { grid-template-columns: 1fr 1fr; }
+    .dr-card.dr-tog, .dr-card.dr-look { min-height: 48px; flex-direction: row; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+    .dr-card.dr-tog > span, .dr-card.dr-look > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .dr-sw { flex: 0 0 auto; width: 30px; height: 17px; border-radius: 9px; background: #b9b2a2; position: relative; border: 2px solid #17131f; }
+    .dr-sw::after { content: ''; position: absolute; top: 1px; left: 1px; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .15s; }
+    .dr-card.on .dr-sw { background: #4f7f5c; } .dr-card.on .dr-sw::after { left: 14px; }
+    .dr-card.dr-tog.once { border-color: #9e3a34; }
+    .dr-card.no { opacity: .75; }
+    .dr-looks { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .dr-looks .dr-dl { width: 100%; }
+    .dr-card.dr-look { flex: 1 1 140px; border-style: dashed; }
+    .dr-tip { min-height: 2.6em; padding: 4px 8px; border-radius: 8px; background: rgba(255, 250, 240, .7); }
     .dr-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
     .dr-dock button { min-height: 44px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
     .dr-dock .primary { flex: 1 1 auto; }

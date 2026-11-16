@@ -344,6 +344,17 @@
     return { m, lines: pager(d, cfg, m), nodes: nodes(d, cfg, m), frames };
   };
 
+  // Per-tick series for each station's metrics (the console's small charts). Small: 20 numbers each.
+  D.sparks = function (frames) {
+    const by = f => frames.map(fr => f(fr.d, fr) | 0);
+    return {
+      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => d.throttles429), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
+      queue: { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
+      fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy) },
+      store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
+    };
+  };
+
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0);
@@ -413,7 +424,7 @@
     const f = { drill, cfg, v, deploys: 0, changes: [], log: [], state: 'read' };
     // The warm-up run: the fault in place, free.
     const r = D.run(drill, cfg, v);
-    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true });
+    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames) });
     D.lastFrames = r.frames;
     return f;
   };
@@ -439,6 +450,7 @@
     const r = D.run(f.drill, f.cfg, f.v);
     const ok = d.ok(r.m);
     const e = { m: r.m, lines: r.lines, nodes: r.nodes, cost: D.cost(f.drill, r.m), ok, changes: f.changes.slice() };
+    e.spark = D.sparks(r.frames);
     D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
     f.cfg.queue.purge = false;
