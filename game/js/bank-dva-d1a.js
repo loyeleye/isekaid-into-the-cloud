@@ -22,7 +22,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"] },
 
   { id: "dva-1-102", exam: "DVA", dva: "1.1", topic: "sqs", type: "mc",
-    q: "Workers process video jobs from an SQS queue. Most jobs finish in under a minute, but a few take up to 40 minutes, and nobody can tell in advance which. The team doesn't want a crashed worker's job to stay hidden for 40 minutes before another worker retries it. What should the developer do?",
+    q: "Workers process video jobs from an SQS queue. Most jobs finish in under a minute, but a few take up to 40 minutes, and nobody can tell in advance which. If a worker crashes, its job must become visible to other workers again within a few minutes. What should the developer do?",
     opts: [
       "Keep a short visibility timeout, and have the worker call ChangeMessageVisibility every few minutes while the job runs.",
       "Set the queue's visibility timeout to 12 hours, so that even the longest job is finished well before its message can reappear.",
@@ -30,7 +30,7 @@ SD.bank.push(
       "Set the queue's visibility timeout to 0, so that every job is visible to all workers at once and the fastest worker wins it."
     ], a: 0,
     no: [null,
-      "Every job then works, but a crashed worker's job stays hidden for 12 hours before anyone retries it.",
+      "A crashed worker's job would stay hidden for up to 12 hours, not a few minutes, before another worker could retry it.",
       "A message timer only delays the first delivery. It doesn't extend the time a worker has after receiving the job.",
       "Every worker would receive and process the same job, which multiplies the work instead of sharing it."],
     why: "ChangeMessageVisibility extends the timeout for one received message, using its receipt handle. A worker that keeps extending it acts as a heartbeat, and a crashed worker's job reappears soon after the last extension.",
@@ -153,7 +153,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html", "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html"] },
 
   { id: "dva-1-111", exam: "DVA", dva: "1.1", topic: "eventbridge", type: "mc",
-    q: "An EventBridge rule sends EC2 state-change events to an SNS topic that emails the operations team. The team wants each email to read like \"Instance i-0abc is now stopped\" instead of the full event JSON. The developer wants no code to maintain. What should the developer do?",
+    q: "An EventBridge rule sends EC2 state-change events to an SNS topic that emails the operations team. The team wants each email to read like \"Instance i-0abc is now stopped\" instead of the full event JSON, without writing or running any custom code. What should the developer do?",
     opts: [
       "Add an input transformer to the rule's target, mapping the instance ID and state to variables used in a template.",
       "Change the target's input to part of the matched event, with the path $.detail.state, so that only the state is sent.",
@@ -163,7 +163,7 @@ SD.bank.push(
     no: [null,
       "That sends only the state value, without the instance ID or the sentence around it.",
       "Filter policies decide which messages a subscription gets. They don't rewrite the message.",
-      "It works, but it adds a function to write and maintain, which the team wants to avoid."],
+      "A Lambda function is custom code to write and run, which the requirement rules out."],
     why: "An input transformer pulls values out of the event with JSON paths and places them into a template, so the target receives custom text instead of the original event.",
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html"] },
 
@@ -198,7 +198,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-archive.html", "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-replay-archived-event.html"] },
 
   { id: "dva-1-114", exam: "both", dva: "1.1", saa: "2.1", topic: "eventbridge", type: "mc",
-    q: "Orders arrive in an SQS queue. Only orders whose priority field is \"high\" should start a Step Functions workflow, and each must first be enriched with customer details from an internal HTTP API. The team wants to avoid writing integration code. Which solution meets these requirements?",
+    q: "Orders arrive in an SQS queue. Only orders whose priority field is \"high\" should start a Step Functions workflow, and each must first be enriched with customer details from an internal HTTP API. The solution must not need any custom code to write or run. Which solution meets these requirements?",
     opts: [
       "Create an EventBridge pipe with the queue as source, a filter on priority, the API as enrichment, and the workflow as target.",
       "Add a Lambda event source mapping on the queue with a filter on priority, and code that calls the API and starts the workflow.",
@@ -206,7 +206,7 @@ SD.bank.push(
       "Create an EventBridge rule on the default bus that matches messages from the queue with a high priority, targeting the workflow."
     ], a: 0,
     no: [null,
-      "It works, but the function is integration code the team must write and maintain.",
+      "The function is custom code to write and run, which the requirement rules out.",
       "A queue can be a subscriber of a topic, not a publisher to one, and Step Functions isn't an SNS subscription type.",
       "SQS doesn't send each message to an event bus, so the rule never sees the orders."],
     why: "EventBridge Pipes connect one source to one target, with optional filtering and enrichment in between, so no glue code is needed.",
@@ -214,11 +214,11 @@ SD.bank.push(
 
   // Step Functions
   { id: "dva-1-115", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "multi", hint: "Select TWO.",
-    q: "A Task state calls a Lambda function that sometimes throws RateLimited, which passes on its own after a short wait, and sometimes throws InvalidOrder, which never succeeds on a retry. RateLimited must be retried up to 4 times with growing waits. Any error that remains must go to a NotifyFailure state. Which should the developer add to the Task state? (Select TWO.)",
+    q: "A Task state calls a Lambda function that sometimes throws RateLimited, which passes on its own after a short wait, and sometimes throws InvalidOrder, which never succeeds on a retry. RateLimited must be retried up to 4 times with growing waits, and InvalidOrder must not be retried. Any error that remains must go to a NotifyFailure state. Which should the developer add to the Task state? (Select TWO.)",
     items: [
       { t: "A Retry field with ErrorEquals [\"RateLimited\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: true },
       { t: "A Catch field with ErrorEquals [\"States.ALL\"] and Next set to \"NotifyFailure\".", ok: true },
-      { t: "A Retry field with ErrorEquals [\"States.ALL\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: false, no: "That also retries InvalidOrder four times, which can never succeed and only delays the failure." },
+      { t: "A Retry field with ErrorEquals [\"States.ALL\"], IntervalSeconds 2, MaxAttempts 4 and BackoffRate 2.", ok: false, no: "That also retries InvalidOrder, which must not be retried and can never succeed." },
       { t: "A Choice state after the task that checks $.errorType and goes to NotifyFailure when it is set.", ok: false, no: "An uncaught error fails the execution. It never reaches the next state as data." },
       { t: "A TimeoutSeconds of 4 on the task, so that each failed attempt ends quickly and the next one starts.", ok: false, no: "A timeout limits how long the task runs. It doesn't retry or route errors." }
     ],
@@ -567,7 +567,7 @@ SD.bank.push(
       "Launch the instance with the configuration and terminate it at once, since a short run is billed for nothing."
     ], a: 0,
     no: [null,
-      "--max-items limits output for list commands. It doesn't stop run-instances from launching.",
+      "--max-items is a pagination option, and run-instances isn't paginated, so it doesn't accept it or check permissions.",
       "Permission to describe instances says nothing about permission to launch them.",
       "It launches an instance, which the developer wants to avoid, and billed time is charged."],
     why: "With --dry-run, EC2 checks permissions without making the request. It returns DryRunOperation if the call would be allowed, and UnauthorizedOperation if not.",

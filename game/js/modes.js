@@ -11,6 +11,9 @@
 // API (the modes in js/mode-*.js and the sibling threads' files use only this):
 //   SD.modes.register({ id, name, blurb, minutes, host, start(opts), status() })   status(): an optional picker line
 //   SD.modes.open()                       the picker; SD.modes.list() the registered modes
+//   SD.modes.titleButton(box)             adds Game modes to the title's buttons (before How to play), called by the
+//                                         title builders (js/main.js, js/demo-select.js), so a fresh save can reach the
+//                                         picker without setting an exam date first (Ladi, Nov 16)
 //   SD.modes.STAKES, SD.modes.stake(ok, conf)      [[right, wrong]] by conf (0 Guess, 1 Think so, 2 Sure); the delta
 //   SD.modes.ask(q, opts)                 SD.quiz.ask plus: stakes on the buttons, the verified source block, calibration
 //                                         into opts.tally, the Wall (a Sure miss goes up unless opts.noWall; opts.poster
@@ -80,6 +83,13 @@
       U.closePanel();
       if (m) m.start({});
     });
+  };
+  M.titleButton = function (box) {
+    if (!box || !modes.length || box.querySelector('#t-modes')) return;
+    const b = document.createElement('button');
+    b.className = 'ghost'; b.id = 't-modes'; b.type = 'button'; b.textContent = 'Game modes';
+    b.onclick = () => M.open();
+    box.insertBefore(b, box.querySelector('#t-help'));
   };
   function stakeTable() {
     return `<table class="md-stakes"><caption class="sr">Points for each answer</caption>
@@ -187,8 +197,9 @@
   M.askFormat = async function (item, opts) {
     opts = opts || {};
     if (!SD.qf || !item) return null;
-    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols).
-    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols'];
+    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols,
+    // confidenceBefore, rowStep).
+    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols', 'confidenceBefore', 'rowStep'];
     const qo = { shell: true, title: opts.title, context: opts.context, stakes: M.STAKES };
     pass.forEach(k => { if (opts[k] !== undefined) qo[k] = opts[k]; });
     const r = await SD.qf.ask(item, qo);

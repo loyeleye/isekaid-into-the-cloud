@@ -216,7 +216,7 @@ SD.bank.push(
       "Turn on API Gateway caching for the dev stage, and load the sample body into the cache for GET /offers before the team starts."
     ], a: 0,
     no: [null,
-      "It works, but it's a backend to build and run. A mock integration needs none.",
+      "A placeholder function is still a backend to build, deploy and run, which the requirement rules out.",
       "It depends on another resource and makes a bucket public, when API Gateway can answer by itself.",
       "The cache only stores responses an integration returned. With no integration, there's nothing to cache."],
     why: "With a MOCK integration, API Gateway builds the response itself from the integration request and response mappings, so dependent teams can work before the backend exists.",

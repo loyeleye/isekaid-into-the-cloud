@@ -29,7 +29,7 @@
   const sv = () => S.save;
   const store = () => {
     const s = sv().sprint = sv().sprint || {};
-    s.done = s.done || {}; s.results = s.results || []; s.fam = s.fam || {}; s.lead = s.lead || [];
+    s.done = s.done || {}; s.results = s.results || []; s.fam = s.fam || {}; s.lead = s.lead || []; s.slip = s.slip || []; s.checks = s.checks || [];
     return s;
   };
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -185,42 +185,22 @@
     return { held: parts.every(p => p.ok), parts };
   };
 
-  // ---- Art (placeholders until the PixelLab sprites land; all SVG, no canvas) ----
+  // ---- Art: PixelLab sprites in assets/img/sprint (see CREDITS.md), drawn crisp; the sky bands and charts stay SVG ----
+  const ART = 'assets/img/sprint/';
+  const sprite = (f, size, cls) => `<img class="${cls}" src="${ART}${f}.webp" width="${size}" height="${size}" alt="" draggable="false">`;
   const INK = '#2b2340';
   const meter = n => `<svg class="sp-m" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">${[0, 1, 2].map(k => `<rect x="${1 + k * 6}" y="${12 - k * 5}" width="4" height="${5 + k * 5}" rx="1" fill="${k <= n ? INK : 'none'}" stroke="${INK}" stroke-width="1.6"/>`).join('')}</svg>`;
   SP.meter = meter;
-  const shadow = (size, hue) => `<svg class="sp-shadow" viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true" shape-rendering="crispEdges">
-    <path d="M4 4h8v1h1v1h1v7h-1v1H3v-1H2V6h1V5h1z" fill="${hue || '#1f2a22'}" stroke="${INK}" stroke-width=".6"/>
-    <rect x="5" y="7" width="2" height="2" fill="#fff6d8"/><rect x="9" y="7" width="2" height="2" fill="#fff6d8"/></svg>`;
+  const shadow = size => sprite('shadow', size, 'sp-shadow');
   // The jar: sealed (plum wax), gold (gold wax), empty (open, seeds), full (open, daemon inside).
-  const jar = (state, size, hue) => {
+  const jar = (state, size) => {
     const h = size || 64, w = Math.round(h * 0.75);
-    const lid = state === 'sealed' || state === 'gold';
-    return `<svg class="sp-jar ${state}" viewBox="0 0 24 32" width="${w}" height="${h}" aria-hidden="true" shape-rendering="crispEdges">
-      ${lid ? '<rect x="5" y="2" width="14" height="4" fill="#a8734a" stroke="' + INK + '" stroke-width="1"/>' : '<rect x="3" y="0" width="10" height="3" fill="#a8734a" stroke="' + INK + '" stroke-width="1" transform="rotate(-18 8 2)"/>'}
-      <path d="M6 6h12v2h2v20h-2v2H6v-2H4V8h2z" fill="#eef6ff" stroke="${INK}" stroke-width="1.2"/>
-      <rect x="6" y="10" width="2" height="12" fill="#ffffff"/>
-      ${state === 'sealed' ? '<circle cx="12" cy="17" r="4" fill="#7b3f73" stroke="' + INK + '" stroke-width="1"/>' : ''}
-      ${state === 'gold' ? '<circle cx="12" cy="17" r="4" fill="#ffc93c" stroke="' + INK + '" stroke-width="1"/><path d="M12 14.6l.8 1.6 1.7.2-1.3 1.2.4 1.7-1.6-.9-1.6.9.4-1.7-1.3-1.2 1.7-.2z" fill="' + INK + '"/>' : ''}
-      ${state === 'empty' ? '<rect x="9" y="24" width="1" height="1" fill="#7a5a2a"/><rect x="12" y="25" width="1" height="1" fill="#7a5a2a"/><rect x="14" y="23" width="1" height="1" fill="#7a5a2a"/>' : ''}
-      ${state === 'full' ? `<rect x="8" y="16" width="8" height="9" fill="${hue || '#888'}" stroke="${INK}" stroke-width=".8"/><rect x="9" y="19" width="2" height="2" fill="#fff"/><rect x="13" y="19" width="2" height="2" fill="#fff"/>` : ''}
-    </svg>`;
+    return `<img class="sp-jar ${state}" src="${ART}jar/${state}.webp" width="${w}" height="${h}" alt="" draggable="false">`;
   };
   SP.jar = jar;
-  const daemon = (f, size, loose) => `<span class="sp-dae${loose ? ' loose' : ''}">${shadow(size || 64, f.hue)}<span class="sp-dn">${esc(f.name)}</span>${loose ? '<span class="sp-loose">loose</span>' : ''}</span>`;
+  // The creature once caught; only its shadow while it's still in the grass (hid).
+  const daemon = (f, size, loose, hid) => `<span class="sp-dae${loose ? ' loose' : ''}">${hid ? shadow(size || 64) : sprite('daemons/' + f.name.toLowerCase(), size || 64, 'sp-sprite')}<span class="sp-dn">${esc(f.name)}</span>${loose ? '<span class="sp-loose">loose</span>' : ''}</span>`;
   // The stage band (375×176): hard sky bands, one dithered row, the road to Lexi's lamp, the landmark, the shadow.
-  const LAND = [
-    '<rect x="30" y="76" width="8" height="40"/><rect x="62" y="76" width="8" height="40"/><rect x="26" y="70" width="48" height="8"/>',
-    '<path d="M38 116v-34q12-10 24 0v34z"/>',
-    '<rect x="44" y="70" width="14" height="46"/><path d="M51 72l-22-14 4-4 18 12 18-12 4 4z"/>',
-    '<path d="M14 116q36-46 72 0h-12q-24-30-48 0z"/>',
-    '<rect x="46" y="84" width="10" height="32"/><circle cx="51" cy="70" r="22"/>',
-    '<rect x="49" y="66" width="4" height="50"/><rect x="34" y="76" width="34" height="4"/><circle cx="51" cy="62" r="7"/>',
-    '<ellipse cx="51" cy="110" rx="36" ry="6"/><rect x="24" y="84" width="3" height="24"/><rect x="74" y="80" width="3" height="28"/>',
-    '<path d="M20 116q31-60 62 0h-8q-23-40-46 0z"/>',
-    '<rect x="38" y="80" width="26" height="36"/><path d="M32 82l19-16 19 16z"/>',
-    '<rect x="14" y="96" width="80" height="4"/><rect x="18" y="88" width="4" height="28"/><rect x="48" y="88" width="4" height="28"/><rect x="78" y="88" width="4" height="28"/>'
-  ];
   const band = (run, i, opts) => {
     opts = opts || {};
     const R = D.runs[run.key] || D.runs.r1;
@@ -232,8 +212,8 @@
       <rect y="116" width="375" height="60" fill="${sky[2]}"/><rect y="114" width="375" height="3" fill="${INK}"/>
       <path d="M188 116L120 176h136z" fill="#e6cf98"/>
       <rect x="${188 - lamp}" y="${110 - lamp * 2}" width="${lamp * 2}" height="${lamp * 2 + 2}" fill="#ffd34d" stroke="${INK}" stroke-width="1"/>
-      ${opts.noLand ? '' : `<g fill="${INK}" opacity=".88">${LAND[i % LAND.length]}</g>`}
-      ${opts.shadow ? `<g transform="translate(262 112)">${'<path d="M8 8h32v4h4v4h4v28h-4v4H4v-4H0V16h4v-4h4z" fill="#1f2a22" stroke="' + INK + '" stroke-width="2"/><rect x="14" y="22" width="6" height="6" fill="#fff6d8"/><rect x="30" y="22" width="6" height="6" fill="#fff6d8"/>'}</g>` : ''}
+      ${opts.noLand ? '' : `<g><image href="${ART}land/${run.key === 'r2' ? 'r2' : 'r1'}-${String(i % 10 + 1).padStart(2, '0')}.webp" x="4" y="28" width="96" height="96" style="image-rendering:pixelated"/></g>`}
+      ${opts.shadow ? `<g><image href="${ART}shadow.webp" x="254" y="110" width="56" height="56" style="image-rendering:pixelated"/></g>` : ''}
     </svg>`;
   };
   const portrait = who => { try { return SD.art && SD.art.portrait ? SD.art.portrait(who, 56) : ''; } catch (e) { return ''; } };
@@ -304,13 +284,26 @@
     sync();
     persist();
   }
+  // Music (Mureka, made for this game; CREDITS.md): The Proving Road at the gate and the Lamp House, quiet on the
+  // road itself, and whatever was playing before comes back on the way out. Tallgrass Meadow is held for drop 3.
+  const AU = SD.audio;
+  if (AU && AU.add) AU.add({ songs: { sprint: 'm-sprint-road', meadow: 'm-sprint-meadow' } });
+  let prevSong = null, inMode = false;
+  function tune() {
+    if (!AU || !AU.music) return;
+    if (!inMode) { inMode = true; prevSong = AU.loopName || null; }
+    if (!run || run.phase === 'house') AU.music('sprint');
+    else if (AU.loopName) AU.stop();
+  }
   function draw(h, title) {
+    tune();
     body = U.panel(h, { title: title || TITLE, cls: CLS, noClose: false, onClose: () => leave(), keepScroll: false });
     body.classList.add('sp-b');
     return body;
   }
   function leave() {
     sync(); persist(); stopTick();
+    if (inMode && AU && AU.music) { inMode = false; if (prevSong) AU.music(prevSong); else AU.stop(); }
     if (SD.today && SD.today.render) SD.today.render();
   }
   function topBar(i, row2) {
@@ -330,6 +323,7 @@
 
   // ---- The gate ----
   SP.open = function () {
+    SP.settleChecks();
     const c = cur();
     if (c && c.ids && c.ids.every(find)) { run = c; return resumeCard(); }
     gate();
@@ -359,6 +353,7 @@
         </ul></details>
       <p class="sp-note small" id="sp-gnote" aria-live="polite"></p>
       ${procTable()}
+      ${SP.rematches().length ? `<button class="ghost sp-wide sp-rmb" id="sp-rmlist">Rematches · ${SP.rematches().length} rustling in the grass</button>` : ''}
       <div class="sp-foot">
         ${first ? `<button class="ghost" id="sp-later">Not yet</button><button class="primary" id="sp-practice">Try the practice patch</button>
           <button class="ghost sp-wide" id="sp-go">Skip to the road</button>`
@@ -366,6 +361,7 @@
       </div></div>`);
     const go = (k) => { store().seen = 1; S.persist(); start(k); };
     b.querySelector('#sp-go').onclick = () => go(key);
+    const rm = b.querySelector('#sp-rmlist'); if (rm) rm.onclick = () => rematchList();
     const pr = b.querySelector('#sp-practice'); if (pr) pr.onclick = () => go('practice');
     const mp = b.querySelector('#sp-myplan'); if (mp) mp.onclick = () => { store().planOk = Date.now(); S.persist(); mp.disabled = true; mp.textContent = 'Plan confirmed ✓'; };
     b.querySelector('#sp-later').onclick = () => { b.querySelector('#sp-gnote').textContent = 'The road will wait.'; setTimeout(() => { U.closePanel(); leave(); }, 700); };
@@ -380,7 +376,7 @@
     (SD.bank || []).forEach(q => { if (E().isDva(q)) { const id = SP.famOf(q).id; counts[id] = (counts[id] | 0) + 1; } });
     const next = D.families.filter(x => !f[x.id] && x.id !== 'wild').sort((a, b) => (counts[b.id] | 0) - (counts[a.id] | 0)).slice(0, 3);
     return `<details class="sp-proc"><summary>Process Table · ${plural(met.length, 'family')} met · ${caught.length} caught</summary>
-      <ul class="sp-procl">${met.map(id => { const x = SP.famById(id), r = f[id]; return `<li>${daemon(x, 40, r.caught === 0 ? false : r.loose && !r.settled)}<span class="small">${r.caught ? `caught ×${r.caught}${r.gold ? ' · ★' + r.gold : ''}` : 'slipped out'}</span></li>`; }).join('')}</ul>
+      <ul class="sp-procl">${met.map(id => { const x = SP.famById(id), r = f[id]; return `<li>${daemon(x, 40, r.caught === 0 ? false : r.loose && !r.settled, r.caught === 0)}<span class="small">${r.caught ? `caught ×${r.caught}${r.gold ? ' · ★' + r.gold : ''}` : 'slipped out'}${r.checked ? ' <span class="sp-stamp">CHECKED</span>' : ''}</span></li>`; }).join('')}</ul>
       ${next.length ? `<p class="small">Next to find: ${next.map(x => esc(x.name)).join(', ')}.</p>` : ''}</details>`;
   }
   function resumeCard() {
@@ -612,9 +608,11 @@
         const f = st.fam[r.fam.id] = st.fam[r.fam.id] || { caught: 0, gold: 0, slipped: 0 };
         if (r.ok) { f.caught++; if (r.kind === 'gold') f.gold++; if (r.kind === 'loose') f.loose = 1; else f.settled = 1; } else f.slipped++;
         if (!r.ok || r.kind === 'loose') st.lead.push({ q: r.id, day: new Date().toDateString(), t: now });
+        if (!r.ok) st.slip.push({ q: r.id, fam: r.fam.id, t: now });
+        else SP.addCheck(r.id, r.fam.id, now);
       }
     });
-    st.lead = st.lead.slice(-20);
+    st.lead = st.lead.slice(-20); st.slip = st.slip.slice(-30);
     if (run.practice) st.practiced = now;
     else if (run.key !== 'free') st.done[run.key] = now;
     const res = { key: run.key, t: now, right: sc.right, n: sc.n, pts: sc.pts, tax: sc.tax, d13: sc.d13, med: sc.med, long: sc.long, reopenT: sc.reopenT,
@@ -633,7 +631,7 @@
     persist();
     [pace, jars, debrief, ending][Math.min(3, step)]();
   }
-  function hdraw(h) { return draw(h, HOUSE); }
+  function hdraw(h) { return draw(`<img class="sp-lh" src="${ART}lamp-house.webp" width="256" height="192" alt="The Lamp House at dusk" draggable="false">` + h, HOUSE); }
   function pace() {
     const sc = SP.score(run), n = run.ids.length, W = 330, H = 190, top = 10, base = 160, max = 4 * MIN, bw = Math.floor((W - 40) / n) - 6;
     const y = t => base - Math.min(t, max) / max * (base - top);
@@ -644,6 +642,9 @@
         ${r ? `<rect x="${x}" y="${y(f + r)}" width="${bw}" height="${y(f) - y(f + r)}" fill="url(#sp-hatch)" stroke="${INK}" stroke-width="1.5"/>` : ''}
         <text x="${x + bw / 2}" y="${base + 14}" text-anchor="middle" font-size="11">${i + 1}${over ? '▲' : ''}</text>`;
     }).join('');
+    // Proctor's Pass: Route 1's first pass per patch as dashed outlines (the Nov 24 ghost).
+    const ghostRes = run.exam ? store().results.filter(x => x.key === 'r1').slice(-1)[0] : null;
+    const ghost = ghostRes ? ghostRes.first.map((f, i) => { const x = 34 + i * (bw + 6); return `<rect x="${x - 2}" y="${y(f)}" width="${bw + 4}" height="${base - y(f)}" fill="none" stroke="${INK}" stroke-width="1.2" stroke-dasharray="3 2"/>`; }).join('') : '';
     const line = (t, lab, dash) => `<line x1="30" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="${INK}" stroke-width="1.5"${dash ? ' stroke-dasharray="4 3"' : ''}/><text x="${W}" y="${dash ? y(t) + 11 : y(t) - 3}" text-anchor="end" font-size="10" font-weight="700">${lab}</text>`;
     const s4 = run.startLeft[3], s8 = run.startLeft[7];
     const chk = run.practice ? '' : `<li>Checkpoints: patch 4 started with ${s4 == null ? '—' : clockText(s4)} left (mark 14:00) · patch 8 with ${s8 == null ? '—' : clockText(s8)} left (mark 6:00)</li>`;
@@ -655,9 +656,9 @@
         <defs><pattern id="sp-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><rect width="2" height="5" fill="${INK}"/></pattern></defs>
         <line x1="30" x2="30" y1="${top}" y2="${base}" stroke="${INK}"/>
         ${[0, 1, 2, 3, 4].map(m => `<text x="26" y="${y(m * MIN) + 4}" text-anchor="end" font-size="10">${m}:00</text>`).join('')}
-        ${bars}${line(OVER, '2:00')}${run.practice ? '' : line(PACE, 'Coo 1:45', true)}
+        ${bars}${ghost}${line(OVER, '2:00')}${run.practice ? '' : line(PACE, 'Coo 1:45', true)}
       </svg>
-      <p class="small muted">▲ over 2:00 · hatched top = reopen time</p>
+      <p class="small muted">▲ over 2:00 · hatched top = reopen time${ghost ? ' · dashed outline = Route 1 on Nov 24' : ''}</p>
       <ul class="sp-facts small">
         <li>${t13}</li>
         ${run.practice ? '' : `<li>Dither on patches 4 to 10: ${mmss(sc.med)} median · patches reaching 2:30: ${sc.long}</li>`}
@@ -680,7 +681,7 @@
       const o = op.includes(r.i);
       const st = !o ? (r.counted && r.conf === 2 ? 'gold' : 'sealed') : r.ok ? 'full' : 'empty';
       const lab = `${r.i + 1}${run.wasMarked[r.i] ? ' ⚑' : ''}${o && r.kind === 'gold' && r.ok ? ' ★' : ''}`;
-      return `<button class="sp-jarb${o ? ' open' : ''}${run.jarAt === r.i ? ' cur' : ''}" data-j="${r.i}" aria-label="Jar ${r.i + 1}${o ? ', ' + (r.ok ? 'caught' : 'empty') : ', sealed'}">${jar(st, 48, r.fam.hue)}<span class="small">${lab}</span>${o ? `<span class="sp-jn">${r.ok ? esc(r.fam.name) : '× empty'}</span>` : ''}</button>`;
+      return `<button class="sp-jarb${o ? ' open' : ''}${run.jarAt === r.i ? ' cur' : ''}" data-j="${r.i}" aria-label="Jar ${r.i + 1}${o ? ', ' + (r.ok ? 'caught' : 'empty') : ', sealed'}">${jar(st, 48)}<span class="small">${lab}</span>${o ? `<span class="sp-jn">${r.ok ? esc(r.fam.name) : '× empty'}</span>` : ''}</button>`;
     };
     const card = r => {
       if (!r) return '';
@@ -691,7 +692,7 @@
       const firstEmpty = !store().emptySaid && k === 'empty';
       if (firstEmpty) { store().emptySaid = 1; }
       const head = `<p class="sp-jh"><b>Jar ${r.i + 1}</b> · ${conf}${r.unans ? '' : k === 'gold' ? ' · ★ gold seal' : k === 'loose' ? ' · loose' : k === 'empty' ? ' · × empty' : ' · caught'}</p><p class="small muted">"${esc(firstLine(q))}"</p>`;
-      const who = r.ok ? daemon(r.fam, 64, k === 'loose') : `<span class="sp-peek">${daemon(r.fam, 48)}<span class="small">rustling in the grass</span></span>`;
+      const who = r.ok ? daemon(r.fam, 64, k === 'loose') : `<span class="sp-peek">${daemon(r.fam, 48, false, true)}<span class="small">rustling in the grass</span></span>`;
       const sureMiss = !r.ok && r.counted && r.conf === 2;
       const whyBody = `<p>${esc(q.why || '')}</p>${whyNot(q).map(([o, n]) => `<p class="small"><b>Why not</b> "${esc(o)}": ${esc(n)}</p>`).join('')}
         ${SD.verified && SD.verified[q.id] && SD.verified[q.id].era ? `<p class="small sp-era">${esc(SD.verified[q.id].era)}</p>` : ''}
@@ -808,7 +809,7 @@
       <div class="sp-porch">
         <p class="sp-endh">Today's road</p><p class="small">${caught.length} caught · ${slipped.length} slipped out</p>
         ${caught.length ? `<div class="sp-parade">${caught.map(r => `<button class="sp-pet" data-p="${r.fam.id}" aria-label="Pet ${esc(r.fam.name)}">${daemon(r.fam, 64, r.kind === 'loose')}${r.kind === 'gold' ? '<span class="sp-gold" aria-label="gold seal">★</span>' : ''}</button>`).join('')}</div>` : ''}
-        ${slipped.length ? `<div class="sp-grass">${slipped.map(r => daemon(r.fam, 48)).join('')}</div>` : ''}
+        ${slipped.length ? `<div class="sp-grass">${slipped.map(r => daemon(r.fam, 48, false, true)).join('')}</div>` : ''}
       </div>
       <p class="sp-bub small" id="sp-bub" aria-live="polite"></p>
       ${slipped.length ? `<p class="small">Rustling in the meadow: ${slipped.map(r => esc(r.fam.name)).join(', ')}. Questions on their ideas lead tomorrow's set.</p>` : ''}
@@ -825,11 +826,98 @@
     b.querySelector('#sp-done').focus();
   }
 
+  // ---- Rematches (drop 2): a plain list of the daemons that slipped out ----
+  // One question per daemon per day and one per idea per day, labelled "Twin" (its unseen twin) or "Same idea" (an
+  // unseen question on the same exam task and topic), verified first; with neither, "No twin yet" and it waits.
+  const DAY = 86400000;
+  const today = () => new Date().toDateString();
+  const conceptOf = q => (SD.today && SD.today.conceptOf ? SD.today.conceptOf(q) : null);
+  SP.rematchQ = function (id, used) {
+    const q = find(id);
+    if (!q) return null;
+    const avoid = [...(used || [])], Dr = SD.topicDrill, log = sv().qlog || {};
+    const tw = SD.qtwin ? SD.qtwin(q, { avoid }) : null;
+    if (tw) return { q: tw, label: 'Twin', ver: Dr.isVerified(tw) };
+    const same = Dr.base().filter(x => x.id !== q.id && !avoid.includes(x.id) && !log[x.id] && x.topic === q.topic && E().taskOf(x) === E().taskOf(q) && (x.type === 'mc' || x.type === 'multi'));
+    const pick = same.filter(Dr.isVerified)[0] || same[0];
+    return pick ? { q: pick, label: 'Same idea', ver: Dr.isVerified(pick) } : null;
+  };
+  SP.rematches = () => store().slip.filter(x => !x.won);
+  function rematchList(msg) {
+    const st = store(), day = today();
+    const ideas = new Set(st.slip.filter(x => x.day === day).map(x => x.c));
+    const rows = SP.rematches().map((x, k) => {
+      const f = SP.famById(x.fam);
+      if (x.day === day) return `<li class="sp-rm">${daemon(f, 48, false, true)}<span class="small">Tried today. Back tomorrow.</span></li>`;
+      const rq = SP.rematchQ(x.q);
+      const c = rq && conceptOf(rq.q);
+      if (!rq) return `<li class="sp-rm">${daemon(f, 48, false, true)}<span class="small">No twin yet. It waits in the grass.</span></li>`;
+      if (c && ideas.has(c)) return `<li class="sp-rm">${daemon(f, 48, false, true)}<span class="small">One question on this idea a day. Back tomorrow.</span></li>`;
+      return `<li class="sp-rm">${daemon(f, 48, false, true)}<span class="small">${rq.label}${rq.ver ? '' : ' · Not verified yet'}</span><button class="primary" data-rm="${st.slip.indexOf(x)}">Rematch</button></li>`;
+    }).join('');
+    const b = draw(`<div class="sp-gate">
+      <p class="td-head">Rematches</p>
+      ${msg ? `<p class="sp-card">${msg}</p>` : ''}
+      <p class="small muted">Daemons that slipped out wait in the grass. One question each a day, untimed, with the answer right after.</p>
+      ${rows ? `<ul class="sp-rml">${rows}</ul>` : '<p>Nothing is rustling in the grass.</p>'}
+      <div class="sp-foot"><button class="ghost" id="sp-rback">Back to the road</button></div></div>`);
+    b.querySelector('#sp-rback').onclick = () => gate();
+    b.querySelectorAll('[data-rm]').forEach(el => el.onclick = () => rematch(st.slip[+el.dataset.rm]));
+  }
+  async function rematch(x) {
+    const rq = SP.rematchQ(x.q);
+    if (!rq) return rematchList();
+    const q = Object.assign({}, rq.q, { c: conceptOf(rq.q) });
+    x.day = today(); x.c = q.c; x.tries = (x.tries | 0) + 1;
+    S.persist();
+    const r = await M.ask(q, { noWall: false });
+    const f = SP.famById(x.fam), st = store();
+    if (r.closed || r.skipped || r.stopped) return rematchList();
+    if (r.ok) {
+      x.won = Date.now();
+      const fr = st.fam[f.id] = st.fam[f.id] || { caught: 0, gold: 0, slipped: 0 };
+      fr.caught++; fr.settled = 1;
+      SP.addCheck(rq.q.id, f.id, x.won);
+      S.persist();
+      return rematchList(`Caught! ${esc(f.name)} hops into a jar. A check question on its idea comes in 2 or 3 days.`);
+    }
+    S.persist();
+    rematchList(`${esc(f.name)} slipped away again. It'll be back in the grass tomorrow.`);
+  }
+
+  // ---- Spaced checks (drop 2): 2 or 3 days after a catch, one check question on the same idea in Today's set ----
+  // Right with Think so or Sure gives the family a CHECKED stamp (evolution waits until after Nov 30).
+  SP.addCheck = function (id, fam, t) {
+    const st = store();
+    st.checks.push({ q: id, fam, due: t + 2 * DAY });
+    st.checks = st.checks.slice(-40);
+  };
+  SP.settleChecks = function () {
+    const st = sv().sprint;
+    if (!st || !st.checks) return;
+    const log = sv().qlog || {}, day = today();
+    st.checks.forEach(ch => {
+      if (ch.done || !ch.pid) return;
+      const l = log[ch.pid];
+      if (l && l[0] >= ch.at) {
+        ch.done = l[0];
+        const c = conceptOf(find(ch.pid) || {}), hist = (c && sv().concepts[c] && sv().concepts[c].hist) || [];
+        const h = hist.filter(x => Math.abs(x.t - l[0]) < 5000).slice(-1)[0];
+        if (l[1] && h && h.conf >= 1) {
+          ch.checked = 1;
+          const f = st.fam[ch.fam] = st.fam[ch.fam] || { caught: 0, gold: 0, slipped: 0 };
+          f.checked = (f.checked | 0) + 1;
+        }
+      } else if (ch.pickDay && ch.pickDay !== day) { delete ch.pid; delete ch.pickDay; }
+    });
+  };
+
   // ---- Tomorrow's set (js/today.js T.build): one question on the idea of each empty and loose jar ----
   // From the next day on, once each: its twin when it has one, else an unseen question on the same task and topic.
   SP.leadItems = function (used) {
     const st = sv().sprint;
-    if (!st || !st.lead || !st.lead.length) return [];
+    if (!st) return [];
+    st.lead = st.lead || [];
     const day = new Date().toDateString(), out = [], log = sv().qlog || {};
     st.lead.forEach(l => {
       if (l.used || l.day === day || out.length >= 4) return;
@@ -846,6 +934,19 @@
       if (!c) return;
       used.add(pick.id);
       out.push({ c, q: pick.id, lead: 1 });
+    });
+    // Spaced checks that are due: up to 2 more.
+    SP.settleChecks();
+    let nc = 0;
+    (st.checks || []).forEach(ch => {
+      if (ch.done || ch.pid || ch.due > Date.now() || nc >= 2) return;
+      const rq = SP.rematchQ(ch.q, used);
+      const c = rq && conceptOf(rq.q);
+      if (!rq || !c) return;
+      used.add(rq.q.id);
+      ch.pid = rq.q.id; ch.at = Date.now(); ch.pickDay = day;
+      out.push({ c, q: rq.q.id, lead: 1, check: 1 });
+      nc++;
     });
     if (out.length) S.persist();
     return out;
@@ -969,16 +1070,24 @@
     .sp-porch .sp-dae.loose { outline-color: #fff; }
     .sp-gold { position: absolute; top: 0; right: 0; color: var(--sun); font-size: 18px; }
     .sp-bub { min-height: 1.3em; font-weight: 700; }
+    .sp-rml { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .sp-rm { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; }
+    .sp-rm .small { flex: 1; }
+    .sp-rm button { min-height: 44px; }
+    .sp-rmb { width: 100%; min-height: 48px; margin: 6px 0; }
+    .sp-stamp { display: inline-block; padding: 0 4px; border: 2px solid #7a1f1f; border-radius: 4px; color: #7a1f1f; font-size: 10px; font-weight: 800; transform: rotate(-4deg); }
     .sp-proc ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .sp-proc li { display: flex; flex-direction: column; align-items: center; }
-    .sp-proc .sp-shadow { width: 40px; height: 40px; }
+    .sp-shadow, .sp-sprite, .sp-jar, .sp-lh { image-rendering: pixelated; }
+    .sp-lh { display: block; width: calc(100% + 32px); height: auto; max-height: 150px; object-fit: cover; margin: -10px -16px 10px; border-bottom: 3px solid var(--ink); }
+    .sp-proc .sp-shadow, .sp-proc .sp-sprite { width: 40px; height: 40px; }
     @media (prefers-reduced-motion: no-preference) {
       .sp-hop .sp-band g:last-of-type { animation: sp-hop .4s steps(4) .4s both; }
       .sp-wob { animation: sp-wob .5s steps(4) .2s both; }
       .sp-pop { animation: sp-pop .3s steps(3) both; }
       .sp-hop1 { animation: sp-hop1 .4s steps(4); }
     }
-    @keyframes sp-hop { from { transform: translate(262px, 140px); opacity: 0; } to { transform: translate(262px, 112px); opacity: 1; } }
+    @keyframes sp-hop { from { transform: translateY(28px); opacity: 0; } to { transform: none; opacity: 1; } }
     @keyframes sp-wob { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
     @keyframes sp-pop { from { transform: translateY(4px); } to { transform: none; } }
     @keyframes sp-hop1 { 50% { transform: translateY(-8px); } }

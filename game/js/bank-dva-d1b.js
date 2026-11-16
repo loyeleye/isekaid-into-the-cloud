@@ -182,10 +182,10 @@ SD.bank.push(
       "An on-success destination on the function that sends records to the custom event bus."
     ], a: 0,
     no: [null,
-      "A dead-letter queue must be an SQS queue or SNS topic, and it gets the event without the invocation record a destination sends.",
+      "A dead-letter queue must be an SQS queue or SNS topic. It gets the event and a few error attributes, not a destination's full invocation record.",
       "An event bus isn't a supported SNS subscription endpoint, so the records never reach the bus.",
       "On-success records cover only successful invocations, so failed events would never reach the bus."],
-    why: "Destinations can be an SQS queue, SNS topic, S3 bucket (on failure only), Lambda function or EventBridge event bus, and their records include the request and the response. A dead-letter queue is limited to SQS or SNS and holds only the event.",
+    why: "Destinations can be an SQS queue, SNS topic, S3 bucket (on failure only), Lambda function or EventBridge event bus, and their records include the request and the response. A dead-letter queue is limited to SQS or SNS. It gets the event as-is, plus attributes for the request ID, the error code and the first 1 KB of the error message.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-retain-records.html"] },
 
   { id: "dva-1-217", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",
@@ -439,7 +439,7 @@ SD.bank.push(
       { t: "Enable Time to Live on the table, and name that expiry attribute as its TTL attribute.", ok: true },
       { t: "Store each session's expiry time as an ISO 8601 string, such as 2026-10-21T09:00:00Z.", ok: false, no: "TTL ignores items whose TTL attribute isn't a Number." },
       { t: "Store each session's expiry time in a Number attribute, as Unix epoch time in milliseconds.", ok: false, no: "TTL reads the value as seconds, so these items wouldn't expire for thousands of years." },
-      { t: "Run an EventBridge Scheduler job every hour that scans for expired sessions and deletes them.", ok: false, no: "It works, but it is the scheduled job the team wants to avoid, and its deletes use write capacity." }
+      { t: "Run an EventBridge Scheduler job every hour that scans for expired sessions and deletes them.", ok: false, no: "That is the scheduled cleanup job the requirement rules out, and each delete it makes uses write capacity." }
     ],
     why: "TTL deletes items whose TTL attribute holds an epoch-seconds Number in the past, typically within a few days, without consuming write throughput. Until then the item can still be read, so apps check the expiry time themselves.",
     doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html", "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-before-you-start.html"] },

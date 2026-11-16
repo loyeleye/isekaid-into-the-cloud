@@ -104,7 +104,7 @@ SD.bank.push(
       "Index updates are applied asynchronously and reads from a GSI are eventually consistent. Writes have no consistency choice to pay for.",
       "An index can be added to a table that's in use. Once it's built, it works like any other; it doesn't need recreating."],
     why: "In provisioned mode a GSI has its own write capacity. If the index can't keep up, DynamoDB throttles writes to the base table that would update it. Give the index at least as much write capacity as the table, or use on-demand mode.",
-    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.ThroughputConsiderations.html"] },
+    doc: ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html#GSI.ThroughputConsiderations"] },
 
   // SAA 2.2: Design highly available and/or fault-tolerant architectures
   { id: "saa-2-700", exam: "SAA", saa: "2.2", topic: "rds", type: "mc",

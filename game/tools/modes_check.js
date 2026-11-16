@@ -239,6 +239,35 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const k5 = await page.evaluate(() => ['01', '03', '10', '20', '21'].map(n => SD.qf.keysOf(SD.fmtItems.find(i => i.id === 'fmt-compare-' + n)).join(',')).join(' '));
   check(k5 === '2,0 1,2 1,0,2 0,1,2 1,0,2', 'the Duel\'s deciding rows are on items 01, 03, 10, 20 and 21 (' + k5 + ')');
 
+  // confidenceBefore 'col': rate the column before the table opens; the row step then submits with that rating.
+  await page.evaluate(() => { window.__fr = null; const it = SD.fmtItems.find(i => i.id === 'fmt-compare-01'); SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', colFirst: true, confidenceBefore: 'col', gradeOn: 'col' }).then(r => { window.__fr = r; }); });
+  await page.waitForSelector('#panel .qf');
+  const wrongCol = await page.evaluate(() => (SD.fmtItems.find(i => i.id === 'fmt-compare-01').a + 1) % 3);
+  await page.click(`[data-qf-col="${wrongCol}"]`);
+  check(!!await page.$('[data-c="2"]') && !await page.$('.qf-bands, .qf-cmp-grid') && /✗−3/.test(await page.textContent('[data-c="2"]')), 'confidenceBefore "col": the stake buttons come right after the column pick, before the table opens');
+  await page.click('#qf-recol');
+  check((await page.$$('.qf-cols [data-qf-col]')).length === 3, 'and the column can still change until it is rated');
+  await page.click(`[data-qf-col="${wrongCol}"]`); await page.click('[data-c="2"]');
+  check(!!await page.$('.qf-bands') && !await page.$('[data-c]') && /you said Sure/.test(await page.textContent('.qf-pickline')), 'once rated, the table opens for the row, and the rating holds');
+  check(await page.$$eval('.qf-band-head .qf-band-h', h => h.map(x => x.textContent.trim()).join('|')) === 'SQS|SNS|EventBridge', 'the band header is a strip of short labels');
+  check(await page.$eval('.qf-band-head', e => getComputedStyle(e).position === 'sticky' && getComputedStyle(e.parentElement).overflow !== 'hidden'), 'and it is sticky over the bands');
+  await page.click('[data-qf-row="0"]'); await page.click('#qf-submit');
+  check(!await page.$('[data-c]') && /NOT QUITE|PARTLY/.test(await page.textContent('#panel .verdict')), 'Submit on the row goes straight to feedback with the earlier rating (no second rating)');
+  await page.click('#q-next'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.ok === false && window.__fr.conf === 2 && window.__fr.pts === -3), 'a wrong column rated Sure before the table costs the Sure stake');
+  // rowStep false: the name-only reading state.
+  await page.evaluate(() => { window.__fr = null; const it = SD.fmtItems.find(i => i.id === 'fmt-compare-12'); SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', colFirst: true, rowStep: false }).then(r => { window.__fr = r; }); });
+  await page.waitForSelector('#panel .qf');
+  const a12 = await page.evaluate(() => SD.fmtItems.find(i => i.id === 'fmt-compare-12').a);
+  await page.click(`[data-qf-col="${a12}"]`);
+  check(!await page.$('.qf-bands, [data-qf-row]') && !await page.$('#qf-submit[disabled]'), 'rowStep false with colFirst: names only, no table and no row to pick, and Submit is ready');
+  await page.click('#qf-submit'); await page.click('[data-c="1"]');
+  check(!!await page.$('#panel .qf-bands'), 'the table shows in the feedback');
+  await page.click('#q-next'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.ok === true && window.__fr.pts === 2 && window.__fr.col.ok && !window.__fr.row), 'and the column alone is graded, with no row reported');
+  const shs = await page.evaluate(() => { const it = SD.fmtItems.find(i => i.id === 'fmt-compare-21'); let ok = true; for (let n = 0; n < 20; n++) { const s = SD.qf.shuffleCompare(it); ok = ok && s.short.every((l, ci) => l === it.short[s.colMap[ci]]); } return [ok, SD.fmtItems.filter(i => i.type === 'compare').every(i => Array.isArray(i.short) && i.short.length === i.cols.length && i.short.every(l => l && l.length <= 15))]; });
+  check(shs[0] && shs[1], 'every compare item has a short label per column (15 characters or fewer), and they move with shuffled columns');
+
   // ---- Calibration ----
   const cal = await page.evaluate(() => { const t = { 0: [1, 4], 1: [3, 5], 2: [2, 5] }; const d = document.createElement('div'); d.innerHTML = SD.modes.calibHtml(t); return [[...d.querySelectorAll('tr')].map(tr => [...tr.children].map(x => x.textContent.trim()).join(' ')).join(' | '), SD.modes.points(t)]; });
   check(/Sure 2 of 5 right \(40%\) ↓ Too sure/.test(cal[0]), 'calibration: Sure at 40% reads "Too sure" in words');

@@ -203,7 +203,7 @@ SD.bank.push(
       "GetTrail describes one trail's settings. It doesn't search events.",
       "That reads CloudWatch Logs, which a trail may also send to. Event history isn't there."],
     why: "LookupEvents doesn't support resource-level permissions, so its Resource is \"*\". Narrow the action instead.",
-    doc: ["https://docs.aws.amazon.com/service-authorization/latest/reference/list_awscloudtrail.html"] },
+    doc: ["https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudtrail.html"] },
 
   { id: "dva-2-612", exam: "DVA", dva: "2.1", topic: "iam", type: "mc",
     q: "A role should delete trail-maps objects only when the session was signed in with MFA. Which statement does that?",
