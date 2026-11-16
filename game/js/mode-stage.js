@@ -11,7 +11,10 @@
 //     the right. Home does what the window's own way out does, in this order: Stop for now (saves, as js/modes.js
 //     has it), the mode's own stop button (#<x>-stop, #sp-later), ✕ Leave, ✕ Close. A step with no way out says so.
 //   - The mode's windows (U.panel) expand into the stage: full height under the bar, a centred column on wide screens
-//     with the setting showing either side, edge to edge on a phone. Their ✕ moves to Home.
+//     with the setting showing either side, a sheet over the bottom on a phone. Their ✕ moves to Home.
+//   - The window is dark glass over the scene, not the beige box (Ladi, Nov 16: "remove the ugly text box"): the
+//     palette's variables are swapped inside it, so the modes' own CSS follows. A box a mode paints light itself
+//     (a hard-coded pale background, now with pale text on it) gets .ms-lt, which puts the old palette back inside it, so its text stays dark.
 //   - The stage ends when the mode's last window closes (none opens again within LINGER ms), or another screen shows.
 // This file only wraps: no mode file changes. It loads after js/title-games.js.
 // API: SD.modeStage.enter(def), .leave(), .active() the running mode's id or null.
@@ -44,6 +47,7 @@
     bar.querySelector('#ms-home').onclick = home;
     bar.querySelector('#ms-snd').onclick = e => { AU.toggleAll(); e.currentTarget.textContent = snd(); };
     new MutationObserver(watch).observe($('#panel'), { attributes: true, attributeFilter: ['hidden'], childList: true });
+    new MutationObserver(() => { if (cur) adaptSoon(); }).observe($('#panel'), { childList: true, subtree: true });
   }
   const snd = () => (AU && AU.muted && AU.muted() ? '🔇' : '🔊');
 
@@ -72,7 +76,7 @@
     document.body.dataset.stage = id;
     // Title loops keep playing underneath otherwise.
     document.querySelectorAll('#title-actions .tg-vid').forEach(v => { if (!v.paused) v.pause(); });
-    sub();
+    sub(); adaptSoon();
   };
   ST.leave = function () {
     clearTimeout(timer);
@@ -116,14 +120,31 @@
     const s = bar && bar.querySelector('#ms-sub'), h = $('#panel:not([hidden]) .win-h > span');
     if (!s) return;
     const t = h ? h.textContent.trim() : '';
-    s.textContent = t && cur && t.toLowerCase() !== String(cur.name).toLowerCase() ? t : '';
+    s.textContent = t && cur && !String(cur.name).toLowerCase().includes(t.toLowerCase()) ? t : '';
   }
+  // Pale boxes a mode painted itself, whose text has turned pale too, keep the light palette (dark text). Checked after every redraw of the window.
+  const pale = c => { const m = /rgba?\(([\d.]+), ([\d.]+), ([\d.]+)(?:, ([\d.]+))?/.exec(c); if (!m || (m[4] !== undefined && +m[4] < .5)) return false;
+    return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) / 255 > .6; };
+  let adaptQ = 0;
+  function adapt() {
+    adaptQ = 0;
+    if (!cur) return;
+    document.querySelectorAll('#panel .win *').forEach(e => {
+      if (e.classList.contains('ms-lt') || e.closest('.ms-lt') !== null && e.closest('.ms-lt') !== e) return;
+      const c = getComputedStyle(e);
+      if (!(pale(c.backgroundColor) && pale(c.color))) return;   // light on light only
+      e.classList.add('ms-lt');   // the old palette inside: a bar painted with ink behind white text is dark again
+      const d = getComputedStyle(e);
+      if (pale(d.backgroundColor) && pale(d.color)) e.classList.add('ms-lt-c');   // a pale box whose text it inherited
+    });
+  }
+  const adaptSoon = () => { if (!adaptQ) adaptQ = requestAnimationFrame(adapt); };
   function watch() {
     if (!cur) return;
     const p = $('#panel');
     clearTimeout(timer);
     if (p.hidden) timer = setTimeout(() => { if ($('#panel').hidden) ST.leave(); }, LINGER);
-    else sub();
+    else { sub(); adaptSoon(); }
   }
 
   // Home leaves the mode, not just this window: the walkthrough's ✕ starts the mode, and a mode's first screen may
@@ -201,6 +222,31 @@
     body.in-mode #panel .win { width: min(760px, 100%); min-height: min(560px, 72%); max-height: 100%; align-self: center; }
     body.in-mode #panel .win.wide { width: min(1040px, 100%); }
     body.in-mode #panel .win-b { flex: 1; }
+    /* Dark glass: the palette swapped inside the window, so every mode's own CSS follows it. */
+    body.in-mode #panel .win {
+      --cream: #1c1926; --paper: #272233; --bone: #2f2a3d; --ink: #ece4d4; --muted: #aaa2bb; --line: #4a4358;
+      --blue: #4b6f96; --blue-d: #9dbbdc; --sun: #d6b254;
+      --mi-ink: var(--ink); --mi-muted: var(--muted); --mi-paper: var(--paper); --mi-cream: var(--cream); --mi-blue: var(--blue); --mi-sun: var(--sun);
+      --pop: none;
+      color: var(--ink); background: rgba(22, 19, 30, .84); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+      border: 1px solid rgba(214, 178, 84, .5); border-radius: 18px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 24px 60px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06); }
+    body.in-mode #panel .win-h { background: transparent; color: #d6b254; border-bottom: 1px solid rgba(236, 228, 212, .1); }
+    body.in-mode #panel .win :is(.primary, .ghost, .danger, .row button, .conf-b button, .opt, .mi-btn) {
+      border: 1px solid rgba(236, 228, 212, .18); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+    body.in-mode #panel .win :is(.ghost, .row button, .conf-b button, .opt, .mi-btn):not(.primary):not(.ms-lt) { background: rgba(255, 255, 255, .06); color: var(--ink); }
+    body.in-mode #panel .win :is(.ghost, .row button, .conf-b button, .opt, .mi-btn):not(.primary):not(:disabled):hover { background: rgba(255, 255, 255, .12); }
+    body.in-mode #panel .win :is(.opt.on, button.on[aria-pressed="true"]) { background: rgba(75, 111, 150, .5); border-color: #9dbbdc; }
+    body.in-mode #panel .win :is(.primary, .row button.primary, .mi-btn.go) { background: linear-gradient(#e2c26a, #c99f3e); color: #1d1a26; border-color: #f0d68a; }
+    body.in-mode #panel .win .primary:hover:not(:disabled) { background: linear-gradient(#ecd07e, #d6ad4c); }
+    body.in-mode #panel .win .conf-b button[data-c="2"]:not(:disabled) { background: rgba(214, 178, 84, .3); }
+    body.in-mode #panel .win :is(.primary, .ghost, .danger, .row button, .conf-b button):active:not(:disabled) { box-shadow: none; }
+    body.in-mode #panel .win a { color: #9dbbdc; }
+    body.in-mode #panel .win :is(.pop-dock, .sp-tray, .conf) { border-top-color: rgba(236, 228, 212, .14); }
+    /* A pale box a mode painted itself: the old palette back inside it. */
+    body.in-mode #panel .win .ms-lt { --cream: #d6cdb9; --paper: #c7bca4; --bone: #e2dbcb; --ink: #17131f; --muted: #554c5e; --line: #9a8f78;
+      --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e; }
+    body.in-mode #panel .win .ms-lt-c { color: #17131f; }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }
     body.in-mode #panel .win-h:not(:has(> :not(span:first-child, .x))) { display: none; }
     body.in-mode #screen-title .tg-menu { visibility: hidden; }

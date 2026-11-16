@@ -57,7 +57,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       check(!back.active && back.bar && back.panel && !back.cls, `${w}px ${id}: Home leaves and the title is back`);
     }
     // Mid-question, Home is Stop for now.
-    await page.evaluate(() => { SD.modeStage.enter(SD.modes.get('ic')); SD.modes.ask(SD.modes.pick({ n: 1 }).items[0].q, { onStop: () => { window.__stopped = 1; SD.ui.closePanel(); } }); });
+    await page.evaluate(() => { SD.modeStage.enter(SD.modes.get('ic')); SD.modes.ask((it => typeof it.q === 'string' ? SD.exam.find(it.q) : it.q)(SD.modes.pick({ n: 1 }).items[0]), { onStop: () => { window.__stopped = 1; SD.ui.closePanel(); } }); });
     await page.waitForSelector('#md-stop');
     await page.click('#ms-home');
     await page.waitForTimeout(700);
