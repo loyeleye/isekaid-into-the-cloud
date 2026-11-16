@@ -86,6 +86,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { stage: document.body.dataset.stage, w: w.width / innerWidth, top: w.top - b.bottom, bottom: innerHeight - w.bottom }; });
   check(fill.stage === 'hunt' && fill.w > .99 && Math.abs(fill.top) < 2 && fill.bottom < 2, `no window box: the hunt fills the screen under the bar (${Math.round(fill.w * 100)}% wide)`);
   await shot('plan');
+  const scene = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll('#panel .hb-place')];
+    return { n: tiles.length, pics: tiles.every(t => t.querySelector('.hb-pic img[src*="place-"][aria-hidden="true"], .hb-pic.noimg .hb-emo')),
+      mon: !!document.querySelector('#panel .hb-place[data-tile="queue"] .hb-spr.hb-stand'), roads: document.querySelectorAll('#panel .hb-road').length,
+      arrows: /↓/.test(document.querySelector('#panel .hb-row').textContent) };
+  });
+  check(scene.n === 3 && scene.pics && scene.mon && scene.roads === 2 && !scene.arrows, 'the board is a street: each tile a place with its picture (or emoji), the monster standing in the queue, roads between, no arrows');
 
   // A look-alike first: the longer visibility timeout.
   await card('vislong');
@@ -164,8 +171,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('#hb-deploy');
   await page.click('#hb-deploy');
   // Read the stamp and the bucket on the same frame: the run keeps redrawing.
-  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket'); }, null, { timeout: 5000 }).then(() => true, () => false);
-  check(gate, 'the gate: marbles in the bucket and a 429 stamp');
+  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket') && !!p.querySelector('.hb-road .hb-mv.back') && !!p.querySelector('.hb-say[aria-live]') && !p.querySelector('.hb-log'); }, null, { timeout: 5000 }).then(() => true, () => false);
+  check(gate, 'the gate: marbles in the bucket, a 429 stamp, crates bouncing back up the road, and one Bru line instead of a log');
   await shot('gate-run');
   await noHScroll('run');
   await page.evaluate(() => { const k = document.querySelector('#hb-skip'); if (k) k.click(); });   // the run may have ended already
