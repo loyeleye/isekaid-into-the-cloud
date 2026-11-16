@@ -64,9 +64,12 @@
     failed: 'smug', callReal: 'smug', boardHim: 'smug', lost: 'smug', hisPick: 'ledger', myPick: 'hover', bill: 'ledger', billNone: 'ledger',
     rack: 'hover', sudden: 'hover', resume: 'lay' };
   const revealed = () => { const c6 = sv() && sv().c6; return !!(c6 && c6.w && c6.w.x && c6.w.x.reveal); };
+  // Painted poses (Ladi's Sogni renders) as they arrive; until a pose is painted he holds the painted 'lay' pose, so
+  // the big figure never switches between pixel and painted art mid-scene. The reactions are animation on top.
+  const PAINTED = new Set(['lay']);
   const kage = t => {
     const k = Object.keys(SAY).find(x => SAY[x] === t);
-    if (!revealed() && k && POSE[k]) return `assets/img/table/kage-${POSE[k]}.webp`;
+    if (!revealed()) return `assets/img/table/kage-${k && PAINTED.has(POSE[k]) ? POSE[k] : 'lay'}.webp`;
     return `assets/img/portraits/kagemaru-${revealed() ? 'neutral' : 'gloved'}.webp`;
   };
   const teachLine = (s, key) => { const t = T.teach(s, key); return t ? `<p class="ct-teach" role="status">${esc(t)}</p>` : ''; };
@@ -538,7 +541,7 @@
     /* Upper half: Kagemaru behind the counter, his bubble, the job card */
     .w-up { position: relative; z-index: 1; min-height: 170px; }
     .w-kage { position: absolute; left: 50%; bottom: -6px; height: min(100%, 440px); aspect-ratio: 1; transform: translateX(-50%); transform-origin: 50% 100%; transition: transform .5s ease; z-index: 1; }
-    .w-kage img { width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(0 12px 18px #000); transform-origin: 50% 100%; animation: w-breathe 3.6s ease-in-out infinite; }
+    .w-kage img { width: 100%; height: 100%; image-rendering: auto; filter: drop-shadow(0 12px 18px #000); transform-origin: 50% 100%; animation: w-breathe 3.6s ease-in-out infinite; }
     @keyframes w-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.03); } }
     .w-kage.lean0 { transform: translateX(-56%) rotate(-3deg); } .w-kage.lean2 { transform: translateX(-44%) rotate(3deg); } .w-kage.lean1 { transform: translateX(-50%) translateY(4%) scale(1.03); }
     .w-kage.react img { animation: w-react .55s ease-out, w-breathe 3.6s ease-in-out .55s infinite; }
