@@ -100,6 +100,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('[data-mode="draft"]');
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: it opens on the night\'s jobs');
   check(await page.$$eval('.rn-job', x => x.length) === 5 && /Grand Opening/.test(await txt('.rn-jobs')), 'night 1: five jobs, the Grand Opening in view');
+  const edge = () => page.evaluate(() => { const w = document.querySelector('#panel .win').getBoundingClientRect(); return Math.round(w.left) === 0 && Math.round(w.width) === innerWidth; });
+  check(await edge(), 'edge to edge: no window box, the sheet fills the screen\'s width');
   await noHScroll('board'); await shot('board');
 
   // ---- Job 1: the lunch rush (D = N). All at once turns people away; rolling with additional batch passes. ----
@@ -195,6 +197,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Snapshot isn't supported/.test(await txt('.rn-refused')), 'Snapshot on a DynamoDB table is refused');
   check(await play({ 'cfn:ledger': 'Retain' }, true), 'Retain keeps the ledger');
   await noHScroll('office'); await shot('office');
+
+  // ---- A wide screen: still edge to edge, Seymour's two runs side by side ----
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.click('#rn-next'); if ((await st()).phase === 'board') await page.click('#rn-go');
+  check(await edge(), 'edge to edge at 1280px');
+  await page.click('[data-k="cfn:well"][data-v="Retain"]').catch(() => {});
+  await page.click('#rn-run'); if (await page.$('#rn-skip')) await page.click('#rn-skip');
+  await page.evaluate(() => { const s = SD.state.save.reno; s.jobs[s.at].plans = []; });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => SD.state.save.reno && SD.renoUi.draw());
+  await shot('wide');
+  await page.setViewportSize({ width: 375, height: 667 });
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
