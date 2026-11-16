@@ -34,7 +34,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const r = await page.evaluate(() => {
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
+      // The street inside .hs-view is a painted panorama that pans sideways on a phone: the view itself must fit.
       document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => {
+        // So does the hand under it, which scrolls sideways as one strip of cards.
+        if ((el.closest('.hs-view') && !el.classList.contains('hs-view')) || (el.closest('.hb-hand') && !el.classList.contains('hb-hand'))) return;
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });
@@ -43,6 +46,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check(!r.length, `no horizontal scroll at ${W}px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
   const text = () => page.textContent('#panel');
+  const shotAt = async (name, sel) => { if (!SHOTS) return; await page.evaluate(q => { const e = document.querySelector(q); if (e) e.scrollIntoView({ block: 'start' }); }, sel); await shot(name); };
   const card = id => page.click(`#panel [data-card="${id}"]`);
   const deploy = async () => { await page.click('#hb-deploy'); await page.waitForSelector('#hb-next', { timeout: 20000 }); };
 
@@ -53,6 +57,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
   check(await page.evaluate(() => !!(SD.huntCore && SD.huntBoard && SD.awsSim && SD.awsSim.bucket)), 'the boards and their rules load');
+  // In the page, with every other mode's rules loaded too (js/aws-sim-ops.js has its own AS.partitionOf): sharding
+  // still spreads the hydra's writes, so its boards stay winnable.
+  check(await page.evaluate(() => { const HC = SD.huntCore, b = HC.board('h-teach'); return [1, 2, 3].every(seed => { const r = HC.run(b, seed, ['shard'], b.lamp); return r.won && r.frames.every(f => !f.load || f.load.every(n => Number.isFinite(n))); }); }),
+    'in the page, Write sharding still catches the Hot Key Hydra (no NaN partitions)');
 
   // One SQS poster with a twin.
   const poster = await page.evaluate(() => {
@@ -86,6 +94,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { stage: document.body.dataset.stage, w: w.width / innerWidth, top: w.top - b.bottom, bottom: innerHeight - w.bottom }; });
   check(fill.stage === 'hunt' && fill.w > .99 && Math.abs(fill.top) < 2 && fill.bottom < 2, `no window box: the hunt fills the screen under the bar (${Math.round(fill.w * 100)}% wide)`);
   await shot('plan');
+  // The hand reads as items: each card has a drawn icon (or its tile's emoji until one exists), its name, its AWS
+  // setting on one small line, its cost in coins and its tile's marker.
+  await page.waitForFunction(() => document.querySelector('#panel [data-card="dlq"] .hb-ic.img'), null, { timeout: 3000 }).catch(() => {});
+  const hand = await page.evaluate(() => [...document.querySelectorAll('#panel [data-card]')].map(b => ({ id: b.dataset.card, img: b.querySelector('.hb-ic.img img') ? 1 : 0,
+    rune: !b.querySelector('.hb-ic img') && getComputedStyle(b.querySelector('.hb-icf')).visibility === 'visible' ? 1 : 0,
+    cfg: (b.querySelector('.hb-cfg') || {}).textContent || '', cost: !!b.querySelector('.hb-cost'), where: !!b.querySelector('.hb-where') })));
+  check(hand.every(h => (h.img || h.rune) && h.cfg && h.cost && h.where), 'each card shows an icon (or its tile\'s emoji), its AWS setting, its cost and where it goes');
+  check(hand.find(h => h.id === 'dlq').img && /maxReceiveCount 3/.test(hand.find(h => h.id === 'dlq').cfg), 'the DLQ card has its drawn icon, and its setting stays visible');
+  await shotAt('hand', '#panel .hb-r');
+  const scene = await page.evaluate(() => {
+    const spots = [...document.querySelectorAll('#panel .hs-layer .hs-spot')];
+    return { n: spots.length, bg: !!document.querySelector('#panel .hs-street img.hs-bg[src*="street"]'), bru: !!document.querySelector('#panel .hs-bru[data-pose="front"] img.hs-body[src*="body-front"]'),
+      mon: !!document.querySelector('#panel .hs-spot[data-tile="queue"] .hs-mon .hb-spr.hb-stand'), road: !!document.querySelector('#panel .hs-road'),
+      arrows: /↓/.test(document.querySelector('#panel .hs-row').textContent) };
+  });
+  check(scene.n === 3 && scene.bg && scene.bru && scene.mon && scene.road && !scene.arrows, 'the board is a live street: one painted street, Bru standing in it facing you, the monster at the queue, a road, no arrows');
 
   // A look-alike first: the longer visibility timeout.
   await card('vislong');
@@ -95,7 +119,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/THE FIX DIDN'T HOLD/.test(a1) && /not contained/.test(a1) && /still comes back, just less often/.test(a1), 'it didn\'t hold: the monster isn\'t contained, and the card says what it really does');
   check(/Change the plan/.test(a1) && /2 deploys left/.test(a1), 'a re-plan is offered, with the deploys left');
   await noHScroll('after');
+  check(!!(await page.$('#panel .hb-back.miss .hb-badge')) && !(await page.$('#panel .hb-back.fix')), 'the card strip marks the look-alike ✗: not part of the fix');
+  check(!!(await page.$('#panel .hb-res.bad .hb-escf .hb-spr')), 'the monster that got away is drawn escaping');
   await shot('after-miss');
+  await shotAt('after-miss-cards', '#panel .hb-results');
   const oil1 = await page.evaluate(() => SD.state.save.hunt.mons[0].sim.oil);
   check(oil1 < 10, 'the oil it burned stays burned (' + oil1 + ' of 10 left)');
 
@@ -117,7 +144,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const a2 = await text();
   check(/CAUGHT ★☆☆/.test(a2) && /dead-letter jar after its 3rd failed receive/.test(a2), 'the DLQ holds: caught, 1 star on a second deploy');
   check(/Debrief: why did that work\?/.test(a2), 'then the Debrief');
+  check(!!(await page.$('#panel .hb-back.fix .hb-badge')) && !!(await page.$('#panel .hb-res.ok .hb-jarf .hb-spr')), 'caught: the monster is in a jar, and the DLQ card is marked ✓');
   await shot('caught');
+  await shotAt('caught-cards', '#panel .hb-results');
   await page.click('#hb-next');
   await page.waitForSelector('#panel .win.quiz');
   check(/Debrief: why did that work/.test(await page.textContent('#panel .q-ctx')), 'the Debrief is on the exam screen, and says so');
@@ -162,10 +191,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => { SD.huntBoard.STEP_MS = 60; });
   await page.click('[data-yb="g-teach"]');
   await page.waitForSelector('#hb-deploy');
+  await shotAt('hand-gate', '#panel .hb-r');
   await page.click('#hb-deploy');
   // Read the stamp and the bucket on the same frame: the run keeps redrawing.
-  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket'); }, null, { timeout: 5000 }).then(() => true, () => false);
-  check(gate, 'the gate: marbles in the bucket and a 429 stamp');
+  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket') && !!p.querySelector('.hs-road .hs-mv.back') && !!p.querySelector('.hb-say[aria-live]') && !p.querySelector('.hb-log') && !!p.querySelector('.hs-bru[data-pose="side"]'); }, null, { timeout: 5000 }).then(() => true, () => false);
+  check(gate, 'the gate: marbles in the bucket, a 429 stamp, crates bouncing back up the road, one Bru line instead of a log, and Bru turned to watch');
   await shot('gate-run');
   await noHScroll('run');
   await page.evaluate(() => { const k = document.querySelector('#hb-skip'); if (k) k.click(); });   // the run may have ended already
