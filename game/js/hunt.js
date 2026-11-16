@@ -215,19 +215,31 @@
       list.push({ id: w.id, name: H.name(q), steps: pl.steps, k: 0, qs: pl.qs, res: {}, pin: null, out: null, wounded: !!m.wounded, pts: 0 });
       used.add(w.id); Object.values(pl.qs).forEach(x => used.add(x));
     });
-    // Practice-test sightings wait on the tower stairs as optional detours (one per fork at most).
-    const rares = H.wildOpen().map(x => ({ t: x.t }));
-    return (sv().hunt = { day: today(), mons: list, i: 0, phase: 'fork', stamina: H.STAMINA, forks: genForks(list.length, rares, Math.random),
-      pts: 0, right: 0, wrong: 0, sureMiss: 0, tally: newTally(), done: false });
+    // Practice-test sightings fill the empty slots as wild monsters: an unseen question on that topic.
+    H.wildOpen().forEach(s => {
+      if (list.length >= H.SIZE) return;
+      const q = pickWild(s.p, used);
+      if (!q) { s.done = true; return; }
+      used.add(q.id);
+      const p = SD.topicDrill.preset(s.p);
+      list.push({ wild: s.p, sid: s.t, id: null, name: 'WILD · ' + (p ? p.name.toUpperCase() : 'SIGHTING'), steps: ['fight', 'pin'], k: 0, qs: { fight: q.id }, res: {}, pin: null, out: null, pts: 0 });
+    });
+    return (sv().hunt = { v: 5, day: today(), mons: list, i: 0, phase: 'pick', pts: 0, right: 0, wrong: 0, sureMiss: 0, tally: newTally(), done: false });
   }
   H._newHunt = newHunt;   // for tools/hunt_check.js
-  H.current = () => { const h = sv().hunt; return h && Array.isArray(h.mons) && Array.isArray(h.forks) && !h.done ? h : null; };
+  H.current = function () {
+    const h = sv().hunt;
+    if (!h || !Array.isArray(h.mons) || h.done) return null;
+    // A hunt saved on the v4 trail carries on as a battle: the forks and stamina are dropped.
+    if (h.v !== 5) { h.v = 5; delete h.forks; delete h.stamina; if (h.phase !== 'mon') h.phase = 'pick'; }
+    return h;
+  };
   // For the mode picker: where a hunt in progress stands.
   H.status = function () {
     const h = H.current();
     if (!h) return '';
     const m = h.phase === 'mon' ? h.mons[h.i] : null;
-    return m ? `Resume · monster ${h.i + 1} of ${h.mons.length}, ${STEP_NAME[m.steps[m.k]] || ''}` : `Resume · on the trail, ${h.mons.filter(x => x.out).length} of ${h.mons.length} hunted`;
+    return m ? `Resume · battling ${m.name}, ${STEP_NAME[m.steps[m.k]] || 'retry'}` : `Resume · ${h.mons.filter(x => x.out).length} of ${h.mons.length} battled`;
   };
 
   // ---- Bru's lines (barks never state a number; the joke lands on the wrong answer, never on a person) ----
@@ -241,7 +253,7 @@
     escaped: ['EHHH?! It was right there! ...Fine. I\'ll walk the scrap field tonight and check the doors myself.', '¡Ay! It slipped the marker. It\'ll be back, and so will you.'],
     wildOk: '¡Bien! Driven off before it could put down roots.',
     wildBad: 'It got away into the scrap field. It\'s on the Wall now, with the others.',
-    trail: 'Tracks lead out past the delete marker. Stay close. Things in here have versions.'
+    pick: 'They\'re out past the delete marker. Pick your fight. Things in here have versions.'
   };
   const PIP = ['Pip: "Sorry to be a bother. Why did that work?"', 'Pip: "I wrote down nothing, because I have no notebook. You should, though."', 'Pip: "So it wasn\'t luck. I hate luck."'];
 
@@ -255,9 +267,30 @@
     if (!h || h.querySelector('#hn-stop') || !document.querySelector('#panel .win[data-title="' + TITLE + '"]')) return;
     const x = sv().hunt, el = document.createElement('span');
     el.className = 'td-qbar';
-    el.innerHTML = `<b class="td-prog">${Math.min(x.i + 1, x.mons.length)} / ${x.mons.length}</b><button class="td-stop" id="hn-stop">Stop for now</button>`;
+    el.innerHTML = `<b class="td-prog">${Math.min(x.mons.filter(m => m.out).length + 1, x.mons.length)} / ${x.mons.length}</b><button class="td-stop" id="hn-stop">Stop for now</button>`;
     h.appendChild(el);
     el.querySelector('#hn-stop').onclick = H.stop;
+  }
+  // The monster's health bar on every encounter: 3 pips (2 for a wild one). Each right Track, Fight or Pin it down
+  // lands a hit; a wounded monster comes back with Track's pip already gone. A miss is a hit back on you (the stake)
+  // and it flees at the end of the battle with health left.
+  const maxHP = m => (m.wild ? 2 : 3);
+  const hpOf = m => m.steps.length - m.steps.filter(s => m.res[s] && m.res[s].ok).length;
+  H._hpOf = hpOf;
+  function hue(m) { let x = 0; for (const c of String(m.name)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; }
+  function hpHtml(m, cls) {
+    const hp = hpOf(m), mx = maxHP(m);
+    const pips = Array.from({ length: mx }, (_, k) => `<span class="hn-pipd${k < hp ? ' on' : ''}" aria-hidden="true"></span>`).join('');
+    return `<div class="hn-hp${cls ? ' ' + cls : ''}" role="img" aria-label="${esc(m.name)}: health ${hp} of ${mx}">
+      <span class="hn-cr" style="--hn-h:${hue(m)}" aria-hidden="true"><i></i><i></i></span>
+      <span class="hn-hpn"><b>${esc(m.name)}</b><span class="hn-pips">${pips}<span class="small">HP ${hp}/${mx}</span></span></span></div>`;
+  }
+  function hpBar() {
+    if (!live || !live.m) return;
+    const w = document.querySelector('#panel .win.quiz');
+    if (!w || w.querySelector('.hn-hp')) return;
+    const body = w.querySelector('.q-ctx');
+    if (body) body.insertAdjacentHTML('beforebegin', hpHtml(live.m, 'hn-inq'));
   }
   function record(h, m, step, ok, conf, pts) {
     m.res[step] = { ok: ok ? 1 : 0, conf };
@@ -286,12 +319,12 @@
     const q = withConcept(find(m.qs[step]));
     if (!q) { m.k++; S.persist(); return; }
     S.seeConcept(q.c);
-    live.q = q; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
+    live.q = q; live.m = m; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
     // With the shared shell, its own Stop for now (opts.onStop) runs while a question is up; hunt.js's runs on Pin it
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.i + 1} / ${h.mons.length}` },
+    const r = await shell().ask(q, Object.assign({ title: TITLE, context: ctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
@@ -317,10 +350,10 @@
     const q = withConcept(find(m.retry));
     if (!q) { delete m.retry; S.persist(); return; }
     S.seeConcept(q.c);
-    live.q = q; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
+    live.q = q; live.m = m; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: `${m.name} · Retry: same idea, a new scenario`, progress: `${h.i + 1} / ${h.mons.length}` },
+    const r = await shell().ask(q, Object.assign({ title: TITLE, context: `${m.name} hit back! Retry: same idea, a new scenario`, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       shared ? { onStop: () => {} } : {}, live.opts));
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
@@ -333,174 +366,33 @@
     S.persist();
     if (r.stopped) stopHunt();
   }
-  // ---- The trail with forks (build spec v4) ----
-  // Before each monster, and once more on the way home, the trail forks: follow the tracks (free), or take a side path
-  // that costs stamina. Stamina pays for detours only, and what's left at dusk scores a point each, so a detour has to
-  // earn its keep. At 0 the hunt ends where you stand, and monsters you haven't reached wait for tomorrow.
-  //   camp      rest (stamina back) or reread a bestiary page
-  //   sighting  a due question from another topic; right pays a bounty and a trophy (the first trophy is Bru's Compass)
-  //   rare      a monster from a practice-test sighting, down the tower stairs: an unseen question on that topic;
-  //             caught, it's a bestiary page and a bounty; missed, it goes on the Wall
-  // The fork you stand at shows its side paths; later forks are fog, except the next one with Bru's Compass.
-  H.STAMINA = 10;
-  H.COST = { camp: 2, sighting: 3, rare: 4 };
-  H.REST = 3;
-  H.BOUNTY = { sighting: 4, rare: 5 };
-  const SIDE = {
-    camp: ['⛺', 'Camp', 'Rest, or reread a bestiary page.'],
-    sighting: ['👣', 'Fresh prints', 'A due question from another topic. Right pays a bounty and a trophy.'],
-    rare: ['🌀', 'Tower stairs', 'A rare monster from your practice test: a question you\'ve never seen.']
-  };
-  const gear = () => (sv().huntGear = sv().huntGear || { trophies: 0, compass: false });
-  // forks[k]: { sides: [kind...], took, done, sid }. Fork k stands before monster k; fork n is the way home.
-  function genForks(n, rares, rng) {
-    const out = [];
-    for (let k = 0; k <= n; k++) {
-      const sides = [];
-      if (rares.length && (k > 0 || n === 0)) sides.push('rare');
-      sides.push(rng() < 0.5 ? 'camp' : 'sighting');
-      if (sides.length < 2 && rng() < 0.5) sides.push(sides[0] === 'camp' ? 'sighting' : 'camp');
-      const f = { sides, took: null, done: false };
-      if (sides[0] === 'rare') f.sid = rares.shift().t;
-      out.push(f);
-    }
-    return out;
-  }
-  H._genForks = genForks;
-  const fogged = (h, k) => k > h.i + (gear().compass ? 1 : 0);
-  function forkScreen(h) {
+  // ---- Choosing the next battle (Ladi's pick, Nov 16: a turn-based monster battle) ----
+  // Between battles you choose which monster on the board to fight next. Each battle is the same three encounters,
+  // with the monster's health bar on every one. No map, no stamina: the choice is which fight, and how sure you are.
+  function pickScreen(h) {
     return new Promise(done => {
-      const n = h.mons.length, f = h.forks[h.i], t0 = Date.now();
-      const sideLine = (k) => {
-        const g = h.forks[k];
-        if (!g) return '';
-        if (fogged(h, k)) return '<span class="muted small">A fork in the fog</span>';
-        return `<span class="small">${g.sides.map(x => `${SIDE[x][0]} ${esc(SIDE[x][1])}${g.took === x ? ' (taken)' : ''}`).join(' · ')}</span>`;
-      };
-      const rows = [];
-      for (let k = 0; k <= n; k++) {
-        const here = k === h.i;
-        rows.push(`<li class="hn-trail hn-fork${k < h.i ? ' done' : ''}${here ? ' tgt' : ''}"><span class="hn-ico" aria-hidden="true">${here ? '▸' : k < h.i ? '✓' : '⑂'}</span><span><b>${k === n ? 'The way home' : 'Fork'}</b>${here ? ' <span class="small">(you are here)</span>' : ''}<br>${sideLine(k)}</span></li>`);
-        if (k < n) {
-          const x = h.mons[k];
-          rows.push(`<li class="hn-trail${x.out ? ' done' : ''}"><span class="hn-ico" aria-hidden="true">${x.out ? (OUT[x.out] || OUT.escaped)[0] : '○'}</span><span><b>${esc(x.name)}</b><br><span class="small">${x.out ? esc((OUT[x.out] || OUT.escaped)[1]) : x.wounded ? '◐ Wounded: Track skipped' : 'Bounty'}</span></span></li>`);
-        }
-      }
-      const next = h.i < n ? h.mons[h.i] : null;
-      const sides = f.took ? [] : f.sides.map(x => {
-        const c = H.COST[x], can = h.stamina >= c;
-        return `<button class="opt hn-route" data-side="${x}" ${can ? '' : 'disabled'}><b>${SIDE[x][0]} ${esc(SIDE[x][1])} · −${c} stamina</b><span class="muted small">${esc(SIDE[x][2])}${can ? '' : ' Not enough stamina.'}</span></button>`;
+      const t0 = Date.now();
+      const cards = h.mons.map((m, i) => {
+        const o = m.out ? (OUT[m.out] || OUT.escaped) : null;
+        return `<li class="hn-bt${m.out ? ' done' : ''}">${hpHtml(m)}
+          <span class="small">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded ? '◐ Wounded: Track\'s pip is already gone.' : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
+          ${m.out ? '' : `<button class="opt hn-fight" data-mon="${i}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
       }).join('');
-      const g = gear();
-      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head">${esc(BRU.trail)}</p>`}
-        <p class="hn-lamp"><b>⚡ ${h.stamina} stamina</b> · <span class="muted small">detours use it; each point left at dusk scores +1</span>${g.trophies ? ` · <b>🏆 ${g.trophies}</b>` : ''}${g.compass ? ' · 🧭 Bru\'s Compass' : ''} · <b>${sgn(h.pts)} pts</b></p>
-        <div class="opts"><button class="primary hn-main" id="hn-follow">${next ? `Follow the tracks to ${esc(next.name)}` : 'Head back to camp'}</button>${sides}</div>
-        <details class="hn-list" open><summary class="small">Map as list</summary><ol class="hn-map" aria-label="The trail, as a list"><li class="hn-trail done"><span class="hn-ico" aria-hidden="true">⛺</span><span><b>Scrap field gate</b><br><span class="small">Free Cloud camp</span></span></li>${rows.join('')}</ol></details>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
-      const spent = () => { h.mapMs = (h.mapMs | 0) + (Date.now() - t0); h.moves = (h.moves | 0) + 1; };
-      b.querySelector('#hn-follow').onclick = () => {
-        spent();
-        if (next) { next.arrived = 1; h.phase = 'mon'; } else h.ended = 'home';
-        S.persist(); done();
-      };
-      b.querySelectorAll('[data-side]').forEach(el => el.onclick = () => {
-        spent();
-        f.took = el.dataset.side; h.stamina -= H.COST[f.took];
+      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head">${esc(BRU.pick)}</p>`}
+        <p class="hn-lamp"><b>${sgn(h.pts)} pts</b> · <span class="muted small">${h.mons.filter(m => m.out).length} of ${h.mons.length} battled. Land a hit with each right answer.</span></p>
+        <ul class="hn-bts" aria-label="Tonight's monsters">${cards}</ul>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
+      b.querySelectorAll('[data-mon]').forEach(el => el.onclick = () => {
+        h.mapMs = (h.mapMs | 0) + (Date.now() - t0); h.moves = (h.moves | 0) + 1;
+        h.i = +el.dataset.mon; h.mons[h.i].arrived = 1; h.phase = 'mon';
         S.persist(); done();
       });
     });
   }
-  // A due question from a topic this hunt isn't on: the spaced review you'd owe anyway, met on the trail.
-  function dueElsewhere(h) {
-    const T = TD(), topics = new Set(h.mons.map(m => topicOf(find(m.qs.track || m.qs.fight || m.id))));
-    const used = new Set(h.mons.flatMap(m => Object.values(m.qs)).concat(h.asked || []));
-    const due = T && T.dueList ? T.dueList() : [];
-    const pool = [];
-    due.forEach(c => S.questionsFor(c).forEach(q => {
-      if (q.id && (q.type === 'mc' || q.type === 'multi') && E().allowed(q) && !topics.has(topicOf(q)) && !used.has(q.id)) pool.push(Object.assign({}, q, { c }));
-    }));
-    if (!pool.length) return null;
-    const ver = pool.filter(verified);
-    return (ver.length ? ver : pool).slice().sort((a, b) => lastAsked(a) - lastAsked(b))[0];
-  }
-  H._dueElsewhere = dueElsewhere;   // for tools/hunt_check.js
-  async function detour(h, f, tok) {
-    const kind = f.took;
-    if (kind === 'camp') {
-      await campIt(h);
-      f.done = true; h.since = h.rested ? `You rested at the camp: +${H.REST} stamina.` : 'You reread a bestiary page at the camp.';
-      return afterDetour(h);
-    }
-    let q = null, s = null;
-    if (kind === 'sighting') q = dueElsewhere(h);
-    else { s = sightings().find(x => x.t === f.sid); q = s ? withConcept(pickWild(s.p, new Set(h.asked || []))) : null; }
-    if (!q) {
-      h.stamina += H.COST[kind]; f.done = true;
-      h.since = kind === 'sighting' ? 'The prints went cold: nothing due elsewhere. Stamina back.' : 'The stairs were empty tonight. Stamina back.';
-      if (s) s.done = true;
-      S.persist();
-      return;
-    }
-    S.seeConcept(q.c);
-    h.asked = (h.asked || []).concat(q.id);
-    live.q = q; live.t0 = Date.now(); live.opts = { poster: null, tally: h.tally, noWall: false };
-    const shared = !!(SD.modes && SD.modes.ask);
-    live.inAsk = shared;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: `${SIDE[kind][0]} ${SIDE[kind][1]} · ${H.name(q)}`, progress: 'Detour' },
-      shared ? { onStop: () => {} } : {}, live.opts));
-    if (live) live.inAsk = false;
-    if (!live || live.tok !== tok || !r || r.closed) return;
-    if (r.stopped && !r.committed) return stopHunt();
-    let pts = r.pts != null ? r.pts : stake(r.ok, r.conf);
-    if (r.ok) { pts += H.BOUNTY[kind]; h.right++; } else h.wrong++;
-    if (!r.ok && r.conf === 2) h.sureMiss++;
-    h.pts += pts;
-    const g = gear();
-    if (kind === 'sighting') {
-      if (r.ok) { g.trophies++; if (!g.compass) g.compass = true; }
-      h.since = r.ok ? `Fresh prints: right, ${sgn(pts)} pts and a trophy${g.trophies === 1 ? ': Bru\'s Compass. You\'ll see one more fork ahead' : ''}.` : `Fresh prints: missed, ${sgn(pts)} pts.`;
-    } else {
-      if (s) s.done = true;
-      if (r.ok) beasts().push({ id: q.id, name: 'RARE · ' + H.name(q), on: Date.now(), twin: q.id, lesson: null, era: (SD.topicDrill && SD.topicDrill.record(q) || {}).era || null, why: '', rare: 1 });
-      else if (TD().wallAdd) TD().wallAdd(q.id);
-      h.since = r.ok ? `Rare monster caught: a bestiary page and ${sgn(pts)} pts.` : `The rare one got away. It's on the Wall now. ${sgn(pts)} pts.`;
-      h.rare = (h.rare | 0) + (r.ok ? 1 : 0);
-    }
-    f.done = true;
-    S.persist();
-    if (r.stopped) return stopHunt();
-    afterDetour(h);
-  }
-  // Out of stamina: the hunt ends where you stand. Monsters not reached wait for tomorrow.
-  function afterDetour(h) {
-    if (h.stamina > 0) return;
-    h.ended = 'tired';
-    h.mons.filter(m => !m.out && !m.arrived && m.id).forEach(m => { (mons()[m.id] = mons()[m.id] || {}).last = today(); });
-    S.persist();
-  }
-  // The camp: rest (stamina back) or reread a bestiary page (a spaced look at a past lesson). One choice, then on.
-  function campIt(h) {
-    return new Promise(done => {
-      const cards = beasts().filter(c => c.lesson);
-      const card = cards.length ? cards.slice().sort((a, b) => (a.read || 0) - (b.read || 0))[0] : null;
-      const b = U.panel(`<p class="td-head">Bru left the fire going. "I don't trust a heartbeat I can't see, so sit where I can see you."</p>
-        <div class="opts"><button class="opt hn-route" id="hn-rest"><b>⛺ Rest · +${H.REST} stamina</b><span class="muted small">You have ${h.stamina}.</span></button>
-        <button class="opt hn-route" id="hn-read" ${card ? '' : 'disabled'}><b>📖 Reread a bestiary page</b><span class="muted small">${card ? `${esc(card.name)}: what that capture taught.` : 'No pages yet. Catch one first.'}</span></button></div>`, { title: 'CAMP', noClose: true, cls: 'hn-mapwin' });
-      b.querySelector('#hn-rest').onclick = () => { h.rested = 1; h.stamina += H.REST; S.persist(); done(); };
-      const rd = b.querySelector('#hn-read');
-      if (rd && card) rd.onclick = () => {
-        h.rested = 0; card.read = Date.now(); S.persist();
-        const c = U.panel(`<p class="td-head">${esc(card.name)}</p>
-          <p class="small"><b>Why not:</b> ${esc(card.lesson.opt)}</p><p class="small hn-why">${esc(card.lesson.no)}</p>
-          ${card.why ? `<p class="small">You told Pip: <i>${esc(card.why)}</i></p>` : ''}
-          <button class="primary" id="hn-on">Back on the trail</button>`, { title: 'CAMP', noClose: true, cls: 'hn-mapwin' });
-        c.querySelector('#hn-on').onclick = done;
-      };
-    });
-  }
 
   // ---- Simulation (tools/modes_sim.js): the same rules with the screens skipped ----
-  // policy: { p, conf: 'guess'|'think'|'sure'|'honest', route: 'near'|'far' }. 60 s per question, 3 s per map action,
-  // 20 s to reread a page. Returns { pts, minutes, mapShare, questions }.
+  // policy: { p, conf: 'guess'|'think'|'sure'|'honest', route: 'near'|'far' }. route is the battle order: near takes the
+  // board's order, far the wounded first. Scoring doesn't depend on order, so it's a tie by design: the real choice is
+  // confidence. 60 s per question, 3 s per pick. Returns { pts, minutes, mapShare, questions }.
   H.sim = async function (policy, rng) {
     rng = rng || Math.random;
     const ans = () => {
@@ -509,30 +401,25 @@
       const conf = policy.conf === 'guess' ? 0 : policy.conf === 'think' ? 1 : policy.conf === 'sure' ? 2 : policy.p < 0.5 ? 0 : policy.p < 2 / 3 ? 1 : 2;
       return { ok, conf, pts: stake(ok, conf) };
     };
-    const n = H.SIZE, forks = genForks(n, rng() < 0.3 ? [{ t: 1 }] : [], rng);
-    let pts = 0, qs = 0, mapS = 0, other = 0, stamina = H.STAMINA, i = 0, compass = false;
-    for (; i <= n; i++) {
-      const f = forks[i];
-      const side = policy.route === 'far' ? f.sides.find(x => stamina >= H.COST[x]) : null;
-      mapS += 3;
-      if (side) {
-        stamina -= H.COST[side];
-        if (side === 'camp') { mapS += 3; if (beasts().length && rng() < 0.5) other += 20; else stamina += H.REST; }
-        else { const r = ans(); qs++; pts += r.pts + (r.ok ? H.BOUNTY[side] : 0); if (r.ok && side === 'sighting') compass = true; }
-        if (stamina <= 0) break;
-        mapS += 3;   // back to the main trail
-      }
-      if (i === n) break;
-      for (const step of ['track', 'fight', 'pin']) {
-        const r = ans(); qs++; pts += r.pts;
-        if (!r.ok && step !== 'pin') { const t = ans(); qs++; pts += t.pts; }
-      }
-    }
-    pts += Math.max(0, stamina);
     const QS = (SD.modes && SD.modes.SIM_Q_SECS) || 60, MS = (SD.modes && SD.modes.SIM_MAP_SECS) || 3;
-    mapS = mapS / 3 * MS;
-    const total = qs * QS + mapS + other;
-    return { pts, minutes: total / 60, mapShare: mapS / total, questions: qs, zero: pts === 0, compass };
+    const one = () => {
+      const ms = Array.from({ length: H.SIZE }, () => (rng() < 0.3 ? ['fight', 'pin'] : ['track', 'fight', 'pin']));
+      if (policy.route === 'far') ms.sort((a, b) => a.length - b.length);
+      let pts = 0, qs = 0, picks = 0;
+      for (const steps of ms) {
+        picks++;
+        for (const step of steps) {
+          const r = ans(); qs++; pts += r.pts;
+          if (!r.ok && step !== 'pin') { const t = ans(); qs++; pts += t.pts; }
+        }
+      }
+      const mapS = picks * MS, total = qs * QS + mapS;
+      return { pts, minutes: total / 60, mapShare: mapS / total, questions: qs };
+    };
+    // Order can't change the score, so a route gap would only be sampling noise: each call averages 16 sessions'
+    // points (the time and map share are the worst of them) to keep that noise under the simulator's 5% tie.
+    const rs = Array.from({ length: 16 }, one), avg = f => rs.reduce((x, r) => x + f(r), 0) / rs.length;
+    return { pts: avg(r => r.pts), minutes: Math.max(...rs.map(r => r.minutes)), mapShare: Math.max(...rs.map(r => r.mapShare)), questions: avg(r => r.questions), zero: avg(r => (r.pts === 0 ? 1 : 0)) > 0.5 };
   };
 
   function stopHunt() {
@@ -561,7 +448,8 @@
     }
     if (m.wild) { const s = sightings().find(x => x.t === m.sid); if (s) s.done = true; }
     h.since = `${(OUT[m.out] || OUT.escaped)[1]}: ${m.name}, ${sgn(m.pts | 0)} pts.`;
-    h.i++; h.phase = 'fork';
+    h.phase = 'pick';
+    if (h.mons.every(x => x.out)) h.ended = 'home';
     S.persist();
     const line = m.out === 'captured' ? rand(BRU.captured) : m.out === 'wounded' ? rand(BRU.wounded) : m.out === 'escaped' ? rand(BRU.escaped) : m.out === 'driven' ? BRU.wildOk : BRU.wildBad;
     U.system(OUT[m.out][1].toUpperCase(), esc(line), m.out === 'captured' || m.out === 'driven' ? 'gold' : m.out === 'wounded' ? '' : 'red', 4000);
@@ -573,7 +461,7 @@
     escaped: ['↺', 'Escaped · back next hunt', 'A miss resets it. Next time it fights with a different twin.'],
     driven: ['✓', 'Driven off', 'A wild one from a practice test, answered right.'],
     gotaway: ['↺', 'Got away · now on the Wall', 'It\'s a poster now, and a monster on the next hunt.'],
-    waiting: ['…', 'Not reached · waits for tomorrow', 'You ran out of stamina before its tracks.']
+    waiting: ['…', 'Not battled · waits for tomorrow', 'You stopped before this one.']
   };
   H.OUT = OUT;
   function addBeast(m) {
@@ -586,13 +474,10 @@
   async function run(h) {
     const tok = {};
     live = { tok, q: null };
-    if (!watcher && window.MutationObserver) { watcher = new MutationObserver(bar); watcher.observe(document.querySelector('#panel'), { childList: true }); }
+    if (!watcher && window.MutationObserver) { watcher = new MutationObserver(() => { bar(); hpBar(); }); watcher.observe(document.querySelector('#panel'), { childList: true, subtree: true }); }
     while (!h.ended) {
-      if (h.phase !== 'mon') {
-        const f = h.forks[h.i];
-        if (f && f.took && !f.done) await detour(h, f, tok);
-        else await forkScreen(h);
-      } else {
+      if (h.phase !== 'mon') await pickScreen(h);
+      else {
         const m = h.mons[h.i];
         if (m.retry) await retryStep(h, m, tok);
         else if (m.k >= m.steps.length) { close(h, m); continue; }
@@ -635,7 +520,7 @@
       let pick = null;
       const T = stakesOf();
       const draw = () => {
-        const h = `<div class="q-ctx">${esc(ctx)}</div>
+        const h = `${hpHtml(m, 'hn-inq')}<div class="q-ctx">${esc(ctx)}</div>
           <p class="q-q hn-pinq">Why doesn't this fit here? Pin the right reason to Bru's poster.</p>
           <blockquote class="hn-opt">${esc(p.opt)}</blockquote>
           ${q ? `<details class="q-recap"><summary><span class="qr-lbl">The scenario</span><span class="qr-peek">${esc(q.q)}</span></summary><div class="qr-body">${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}<p class="q-q">${esc(q.q)}</p></div></details>` : ''}
@@ -667,10 +552,8 @@
     const caught = h.mons.filter(m => m.out === 'captured').length;
     const topics = [...new Set(h.mons.map(m => m.name.split(' · ')[0]))];
     const draft = SD.draft && SD.draft.scaffoldFor ? h.mons.filter(m => m.out === 'captured').map(m => SD.draft.scaffoldFor(m.id)).filter(Boolean) : [];
-    if (h.paid == null) { h.paid = pay('hunt') || ''; h.dusk = Math.max(0, h.stamina | 0); h.pts += h.dusk; S.persist(); }
+    if (h.paid == null) { h.paid = pay('hunt') || ''; S.persist(); }
     const b = U.panel(`<p class="td-big">${h.right} right · ${h.wrong} wrong · ${sgn(h.pts)} pts</p>
-      ${h.dusk ? `<p class="small">⚡ ${h.dusk} stamina left at dusk: ${sgn(h.dusk)} pts.</p>` : ''}
-      ${h.ended === 'tired' ? '<p class="small">Out of stamina: the hunt ended where you stood.</p>' : ''}
       ${h.paid ? `<p class="small">${esc(h.paid)}</p>` : '<p class="muted small">Today\'s pay is already taken: extra practice, all learning.</p>'}
       <ul class="hn-results">${rows}</ul>
       ${draft.map(d => `<p class="small">That capture finishes ${esc(d.building)} in the Quarter.</p>`).join('')}
@@ -698,16 +581,16 @@
     else {
       const M = mons();
       rows = H.board().map(w => { const m = M[w.id] || {}; return { id: w.id, name: H.name(find(w.id)), steps: plan(w.id, m).steps, k: -1, res: {}, wounded: !!m.wounded }; });
+      H.wildOpen().slice(0, Math.max(0, H.SIZE - rows.length)).forEach(s => { const p = SD.topicDrill.preset(s.p); rows.push({ wild: s.p, name: 'WILD · ' + (p ? p.name.toUpperCase() : 'SIGHTING'), steps: ['fight', 'pin'], k: -1, res: {} }); });
     }
     const first = !beasts().length && !(sv().walked && sv().walked.hunt);
     const items = rows.map((m, i) => `<li class="td-poster hn-mon"><span class="td-wanted">${m.wild ? 'SIGHTED' : 'BOUNTY'}</span><b class="td-pn">${esc(m.name)}</b>
       <span class="hn-track">${stepMarks(m)}</span>${m.wounded ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
     const hunted = wall().filter(mine).length - H.board().length;
-    const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} hunted` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : H.wildOpen().length ? 'Walk to the tower stairs' : '';
+    const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : '';
     const b = U.panel(`<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>
       <p class="td-head">${esc(rows.length ? (first ? 'Each poster on your Wall is a monster. Get it right three ways to catch it.' : rand(BRU.board)) : BRU.empty)}</p>
       ${rows.length ? `<ul class="td-wall hn-board">${items}</ul>` : ''}
-      ${H.wildOpen().length ? `<p class="small">🌀 ${H.wildOpen().length === 1 ? 'A rare monster waits' : 'Rare monsters wait'} on the tower stairs: an optional detour on the trail.</p>` : ''}
       ${!cur && hunted > 0 ? `<p class="muted small">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}
       ${go ? `<button class="primary td-main" id="hn-go">${esc(go)}</button>` : ''}
       <div class="td-links"><button class="td-link" id="hn-book">Bestiary (${beasts().length})</button>${H.sightingsOn() ? '<button class="td-link" id="hn-sight">Report a sighting</button>' : ''}<button class="td-link" id="hn-how">How to play</button>${rows.length ? '' : '<button class="td-link" id="hn-wall">The Wall</button>'}</div>`, { title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render() });
@@ -724,8 +607,8 @@
       { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
       { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A second twin, where you corner it.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
       { title: 'MONSTER HUNT · 3 OF 3', html: `<p class="small">Commit every answer with <b>Guess</b> (+1 / ±0), <b>Think so</b> (+2 / −1) or <b>Sure</b> (+3 / −3). Say how sure you really are: that's how you score most.</p>
-        <ul class="hn-how"><li><b>✓ Captured:</b> right on two different questions, on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> right today. Back tomorrow, weaker.</li><li><b>↺ Escaped:</b> a miss. It comes back on a later day with a different twin.</li></ul>
-        <p class="small">The trail forks. Side paths cost stamina: a camp, fresh prints, or a rare monster on the tower stairs. Stamina left at dusk scores a point each.</p>
+        <ul class="hn-how"><li><b>✓ Captured:</b> knocked out, and right on two different questions on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> knocked out today. Back tomorrow with one pip gone.</li><li><b>↺ Escaped:</b> it hit back and fled with health left. It comes back on a later day with a different twin.</li></ul>
+        <p class="small">You pick which monster to battle next. Each right answer lands a hit on its health bar; a miss and it hits back. Knock it out to catch it.</p>
         <p class="muted small">Kyu's note on the board: "Two copies. Test them."</p>` }
     ];
   }
@@ -733,7 +616,7 @@
     U.closePanel();
     let h = H.current();
     if (!h) { h = newHunt(); S.persist(); }
-    if (!h.mons.length && !h.forks.some(f => f.sides.includes('rare'))) { sv().hunt = null; S.persist(); return H.open(); }
+    if (!h.mons.length) { sv().hunt = null; S.persist(); return H.open(); }
     await (SD.modes && SD.modes.walkFirst ? SD.modes.walkFirst : local.walkFirst)('hunt', walkScreens(h.mons[0]));
     run(h);
   };
@@ -797,7 +680,7 @@
   };
 
   // ---- Home: the shared Play button's mode picker, or a link on the Today card until it lands ----
-  H.MODE = { id: 'hunt', name: 'Monster Hunt', blurb: 'Track 3 ideas from your Wall down a forked trail, three ways each.', minutes: 12, host: 'Bru', start: () => H.open(), status: () => H.status(), sim: (policy, rng) => H.sim(policy, rng) };
+  H.MODE = { id: 'hunt', name: 'Monster Hunt', blurb: 'Battle 3 monsters from your Wall: land three hits on each to catch it.', minutes: 12, host: 'Bru', start: () => H.open(), status: () => H.status(), sim: (policy, rng) => H.sim(policy, rng) };
   const reg = () => { if (!H.registered && SD.modes && SD.modes.register) { H.registered = true; SD.modes.register(H.MODE); } };   // flag first: register() re-renders the Today card, which calls reg again
   reg();
   document.addEventListener('DOMContentLoaded', reg);
@@ -844,13 +727,21 @@
     .hn-since { margin: 0 0 6px; padding: 6px 10px; border-left: 4px solid var(--ink); background: #f6f3fa; }
     .hn-lamp { margin: 0 0 8px; }
     .hn-main { width: 100%; }
-    .hn-route { display: grid; gap: 2px; text-align: left; }
-    .hn-list summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 700; }
-    .hn-map { list-style: none; margin: 4px 0; padding: 0 0 0 14px; border-left: 3px dashed var(--ink); display: grid; gap: 6px; }
-    .hn-trail { display: flex; gap: 10px; align-items: flex-start; padding: 6px 8px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
-    .hn-trail.done { background: #f6f3fa; border-style: dashed; }
-    .hn-trail.tgt { outline: 3px solid #d6b254; }
-    .hn-fork { background: transparent; border-style: dotted; }
+    .hn-bts { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 8px; }
+    .hn-bt { display: grid; gap: 6px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
+    .hn-bt.done { background: #f6f3fa; border-style: dashed; }
+    .hn-fight { width: 100%; }
+    .hn-hp { display: flex; gap: 10px; align-items: center; }
+    .hn-hp.hn-inq { margin: 0 0 6px; padding: 4px 8px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; }
+    .hn-hpn { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+    .hn-pips { display: flex; gap: 4px; align-items: center; }
+    .hn-pipd { width: 18px; height: 12px; border: 2px solid #0c0a10; border-radius: 3px; background: transparent; }
+    .hn-pipd.on { background: #c8323c; }
+    .hn-pips .small { margin-left: 4px; }
+    .hn-cr { position: relative; flex: none; width: 40px; height: 34px; border: 2px solid #0c0a10; border-radius: 50% 50% 38% 38%; background: hsl(var(--hn-h) 55% 62%); }
+    .hn-cr i { position: absolute; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 2px solid #0c0a10; }
+    .hn-cr i:first-child { left: 7px; } .hn-cr i:last-child { right: 7px; }
+    .hn-bt.done .hn-cr { filter: grayscale(1); opacity: .6; }
     .hn-dots { text-align: center; letter-spacing: .3em; }
     .hn-board .td-poster, .hn-book .td-poster { transform: none; }`;
   document.head.appendChild(css);
