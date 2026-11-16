@@ -4,12 +4,32 @@
 //   - Cards: CASE (a bank question, exam style) or COMPARE (a formats-engine Compare item, js/qformats.js: name the
 //     service from memory, then the table opens for the row that decided it). Each board's deck is 6 cards:
 //     2 Compare, 2 lead cases, 1 partner case and 1 due case. A hand of 3, at most one missed or Wall card per hand
-//     and per refill. A card held 2 turns is overdue, and so is a missed or Wall card on the board's last cast:
-//     Kagemaru casts it on his square. (Sim tuning, Nov 16: v7 said 3 turns and 1 Compare from night 4; with those
-//     the safest route dodged a quarter of weak cards and the board matched the plain tally on 95% of boards.)
+//     and per refill. A card held 4 turns (DU.HOLD) is overdue, and so is a missed or Wall card in the board's last
+//     2 casts (DU.LASTW): Kagemaru casts it on his square, chalk or not. (Sim tuning, Nov 16: v7 said 3 turns and 1
+//     Compare from night 4; with those the safest route dodged a quarter of weak cards and the board matched the
+//     plain tally on 95% of boards. Hard-squares tuning, Nov 16: at 2 turns every cast after a board's second was
+//     overdue, so he chose two squares in three and where you placed stones didn't matter; see below.)
+//   - Hard squares (from night 1, with the board itself): the centre and the four corners are chalked with one of the
+//     board's look-alike sets (DU.SETS: the rivals' lead sets and the partner sets, by their own topic matchers),
+//     drawn from the board's own cards: missed and Wall cards' sets first, then the lead set, the partner set and
+//     any other set dealt; the centre takes the first and the corners go round the list (DU.label). A stone settles
+//     on a chalked square only with a card of that set; edges take any card (and when no square left fits, any
+//     empty square does: never a dead hand). His pieces go anywhere. No line by the last cast: the count, where a
+//     chalked square counts 4 (DU.HARDW). Taught by first use: a card tried on the wrong chalk won't settle, and one
+//     line says why. A card's set shows on its face. Boards saved before this have no chalk and play as before.
+//   - His next square is shown face up before you cast: his hand over the square, with the words "his next"
+//     (DU.nextSq, b.next: DU.rule with any tie rolled ahead and kept, so the square shown is the one he takes). The
+//     cast sheet names it, and a Parry is a visible choice: "Parry the <square> and cast" or "Cast, keep the Parry".
+//   - Tuning (tools/duel_squares_check.js; honest confidence, a good RNG, 2,000 nights a cell; double or halve one
+//     number at a time). Greedy placement's lead over random in Cup won at p = 0.6 / 0.7, in points: chalk alone
+//     +3 / +3; HOLD 2 -> 4, +8 / +1; HARDW 1 -> 2, +10 / +11; LASTW 1 -> 2 (at HOLD 4 the safest route had slipped
+//     under 80% of weak cards faced), +12 / +10; HARDW 2 -> 4, +11 / +11. Now Cup won at p = 0.6 / 0.7 / 0.8: greedy
+//     43 / 62 / 82%, random 32 / 51 / 71%. (Halving NCMP to 1 also widened it, but pushed the longest nights to
+//     19.8 minutes; kept at 2.)
 //   - A board won with casts to spare pays +1 a cast left, so dragging a board out never pays.
 //   - His rule (printed under the board, DU.rule): his winning square, else block your two-in-a-line, else a square
-//     that gives him two in a line, else the square on the most lines he can still win. Ties break at random.
+//     that gives him two in a line, else the square on the most lines he can still win. Ties break at random, rolled
+//     before you cast (above).
 //   - A case miss: he takes his square, unless a Parry was raised. A Compare hit: your stone, then he takes his square
 //     too (a trade). A Compare name and row both right: a spark; 2 sparks make a Parry (from night 2, hold at most 2).
 //   - The unpaid tab: your line doesn't win while you hold a missed or Wall card.
@@ -75,6 +95,18 @@
   const rival = id => DU.RIVALS.find(r => r.id === id);
   const partnerOf = r => (r.partner === 'dq' ? { name: 'Dupli-Queue', match: rival('dq').match } : DU.PARTNERS[r.partner]);
   const inRival = (r, q) => !!q && !OFF.includes(q.id) && r.match(q);
+  // Look-alike sets, for the hard squares: each rival's lead set and each partner set, by their own topic matchers.
+  // short: the label printed on a hard square (no new AWS facts, only the names above).
+  DU.SETS = { dq: 'Dupli-Queue', kr: 'Keyring', sc: 'Shift Change', tw: 'Watchers', ddb: 'DynamoDB', alias: 'Aliases', kk: 'Kettles' };
+  DU.setName = id => (rival(id) ? rival(id).name : DU.PARTNERS[id] ? DU.PARTNERS[id].name : '');
+  // A case's set: the first rival whose matcher takes it, else the first partner set.
+  DU.setOfQ = q => {
+    if (!q) return null;
+    const r = DU.RIVALS.find(x => inRival(x, q));
+    if (r) return r.id;
+    const p = Object.keys(DU.PARTNERS).find(k => !OFF.includes(q.id) && DU.PARTNERS[k].match(q));
+    return p || null;
+  };
   // Linked cases (AWS review, Nov 16): verified bank questions on each Compare item's contrast, least similar first.
   DU.LINKS = {
     [C(1)]: ['dva-1-979', 'dva-1-965'], [C(3)]: ['dva-1-219', 'dva-1-06'], [C(4)]: ['dva-1-05', 'dva-1-978'],
@@ -149,9 +181,15 @@
   function cmpTag(id) { const r = store().cmp[id]; return !r || !r.n ? 'new' : r.last ? 'right' : 'missed'; }
   const TAG = { new: 'New', right: 'Right last time', missed: 'Missed last time', wall: 'On your Wall' };
   const weakTag = t => t === 'missed' || t === 'wall';
-  DU.caseCard = (q, rid, extra) => Object.assign({ k: 'case', id: q.id, r: rid, tag: caseTag(q), held: 0 }, extra || {});
-  DU.cmpCard = (id, rid, extra) => Object.assign({ k: 'cmp', id, r: rid, tag: cmpTag(id), held: 0 }, extra || {});
+  DU.caseCard = (q, rid, extra) => Object.assign({ k: 'case', id: q.id, r: rid, tag: caseTag(q), held: 0, set: DU.setOfQ(q) }, extra || {});
+  DU.cmpCard = (id, rid, extra) => Object.assign({ k: 'cmp', id, r: rid, tag: cmpTag(id), held: 0, set: rival(rid) ? rid : null }, extra || {});
   const isWeak = c => !!c && (c.ret || weakTag(c.tag));
+  // A card's look-alike set (a card saved before the hard squares has none stored: worked out from its question).
+  DU.cardSet = c => {
+    if (!c) return null;
+    if (c.set !== undefined) return c.set;
+    return c.k === 'cmp' ? (rival(c.r) ? c.r : null) : DU.setOfQ(find(c.id));
+  };
 
   // A miss's return: a twin whose right answer is a different service or setting (a flip), never the same answer.
   DU.flipTwin = function (q, r, avoid) {
@@ -192,7 +230,7 @@
     const st = store(), n = opts.sim ? (opts.night || 4) : st.nights + 1;
     const s = {
       v: 1, sim: !!opts.sim, rng: opts.rng, n, t0: Date.now(), el: 0, tick: Date.now(), secs: 0,
-      phase: 'pick', boards: [], score: [0, 0], b: null, parry: n >= 2 ? 1 : 0, sparks: 0, tally: M.newTally(),
+      phase: 'pick', boards: [], score: [0, 0], b: null, parry: n >= 2 ? DU.PARRY0 : 0, sparks: 0, tally: M.newTally(),
       used: [], log: [], pend: [], left: [], cmpTonight: [], linkFor: {}, msg: n === 1 ? SAY.walkup : SAY.sit, since: '',
       edge: opts.sim ? !!opts.edge : !!st.cupLast, offers: null, stand: null, faced: [0, 0], parries: [0, 0],
       returns: [0, 0], cmpStat: [0, 0, 0], practiced: n !== 1, weakIn: 0, weakHand: 0
@@ -202,6 +240,9 @@
     return s;
   };
   DU.boardsTonight = s => (s.n >= 3 ? 2 : 1);
+  // The tuned numbers (sim, tools/duel_check.js and tools/duel_squares_check.js): Compare cards a deck, casts a board,
+  // board 2's casts when it starts after DU.LATE minutes, and the Parries a night starts with (from night 2).
+  DU.NCMP = 2; DU.CAP = 6; DU.CAP2 = 4; DU.LATE = 6; DU.PARRY0 = 1;
   DU.minutes = s => (s.sim ? s.secs / 60 : (s.el + (document.hidden ? 0 : Date.now() - s.tick)) / 60000);
   const save = s => {
     if (s.sim) return;
@@ -214,11 +255,14 @@
   // Deal one board's 6-card deck for rival r.
   DU.deal = function (s, r) {
     const R = rnd(s), cards = [];
-    const nCmp = 2;
+    const nCmp = DU.NCMP;
     if (s.sim) {
       // Synthetic cards: weak with the share a real deck has, no bank needed.
       const w = s.simWeak == null ? 0.3 : s.simWeak;
-      for (let k = 0; k < 6; k++) cards.push({ k: k < nCmp ? 'cmp' : 'case', id: 'sim-' + (s.used.length + k), r: r.id, tag: R() < w ? 'missed' : 'new', held: 0 });
+      // Sets by role, as a real deck: Compare and 2 lead cases in the lead set, 1 partner case, 1 due case from another rival.
+      const others = DU.RIVALS.filter(x => x.id !== r.id && x.id !== r.partner).map(x => x.id);
+      const roleSet = k => (k < nCmp + 2 ? r.id : k === nCmp + 2 ? r.partner : pickOne(others, R));
+      for (let k = 0; k < 6; k++) cards.push({ k: k < nCmp ? 'cmp' : 'case', id: 'sim-' + (s.used.length + k), r: r.id, tag: R() < w ? 'missed' : 'new', held: 0, set: roleSet(k) });
       s.used.push(...cards.map(c => c.id));
     } else {
       // First the misses still owed from earlier nights (board 1 only), then Compare, lead, partner and due.
@@ -226,8 +270,9 @@
       if (!s.boards.length) {
         st.carry.splice(0, 3).forEach(x => {
           const q = x.k === 'case' ? find(x.id) : null;
-          if (x.k === 'case' && q && E().allowed(E().find(x.id) || q)) cards.push(DU.caseCard(q, x.r || r.id, { ret: x.ret | 0, sure: x.sure | 0 }));
-          if (x.k === 'cmp' && M.fmtItem(x.id)) cards.push(DU.cmpCard(x.id, x.r || r.id, { ret: x.ret | 0 }));
+          const set = x.set !== undefined ? { set: x.set } : {};
+          if (x.k === 'case' && q && E().allowed(E().find(x.id) || q)) cards.push(DU.caseCard(q, x.r || r.id, Object.assign({ ret: x.ret | 0, sure: x.sure | 0 }, set)));
+          if (x.k === 'cmp' && M.fmtItem(x.id)) cards.push(DU.cmpCard(x.id, x.r || r.id, Object.assign({ ret: x.ret | 0 }, set)));
         });
       }
       const ok = id => { const c = st.cmp[id]; return M.fmtItem(id) && !s.cmpTonight.includes(id) && !(c && (c.retired || (c.night && s.n - c.night < 2))); };
@@ -237,20 +282,20 @@
         else {
           // No eligible Compare item: its linked case instead.
           const l = r.cmp.map(id => (DU.LINKS[id] || [])).flat().find(id => !s.used.includes(id) && E().find(id) && E().allowed(E().find(id)));
-          if (l) { s.used.push(l); cards.push(DU.caseCard(find(l), r.id)); }
+          if (l) { s.used.push(l); cards.push(DU.caseCard(find(l), r.id, { set: r.id })); }
         }
       }
       const avoid = s.used.concat(OFF, cards.map(c => c.id));
       const lead = M.pick({ match: q => inRival(r, q), n: 3, mix: 1 / 3, avoid });
-      lead.items.forEach(it => { const q = find(it.q); if (q && cards.length < 6) cards.push(DU.caseCard(q, it.other ? 'due' : r.id)); });
+      lead.items.forEach(it => { const q = find(it.q); if (q && cards.length < 6) cards.push(DU.caseCard(q, it.other ? 'due' : r.id, it.other ? {} : { set: r.id })); });
       const p = partnerOf(r);
       if (cards.length < 6) {
         const pa = M.pick({ match: q => !OFF.includes(q.id) && p.match(q), n: 1, mix: 0, avoid: avoid.concat(cards.map(c => c.id)) });
-        pa.items.forEach(it => { const q = find(it.q); if (q) cards.push(DU.caseCard(q, 'partner')); });
+        pa.items.forEach(it => { const q = find(it.q); if (q) cards.push(DU.caseCard(q, 'partner', { set: r.partner })); });
       }
       if (cards.length < 6) {
         const more = M.pick({ match: q => inRival(r, q), n: 6 - cards.length, mix: 0, avoid: avoid.concat(cards.map(c => c.id)) });
-        more.items.forEach(it => { const q = find(it.q); if (q) cards.push(DU.caseCard(q, r.id)); });
+        more.items.forEach(it => { const q = find(it.q); if (q) cards.push(DU.caseCard(q, r.id, { set: r.id })); });
       }
       cards.forEach(c => { if (c.k === 'case') s.used.push(c.id); });
     }
@@ -273,7 +318,7 @@
   };
   DU.startBoard = function (s, rid) {
     const r = rival(rid), k = s.boards.length;
-    const cap = k === 1 && DU.minutes(s) > 6 ? 4 : 6;
+    const cap = k === 1 && DU.minutes(s) > DU.LATE ? DU.CAP2 : DU.CAP;
     const b = { r: rid, cells: Array(9).fill(null), deck: DU.deal(s, r), hand: [], casts: 0, cap, res: null, hist: [] };
     s.weakIn += b.deck.filter(isWeak).length;
     // Hand cards left from the board before carry over with their timers.
@@ -281,6 +326,8 @@
     DU.draw(b, s);
     // House edge: after a won Cup he opens the next night on the centre (not against a rival you're under 50% on).
     if (k === 0 && s.edge && !(DU.recRate(rid) !== null && DU.recRate(rid) < 0.5)) { b.cells[4] = 'him'; b.edge = 1; }
+    b.hard = DU.label(b, r);
+    DU.nextSq(s, b);
     s.b = b; s.phase = 'board';
     if (k === 0) s.msg = SAY.sit;
     s.since = b.edge ? 'He opens on the centre tonight: you won the Cup last time.' : '';
@@ -288,9 +335,42 @@
   };
   // The card Kagemaru casts for you this turn, if any.
   // Also the board's last cast, while you hold a missed or Wall card: you can't run the clock out on what you owe.
-  DU.HOLD = 2;
-  DU.forced = b => b.hand.find(c => c.held >= DU.HOLD) || (b.cap - b.casts <= 1 ? b.hand.find(isWeak) : null) || null;
-  DU.hisSquare = (s, b) => { const r = DU.rule(b.cells); return r.squares.length ? pickOne(r.squares, rnd(s)) : -1; };
+  DU.HOLD = 4; DU.LASTW = 2;
+  DU.forced = b => b.hand.find(c => c.held >= DU.HOLD) || (b.cap - b.casts <= DU.LASTW ? b.hand.find(isWeak) : null) || null;
+  // The hard squares: the centre and the corners, each labelled with one of the board's look-alike sets. Sets come
+  // from the board's own cards: missed and Wall cards' sets first, then the lead set, the partner set and any other
+  // set in the deck; the centre takes the first and the corners go round the list. b.hard[i] is a set id, or null on
+  // an edge (any card). A board saved before the hard squares has no b.hard: every square takes any card.
+  DU.HARD = [4, 0, 8, 2, 6];
+  DU.label = function (b, r) {
+    const cards = b.hand.concat(b.deck), have = id => cards.some(c => DU.cardSet(c) === id);
+    const list = [];
+    const add = id => { if (id && DU.SETS[id] && !list.includes(id) && have(id)) list.push(id); };
+    cards.filter(isWeak).forEach(c => add(DU.cardSet(c)));
+    add(r.id); add(r.partner);
+    cards.forEach(c => add(DU.cardSet(c)));
+    if (!list.length) list.push(r.id);
+    const hard = Array(9).fill(null);
+    DU.HARD.forEach((i, k) => { hard[i] = list[k % list.length]; });
+    return hard;
+  };
+  // Can this card place a stone on square i? Edges take any card; a hard square takes its own set only.
+  // (If the edges are full and no hard square left fits the card, any empty square takes it: never a dead hand.)
+  const fit1 = (b, c, i) => !b.cells[i] && (!b.hard || !b.hard[i] || DU.cardSet(c) === b.hard[i]);
+  DU.legal = (b, c) => {
+    const empty = b.cells.map((x, i) => (x ? -1 : i)).filter(i => i >= 0), ok = empty.filter(i => fit1(b, c, i));
+    return ok.length ? ok : empty;
+  };
+  DU.fits = (b, c, i) => DU.legal(b, c).includes(i);
+  // His next square, shown face up before you cast: DU.rule with any tie rolled now and kept (b.next), so the square
+  // shown is the square he takes. Re-rolled only when the board changes under it.
+  DU.nextSq = (s, b) => {
+    const r = DU.rule(b.cells);
+    if (!r.squares.length) return (b.next = -1);
+    if (!r.squares.includes(b.next)) b.next = pickOne(r.squares, rnd(s));
+    return b.next;
+  };
+  DU.hisSquare = (s, b) => DU.nextSq(s, b);
 
   // Settle one cast. card: from the hand; sq: the square; r: { ok, conf, pts, sureMiss, row: { ok } }; parried: bool.
   // Returns the events for the board's sequence: [{ who, sq, why }].
@@ -307,11 +387,11 @@
     s.log.push({ k: card.k, id: card.id, r: card.r, ok, conf, row: r.row ? !!r.row.ok : null, ret: card.ret | 0, weak: weak ? 1 : 0, sq, bi: s.boards.length });
     const his = why => {
       const x = DU.hisSquare(s, b);
-      if (x >= 0) { b.cells[x] = 'him'; ev.push({ who: 'him', sq: x, why }); }
+      if (x >= 0) { b.cells[x] = 'him'; b.next = -1; ev.push({ who: 'him', sq: x, why }); }
     };
     if (card.k === 'case') {
       if (ok) { b.cells[sq] = 'me'; ev.push({ who: 'me', sq }); if (parried) notes.push('Parry spent on a right answer'); }
-      else if (parried) { s.parries[1]++; ev.push({ who: 'parry', sq: DU.rule(b.cells).squares[0] }); notes.push('your Parry held: he doesn\'t move'); }
+      else if (parried) { s.parries[1]++; ev.push({ who: 'parry', sq: DU.nextSq(s, b) }); notes.push('your Parry held: he doesn\'t move'); }
       else his('miss');
       if (!s.sim && DU.rivalOfCase(card)) { const rec = store().rec[DU.rivalOfCase(card)] = store().rec[DU.rivalOfCase(card)] || [0, 0]; rec[1]++; if (ok) rec[0]++; }
       // A linked case answered right after its Compare item retires that item.
@@ -326,7 +406,7 @@
           if (s.n >= 2) { s.sparks++; notes.push('⚡ a spark'); if (s.sparks >= 2) { s.sparks = 0; if (s.parry < 2) { s.parry++; notes.push('two sparks make a Parry'); } } }
         }
         if (!DU.line(b.cells, 'me') || isTab(b)) his('trade');
-      } else if (parried) { s.parries[1]++; ev.push({ who: 'parry', sq: DU.rule(b.cells).squares[0] }); notes.push('your Parry held: he doesn\'t move'); }
+      } else if (parried) { s.parries[1]++; ev.push({ who: 'parry', sq: DU.nextSq(s, b) }); notes.push('your Parry held: he doesn\'t move'); }
       else his('miss');
       if (!s.sim) {
         const c = store().cmp[card.id] = store().cmp[card.id] || { n: 0, full: 0 };
@@ -336,7 +416,7 @@
         if (l && ok) {
           const pi = b.deck.findIndex(c2 => c2.r === 'partner');
           if (pi >= 0) b.deck.splice(pi, 1);
-          b.deck.splice(Math.min(b.deck.length, 1 + Math.floor(R() * 2)), 0, DU.caseCard(find(l), card.r));
+          b.deck.splice(Math.min(b.deck.length, 1 + Math.floor(R() * 2)), 0, DU.caseCard(find(l), card.r, { set: DU.cardSet(card) }));
           s.used.push(l); s.linkFor[l] = card.id;
         }
       }
@@ -348,8 +428,10 @@
       else if (card.k === 'case') { const q = E().find(card.id), t = q && DU.flipTwin(q, rival(DU.rivalOfCase(card) || card.r), s.used); if (t) back = { k: 'case', id: t.id }; }
       else back = DU.cmpReturn(card.id, s.used.concat(s.cmpTonight));
       if (back) {
-        const nc = s.sim ? { k: 'case', id: back.id, r: card.r, tag: 'missed', held: 0, ret: 1, sure: conf === 2 ? 1 : 0 }
-          : back.k === 'case' ? DU.caseCard(find(back.id), card.r, { ret: 1, sure: conf === 2 ? 1 : 0 }) : DU.cmpCard(back.id, card.r, { ret: 1 });
+        // It comes back in the same look-alike set, so it still fits the squares it fitted.
+        const set = DU.cardSet(card);
+        const nc = s.sim ? { k: 'case', id: back.id, r: card.r, tag: 'missed', held: 0, ret: 1, sure: conf === 2 ? 1 : 0, set }
+          : back.k === 'case' ? DU.caseCard(find(back.id), card.r, { ret: 1, sure: conf === 2 ? 1 : 0, set }) : DU.cmpCard(back.id, card.r, { ret: 1, set });
         if (back.k === 'case') s.used.push(back.id); else s.cmpTonight.push(back.id);
         // Room tonight: at least 2 casts left on this board.
         if (b.cap - b.casts >= 2) { b.deck.splice(Math.min(b.deck.length, 1 + Math.floor(R() * 2)), 0, nc); s.weakIn++; }
@@ -357,12 +439,16 @@
       } else if (!s.sim && card.k === 'case') s.pend.push(Object.assign({}, card, { ret: 1, sure: conf === 2 ? 1 : 0, same: 1 }));
     }
     DU.draw(b, s);
+    DU.nextSq(s, b);
     s.since = notes.length ? notes.join(' · ') : '';
     return ev;
   };
   DU.rivalOfCase = c => (DU.RIVALS.some(r => r.id === c.r) ? c.r : null);
   const isTab = b => b.hand.some(isWeak);
   DU.tab = isTab;
+  // The count when no line is made by the last cast: a square counts 1, a hard square DU.HARDW.
+  DU.HARDW = 4;
+  DU.count = (b, w) => b.cells.reduce((a, x, i) => a + (x === w ? (b.hard && b.hard[i] ? DU.HARDW : 1) : 0), 0);
   // After a cast: 'me' or 'him' when the board is decided, else null.
   DU.decide = function (s) {
     const b = s.b;
@@ -370,7 +456,7 @@
     if (DU.line(b.cells, 'me') && !isTab(b)) return 'me';
     const full = b.cells.every(Boolean), out = !b.hand.length && !b.deck.length;
     if (b.casts >= b.cap || full || out) {
-      const me = b.cells.filter(x => x === 'me').length, him = b.cells.filter(x => x === 'him').length;
+      const me = DU.count(b, 'me'), him = DU.count(b, 'him');
       b.byCount = 1;
       return me > him ? 'me' : 'him';
     }
@@ -448,7 +534,7 @@
     if (s.sim) return;
     const st = store();
     const owed = s.pend.concat(s.left.filter(isWeak), s.b ? s.b.deck.filter(c => c.ret) : []);
-    st.carry = st.carry.concat(owed.map(c => ({ k: c.k, id: c.id, r: c.r, ret: 1, sure: c.sure | 0 }))).filter((x, i, a) => a.findIndex(y => y.id === x.id) === i).slice(-9);
+    st.carry = st.carry.concat(owed.map(c => ({ k: c.k, id: c.id, r: c.r, ret: 1, sure: c.sure | 0, set: DU.cardSet(c) }))).filter((x, i, a) => a.findIndex(y => y.id === x.id) === i).slice(-9);
     st.nights = s.n; st.cupLast = DU.cupWon(s) ? 1 : 0;
     s.paid = M.pay(ID);
     s.phase = 'done'; s.ended = Date.now();
@@ -471,24 +557,34 @@
   const kage = () => { const c6 = SD.state.save && SD.state.save.c6; return `assets/img/portraits/kagemaru-${c6 && c6.w && c6.w.x && c6.w.x.reveal ? 'neutral' : 'gloved'}.webp`; };
   const say = t => `<div class="du-say" data-vo="${esc('kagemaru|' + t)}"><img src="${kage()}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
   const rname = id => (rival(id) ? rival(id).name : id === 'partner' ? 'Partner' : 'Due');
+  const setShort = id => DU.SETS[id] || 'any edge';
+  const hw = () => ['one', 'two', 'three', 'four'][DU.HARDW - 1] || String(DU.HARDW);
+  // His hand hovering over his next square: a gloved shadow, the word under it for everyone.
+  const svgHand = () => `<svg viewBox="0 0 60 44" aria-hidden="true"><ellipse cx="30" cy="40" rx="20" ry="4" fill="#000" opacity=".35"/><path d="M14 30 q-4 -10 2 -12 l2 -10 q2 -4 5 0 l1 8 l2 -12 q3 -4 5 0 l1 12 l2 -10 q3 -4 5 0 l0 12 l3 -6 q4 -2 4 3 l-4 12 q-3 6 -10 6 h-10 q-6 0 -8 -3 z" fill="${PLUM}" stroke="${INK}" stroke-width="2"/></svg>`;
 
   // ---- The board screen ----
-  let sel = null, pickSq = null, seq = null, asking = false;
+  let sel = null, pickSq = null, seq = null, asking = false, nofit = '';
+  const bump = i => { const el = document.querySelector(`#panel [data-sq="${i}"]`); if (el) { el.classList.add('slide'); setTimeout(() => el.classList.remove('slide'), 400); } };
   function cardFace(c, i, chosen, forced) {
     const kind = c.k === 'cmp' ? 'COMPARE' : 'CASE', rid = rival(c.r) ? c.r : (night().b && night().b.r);
     const due = c.held >= DU.HOLD - 1 ? '<span class="du-due">Due next turn</span>' : '';
     return `<button class="du-card${c.k === 'cmp' ? ' cmp' : ''}${chosen ? ' on' : ''}" data-card="${i}" aria-pressed="${chosen}" ${forced ? 'disabled' : ''}
-      aria-label="${kind}, ${esc(rname(c.r))}, ${esc(TAG[c.tag] || '')}${c.held >= DU.HOLD - 1 ? ', due next turn' : ''}">
-      <span class="du-kind">${kind}</span>${due}<span class="du-emb">${emb(rid)}</span><span class="du-rn">${esc(rname(c.r))}</span>
+      aria-label="${kind}, ${esc(rname(c.r))}, fits ${esc(setShort(DU.cardSet(c)))} squares, ${esc(TAG[c.tag] || '')}${c.held >= DU.HOLD - 1 ? ', due next turn' : ''}">
+      <span class="du-kind">${kind}</span>${due}<span class="du-emb">${emb(rid)}</span><span class="du-rn">${esc(setShort(DU.cardSet(c)))}</span>
       <span class="du-tag">${esc(TAG[c.tag] || '')}</span></button>`;
   }
-  function boardHtml(s, hidden) {
-    const b = s.b, rule = DU.rule(b.cells), next = rule.squares;
+  // The felt: hard squares chalked with their set's name (and chalk ticks: they count DU.HARDW at the count), his
+  // hand hovering over the square he takes on a miss. With a card picked, a square it can't settle on is dimmed.
+  function boardHtml(s, hidden, card) {
+    const b = s.b, rule = DU.rule(b.cells), nx = hidden && hidden.length ? -1 : DU.nextSq(s, b), next = nx >= 0 ? [nx] : [];
+    const ok = card ? DU.legal(b, card) : null;
     const cells = b.cells.map((x, i) => {
-      const show = hidden && hidden.includes(i) ? null : x;
-      const mark = !show && next.includes(i) ? `<span class="du-ghost">${next.length > 1 ? 'his next · or' : 'his next'}</span>` : '';
-      const label = `${DU.SQ[i]}: ${show === 'me' ? 'your stone' : show === 'him' ? 'his piece' : 'empty'}${!show && next.includes(i) ? ', his next square' : ''}`;
-      return `<button class="du-sq${show ? ' taken' : ''}${pickSq === i ? ' on' : ''}" data-sq="${i}" ${show ? 'disabled' : ''} aria-label="${esc(label)}">${show === 'me' ? svgStone() : show === 'him' ? svgHis() : mark}</button>`;
+      const show = hidden && hidden.includes(i) ? null : x, hard = b.hard && b.hard[i];
+      const chalk = hard ? `<span class="du-chalk">${esc(DU.SETS[hard])}<span class="du-ticks" aria-hidden="true">${"|".repeat(DU.HARDW)}</span></span>` : '';
+      const mark = !show && next.includes(i) ? `<span class="du-hand-m">${svgHand()}<span class="du-word">his next</span></span>` : '';
+      const label = `${DU.SQ[i]}${hard ? `, chalked ${DU.SETS[hard]}, counts ${hw()}` : ''}: ${show === 'me' ? 'your stone' : show === 'him' ? 'his piece' : 'empty'}${!show && next.includes(i) ? ', his next square' : ''}${!show && ok && !ok.includes(i) ? ', this card won\'t settle here' : ''}`;
+      const cls = `du-sq${show ? ' taken' : ''}${hard ? ' hard' : ''}${pickSq === i ? ' on' : ''}${!show && ok && !ok.includes(i) ? ' nofit' : ''}${!show && next.includes(i) ? ' next' : ''}`;
+      return `<button class="${cls}" data-sq="${i}" ${show ? 'disabled' : ''} aria-label="${esc(label)}">${show === 'me' ? svgStone() : show === 'him' ? svgHis() : chalk + mark}</button>`;
     }).join('');
     const ml = DU.line(b.cells, 'me'), hl = DU.line(b.cells, 'him'), L = hl || (ml && !isTab(b) ? ml : null);
     const stroke = L ? (() => { const c = i => [17 + (i % 3) * 33, 17 + Math.floor(i / 3) * 33]; const [a, z] = [c(L[0]), c(L[2])]; return `<svg class="du-stroke" viewBox="0 0 100 100" aria-hidden="true"><line x1="${a[0]}" y1="${a[1]}" x2="${z[0]}" y2="${z[1]}" stroke="${CHALK}" stroke-width="2.5" stroke-linecap="round"/></svg>`; })() : '';
@@ -496,11 +592,16 @@
     return `<div class="du-felt"><div class="du-grid">${cells}</div>${stroke}</div>${tab}
       <p class="small du-rule">On a miss he takes ${esc(DU.STEP[rule.step] || '')}: <b>${next.map(i => DU.SQ[i]).join(' or ') || 'nothing left'}</b>.</p>`;
   }
+  // A card tried on a chalked square of another set: one short line on why the stone won't settle.
+  function nofitLine(b, c, i) {
+    return `That square is chalked ${DU.SETS[b.hard[i]]}. Only a ${DU.SETS[b.hard[i]]} card settles there; this one is ${setShort(DU.cardSet(c))}. Edges take any card.`;
+  }
   function listHtml(s) {
     const b = s.b, rule = DU.rule(b.cells);
     const mine = b.cells.map((x, i) => (x === 'me' ? DU.SQ[i] : null)).filter(Boolean), his = b.cells.map((x, i) => (x === 'him' ? DU.SQ[i] : null)).filter(Boolean);
     return `<ul class="du-list"><li>You hold: ${mine.join(', ') || 'nothing yet'}. He holds: ${his.join(', ') || 'nothing yet'}.</li>
-      <li>His next square on a miss: <b>${rule.squares.map(i => DU.SQ[i]).join(' or ')}</b>${rule.squares.length > 1 ? ', at random' : ''} (${esc(DU.STEP[rule.step] || '')}).</li>
+      <li>His next square on a miss: <b>${DU.nextSq(s, b) >= 0 ? DU.SQ[DU.nextSq(s, b)] : 'none'}</b> (${esc(DU.STEP[rule.step] || '')}).</li>
+      ${b.hard ? `<li>Chalked squares (a stone settles only with a card of that set; each counts ${hw()} at the count): ${DU.HARD.map(i => `${DU.SQ[i]} ${DU.SETS[b.hard[i]]}`).join(', ')}. Edges take any card.</li>` : ''}
       ${isTab(b) ? '<li>Unpaid tab: you hold a missed or Wall card, so your line can\'t win yet.</li>' : ''}</ul>`;
   }
   function hud(s) {
@@ -520,26 +621,34 @@
     if (forced) { sel = b.hand.indexOf(forced); pickSq = null; }
     const c = sel != null ? b.hand[sel] : null;
     let sheet = '';
+    const nx = DU.nextSq(s, b), nxName = nx >= 0 ? DU.SQ[nx] : '';
     if (forced) {
-      const x = DU.rule(b.cells).squares;
-      sheet = `<div class="du-sheet"><p><b>Overdue.</b> ${esc(SAY.overdue)}</p><p class="small">He casts your ${forced.k === 'cmp' ? 'Compare card' : 'case'} on his square (${esc(x.map(i => DU.SQ[i]).join(' or '))}). Right: your stone goes there. Wrong: he takes it.</p>
+      sheet = `<div class="du-sheet"><p><b>Overdue.</b> ${esc(SAY.overdue)}</p><p class="small">He casts your ${forced.k === 'cmp' ? 'Compare card' : 'case'} on his square (the ${esc(nxName)}, chalk or not). Right: your stone goes there. Wrong: he takes it.</p>
         <div class="row"><button class="primary" id="du-cast">Face it</button></div></div>`;
     } else if (c && pickSq != null) {
       const hit = c.k === 'cmp' ? `your stone on the ${DU.SQ[pickSq]}, then he takes his square` : `your stone on the ${DU.SQ[pickSq]}`;
-      sheet = `<div class="du-sheet"><p><b>${c.k === 'cmp' ? 'Compare' : 'Case'} → ${esc(DU.SQ[pickSq])}.</b> Hit: ${esc(hit)}. Miss: he takes his square.</p>
-        <div class="row">${s.n >= 2 && s.parry > 0 ? '<button class="ghost" id="du-parry">Raise Parry and cast</button>' : ''}<button class="primary" id="du-cast">Cast</button></div></div>`;
-    } else sheet = `<p class="small du-hint">${c ? 'Now tap an empty square.' : 'Tap a card, then a square.'}</p>`;
+      const par = s.n >= 2 && s.parry > 0;
+      sheet = `<div class="du-sheet"><p><b>${c.k === 'cmp' ? 'Compare' : 'Case'} → ${esc(DU.SQ[pickSq])}.</b> Hit: ${esc(hit)}. Miss: he takes his square, the ${esc(nxName)}${par ? ', unless you Parry it' : ''}.</p>
+        <div class="row">${par ? `<button class="ghost" id="du-parry">Parry the ${esc(nxName)} and cast</button>` : ''}<button class="primary" id="du-cast">${par ? 'Cast, keep the Parry' : 'Cast'}</button></div></div>`;
+    } else sheet = `<p class="small du-hint${nofit ? ' du-nofit' : ''}" ${nofit ? 'role="status"' : ''}>${nofit ? esc(nofit) : c ? 'Now tap an empty square.' : 'Tap a card, then a square.'}</p>`;
     const body = U.panel(`${say(s.msg || SAY.sit)}
       ${s.since ? `<p class="small du-since">${esc(s.since)}</p>` : ''}
       ${hud(s)}
-      <div class="du-view" role="region" aria-label="The board">${boardHtml(s, hidden)}</div>
+      <div class="du-view" role="region" aria-label="The board">${boardHtml(s, hidden, forced ? null : c)}</div>
       <div class="du-hand" role="group" aria-label="Your hand">${b.hand.map((x, i) => cardFace(x, i, i === sel, !!forced)).join('')}</div>
       ${sheet}
       <details class="du-asl"><summary class="small">Board as list</summary>${listHtml(s)}</details>
       <div class="row"><button class="ghost" id="du-how">How to play</button><button class="ghost" id="du-stop">Stop for now</button></div>
       <p class="sr" aria-live="polite" id="du-live"></p>`, { title: TITLE, onClose: stopNow, cls: 'du-win' });
-    body.querySelectorAll('[data-card]').forEach(el => el.onclick = () => { const i = +el.dataset.card; sel = sel === i ? null : i; DU.board(); });
-    body.querySelectorAll('[data-sq]').forEach(el => el.onclick = () => { if (sel == null) return; pickSq = +el.dataset.sq; DU.board(); });
+    nofit = '';
+    body.querySelectorAll('[data-card]').forEach(el => el.onclick = () => { const i = +el.dataset.card; sel = sel === i ? null : i; pickSq = null; DU.board(); });
+    body.querySelectorAll('[data-sq]').forEach(el => el.onclick = () => {
+      if (sel == null) return;
+      const i = +el.dataset.sq, card = b.hand[sel];
+      // The stone won't settle on a chalked square of another set: it slides off, and one line says why.
+      if (card && !DU.fits(b, card, i)) { pickSq = null; const line = nofitLine(b, card, i); nofit = line; DU.board(); bump(i); return; }
+      pickSq = i; DU.board();
+    });
     const cast = body.querySelector('#du-cast'), par = body.querySelector('#du-parry');
     if (cast) cast.onclick = () => play(false);
     if (par) par.onclick = () => play(true);
@@ -562,7 +671,7 @@
     const card = forced || b.hand[sel];
     if (!card) return;
     let sq = pickSq;
-    if (forced) { const x = DU.rule(b.cells).squares; sq = pickOne(x, Math.random); parried = false; }
+    if (forced) { sq = DU.nextSq(s, b); parried = false; }
     sel = null; pickSq = null;
     // A beat still pending from the last move must not redraw the board over the question.
     clearTimeout(seq); asking = true;
@@ -607,7 +716,7 @@
       <div class="du-view">${boardHtml(s)}</div>
       <p class="td-big">${last.res === 'me' ? 'Board ' + s.boards.length + ' to you.' : 'Board ' + s.boards.length + ' to Kagemaru.'}</p>
       ${last.spare ? `<p class="small">Won with ${plural(last.spare, 'cast')} to spare: he pays the rest of the round, ${M.sgn(last.spare * DU.SPARE)}.</p>` : ''}
-      ${last.byCount ? '<p class="small">No line by the last cast, so it went to whoever held more squares; a tie goes to the house.</p>' : ''}
+      ${last.byCount ? `<p class="small">No line by the last cast, so it went to whoever held more squares (a chalked square counts ${hw()}); a tie goes to the house.</p>` : ''}
       ${s.pin ? `<p class="small">${esc(s.pin === 'sold' ? SAY.sold : SAY.pin)}</p>` : ''}
       <div class="row"><button class="primary" id="du-next">${s.phase === 'counter' ? 'Counter-pick board 2' : 'The Last Stand'}</button></div>`, { title: TITLE, onClose: stopNow, cls: 'du-win' });
     void ev;
@@ -721,7 +830,7 @@
         <p class="small"><b>CASE</b> cards are exam questions. <b>COMPARE</b> cards show three look-alikes: name the one that fits from memory, then the table opens and you pick the row that decided it.</p>` },
       { title: 'Stones and his move', html: `<p>Tap a card, then an empty square. Right: your stone goes there. Wrong: he takes his square, by a rule printed under the board.</p>
         ${M.stakeTable()}<p class="small">Win a board with casts to spare and he pays +1 for each one left. A Compare card is a trade: on a right name you place a stone, and then he takes his square too. Name and row both right earn a spark; two sparks make a Parry, which stops his move on a miss.</p>` },
-      { title: 'No dodging', html: `<p>Missed and Wall cards come early. Hold any card for 2 turns, or a missed card to a board's last cast, and he casts it for you. And your line won't win while you hold one: he calls it an unpaid tab.</p>
+      { title: 'No dodging', html: `<p>Missed and Wall cards come early. Hold any card for ${DU.HOLD} turns, or a missed card into a board's last ${DU.LASTW} casts, and he casts it for you. And your line won't win while you hold one: he calls it an unpaid tab.</p>
         <p class="small">A miss comes back changed, tonight if there's room, first thing tomorrow if not. It saves after every step: stop any time.</p>` }
     ];
   }
@@ -748,22 +857,23 @@
   });
 
   // ---- Simulator hook (tools/modes_sim.js, tools/duel_check.js): a whole night on the real state machine ----
-  // policy: { p, conf, route: 'near' (safest card first) | 'far' (missed cards first), square: 'greedy' | 'centre' |
+  // policy: { p, conf, route: 'near' (safest card first) | 'far' (missed cards first), square: 'greedy' | 'hard' | 'centre' |
   // 'random', parry: 'shaky' | 'never', night, edge, cmpBoost }. Compare names are easier by cmpBoost (default 0.1);
   // a missed card is harder by 0.15. Time: a case 100 s, a Compare card 70 s, 3 s per board tap.
   DU.SIM = { CASE: 100, CMP: 70, TAP: 3 };
-  DU.greedy = function (b) {
-    const empty = b.cells.map((x, i) => (x ? -1 : i)).filter(i => i >= 0);
-    const score = i => {
-      const t = b.cells.slice(); t[i] = 'me';
-      if (DU.line(t, 'me')) return 100;
-      const r = DU.rule(b.cells);
-      let v = r.squares.includes(i) ? (r.step === 1 ? 60 : r.step === 2 ? 5 : 20) : 0;
-      v += DU.LINES.filter(l => l.includes(i) && cnt(b.cells, l, 'him') === 0).length * 3;
-      v += DU.LINES.filter(l => l.includes(i) && cnt(t, l, 'me') === 2 && cnt(t, l, 'him') === 0).length * 8;
-      return v;
-    };
-    return empty.slice().sort((a, z) => score(z) - score(a))[0];
+  DU.greedy = function (b, card) {
+    const empty = card ? DU.legal(b, card) : b.cells.map((x, i) => (x ? -1 : i)).filter(i => i >= 0);
+    return empty.slice().sort((a, z) => DU.sqScore(b, z) - DU.sqScore(b, a))[0];
+  };
+  // A square's worth to you: a line now, else taking his shown square, live lines and two-in-a-lines made.
+  DU.sqScore = function (b, i) {
+    const t = b.cells.slice(); t[i] = 'me';
+    if (DU.line(t, 'me')) return 100;
+    const r = DU.rule(b.cells), his = b.next != null && b.next >= 0 ? [b.next] : r.squares;
+    let v = his.includes(i) ? (r.step === 1 ? 60 : r.step === 2 ? 5 : 20) : 0;
+    v += DU.LINES.filter(l => l.includes(i) && cnt(b.cells, l, 'him') === 0).length * 3;
+    v += DU.LINES.filter(l => l.includes(i) && cnt(t, l, 'me') === 2 && cnt(t, l, 'him') === 0).length * 8;
+    return v;
   };
   DU.sim = async function (policy, rng) {
     const R = rng || Math.random, s = DU.newNight({ sim: true, rng: R, night: policy.night || 4, edge: !!policy.edge });
@@ -787,11 +897,17 @@
         if (!card) {
           const order = b.hand.slice().sort((a, z) => (policy.route === 'far' ? (isWeak(z) - isWeak(a)) : (isWeak(a) - isWeak(z)) || ((a.k === 'cmp') - (z.k === 'cmp'))));
           card = order[0];
-          sq = policy.square === 'centre' ? [4, 0, 2, 6, 8, 1, 3, 5, 7].find(i => !b.cells[i]) : policy.square === 'random' ? pickOne(b.cells.map((x, i) => (x ? -1 : i)).filter(i => i >= 0), R) : DU.greedy(b);
+          // 'hard': hard squares when sure. The route's card, if you'd mark it Sure and it fits a hard square, goes on
+          // the best hard square it fits; otherwise on the best square it fits.
+          const hardSq = policy.square === 'hard' && b.hard && pOf(card) > 2 / 3 ? DU.legal(b, card).filter(i => b.hard[i]) : [];
+          if (hardSq.length) sq = hardSq.sort((a, z) => DU.sqScore(b, z) - DU.sqScore(b, a))[0];
+          else if (policy.square === 'centre') sq = [4, 0, 2, 6, 8, 1, 3, 5, 7].find(i => DU.legal(b, card).includes(i));
+          else if (policy.square === 'random') sq = pickOne(DU.legal(b, card), R);
+          else sq = DU.greedy(b, card);
           const step = DU.rule(b.cells).step;
           par = s.parry > 0 && policy.parry !== 'never' && pOf(card) < 0.7 && step <= 3;
           taps += 3; s.secs += 3 * DU.SIM.TAP;
-        } else { sq = pickOne(DU.rule(b.cells).squares, R); taps += 1; s.secs += DU.SIM.TAP; }
+        } else { sq = DU.nextSq(s, b); taps += 1; s.secs += DU.SIM.TAP; }
         const a = answer(card);
         DU.settle(s, card, sq, a, par);
         const who = DU.decide(s);
@@ -837,7 +953,21 @@
     .du-sq svg { width: 100%; height: 100%; }
     .du-sq.on { outline: 3px solid #cfdbe8; outline-offset: -6px; border-radius: 8px; }
     .du-sq:disabled { opacity: 1; cursor: default; }
-    .du-ghost { border: 2px dashed #ece6d8; border-radius: 8px; padding: 6px 4px; width: 80%; text-align: center; }
+    .du-sq { position: relative; align-content: center; }
+    .du-chalk { display: block; font: 700 12px/1.1 var(--f-body, sans-serif); color: #ece6d8; opacity: .85; letter-spacing: .02em; text-align: center; max-width: 100%; overflow-wrap: anywhere; font-style: italic; text-shadow: 0 0 1px #ece6d8; }
+    .du-ticks { display: block; font-style: normal; letter-spacing: .1em; opacity: .8; }
+    .du-sq.hard:not(.taken) { box-shadow: inset 0 0 0 2px rgba(236,230,216,.28); border-radius: 10px; }
+    .du-sq.nofit .du-chalk { opacity: .35; text-decoration: line-through; }
+    .du-sq.nofit { cursor: not-allowed; }
+    .du-sq.slide { animation: du-slide .35s ease-out; }
+    @keyframes du-slide { 0%, 100% { transform: none; } 30% { transform: translateX(-5px); } 60% { transform: translateX(4px); } }
+    .du-hand-m { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: none; }
+    .du-sq.hard .du-hand-m { justify-content: flex-start; padding-top: 2px; }
+    .du-hand-m svg { width: 52%; height: auto; opacity: .9; filter: drop-shadow(0 3px 2px rgba(0,0,0,.45)); }
+    .du-word { font: 800 11px var(--f-body, sans-serif); background: rgba(23,19,31,.75); color: #ece6d8; border-radius: 4px; padding: 0 4px; }
+    .du-sq.hard.next .du-hand-m svg { width: 40%; }
+    .du-sq.hard.next .du-chalk { margin-top: 52%; }
+    .du-nofit { border-left: 4px solid var(--sun, #b8923a); padding-left: 6px; }
     .du-stroke { position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px); pointer-events: none; }
     .du-tabline { margin: 6px 0 0; font-size: 14px; }
     .du-slate { display: inline-block; background: #3a3746; color: #ece6d8; border: 2px solid #ece6d8; border-radius: 5px; padding: 0 6px; font-weight: 800; letter-spacing: .06em; }
