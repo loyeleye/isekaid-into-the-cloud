@@ -37,7 +37,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       // The street inside .hs-view is a painted panorama that pans sideways on a phone: the view itself must fit.
       document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => {
         // So does the hand under it, which scrolls sideways as one strip of cards.
-        if ((el.closest('.hs-view') && !el.classList.contains('hs-view')) || (el.closest('.hb-hand') && !el.classList.contains('hb-hand')) || (el.closest('.hd-nav') && !el.classList.contains('hd-nav'))) return;
+        if ((el.closest('.hs-view') && !el.classList.contains('hs-view')) || (el.closest('.hb-hand') && !el.classList.contains('hb-hand')) || (el.closest('.hd-nav') && !el.classList.contains('hd-nav')) || el.closest('.hd-track')) return;
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });
@@ -182,6 +182,17 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     nav: c ? [...c.querySelectorAll('.hd-nav button')].map(b => b.textContent) : [], exp: document.querySelector('#panel .hd-nbk').getAttribute('aria-expanded'), focus: document.activeElement && document.activeElement.className }; });
   check(notes.shown && notes.recap && notes.help && notes.nav.includes('The question') && notes.nav.includes('Help') && notes.exp === 'true' && notes.focus === 'hd-nx',
     'the notebook opens Bru\'s notes: the rest of the feedback, its sections listed along the top, focus on Close ' + JSON.stringify(notes));
+  // Each section is a page in a carousel: one page in view (the rest inert), › turns to the next and its tab lights up.
+  const car = await page.evaluate(async () => {
+    const c = document.querySelector('#panel .hd-card.hd-notes'), sl = [...c.querySelectorAll('.hd-slide')], vis = () => sl.filter(d => !d.inert).length;
+    const r0 = { n: sl.length, vis: vis(), sel: c.querySelector('[role="tab"][aria-selected="true"]').textContent };
+    c.querySelector('.hd-nv').click(); await new Promise(r => setTimeout(r, 650));
+    await Promise.all(c.getAnimations({ subtree: true }).filter(a => a.effect.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {})));
+    const box = c.querySelector('.hd-in').getBoundingClientRect(), on = c.querySelector('.hd-slide.on').getBoundingClientRect();
+    return Object.assign(r0, { after: c.querySelector('[role="tab"][aria-selected="true"]').textContent, vis2: vis(), inView: Math.abs(on.left - box.left) < 2, ct: c.querySelector('.hd-ct').textContent });
+  });
+  check(car.n >= 3 && car.vis === 1 && car.vis2 === 1 && car.sel === 'The question' && car.after !== car.sel && car.inView && /^2 \/ /.test(car.ct),
+    'Bru\'s notes are a carousel: one section per page, › turns to the next, its tab lights up ' + JSON.stringify(car));
   await noHScroll('Bru\'s notes');
   await shot('debrief-notes');
   await page.keyboard.press('Escape');

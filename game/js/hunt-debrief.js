@@ -173,9 +173,9 @@
     const head = document.createElement('div'); head.className = 'hd-nh';
     head.innerHTML = `<img src="assets/img/hunt/notebook.webp" alt="" class="hd-nhi"><div class="hd-nht"><b>BRU'S NOTES</b><span>${esc(st.ms.map(x => x.name).join(' · ') || 'Debrief')}</span></div>
       <button type="button" class="hd-nx" aria-label="Close Bru's notes">✕</button>
-      <nav class="hd-nav" aria-label="Sections">${secs.map(([, n], i) => `<button type="button" data-i="${i}">${esc(n)}</button>`).join('')}</nav>`;
+      <div class="hd-nav" role="tablist" aria-label="Sections">${secs.map(([, n], i) => `<button type="button" role="tab" id="hd-t${i}" aria-controls="hd-s${i}" data-i="${i}">${esc(n)}</button>`).join('')}</div>`;
     card.prepend(head);
-    head.querySelectorAll('.hd-nav button').forEach(b => b.onclick = () => { const k = secs[+b.dataset.i][0]; inn.scrollTo({ top: k.offsetTop - 8, behavior: still() ? 'auto' : 'smooth' }); if (k.tagName === 'DETAILS') k.open = true; });
+    carousel(card, inn, head, secs);
     const book = st.scene.querySelector('.hd-nbk');
     book.hidden = false;
     const set = (on, anim) => {
@@ -189,6 +189,59 @@
     card.onkeydown = e => { if (e.key === 'Escape') { e.stopPropagation(); set(false, true); } };
     set(!!st.notes, false);
     sat.classList.remove('empty');
+  }
+
+  // Each section of the notes is a slide in one horizontal carousel (Ladi, Nov 16: "Make each subsection its own
+  // horizontal carousel that moves in a high tech animated way"): the tabs along the top, ‹ › and a counter along the
+  // bottom, swipe on a phone, ← → on a keyboard. A move slides the track and sweeps a cyan scanline over the new
+  // slide, which resolves out of a glitch. Slides out of view are inert. Nodes that aren't a section ride with the
+  // section before them (or the first).
+  function carousel(card, inn, head, secs) {
+    if (!secs.length) return;
+    const track = document.createElement('div'); track.className = 'hd-track';
+    const slides = secs.map(([, n], i) => { const d = document.createElement('section'); d.className = 'hd-slide'; d.id = 'hd-s' + i; d.setAttribute('role', 'tabpanel'); d.setAttribute('aria-labelledby', 'hd-t' + i); d.setAttribute('aria-roledescription', 'slide'); d.dataset.n = `${i + 1} / ${secs.length}`; return d; });
+    let cur = 0;
+    [...inn.children].forEach(k => { const j = secs.findIndex(x => x[0] === k); if (j >= 0) cur = j; slides[cur].appendChild(k); });
+    slides.forEach(d => track.appendChild(d));
+    inn.appendChild(track); inn.classList.add('hd-car');
+    const scan = document.createElement('div'); scan.className = 'hd-scan'; scan.setAttribute('aria-hidden', 'true'); inn.appendChild(scan);
+    const foot = document.createElement('div'); foot.className = 'hd-cf';
+    foot.innerHTML = `<button type="button" class="hd-pv" aria-label="Previous section">‹</button><span class="hd-ct" aria-live="polite"></span><span class="hd-dots" aria-hidden="true">${secs.map(() => '<i></i>').join('')}</span><button type="button" class="hd-nv" aria-label="Next section">›</button>`;
+    card.appendChild(foot);
+    const tabs = [...head.querySelectorAll('.hd-nav [role="tab"]')], dots = [...foot.querySelectorAll('.hd-dots i')];
+    const go = (i, anim) => {
+      i = Math.max(0, Math.min(secs.length - 1, i));
+      const from = st.slide || 0; st.slide = i;
+      track.style.transform = `translateX(${-i * 100}%)`;
+      slides.forEach((d, j) => { const on = j === i; d.inert = !on; d.setAttribute('aria-hidden', String(!on)); d.classList.toggle('on', on); });
+      tabs.forEach((t, j) => { t.setAttribute('aria-selected', String(j === i)); t.tabIndex = j === i ? 0 : -1; });
+      dots.forEach((d, j) => d.classList.toggle('on', j === i));
+      foot.querySelector('.hd-ct').textContent = `${i + 1} / ${secs.length} · ${secs[i][1]}`;
+      foot.querySelector('.hd-pv').disabled = i === 0; foot.querySelector('.hd-nv').disabled = i === secs.length - 1;
+      tabs[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (anim && !still() && i !== from) {
+        inn.dataset.dir = i > from ? 'r' : 'l';
+        [scan, slides[i]].forEach(x => { x.classList.remove('go'); void x.offsetWidth; x.classList.add('go'); });
+      }
+      if (secs[i][0].tagName === 'DETAILS' && anim) secs[i][0].open = true;
+    };
+    tabs.forEach((t, j) => { t.onclick = () => go(j, true); });
+    foot.querySelector('.hd-pv').onclick = () => go(st.slide - 1, true);
+    foot.querySelector('.hd-nv').onclick = () => go(st.slide + 1, true);
+    head.querySelector('.hd-nav').onkeydown = e => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (d) { e.preventDefault(); go(st.slide + d, true); tabs[st.slide].focus(); }
+    };
+    card.addEventListener('keydown', e => {
+      if (e.target.closest('input, textarea, .hd-nav')) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); go(st.slide + (e.key === 'ArrowRight' ? 1 : -1), true); }
+    });
+    // Swipe: a mostly-sideways drag of 40px or more turns the page.
+    let x0 = null, y0 = 0;
+    inn.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { x0 = e.clientX; y0 = e.clientY; } }, { passive: true });
+    inn.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) go(st.slide + (dx < 0 ? 1 : -1), true); });
+    inn.addEventListener('pointercancel', () => { x0 = null; });
+    go(Math.min(st.slide || 0, secs.length - 1), false);
   }
 
   // The notebook flies up from under the verdict, its cover swings open, and the notes screen grows out of it.
@@ -432,8 +485,33 @@
     .hd-nav button { flex: none; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(95, 224, 255, .35); background: rgba(95, 224, 255, .06); color: #bfefff; font: 600 12px/1.3 var(--f-body, sans-serif); letter-spacing: .02em; cursor: pointer; }
     .hd-nav button:hover, .hd-nav button:focus-visible { background: rgba(95, 224, 255, .2); outline: none; border-color: #5fe0ff; }
     #panel .hd-card.hd-notes .hd-in { flex: 1; padding: 14px 16px 18px; background: none; }
+    /* The carousel */
+    #panel .hd-card.hd-notes .hd-in.hd-car { position: relative; overflow: hidden; padding: 0; display: flex; touch-action: pan-y; }
+    .hd-track { display: flex; width: 100%; flex: none; transition: transform .5s cubic-bezier(.7, 0, .2, 1); }
+    .hd-slide { flex: 0 0 100%; min-width: 0; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 16px 16px 18px; }
+    .hd-slide > * { margin-top: 0; margin-bottom: 12px; }
+    .hd-slide.go { animation: hdGlitch .55s steps(1, end) .12s both, hdRez .6s ease-out .12s both; }
+    @keyframes hdGlitch { 0% { clip-path: inset(0 0 72% 0); transform: translateX(6px); } 12% { clip-path: inset(30% 0 40% 0); transform: translateX(-5px); } 24% { clip-path: inset(62% 0 8% 0); transform: translateX(4px); }
+      36% { clip-path: inset(10% 0 55% 0); transform: translateX(-3px); } 48%, 100% { clip-path: inset(0); transform: none; } }
+    @keyframes hdRez { from { filter: brightness(1.8) saturate(.2) drop-shadow(0 0 6px #5fe0ff); opacity: .4; } to { filter: none; opacity: 1; } }
+    .hd-scan { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+    .hd-scan.go { animation: hdScan .6s ease-out; background: linear-gradient(90deg, transparent, rgba(95, 224, 255, .08) 40%, rgba(155, 233, 255, .9) 49%, #fff 50%, rgba(155, 233, 255, .9) 51%, rgba(95, 224, 255, .08) 60%, transparent),
+      repeating-linear-gradient(0deg, rgba(95, 224, 255, .07) 0 2px, transparent 2px 4px); background-size: 200% 100%, 100% 100%; }
+    [data-dir="l"] > .hd-scan.go { animation-name: hdScanL; }
+    @keyframes hdScan { 0% { opacity: 1; background-position: 100% 0, 0 0; } 80% { opacity: 1; } 100% { opacity: 0; background-position: -100% 0, 0 0; } }
+    @keyframes hdScanL { 0% { opacity: 1; background-position: -100% 0, 0 0; } 80% { opacity: 1; } 100% { opacity: 0; background-position: 100% 0, 0 0; } }
+    .hd-cf { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; align-items: center; gap: 4px 10px; padding: 8px 12px 10px; border-top: 1px solid rgba(95, 224, 255, .3); background: linear-gradient(transparent, rgba(95, 224, 255, .08)); }
+    .hd-cf > .hd-pv { grid-column: 1; } .hd-cf > .hd-nv { grid-column: 3; } .hd-cf > :is(.hd-ct, .hd-dots) { grid-column: 2; }
+    .hd-cf > :is(.hd-pv, .hd-nv) { grid-row: 1 / span 2; width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(95, 224, 255, .5); background: rgba(95, 224, 255, .08); color: #bfefff; font: 700 24px/1 var(--f-body, sans-serif); cursor: pointer; box-shadow: 0 0 12px rgba(95, 224, 255, .15) inset; }
+    .hd-cf > :is(.hd-pv, .hd-nv):hover:not(:disabled), .hd-cf > :is(.hd-pv, .hd-nv):focus-visible { background: rgba(95, 224, 255, .22); outline: none; box-shadow: 0 0 0 2px #5fe0ff, 0 0 16px rgba(95, 224, 255, .5); }
+    .hd-cf > :disabled { opacity: .3; cursor: default; }
+    .hd-ct { text-align: center; font: 600 12px/1.2 var(--f-body, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: #9be9ff; }
+    .hd-dots { display: flex; justify-content: center; gap: 6px; }
+    .hd-dots i { width: 18px; height: 3px; border-radius: 2px; background: rgba(95, 224, 255, .25); transition: background .3s, box-shadow .3s, width .3s; }
+    .hd-dots i.on { width: 30px; background: #5fe0ff; box-shadow: 0 0 8px #5fe0ff; }
+    .hd-nav [role="tab"][aria-selected="true"] { background: rgba(95, 224, 255, .28); border-color: #5fe0ff; color: #fff; box-shadow: 0 0 10px rgba(95, 224, 255, .45); }
     #panel .hd-card.hd-notes .hd-in > * { margin-top: 0; margin-bottom: 14px; }
-    #panel .hd-card.hd-notes [data-sec] { position: relative; padding: 10px 12px; border: 1px solid rgba(95, 224, 255, .22); border-radius: 10px; background: rgba(13, 21, 34, .75); box-shadow: inset 3px 0 0 rgba(95, 224, 255, .55); }
+    #panel .hd-card.hd-notes [data-sec] { position: relative; padding: 12px 14px; border: 1px solid rgba(95, 224, 255, .22); border-radius: 10px; background: rgba(13, 21, 34, .75); box-shadow: inset 3px 0 0 rgba(95, 224, 255, .55); }
     #panel .hd-card.hd-notes [data-sec]:is(.help-row, .compass, [class^="rc-"])::before { content: attr(data-sec); display: block; margin: 0 0 6px; font: 700 10.5px/1 var(--f-body, sans-serif); letter-spacing: .14em; text-transform: uppercase; color: #5fe0ff; }
     #panel .hd-card.hd-notes :is(.q-ctx, .qr-lbl) { color: #5fe0ff; }
     #panel .hd-card.hd-notes :is(summary, details) { color: #dbe8f5; }
@@ -448,7 +526,8 @@
     #panel .hd-card.hd-notes .help-row::before { flex-basis: 100%; }
     #panel .hd-card.hd-notes .src-badge.un { background: #3a2c10; color: #f0d68a; }
     @media (prefers-reduced-motion: reduce) {
-      .hd-stamp.slam .verdict, .hd-nbk img { animation: none !important; }
+      .hd-stamp.slam .verdict, .hd-nbk img, .hd-slide.go, .hd-scan.go { animation: none !important; }
+      .hd-track { transition: none; }
       .hd-spr, .hd-mon.rattle .hd-jar, .hd-mon.rattle .hd-spr, .hd-mon.loose.rattle .hd-jar, .hd-card.hd-drop { animation: none !important; }
       .hd-mon.cowed .hd-spr { transition: none; }
     }
