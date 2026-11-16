@@ -259,7 +259,7 @@
     .rm.noback.talk .rm-front { opacity: 1; filter: blur(.35cqi) brightness(.5) saturate(.8); }
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
     .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none; }
-    .rm.noback .rm-up { z-index: 4; clip-path: inset(0 -20% ${100 - 100 * (COUNTER - 1.5 - 8) / 96}% -20%); }
+    .rm.noback .rm-up { z-index: 4; clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
     .rm.noback.talk .rm-up { clip-path: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
