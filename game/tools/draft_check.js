@@ -162,6 +162,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => { const r = SD.draft.run(), c = SD.draft.CLIENTS[r.items[r.open].client]; return !document.querySelector('#panel .win-b').textContent.includes(c.arrive) && document.querySelector('#panel .dr-for').textContent.includes(c.name); }), 'only the client\'s name sits above the scroll');
   check(await page.$$eval('#panel .dr-slot', els => els.length) === c0.n, 'one slot per answer the question needs');
   check(await page.$$eval('#panel [data-i]', els => els.length) === c0.cards, 'the question\'s options are dealt as cards');
+  await wait(60);   // let the panel's opening transition finish before measuring
   check(await page.$$eval('#panel .dr-card', els => els.every(el => el.getBoundingClientRect().width > 280)), 'option cards are full-width rows');
   check(!/Not here|why not/i.test(await txt()), 'no "why not" line before the seal');
   check(await page.$eval('#panel [data-c="0"]', el => el.disabled), 'sealing waits until every slot is filled');
@@ -387,7 +388,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.evaluate(id => SD.draft.retry(id, null), rq); await wait(20);
     const rt = await page.evaluate(() => JSON.parse(JSON.stringify(SD.draft.save().retry)));
     check(await title() === 'ARCHITECT\'S DRAFT · RETRY' && rt.q !== rq && rt.retry.poster === rq, 'the retry asks its twin, never the same question');
-    check(await page.evaluate(() => SD.draft.save().mat) === 1, 'the retry costs two materials');
+    check(await page.evaluate(() => SD.draft.save().mat) === 2, 'the retry costs one material');
     check(!await page.$('#dr-back'), 'a paid retry can\'t be backed out of');
     const tw = await page.evaluate(() => { const q = SD.exam.find(SD.draft.save().retry.q); return { n: SD.draft.slotsOf(q), right: SD.draft.cards(q).map((t, i) => i).filter(i => SD.draft.cardOk(q, i)) }; });
     for (const i of tw.right.slice(0, tw.n)) await page.click(`#panel [data-i="${i}"]`);

@@ -24,7 +24,8 @@
 //
 // Rules, one new one per night of play (v4: one new rule per night; scheduled play reaches nights 1 and 2 before
 // Nov 30): night 1, clients, the draft, the seal and placement on six open plots. Night 2, materials: a building gets
-// one for each neighbour of its own exam domain, and two buy a retry on an older scaffolded building's twin. Night 3,
+// one for each neighbour of its own exam domain, and one buys a retry on an older scaffolded building's twin (two
+// until Nov 16: the simulator found that made the riverside route best at every accuracy). Night 3,
 // reputation: a standing building on a riverside plot earns it, and it brings a second tier of clients to the board. The travelling client
 // and buying land wait until after the exam.
 //
@@ -38,7 +39,7 @@
   const DR = SD.draft = {};
   const S = SD.state, U = SD.ui, E = () => SD.exam, M = () => SD.modes || {};
   const esc = s => U.esc(s);
-  const SESSION = 6, BOARD = 3, MAP_ACTIONS = 4, RETRY_COST = 2, TIER2_REP = 3, SEQ_PER = 2;
+  const SESSION = 6, BOARD = 3, MAP_ACTIONS = 4, RETRY_COST = 1, TIER2_REP = 3, SEQ_PER = 2;
   const COLS = 5, ROWS = 6, RIVER = [2];   // the river runs below row 3, so row 3 is the riverside
   const CONF = ['Guess', 'Think so', 'Sure'];
   const today = () => new Date().toDateString();
@@ -143,7 +144,7 @@
   DR.level = () => Math.max(1, Math.min(3, sv().nights.length));
   DR.RULES = {
     2: { title: 'New tonight: materials', html: `<p class="small">A building now gets <b>🧱 materials</b> from its neighbours: one for each building of its own exam domain on a plot beside it (up, down, left or right).</p>
-      <p class="small">Spend them on <b>retries</b> for older buildings still under scaffolding: from a building's plaque, ${RETRY_COST} materials buy its twin question, a different scenario on the same rule. Get it right and it counts toward that poster. More land opens too.</p>` },
+      <p class="small">Spend them on <b>retries</b> for older buildings still under scaffolding: from a building's plaque, ${plural(RETRY_COST, 'material')} ${RETRY_COST === 1 ? 'buys' : 'buy'} its twin question, a different scenario on the same rule. Get it right and it counts toward that poster. More land opens too.</p>` },
     3: { title: 'New tonight: reputation', html: `<p class="small">A building that stands on a riverside plot now earns <b>⭐ reputation</b>, because the whole camp walks past it. Scaffolding by the river earns none.</p>
       <p class="small">Reputation brings new clients: once you have enough, a second tier joins the board. The whole Quarter is open now.</p>` }
   };
@@ -759,7 +760,7 @@
     if (!bl || !q) return DR.quarter(back);
     if (bl.seq) return seqPlaque(bl, q, back);
     const c = cl(bl.client), can = DR.canRetry(qid);
-    const retryLine = bl.scaf && DR.level() >= 2 ? (can ? `<button class="primary" id="dr-rt">Retry its twin (🧱 ${RETRY_COST})</button>` : `<p class="small muted">${sv().mat < RETRY_COST ? `A retry on its twin takes ${RETRY_COST} materials; you have ${sv().mat}.` : 'This one has no twin to retry yet.'}</p>`) : '';
+    const retryLine = bl.scaf && DR.level() >= 2 ? (can ? `<button class="primary" id="dr-rt">Retry its twin (🧱 ${RETRY_COST})</button>` : `<p class="small muted">${sv().mat < RETRY_COST ? `A retry on its twin takes ${plural(RETRY_COST, 'material')}; you have ${sv().mat}.` : 'This one has no twin to retry yet.'}</p>`) : '';
     const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${bl.plot != null ? esc(R.name(bl.plot)) + (R.riverside(bl.plot) ? ' · by the river' : '') : 'On the books'} · ${esc(dom(bl.d))} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its question is on the Wall: bring that poster down (Monster Hunt or a Wall drill) to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its poster came down.' : '🏛 Standing.'}</p></div></div>
@@ -807,7 +808,7 @@
   // ---- Simulation (tools/modes_sim.js) ----
   // One session on this mode's rules, with every rule open (night 3), on a Quarter already a third built, without
   // touching the save. Answers come from the shell's SD.modes.simAnswer, one draw a blueprint (p is the chance of
-  // getting the whole blueprint right), paying one stake. A miss gets its free twin retry; two materials buy a retry on an older
+  // getting the whole blueprint right), paying one stake. A miss gets its free twin retry; one material buys a retry on an older
   // scaffolded building. policy.route: 'near' builds beside its own domain (materials), 'far' by the river
   // (reputation). Points are floors plus what the Quarter earned (materials and reputation). Two of the six are
   // build orders (scored, as after the format's first two): one draw each, no twin retry, and a miss stays scaffolded.
