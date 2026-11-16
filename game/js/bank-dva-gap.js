@@ -378,7 +378,7 @@ SD.bank.push(
 
   // KMS Encrypt limit and envelope encryption
   { id: "dva-2-904", exam: "DVA", dva: "2.2", topic: "kms", type: "mc",
-    q: "A service encrypts uploaded PDF files of 1 to 20 MB by passing each file to the KMS Encrypt API with a symmetric KMS key. Every call fails with a validation error about the plaintext length. What should the developer do?",
+    q: "A service encrypts uploaded PDF files of 1 to 20 MB by passing each file to the KMS Encrypt API with a symmetric KMS key. Every call fails with a validation error about the plaintext length. What should the developer do to encrypt each file with the fewest KMS requests?",
     opts: [
       "Ask AWS Support to raise the Encrypt plaintext size quota for the account, so that whole files up to 20 MB fit in one request.",
       "Call GenerateDataKey, encrypt the file locally with the plaintext data key, and store the encrypted data key with the file.",
@@ -388,7 +388,7 @@ SD.bank.push(
     no: [
       "The 4,096-byte limit for symmetric Encrypt is fixed. It isn't a quota you can raise.",
       null,
-      "It would work, but a 20 MB file means thousands of KMS calls, adding latency and cost and risking request-rate throttling.",
+      "A 20 MB file would need about 5,000 Encrypt calls. Envelope encryption needs one KMS request per file.",
       "RSA_4096 accepts even less plaintext (about 446 to 470 bytes), not more."],
     why: "KMS Encrypt takes at most 4,096 bytes with a symmetric key. For larger data, use envelope encryption: GenerateDataKey returns a plaintext data key to encrypt locally and an encrypted copy to store, and the plaintext key is discarded after use.",
     doc: ["https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html", "https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html"] },

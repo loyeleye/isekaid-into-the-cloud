@@ -57,9 +57,12 @@
     const p = AU.prefs;
     // Multiplayer (js/raid-finder.js): not from inside a dungeon, which is already a party of its own.
     const mp = SD.mp && SD.mp.available() && $('#screen-run').hidden;
+    // Game modes (js/modes.js): the same picker as the title's button, not from inside a dungeon run.
+    const modes = SD.modes && SD.modes.list().length && $('#screen-run').hidden;
     const qs = SD.quick && $('#screen-title').hidden && !(SD.mp && SD.mp.inRaid && SD.mp.inRaid());
     const b = U.panel(`<div class="opts">
       ${qs ? `<button class="opt" id="m-quick">${SD.quick.markIcon} Quick save and pause</button>` : ''}
+      ${modes ? '<button class="opt" id="m-modes">Game modes</button>' : ''}
       ${mp ? '<button class="opt" id="m-mp">Multiplayer: expedition raids</button>' : ''}
       <button class="opt" id="m-help">How to play</button>
       <button class="opt" id="m-music">Music: <b>${p.music ? 'On' : 'Off'}</b></button>
@@ -83,6 +86,7 @@
     if (qs) b.querySelector('#m-quick').onclick = () => { U.closePanel(); SD.quick.pause(); };
     if (SD.quick) b.querySelector('#m-qauto').onclick = () => { SD.quick.setAuto(!SD.quick.auto()); menu(); };
     if (mp) b.querySelector('#m-mp').onclick = () => SD.mp.open('menu');
+    if (modes) b.querySelector('#m-modes').onclick = () => { U.closePanel(); SD.modes.open(); };
     b.querySelector('#m-music').onclick = () => { AU.set('music', !p.music); menu(); M.hud(); };
     b.querySelector('#m-sfx').onclick = () => { AU.set('sfx', !p.sfx); menu(); M.hud(); };
     b.querySelector('#m-credits').onclick = credits;
@@ -207,6 +211,7 @@
       ? `<button class="primary" id="t-go">Continue${sv.c1 && sv.c1.lead && SD.ch1story ? ' · ' + U.esc(SD.ch1story.leads[sv.c1.lead].name) : ''}</button><button class="ghost" id="t-new2">New game</button><button class="ghost" id="t-help">How to play</button>`
       : `<button class="primary" id="t-new">New game</button><button class="ghost" id="t-help">How to play</button>`;
     $('#t-help').onclick = help;
+    if (SD.modes && SD.modes.titleButton) SD.modes.titleButton($('#title-actions'));
     if (has && $('#t-new2')) $('#t-new2').onclick = () => {
       const c = U.panel('<p>Start again from the prologue? Your level, cheat sheet and everything you learned stay.</p><div class="row"><button class="primary" id="n-y">Start again</button><button class="ghost" id="n-n">Cancel</button></div>', { title: 'NEW GAME' });
       c.querySelector('#n-y').onclick = () => { U.closePanel(); S.save.c1 = null; S.save.run = null; S.persist(); SD.ch1 ? SD.ch1.newGame() : newGame(); };

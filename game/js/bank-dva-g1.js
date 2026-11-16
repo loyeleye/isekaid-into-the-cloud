@@ -34,7 +34,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-method-request-validation.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-validation-set-up.html"] },
 
   { id: "dva-1-303", exam: "DVA", dva: "1.1", topic: "apigateway", type: "mc",
-    q: "A REST API validates POST /orders bodies against a JSON schema model. When validation fails, mobile clients receive only {\"message\": \"Invalid request body\"} and can't tell users which field to fix. The team wants the details of each validation failure in the response, without invoking the backend for bad requests. What should the developer do?",
+    q: "A REST API validates POST /orders bodies against a JSON schema model. When validation fails, mobile clients receive only {\"message\": \"Invalid request body\"} and can't tell users which field to fix. The response must give the details of each validation failure, and bad requests must never invoke the backend. What should the developer do?",
     opts: [
       "Customize the BAD_REQUEST_BODY gateway response to include $context.error.validationErrorString, and redeploy.",
       "Turn off the request validator, and have the backend Lambda function validate the body and return the field-level errors.",
@@ -42,7 +42,7 @@ SD.bank.push(
       "Add an integration response for 400 with a mapping template that copies the validation errors into the response body."
     ], a: 0,
     no: [null,
-      "This would work, but every bad request would then invoke the backend, which the team wants to avoid.",
+      "Without the validator, every bad request reaches the backend, which the requirement rules out.",
       "Execution logs do record the reason, but clients can't read the API's CloudWatch logs, and they need the details in the response.",
       "A request that fails validation never reaches the integration, so no integration response is ever applied to it."
     ],

@@ -303,6 +303,56 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const want = s2.lead.length;
   check(lead.length >= 1 && lead.length <= Math.min(4, want), `the next day's set leads with questions on the empty and loose jars' ideas (${lead.length} of ${want})`);
 
+  // ---- Drop 2: rematches and spaced checks ----
+  await page.evaluate(() => SD.sprint.open());
+  await page.waitForSelector('#sp-rmlist');
+  check(/Rematches · \d+ rustling in the grass/.test(await txt('#sp-rmlist')), 'the gate lists rematches for the daemons that slipped out');
+  await page.click('#sp-rmlist');
+  await page.waitForSelector('.sp-rml');
+  check(/Twin|Same idea|No twin yet/.test(await txt('.sp-rml')), 'each rematch is labelled Twin, Same idea or No twin yet');
+  await noHScroll('rematches');
+  await shot('rematches');
+  if (await page.$('[data-rm]')) {
+    await page.click('[data-rm]');
+    await page.waitForSelector('#panel .win.quiz');
+    await page.evaluate(async () => {
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const p = document.querySelector('#panel'), q = SD.modes.current();
+      const said = p.querySelector('#q-said'); if (said) { said.click(); await wait(10); }
+      const tf = p.querySelector('#tf-idk'); if (tf) { tf.click(); await wait(10); }
+      if (q.type === 'mc') p.querySelector(`[data-o="${q.a}"]`).click();
+      else q.items.forEach((it, i) => { if (it.ok) p.querySelector(`[data-m="${i}"]`).click(); });
+      await wait(10);
+      p.querySelector('[data-c="1"]').click();
+    });
+    await page.waitForSelector('#q-next');
+    await page.click('#q-next');
+    await page.waitForSelector('.sp-rml, .sp-gate');
+    check(/Caught!/.test(await txt('#panel')), 'a right rematch catches the daemon');
+    const sl = await sp();
+    check(sl.slip.filter(x => x.won).length === 1 && await page.$$eval('.sp-rm', els => els.length) === sl.slip.filter(x => !x.won).length, 'the caught daemon leaves the rematch list');
+    await shot('rematch-caught');
+  }
+  await page.click('#sp-rback');
+  const ck = await page.evaluate(() => {
+    const t0 = Date.now(), st = SD.state.save.sprint, realNow = Date.now;
+    // Two and a half days on: due checks join the set.
+    Date.now = () => t0 + 2.5 * 86400000;
+    const items = SD.today.build(15).filter(x => x.check);
+    const ch = st.checks.find(c => c.pid);
+    let stamped = false;
+    if (ch) {
+      const q = SD.exam.find(ch.pid), c = SD.today.conceptOf(q);
+      SD.state.recordAnswer(c, true, 2, 30000, ch.pid);
+      SD.sprint.settleChecks();
+      stamped = !!(st.fam[ch.fam] && st.fam[ch.fam].checked);
+    }
+    Date.now = realNow;
+    return { n: items.length, stamped };
+  });
+  check(ck.n >= 1 && ck.n <= 2, `2 to 3 days after a catch, Today's set serves a check question on its idea (${ck.n})`);
+  check(ck.stamped, 'a right check at Think so or Sure gives the family a CHECKED stamp');
+
   // ---- Proctor's Pass: exam conditions ----
   await page.evaluate(() => SD.sprint.open());
   await page.waitForSelector('.sp-gate');
@@ -329,6 +379,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('.sp-chart');
   const r2 = await sp();
   check(!!r2.done.r2 && r2.results.slice(-1)[0].sunset, 'sunset ends the run and the Lamp House opens');
+  check(/dashed outline = Route 1 on Nov 24/.test(await txt('.sp-house')), 'Proctor\'s Pass shows Route 1 as a ghost in the pace log');
+  await shot('ghost');
   await page.click('#sp-next'); await page.waitForSelector('.sp-jars');
   await page.click('#sp-next').catch(() => {});
   if (!await page.$('.sp-deb')) { for (let k = 0; k < 12 && await page.$('#sp-rest'); k++) { await page.click('#sp-rest'); await tick(800); } await page.click('#sp-next'); }

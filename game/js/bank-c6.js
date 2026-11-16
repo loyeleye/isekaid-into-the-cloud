@@ -76,7 +76,7 @@ SD.bank.push(
 
   // DVA Task 3.4: Deploy code by using AWS CI/CD services
   { id: "dva-3-853", exam: "DVA", dva: "3.4", topic: "cloudformation", type: "mc",
-    q: "A developer deploys one CloudFormation template to us-east-1 and eu-west-1 in the same account with a StackSet. The template has an InstanceType parameter, and eu-west-1 must run a smaller instance type than us-east-1. Both Regions must keep using the same template. What should the developer do?",
+    q: "A developer deploys one CloudFormation template to us-east-1 and eu-west-1 in the same account with a StackSet. The template has an InstanceType parameter, and eu-west-1 must run a smaller instance type than us-east-1. The template must not be copied or edited. What should the developer do?",
     opts: [
       "Override the InstanceType parameter on the eu-west-1 stack instance, and keep the StackSet's default value for us-east-1.",
       "Make a second StackSet from a copy of the template with the smaller type written in, and deploy that one to eu-west-1 only.",
@@ -85,8 +85,8 @@ SD.bank.push(
     ], a: 0,
     no: [
       null,
-      "That works, but it leaves two copies of the template to keep in step, which is what the requirement rules out.",
-      "A condition can't change a parameter's value. You could choose a value with a mapping, but parameter overrides are the StackSets way and need no template change.",
+      "It copies the template and edits the copy, which the requirement rules out.",
+      "A condition can't change a parameter's value, and adding one edits the template, which is ruled out.",
       "Changing a stack's resource outside CloudFormation causes drift, which can complicate later StackSet updates."],
     why: "A StackSet holds default parameter values, and each stack instance can override any of them. One template, one StackSet, with a different value in the Regions or accounts that need it.",
     doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stackinstances-override.html", "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html"] },
