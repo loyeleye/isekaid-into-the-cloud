@@ -96,6 +96,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/Incident Commander/.test(await txt('#panel')), 'the picker lists Incident Commander');
   await page.click('[data-mode="ic"]');
+  await page.click('#ic-pager');
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
   const s0 = await ic();
   check(!s0.map && !s0.picksOn, 'shift 1 is the board alone: no map, no picks (one new rule per night)');
@@ -192,6 +193,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/Resume · wave \d of 4/.test(await txt('[data-mode="ic"]')), 'after a reload the picker offers Resume with the wave');
   await page.click('[data-mode="ic"]');
+  await page.click('#ic-pager');
   await page.waitForSelector('.ic-board');
   const s7 = await ic();
   check(JSON.stringify(s7.board) === JSON.stringify(s6b.board) && s7.pts === s6b.pts, 'resuming lands on the same board');
