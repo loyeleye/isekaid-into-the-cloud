@@ -20,6 +20,11 @@
 //     the theme of the game"). Incident Commander's is the camp's pager board: a timber frame around cork, incidents
 //     as paper pager slips pinned with brass tacks (a wax-colour edge per severity, lamp-flame clock pips), the error
 //     budget as lamp oil on a brass plate, Uptima's line as a pinned note, and a question as a paper incident report.
+//     Monster Hunt: Bru's bounty board, a parchment sheet nailed to planks, with each bounty a pinned notice.
+//     Exam Sprint: an exam booklet on a clipboard. Architect's Draft: a blueprint sheet on the drafting table.
+//     The Look-Alike Cup and the Lost and Found: the frame only (a lacquered card table with felt, a storeroom
+//     shelf with a manila claim sheet), since their boards and maps are being reworked in another thread.
+//     LIGHT below lists the paper surfaces: inside them the old light palette is back, with paper-coloured buttons.
 // This file only wraps: no mode file changes. It loads after js/title-games.js.
 // API: SD.modeStage.enter(def), .leave(), .active() the running mode's id or null.
 (function () {
@@ -195,6 +200,10 @@
     make();
   };
 
+  // Paper surfaces: dark ink on a light sheet.
+  const LIGHT = 'body.in-mode #panel :is(' + ['hunt', 'sprint', 'pop'].map(id => `body[data-stage="${id}"] .win-b`)
+    .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)']).join(', ') + ')';
+  const FRAME = id => `body.in-mode[data-stage="${id}"] #panel`;
   const css = document.createElement('style');
   css.textContent = `
     #mode-stage { position: fixed; inset: 0; z-index: 19; background: #0c0a10; overflow: hidden; }
@@ -296,15 +305,76 @@
     /* A question, and the walkthrough: one paper incident report on the cork. */
     body.in-mode[data-stage="ic"] #panel .win.quiz .win-b, body.in-mode[data-stage="ic"] #panel .win-b:has(> .md-walk) { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018;
       background: repeating-linear-gradient(transparent 0 27px, rgba(90, 70, 40, .07) 27px 28px), linear-gradient(#f8f1df, #ecdfc2); box-shadow: inset 0 0 0 2px #140b05, inset 0 0 40px rgba(120, 90, 40, .25); }
-    body.in-mode[data-stage="ic"] #panel :is(.win.quiz .win-b, .win-b:has(> .md-walk)) :is(.opt, .ghost, .conf-b button, .row button):not(.primary) { background: #fffaf0; color: #2a2018; border: 1.5px solid #6a5a48; box-shadow: 0 2px 0 rgba(60, 40, 20, .35); }
-    body.in-mode[data-stage="ic"] #panel :is(.win.quiz .win-b, .win-b:has(> .md-walk)) :is(.opt, .ghost, .conf-b button):not(.primary):not(:disabled):hover { background: #fff; }
-    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b :is(.opt.on, button.on[aria-pressed="true"]) { background: #dbe6f0; border-color: #2a4360; }
-    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b .conf-b button[data-c="2"]:not(:disabled) { background: #f0d68a; }
-    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b :is(.conf, .pop-dock) { border-top-color: #b9a780; }
-    body.in-mode[data-stage="ic"] #panel .win.quiz .win-b a { color: #2a4360; }
     body.in-mode[data-stage="ic"] #panel .win-h .td-stop { background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; border: 1px solid #140b05; }
     @media (max-width: 600px) { body.in-mode[data-stage="ic"] #panel .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; } }
     @media (prefers-reduced-motion: reduce) { body.in-mode[data-stage="ic"] #panel .ic-card { transition: none; } }
+    /* ---- Paper surfaces, shared ---- */
+    ${LIGHT} { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018; }
+    ${LIGHT} :is(.opt, .ghost, .conf-b button, .row button, .mi-btn):not(.primary) { background: #fffaf0; color: #2a2018; border: 1.5px solid #6a5a48; box-shadow: 0 2px 0 rgba(60, 40, 20, .35); }
+    ${LIGHT} :is(.opt, .ghost, .conf-b button, .row button, .mi-btn):not(.primary):not(:disabled):hover { background: #fff; }
+    ${LIGHT} :is(.opt.on, button.on[aria-pressed="true"]) { background: #dbe6f0; border-color: #2a4360; }
+    ${LIGHT} .conf-b button[data-c="2"]:not(:disabled) { background: #f0d68a; }
+    ${LIGHT} :is(.conf, .pop-dock, .sp-tray) { border-top-color: #b9a780; }
+    ${LIGHT} a { color: #2a4360; }
+    /* ---- Monster Hunt: Bru's bounty board ---- */
+    ${FRAME('hunt')} .win { padding: 12px; border: 0; border-radius: 10px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .28) 0 2px, transparent 2px 96px), repeating-linear-gradient(91deg, rgba(0, 0, 0, .1) 0 1px, transparent 1px 7px), linear-gradient(#4a4038, #2e2722);
+      box-shadow: 0 0 0 2px #110d0a, inset 0 0 0 1px rgba(255, 230, 190, .08), 0 26px 60px rgba(0, 0, 0, .7); }
+    ${FRAME('hunt')} .win-h { padding: 2px 8px 10px; border: 0; background: none; color: #e6d3a6; letter-spacing: .12em; }
+    ${FRAME('hunt')} .win-b { border-radius: 3px; box-shadow: inset 0 0 46px rgba(120, 78, 22, .4), 0 4px 12px rgba(0, 0, 0, .6);
+      background: radial-gradient(60% 40% at 18% 12%, rgba(140, 100, 40, .16), transparent), radial-gradient(50% 35% at 85% 80%, rgba(140, 100, 40, .18), transparent), linear-gradient(#f1e4bf, #dfcb9a); }
+    ${FRAME('hunt')} .win::before, ${FRAME('hunt')} .win::after { content: ''; position: absolute; z-index: 3; top: 7px; width: 12px; height: 12px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #cfcfcf, #6a6a6a 50%, #2a2a2a); box-shadow: 0 2px 3px rgba(0, 0, 0, .6); }
+    ${FRAME('hunt')} .win::before { left: 7px; } ${FRAME('hunt')} .win::after { right: 7px; }
+    ${FRAME('hunt')} :is(.hn-bt, .hn-res) { position: relative; margin-top: 6px; border: 0; border-radius: 2px; background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 3px 8px rgba(60, 40, 10, .45); }
+    ${FRAME('hunt')} :is(.hn-bt, .hn-res)::before { content: ''; position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #c9993a 45%, #6b4a14); box-shadow: 0 2px 3px rgba(0, 0, 0, .55); }
+    ${FRAME('hunt')} :is(.hn-bts, .hn-results) { gap: 16px; }
+    ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(odd) { transform: rotate(-.5deg); }
+    ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(even) { transform: rotate(.45deg); }
+    ${FRAME('hunt')} .hn-bt.done { background: #e2d6b6; box-shadow: none; outline: 2px dashed #8a7550; }
+    ${FRAME('hunt')} :is(.hn-opt, .hn-since) { background: rgba(255, 250, 235, .6); border-left-color: #8a1f1f; }
+    ${FRAME('hunt')} .hn-hp.hn-inq { background: #fbf5e3; border: 1.5px solid #6a5a48; }
+    /* ---- Exam Sprint: an exam booklet on a clipboard ---- */
+    ${FRAME('sprint')} .win { padding: 26px 10px 10px; border: 0; border-radius: 12px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: radial-gradient(rgba(0, 0, 0, .14) 1px, transparent 1.5px) 0 0 / 6px 6px, linear-gradient(#9a7448, #6f5030);
+      box-shadow: 0 0 0 2px #2a1b0c, inset 0 1px 0 rgba(255, 235, 200, .25), 0 26px 60px rgba(0, 0, 0, .7); }
+    ${FRAME('sprint')} .win::before { content: ''; position: absolute; z-index: 3; top: 5px; left: 50%; width: 132px; height: 24px; margin-left: -66px; border-radius: 6px 6px 3px 3px;
+      background: linear-gradient(#f2f2f2, #a9a9a9 55%, #7c7c7c); box-shadow: 0 2px 4px rgba(0, 0, 0, .55), inset 0 1px 0 #fff; }
+    ${FRAME('sprint')} .win-h { padding: 6px 8px 8px; border: 0; background: none; color: #2a1b0c; letter-spacing: .1em; }
+    ${FRAME('sprint')} .win-b { border-radius: 2px; background: linear-gradient(#fdfaf1, #f4eedd); box-shadow: 0 3px 10px rgba(0, 0, 0, .5); }
+    ${FRAME('sprint')} .win-b { --cream: #f8f3e4; }
+    ${FRAME('sprint')} :is(.sp-card, .sp-host, .sp-sheet, .sp-jc, .sp-dc, .sp-rm, .sp-aside) { border-width: 1.5px; border-color: #6a5a48; border-radius: 4px; box-shadow: 0 2px 0 rgba(60, 40, 20, .2); }
+    ${FRAME('sprint')} .sp-top { background: #2a2018; }
+    /* ---- Architect's Draft: a blueprint on the drafting table ---- */
+    ${FRAME('draft')} .win { padding: 10px; border: 0; border-radius: 8px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .08) 0 1px, transparent 1px 6px), linear-gradient(90deg, #b88a52, #d2a66a 50%, #b88a52);
+      box-shadow: 0 0 0 2px #3a260f, inset 0 1px 0 rgba(255, 240, 210, .4), 0 26px 60px rgba(0, 0, 0, .7); }
+    ${FRAME('draft')} .win-h { padding: 2px 8px 8px; border: 0; background: none; color: #3a260f; letter-spacing: .1em; }
+    ${FRAME('draft')} .win-b { --cream: #1d3d6b; --paper: #25497c; --bone: #2b5289; --ink: #eaf2ff; --muted: #b4c9e6; --line: #5f83b8; --blue-d: #cfe6ff; --mi-ink: #eaf2ff; --mi-muted: #b4c9e6;
+      color: #eaf2ff; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35), inset 0 0 0 6px #1d3d6b, inset 0 0 0 7px rgba(255, 255, 255, .25), 0 3px 10px rgba(0, 0, 0, .5);
+      background: linear-gradient(rgba(255, 255, 255, .13) 1px, transparent 1px) 0 0 / 120px 120px, linear-gradient(90deg, rgba(255, 255, 255, .13) 1px, transparent 1px) 0 0 / 120px 120px,
+        linear-gradient(rgba(255, 255, 255, .06) 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px) 0 0 / 24px 24px, #1d3d6b; }
+    ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt) { background: rgba(29, 61, 107, .85); border: 1.5px dashed rgba(234, 242, 255, .55); box-shadow: none; }
+    ${FRAME('draft')} .win-b :is(.opt, .ghost, .row button, .conf-b button):not(.primary):not(.ms-lt):not(:disabled):hover { background: #2b5289; border-style: solid; }
+    ${FRAME('draft')} .win-b .primary { background: #eaf2ff; color: #1d3d6b; border-color: #fff; }
+    /* ---- The Look-Alike Cup: the frame only, a lacquered card table ---- */
+    ${FRAME('duel')} .win { padding: 10px; border: 0; border-radius: 22px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: linear-gradient(135deg, #3a1d14, #1c0d09 45%, #33180f);
+      box-shadow: 0 0 0 2px #0c0504, inset 0 0 0 2px rgba(214, 178, 84, .55), inset 0 0 0 3px #0c0504, 0 26px 60px rgba(0, 0, 0, .7); }
+    ${FRAME('duel')} .win-h { padding: 2px 10px 8px; border: 0; background: none; color: #e9c56d; letter-spacing: .12em; }
+    ${FRAME('duel')} .win-b { border-radius: 14px; box-shadow: inset 0 0 0 2px #0c0504, inset 0 8px 40px rgba(0, 0, 0, .65);
+      background: radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1.4px) 0 0 / 5px 5px, radial-gradient(110% 80% at 50% 0, #4a4458, #2c2836 70%, #211e29); }
+    /* ---- The Lost and Found: the frame only, a storeroom shelf with a claim sheet ---- */
+    ${FRAME('pop')} .win { padding: 12px 10px 10px; border: 0; border-radius: 6px; -webkit-backdrop-filter: none; backdrop-filter: none;
+      background: repeating-linear-gradient(1deg, rgba(0, 0, 0, .14) 0 2px, transparent 2px 8px), linear-gradient(#6a4a2c, #46301c);
+      box-shadow: 0 0 0 2px #1a1007, inset 0 3px 0 rgba(255, 225, 170, .18), inset 0 -4px 0 rgba(0, 0, 0, .35), 0 26px 60px rgba(0, 0, 0, .7); }
+    ${FRAME('pop')} .win-h { padding: 2px 8px 8px; border: 0; background: none; color: #f0d68a; letter-spacing: .1em; }
+    ${FRAME('pop')} .win-b { border-radius: 3px; background: linear-gradient(#ecd9a8, #dcc68e); box-shadow: inset 0 0 0 1px rgba(120, 85, 30, .5), inset 0 0 36px rgba(120, 85, 30, .25), 0 3px 10px rgba(0, 0, 0, .5); }
+    ${FRAME('pop')} .win-b { --cream: #e6d29f; }
+    @media (max-width: 600px) {
+      ${FRAME('hunt')} .win, ${FRAME('draft')} .win, ${FRAME('duel')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
+      ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
+    }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }
     body.in-mode #panel .win-h:not(:has(> :not(span:first-child, .x))) { display: none; }
     body.in-mode #screen-title .tg-menu { visibility: hidden; }
