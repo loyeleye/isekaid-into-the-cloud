@@ -110,7 +110,7 @@ SD.bank.push(
       { t: "Write the resized images to a separate bucket that has no event notification for this function.", ok: true },
       { t: "Filter the notification on the incoming/ prefix, and write the resized images under a resized/ prefix.", ok: true },
       { t: "Set the function's reserved concurrency to 1, so that only one copy of the function runs at a time.", ok: false, no: "The loop carries on one invocation at a time, and real uploads queue up behind it." },
-      { t: "Add a dead-letter queue to the function, so repeated events are moved aside after two retries.", ok: false, no: "The invocations succeed, so nothing reaches a dead-letter queue. Each new object is a new event." },
+      { t: "Add a dead-letter queue to the function, so repeated events are moved aside after two retries.", ok: false, no: "A dead-letter queue only holds failed events. The invocations succeed, and each new object is a new event." },
       { t: "Turn on S3 Versioning on the bucket, so the resized copies are stored as new versions of each image.", ok: false, no: "A new version is still an object-created event, so the function is invoked again." }
     ],
     why: "The function's own writes match the notification, so each output fires a new event. Writing to another bucket, or under a prefix the notification doesn't match, breaks the cycle.",

@@ -582,7 +582,7 @@ SD.bank.push(
     no: [null,
       "$LATEST changes with every update, so the code under test isn't fixed.",
       "It works, but each copy needs its own configuration and permissions. Versions do this natively.",
-      "Code signing checks who built a package, not which build QA is testing."],
+      "Code signing checks who signed a package, not which build QA is testing."],
     why: "A published version is an immutable snapshot of code and configuration. An alias is a named pointer that moves to the next approved version without callers changing.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html"] },
 

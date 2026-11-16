@@ -191,7 +191,7 @@ SD.bank.push(
       "A destination records failed asynchronous invocations. It doesn't test anything or stop a deployment.",
       null,
       "An alarm reacts to errors from real traffic after it moves. It doesn't run tests before the shift."],
-    why: "For Lambda deployments, the AppSpec file can name hook functions for BeforeAllowTraffic and AfterAllowTraffic. The hook runs the tests and reports Succeeded or Failed to CodeDeploy with PutLifecycleEventHookExecutionStatus; a failure stops the deployment and rolls it back.",
+    why: "For Lambda deployments, the AppSpec file can name hook functions for BeforeAllowTraffic and AfterAllowTraffic. The hook runs the tests and reports Succeeded or Failed to CodeDeploy with PutLifecycleEventHookExecutionStatus; a failure stops the deployment before any traffic shifts, and automatic rollback returns it to the last good version.",
     doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html"] },
 
   // API Gateway canary release

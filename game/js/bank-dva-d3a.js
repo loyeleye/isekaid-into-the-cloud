@@ -443,7 +443,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html"] },
 
   { id: "dva-3-132", exam: "DVA", dva: "3.3", topic: "cloudformation", type: "mc",
-    q: "A security team must deploy the same IAM role, defined in one CloudFormation template, to every account in an AWS Organizations organization in us-east-1. Accounts that join the organization later must get the role automatically, with no IAM setup done in each account. What should the developer do?",
+    q: "A security team must deploy the same IAM role, defined in one CloudFormation template, to every member account in an AWS Organizations organization in us-east-1. Accounts that join the organization later must get the role automatically, with no IAM setup done in each account. What should the developer do?",
     opts: [
       "Create a StackSet with service-managed permissions that targets the organization, and turn on automatic deployment.",
       "Create a StackSet with self-managed permissions, and create the execution role in each target account before deploying it.",
