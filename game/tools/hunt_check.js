@@ -134,6 +134,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(JSON.stringify(ids) === JSON.stringify(posters.slice(0, 3)), 'oldest first');
   check(await page.evaluate(ids => new Set(ids.map(id => SD.exam.find(id).topic)).size === 3, ids), 'from three different topics');
   check(/Track.*Fight.*Pin it down/.test(await page.textContent('.hn-mon')), 'each monster shows its three steps');
+  const faces = await page.evaluate(() => [...document.querySelectorAll('.hn-mon')].map(el => {
+    const img = el.querySelector('.hn-por img');
+    return { wanted: /WANTED/.test(el.querySelector('.hn-wh').textContent), src: img && img.getAttribute('src'), alt: img && img.getAttribute('alt'), hidden: img && img.getAttribute('aria-hidden'), w: img && img.naturalWidth };
+  }));
+  check(faces.every(f => f.wanted && /^assets\/img\/(monsters|hunt)\/[a-z]+\.webp$/.test(f.src) && f.alt === '' && f.hidden === 'true'), 'each poster reads WANTED, with a portrait that screen readers skip');
+  await page.waitForTimeout(300);
+  check(await page.evaluate(() => [...document.querySelectorAll('.hn-mon .hn-por img')].every(i => i.complete && i.naturalWidth > 0)), 'every portrait loads');
+  check(await page.evaluate(() => {
+    const f = SD.hunt._faceOf, a = { name: 'SQS · task 1.1' };
+    const sqs = Object.keys(SD.twins).find(k => (SD.exam.find(k) || {}).topic === 'sqs'), iam = Object.keys(SD.twins).find(k => (SD.exam.find(k) || {}).topic === 'iam');
+    return f({ id: sqs, name: 'x' }) === 'assets/img/hunt/poison.webp' && f({ id: iam, name: 'x' }) === 'assets/img/hunt/warden.webp' && f(a) === f({ name: a.name }) && /monsters\//.test(f(a));
+  }), 'a board topic\'s poster shows its board monster, any other a bestiary face picked by its name');
   await noHScroll('bounty board');
   await shot('board');
 
