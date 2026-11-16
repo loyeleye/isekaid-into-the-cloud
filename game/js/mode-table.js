@@ -130,8 +130,8 @@
     const hint = !empties ? 'The board is full. Call his last pin or let it stand.' : selPin && selSq == null ? 'Now tap an open job.' : !selPin && selSq != null && !b.cells[selSq] ? 'Now pick a pin from your hand.' : 'Pick a pin and an open job, or call his pin.';
     const body = panel(`${say(msg || SAY.lay)}${teach || ''}
       ${hud(s)}
-      <div role="region" aria-label="The felt">${feltHtml(s)}</div>
-      ${slipHtml(s)}
+      <div class="ct-play"><div class="ct-board" role="region" aria-label="The felt">${feltHtml(s)}</div>
+      <div class="ct-side">${slipHtml(s)}
       <div class="ct-hand-row" role="group" aria-label="Your pins">${b.hand.map(id => `<button class="ct-hpin${id === selPin ? ' on' : ''}" data-pin="${id}" aria-pressed="${id === selPin}">${pinHtml(id)}</button>`).join('')}</div>
       <div class="ct-acts">
         ${canPlace ? `<button class="primary" id="ct-place">Place ${esc(pinName(selPin))} on the ${esc(T.SQ[selSq])}</button>` : `<p class="small ct-hint">${esc(hint)}</p>`}
@@ -139,7 +139,7 @@
         ${!empties ? '<button class="ghost" id="ct-stand">Let it stand</button>' : ''}
       </div>
       <details class="du-asl"><summary class="small">His rule</summary><p class="small">He takes his winning square, else blocks your two in a line, else a square that gives him two in a line, else the square on the most lines he can still win. The centre and corners carry two needs and count double if the board fills with no line. A tie goes to the house.</p></details>
-      <div class="row"><button class="ghost" id="ct-stop">Stop for now</button></div>`);
+      <div class="row"><button class="ghost" id="ct-stop">Stop for now</button></div></div></div>`);
     body.querySelectorAll('[data-pin]').forEach(el => el.onclick = () => { selPin = selPin === el.dataset.pin ? null : el.dataset.pin; tableScreen(s, msg); });
     body.querySelectorAll('[data-sq]').forEach(el => el.onclick = () => { const i = +el.dataset.sq; selSq = selSq === i ? null : i; tableScreen(s, msg); });
     const pl = body.querySelector('#ct-place'), ca = body.querySelector('#ct-call'), stn = body.querySelector('#ct-stand');
@@ -383,7 +383,9 @@
     .ct-say img { image-rendering: pixelated; object-fit: cover; object-position: center top; background: #2a2433; }
     .ct-scene { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 6px; margin: 0 0 6px; }
     .ct-teach { margin: 4px 0 6px; padding: 4px 8px; border-left: 4px solid var(--sun, #b8923a); font-size: 14px; }
-    .ct-felt { max-width: 380px; }
+    .ct { max-width: 720px; margin: 0 auto; }
+    .ct:has(.ct-play) { max-width: none; }
+    .ct-felt { max-width: min(100%, 520px); }
     .ct-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: #2f5a3f; border-radius: 8px; padding: 4px; }
     .ct-sq { position: relative; min-height: 92px; padding: 4px 3px 18px; border: 2px solid rgba(236,230,216,.45); border-top: 5px solid var(--sc); border-radius: 7px; background: #ece6d8; color: #17131f; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; box-shadow: none; font: inherit; }
     .ct-sq.hard { border-style: double; border-width: 4px; border-top: 5px solid var(--sc); }
@@ -435,6 +437,15 @@
     .ct-mark { display: flex; gap: 4px; }
     .ct-mark button { min-height: 40px; padding: 4px 10px; }
     .ct-mark button.on { outline: 3px solid var(--sun, #b8923a); font-weight: 800; }
+    @media (min-width: 900px) {
+      .ct-play { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr); gap: 20px; align-items: start; }
+      .ct-felt { max-width: 640px; }
+      .ct-sq { min-height: 130px; padding: 8px 6px 22px; }
+      .ct-job { font-size: 14px; }
+      .ct-sq.taken .ct-job { font-size: 12px; }
+      .ct-pin.sm { font-size: 11px; } .ct-pin.sm > i, .ct-pin.sm > img { width: 34px; height: 34px; }
+      .ct-hand svg { width: 44px; }
+    }
     @media (prefers-reduced-motion: reduce) { .ct-hpin.on { transform: none; } }`;
   document.head.appendChild(css);
 })();
