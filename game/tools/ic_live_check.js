@@ -67,8 +67,10 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'ic-live-' + name + '.png') }); };
+  let noBeats = false;
   const boot = async () => {
     await page.goto(url);
+    if (noBeats) await page.evaluate(() => { window.__iclNoBeats = true; });
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     await page.click('#t-start');
     await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.persist(); });
@@ -130,7 +132,19 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await noHScroll('chooser');
   await shot('chooser');
   await page.click('#ic-live');
+  // The first beat: the interface pulls down and Uptima, standing in the room, says the page. A tap moves on.
+  await page.waitForSelector('#icl-vn');
+  check(await page.evaluate(() => document.body.classList.contains('icl-beat') && !!document.querySelector('#icl-scene .icl-upt .icl-uf')), 'a beat: the interface pulls down and Uptima stands in the room');
+  check(/Live shift/.test(await txt('#icl-vn')), 'she opens the shift in the dialogue box');
+  await shot('beat');
+  const faces = await page.evaluate(() => new Promise(r => { const seen = new Set(), t0 = Date.now(); const iv = setInterval(() => { const f = document.querySelector('#icl-scene .icl-uf'); if (f) seen.add(f.src.replace(/.*uptima-face-|\.webp/g, '')); if (Date.now() - t0 > 1500) { clearInterval(iv); r([...seen]); } }, 40); }));
+  check(faces.some(f => /talk/.test(f)), `her mouth moves while she talks (${faces.join(', ')})`);
+  await page.click('#icl-vn');
+  check(/Checkout is spinning/.test(await txt('#icl-vn')), 'then she reads the page');
+  await page.click('#icl-vn');
   await page.waitForSelector('.icl-machine');
+  check(await page.evaluate(() => !document.body.classList.contains('icl-beat') && !document.querySelector('#icl-vn')), 'the interface comes back up after the last line');
+  noBeats = true; await page.evaluate(() => { window.__iclNoBeats = true; });
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: the live shift starts on the page');
   check(/Checkout is spinning/.test(await txt('.icl-page')), 'incident 1 is launch night, with its page');
   check(await page.$$eval('.icl-part', p => p.length) === 4, 'the machine shows the request path\'s four parts');

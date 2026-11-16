@@ -45,7 +45,7 @@
   // on a phone they stack in reading order: the page, the machine, then what to do.
   const cols = (a, m, b) => `<div class="icl-cols"><div class="icl-a">${a}</div><div class="icl-m">${m}</div><div class="icl-b">${b}</div></div>`;
   const panel = (html, o) => U.panel(`<div class="icl">${html}</div>`, Object.assign({ title: TITLE, onClose: stopNow }, o || {}));
-  function stopNow() { const s = cur(); if (s) save(s); untune(); if (SD.today && SD.today.render) SD.today.render(); }
+  function stopNow() { const s = cur(); if (s) save(s); untune(); scene(false); if (SD.today && SD.today.render) SD.today.render(); }
 
   // ---- Music (Mureka, CREDITS.md): the live incident loop while a shift is open, a sting on each run's result.
   // Like the Look-Alike Cup, it saves what was playing and puts it back when the shift closes.
@@ -101,7 +101,115 @@
   }
   function draw(s) {
     if (s.phase === 'done') untune(); else tune();
+    const live = scene(true);
+    if (live && beatFor(s)) return;
+    react(s);
     ({ page: pageScreen, play: playScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
+  }
+
+  // ---- Uptima in the room (Ladi, Nov 16: "draw full sized characters in the setting and have the interface get pulled
+  // down during certain beats ... see Uptima as a backdrop in the setting talking to you (living, breathing, blinking
+  // and reacting to you)"). She stands in the watch room (her desk is empty while she's up), breathes, blinks, moves
+  // her mouth while she talks, and her face follows how the shift is going. Painted with Gemini (tools/ic_live_uptima.py):
+  // one body and a face patch per frame, so the frames swap in place. At the beats (a new page, your call, the
+  // result, the end) the interface slides down and she says her lines; a tap moves on.
+  const FACE_BOX = { left: 26.042, top: 16.715, width: 44.27, height: 21.802 };   // % of the body canvas
+  const FACES = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk'];
+  const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '' };
+  const face = () => UP.blink ? 'blink' : UP.open ? (UP.mood === 'neutral' ? 'talk' : UP.mood + '-talk') : UP.mood;
+  function paintFace() { const f = document.querySelector('#icl-scene .icl-uf'); if (f) f.src = `${IMG}uptima-face-${face()}.webp`; }
+  function scene(on) {
+    const stage = document.getElementById('mode-stage');
+    let el = document.getElementById('icl-scene');
+    if (!on || !stage || !document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic') {
+      UP.timers.forEach(clearTimeout); UP.timers = []; clearInterval(UP.watch); UP.watch = 0;
+      if (el) el.remove();
+      const vn = document.getElementById('icl-vn'); if (vn) vn.remove();
+      document.body.classList.remove('icl-on', 'icl-beat');
+      return false;
+    }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'icl-scene';
+      el.innerHTML = `<picture class="icl-room"><source media="(orientation: portrait)" srcset="${IMG}room-tall.webp"><img src="${IMG}room-wide.webp" alt="" draggable="false"></picture>
+        <div class="icl-upt"><img class="icl-ub" src="${IMG}uptima-body.webp" alt="" draggable="false">
+          <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%"></div>
+        <div class="icl-bubble" hidden></div>`;
+      stage.appendChild(el);
+      FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
+      blinkSoon();
+      // Home, or anything else that closes the panel, takes her away with it.
+      UP.watch = setInterval(() => { const pn = document.getElementById('panel'); if (!document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic' || (pn && pn.hidden)) scene(false); }, 400);
+    }
+    document.body.classList.add('icl-on');
+    return true;
+  }
+  function blinkSoon() {
+    UP.timers.push(setTimeout(() => {
+      UP.blink = true; paintFace();
+      UP.timers.push(setTimeout(() => { UP.blink = false; paintFace(); blinkSoon(); }, 130));
+    }, 1800 + Math.random() * 3600));
+  }
+  // Her mouth moves for about as long as the line takes to say.
+  function talk(line) {
+    UP.talkUntil = Date.now() + Math.min(4200, 400 + line.length * 45);
+    const flap = () => {
+      if (!document.getElementById('icl-scene')) return;
+      if (Date.now() > UP.talkUntil) { UP.open = false; paintFace(); return; }
+      UP.open = !UP.open; paintFace();
+      UP.timers.push(setTimeout(flap, UP.open ? 120 : 90 + Math.random() * 80));
+    };
+    flap();
+  }
+  function speak(line, mood) {
+    if (mood) UP.mood = mood;
+    paintFace();
+    const bub = document.querySelector('#icl-scene .icl-bubble');
+    if (bub && line && line !== UP.line) { bub.hidden = false; bub.textContent = line; talk(line); }
+    else if (bub && !line) bub.hidden = true;
+    UP.line = line || '';
+  }
+  // How she looks while you work: what she last said, or the knob you just touched.
+  function react(s) {
+    const x = inc(s), p = s.predOut, sum = s.last;
+    if (s.phase === 'fix' && s.teach) return speak(s.teach, 'neutral');
+    if (s.phase === 'page') return speak(s.i === 0 ? SAY.open : 'Next page. Call it before you touch it.', x.sev === 1 ? 'stern' : 'neutral');
+    if (s.phase === 'play') return speak('', s.playing === 'last' ? 'neutral' : UP.mood);
+    if (s.phase === 'fix') return speak(!s.runs && p ? (p.ok ? SAY.right : SAY.wrong) : SAY.unmet, !s.runs && p ? (p.ok ? 'happy' : 'stern') : 'worried');
+    if (s.phase === 'result') return speak(sum.slo ? SAY.met : SAY.unmet, sum.slo ? 'happy' : 'worried');
+    if (s.phase === 'debrief') return speak('One question on what you just did.', 'neutral');
+    if (s.phase === 'done') return speak(SAY.end, 'happy');
+  }
+  // The beats: the interface slides away and she talks. Each beat plays once.
+  function beatFor(s) {
+    const x = inc(s), p = s.predOut, sum = s.last;
+    let key = null, lines = null, mood = 'neutral';
+    if (s.phase === 'page') { key = 'p' + s.i; lines = [s.i === 0 ? SAY.open : 'Next page.', x.page]; mood = x.sev === 1 ? 'stern' : 'neutral'; }
+    else if (s.phase === 'fix' && !s.runs && p) { key = 'v' + s.i; lines = [p.ok ? SAY.right : SAY.wrong, `You said ${p.v}. It was ${p.truth}.`]; mood = p.ok ? 'happy' : 'stern'; }
+    else if (s.phase === 'result' && sum) { key = 'r' + s.i + ':' + s.runs; lines = [sum.slo ? SAY.met : s.runs < 2 ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.', sum.sloLine]; mood = sum.slo ? 'happy' : 'worried'; }
+    else if (s.phase === 'done') { key = 'end'; lines = [SAY.end]; mood = 'happy'; }
+    if (!key || s.beat === key) return false;
+    s.beat = key; save(s);
+    if (window.__iclNoBeats) return false;
+    beat(lines, mood, () => { if (cur() === s) draw(s); });
+    return true;
+  }
+  function beat(lines, mood, then) {
+    document.body.classList.add('icl-beat');
+    let vn = document.getElementById('icl-vn');
+    if (!vn) { vn = document.createElement('button'); vn.id = 'icl-vn'; vn.type = 'button'; document.body.appendChild(vn); }
+    let i = 0;
+    const show = () => {
+      const line = lines[i];
+      vn.innerHTML = `<b class="icl-vn-name">Uptima</b><span class="icl-vn-line" data-vo="${esc('uptima|' + line)}" aria-live="polite">${esc(line)}</span><span class="icl-vn-more" aria-hidden="true">▸</span>`;
+      vn.setAttribute('aria-label', `Uptima: ${line}. Tap to continue.`);
+      UP.line = ''; speak('', mood); talk(line);
+    };
+    vn.onclick = () => {
+      if (++i < lines.length) return show();
+      vn.remove(); document.body.classList.remove('icl-beat');
+      then();
+    };
+    show(); vn.focus({ preventScroll: true });
   }
 
   // ---- The machine: the incident's parts in request order, each with its settings and what it did last minute ----
@@ -375,6 +483,47 @@
   const css = document.createElement('style');
   css.textContent = `
     .icl-hud { margin: 0 0 6px; }
+    /* ---- Uptima in the room ---- */
+    #icl-scene { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+    #icl-scene .icl-room img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    #icl-scene::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(rgba(12, 8, 4, .35), transparent 30%, transparent 70%, rgba(12, 8, 4, .45)); }
+    .icl-upt { position: absolute; z-index: 1; bottom: 0; right: 4vw; height: min(calc(100vh - 70px), 1000px); aspect-ratio: 576 / 1032; transform-origin: 50% 100%;
+      animation: icl-breathe 4.2s ease-in-out infinite; transition: right .5s ease, height .5s ease, opacity .4s; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .55)); }
+    .icl-upt img { position: absolute; display: block; user-select: none; }
+    .icl-ub { inset: 0; width: 100%; height: 100%; }
+    @keyframes icl-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.004, 1.012) translateY(-1px); } }
+    .icl-bubble { position: absolute; z-index: 2; right: calc(4vw + min(calc(100vh - 70px), 1000px) * .5); top: calc(70px + 6vh); max-width: min(340px, 30vw); padding: 12px 16px; border-radius: 14px;
+      background: #fbf5e3; color: #2a2018; font-size: 16px; line-height: 1.4; box-shadow: 0 6px 16px rgba(0, 0, 0, .55); }
+    .icl-bubble::after { content: ''; position: absolute; right: -14px; top: 22px; border: 8px solid transparent; border-left: 14px solid #fbf5e3; border-right: 0; }
+    .icl-bubble[hidden] { display: none; }
+    /* Wide: the work on the left, Uptima standing on the right, the room lit around her. */
+    @media (min-width: 900px) {
+      body.icl-on[data-stage="ic"] #panel .win { background: linear-gradient(90deg, rgba(14, 9, 5, .88), rgba(14, 9, 5, .8) 50%, rgba(14, 9, 5, .1) 66%, transparent 75%) !important; }
+      body.icl-on[data-stage="ic"] #panel .win-b { padding-left: max(16px, 3vw) !important; padding-right: calc(4vw + min(calc(100vh - 70px), 1000px) * .56 + 24px) !important; }
+      body.icl-on[data-stage="ic"] #panel .win.quiz .win-b { padding-left: max(16px, calc((100% - 760px) / 2)) !important; padding-right: max(16px, calc((100% - 760px) / 2)) !important; }
+      body.icl-on .icl-cols { display: block; }
+      body.icl-on #panel .ic-say { display: none; }
+    }
+    @media (min-width: 1700px) { body.icl-on .icl-cols { display: grid; } }
+    /* Narrow: she stands behind the work, dimmed, and the note carries her words. */
+    @media (max-width: 899px) {
+      .icl-upt { right: -14vw; height: 74vh; opacity: .5; }
+      .icl-bubble { display: none; }
+    }
+    /* A beat: the interface pulls down out of the way, she steps forward and talks. */
+    body.icl-on #panel { transition: transform .45s ease, opacity .3s; }
+    body.icl-beat #panel { transform: translateY(104%); opacity: 0; pointer-events: none; }
+    body.icl-beat .icl-upt { right: 50%; transform: translateX(50%); animation: none; opacity: 1; height: min(calc(100vh - 70px), 1000px); }
+    body.icl-beat .icl-bubble { display: none; }
+    #icl-vn { position: fixed; z-index: 21; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(860px, calc(100% - 32px)); min-height: 110px;
+      display: block; padding: 16px 20px 18px; text-align: left; border: 2px solid #140b05; border-radius: 12px; color: #2a2018; font: inherit; font-size: 18px; line-height: 1.45; cursor: pointer;
+      background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 0 0 2px rgba(233, 197, 109, .6), 0 12px 30px rgba(0, 0, 0, .6); animation: icl-vn-in .35s ease; }
+    .icl-vn-name { position: absolute; top: -16px; left: 18px; padding: 3px 12px; border-radius: 6px; background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; font-size: 14px; letter-spacing: .06em; border: 2px solid #140b05; }
+    .icl-vn-line { display: block; overflow-wrap: anywhere; }
+    .icl-vn-more { position: absolute; right: 14px; bottom: 8px; color: #8a5608; animation: icl-more 1s ease-in-out infinite; }
+    @keyframes icl-vn-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes icl-more { 50% { transform: translateX(4px); } }
+    @media (prefers-reduced-motion: reduce) { .icl-upt, #icl-vn, .icl-vn-more { animation: none !important; } #panel, .icl-upt { transition: none !important; } }
     @media (min-width: 900px) {
       body.in-mode .icl-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: 'm a' 'm b'; gap: 0 28px; align-items: start; }
       body.in-mode .icl-a { grid-area: a; } body.in-mode .icl-m { grid-area: m; } body.in-mode .icl-b { grid-area: b; }
