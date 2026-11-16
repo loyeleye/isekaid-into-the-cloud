@@ -1,11 +1,10 @@
-// Headless smoke test: boots the game, walks the title and town, then plays one whole dungeon run by clicking
-// whatever is on screen (cards, map nodes, answers, Continue) until the run ends and you are back in town.
+// Headless smoke test: boots the game from a chapter 1 save, then plays one whole run of the Deny Mines by clicking
+// whatever is on screen (cards, map nodes, answers, Continue) until the run ends and chapter 1 takes it back.
 // Fails on any page error or console error. Run from game/:  node tools/smoke_check.js
 // With --win every fight is won outright (as the debug panel's Win button does), so the boss's win scene and a
 // cleared dungeon get checked too.
 // Needs Playwright (preinstalled in cloud sessions; PLAYWRIGHT_BROWSERS_PATH points at Chromium there).
-// Out of date since chapter 1: New game now opens chapter 1's overworld instead of the name form and the town, so
-// this stops at the name form. tools/ch1_check.js plays the whole chapter 1 demo instead.
+// It starts from a save past chapter 1's opening: New game opens chapter 1's story, which tools/ch1_check.js plays.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -29,14 +28,21 @@ const server = http.createServer((req, res) => {
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
 
-  // Title, new game, name, town.
+  // A save past chapter 1's opening (New game now starts chapter 1's story, which tools/ch1_check.js plays), then
+  // the title's Continue onto chapter 1's map and into its dungeon, the Deny Mines, as the temple door starts it.
+  await page.evaluate(() => {
+    const S = SD.state;
+    S.save.name = 'Smoke';
+    S.save.flags.prologue = true;
+    S.save.c1 = { lead: 'mira', f: { intro: true, cart: true, brief: true }, deck: SD.starterDeck.map(id => ({ id, up: false })), pos: null };
+    S.persist();
+  });
+  await page.reload();
+  await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
-  await page.click('#t-new');
-  await page.fill('#nm', 'Smoke');
-  await page.click('#nm-ok');
-  await page.waitForSelector('#town [data-go="gate"]');
-  await page.click('#town [data-go="gate"]');
-  await page.click('[data-ch="1"]');
+  await page.click('#t-go');
+  await page.waitForTimeout(500);
+  const start = await page.evaluate(() => { SD.run.start(1); const s = SD.state.save; return { loop: s.loop, wins: s.stats.wins }; });
 
   // One whole run: act on whatever is showing until the run is over and the town is back.
   const WIN = process.argv.includes('--win');
@@ -48,7 +54,9 @@ const server = http.createServer((req, res) => {
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
       const tag = s => { window.__seen = s; return s; };
-      if (!window.SD.state.save.run && vis($('#screen-hub')) && $('#panel').hidden && $('#dialog').hidden) return 'done';
+      // The run is over once chapter 1 takes it back (js/ch1-world.js CH.hooks.end): its map after a loss, its ending
+      // after a win. tools/ch1_check.js plays on from there.
+      if (!window.SD.state.save.run) return 'done';
       if (!$('#dialog').hidden) { $('#dialog').click(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); return 'dialog'; }
       const p = $('#panel');
       if (!p.hidden) {
@@ -98,8 +106,8 @@ const server = http.createServer((req, res) => {
   console.log('steps', steps, 'save', JSON.stringify(sv));
   console.log('saw', [...seen].sort().join(' '));
   if (steps >= 4000) errors.push('the run never finished; last actions: ' + last.join(' '));
-  if (sv.runs !== 1 || sv.loop !== 2) errors.push('expected one finished run');
-  if (WIN && sv.wins !== 1) errors.push('expected the run to be won');
+  if (sv.runs !== 1) errors.push('expected one run, saw ' + sv.runs);
+  if (WIN ? sv.wins !== start.wins + 1 : sv.wins === start.wins && sv.loop !== start.loop + 1) errors.push('expected the run to end in a win (with --win) or a loss that starts the next loop');
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
-  console.log('OK: booted, played one run to the end, back in town, no errors.');
+  console.log('OK: booted, played one Deny Mines run to the end and handed back to chapter 1, no errors.');
 })().catch(e => { console.error(e); process.exit(1); });
