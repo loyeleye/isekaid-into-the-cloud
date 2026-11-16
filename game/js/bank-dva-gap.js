@@ -928,9 +928,9 @@ SD.bank.push(
       "Add reserved concurrency of 1, so that only one environment ever exists and the duplicated values can no longer appear."
     ], a: 0,
     no: [null,
-      "Memory has no effect on snapshots; all environments of a version resume from the same one.",
+      "Memory doesn't change snapshot sharing; all environments of a version resume from the same one.",
       "Publishing versions on every scale-out is impractical, and each version still shares one snapshot across its environments.",
-      "That hides the problem by throttling the function to one request at a time."],
+      "Each replacement environment still resumes the same snapshot and repeats the tokens, and calls are throttled."],
     why: "With SnapStart, every environment resumes from one snapshot, so anything unique created during init (IDs, secrets, random seeds) is copied. Generate unique content after initialization, in the handler or a runtime hook that runs after restore.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/snapstart-uniqueness.html", "https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html"] },
 

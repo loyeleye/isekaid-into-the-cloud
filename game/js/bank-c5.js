@@ -106,7 +106,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/logging-with-S3.html"] },
 
   { id: "dva-4-806", exam: "DVA", dva: "4.1", topic: "s3", type: "mc",
-    q: "A developer turned on S3 server access logging for a bucket and chose the same bucket as the destination, under the prefix logs/. The bucket's object count and storage bill now keep growing even when no one uses the app. What should the developer change?",
+    q: "A developer turned on S3 server access logging for a bucket and chose the same bucket as the destination, under the prefix logs/. The bucket's object count and storage bill now keep growing even when no one uses the app. The logs must be kept for 90 days. What should the developer change?",
     opts: [
       "Add a lifecycle rule that deletes objects under logs/ after one day, and keep the bucket as its own target.",
       "Turn on log file integrity validation, so S3 stops writing a log record for its own log file deliveries.",
@@ -114,7 +114,7 @@ SD.bank.push(
       "Send the logs to a separate destination bucket in the same Region, with no logging turned on for it."
     ], a: 3,
     no: [
-      "That hides the growth for a day at a time, but every log delivery still writes new log records about itself.",
+      "That deletes logs the team must keep for 90 days, and each log delivery still logs itself.",
       "Integrity validation is a CloudTrail feature. It has no effect on S3 server access logs.",
       "Management events don't include object reads. Those are data events.",
       null],
@@ -131,7 +131,7 @@ SD.bank.push(
     ], a: 0,
     no: [
       null,
-      "Those count invocations that reached the function. These events never got that far.",
+      "Those only see calls that reached Lambda. A delivery EventBridge can't make never shows up there.",
       "The bus policy controls who may put events on the bus, not whether a target can be reached.",
       "A delivery that fails before the function starts leaves no trace in the function's own segments."],
     why: "When EventBridge can't deliver to a target, for example because the function's resource-based policy doesn't let events.amazonaws.com invoke it, the rule's FailedInvocations metric rises. An SQS dead-letter queue on the target keeps each failed event with ERROR_CODE and ERROR_MESSAGE attributes.",

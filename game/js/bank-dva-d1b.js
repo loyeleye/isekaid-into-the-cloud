@@ -182,10 +182,10 @@ SD.bank.push(
       "An on-success destination on the function that sends records to the custom event bus."
     ], a: 0,
     no: [null,
-      "A dead-letter queue must be an SQS queue or SNS topic, and it gets the event without the invocation record a destination sends.",
+      "A dead-letter queue must be an SQS queue or SNS topic. It gets the event and a few error attributes, not a destination's full invocation record.",
       "An event bus isn't a supported SNS subscription endpoint, so the records never reach the bus.",
       "On-success records cover only successful invocations, so failed events would never reach the bus."],
-    why: "Destinations can be an SQS queue, SNS topic, S3 bucket (on failure only), Lambda function or EventBridge event bus, and their records include the request and the response. A dead-letter queue is limited to SQS or SNS and holds only the event.",
+    why: "Destinations can be an SQS queue, SNS topic, S3 bucket (on failure only), Lambda function or EventBridge event bus, and their records include the request and the response. A dead-letter queue is limited to SQS or SNS. It gets the event as-is, plus attributes for the request ID, the error code and the first 1 KB of the error message.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-retain-records.html"] },
 
   { id: "dva-1-217", exam: "DVA", dva: "1.2", topic: "lambda", type: "mc",

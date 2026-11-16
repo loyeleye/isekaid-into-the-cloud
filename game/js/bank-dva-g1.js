@@ -162,7 +162,7 @@ SD.bank.push(
       "ResultPath decides what the catcher passes to AlertOps. It doesn't change which errors the catcher matches.",
       "That rewrites the design around a short-lived function. The problem is only which errors the catcher matches."
     ],
-    why: "A Task that runs longer than TimeoutSeconds fails with States.Timeout. States.TaskFailed matches any known error except States.Timeout, so the catcher must list States.Timeout (or States.ALL, last) to handle it.",
+    why: "A Task that runs longer than TimeoutSeconds fails with States.Timeout. States.TaskFailed matches any known error except States.Timeout, so the catcher must list States.Timeout, or a last catcher can use States.ALL alone.",
     doc: ["https://docs.aws.amazon.com/step-functions/latest/dg/concepts-error-handling.html"] },
 
   { id: "dva-1-312", exam: "DVA", dva: "1.1", topic: "stepfunctions", type: "mc",
@@ -414,7 +414,7 @@ SD.bank.push(
     doc: ["https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html", "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.IAMPolicy.html"] },
 
   { id: "dva-1-329", exam: "DVA", dva: "1.3", topic: "elasticache", type: "mc",
-    q: "A team moves a Lambda function's cache from a node-based ElastiCache for Redis OSS cluster that had in-transit encryption off to an ElastiCache Serverless cache. The function uses the same client code with the new endpoint, and its security group rules allow the cache ports, but every connection attempt now fails. What should the developer do?",
+    q: "A team moves a Lambda function's cache from a node-based ElastiCache for Redis OSS cluster that had in-transit encryption off to an ElastiCache Serverless cache with a VPC endpoint. The function uses the same client code with the new endpoint, and its security group rules allow the cache ports, but every connection attempt now fails. What should the developer do?",
     opts: [
       "Turn on TLS in the cache client's configuration, using a client that supports TLS and cluster mode.",
       "Turn off in-transit encryption on the serverless cache, so it accepts the client's plain connections.",
@@ -423,7 +423,7 @@ SD.bank.push(
     ], a: 0,
     no: [null,
       "In-transit encryption is always on for serverless caches and can't be turned off.",
-      "The cache endpoint is inside the VPC, so no internet path is needed to reach it.",
+      "The cache uses a VPC endpoint, so the function reaches it inside the VPC with no internet path.",
       "The handshake fails because the client isn't using TLS, not because it runs out of time."
     ],
     why: "Every ElastiCache Serverless cache has in-transit encryption enabled and runs in cluster mode, so it works only with clients that connect over TLS.",
