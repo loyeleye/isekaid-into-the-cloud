@@ -97,7 +97,7 @@ SD.bank.push(
       "That gives your own role the lift's powers instead of letting you assume it, the opposite of least privilege.",
       "GetSessionToken returns temporary credentials for yourself. It doesn't change who a role trusts."],
     why: "The trust policy decides who may assume a role, and its permissions policies decide what the role can do. Here the trust policy doesn't name you, so AssumeRole is denied however much the role allows.",
-    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts.html","https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html"] },
+    doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html#id_roles_terms-and-concepts","https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html"] },
 
   { id: "dva-2-607", exam: "DVA", dva: "2.1", topic: "lambda", type: "mc",
     ev: "AccessDeniedException: User: arn:aws:sts::111122223333:assumed-role/lift-motor-role/lift-motor is not authorized to perform: dynamodb:PutItem on resource: arn:aws:dynamodb:us-east-1:111122223333:table/lift-log",
@@ -248,5 +248,5 @@ SD.bank.push(
       "The right action, on every parameter in the account.",
       "That reads Secrets Manager secrets. Parameter Store is part of Systems Manager."],
     why: "Reading one parameter is ssm:GetParameter on arn:aws:ssm:region:account:parameter/lift/speed. A SecureString encrypted with a customer managed key also needs kms:Decrypt on that key.",
-    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-access.html"] }
+    doc: ["https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-setting-up.html"] }
 );

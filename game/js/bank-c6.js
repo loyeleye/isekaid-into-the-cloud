@@ -87,7 +87,7 @@ SD.bank.push(
       null,
       "That works, but it leaves two copies of the template to keep in step, which is what the requirement rules out.",
       "A condition can't change a parameter's value. You could choose a value with a mapping, but parameter overrides are the StackSets way and need no template change.",
-      "Changing a stack's resource outside CloudFormation causes drift, and the next StackSet update puts the old value back."],
+      "Changing a stack's resource outside CloudFormation causes drift, which can complicate later StackSet updates."],
     why: "A StackSet holds default parameter values, and each stack instance can override any of them. One template, one StackSet, with a different value in the Regions or accounts that need it.",
     doc: ["https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stackinstances-override.html", "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html"] },
 
@@ -104,7 +104,7 @@ SD.bank.push(
       "Related multi-Region keys share the same key material and key ID, so the replica can decrypt what the primary encrypted.",
       null,
       "The point of a replica is that it works in its own Region, with no call back to the primary's Region.",
-      "A replica is created enabled. Rotation isn't needed for it to work."],
+      "A replica becomes Enabled seconds after it's created. Rotation isn't needed for it to work."],
     why: "Multi-Region keys share their key ID, key material, key spec and rotation, but each one has its own key policy, grants, aliases and tags. The replica's key policy must allow the role as well.",
     doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html", "https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-auth.html"] },
 
@@ -122,7 +122,7 @@ SD.bank.push(
       "There's no such mark. Once enabled, the key works as before and decrypts everything it encrypted.",
       null],
     why: "When you cancel a key's scheduled deletion, the key comes back in the Disabled state, not Enabled. Until someone with kms:EnableKey turns it back on, every cryptographic call with it fails.",
-    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/deleting-keys-scheduling-key-deletion.html", "https://docs.aws.amazon.com/kms/latest/developerguide/enabling-keys.html"] },
+    doc: ["https://docs.aws.amazon.com/kms/latest/developerguide/deleting-keys-cancelling-key-deletion.html", "https://docs.aws.amazon.com/kms/latest/developerguide/enabling-keys.html"] },
 
   { id: "dva-2-856", exam: "DVA", dva: "2.2", topic: "kms", type: "mc",
     q: "A team believes an old customer managed KMS key is unused, and schedules it for deletion with a 30-day waiting period. Before it's gone for good, the team wants to be warned if any application still tries to use the key, so it can cancel in time. What should the team set up?",
@@ -133,7 +133,7 @@ SD.bank.push(
       "An AWS Config rule that marks the key noncompliant whenever an application's IAM role names the key in a policy."
     ], a: 2,
     no: [
-      "AWS/KMS has no metric that counts each key's calls. The refused calls are recorded in CloudTrail.",
+      "AWS/KMS has no KeyUsage metric, and its per-key SuccessfulRequest metric skips refused calls.",
       "ScheduleKeyDeletion is logged once, when it happens. It tells you nothing about who still uses the key.",
       null,
       "A policy naming the key doesn't mean anything still calls it. And Config doesn't see the calls themselves."],

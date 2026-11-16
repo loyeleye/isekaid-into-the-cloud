@@ -153,7 +153,7 @@ SD.bank.push(
       "S3 encrypts the object with the key you send, then discards the key.",
       null],
     why: "With SSE-C you send your key with each request, over HTTPS. S3 uses it to encrypt or decrypt the object, then discards it, keeping only a salted HMAC to validate later requests. Lose the key and the object can't be decrypted.",
-    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html"] },
+    doc: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html"] },
 
   { id: "dva-2-759", exam: "DVA", dva: "2.2", topic: "kms", type: "mc",
     q: "A developer no longer needs a customer managed KMS key and calls ScheduleKeyDeletion on it. A week later, another team says it still has data encrypted under that key. Which statement is true?",

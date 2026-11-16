@@ -71,7 +71,7 @@ SD.bank.push(
       null,
       "Parameter Store stores the value, but it has no validators, gradual deployment strategies or alarm-based rollback.",
       "Turning on the feature in code means a redeploy, which the team wants to avoid."],
-    why: "AppConfig separates configuration from code. Validators (a JSON schema or a Lambda function) check a value before deployment, deployment strategies roll it out over time, and a CloudWatch alarm on the environment rolls it back. The AppConfig Lambda extension caches the value for the function.",
+    why: "AppConfig separates configuration from code. Validators (AppConfig's built-in flag schema, plus an optional Lambda function) check a value before deployment, deployment strategies roll it out over time, and a CloudWatch alarm on the environment rolls it back. The AppConfig Lambda extension caches the value for the function.",
     doc: ["https://docs.aws.amazon.com/appconfig/latest/userguide/what-is-appconfig.html", "https://docs.aws.amazon.com/appconfig/latest/userguide/appconfig-creating-deployment-strategy.html"] },
 
   // CodeArtifact
@@ -81,14 +81,14 @@ SD.bank.push(
       "An S3 bucket of package tarballs, with each buildspec running npm install against the bucket's static website endpoint.",
       "A self-managed npm proxy on an EC2 instance, with each CodeBuild project placed in a VPC that has no internet route at all.",
       "A shared CodeBuild cache in S3 that keeps node_modules between builds, so the public npm registry is contacted only the first time.",
-      "An AWS CodeArtifact repository with an upstream connection to the public npm registry, with npm configured to use it in the build."
+      "An AWS CodeArtifact repository with an external connection to the public npm registry, with npm configured to use it in the build."
     ], a: 3,
     no: [
       "An S3 bucket isn't an npm registry. npm can't resolve versions or dependencies from a folder of tarballs.",
       "It could work, but it means running, patching and scaling your own server for something CodeArtifact does as a managed service.",
       "A cache speeds builds up, but packages still come from the public registry and there's nowhere to publish internal packages.",
       null],
-    why: "CodeArtifact is a managed artifact repository for npm, PyPI, Maven and others. A repository can have an upstream (an external connection to the public registry), so it holds internal packages and caches approved public ones. Builds sign in with aws codeartifact login.",
+    why: "CodeArtifact is a managed artifact repository for npm, PyPI, Maven and others. A repository can have an external connection to the public registry, so it holds internal packages and caches approved public ones. Builds sign in with aws codeartifact login.",
     doc: ["https://docs.aws.amazon.com/codeartifact/latest/ug/welcome.html", "https://docs.aws.amazon.com/codeartifact/latest/ug/external-connection.html"] },
 
   // samconfig.toml environments
@@ -221,7 +221,7 @@ SD.bank.push(
       "sam local invoke runs the function in a container, but SDK calls inside it still go to real AWS (or to an endpoint you provide). It doesn't fake them.",
       "That's an integration test. It's slow, costs money and needs credentials, which this pipeline doesn't have."],
     why: "Unit tests should test your logic, not AWS. Stubbing the SDK clients returns canned responses (and errors) with no network calls or credentials. Integration tests against real or local services are a separate layer.",
-    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/testing-guide.html", "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/unit-testing.html"] },
+    doc: ["https://docs.aws.amazon.com/lambda/latest/dg/testing-guide.html"] },
 
   // API Gateway stage variables and Lambda aliases
   { id: "dva-3-933", exam: "DVA", dva: "3.2", topic: "apigateway", type: "mc",
@@ -238,7 +238,7 @@ SD.bank.push(
       "A canary on prod would send real production traffic to dev code, which is worse.",
       null],
     why: "Stage variables are name-value pairs on a stage. An integration ARN ending in :${stageVariables.lambdaAlias} calls a different alias from each stage. Each alias also needs permission for API Gateway to invoke it.",
-    doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/stage-variables.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/amazon-api-gateway-using-stage-variables.html"] },
+    doc: ["https://docs.aws.amazon.com/apigateway/latest/developerguide/stage-variables.html", "https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-set-stage-variables-aws-console.html"] },
 
   // SAM Accelerate
   { id: "dva-3-934", exam: "DVA", dva: "3.2", topic: "sam", type: "mc",
@@ -292,7 +292,7 @@ SD.bank.push(
 
   // DynamoDB local
   { id: "dva-3-937", exam: "DVA", dva: "3.2", topic: "dynamodb", type: "mc",
-    q: "Developers want integration tests that run real DynamoDB queries against a table with their indexes, on their laptops and in CI, without needing AWS credentials, paying for capacity, or sharing a table with other developers. What should they use?",
+    q: "Developers want integration tests that run real DynamoDB queries against a table with their indexes, on their laptops and in CI, without needing real AWS credentials, paying for capacity, or sharing a table with other developers. What should they use?",
     opts: [
       "A dev table in the shared AWS account with on-demand capacity, which costs nothing while only the tests are using it.",
       "DAX in front of the dev table, so repeated test queries are answered from the cache and use no table capacity.",
@@ -301,7 +301,7 @@ SD.bank.push(
     ], a: 3,
     no: [
       "On-demand still charges per request and needs credentials, and every developer shares the same table.",
-      "DAX needs a cluster in a VPC and credentials, and it caches reads, not queries against indexes on a laptop.",
+      "DAX needs a cluster in a VPC and real credentials, and it caches a real table's reads. It can't run on a laptop.",
       "A fake map doesn't run real queries, key conditions or index behaviour, so it isn't an integration test.",
       null],
     why: "DynamoDB local is a downloadable version of DynamoDB for development and testing. It runs on your machine or in CI, supports tables, indexes and the same API, and the SDK uses it when you set the endpoint, for example http://localhost:8000.",

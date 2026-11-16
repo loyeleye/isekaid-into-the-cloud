@@ -168,7 +168,7 @@ SD.bank.push(
       null,
       "The old version isn't what's being tested. The alarm must watch the new one."],
     why: "CodeDeploy stops and rolls back a deployment when one of its alarms goes into ALARM. Invoked through an alias, Lambda publishes metrics with the alias as the Resource dimension and the ExecutedVersion, so an Errors alarm can watch the new version as it takes traffic.",
-    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html", "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html"] },
+    doc: ["https://docs.aws.amazon.com/codedeploy/latest/userguide/deployments-rollback-and-redeploy.html", "https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html"] },
 
   { id: "dva-3-810", exam: "DVA", dva: "3.4", topic: "codedeploy", type: "mc",
     q: "A team wants blue/green releases for a web app on EC2, so the old fleet stays ready for a quick rollback. The next release renames a column in the one shared database, and the old version's code can't read the renamed column. What is the problem with a plain blue/green release here?",

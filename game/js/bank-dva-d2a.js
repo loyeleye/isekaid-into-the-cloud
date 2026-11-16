@@ -140,7 +140,7 @@ SD.bank.push(
       "The temporary credentials' session token is missing from the request, so API Gateway treats the access key as expired."
     ], a: 0,
     no: [null,
-      "A wrong service in the scope gives a signature mismatch error, and it would fail from every container, not just one.",
+      "A wrong service in the scope gives a credential scope error, and it would fail from every container, not just one.",
       "A missing permission gives a 403 saying the caller isn't authorized to access the resource, not a signature timing error.",
       "A missing session token gives a security token error, not a date comparison."],
     why: "A SigV4 request must reach AWS within about five minutes of its timestamp. A skewed clock produces Signature expired (or Signature not yet current), so sync the clock, for example with NTP.",
@@ -291,7 +291,7 @@ SD.bank.push(
       { t: "Set the identity pool's authenticated role selection to choose the role from the token, with the default role as fallback.", ok: true },
       { t: "Attach AdminRole's permissions policy directly to the admins group, the way an IAM group policy works for IAM users.", ok: false, no: "User pool groups aren't IAM groups and can't hold policies. A group can only reference an IAM role." },
       { t: "Turn on guest access in the identity pool and give the unauthenticated role the admin permissions for admin users.", ok: false, no: "Guest access is for users who aren't signed in, so every anonymous user would get admin permissions." },
-      { t: "Set the identity pool to use the default authenticated role, and let the admins call AssumeRole on AdminRole from the app.", ok: false, no: "The app would need extra trust and code for every admin, when role selection from the token does this for you." }
+      { t: "Set the identity pool to use the default authenticated role, and let the admins call AssumeRole on AdminRole from the app.", ok: false, no: "Every user gets the same default role, so any of them could assume AdminRole. Role selection from the token does this safely." }
     ],
     why: "A user pool group can carry an IAM role, which Cognito puts in the cognito:roles and cognito:preferred_role claims. An identity pool set to choose the role from the token uses it.",
     doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/role-based-access-control.html"] },
