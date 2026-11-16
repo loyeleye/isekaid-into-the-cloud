@@ -129,6 +129,10 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   check(!await page.$('[data-conf]'), 'confidence appears only after a number is picked');
   await noHScroll('page');
   await shot('page');
+  // The art: each part is a thing in the camp beside its name; the pool is ten stools; the loop is playing.
+  check(await page.$$eval('.icl-art', i => i.length) === 3 && await page.$$eval('.icl-part b', b => b.every(x => x.textContent.trim())), 'three parts have their camp art, and every part keeps its name');
+  check(await page.$$eval('.icl-stool', i => i.length) === 10 && await page.$$eval('.icl-stool[src*="stool-reports"]', i => i.length) === 8, 'the pool is ten stools, eight taken by reports-job');
+  check(await page.evaluate(() => SD.audio.loopName) === 'iclive', 'the live incident loop plays');
 
   // Predict wrong, Sure: the stake shows, then the minute runs and the machine says what happened.
   await predict(false, 2);
@@ -136,6 +140,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   check(s.phase === 'fix' && s.predOut && !s.predOut.ok && s.pts === -3, 'a wrong Sure prediction costs 3, and the fix screen opens');
   check(/You said .* it was 10/.test(await txt('.icl-verdict')), 'the verdict gives the true count');
   check(/429 × \d+/.test(await txt('.icl-machine')), 'the machine shows the throttles on orders-fn');
+  check(await page.$$eval('[data-part="orders"] .icl-env.bounce img[src*="env-429"]', i => i.length) > 0, 'bounced envelopes at orders-fn show the 429s');
   check(await page.$eval('#icl-run', b => b.disabled), 'Run waits for a change');
   await noHScroll('fix');
   await shot('fix');
@@ -156,6 +161,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await page.click('#icl-run');
   s = await st();
   check(s.last.slo && s.last.stamps.small && s.last.stamps.rule, 'reserving 4 meets the SLO with all three stamps');
+  check(await page.$$eval('.icl-stool[src*="stool-orders"]', i => i.length) === 4 && await page.$$eval('.icl-stool[src*="stool-reports"]', i => i.length) === 6, 'four stools reserved for orders-fn leave reports-job six');
   check(/✓ SLO met/.test(await txt('.icl-slo')) && await page.$$eval('.icl-stamps li.on', l => l.length) === 3, 'the result shows the SLO and three stamps');
   await noHScroll('result');
   await shot('result');
