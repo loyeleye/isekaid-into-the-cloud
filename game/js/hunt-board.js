@@ -130,7 +130,7 @@
   const POSE = {
     front: { at: [43.29, 9.79, 24.92, 12.15], faces: ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'] },
     three: { at: [38.5, 10.3, 25.08, 11.73], faces: ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'] },
-    side: { at: [53.04, 10.38, 15.34, 11.05], faces: ['neutral', 'blink', 'talk', 'wince', 'frown'] },
+    side: { at: [50.32, 10.21, 18.21, 11.22], faces: ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'] },
   };
   const BODY = p => `assets/img/hunt/bru/body-${p}.webp`;
   const FACE = (p, m) => `assets/img/hunt/bru/face-${p}-${m}.webp`;
@@ -139,7 +139,7 @@
   function bruOn(root) {
     const el = root.querySelector('.hs-bru'), fig = el.querySelector('.hs-fig'), bod = el.querySelector('.hs-body'), face = el.querySelector('.hs-face'), say = root.querySelector('.hs-say');
     const o = { mood: 'neutral', until: 0, flap: 0, line: null, home: 'three', pose: 'three' };
-    // A mood her current pose has no face for (a smile in profile) turns her to the three-quarter view for it.
+    // A mood her current pose has no face for turns her to the three-quarter view for it.
     const poseFor = m => (POSE[o.home].faces.includes(m) ? o.home : 'three');
     const place = p => { const a = POSE[p].at; face.style.cssText = `left:${a[0]}%;top:${a[1]}%;width:${a[2]}%;height:${a[3]}%`; };
     const show = m => {

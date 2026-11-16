@@ -3,7 +3,7 @@
 import sys, numpy as np, json
 from PIL import Image
 D, O = sys.argv[1], sys.argv[2]
-POSES = {'front': ['blink','talk','smile','wince','frown','grin'], 'three': ['blink','talk','smile','wince','frown','grin'], 'side': ['blink','talk','wince','frown']}
+POSES = {'front': ['blink','talk','smile','wince','frown','grin'], 'three': ['blink','talk','smile','wince','frown','grin'], 'side': ['blink','talk','smile','wince','frown','grin']}
 def load(f): return np.asarray(Image.open(f'{D}/{f}.png').convert('RGB')).astype(float)
 def key(a):
     r,g,b = a[...,0],a[...,1],a[...,2]
