@@ -1,4 +1,4 @@
-// Headless check of Monster Hunt's boards on screen (js/hunt-board.js, in js/hunt.js's hunt) at phone width (375px):
+// Headless check of Monster Hunt's boards on screen (js/hunt-board.js, in js/hunt.js's hunt, on the full-screen stage) at phone width (375px; W=1280 H=800 for wide):
 // an SQS poster battles on a board (plan, deploy, the run, what each card really did), a fix that didn't hold leaves
 // the oil burned and offers a re-plan, the real fix catches it, the Debrief is the poster's twin on the exam screen
 // and counts on the Wall, Stop for now mid-board resumes on the same board, a catch moves the monster up its ladder,
@@ -24,7 +24,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: SHOTS ? 2 : 1 });
+  const W = +process.env.W || 375, H = +process.env.H || 667;   // W=1280 H=800 for a wide screen
+  const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: SHOTS ? 2 : 1 });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -39,7 +40,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       });
       return bad.slice(0, 5);
     });
-    check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
+    check(!r.length, `no horizontal scroll at ${W}px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
   const text = () => page.textContent('#panel');
   const card = id => page.click(`#panel [data-card="${id}"]`);
@@ -66,8 +67,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   });
   check(!!poster, 'an SQS poster with a twin (' + poster + ')');
   check(await page.evaluate(() => { const h = SD.hunt._newHunt(); const m = h.mons[0]; SD.state.save.hunt = null; return m.steps.join() === 'sim,fight' && m.qs.board === 'p-teach'; }), 'its battle is a board (the Poison Pill\'s teach board), then the Debrief');
+  // On the full-screen stage, as the game's Monster Hunt card opens it.
+  const stage = () => page.evaluate(() => SD.modeStage.enter(SD.modes.get('hunt')));
+  await stage();
   await page.evaluate(() => SD.hunt.open());
   check(/Board/.test(await text()) && /Debrief/.test(await text()), 'the bounty board lists Board and Debrief for it');
+  await shot('posters');
   await page.evaluate(() => { SD.hunt.start(); });
   for (let k = 0; k < 6 && !(await page.$('[data-mon]')); k++) { const nx = await page.$('#md-next, #hn-wnext'); if (nx) await nx.click(); await page.waitForTimeout(60); }
   await page.waitForSelector('[data-mon]'); await page.click('[data-mon]');
@@ -76,6 +81,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/One bad order/.test(plan) && /Poison Pill/.test(plan) && /Your hand/.test(plan) && /Deploy 1 of 3/.test(plan), 'the plan screen: the scenario, the monster on its tile, the hand, deploy 1 of 3');
   check(!/maxReceiveCount 3\.[^]*right|correct/i.test(plan), 'no card says whether it helps');
   await noHScroll('plan');
+  await page.waitForTimeout(400);
+  const fill = await page.evaluate(() => { const w = document.querySelector('#panel .win').getBoundingClientRect(), b = document.querySelector('#mode-bar').getBoundingClientRect();
+    return { stage: document.body.dataset.stage, w: w.width / innerWidth, top: w.top - b.bottom, bottom: innerHeight - w.bottom }; });
+  check(fill.stage === 'hunt' && fill.w > .99 && Math.abs(fill.top) < 2 && fill.bottom < 2, `no window box: the hunt fills the screen under the bar (${Math.round(fill.w * 100)}% wide)`);
   await shot('plan');
 
   // A look-alike first: the longer visibility timeout.
@@ -95,6 +104,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('#hb-deploy');
   check(/Deploy 2 of 3/.test(await text()), 'deploy 2 of 3');
   await page.evaluate(() => SD.hunt.stop());
+  await stage();
   await page.evaluate(() => { SD.hunt.start(); });
   await page.waitForSelector('#hb-deploy');
   check(/Deploy 2 of 3/.test(await text()) && /Longer visibility timeout ✕/.test(await text()), 'Stop for now, then resume: the same board, deploy and plan');
@@ -111,6 +121,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#hb-next');
   await page.waitForSelector('#panel .win.quiz');
   check(/Debrief: why did that work/.test(await page.textContent('#panel .q-ctx')), 'the Debrief is on the exam screen, and says so');
+  await shot('debrief');
   const dq = await page.evaluate(() => { const m = SD.state.save.hunt.mons[0]; return { q: SD.hunt.live().q.id, fight: m.qs.fight }; });
   check(dq.q === dq.fight && dq.q !== poster, 'it asks the poster\'s twin');
   await page.evaluate(async () => {
@@ -152,11 +163,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('[data-yb="g-teach"]');
   await page.waitForSelector('#hb-deploy');
   await page.click('#hb-deploy');
-  await page.waitForSelector('#panel .hb-stamp', { timeout: 5000 });
-  check(/429 ×/.test(await text()) && !!(await page.$('#panel .hb-bucket')), 'the gate: marbles in the bucket and a 429 stamp');
+  // Read the stamp and the bucket on the same frame: the run keeps redrawing.
+  const gate = await page.waitForFunction(() => { const p = document.querySelector('#panel'); return /429 ×/.test(p.textContent) && !!p.querySelector('.hb-bucket'); }, null, { timeout: 5000 }).then(() => true, () => false);
+  check(gate, 'the gate: marbles in the bucket and a 429 stamp');
   await shot('gate-run');
   await noHScroll('run');
-  await page.evaluate(() => document.querySelector('#hb-skip').click());
+  await page.evaluate(() => { const k = document.querySelector('#hb-skip'); if (k) k.click(); });   // the run may have ended already
   await page.waitForSelector('#hb-next', { timeout: 20000 });
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));

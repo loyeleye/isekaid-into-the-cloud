@@ -86,16 +86,16 @@
             <span class="hb-cn"><b>${esc(c.name)}</b><span class="hb-cost" aria-label="${c.cost} coins">${'🪙'.repeat(c.cost) || 'free'}</span></span>
             <span class="small">${esc(c.text)}</span><span class="small muted">${ref ? 'Refused here' : on ? `On the ${TILE[c.tile].toLowerCase()} ✓` : `Goes on the ${TILE[c.tile].toLowerCase()}`}</span></button>`;
         }).join('');
-        const body = U.panel(`<div class="hb">
+        const body = U.panel(`<div class="hb hb-cols"><div class="hb hb-l">
           <p class="hb-ctx">${esc(opts.ctx || '')}</p>
           <p class="hb-title"><b>${esc(b.title)}</b></p><p class="small">${esc(b.line)}</p>
           ${b.mons.map(m => `<p class="hb-mline">${sprite(m, 'hb-sm')} <b>${esc(HC.MONSTERS[m].name)}</b> <span class="small">${esc(HC.MONSTERS[m].what)}</span></p>`).join('')}
           <div class="hb-hud"><span>${lampHtml(st.oil, b.lamp)}</span><span class="small"><b>🪙 ${left}</b> of ${b.budget} left · Deploy ${st.deploy} of ${HC.deploysOf(b)}</span></div>
           ${note ? `<p class="hb-bru" aria-live="polite">${note}</p>` : ''}
-          ${boardHtml(b, st, null, spec)}
+          ${boardHtml(b, st, null, spec)}</div><div class="hb hb-r">
           <p class="td-head">Your hand</p><div class="hb-hand">${hand}</div>
           <button class="primary hb-go" id="hb-deploy">Deploy</button>
-          ${st.deploy === 1 && !st.placed.length ? '<p class="muted small">Once you deploy, the run plays out on its own. You can change your plan afterwards if the fix didn\'t hold.</p>' : ''}</div>`,
+          ${st.deploy === 1 && !st.placed.length ? '<p class="muted small">Once you deploy, the run plays out on its own. You can change your plan afterwards if the fix didn\'t hold.</p>' : ''}</div></div>`,
         { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
         body.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
           const id = el.dataset.card, c = C[id];
@@ -142,12 +142,12 @@
       const sum = Object.keys(kinds).filter(t => EV_LINE[t]).map(t => EV_LINE[t](kinds[t])).join(' · ');
       if (sum) lines.unshift(`<span class="muted">Turn ${f.t}:</span> ${esc(sum)}`);
       if (!skip() || k === res.frames.length) {
-        const body = U.panel(`<div class="hb">
+        const body = U.panel(`<div class="hb hb-cols"><div class="hb hb-l">
           <p class="hb-ctx">${esc(opts.ctx || '')} · Deploy ${st.deploy}</p>
           <div class="hb-hud"><span>${lampHtml(f.oil, b.lamp)}</span><span class="small"><b>Turn ${f.t}</b> of ${HC.TICKS + HC.DRAIN}${f.t > HC.TICKS ? ' · draining' : ''}</span></div>
-          ${boardHtml(b, st, f, spec)}
+          ${boardHtml(b, st, f, spec)}</div><div class="hb hb-r">
           <ul class="hb-log" aria-live="polite">${lines.slice(0, 4).map(l => `<li>${l}</li>`).join('')}</ul>
-          <button class="ghost" id="hb-skip">Skip to the end</button></div>`, { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
+          <button class="ghost" id="hb-skip">Skip to the end</button></div></div>`, { title: opts.title || 'MONSTER HUNT', noClose: true, cls: 'hn-simwin' });
         if (f.evs.some(e => HC.COST[e.type])) sfx('hit'); else if (f.evs.some(e => e.type === 'dlq')) sfx('sparkle');
         await wait(skip() ? 0 : B.STEP_MS);
         if (opts.gone && opts.gone()) return false;
@@ -257,7 +257,10 @@
 
   const css = document.createElement('style');
   css.textContent = `
-    .hb { display: grid; gap: 6px; }
+    .hb { display: grid; gap: 6px; align-content: start; }
+    /* On the full-screen stage, wide: the board on the left, the hand (or the run's log) on the right. */
+    @media (min-width: 900px) { body.in-mode .hb-cols { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px 24px; align-items: start; }
+      body.in-mode .hb-cols > .hb-r { position: sticky; top: 0; } }
     .hb p { margin: 0; }
     .hb-ctx { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
     .hb-title { font-size: 17px; }
