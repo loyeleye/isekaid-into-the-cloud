@@ -51,7 +51,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const answer = (right, conf) => page.evaluate(async ([right, conf]) => {
     const p = document.querySelector('#panel'), q = SD.modes.current();
     const wait = ms => new Promise(r => setTimeout(r, ms));
-    const said = p.querySelector('#q-said'); if (said) { said.click(); await wait(10); }
+    const said = p.querySelector('#q-said'); if (said) { said.click(); await wait(30); }
     const tf = p.querySelector('#tf-idk'); if (tf) { tf.click(); await wait(10); }
     if (q.type === 'mc') p.querySelector(`[data-o="${right ? q.a : q.opts.findIndex((o, i) => i !== q.a)}"]`).click();
     else if (q.type === 'multi') q.items.forEach((it, i) => { if (right ? it.ok : !it.ok) p.querySelector(`[data-m="${i}"]`).click(); });
@@ -79,8 +79,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.click('#ct-bill');
     for (let g = 0; g < 6 && (await st()).phase === 'bill'; g++) {
       await page.click('#ct-pay');
-      await page.waitForFunction(() => (!!SD.modes.current() && document.querySelector('#panel [data-c]')) || SD.state.save.table.night.phase !== 'bill' || document.querySelector('#ct-pay'));
-      if (await page.$('#panel [data-c]')) {
+      await page.waitForFunction(() => (!!SD.modes.current() && document.querySelector('#panel [data-c], #panel #q-said, #panel #tf-idk')) || SD.state.save.table.night.phase !== 'bill' || document.querySelector('#ct-pay'));
+      if (await page.$('#panel [data-c], #panel #q-said, #panel #tf-idk')) {
         await answer(right, 1);
         await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
         if (await page.$('#q-next')) await page.click('#q-next');
@@ -137,7 +137,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/HIS BILL/.test(await txt('#panel')) && !!(await page.$('#ct-pay')), 'resume reopens the bill');
   await noHScroll('bill'); await shot('bill');
   await page.click('#ct-pay');
-  await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
+  await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c], #panel #q-said, #panel #tf-idk'));
   check(!(await page.$('#panel .ct-felt')), 'the bill question is the plain exam screen');
   await answer(true, 1);
   await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
@@ -145,7 +145,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForFunction(() => document.querySelector('#ct-pay, #ct-done'));
   for (let g = 0; g < 4 && await page.$('#ct-pay'); g++) {
     await page.click('#ct-pay');
-    await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
+    await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c], #panel #q-said, #panel #tf-idk'));
     await answer(false, 0);
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
