@@ -186,6 +186,8 @@
   const MAP = { wide: [0.16, 0.11, 0.84, 0.62], tall: [0.13, 0.21, 0.87, 0.47] };
   function wall() {
     const im = document.querySelector('#icl-scene .icl-room img'), R = document.documentElement.style;
+    // Only phones pin the parts to the map: on a wide screen they read as a separate board, not part of the map.
+    if (innerWidth >= 900) { document.body.classList.remove('icl-wall'); return; }
     if (!im || !im.naturalWidth) return;
     const r = im.getBoundingClientRect(), nw = im.naturalWidth, nh = im.naturalHeight;
     const k = Math.max(r.width / nw, r.height / nh), ox = r.left + (r.width - nw * k) / 2, oy = r.top + (r.height - nh * k) / 2;
