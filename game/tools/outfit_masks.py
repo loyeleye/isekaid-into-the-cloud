@@ -35,7 +35,7 @@ RULES = {
     'mira': dict(
         main=lambda h, s, v: v < 0.24,
         trim=lambda h, s, v: s < 0.12 and v > 0.82,
-        bust=dict(area=[(0, 0, 1, 1)], out=[(.3, .1, .72, .58)], chains=[(.55, .3, 1, 1)], trimarea=[(.25, .0, .78, .14), (.25, .52, .6, .75)]),
+        bust=dict(area=[(0, 0, 1, 1)], out=[(.28, .1, .7, .58)], chains=[(0, .3, .45, 1)], trimarea=[(.22, .0, .75, .14), (.4, .52, .75, .75)]),
         stand=dict(area=[(0, 0, 1, 1)], out=[(.38, .1, .62, .24)], chains=[(0, .25, .4, .72)], trimarea=[(.35, 0, .65, .08)])),
     'seoyeon': dict(
         main=lambda h, s, v: (s < 0.35 or 220 <= h <= 300) and v < 0.3,

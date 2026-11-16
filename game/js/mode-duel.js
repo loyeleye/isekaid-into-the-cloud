@@ -467,8 +467,9 @@
     tw: '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="30" width="34" height="4" rx="2" fill="#5a3c25"/><g fill="#a8652d" stroke="#17131f" stroke-width="1.5"><ellipse cx="9" cy="23" rx="5" ry="7"/><ellipse cx="20" cy="23" rx="5" ry="7"/><ellipse cx="31" cy="23" rx="5" ry="7"/></g><rect x="5" y="19" width="8" height="3" fill="#17131f"/><rect x="14" y="20" width="3" height="5" fill="#17131f"/><rect x="23" y="20" width="3" height="5" fill="#17131f"/><rect x="28" y="25" width="6" height="3" fill="#17131f"/></svg>'
   };
   const emb = id => EMB[id] || EMB.dq;
-  const kage = 'assets/img/portraits/kagemaru-neutral.webp';
-  const say = t => `<div class="du-say"><img src="${kage}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
+  // Freya's ring stays under his glove until he shows it in chapter 6's bunker (as js/vec-cast.js's portraits).
+  const kage = () => { const c6 = SD.state.save && SD.state.save.c6; return `assets/img/portraits/kagemaru-${c6 && c6.w && c6.w.x && c6.w.x.reveal ? 'neutral' : 'gloved'}.webp`; };
+  const say = t => `<div class="du-say"><img src="${kage()}" alt="" width="52" height="60"><p><b>Kagemaru:</b> "${esc(t)}"</p></div>`;
   const rname = id => (rival(id) ? rival(id).name : id === 'partner' ? 'Partner' : 'Due');
 
   // ---- The board screen ----
