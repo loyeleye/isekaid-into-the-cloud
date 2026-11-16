@@ -6,6 +6,8 @@
 // poster comes down; the inspection's "why not" lines; placement after the verdict on its own screen (at most four map
 // actions, Map as list, saved after every action); stop and resume; results; Pingsby's Quarter; and the rules that
 // open on later nights (materials and the twin retry, reputation and the second tier of clients), plus the foreman.
+// Build orders (Nov 16 formats plan): two of the six clients bring a Sequence item from js/qformats.js, worked and
+// practice the first two times, then scored with the same stakes; a miss scaffolds without going on the Wall.
 // Run from game/:  node tools/draft_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -71,6 +73,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return plot;
   };
   // Seal (from inspection) then place, for contracts the check doesn't look at closely.
+  // A build order (the formats engine's Sequence): worked shows "Got it"; otherwise tap the steps in order (or with
+  // the first two swapped), submit, rate, continue. Returns the engine's mode and the item.
+  const playSeq = async (right, conf) => {
+    const x = await page.evaluate(() => { const r = SD.draft.run(), it = r ? r.items[r.open] : null; return it ? { id: it.q, n: SD.draft.seqFind(it.q).steps.length } : null; });
+    await page.waitForSelector('#panel .qf');
+    if (await page.$('#qf-got')) { await page.click('#qf-got'); await wait(20); return { mode: 'worked', x }; }
+    const order = Array.from({ length: x.n }, (_, i) => i);
+    if (!right) [order[0], order[1]] = [order[1], order[0]];
+    for (const i of order) await page.click(`#panel [data-qf-pool="s${i}"]`);
+    await page.click('#qf-submit'); await wait(10);
+    await page.click(`#panel .qf [data-c="${conf}"]`); await wait(10);
+    await page.click('#q-next'); await wait(20);
+    return { mode: 'played', x };
+  };
+  const isSeqOpen = () => page.evaluate(() => { const r = SD.draft.run(); return !!(r && r.open != null && r.items[r.open].seq); });
+  // Build orders to the back of the board, so the blueprint checks below meet blueprints first.
+  const seqLast = () => page.evaluate(() => { const r = SD.draft.run(); r.items.sort((a, b) => (a.seq | 0) - (b.seq | 0)); SD.state.persist(); SD.draft.open(); });
   const sealAndPlace = async (wrong, conf) => { const i = await draftAndSeal(wrong, conf); await page.click('#dr-next'); await wait(20); if (await title() === 'PINGSBY\'S QUARTER · PLACE IT') await placeAt(); return i; };
 
   await page.clock.install({ time: new Date('2026-11-16T12:00:00') });
@@ -102,10 +121,13 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- The session ----
   let r = await run();
-  const kinds = await page.evaluate(() => SD.draft.run().items.map(it => SD.exam.find(it.q).type));
+  const kinds = await page.evaluate(() => SD.draft.run().items.map(it => (it.seq ? 'seq' : SD.exam.find(it.q).type)));
   check(r.items.length === 6, `a session is 6 clients (${r.items.length})`);
-  check(kinds.filter(k => k === 'multi').length === 5 && kinds.filter(k => k === 'mc').length === 1, `5 multiple-response contracts and 1 single-answer job (${kinds.join(',')})`);
-  const unverified = await page.evaluate(() => SD.draft.run().items.filter(it => !SD.topicDrill.isVerified(SD.exam.find(it.q))).length);
+  check(kinds.filter(k => k === 'multi').length === 3 && kinds.filter(k => k === 'mc').length === 1 && kinds.filter(k => k === 'seq').length === 2, `3 multiple-response contracts, 1 single-answer job and 2 build orders (${kinds.join(',')})`);
+  check(await page.evaluate(() => SD.draft.seqItems().length === 25 && SD.draft.run().items.filter(i => i.seq).every(i => /^fmt-seq-/.test(i.q))), 'the build orders come from the 25 Sequence items');
+  check(await page.evaluate(() => !SD.qf.has('seq') && !SD.qf.enabled()), 'the formats engine stays off outside the mode (has() is false in this profile)');
+  await seqLast(); await wait(20);
+  const unverified = await page.evaluate(() => SD.draft.run().items.filter(it => !it.seq && !SD.topicDrill.isVerified(SD.exam.find(it.q))).length);
   check(unverified === 0, 'every contract is verified (verified-only, enough verified questions)');
   check(r.tokens === undefined && !await page.$('#dr-tok'), 'no inspector\'s tokens: nothing helps before the seal');
   const shown = await page.$$eval('#panel [data-k]', els => els.length);
@@ -267,21 +289,41 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(id => { SD.draft.town(); const b = SD.draft.save().town[id]; return !b.scaf && b.fin === 1; }, info2.q), 'when its poster comes down, the scaffolding comes off for good');
   check(await page.evaluate(id => SD.draft.scaffoldFor(id) === null, info2.q), 'scaffoldFor is null once finished');
 
-  // ---- The rest of the session, then results ----
+  // ---- The rest of the session (one blueprint, then the two build orders), then results ----
+  const seqModes = [];
   for (let i = 0; i < 10; i++) {
     if (await title() !== 'ARCHITECT\'S DRAFT') break;
     await openFirst();
+    if (await isSeqOpen()) {
+      if (!seqModes.length) {
+        await page.waitForSelector('#panel .qf');
+        check(/New format: Sequence/.test(await txt()) && /ARCHITECT'S DRAFT · BUILD ORDER/.test(await title()), 'the first build order is worked through, in the Draft\'s own panel');
+        await noHScroll('build order, worked');
+        await shot('seq-worked');
+      } else if (seqModes.length === 1) {
+        await page.waitForSelector('#panel .qf');
+        check(/Practice/.test(await txt()) && /Hint:/.test(await txt()), 'the second build order is practice, with a hint');
+        await shot('seq-practice');
+      }
+      const m = await playSeq(true, 1);
+      seqModes.push(m.mode);
+      const after = await title();
+      check(after === 'ARCHITECT\'S DRAFT · RESULTS' || (/not scored/.test(await txt()) && after === 'ARCHITECT\'S DRAFT'), `an unscored build order (${m.mode}) goes back to the board, saying so (or on to results)`);
+      check(await page.evaluate(id => !SD.draft.save().town[id], m.x.id), 'an unscored build order puts up no building');
+      continue;
+    }
     await sealAndPlace(0, 1);
     await wait(10);
   }
+  check(seqModes.length === 2 && seqModes[0] === 'worked', `both build orders were played (${seqModes.join(', ')})`);
   check(await title() === 'ARCHITECT\'S DRAFT · RESULTS', 'after the last client, the results screen');
   const res = await txt();
-  check(/Standing: 4/.test(res) && /Scaffolding: 2/.test(res), 'results count standing and scaffolding');
+  check(/Standing: 2/.test(res) && /Scaffolding: 2/.test(res), 'results count standing and scaffolding (unscored build orders in neither)');
   check(/Misses to the Wall: 2/.test(res), 'results count every miss that went on the Wall');
   check(/Twin retries: 1/.test(res), 'results count the twin retries');
-  check(/Tonight in Pingsby's Quarter/.test(res) && await page.$$eval('#panel .dr-plot.tonight', els => els.length) === 6, 'results open on the Quarter, with tonight\'s six buildings outlined');
+  check(/Tonight in Pingsby's Quarter/.test(res) && await page.$$eval('#panel .dr-plot.tonight', els => els.length) === 4, 'results open on the Quarter, with tonight\'s four buildings outlined');
   check(/How sure you were/.test(res) && /blueprint by blueprint/.test(res), 'results show calibration per blueprint');
-  check(await page.evaluate(() => { const t = SD.draft.run().tally; return [0, 1, 2].reduce((a, c) => a + t[c][1], 0); }) === 7, 'calibration counts one entry per question (six blueprints and one retry)');
+  check(await page.evaluate(() => { const t = SD.draft.run().tally; return [0, 1, 2].reduce((a, c) => a + t[c][1], 0); }) === 5, 'calibration counts one entry per scored question (four blueprints and one retry)');
   check(/Ideas touched/.test(res) && /Why did that work/.test(res), 'results list the ideas touched, and Pip asks his question');
   check(await page.evaluate(() => SD.state.save.shards | 0) === xp0 + 5, 'the session pays 5 shards');
   const share = await page.evaluate(() => { const r = SD.draft.run(); return r.mapMs / Math.max(1, r.mapMs + r.qMs); });
@@ -293,7 +335,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- Pingsby's Quarter ----
   check(await title() === 'PINGSBY\'S QUARTER', 'the results open Pingsby\'s Quarter');
-  check(await page.$$eval('#panel .dr-plot.built', els => els.length) === 6, 'six buildings on the map');
+  check(await page.$$eval('#panel .dr-plot.built', els => els.length) === 4, 'four buildings on the map');
   check(await page.$$eval('#panel .dr-ptag', els => els.some(e => /[▲■●◆][1-4] 🚧/.test(e.textContent))), 'a building\'s tag shows its domain as a shape and a number, and scaffolding as an icon');
   await noHScroll('quarter');
   await shot('quarter');
@@ -312,6 +354,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await title() === 'NEW TONIGHT: MATERIALS', 'night 2 opens one new rule: materials');
   await shot('night2');
   await page.click('#dr-rule'); await wait(20);
+  await seqLast(); await wait(20);
   check(await page.evaluate(() => SD.draft.level()) === 2 && /🧱 Materials/.test(await txt()) && !/⭐/.test(await txt()), 'night 2 shows materials, not reputation yet');
   // The neighbour rule, then a real placement beside a building of the same domain.
   check(await page.evaluate(() => { const R = SD.draft.rules; const g = { 0: 1, 2: 1, 6: 2 }; const a = R.gains(g, 1, 1, 2), b = R.gains(g, 1, 1, 1), c = R.gains(g, 11, 2, 3), e = R.gains(g, 11, 2, 3, false); return a.mat === 2 && a.rep === 0 && b.mat === 0 && c.rep === 1 && c.mat === 1 && e.rep === 0; }), 'materials come from same-domain neighbours (night 2 on), reputation from standing riverside buildings (night 3 on)');
@@ -355,12 +398,64 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check(/Since your last move: the twin held/.test(await txt()), 'after the retry, one line says how it went');
   } else check(false, 'a scaffolded building with a twin to retry');
 
+  // ---- Night 2's build orders: scored now ----
+  // Finish night 2's blueprints, then a build order missed at Sure, then its comeback.
+  await page.evaluate(() => SD.draft.open()); await wait(20);
+  for (let i = 0; i < 10; i++) {
+    if (await title() !== 'ARCHITECT\'S DRAFT') break;
+    if (await page.evaluate(() => { const r = SD.draft.run(); return r.items.filter(it => !it.done)[0].seq; })) break;
+    await openFirst();
+    await sealAndPlace(0, 1);
+  }
+  await openFirst();
+  check(await isSeqOpen(), 'night 2 brings its build orders after the blueprints');
+  await page.waitForSelector('#panel .qf');
+  check(!/Practice/.test(await txt()) && await page.$$eval('#panel .qf-chip', els => els.length) > 2, 'after the first two, a build order is scored: steps and decoys to place');
+  const fr = (await run()).floors, wall0 = await page.evaluate(() => SD.state.save.wall.length);
+  const sq = await page.evaluate(() => { const r = SD.draft.run(); return r.items[r.open].q; });
+  for (const i of await page.evaluate(id => SD.draft.seqFind(id).steps.map((_, k) => k), sq)) await page.click(`#panel [data-qf-pool="s${i}"]`);
+  await page.click('#qf-submit'); await wait(10);
+  check(/\+3/.test(await txt()) && /−3/.test(await txt()), 'the build order\'s confidence buttons show the Draft\'s stakes');
+  await noHScroll('build order, scored');
+  await shot('seq-scored');
+  // Change answer: send every step back, then place them with the first two swapped.
+  await page.click('#qf-change'); await wait(10);
+  const n2 = await page.evaluate(id => SD.draft.seqFind(id).steps.length, sq);
+  for (let k = 0; k < n2; k++) await page.click('#panel .qf-slot[data-qf-slot="0"]');
+  for (const i of [1, 0].concat(Array.from({ length: n2 - 2 }, (_, k) => k + 2))) await page.click(`#panel [data-qf-pool="s${i}"]`);
+  await page.click('#qf-submit'); await wait(10);
+  await page.click('#panel .qf [data-c="2"]'); await wait(10);
+  check(/NOT QUITE|PARTLY RIGHT/.test(await txt()), 'the engine shows its own feedback first');
+  await page.click('#q-next'); await wait(20);
+  r = await run();
+  check(await title() === 'INSPECTION' && /SCAFFOLDING/.test(await txt()) && /comes back first/.test(await txt()), 'a missed build order: Seymour\'s inspection, scaffolding, and it comes back');
+  check(r.floors - fr === -3, `a Sure miss on a build order costs −3 floors (${r.floors - fr})`);
+  check(await page.evaluate(id => { const b = SD.draft.save().town[id]; return b.seq && b.scaf && b.cracks === 1; }, sq), 'its building stands under scaffolding, with a crack');
+  check(await page.evaluate(n => SD.state.save.wall.length === n, wall0), 'a build order is not an exam question, so nothing goes on the Wall');
+  check(await page.evaluate(id => SD.draft.seqLog()[id].miss === 1 && SD.draft.pickSeq(null, 2)[0].id === id, sq), 'the missed build order comes back first');
+  await shot('seq-inspect');
+  await page.click('#dr-next'); await wait(20);
+  check(await title() === 'PINGSBY\'S QUARTER · PLACE IT', 'a scored build order goes to placement');
+  await placeAt();
+  // Its comeback: the next build order is the same one, played right.
+  await page.evaluate(id => { const r = SD.draft.run(), it = r.items.find(i => !i.done && i.seq); it.q = id; it.client = SD.draft.save().town[id].client; SD.state.persist(); SD.draft.open(); }, sq);
+  await wait(20);
+  await openFirst();
+  await playSeq(true, 1);
+  check(await title() === 'INSPECTION' && /IT HOLDS/.test(await txt()), 'got right on its comeback, the build order holds');
+  check(await page.evaluate(id => { SD.draft.town(); const b = SD.draft.save().town[id]; return !b.scaf && b.fin === 1 && SD.draft.seqLog()[id].miss === 0; }, sq), 'and the scaffolding comes off for good');
+  await page.click('#dr-next'); await wait(20);
+  await page.evaluate(() => SD.draft.quarter()); await wait(20);
+  await page.click(`#panel [data-bq="${sq}"]`); await wait(10);
+  check(/Plaque · build order/.test(await txt()) && /scaffolding came off when its build order held/.test(await txt()), 'its plaque says it is a build order and how it was finished');
+
   // ---- Night 3: reputation, the second tier, and Ayo ----
   check(await page.evaluate(() => { const d = SD.draft.save(); d.nights = ['a', 'b', 'c']; d.rep = 0; const a = SD.draft.clientsOpen().length; d.rep = 3; const b = SD.draft.clientsOpen(); return a === 4 && b.includes('marrow') && b.includes('pip') && !b.includes('coo'); }), 'reputation brings a second tier of clients (Coo stays foreman)');
   check(await page.evaluate(() => { SD.state.save.flags.ch5 = true; const ok = SD.draft.foreman().name === 'Ayo' && SD.draft.clientsOpen().includes('coo'); SD.state.save.flags.ch5 = false; return ok; }), 'after chapter 5, Ayo is the foreman and Coo becomes a client');
 
   // ---- A preset with few multiple-response questions still fills ----
-  const pre = await page.evaluate(() => SD.draft.pickSession('pair-cognito').map(it => SD.exam.find(it.q)).map(q => ({ t: q.type, v: SD.topicDrill.isVerified(q) })));
+  const pre = await page.evaluate(() => SD.draft.pickSession('pair-cognito').map(it => (it.seq ? { t: 'seq', topic: SD.draft.seqFind(it.q).topic } : { t: SD.exam.find(it.q).type, v: SD.topicDrill.isVerified(SD.exam.find(it.q)) })));
+  check(pre.filter(x => x.t === 'seq').every(x => x.topic === 'cognito'), 'a topic preset brings build orders on its own topic when it has them');
   check(pre.length >= 5, `a narrow preset still fills a session (${pre.length})`);
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
