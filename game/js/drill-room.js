@@ -34,6 +34,19 @@
     ['k', 't'].forEach((c, i) => { const im = fig.querySelector('.up-' + c); if (im) im.src = `assets/img/drill/uptima-${p}-${i ? 'talk' : 'blink'}.webp`; });
   };
 
+  // Layers, back to front (Ladi, Nov 16: "placed behind them in the background, and when she talks the four leads
+  // become semi-transparent and out of focus"): the empty room, Uptima standing behind the counter at the leads'
+  // scale, then the front: the plate (or its living clips) with a hole cut where she stands, so the leads and the
+  // counter stay in front of her. While she talks (.rm.talk) the front fades and blurs and she stays sharp.
+  // Until the empty room exists (R.back false), she stands in front of the plate, cut off at the counter top.
+  R.back = false;
+  R.IDLE_POSE = 'smug';
+  R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
+        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="rm-emote"></span></div>
+        <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
+        <div class="rm-vslot" aria-hidden="true"></div></div>`;
+  // A bare room for Uptima's lines: no stations or gauges, the leads faded behind her.
+  R.scene = pose => `<div class="rm talk scene${R.back ? '' : ' noback'}" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
   // The room. o: { at, zoom, notes: [[station, who, text]], lines: [[who, text]], m, play }
   R.html = function (f, e, o) {
     o = o || {};
@@ -55,11 +68,9 @@
           ${on ? `<span class="rm-g db-g-${k}">${BD.gauge(f, k, null, e.m)}</span>` : ''}
           ${note}${say}</div>`;
     }).join('');
-    return `<div class="rm${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
+    return `<div class="rm${R.back ? '' : ' noback'}${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
       <div class="rm-cam">
-        <img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
-        <div class="rm-vslot" aria-hidden="true"></div>
-        <div class="rm-up" aria-hidden="true">${R.pose('lazy', 'blinks')}<span class="rm-emote"></span></div>
+        ${R.layers(R.IDLE_POSE)}
         ${sts}
         <div class="rm-fly" aria-hidden="true"></div>
       </div>
@@ -239,7 +250,17 @@
     .rm-say.bad { border-color: #9e3a34; background: #fbe4dc; }
     .rm-note { background: #fff3c4; }
     @keyframes rmsay { from { transform: translateY(.8cqi) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-    .rm-up { position: absolute; left: 35.8%; top: 12%; height: 68%; aspect-ratio: .62; z-index: 5; pointer-events: none; }
+    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; pointer-events: none; }
+    .rm.noback .rm-back { display: none; }
+    .rm-front { position: absolute; inset: 0; z-index: 3; transition: opacity .45s ease, filter .45s ease;
+      -webkit-mask: url(assets/img/drill/room-front-mask.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-front-mask.png) 0 0 / 100% 100%; }
+    .rm.noback .rm-front { -webkit-mask: none; mask: none; z-index: 1; }
+    .rm.talk .rm-front { opacity: .32; filter: blur(.35cqi) saturate(.8); }
+    .rm.noback.talk .rm-front { opacity: 1; filter: blur(.35cqi) brightness(.5) saturate(.8); }
+    /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
+    .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none; }
+    .rm.noback .rm-up { z-index: 4; clip-path: inset(0 -20% ${100 - 100 * (COUNTER - 1.5 - 8) / 96}% -20%); }
+    .rm.noback.talk .rm-up { clip-path: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
     .up-fig .up-k, .up-fig .up-t { opacity: 0; }
@@ -249,7 +270,7 @@
     @keyframes uptalk { 0%, 49% { opacity: 1; } 50% { opacity: 0; } }
     .rm-up .up-fig { filter: drop-shadow(0 .8cqi .8cqi rgba(0, 0, 0, .55)); animation: upbreathe 3.8s ease-in-out infinite; transform-origin: 50% 100%; }
     @keyframes upbreathe { 50% { transform: scaleY(1.008) translateY(-.15%); } }
-    .rm-emote { position: absolute; left: 40%; top: -6%; font-size: 3.2cqi; opacity: 0; pointer-events: none; }
+    .rm-emote { position: absolute; left: 40%; top: 0; font-size: 3.2cqi; opacity: 0; pointer-events: none; }
     .rm-emote.go { animation: rmemote 1.4s ease-out; }
     @keyframes rmemote { 0% { opacity: 0; transform: translateY(1cqi) scale(.6); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-1cqi); } }
     .rm-fly { position: absolute; inset: 0; pointer-events: none; z-index: 6; }

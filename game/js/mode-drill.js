@@ -47,10 +47,11 @@
       const [pose, text] = beats[i];
       const m = /^([\w-]+)(?:>([\w-]+)@(\d+))?$/.exec(pose) || [0, pose];
       const b = panel(`<div class="dr-cut">
-        <img class="dr-cut-bg" src="assets/img/drill/room.webp" alt="">
-        <div class="dr-cut-up" aria-hidden="true">${RM().pose(m[1], 'blinks talking')}</div>
+        <div class="dr-cut-room">${RM().scene(m[1])}</div>
         <button class="dr-cut-box" id="dr-cut-next" data-vo="${esc('uptima|' + text)}"><b>Uptima</b><span>${esc(text)}</span><i aria-hidden="true">▼</i></button></div>`);
       const fig = b.querySelector('.up-fig');
+      if (fig) fig.classList.add('talking');
+      RM().mount(b.querySelector('.dr-cut-room'));
       const talkMs = Math.min(11000, 800 + text.length * 62);
       const t1 = m[2] ? setTimeout(() => RM().setPose(fig, m[2]), +m[3]) : 0;
       const t2 = setTimeout(() => fig && fig.classList.remove('talking'), talkMs);
@@ -521,9 +522,8 @@
     .dr:has(> .dr-cut) { min-height: 100%; }
     .dr-cut { position: relative; flex: 1; min-height: min(78vh, 760px); display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
       margin: -14px calc(50% - 50vw) 0; }
-    .dr-cut-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(5px) brightness(.42) saturate(.9); transform: scale(1.06); }
-    .dr-cut-up { position: absolute; left: max(4%, calc(50% - 560px)); bottom: 0; height: 96%; aspect-ratio: .56; animation: drcutin .5s cubic-bezier(.2, .8, .2, 1) both; }
-    .dr-cut-up .up-fig { filter: drop-shadow(0 10px 30px rgba(0, 0, 0, .8)); }
+    .dr-cut-room { position: absolute; inset: 0; container-type: size; overflow: hidden; background: #120e0a; }
+    .dr-cut-room .rm { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: max(100cqw, 179.1cqh); border-radius: 0; }
     @keyframes drcutin { from { transform: translateY(8%); opacity: 0; } to { transform: none; opacity: 1; } }
     body.in-mode #panel .win .dr-cut-box, .dr-cut-box { position: relative; z-index: 2; width: min(980px, calc(100% - 32px)); margin: 0 auto calc(22px + env(safe-area-inset-bottom, 0px));
       display: block; text-align: left; padding: 18px 24px 22px; border-radius: 16px; background: rgba(22, 19, 30, .93); color: #efe6d2;
@@ -532,7 +532,7 @@
     .dr-cut-box i { font-style: normal; color: #d6b254; margin-left: 6px; display: inline-block; animation: drmore 1s ease-in-out infinite; }
     @keyframes drmore { 50% { transform: translateY(3px); } }
     @media (min-width: 900px) { .dr-cut-box { margin-left: max(16px, calc(50% - 160px)); width: min(760px, 52%); } }
-    @media (max-width: 600px) { .dr-cut-up { left: 50%; transform: translateX(-50%); height: 78%; animation: none; } .dr-cut-box { font-size: 16px; } }
+    @media (max-width: 600px) { .dr-cut-box { font-size: 16px; } }
     /* The postmortem on the war room's chalkboard: the question in chalk, the answers as cards on the counter. */
     body.dr-pm.in-mode #panel .win.quiz { background: #24382c; border: 12px solid #6b4a2a; border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .7), inset 0 0 40px rgba(0, 0, 0, .45); }
     body.dr-pm.in-mode #panel .win.quiz .win-b { background: transparent; color: #f2f2e6; }
