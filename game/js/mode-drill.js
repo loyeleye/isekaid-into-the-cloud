@@ -29,10 +29,10 @@
   const NODE_ICON = { callers: 'conversation', gate: 'medieval-gate', queue: 'mailbox', fn: 'lightning-helix', store: 'database' };
   const STATUS = { ok: 'OK', error: 'Error 4xx', fault: 'Fault 5xx', throttle: 'Throttle 429', dark: 'Not traced', off: 'Not on this path' };
   const SAY = {
-    arrive: 'Fire drill. I\'ve copied the order system and broken something in it. Your four leads each run one station. Find it, fix it, keep the error budget.',
-    again: 'Another drill. Same system, different break.',
-    won: 'Every drill closed. That\'s an on-call rotation I\'d sleep through.',
-    zero: 'Budget\'s gone. In a real outage that\'s the moment you call everyone. We\'ll run it again tomorrow.'
+    arrive: 'Behold, mortals! Thy goddess hath devised a trial most... okay, I copied the order system and broke something. On purpose! Mostly. Find it before the error budget runs out. I\'ll be supervising. From the snack table.',
+    again: 'Another drill! Same system, brand new break. I\'d tell you what I broke, but I didn\'t write it down.',
+    won: 'Every drill closed! Praise Uptima. Thank Uptima. Credit... okay, fine. Credit them a little.',
+    zero: 'The budget\'s gone. In a real outage, this is where everyone gets paged. Including me. Please don\'t page me. We\'ll try again tomorrow.'
   };
 
   function start() {
@@ -77,7 +77,7 @@
     }).reverse().join('');
     const first = s.fresh && s.night === 1 && !s.done.length;
     const b = panel(`<p class="dr-night">Night ${s.night}</p>
-      ${say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? 'Next drill.' : SAY.again)}
+      ${say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? 'Next one! This one\'s definitely fine. Probably. Don\'t quote me.' : SAY.again)}
       ${budgetJar(s)}
       <div class="dr-map">${rows}</div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
@@ -266,7 +266,7 @@
       ${budgetJar(s)}
       ${say(lead, ok ? 'smile' : 'tired', ok ? 'Held. Write it up before you forget why.' : 'We didn\'t find it in time. Now we know where to look.')}
       <div class="dr-reveal ms-lt">${icon('scroll-unfurled')}<span><b>The cause:</b> ${esc(d.hidden)}<br><span class="small">${esc(d.fix[0].map(id => C[id].back).join(' '))}</span></span></div>
-      ${say('uptima', 'neutral', 'The postmortem question. One answer, and say how sure you are.')}
+      ${say('uptima', 'neutral', 'Postmortem time! One answer, and tell me how sure you are. If you\'re right, I\'m taking the credit.')}
       <div class="dr-dock"><button class="primary" id="dr-ask">Answer the postmortem</button></div>`);
     b.querySelector('#dr-ask').onclick = async () => {
       const q = debriefQuestion(s);
