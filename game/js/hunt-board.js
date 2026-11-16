@@ -122,19 +122,39 @@
     `<div class="hb-row hs-row" role="list" aria-label="The board: ${b.tiles.map(t => TILE[t]).join(', then ')}">${b.tiles.map(t => tileHtml(b, t, st, f, spec, fx)).join('')}</div><div class="hs-road" aria-hidden="true">${roadHtml(b, fx)}</div>`;
 
   // ---- Bru, full size in the street ----
-  // A body (assets/img/hunt/bru/body.webp) and a face on top that changes: she breathes (CSS), blinks every few
-  // seconds, moves her mouth while a new line comes up, and reacts: smile when you place an item, frown at a refusal
-  // or an escape, wince when the lamp burns oil, grin at a catch.
-  const FACES = ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'];
-  const FACE = m => `assets/img/hunt/bru/face-${m}.webp`;
-  FACES.forEach(m => { const i = new Image(); i.src = FACE(m); });
+  // Drawn from Ladi's character sheet in three poses (assets/img/hunt/bru/body-<pose>.webp), each with a face on top
+  // that changes (face-<pose>-<mood>.webp, laid over the body at POSE[pose].at, in % of the body). She breathes (CSS),
+  // blinks every few seconds, moves her mouth while a new line comes up, and reacts: smile when you place an item,
+  // frown at a refusal or an escape, wince when the lamp burns oil, grin at a catch. And she turns: to you while she
+  // talks you through the plan and the results, to the monster (side) while the run plays.
+  const POSE = {
+    front: { at: [43.29, 9.79, 24.92, 12.15], faces: ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'] },
+    three: { at: [38.5, 10.3, 25.08, 11.73], faces: ['neutral', 'blink', 'talk', 'smile', 'wince', 'frown', 'grin'] },
+    side: { at: [53.04, 10.38, 15.34, 11.05], faces: ['neutral', 'blink', 'talk', 'wince', 'frown'] },
+  };
+  const BODY = p => `assets/img/hunt/bru/body-${p}.webp`;
+  const FACE = (p, m) => `assets/img/hunt/bru/face-${p}-${m}.webp`;
+  Object.keys(POSE).forEach(p => [BODY(p), ...POSE[p].faces.map(m => FACE(p, m))].forEach(u => { const i = new Image(); i.src = u; }));
   const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   function bruOn(root) {
-    const el = root.querySelector('.hs-bru'), face = el.querySelector('.hs-face'), say = root.querySelector('.hs-say');
-    const o = { mood: 'neutral', until: 0, flap: 0, line: null };
-    const show = m => { if (face.dataset.m !== m) { face.dataset.m = m; face.src = FACE(m); } el.dataset.mood = m; };
+    const el = root.querySelector('.hs-bru'), fig = el.querySelector('.hs-fig'), bod = el.querySelector('.hs-body'), face = el.querySelector('.hs-face'), say = root.querySelector('.hs-say');
+    const o = { mood: 'neutral', until: 0, flap: 0, line: null, home: 'three', pose: 'three' };
+    // A mood her current pose has no face for (a smile in profile) turns her to the three-quarter view for it.
+    const poseFor = m => (POSE[o.home].faces.includes(m) ? o.home : 'three');
+    const place = p => { const a = POSE[p].at; face.style.cssText = `left:${a[0]}%;top:${a[1]}%;width:${a[2]}%;height:${a[3]}%`; };
+    const show = m => {
+      const p = poseFor(m), k = p + ':' + m;
+      if (p !== o.pose) {
+        o.pose = p; bod.src = BODY(p); place(p); el.dataset.pose = p;
+        if (!still()) { fig.classList.remove('turn'); void fig.offsetWidth; fig.classList.add('turn'); }
+      }
+      if (face.dataset.k !== k) { face.dataset.k = k; face.src = FACE(p, m); }
+      el.dataset.mood = m;
+    };
     const base = () => (Date.now() < o.until ? o.mood : 'neutral');
     o.react = (m, ms) => { o.mood = m; o.until = Date.now() + (ms || 1400); show(m); };
+    o.turn = p => { o.home = p; show(base()); };
+    place('three');
     o.say = (html) => {
       if (html === o.line) return;
       o.line = html; say.innerHTML = html || ''; say.hidden = !html;
@@ -160,7 +180,7 @@
     const body = U.panel(`<div class="hb hs" data-board="${esc(b.id)}">
         <div class="hs-hud"></div>
         <div class="hs-view"><div class="hs-street"><img class="hs-bg" src="${STREET}" alt="" aria-hidden="true" decoding="async"><div class="hs-layer"></div></div></div>
-        <div class="hs-bru" aria-hidden="true"><img class="hs-body" src="assets/img/hunt/bru/body.webp" alt=""><img class="hs-face" src="${FACE('neutral')}" data-m="neutral" alt=""></div>
+        <div class="hs-bru" aria-hidden="true" data-pose="three"><div class="hs-fig"><img class="hs-body" src="${BODY('three')}" alt=""><img class="hs-face" src="${FACE('three', 'neutral')}" data-k="three:neutral" alt=""></div></div>
         <p class="hs-say hb-bru hb-say" aria-live="polite" hidden></p>
         <div class="hs-cut"></div>
         <div class="hs-sat"></div></div>`,
@@ -354,6 +374,7 @@
         }).join('');
         const sc = sceneOpen(b, opts), body = sc.root;
         if (sc.root.classList.contains('cut')) sc.bru.react('neutral', 0);
+        sc.bru.turn('front');
         sc.root.classList.remove('run', 'cut');
         sc.hud.innerHTML = `<span class="hs-lamp">${lampHtml(st.oil, b.lamp)}</span>
           <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')}</span><b class="hb-title">${esc(b.title)}</b></span>
@@ -385,6 +406,8 @@
         const sc = B._scene, m = b.mons[0], t = HC.MONSTERS[m].tile;
         sc.root.style.setProperty('--fx', SPOT[t][0] + '%');
         sc.root.classList.add('intro');
+        // She's looking down the street at it, then turns to you to tell you about it.
+        sc.bru.turn('side'); setTimeout(() => { if (sc.root.classList.contains('intro')) sc.bru.turn('three'); }, Math.min(1100, B.STEP_MS * 3));
         sc.bru.say(`<b>Bru:</b> ${esc(HC.MONSTERS[m].name)}. ${esc(HC.MONSTERS[m].what)} ${esc(b.line)}`);
         const end = () => { if (sc.root.classList.contains('intro')) { sc.root.classList.remove('intro'); draw(); } };
         sc.root.addEventListener('click', end, { once: true });
@@ -428,6 +451,7 @@
       if (!skip() || k === res.frames.length) {
         const sc = sceneOpen(b, opts);
         sc.root.classList.add('run'); sc.root.classList.remove('cut', 'intro');
+        sc.bru.turn('side');
         sc.hud.innerHTML = `<span class="hs-lamp">${lampHtml(f.oil, b.lamp, fx.drop)}</span>
           <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')} · Deploy ${st.deploy}</span><b class="hb-title">${esc(b.title)}</b></span>
           <span class="hs-coins"><b>Turn ${f.t}</b> of ${HC.TICKS + HC.DRAIN}${f.t > HC.TICKS ? ' · draining' : ''}</span>`;
@@ -487,6 +511,7 @@
         <button class="primary hb-go" id="hb-next">${res.won ? (opts.debrief ? 'Debrief: why did that work?' : 'Done') : can ? 'Change the plan' : 'Continue'}</button></div>`;
       sc.sat.innerHTML = '';
       const bodyNext = sc.cut.querySelector('#hb-next');
+      sc.bru.turn('front');
       sc.bru.react(res.won ? 'grin' : 'frown', 1e9);
       sc.bru.say(`<b>Bru:</b> ${res.won ? (stars === 3 ? 'Lid on. Perfect.' : 'Lid on. Got it.') : can ? 'It got away. Change the plan?' : 'Gone into the fog.'}`);
       if (res.won) sfx('levelup'); else sfx('wrong');
@@ -650,10 +675,13 @@
     .hs-mv.back { background: #d0452f; border-color: #5a1a10; }
     @keyframes hsRoll { from { left: var(--a); } to { left: var(--b); } }
     /* Bru */
-    .hs-bru { position: absolute; z-index: 3; left: max(4px, 2vw); bottom: 0; height: min(78%, 620px); aspect-ratio: 341 / 893; pointer-events: none;
+    .hs-bru { position: absolute; z-index: 3; left: max(4px, 2vw); bottom: 0; height: min(78%, 620px); aspect-ratio: 475 / 900; pointer-events: none;
       transform-origin: 50% 100%; animation: hsBreathe 3.8s ease-in-out infinite; filter: drop-shadow(0 0 18px rgba(0, 0, 0, .6)); }
+    .hs-fig { position: absolute; inset: 0; transform-origin: 50% 100%; }
+    .hs-fig.turn { animation: hsTurn .24s ease-out; }
+    @keyframes hsTurn { 0% { transform: scaleX(.86); opacity: .85; } 100% { transform: none; opacity: 1; } }
     .hs-body { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .hs-face { position: absolute; left: 37.83%; top: -.45%; width: 46.33%; height: 21.84%; }
+    .hs-face { position: absolute; }
     @keyframes hsBreathe { 50% { transform: scale(1.006, 1.014); } }
     .hs-bru[data-mood="wince"] { animation: hsFlinch .4s ease-out, hsBreathe 3.8s ease-in-out .4s infinite; }
     @keyframes hsFlinch { 30% { transform: translateX(-6px) rotate(-1.5deg); } }
