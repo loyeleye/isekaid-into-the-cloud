@@ -34,7 +34,8 @@
   const LOOPS = ['duel', 'draft', 'pop', 'hunt', 'ic', 'sprint'];
   const LINGER = 450;
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
-  const PLATES = [];
+  // The Fire Drill's war room is a Gemini image (project files game-modes/multiplayer-real/art-and-music.md).
+  const PLATES = ['drill'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
   const MUSIC = {};
   // Mode id: { win, lose } jingle files in assets/audio/.
