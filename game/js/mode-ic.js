@@ -20,6 +20,7 @@
   const WAVES = [3, 3, 3, 3];             // incidents landing in each wave: 12 in all
   const OVERTIME = 1;                     // one extra wave after wave 4 for incidents that timed out in it
   const CLOCKS = [5, 7, 9];
+  const RERUNS = 5;                      // twin retries per shift: 12 incidents + 5 retries keeps a shift under 20 minutes
   const TIMEOUT = 15, SURE_MISS = 5;      // error budget, in %
   const IC = SD.ic = {};
   const sv = () => S.save;
@@ -99,7 +100,7 @@
       return { q: it.q, orig: it.orig || it.q, other: it.other | 0, back: it.back | 0, clock: c, max: c, tries: it.tries | 0, timeouts: it.timeouts | 0, dutch: 0 };
     });
     // Snapshot for "Retry this wave" (answers already given stay logged).
-    s.waveStart = { board: JSON.parse(JSON.stringify(s.board)), carry: [], queue: s.queue.slice(), budget: s.budget, perks: Object.assign({}, s.perks) };
+    s.waveStart = { board: JSON.parse(JSON.stringify(s.board)), carry: [], queue: s.queue.slice(), budget: s.budget, perks: Object.assign({}, s.perks), reruns: s.reruns | 0 };
     s.msg = s.wave <= WAVES.length ? SAY.wave[s.wave - 1] || SAY.open : SAY.overtime;
     s.since = '';
   };
@@ -124,8 +125,8 @@
     } else {
       inc.tries++;
       if (conf === 2) { s.budget -= SURE_MISS; notes.push(`Sure miss −${SURE_MISS}% budget`); }
-      const tw = inc.tries <= 1 ? twinOf(s, inc.q) : null;   // one retry on the twin, then it's logged as missed
-      if (tw) { inc.q = tw.id; s.msg = conf === 2 ? SAY.sureMiss : SAY.wrong; notes.push(`↻ ${nodeName(inc.q)} still open, as a new scenario`); }
+      const tw = inc.tries <= 1 && (s.reruns | 0) < RERUNS ? twinOf(s, inc.q) : null;   // one retry on the twin, while the shift has retries left
+      if (tw) { s.reruns = (s.reruns | 0) + 1; inc.q = tw.id; s.msg = conf === 2 ? SAY.sureMiss : SAY.wrong; notes.push(`↻ ${nodeName(inc.q)} still open, as a new scenario`); }
       else { s.board.splice(idx, 1); s.msg = conf === 2 ? SAY.sureMiss : SAY.missed; notes.push(`✗ ${nodeName(inc.q)} missed: it comes back in review`); }
     }
     // Every answer ticks every other open clock, unless Bru is covering this one.
@@ -177,7 +178,7 @@
   IC.retryWave = function (s) {
     const w = s.waveStart;
     s.board = JSON.parse(JSON.stringify(w.board)); s.carry = []; s.queue = w.queue.slice(); s.budget = Math.max(w.budget, TIMEOUT + 1);
-    s.perks = Object.assign({}, w.perks); s.phase = 'board'; s.zero = false; s.retries = (s.retries | 0) + 1;
+    s.perks = Object.assign({}, w.perks); s.reruns = w.reruns | 0; s.phase = 'board'; s.zero = false; s.retries = (s.retries | 0) + 1;
     s.msg = 'Again. I\'ll pretend I didn\'t see that.'; s.since = '';
   };
 
@@ -200,7 +201,7 @@
     const b = Math.max(0, s.budget);
     const perks = [s.perks.coo ? '🪶 Coo: next timeout costs half' : '', s.perks.bru ? '🚪 Bru: next answer ticks no clock' : '', s.perks.dutch ? '🛡 Dutch: +2 on one clock' : ''].filter(Boolean);
     return `<div class="ic-hud"><span><b>Wave ${Math.min(s.wave, WAVES.length)}${s.wave > WAVES.length ? ' · overtime' : ''}</b> of ${WAVES.length}</span>
-      <span>Error budget <b>${b}%</b></span><span>Points <b>${M.sgn(s.pts)}</b></span></div>
+      <span>Error budget <b>${b}%</b></span><span>Points <b>${M.sgn(s.pts)}</b></span><span>↻ Retries left <b>${Math.max(0, RERUNS - (s.reruns | 0))}</b></span></div>
       <div class="bar ic-bar" role="img" aria-label="Error budget ${b}%"><i style="width:${b}%"></i></div>
       ${perks.length ? `<p class="small ic-perks">${perks.map(esc).join(' · ')}</p>` : ''}`;
   }
@@ -329,7 +330,7 @@
         ${sp ? `<div class="md-eg"><p class="small"><b>${esc(sp.ask)}</b></p>${sp.qual ? `<p class="small">★ Asks for: <b>${esc(sp.qual)}</b></p>` : ''}</div>` : ''}
         <p class="small">Open it to read the whole question. The star line is the qualifier: MOST cost-effective and LEAST overhead pick different fixes.</p>` },
       { title: 'Apply a fix', html: `<p>Name the cause in your own words, then the fixes show. Apply one and say how sure you are:</p>
-        ${M.stakeTable()}<p class="small">Right resolves it. Wrong: after the explanation, it stays open as the same fault in a new scenario, so you get one more try straight away. Miss that too and it goes to review.</p>` },
+        ${M.stakeTable()}<p class="small">Right resolves it. Wrong: after the explanation, it stays open as the same fault in a new scenario, so you get one more try straight away. Miss that too, or run out of the shift's ${RERUNS} retries, and it goes to review.</p>` },
       { title: 'Clocks and budget', html: `<p>Every answer ticks every other incident's clock by one (●●○ is two ticks left). The board waits while you read: there's no real-time clock.</p>
         <p>A clock at zero pages: ${TIMEOUT}% error budget, and the incident comes back next wave in a new disguise. A Sure miss costs ${SURE_MISS}%. Points come from the table, budget is just for surviving.</p>
         <p class="small">${WAVES.length} waves. It saves after every answer: stop any time.</p>` }

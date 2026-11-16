@@ -165,7 +165,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const paged = s5.board.slice(1);
     const back = s6.carry.concat(s6.board);
     check(paged.every(p => back.some(b => b.orig === p.orig)), 'timed-out incidents come back next wave, not skipped');
-    const tw = await page.evaluate(([paged, back]) => paged.every(p => { const b = back.find(x => x.orig === p.orig); return b && (b.q !== p.q || !SD.qtwin(SD.exam.find(p.q))); }), [paged, back]);
+    // Same question only when it has no twin that's free this shift (a twin already on the board or in the log is skipped).
+    const tw = await page.evaluate(([paged, back, s5]) => { const used = s5.log.map(x => x.q).concat(s5.board.map(x => x.q), s5.queue.map(x => x.q), s5.carry.map(x => x.q), s5.seen || []);
+      return paged.every(p => { const b = back.find(x => x.orig === p.orig); return b && (b.q !== p.q || !SD.qtwin(SD.exam.find(p.q), { avoid: used.concat(p.q) })); }); }, [paged, back, s5]);
     check(tw, 'and come back as their twin where one exists');
   }
 
@@ -231,6 +233,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   });
   check(perks[1] === 100 - Math.ceil(15 / 2) - 15 * (perks[0] - 1), `Coo: the next timeout costs half (${perks[1]}%)`);
   check(perks[2], 'Bru: the next answer ticks no other clock');
+  // The shift's retry cap: with none left, a miss is logged as missed even when a twin exists.
+  const cap = await page.evaluate(() => {
+    const s = JSON.parse(JSON.stringify(SD.state.save.ic)); s.sim = true; s.perks = {}; s.reruns = 5;
+    s.board.forEach(b => { b.clock = 9; b.tries = 0; }); const n = s.board.length, q0 = s.board[0].q;
+    SD.ic.settle(s, s.board[0], { ok: false, conf: 0, pts: 0 });
+    return [s.board.length === n - 1, !s.board.some(b => b.q === q0), /Retries left/.test(document.querySelector('.ic-hud') ? document.querySelector('.ic-hud').textContent : 'Retries left')];
+  });
+  check(cap[0] && cap[1], 'with the shift\'s 5 retries used, a miss goes to review');
 
   // ---- 0%: retry the wave in one tap, or end ----
   await page.evaluate(() => { SD.state.save.ic.budget = 5; SD.state.persist(); SD.ic.board(); });
