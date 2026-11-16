@@ -1,7 +1,7 @@
 // Headless check of Monster Hunt's boards on screen (js/hunt-board.js, in js/hunt.js's hunt, on the full-screen stage) at phone width (375px; W=1280 H=800 for wide):
 // an SQS poster battles on a board (plan, deploy, the run, what each card really did), a fix that didn't hold leaves
-// the oil burned and offers a re-plan, the real fix catches it, the Debrief is the poster's twin on the exam screen
-// and counts on the Wall, Stop for now mid-board resumes on the same board, a catch moves the monster up its ladder,
+// the oil burned and offers a re-plan, the real fix catches it, the Debrief is the poster's twin, asked by Bru in the
+// street with the monster in its jar (js/hunt-debrief.js), and counts on the Wall, Stop for now mid-board resumes on the same board, a catch moves the monster up its ladder,
 // and Bru's yard starts narrow (teach boards first), refuses a FIFO-only card on a standard queue for AWS's reason,
 // and records stars. No horizontal scroll on any of these screens.
 // Run from game/:  node tools/hunt_board_check.js     SHOTS=dir saves screenshots.
@@ -150,6 +150,19 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#hb-next');
   await page.waitForSelector('#panel .win.quiz');
   check(/Debrief: why did that work/.test(await page.textContent('#panel .q-ctx')), 'the Debrief is on the exam screen, and says so');
+  await noHScroll('Debrief');
+  // The Debrief is a scene in the same street, not a box: Bru full size asking it on a card over the scene, the
+  // monster she just caught in its jar beside her, the answers as cards along the bottom, her line still aria-live.
+  const deb = await page.evaluate(() => {
+    const w = document.querySelector('#panel .win.quiz'), sc = w && w.querySelector('.hd-scene');
+    return { street: !!(sc && sc.querySelector('.hs-street img.hs-bg[src*="street"]')), bru: !!(sc && sc.querySelector('.hs-bru img.hs-body[src*="body-"]')),
+      jar: !!(sc && sc.querySelector('.hd-mon.jarred .hd-jar img.hd-spr[src*="poison"]')), live: !!(sc && sc.querySelector('.hs-say[aria-live="polite"]:not([hidden])')),
+      card: !!w.querySelector('.hd-card .q-q'), sat: w.querySelectorAll('.hd-sat .opts button.opt').length, conf: w.querySelectorAll('.hd-sat .conf [data-c]').length,
+      hp: !!(innerWidth > 700 ? sc && sc.querySelector('.hd-hp .hn-hp') : w.querySelector('.hd-card .hn-hp')), mood: sc && sc.querySelector('.hs-bru').dataset.mood };
+  });
+  check(deb.street && deb.bru && deb.jar && deb.live && deb.card && deb.sat >= 2 && deb.conf === 3 && deb.hp,
+    'the Debrief is in the street: Bru asks it on a card, the caught monster sits in its jar beside her, the answers are cards along the bottom ' + JSON.stringify(deb));
+  check(!['grin', 'smile', 'frown'].includes(deb.mood), 'Bru doesn\'t react before you answer (' + deb.mood + ')');
   await shot('debrief');
   const dq = await page.evaluate(() => { const m = SD.state.save.hunt.mons[0]; return { q: SD.hunt.live().q.id, fight: m.qs.fight }; });
   check(dq.q === dq.fight && dq.q !== poster, 'it asks the poster\'s twin');
@@ -159,8 +172,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     else q.items.forEach((it, i) => { if (it.ok) document.querySelector(`#panel [data-m="${i}"]`).click(); });
     await wait(10); document.querySelector('#panel [data-c="1"]').click(); await wait(10);
   });
+  const react = await page.evaluate(() => { const sc = document.querySelector('#panel .hd-scene'); return sc && { mood: sc.querySelector('.hs-bru').dataset.mood, pose: sc.querySelector('.hs-bru').dataset.pose, card: !!document.querySelector('#panel .hd-card .verdict.ok') }; });
+  check(react && react.card && ['grin', 'smile'].includes(react.mood) && react.pose === 'front', 'right: the verdict and feedback stay in the scene, and Bru grins, turned to you ' + JSON.stringify(react));
+  await shot('debrief-right');
   await page.click('#q-next');
   await page.waitForTimeout(80);
+  check(!(await page.$('.hd-scene')), 'the Debrief scene is gone once you continue');
   const out = await page.evaluate(id => ({ m: SD.state.save.hunt && SD.state.save.hunt.mons[0], rec: SD.state.save.huntMon[id], w: SD.state.save.wall.find(x => x.id === id) }), poster);
   check(out.m && out.m.out === 'wounded', 'right today but not two days yet: wounded, as the Wall\'s rule says (' + (out.m && out.m.out) + ')');
   check(out.w && out.w.rights && out.w.rights.length === 1, 'the Debrief answer counted on the Wall');

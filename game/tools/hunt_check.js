@@ -1,5 +1,5 @@
 // Headless check of Monster Hunt (js/hunt.js) at phone width (375px), without the shared modes shell: the Today card's
-// link, Bru's bounty board (3 monsters, oldest first, different topics, Kyu's note), the first-run walkthrough, Track
+// link, Bru's bounty board (a scene in the street: 3 monsters, oldest first, different topics, Kyu's note, a poster up close, battle it first), the first-run walkthrough, Track
 // (Type it first), Fight (a twin), Pin it down (existing "why not" lines only), captured / escaped / wounded by the
 // Wall's rule, Stop for now and resume on the same encounter, results (calibration, pay once a day, Pip), the bestiary,
 // spacing (nothing hunted today comes back today; wounded skips Track; escaped gets a different twin), sightings (topic
@@ -148,6 +148,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }), 'a board topic\'s poster shows its board monster, any other a bestiary face picked by its name');
   await noHScroll('bounty board');
   await shot('board');
+  // The board is a scene (js/hunt-street.js): a notice board in the night street, Bru beside it talking in a live
+  // bubble, a lantern per monster under it, and each poster a button that shows it up close.
+  const scene = await page.evaluate(() => {
+    const r = document.querySelector('#panel .hu'), say = r && r.querySelector('.hs-say');
+    return { art: !!(r && r.querySelector('.hu-stand img.hu-art[src*="notice-board"]')), bru: !!(r && r.querySelector('.hs-bru .hs-body')),
+      say: !!say && say.getAttribute('aria-live') === 'polite' && !say.hidden && /Each poster on your Wall/.test(say.textContent),
+      taps: [...document.querySelectorAll('.hn-mon button.hu-tap')].filter(b => /^Wanted: /.test(b.getAttribute('aria-label') || '')).length,
+      lamps: document.querySelectorAll('.hu-lamps .hu-lamp').length };
+  });
+  check(scene.art && scene.bru && scene.say, 'the bounty board stands in the street, with Bru beside it and her line in a live speech bubble');
+  check(scene.taps === 3 && scene.lamps === 3, 'each poster is a named button, and a lantern hangs for each monster');
+  await page.click('[data-post="0"]');
+  const zoom = await page.evaluate(() => { const z = document.querySelector('.hu-zoom'); return { open: !z.hidden, txt: z.textContent, back: !!z.querySelector('#hn-zback'), go: !!z.querySelector('#hn-zgo'), focus: z.contains(document.activeElement) }; });
+  check(zoom.open && /Track.*Fight.*Pin it down/.test(zoom.txt) && zoom.back && zoom.go && zoom.focus, 'a poster up close: its steps, Battle this one first, and Back to the board');
+  await noHScroll('a poster up close');
+  await page.click('#hn-zback');
+  check(await page.evaluate(() => document.querySelector('.hu-zoom').hidden && document.activeElement && document.activeElement.dataset.post === '0'), 'Back to the board closes it and returns focus to the poster');
 
   // ---- First run walkthrough ----
   await page.click('#hn-go');
@@ -415,6 +432,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { p, r, used: [p, tw[0], tw[1]] };
   });
   check(!!rt.r && !rt.used.includes(rt.r), 'a missed question\'s retry is a twin not asked yet, never the same question (' + rt.p + ' → ' + rt.r + ')');
+
+  // ---- Battle a poster first, from the board ----
+  await page.evaluate(ps => { const s = SD.state.save; s.wall = ps.slice(0, 3).map((id, i) => ({ id, t: Date.now() - (9 - i) * 86400000, rights: [] })); s.huntMon = {}; s.hunt = null; s.sightings = []; SD.state.persist(); SD.hunt.open(); }, posters);
+  await page.click('[data-post="1"]');
+  await page.click('#hn-zgo');
+  await page.waitForSelector('#panel .win.quiz ' + STOP);
+  check(await page.evaluate(id => { const h = SD.state.save.hunt; return h.i === 1 && h.phase === 'mon' && h.mons[1].id === id && SD.hunt.live().m === h.mons[1]; }, posters[1]), 'Battle this one first: the hunt starts on the poster you tapped, as a pick in the picker does');
+  await page.evaluate(() => SD.hunt.stop());
 
   // ---- No sightings in the last days ----
   await page.clock.setSystemTime(new Date('2026-11-28T12:00:00'));

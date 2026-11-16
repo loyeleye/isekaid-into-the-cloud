@@ -421,9 +421,12 @@
     // down, and on everything when the shell isn't loaded.
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const dctx = m.qs.board && step === 'fight' ? `${m.name} · Debrief: why did that work? The poster's own question` : ctx;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
+    const debrief = !!m.qs.board && step === 'fight';
+    const dctx = debrief ? `${m.name} · Debrief: why did that work? The poster's own question` : ctx;
+    const ask = () => shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
+    // A board's Debrief is asked by Bru in the street, with the monster in its jar beside her (js/hunt-debrief.js).
+    const r = await (debrief && SD.huntDebrief ? SD.huntDebrief.ask(m, ask) : ask());
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();
@@ -707,7 +710,25 @@
     const r = m.res && m.res[s], st = r ? (r.ok ? '✓' : '✗') : k === m.k ? '▸' : '○';
     return `<span class="hn-step${r ? (r.ok ? ' ok' : ' bad') : ''}">${st} ${s === 'fight' && m.qs && m.qs.board ? 'Debrief' : STEP_NAME[s]}</span>`;
   }).join('<span aria-hidden="true"> · </span>');
-  // Bru's bounty board: the hunt in progress, or the next one.
+  // The stamped tally on a poster: one stamp per step, ✓ right, ✗ missed, ▸ the one you're on, ○ still to come.
+  const tallyHtml = m => `<span class="hu-tally" role="img" aria-label="${esc(m.steps.map((s, k) => stepName(m, s) + ': ' + stepState(m, s, k)).join(', '))}">${m.steps.map((s, k) => {
+    const r = m.res && m.res[s], c = r ? (r.ok ? 'ok' : 'bad') : k === m.k ? 'now' : '';
+    return `<span class="hu-st ${c}" data-a="${esc(s === 'pin' ? 'Pin' : stepName(m, s))}" data-l="${esc(stepName(m, s)[0])}" aria-hidden="true"><i>${r ? (r.ok ? '✓' : '✗') : k === m.k ? '▸' : '○'}</i><span class="hu-sn">${esc(stepName(m, s))}</span></span>`;
+  }).join('')}</span>`;
+  const stepName = (m, s) => (s === 'fight' && m.qs && m.qs.board ? 'Debrief' : STEP_NAME[s]);
+  const stepState = (m, s, k) => { const r = m.res && m.res[s]; return r ? (r.ok ? 'right' : 'missed') : k === m.k ? 'next' : 'to come'; };
+  // Bru on a poster up close: what she'd say about that one, and her face for it.
+  function bruOnPoster(m, here) {
+    if (m.out) return { captured: [rand(BRU.captured), 'grin'], wounded: [BRU.wounded[0], 'smile'], escaped: [BRU.escaped[1], 'frown'], driven: [BRU.wildOk, 'grin'], gotaway: [BRU.wildBad, 'frown'] }[m.out] || [BRU.pick, 'neutral'];
+    if (here) return ['You left this one mid-fight. It hasn\'t moved.', 'neutral'];
+    if (m.qs && m.qs.board) return ['This one is a board. Place your cards, deploy, and watch what AWS does to it.', 'smile'];
+    if (m.wild) return ['Sighted in the wild, out of your practice test. A question you\'ve never seen.', 'wince'];
+    if (m.wounded) return ['Still limping from last time. Track\'s pip is already gone.', 'smile'];
+    return [BRU.pick, 'neutral'];
+  }
+  const said = t => `<span data-vo="${esc('bru|' + t)}">${esc(t)}</span>`;
+  // Bru's bounty board: the hunt in progress, or the next one. A notice board in the night street with the posters
+  // pinned to it, Bru beside it, a lantern per monster over it (js/hunt-street.js). Without the street, the old list.
   H.open = function () {
     const cur = H.current();
     const list = cur ? cur.mons : null;
@@ -721,18 +742,51 @@
     const first = !beasts().length && !(sv().walked && sv().walked.hunt);
     // Health shows once it's settled: before a hunt, a Fight that turns out to be a worked example adds pips.
     const sure = m => !!(cur || m.wild || m.wounded || (m.qs && m.qs.board) || !m.steps.includes('fight'));
-    const items = rows.map(m => `<li class="td-poster hn-mon hn-wp${m.out ? ' done' : ''}">${wantedHead(m)}
-      <div class="hn-wbody">${portrait(m)}<span class="hn-hpn"><b class="td-pn">${esc(m.name)}</b>
-      <span class="hn-track">${stepMarks(m)}</span>${sure(m) ? `<span class="hn-pips" role="img" aria-label="health ${hpOf(m)} of ${maxHP(m)}"><span class="hn-rw" aria-hidden="true">HP</span>${pipsHtml(hpOf(m), maxHP(m))}</span>` : ''}</span></div>
-      ${m.wounded && !(m.qs && m.qs.board) ? '<span class="muted small">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small"><b>${esc((OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}</li>`).join('');
+    const pips = m => (sure(m) ? `<span class="hn-pips" role="img" aria-label="health ${hpOf(m)} of ${maxHP(m)}"><span class="hn-rw" aria-hidden="true">HP</span>${pipsHtml(hpOf(m), maxHP(m))}</span>` : '');
+    const noteOf = m => `${m.wounded && !(m.qs && m.qs.board) ? '<span class="muted small hn-zn">◐ Wounded: Track skipped.</span>' : ''}${m.out ? `<span class="small hn-zn"><b>${esc((OUT[m.out] || OUT.escaped)[0] + ' ' + (OUT[m.out] || OUT.escaped)[1])}</b></span>` : ''}`;
     const hunted = wall().filter(mine).length - H.board().length;
     const go = cur ? `Resume the hunt · ${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : rows.length ? `Start the hunt · ${rows.length} ${rows.length === 1 ? 'monster' : 'monsters'}` : '';
-    const b = U.panel(`<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>
-      ${(() => { const t = rows.length ? (first ? 'Each poster on your Wall is a monster. Get it right three ways to catch it.' : rand(BRU.board)) : BRU.empty; return `<p class="td-head" data-vo="${esc('bru|' + t)}">${esc(t)}</p>`; })()}
-      ${rows.length ? `<ul class="td-wall hn-board">${items}</ul>` : ''}
-      ${!cur && hunted > 0 ? `<p class="muted small">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}
-      ${go ? `<button class="primary td-main" id="hn-go">${esc(go)}</button>` : ''}
-      <div class="td-links"><button class="td-link" id="hn-book">Bestiary (${beasts().length})</button>${H.sightingsOn() ? '<button class="td-link" id="hn-sight">Report a sighting</button>' : ''}${SD.huntBoard ? '<button class="td-link" id="hn-yard">Bru\'s yard</button>' : ''}<button class="td-link" id="hn-how">How to play</button>${rows.length ? '' : '<button class="td-link" id="hn-wall">The Wall</button>'}</div>`, { title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render() });
+    const line = rows.length ? (first ? 'Each poster on your Wall is a monster. Get it right three ways to catch it.' : rand(BRU.board)) : BRU.empty;
+    const kyu = '<p class="hn-kyu"><span class="hn-pin" aria-hidden="true">📌</span> Two copies. Test them. — K.</p>';
+    const here = i => !!(cur && cur.phase === 'mon' && cur.i === i && !rows[i].out);
+    const signs = `<button class="td-link" id="hn-book">Bestiary (${beasts().length})</button>${H.sightingsOn() ? '<button class="td-link" id="hn-sight">Report a sighting</button>' : ''}${SD.huntBoard ? '<button class="td-link" id="hn-yard">Bru\'s yard</button>' : ''}<button class="td-link" id="hn-how">How to play</button>${rows.length ? '' : '<button class="td-link" id="hn-wall">The Wall</button>'}`;
+    let b, sc = null;
+    if (SD.huntStreet) {
+      const posters = rows.map((m, i) => `<li class="hn-mon hn-wp hu-post${m.out ? ' done' : ''}${here(i) ? ' now' : ''}">${wantedHead(m)}${portrait(m)}<b class="td-pn">${esc(m.name)}</b>${tallyHtml(m)}${pips(m)}
+        <button class="hu-tap" data-post="${i}" aria-label="${esc(`Wanted: ${m.name}. ${m.out ? (OUT[m.out] || OUT.escaped)[1] + '. ' : ''}See it up close`)}"></button></li>`).join('');
+      // The lanterns: one per monster tonight, lit by how its battle went (a word and a shape under each, never colour alone).
+      const lampOf = (m, i) => { const o = m.out && OUT[m.out]; return { c: !m.out ? (here(i) ? 'now' : '') : m.out === 'captured' || m.out === 'driven' ? 'lit' : m.out === 'wounded' ? 'half' : m.out === 'waiting' ? '' : 'out', mark: o ? o[0] : here(i) ? '▸' : '', say: o ? o[1] : here(i) ? 'battling now' : 'not battled yet' }; };
+      const lamps = rows.length ? `<ul class="hu-lamps" aria-label="${esc(cur ? `${cur.mons.filter(m => m.out).length} of ${cur.mons.length} battled` : 'No monster battled yet')}">${rows.map((m, i) => { const l = lampOf(m, i); return `<li class="hu-lamp ${l.c}"><b aria-hidden="true"></b><small aria-hidden="true">${l.mark}</small><span class="sr">${esc(m.name)}: ${esc(l.say)}</span></li>`; }).join('')}</ul>` : '';
+      const signIc = { 'hn-book': '📖', 'hn-sight': '🔭', 'hn-yard': '🪧', 'hn-how': '❔', 'hn-wall': '🧱' };
+      const foot = `${go ? `<button class="primary hu-go" id="hn-go">${esc(go)}</button>` : ''}
+        <div class="hu-signs">${signs.replace(/<button class="td-link" id="([\w-]+)">/g, (x, id) => `<button class="hu-sign" id="${id}"><span aria-hidden="true">${signIc[id] || ''}</span>`)}</div>
+        ${!cur && hunted > 0 ? `<p class="hu-rest">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}`;
+      sc = SD.huntStreet.open({ title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render(), lamps, foot, line: said(line),
+        posters: rows.length ? `<ul class="hu-posts" aria-label="Tonight's bounties">${posters}</ul>` : '', empty: '<p class="hu-chalk" aria-hidden="true">No bounties tonight.</p>',
+        note: kyu.replace('class="hn-kyu"', 'class="hn-kyu hu-kyu"') });
+      b = sc.body;
+      // A poster up close: everything on it, and Bru's word on that one. Battle it now if the hunt is at a choice.
+      b.querySelectorAll('[data-post]').forEach(el => el.onclick = () => {
+        const i = +el.dataset.post, m = rows[i], [t, mood] = bruOnPoster(m, here(i));
+        const pick = !m.out && !(cur && cur.phase === 'mon');
+        sc.zoom(`<div class="hn-wp">${wantedHead(m)}<div class="hn-wbody">${portrait(m)}<span class="hn-hpn"><b class="td-pn">${esc(m.name)}</b>
+          <span class="hn-track">${stepMarks(m)}</span>${pips(m)}</span></div>${noteOf(m)}</div>
+          <div class="row">${here(i) ? '<button class="primary" id="hn-zgo">Resume the battle</button>' : pick ? `<button class="primary" id="hn-zgo" aria-label="${esc(`Battle this one${cur ? '' : ' first'}: ${m.name}`)}">⚔️ Battle this one${cur ? '' : ' first'}</button>` : ''}<button class="ghost" id="hn-zback">Back to the board</button></div>`, said(t), mood);
+        const z = b.querySelector('.hu-zoom');
+        z.querySelector('#hn-zback').onclick = sc.unzoom;
+        const zg = z.querySelector('#hn-zgo');
+        if (zg) zg.onclick = () => H.start(here(i) ? null : (m.id || 'wild:' + m.wild));
+      });
+    } else {
+      const items = rows.map(m => `<li class="td-poster hn-mon hn-wp${m.out ? ' done' : ''}">${wantedHead(m)}
+        <div class="hn-wbody">${portrait(m)}<span class="hn-hpn"><b class="td-pn">${esc(m.name)}</b>
+        <span class="hn-track">${stepMarks(m)}</span>${pips(m)}</span></div>${noteOf(m)}</li>`).join('');
+      b = U.panel(`${kyu}<p class="td-head" data-vo="${esc('bru|' + line)}">${esc(line)}</p>
+        ${rows.length ? `<ul class="td-wall hn-board">${items}</ul>` : ''}
+        ${!cur && hunted > 0 ? `<p class="muted small">${hunted === 1 ? 'One more monster rests' : 'More monsters rest'} until tomorrow: nothing comes back the same day it was hunted.</p>` : ''}
+        ${go ? `<button class="primary td-main" id="hn-go">${esc(go)}</button>` : ''}
+        <div class="td-links">${signs}</div>`, { title: 'BRU\'S BOUNTY BOARD', onClose: () => TD().render() });
+    }
     const on = (id, f) => { const el = b.querySelector('#' + id); if (el) el.onclick = f; };
     on('hn-go', () => H.start());
     on('hn-book', H.bestiary);
@@ -752,12 +806,15 @@
         <p class="muted small">Kyu's note on the board: "Two copies. Test them."</p>` }
     ];
   }
-  H.start = async function () {
+  // first: a poster tapped on the board ('wild:<preset>' for a wild one), battled first, as a pick in the picker is.
+  H.start = async function (first) {
     U.closePanel();
     let h = H.current();
     if (!h) { h = newHunt(); S.persist(); }
     if (!h.mons.length) { sv().hunt = null; S.persist(); return H.open(); }
     await (SD.modes && SD.modes.walkFirst ? SD.modes.walkFirst : local.walkFirst)('hunt', walkScreens(h.mons[0]));
+    const i = first && h.phase !== 'mon' ? h.mons.findIndex(m => !m.out && (m.id || 'wild:' + m.wild) === first) : -1;
+    if (i >= 0) { h.moves = (h.moves | 0) + 1; h.i = i; h.mons[i].arrived = 1; h.phase = 'mon'; S.persist(); }
     run(h);
   };
 
