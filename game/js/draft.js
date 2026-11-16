@@ -14,6 +14,14 @@
 // view one tap away. A blueprint with a wrong slot stands under scaffolding and its question goes on the Wall
 // (js/today.js), so bringing that poster down (Monster Hunt or a Wall drill) finishes the building.
 //
+// Build orders (Nov 16 formats plan, Ladi's OK): every mode gets a way of asking of its own, so two of a session's
+// six clients bring a build order instead of a scroll: a Sequence item from the formats engine (js/qformats.js, items
+// in js/fmt-items-a.js), the steps to put in order with decoys mixed in. The other four are due bank questions, as
+// slots. A build order is sealed with the same stakes and judged whole (every step in place). It isn't an exam
+// question, so a miss doesn't go on the Wall: its building stands under scaffolding and the build order comes back
+// first on a later night, and getting it right then takes the scaffolding off. The engine introduces the format the
+// way it always does: the first build order is worked through and the second is practice, neither scored.
+//
 // Rules, one new one per night of play (v4: one new rule per night; scheduled play reaches nights 1 and 2 before
 // Nov 30): night 1, clients, the draft, the seal and placement on six open plots. Night 2, materials: a building gets
 // one for each neighbour of its own exam domain, and two buy a retry on an older scaffolded building's twin. Night 3,
@@ -30,13 +38,13 @@
   const DR = SD.draft = {};
   const S = SD.state, U = SD.ui, E = () => SD.exam, M = () => SD.modes || {};
   const esc = s => U.esc(s);
-  const SESSION = 6, BOARD = 3, MAP_ACTIONS = 4, RETRY_COST = 2, TIER2_REP = 3;
+  const SESSION = 6, BOARD = 3, MAP_ACTIONS = 4, RETRY_COST = 2, TIER2_REP = 3, SEQ_PER = 2;
   const COLS = 5, ROWS = 6, RIVER = [2];   // the river runs below row 3, so row 3 is the riverside
   const CONF = ['Guess', 'Think so', 'Sure'];
   const today = () => new Date().toDateString();
   const sgn = n => (n > 0 ? '+' + n : n < 0 ? '−' + (-n) : '0');
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-  DR.SESSION = SESSION; DR.MAP_ACTIONS = MAP_ACTIONS; DR.RETRY_COST = RETRY_COST;
+  DR.SESSION = SESSION; DR.MAP_ACTIONS = MAP_ACTIONS; DR.RETRY_COST = RETRY_COST; DR.SEQ_PER = SEQ_PER;
 
   // ---- The cast ----
   // Ayo runs the yard once he's free (chapter 5 cleared); until then Coo does. Seymour inspects. Barks never state
@@ -161,6 +169,31 @@
     return con ? con.name.replace(/^[A-Z]+ \d\.\d+: /, '') : (q.topic || 'An idea');
   };
   const base = () => SD.topicDrill.base().filter(q => isMulti(q) || isMc(q));
+
+  // ---- Build orders: Sequence items from the formats engine ----
+  DR.seqItems = () => (SD.fmtItems || []).filter(i => i && i.type === 'seq' && Array.isArray(i.steps) && i.steps.length > 1 && (i.tracks || []).includes('DVA-C02'));
+  const seqFind = id => DR.seqItems().find(i => i.id === id) || null;
+  DR.seqFind = seqFind;
+  DR.canSeq = () => !!(SD.qf && SD.qf.ask && M().askFormat && DR.seqItems().length);
+  DR.seqDom = i => Math.min(4, Math.max(1, parseInt(String((i && i.task && i.task.dva) || '3'), 10) || 3));
+  const seqLog = () => { const d = sv(); if (!d.seq || typeof d.seq !== 'object') d.seq = {}; return d.seq; };
+  DR.seqLog = seqLog;
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // A preset's build orders: those on its topics or its domain, else every one.
+  function seqForPreset(preset) {
+    const all = DR.seqItems(), p = preset && SD.topicDrill ? SD.topicDrill.preset(preset) : null;
+    if (!p) return all;
+    const tops = (p.topics || []).map(norm);
+    const hit = all.filter(i => (tops.length && tops.some(t => norm(i.topic).startsWith(t) || t.startsWith(norm(i.topic)))) || (p.dom && DR.seqDom(i) === p.dom));
+    return hit.length ? hit : all;
+  }
+  // Missed ones first (their buildings are under scaffolding), then never played, then the longest ago.
+  DR.pickSeq = function (preset, n) {
+    const log = seqLog(), rank = i => { const e = log[i.id]; return e && e.miss ? 0 : !e ? 1 : 2; };
+    const pool = SD.quiz.shuffle(seqForPreset(preset));
+    const missed = DR.seqItems().filter(i => log[i.id] && log[i.id].miss && !pool.includes(i));
+    return missed.concat(pool).sort((a, b) => rank(a) - rank(b) || ((log[a.id] || {}).t | 0) - ((log[b.id] || {}).t | 0)).slice(0, n);
+  };
   // Clients on the board tonight: tier 1, plus tier 2 once reputation is in play and earned.
   DR.clientsOpen = function () {
     const ayo = DR.foremanId() === 'ayo', t2 = DR.level() >= 3 && sv().rep >= TIER2_REP;
@@ -170,16 +203,20 @@
   // never-asked first, about one in four from other topics): multiple-response, plus one single-answer job, or more
   // when the preset has few multiple-response questions. Clients take turns, so the board never shows one twice
   // while there are three to show; a rebuilt question keeps its building's client.
+  // Two of the six are build orders (when the formats engine and its items are loaded).
   DR.pickSession = function (preset, n) {
     n = n || SESSION;
-    const a = M().pick({ preset, n: n - 1, filter: isMulti }).items;
-    const b = M().pick({ preset, n: n - a.length, filter: isMc, avoid: a.map(i => i.q) }).items;
+    const seq = DR.canSeq() ? DR.pickSeq(preset, Math.min(SEQ_PER, n - 1)) : [];
+    const nb = n - seq.length;
+    const a = M().pick({ preset, n: nb - 1, filter: isMulti }).items;
+    const b = M().pick({ preset, n: nb - a.length, filter: isMc, avoid: a.map(i => i.q) }).items;
     const open = SD.quiz.shuffle(DR.clientsOpen()), town = sv().town;
     let k = 0;
-    return SD.quiz.shuffle(a.concat(b)).map(it => {
+    const who = id => (town[id] ? town[id].client : open[k++ % open.length]);
+    return SD.quiz.shuffle(a.concat(b).map(it => {
       const q = find(it.q); if (!q) return null;
-      return { q: q.id, client: town[q.id] ? town[q.id].client : open[k++ % open.length], other: it.other || 0 };
-    }).filter(Boolean);
+      return { q: q.id, client: who(q.id), other: it.other || 0 };
+    }).filter(Boolean).concat(seq.map(i => ({ q: i.id, seq: 1, client: who(i.id) }))));
   };
   const stake = (ok, conf) => M().stake(ok, conf);
   const stakes = () => M().STAKES;
@@ -224,7 +261,8 @@
   // scaffolding on the old building.
   function refresh() {
     const town = sv().town;
-    Object.values(town).forEach(b => { if (b.scaf && !DR.posterUp(b.q)) { b.scaf = false; b.done = Date.now(); b.fin = 1; } });
+    const log = seqLog();
+    Object.values(town).forEach(b => { if (b.scaf && !(b.seq ? !!(log[b.q] && log[b.q].miss) : DR.posterUp(b.q))) { b.scaf = false; b.done = Date.now(); b.fin = 1; } });
     return town;
   }
   DR.town = () => refresh();
@@ -267,7 +305,7 @@
     const d = sv();
     if (d.retry) return contract(d.retry, retryDone);
     let r = DR.run();
-    if (d.placing && find(d.placing.q) && d.town[d.placing.q]) return place(d.placing.q);
+    if (d.placing && (find(d.placing.q) || seqFind(d.placing.q)) && d.town[d.placing.q]) return place(d.placing.q);
     if (r && preset !== undefined && preset !== null && r.preset !== preset && !r.items.some(i => i.done)) r = null;
     if (!r) {
       await walkthrough();
@@ -309,6 +347,7 @@
     if (!left.length) return results();
     const done = r.items.length - left.length, F = DR.foreman();
     const cards = left.slice(0, BOARD).map(([it, i]) => {
+      if (it.seq) return seqCard(it, i);
       const q = find(it.q); if (!q) return '';
       const c = cl(it.client), n = DR.slotsOf(q), d = E().domainOf(q) || 1;
       return `<button class="opt dr-contract" data-k="${i}">
@@ -333,6 +372,7 @@
   // One contract: the client, the whole scroll, the slots, the cards and the seal. No hint before the seal.
   // it: { q, client, pick: [card indices], retry?: { poster } }. done(it, verdict) runs after the seal.
   function contract(it, done) {
+    if (it.seq) return seqContract(it, done);
     const q = find(it.q), r = DR.run();
     if (!q) { it.done = 1; if (r) r.open = null; if (it.retry) sv().retry = null; persist(); return it.retry ? retryBack(it) : board(); }
     const c = cl(it.client), n = DR.slotsOf(q), cards = DR.cards(q), stem = DR.stem(q);
@@ -403,6 +443,66 @@
     }
     render();
   }
+  // ---- A build order: a Sequence item through the formats engine ----
+  function seqCard(it, i) {
+    const x = seqFind(it.q); if (!x) return '';
+    const c = cl(it.client), d = DR.seqDom(x), log = seqLog()[x.id];
+    return `<button class="opt dr-contract dr-seqc" data-k="${i}">
+        <span class="dr-who">${portrait(it.client, 44)}<span><b>${esc(c.name)}</b><br><span class="small muted">wants a ${esc(c.bld)}${sv().town[x.id] ? ' rebuilt' : ''}</span></span></span>
+        <span class="small dr-bark">"${esc(c.arrive)}"</span>
+        <span class="chips"><span class="chip">${esc(dom(d))} · ${esc(domName(d))}</span><span class="chip">📐 build order · ${x.steps.length} steps</span>${log && log.miss ? '<span class="chip">🚧 back to finish</span>' : ''}</span></button>`;
+  }
+  // The engine draws the item, takes the confidence and shows the explanation and every decoy's "why not" line. Its
+  // first two build orders are worked and practice (not scored); after that, each is scored like a blueprint.
+  async function seqContract(it, done) {
+    const x = seqFind(it.q), r = DR.run();
+    const bail = () => { it.done = 1; it.practice = 1; if (r) r.open = null; persist(); board(); };
+    if (!x || !DR.canSeq()) return bail();
+    const c = cl(it.client), t0 = Date.now();
+    // The shell's wrapper passes the stakes and notes a scored answer in the run's calibration tally.
+    const res = await M().askFormat(x, { title: 'ARCHITECT\'S DRAFT · BUILD ORDER', context: `${c.name} · ${c.bld} · the build order`, tally: r ? r.tally : null });
+    if (!res) return bail();
+    const log = seqLog(), e = log[x.id] = Object.assign({ n: 0 }, log[x.id] || {});
+    e.n++; e.t = Date.now();
+    if (!res.scored) {
+      Object.assign(it, { done: 1, practice: 1, ms: Date.now() - t0 });
+      if (r) { r.open = null; r.since = `Since your last move: ${c.name}'s build order was ${res.mode === 'worked' ? 'worked through for you' : 'a practice round'}, not scored. Build orders count from the next one on.`; }
+      persist();
+      return board();
+    }
+    const ok = !!res.ok, conf = res.conf, delta = res.pts, ms = Date.now() - t0;
+    e.miss = ok ? 0 : 1; e.ok = ok ? 1 : 0;
+    const town = sv().town, prev = town[x.id];
+    const floors = Math.max(0, (prev ? prev.floors : 0) + delta);
+    const cracks = (prev ? prev.cracks | 0 : 0) + (conf === 2 && !ok ? 1 : 0);
+    // Like a blueprint: a miss stands under scaffolding; a scaffolded one comes free when the build order holds.
+    // A building already standing keeps standing after a later miss; the build order just comes back.
+    const scaf = prev ? !!prev.scaf && !ok : !ok;
+    town[x.id] = Object.assign({}, prev || {}, { q: x.id, seq: 1, d: prev ? prev.d : DR.seqDom(x), client: prev ? prev.client : it.client, floors, cracks, scaf, t: prev ? prev.t : Date.now(), last: Date.now(), idea: x.title || 'A build order', plot: prev ? prev.plot : null });
+    if (!scaf && prev && prev.scaf) { town[x.id].fin = 1; town[x.id].done = Date.now(); }
+    if (r) { r.floors += delta; r.qMs = (r.qMs | 0) + ms; if (!ok) r.seqMiss = (r.seqMiss | 0) + 1; if (!ok && conf === 2) r.sure++; r.open = null; }
+    Object.assign(it, { done: 1, ok: ok ? 1 : 0, conf, d: delta, ms, partial: res.partial });
+    persist();
+    seqInspect(x, it, conf, delta, town[x.id], () => done(it, town[x.id]));
+  }
+  function seqInspect(x, it, conf, delta, bld, next) {
+    const c = cl(it.client), ok = !!it.ok, n = x.steps.length;
+    const inPlace = it.partial != null ? Math.round(it.partial * n) : ok ? n : 0;
+    const line = ok ? c.right : conf === 2 ? c.sure : c.wrong;
+    const sey = ok ? SEYMOUR.clean : SEYMOUR.scaf;
+    const h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? '🏛 IT HOLDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
+      <div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
+      <p class="small"><b>${esc(bldName(bld.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
+      <p class="small"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
+      <div class="dr-who">${portrait('seymour', 36)}<p class="small"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
+      <p class="small muted">A build order scores as a whole: ${ok ? 'every step in place' : `${inPlace} of ${n} steps in place, and with any step out of place it doesn't count`}${!ok && conf === 2 ? ', and a Sure miss cracks the wall' : ''}.</p>
+      ${!ok ? `<p class="small dr-wallnote">📐 ${bld.scaf ? 'This build order comes back first on a later night. Get it right then and the scaffolding comes off.' : 'The building already stood, so it keeps standing. The build order comes back on a later night.'}</p>` : ''}
+      <button class="primary" id="dr-next">${bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
+    const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
+    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
+    b.querySelector('#dr-next').onclick = next;
+  }
+
   // After a session contract: a new building goes to placement; a rebuilt one is already on its plot.
   function sessionDone(it, bld) {
     const r = DR.run();
@@ -604,14 +704,15 @@
   // calibration, the ideas touched, and Pip's question.
   function results() {
     const r = DR.run(), lv = DR.level();
-    const n = r.items.length, ok = r.items.filter(i => i.ok).length;
-    const topics = [...new Set(r.items.map(i => find(i.q)).filter(Boolean).map(DR.ideaOf))];
+    const n = r.items.filter(i => !i.practice).length, ok = r.items.filter(i => i.ok).length;
+    const seqs = r.items.filter(i => i.seq && !i.practice), seqOk = seqs.filter(i => i.ok).length;
+    const topics = [...new Set(r.items.map(i => (i.seq ? (seqFind(i.q) || {}).title : (find(i.q) ? DR.ideaOf(find(i.q)) : null))).filter(Boolean))];
     const paid = M().pay('draft');
     const g = grid();
     const b = U.panel(`<p class="small muted">${esc(DR.foreman().end)}</p>
       <div class="q-ctx">Tonight in Pingsby's Quarter</div>${mapHtml(g, { view: true, tonight: r.built || [], open: R.open(lv) })}
       <p class="small muted">Tonight's buildings are outlined in gold and marked ✦.</p>
-      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span>${r.retries ? `<span class="chip">🔁 Twin retries: ${r.retries}</span>` : ''}${lv >= 2 ? `<span class="chip">🧱 Materials earned: ${r.mat}</span>` : ''}${lv >= 3 ? `<span class="chip">⭐ Reputation earned: ${r.rep}</span>` : ''}<span class="chip">📌 Misses to the Wall: ${r.misses}</span></div>
+      <div class="dr-head"><span class="chip">🏛 Standing: ${ok}</span><span class="chip">🚧 Scaffolding: ${n - ok}</span><span class="chip">🏗 Floors: ${sgn(r.floors)}</span>${r.retries ? `<span class="chip">🔁 Twin retries: ${r.retries}</span>` : ''}${lv >= 2 ? `<span class="chip">🧱 Materials earned: ${r.mat}</span>` : ''}${lv >= 3 ? `<span class="chip">⭐ Reputation earned: ${r.rep}</span>` : ''}${seqs.length ? `<span class="chip">📐 Build orders: ${seqOk} of ${seqs.length}</span>` : ''}<span class="chip">📌 Misses to the Wall: ${r.misses}</span></div>
       ${paid ? `<p class="small">${esc(paid)}</p>` : ''}
       ${M().calibHtml(r.tally, 'How sure you were, blueprint by blueprint')}
       <div class="q-ctx">Ideas touched</div><ul class="small">${topics.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
@@ -654,8 +755,9 @@
     const nw = b.querySelector('#dr-new'); if (nw) nw.onclick = () => DR.open(null);
   };
   function plaque(qid, back) {
-    const bl = sv().town[qid], q = find(qid);
+    const bl = sv().town[qid], q = bl && bl.seq ? seqFind(qid) : find(qid);
     if (!bl || !q) return DR.quarter(back);
+    if (bl.seq) return seqPlaque(bl, q, back);
     const c = cl(bl.client), can = DR.canRetry(qid);
     const retryLine = bl.scaf && DR.level() >= 2 ? (can ? `<button class="primary" id="dr-rt">Retry its twin (🧱 ${RETRY_COST})</button>` : `<p class="small muted">${sv().mat < RETRY_COST ? `A retry on its twin takes ${RETRY_COST} materials; you have ${sv().mat}.` : 'This one has no twin to retry yet.'}</p>`) : '';
     const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
@@ -669,6 +771,17 @@
     const rt = b.querySelector('#dr-rt'); if (rt) rt.onclick = () => DR.retry(qid, back);
   }
 
+  function seqPlaque(bl, x, back) {
+    const c = cl(bl.client);
+    const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
+      <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${bl.plot != null ? esc(R.name(bl.plot)) + (R.riverside(bl.plot) ? ' · by the river' : '') : 'On the books'} · ${esc(dom(bl.d))} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
+      <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its build order comes back first on a later night: get it right then to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its build order held.' : '🏛 Standing.'}</p></div></div>
+      <div class="dr-plaque"><div class="q-ctx">Plaque · build order</div><p class="small"><b>${esc(x.title || bl.idea)}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
+      <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
+    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
+  }
+
   // ---- First run: three screens on a real question ----
   function walkScreens() {
     const q = base().filter(isMulti).find(x => DR.slotsOf(x) === 2) || base()[0];
@@ -679,11 +792,12 @@
       <p class="small muted">You always see the whole scroll. It has one slot per answer it needs, and the question's own options are your option cards:</p><ul class="small">${cards.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
     return [
       { title: 'Pingsby\'s Quarter', html: s1 },
-      { title: 'Draft, then seal', html: `<p class="small">Pick a client from the board. Tap a card to put it in the next empty slot, and tap a slot to take its card back. Then seal with how sure you are. Each slot is judged on its own:</p>
+      { title: 'Draft, then seal', html: `<p class="small">Pick a client from the board. Tap a card to put it in the next empty slot, and tap a slot to take its card back. Then seal with how sure you are. The stakes, in floors:</p>
         <ul class="small"><li><b>Guess</b>: +1 floor if right, 0 if wrong.</li><li><b>Think so</b>: +2 if right, −1 if wrong.</li><li><b>Sure</b>: +3 if right, −3 and a crack if wrong.</li></ul>
         <p class="small muted">The blueprint is judged as a whole, like the exam: every slot right, or it's wrong. Honest confidence wins: Guess when you're under about half sure, Sure only above about two in three. There are no hints before you seal. Afterwards Seymour, the inspector, shows you why every card fits or doesn't, and a miss gets a free retry on its twin.</p>` },
       { title: 'Place it', html: `<p class="small">After the verdict, you place the building on one of the Quarter's plots: ghost buildings under Freya's delete markers. Six plots are open on the first night and more open later. You get ${MAP_ACTIONS} map actions to look and build, and a Map as list view is always one tap away.</p>
         <p class="small">A blueprint with every slot right stands. One wrong slot and it stands under scaffolding, and its question goes on the Wall: bring that poster down in Monster Hunt or a Wall drill to finish it.</p>
+        <p class="small">Some clients bring a build order instead of a scroll: put the steps in the order they happen, and leave out the ones that don't belong. It's sealed with the same stakes and judged whole. The first one is worked through for you and the second is practice.</p>
         <p class="small muted">A session is ${SESSION} clients, about 15 minutes, and it saves after every move. New rules arrive one night at a time.</p>` }
     ];
   }
@@ -695,7 +809,8 @@
   // touching the save. Answers come from the shell's SD.modes.simAnswer, one draw a blueprint (p is the chance of
   // getting the whole blueprint right), paying one stake. A miss gets its free twin retry; two materials buy a retry on an older
   // scaffolded building. policy.route: 'near' builds beside its own domain (materials), 'far' by the river
-  // (reputation). Points are floors plus what the Quarter earned (materials and reputation).
+  // (reputation). Points are floors plus what the Quarter earned (materials and reputation). Two of the six are
+  // build orders (scored, as after the format's first two): one draw each, no twin retry, and a miss stays scaffolded.
   DR.sim = async function (policy, rng) {
     const P = M(), pool = base().filter(q => (E().domainOf(q) || 0) > 0);
     const g = {};
@@ -703,10 +818,12 @@
     let floors = 0, mat = 0, rep = 0, qs = 0, acts = 0, older = 3;   // a third-built Quarter has a few scaffolds left
     const ask = q => { qs++; const a = P.simAnswer(q, policy, rng); return { ok: a.ok, d: a.pts }; };
     const twinOf = (q, dm) => { const t = pool.filter(x => E().domainOf(x) === dm && x.id !== q.id); return t[Math.floor(rng() * t.length)] || q; };
+    const seqs = DR.canSeq() ? DR.seqItems() : [], nSeq = seqs.length ? SEQ_PER : 0;
     for (let k = 0; k < SESSION; k++) {
-      const q = pool[Math.floor(rng() * pool.length)], dm = E().domainOf(q);
+      const isSeq = k < nSeq, sq = isSeq ? seqs[Math.floor(rng() * seqs.length)] : null;
+      const q = isSeq ? sq : pool[Math.floor(rng() * pool.length)], dm = isSeq ? DR.seqDom(sq) : E().domainOf(q);
       let v = ask(q); floors += v.d;
-      if (!v.ok) { const w = ask(twinOf(q, dm)); floors += w.d; }
+      if (!v.ok && !isSeq) { const w = ask(twinOf(q, dm)); floors += w.d; }
       const free = R.open(3).filter(p => g[p] == null);
       if (!free.length) continue;
       const gain = p => R.gains(g, p, dm, 3, v.ok);
@@ -715,7 +832,7 @@
       const p = policy.route === 'far' && far != null ? far : near;
       acts += 2;   // one look, one build
       const x = gain(p); g[p] = dm; mat += x.mat; rep += x.rep;
-      if (!v.ok) older++;
+      if (!v.ok && !isSeq) older++;
       while (mat >= RETRY_COST && older > 0) { mat -= RETRY_COST; older--; floors += ask(twinOf(q, dm)).d; }
     }
     const secs = qs * P.SIM_Q_SECS + acts * P.SIM_MAP_SECS;
