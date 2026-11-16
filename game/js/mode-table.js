@@ -66,7 +66,7 @@
   const revealed = () => { const c6 = sv() && sv().c6; return !!(c6 && c6.w && c6.w.x && c6.w.x.reveal); };
   // Painted poses (Ladi's Sogni renders) as they arrive; until a pose is painted he holds the painted 'lay' pose, so
   // the big figure never switches between pixel and painted art mid-scene. The reactions are animation on top.
-  const PAINTED = new Set(['lay', 'hover', 'ledger', 'pay', 'smug']);
+  const PAINTED = new Set(['lay', 'hover', 'ledger', 'pay', 'smug', 'caught']);
   const kage = t => {
     const k = Object.keys(SAY).find(x => SAY[x] === t);
     if (!revealed()) return `assets/img/table/kage-${k && PAINTED.has(POSE[k]) ? POSE[k] : 'lay'}.webp`;
