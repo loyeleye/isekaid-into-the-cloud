@@ -60,7 +60,7 @@ def say(text, direction, dst):
     with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as f: f.write(pcm)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', f.name,
                     '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse' + pitch + ',loudnorm=I=-18:TP=-1.5',
-                    '-ar', '24000', '-ac', '1', '-b:a', '64k', dst], check=True)
+                    '-ar', '24000', '-ac', '1', '-b:a', '40k', dst], check=True)
     os.unlink(f.name)
 
 
