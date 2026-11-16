@@ -1,8 +1,8 @@
 // The Rush (prototype): draws js/rush-core.js on a canvas over Ladi's Sogni room, and takes the player's hands.
 // The room is the screen: tickets slide down the painted chute, sit on Mira's stools, bounce back up on a 429,
 // splat into the puddle, and the tank on the wall fills. You drag tools off the toolbelt into the room while it runs.
-// Between waves the Post Office sends letters (questions, from claim 2 on), and before claims 2 and 3 the player
-// pins one of two Night Orders, twists that stack for the rest of the run. Those two are plain screens (#q).
+// Before each claim the player pins one of two Night Orders, twists that stack for the rest of the run. One of them
+// is letters: questions sent as mail between waves. The pick and the letters are plain screens (#q).
 (function () {
   const R = SD.rushCore;
   const cv = document.getElementById('rush'), cx = cv.getContext('2d'), qEl = document.getElementById('q');
@@ -44,12 +44,11 @@
   // ---- State ----
   let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT, letters, letterAnim, letterOpen, letterClock;
   // Carried across claims: a wrong answer tears an option off the next letter, wherever it arrives.
-  const carry = { torn: false, introduced: false };
-  // The run: the Night Orders pinned so far. Starting again from the Rush takes them all down.
+  const carry = { torn: false };
+  // The run: the Night Orders pinned so far. The pick before the Rush takes them all down.
   const run = { orders: [] };
   function reset(seed, claim) {
-    claim = claim || 'rush'; if (claim === 'rush') run.orders = [];
-    S = R.create(seed, claim, run.orders); ringT = 0; letters = S.claim === 'rush' ? [] : pickLetters(S.claim); letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
+    S = R.create(seed, claim || 'rush', run.orders); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0;
     qEl.className = ''; qEl.innerHTML = '';
     if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
@@ -89,6 +88,9 @@
 
   // ---- Night Orders: one of two pinned before each claim from claim 2 on. Dutch explains each when it goes up ----
   const ORDER = {
+    letters: { name: 'Letters', tag: 'Letters', aws: 'Exam-style questions',
+      rule: 'Between waves the Post Office sends a question. The room waits while you read. Right: a coin. Wrong: the next letter arrives torn, one option missing.',
+      dutch: 'The Post Office wants proof we know what we\'re doing, so they\'ll be writing in. They write like the exam does: a situation, then the best fix. Get one wrong and the next arrives torn. Could be the bit with the answer on it. Very dramatic people, the Post Office.' },
     cold: { name: 'Cold stools', tag: 'Cold stools', aws: 'Lambda cold starts',
       rule: 'A stool nobody has sat on for 2 seconds goes cold. The next ticket there takes three times as long.',
       dutch: 'Cold stools. Leave one empty for a bit and Mira has to warm it up again: lamp on, coat off, find the good pen. That\'s a Lambda cold start. A new execution environment boots and runs your setup code before the handler sees the event. Provisioned concurrency keeps some warm for you, at a price. I\'ve seen the price.' },
@@ -99,18 +101,23 @@
       rule: 'A ticket that has waited on the rack for 20 seconds expires, and that\'s a lost request.',
       dutch: 'Tickets on the rack go off now, like milk. Twenty seconds and it\'s gone. SQS does the same: a queue keeps a message for its retention period, four days unless you change it and fourteen at most, then deletes it, read or not. Ours is stricter. Keep enough stools going that nothing sits.' },
     stakes: { name: 'High stakes', tag: 'Stakes', aws: 'Exam tip: never leave a blank',
-      rule: 'Bet up to 2 coins on each letter. A right answer pays the bet back double. A wrong one loses it.',
+      needs: 'letters', rule: 'Bet up to 2 coins on each letter. A right answer pays the bet back double. A wrong one loses it.',
       dutch: 'You can bet on the letters now. Sure of yourself? Put coins down. Not sure? Put nothing down, and still answer. The real exam works like that: a blank scores the same as a wrong answer, so never leave one. In here a wrong answer costs you. I\'ll mind the coins.' },
     timeout: { name: 'Timeout', tag: 'Timeout', aws: 'Lambda and API Gateway timeouts',
-      rule: 'Each letter has 20 seconds on the clock. Run out and it counts as wrong.',
+      needs: 'letters', rule: 'Each letter has 20 seconds on the clock. Run out and it counts as wrong.',
       dutch: 'The Post Office has put a clock on its letters. Twenty seconds, then it gives up on you. Lambda does that to every function: 3 seconds unless you set it, 15 minutes at most, and then the invocation fails. Put API Gateway in front and you get about 29 seconds. Don\'t take it personally. I do.' }
   };
-  const LETTER_INTRO = 'Mail from the Post Office. They want proof we know what we\'re doing. Get it right and there\'s a coin in it. Get it wrong and the next one turns up torn, with an option missing. Could be the right one.';
   const LETTER_SECS = 20;
-  // Two notices from the orders not pinned yet, so one you pass on can come back before a later claim.
-  function offer() { return shuffle(R.ORDERS.filter(o => !run.orders.includes(o)), Math.random).slice(0, 2); }
+  // Two notices from the orders not pinned yet, so one you pass on can come back before a later claim. The first pick
+  // of a run always offers letters. Stakes and the timeout only come up once letters are pinned.
+  function offer(claim) {
+    const pool = shuffle(R.ORDERS.filter(o => !run.orders.includes(o) && (!ORDER[o].needs || run.orders.includes(ORDER[o].needs))), Math.random);
+    if (claim === 'rush' && pool.includes('letters')) return ['letters', pool.find(o => o !== 'letters')].filter(Boolean);
+    return pool.slice(0, 2);
+  }
   function showPick(claim, opts) {
-    const two = opts || offer(), title = R.CLAIMS[claim].title;
+    if (claim === 'rush') run.orders = [];
+    const two = opts || offer(claim), title = R.CLAIMS[claim].title;
     if (!two.length) { reset(SEED + Math.floor(Math.random() * 1000), claim); return; }
     qEl.className = 'on orders';
     const have = run.orders.length ? `<p class="no-have">Already pinned: ${run.orders.map(o => ORDER[o].name).join(', ')}</p>` : '';
@@ -128,7 +135,7 @@
       <h2 id="q-h">${ORDER[o].name}</h2>
       <div class="no-dutch"><img src="${SRC['dutch-' + (o === 'herd' ? 'surprised' : o === 'stakes' ? 'smile' : 'tired')]}" alt="Dutch"><p>${ORDER[o].dutch}</p></div>
       <p class="no-rule">${ORDER[o].rule}</p>
-      <button type="button" class="no-go">Pin it up</button>${other ? `<button type="button" class="no-back">I'll take ${ORDER[other].name} instead</button>` : ''}</div>`;
+      <button type="button" class="no-go">Pin it up</button>${other ? `<button type="button" class="no-back">I'll take ${ORDER[other].name.replace(/^The /, 'the ')} instead</button>` : ''}</div>`;
     const go = qEl.querySelector('.no-go');
     go.addEventListener('click', () => { run.orders.push(o); reset(SEED + Math.floor(Math.random() * 1000), claim); });
     const back = qEl.querySelector('.no-back'); if (back) back.addEventListener('click', () => explainOrder(claim, other, two));
@@ -457,7 +464,7 @@
   }
   // The pinned Night Orders, as small notices under the title.
   function drawOrders() {
-    if (!run.orders.length || S.claim === 'rush') return;
+    if (!run.orders.length) return;
     const f = 13 * L.fs; cx.save(); cx.font = `800 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; cx.textBaseline = 'middle';
     let x = L.title[0], y = L.title[1] + (L.coinsAt ? 128 : 92) * L.fs;
     if (L.coinsAt) { x = L.W - 16; cx.textAlign = 'right'; y = L.title[1] + 56 * L.fs; }
@@ -588,11 +595,8 @@
     const shown = shuffle(opts.filter(o => !o.none), Math.random).concat(opts.filter(o => o.none));
     const head = { a: 'A letter for the floor', b: 'Which piece fixes it?', c: 'Find the false one' }[fmt];
     const stakes = S.orders.has('stakes'), maxBet = Math.min(2, S.coins); let bet = 0;
-    // The first letter of the run comes with Dutch's word on what letters are.
-    const intro = !carry.introduced; carry.introduced = true;
     qEl.className = 'on letter fmt-' + fmt;
     qEl.innerHTML = `<div class="lt-card"><div class="lt-seal" aria-hidden="true"></div>
-      ${intro ? `<div class="lt-dutch"><img src="${SRC['dutch-neutral']}" alt="Dutch"><p>${LETTER_INTRO}</p></div>` : ''}
       <p class="lt-kind">${head}${torn ? ' <span class="lt-torn-tag">torn</span>' : ''}</p>
       ${S.orders.has('timeout') ? '<div class="lt-clock" aria-label="20 seconds to answer"><i></i></div>' : ''}
       ${stakes ? `<div class="lt-bet"><span>Your bet</span>${[0, 1, 2].map(n => `<button type="button" data-bet="${n}"${n === 0 ? ' class="on"' : ''}${n > maxBet ? ' disabled' : ''}>${n}</button>`).join('')}<small>${maxBet ? 'Right pays it back double.' : 'No coins to bet.'}</small></div>` : ''}
@@ -638,7 +642,7 @@
     if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;
-    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won && S.next ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
   }
   // The letters. Written for this game from the AWS docs, none copied from practice exams. The first option (or
   // first tool) is the answer; the order is shuffled when the letter opens.
@@ -734,12 +738,12 @@
     scale = Math.min(w / L.W, h / L.H); ox = (w - L.W * scale) / 2; oy = (h - L.H * scale) / 2;
   }
   addEventListener('resize', resize);
-  // ?claim=bell starts on that claim with its pick first; ?orders=cold,shelf pins those and skips the pick.
+  // Every claim opens on its pick. ?claim=bell starts on claim 2; ?orders=cold,shelf pins those and skips the pick.
   resize();
   const first = qs.get('claim') || 'rush';
   if (qs.get('orders')) run.orders = qs.get('orders').split(',').filter(o => ORDER[o]);
   reset(SEED, first);
-  if (first !== 'rush' && !qs.get('orders')) showPick(first);
+  if (!qs.get('orders')) showPick(first);
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {

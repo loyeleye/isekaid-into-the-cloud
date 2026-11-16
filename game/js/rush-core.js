@@ -21,14 +21,15 @@
 //     the rack's at-least-once twins are back. Doing the same ticket twice pays out twice, and that's a lost request
 //     in the tank. The ledger is an idempotency record in DynamoDB: before the work, Mira writes the ticket's key
 //     with a conditional write (attribute_not_exists). A repeat fails the condition and is dropped at once.
-//   - Night Orders (picked before claims 2 on, and they stack): optional twists on these rules.
+//   - Night Orders (one of two picked before each claim, and they stack): optional twists on these rules.
 //       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes twice as long. That's a
 //               Lambda cold start (a new execution environment starts before your code runs).
 //       herd:   bounced callers all retry at the same moment instead of on their own backoff. That's a thundering
 //               herd; real clients add jitter (a random wait) to spread their retries out.
 //       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
 //               (1 minute to 14 days in SQS; seconds here).
-//     Stakes and the timeout are Night Orders too, but they change the letters, so they live in js/rush.js.
+//     Letters (questions between waves), stakes and the timeout are Night Orders too, but they're about the
+//     questions, so they live in js/rush.js.
 (function (root) {
   const SD = root.SD = root.SD || {};
   const T = {
@@ -296,7 +297,7 @@
     }
   }
   function drain(S) { const e = S.events; S.events = []; return e; }
-  const ORDERS = ['cold', 'herd', 'shelf', 'stakes', 'timeout'];
+  const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'stakes', 'timeout'];
   SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
