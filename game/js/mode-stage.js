@@ -204,7 +204,7 @@
   };
 
   // Paper surfaces: dark ink on a light sheet.
-  const LIGHT = 'body.in-mode #panel :is(' + ['hunt', 'sprint', 'pop'].map(id => `body[data-stage="${id}"] .win-b`)
+  const LIGHT = 'body.in-mode #panel :is(' + ['sprint', 'pop'].map(id => `body[data-stage="${id}"] .win-b`)
     .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)']).join(', ') + ')';
   const FRAME = id => `body.in-mode[data-stage="${id}"] #panel`;
   const css = document.createElement('style');
@@ -320,22 +320,28 @@
     ${LIGHT} :is(.conf, .pop-dock, .sp-tray) { border-top-color: #b9a780; }
     ${LIGHT} a { color: #2a4360; }
     /* ---- Monster Hunt: Bru's bounty board ---- */
-    ${FRAME('hunt')} .win { padding: 12px; border: 0; border-radius: 10px; -webkit-backdrop-filter: none; backdrop-filter: none;
-      background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .28) 0 2px, transparent 2px 96px), repeating-linear-gradient(91deg, rgba(0, 0, 0, .1) 0 1px, transparent 1px 7px), linear-gradient(#4a4038, #2e2722);
-      box-shadow: 0 0 0 2px #110d0a, inset 0 0 0 1px rgba(255, 230, 190, .08), 0 26px 60px rgba(0, 0, 0, .7); }
-    ${FRAME('hunt')} .win-h { padding: 2px 8px 10px; border: 0; background: none; color: #e6d3a6; letter-spacing: .12em; }
-    ${FRAME('hunt')} .win-b { border-radius: 3px; box-shadow: inset 0 0 46px rgba(120, 78, 22, .4), 0 4px 12px rgba(0, 0, 0, .6);
-      background: radial-gradient(60% 40% at 18% 12%, rgba(140, 100, 40, .16), transparent), radial-gradient(50% 35% at 85% 80%, rgba(140, 100, 40, .18), transparent), linear-gradient(#f1e4bf, #dfcb9a); }
-    ${FRAME('hunt')} .win::before, ${FRAME('hunt')} .win::after { content: ''; position: absolute; z-index: 3; top: 7px; width: 12px; height: 12px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #cfcfcf, #6a6a6a 50%, #2a2a2a); box-shadow: 0 2px 3px rgba(0, 0, 0, .6); }
-    ${FRAME('hunt')} .win::before { left: 7px; } ${FRAME('hunt')} .win::after { right: 7px; }
+    /* No window box (Ladi, Nov 16: "Are we still using the ugly text box? Can we just have the interface expand to fill
+       the screen?"): the hunt fills the stage under the bar, the night street behind a darker wash, and only the
+       notices are paper, pinned straight onto the scene. The text keeps a readable column in the middle. */
+    body.in-mode[data-stage="hunt"] #panel { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    ${FRAME('hunt')} :is(.win, .win.wide) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+      background: radial-gradient(120% 90% at 50% 40%, rgba(10, 8, 14, .5), rgba(10, 8, 14, .82)); }
+    ${FRAME('hunt')} .win-h { width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #e6d3a6; letter-spacing: .12em; }
+    ${FRAME('hunt')} .win-b { border-radius: 0; background: none; box-shadow: none;
+      padding: 12px max(16px, calc((100% - 1148px) / 2)) calc(24px + env(safe-area-inset-bottom, 0px)); }
+    ${FRAME('hunt')} .win-h > span:first-child { visibility: hidden; }   /* the bar above already names it (its subtitle shows a screen's own title) */
+    ${FRAME('hunt')} .win-b > :is(p, .td-head, .td-big, .verdict-row) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+    ${FRAME('hunt')} :is(.hn-bt, .hn-res, .hn-opt, .hn-since, .hn-hp.hn-inq, .hb-hud, .hb-bru, .hb-log, .hb-card, .hb-res) { --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --ink: #2a2018; --muted: #6a5a48; --line: #b9a780; --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #2a2018; --mi-muted: #6a5a48; color: #2a2018; text-shadow: none; }
+    /* The notices spread across a wide screen instead of one long column. */
+    @media (min-width: 900px) { ${FRAME('hunt')} :is(.hn-bts, .hn-results, .hb-hand, .hb-yard) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
     ${FRAME('hunt')} :is(.hn-bt, .hn-res) { position: relative; margin-top: 6px; border: 0; border-radius: 2px; background: linear-gradient(#fbf5e3, #f0e4c6); box-shadow: 0 3px 8px rgba(60, 40, 10, .45); }
     ${FRAME('hunt')} :is(.hn-bt, .hn-res)::before { content: ''; position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #c9993a 45%, #6b4a14); box-shadow: 0 2px 3px rgba(0, 0, 0, .55); }
     ${FRAME('hunt')} :is(.hn-bts, .hn-results) { gap: 16px; }
     ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(odd) { transform: rotate(-.5deg); }
     ${FRAME('hunt')} :is(.hn-bts, .hn-results) > :nth-child(even) { transform: rotate(.45deg); }
     ${FRAME('hunt')} .hn-bt.done { background: #e2d6b6; box-shadow: none; outline: 2px dashed #8a7550; }
-    ${FRAME('hunt')} :is(.hn-opt, .hn-since) { background: rgba(255, 250, 235, .6); border-left-color: #8a1f1f; }
+    ${FRAME('hunt')} :is(.hn-opt, .hn-since) { background: #f3e9d2; border-left-color: #8a1f1f; }
     ${FRAME('hunt')} .hn-hp.hn-inq { background: #fbf5e3; border: 1.5px solid #6a5a48; }
     /* ---- Exam Sprint: an exam booklet on a clipboard ---- */
     ${FRAME('sprint')} .win { padding: 26px 10px 10px; border: 0; border-radius: 12px; -webkit-backdrop-filter: none; backdrop-filter: none;
@@ -375,7 +381,7 @@
     ${FRAME('pop')} .win-b { border-radius: 3px; background: linear-gradient(#ecd9a8, #dcc68e); box-shadow: inset 0 0 0 1px rgba(120, 85, 30, .5), inset 0 0 36px rgba(120, 85, 30, .25), 0 3px 10px rgba(0, 0, 0, .5); }
     ${FRAME('pop')} .win-b { --cream: #e6d29f; }
     @media (max-width: 600px) {
-      ${FRAME('hunt')} .win, ${FRAME('draft')} .win, ${FRAME('duel')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
+      ${FRAME('draft')} .win, ${FRAME('duel')} .win, ${FRAME('pop')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
     }
     body.in-mode #panel #panel-x, body.in-mode #panel #panel-quit { display: none; }
