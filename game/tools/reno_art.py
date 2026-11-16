@@ -27,6 +27,14 @@ ITEMS = {
     'well': (48, 48, 'a round stone well with a wooden roof and a bucket, ledgers and scrolls stacked beside it, a records well'),
     'ledger': (48, 48, 'a huge open leather ledger book on a wooden lectern, rows and rows of neat entries, a quill'),
     'board': (48, 48, 'a wooden notice board on two posts covered in pinned papers and posters'),
+    # The scene pieces (the second pass, Nov 16: "I don't want it to be another basic text game").
+    'street-bg': (256, 96, 'a wide side-view backdrop of a cobblestone village street at golden evening, warm sky, distant rooftops and chimneys far behind, a low stone kerb and lamp posts, the front of the street left open and empty for houses, no people'),
+    'quarter-map': (256, 192, 'a top-down fantasy village quarter map, a small river crossing it with a stone bridge, dirt paths, a town gate on the left, a little shrine on a hill, a drafting office by the river, a market square with a stage, green grass, a few trees, cosy'),
+    'blueprint': (48, 48, 'a rolled-up blue architect blueprint scroll tied with a red string, white technical lines visible on the blue paper'),
+    'lever-off': (32, 32, 'a wooden floor lever with a brass knob, the handle pulled all the way down to the left, on a small iron base'),
+    'lever-on': (32, 32, 'a wooden floor lever with a brass knob, the handle pushed all the way up to the right, on a small iron base, a little green glint'),
+    'ribbon': (64, 40, 'a big red ceremonial ribbon with a large bow tied between two short golden posts, a grand opening ribbon'),
+    'pin': (24, 24, 'a small red map pin flag on a wooden stake'),
     'gate': (48, 48, 'a small wooden town gate arch with a lantern and a little turnstile, a gatekeeper\'s slate hanging on it'),
 }
 SEED = 11

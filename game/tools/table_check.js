@@ -46,6 +46,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     });
     check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
+  // Edge to edge, like Monster Hunt: the window fills the width, sits flush under the mode bar and reaches the bottom.
+  const fills = async where => {
+    const r = await page.evaluate(() => {
+      document.getAnimations().forEach(a => { try { a.finish(); } catch (e) { /* endless */ } });   // the window's zoom-in, mid-flight under the fake clock
+      const w = document.querySelector('#panel .win').getBoundingClientRect(), bar = document.querySelector('#mode-bar').getBoundingClientRect();
+      return { staged: document.body.dataset.stage, wide: w.width / innerWidth, top: w.top - bar.bottom, bottom: innerHeight - w.bottom };
+    });
+    check(r.staged === 'duel' && r.wide > .99 && Math.abs(r.top) < 2 && Math.abs(r.bottom) < 2, `the table fills the screen edge to edge (${where}: ${JSON.stringify(r)})`);
+  };
   const st = () => page.evaluate(() => JSON.parse(JSON.stringify(SD.state.save.table.night)));
   const txt = sel => page.textContent(sel);
   const answer = (right, conf) => page.evaluate(async ([right, conf]) => {
@@ -107,6 +116,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   let s = await st();
   check(s.phase === 'board' && s.b.jobs.every(j => j.set === 'dq'), 'board 1: nine Dupli-Queue jobs');
   check((await page.$$('.ct-sq')).length === 9 && (await page.$$('.ct-hpin')).length === 4, 'the felt has 9 squares and you hold 4 pins');
+  const scene = await page.evaluate(() => {
+    const k = document.querySelector('.ct-world .w-kage'), u = document.querySelector('.w-bubble'), w = document.querySelector('.ct-world');
+    return { kage: k ? Math.round(k.getBoundingClientRect().height) : 0, bubble: !!u && /Kagemaru/.test(u.textContent), world: w ? Math.round(w.getBoundingClientRect().height / innerHeight * 100) : 0 };
+  });
+  check(scene.kage >= 150 && scene.bubble && scene.world >= 85, `the table is a scene: Kagemaru large behind the counter, his line in a bubble (${JSON.stringify(scene)})`);
+  await fills('375px board');
   check(s.b.open >= 0 && !!(await page.$('.ct-sq.open')) && !!(await page.$('#ct-call')), 'his pin lies face up on his square, and you can call it');
   check(/HOLDS|CRACKS/.test(t) === false && /Tap a square|Pick a pin/.test(await txt('#panel')), 'a hint, not a verdict, before you act');
   await noHScroll('table'); await shot('table');
@@ -119,13 +134,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.click('#ct-place');
     t = await txt('#panel');
     check(/The test/.test(t) && /HOLDS/.test(t) && /It held/.test(t), 'placing runs the test, and its first use teaches one line');
-    await noHScroll('test'); await shot('test');
+    check(!!(await page.$('.ct-bench .ct-tok')) && !!(await page.$('.ct-bench .ct-bpin')), 'the test plays on a bench: the job\'s slip runs into the pin');
+    await page.waitForSelector('.ct-bench.done', { timeout: 8000 }).catch(() => {});
+    check(!!(await page.$('.ct-bench.done')) && /✓|✕/.test(await txt('.ct-cap')), 'the bench ends on the stamp and the one line that decided it');
+    await noHScroll('test'); await fills('test'); await shot('test');
     await page.click('#ct-next');
   } else check(false, 'a pin in hand holds somewhere');
   await playBoard();
   s = await st();
   check(s.phase === 'bill' && /His ledger/.test(await txt('#panel')), 'the board ends in his ledger');
-  await noHScroll('ledger'); await shot('ledger');
+  await noHScroll('ledger'); await fills('ledger'); await shot('ledger');
   // Stop and resume mid-bill.
   await page.evaluate(() => sessionStorage.setItem('keep', '1'));
   await page.reload();
@@ -135,7 +153,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Resume · night 1/.test(await txt('[data-mode="duel"]')), 'after a reload the picker offers Resume');
   await page.click('[data-mode="duel"]');
   check(/HIS BILL/.test(await txt('#panel')) && !!(await page.$('#ct-pay')), 'resume reopens the bill');
-  await noHScroll('bill'); await shot('bill');
+  await noHScroll('bill'); await fills('bill'); await shot('bill');
   await page.click('#ct-pay');
   await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c], #panel #q-said, #panel #tf-idk'));
   check(!(await page.$('#panel .ct-felt')), 'the bill question is the plain exam screen');
@@ -154,7 +172,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   s = await st();
   check(s.phase === 'done' && /HIS LEDGER/.test(await txt('#panel')), 'one board on night 1, then the end screen');
   check(await page.evaluate(() => { const r = SD.state.save.table.rec.dq; return !!r && r[3] >= 1; }), 'the bill is recorded per set (the hypothesis\'s number)');
-  await noHScroll('end'); await shot('end');
+  await noHScroll('end'); await fills('end'); await shot('end');
   await page.click('#ct-done');
   await page.evaluate(() => sessionStorage.removeItem('keep'));
 
@@ -179,14 +197,45 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   if (s.phase === 'rack') {
     check(/THE COUNTERFEIT RACK/.test(await txt('#panel')) && (await page.$$('.ct-rk')).length === 4, 'the Rack: four of his pins to mark');
     check(await page.$eval('#ct-test', b => b.disabled), 'the Rack tests only once every pin is marked');
-    await noHScroll('rack'); await shot('rack');
+    await noHScroll('rack'); await fills('rack'); await shot('rack');
     const truth = await page.evaluate(() => { const K = SD.state.save.table.night.rack; return K.jobs.map((j, i) => SD.table.test(K.stock[i].pin, j).ok); });
-    for (let i = 0; i < truth.length; i++) await page.click(`[data-m="${i}"][data-v="${truth[i] ? 1 : 0}"]`);
+    // Tap-then-tap for the first pin, and a real drag onto the tray or the bin for the rest.
+    await page.click('[data-rk="0"]');
+    check(/Drop it on the tray or in the bin/.test(await txt('#panel')), 'tapping a pin on the rack shows its job');
+    await page.click(`.ct-zbtn[data-zone="${truth[0] ? 1 : 0}"]`);
+    for (let i = 1; i < truth.length; i++) {
+      const from = await page.$eval(`[data-rk="${i}"]`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      const to = await page.$eval(`.ct-zone[data-zone="${truth[i] ? 1 : 0}"] .ct-zimg`, el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      if (process.env.DBG) console.log('drag', i, from, to, await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e && (e.className || e.tagName); }, from));
+      await page.mouse.move(from[0], from[1]); await page.mouse.down();
+      await page.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 }); await page.mouse.move(to[0], to[1], { steps: 4 }); await page.mouse.up();
+    }
+    check(await page.evaluate(n => document.querySelectorAll('.ct-zone .ct-rk').length === n, truth.length), 'every pin dragged off the rack lands in the tray or the bin');
+    await shot('rack-sorted');
     await page.click('#ct-test');
+    await page.waitForSelector('#ct-done', { timeout: 8000 });
     check(/The Rack: 4 of 4 right/.test(await txt('#panel')) && /tin cup is yours/.test(await txt('#panel')), 'marking the truth wins the Cup on the Rack');
     await shot('rack-end');
   } else check(s.phase === 'done', 'night 3 ended on a 2–0 (the Rack only at 1–1)');
   await noHScroll('night 3 end');
+
+  // ---- Desktop width: still edge to edge, with the felt on the left and the slip, hand and actions beside it ----
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => { try { sessionStorage.removeItem('keep'); } catch (e) { /* ignore */ } });
+  await boot();
+  await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });
+  await page.evaluate(() => SD.modes.open());
+  await page.click('[data-mode="duel"]');
+  await page.click('[data-rival]');
+  await page.waitForSelector('.ct-play');
+  await fills('1280px board');
+  const lay = await page.evaluate(() => {
+    const f = document.querySelector('.ct-board').getBoundingClientRect(), d = document.querySelector('.ct-side').getBoundingClientRect(), q = document.querySelector('.ct-sq').getBoundingClientRect();
+    return { side: d.left >= f.right - 1 && d.top < f.bottom, sq: Math.round(q.width) };
+  });
+  check(lay.side && lay.sq >= 110, `at 1280px the felt and the hand sit side by side with big squares (${JSON.stringify(lay)})`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal scroll at 1280px');
+  await shot('desktop');
 
   await browser.close(); server.close();
   errors.forEach(e => console.log(e));

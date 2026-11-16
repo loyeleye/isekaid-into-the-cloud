@@ -29,10 +29,10 @@
   const NODE_ICON = { callers: 'conversation', gate: 'medieval-gate', queue: 'mailbox', fn: 'lightning-helix', store: 'database' };
   const STATUS = { ok: 'OK', error: 'Error 4xx', fault: 'Fault 5xx', throttle: 'Throttle 429', dark: 'Not traced', off: 'Not on this path' };
   const SAY = {
-    arrive: 'Fire drill. I\'ve copied the order system and broken something in it. Your four leads each run one station. Find it, fix it, keep the error budget.',
-    again: 'Another drill. Same system, different break.',
-    won: 'Every drill closed. That\'s an on-call rotation I\'d sleep through.',
-    zero: 'Budget\'s gone. In a real outage that\'s the moment you call everyone. We\'ll run it again tomorrow.'
+    arrive: 'Behold, mortals! Thy goddess hath devised a trial most... okay, I copied the order system and broke something. On purpose! Mostly. Find it before the error budget runs out. I\'ll be supervising. From the snack table.',
+    again: 'Another drill! Same system, brand new break. I\'d tell you what I broke, but I didn\'t write it down.',
+    won: 'Every drill closed! Praise Uptima. Thank Uptima. Credit... okay, fine. Credit them a little.',
+    zero: 'The budget\'s gone. In a real outage, this is where everyone gets paged. Including me. Please don\'t page me. We\'ll try again tomorrow.'
   };
 
   function start() {
@@ -47,7 +47,16 @@
     save(s);
     draw(s);
   }
+  // The war room's music (Mureka, Nov 16): the stage plays m-drill; the two bosses swap in m-drill-boss while they run.
+  function music(s) {
+    const A = SD.audio, ST = SD.modeStage;
+    if (!A || !A.music || !ST || ST.active() !== ID) return;
+    const boss = s.drill && (s.phase === 'drill' || s.phase === 'debrief') && D.DRILLS[s.drill.drill].boss;
+    if (boss) { if (A.add) A.add({ songs: { 'stage-drill-boss': 'm-drill-boss' } }); A.music('stage-drill-boss'); }
+    else if (A.loopName === 'stage-drill-boss') A.music('stage-drill');
+  }
   function draw(s) {
+    music(s);
     ({ map: mapScreen, drill: drillScreen, debrief: debriefScreen, end: endScreen, zero: endScreen }[s.phase] || mapScreen)(s);
   }
   function budgetJar(s) {
@@ -68,7 +77,7 @@
     }).reverse().join('');
     const first = s.fresh && s.night === 1 && !s.done.length;
     const b = panel(`<p class="dr-night">Night ${s.night}</p>
-      ${say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? 'Next drill.' : SAY.again)}
+      ${say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? 'Next one! This one\'s definitely fine. Probably. Don\'t quote me.' : SAY.again)}
       ${budgetJar(s)}
       <div class="dr-map">${rows}</div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
@@ -77,7 +86,9 @@
       s.fresh = false;
       D.startDrill(s, el.dataset.drill, s.night * 7919 + s.row * 31);
       s.at = D.DRILLS[el.dataset.drill].path === 'async' ? 'queue' : 'gate';
-      save(s); draw(s);
+      save(s);
+      if (SD.drillBoard && D.lastFrames) playing = { frames: D.lastFrames, budget0: s.budget, cost: 0 };
+      draw(s);
     });
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
@@ -95,41 +106,114 @@
         ${icon(NODE_ICON[k])}<b>${esc(name)}</b><span class="dr-st">${esc(k === 'callers' ? '' : STATUS[st])}</span></${tag}>`;
     }).join('')}</div>`;
   }
+  // ---- A station's console: its metrics as small charts, its settings as controls (Ladi, Nov 16: less text, as
+  // long as it's more fun or doesn't hurt learning). Dials put a setting's values side by side (30 s, 60 s, 2 m, 6 m),
+  // switches are on or off, looks (observing) are their own row. Each control's full description is its title and
+  // shows in the line under the controls when it's hovered, focused or tapped.
+  const DIALS = {
+    retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
+    vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
+    timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
+    batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
+    key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
+  };
+  const SHORT = { backoff: 'Backoff + jitter', immediate: 'Right away', plan: 'Usage plan: batch client', burst: 'Bigger account burst', gtrace: 'X-Ray on the stage',
+    vis30: '30 s', vis60: '60 s', vis120: '2 min', vis360: '6 min', dlq: 'Redrive → orders-dlq', dlqfifo: 'Redrive → orders-dlq.fifo', groups: 'MessageGroupId = customerId', purge: 'Purge the queue',
+    to30: '30 s', to60: '60 s', to120: '2 min', b1: '1', b3: '3', partial: 'ReportBatchItemFailures', reserved: 'Reserved concurrency 20', prov: 'Provisioned 6 on alias live',
+    provlatest: 'Provisioned 6 on $LATEST', rolekms: 'Role allows kms:Decrypt', admin: 'AdministratorAccess', cond: 'Conditional write', ftrace: 'X-Ray active tracing',
+    kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
+  const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
+    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart' };
+  const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
+  const spark = (arr, bad) => {
+    if (!arr || !arr.length) return '';
+    const max = Math.max(1, ...arr), w = 100, h = 22, n = arr.length;
+    const pts = arr.map((v, i) => `${(i / Math.max(1, n - 1) * w).toFixed(1)},${(h - 1 - v / max * (h - 3)).toFixed(1)}`).join(' ');
+    return `<svg class="dr-spark${bad ? ' bad' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}"/></svg>`;
+  };
+  const BAD = { '4XXError': 1, '5XXError': 1, Errors: 1, WriteThrottleEvents: 1 };
+  function control(f, id, opts) {
+    const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id), placed = f.changes.includes(id);
+    return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text)}">
+      ${opts.icon ? icon(opts.icon) : ''}<span>${esc(SHORT[id] || c.name)}</span>${opts.sw ? `<i class="dr-sw" aria-hidden="true"></i>` : ''}</button>`;
+  }
   function stationHtml(s, f, e) {
     const k = s.at, st = D.STATIONS[k], d = D.DRILLS[f.drill];
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
-    const mt = D.metrics(f.drill, f.cfg, e.m)[k];
+    const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
-    const cards = D.HANDS[k].map(id => {
-      const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id);
-      const placed = f.changes.includes(id);
-      return `<button class="dr-card${on ? ' on' : ''}${why && !on ? ' no' : ''}${c.obs ? ' obs' : ''}" data-card="${id}" aria-pressed="${on}">
-        <b>${c.obs ? icon('radar-sweep') : ''}${esc(c.name)}</b><span class="dr-ct">${esc(c.text)}</span>
-        ${on ? `<span class="dr-tag">${placed ? 'Changed this deploy' : 'Set'}</span>` : why ? `<span class="dr-why">${esc(why)}</span>` : ''}</button>`;
+    const hand = D.HANDS[k];
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k).map(n => {
+      const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
+      return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
+        <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
     }).join('');
-    return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span></div>
-      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b></span>`).join('')}</div>
-      <p class="small">${plural(left, 'change')} left for this deploy. Settings say what they set, never whether they help.</p>
-      <div class="dr-hand">${cards}</div></div>`;
+    const sws = hand.filter(id => !inDial(id) && !C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-tog' + (C[id].once ? ' once' : ''), icon: SW_ICON[id], sw: !C[id].once })).join('');
+    const looks = hand.filter(id => C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-look obs', icon: 'all-seeing-eye' })).join('');
+    return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
+        <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
+      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
+      ${dials}
+      ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
+      ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
+      <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
   }
+  // Where each teach line points on the board ('here': the station being worked on).
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn' };
+  // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
+  let playing = null;
   function drillScreen(s) {
     const f = s.drill, d = D.DRILLS[f.drill], e = f.log[f.log.length - 1];
     const over = f.state === 'contained' || f.state === 'escalated';
-    const teach = e.teach || [];
+    const BD = SD.drillBoard, play = playing;
+    const teach = play ? [] : (e.teach || []);
     const head1 = e.warm ? 'Warm-up run, with the fault in place' : `Deploy ${f.deploys} of ${D.DEPLOYS}`;
-    const verdict = e.warm ? `<p class="ms-lt dr-res">${icon('siren')} Something's wrong. Read the map, tap a station for its metrics, and check the pager.</p>`
+    const verdict = play ? '' : e.warm ? `<p class="ms-lt dr-res">${icon('siren')} Something's wrong. Watch where the orders go wrong, then tap a station to change it.</p>`
       : e.ok ? `<p class="ms-lt dr-res good">${icon('checked-shield')} Contained${D.clean(f) ? ', first deploy: a clean fix' : ''}. ${e.cost ? `It cost ${e.cost}% on the way.` : 'Nothing spilled.'}</p>`
         : `<p class="ms-lt dr-res bad">Not contained. This run cost <b>${e.cost}%</b> of the budget.${f.state === 'escalated' ? ` It escalates: another ${D.ESCALATE}%.` : ''}</p>`;
-    const reveal = f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
+    const reveal = !play && f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
+    // The verdict as a stamp across the board (with the cost under it), once the run has played.
+    const stamp = play || !BD ? '' : e.warm ? `<div class="dr-stamp warm" role="status"><b>Find the fault</b><span>Warm-up run, free</span></div>`
+      : e.ok ? `<div class="dr-stamp good" role="status"><b>Contained</b><span>${D.clean(f) ? 'First deploy: a clean fix · ' : ''}${e.cost ? `cost ${e.cost}%` : 'nothing spilled'}</span></div>`
+        : `<div class="dr-stamp bad" role="status"><b>${f.state === 'escalated' ? 'Escalated' : 'Not contained'}</b><span>This run cost ${e.cost}%${f.state === 'escalated' ? ` · escalation ${D.ESCALATE}% more` : ''}</span></div>`;
+    const lines = play ? '' : BD ? BD.bubbles(e.lines, e.m)
+      : `<div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>`;
+    const jarS = play ? Object.assign({}, s, { budget: play.budget0 }) : s;
+    const dock = play ? '<button class="ghost" id="dr-skip">Skip to the end</button>'
+      : `<button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}`;
     const b = panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
-        <p class="dr-turn">${esc(head1)}</p></div>
-      ${budgetJar(s)}
-      ${traceMap(f, e)}
-      ${verdict}${reveal}
-      <div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>
-      ${teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}
-      ${over ? '' : stationHtml(s, f, e)}
-      <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}</div>`);
+        <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
+      ${budgetJar(jarS)}
+      <div class="dr-bw">${BD ? BD.html(f, e, s.at, teach.map(t => [TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate', D.TEACH[t][0], D.TEACH[t][1]])) : traceMap(f, e)}${stamp}</div>
+      <div class="dr-cols"><div class="dr dr-l">${BD ? '' : verdict}${reveal}
+      ${lines}
+      ${BD ? '' : teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
+      <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
+      <div class="dr-dock">${dock}</div>`);
+    if (play) {
+      if (play.started) return;
+      play.started = true;
+      const wb = b.closest('.win-b') || b; wb.scrollTop = 0;   // the run plays on the board: start at the top
+      const traced = {}; D.ORDER.forEach(k => { traced[k] = e.nodes[k] && e.nodes[k] !== 'dark' && e.nodes[k] !== 'off'; });
+      let spill = 0;
+      BD.play(b, f, play.frames, {
+        traced, skipBtn: b.querySelector('#dr-skip'), gone: () => !document.body.contains(b),
+        onTick: fr => {
+          const x = fr.d;
+          spill += (x.gaveUp | 0) + (x.fault5xx | 0) + (x.slow | 0) + (x.dupes | 0) + (x.lost | 0) + (x.goodParked | 0);
+          const left = Math.max(0, play.budget0 - Math.min(play.cost, spill));
+          const jar = b.querySelector('.dr-jar'); if (jar) { jar.querySelector('i').style.width = left + '%'; jar.querySelector('b').textContent = left + '%'; }
+        }
+      }).then(() => {
+        if (playing !== play || !document.body.contains(b)) return;
+        playing = null;
+        draw(s);
+        const res = document.querySelector('.dr-stamp.good, .dr-res.good');
+        if (res && U.burst) U.burst(res, D.clean(f));
+      });
+      return;
+    }
     b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; save(s); draw(s); });
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
       const id = el.dataset.card, why = D.place(f, id);
@@ -141,18 +225,21 @@
       }
       save(s); draw(s);
     });
+    const tip = b.querySelector('.dr-tip');
+    if (tip) { const base = tip.textContent; b.querySelectorAll('[data-tip]').forEach(el => { const show = () => { tip.textContent = el.dataset.tip; }; el.onmouseenter = show; el.onfocus = show; el.onmouseleave = () => { tip.textContent = base; }; }); }
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
     const dep = b.querySelector('#dr-deploy');
     if (dep) dep.onclick = () => {
+      const budget0 = s.budget;
       const r = D.deploy(f);
       r.teach = D.teachFor(f, r, s.taught);
       r.teach.forEach(t => { s.taught[t] = 1; });
       keep().taught = s.taught;
       D.afterDeploy(s, r);
       if (s.phase === 'debrief') s.phase = 'drill';   // show the result first; Debrief moves on
-      save(s); draw(s);
-      const res = document.querySelector('.dr-res.good');
-      if (res && U.burst) U.burst(res, D.clean(f));
+      save(s);
+      if (SD.drillBoard && D.lastFrames) { playing = { frames: D.lastFrames, budget0, cost: r.cost + (f.state === 'escalated' ? D.ESCALATE : 0) }; drillScreen(s); return; }
+      draw(s);
     };
     const nx = b.querySelector('#dr-next');
     if (nx) nx.onclick = () => { s.phase = 'debrief'; save(s); draw(s); };
@@ -179,7 +266,7 @@
       ${budgetJar(s)}
       ${say(lead, ok ? 'smile' : 'tired', ok ? 'Held. Write it up before you forget why.' : 'We didn\'t find it in time. Now we know where to look.')}
       <div class="dr-reveal ms-lt">${icon('scroll-unfurled')}<span><b>The cause:</b> ${esc(d.hidden)}<br><span class="small">${esc(d.fix[0].map(id => C[id].back).join(' '))}</span></span></div>
-      ${say('uptima', 'neutral', 'The postmortem question. One answer, and say how sure you are.')}
+      ${say('uptima', 'neutral', 'Postmortem time! One answer, and tell me how sure you are. If you\'re right, I\'m taking the credit.')}
       <div class="dr-dock"><button class="primary" id="dr-ask">Answer the postmortem</button></div>`);
     b.querySelector('#dr-ask').onclick = async () => {
       const q = debriefQuestion(s);
@@ -202,6 +289,7 @@
     const k = keep(), zero = s.phase === 'zero';
     if (!s.paid) {
       s.paid = M.pay(ID) || ' ';
+      if (SD.modeStage && SD.modeStage.sting) SD.modeStage.sting(ID, zero ? 'lose' : 'win');
       k.night = s.night; k.taught = s.taught;
       if (!k.best || s.budget > k.best) k.best = Math.max(0, s.budget);
     }
@@ -272,7 +360,7 @@
     .dr-res { padding: 6px 8px; border: 3px double var(--ink, #17131f); border-radius: 8px; background: #fff; color: #17131f; font-size: 14px; display: flex; gap: 6px; align-items: flex-start; }
     .dr-res.good { border-color: var(--mint, #4f7f5c); }
     .dr-res.bad { border-color: var(--red, #9e3a34); color: var(--red, #9e3a34); display: block; }
-    .dr-reveal { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid var(--ink, #17131f); background: var(--bone, #e2dbcb); font-size: 14px; }
+    .dr-reveal { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-left: 4px solid #17131f; background: #e2dbcb; color: #17131f; font-size: 14px; }
     .dr-reveal .dr-gi { width: 26px; height: 26px; }
     .dr-pager { border: 2px solid var(--ink, #17131f); border-radius: 10px; padding: 6px 8px; background: #20242f; color: #e8f0e0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
     .dr-ph { display: flex; gap: 4px; align-items: center; color: #f3d36b; font-family: var(--f-body, inherit); }
@@ -294,8 +382,72 @@
     .dr-why { font-size: 11px; font-weight: 800; color: var(--red, #9e3a34); }
     .dr-tag { font-size: 11px; font-weight: 800; color: #2b4a6b; }
     body.in-mode #panel .win .dr-card.on[aria-pressed="true"] { background: #dbe8f3; border-color: #2a4360; color: #17131f; }
+    .dr-bw { position: relative; }
+    .dr-stamp { position: absolute; z-index: 7; top: 40px; left: 10px; display: flex; flex-direction: column; align-items: center; padding: 4px 14px 5px; transform: rotate(-6deg);
+      border: 4px double currentColor; border-radius: 10px; background: rgba(250, 244, 228, .92); pointer-events: none; animation: drstamp .4s ease-out both; }
+    .dr-stamp { max-width: min(46%, 300px); text-align: center; }
+    .dr-stamp b { font-family: var(--f-head, serif); font-size: 26px; letter-spacing: .08em; text-transform: uppercase; line-height: 1.05; }
+    .dr-stamp span { font-size: 12px; font-weight: 800; color: #3a3346; }
+    .dr-stamp.good { color: #2f6b3f; } .dr-stamp.bad { color: #9e3a34; } .dr-stamp.warm { color: #9a6a12; }
+    @keyframes drstamp { from { transform: rotate(-6deg) scale(.3); opacity: 0; } 70% { transform: rotate(-6deg) scale(1.06); opacity: 1; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+    @media (max-width: 600px) { .dr-stamp { top: 30px; left: 4px; padding: 2px 8px; } .dr-stamp b { font-size: 17px; } .dr-stamp span { font-size: 10px; } }
+    .dr-left { margin-left: auto; display: inline-flex; gap: 3px; } .dr-left i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #17131f; background: transparent; } .dr-left i.on { background: #d6a63a; }
+    .dr-spark { display: block; width: 100%; height: 22px; margin-top: 2px; } .dr-spark polyline { fill: none; stroke: #3f5f80; stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .dr-spark.bad polyline { stroke: #b23a2f; }
+    .dr-dial { display: flex; flex-direction: column; gap: 3px; }
+    .dr-dl { display: inline-flex; gap: 5px; align-items: center; font-weight: 800; font-size: 13px; color: #2a2333; }
+    .dr-seg { display: flex; gap: 0; border: 3px solid #17131f; border-radius: 10px; overflow: hidden; background: #fffaf0; }
+    .dr-seg > * + * { border-left: 2px solid #17131f !important; }
+    body.in-mode #panel .win .dr-card.dr-pick, .dr-card.dr-pick { flex: 1 1 0; min-height: 40px; min-width: 0; border: 0; border-radius: 0; align-items: center; justify-content: center; text-align: center; padding: 4px; font-weight: 800; font-size: 13.5px; box-shadow: none; }
+    .dr-cur { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 12px; font-weight: 800; color: #6a5a48; background: #e6dfd0; }
+    body.in-mode #panel .win .dr-card.dr-pick.on[aria-pressed="true"], .dr-card.dr-pick.on { background: #3f5f80; color: #fff; box-shadow: none; }
+    .dr-card.new { outline: 3px solid #d6a63a; outline-offset: -3px; }
+    .dr-togs { grid-template-columns: 1fr 1fr; }
+    .dr-card.dr-tog, .dr-card.dr-look { min-height: 48px; flex-direction: row; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+    .dr-card.dr-tog > span, .dr-card.dr-look > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .dr-sw { flex: 0 0 auto; width: 30px; height: 17px; border-radius: 9px; background: #b9b2a2; position: relative; border: 2px solid #17131f; }
+    .dr-sw::after { content: ''; position: absolute; top: 1px; left: 1px; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .15s; }
+    .dr-card.on .dr-sw { background: #4f7f5c; } .dr-card.on .dr-sw::after { left: 14px; }
+    .dr-card.dr-tog.once { border-color: #9e3a34; }
+    .dr-card.no { opacity: .75; }
+    .dr-looks { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .dr-looks .dr-dl { width: 100%; }
+    .dr-card.dr-look { flex: 1 1 140px; border-style: dashed; }
+    .dr-tip { min-height: 2.6em; padding: 4px 8px; border-radius: 8px; background: rgba(255, 250, 240, .7); }
     .dr-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
     .dr-dock button { min-height: 44px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
-    .dr-dock .primary { flex: 1 1 auto; }`;
+    .dr-dock .primary { flex: 1 1 auto; }
+    /* No window box (Ladi, Nov 16: every mode edge to edge, as Monster Hunt now is): on the stage the drill fills
+       everything under the top bar, the war room behind a darker wash, and the text keeps a readable column in the
+       middle. Wide screens put the map, verdict and pager on the left and the station you're working on the right.
+       Only the drill's own screens: the postmortem stays on the shared exam screen. */
+    body.in-mode[data-stage="drill"] #panel:has(> .win.dr-win) { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+      background: radial-gradient(120% 90% at 50% 40%, rgba(12, 10, 16, .55), rgba(12, 10, 16, .85)); }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-h { display: none; }   /* the bar above already names it */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b { border-radius: 0; background: none; box-shadow: none; overflow-y: auto;
+      padding: 14px max(16px, calc((100% - 1148px) / 2)) 0; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-say, body.in-mode[data-stage="drill"] #panel .win.dr-win :is(.dr-night, .dr-claim, .dr-top .small) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr { min-height: 100%; }   /* so the dock sits at the bottom of the screen */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:not(:has(.dr-cols)) { width: 100%; max-width: 820px; margin: 0 auto; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr-dock { bottom: 0; margin: auto calc(50% - 50vw) 0;
+      padding: 10px calc(50vw - 50%) calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(20, 17, 28, .94); border-top: 2px solid #0c0a10; }
+    .dr-cols { display: flex; flex-direction: column; gap: 8px; }
+    .dr-wait { opacity: .55; pointer-events: none; filter: saturate(.6); }
+    .dr-l, .dr-r { min-width: 0; }
+    .dr-r:empty { display: none; }
+    @media (min-width: 900px) {
+      body.in-mode .dr-cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 12px 24px; align-items: start; }
+      body.in-mode .dr-cols > .dr-r { position: sticky; top: 0; }
+      body.in-mode .dr-cols > .dr-r:empty { display: none; }
+      body.in-mode .dr-cols:has(> .dr-r:empty) { grid-template-columns: minmax(0, 760px); justify-content: center; }
+      body.in-mode .dr-win .dr-door { max-width: 260px; min-height: 64px; font-size: 14px; }
+      body.in-mode .dr-win .dr-map { padding: 14px; gap: 12px; }
+      body.in-mode .dr-win .dr-node { font-size: 13px; padding: 8px 4px; } body.in-mode .dr-win .dr-node b { font-size: 13px; } body.in-mode .dr-win .dr-node .dr-gi { width: 30px; height: 30px; }
+      body.in-mode .dr-win .dr-edge { flex-basis: 18px; }
+      body.in-mode .dr-win .dr-hand { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+      body.in-mode .dr-win .dr-metrics { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }`;
   document.head.appendChild(css);
 })();
