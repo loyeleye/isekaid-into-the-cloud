@@ -530,7 +530,7 @@
     body.in-mode #panel .win-b:has(> .ct > .ct-world) { padding: 0 !important; background: #0d0a12 !important; }
     .ct:has(> .ct-world) { max-width: none; min-height: 100%; display: flex; flex-direction: column; }
     .ct-world { position: relative; flex: 1; min-height: 100%; display: grid; grid-template-rows: auto minmax(170px, 1fr) auto; overflow-x: clip; color: #f4ecd8; isolation: isolate; }
-    .w-bg { position: absolute; inset: 0; z-index: -2; background: url(assets/img/table/stall.webp) 30% 35% / cover no-repeat; image-rendering: pixelated; filter: brightness(.5) saturate(1.05); }
+    .w-bg { position: absolute; inset: 0; z-index: -2; background: url(assets/img/table/stall-night.webp) 50% 70% / cover no-repeat; filter: brightness(.8); }
     .w-bg::after { content: ''; position: absolute; inset: 0; background: radial-gradient(70% 55% at 50% 30%, rgba(255, 190, 90, .22), transparent 70%), linear-gradient(transparent 40%, rgba(0, 0, 0, .55)); }
     .w-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .w-hud { position: relative; z-index: 4; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; padding: 6px 12px; background: linear-gradient(rgba(0, 0, 0, .55), transparent); text-shadow: 0 1px 2px #000; }
