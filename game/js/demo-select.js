@@ -294,6 +294,7 @@
       box.innerHTML = (c ? `<button class="primary" id="ds-go">Continue · ${esc(label(c))}${S.save.c1 && S.save.c1.lead && T() ? ' · ' + esc(T().leads[S.save.c1.lead].name.split(' ')[0]) : ''}</button>` : '')
         + `<button class="${c ? 'ghost' : 'primary'}" id="ds-new">New game</button>`;
       if (help) box.appendChild(help);
+      if (SD.modes && SD.modes.titleButton) SD.modes.titleButton(box);
       if (c) $('#ds-go').onclick = () => resume(c);
       $('#ds-new').onclick = newGame;
       badge();
