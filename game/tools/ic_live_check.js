@@ -237,6 +237,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   await page.waitForSelector('#icl-done');
   s = await st();
   check(s.phase === 'done' && s.stamps.length === 3, 'the shift ends after three incidents');
+  check(/uptima-pose-yawn/.test(await page.$eval('#icl-scene .icl-ub', e => e.src).catch(() => '')), 'at dawn Uptima yawns (her pose swaps in)');
   check(/of 9 stamps/.test(await txt('.icl-total')), 'the end screen counts the stamps');
   check(/How sure you were/.test(await txt('#panel')) && !!await page.$('.md-pip'), 'calibration and Pip\'s line on the end screen');
   check(/XP/.test(await txt('.icl-total')), 'it pays once a day');

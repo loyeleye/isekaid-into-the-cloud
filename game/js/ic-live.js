@@ -121,7 +121,28 @@
   // result, the end) the interface slides down and she says her lines; a tap moves on.
   const FACE_BOX = { left: 29.948, top: 9.448, width: 37.76, height: 18.168 };   // % of the body canvas
   const FACES = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk'];
-  const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '' };
+  const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '', pose: null, idle: 0 };
+  // Whole-body poses (Ladi's pose sheets, repainted on her canvas): the yawn at dawn, and dozing off if you leave her waiting.
+  const POSES = ['yawn', 'asleep'], DOZE_MS = 30000;
+  function pose(name) {
+    const u = document.querySelector('#icl-scene .icl-upt'); if (!u) return;
+    UP.pose = name || null;
+    u.querySelector('.icl-ub').src = name ? `${IMG}uptima-pose-${name}.webp` : `${IMG}uptima-body.webp`;
+    u.classList.toggle('posed', !!name); u.classList.toggle('asleep', name === 'asleep');
+  }
+  // Any tap or key wakes her: the bubble pops and she's back, pretending she never slept.
+  function wake() {
+    UP.idle = Date.now();
+    const u = document.querySelector('#icl-scene .icl-upt');
+    if (UP.pose !== 'asleep' || !u) return;
+    u.classList.add('pop'); UP.pose = 'waking';
+    UP.timers.push(setTimeout(() => { u.classList.remove('pop'); pose(null); }, 260));
+  }
+  function dozeCheck() {
+    const s = cur();
+    if (UP.pose || !s || !['page', 'fix'].includes(s.phase) || document.body.classList.contains('icl-beat')) return;
+    if (Date.now() - UP.idle > DOZE_MS) pose('asleep');
+  }
   const face = () => UP.blink ? 'blink' : UP.open ? (UP.mood === 'neutral' ? 'talk' : UP.mood + '-talk') : UP.mood;
   function paintFace() { const f = document.querySelector('#icl-scene .icl-uf'); if (f) f.src = `${IMG}uptima-face-${face()}.webp`; }
   function scene(on) {
@@ -129,6 +150,7 @@
     let el = document.getElementById('icl-scene');
     if (!on || !stage || !document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic') {
       UP.timers.forEach(clearTimeout); UP.timers = []; clearInterval(UP.watch); UP.watch = 0;
+      ['pointerdown', 'keydown'].forEach(e => document.removeEventListener(e, wake, true));
       if (el) el.remove();
       const vn = document.getElementById('icl-vn'); if (vn) vn.remove();
       document.body.classList.remove('icl-on', 'icl-beat');
@@ -138,13 +160,17 @@
       el = document.createElement('div'); el.id = 'icl-scene';
       el.innerHTML = `<picture class="icl-room"><source media="(orientation: portrait)" srcset="${IMG}room-tall.webp"><img src="${IMG}room-wide.webp" alt="" draggable="false"></picture>
         <div class="icl-upt"><img class="icl-ub" src="${IMG}uptima-body.webp" alt="" draggable="false">
-          <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%"></div>
+          <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%">
+        <span class="icl-snot" aria-hidden="true"></span></div>
         <div class="icl-bubble" hidden></div>`;
       stage.appendChild(el);
       FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
+      POSES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-pose-${f}.webp`; });
       blinkSoon();
+      UP.idle = Date.now(); UP.pose = null;
+      ['pointerdown', 'keydown'].forEach(e => document.addEventListener(e, wake, true));
       // Home, or anything else that closes the panel, takes her away with it.
-      UP.watch = setInterval(() => { const pn = document.getElementById('panel'); if (!document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic' || (pn && pn.hidden)) scene(false); }, 400);
+      UP.watch = setInterval(() => { const pn = document.getElementById('panel'); if (!document.body.classList.contains('in-mode') || document.body.dataset.stage !== 'ic' || (pn && pn.hidden)) scene(false); else dozeCheck(); }, 400);
     }
     document.body.classList.add('icl-on');
     return true;
@@ -183,7 +209,7 @@
     if (s.phase === 'fix') return speak(!s.runs && p ? (p.ok ? SAY.right : SAY.wrong) : SAY.unmet, !s.runs && p ? (p.ok ? 'happy' : 'stern') : 'worried');
     if (s.phase === 'result') return speak(sum.slo ? SAY.met : SAY.unmet, sum.slo ? 'happy' : 'worried');
     if (s.phase === 'debrief') return speak(SAY.debrief, 'neutral');
-    if (s.phase === 'done') return speak(SAY.end, 'happy');
+    if (s.phase === 'done') { pose('yawn'); return speak(SAY.end, 'happy'); }
   }
   // The beats: the interface slides away and she talks. Each beat plays once.
   function beatFor(s) {
@@ -193,6 +219,7 @@
     else if (s.phase === 'fix' && !s.runs && p) { key = 'v' + s.i; lines = [p.ok ? SAY.right : SAY.wrong, `You said ${p.v}. It was ${p.truth}.`]; mood = p.ok ? 'happy' : 'stern'; }
     else if (s.phase === 'result' && sum) { key = 'r' + s.i + ':' + s.runs; lines = [sum.slo ? SAY.met : s.runs < 2 ? SAY.unmet : SAY.lastRed, sum.sloLine]; mood = sum.slo ? 'happy' : 'worried'; }
     else if (s.phase === 'done') { key = 'end'; lines = [SAY.end]; mood = 'happy'; }
+    pose(s.phase === 'done' ? 'yawn' : null);
     if (!key || s.beat === key) return false;
     s.beat = key; save(s);
     if (window.__iclNoBeats) return false;
@@ -497,6 +524,15 @@
       animation: icl-breathe 4.2s ease-in-out infinite; transition: right .5s ease, height .5s ease, opacity .4s; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .55)); }
     .icl-upt img { position: absolute; display: block; user-select: none; }
     .icl-ub { inset: 0; width: 100%; height: 100%; }
+    .icl-upt.posed .icl-uf { display: none; }
+    /* Asleep: a snot bubble at her nose (44.9%, 20.2% of her canvas) swells and shrinks with her breath, and pops when you wake her. */
+    .icl-snot { display: none; position: absolute; left: 40.5%; top: 18%; width: 6%; aspect-ratio: 1; border-radius: 50%; transform-origin: 80% 30%; pointer-events: none;
+      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .95) 0 12%, rgba(200, 235, 255, .45) 13% 55%, rgba(160, 210, 240, .6) 70%, rgba(120, 180, 220, .75) 100%);
+      box-shadow: inset 0 0 0 1px rgba(90, 140, 180, .6); animation: icl-snot 3.6s ease-in-out infinite; }
+    .icl-upt.asleep .icl-snot { display: block; }
+    .icl-upt.pop .icl-snot { display: block; animation: icl-pop .25s ease-out forwards; }
+    @keyframes icl-snot { 0%, 100% { transform: scale(.35); } 55% { transform: scale(1.15); } }
+    @keyframes icl-pop { 0% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
     @keyframes icl-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.004, 1.012) translateY(-1px); } }
     .icl-bubble { position: absolute; z-index: 2; right: calc(4vw + min(calc(100vh - 70px), 1000px) * .5); top: calc(70px + 6vh); max-width: min(340px, 30vw); padding: 12px 16px; border-radius: 14px;
       background: #fbf5e3; color: #2a2018; font-size: 16px; line-height: 1.4; box-shadow: 0 6px 16px rgba(0, 0, 0, .55); }
@@ -529,7 +565,7 @@
     .icl-vn-more { position: absolute; right: 14px; bottom: 8px; color: #8a5608; animation: icl-more 1s ease-in-out infinite; }
     @keyframes icl-vn-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
     @keyframes icl-more { 50% { transform: translateX(4px); } }
-    @media (prefers-reduced-motion: reduce) { .icl-upt, #icl-vn, .icl-vn-more { animation: none !important; } #panel, .icl-upt { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { .icl-upt, #icl-vn, .icl-vn-more, .icl-snot { animation: none !important; } #panel, .icl-upt { transition: none !important; } }
     @media (min-width: 900px) {
       body.in-mode .icl-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: 'm a' 'm b'; gap: 0 28px; align-items: start; }
       body.in-mode .icl-a { grid-area: a; } body.in-mode .icl-m { grid-area: m; } body.in-mode .icl-b { grid-area: b; }

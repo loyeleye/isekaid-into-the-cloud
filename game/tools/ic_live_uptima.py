@@ -5,6 +5,8 @@ usage: ic_live_uptima.py OUT_DIR base [N]            paint the standing Uptima o
        ic_live_uptima.py OUT_DIR frame NAME BASE.png  edit the base into one frame (blink, talk, happy, ...)
        ic_live_uptima.py OUT_DIR room                 paint the empty room from the card still
        ic_live_uptima.py --key IN.png OUT.webp [H]    key out the green, trim, scale to height H, save lossless WebP
+       ic_live_uptima.py --poses DIR NAME ...          whole-body poses (DIR/NAME.png, painted on the base's canvas from Ladi's
+                                                       pose sheets) to uptima-pose-NAME.webp
        ic_live_uptima.py --pack DIR BASE.png           the game's files: uptima-body.webp (the whole base, keyed) and one
                                                        face patch per frame (uptima-face-<frame>.webp), feathered, at FACE
 
@@ -86,6 +88,16 @@ def pack(d, base):
     print('body', (W, H), 'face box %', [round(v * 100 / s, 3) for v, s in zip(FACE, (b.width, b.height, b.width, b.height))])
 
 
+def poses(d, names):
+    """Whole-body poses painted on the base's canvas (yawn, asleep): keyed and scaled like the body, so they swap in place."""
+    from PIL import Image
+    out = os.path.join(GAME, 'assets/img/ic-live')
+    for n in names:
+        im = keyed(Image.open(os.path.join(d, n + '.png')))
+        im.resize((round(im.width * SCALE), round(im.height * SCALE)), Image.LANCZOS).save(os.path.join(out, 'uptima-pose-%s.webp' % n), 'WEBP', quality=88)
+        print('pose', n)
+
+
 def key(src, dst, h=None):
     from PIL import Image
     im = Image.open(src).convert('RGBA'); px = im.load()
@@ -103,6 +115,7 @@ def key(src, dst, h=None):
 if __name__ == '__main__':
     a = sys.argv[1:]
     if a and a[0] == '--pack': pack(a[1], a[2]); sys.exit()
+    if a and a[0] == '--poses': poses(a[1], a[2:]); sys.exit()
     if a and a[0] == '--key': key(a[1], a[2], a[3] if len(a) > 3 else None); sys.exit()
     out, what = a[0], a[1]; os.makedirs(out, exist_ok=True)
     room = os.path.join(GAME, 'assets/video/cards/ic.webp'); face = os.path.join(GAME, 'assets/img/portraits/uptima-neutral.webp')
