@@ -38,12 +38,17 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
   // Nothing wider than the phone: the page, the title screen, and every element of the card and any open window.
   const noHScroll = async where => {
+    // Measure once the window's own animations (a pop-in, the verdict stamp's slam) are over.
+    await page.evaluate(() => { const w = document.querySelector('#panel:not([hidden]) .win'); return w && Promise.all(w.getAnimations({ subtree: true }).filter(a => a.effect && a.effect.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))); });
     const r = await page.evaluate(() => {
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
       const t = document.querySelector('#screen-title'), ox = getComputedStyle(t).overflowX;
       if (!t.hidden && t.scrollWidth > t.clientWidth && ox !== 'hidden' && ox !== 'clip') bad.push('title ' + t.scrollWidth);
       document.querySelectorAll('#today-card *, #panel:not([hidden]) .win *').forEach(el => {
+        // A hunt question is a scene in the street (js/hunt-debrief.js): the painted street behind it is wider than a
+        // phone and clipped by its view, as are the notes' carousel pages and tabs.
+        if ((el.closest('.hs-view') && !el.classList.contains('hs-view')) || el.closest('.hd-track') || (el.closest('.hd-nav') && !el.classList.contains('hd-nav'))) return;
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });

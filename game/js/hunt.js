@@ -402,7 +402,7 @@
         S.persist();
       }
       if (m.pin.none) { m.k++; S.persist(); return; }
-      const r = await pinIt(m, ctx);
+      const r = await (SD.huntDebrief ? SD.huntDebrief.ask(m, () => pinIt(m, ctx), { battle: 'pin', face: faceOf(m) }) : pinIt(m, ctx));
       if (!live || live.tok !== tok || !r) return;
       if (h.tally) { const t = h.tally[r.conf] || (h.tally[r.conf] = [0, 0]); t[1]++; if (r.ok) t[0]++; }
       record(h, m, 'pin', r.ok, r.conf, stake(r.ok, r.conf));
@@ -426,7 +426,9 @@
     const ask = () => shell().ask(q, Object.assign({ title: TITLE, context: dctx, typeFirst: step === 'track' || null, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       { act: ACT[step] }, shared ? { onStop: () => {} } : {}, live.opts));
     // A board's Debrief is asked by Bru in the street, with the monster in its jar beside her (js/hunt-debrief.js).
-    const r = await (debrief && SD.huntDebrief ? SD.huntDebrief.ask(m, ask) : ask());
+    // Every other question is a fight in the same street (js/hunt-debrief.js): it squares up across from Bru, the
+    // answers are her attack cards.
+    const r = await (debrief && SD.huntDebrief ? SD.huntDebrief.ask(m, ask) : SD.huntDebrief ? SD.huntDebrief.ask(m, ask, { battle: step, face: faceOf(m) }) : ask());
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();
@@ -484,8 +486,9 @@
     live.q = q; live.m = m; live.t0 = Date.now(); live.opts = { poster: m.id || null, tally: h.tally, noWall: !!m.id };
     const shared = !!(SD.modes && SD.modes.ask);
     live.inAsk = shared;
-    const r = await shell().ask(q, Object.assign({ title: TITLE, context: `${m.name} hit back! Retry: same idea, a new scenario`, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
+    const ask = () => shell().ask(q, Object.assign({ title: TITLE, context: `${m.name} hit back! Retry: same idea, a new scenario`, progress: `${h.mons.filter(x => x.out).length + 1} / ${h.mons.length}` },
       shared ? { onStop: () => {} } : {}, live.opts));
+    const r = await (SD.huntDebrief ? SD.huntDebrief.ask(m, ask, { battle: 'retry', face: faceOf(m) }) : ask());
     if (live) live.inAsk = false;
     if (!live || live.tok !== tok || !r || r.closed) return;
     if (r.stopped && !r.committed) return stopHunt();

@@ -196,7 +196,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('Bru\'s notes');
   await shot('debrief-notes');
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(50);
+  await page.waitForFunction(() => document.activeElement && document.activeElement.classList.contains('hd-nbk'), null, { timeout: 1000 }).catch(() => {});
   const esc = await page.evaluate(() => ({ open: !!document.querySelector('#panel .hd-win.hd-notes-open'), focus: document.activeElement && (document.activeElement.className || document.activeElement.tagName) }));
   check(!esc.open && esc.focus === 'hd-nbk', 'Escape closes the notes and puts focus back on the notebook ' + JSON.stringify(esc));
   await page.click('#q-next');

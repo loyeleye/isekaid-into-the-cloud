@@ -14,14 +14,23 @@
 // the question (js/hunt.js's shell().ask), run inside the scene.
 (function () {
   const D = SD.huntDebrief = {};
+  // Staging per step (js/hunt-stage-<step>.js): D.stages[step] = { open(ctx), render(ctx), strike(ok, guess, ctx),
+  // fit(ctx) }, each optional. ctx: { scene, st, win, card, inn, sat, mode, bru, wide, W, H }. strike returns true when it
+  // has played the whole verdict beat itself (Bru's face and line included); otherwise the plain fight's beat plays.
+  D.stages = {};
+  const stage = () => st && st.bt && D.stages[st.bt];
   const U = SD.ui, esc = s => U.esc(String(s == null ? '' : s));
   const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   let st = null;
 
-  D.ask = async function (m, ask) {
+  // o.battle: the hunt's other questions (Track, Fight, Pin it down, the retry) as a fight in the same street (Ladi,
+  // Nov 16: "don't make it a box. Maybe make it like a fight with the options as attacks"): the monster squares up
+  // across the street from Bru, the question is its attack, the answers are her attack cards; a right answer lands
+  // a slash, a wrong one and it lunges. o.face: its sprite (js/hunt.js's poster portrait).
+  D.ask = async function (m, ask, o) {
     const HB = SD.huntBoard;
     if (!HB || !HB.bruOn || !HB.bruHtml || !window.MutationObserver || !document.querySelector('#panel')) return ask();
-    open(m);
+    open(m, o || {});
     try { return await ask(); } finally { close(); }
   };
 
@@ -34,19 +43,22 @@
       caught: last && last.contained && id in last.contained ? !!last.contained[id] : won }));
   }
 
-  function open(m) {
-    const HB = SD.huntBoard, ms = mons(m), caught = ms.length ? ms.every(x => x.caught) : true;
+  function open(m, o) {
+    const HB = SD.huntBoard, bt = o.battle || null, ms = bt ? [] : mons(m), caught = ms.length ? ms.every(x => x.caught) : true;
     const scene = document.createElement('div');
     scene.className = 'hd-scene';
     scene.innerHTML = `<div class="hs-view" aria-hidden="true"><div class="hs-street"><img class="hs-bg" src="${HB.STREET}" alt="" decoding="async"></div></div>
       <div class="hd-wash" aria-hidden="true"></div>
       ${HB.bruHtml()}
       <div class="hd-jars">${ms.map(x => `<div class="hd-mon ${x.caught ? 'jarred' : 'loose'}" role="img" aria-label="${esc(x.name)}, ${x.caught ? 'caught in its jar' : 'loose: it got away'}">
-        <span class="hd-jar" aria-hidden="true"><img class="hd-spr" src="assets/img/hunt/${esc(x.id)}.webp" alt="" decoding="async"></span></div>`).join('')}<div class="hd-hp"></div></div>
+        <span class="hd-jar" aria-hidden="true"><img class="hd-spr" src="assets/img/hunt/${esc(x.id)}.webp" alt="" decoding="async"></span></div>`).join('')}${bt ? `<div class="hd-mon loose hd-foe" role="img" aria-label="${esc(m.name)}, squaring up across the street">
+        <span class="hd-jar" aria-hidden="true"><img class="hd-spr" src="${esc(o.face || '')}" alt="" decoding="async"><i class="hd-slash"></i></span></div>` : ''}<div class="hd-hp"></div></div>
+      <div class="hd-flash" aria-hidden="true"></div>
       <div class="hd-verdict"><div class="hd-stamp" role="status"></div>
         <button type="button" class="hd-nbk" aria-controls="hd-notes" aria-expanded="false" hidden><img src="assets/img/hunt/notebook.webp" alt="" decoding="async"><span>Bru's notes</span></button></div>
       <p class="hs-say hd-say" aria-live="polite" hidden></p>`;
-    st = { m, scene, ms, caught, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
+    st = { m, scene, ms, caught, bt, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
+    if (bt) { scene.classList.add('hd-battle', 'hd-st-' + bt); const g = stage(); if (g && g.open) g.open({ scene, st }); }
     st.obs = new MutationObserver(wrap);
     st.obs.observe(document.querySelector('#panel'), { childList: true, subtree: true });
     st.ro = window.ResizeObserver ? new ResizeObserver(() => fit()) : null;
@@ -84,7 +96,9 @@
     const mode = b.querySelector(':scope > .verdict-row') ? 'f' : b.querySelector(':scope > :is(.conf, .type-first, .say-first)') ? 'q' : 'o';
     const card = document.createElement('div'), inn = document.createElement('div'), sat = document.createElement('div'), gap = document.createElement('div');
     card.className = 'hd-card'; inn.className = 'hd-in'; sat.className = 'hd-sat'; gap.className = 'hd-gap';
-    card.innerHTML = `<span class="hd-tag" aria-hidden="true">${mode === 'q' ? 'Bru asks' : 'Bru'}</span>`;
+    const BT = { track: 'On its trail', fight: 'It attacks!', pin: 'Pin it down', retry: 'Rematch!' };
+    card.innerHTML = `<span class="hd-tag" aria-hidden="true">${mode === 'q' ? (st.bt ? (BT[st.bt] || 'It attacks!') : 'Bru asks') : 'Bru'}</span>`;
+    win.classList.toggle('hd-bt', !!st.bt);
     card.appendChild(inn);
     // The health tag (js/hunt.js puts it in every hunt question) hangs on the jar on a wide screen; on a phone it
     // stays at the top of the card, as one small line.
@@ -92,7 +106,7 @@
     if (hp && innerWidth > 700) { slot.innerHTML = ''; slot.appendChild(hp); }
     else if (hp) { slot.innerHTML = ''; b.prepend(hp); }
     [...b.children].forEach(k => {
-      const low = mode === 'q' ? !k.matches(TOP) : k.matches('.q-foot, #q-confirm');
+      const low = mode === 'q' ? !k.matches(TOP) : k.matches('.q-foot, #q-confirm, #hn-pnext');
       (low ? sat : inn).appendChild(k);
     });
     if (!sat.children.length) sat.classList.add('empty');
@@ -104,6 +118,7 @@
     else { st.cTop = st.sTop = 0; if (!still()) card.classList.add('hd-drop'); }
     inn.addEventListener('scroll', () => { st.cTop = inn.scrollTop; }, { passive: true });
     sat.addEventListener('scroll', () => { st.sTop = sat.scrollTop; }, { passive: true });
+    { const g = stage(); if (g && g.render) g.render({ scene: st.scene, st, win, card, inn, sat, mode, bru: st.bru }); }
     if (mode === 'f' && st.mode !== 'f') verdict(b);
     if (mode === 'f') beats(win, card, inn, sat);
     else { win.classList.remove('hd-notes-open'); st.scene.querySelector('.hd-stamp').innerHTML = ''; st.scene.querySelector('.hd-nbk').hidden = true; }
@@ -120,6 +135,13 @@
   function start() {
     const HB = SD.huntBoard, ms = st.ms;
     st.bru = HB.bruOn(st.scene);
+    if (st.bt) {
+      // A fight: she turns side-on to face it across the street.
+      st.bru.turn('side');
+      const L = { track: 'Fresh tracks. Which way did it go?', fight: 'Here it comes. Pick your move.', pin: 'Pin it down. Why doesn\'t that fit?', retry: 'It hit back! Again, from a new angle.' };
+      st.bru.say(`<b>Bru:</b> ${L[st.bt] || L.fight}`);
+      return;
+    }
     st.bru.turn('three');
     const name = ms.length ? ms.map(x => x.name).join(' and ') : 'It';
     st.bru.say(`<b>Bru:</b> ${st.caught ? `${esc(name)}, in the jar. Now tell me why that worked.` : `${esc(name)} got away. Tell me what would have held it.`}`);
@@ -131,6 +153,7 @@
   // The verdict is on screen (the answer is committed): Bru and the monster react to it.
   function verdict(b) {
     const v = b.querySelector('.verdict'), ok = !!(v && v.classList.contains('ok')), guess = ok && /GUESS/i.test(v.textContent);
+    if (st.bt) return strike(ok, guess);
     const jars = st.scene.querySelectorAll('.hd-mon');
     jars.forEach(j => { j.classList.remove('rattle', 'cowed'); void j.offsetWidth; j.classList.add(ok ? 'cowed' : 'rattle'); });
     if (ok) {
@@ -143,12 +166,35 @@
     }
   }
 
+  // In a fight: right, Bru's move lands (a slash across it, it reels); wrong, it lunges at her (the street shakes,
+  // a red flash, she winces).
+  function strike(ok, guess) {
+    const g = stage();
+    if (g && g.strike && g.strike(ok, guess, { scene: st.scene, st, bru: st.bru }) === true) return;
+    const foe = st.scene.querySelector('.hd-foe'), sc = st.scene;
+    const re = (el, c) => { if (!el) return; el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
+    if (foe) foe.classList.remove('hit', 'lunge');
+    sc.classList.remove('hd-shake', 'hd-hurt');
+    if (ok) {
+      if (!still()) { re(foe, 'hit'); }
+      else if (foe) foe.classList.add('hit');
+      st.bru.react(guess ? 'smile' : 'grin', 1e9);
+      st.bru.say(`<b>Bru:</b> ${guess ? 'It landed, but that was a guess. It\'ll come back to you.' : st.bt === 'track' ? 'There it is. Good eye.' : st.bt === 'pin' ? 'Pinned. That\'s the reason.' : 'Direct hit!'}`);
+    } else {
+      if (!still()) { re(foe, 'lunge'); re(sc, 'hd-shake'); re(sc, 'hd-hurt'); }
+      else if (foe) foe.classList.add('lunge');
+      st.bru.react('wince', 800);
+      setTimeout(() => { if (st && st.bru) st.bru.react('frown', 1e9); }, 820);
+      st.bru.say(`<b>Bru:</b> ${st.bt === 'track' ? 'Dead end. It went the other way. Read why.' : 'Ugh! It hit back. Read why.'}`);
+    }
+  }
+
   // The verdict as a beat in the scene, not a box (Ladi, Nov 16: "Change the Correct / Not Quite text box"): the
   // verdict is an ink stamp slammed down by the jar, with its badges (Trust, From memory) under it; Bru says the why
   // herself, in a big speech bubble (the answer when you missed it, the warning when you were sure and wrong, the
   // reason); everything else the feedback had (the question, the AWS docs, Pip's almost-pick, why not the others, the
   // help buttons, the confusion compass) is in Bru's notes, a tap away, pulled down over the street.
-  const TALK = ':scope > :is(.mode-note, .warn, p.muted.small, .why)';
+  const TALK = ':scope > :is(.mode-note, .warn, p.muted.small, .why, .hn-oneline)';
   function beats(win, card, inn, sat) {
     const stamp = st.scene.querySelector('.hd-stamp'), say = st.scene.querySelector('.hd-say');
     const vr = inn.querySelector(':scope > .verdict-row');
@@ -177,12 +223,13 @@
     card.prepend(head);
     carousel(card, inn, head, secs);
     const book = st.scene.querySelector('.hd-nbk');
-    book.hidden = false;
+    book.hidden = !secs.length;
     const set = (on, anim) => {
       win.classList.toggle('hd-notes-open', on); book.setAttribute('aria-expanded', String(on)); st.notes = on;
+      st.scene.classList.toggle('hd-quiet', on && innerWidth <= 700);   // now, not in fit(): fit() skips a scene the notes squeezed to nothing
       fit();   // first: on a phone the verdict hides while the notes are open, and a hidden button can't take focus
       if (on) { if (anim && !still()) openAnim(book, card); head.querySelector('.hd-nx').focus({ preventScroll: true }); }
-      else if (anim) { book.focus({ preventScroll: true }); requestAnimationFrame(() => { if (document.activeElement !== book && book.isConnected) book.focus({ preventScroll: true }); }); }
+      else if (anim) { book.focus({ preventScroll: true }); const re = () => { if (document.activeElement !== book && book.isConnected && !st.notes) book.focus({ preventScroll: true }); }; requestAnimationFrame(re); setTimeout(re, 150); }
     };
     book.onclick = () => set(!win.classList.contains('hd-notes-open'), true);
     head.querySelector('.hd-nx').onclick = () => set(false, true);
@@ -298,6 +345,13 @@
       say.style.top = Math.round(cb + 6) + 'px'; say.style.removeProperty('--hd-sb');
       set(say, '--hd-sh', Math.max(40, gapH - 12));
     }
+    if (st.bt) {
+      // The fight: it stands across the street, big, and its lunge reaches Bru.
+      const fs = wide ? cl(140, bh * .42, 280) : cl(70, js * 1.25, 130);
+      set(jars, '--hd-fs', fs); jars.style.setProperty('--hd-fx', wide ? '6%' : '8px');
+      set(jars, '--hd-lx', Math.max(60, W - (wide ? W * .06 : 8) - fs - (bl + bw * .8)));
+      const g = stage(); if (g && g.fit) g.fit({ scene: sc, st, win, wide, W, H, bh, bw, bl, satTop, cardBottom: cb });
+    }
     if (win.classList.contains('hd-f')) {
       // The verdict beat: Bru stands taller, her line beside her head (wide) or over it (phone), the stamp by the jar.
       const notes = win.classList.contains('hd-notes-open');
@@ -313,7 +367,7 @@
       } else {
         set(say, '--hd-sx', 8); set(say, '--hd-sw', W - 16); const sTop = (stamp.offsetHeight || 60) + 18; say.style.top = sTop + 'px';
         set(say, '--hd-sh', Math.max(60, H - fbh * .97 - sTop - 14));
-        set(stamp, '--hd-tx', 12); set(stamp, '--hd-ty', 8);
+        const wh = win.querySelector(':scope > .win-h'); set(stamp, '--hd-tx', 12); set(stamp, '--hd-ty', 8 + (wh && getComputedStyle(wh).position !== 'absolute' ? wh.offsetHeight : 0));
         jars.style.right = '8px'; set(jars, '--hd-jb', H - satTop + 4);
       }
       sc.classList.toggle('hd-wide', wide); sc.classList.add('hd-fb'); sc.classList.toggle('hd-quiet', notes && !wide);
@@ -328,7 +382,9 @@
   const css = document.createElement('style');
   css.textContent = `
     /* The window is the scene: no box, the street behind everything. */
-    #panel .win.hd-win { background: #0c0a10 !important; overflow: hidden; }
+    #panel .win.hd-win { background: #0c0a10 !important; overflow: hidden; display: flex; flex-direction: column; }
+    /* Off the full-screen stage (the Today card's link), the window still gets the room a scene needs. */
+    body:not(.in-mode) #panel .win.hd-win { height: min(90vh, 860px); width: min(96vw, 1100px); max-width: none; }
     #panel .win.hd-win > .win-h { position: relative; z-index: 3; background: linear-gradient(rgba(6, 5, 10, .8), rgba(6, 5, 10, 0)) !important; border: 0; }
     #panel .win.hd-win > .win-b { position: relative; z-index: 2; flex: 1; min-height: 0; padding: 0 !important; overflow: hidden !important; background: none !important; box-shadow: none !important;
       display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); container-type: size; }
@@ -430,6 +486,37 @@
     .hd-sat .q-foot { position: static; margin: 0 -12px 0 calc(-1 * max(12px, var(--hd-sl, 0px))); padding: 8px 12px 12px max(12px, var(--hd-sl, 0px)); background: rgba(20, 13, 6, .96); border-top: 1px solid rgba(255, 210, 130, .25); }
     .hd-sat .q-foot .cred-more { color: #e6d3a6; }
     .hd-sat > #q-confirm { margin: 0 0 12px; width: 100%; }
+    /* The fight: it squares up across the street; the answers are Bru's attack cards */
+    .hd-scene.hd-battle .hd-jars { left: auto !important; right: var(--hd-fx, 6%); bottom: var(--hd-jb, 30%); }
+    .hd-foe .hd-jar { width: var(--hd-fs, 170px); height: var(--hd-fs, 170px); }
+    .hd-foe .hd-spr { width: 100%; animation: hdSquare 1.8s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255, 70, 40, .7)) drop-shadow(0 10px 6px rgba(0, 0, 0, .7)) !important; transform-origin: 50% 90%; }
+    @keyframes hdSquare { 50% { transform: translateY(-5px) scale(1.03, .98); } }
+    .hd-foe::after { content: ''; position: absolute; left: 10%; right: 10%; bottom: -6px; height: 14px; border-radius: 50%; background: radial-gradient(rgba(0, 0, 0, .6), transparent 70%); z-index: -1; }
+    .hd-slash { position: absolute; left: -10%; top: 45%; width: 120%; height: 6px; border-radius: 4px; opacity: 0; pointer-events: none; transform: rotate(-28deg) scaleX(0);
+      background: linear-gradient(90deg, transparent, #fff 30%, #bff4ff 50%, #fff 70%, transparent); box-shadow: 0 0 16px #9be9ff, 0 0 30px #5fe0ff; }
+    .hd-foe.hit .hd-slash { animation: hdSlash .45s ease-out .05s; }
+    @keyframes hdSlash { 0% { opacity: 1; transform: rotate(-28deg) scaleX(0); transform-origin: 0 50%; } 50% { opacity: 1; transform: rotate(-28deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-28deg) scaleX(1) translateY(6px); } }
+    .hd-foe.hit .hd-spr { animation: hdReel .6s ease-out .12s, hdSquare 1.8s ease-in-out .8s infinite; }
+    @keyframes hdReel { 0% { filter: brightness(3) drop-shadow(0 0 20px #fff); } 30% { transform: translateX(16px) rotate(8deg) scale(.92); } 100% { transform: none; } }
+    .hd-foe.lunge .hd-spr { animation: hdLungeFoe .55s cubic-bezier(.4, 0, .2, 1), hdSquare 1.8s ease-in-out .6s infinite; }
+    @keyframes hdLungeFoe { 0% { transform: none; } 20% { transform: translateX(10px) scale(.95); } 55% { transform: translateX(calc(-1 * var(--hd-lx, 160px))) scale(1.3) rotate(-8deg); } 100% { transform: none; } }
+    .hd-flash { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 30% 60%, transparent 30%, rgba(200, 20, 10, .55)); }
+    .hd-scene.hd-hurt .hd-flash { animation: hdHurt .6s ease-out .25s; }
+    @keyframes hdHurt { 0%, 100% { opacity: 0; } 25% { opacity: 1; } }
+    .hd-scene.hd-shake { animation: hdShake .45s ease-in-out .28s; }
+    @keyframes hdShake { 15% { transform: translate(-8px, 3px); } 35% { transform: translate(7px, -4px); } 55% { transform: translate(-5px, 2px); } 75% { transform: translate(3px, -1px); } }
+    /* The question: its attack, in a jagged red-trimmed bubble from its side of the street */
+    #panel .win.hd-bt .hd-card { box-shadow: 0 0 0 2px #2a2018, 0 0 0 4px #8a1a10, 0 10px 24px rgba(0, 0, 0, .6), 0 0 26px rgba(220, 40, 20, .35); }
+    #panel .win.hd-bt .hd-tag { background: linear-gradient(#8a1a10, #4a0c06); border-color: #ff7a66; color: #ffe0d8; }
+    @media (min-width: 701px) { #panel .win.hd-bt.hd-q .hd-card::after { left: auto; right: 90px; top: auto; bottom: -8px; box-shadow: 2px 2px 0 #8a1a10; } }
+    /* Bru's attack cards: an attack glyph on each, a red-gold glow when picked */
+    #panel .win.hd-bt .hd-sat .act-l::before { content: '⚔ '; }
+    #panel .win.hd-win.hd-bt .hd-sat .opts .opt { padding-right: 40px; }
+    #panel .win.hd-win.hd-bt .hd-sat .opts .opt::after { position: absolute; right: 10px; top: 8px; font-size: 18px; filter: drop-shadow(0 0 4px rgba(255, 160, 60, .7)); }
+    #panel .win.hd-win.hd-bt .hd-sat .opts .opt:nth-child(4n+1)::after { content: '⚔️'; } #panel .win.hd-win.hd-bt .hd-sat .opts .opt:nth-child(4n+2)::after { content: '🔥'; }
+    #panel .win.hd-win.hd-bt .hd-sat .opts .opt:nth-child(4n+3)::after { content: '⚡'; } #panel .win.hd-win.hd-bt .hd-sat .opts .opt:nth-child(4n+4)::after { content: '🗡️'; }
+    #panel .win.hd-win.hd-bt .hd-sat .opts .opt.on { border-color: #ff9a5a; background: radial-gradient(80% 60% at 50% 30%, rgba(255, 120, 60, .35), transparent 75%), linear-gradient(#4a2a22, #25140f);
+      box-shadow: inset 0 0 0 2px #1a1218, 0 0 0 2px rgba(255, 120, 60, .4), 0 0 18px rgba(255, 100, 40, .6), 0 3px 0 #0c0a10; transform: translateY(-4px); }
     /* The verdict beat */
     .hd-verdict { position: absolute; z-index: 5; left: var(--hd-tx, 10px); top: var(--hd-ty, 8px); pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     .hd-stamp:empty { display: none; }
@@ -526,7 +613,7 @@
     #panel .hd-card.hd-notes .help-row::before { flex-basis: 100%; }
     #panel .hd-card.hd-notes .src-badge.un { background: #3a2c10; color: #f0d68a; }
     @media (prefers-reduced-motion: reduce) {
-      .hd-stamp.slam .verdict, .hd-nbk img, .hd-slide.go, .hd-scan.go { animation: none !important; }
+      .hd-stamp.slam .verdict, .hd-nbk img, .hd-slide.go, .hd-scan.go, .hd-foe .hd-spr, .hd-slash, .hd-flash, .hd-scene.hd-shake { animation: none !important; }
       .hd-track { transition: none; }
       .hd-spr, .hd-mon.rattle .hd-jar, .hd-mon.rattle .hd-spr, .hd-mon.loose.rattle .hd-jar, .hd-card.hd-drop { animation: none !important; }
       .hd-mon.cowed .hd-spr { transition: none; }
