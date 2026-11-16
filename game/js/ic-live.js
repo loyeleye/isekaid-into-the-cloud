@@ -41,6 +41,9 @@
     twice: /visibility timeout|idempoten|attribute_not_exists|conditional write|at-least-once/i
   };
   const say = (line, cls) => `<p class="ic-say${cls ? ' ' + cls : ''}" data-vo="${esc('uptima|' + line)}"><b>Uptima:</b> ${esc(line)}</p>`;
+  // On a wide full-screen stage the machine sits on the left and the page, the question and the buttons on the right;
+  // on a phone they stack in reading order: the page, the machine, then what to do.
+  const cols = (a, m, b) => `<div class="icl-cols"><div class="icl-a">${a}</div><div class="icl-m">${m}</div><div class="icl-b">${b}</div></div>`;
   const panel = (html, o) => U.panel(`<div class="icl">${html}</div>`, Object.assign({ title: TITLE, onClose: stopNow }, o || {}));
   function stopNow() { const s = cur(); if (s) save(s); untune(); if (SD.today && SD.today.render) SD.today.render(); }
 
@@ -173,13 +176,13 @@
   function pageScreen(s) {
     const x = inc(s), pc = L.predictChoices(x);
     const first = s.i === 0;
-    const b = panel(`${hud(s)}${say(first ? SAY.open : 'Next page.')}
-      <p class="icl-page">📟 <b>${esc(x.page)}</b></p>
-      ${machine(s, x, null, null)}
-      <div class="icl-pred"><p><b>${esc(x.predict.q)}</b></p>
+    const b = panel(cols(`${hud(s)}${say(first ? SAY.open : 'Next page.')}
+      <p class="icl-page">📟 <b>${esc(x.page)}</b></p>`,
+      machine(s, x, null, null),
+      `<div class="icl-pred"><p><b>${esc(x.predict.q)}</b></p>
         <div class="icl-vals" role="group" aria-label="Your prediction">${pc.choices.map(v => `<button class="${s.pred && s.pred.v === v ? 'on' : ''}" data-pred="${v}" aria-pressed="${!!(s.pred && s.pred.v === v)}">${v}</button>`).join('')}</div>
         ${s.pred ? `<p class="small">How sure are you?</p><div class="row icl-conf">${M.CONF.map((c, i) => `<button class="ghost" data-conf="${i}">${c} <span class="small">✓${M.sgn(M.STAKES[i][0])} ✗${M.sgn(M.STAKES[i][1])}</span></button>`).join('')}</div>` : '<p class="muted small">Pick a number first. Nothing is shown until you commit.</p>'}</div>
-      <div class="row"><button class="ghost" id="icl-stop">Stop for now</button></div>`);
+      <div class="row"><button class="ghost" id="icl-stop">Stop for now</button></div>`));
     b.querySelectorAll('[data-pred]').forEach(el => el.onclick = () => { s.pred = { v: +el.dataset.pred }; save(s); pageScreen(s); });
     b.querySelectorAll('[data-conf]').forEach(el => el.onclick = () => {
       const conf = +el.dataset.conf, ok = s.pred.v === pc.truth;
@@ -203,13 +206,12 @@
       ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict small">You said <b>${p.v}</b>, it was <b>${p.truth}</b> (${M.CONF[p.conf]}, ${M.sgn(p.pts)}). The machine shows the minute it just ran.</p>`
       : say(SAY.unmet);
     const teach = s.teach ? `<p class="icl-teach small">💡 ${esc(s.teach)}</p>` : '';
-    const b = panel(`${hud(s)}${top}
-      <p class="icl-page">📟 ${esc(x.page)}</p>
-      ${machine(s, x, sum, s.open)}
-      ${teach}
-      ${strip(sum)}
+    const b = panel(cols(`${hud(s)}${top}
+      <p class="icl-page">📟 ${esc(x.page)}</p>`,
+      `${machine(s, x, sum, s.open)}${teach}`,
+      `${strip(sum)}
       <p class="small icl-changes">${changed.length ? `Changed: ${changed.map(id => esc(x.knobs[id].name)).join('; ')}.` : 'Nothing changed yet. Tap a part for its evidence and settings.'} ${changed.length > L.MAX_CHANGES ? '<b>More than two changes: the smallest-change stamp is off.</b>' : `The smallest correct change is two knobs or fewer.`}</p>
-      <div class="row"><button class="primary" id="icl-run"${changed.length ? '' : ' disabled'}>▶ Run the next minute</button><button class="ghost" id="icl-stop">Stop for now</button></div>`);
+      <div class="row"><button class="primary" id="icl-run"${changed.length ? '' : ' disabled'}>▶ Run the next minute</button><button class="ghost" id="icl-stop">Stop for now</button></div>`));
     b.querySelectorAll('[data-part]').forEach(el => el.onclick = () => { s.open = s.open === el.dataset.part ? null : el.dataset.part; s.teach = null; save(s); fixScreen(s); });
     b.querySelectorAll('[data-knob]').forEach(el => el.onclick = () => {
       const id = el.dataset.knob, v = +el.dataset.v;
@@ -230,13 +232,13 @@
   function resultScreen(s) {
     const x = inc(s), sum = s.last, st = sum.stamps, more = !sum.slo && s.runs < 2;
     const stamp = (on, label) => `<li class="${on ? 'on' : ''}">${on ? '✓' : '○'} ${esc(label)}</li>`;
-    const b = panel(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.')}
-      ${machine(s, x, sum, null)}
-      <p class="icl-slo"><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}:</b> ${esc(sum.sloLine)}</p>
-      ${strip(sum)}
+    const b = panel(cols(`${hud(s)}${say(sum.slo ? SAY.met : more ? SAY.unmet : 'It\'s still red, and the shift goes on. The debrief says why.')}
+      <p class="icl-slo"><b>${sum.slo ? '✓ SLO met' : '✗ SLO not met'}:</b> ${esc(sum.sloLine)}</p>`,
+      machine(s, x, sum, null),
+      `${strip(sum)}
       <ul class="icl-stamps">${stamp(st.slo, 'SLO met')}${stamp(st.small, 'Two knobs or fewer')}${stamp(st.rule, 'The documented setting')}</ul>
       <p class="small">${esc(sum.ruleLine)}</p>
-      <div class="row">${more ? '<button class="primary" id="icl-again">One more change</button><button class="ghost" id="icl-on">Leave it red, go to the debrief</button>' : '<button class="primary" id="icl-on">Debrief</button>'}</div>`);
+      <div class="row">${more ? '<button class="primary" id="icl-again">One more change</button><button class="ghost" id="icl-on">Leave it red, go to the debrief</button>' : '<button class="primary" id="icl-on">Debrief</button>'}</div>`));
     const again = b.querySelector('#icl-again');
     if (again) again.onclick = () => { s.phase = 'fix'; save(s); draw(s); };
     b.querySelector('#icl-on').onclick = () => {
@@ -286,6 +288,11 @@
   const css = document.createElement('style');
   css.textContent = `
     .icl-hud { margin: 0 0 6px; }
+    @media (min-width: 900px) {
+      body.in-mode .icl-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: 'm a' 'm b'; gap: 0 28px; align-items: start; }
+      body.in-mode .icl-a { grid-area: a; } body.in-mode .icl-m { grid-area: m; } body.in-mode .icl-b { grid-area: b; }
+      body.in-mode .icl-m .icl-machine { margin-top: 0; }
+    }
     .icl-page { margin: 6px 0; overflow-wrap: anywhere; }
     .icl-machine { display: flex; flex-direction: column; align-items: stretch; gap: 2px; margin: 8px 0; }
     .icl-part { border: 2px solid var(--ink, #222); border-radius: 8px; background: var(--paper, #fff); }
