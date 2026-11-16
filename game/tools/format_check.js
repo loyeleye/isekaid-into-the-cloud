@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Question format check: loads js/fmt-*.js (SD.fmtItems) and checks every item against docs/question-formats.md:
 // the fields every item has, the id pattern, tracks and exam-guide tasks, each type's own shape, doc links and
-// no em dashes. Prints a count per type and per file, and exits 1 on any problem.
+// no em dashes. Prints a count per type and per file, and exits 1 on any problem (lines marked "warning:" are printed but don't fail it).
 //
 //   node tools/format_check.js           from game/
 //   node tools/format_check.js --links   also request every doc URL and report any that don't answer 200
@@ -86,6 +86,14 @@ function check(q, ids) {
     if (!Array.isArray(q.cells) || q.cells.length !== nr || !q.cells.every(r => Array.isArray(r) && r.length === 3 && r.every(str))) p.push(`cells must be rows x 3 (${nr} rows of 3 strings)`);
     if (!int(q.a, 3)) p.push('a must be a column index (0 to 2)');
     if (!int(q.key, nr)) p.push(`key must be a row index (0 to ${nr - 1})`);
+    // keys: every row that decides. Each must be a distinct row index, include key, and actually tell the answer
+    // apart: its cell in the right column differs from the other two columns' cells.
+    if (q.keys != null) {
+      if (!Array.isArray(q.keys) || !q.keys.length || !q.keys.every(k => int(k, nr)) || new Set(q.keys).size !== q.keys.length) p.push('keys must list distinct row indexes');
+      else if (q.keys[0] !== q.key) p.push('keys must start with key');
+    }
+    const decides = r => Array.isArray(q.cells) && q.cells[r] && [0, 1, 2].filter(c => c !== q.a && !(q.alsoOk || []).includes(c)).every(c => q.cells[r][c] !== q.cells[r][q.a]);
+    ((Array.isArray(q.keys) && q.keys.length ? q.keys : [q.key]).filter(k => int(k, nr))).forEach(k => { if (!decides(k)) p.push(`warning: deciding row ${k} ("${(q.rows || [])[k]}") has the same cell in the right column as another column`); });
     if (q.alsoOk != null && (!Array.isArray(q.alsoOk) || !q.alsoOk.every(i => int(i, 3) && i !== q.a))) p.push('alsoOk must list other column indexes');
     noLines(p, q.no, 3, q.a, 'column');
   } else if (q.type === 'seq') {
@@ -166,11 +174,12 @@ function head(u) {
 (async () => {
   const { items, files, fileOf, loadErr } = load();
   const ids = new Set();
-  let bad = 0;
+  let bad = 0, warn = 0;
   for (const e of loadErr) { console.log('LOAD ' + e); bad++; }
   for (const q of items) {
     const p = check(q, ids);
-    if (p.length) { bad += p.length; console.log(`${(q && q.id) || '(no id)'} (js/${fileOf.get(q) || '?'}):\n  - ${p.join('\n  - ')}`); }
+    // Lines starting "warning: " are printed but don't fail the check (content for the item's author to look at).
+    if (p.length) { bad += p.filter(x => !/^warning: /.test(x)).length; warn += p.filter(x => /^warning: /.test(x)).length; console.log(`${(q && q.id) || '(no id)'} (js/${fileOf.get(q) || '?'}):\n  - ${p.join('\n  - ')}`); }
   }
   if (args.includes('--links')) {
     const urls = [...new Set(items.flatMap(q => (q && q.doc) || []))];
@@ -183,6 +192,7 @@ function head(u) {
   for (const f of files) console.log(row('js/' + f, items.filter(q => fileOf.get(q) === f)));
   console.log(row('all', items));
   for (const t of TRACKS) console.log(`  ${t}: ${items.filter(q => q && (q.tracks || []).includes(t)).length} items`);
+  if (warn) console.log(`\n${warn} warning${warn === 1 ? '' : 's'} (printed above; they don't fail the check).`);
   console.log(bad ? `\n${bad} problem${bad === 1 ? '' : 's'}.` : '\nNo problems.');
   process.exit(bad ? 1 : 0);
 })();

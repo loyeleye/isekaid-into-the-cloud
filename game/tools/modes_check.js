@@ -165,13 +165,87 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const sa = await page.evaluate(() => { let x = 0.3; const rng = () => (x = (x * 9301 + 49297) % 233280 / 233280); const q = SD.exam.find('dva-4-01'); const before = JSON.stringify(SD.state.save.qlog || {}); const r = [0.45, 0.6, 0.9].map(p => SD.modes.simAnswer(q, { p, conf: 'honest' }, rng).conf); return [r, before === JSON.stringify(SD.state.save.qlog || {}), document.querySelector('#panel').hidden]; });
   check(JSON.stringify(sa[0]) === '[0,1,2]' && sa[1] && sa[2], 'simAnswer: honest confidence follows p, records nothing and opens nothing');
 
+  // ---- Question formats inside a mode (SD.modes.askFormat, js/qformats.js) ----
+  check(await page.evaluate(() => !!SD.qf && !SD.qf.has('spot') && SD.fmtItems.length > 100), 'the formats engine loads but stays off outside a mode (has() is false)');
+  const spot = await page.evaluate(() => { SD.qf.resetExposure(); window.__fr = null; const it = SD.fmtItems.find(i => i.type === 'spot'); SD.modes.askFormat(it, { title: 'TEST' }).then(r => { window.__fr = r; }); return it.id; });
+  await page.waitForSelector('#panel .qf');
+  check(!!await page.$('#qf-got'), 'a mode can ask a format item on the default profile; the first of a format is worked through');
+  await page.click('#qf-got'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.scored === false && window.__fr.pts === 0 && window.__fr.fmt), 'an unscored round pays 0');
+  const pred = await page.evaluate(() => { SD.qf.exposure('predict').known = true; window.__fr = null; window.__ft = SD.modes.newTally(); const it = SD.fmtItems.find(i => i.type === 'predict'); SD.modes.askFormat(it, { title: 'TEST', tally: window.__ft }).then(r => { window.__fr = r; }); return [it.id, it.a]; });
+  await page.waitForSelector('#panel .qf');
+  await page.click(`[data-qf-opt="${pred[1]}"]`); await page.click('#qf-submit');
+  check(/✓\+3/.test(await page.textContent('[data-c="2"]')) && /wrong −3/.test(await page.getAttribute('[data-c="2"]', 'aria-label')), 'the shared stakes show under the format\'s confidence buttons');
+  await shot('format-stakes');
+  await noHScroll('format item');
+  await page.click('[data-c="2"]'); await page.click('#q-next'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.ok === true && window.__fr.pts === 3 && window.__ft[2][1] === 1), 'a scored item pays from the stake table and counts in calibration');
+  const rec = await page.evaluate(([a, b]) => {
+    const r7 = SD.qf.recent(7), later = SD.qf.recent(7, Date.now() + 8 * 864e5);
+    const picks = Array.from({ length: 30 }, () => SD.modes.pickFormat({ types: ['spot', 'predict'] }).id);
+    return [r7.has(a) && r7.has(b), !later.has(a), picks.every(id => id !== a && id !== b), !!SD.state.save.fmtAsked[a]];
+  }, [spot, pred[0]]);
+  check(rec[0] && rec[3], 'every item asked is stamped in the shared "recently asked" record (saved)');
+  check(rec[2], 'pickFormat skips items any mode asked in the last 7 days');
+  check(rec[1], 'and the window is 7 days');
+  // Compare with several deciding rows (keys[]): any of them is right.
+  const cmp = await page.evaluate(() => {
+    SD.qf.exposure('compare').known = true; window.__fr = null;
+    const base = SD.fmtItems.find(i => i.type === 'compare' && !i.keys), other = base.rows.findIndex((r, i) => i !== base.key);
+    const it = Object.assign({}, base, { id: 'test-keys', keys: [base.key, other] });
+    SD.modes.askFormat(it, { title: 'TEST', bands: true }).then(r => { window.__fr = r; });
+    return [it.a, other, SD.qf.keysOf(it).length, SD.qf.keysOf(base).length];
+  });
+  await page.waitForSelector('#panel .qf');
+  await page.click(`[data-qf-col="${cmp[0]}"]`); await page.click(`[data-qf-row="${cmp[1]}"]`); await page.click('#qf-submit'); await page.click('[data-c="1"]');
+  check(/Deciding rows \(any one is right\)/.test(await page.textContent('#panel')), 'compare lists every deciding row in its feedback');
+  await page.click('#q-next'); await page.waitForTimeout(30);
+  check(cmp[2] === 2 && cmp[3] === 1 && await page.evaluate(() => window.__fr && window.__fr.ok === true), 'compare: a second deciding row counts as right (keys[]), and items with one key still work');
+
+  // Compare options for modes: colFirst, the phone row bands, gradeOn 'col', feedback off, a note, practice,
+  // mode 'scored' and shuffleCols.
+  const c1 = await page.evaluate(() => {
+    SD.qf.resetExposure(); window.__fr = null;
+    const it = SD.fmtItems.find(i => i.id === 'fmt-compare-01');
+    SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', colFirst: true, gradeOn: 'col', feedback: false }).then(r => { window.__fr = r; });
+    return [it.a, it.rows.findIndex((r, i) => !SD.qf.keysOf(it).includes(i))];
+  });
+  await page.waitForSelector('#panel .qf');
+  check(!await page.$('#qf-got') && !await page.$('.qf-hint'), 'mode "scored" skips the worked and hint rounds, even for a new format');
+  check(!await page.$('.qf-bands, .qf-cmp-grid, .qf-card') && (await page.$$('.qf-cols [data-qf-col]')).length === 3, 'colFirst: only the stem and the column names before a pick');
+  await page.click(`[data-qf-col="${c1[0]}"]`);
+  check(await page.$$eval('.qf-bands .qf-band:not(.qf-band-head)', b => b.length === 4 && b.every(x => x.querySelectorAll('.qf-band-c').length === 3)), 'after the pick, a phone shows each row as a band with its three cells side by side');
+  check(!await page.$('.qf-bands [data-qf-col]'), 'and the column pick holds once the table shows');
+  await noHScroll('compare bands');
+  await shot('compare-bands');
+  await page.click(`[data-qf-row="${c1[1]}"]`); await page.click('#qf-submit'); await page.click('[data-c="2"]'); await page.waitForTimeout(30);
+  const cr1 = await page.evaluate(() => [window.__fr, document.querySelector('#panel').hidden]);
+  check(cr1[1] && cr1[0] && cr1[0].ok === true && cr1[0].pts === 3 && cr1[0].col.ok === true && cr1[0].row.ok === false && cr1[0].row.pick === c1[1], 'gradeOn "col": the column is graded and staked, the row is reported apart, and feedback: false skips the feedback screen');
+  await page.evaluate(() => { window.__fr = null; const it = SD.fmtItems.find(i => i.id === 'fmt-compare-01'); SD.modes.askFormat(it, { title: 'TEST', mode: 'scored', practice: true, note: 'Duel note line.', bands: true }).then(r => { window.__fr = r; }); });
+  await page.waitForSelector('#panel .qf');
+  check(!!await page.$('.qf-hint .qf-practice') && !await page.$('.qf-hint-t'), 'practice: true shows the Practice label, with no hint round');
+  check(!await page.$('.qf-car') && (await page.$$('.qf-band-head [data-qf-col]')).length === 3, 'bands: true replaces the swipe cards on a phone, with the column picks on the band header');
+  await page.click('.qf-band-head [data-qf-col="0"]');
+  await page.click('[data-qf-row="2"]'); await page.click('#qf-submit'); await page.click('[data-c="1"]');
+  check(/Duel note line\./.test(await page.textContent('#panel .qf-note')), 'opts.note adds one line to the feedback screen');
+  await page.click('#q-next'); await page.waitForTimeout(30);
+  check(await page.evaluate(() => window.__fr && window.__fr.scored === false && window.__fr.pts === 0), 'and a practice item is never scored');
+  const sh = await page.evaluate(() => {
+    const it = SD.fmtItems.find(i => i.id === 'fmt-compare-10'); const orders = new Set(); let same = true;
+    for (let n = 0; n < 40; n++) { const s = SD.qf.shuffleCompare(it); orders.add(s.cols.join('|')); same = same && s.cols[s.a] === it.cols[it.a] && s.cells.every((r, ri) => r.every((c, ci) => c === it.cells[ri][s.colMap[ci]])) && (s.no || []).every((w, ci) => w === (it.no || [])[s.colMap[ci]]); }
+    return [orders.size, same];
+  });
+  check(sh[0] > 1 && sh[1], `shuffleCols: columns come in new orders (${sh[0]} seen) with answer, cells and "why not" lines moved with them`);
+  const k5 = await page.evaluate(() => ['01', '03', '10', '20', '21'].map(n => SD.qf.keysOf(SD.fmtItems.find(i => i.id === 'fmt-compare-' + n)).join(',')).join(' '));
+  check(k5 === '2,0 1,2 1,0,2 0,1,2 1,0,2', 'the Duel\'s deciding rows are on items 01, 03, 10, 20 and 21 (' + k5 + ')');
+
   // ---- Calibration ----
   const cal = await page.evaluate(() => { const t = { 0: [1, 4], 1: [3, 5], 2: [2, 5] }; const d = document.createElement('div'); d.innerHTML = SD.modes.calibHtml(t); return [[...d.querySelectorAll('tr')].map(tr => [...tr.children].map(x => x.textContent.trim()).join(' ')).join(' | '), SD.modes.points(t)]; });
   check(/Sure 2 of 5 right \(40%\) ↓ Too sure/.test(cal[0]), 'calibration: Sure at 40% reads "Too sure" in words');
   check(/Think so 3 of 5 right \(60%\) ✓ On target/.test(cal[0]) && /Guess 1 of 4 right \(25%\) ✓ On target/.test(cal[0]), 'calibration: in-band buttons read "On target"');
   check(cal[1] === 1 + 0 + 3 * 2 - 2 + 2 * 3 - 3 * 3, 'calibration points add up (' + cal[1] + ')');
   const all = await page.evaluate(() => SD.state.save.modes.cal[2]);
-  check(all && all[1] === 3 && all[0] === 1, 'answers through SD.modes.ask add to the all-modes calibration');
+  check(all && all[1] === 4 && all[0] === 2, 'answers through SD.modes.ask and scored format items add to the all-modes calibration (' + JSON.stringify(all) + ')');
 
   // ---- Pay ----
   const pay = await page.evaluate(() => { const x0 = SD.state.save.xp, s0 = SD.state.save.shards | 0; const a = SD.modes.pay('test'), b = SD.modes.pay('test'); return [a, b, (SD.state.save.shards | 0) - s0]; });

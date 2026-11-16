@@ -9,7 +9,8 @@
 // practice: true shows a Practice label and is never scored, like a hint round.
 //
 // Inert unless SD.profile === 'full' or the page sets window.SD_FMT_LAB (game/fmt-lab.html): has() is false and
-// ask() resolves null. It changes no other file; it injects its own CSS on first use.
+// ask() resolves null. A game mode can still ask one item on any profile with opts.shell: true (js/modes.js
+// SD.modes.askFormat); has() stays false everywhere else. It changes no other file; it injects its own CSS on first use.
 //
 // How a format is introduced (per type, in SD.state.save.fg.fmt[type] when a save exists, else in memory):
 // the first item is worked (answer shown, "Got it", unscored), the second is practice with one hint (unscored),
@@ -17,7 +18,18 @@
 // that is not known yet and has two misses in a row gets one more practice round (with a hint) before scoring again.
 // opts.mode ('worked' | 'hint' | 'scored') overrides the rule; opts.track === false leaves the exposure alone.
 //
-// opts: { title, context, mode, track, noRecord, fade (faded: 0 to 3), recall ('bank' | 'typed') }
+// opts: { title, context, mode, track, noRecord, fade (faded: 0 to 3), recall ('bank' | 'typed'),
+//         shell (a game mode asking on any profile), stakes ([[right, wrong]] for Guess, Think so, Sure, shown under
+//         the confidence buttons), practice (never scored, shows the Practice label), feedback (false skips the
+//         feedback screen), note (one line on the feedback screen) }
+// Compare only: colFirst (the column names first; the table shows once a column is picked, and the pick holds),
+//         bands (on a phone, each row's cells side by side instead of the swipe cards; colFirst implies it),
+//         gradeOn: 'col' (the column decides ok; the row is reported apart), shuffleCols (new column order per ask).
+//         Compare results carry col: { pick, ok } (pick is the item's own column index) and row: { pick, ok }.
+// Recently asked (shared by every mode): each item asked is stamped in SD.state.save.fmtAsked[id] (kept 30 days).
+// SD.qf.recent(days = 7) is the set asked in the last `days` days, and SD.qf.pick({ types, filter, days, avoid })
+// returns an item not asked in that window (the least recently asked if all were), so modes don't repeat items.
+// Compare items may name more than one deciding row: keys: [row, ...] (key stays the first); any of them is right.
 (function () {
   window.SD = window.SD || {};
   SD.fmtItems = SD.fmtItems || [];
@@ -34,6 +46,34 @@
   const mq = q => !!(window.matchMedia && window.matchMedia(q).matches);
   const reduced = () => mq('(prefers-reduced-motion: reduce)');
   const isWide = () => mq('(min-width: 720px)');
+
+  // ---- Recently asked, shared by every mode ----
+  const DAY = 864e5;
+  function asked() {
+    const sv = SD.state && SD.state.save;
+    const s = sv ? (sv.fmtAsked = sv.fmtAsked || {}) : (mem.__asked = mem.__asked || {});
+    return s;
+  }
+  Q.markAsked = function (id, now) {
+    if (!id) return;
+    const s = asked(), t = now || Date.now();
+    s[id] = t;
+    for (const k of Object.keys(s)) if (t - s[k] > 30 * DAY) delete s[k];
+    persist();
+  };
+  Q.recent = function (days, now) {
+    const s = asked(), t = now || Date.now(), win = (days == null ? 7 : days) * DAY;
+    return new Set(Object.keys(s).filter(k => t - s[k] < win));
+  };
+  Q.pick = function (o) {
+    o = o || {};
+    const types = o.types || (o.type ? [o.type] : TYPES), avoid = new Set(o.avoid || []), s = asked();
+    const pool = (SD.fmtItems || []).filter(it => types.includes(it.type) && !avoid.has(it.id) && (!o.filter || o.filter(it)));
+    if (!pool.length) return null;
+    const recent = Q.recent(o.days, o.now), fresh = pool.filter(it => !recent.has(it.id));
+    if (fresh.length) return fresh[Math.floor((o.rng || Math.random)() * fresh.length)];
+    return pool.slice().sort((a, b) => (s[a.id] || 0) - (s[b.id] || 0))[0];
+  };
 
   // ---- Exposure: worked, then practice, then scored ----
   const mem = {};
@@ -139,9 +179,12 @@
     return `<div class="qf-docs"><div class="q-ctx">AWS docs</div><ul>${d.map(u =>
       `<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(label(u).replace(/[-_]/g, ' '))}</a></li>`).join('')}</ul></div>`;
   }
-  function confBlock(ready) {
+  const sgn = n => (n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '±0');
+  // stakes: [[right, wrong]] by button, shown under each (a game mode's shared stake table).
+  function confBlock(ready, stakes) {
+    const SK = Array.isArray(stakes) && stakes.length === 3 ? stakes : null;
     return `<div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
-      <button data-c="0" ${ready ? '' : 'disabled'}>Guess</button><button data-c="1" ${ready ? '' : 'disabled'}>Think so</button><button data-c="2" ${ready ? '' : 'disabled'}>Sure</button></div></div>`;
+      ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}${SK ? ` aria-label="${t}: right ${sgn(SK[i][0])}, wrong ${sgn(SK[i][1])}"` : ''}>${t}${SK ? `<small class="stake"><span class="up">✓${sgn(SK[i][0])}</span> <span class="dn">✗${sgn(SK[i][1])}</span></small>` : ''}</button>`).join('')}</div></div>`;
   }
 
   // ---- Renderers, one per type ----
@@ -150,6 +193,10 @@
   // review(st, item, ctx, res) -> answer markup with marks; answer(item) -> the right answer as text;
   // nots(st, item) -> [{ name, why, mine }]; hint(st, item) -> one line; after(root, st, item, ctx) after feedback.
   const R = {};
+  // Compare: the deciding rows (keys[] when an item has more than one; key is the first).
+  const keysOf = it => (Array.isArray(it.keys) && it.keys.length ? it.keys : [it.key]);
+  const isKey = (it, r) => r != null && keysOf(it).includes(r);
+  Q.keysOf = keysOf;
 
   // compare: three columns, the same rows for each. Pick the column, then the row that decided it.
   R.compare = {
@@ -161,13 +208,27 @@
       let h = `<div class="qf-cmp-grid" style="grid-template-columns: minmax(84px, .7fr) repeat(${n}, minmax(0, 1fr))"><div class="qf-cmp-corner"></div>`;
       h += it.cols.map((c, i) => {
         const cls = review ? (i === it.a ? ' right' : (it.alsoOk || []).includes(i) ? ' also' : st.col === i ? ' wrong' : '') : st.col === i ? ' on' : '';
-        return review ? `<div class="qf-cmp-h${cls}">${i === it.a || st.col === i ? mark(i === it.a || (it.alsoOk || []).includes(i)) : ''}${esc(c)}</div>`
+        return review || st.colLocked ? `<div class="qf-cmp-h${cls}">${i === it.a || st.col === i ? mark(i === it.a || (it.alsoOk || []).includes(i)) : ''}${esc(c)}</div>`
           : `<button class="qf-cmp-h${cls}" data-qf-col="${i}" aria-pressed="${st.col === i}" aria-label="Pick ${esc(c)}">${esc(c)}<span class="qf-sub">${st.col === i ? 'Picked' : 'Pick'}</span></button>`;
       }).join('');
       it.rows.forEach((r, ri) => {
-        const key = review && ri === it.key;
+        const key = review && isKey(it, ri);
         h += `<div class="qf-cmp-r${key ? ' qf-key' : ''}">${esc(r)}</div>`;
         h += it.cols.map((_, ci) => `<div class="qf-cmp-c${key ? ' qf-key' : ''}${(review ? ci === it.a : st.col === ci) ? ' on' : ''}">${esc(it.cells[ri][ci])}</div>`).join('');
+      });
+      return h + '</div>';
+    },
+    // bands: the phone row step. Each row is a band with the three cells side by side, so nothing needs a swipe.
+    bands(st, it, review) {
+      const n = it.cols.length, also = i => (it.alsoOk || []).includes(i);
+      const hcls = i => review ? (i === it.a ? ' right' : also(i) ? ' also' : st.col === i ? ' wrong' : '') : st.col === i ? ' on' : '';
+      const pickable = !review && !st.colLocked;
+      let h = `<div class="qf-bands" style="--qf-n:${n}"><div class="qf-band qf-band-head">${it.cols.map((c, i) => pickable
+        ? `<button class="qf-band-h${hcls(i)}" data-qf-col="${i}" aria-pressed="${st.col === i}" aria-label="Pick ${esc(c)}">${esc(c)}<span class="qf-sub">${st.col === i ? 'Picked' : 'Pick'}</span></button>`
+        : `<div class="qf-band-h${hcls(i)}">${review && (i === it.a || also(i) || st.col === i) ? mark(i === it.a || also(i)) : ''}${esc(c)}</div>`).join('')}</div>`;
+      it.rows.forEach((r, ri) => {
+        const key = review && isKey(it, ri);
+        h += `<div class="qf-band${key ? ' qf-key' : ''}${ri % 2 ? ' alt' : ''}"><div class="qf-band-r">${esc(r)}</div>${it.cols.map((c, ci) => `<div class="qf-band-c${(review ? ci === it.a : st.col === ci) ? ' on' : ''}" aria-label="${esc(c)}: ${esc(it.cells[ri][ci])}">${esc(it.cells[ri][ci])}</div>`).join('')}</div>`;
       });
       return h + '</div>';
     },
@@ -175,13 +236,21 @@
       const right = i === it.a, also = (it.alsoOk || []).includes(i);
       const cls = review ? (right ? ' right' : also ? ' also' : st.col === i ? ' wrong' : '') : st.col === i ? ' on' : '';
       return `<div class="qf-card${cls}" data-qf-card="${i}"><div class="qf-card-h">${review && (right || also || st.col === i) ? mark(right || also) : ''}${esc(it.cols[i])}${review && also ? ' <em class="qf-tag">also works</em>' : ''}${review && st.col === i ? ' <em class="qf-tag">your pick</em>' : ''}</div>
-        <dl>${it.rows.map((r, ri) => `<div class="qf-kv${review && ri === it.key ? ' qf-key' : ''}"><dt>${esc(r)}</dt><dd>${esc(it.cells[ri][i])}</dd></div>`).join('')}</dl>
+        <dl>${it.rows.map((r, ri) => `<div class="qf-kv${review && isKey(it, ri) ? ' qf-key' : ''}"><dt>${esc(r)}</dt><dd>${esc(it.cells[ri][i])}</dd></div>`).join('')}</dl>
         ${review ? '' : `<button class="qf-pick${st.col === i ? ' on' : ''}" data-qf-col="${i}" aria-pressed="${st.col === i}">${st.col === i ? '✓ Picked' : 'Pick ' + esc(it.cols[i])}</button>`}</div>`;
     },
     draw(st, it, ctx) {
-      const n = it.cols.length;
+      const n = it.cols.length, o = ctx.opts || {};
       let h = '';
+      // colFirst: the stem and the column names only. The table shows once a column is picked, and that pick stays.
+      if (o.colFirst && st.col == null) {
+        return `<div class="qf-step1"><div class="q-ctx">Pick a column</div><div class="qf-chips qf-cols">${it.cols.map((c, i) => chipBtn(`data-qf-col="${i}"`, c, false)).join('')}</div></div>
+          <p class="muted small">Decide from the question. The table shows after you pick, so you can name the row that decided it.</p>`;
+      }
+      if (o.colFirst) st.colLocked = true;
+      if (o.colFirst) h += `<p class="qf-pickline">Your column: <b>${esc(it.cols[st.col])}</b></p>`;
       if (ctx.wide) h += this.grid(st, it, ctx, false);
+      else if (o.bands || o.colFirst) h += this.bands(st, it, false);
       else {
         h += `<div class="qf-car" aria-live="polite">${this.card(st, it, st.view, false)}</div>
           <div class="qf-nav"><button class="qf-arrow" id="qf-prev" aria-label="Previous option">‹</button>
@@ -195,7 +264,7 @@
     },
     bind(root, st, it, ctx, redraw) {
       const n = it.cols.length;
-      root.querySelectorAll('[data-qf-col]').forEach(b => b.onclick = () => { const i = +b.dataset.qfCol; st.col = st.col === i ? null : i; if (st.col == null) st.row = null; redraw(); });
+      root.querySelectorAll('[data-qf-col]').forEach(b => b.onclick = () => { if (st.colLocked) return; const i = +b.dataset.qfCol; st.col = st.col === i ? null : i; if (st.col == null) st.row = null; redraw(); });
       root.querySelectorAll('[data-qf-row]').forEach(b => b.onclick = () => { st.row = +b.dataset.qfRow; redraw(); });
       const go = d => { st.view = (st.view + d + n) % n; redraw(); };
       const pv = root.querySelector('#qf-prev'), nx = root.querySelector('#qf-next');
@@ -215,18 +284,18 @@
     },
     ready: st => st.col != null && st.row != null,
     grade(st, it) {
-      const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col), rowOk = st.row === it.key;
-      return { ok: colOk && rowOk, partial: (colOk ? 0.5 : 0) + (rowOk ? 0.5 : 0) };
+      const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col), rowOk = isKey(it, st.row);
+      return { ok: colOk && rowOk, partial: (colOk ? 0.5 : 0) + (rowOk ? 0.5 : 0), colOk, rowOk };
     },
     solve(st, it) { st.col = it.a; st.row = it.key; st.view = it.a; },
     review(st, it, ctx) {
       const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col);
-      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>, decided by <b class="${st.row === it.key ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b></p>`;
-      h += `<p class="qf-pickline">The deciding row: <b>${esc(it.rows[it.key])}</b></p>`;
-      h += ctx.wide ? this.grid(st, it, ctx, true) : `<div class="qf-stack">${range(it.cols.length).map(i => this.card(st, it, i, true)).join('')}</div>`;
+      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>, decided by <b class="${isKey(it, st.row) ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b></p>`;
+      h += `<p class="qf-pickline">${keysOf(it).length > 1 ? 'Deciding rows (any one is right)' : 'The deciding row'}: <b>${esc(keysOf(it).map(k => it.rows[k]).join(' · '))}</b></p>`;
+      h += ctx.wide ? this.grid(st, it, ctx, true) : (ctx.opts || {}).bands || (ctx.opts || {}).colFirst ? this.bands(st, it, true) : `<div class="qf-stack">${range(it.cols.length).map(i => this.card(st, it, i, true)).join('')}</div>`;
       return h;
     },
-    answer: it => `${it.cols[it.a]}, decided by ${it.rows[it.key]}`,
+    answer: it => `${it.cols[it.a]}, decided by ${keysOf(it).map(k => it.rows[k]).join(' or ')}`,
     nots: (st, it) => it.cols.map((c, i) => ({ i, name: c + ((it.alsoOk || []).includes(i) ? ' (also works)' : ''), why: (it.no || [])[i], mine: st.col === i })).filter(n => n.i !== it.a && n.why),
     hint: (st, it) => `Compare the columns on "${it.rows[it.key]}".`
   };
@@ -478,16 +547,28 @@
   };
 
   // ---- The flow ----
+  // shuffleCols: a copy of a compare item with its columns in a new order. colMap[shown] = the original index.
+  function shuffleCompare(it) {
+    const map = shuffle(range(it.cols.length)), back = i => map.indexOf(i);
+    return Object.assign({}, it, {
+      cols: map.map(i => it.cols[i]), cells: it.cells.map(r => map.map(i => r[i])), a: back(it.a),
+      alsoOk: (it.alsoOk || []).map(back), no: it.no ? map.map(i => it.no[i]) : it.no, colMap: map
+    });
+  }
+  Q.shuffleCompare = shuffleCompare;
+
   Q.ask = function (item, opts) {
     opts = opts || {};
-    if (!Q.enabled() || !item || !R[item.type]) return Promise.resolve(null);
+    if (!(Q.enabled() || opts.shell) || !item || !R[item.type]) return Promise.resolve(null);
+    if (item.type === 'compare' && opts.shuffleCols) item = shuffleCompare(item);
+    Q.markAsked(item.id);
     injectCss();
     trapTab();
     return new Promise(resolve => {
       const r = R[item.type], t0 = Date.now();
       const mode = ['worked', 'hint', 'scored'].includes(opts.mode) ? opts.mode : Q.modeFor(item.type);
       // Practice: a hint round, or an item the author flagged with practice: true. Neither is scored.
-      const practice = mode === 'hint' || !!item.practice;
+      const practice = mode === 'hint' || !!item.practice || !!opts.practice;
       const ctx = { opts, mode, wide: isWide() };
       const st = r.init(item, ctx);
       const title = opts.title || 'WHITEBOARD';
@@ -512,7 +593,7 @@
         let h = head() + (practice ? `<div class="qf-hint"><span class="qf-practice">Practice</span> Not scored.${mode === 'hint' ? ` <span class="qf-hint-t">Hint: ${esc(r.hint(st, item))}</span>` : ''}</div>` : '');
         if (item.type === 'recall' && !st.typed) h += '<div class="qf-recog"><span class="qf-practice">Recognition</span> Word bank: picking from a list counts for less than typing from memory.</div>';
         h += r.draw(st, item, ctx);
-        h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true)
+        h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true, opts.stakes)
           : `<div class="qf-submit-row"><button class="primary" id="qf-submit" ${ready ? '' : 'disabled'}>Submit</button></div>`;
         if (!root || !root.isConnected) {
           const b = panel(`<div class="qf qf-${item.type}" data-qf-type="${item.type}" data-qf-phase="answer"></div>`, { title, noClose: true, cls });
@@ -557,16 +638,31 @@
       function submit(conf) {
         const ms = Date.now() - t0;
         const res = r.grade(st, item);
-        const ok = !!res.ok;
-        const scored = mode === 'scored' && !item.practice;
+        const scored = mode === 'scored' && !item.practice && !opts.practice;
+        // gradeOn 'col' (compare): the column decides right or wrong; the row is reported on its own.
+        if (item.type === 'compare' && opts.gradeOn === 'col') res.ok = res.colOk;
         // A word bank is recognition, not recall: a pass there counts as partial for exposure, never as a clean right.
         const recog = item.type === 'recall' && !st.typed;
+        const ok = !!res.ok;
         if (recog) { res.recognition = true; res.partial = Math.min(res.partial == null ? 1 : res.partial, 0.5); }
         if (scored && item.c && !opts.noRecord && SD.state && SD.state.recordAnswer && SD.concepts && SD.concepts[item.c]) {
           try { SD.state.recordAnswer(item.c, ok, conf, ms); } catch (e) { /* a concept the save doesn't know yet */ }
         }
         if (opts.track !== false) track(item.type, mode, recog && ok ? 'partial' : ok); else persist();
+        // feedback: false skips the feedback screen (the mode shows its own); opts.note adds one line to it.
+        if (opts.feedback === false) { closePanel(); resolve(result(ok, conf, ms, res, scored)); return; }
         feedback(ok, conf, ms, res, scored);
+      }
+      function result(ok, conf, ms, res, scored) {
+        const out = { ok, conf, ms, mode, scored };
+        if (res.partial != null) out.partial = res.partial;
+        if (res.recognition) out.recognition = true;
+        if (item.type === 'compare') {
+          const orig = i => (item.colMap && i != null ? item.colMap[i] : i);
+          out.col = { pick: orig(st.col), ok: !!res.colOk };
+          out.row = { pick: st.row, ok: !!res.rowOk };
+        }
+        return out;
       }
       function helpRow() {
         const eli = item.eli5 || (SD.eli5 && item.id && SD.eli5[item.id]) || '';
@@ -581,6 +677,7 @@
         if (SD.audio && SD.audio.sfx) { try { SD.audio.sfx(ok ? 'right' : 'wrong'); } catch (e) { /* no audio */ } }
         let h = `<div class="qf qf-${item.type}" data-qf-type="${item.type}" data-qf-phase="feedback" data-qf-ok="${ok ? 1 : 0}">`;
         h += `<div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? (conf === 0 ? 'CORRECT... BUT A GUESS' : 'CORRECT!') : res.partial >= 0.5 ? 'PARTLY RIGHT!' : 'NOT QUITE!'}</div>`;
+        if (opts.note) h += `<p class="qf-note">${esc(opts.note)}</p>`;
         if (!scored) h += `<p class="muted small"><span class="qf-practice">Practice</span> This one isn't scored.</p>`;
         if (res.recognition) h += `<p class="muted small"><span class="qf-practice">Recognition</span> Picked from a word bank, so it counts as a partial result. Typing them from memory counts in full.</p>`;
         if (!ok && conf === 2) h += `<p class="warn small">You were sure and it was wrong. That gap is the most valuable thing you found today, so this comes back first.</p>`;
@@ -597,10 +694,7 @@
         const nx = b.querySelector('#q-next');
         nx.onclick = () => {
           closePanel();
-          const out = { ok, conf, ms, mode, scored };
-          if (res.partial != null) out.partial = res.partial;
-          if (res.recognition) out.recognition = true;
-          resolve(out);
+          resolve(result(ok, conf, ms, res, scored));
         };
         nx.focus();
       }
@@ -651,6 +745,20 @@ button.qf-cmp-h:hover { background: #e6f0ff; }
 .qf-cmp-r { font-weight: 700; background: #faf6ee; }
 .qf-cmp-grid .qf-key { background: #fff3c4 !important; box-shadow: inset 0 2px 0 var(--qf-sun), inset 0 -2px 0 var(--qf-sun); font-weight: 700; }
 .qf-car { touch-action: pan-y; }
+.qf-bands { margin: 10px 0; border: 2px solid var(--qf-ink); border-radius: 12px; overflow: hidden; background: #fff; font-size: 13px; }
+.qf-band { display: grid; grid-template-columns: repeat(var(--qf-n, 3), minmax(0, 1fr)); border-bottom: 1px solid rgba(43,35,64,.15); }
+.qf-band.alt { background: #faf6ee; }
+.qf-band-r { grid-column: 1 / -1; padding: 6px 8px 2px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted, #6f6787); }
+.qf-band-c { padding: 2px 8px 8px; min-width: 0; overflow-wrap: anywhere; border-left: 1px solid rgba(43,35,64,.12); }
+.qf-band-r + .qf-band-c { border-left: 0; }
+.qf-band-c.on { background: #dcebff; }
+.qf-band-head { background: #f3f8ff; border-bottom: 2px solid var(--qf-ink); }
+.qf-band-h { padding: 8px; min-height: 44px; min-width: 0; overflow-wrap: anywhere; font-family: var(--f-head, system-ui); font-weight: 700; text-align: left; background: transparent; border: 0; border-left: 1px solid rgba(43,35,64,.12); }
+.qf-band-h:first-child { border-left: 0; }
+.qf .qf-band-h.on { background: #dcebff; } .qf-band-h.right { background: #eafaf2; color: #1f6a47; } .qf-band-h.also { background: #f2fbf6; } .qf-band-h.wrong { background: #fff1f1; color: #8a2d2d; }
+.qf-band-h .qf-sub { display: block; font-size: 12px; font-weight: 600; color: var(--qf-blue-d); }
+.qf-bands .qf-band.qf-key { background: #fff3c4; box-shadow: inset 0 2px 0 var(--qf-sun), inset 0 -2px 0 var(--qf-sun); }
+.qf .qf-note { margin: 4px 0 8px; font-weight: 600; }
 .qf-card { background: #fff; border: 2px solid var(--qf-ink); border-radius: 14px; padding: 10px 12px; box-shadow: 0 3px 0 rgba(43,35,64,.85); }
 .qf-card.on { border-color: var(--qf-blue-d); box-shadow: 0 3px 0 var(--qf-blue-d); background: #f3f8ff; }
 .qf-card.right { border-color: var(--qf-mint); background: #f2fbf6; } .qf-card.also { border-color: var(--qf-mint); border-style: dashed; } .qf-card.wrong { border-color: var(--qf-red); background: #fff6f6; }

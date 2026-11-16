@@ -139,6 +139,21 @@
   // A monster's encounters (build spec v4): Track is a twin, typed first; Fight is a second twin, or the original when
   // the idea has only one; Pin it down uses the Fight question. A wounded monster skips Track. No twin at all: Track is
   // the original, typed first, as the Wall asks it.
+  // Fight on a first battle is a faded worked example on the poster's topic when one exists (Ladi, Nov 16: each mode
+  // gets its own way of asking). Each blank step filled right is a hit. The bank twin stays as the Fight question for
+  // a return battle (it counts on the Wall) and whenever the format is still being introduced.
+  H.FADE = 2;
+  // Through the shared shell's formats hook (SD.modes.askFormat / pickFormat): an item any mode asked in the last
+  // 7 days is skipped while a fresh one exists.
+  const fmtOn = () => !!(SD.modes && SD.modes.askFormat && SD.modes.pickFormat && SD.qf);
+  const dva = x => (x.tracks || []).some(t => /^DVA/.test(t));
+  const findFaded = id => (SD.fmtItems || []).find(x => x.id === id && x.type === 'faded') || null;
+  function pickFaded(topic, avoid) {
+    if (!fmtOn()) return null;
+    return SD.modes.pickFormat({ types: ['faded'], days: 7, avoid: [...avoid], filter: x => x.topic === topic && dva(x) }) || null;
+  }
+  // The blanks the engine leaves at its scored level (the item's own fade, else 2; 3 blanks every blankable step).
+  const blanksOf = it => { const can = it.steps.filter(x => x.blankable !== false).length, lv = it.fade != null ? +it.fade : H.FADE; return Math.max(1, lv >= 3 ? can : Math.min(lv, can)); };
   function plan(id, rec) {
     const tw = pickTwins(id, rec.twins || [], 2);
     if (rec.wounded) return { steps: ['fight', 'pin'], qs: { fight: (tw[0] || { id }).id } };
@@ -212,10 +227,12 @@
     return !ex || Date.now() < ex - 2 * 86400000 - 1;
   };
   function newHunt() {
-    const M = mons(), list = [], used = new Set();
+    const M = mons(), list = [], used = new Set(), usedFaded = new Set();
     H.board().forEach(w => {
       const q = find(w.id), m = M[w.id] || {}, pl = plan(w.id, m);
-      list.push({ id: w.id, name: H.name(q), steps: pl.steps, k: 0, qs: pl.qs, res: {}, pin: null, out: null, wounded: !!m.wounded, pts: 0 });
+      const f = !m.wounded && pl.steps.includes('fight') ? pickFaded(topicOf(q), usedFaded) : null;
+      if (f) { pl.qs.faded = f.id; usedFaded.add(f.id); }
+      list.push({ id: w.id, name: H.name(q), steps: pl.steps, k: 0, qs: pl.qs, res: {}, pin: null, out: null, wounded: !!m.wounded, pts: 0, fadeN: f ? blanksOf(f) : 0 });
       used.add(w.id); Object.values(pl.qs).forEach(x => used.add(x));
     });
     // Practice-test sightings fill the empty slots as wild monsters: an unseen question on that topic.
@@ -277,8 +294,9 @@
   // The monster's health bar on every encounter: 3 pips (2 for a wild one). Each right Track, Fight or Pin it down
   // lands a hit; a wounded monster comes back with Track's pip already gone. A miss is a hit back on you (the stake)
   // and it flees at the end of the battle with health left.
-  const maxHP = m => (m.wild ? 2 : 3);
-  const hpOf = m => m.steps.length - m.steps.filter(s => m.res[s] && m.res[s].ok).length;
+  const worth = (m, s) => (s === 'fight' && m.fadeN ? m.fadeN : 1);
+  const maxHP = m => (m.wild ? 2 : 3 + (m.fadeN ? m.fadeN - 1 : 0));
+  const hpOf = m => m.steps.reduce((n, s) => n + worth(m, s), 0) - m.steps.reduce((n, s) => n + (m.res[s] ? (m.res[s].hits != null ? m.res[s].hits : m.res[s].ok ? worth(m, s) : 0) : 0), 0);
   H._hpOf = hpOf;
   function hue(m) { let x = 0; for (const c of String(m.name)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; }
   function hpHtml(m, cls) {
@@ -319,6 +337,11 @@
       record(h, m, 'pin', r.ok, r.conf, stake(r.ok, r.conf));
       return;
     }
+    if (step === 'fight' && m.qs.faded && !m.fadedDone && fmtOn()) {
+      const it = findFaded(m.qs.faded);
+      if (it) return fadedStep(h, m, it, ctx, tok);
+      m.fadedDone = 1;
+    }
     const q = withConcept(find(m.qs[step]));
     if (!q) { m.k++; S.persist(); return; }
     S.seeConcept(q.c);
@@ -338,6 +361,22 @@
     // A wild miss goes on the Wall at any confidence: a practice-test topic you just missed again is a real gap.
     if (m.wild && !r.ok && TD().wallAdd) TD().wallAdd(q.id);
     if (r.stopped) stopHunt();
+  }
+  // Fight as a faded worked example: the procedure with blanks. Each blank filled right lands a hit; each wrong one
+  // lets it hit back. The stake is the item's, on the whole answer. While the format is still new (a worked example,
+  // then a practice round with a hint) nothing is scored: the bank twin is asked next as the Fight.
+  async function fadedStep(h, m, it, ctx, tok) {
+    live.q = null; live.m = m; live.t0 = Date.now(); live.inAsk = false;
+    const r = await SD.modes.askFormat(it, { title: TITLE, context: ctx + ' · Faded example', tally: h.tally });
+    if (!live || live.tok !== tok) return;
+    m.fadedDone = 1;
+    if (!r || !r.scored) { S.persist(); return; }
+    const n = m.fadeN || 1, hits = Math.round((r.partial != null ? r.partial : r.ok ? 1 : 0) * n);
+    record(h, m, 'fight', r.ok, r.conf, r.pts);
+    m.res.fight.hits = hits; m.res.fight.faded = it.id;
+    // A miss gets the retry on a bank twin straight away, as the other encounters do.
+    if (!r.ok) { const q = find(m.qs.fight); const t = q && m.qs.fight !== m.qs.track ? m.qs.fight : q ? retryTwin(m, q) : null; if (t) m.retry = t; }
+    S.persist();
   }
   // The retry after a miss: a twin of the missed question (or of the poster's) that this monster hasn't asked, never
   // the same question.
@@ -608,7 +647,7 @@
     const q = m ? find(m.qs.track || m.qs.fight) : (H.board()[0] ? find(H.board()[0].id) : null);
     return [
       { title: 'MONSTER HUNT · 1 OF 3', html: `<p class="td-head">${esc(BRU.board[0])}</p>${q ? `<p class="small">Here's one of yours: <b>${esc(H.name(q))}</b>.</p><blockquote class="hn-opt small">${esc(q.q)}</blockquote>` : ''}<p class="small">Each poster on your Wall is a monster. Get it right three ways to catch it.</p>` },
-      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A second twin, where you corner it.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
+      { title: 'MONSTER HUNT · 2 OF 3', html: `<ol class="hn-how"><li><b>Track.</b> A twin of the question that put it up: the same rule, a new scenario. Type your answer before the options show.</li><li><b>Fight.</b> A worked example with steps missing. Each step you fill right is a hit; a wrong one and it hits back. On a return battle, a second twin.</li><li><b>Pin it down.</b> Why doesn't the look-alike answer fit? Pin the real reason to Bru's poster.</li></ol><p class="small">Miss one and you get a retry on another twin straight away. No hints before you answer; help comes after.</p><ol hidden></ol>` },
       { title: 'MONSTER HUNT · 3 OF 3', html: `<p class="small">Commit every answer with <b>Guess</b> (+1 / ±0), <b>Think so</b> (+2 / −1) or <b>Sure</b> (+3 / −3). Say how sure you really are: that's how you score most.</p>
         <ul class="hn-how"><li><b>✓ Captured:</b> knocked out, and right on two different questions on two different days, as on the Wall. It goes in the bestiary.</li><li><b>◐ Wounded:</b> knocked out today. Back tomorrow with one pip gone.</li><li><b>↺ Escaped:</b> it hit back and fled with health left. It comes back on a later day with a different twin.</li></ul>
         <p class="small">You pick which monster to battle next. Each right answer lands a hit on its health bar; a miss and it hits back. Knock it out to catch it.</p>

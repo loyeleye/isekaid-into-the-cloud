@@ -19,6 +19,12 @@
 //                                         r.stopped when Stop for now was pressed before an answer was committed.
 //   SD.modes.ask(q, { act: { label, icon } })   options shown as actions in the world (the whole stem always shows:
 //                                         build spec v4, no clues and no hints before committing)
+//   SD.modes.askFormat(item, { title, context, tally })   one format item (js/qformats.js: compare, seq, predict,
+//                                         spot, recall, faded) inside a mode on any profile, with the stake table under
+//                                         its confidence buttons: { ok, conf, pts, scored, mode, partial }. Unscored
+//                                         rounds (the engine's worked and practice introduction) pay 0 and skip calibration.
+//   SD.modes.pickFormat({ types, filter, days = 7, avoid })   an item not asked by any mode in the last 7 days
+//                                         (SD.qf.pick and the shared record SD.qf.recent); SD.modes.fmtItem(id)
 //   SD.modes.split(q)                     { ask, qual, pick, scenario }: the question line, its MOST/LEAST qualifier
 //                                         and any Select TWO hint, for a card that names an encounter before it opens
 //   SD.modes.note(tally, ok, conf), SD.modes.sureMiss(qid)   for modes that judge answers themselves (per-slot drafts)
@@ -172,6 +178,27 @@
     S.persist();
     if (r.stopped) opts.onStop(r);
     return r;
+  };
+
+  // ---- Question formats inside a mode (js/qformats.js) ----
+  // Format items aren't bank questions, so a Sure miss doesn't go on the Wall.
+  M.fmtItem = id => (SD.fmtItems || []).find(it => it.id === id) || null;
+  M.pickFormat = o => (SD.qf && SD.qf.pick ? SD.qf.pick(o) : null);
+  M.askFormat = async function (item, opts) {
+    opts = opts || {};
+    if (!SD.qf || !item) return null;
+    // Engine options pass through (mode, practice, feedback, note, and compare's colFirst, bands, gradeOn, shuffleCols).
+    const pass = ['mode', 'practice', 'feedback', 'note', 'colFirst', 'bands', 'gradeOn', 'shuffleCols'];
+    const qo = { shell: true, title: opts.title, context: opts.context, stakes: M.STAKES };
+    pass.forEach(k => { if (opts[k] !== undefined) qo[k] = opts[k]; });
+    const r = await SD.qf.ask(item, qo);
+    if (!r) return null;
+    const scored = !!r.scored, ok = r.ok === true, conf = [0, 1, 2].includes(r.conf) ? r.conf : 0;
+    const out = { ok: scored ? ok : r.ok !== false, conf, pts: scored ? M.stake(ok, conf) : 0, scored, mode: r.mode, fmt: true };
+    if (r.partial != null) out.partial = r.partial;
+    if (r.col) { out.col = r.col; out.row = r.row; }
+    if (scored && opts.tally) M.note(opts.tally, ok, conf);
+    return out;
   };
 
   // ---- Simulation (tools/modes_sim.js) ----
