@@ -71,7 +71,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
   const finishClaim = async ids => {
     for (let guard = 0; guard < 14 && (await st()).phase === 'floor'; guard++) { await playIds(ids); await page.click('#fl-lever'); }
+    // The last turn plays out on the floor; one button then opens the debrief.
+    if (await page.$('#fl-on')) { lastTurn = true; await page.click('#fl-on'); }
   };
+  let lastTurn = false;
   const proof = async (right, conf) => {
     await page.click('#fl-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
@@ -108,6 +111,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.$$eval('.fl-card', x => x.length) === 5, 'a hand of 5');
   await noHScroll('floor'); await shot('floor');
   await page.click('#fl-lever');
+  await page.waitForTimeout(200);
+  const moving = await page.evaluate(() => ({ ghosts: document.querySelectorAll('.fl-ghost').length, held: !!document.querySelector('#panel .fl-hold') }));
+  check(moving.ghosts > 0 && moving.held, `the lever pull plays out on the board: tickets travel (${moving.ghosts} in flight) and the verdict waits for them`);
+  await shot('flight');
+  await page.waitForTimeout(2600);
+  check(await page.evaluate(() => !document.querySelector('.fl-ghost') && !document.querySelector('#panel .fl-hold')), 'the playback ends and the verdict shows');
+  const pud = await page.evaluate(() => { const p = document.querySelector('.fl-puddle'); return p && !p.classList.contains('dry') && /Spilled this claim/.test(p.textContent); });
+  check(pud, 'the spill is a puddle on the floor');
   const r1 = await txt('.fl-result');
   check(/bounced \(429\)/.test(r1) && /Spilled/.test(r1), 'pulling with nothing played: tickets bounce with a 429 and spill');
   check(/Do the sums/.test(await txt('#panel')), 'Dutch teaches the 429 by its first use, in one line');
@@ -126,6 +137,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const why = await page.$$eval('.fl-card .fl-why', x => x.map(e => e.textContent));
   check(why.every(w => w.length > 3), 'unplayable cards say why (' + (why.join(' | ') || 'none this hand') + ')');
   await finishClaim(['stdq', 'guard', 'patch', 'backoff']);
+  check(lastTurn, 'the claim\'s last turn stays on the floor until you move on');
   check((await st()).phase === 'debrief', 'the Rush closes and the debrief opens');
   check(/Why did that work\?/.test(await txt('#panel')), 'the debrief asks "why did that work?"');
   await noHScroll('debrief'); await shot('debrief');
