@@ -9,7 +9,8 @@
 // practice: true shows a Practice label and is never scored, like a hint round.
 //
 // Inert unless SD.profile === 'full' or the page sets window.SD_FMT_LAB (game/fmt-lab.html): has() is false and
-// ask() resolves null. It changes no other file; it injects its own CSS on first use.
+// ask() resolves null. A game mode can still ask one item on any profile with opts.shell: true (js/modes.js
+// SD.modes.askFormat); has() stays false everywhere else. It changes no other file; it injects its own CSS on first use.
 //
 // How a format is introduced (per type, in SD.state.save.fg.fmt[type] when a save exists, else in memory):
 // the first item is worked (answer shown, "Got it", unscored), the second is practice with one hint (unscored),
@@ -17,7 +18,13 @@
 // that is not known yet and has two misses in a row gets one more practice round (with a hint) before scoring again.
 // opts.mode ('worked' | 'hint' | 'scored') overrides the rule; opts.track === false leaves the exposure alone.
 //
-// opts: { title, context, mode, track, noRecord, fade (faded: 0 to 3), recall ('bank' | 'typed') }
+// opts: { title, context, mode, track, noRecord, fade (faded: 0 to 3), recall ('bank' | 'typed'),
+//         shell (a game mode asking on any profile), stakes ([[right, wrong]] for Guess, Think so, Sure, shown under
+//         the confidence buttons) }
+// Recently asked (shared by every mode): each item asked is stamped in SD.state.save.fmtAsked[id] (kept 30 days).
+// SD.qf.recent(days = 7) is the set asked in the last `days` days, and SD.qf.pick({ types, filter, days, avoid })
+// returns an item not asked in that window (the least recently asked if all were), so modes don't repeat items.
+// Compare items may name more than one deciding row: keys: [row, ...] (key stays the first); any of them is right.
 (function () {
   window.SD = window.SD || {};
   SD.fmtItems = SD.fmtItems || [];
@@ -34,6 +41,34 @@
   const mq = q => !!(window.matchMedia && window.matchMedia(q).matches);
   const reduced = () => mq('(prefers-reduced-motion: reduce)');
   const isWide = () => mq('(min-width: 720px)');
+
+  // ---- Recently asked, shared by every mode ----
+  const DAY = 864e5;
+  function asked() {
+    const sv = SD.state && SD.state.save;
+    const s = sv ? (sv.fmtAsked = sv.fmtAsked || {}) : (mem.__asked = mem.__asked || {});
+    return s;
+  }
+  Q.markAsked = function (id, now) {
+    if (!id) return;
+    const s = asked(), t = now || Date.now();
+    s[id] = t;
+    for (const k of Object.keys(s)) if (t - s[k] > 30 * DAY) delete s[k];
+    persist();
+  };
+  Q.recent = function (days, now) {
+    const s = asked(), t = now || Date.now(), win = (days == null ? 7 : days) * DAY;
+    return new Set(Object.keys(s).filter(k => t - s[k] < win));
+  };
+  Q.pick = function (o) {
+    o = o || {};
+    const types = o.types || (o.type ? [o.type] : TYPES), avoid = new Set(o.avoid || []), s = asked();
+    const pool = (SD.fmtItems || []).filter(it => types.includes(it.type) && !avoid.has(it.id) && (!o.filter || o.filter(it)));
+    if (!pool.length) return null;
+    const recent = Q.recent(o.days, o.now), fresh = pool.filter(it => !recent.has(it.id));
+    if (fresh.length) return fresh[Math.floor((o.rng || Math.random)() * fresh.length)];
+    return pool.slice().sort((a, b) => (s[a.id] || 0) - (s[b.id] || 0))[0];
+  };
 
   // ---- Exposure: worked, then practice, then scored ----
   const mem = {};
@@ -139,9 +174,12 @@
     return `<div class="qf-docs"><div class="q-ctx">AWS docs</div><ul>${d.map(u =>
       `<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(label(u).replace(/[-_]/g, ' '))}</a></li>`).join('')}</ul></div>`;
   }
-  function confBlock(ready) {
+  const sgn = n => (n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '±0');
+  // stakes: [[right, wrong]] by button, shown under each (a game mode's shared stake table).
+  function confBlock(ready, stakes) {
+    const SK = Array.isArray(stakes) && stakes.length === 3 ? stakes : null;
     return `<div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
-      <button data-c="0" ${ready ? '' : 'disabled'}>Guess</button><button data-c="1" ${ready ? '' : 'disabled'}>Think so</button><button data-c="2" ${ready ? '' : 'disabled'}>Sure</button></div></div>`;
+      ${['Guess', 'Think so', 'Sure'].map((t, i) => `<button data-c="${i}" ${ready ? '' : 'disabled'}${SK ? ` aria-label="${t}: right ${sgn(SK[i][0])}, wrong ${sgn(SK[i][1])}"` : ''}>${t}${SK ? `<small class="stake"><span class="up">✓${sgn(SK[i][0])}</span> <span class="dn">✗${sgn(SK[i][1])}</span></small>` : ''}</button>`).join('')}</div></div>`;
   }
 
   // ---- Renderers, one per type ----
@@ -150,6 +188,10 @@
   // review(st, item, ctx, res) -> answer markup with marks; answer(item) -> the right answer as text;
   // nots(st, item) -> [{ name, why, mine }]; hint(st, item) -> one line; after(root, st, item, ctx) after feedback.
   const R = {};
+  // Compare: the deciding rows (keys[] when an item has more than one; key is the first).
+  const keysOf = it => (Array.isArray(it.keys) && it.keys.length ? it.keys : [it.key]);
+  const isKey = (it, r) => r != null && keysOf(it).includes(r);
+  Q.keysOf = keysOf;
 
   // compare: three columns, the same rows for each. Pick the column, then the row that decided it.
   R.compare = {
@@ -165,7 +207,7 @@
           : `<button class="qf-cmp-h${cls}" data-qf-col="${i}" aria-pressed="${st.col === i}" aria-label="Pick ${esc(c)}">${esc(c)}<span class="qf-sub">${st.col === i ? 'Picked' : 'Pick'}</span></button>`;
       }).join('');
       it.rows.forEach((r, ri) => {
-        const key = review && ri === it.key;
+        const key = review && isKey(it, ri);
         h += `<div class="qf-cmp-r${key ? ' qf-key' : ''}">${esc(r)}</div>`;
         h += it.cols.map((_, ci) => `<div class="qf-cmp-c${key ? ' qf-key' : ''}${(review ? ci === it.a : st.col === ci) ? ' on' : ''}">${esc(it.cells[ri][ci])}</div>`).join('');
       });
@@ -175,7 +217,7 @@
       const right = i === it.a, also = (it.alsoOk || []).includes(i);
       const cls = review ? (right ? ' right' : also ? ' also' : st.col === i ? ' wrong' : '') : st.col === i ? ' on' : '';
       return `<div class="qf-card${cls}" data-qf-card="${i}"><div class="qf-card-h">${review && (right || also || st.col === i) ? mark(right || also) : ''}${esc(it.cols[i])}${review && also ? ' <em class="qf-tag">also works</em>' : ''}${review && st.col === i ? ' <em class="qf-tag">your pick</em>' : ''}</div>
-        <dl>${it.rows.map((r, ri) => `<div class="qf-kv${review && ri === it.key ? ' qf-key' : ''}"><dt>${esc(r)}</dt><dd>${esc(it.cells[ri][i])}</dd></div>`).join('')}</dl>
+        <dl>${it.rows.map((r, ri) => `<div class="qf-kv${review && isKey(it, ri) ? ' qf-key' : ''}"><dt>${esc(r)}</dt><dd>${esc(it.cells[ri][i])}</dd></div>`).join('')}</dl>
         ${review ? '' : `<button class="qf-pick${st.col === i ? ' on' : ''}" data-qf-col="${i}" aria-pressed="${st.col === i}">${st.col === i ? '✓ Picked' : 'Pick ' + esc(it.cols[i])}</button>`}</div>`;
     },
     draw(st, it, ctx) {
@@ -215,18 +257,18 @@
     },
     ready: st => st.col != null && st.row != null,
     grade(st, it) {
-      const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col), rowOk = st.row === it.key;
+      const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col), rowOk = isKey(it, st.row);
       return { ok: colOk && rowOk, partial: (colOk ? 0.5 : 0) + (rowOk ? 0.5 : 0) };
     },
     solve(st, it) { st.col = it.a; st.row = it.key; st.view = it.a; },
     review(st, it, ctx) {
       const colOk = st.col === it.a || (it.alsoOk || []).includes(st.col);
-      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>, decided by <b class="${st.row === it.key ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b></p>`;
-      h += `<p class="qf-pickline">The deciding row: <b>${esc(it.rows[it.key])}</b></p>`;
+      let h = `<p class="qf-pickline">Your pick: <b class="${colOk ? 'qf-ok' : 'qf-bad'}">${esc(it.cols[st.col])}</b>, decided by <b class="${isKey(it, st.row) ? 'qf-ok' : 'qf-bad'}">${esc(it.rows[st.row])}</b></p>`;
+      h += `<p class="qf-pickline">${keysOf(it).length > 1 ? 'Deciding rows (any one is right)' : 'The deciding row'}: <b>${esc(keysOf(it).map(k => it.rows[k]).join(' · '))}</b></p>`;
       h += ctx.wide ? this.grid(st, it, ctx, true) : `<div class="qf-stack">${range(it.cols.length).map(i => this.card(st, it, i, true)).join('')}</div>`;
       return h;
     },
-    answer: it => `${it.cols[it.a]}, decided by ${it.rows[it.key]}`,
+    answer: it => `${it.cols[it.a]}, decided by ${keysOf(it).map(k => it.rows[k]).join(' or ')}`,
     nots: (st, it) => it.cols.map((c, i) => ({ i, name: c + ((it.alsoOk || []).includes(i) ? ' (also works)' : ''), why: (it.no || [])[i], mine: st.col === i })).filter(n => n.i !== it.a && n.why),
     hint: (st, it) => `Compare the columns on "${it.rows[it.key]}".`
   };
@@ -480,7 +522,8 @@
   // ---- The flow ----
   Q.ask = function (item, opts) {
     opts = opts || {};
-    if (!Q.enabled() || !item || !R[item.type]) return Promise.resolve(null);
+    if (!(Q.enabled() || opts.shell) || !item || !R[item.type]) return Promise.resolve(null);
+    Q.markAsked(item.id);
     injectCss();
     trapTab();
     return new Promise(resolve => {
@@ -512,7 +555,7 @@
         let h = head() + (practice ? `<div class="qf-hint"><span class="qf-practice">Practice</span> Not scored.${mode === 'hint' ? ` <span class="qf-hint-t">Hint: ${esc(r.hint(st, item))}</span>` : ''}</div>` : '');
         if (item.type === 'recall' && !st.typed) h += '<div class="qf-recog"><span class="qf-practice">Recognition</span> Word bank: picking from a list counts for less than typing from memory.</div>';
         h += r.draw(st, item, ctx);
-        h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true)
+        h += locked ? `<div class="qf-locked muted small">Answer locked in. <button class="ghost qf-change" id="qf-change">Change answer</button></div>` + confBlock(true, opts.stakes)
           : `<div class="qf-submit-row"><button class="primary" id="qf-submit" ${ready ? '' : 'disabled'}>Submit</button></div>`;
         if (!root || !root.isConnected) {
           const b = panel(`<div class="qf qf-${item.type}" data-qf-type="${item.type}" data-qf-phase="answer"></div>`, { title, noClose: true, cls });
