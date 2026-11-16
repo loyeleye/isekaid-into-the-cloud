@@ -35,18 +35,52 @@
   };
 
   // Layers, back to front (Ladi, Nov 16: "placed behind them in the background, and when she talks the four leads
-  // become semi-transparent and out of focus"): the empty room, Uptima standing behind the counter at the leads'
-  // scale, then the front: the plate (or its living clips) with a hole cut where she stands, so the leads and the
-  // counter stay in front of her. While she talks (.rm.talk) the front fades and blurs and she stays sharp.
-  // Until the empty room exists (R.back false), she stands in front of the plate, cut off at the counter top.
-  R.back = false;
+  // become semi-transparent and out of focus"): the room (the plate, or its living clips), Uptima standing behind
+  // the counter between Mira and Kai at the leads' scale, then a canvas over her box that redraws Mira and Kai from
+  // whatever the room shows right now, cut out with a matte (room-leads-mask.png, from a segmentation model), so they
+  // stand in front of her. While she talks (.rm.talk) the room and that overlay fade and blur and she stays sharp.
   R.IDLE_POSE = 'smug';
-  R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
+  const OVER = { x0: .31, x1: .642, y0: .08, y1: .67 }, VX = .010417, VW = .979167;
+  R.layers = pose => `<div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
+        <div class="rm-vslot" aria-hidden="true"></div></div>
         <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="rm-emote"></span></div>
-        <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
-        <div class="rm-vslot" aria-hidden="true"></div></div>`;
+        <canvas class="rm-over" width="480" height="476" aria-hidden="true"></canvas>`;
+  let matte = null, overRaf = 0;
+  function drawOver(c) {
+    const rm = c.closest('.rm'); if (!rm) return;
+    if (!matte) { matte = new Image(); matte.src = 'assets/img/drill/room-leads-mask.png'; }
+    if (!matte.complete || !matte.naturalWidth) return;
+    const vids = [...rm.querySelectorAll('.rm-vid video.on')].filter(v => v.readyState >= 2 && v.videoWidth);
+    const v = vids.find(x => x.classList.contains('rm-v-mood')) || vids[0];
+    let src, sx, sy, sw, sh;
+    if (v) {
+      const W = v.videoWidth, H = v.videoHeight;
+      src = v; sx = (OVER.x0 - VX) / VW * W; sw = (OVER.x1 - OVER.x0) / VW * W; sy = OVER.y0 * H; sh = (OVER.y1 - OVER.y0) * H;
+    } else {
+      const im = rm.querySelector('.rm-plate');
+      if (!im || !im.complete || !im.naturalWidth) return;
+      if (c.dataset.drawn === 'plate') return;
+      const W = im.naturalWidth, H = im.naturalHeight;
+      src = im; sx = OVER.x0 * W; sw = (OVER.x1 - OVER.x0) * W; sy = OVER.y0 * H; sh = (OVER.y1 - OVER.y0) * H;
+    }
+    const g = c.getContext('2d');
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, c.width, c.height);
+    g.drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(matte, 0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    c.dataset.drawn = v ? 'video' : 'plate';
+  }
+  function overLoop() {
+    const cs = document.querySelectorAll('canvas.rm-over');
+    if (!cs.length) { overRaf = 0; return; }
+    cs.forEach(drawOver);
+    overRaf = requestAnimationFrame(overLoop);
+  }
+  R.kickOver = () => { if (!overRaf) overRaf = requestAnimationFrame(overLoop); };
   // A bare room for Uptima's lines: no stations or gauges, the leads faded behind her.
-  R.scene = pose => `<div class="rm talk scene${R.back ? '' : ' noback'}" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
+  R.scene = pose => `<div class="rm talk scene" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
   // The room. o: { at, zoom, notes: [[station, who, text]], lines: [[who, text]], m, play }
   R.html = function (f, e, o) {
     o = o || {};
@@ -68,7 +102,7 @@
           ${on ? `<span class="rm-g db-g-${k}">${BD.gauge(f, k, null, e.m)}</span>` : ''}
           ${note}${say}</div>`;
     }).join('');
-    return `<div class="rm${R.back ? '' : ' noback'}${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
+    return `<div class="rm${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
       <div class="rm-cam">
         ${R.layers(R.IDLE_POSE)}
         ${sts}
@@ -114,6 +148,7 @@
   // Put the living plate into a freshly drawn room. key: changes when a new drill starts (plays the alarm).
   R.mount = function (root, key) {
     const slot = root && root.querySelector('.rm-vslot');
+    R.kickOver();
     if (!slot || still()) return;
     if (!stage) stage = makeStage();
     slot.replaceWith(stage);
@@ -250,17 +285,14 @@
     .rm-say.bad { border-color: #9e3a34; background: #fbe4dc; }
     .rm-note { background: #fff3c4; }
     @keyframes rmsay { from { transform: translateY(.8cqi) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; pointer-events: none; }
-    .rm.noback .rm-back { display: none; }
-    .rm-front { position: absolute; inset: 0; z-index: 3; transition: opacity .45s ease, filter .45s ease;
-      -webkit-mask: url(assets/img/drill/room-front-mask.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-front-mask.png) 0 0 / 100% 100%; }
-    .rm.noback .rm-front { -webkit-mask: none; mask: none; z-index: 1; }
-    .rm.talk .rm-front { opacity: .32; filter: blur(.35cqi) saturate(.8); }
-    .rm.noback.talk .rm-front { opacity: 1; filter: blur(.35cqi) brightness(.5) saturate(.8); }
+    .rm-front { position: absolute; inset: 0; z-index: 1; transition: filter .45s ease; }
+    .rm.talk .rm-front { filter: blur(.3cqi) brightness(.55) saturate(.8); }
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
-    .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none; }
-    .rm.noback .rm-up { z-index: 4; clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
-    .rm.noback.talk .rm-up { clip-path: none; }
+    .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none;
+      clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
+    .rm-over { position: absolute; left: 31%; top: 8%; width: 33.2%; height: 59%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
+    .rm.talk .rm-over { opacity: .32; filter: blur(.3cqi) brightness(.55) saturate(.8); }
+    .rm.talk .rm-up { clip-path: none; }
     .up-fig { position: relative; display: block; width: 100%; height: 100%; }
     .up-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; user-select: none; }
     .up-fig .up-k, .up-fig .up-t { opacity: 0; }
