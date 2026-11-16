@@ -172,42 +172,69 @@
   }
 
   // ---- Pin it down ----
-  // A question's look-alike wrong answer and its "why not" line. mc: the closest wrong option (SD.recall.closest);
-  // multi: a wrong item that has a line.
-  function wrongOf(q) {
+  // Word overlap: the content words two lines share (lowercase, no punctuation, no short or common words, plurals
+  // folded). Pin's decoys are chosen to share at least as many words with the option as the right reason does, so
+  // picking the reason that repeats the option's words is no better than knowing why (Nov 16 review: it won 65%).
+  const STOP = new Set('the and for that this with from into its it\'s can can\'t cannot not does doesn\'t don\'t isn\'t only are was were has have had but you your they them their than then when what which who how why all any one two use uses used using will would just also more most less same each other only own there here about over under after before because while so if on in of to a an is be by as at or no it'.split(' '));
+  const wordsOf = t => new Set(String(t || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/[\s-]+/).filter(w => w.length > 2 && !STOP.has(w)).map(w => w.replace(/(ies)$/, 'y').replace(/([^s])s$/, '$1')));
+  const WMEMO = new Map();
+  const wordsM = t => { let w = WMEMO.get(t); if (!w) { w = wordsOf(t); WMEMO.set(t, w); } return w; };
+  function overlap(a, b) { const A = wordsM(a), B = wordsM(b); let n = 0; A.forEach(w => { if (B.has(w)) n++; }); return n; }
+  H._overlap = overlap;   // for tools/pin_check.js
+  // Every "why not" line in the bank, once, with its topic (built on first use).
+  let LINES = null;
+  function allLines() {
+    if (LINES) return LINES;
+    const seen = new Set(); LINES = [];
+    (SD.bank || []).forEach(x => {
+      if (!E().allowed(x)) return;
+      const add = n => { if (n && !seen.has(n)) { seen.add(n); LINES.push({ n, t: x.topic, q: x.id }); } };
+      if (x.type === 'mc' && Array.isArray(x.no)) x.no.forEach(add);
+      else if (x.type === 'multi' && Array.isArray(x.items)) x.items.forEach(it => add(it.no));
+    });
+    return LINES;
+  }
+  // The wrong options Pin can use, look-alike first: mc by SD.recall.closest, then the rest; multi in random order.
+  function wrongsOf(q) {
     if (q.type === 'mc' && Array.isArray(q.no)) {
-      const i = SD.recall ? SD.recall.closest(q.opts, q.a, k => !!q.no[k]) : q.no.findIndex(Boolean);
-      return i >= 0 && q.no[i] ? { i, opt: q.opts[i], no: q.no[i], others: q.no.filter((n, k) => n && k !== i) } : null;
+      const first = SD.recall ? SD.recall.closest(q.opts, q.a, k => !!q.no[k]) : -1;
+      const idx = q.opts.map((o, k) => k).filter(k => k !== q.a && q.no[k]);
+      return idx.sort((a, b) => (b === first) - (a === first)).map(k => ({ i: k, opt: q.opts[k], no: q.no[k], others: q.no.filter((n, j) => n && j !== k) }));
     }
     if (q.type === 'multi' && Array.isArray(q.items)) {
-      const bad = q.items.map((it, k) => ({ it, k })).filter(x => !x.it.ok && x.it.no);
-      if (!bad.length) return null;
-      const w = rand(bad);
-      return { i: w.k, opt: w.it.t, no: w.it.no, others: bad.filter(x => x !== w).map(x => x.it.no) };
+      const bad = shuffle(q.items.map((it, k) => ({ it, k })).filter(x => !x.it.ok && x.it.no));
+      return bad.map(w => ({ i: w.k, opt: w.it.t, no: w.it.no, others: bad.filter(x => x !== w).map(x => x.it.no) }));
     }
-    return null;
+    return [];
   }
-  // A "why not" line from a different question on the same topic, so the three reasons aren't all about one scenario.
-  function decoyLine(q, not) {
-    const bank = (SD.bank || []).filter(x => x.id !== q.id && x.topic === q.topic && E().allowed(x) && x.type === 'mc' && Array.isArray(x.no));
-    const lines = [];
-    bank.forEach(x => x.no.forEach(n => { if (n && !not.includes(n)) lines.push(n); }));
-    return lines.length ? rand(lines) : null;
+  // Two decoys whose overlap with the option is as close as possible to the right reason's, preferring equal or more:
+  // the question's own other lines and same-topic lines first, then any line in the bank. Returns { d: [2 lines], gap }
+  // where gap 0 means both decoys reach the right reason's overlap.
+  function decoysFor(q, w) {
+    const target = overlap(w.no, w.opt);
+    const key = n => { const o = overlap(n, w.opt); return o >= target ? (o - target) * 0.1 : 1 + target - o; };
+    const near = new Set(w.others), pool = shuffle(allLines()).filter(l => l.n !== w.no && l.q !== q.id || near.has(l.n));
+    const rank = ls => ls.map(l => ({ n: l.n, k: key(l.n) + (near.has(l.n) || l.t === q.topic ? 0 : 0.05) })).sort((a, b) => a.k - b.k);
+    const r = rank(pool.filter(l => l.n !== w.no));
+    const d = [];
+    for (const x of r) { if (!d.includes(x.n)) d.push(x.n); if (d.length === 2) break; }
+    return d.length < 2 ? null : { d, gap: Math.max(...d.map(n => Math.max(0, target - overlap(n, w.opt)))) };
   }
   // { q: the question's id, opt, reasons: [3 lines], a: index of the right one } or null when there's nothing to pin.
+  // It tries the look-alike option first and moves to another wrong option when no decoys can match its words.
   function buildPin(q) {
-    const w = q && wrongOf(q);
-    if (!w) return null;
-    const pool = [w.no];
-    const other = w.others.length ? rand(w.others) : null;
-    if (other) pool.push(other);
-    const dec = decoyLine(q, pool);
-    if (dec) pool.push(dec);
-    while (pool.length < 3 && w.others.length > pool.length - 1) { const x = w.others.find(n => !pool.includes(n)); if (!x) break; pool.push(x); }
-    if (pool.length < 3) return null;
-    const reasons = shuffle(pool.slice(0, 3));
-    return { q: q.id, opt: w.opt, reasons, a: reasons.indexOf(w.no) };
+    if (!q) return null;
+    let best = null;
+    for (const w of wrongsOf(q)) {
+      const dc = decoysFor(q, w);
+      if (dc && (!best || dc.gap < best.dc.gap)) best = { w, dc };
+      if (best && best.dc.gap === 0) break;
+    }
+    if (!best) return null;
+    const reasons = shuffle([best.w.no].concat(best.dc.d));
+    return { q: q.id, opt: best.w.opt, reasons, a: reasons.indexOf(best.w.no) };
   }
+  H._buildPin = buildPin;   // for tools/pin_check.js
 
   // ---- The board ----
   // Up to 3 monsters from the Wall, oldest first and from different topics (a second one from the same topic only when
@@ -326,7 +353,7 @@
     const ctx = `${m.name} · ${STEP_NAME[step]} · ${m.k + 1}/${m.steps.length}`;
     if (step === 'pin') {
       if (!m.pin) {
-        const src = (m.qs.fight && find(m.qs.fight)) || find(m.qs.track);
+        const src = (m.qs.track && find(m.qs.track)) || find(m.qs.fight);
         m.pin = buildPin(src) || { none: true };
         S.persist();
       }

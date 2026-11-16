@@ -103,6 +103,10 @@
   // answered from the exam-task concepts, weighted toward the weakest domains and the exam's weights.
   T.build = function (n, light) {
     const N = needs(), log = qlog(), used = new Set(), items = [];
+    // The Proving Road (js/mode-sprint.js): the day after a run, one question on the idea of each empty or loose jar
+    // leads the set.
+    const lead = SD.sprint && SD.sprint.leadItems ? SD.sprint.leadItems(used) : [];
+    n -= lead.length;
     if (!light) {
       const fresh = [];
       Object.keys(E().TASKS).forEach(t => E().taskQuestions(E().taskConcept(t)).forEach(q => { if (!log[q.id] && examStyle(q)) fresh.push(q); }));
@@ -113,7 +117,7 @@
     let cs = weighted(due, w, want);
     if (cs.length < want) cs = cs.concat(weighted(all.filter(id => !cs.includes(id)), id => w(id) * (isDue(id) ? 2 : 1), want - cs.length));
     cs.forEach(c => { const q = pickQ(c, used); if (q) { items.push({ c, q: q.id }); used.add(q.id); } });
-    return shuffle(items);
+    return lead.concat(shuffle(items));
   };
   T.size = () => (window.innerWidth >= 900 ? 25 : 15);
   function newDaily(light) {
