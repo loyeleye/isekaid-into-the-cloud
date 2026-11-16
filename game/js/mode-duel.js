@@ -35,10 +35,11 @@
     return d;
   };
   const night = () => store().night || null;
-  // Music (Mureka, Ladi's account, Nov 15): the table under the board, a tenser loop for the Last Stand. Whatever was
+  // Music (Mureka, Ladi's account, Nov 15): the table under the board, a tenser loop for the Last Stand, a short sting
+  // when the Cup is won. Whatever was
   // playing before the night comes back when you stand up.
   const AU = () => (SD.audio && SD.audio.music ? SD.audio : null);
-  if (AU() && SD.audio.add) SD.audio.add({ songs: { duel: 'm-duel-table', duellast: 'm-duel-last' } });
+  if (AU() && SD.audio.add) SD.audio.add({ songs: { duel: 'm-duel-table', duellast: 'm-duel-last' }, jingles: { duelcup: 'j-duel-cup' } });
   let before = null;
   const tune = name => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && !/^duel/.test(a.loopName) ? a.loopName : ''; a.music(name); };
   const untune = () => { const a = AU(); if (!a || before === null) return; a.music(before || null); before = null; };
@@ -703,6 +704,7 @@
       ${won ? '<p class="muted small">Tomorrow he opens on the centre.</p>' : ''}
       <div class="row"><button class="primary" id="du-walk">Walk back</button></div>`, { title: 'HIS LEDGER', onClose: stopNow, cls: 'du-win' });
     b.querySelector('#du-walk').onclick = () => walkBack(s);
+    if (won && !s.jingled && AU() && SD.audio.jingle) { s.jingled = 1; save(s); SD.audio.jingle('duelcup', ''); }
   }
   function walkBack() {
     const b = U.panel(`<p class="small muted">Walking back from the market.</p>${M.pipHtml()}
