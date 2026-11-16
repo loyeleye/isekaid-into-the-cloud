@@ -121,14 +121,14 @@
       : e.ok ? `<p class="ms-lt dr-res good">${icon('checked-shield')} Contained${D.clean(f) ? ', first deploy: a clean fix' : ''}. ${e.cost ? `It cost ${e.cost}% on the way.` : 'Nothing spilled.'}</p>`
         : `<p class="ms-lt dr-res bad">Not contained. This run cost <b>${e.cost}%</b> of the budget.${f.state === 'escalated' ? ` It escalates: another ${D.ESCALATE}%.` : ''}</p>`;
     const reveal = f.state === 'escalated' ? `<div class="dr-reveal ms-lt">${icon('magnifying-glass')}<span><b>What was broken:</b> ${esc(d.hidden)}<br><span class="small">A fix: ${esc(d.fix[0].map(id => C[id].name).join(' + '))}.</span></span></div>` : '';
-    const b = panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
+    const b = panel(`<div class="dr-cols"><div class="dr dr-l"><div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(head1)}</p></div>
       ${budgetJar(s)}
       ${traceMap(f, e)}
       ${verdict}${reveal}
       <div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>
-      ${teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}
-      ${over ? '' : stationHtml(s, f, e)}
+      ${teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
+      <div class="dr dr-r">${over ? '' : stationHtml(s, f, e)}</div></div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}</div>`);
     b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; save(s); draw(s); });
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
@@ -296,6 +296,38 @@
     body.in-mode #panel .win .dr-card.on[aria-pressed="true"] { background: #dbe8f3; border-color: #2a4360; color: #17131f; }
     .dr-dock { position: sticky; bottom: -16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 4px -16px -16px; padding: 10px 16px; background: var(--cream, #fffaf0); border-top: 3px solid var(--ink, #17131f); }
     .dr-dock button { min-height: 44px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
-    .dr-dock .primary { flex: 1 1 auto; }`;
+    .dr-dock .primary { flex: 1 1 auto; }
+    /* No window box (Ladi, Nov 16: every mode edge to edge, as Monster Hunt now is): on the stage the drill fills
+       everything under the top bar, the war room behind a darker wash, and the text keeps a readable column in the
+       middle. Wide screens put the map, verdict and pager on the left and the station you're working on the right.
+       Only the drill's own screens: the postmortem stays on the shared exam screen. */
+    body.in-mode[data-stage="drill"] #panel:has(> .win.dr-win) { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+      background: radial-gradient(120% 90% at 50% 40%, rgba(12, 10, 16, .55), rgba(12, 10, 16, .85)); }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-h { display: none; }   /* the bar above already names it */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b { border-radius: 0; background: none; box-shadow: none; overflow-y: auto;
+      padding: 14px max(16px, calc((100% - 1148px) / 2)) 0; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-say, body.in-mode[data-stage="drill"] #panel .win.dr-win :is(.dr-night, .dr-claim, .dr-top .small) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr { min-height: 100%; }   /* so the dock sits at the bottom of the screen */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:not(:has(.dr-cols)) { width: 100%; max-width: 820px; margin: 0 auto; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr-dock { bottom: 0; margin: auto calc(50% - 50vw) 0;
+      padding: 10px calc(50vw - 50%) calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(20, 17, 28, .94); border-top: 2px solid #0c0a10; }
+    .dr-cols { display: flex; flex-direction: column; gap: 8px; }
+    .dr-l, .dr-r { min-width: 0; }
+    .dr-r:empty { display: none; }
+    @media (min-width: 900px) {
+      body.in-mode .dr-cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 12px 24px; align-items: start; }
+      body.in-mode .dr-cols > .dr-r { position: sticky; top: 0; }
+      body.in-mode .dr-cols > .dr-r:empty { display: none; }
+      body.in-mode .dr-cols:has(> .dr-r:empty) { grid-template-columns: minmax(0, 760px); justify-content: center; }
+      body.in-mode .dr-win .dr-door { max-width: 260px; min-height: 64px; font-size: 14px; }
+      body.in-mode .dr-win .dr-map { padding: 14px; gap: 12px; }
+      body.in-mode .dr-win .dr-node { font-size: 13px; padding: 8px 4px; } body.in-mode .dr-win .dr-node b { font-size: 13px; } body.in-mode .dr-win .dr-node .dr-gi { width: 30px; height: 30px; }
+      body.in-mode .dr-win .dr-edge { flex-basis: 18px; }
+      body.in-mode .dr-win .dr-hand { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+      body.in-mode .dr-win .dr-metrics { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }`;
   document.head.appendChild(css);
 })();
