@@ -111,6 +111,7 @@
     if (live && beatFor(s)) return;
     react(s);
     ({ page: pageScreen, play: playScreen, fix: fixScreen, result: resultScreen, debrief: debriefScreen, done: endScreen }[s.phase] || pageScreen)(s);
+    if (live) wall();
   }
 
   // ---- Uptima in the room (Ladi, Nov 16: "draw full sized characters in the setting and have the interface get pulled
@@ -154,7 +155,8 @@
       if (el) el.remove();
       const vn = document.getElementById('icl-vn'); if (vn) vn.remove();
       const bb = document.getElementById('icl-bubble'); if (bb) bb.remove();
-      document.body.classList.remove('icl-on', 'icl-beat');
+      document.body.classList.remove('icl-on', 'icl-beat', 'icl-wall');
+      removeEventListener('resize', wall);
       return false;
     }
     if (!el) {
@@ -164,6 +166,8 @@
           <img class="icl-uf" src="${IMG}uptima-face-neutral.webp" alt="" draggable="false" style="left:${FACE_BOX.left}%;top:${FACE_BOX.top}%;width:${FACE_BOX.width}%;height:${FACE_BOX.height}%">
         <span class="icl-snot" aria-hidden="true"></span></div>`;
       stage.appendChild(el);
+      const rim = el.querySelector('.icl-room img'); rim.addEventListener('load', wall); if (rim.complete) wall();
+      addEventListener('resize', wall);
       // Her bubble floats above the work (the panel's wash would dim it), so it lives on the body like the talk box.
       const bub = document.createElement('div'); bub.id = 'icl-bubble'; bub.className = 'icl-bubble'; bub.hidden = true; document.body.appendChild(bub);
       FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
@@ -176,6 +180,32 @@
     }
     document.body.classList.add('icl-on');
     return true;
+  }
+  // The wall map's frame in each room picture (fractions of the picture: left, top, right, bottom). The parts hang
+  // inside it, so they sit on the map whatever the window does to the picture (object-fit: cover).
+  const MAP = { wide: [0.16, 0.11, 0.84, 0.62], tall: [0.13, 0.21, 0.87, 0.47] };
+  function wall() {
+    const im = document.querySelector('#icl-scene .icl-room img'), R = document.documentElement.style;
+    if (!im || !im.naturalWidth) return;
+    const r = im.getBoundingClientRect(), nw = im.naturalWidth, nh = im.naturalHeight;
+    const k = Math.max(r.width / nw, r.height / nh), ox = r.left + (r.width - nw * k) / 2, oy = r.top + (r.height - nh * k) / 2;
+    const m = MAP[/room-tall/.test(im.currentSrc || im.src) ? 'tall' : 'wide'];
+    let x0 = ox + m[0] * nw * k, y0 = oy + m[1] * nh * k, x1 = ox + m[2] * nw * k, y1 = oy + m[3] * nh * k;
+    const W = innerWidth, wide = W >= 900, bar = 70;
+    y0 = Math.max(y0, bar + 4);
+    // On a wide screen she stands over the map's right end: the wall stops short of her, and the work below stops
+    // short of her bubble.
+    // Where she stands when the work is up (the CSS for .icl-upt), not where she is now: a beat moves her mid-stage.
+    const uh = Math.min(innerHeight - 70, 1000), uw = uh * 576 / 1032, ur = { left: W - W * 0.04 - uw, width: uw };
+    if (wide && ur) x1 = Math.min(x1, ur.left + ur.width * 0.18);
+    const pad = Math.max(8, (x1 - x0) * 0.03);
+    R.setProperty('--wl', Math.round(x0 + pad) + 'px'); R.setProperty('--wt', Math.round(y0 + 6) + 'px');
+    R.setProperty('--ww', Math.max(200, Math.round(x1 - x0 - 2 * pad)) + 'px'); R.setProperty('--wh', Math.round(y1 - y0 - 12) + 'px');
+    R.setProperty('--wb', Math.round(y1) + 'px');
+    const bub = wide && ur ? Math.min(360, W * 0.28) + (W - (ur.left + ur.width * 0.28)) + 16 : 16;
+    R.setProperty('--cr', Math.round(bub) + 'px');
+    R.setProperty('--art', Math.round(Math.max(40, Math.min(92, (y1 - y0) * 0.3))) + 'px');
+    document.body.classList.add('icl-wall');
   }
   function blinkSoon() {
     UP.timers.push(setTimeout(() => {
@@ -299,7 +329,7 @@
         const kn = x.knobs[id], changed = s.k[id] !== kn.start;
         return `<div class="icl-knob${changed ? ' changed' : ''}" role="group" aria-label="${esc(kn.name)}"><span class="small"><b>${esc(kn.name)}</b>${kn.unit ? ` (${esc(kn.unit)})` : ''}${changed ? ' <span class="icl-chg">✎ changed</span>' : ''}</span>
           ${control(id, kn, s.k[id])}</div>`;
-      }).join('')}</div>`;
+      }).join('')}${s.teach ? `<p class="icl-teach small">💡 ${esc(s.teach)}</p>` : ''}</div>`;
   }
   // The knobs as things: stools you tap to reserve, a lever for on and off, a dial for a timeout or a count, a tray
   // of envelopes for a batch. Every one is a row of buttons underneath (data-knob, data-v), named in words.
@@ -435,10 +465,9 @@
     const top = !s.runs && p
       ? `${say(p.ok ? SAY.right : SAY.wrong)}<p class="icl-verdict"><span class="icl-vs ${p.ok ? 'ok' : 'no'}">${p.ok ? '✓' : '✗'} You said <b>${p.v}</b> · it was <b>${p.truth}</b></span> <span class="icl-pts">${esc(M.CONF[p.conf])} ${M.sgn(p.pts)}</span></p>`
       : say(SAY.unmet);
-    const teach = s.teach ? `<p class="icl-teach small">💡 ${esc(s.teach)}</p>` : '';
     const b = panel(cols(`${hud(s)}${top}
       <p class="icl-page">📟 ${esc(x.page)}</p>`,
-      `${machine(s, x, sum, s.open)}${teach}`,
+      machine(s, x, sum, s.open),
       `${strip(sum)}
       <p class="icl-changes"><span class="icl-cc${changed.length > L.MAX_CHANGES ? ' over' : ''}" aria-label="${changed.length} of ${L.MAX_CHANGES} changes">${Array.from({ length: Math.max(L.MAX_CHANGES, changed.length) }, (_, i) => `<i class="${i < changed.length ? 'on' : ''}">✎</i>`).join('')}</span>
         <span class="small">${changed.length ? (changed.length > L.MAX_CHANGES ? '<b>Over two: no smallest-change stamp</b>' : `${changed.length} of ${L.MAX_CHANGES} changes`) : 'Tap a part to open it'}</span></p>
@@ -551,11 +580,39 @@
       body.icl-on #panel .ic-say { display: none; }
       /* Her bubble sits left of her head, in a top band the page text keeps clear of, so it never covers the work. */
       .icl-bubble { right: calc(4vw + min(calc(100vh - 70px), 1000px) * .4); top: calc(70px + 12px); max-width: min(360px, 28vw); }
+      body.icl-wall .icl-bubble { top: calc(var(--wb) + 10px); }
       body.icl-on #panel .win:not(.quiz) .icl-a { margin-right: max(0px, calc(min(360px, 28vw) - min(calc(100vh - 70px), 1000px) * .16 + 8px)); min-height: 150px; }
     }
     /* The wall board (wide screens): the parts hang on the wall map as things in the camp, joined by a rope, with
        brass name plaques and red tags for trouble. Tapping one pins a paper tag under the row with its log and control. */
-    @media (min-width: 1180px) {
+    /* Pinned: the parts hang inside the map's frame; the page, the guess and the lever sit on the desk below it and
+       scroll on their own. */
+    body.icl-wall .icl-cols { display: block !important; position: fixed; z-index: 1; top: calc(var(--wb) + 8px); bottom: 0; left: max(16px, 3vw); right: var(--cr); overflow: auto; padding-bottom: 12px; margin: 0 !important; }
+    body.icl-wall #panel .win:not(.quiz) .icl-a { margin-right: 0; min-height: 0; }
+    body.icl-wall .icl-m { position: fixed; z-index: 2; left: var(--wl); top: var(--wt); width: var(--ww); }
+    body.icl-wall .icl-m .icl-machine { margin: 0; justify-content: space-evenly; width: 100%; }
+    body.icl-wall .icl-ph .icl-art { width: var(--art) !important; height: var(--art) !important; }
+    body.icl-wall .icl-ph { position: relative; padding-top: 16px !important; }
+    body.icl-wall .icl-ph::before { content: ''; position: absolute; top: 0; left: 50%; width: 9px; height: 9px; margin-left: -4px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff0b0, #b8862c 60%, #4a3210); box-shadow: 0 1px 2px #000; }
+    body.icl-wall .icl-ph::after { content: ''; position: absolute; top: 6px; left: 50%; width: 2px; height: 12px; margin-left: -1px; background: #5a4020; }
+    body.icl-wall .icl-open { max-height: 52vh; overflow: auto; z-index: 3; }
+    body.icl-wall:has(.icl-part.open) .icl-bubble { display: none; }
+    body.icl-wall .icl-open .icl-teach { border-color: #6b4f22; }
+    body.icl-wall .icl-b > .row:has(#icl-run) { padding: 8px 0 4px; background: linear-gradient(transparent, rgba(14, 9, 5, .92) 30%); }
+    @media (max-width: 899px) {
+      body.icl-wall .icl-upt { opacity: .35; }
+      body.icl-wall .icl-ph { min-width: 0 !important; max-width: 96px !important; padding-left: 0 !important; padding-right: 0 !important; }
+      body.icl-wall .icl-ph > b { font-size: 11px !important; padding: 1px 5px !important; }
+      body.icl-wall .icl-ph .icl-set, body.icl-wall .icl-ph .icl-did { font-size: 10px !important; padding: 0 4px !important; }
+      body.icl-wall .icl-ph .icl-stools { width: 104px !important; }
+      body.icl-wall .icl-ph .icl-stool { width: 9px !important; height: 9px !important; }
+      body.icl-wall .icl-ph .icl-tap, body.icl-wall .icl-ph .icl-flow { display: none; }
+      body.icl-wall .icl-arrow { width: 10px !important; margin-top: 30px !important; }
+      body.icl-wall .icl-open { position: fixed !important; left: 12px; right: 12px; top: calc(var(--wb) + 4px); max-height: calc(100vh - var(--wb) - 128px) !important; max-width: none !important; }
+      body.icl-wall .icl-b > .row:has(#icl-run) { flex-wrap: nowrap; gap: 8px; }
+      body.icl-wall .icl-b > .row:has(#icl-run) button { font-size: 13px !important; padding: 10px 12px !important; min-width: 0 !important; white-space: nowrap; }
+    }
+    @media (min-width: 0px) {
       body.icl-on .icl-machine { display: grid; grid-template-columns: repeat(var(--cols), auto); grid-template-rows: auto auto; justify-content: start; align-items: start; gap: 6px 4px; margin: 10px 0 14px; }
       body.icl-on .icl-part { display: contents; }
       body.icl-on .icl-ph { grid-row: 1; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 4px; width: auto; max-width: 180px; min-width: 112px; padding: 6px 4px; text-align: center; border-radius: 10px; color: #f3e9d2; text-shadow: 0 2px 3px #000; cursor: pointer; }
@@ -576,7 +633,7 @@
       body.icl-on .icl-open .icl-sb { background: rgba(60, 40, 20, .15); }
       body.icl-on .icl-open .icl-none, body.icl-on .icl-open .icl-tk, body.icl-on .icl-open .icl-tb { background: #fff8e6; color: #2a2018; border-color: #6b4f22; }
       /* The lever stays in reach while a tag is open. */
-      body.icl-on .icl-b > .row { position: sticky; bottom: 8px; z-index: 3; }
+      body.icl-on .icl-b > .row:has(#icl-run) { position: sticky; bottom: 8px; z-index: 3; }
       body.icl-on .icl-open .icl-sb.res { background: rgba(80, 120, 200, .3); }
       body.icl-on .icl-open .icl-chg { color: #8a5608; }
       body.icl-on .icl-open .icl-knob.changed { border-left-color: #a67c2c; }
