@@ -1376,7 +1376,7 @@ SD.bank.push(
   { id: "dva-2-969", exam: "DVA", dva: "2.1", topic: "cognito", type: "mc", variant: true, twin: ["dva-2-118"],
     q: "In a Cognito user pool, each user picks a company at sign-up, and it never changes. The backend reads the company ID from the ID token. The developer wants no Lambda functions and the least custom code. What should the developer do?",
     opts: [
-      "Add a custom:company_id attribute, set it at sign-up, and give the app client read access to it.",
+      "Add an immutable custom:company_id attribute that the app client can write at sign-up and read.",
       "Add a pre token generation Lambda trigger that looks up the company and adds it to each ID token.",
       "Pass the company ID in ValidationData at sign-up, so Cognito saves it and adds it to the ID token.",
       "Add a resource server with a scope per company, and have the app ask for its company's scope."
@@ -1385,7 +1385,7 @@ SD.bank.push(
       "It works, but it's a function and extra code for a value that never changes. A custom attribute reaches the ID token by itself.",
       "ValidationData is temporary input for the pre sign-up trigger. Cognito doesn't save it as an attribute or put it in tokens.",
       "Scopes say what a client may access, the client picks them, and they go in access tokens. They aren't per-user data."],
-    why: "Custom attributes are stored with the user and written into the ID token for app clients that can read them. A pre token generation trigger is for values that live elsewhere or change often.",
+    why: "Custom attributes are stored with the user and written into the ID token for app clients that can read them. Making it immutable means it can be set only once, when the user is created, so users can't change it later. A pre token generation trigger is for values that live elsewhere or change often.",
     doc: ["https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-id-token.html",
       "https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html",
       "https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-sign-up.html"] },
@@ -1557,9 +1557,9 @@ SD.bank.push(
 
   // Passing a role vs assuming it (twin of dva-2-134), flip: the developer needs the role's credentials, so sts:AssumeRole is right
   { id: "dva-2-980", exam: "DVA", dva: "2.1", topic: "iam", type: "mc", variant: true, twin: ["dva-2-134"],
-    q: "A developer wants to debug locally with exactly the permissions of a Lambda function's execution role, running CLI commands as that role. The developer's policy already allows iam:PassRole on the role, and the role's trust policy names only lambda.amazonaws.com. What else is needed?",
+    q: "A developer wants to debug locally with exactly the permissions of a Lambda function's execution role, running CLI commands as that role. The developer's policy already allows iam:PassRole on the role, and the role's trust policy names only lambda.amazonaws.com. What should the developer do?",
     opts: [
-      "Add the developer's principal to the role's trust policy, allow sts:AssumeRole on the role, and call assume-role.",
+      "Add the developer's IAM user to the role's trust policy, then call assume-role on it to get its credentials.",
       "Add an iam:PassedToService condition of lambda.amazonaws.com to the developer's existing iam:PassRole statement.",
       "Allow lambda:InvokeFunction on the function, so the developer's CLI calls run under the function's execution role.",
       "Attach the execution role's permissions policy to the developer's IAM user too, then remove it later."
@@ -1568,9 +1568,10 @@ SD.bank.push(
       "That limits which service the role can be passed to. Passing hands a role to a service and never gives the developer its credentials.",
       "Invoking runs the function's code with its role. The developer's own CLI calls still use the developer's credentials.",
       "The developer keeps their own permissions as well, so it isn't the role's exact set. Assuming the role swaps them out."],
-    why: "iam:PassRole lets a user hand a role to a service, which then assumes it. To use a role's permissions yourself, the role's trust policy must trust you, your policy must allow sts:AssumeRole on it, and you call AssumeRole.",
+    why: "iam:PassRole lets a user hand a role to a service, which then assumes it. To use a role's permissions yourself, the role's trust policy must trust you and you call AssumeRole. In the same account, a trust policy that names your user is enough; if it trusts the whole account instead, your own policy must also allow sts:AssumeRole.",
     doc: ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_permissions-to-switch.html",
-      "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html"] },
+      "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html",
+      "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html"] },
 
   // The boundary must be in the create request, CloudFormation version (twin of dva-2-135)
   { id: "dva-2-981", exam: "DVA", dva: "2.1", topic: "iam", type: "mc", variant: true, twin: ["dva-2-135"],
@@ -2363,7 +2364,7 @@ SD.bank.push(
       "AWS_IAM accepts only SigV4-signed requests from IAM principals, so every call from a sender without AWS credentials is rejected.",
       null,
       "A function URL can point only at $LATEST or an alias, not a numbered version, and this adds no authentication.",
-      "Listener rules route requests but don't verify signatures, and a load balancer is the infrastructure the team wanted to avoid."],
+      "Listener rules match on fields such as headers and paths, but they can't verify a signature, so the function would still have to."],
     why: "A caller that can't sign with SigV4 can't use the AWS_IAM auth type. With NONE, Lambda does no authentication of its own, so the function's code verifies the vendor's signature before it acts on the call.",
     doc: ["https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"] },
 
