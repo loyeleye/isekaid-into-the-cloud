@@ -186,7 +186,8 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   // This one plays out in full: envelopes fly, the clock runs, and the lamp lights green.
   await page.click('#icl-run');
   await page.waitForSelector('.icl-play .icl-fly');
-  check(await page.$$eval('.icl-stop', e => e.length) === 2 && await page.$$eval('.icl-fly', e => e.length) > 0, 'the minute plays: envelopes walk from the gate to orders-fn');
+  check(await page.$$eval('.icl-play .icl-ph', e => e.length) === 4 && await page.$$eval('.icl-fly', e => e.length) > 0, 'the minute plays on the board: envelopes fly between its parts');
+  check(await page.$$eval('.icl-play .icl-fly', f => f.every(e => { const v = parseFloat(e.style.getPropertyValue('--b')); return v > 0; })), 'each envelope heads for a part on the board');
   await page.waitForSelector('#icl-lamp.green', { timeout: 20000 });
   check(/SLO met/.test(await txt('#icl-lamp')), 'at the end of the minute the SLO lamp lights green');
   await page.waitForFunction(() => SD.state.save.icLive.phase === 'result', null, { timeout: 5000 });
