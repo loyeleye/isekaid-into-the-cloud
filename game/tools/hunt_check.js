@@ -104,6 +104,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     Object.keys(SD.twins).forEach(id => {
       const q = SD.exam.find(id);
       if (out.length >= 4 || !q || q.type !== 'mc' || !SD.exam.allowed(q) || seen.has(q.topic) || SD.recall.codey(q.opts)) return;
+      if (SD.huntCore && SD.huntCore.TOPICS[q.topic]) return;   // board topics battle on a board: tools/hunt_board_check.js
       const tw = SD.twins[id].map(SD.exam.find).filter(x => x && SD.exam.allowed(x));
       if (!tw.length || tw.some(x => x.type !== 'mc')) return;
       // Avoid a poster that is a twin of another poster: each must stand for its own idea.
@@ -312,7 +313,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     SD.fmtItems = SD.fmtItems.concat(window.__faded);
     const topics = new Set(window.__faded.filter(x => x.tracks.some(t => /^DVA/.test(t))).map(x => x.topic));
     const ok = id => { const q = SD.exam.find(id); return q && q.type === 'mc' && SD.exam.allowed(q) && !SD.exam.offTrack(q); };
-    const id = Object.keys(SD.twins).find(k => ok(k) && topics.has(SD.exam.find(k).topic) && SD.twins[k].filter(ok).length >= 2);
+    const id = Object.keys(SD.twins).find(k => ok(k) && topics.has(SD.exam.find(k).topic) && !(SD.huntCore && SD.huntCore.TOPICS[SD.exam.find(k).topic]) && SD.twins[k].filter(ok).length >= 2);
     const s = SD.state.save;
     s.wall = [{ id, t: Date.now() - 86400000 * 5, rights: [] }]; s.huntMon = {}; s.hunt = null; s.sightings = [];
     if (s.fg && s.fg.fmt) delete s.fg.fmt.faded;
@@ -364,7 +365,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- Verified first ----
   const vf = await page.evaluate(() => {
     const ok = q => q && SD.exam.allowed(q) && !SD.exam.offTrack(q) && q.type !== 'explain';
-    const id = Object.keys(SD.twins).find(k => ok(SD.exam.find(k)) && SD.twins[k].map(x => SD.exam.find(x)).filter(ok).length >= 2);
+    const id = Object.keys(SD.twins).find(k => ok(SD.exam.find(k)) && !(SD.huntCore && SD.huntCore.TOPICS[SD.exam.find(k).topic]) && SD.twins[k].map(x => SD.exam.find(x)).filter(ok).length >= 2);
     const tw = id ? SD.twins[id].filter(x => ok(SD.exam.find(x))) : [];
     return { id, want: tw[1] };
   });
