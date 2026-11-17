@@ -183,7 +183,7 @@
       // The plaque hangs just above whatever stands there, so the cards along the bottom never cover it.
       const standing = !res || res.kept === 'running' ? r.type : res.kept === 'snapshot' ? 'jar' : 'rubble';
       out += `<span class="rs-plq${res ? ' done' : ''}" style="left:${px(cx - 90)};top:${px(YF - YA * (YARD_ART[standing] || [0, 0, 1])[2] - 56)}">${esc(pol)}</span>`;
-      if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(cx - YSTEP / 2 + 10)};top:${px(YF - YA * 2.3)};width:${px(YSTEP - 20)};height:${px(YA * 2.3 + 80)}"></button>`;
+      if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" data-drop="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(cx - YSTEP / 2 + 10)};top:${px(YF - YA * 2.3)};width:${px(YSTEP - 20)};height:${px(YA * 2.3 + 80)}"></button>`;
     });
     return { html: out, width: worldW, kind: 'yard', stops: [yx(0), yx(n - 1)] };
   }

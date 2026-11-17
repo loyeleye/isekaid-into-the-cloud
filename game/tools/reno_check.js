@@ -62,16 +62,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await wait(10);
     return q.id;
   }, [right, conf]);
-  // Sets the plan through the knobs on screen: a policy/config card, then each knob value.
+  // Sets the plan on screen: a policy/config card, then each knob value. The yard's DeletionPolicy is a tag picked up
+  // from the tray and put on the resource (the tap-and-tap way; a real drag is checked on its own below).
   const setPlan = async o => {
     for (const [k, v] of Object.entries(o)) {
       if (k === 'policy') await page.click(`[data-pol="${v}"]`);
       else if (k === 'cfg') await page.click(`[data-cfg="${v}"]`);
+      else if (k.startsWith('cfn:') && await page.$('[data-tok]')) await page.evaluate(([id, v]) => { document.querySelector(`[data-tok="${v}"]`).click(); document.querySelector(`[data-drop="${id}"]`).click(); }, [k.slice(4), v]);
       else await page.click(`[data-k="${k}"][data-v="${v}"]`);
+      await page.waitForTimeout(30);
     }
   };
+  // The template card's blanks: the first time a term shows up, it's written out in full before the plan runs.
+  const writeBlanks = async () => { for (let i = 0; i < 8; i++) { const x = await page.$('.rn-blank:not(.ok)'); if (!x) break; await x.fill(await x.getAttribute('data-term')); await page.waitForTimeout(520); } };
+  const runPlan = async () => { await writeBlanks(); await page.click('#rn-run'); };
   const renovate = async () => {
-    await page.click('#rn-run');
+    await runPlan();
     if (await page.$('#rn-skip')) await page.click('#rn-skip');
     await page.waitForSelector('.rn-after:not([hidden])', { timeout: 5000 }).catch(() => {});
   };
@@ -126,7 +132,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(!/helps|correct|right choice/i.test(await txt('.rn-cards')), 'policy cards say what they set, never whether they help');
   await noHScroll('plan'); await shot('plan');
   await setPlan({ policy: 'allAtOnce' });
-  await page.click('#rn-run');
+  await runPlan();
   check(await page.$$eval('.rn-run', x => x.length) === 2 && /cracked beam/.test(await txt('#panel')), 'Seymour runs it twice: a sound release and the cracked beam');
   await shot('running');
   if (await page.$('#rn-skip')) await page.click('#rn-skip');
@@ -186,10 +192,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check((await st()).night === 2 && /Shrine Bridge opens/.test(await txt('#panel')), 'night 2 opens the Shrine Bridge');
   await page.click('#rn-go');
   await setPlan({ cfg: 'canary' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/\$LATEST/.test(await txt('.rn-refused')), 'a plan on $LATEST is refused, in the client\'s words');
   await setPlan({ publish: 'true' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/previous version/.test(await txt('.rn-refused')), 'a gradual shift on a brand-new function is refused');
   check(await play({ cfg: 'all' }, true), 'the first bell: all at once passes');
   await nextJob();
@@ -208,8 +214,26 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.get('draft').start());
   await page.click('#rn-go');
   check(/DeletionPolicy/.test(await txt('#panel')) && /Snapshot/.test(await txt('#panel')), 'night 3 opens the Blueprint Office with DeletionPolicy knobs');
+  check(/template\.yaml/.test(await txt('.rn-tpl')) && /DeletionPolicy:/.test(await txt('.rn-tpl')), 'the template card writes the plan the way AWS does');
+  check(await page.$$eval('[data-tok]', x => x.length) === 3, 'the yard has a tray of three DeletionPolicy tags');
+  { // A real drag: the Retain seal from the tray onto the first resource in view.
+    const tok = await page.$('[data-tok="Retain"]'), drop = await page.$('[data-drop]'), id = await drop.getAttribute('data-drop');
+    const tb = await tok.boundingBox(), db = await drop.boundingBox();
+    await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2); await page.mouse.down();
+    await page.mouse.move(db.x + db.width / 2, db.y + db.height / 2, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
+    check(await page.evaluate(id => { const s = SD.state.save.reno; return s.jobs[s.at].plan[id]; }, id) === 'Retain' && /DeletionPolicy: Retain/.test(await txt('.rn-wrote')), 'dragging the Retain seal onto a resource tags it, and the line it writes floats up over the yard');
+    check(!!(await page.$('.rn-blank[data-term="Retain"]')), 'the first Retain is a blank on the card, to write out');
+    await page.click('#rn-run'); await page.waitForTimeout(100);
+    check((await st()).phase === 'plan' && !!(await page.$('.rn-tplwait')), 'Seymour won\'t run a plan with a blank on its card');
+    const bl = await page.$('.rn-blank[data-term="Retain"]');
+    await bl.fill('Retian'); await bl.press('Enter'); await bl.fill(''); await bl.press('Enter');
+    check(await bl.getAttribute('placeholder') === 'Retain', 'two misses show the word faintly in the blank');
+    await bl.fill('retain'); await page.waitForTimeout(520);
+    check(await page.evaluate(() => !!SD.state.save.renoKeep.typed.Retain) && !(await page.$('.rn-blank[data-term="Retain"]')), 'written out once (any case), the word is learned for the save');
+    await setPlan({ ['cfn:' + id]: 'Delete' });
+  }
   await setPlan({ 'cfn:ledger': 'Snapshot' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/Snapshot isn't supported/.test(await txt('.rn-refused')), 'Snapshot on a DynamoDB table is refused');
   check(await play({ 'cfn:ledger': 'Retain' }, true), 'Retain keeps the ledger');
   await noHScroll('office'); await shot('office');
@@ -219,7 +243,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#rn-next'); if ((await st()).phase === 'board') await page.click('#rn-go');
   check(await edge(), 'edge to edge at 1280px');
   await page.click('[data-k="cfn:well"][data-v="Retain"]').catch(() => {});
-  await page.click('#rn-run'); if (await page.$('#rn-skip')) await page.click('#rn-skip');
+  await runPlan(); if (await page.$('#rn-skip')) await page.click('#rn-skip');
   await page.evaluate(() => { const s = SD.state.save.reno; s.jobs[s.at].plans = []; });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.evaluate(() => SD.state.save.reno && SD.renoUi.draw());

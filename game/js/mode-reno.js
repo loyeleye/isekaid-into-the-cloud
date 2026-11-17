@@ -145,12 +145,101 @@
       return `<li class="${r ? (r.ok ? 'ok' : 'bad') : ''}">${r ? (r.ok ? '✓ ' : '✗ ') : '▢ '}${esc(t)}${r ? ` <span class="small">(${esc(r.got)})</span>` : ''}</li>`;
     }).join('')}</ul></div>`;
   }
+  // The template card: the plan as AWS writes it, under the scene. Whatever the player just placed on the scene lights
+  // its line, and the line floats up over the scene for a moment, so the picture, the exact setting the exam names and
+  // Seymour's run of it arrive together (Ladi, Nov 17: the drags have to build the association, not just look nice).
+  const CFN_TYPE = { ec2: 'AWS::EC2::Instance', rds: 'AWS::RDS::DBInstance', ddb: 'AWS::DynamoDB::Table', s3: 'AWS::S3::Bucket' };
+  const EB_POLICY = { allAtOnce: 'AllAtOnce', rolling: 'Rolling', rollingBatch: 'RollingWithAdditionalBatch', immutable: 'Immutable', split: 'TrafficSplitting' };
+  const logical = id => String(id).replace(/(^|[^a-z0-9]+)([a-z0-9])/gi, (m, a, c) => c.toUpperCase());
+  // Each line: [indent, text, the plan keys it shows]. A line with keys lights when one of them was just set.
+  function tplLines(job, p) {
+    const L = [];
+    if (job.d === 'eb') {
+      if (p.policy === 'blueGreen') {
+        L.push([0, '# Blue/green is not a DeploymentPolicy:', ['policy']], [0, '# a second environment, then swap their URLs', ['policy']], [0, '$ eb swap blue --destination_name green', ['policy']]);
+        L.push([0, `# then terminate blue ${+p.wait ? `after ${plural(+p.wait, 'tick')}` : 'right away'}`, ['wait']]);
+        return { file: 'the command line', lines: L };
+      }
+      L.push([0, 'option_settings:'], [1, 'aws:elasticbeanstalk:command:'], [2, `DeploymentPolicy: ${EB_POLICY[p.policy] || p.policy}`, ['policy'], EB_POLICY[p.policy]]);
+      if (p.policy === 'rolling' || p.policy === 'rollingBatch') L.push([2, 'BatchSizeType: Fixed', ['batch']], [2, `BatchSize: ${p.batch || 1}`, ['batch']], [2, `IgnoreHealthCheck: ${!!p.ignoreHC}`, ['ignoreHC']]);
+      if (p.policy === 'split') L.push([1, 'aws:elasticbeanstalk:trafficsplitting:'], [2, `NewVersionPercent: ${p.split}`, ['split']], [2, `EvaluationTime: ${p.evalT}`, ['evalT']]);
+      return { file: '.ebextensions/deploy.config', lines: L };
+    }
+    if (job.d === 'lam') {
+      L.push([0, 'Function:'], [1, 'Type: AWS::Serverless::Function'], [1, 'Properties:']);
+      L.push(p.publish ? [2, 'AutoPublishAlias: live', ['publish'], 'AutoPublishAlias'] : [2, '# no AutoPublishAlias: the alias stays on $LATEST', ['publish']]);
+      L.push([2, 'DeploymentPreference:'], [3, `Type: ${AD.cfgName(p)}`, ['cfg', 'wait', 'every'], AD.cfgName(p)]);
+      if (p.alarm) L.push([3, 'Alarms: [ErrorsAlarm]', ['alarm']]);
+      if (p.pre || p.post) L.push([3, 'Hooks:', ['pre', 'post']]);
+      if (p.pre) L.push([4, 'PreTraffic: PreTrafficTest', ['pre']]);
+      if (p.post) L.push([4, 'PostTraffic: PostTrafficTest', ['post']]);
+      return { file: 'template.yaml (SAM)', lines: L };
+    }
+    L.push([0, 'Resources:']);
+    job.stack.forEach(r => {
+      const v = p[r.id] || AD.cfnDefault(r.type), dflt = !p[r.id] || v === AD.cfnDefault(r.type);
+      L.push([1, `${logical(r.id)}:`], [2, `Type: ${CFN_TYPE[r.type]}`], [2, `DeletionPolicy: ${v}${dflt ? '  # default' : ''}`, [r.id], v]);
+    });
+    return { file: 'template.yaml', lines: L };
+  }
+  // The first time a term shows up in a template (per save), its place is a blank the player writes out in full:
+  // Ladi, Nov 17, "have us type out the policy ourselves the first time we see it". After two misses the word shows
+  // faintly in the blank to copy. Seymour won't run a plan with a blank in it.
+  const typedSet = () => { const k = keep(); return (k.typed = k.typed || {}); };
+  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && !typedSet()[t]).filter((t, i, a) => a.indexOf(t) === i);
+  function tplHtml(job, p, hi) {
+    const t = tplLines(job, p), typed = typedSet(), seen = {};
+    return `<div class="rn-tpl" aria-label="Your plan as AWS writes it: ${esc(t.file)}"><p class="rn-tplh">${esc(t.file)}</p><pre>${t.lines.map(([ind, text, keys, term]) => {
+      let body = esc(text);
+      if (term && !typed[term] && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
+      else if (term && !typed[term]) {
+        seen[term] = 1;
+        const at = text.indexOf(term);
+        body = esc(text.slice(0, at)) + `<input class="rn-blank" data-term="${esc(term)}" size="${term.length}" maxlength="${term.length + 4}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Write out ${esc(term.length)} letters: the setting for this line" placeholder="${'_'.repeat(Math.min(term.length, 28))}">` + esc(text.slice(at + term.length));
+      }
+      return `<span class="${keys && hi && keys.includes(hi) ? 'hi' : ''}">${'  '.repeat(ind)}${body}</span>`;
+    }).join('\n')}</pre>${blanksOf(job, p).length ? '<p class="small rn-tplnote">New on your card: write it out in full, once. Seymour likes things in writing.</p>' : ''}</div>`;
+  }
+  const norm = v => String(v).replace(/\s+/g, '').toLowerCase();
+  function bindBlanks(b, onDone) {
+    b.querySelectorAll('.rn-blank').forEach(inp => {
+      let misses = 0;
+      const term = inp.dataset.term;
+      const check = final => {
+        if (inp.readOnly) return;   // already written (a blur after the last letter fires change again)
+        if (norm(inp.value) === norm(term)) {
+          typedSet()[term] = true; SD.state.persist();
+          inp.classList.add('ok'); inp.value = term; inp.readOnly = true;
+          if (SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
+          setTimeout(() => { if (inp.isConnected) onDone(); }, 420); return;
+        }
+        if (!final) return;
+        misses++; inp.classList.remove('miss'); void inp.offsetWidth; inp.classList.add('miss');
+        if (misses >= 2) inp.placeholder = term;
+      };
+      inp.addEventListener('input', () => check(false));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(true); } });
+      inp.addEventListener('change', () => check(true));
+    });
+  }
+  // The line just written, floating up over the scene from where the piece landed.
+  function tplFloat(b, job, p, hi) {
+    const ui = b.querySelector('.rn-bleed .rs-ui'), line = hi && tplLines(job, p).lines.find(l => l[2] && l[2].includes(hi));
+    if (!ui || !line) return;
+    const f = document.createElement('div');
+    f.className = 'rn-wrote'; f.setAttribute('aria-hidden', 'true'); f.textContent = line[1].replace(/\s+#.*$/, '');
+    ui.appendChild(f); setTimeout(() => f.remove(), 2400);
+  }
   function planOf(s, job) {
     const j = s.jobs[s.at];
     if (!j.plan) j.plan = R.defaultPlan(job, keep().last[job.d]);
     return j.plan;
   }
-  function planScreen(s) {
+  // The yard's tags: what each DeletionPolicy leaves behind when the stack comes down.
+  const CFN_TAGS = [['Delete', 'yard-rubble', 'Delete: the resource and its data go'], ['Retain', 'yard-seal', 'Retain: it stays, running, outside the stack'], ['Snapshot', 'yard-jar', 'Snapshot: a final snapshot is kept, then it goes']];
+  // Pieces dropped on a district's scene other than the yard's tags: (plan, piece, place, redraw) per district.
+  const DROP = {};
+  function planScreen(s, fresh) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], p = planOf(s, job);
     const left = R.PLANS - j.plans.length;
     let cards = '', knobs = '', scene = '';
@@ -189,7 +278,7 @@
       scene = SD.renoStreet ? SD.renoStreet.scene({ stack: job.stack, plan: p, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
         label: 'The Blueprint Office yard: the stack to tear down, each resource with its DeletionPolicy plaque',
         ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip">The stack is being torn down. Mark each resource's DeletionPolicy.</span></span>${slateHtml(job)}</div>
-          <div class="rs-row"><span></span><span class="rs-chip">Tap a resource to change its plaque</span></div>` })
+          <div class="rs-row rd-row"><span class="rs-chip rs-hidephone">Drag a tag onto a resource</span><span class="rd-tray" aria-label="DeletionPolicy tags: drag one onto a resource, or tap one and then the resource">${CFN_TAGS.map(([v, img, say]) => `<button class="rd-tok" data-tok="${v}" title="${esc(say)}">${streetImg(img, '')}${v}</button>`).join('')}</span></div>` })
         : `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
       knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
     }
@@ -198,32 +287,52 @@
     const b = panel(`<div class="rn-top">${head(job.client)}<div><p class="rn-title">${esc(job.title)}</p><p class="small">${esc(NAMES[job.client])} · ${esc(R.DISTRICTS[job.d].name)}</p></div></div>
       <p class="rn-scroll">“${esc(job.scroll)}”</p>
       <div class="rn-bleed">${scene}</div>
+      ${tplHtml(job, p, j.tplHi)}
       ${slateBelow}
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
-      ${knobs ? `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>` : ''}
+      ${knobs ? (SD.renoStreet && job.d === 'cfn'
+        ? `<details class="rn-plaques"${j.plaquesOpen ? ' open' : ''}><summary class="q-ctx">The same plaques as buttons</summary><div class="rn-knobs">${knobs}</div></details>`
+        : `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>`) : ''}
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     if (SD.renoStreet) SD.renoStreet.mount(b);
     keepCamera(s, b);
     // A refused plan redraws the screen: bring the client's reason into view, or it sits below the fold on a phone.
     if (j.refused) { const rf = b.querySelector('.rn-refused'); if (rf && rf.scrollIntoView) rf.scrollIntoView({ block: 'center' }); }
-    const redraw = () => { j.refused = null; j.teachRef = ''; save(s); planScreen(s); };
-    b.querySelectorAll('[data-pol]').forEach(el => el.onclick = () => { p.policy = el.dataset.pol; redraw(); });
-    b.querySelectorAll('[data-cfg]').forEach(el => el.onclick = () => { p.cfg = el.dataset.cfg; redraw(); });
+    const det = b.querySelector('.rn-plaques'); if (det) det.addEventListener('toggle', () => { j.plaquesOpen = det.open; });
+    if (fresh) tplFloat(b, job, p, j.tplHi);
+    const redraw = key => { j.refused = null; j.teachRef = ''; j.tplHi = key || null; save(s); planScreen(s, !!key); };
+    bindBlanks(b, () => redraw(j.tplHi));
+    b.querySelectorAll('[data-pol]').forEach(el => el.onclick = () => { p.policy = el.dataset.pol; redraw('policy'); });
+    b.querySelectorAll('[data-cfg]').forEach(el => el.onclick = () => { p.cfg = el.dataset.cfg; redraw('cfg'); });
     b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => {
       const k = el.dataset.k, v = el.dataset.v;
       if (k.startsWith('cfn:')) p[k.slice(4)] = v;
       else p[k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v;
-      redraw();
+      redraw(k.startsWith('cfn:') ? k.slice(4) : k);
     });
     b.querySelectorAll('[data-res]').forEach(el => el.onclick = () => {   // tap a resource: Delete, Retain, Snapshot, round again
       const k = el.dataset.res, o = ['Delete', 'Retain', 'Snapshot'];
-      p[k] = o[(o.indexOf(p[k] || 'Delete') + 1) % 3]; redraw();
+      p[k] = o[(o.indexOf(p[k] || AD.cfnDefault((job.stack.find(r => r.id === k) || {}).type)) + 1) % 3]; redraw(k);
     });
-    b.querySelectorAll('[data-house]').forEach(el => el.onclick = () => { p.batch = +el.dataset.house; redraw(); });   // tap a house on the street
-    b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(); });
-    b.querySelector('#rn-run').onclick = () => run(s, job);
+    b.querySelectorAll('[data-house]').forEach(el => el.onclick = () => { p.batch = +el.dataset.house; redraw('batch'); });   // tap a house on the street
+    b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(k); });
+    // Hands-on: pieces dragged onto the scene, handles slid along a track, a rope strung across the houses (js/reno-drag.js).
+    if (SD.renoDrag) SD.renoDrag.bind(b, {
+      drop: (tok, at) => { if (job.d === 'cfn') { p[at] = tok; redraw(at); } else if (DROP[job.d]) DROP[job.d](p, tok, at, redraw); },
+      set: (name, v) => { p[name] = v; redraw(name); }
+    });
+    // A blank on the card: Seymour won't run a plan that isn't written out.
+    b.querySelector('#rn-run').onclick = () => {
+      const blank = b.querySelector('.rn-blank:not(.ok)');
+      if (blank) {
+        let note = b.querySelector('.rn-tplwait');
+        if (!note) { note = document.createElement('div'); note.className = 'rn-tplwait'; note.innerHTML = say('seymour', 'In writing first, please. The whole word. I\'ll wait.'); blank.closest('.rn-tpl').after(note); }
+        blank.scrollIntoView({ block: 'center' }); blank.focus(); return;
+      }
+      run(s, job);
+    };
     b.querySelector('#rn-board').onclick = () => { s.phase = 'board'; save(s); draw(s); };
     b.querySelector('#rn-stop').onclick = () => { save(s); U.closePanel(); stopNow(); };
   }
@@ -1400,6 +1509,31 @@
     .rn-cut .rs { height: min(66vh, 480px); } @media (min-width: 700px) { .rn-cut .rs { height: auto; } }
     .rn-runrows { display: flex; flex-direction: column; gap: 6px; }
     .rn-runrows .rn-run { padding: 4px 8px; }
+    /* The template card: the plan as AWS writes it, in ink on a file card under the scene. */
+    .rn-tpl { margin: 10px 0 4px; padding: 8px 12px 10px; border-radius: 6px; background: #fbf4e2; color: #241a10; border: 2px solid #8a6a3a; box-shadow: 0 3px 0 #5a4020; }
+    .rn-tplh { margin: 0 0 4px; font: 700 12px/1.2 var(--f-mono, ui-monospace, monospace); color: #7a5a30; letter-spacing: .02em; }
+    .rn-tpl pre { margin: 0; font: 600 13.5px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .rn-tpl pre span { display: inline; border-radius: 3px; }
+    .rn-tpl pre span.hi { background: #ffe08a; box-shadow: 0 0 0 2px #ffe08a; animation: rn-tplhi 1.6s ease-out; }
+    @keyframes rn-tplhi { from { background: #ffc531; box-shadow: 0 0 0 4px #ffc531; } }
+    .rn-blank { font: inherit; color: #1f4e8c; background: #fff; border: 0; border-bottom: 2px dashed #1f4e8c; padding: 0 2px; width: auto; min-width: 6ch; max-width: 100%; border-radius: 3px 3px 0 0; }
+    .rn-blank2 { color: rgba(31,78,140,.45); }
+    .rn-blank::placeholder { color: rgba(31,78,140,.4); }
+    .rn-blank:focus { outline: 2px solid #ffd45a; }
+    .rn-blank.ok { color: #1d6b3a; border-bottom-color: #1d6b3a; background: #e3f6e8; }
+    .rn-blank.miss { animation: rn-miss .35s; border-bottom-color: #b23b3b; }
+    @keyframes rn-miss { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    .rn-tplnote { margin: 6px 0 0; color: #5a3a18; }
+    .rn-tplwait { margin: 6px 0; }
+    .rn-plaques > summary { cursor: pointer; }
+    /* The line just written, floating up over the scene. */
+    .rn-wrote { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); pointer-events: none; z-index: 5; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis;
+      font: 800 clamp(15px, 2.6vw, 22px)/1.2 var(--f-mono, ui-monospace, monospace); color: #241a10; background: #fbf4e2; border: 2px solid #8a6a3a; border-radius: 8px; padding: 6px 12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,.4); animation: rn-wrote 2.4s ease-out forwards; }
+    @keyframes rn-wrote { 0% { opacity: 0; translate: 0 20px; } 12% { opacity: 1; translate: 0 0; } 75% { opacity: 1; translate: 0 -10px; } 100% { opacity: 0; translate: 0 -30px; } }
+    .rd-row { align-items: flex-end; }
+    .rs:not(.rs-wide) .rd-row { justify-content: center; }
+    @media (prefers-reduced-motion: reduce) { .rn-wrote { animation: none; } .rn-tpl pre span.hi, .rn-blank.miss { animation: none; } }
   `;
   document.head.appendChild(css);
 })();
