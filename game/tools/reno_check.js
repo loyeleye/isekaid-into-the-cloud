@@ -64,9 +64,29 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, [right, conf]);
   // Sets the plan on screen: a policy/config card, then each knob value. The yard's DeletionPolicy is a tag picked up
   // from the tray and put on the resource (the tap-and-tap way; a real drag is checked on its own below).
+  // The bridge is set on its scene: the signpost's swing and the hourglass are tracks (a tap on a stop), and the bell,
+  // the test walker and the version seal are pieces put on their places (tap the piece, then the place) or taken off
+  // (a tap on the placed one).
+  const LAM_PIECE = { alarm: ['bell', 'bell'], pre: ['tester', 'pre'], post: ['tester', 'post'], publish: ['seal', 'shrine'] };
+  const onBridge = () => page.evaluate(() => !!document.querySelector('#panel [data-slide="cfg"]'));
+  const slideTo = (name, v) => page.evaluate(([name, v]) => {
+    const tr = document.querySelector(`[data-slide="${name}"]`), i = tr.dataset.stops.split(',').indexOf(String(v));
+    const st = tr.querySelector(`[data-stop="${i}"]`), r = st.getBoundingClientRect();
+    const o = { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+    st.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o));
+  }, [name, v]);
+  const v2b = v => v === true || v === 'true';
+  const placePiece = (k, on) => page.evaluate(([tok, at, on, k]) => {
+    const s = SD.state.save.reno, now = !!s.jobs[s.at].plan[k];
+    if (on && !now) { document.querySelector(`[data-tok="${tok}"]`).click(); document.querySelector(`[data-drop="${at}"]`).click(); }
+    if (!on && now) document.querySelector(`[data-drop="${at}"]`).click();
+  }, [...LAM_PIECE[k], v2b(on), k]);
   const setPlan = async o => {
     for (const [k, v] of Object.entries(o)) {
+      const bridge = await onBridge();
       if (k === 'policy') await page.click(`[data-pol="${v}"]`);
+      else if (bridge && (k === 'cfg' || k === 'wait' || k === 'every')) await slideTo(k, v);
+      else if (bridge && LAM_PIECE[k]) await placePiece(k, v);
       else if (k === 'cfg') await page.click(`[data-cfg="${v}"]`);
       else if (k.startsWith('cfn:') && await page.$('[data-tok]')) await page.evaluate(([id, v]) => { document.querySelector(`[data-tok="${v}"]`).click(); document.querySelector(`[data-drop="${id}"]`).click(); }, [k.slice(4), v]);
       else await page.click(`[data-k="${k}"][data-v="${v}"]`);
@@ -191,6 +211,42 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.get('draft').start());
   check((await st()).night === 2 && /Shrine Bridge opens/.test(await txt('#panel')), 'night 2 opens the Shrine Bridge');
   await page.click('#rn-go');
+  { // The bridge is planned on its scene. A real drag of the signpost's swing from all at once to canary: the arm's
+    // weight follows the handle (100% to 10%) before it's let go, and letting go writes the deployment type.
+    // The camera tours the bridge when the screen opens: let it finish, then centre it on what's dragged.
+    const camTo = sel => page.evaluate(sel => { for (let e = document.querySelector('#panel .rn-top'); e; e = e.parentElement) e.scrollTop = 0; window.scrollTo(0, 0); document.querySelector('#panel .rn').classList.remove('rn-up'); const el = document.querySelector(sel), cam = el.closest('.rs-cam'), r = el.getBoundingClientRect(), c = cam.getBoundingClientRect(); cam.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2); }, sel);
+    const plan = () => page.evaluate(() => { const s = SD.state.save.reno; return s.jobs[s.at].plan; });
+    const lamUi = await page.evaluate(() => ({ tray: [...document.querySelectorAll('#panel .rs [data-tok]')].map(x => x.dataset.tok).join(','), folded: !!document.querySelector('.rn-plaques [data-cfg]') && !document.querySelector('.rn-cards:not(.rn-plaques .rn-cards)'), min: !!document.querySelector('[data-slide="wait"], [data-slide="every"]') }));
+    check(lamUi.tray === 'bell,tester,seal' && lamUi.folded && !lamUi.min, 'the bridge: a tray of the bell, the test walker and the version seal; the cards fold under the plaques; no hourglass for all at once');
+    await page.waitForFunction(() => !document.querySelector('#panel .rs').dataset.touring, null, { timeout: 20000 }).catch(() => {});
+    await camTo('[data-slide="cfg"]');
+    await page.waitForTimeout(100);
+    const kb = await (await page.$('[data-slide="cfg"] .rd-knob')).boundingBox(), sb = await (await page.$('[data-slide="cfg"] [data-stop="1"]')).boundingBox();
+    await page.mouse.move(kb.x + kb.width / 2, kb.y + kb.height / 2); await page.mouse.down();
+    await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2, { steps: 8 });
+    const midArm = await page.textContent('.rs-arm.r');
+    await page.mouse.up(); await page.waitForTimeout(150);
+    check(midArm === '10%' && (await plan()).cfg === 'canary' && /Type: Canary10Percent5Minutes/.test(await txt('.rn-wrote')), 'dragging the signpost\'s swing to canary: the arm drops to 10% as the handle slides, and Type: Canary10Percent5Minutes floats up');
+    const mins = await page.evaluate(() => { const t = document.querySelector('[data-slide="wait"]'); return t && [...t.querySelectorAll('[data-stop]')].map(x => x.textContent).join(','); });
+    await slideTo('wait', 15);
+    const w15 = (await plan()).wait;
+    await page.focus('[data-slide="cfg"] .rd-knob'); await page.keyboard.press('ArrowRight');
+    const lin = await page.evaluate(() => { const t = document.querySelector('[data-slide="every"]'); return t && t.dataset.stops; });
+    check(mins === '5 min,10 min,15 min,30 min' && w15 === 15 && (await plan()).cfg === 'linear' && lin === '1,2,3,10', 'the hourglass holds canary\'s predefined waits (5, 10, 15, 30 min) and linear\'s intervals (1, 2, 3, 10); the arrow keys move the swing');
+    // A real drag of the test walker onto the place before the signpost: the pre-traffic hook, run before any traffic shifts.
+    await camTo('[data-drop="pre"]');
+    await page.waitForTimeout(100);
+    const tb = await (await page.$('[data-tok="tester"]')).boundingBox(), pb = await (await page.$('[data-drop="pre"]')).boundingBox();
+    await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2); await page.mouse.down();
+    await page.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(150);
+    const pre = (await plan()).pre, preText = await txt('.rn-wrote');
+    await placePiece('publish', true);
+    const sealed = (await plan()).publish && /AutoPublishAlias: live/.test(await txt('.rn-wrote'));
+    await page.click('[data-drop="pre"]'); await placePiece('publish', false);
+    const p2 = await plan();
+    check(pre === true && /PreTraffic: PreTrafficTest/.test(preText) && !!(await page.$('.rs-brplq')) && sealed && !p2.pre && !p2.publish, 'the test walker dropped before the signpost is PreTraffic, the seal on the new shrine is AutoPublishAlias: live, and a tap on a placed piece takes it off');
+    await slideTo('cfg', 'all');
+  }
   await setPlan({ cfg: 'canary' });
   await runPlan();
   check(/\$LATEST/.test(await txt('.rn-refused')), 'a plan on $LATEST is refused, in the client\'s words');
