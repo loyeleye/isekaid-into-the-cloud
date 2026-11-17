@@ -155,7 +155,12 @@
       if (p.policy === 'blueGreen') knobs = seg('wait', [[0, 'Right away'], [2, 'After 2 ticks']], p.wait, 'Tear down the old street');
     } else if (job.d === 'lam') {
       const w0 = p.cfg === 'all' ? 1 : 0.1;
-      scene = `<div class="rn-street rn-river"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">${plural(job.fn.demand, 'walker')} a minute cross the bridge${job.fn.first ? ' · this function has never shipped a version' : ' · the live alias points at the current version'}</p>${bridgeRow(w0, 0, { alarm: p.alarm, ghost: true })}</div>`;
+      const info = `${plural(job.fn.demand, 'walker')} a minute cross the bridge${job.fn.first ? ' · this function has never shipped a version' : ' · the live alias points at the current version'}`;
+      scene = SD.renoStreet ? SD.renoStreet.scene({ bridge: true, w: w0, demand: job.fn.demand, first: job.fn.first, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post, ghost: true, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
+        label: `The Shrine Bridge: ${info}. The signpost's first swing sends ${Math.round(w0 * 100)}% to the new shrine`,
+        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip rs-hidephone">${esc(info)}</span><span class="rs-chip plan">Blueprint: ${esc(AD.cfgName(p))}</span></span>${slateHtml(job)}</div>
+          <div class="rs-row"><span></span><span class="rs-chip">Tap the bell or the test walker to set them up</span></div>` })
+        : `<div class="rn-street rn-river"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">${esc(info)}</p>${bridgeRow(w0, 0, { alarm: p.alarm, ghost: true })}</div>`;
       cards = ['all', 'canary', 'linear'].map(id => bp('data-cfg', id, p.cfg === id, id === 'all' ? 'All at once' : id[0].toUpperCase() + id.slice(1), LAM_TEXT[id])).join('');
       if (p.cfg === 'canary') knobs += seg('wait', AD.CANARY.map(m => [m, m + ' min']), p.wait, 'Wait before the other 90%');
       if (p.cfg === 'linear') knobs += seg('every', AD.LINEAR.map(m => [m, 'every ' + m]), p.every, 'Minutes between steps');
@@ -173,7 +178,7 @@
         : `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
       knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
     }
-    const slateBelow = (job.d === 'eb' || job.d === 'cfn') && SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
+    const slateBelow = SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
     const refused = j.refused ? `<div class="rn-refused">${say(job.client, j.refused)}${j.teachRef || ''}</div>` : '';
     const b = panel(`<div class="rn-top">${head(job.client)}<div><p class="rn-title">${esc(job.title)}</p><p class="small">${esc(NAMES[job.client])} · ${esc(R.DISTRICTS[job.d].name)}</p></div></div>
       <p class="rn-scroll">“${esc(job.scroll)}”</p>
@@ -289,6 +294,7 @@
   function showRun(s, job, res) {
     if (job.d === 'eb' && SD.renoStreet) return showStreetRun(s, job, res);
     if (job.d === 'cfn' && SD.renoStreet) return showYardRun(s, job, res);
+    if (job.d === 'lam' && SD.renoStreet) return showBridgeRun(s, job, res);
     const j = s.jobs[s.at], left = R.PLANS - j.plans.length;
     const pass = res.pass, last = left <= 0;
     const ev = events(job, res, j.plans[j.plans.length - 1].plan);
@@ -508,6 +514,112 @@
     s.phase = 'plan'; save(s);
     if (reduced()) return finish();
     timer = setTimeout(step, 900);
+  }
+  // The Shrine Bridge's runs as a cutscene, like Beanstalk Row's: run 1 (a sound release), Seymour's "Again", run 2 (the
+  // cracked one). The camera cuts in on the new shrine when walkers meet the crack, on the bell when it rings, and on
+  // the test walker when a hook runs; then the verdict close-up.
+  function showBridgeRun(s, job, res) {
+    const RS = SD.renoStreet, j = s.jobs[s.at], left = R.PLANS - j.plans.length;
+    const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan;
+    const ev = events(job, res, planNow);
+    const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
+    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const crackName = !job.crack ? 'the same sound release' : job.crack === 'test' ? 'a crack a test can find' : 'a crack only a crowd finds';
+    const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
+    const base = { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!planNow.alarm, pre: !!planNow.pre, post: !!planNow.post };
+    const at = (r, i, bad) => {
+      const tick = r.ticks[Math.min(i, r.ticks.length - 1)], upto = r.ticks.slice(0, i + 1);
+      const soot = upto.reduce((a, x) => a + (x.soot || 0), 0);
+      const caughtNow = bad && i >= r.ticks.length - 1 && (r.caughtBy === 'pre' || r.caughtBy === 'post');
+      return { tick, soot, o: Object.assign({}, base, { w: tick.w, soot: tick.soot, note: tick.note, rang: tick.note === 'rollback', cracked: bad && (soot > 0 || caughtNow) }) };
+    };
+    const g0 = res.good.ticks.length ? at(res.good, 0, false).o : base;
+    const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
+      <div class="rn-bleed rn-cut">${RS.scene(Object.assign({}, g0, { seymour: 'proud', kai: 'neutral', shot: 'wide', label: 'Seymour\'s first run, a sound release, playing out at the Shrine Bridge',
+        ui: `<div class="rs-row"><span class="rs-chip rs-runlab">Run 1: a sound release</span><span class="rs-chip rs-gate ok">Nobody has soot</span></div><div class="rs-row rs-mid"></div><div class="rs-bar"><b class="rs-tk">minute 1</b><span class="rs-ticks"></span></div>` }))}</div>
+      <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: ' + crackName, 'b')}</div>
+      <div class="rn-bleed rn-verdict" hidden>${RS.scene(Object.assign({}, base, { shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove',
+          label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
+          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` }))}</div>
+      <div class="rn-after" hidden>
+        <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
+        ${slateHtml(job, res)}
+        ${teachLines(s, ev)}
+        ${pass || last ? '' : say(job.client, CL(job.client).wrong || 'Not like that.')}
+        <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
+      </div>
+      <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">▶▶ Skip to the verdict</button></div>`, 'SEYMOUR\'S INSPECTION');
+    const el = b.querySelector('.rn-cut .rs'), rnBox = b.querySelector('.rn');
+    el.classList.add('rs-run'); if (rnBox) rnBox.classList.add('rn-playing');
+    RS.mount(b);
+    const ui = sel => el.querySelector(sel), kai = () => el.querySelector('.rs-kai');
+    const runs = [['g', res.good], ['b', res.bad]];
+    let said = {};
+    const kaiSays = (key, line, face) => {
+      if (said[key]) return; said[key] = 1;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
+    };
+    const show = (which, r, i) => {
+      const x = at(r, i, which === 'b'), tick = x.tick;
+      RS.update(el, Object.assign({}, x.o, { seymour: which === 'b' ? 'inspect' : 'proud' }));
+      const n = tick.note;
+      RS.cut(el, n === 'rollback' ? 'push' : (n === 'pre' || n === 'post') ? 'push' : tick.soot ? 'push' : 'wide', n === 'rollback' ? 'sign' : tick.soot || n === 'pre' || n === 'post' ? 'new' : null);
+      ui('.rs-tk').textContent = `minute ${tick.t}`;
+      ui('.rs-ticks').innerHTML = r.ticks.map((y, k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('');
+      const g = ui('.rs-gate');
+      g.className = 'rs-chip rs-gate ' + (x.soot ? 'bad' : 'ok');
+      g.textContent = (x.soot ? `${x.soot} with soot` : 'Nobody has soot') + ` · new ${Math.round((tick.w || 0) * 100)}%`;
+      if (n === 'pre') kaiSays('pre', 'The little test walker goes first!', null);
+      if (n === 'post') kaiSays('post', 'The test walker is checking it after the switch.', null);
+      if (tick.soot) kaiSays('soot', 'They came back covered in soot!', 'worried');
+      if (n === 'rollback') kaiSays('back', 'The bell! The signpost swung back on its own.', 'happy');
+      if (which === 'b' && i >= r.ticks.length - 1 && r.caughtBy === 'pre') kaiSays('caught', 'The test walker found the crack. Nobody else went near it.', 'happy');
+      if (n === 'stuck') kaiSays('stuck', 'Nobody is stopping it. Everyone is walking into the crack.', 'worried');
+      const row = b.querySelector(`[data-run="${which}"]`);
+      row.querySelector('.rn-tick').textContent = `minute ${tick.t}`;
+      if (i >= r.ticks.length - 1) row.querySelector('.rn-sum').textContent = runSummary(job, r, which);
+    };
+    let timer = null, phase = 0, t = 0, ended = false;
+    const finish = () => {
+      if (ended) return; ended = true;
+      if (timer) clearTimeout(timer); timer = null;
+      runs.forEach(([w, r]) => { const row = b.querySelector(`[data-run="${w}"]`); if (r.ticks.length) row.querySelector('.rn-tick').textContent = `minute ${r.ticks[r.ticks.length - 1].t}`; row.querySelector('.rn-sum').textContent = runSummary(job, r, w); });
+      const vd = b.querySelector('.rn-verdict'); vd.hidden = false; b.querySelector('.rn-after').hidden = false; b.querySelector('.rn-cut').hidden = true;
+      if (rnBox) rnBox.classList.remove('rn-playing');
+      const sk = b.querySelector('.rn-skipd'); if (sk) sk.remove();
+      RS.mount(vd);
+      if (pass && U.burst) { const v = b.querySelector('.verdict'); if (v) U.burst(v); }
+      if (pass && job.grand && SD.modeStage && SD.modeStage.sting) SD.modeStage.sting('draft', 'win');
+      const deb = b.querySelector('#rn-deb'), again = b.querySelector('#rn-again'), give = b.querySelector('#rn-give');
+      if (deb) deb.onclick = () => { s.phase = 'debrief'; j.done = true; save(s); draw(s); };
+      if (again) again.onclick = () => { s.phase = 'plan'; save(s); draw(s); };
+      if (give) give.onclick = () => { s.phase = 'debrief'; j.done = true; j.pass = false; save(s); draw(s); };
+    };
+    const step = () => {
+      if (ended) return;
+      const [which, r] = runs[phase];
+      if (r.ticks.length) show(which, r, t);
+      t++;
+      if (t < r.ticks.length) { timer = setTimeout(step, 620); return; }
+      if (phase === 0) {
+        phase = 1; t = 0;
+        timer = setTimeout(() => {
+          if (ended) return;
+          RS.update(el, Object.assign({}, base, { w: 0, seymour: 'inspect' })); RS.cut(el, 'wide');
+          ui('.rs-runlab').textContent = 'Run 2: ' + crackName;
+          ui('.rs-mid').innerHTML = `<p class="rs-say"><b>Seymour:</b> ${job.crack ? `Again. This time the new shrine has ${esc(crackName)}.` : 'Again. I check everything twice.'}</p>`;
+          said = {};
+          timer = setTimeout(step, 1700);
+        }, 900);
+        return;
+      }
+      timer = setTimeout(finish, 1100);
+    };
+    b.querySelector('#rn-skip').onclick = finish;
+    s.phase = 'plan'; save(s);
+    if (reduced()) return finish();
+    step();
   }
   const nameIn = (job, id) => { const r = job.stack.find(x => x.id === id); return r ? r.name : id; };
   function planName(job, p) {
