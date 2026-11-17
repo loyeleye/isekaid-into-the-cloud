@@ -3397,8 +3397,9 @@
       `two faults at once ${Math.round(100 * st.two / span)}% of 01:00 to 05:00`, `${Math.round(100 * st.downT / Math.max(1, st.downT + st.upT))}% of the night downstairs`, `${M.audit.cellar.right} review answer${M.audit.cellar.right === 1 ? '' : 's'} right`, `${st.upkeep} coins of upkeep`];
     if (st.darkHours) bits.push(`${st.darkHours} tool-hours dark`);
     qEl.className = 'on end';
-    qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Dawn. The night is audited.' : 'The ink column filled.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${won ? 'Play the Night Audit again' : 'Try the Night Audit again'}</button></div>`;
-    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => { if (won) run.bank = Math.max(0, M.coins); showPick('audit'); }); b.focus();
+    qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Dawn. The night is audited.' : 'The ink column filled.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${won && M.next ? 'Next claim: ' + R.CLAIMS[M.next].title : won ? 'Play the Night Audit again' : 'Try the Night Audit again'}</button></div>`;
+    // Won: on to the next claim (the New Sorter), coins carried. Lost: the Night Audit again.
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => { if (won) run.bank = Math.max(0, M.coins); showPick(won && M.next ? M.next : 'audit'); }); b.focus();
   }
   function audReset() {
     AU8.room = 'up'; AU8.armed = null; AU8.splash = []; AU8.shake = {}; cardClose();

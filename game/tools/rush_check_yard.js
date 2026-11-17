@@ -247,6 +247,16 @@ async function fits(pg, name, what) {
     const sum = await pg.evaluate(() => { const S = SD_RUSH.S; return { over: S.over, spill: S.spill, shipped: S.shipped, rollbacks: S.rollbacks, snags: S.snags, hotfix: S.hotfixChoice, strip: (document.querySelector('.end-strip') || {}).textContent }; });
     console.log(name, JSON.stringify(sum));
     for (const k of ['mid', 'rollback', 'slip', 'card', 'review', 'hotfix']) if (!seen[k]) bad(name, 'never saw', k);
+    // Claim 9 is the last claim: a win offers the Rush again, and starting over takes the orders down.
+    if (sum.over === 'win') {
+      const go = await pg.evaluate(() => (document.querySelector('.end-go') || {}).textContent || '');
+      if (!/Play again from the Rush/.test(go)) bad(name, 'the last claim should offer the Rush again:', go);
+      else {
+        await pg.click('.end-go');
+        const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
+        if (again.orders || !/orders/.test(again.q) || !again.offer.includes('letters')) bad(name, 'starting over should take the orders down and open the pick', JSON.stringify(again)); else ok(name, 'last claim starts the run over');
+      }
+    }
     if (name === 'phone') {
       // The yard's own canvas words (the cellar room's art and shared pieces are claims 1-6's, not checked here).
       const small = await pg.evaluate(MIN => Object.entries(window.__small).filter(([, px]) => px < MIN - 0.25).map(([t, px]) => t + ' ' + px.toFixed(1)), MIN_PX);
