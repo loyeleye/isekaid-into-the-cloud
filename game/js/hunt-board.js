@@ -153,9 +153,13 @@
   };
   const BODY = p => `assets/img/hunt/bru/body-${p}.webp`;
   const FACE = (p, m) => `assets/img/hunt/bru/face-${p}-${m}.webp`;
-  Object.keys(POSE).forEach(p => [BODY(p), ...POSE[p].faces.map(m => FACE(p, m))].forEach(u => { const i = new Image(); i.src = u; }));
+  // Every pose and face is fetched ahead the first time Bru is on screen, so a turn or a new mood never waits on the
+  // network. Not on page load: the story and the other modes (and the vector build's chapters) never show her.
+  let preloaded = false;
+  const preload = () => { if (preloaded) return; preloaded = true; Object.keys(POSE).forEach(p => [BODY(p), ...POSE[p].faces.map(m => FACE(p, m))].forEach(u => { const i = new Image(); i.src = u; })); };
   const still = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   function bruOn(root) {
+    preload();
     const el = root.querySelector('.hs-bru'), fig = el.querySelector('.hs-fig'), bod = el.querySelector('.hs-body'), face = el.querySelector('.hs-face'), say = root.querySelector('.hs-say');
     const o = { mood: 'neutral', until: 0, flap: 0, line: null, home: 'three', pose: 'three' };
     // A mood her current pose has no face for turns her to the three-quarter view for it.

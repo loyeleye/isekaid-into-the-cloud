@@ -55,7 +55,7 @@ async function run(browser, url, i) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { window.SD_TEST = 1; });
+  await page.addInitScript(() => { window.SD_TEST = 1; window.SD_NO_TYPING = 1; });   // the typing steps have their own check (tools/type_once_check.js)
   await page.goto(url);
   const lead = LEADS[i % 4];
   await page.evaluate(([lead, TAPES]) => {

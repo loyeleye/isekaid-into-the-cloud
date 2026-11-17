@@ -106,7 +106,8 @@ const server = http.createServer((req, res) => {
       const c1 = SD.state.save.c1; SD.state.save.c1 = Object.assign({}, c1, { lead: 'kai' });
       SD.vn.play([['cg', 'wear-test'], ['show', 'kai', 'neutral', 'left'], ['show', 'dutch', 'neutral', 'right'], ['wait', 5000]]);
       await wait(2200);
-      const imgs = [...document.querySelectorAll('#vn img')].map(i => i.getAttribute('src'));
+      // Not the blurred copy of the still behind it (.vn-fill, js/vn.js fill()): it repeats the still's figures.
+      const imgs = [...document.querySelectorAll('#vn img')].filter(i => !i.closest('.vn-fill')).map(i => i.getAttribute('src'));
       out.lookCut = imgs.some(u => /look-santa-kai\.webp/.test(u)) && imgs.filter(u => /look-santa-kai/.test(u)).length === 2 && imgs.includes('assets/img/lead/dutch.webp') && !imgs.includes('assets/img/lead/kai.webp');
       out.lookCutImgs = imgs.filter(u => /lead|look/.test(u)).join(' ');
       document.querySelector('#vn .vn-skip').click(); await wait(300);
