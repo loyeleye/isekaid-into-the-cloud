@@ -72,6 +72,7 @@ const VOICE = Object.keys(LIST.files).find(p => /^assets\/audio\/vo\//.test(p));
     const opened = () => page.waitForFunction(() => window.SD && SD.main && SD.state && SD.state.save && document.querySelector('#title-actions button'), null, { timeout: 30000 });
 
     // ---- Online: off until the player switches it on ----
+    await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
     await page.goto(base + 'index.html');
     await opened();
     check(await page.evaluate(() => SD.offline.supported()), 'the game can be saved for offline here');

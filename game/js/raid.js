@@ -2254,8 +2254,20 @@
     }
     // Policy Sort (SD.policySorts): predict how many of the five requests get through, sort them, then the answers.
     async function sortHere(r) {
-      const P = SD.policySorts[r.n], reqs = P.reqs || [], t0 = Date.now(), YES = P.yes || 'Allowed', NO = P.no || 'Denied';
+      const P = SD.policySorts[r.n], reqs = P.reqs || [], YES = P.yes || 'Allowed', NO = P.no || 'Denied';
       const ev = P.ev ? `<pre class="q-ev">${esc(P.ev)}</pre>` : '';
+      // Type it once (js/type-once.js): before you predict, the line that decides it, its key part typed by hand the
+      // first time this save meets it (P.type, else the policy line holding its first condition key or action). Solo
+      // only, since a party would wait on it, and before the clock starts, so it never costs a band.
+      const people = Object.keys(G.players).filter(k => k[0] !== '~').length;
+      if (SD.typeOnce && people <= 1) {
+        let tl = P.type;
+        if (!tl && P.ev) { const tok = SD.typeOnce.token(P.ev); const ln = tok && String(P.ev).split('\n').find(l => l.includes(tok)); if (ln) tl = { line: ln.trim(), ans: tok }; }
+        if (tl && !SD.typeOnce.off && SD.typeOnce.need(tl.ans)) {
+          await SD.typeOnce.ask({ line: tl.line, ans: tl.ans, title: 'POLICY SORT', say: 'First, write the part of the policy that decides it.' });
+        }
+      }
+      const t0 = Date.now();
       const guess = await panelHere(`<div class="q-ctx">${esc(P.by || 'Policy Sort')} · ${esc(P.title)}</div>${ev}<p class="q-q">${reqs.length} ${esc(P.what || 'requests')} are about to arrive. How many get through?</p>
         <div class="row">${reqs.map((x, i) => `<button class="mi-btn sm ps-n" type="button" data-n="${i}">${i}</button>`).join('')}<button class="mi-btn sm ps-n" type="button" data-n="${reqs.length}">${reqs.length}</button></div>`, 'POLICY SORT', (el, done) => {
         el.querySelectorAll('.ps-n').forEach(b => { b.onclick = () => done(+b.dataset.n); });

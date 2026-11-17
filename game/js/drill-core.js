@@ -1002,7 +1002,7 @@
   // Lines a rule's first appearance carries (once per save, L9).
   D.TEACH = {
     '429': ['seoyeon', 'The Gate\'s bucket only refills so fast. A 429 means it was empty.'],
-    vis: ['mira', 'A message hides for the visibility timeout. Shorter than the work, and it comes back while it\'s still being worked. AWS recommends at least six times the function\'s timeout, so retries fit too.'],
+    vis: ['mira', 'AWS says a queue in front of a function wants a visibility timeout of at least six times the function\'s timeout.'],   // voiced (js/vo-modes.js): keep word for word
     hot: ['dutch', 'The table has room. One partition doesn\'t. Each one only takes so many writes a second.'],
     kms: ['dutch', 'A KMS key listens to its key policy first. If that doesn\'t let IAM decide, no IAM policy helps.'],
     cold: ['kai', 'New environment, new start-up. Reserved concurrency saves a place. It doesn\'t warm it.'],

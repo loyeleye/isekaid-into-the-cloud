@@ -207,6 +207,7 @@ function step([WIN, LEAD, CHOICE]) {
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');

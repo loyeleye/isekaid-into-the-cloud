@@ -99,6 +99,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
 
   await page.clock.install({ time: new Date('2026-11-17T20:00:00') });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
   await boot();
   await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });

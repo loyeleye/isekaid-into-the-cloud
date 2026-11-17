@@ -8,11 +8,14 @@
 // API:
 //   SD.typeOnce.token(text, prefer)    the key token in a line of AWS text: prefer (if it's in the text), else the first
 //                                      condition key or action (kms:Decrypt), CamelCase setting (VisibilityTimeout),
-//                                      CONSTANT (AFTER_SEQUENCE_NUMBER), function (attribute_not_exists) or --flag
+//                                      CONSTANT (AFTER_SEQUENCE_NUMBER), function (attribute_not_exists), --flag or
+//                                      snake_case setting (retry_mode)
 //   SD.typeOnce.need(token)            true when this save hasn't typed it yet
 //   SD.typeOnce.ask({ line, ans, title, who, say, why })   one typing panel: line is the whole line, ans the token
 //                                      blanked in it. Resolves { typed, misses, skipped }.
 //   SD.typeOnce.maybe(line, opts)      token + need + ask in one: resolves null when there's nothing new to type
+//   SD.typeOnce.off = true             maybe() asks nothing (for headless checks of other things; window.SD_NO_TYPING = 1
+//                                      before load sets it)
 //   SD.typeOnce.match(typed, ans)      the matcher: case, whitespace and surrounding quotes ignored
 //   SD.typeOnce.learned(term)          true once this save has typed it (also reads the Renovation's renoKeep.typed and
 //                                      the Incident Commander's icTyped, so older saves keep their progress)
@@ -24,6 +27,7 @@
 // Stored in the save: S.save.typed[term in lower case] = time typed.
 (function () {
   const T = SD.typeOnce = {};
+  T.off = !!window.SD_NO_TYPING;   // a headless check of something else sets this before load
   const U = SD.ui, S = SD.state;
   const esc = s => U.esc(String(s == null ? '' : s));
   const store = () => (S.save.typed = S.save.typed || {});
@@ -36,7 +40,8 @@
     /\b[A-Z][A-Z0-9]*_[A-Z0-9_]{2,}\b/,
     /\b(?:attribute|begins|size)_[a-z_]+\b/,
     /\$LATEST|\$\.[A-Za-z]+/,
-    /\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b/g
+    /\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b/g,
+    /\b[a-z]{3,}_[a-z][a-z_]{2,}\b/
   ];
   T.token = function (text, prefer) {
     const t = String(text || '');
@@ -68,13 +73,21 @@
 
   T.ask = function (o) {
     const ans = o.ans, line = String(o.line || ans);
-    const at = line.indexOf(ans), pre = at >= 0 ? line.slice(0, at) : '', post = at >= 0 ? line.slice(at + ans.length) : '';
+    const at = line.indexOf(ans), pre = at >= 0 ? line.slice(0, at) : '';
+    // A trailing comment (# … or // …) goes on its own row under the code, so it never wraps under the blank.
+    let post = at >= 0 ? line.slice(at + ans.length) : '', cmt = '';
+    const cm = post.match(/\s+(#|\/\/)\s.*$/);
+    if (cm) { cmt = cm[0].trim(); post = post.slice(0, cm.index); }
+    const cmtHtml = cmt ? `<span class="to-cmt">${esc(cmt)}</span>` : '';
     let misses = 0;
+    // Whatever the panel held (a fight, a map, a drill) is kept aside and put back after, so the typing step can sit on
+    // top of any screen and leave it as it was.
+    const P = document.getElementById('panel'), keep = P ? [...P.childNodes] : [], hid = P ? P.hidden : true;
     return new Promise(done => {
       const b = U.panel(`<div class="to-w">
           ${o.who ? `<p class="to-say"><b>${esc(o.who)}:</b> ${esc(o.say || 'First time this one\'s come up. Write it in yourself.')}</p>` : `<p class="to-say">${esc(o.say || 'First time this one\'s come up. Type the missing part yourself.')}</p>`}
           <form class="to-card" autocomplete="off">
-            <code class="to-line"><span>${esc(pre)}</span>${o.choices ? '<b class="to-gap">____</b>' : `<input class="to-in" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Type the missing part" size="${Math.max(6, Math.min(32, ans.length + 1))}">`}<span>${esc(post)}</span></code>
+            <code class="to-line"><span>${esc(pre)}</span>${o.choices ? '<b class="to-gap">____</b>' : `<input class="to-in" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Type the missing part" size="${Math.max(6, Math.min(32, ans.length + 1))}">`}<span>${esc(post)}</span>${cmtHtml}</code>
             ${o.choices ? `<div class="to-ch">${o.choices.map(c => `<button type="button" class="ghost" data-ch="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
             <p class="small to-note" aria-live="polite">${o.why ? esc(o.why) : 'Type it once, the way AWS spells it. Two misses and it shows faintly to copy.'}</p>
             <div class="row"><button class="primary" type="submit">Check</button><button class="ghost" type="button" data-skip>Not now</button></div>
@@ -85,14 +98,17 @@
         b.querySelectorAll('[data-ch]').forEach(el => el.onclick = () => { inp.value = el.dataset.ch; if (!T.match(inp.value, ans)) el.disabled = true; f.onsubmit({ preventDefault() {} }); });
       }
       setTimeout(() => { try { inp.focus(); } catch (e) { /* no focus on some phones */ } }, 60);
-      const finish = r => { U.closePanel(); done(r); };
+      const finish = r => {
+        if (P && keep.length) { P.innerHTML = ''; keep.forEach(n => P.appendChild(n)); P.hidden = hid; } else U.closePanel();
+        done(r);
+      };
       b.querySelector('[data-skip]').onclick = () => finish({ typed: false, misses, skipped: true });
       f.onsubmit = e => {
         e.preventDefault();
         if (T.match(inp.value, ans)) {
           T.mark(ans);
           if (SD.audio && SD.audio.sfx) try { SD.audio.sfx('good'); } catch (er) { /* sound is optional */ }
-          b.querySelector('.to-card').innerHTML = `<code class="to-line done">${esc(pre)}<b>${esc(ans)}</b>${esc(post)}</code>
+          b.querySelector('.to-card').innerHTML = `<code class="to-line done">${esc(pre)}<b>${esc(ans)}</b>${esc(post)}${cmtHtml}</code>
             <p class="small to-note">✓ Typed. ${misses ? 'It\'s yours now.' : 'First try.'}</p><div class="row"><button class="primary" type="button" data-go>Continue</button></div>`;
           b.querySelector('[data-go]').onclick = () => finish({ typed: true, misses, skipped: false });
           b.querySelector('[data-go]').focus();
@@ -123,6 +139,7 @@
   };
   T.maybe = function (line, o) {
     o = o || {};
+    if (T.off) return Promise.resolve(null);   // headless checks that aren't about typing turn it off
     const ans = o.ans || T.token(line, o.prefer);
     if (!ans || !T.need(ans) || !String(line).includes(ans)) return Promise.resolve(null);
     return T.ask(Object.assign({}, o, { line, ans }));
@@ -134,7 +151,8 @@
     .to-card { display: flex; flex-direction: column; gap: 8px; }
     .to-line { display: block; padding: 10px; border-radius: 8px; background: #1c1a24; color: #f3ead6; font: 600 13px/1.6 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
     .to-line b { color: #ffe58a; }
-    .to-in { font: inherit; color: #ffe58a; background: #2c2838; border: 0; border-bottom: 2px solid #ffe58a; border-radius: 3px; padding: 0 4px; min-width: 6ch; max-width: 100%; }
+    .to-cmt { display: block; margin-top: 8px; color: #9a93ad; font-weight: 400; }
+    .to-in { font: inherit; color: #ffe58a; background: #2c2838; border: 0; border-bottom: 2px solid #ffe58a; border-radius: 3px; padding: 0 4px; margin: 0 .6ch; min-width: 6ch; max-width: calc(100% - 1.2ch); }
     .to-in.faint::placeholder { color: rgba(255, 229, 138, .38); }
     .to-gap { color: #ffe58a; } .to-ch { display: flex; flex-wrap: wrap; gap: 6px; } .to-ch button { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
     .to-in.miss { animation: tomiss .35s; }

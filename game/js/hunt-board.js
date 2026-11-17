@@ -113,6 +113,12 @@
       <span class="hb-live">${live}</span>${pops ? `<span class="hb-pops" aria-hidden="true">${pops}</span>` : ''}</div>
       ${items ? `<span class="hb-chips hs-items">${items}</span>` : ''}</div>`;
   }
+  // A fix card's setting as the template or API has it, for typing once, where its card text is in plain words.
+  const TYPE_LINE = { vislong: 'VisibilityTimeout: 60', vis6x: 'VisibilityTimeout: 360', batch10: 'BatchSize: 10', fntimeout: 'Timeout: 180',
+    backoff: 'retry_mode = standard', lambdaconc: 'ReservedConcurrentExecutions: 100', usage: 'UsagePlan Throttle: RateLimit 1', ondemand: 'BillingMode: PAY_PER_REQUEST',
+    tmo15: 'Timeout: 15', mem1g: 'MemorySize: 1024', rcup: 'ReservedConcurrentExecutions: 20', provconc: 'ProvisionedConcurrentExecutions: 5', wcuup: 'WriteCapacityUnits: 4000',
+    idallow: '"Action": "s3:GetObject", "Resource": "arn:aws:s3:::reports/*"', trust: '"Action": "sts:AssumeRole"', stsallow: '"Action": "sts:AssumeRole"',
+    shard: 'PartitionKey: status#1…3', unique: 'KeySchema: orderId (HASH)', admin: '', roleadmin: '' };
   const lampHtml = (oil, lamp, drop) => `<span class="hb-lamp" role="img" aria-label="Uptime lamp: ${oil} of ${lamp} oil">${Array.from({ length: lamp }, (_, k) => `<i class="${k < oil ? 'on' : k < oil + (drop | 0) ? 'drip' : ''}"></i>`).join('')}</span>`;
   // The road between two places, with this turn's crates travelling it (and bounced ones coming back up).
   // ---- The street (Ladi, Nov 16: "draw full sized characters in the setting... living, breathing, blinking and
@@ -547,7 +553,18 @@
       sc.bru.react(res.won ? 'grin' : 'frown', 1e9);
       sc.bru.say(`<b>Bru:</b> ${res.won ? (stars === 3 ? 'Lid on. Perfect.' : 'Lid on. Got it.') : can ? 'It got away. Change the plan?' : 'Gone into the fog.'}`);
       if (res.won) sfx('levelup'); else sfx('wrong');
-      body.querySelector('#hb-next').onclick = () => done({ again: can, stars });
+      body.querySelector('#hb-next').onclick = async () => {
+        // Type it once (js/type-once.js): on a caught board, the first time this save meets the fix's real setting,
+        // Bru has you chalk it on the bounty board. The pause after the run, never during it.
+        if (res.won && SD.typeOnce) {
+          const held = st.placed.filter(id => (b.fix || []).some(f => f.includes(id)));
+          for (const id of held) {
+            const line = id in TYPE_LINE ? TYPE_LINE[id] : C[id].text;
+            if (line && await SD.typeOnce.maybe(line, { who: 'Bru', say: 'Chalk the fix on the board, the way AWS spells it.', title: 'BRU\'S BOARD' })) break;
+          }
+        }
+        done({ again: can, stars });
+      };
     });
   }
 

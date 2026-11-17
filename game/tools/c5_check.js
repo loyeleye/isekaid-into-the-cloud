@@ -209,6 +209,7 @@ function step([WIN, LEAD, CHOICE]) {
   // A shared machine can be slow: give the title's clicks two minutes, not thirty seconds.
   page.setDefaultTimeout(120000);
   await page.addInitScript(() => { window.SD_TEST = 1; });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');

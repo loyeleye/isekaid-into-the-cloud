@@ -51,6 +51,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const deploy = async () => { await page.click('#hb-deploy'); await page.waitForSelector('#hb-next', { timeout: 20000 }); };
 
   await page.clock.install({ time: new Date('2026-11-16T12:00:00') });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('hb-check')) { localStorage.clear(); sessionStorage.setItem('hb-check', '1'); } } catch (e) { /* ignore */ } });
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });

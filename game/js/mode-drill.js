@@ -444,6 +444,19 @@
     const r = M.pick({ match: q => d.q.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
     return r.items[0] ? E().find(r.items[0].q) : null;
   }
+  // Type it once (js/type-once.js): after the postmortem, the lead has you write the fix into the runbook, its key
+  // setting typed by hand the first time this save meets it. A pause, never during a run.
+  const BLANK = { dlq: 'maxReceiveCount', dlqfifo: 'maxReceiveCount', catchrp: 'ResultPath', subdlq: 'deadLetterTargetArn', prov: 'ProvisionedConcurrentExecutions' };
+  async function runbook(d) {
+    const TO = SD.typeOnce;
+    if (!TO) return;
+    for (const id of (d.fix[0] || [])) {
+      const line = REAL[id];
+      if (!line) continue;
+      const r = await TO.maybe(line, { prefer: BLANK[id], who: NAMES[d.lead], say: 'Into the runbook, the way the template spells it.', title: 'THE RUNBOOK' });
+      if (r) return;   // one a night is plenty
+    }
+  }
   function debriefScreen(s) {
     const f = s.drill, d = D.DRILLS[f.drill], ok = f.state === 'contained';
     const lead = d.lead;
@@ -469,7 +482,9 @@
       }
       if (D.clean(f)) keep().clean[f.drill] = (keep().clean[f.drill] | 0) + 1;
       D.settle(s, !!r.ok);
-      save(s); draw(s);
+      save(s);
+      await runbook(d);
+      draw(s);
     };
   }
 

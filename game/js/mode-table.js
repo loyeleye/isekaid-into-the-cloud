@@ -321,6 +321,8 @@
       s.billPts = (s.billPts | 0) + (r.pts | 0);
       T.paid(s, r);
       save(s);
+      // Type it once (js/type-once.js): the first time this save meets the pin's real name, you write it in his ledger.
+      if (SD.typeOnce && T.PINS[it.pin].term) await SD.typeOnce.maybe(T.PINS[it.pin].term, { prefer: T.PINS[it.pin].type, who: 'Kagemaru', say: 'Sign for it. In AWS\'s own spelling, if you please.', title: 'HIS LEDGER' });
       billScreen(s);
     };
   }
