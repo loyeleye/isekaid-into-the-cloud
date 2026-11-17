@@ -1,4 +1,4 @@
-// The Rush (prototype): draws js/rush-core.js on a canvas over Ladi's Sogni room, and takes the player's hands.
+// The Rush (prototype), four claims: draws js/rush-core.js on a canvas over Ladi's Sogni room, and takes the player's hands.
 // The room is the screen: tickets slide down the painted chute, sit on Mira's stools, bounce back up on a 429,
 // splat into the puddle, and the tank on the wall fills. You drag tools off the toolbelt into the room while it runs.
 // Before each claim the player pins one of two Night Orders, twists that stack for the rest of the run. One of them
@@ -52,7 +52,8 @@
     S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0;
     qEl.className = ''; qEl.innerHTML = '';
-    if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
+    if (S.claim === 'slow') say('intro', 'neutral', 'The Slow Courier. Heavy parcels take a while, and some never finish. The rack only hides a ticket for 3 seconds. Take longer and it\'s back up for someone else.', 9);
+    else if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
     else if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
     else say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
   }
@@ -73,6 +74,13 @@
     tray: 'Reports\' copies wait in its tray until one of its stools is free. Nobody bounces.',
     resend: 'That\'s a resend. Same ticket, sent again because they didn\'t hear back fast enough.',
     twice: 'Paid that one twice. Same ticket, done twice. That\'s coming out of the tank.',
+    hourglass: 'An hourglass on the rack. Once someone takes a ticket, it stays hidden 9 seconds, longer than any honest job. That\'s the visibility timeout.',
+    stopwatch: 'A stopwatch for Mira. Any job past 6 seconds gets cut off and goes back on the rack. That\'s the function timeout. Keep it shorter than the hourglass.',
+    reappear: 'That one came back on the rack while Mira was still on it. Now two of us are doing the same job.',
+    stuck: 'That one\'s stuck. It\'ll sit on that stool till closing unless something cuts it off.',
+    timedOut: 'Cut off. Over the time limit, so it failed and goes back on the rack.',
+    batchFail: 'One bad ticket in the batch, so the whole batch goes back. Both of them.',
+    heavy: 'Heavy parcel, the strapped ones. Four seconds a go.',
     ledger: 'A ledger. Mira writes each ticket\'s number first, and only if it isn\'t there yet. A repeat fails the write and goes straight out.',
     close: 'Shutters down. Whatever\'s still in the room is lost.',
     throttle: 'Bounced. Two free stools, more people than that. Do the sums.',
@@ -104,6 +112,9 @@
       rule: 'A ticket that has waited on the rack for 20 seconds expires, and that\'s a lost request.',
       up: 'The rack is free.',
       dutch: 'Tickets on the rack go off now, like milk. Twenty seconds and it\'s gone. SQS does the same: a queue keeps a message for its retention period, four days unless you change it and fourteen at most, then deletes it, read or not. Ours is stricter. To make up for it, the rack is free. SQS gives you your first million requests a month for nothing, and I\'m passing that on.' },
+    batch: { name: 'Batching', tag: 'Batching', aws: 'Lambda batch size on SQS',
+      rule: 'If one ticket in a batch fails, both go back on the rack.', up: 'Each stool takes two tickets off the rack per trip, and does both in 1.5 times the time of one.',
+      dutch: 'Mira\'s started taking tickets off the rack two at a time. Faster, I\'ll give her that. That\'s batch size on an SQS trigger: Lambda hands your function several messages in one go. The catch: if one of them fails, the whole batch goes back on the rack, the good one too. Unless your function reports which ones failed. Ours doesn\'t. Ours barely reports for work.' },
     stakes: { name: 'High stakes', tag: 'Stakes', aws: 'Exam tip: never leave a blank',
       needs: 'letters', rule: 'Bet up to 2 coins on each letter. A wrong answer loses the bet.', up: 'A right answer pays the bet back double.',
       dutch: 'You can bet on the letters now. Sure of yourself? Put coins down. Not sure? Put nothing down, and still answer. The real exam works like that: a blank scores the same as a wrong answer, so never leave one. In here a wrong answer costs you. I\'ll mind the coins.' },
@@ -157,6 +168,8 @@
       const g = c.getContext('2d'); g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop';
       g.fillStyle = 'rgba(120, 40, 170, .62)'; g.fillRect(0, 0, c.width, c.height); IMG.envPoison = c;
       IMG.ledger = IMG.ledger || drawLedger();
+      IMG.hourglass = IMG.hourglass || drawHourglass();
+      IMG.stopwatch = IMG.stopwatch || drawStopwatch();
     });
   }
 
@@ -177,6 +190,29 @@
     g.strokeStyle = '#2a7a3e'; g.lineWidth = 4;
     for (let y = 46; y < 100; y += 12) { g.beginPath(); g.moveTo(26, y); g.lineTo(32, y + 5); g.lineTo(42, y - 5); g.stroke(); }
     g.strokeStyle = '#e8e2d4'; g.lineWidth = 6; g.beginPath(); g.moveTo(150, 92); g.quadraticCurveTo(178, 40, 206, 6); g.stroke();
+    return c;
+  }
+
+  // The hourglass and the stopwatch, drawn in code like the ledger.
+  function drawHourglass() {
+    const c = document.createElement('canvas'); c.width = 120; c.height = 180; const g = c.getContext('2d');
+    g.lineJoin = 'round'; g.strokeStyle = '#1e0f08'; g.lineWidth = 5;
+    g.fillStyle = '#6b3d1e'; g.fillRect(8, 6, 104, 18); g.strokeRect(8, 6, 104, 18); g.fillRect(8, 156, 104, 18); g.strokeRect(8, 156, 104, 18);
+    g.fillStyle = 'rgba(220,240,255,.55)'; g.beginPath(); g.moveTo(22, 24); g.lineTo(98, 24); g.quadraticCurveTo(98, 70, 64, 90); g.quadraticCurveTo(98, 110, 98, 156); g.lineTo(22, 156); g.quadraticCurveTo(22, 110, 56, 90); g.quadraticCurveTo(22, 70, 22, 24); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#e6b84a'; g.beginPath(); g.moveTo(34, 44); g.lineTo(86, 44); g.quadraticCurveTo(80, 70, 60, 86); g.quadraticCurveTo(40, 70, 34, 44); g.fill();
+    g.beginPath(); g.moveTo(60, 92); g.lineTo(88, 152); g.lineTo(32, 152); g.closePath(); g.fill(); g.fillRect(58, 86, 4, 40);
+    g.fillStyle = '#4a2a12'; for (const x of [14, 100]) { g.fillRect(x, 24, 6, 132); }
+    return c;
+  }
+  function drawStopwatch() {
+    const c = document.createElement('canvas'); c.width = 150; c.height = 170; const g = c.getContext('2d');
+    g.strokeStyle = '#1e0f08'; g.lineWidth = 5;
+    g.fillStyle = '#c9a23a'; g.fillRect(62, 4, 26, 18); g.strokeRect(62, 4, 26, 18); g.fillRect(52, 18, 46, 10); g.strokeRect(52, 18, 46, 10);
+    g.beginPath(); g.arc(75, 100, 64, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#f7f0dc'; g.beginPath(); g.arc(75, 100, 52, 0, Math.PI * 2); g.fill(); g.lineWidth = 3; g.stroke();
+    g.fillStyle = 'rgba(214,72,60,.8)'; g.beginPath(); g.moveTo(75, 100); g.arc(75, 100, 50, -Math.PI / 2, -Math.PI / 2 + Math.PI * 0.8); g.closePath(); g.fill();
+    g.strokeStyle = '#1e0f08'; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; g.beginPath(); g.moveTo(75 + Math.cos(a) * 44, 100 + Math.sin(a) * 44); g.lineTo(75 + Math.cos(a) * 50, 100 + Math.sin(a) * 50); g.stroke(); }
+    g.lineWidth = 5; g.beginPath(); g.moveTo(75, 100); g.lineTo(75 + Math.cos(0.3) * 40, 100 + Math.sin(0.3) * 40); g.stroke();
     return c;
   }
 
@@ -204,6 +240,8 @@
   function spot(tool) {
     if (tool === 'rack') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
     if (tool === 'bin') { const b = L.bin, w = b.h * 0.95; return [b.x - w / 2, b.y - b.h - 6, w, b.h + 12]; }
+    if (tool === 'hourglass') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
+    if (tool === 'stopwatch') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
     if (tool === 'ledger') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
     if (tool === 'bell') { const b = L.bell, w = b.h * 1.5; return [b.x - w / 2, b.y - b.h - 8, w, b.h + 16]; }
     if (tool === 'reserve') { const xs = L.stools.xs.slice(0, 4), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
@@ -212,8 +250,10 @@
   // The belt's four slots change with the claim (the Double-claimer swaps the bell for the ledger).
   const TOOLS = { get length() { return S.belt.length; }, forEach: f => S.belt.forEach(f) };
   const tool = i => S.belt[i];
-  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger' };
-  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger' };
+  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger', hourglass: 'hourglass', stopwatch: 'stopwatch' };
+  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger', hourglass: 'Hourglass', stopwatch: 'Stopwatch' };
+  // An image URL for a tool, for the letters (the code-drawn ones as data URLs).
+  function toolSrc(t) { const k = TOOL_IMG[t]; return SRC[k] || (IMG[k] && IMG[k].toDataURL ? IMG[k].toDataURL() : ''); }
   function beltRect() {
     const n = TOOLS.length, s = L.belt.slot, w = n * s + 24, h = L.belt.h;
     return [(L.W - w) / 2, L.H - h - 12, w, h];
@@ -234,6 +274,7 @@
       case 'drop': return { p: stoolPos(k.seat || 0), a: Math.max(0, 1 - u), s: lerp(.5, .2, u) };
       case 'walk': { const src = k.from === 'rack' ? fromRack() : k.from === 'tray' ? L.tray : L.foot; return { p: arc(src, stoolPos(k.stool), 60, ease(u)), s: lerp(k.from === 'rack' ? .42 : .5, .5, u) }; }
       case 'work': return { p: stoolPos(k.stool), ring: u };
+      case 'ride': { const p = stoolPos(k.seat || 0); return { p: [p[0] + 18, p[1] - 30], s: .38 }; }
       case 'done': return { p: arc(stoolPos(k.seat || 0), k.desk === 'reports' ? L.reports : L.handled, 120, ease(u)), s: lerp(.5, .3, u), img: 'envDone' };
       case 'bounce': return { p: arc(L.foot, L.hatch, 180, ease(u)), rot: -0.6 + u * 4, img: 'env429' };
       case 'splat': return { p: arc(L.foot, [L.puddle.x, L.puddle.y - 6], 60, u), rot: u * 2, img: 'env429', a: 1 - u * .3 };
@@ -277,6 +318,10 @@
       case 'cold': { const p = stoolPos(e.stool); popAt([p[0], p[1] - 40], 'cold start', '#9fd8ff', 24); say('cold', 'tired', LINES.cold); break; }
       case 'herd': popAt([L.hatch[0] + 130, L.hatch[1] + 70], 'Stampede! x' + e.n, '#ff9a8a', 34); if (e.n >= 4) popAt([L.hatch[0] + 130, L.hatch[1] + 115], '+' + Math.floor(e.n / 4) + ' new caller', '#ffb27a', 26); say('herd', 'surprised', LINES.herd); break;
       case 'expired': popAt(rackSlot(1), 'expired', '#e2c48a', 28); say('expired', 'tired', LINES.expired); break;
+      case 'reappear': popAt(rackSlot(2), 'back on the rack!', '#ffc95a', 26); say('reappear', 'surprised', LINES.reappear); break;
+      case 'timedOut': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 44], 'timed out', '#ff9a8a', 24); } say('timedOut', 'neutral', LINES.timedOut); break;
+      case 'stuck': say('stuck', 'tired', LINES.stuck); break;
+      case 'batchFail': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 60], 'batch failed: both back', '#d59cff', 24); } say('batchFail', 'tired', LINES.batchFail); break;
       case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
       case 'win': stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
@@ -290,6 +335,7 @@
     if (leverT) leverT = Math.max(0, leverT - dt * 0.7);
     if (ringT) ringT = Math.max(0, ringT - dt * 1.6);
     if (S.started && !S.bell && S.tickets.some(k => k.ribbon && k.phase === 'work')) say('ribbon', 'tired', LINES.ribbon);
+    if (S.started && S.tickets.some(k => k.heavy && k.phase === 'work')) say('heavy', 'neutral', LINES.heavy);
     if (!saying && sayQ.length) saying = Object.assign(sayQ.shift(), { t: 0 });
     if (saying) { saying.t += dt; if (saying.t > saying.secs) saying = null; }
     if (stamp) stamp.t += dt;
@@ -376,6 +422,15 @@
       const d = L.desk; img('ledger', d.x - d.h * .1, d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
       plaque('Ledger · DynamoDB', d.x, d.y - d.h - 30 * L.fs);
     } else if (dragging === 'ledger' || (!drag && !S.started && S.belt.includes('ledger') && !S.placed.length)) glowSpot(spot('ledger'), dragging === 'ledger');
+    // The Slow Courier's pieces: the hourglass by the rack, the stopwatch on Mira's desk.
+    if (S.stopwatch) {
+      const d = L.desk; img('stopwatch', d.x - d.h * .38, d.y - d.h * .5, d.h * .32, 'mb');
+      plaque('Stopwatch · timeout 6s', d.x - d.h * .38, d.y - d.h * .5 - d.h * .32 - 12 * L.fs);
+    } else if (dragging === 'stopwatch' || (!drag && !S.started && S.belt.includes('stopwatch') && !S.placed.length)) glowSpot(spot('stopwatch'), dragging === 'stopwatch');
+    if (S.hourglass) {
+      const r = L.rack; img('hourglass', r.x - r.h * .56, r.y + 4, r.h * .42, 'mb');
+      plaque('Visibility 9s', r.x - r.h * .62, r.y - r.h * .42 - 14 * L.fs);
+    } else if (dragging === 'hourglass' || (!drag && !S.started && S.belt.includes('hourglass') && !S.placed.length)) glowSpot(spot('hourglass'), dragging === 'hourglass');
     drawStools(dragging === 'reserve');
     // The bell, or its glowing spot, and the Reports tray.
     if (S.bell) {
@@ -403,6 +458,16 @@
       img(key, d.p[0], d.p[1], 0, 'mm', old ? .3 + .7 * Math.abs(Math.sin(performance.now() / 110)) : d.a, d.rot || 0, ew);
       if ((k.ribbon || k.desk === 'reports') && !d.img) ribbon(d.p, ew, d.rot || 0, d.a);
       if (k.twin && k.phase !== 'done' && k.phase !== 'drop') text('x2', d.p[0] + 26, d.p[1] - 20, 18, '#ffb27a');
+      // Heavy parcels: a brown strap both ways.
+      if (k.heavy && !d.img) { ribbon(d.p, ew, (d.rot || 0), d.a, '#7a4a22'); ribbon(d.p, ew * .7, (d.rot || 0) + Math.PI / 2, d.a, '#7a4a22'); }
+      // A stuck job: it isn't going anywhere.
+      if (k.stuck && k.phase === 'work' && !isFinite(k.dur)) text('...', d.p[0], d.p[1] - 44, 26, '#e5b8ff');
+      // Visibility: an amber arc for how long the rack keeps a taken ticket hidden.
+      if (S.visibility && k.takenAt != null && k.reappearedAt !== k.takenAt && (k.phase === 'work' || k.phase === 'walk')) {
+        const vis = S.hourglass ? R.T.visHourglass : R.T.vis, left = Math.max(0, 1 - (S.time - k.takenAt) / vis);
+        cx.save(); cx.lineWidth = 4; cx.strokeStyle = left < .3 ? '#ff7a5a' : '#ffc95a'; cx.beginPath();
+        cx.arc(d.p[0], d.p[1], 41, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); cx.stroke(); cx.restore();
+      }
       if (d.ring != null) {
         cx.save(); cx.lineWidth = 6; cx.strokeStyle = k.poison ? '#d59cff' : '#8fe68f'; cx.beginPath();
         cx.arc(d.p[0], d.p[1], 32, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * d.ring); cx.stroke(); cx.restore();
@@ -426,9 +491,9 @@
     if (stamp) drawStamp();
   }
   // A ribbon across an envelope: this one goes to Reports too.
-  function ribbon(p, w, rot, a) {
+  function ribbon(p, w, rot, a, col) {
     cx.save(); cx.globalAlpha = a == null ? 1 : a; cx.translate(p[0], p[1]); if (rot) cx.rotate(rot);
-    cx.fillStyle = '#3f7fe0'; cx.strokeStyle = '#13294d'; cx.lineWidth = 1.5;
+    cx.fillStyle = col || '#3f7fe0'; cx.strokeStyle = '#13294d'; cx.lineWidth = 1.5;
     cx.fillRect(-w * .5, -w * .07, w, w * .14); cx.strokeRect(-w * .5, -w * .07, w, w * .14); cx.restore();
   }
   function drawTank() {
@@ -546,6 +611,11 @@
 
   // ---- Scenario questions (they were the end-of-claim popup; now they're among the letters) ----
   const QS = {
+    slow: {
+      q: 'An SQS queue triggers a Lambda function whose timeout is 5 minutes. The queue\'s visibility timeout is 1 minute, and some orders are processed twice. What should you change?',
+      opts: ['Raise the queue\'s visibility timeout to at least six times the function\'s timeout', 'Lower the function\'s memory so it is cheaper to run twice', 'Turn on long polling on the queue', 'Add a dead-letter queue to the function'],
+      why: 'While the function is still running, the message becomes visible again after 1 minute and another invocation picks it up. AWS recommends a visibility timeout of at least six times the function\'s timeout. Long polling and a dead-letter queue don\'t stop a message reappearing mid-run.'
+    },
     rack: {
       q: 'A checkout API calls a Lambda function synchronously. During flash sales, callers get 429 errors, and some orders are lost once their retries run out. Orders can be processed a few seconds late. What is the best fix?',
       opts: ['Put an SQS queue in front of the function and let Lambda poll it', 'Configure a dead-letter queue on the function', 'Raise the function\'s timeout to 15 minutes', 'Give the function more memory'],
@@ -586,7 +656,7 @@
     letterOpen = true; drag = null;
     const fmt = Lt.f;
     const base = fmt === 'b'
-      ? Lt.tools.map(t => ({ html: `<img src="${SRC[TOOL_IMG[t]] || ''}" alt=""><b>${TOOL_LABEL[t]}</b><small>${R.TOOLS[t].aws}</small>` }))
+      ? Lt.tools.map(t => ({ html: `<img src="${toolSrc(t)}" alt=""><b>${TOOL_LABEL[t]}</b><small>${R.TOOLS[t].aws}</small>` }))
       : Lt.opts.map(o => ({ html: o }));
     let opts = base.map((o, i) => Object.assign({ i }, o)), answer = 0, torn = null;
     if (carry.torn) {
@@ -643,6 +713,7 @@
     const bits = [`${S.handled} handled`];
     if (S.claim === 'bell') bits.push(`${S.reports} reports`);
     if (S.claim === 'double') bits.push(`${S.paidTwice} paid twice`, `${S.dropped} repeats stopped`);
+    if (S.claim === 'slow') bits.push(`${S.reappeared} reappeared`, `${S.paidTwice} paid twice`, `${S.timedOut} cut off`);
     const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
     bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
     if (won && S.next && S.coins) bits.push(`${S.coins} coin${S.coins > 1 ? 's' : ''} carried over`);
@@ -693,6 +764,20 @@
       ],
       c: [
         { f: 'c', q: 'Three of these are true about making a handler idempotent. Which one is false?', opts: ['An SQS standard queue removes duplicate messages for you', 'A conditional write fails if its condition isn\'t met', 'attribute_not_exists on the key lets only the first write succeed', 'Doing an idempotent operation twice has the same effect as doing it once'], why: 'Standard queues can deliver duplicates. Deduplication is a FIFO queue feature, and even then the handler should be safe to repeat.' }
+      ]
+    },
+    slow: {
+      a: [
+        { f: 'a', q: 'What is the longest timeout you can set on a Lambda function?', opts: ['15 minutes', '5 minutes', '1 hour', '30 seconds'], why: 'A Lambda function can run for up to 15 minutes (900 seconds). The default timeout is 3 seconds.' },
+        Object.assign({ f: 'a' }, QS.slow)
+      ],
+      b: [
+        { f: 'b', tools: ['hourglass', 'stopwatch', 'bin', 'reserve'], q: 'Heavy parcels keep coming back on the rack while Mira\'s still working on them, and they get done twice. Which piece stops that?', why: 'The hourglass is the visibility timeout: how long a received message stays hidden. Make it longer than the longest job.' },
+        { f: 'b', tools: ['stopwatch', 'hourglass', 'bin', 'reserve'], q: 'One ticket never finishes and holds a stool all night. Which piece cuts it off so it can fail and move on?', why: 'The stopwatch is the function timeout. Past it, the invocation fails, and the message goes back to the queue (and to the dead-letter queue once it runs out of receives).' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of an SQS queue\'s visibility timeout. Which one is false?', opts: ['When the visibility timeout ends, the message is deleted', 'The default is 30 seconds', 'It can be up to 12 hours', 'A consumer can extend it for one message with ChangeMessageVisibility'], why: 'When the visibility timeout ends, the message becomes visible again for another consumer. Only the consumer deleting it removes it from the queue.' },
+        { f: 'c', q: 'Three of these are true of Lambda reading from SQS in batches. Which one is false?', opts: ['If one message in a batch fails, Lambda only retries that one, whatever you return', 'Batch size sets how many messages one invocation can receive', 'Reporting batch item failures lets the successful messages be deleted', 'The function\'s timeout covers the whole batch'], why: 'By default, a failed batch goes back as a whole. To retry only the failed messages, turn on ReportBatchItemFailures and return the failed message IDs.' }
       ]
     }
   };
