@@ -97,35 +97,37 @@
   const REVIEW_TALL = Object.assign({}, TALL, { inset: INSET_TALL, lever: LEVER_TALL, tank: { x: 300, y: 452, h: 140, feed: 352 }, asks: { x: 600, y: 640, dx: 70, max: 3, label: null, intern: [640, 790] } });
   const VAULT = new Set(['hot']);
   // ==== Claim 9 (the New Sorter): the freight yard's layouts ====
-  // The yard is drawn in code for now (yardArt() below paints a placeholder backdrop and props). The positions are the
-  // anchors a painted backdrop and Sogni props will use (project files real-game/v3/claims/claim-9/sogni-prompts.md):
+  // The yard is painted (painted: true): the fixed props are in the backdrop and the positions below were measured off
+  // the paintings (tools/rush_yard_art.py made the collages they were repainted from; yardArt() is the fallback):
   // mb = middle-bottom of the sprite, in stage pixels, at real human scale (a standing adult is about 300 px tall at the
   // front of the wide yard, 224 in the tall one). Things on the rail line stand further back, at about 0.45 of that.
   // painted: false, so every fixture is drawn over the backdrop; set it true once the backdrop has them painted in.
   const YARD_WIDE = {
-    W: 1344, H: 768, bg: 'yard-wide', yard: true, painted: false, rail: 436, wall: [228, 404],
-    conveyor: { x0: 0, x1: 312, y: 598 }, gate: { x: 18, y: 640, h: 170 },
-    whistle: { x: 112, y: 640, h: 256 }, lever: { x: 112, y: 470, r: 80, label: [112, 352] },
-    points: { x: 362, y: 642, h: 210, dial: [362, 478], r: 54 }, rlever: { x: 240, y: 646, h: 130 },
-    rack: { x: 486, y: 560, h: 128, w: 140 }, sorters: [{ x: 646, y: 560, h: 180 }, { x: 806, y: 560, h: 180 }],
-    stools: { xs: [590, 690, 790, 890], y: 648, h: 96, w: 92 }, bin: { x: 1218, y: 650, h: 96, w: 150 },
-    tank: { x: 1262, y: 436, h: 280 }, mast: { x: 1140, y: 444, h: 300 }, office: { x: 1010, y: 438, h: 140 },
-    siding: { x0: 130, x1: 310, y: 438 }, train: { y: 438, stop: 900 }, board: { x: 950, y: 92, w: 300, h: 96 },
+    W: 1344, H: 768, bg: 'yard-wide', yard: true, painted: true, rail: 466, wall: [186, 410],
+    conveyor: { x0: 0, x1: 250, y: 575 }, gate: { x: 18, y: 640, h: 170 },
+    whistle: { x: 107, y: 632, h: 250 }, lever: { x: 118, y: 500, r: 80, label: [112, 352] },
+    points: { x: 358, y: 634, h: 250, dial: [356, 476], r: 46 }, rlever: { x: 240, y: 646, h: 130 },
+    rack: { x: 486, y: 560, h: 80, w: 170 }, sorters: [{ x: 646, y: 560, h: 180 }, { x: 806, y: 560, h: 180 }],
+    stools: { xs: [585, 682, 782, 882], y: 652, h: 116, w: 92, lamp: [15, -118] }, bin: { x: 1218, y: 650, h: 96, w: 150 },
+    tank: { x: 1262, y: 456, h: 280, gauge: [1216, 196, 14, 84] }, mast: { x: 1140, y: 455, h: 300, lamp: [1122, 205, 13], plate: [1140, 330] },
+    office: { x: 1003, y: 455, h: 150 },
+    siding: { x0: 20, x1: 200, y: 440 }, train: { y: 470, stop: 900 }, board: { x: 950, y: 92, w: 300, h: 96 },
     counter: { x: 236, y: 390, w: 92, h: 66 }, ledger: { x: 966, y: 646, h: 52 }, depot: { x: 560, y: 170 },
-    inset: { r: [20, 150, 240, 136], src: [0, 0, 1344, 768] }, hatch: [24, 560], foot: [330, 598],
+    inset: { r: [20, 150, 240, 136], src: [0, 0, 1344, 768] }, hatch: [24, 560], foot: [262, 578],
     belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 330, y: 16, w: 470 }, fs: 1
   };
   const YARD_TALL = {
-    W: 768, H: 1344, bg: 'yard-tall', yard: true, painted: false, rail: 606, wall: [436, 578],
-    conveyor: { x0: 0, x1: 236, y: 968 }, gate: { x: 14, y: 1004, h: 130 },
-    whistle: { x: 60, y: 1004, h: 196 }, lever: { x: 60, y: 870, r: 76, label: [96, 796] },
-    points: { x: 340, y: 1112, h: 160, dial: [340, 990], r: 50 }, rlever: { x: 150, y: 1162, h: 100 },
-    rack: { x: 156, y: 880, h: 100, w: 116 }, sorters: [{ x: 336, y: 868, h: 140 }, { x: 488, y: 868, h: 140 }],
-    stools: { xs: [432, 516, 600, 684], y: 1114, h: 76, w: 76 }, bin: { x: 668, y: 884, h: 80, w: 118 },
-    tank: { x: 700, y: 606, h: 210 }, mast: { x: 604, y: 612, h: 190 }, office: { x: 486, y: 608, h: 104 },
-    siding: { x0: 20, x1: 196, y: 608 }, train: { y: 608, stop: 336 }, board: { x: 384, y: 392, w: 360, h: 92 },
+    W: 768, H: 1344, bg: 'yard-tall', yard: true, painted: true, rail: 616, wall: [290, 578],
+    conveyor: { x0: 0, x1: 185, y: 962 }, gate: { x: 14, y: 1004, h: 130 },
+    whistle: { x: 52, y: 1000, h: 180 }, lever: { x: 62, y: 900, r: 76, label: [96, 796] },
+    points: { x: 336, y: 1105, h: 190, dial: [336, 984], r: 40 }, rlever: { x: 150, y: 1162, h: 100 },
+    rack: { x: 156, y: 880, h: 62, w: 132 }, sorters: [{ x: 336, y: 868, h: 140 }, { x: 488, y: 868, h: 140 }],
+    stools: { xs: [428, 512, 596, 680], y: 1112, h: 90, w: 76, lamp: [20, -92] }, bin: { x: 668, y: 884, h: 80, w: 118 },
+    tank: { x: 700, y: 600, h: 210, gauge: [654, 430, 10, 52] }, mast: { x: 605, y: 603, h: 190, lamp: [598, 447, 9], plate: [606, 528] },
+    office: { x: 487, y: 600, h: 125 },
+    siding: { x0: 20, x1: 190, y: 605 }, train: { y: 616, stop: 336 }, board: { x: 384, y: 392, w: 360, h: 92 },
     counter: { x: 330, y: 560, w: 84, h: 60 }, ledger: { x: 86, y: 1172, h: 40 }, depot: { x: 655, y: 646 },
-    inset: { r: [12, 642, 150, 125], src: INSET_TALL.src }, hatch: [16, 930], foot: [270, 968],
+    inset: { r: [12, 642, 150, 125], src: INSET_TALL.src }, hatch: [16, 930], foot: [196, 966],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   const YARD = new Set(['sorter']);
@@ -1682,7 +1684,14 @@
       up: 'Faster crates: good versions go live sooner.',
       dutch: 'Express. Bolts it all down as fast as it can and doesn\'t look back. Which means if something breaks halfway, it stays broken until somebody says retry or put it back. That\'s what you get when rollback\'s off.' }
   });
-  Object.assign(TOOL_IMG, { board: 'y-i-board', wire: 'y-i-wire', tests: 'y-i-tests', manifest: 'y-i-manifest' });
+  // The painted yard (tools/rush_yard_art.py): the backdrops with the fixed props painted in, and the pieces that move
+  // or are bought. Anything missing falls back to the code-drawn placeholder (yardArt() fills only empty keys).
+  Object.assign(SRC, { 'yard-wide': 'assets/img/rush/yard-wide.webp', 'yard-tall': 'assets/img/rush/yard-tall.webp' });
+  for (const [k, f] of [['y-platform', 'platform'], ['y-returns', 'returns'], ['y-sorter-old', 'sorter-old'], ['y-sorter-new', 'sorter-new'],
+    ['y-seal', 'seal'], ['y-crate', 'crate'], ['y-engine', 'engine'], ['y-flat', 'flat'], ['y-trolley', 'trolley'], ['y-lever', 'lever'],
+    ['y-waybill', 'waybill'], ['y-waybill-gold', 'waybill-gold'], ['y-waybill-error', 'waybill-error'], ['y-waybill-done', 'waybill-done'],
+    ['y-waybill-test', 'waybill-test'], ['y-i-board', 'i-board'], ['y-i-wire', 'i-wire']]) SRC[k] = 'assets/img/rush/yard/' + f + '.webp';
+  Object.assign(TOOL_IMG, { board: 'y-i-board', wire: 'y-i-wire', tests: 'y-trolley', manifest: 'y-i-manifest' });
   // The belt's words: the long names on the wide yard, short ones on the phone (its seven slots are narrow).
   for (const [t, wide, tall] of [['board', 'Timetable', 'Board'], ['wire', 'Alarm wire', 'Alarm'], ['tests', 'Test track', 'Tests'], ['manifest', 'Manifest', 'Papers']])
     Object.defineProperty(TOOL_LABEL, t, { get: () => L.W > L.H ? wide : tall, enumerable: true, configurable: true });
@@ -2096,7 +2105,8 @@
     drawTower();
     drawMast();
     // The counter hatch, where the new forms come in (synchronous).
-    { const c = L.counter; cx.save(); rrect(c.x - c.w / 2, c.y - c.h, c.w, c.h, 6); cx.fillStyle = '#2b2018'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#7a5530'; cx.stroke();
+    // On the painted yard the hatch only appears once the new forms are in play (it isn't in the painting).
+    if (!L.painted || Y2.form2 || S.tickets.some(k => k.form2)) { const c = L.counter; cx.save(); rrect(c.x - c.w / 2, c.y - c.h, c.w, c.h, 6); cx.fillStyle = '#2b2018'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#7a5530'; cx.stroke();
       rrect(c.x - c.w / 2 + 8, c.y - c.h + 8, c.w - 16, c.h - 24, 4); cx.fillStyle = Y2.form2 ? '#f6d68a' : '#5a4632'; cx.fill(); cx.fillStyle = '#7a5530'; cx.fillRect(c.x - c.w / 2 - 6, c.y - 14, c.w + 12, 10); cx.restore();
       if (Y2.form2 && !mini) plaque('Counter · sync', c.x, c.y - c.h - 14 * L.fs); }
     // The waiting platform (rack), or its glowing spot.
@@ -2114,7 +2124,7 @@
     if (S.bin) { const b = L.bin; shadow(b.x, b.y + 2, b.w); img('y-returns', b.x, b.y + 4, b.h, 'mb'); if (S.binned) text(String(S.binned), b.x + b.w * .32, b.y - b.h * .62, 24, '#e5b8ff'); if (!mini) plaque('Returns · DLQ', b.x, b.y - b.h - 14 * L.fs); }
     else if (dragging === 'bin') glowSpot([L.bin.x - L.bin.w / 2, L.bin.y - L.bin.h, L.bin.w, L.bin.h], true);
     // The conveyor through the gate, the whistle, the points with the LIVE dial, the red lever.
-    { const c = L.conveyor; img('y-conveyor', (c.x0 + c.x1) / 2, c.y + 40 * k1, 0, 'mb', 1, 0, c.x1 - c.x0 + 20); img('y-gate', L.gate.x, L.gate.y, L.gate.h, 'mb'); }
+    if (!L.painted) { const c = L.conveyor; img('y-conveyor', (c.x0 + c.x1) / 2, c.y + 40 * k1, 0, 'mb', 1, 0, c.x1 - c.x0 + 20); img('y-gate', L.gate.x, L.gate.y, L.gate.h, 'mb'); }
     drawWhistle(mini);
     drawPoints(mini);
     { const rl = L.rlever, t = yUI.leverT || 0; shadow(rl.x, rl.y + 2, rl.h * .5); img('y-lever', rl.x, rl.y, rl.h, 'mb', 1, t ? -0.5 * Math.sin(t * Math.PI) : 0); if (!mini && S.started) text('↶', rl.x + rl.h * .36, rl.y - rl.h * .82, 22, '#ffb0a0'); if (!mini) plaque('Reverse lever', rl.x, rl.y - rl.h - 18 * L.fs); }
@@ -2123,7 +2133,7 @@
     const waitN = S.tickets.filter(k => k.phase === 'wait').length;
     for (const k of S.tickets) {
       const d = yardTicketDraw(k); if (!d) continue;
-      const key = d.img || (k.poison ? 'y-waybill-poison' : k.refund ? 'y-waybill-gold' : 'y-waybill'), w = 42 * (d.s || 1) * (L.W > L.H ? 1 : 1.05);
+      const key = d.img || (k.poison ? 'y-waybill-poison' : k.refund ? 'y-waybill-gold' : 'y-waybill'), w = (L.painted ? 54 : 42) * (d.s || 1) * (L.W > L.H ? 1 : 1.05);
       img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, w);
       if (k.form2 && !d.img) { cx.save(); cx.globalAlpha = d.a == null ? 1 : d.a; cx.translate(d.p[0], d.p[1]); cx.rotate(d.rot || 0); cx.fillStyle = '#2f6fe0'; cx.beginPath(); cx.moveTo(w * .5, -w * .34); cx.lineTo(w * .5, w * .02); cx.lineTo(w * .14, -w * .34); cx.closePath(); cx.fill(); cx.restore(); }
       if (k.twin && !['done', 'drop'].includes(k.phase)) text('x2', d.p[0] + 22, d.p[1] - 16, 16, '#ffb27a');
@@ -2170,7 +2180,7 @@
   }
   function drawSiding() {
     const sd = L.siding, k1 = L.W > L.H ? 1 : .7;
-    img('y-siding', (sd.x0 + sd.x1) / 2, sd.y + 6, 0, 'mb', S.tests ? 1 : .6, 0, sd.x1 - sd.x0);
+    if (!L.painted) img('y-siding', (sd.x0 + sd.x1) / 2, sd.y + 6, 0, 'mb', S.tests ? 1 : .6, 0, sd.x1 - sd.x0);
     // The test trolley runs out along the siding during a hook, with a blue test waybill (and a gold one after).
     const tr = yUI.trolley, u = tr ? Math.min(1, tr.t / 1.5) : 0, x = lerp(sd.x0 + 40 * k1, sd.x1 - 30 * k1, tr ? Math.sin(u * Math.PI) : 0);
     if (S.tests) {
@@ -2192,11 +2202,12 @@
   }
   function tagLabel(x, y, t) { const k = yk(); cx.save(); cx.font = `800 ${13 * k}px Nunito, sans-serif`; const w = cx.measureText(t).width + 10; rrect(x - w / 2, y - 10 * k, w, 20 * k, 3); cx.fillStyle = '#f4e8c8'; cx.fill(); cx.strokeStyle = '#5a4026'; cx.lineWidth = 1.5; cx.stroke(); cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore(); }
   function drawTower() {
-    const t = L.tank, im = IMG['y-tower']; if (!im) return;
-    img('y-tower', t.x, t.y, t.h, 'mb');
-    // The tank's gauge: the glass strip on the side fills with every lost waybill.
-    const w = im.width * t.h / im.height, tx0 = t.x - w * .4, ty0 = t.y - t.h * .97, th = t.h * .36, lvl = Math.min(1, M.spill / M.cap);
-    const gx = t.x + w * .18, gw = w * .14;
+    const t = L.tank, im = IMG['y-tower']; if (!im && !t.gauge) return;
+    if (!L.painted) img('y-tower', t.x, t.y, t.h, 'mb');
+    // The tank's gauge: the glass strip on the side fills with every lost waybill (on the painting, where its glass is).
+    const w = im ? im.width * t.h / im.height : 0, tx0 = t.x - w * .4, lvl = Math.min(1, M.spill / M.cap);
+    let ty0 = t.y - t.h * .97, th = t.h * .36, gx = t.x + w * .18, gw = w * .14;
+    if (t.gauge) { [gx, ty0, gw, th] = t.gauge; ty0 -= th * .125; th *= 1.25; }
     cx.save(); rrect(gx, ty0 + th * .1, gw, th * .8, 4); cx.fillStyle = 'rgba(20,30,40,.75)'; cx.fill();
     if (lvl) { const h = th * .8 * lvl; rrect(gx, ty0 + th * .9 - h, gw, h, 4); cx.fillStyle = lvl > .75 ? '#e65a50' : '#3c82e6'; cx.fill(); }
     cx.restore();
@@ -2206,8 +2217,8 @@
   }
   function drawMast() {
     const m = L.mast, red = S.y.mastRed > 0, wired = S.wire && S.wireOn;
-    img('y-mast', m.x, m.y, m.h, 'mb');
-    const lx = m.x, ly = m.y - m.h * .9, r = m.h * .075;
+    if (!L.painted) img('y-mast', m.x, m.y, m.h, 'mb');
+    const [lx, ly, r] = m.lamp || [m.x, m.y - m.h * .9, m.h * .075];
     cx.save(); cx.beginPath(); cx.arc(lx, ly, r, 0, Math.PI * 2);
     cx.fillStyle = !S.wire ? '#2a2a2a' : !wired ? '#3a3a3a' : red ? '#ff3b2f' : '#38d26b'; cx.fill();
     if (wired) { cx.shadowColor = red ? 'rgba(255,60,40,.95)' : 'rgba(60,220,110,.8)'; cx.shadowBlur = red ? 30 : 16; cx.fill(); }
@@ -2215,7 +2226,7 @@
     if (red) { const p = .5 + .5 * Math.sin(performance.now() / 90); cx.save(); cx.strokeStyle = `rgba(255,80,60,${.5 + p * .5})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(lx, ly, r * 1.9, 0, Math.PI * 2); cx.stroke(); cx.restore(); text('ALARM', lx, ly - r * 2.4, 24, '#ff7a6a'); }
     if (S.wire) {
       // The switch plate: what the alarm watches.
-      const py = m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
+      const py = m.plate ? m.plate[1] : m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
       cx.save(); rrect(m.x - w / 2, py - h / 2, w, h, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4026'; cx.stroke();
       cx.font = `800 ${13 * yk()}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', m.x, py + 1); cx.restore();
     }
@@ -2256,10 +2267,10 @@
   function drawBays() {
     const st = L.stools, seats = R.seats(S);
     for (let i = 0; i < 4; i++) {
-      const x = st.xs[i]; shadow(x, st.y + 2, st.w);
-      img('y-bay', x, st.y + 4, st.h, 'mb');
+      const x = st.xs[i];
+      if (!L.painted) { shadow(x, st.y + 2, st.w); img('y-bay', x, st.y + 4, st.h, 'mb'); }
       const k = seats[i] && seats[i].ticket != null ? S.tickets.find(t => t.id === seats[i].ticket) : null;
-      const lx = x + st.w * .36, ly = st.y - st.h * 1.02, col = yUI.lamp[i] ? VCOL.bad : k && k.ver && k.phase === 'work' ? verCol(k.ver) : null;
+      const lx = st.lamp ? x + st.lamp[0] : x + st.w * .36, ly = st.lamp ? st.y + st.lamp[1] : st.y - st.h * 1.02, col = yUI.lamp[i] ? VCOL.bad : k && k.ver && k.phase === 'work' ? verCol(k.ver) : null;
       cx.save(); cx.beginPath(); cx.arc(lx, ly, 8 * Math.min(L.fs, 1.2), 0, Math.PI * 2); cx.fillStyle = col || '#3a332a'; cx.fill(); if (col) { cx.shadowColor = col; cx.shadowBlur = 14; cx.fill(); } cx.lineWidth = 2; cx.strokeStyle = '#1a140e'; cx.stroke(); cx.restore();
       if (S.orders.has('cold') && !k && S.time - S.lastFree[i] > R.T.coldAfter) frost(x, st.y - st.h * .6, st.h * .22);
     }
@@ -2267,7 +2278,7 @@
   }
   function drawWhistle(mini) {
     const w = L.whistle, lv = L.lever;
-    img('y-whistle', w.x, w.y, w.h, 'mb', 1, 0);
+    if (!L.painted) img('y-whistle', w.x, w.y, w.h, 'mb', 1, 0);
     if (yUI.whistle) { const u = yUI.whistle; for (let i = 0; i < 4; i++) { cx.save(); cx.globalAlpha = Math.max(0, u - i * .2) * .7; cx.fillStyle = '#f4f4f4'; cx.beginPath(); cx.arc(w.x + 10 + i * 14, w.y - w.h - 10 - i * 22 - (1.2 - u) * 30, 12 + i * 6, 0, Math.PI * 2); cx.fill(); cx.restore(); } text('TOOT', w.x + 60, w.y - w.h - 30, 24, '#fff6d6'); }
     if (!S.started && !mini) {
       const p = .5 + .5 * Math.sin(performance.now() / 260);
@@ -2277,7 +2288,7 @@
   }
   function drawPoints(mini) {
     const pt = L.points, [dx, dy] = pt.dial, r = pt.r, a = S.alias;
-    img('y-points', pt.x, pt.y, pt.h, 'mb');
+    if (!L.painted) img('y-points', pt.x, pt.y, pt.h, 'mb');
     // The dial: the current version's blue, the new one's orange slice.
     cx.save(); cx.beginPath(); cx.arc(dx, dy, r, 0, Math.PI * 2); cx.fillStyle = '#f6efdc'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = '#2a241c'; cx.stroke();
     cx.beginPath(); cx.moveTo(dx, dy); cx.arc(dx, dy, r - 7, -Math.PI / 2, Math.PI * 1.5); cx.closePath(); cx.fillStyle = VCOL.cur; cx.fill();
@@ -2339,7 +2350,10 @@
       g.fillStyle = '#c0302a'; g.beginPath(); g.arc(74, 52, 7, 0, Math.PI * 2); g.fill();
       if (extra) extra(g);
     });
-    put('y-waybill', tag('#e8d3a4')); put('y-waybill-gold', tag('#f3c443')); put('y-waybill-poison', tag('#a46ad0'));
+    put('y-waybill', tag('#e8d3a4')); put('y-waybill-gold', tag('#f3c443'));
+    // The poison waybill: the painted plain one tinted violet (or the placeholder's violet tag).
+    const plain = IMG['y-waybill'];
+    put('y-waybill-poison', plain && !plain.getContext ? cvs(plain.width, plain.height, g => { g.filter = 'hue-rotate(235deg) saturate(1.6)'; g.drawImage(plain, 0, 0); }) : tag('#a46ad0'));
     put('y-waybill-test', tag('#9ccaf2', g => { g.strokeStyle = '#fff'; g.lineWidth = 8; g.beginPath(); g.moveTo(30, 62); g.lineTo(70, 6); g.stroke(); }));
     put('y-waybill-error', tag('#e8b9a4', g => { g.strokeStyle = '#b8261d'; g.lineWidth = 7; g.beginPath(); g.moveTo(40, 14); g.lineTo(70, 54); g.moveTo(70, 14); g.lineTo(40, 54); g.stroke(); g.fillStyle = '#1e140c'; g.beginPath(); g.moveTo(86, 30); g.lineTo(76, 36); g.lineTo(86, 42); g.fill(); }));
     put('y-waybill-done', tag('#e8d3a4', g => { g.strokeStyle = '#2a8a4a'; g.lineWidth = 5; g.beginPath(); g.arc(56, 34, 18, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(46, 34); g.lineTo(54, 42); g.lineTo(68, 26); g.stroke(); }));
