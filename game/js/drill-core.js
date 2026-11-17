@@ -47,6 +47,15 @@
     burst: { at: 'gate', name: 'Raise the account burst', text: 'Make the Gate\'s bucket bigger.',
       back: 'The account-level bucket (5,000 requests behind 10,000 a second, per Region) isn\'t yours to change.',
       why: () => (AS.burstChangeable ? '' : 'Refused: AWS sets the account-level burst. You can\'t change it.'), set: () => {}, on: () => false },
+    // The Lambda authorizer (only in a drill with one). Its policy is cached by token for the TTL.
+    ttl300: { at: 'gate', dial: 'authttl', needs: 'auth', name: 'Authorizer cache TTL 300 s', text: 'A token\'s policy is reused for 5 minutes without asking the authorizer again.',
+      back: '300 seconds is the default. The cached policy is used for every method the token calls in that time.', set: c => { c.gate.ttl = 300; }, on: c => c.gate.ttl === 300 },
+    ttl0: { at: 'gate', dial: 'authttl', needs: 'auth', name: 'Authorizer cache TTL 0 (off)', text: 'Ask the authorizer about every request.',
+      back: 'A TTL of 0 turns policy caching off: correct every time, and one authorizer call per request.', set: c => { c.gate.ttl = 0; }, on: c => c.gate.ttl === 0 },
+    ttl3600: { at: 'gate', dial: 'authttl', needs: 'auth', name: 'Authorizer cache TTL 3600 s', text: 'A token\'s policy is reused for an hour.',
+      back: '3600 seconds is the most API Gateway allows.', set: c => { c.gate.ttl = 3600; }, on: c => c.gate.ttl === 3600 },
+    authwild: { at: 'gate', needs: 'auth', name: 'Authorizer policy: the whole API (stage/*/*)', text: 'The authorizer\'s Allow covers every method and path in the stage, not just the one called.',
+      back: 'A cached policy is checked against every later call with the same token. Scope it to what the token may do, not to the first call.', set: c => { c.gate.wild = true; }, on: c => c.gate.wild },
     gtrace: { at: 'gate', name: 'X-Ray tracing on the stage', obs: true, text: 'The Gate shows on the trace map in its real colour.',
       back: 'API Gateway tracing is turned on per stage.', set: c => { c.gate.trace = true; }, on: c => c.gate.trace },
     // Mira: the Queue
@@ -92,6 +101,8 @@
       back: 'An Allow in IAM still needs the key policy to let IAM decide. And it breaks least privilege.', set: c => { c.fn.admin = true; }, on: c => c.fn.admin },
     cond: { at: 'fn', name: 'Conditional write', text: 'Write with attribute_not_exists(orderId): a second write of the same order changes nothing.',
       back: 'A failed condition returns ConditionalCheckFailedException instead of overwriting.', set: c => { c.fn.cond = true; }, on: c => c.fn.cond },
+    fninvoke: { at: 'fn', needs: 'auth', name: 'Role policy: allow execute-api:Invoke', text: 'The function\'s role may call API Gateway APIs.',
+      back: 'That lets the function call APIs. Who may call this API is decided at the Gate, by the authorizer\'s policy.', set: c => { c.fn.invoke = true; }, on: c => c.fn.invoke },
     ddbput: { at: 'fn', name: 'Role policy: allow dynamodb:PutItem on table/orders', text: 'The function\'s role may write items to the orders table, and nothing more.',
       back: 'Least privilege: allow only the actions and resources the function needs. With no Allow, IAM denies by default.', set: c => { c.fn.iam = c.fn.iam.concat('dynamodb:PutItem'); }, on: c => c.fn.iam.includes('dynamodb:PutItem') },
     ddbstar: { at: 'fn', name: 'Role policy: allow dynamodb:* on *', text: 'The function\'s role may do anything to any table.',
@@ -128,6 +139,13 @@
       back: 'A key policy can grant access to a role directly.', set: c => { c.store.keyPolicy = 'role'; }, on: c => c.store.keyPolicy === 'role' },
     kpiam: { at: 'store', name: 'Key policy: let IAM policies decide', text: 'Add the statement that lets this account\'s IAM policies grant access to the key.',
       back: 'This is what the default key policy does. Then the role\'s own policy must allow it.', set: c => { c.store.keyPolicy = 'iam'; }, on: c => c.store.keyPolicy === 'iam' },
+    // Reads (only in a drill that reads its own writes back).
+    consread: { at: 'store', needs: 'reads', name: 'GetItem with ConsistentRead: true', text: 'Read the order back strongly consistent: DAX passes it straight to the table.',
+      back: 'A strongly consistent read returns every write that succeeded before it. It costs twice the read capacity, and DAX doesn\'t cache it.', set: c => { c.store.consistent = true; }, on: c => c.store.consistent },
+    daxnode: { at: 'store', needs: 'reads', name: 'Add a node to the DAX cluster', text: 'Three DAX nodes instead of two.',
+      back: 'More nodes add read capacity and availability. DAX reads are still eventually consistent.', set: c => { c.store.dax = 3; }, on: c => c.store.dax === 3 },
+    gsiread: { at: 'store', needs: 'reads', name: 'Read from the byCustomer index, ConsistentRead: true', text: 'Look the order up in the global secondary index instead, strongly consistent.',
+      back: 'A global secondary index only supports eventually consistent reads.', why: () => 'Refused: a global secondary index doesn\'t support strongly consistent reads.', set: () => {}, on: () => false },
     rotsingle: { at: 'store', dial: 'rot', needs: 'secret', name: 'Rotation: single user', text: 'Every 30 days, orders_app gets a new password, and the old one stops working.',
       back: 'Single user: one set of credentials. A client still holding the old password is turned away.', set: c => { c.store.rot = 'single'; }, on: c => c.store.rot === 'single' },
     rotalt: { at: 'store', dial: 'rot', needs: 'secret', name: 'Rotation: alternating users', text: 'Two users take turns. Each rotation changes the one not in use.',
@@ -141,20 +159,20 @@
   };
   const C = D.CARDS;
   D.HANDS = {
-    gate: ['backoff', 'immediate', 'plan', 'burst', 'gtrace'],
+    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail'],
-    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
-    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'rotsingle', 'rotalt', 'rotoff', 'insights', 'trail']
+    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
+    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'insights', 'trail']
   };
 
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
   function baseCfg() {
     return {
-      gate: { retry: 'backoff', plan: false, trace: false },
+      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false },
       queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
       fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
-      store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false, rot: 'single' },
+      store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false, rot: 'single', consistent: false, dax: 2 },
       stream: { bisect: false, retries: null, onfail: false }
     };
   }
@@ -220,6 +238,21 @@
       ok: m => m.authFail === 0 && !m.perCall && !m.rotOff, fix: [['refetch'], ['rotalt']], lazy: [['secttl'], ['seccall'], ['rotoff'], ['reserved']],
       hidden: 'Each environment read the password once and kept it. When the secret rotated, every warm environment was still using the old one.',
       q: /Secrets Manager|AWSCURRENT|AWSPREVIOUS|rotation|Parameters and Secrets|secret cach/i },
+    pass: { name: 'The Forged Pass', cause: 'gate', lead: 'seoyeon', path: 'sync', auth: true,
+      says: 'Same customer, same token. One door opens, the next one doesn\'t.',
+      setup: v => ({ bucket: [40, 40], auth: true, arrivals: t => (t < D.TICKS ? Array.from({ length: 4 }, (_, i) => { const n = t * 4 + i + (v.k % 2) * 6;
+        return R(`p${t}-${i}`, { cust: 'c' + (n % 6), token: 'tok-c' + (n % 6), meth: Math.floor(n / 6) % 2 ? 'POST' : 'GET' }); }).concat([R(`a${t}`, { client: 'bot', cust: 'anon' })]) : []) }),
+      break: () => {},
+      ok: m => m.forbidden === 0, fix: [['authwild'], ['ttl0']], lazy: [['ttl3600'], ['fninvoke'], ['reserved'], ['plan']],
+      hidden: 'The authorizer allowed only the method each token called first, and API Gateway cached that policy for 5 minutes, so the token\'s next call to another method got 403.',
+      q: /authorizer|Cognito|execute-api|401|403|Unauthorized|Forbidden/i },
+    shelf: { name: 'The Stale Shelf', cause: 'store', lead: 'dutch', path: 'sync', reads: true,
+      says: 'We wrote it. We read it. It wasn\'t there. Then it was.',
+      setup: v => ({ bucket: [40, 40], reads: true, arrivals: steady(4 + (v.k % 2)) }),
+      break: () => {},
+      ok: m => m.stale === 0, fix: [['consread']], lazy: [['daxnode'], ['wcu'], ['gsiread'], ['reserved'], ['cond']],
+      hidden: 'The function read each order back right after writing it, with an eventually consistent read through DAX, so some reads didn\'t see the write yet.',
+      q: /ConsistentRead|strongly consistent|eventually consistent|read-after-write|\bDAX\b/i },
     cold: { name: 'Cold Open', cause: 'fn', lead: 'kai', path: 'sync',
       says: 'Quiet, quiet, then everyone at once.',
       setup: v => ({ bucket: [40, 40], cold: true, arrivals: t => (t % 4 === 0 ? Array.from({ length: 5 + (v.k % 2) }, (_, i) => R(`c${t}-${i}`)) : []) }),
@@ -269,7 +302,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold'], ['hot', 'locked'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single'], ['poison', 'stampede'], ['midnight']];
+  D.ROWS = [['storm', 'cold', 'pass'], ['hot', 'locked', 'shelf'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single'], ['poison', 'stampede'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -282,7 +315,7 @@
       poisonLoose: 0, lost: 0, purged: 0, wcuUsed: 0, latency: 0, adminUsed: !!cfg.fn.admin, iamDenied: 0, wideUsed: !!cfg.fn.wide,
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
-      poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0 };
+      poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0 };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
     const q = { items: [], dlq: [] };               // { r, vis (tick visible from), recv, sentAt, inflight }
     for (let i = 0; i < (cfg.fn.prov | 0); i++) envs.push({ busy: -1, last: -1, prov: true });
@@ -296,6 +329,16 @@
     // The secret: the ledger database's password, rotated at set.rotate. ver: the current version; valid: versions the
     // database still accepts (single user: only the current one; alternating users: the previous one too).
     const sec = { ver: 1, valid: [1] };
+    // The Lambda authorizer: its answer per token, cached for cfg.gate.ttl seconds. It allows the method called
+    // (scoped to event.methodArn) or, with wild, the whole stage. A request with no token never reaches it: 401.
+    const authCache = {};
+    const authorize = (r, t) => {
+      if (!r.token) { m.unauth++; return false; }
+      let c = authCache[r.token];
+      if (!c || t >= c.exp) { m.authCalls++; c = { res: cfg.gate.wild ? '*' : r.meth, exp: t + Math.ceil(cfg.gate.ttl / D.TICK_S) }; if (cfg.gate.ttl > 0) authCache[r.token] = c; }
+      if (c.res === '*' || c.res === r.meth) return true;
+      m.forbidden++; if (r.meth === 'POST') m.forbidPost++; return false;
+    };
     // A write to the Store: returns 'ok', 'dupe', 'blocked', 'hot', 'over' or 'denied'.
     let tickWrites = [];
     const write = (r) => {
@@ -311,6 +354,7 @@
       written[r.id] = 1; return 'ok';
     };
     const sync = (r, t) => {
+      if (set.auth && !authorize(r, t)) return;
       // A warm environment if one is free (provisioned ones never go cold), else a new one: a cold start.
       let e = envs.find(x => x.busy !== t && (x.prov || (x.last >= 0 && t - x.last <= REAP)));
       let cold = false;
@@ -338,7 +382,13 @@
         }
       }
       const w = write(r);
-      if (w === 'ok' || w === 'blocked') m.ok++; else { m.errors++; m.fault5xx++; }
+      if (w !== 'ok' && w !== 'blocked') { m.errors++; m.fault5xx++; return; }
+      // Reading the order straight back (The Stale Shelf). Through DAX, eventually consistent: a read this soon after
+      // the write misses it about one time in three (the game's number). ConsistentRead goes to the table and sees it.
+      if (set.reads) {
+        if (cfg.store.consistent) m.rcu += 2; else { m.rcu += 1; if (AS.hash(r.id + ':read') % 3 === 0) { m.stale++; return; } }
+      }
+      m.ok++;
     };
     // One tick of the deployment, before the tick's requests. The alarm (Errors > 0 on live) goes off the tick after
     // an error; CodeDeploy acts on it only while the deployment is still running (the game's timing: a real alarm
@@ -491,7 +541,7 @@
   D.sparks = function (frames, stream) {
     const by = f => frames.map(fr => f(fr.d, fr) | 0);
     return {
-      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => d.throttles429), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
+      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
       queue: stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
       fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy) },
       store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
@@ -501,7 +551,7 @@
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
-      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0);
+      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale;
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -511,7 +561,7 @@
   function nodes(d, cfg, m) {
     const traced = { gate: cfg.gate.trace, queue: cfg.fn.trace && d.path === 'async', fn: cfg.fn.trace, store: cfg.fn.trace };
     const st = {
-      gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0 }),
+      gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0, error: m.forbidden + m.unauth + m.stale > 0 }),
       queue: 'ok',
       fn: AS.xrayStatus({ fault: m.errors > 0 }),
       store: AS.xrayStatus({ throttle: m.hot + m.over > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 })
@@ -524,7 +574,7 @@
   D.metrics = function (drill, cfg, m) {
     const d = DR[drill];
     return {
-      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']],
+      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']],
       queue: d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
       fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]],
       store: [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
@@ -535,9 +585,12 @@
     const L = [];
     const n = (x, a, b) => `${x} ${x === 1 ? a : (b || a + 's')}`;
     if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
+    else if (m.forbidden) L.push(['seoyeon', `${n(m.forbidden, 'request')} got 403 Forbidden${m.forbidPost === m.forbidden ? ', every one a POST' : ''}. The same tokens' first calls went through.${m.unauth ? ` ${n(m.unauth, 'request')} got 401 Unauthorized: no token at all, the scraper bot.` : ''}`]);
+    else if (m.stale) L.push(['seoyeon', `${n(m.stale, 'caller')} got 404 Not Found for an order they had just placed.`]);
     else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
+    else if (m.unauth) L.push(['seoyeon', `Every caller with a token got through. ${n(m.unauth, 'request')} got 401 Unauthorized: the scraper bot, with no token at all.`]);
     else L.push(['seoyeon', 'Gate\'s quiet. Every caller got an answer.']);
     if (d.stream) {
       if (m.maxAge > 30) L.push(['mira', `IteratorAge reached ${m.maxAge} seconds: the shard is stuck behind one record.${m.left + m.poisonLoose ? ` ${n(m.left + m.poisonLoose, 'record')} still waiting.` : ''}`]);
@@ -552,6 +605,8 @@
       if (m.lost) L.push(['mira', `The purge took ${n(m.lost, 'good message')} with it.`]);
     }
     if (m.timeouts) L.push(['kai', `Task timed out after ${cfg.fn.timeout}.00 seconds, ${n(m.timeouts, 'time')}.`]);
+    if (m.forbidden) L.push(['kai', `Nothing reached me for those ${m.forbidden}. The Gate turned them away before the function ran.`]);
+    if (m.stale) L.push(['kai', `${n(m.stale, 'order')} came back "not found" when I read them right after writing them.`]);
     if (m.authFail) L.push(['kai', `${n(m.authFail, 'login')} to the ledger database failed: password authentication failed for user orders_app.`]);
     if (m.refetched) L.push(['kai', `${n(m.refetched, 'login')} failed once, then worked after reading the secret again.`]);
     if (m.perCall) L.push(['kai', `GetSecretValue ran ${m.secretCalls} times: once for every order.`]);
@@ -571,6 +626,8 @@
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
     if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
+    if (m.stale) L.push(['dutch', 'Every one of those orders is in the table. Read it again a second later and it\'s there.']);
+    else if (cfg.store.consistent && m.rcu) L.push(['dutch', `Strongly consistent reads: ${m.rcu} read units, twice what eventually consistent costs. DAX passed them all through.`]);
     if (m.rotated) L.push(['dutch', `Secrets Manager rotated ledger/orders_app at ${m.rotated} seconds. ${cfg.store.rot === 'alt' ? 'Alternating users: the previous password still works.' : 'Single user: the old password stopped working.'}`]);
     if (m.rotOff) L.push(['dutch', 'Rotation is off. The ledger password hasn\'t changed since the day it was made.']);
     if (m.iamDenied) L.push(['dutch', `The table turned away ${n(m.iamDenied, 'write')} with a 400. It never got as far as capacity.`]);
@@ -596,7 +653,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async') return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.' }[c.needs];
     if (c.sqs && d.stream) return 'That\'s an SQS setting, and this is a stream.';
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -637,6 +694,8 @@
     poison: ['kai', 'Without ReportBatchItemFailures, one bad message sends the whole batch back.'],
     refused: ['dutch', 'AWS won\'t take that one. Read the refusal: it\'s the lesson.'],
     grey: ['seoyeon', 'Grey on the map means nobody traced it. You can\'t see what you didn\'t instrument.'],
+    auth: ['seoyeon', '401 means no pass at all. 403 means a pass that says no. And the Gate remembers what a pass said.'],
+    reads: ['dutch', 'Reads are eventually consistent unless you ask. Right after a write, ask: ConsistentRead.'],
     secret: ['dutch', 'A secret you read once and keep goes stale the moment it rotates. Cache it, and know when to read it again.'],
     stream: ['mira', 'A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.'],
     iam: ['dutch', 'A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.'],
@@ -650,6 +709,8 @@
     if (m.denied) keys.push('kms');
     if (m.iamDenied) keys.push('iam');
     if (m.authFail) keys.push('secret');
+    if (m.forbidden) keys.push('auth');
+    if (m.stale) keys.push('reads');
     if (DR[f.drill].stream && m.maxAge > 30) keys.push('stream');
     if (m.v2Fail) keys.push('canary');
     if (m.slow) keys.push('cold');
