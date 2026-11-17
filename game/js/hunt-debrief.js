@@ -47,7 +47,9 @@
     const HB = SD.huntBoard, bt = o.battle || null, ms = bt ? [] : mons(m), caught = ms.length ? ms.every(x => x.caught) : true;
     const scene = document.createElement('div');
     scene.className = 'hd-scene';
-    scene.innerHTML = `<div class="hs-view" aria-hidden="true"><div class="hs-street"><img class="hs-bg" src="${HB.STREET}" alt="" decoding="async"></div></div>
+    // A battle plays in the monster's lair (js/hunt-map.js), each step in a different part of it; a Debrief in the street.
+    const HM = SD.huntMap, lair = bt && HM && SD.hunt && SD.hunt._lairOf ? SD.hunt._lairOf(m) : null;
+    scene.innerHTML = `<div class="hs-view" aria-hidden="true"><div class="hs-street"><img class="hs-bg" src="${lair ? HM.bg(lair) : HB.STREET}" alt="" decoding="async"></div></div>
       <div class="hd-wash" aria-hidden="true"></div>
       ${HB.bruHtml()}
       <div class="hd-jars">${ms.map(x => `<div class="hd-mon ${x.caught ? 'jarred' : 'loose'}" role="img" aria-label="${esc(x.name)}, ${x.caught ? 'caught in its jar' : 'loose: it got away'}">
@@ -58,6 +60,7 @@
         <button type="button" class="hd-nbk" aria-controls="hd-notes" aria-expanded="false" hidden><img src="assets/img/hunt/notebook.webp" alt="" decoding="async"><span>Bru's notes</span></button></div>
       <p class="hs-say hd-say" aria-live="polite" hidden></p>`;
     st = { m, scene, ms, caught, bt, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
+    if (lair) { scene.classList.add('hd-lair'); scene.dataset.lair = lair; scene.style.setProperty('--hm-x', HM.shift(bt) + '%'); }
     if (bt) { scene.classList.add('hd-battle', 'hd-st-' + bt); const g = stage(); if (g && g.open) g.open({ scene, st }); }
     st.obs = new MutationObserver(wrap);
     st.obs.observe(document.querySelector('#panel'), { childList: true, subtree: true });

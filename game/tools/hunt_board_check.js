@@ -83,7 +83,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await shot('posters');
   await page.evaluate(() => { SD.hunt.start(); });
   for (let k = 0; k < 6 && !(await page.$('[data-mon]')); k++) { const nx = await page.$('#md-next, #hn-wnext'); if (nx) await nx.click(); await page.waitForTimeout(60); }
-  await page.waitForSelector('[data-mon]'); await page.click('[data-mon]');
+  await page.waitForSelector('[data-mon]'); await page.click('[data-mon]'); await page.waitForFunction(() => !document.querySelector('.hm-walk'));
   await page.waitForSelector('#hb-deploy');
   const plan = await text();
   check(/One bad order/.test(plan) && /Poison Pill/.test(plan) && /Your hand/.test(plan) && /Deploy 1 of 3/.test(plan), 'the plan screen: the scenario, the monster on its tile, the hand, deploy 1 of 3');

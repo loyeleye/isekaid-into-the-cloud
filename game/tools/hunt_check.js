@@ -87,7 +87,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
   const hunt = () => page.evaluate(() => SD.state.save.hunt);
   // Between battles: pick the next monster (the first one not yet battled).
-  const follow = async () => { await page.waitForSelector('[data-mon]'); await page.click('[data-mon]'); await page.waitForTimeout(40); };
+  const follow = async () => { await page.waitForSelector('[data-mon]'); await page.click('[data-mon]'); await page.waitForFunction(() => !document.querySelector('.hm-walk')); await page.waitForTimeout(40); };
   // The health bar on the question window: "HP n/m".
   const hp = () => page.evaluate(() => { const e = document.querySelector('#panel .hn-hp.hn-inq'); return e ? e.getAttribute('aria-label').replace(/^.*health /, '') : null; });
   // After a miss: the retry on a twin, answered right.
@@ -311,6 +311,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('picker, next day');
   await shot('pick2');
   await page.click('[data-mon="1"]');
+  await page.waitForFunction(() => !document.querySelector('.hm-walk'));
   await page.waitForSelector('#panel .win.quiz ' + STOP);
   check(await page.evaluate(() => SD.state.save.hunt.i === 1 && SD.hunt.live().m === SD.state.save.hunt.mons[1]), 'you pick which monster to battle next');
   await page.evaluate(() => SD.hunt.stop());

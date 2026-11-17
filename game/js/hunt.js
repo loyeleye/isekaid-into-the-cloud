@@ -356,6 +356,14 @@
     const b = m.qs && m.qs.board && HC.board ? HC.board(m.qs.board) : null;
     return b && b.mons && b.mons[0] ? b.mons[0] : null;
   }
+  // The monster's topic (a wild one's: its practice test's first), for its lair on the map (js/hunt-map.js).
+  function topicM(m) {
+    if (m.id) return (find(m.id) || {}).topic;
+    const p = m.wild && SD.topicDrill ? SD.topicDrill.preset(m.wild) : null;
+    return p && p.topics && p.topics[0];
+  }
+  const lairOf = m => (SD.huntMap ? SD.huntMap.lairOf(topicM(m)) : null);
+  H._lairOf = lairOf;
   const faceOf = m => { const b = boardMon(m); return b ? `assets/img/hunt/${b}.webp` : `assets/img/monsters/${FACES[hash(m.name) % FACES.length]}.webp`; };
   H._faceOf = faceOf;   // for tools/hunt_check.js
   const stampOf = m => (m.out ? { captured: 'CAPTURED', wounded: 'WOUNDED', escaped: 'ESCAPED', driven: 'DRIVEN OFF', gotaway: 'GOT AWAY', waiting: '' }[m.out] || '' : '');
@@ -512,13 +520,33 @@
           <span class="small hn-wn">${o ? `<b>${o[0]} ${esc(o[1])}</b>` : m.wounded && !m.qs.board ? '◐ Wounded: Track\'s pip is already gone.' : m.qs.board ? `A board: ${esc((SD.huntCore.board(m.qs.board) || {}).title || '')}.` : m.wild ? 'A wild one from your practice test.' : 'Full health.'}</span>
           ${m.out ? '' : `<button class="opt hn-fight" data-mon="${i}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
       }).join('');
-      const b = U.panel(`${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head" data-vo="${esc('bru|' + BRU.pick)}">${esc(BRU.pick)}</p>`}
-        <p class="hn-lamp"><b>${sgn(h.pts)} pts</b> · <span class="muted small">${h.mons.filter(m => m.out).length} of ${h.mons.length} battled. Land a hit with each right answer.</span></p>
-        <ul class="hn-bts" aria-label="Tonight's monsters">${cards}</ul>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
-      b.querySelectorAll('[data-mon]').forEach(el => el.onclick = () => {
+      const head = `${h.since ? `<p class="hn-since"><b>Since your last move:</b> ${esc(h.since)}</p>` : `<p class="td-head" data-vo="${esc('bru|' + BRU.pick)}">${esc(BRU.pick)}</p>`}`;
+      const tally = `<p class="hn-lamp"><b>${sgn(h.pts)} pts</b> · <span class="muted small">${h.mons.filter(m => m.out).length} of ${h.mons.length} battled. Land a hit with each right answer.</span></p>`;
+      const HM = SD.huntMap;
+      let b;
+      if (HM) {
+        // The hunting grounds: tonight's monsters stand at their lairs on the map.
+        const by = {};
+        h.mons.forEach((m, i) => { const k = lairOf(m); (by[k] = by[k] || []).push(i); });
+        const tok = i => {
+          const m = h.mons[i], o = m.out ? (OUT[m.out] || OUT.escaped) : null;
+          const say = `${m.name}, ${HM.LAIRS[lairOf(m)].name}. ${o ? o[1] : m.wounded && !m.qs.board ? 'Wounded.' : m.qs.board ? 'A board.' : m.wild ? 'A wild one.' : 'Full health.'} Health ${hpOf(m)} of ${maxHP(m)}.`;
+          return `<li class="hn-bt hm-tok${m.out ? ' done' : ''}">${portrait(m)}
+            <span class="hm-tn" aria-hidden="true">${esc(m.name)}</span><span class="hn-pips" aria-hidden="true">${pipsHtml(hpOf(m), maxHP(m))}</span>${m.out ? `<span class="sr">${esc(say)}</span>` : `<button class="hn-fight" data-mon="${i}" aria-label="${esc('Battle ' + say)}"><b>⚔️ Battle ${esc(m.name)}</b></button>`}</li>`;
+        };
+        const lairs = Object.keys(HM.LAIRS).map(k => { const L = HM.LAIRS[k], is = by[k] || [];
+          return `<div class="hm-lair${is.length ? '' : ' quiet'}" style="left:${L.at[0]}%;top:${L.at[1]}%;--ax:-${L.at[0]}%"><b>${esc(L.name)}</b>${is.length ? `<ul class="hm-toks">${is.map(tok).join('')}</ul>` : ''}</div>`; }).join('');
+        b = U.panel(`<div class="hm"><div class="hm-cap">${head}${tally}</div>
+          <div class="hm-map" aria-label="The hunting grounds: tonight's monsters at their lairs"><img src="${HM.MAP}" alt="" aria-hidden="true" fetchpriority="high">${lairs}</div></div>`, { title: 'THE HUNTING GROUNDS', noClose: true, cls: 'hn-mapwin hm-win' });
+      } else {
+        b = U.panel(`${head}${tally}<ul class="hn-bts" aria-label="Tonight's monsters">${cards}</ul>`, { title: 'THE SCRAP FIELD', noClose: true, cls: 'hn-mapwin' });
+      }
+      b.querySelectorAll('[data-mon]').forEach(el => el.onclick = async () => {
         h.mapMs = (h.mapMs | 0) + (Date.now() - t0); h.moves = (h.moves | 0) + 1;
         h.i = +el.dataset.mon; h.mons[h.i].arrived = 1; h.phase = 'mon';
-        S.persist(); done();
+        S.persist();
+        if (HM && HM.walk) await HM.walk(lairOf(h.mons[h.i]));
+        done();
       });
     });
   }
@@ -812,6 +840,7 @@
   // first: a poster tapped on the board ('wild:<preset>' for a wild one), battled first, as a pick in the picker is.
   H.start = async function (first) {
     U.closePanel();
+    if (SD.huntMap) SD.huntMap.warm();
     let h = H.current();
     if (!h) { h = newHunt(); S.persist(); }
     if (!h.mons.length) { sv().hunt = null; S.persist(); return H.open(); }
