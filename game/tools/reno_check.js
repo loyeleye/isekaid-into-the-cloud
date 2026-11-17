@@ -138,7 +138,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const permit = async (right, conf, marks) => {
     await page.click('#rn-deb');
     permit.wi = await whatIf(marks);
-    permit.report = await page.$eval('.rn-report', x => x.innerText).catch(() => '');
+    permit.before = !!(await page.$('.rn-report'));
     await page.click('#rn-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'), null, { timeout: 5000 });
     const plain = await page.evaluate(() => !document.querySelector('#panel .rn-street, #panel .rn-bridge'));
@@ -146,6 +146,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
     await page.waitForFunction(() => SD.state.save.reno.phase === 'after');
+    permit.report = await page.$eval('.rn-report', x => x.textContent).catch(() => '');
     return { qid, plain };
   };
   const nextJob = async () => { await page.click('#rn-next'); if ((await st()).phase === 'board') await page.click('#rn-go'); };
@@ -190,6 +191,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(!!(await page.$('#rn-deb')) && /SEYMOUR SIGNS/.test(await txt('#panel')), 'rolling with an additional batch of 1 passes, and Seymour signs');
   const p1 = await permit(true, 2);
   check(/DeploymentPolicy: AllAtOnce/.test(permit.report) && /✗ Nobody turned away/.test(permit.report) && /DeploymentPolicy: RollingWithAdditionalBatch/.test(permit.report), 'once settled, Seymour\'s report circles the line that broke the slate and shows the one that held');
+  check(!permit.before, 'the report waits until after the permit question, so it can\'t give the answer away');
+  { // On a phone the two plans share one slab: the toggle flips between them.
+    const vis = () => page.$$eval('.rn-r-panel', ps => ps.map(p => p.offsetParent !== null));
+    const a = await vis(); await page.click('.rn-r-flip [data-rp="1"]'); const b2 = await vis();
+    check(a.join() === 'true,false' && b2.join() === 'false,true', 'on a phone the report flips between the plan that broke and the plan that held');
+  }
   check(p1.plain, 'the permit question is on its own screen: no street while the stem is open');
   const q1 = await page.evaluate(id => SD.exam.find(id), p1.qid);
   check(/Beanstalk/i.test([q1.q].concat(q1.opts || [], (q1.items || []).map(i => i.t)).join(' ')), 'the permit question is about Elastic Beanstalk');

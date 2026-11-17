@@ -958,14 +958,18 @@
         bl.forEach(x => {
           const gone = x.keys.filter(k => !shown.has(k));
           if (!gone.length || !x.fix) return;
+          // No plan held, and a missed job comes back: point at the gap without naming what goes in it.
+          const anon = !fixed;
           const src = tplLines(job, x.fix).lines.map(([ind, text, ks]) => ({ ind, text: clean(text), ks: ks || [] }));
           src.forEach((r, n) => {
             if (!r.ks.some(k => gone.includes(k)) || t.some(q => q.text === r.text)) return;
             r.ks.forEach(k => shown.add(k));
             // Its parents from the fixed plan (Hooks:) where this plan has none, then the line, after the last line above it.
             const add = [];
-            for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (src[m].ind < ind) { ind = src[m].ind; if (!t.some(q => q.text === src[m].text)) add.unshift(Object.assign({}, src[m], { hit: true, miss: true })); else break; }
-            add.push(Object.assign({}, r, { hit: true, miss: true }));
+            let pind = r.ind;
+            for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (src[m].ind < ind) { ind = src[m].ind; if (!t.some(q => q.text === src[m].text)) { pind = src[m].ind; add.unshift(Object.assign({}, src[m], { hit: true, miss: true })); } else break; }
+            if (anon) { if (t.some(q => q.anon)) return; add.length = 0; add.push({ ind: pind, text: '?', ks: r.ks, hit: true, miss: true, anon: true }); }
+            else add.push(Object.assign({}, r, { hit: true, miss: true }));
             let at = t.length;
             const prev = n > 0 ? src.slice(0, n).reverse().find(p => t.some(q => q.text === p.text)) : null;
             if (prev) { at = t.findIndex(q => q.text === prev.text) + 1; while (at < t.length && t[at].ind > prev.ind) at++; }
@@ -981,7 +985,7 @@
         if (gap) { out += `<span class="rn-r-gap">${'  '.repeat(r.ind)}⋯</span>`; gap = false; }
         const code = `${'  '.repeat(r.ind)}<b>${esc(r.text)}</b>`;
         out += `<span class="${r.hit ? (bad ? 'rn-r-bad' : 'rn-r-good') : 'rn-r-ctx'}${r.miss ? ' rn-r-miss' : ''}">${code}</span>`;
-        if (bad && r.hit && r.ks.length) out += `<span class="rn-r-note">${r.miss ? 'missing: ' : ''}${broke(r.ks).map(x => '✗ ' + esc(x)).join('<br>')}</span>`;
+        if (bad && r.hit && r.ks.length) out += `<span class="rn-r-note">${r.anon ? 'something\'s missing here: ' : r.miss ? 'missing: ' : ''}${broke(r.ks).map(x => '✗ ' + esc(x)).join('<br>')}</span>`;
       });
       if (gap) out += '<span class="rn-r-gap">⋯</span>';
       return `<pre class="rn-r-code">${out}</pre>`;
@@ -989,12 +993,32 @@
     const file = tplLines(job, failed.plan).file;
     return `<section class="rn-report" aria-label="Seymour's inspection report">
       <header class="rn-r-head">${head('seymour')}<div><p class="rn-r-title">Inspection report</p><p class="rn-r-sub">${esc(job.title)} · <code>${esc(file)}</code></p></div></header>
-      <div class="rn-r-cols${fixed ? '' : ' one'}">
+      ${fixed ? `<div class="rn-r-flip" role="tablist" aria-label="Which plan"><button role="tab" class="on" aria-selected="true" data-rp="0">Plan ${ps.indexOf(failed) + 1} · broke</button><button role="tab" aria-selected="false" data-rp="1">Plan ${ps.length} · held</button></div>` : ''}
+      <div class="rn-r-cols${fixed ? '' : ' one'}" data-show="0">
         <div class="rn-r-panel bad"><p class="rn-r-lab">Plan ${ps.indexOf(failed) + 1} · broke the slate</p>${sheet(failed.plan, true)}</div>
         ${fixed ? `<div class="rn-r-panel good"><p class="rn-r-lab">Plan ${ps.length} · held twice</p>${sheet(fixed, false)}<span class="rn-r-stamp" aria-hidden="true">HELD</span></div>` : ''}
       </div>
       <p class="rn-r-sign">Inspected and filed. Sir S. Backups</p>
     </section>`;
+  }
+  // On a phone the two plans share one slab: the toggle (or a sideways swipe on it) flips between them, and the line
+  // that changed lights up as it flips. A wide screen shows them side by side and hides the toggle.
+  function bindReport(b) {
+    const rep = b.querySelector('.rn-report'), cols = rep && rep.querySelector('.rn-r-cols'), tabs = rep ? [...rep.querySelectorAll('[data-rp]')] : [];
+    if (!tabs.length) return;
+    const show = k => {
+      if (cols.dataset.show === String(k)) return;
+      cols.dataset.show = k; tabs.forEach(t => { const on = t.dataset.rp === String(k); t.classList.toggle('on', on); t.setAttribute('aria-selected', on); });
+      const p = cols.children[k]; p.classList.remove('rn-r-in'); void p.offsetWidth; p.classList.add('rn-r-in');
+    };
+    tabs.forEach(t => t.onclick = () => show(+t.dataset.rp));
+    let x0 = null, y0 = 0;
+    cols.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; });
+    cols.addEventListener('pointerup', e => {
+      if (x0 == null) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) show(dx < 0 ? 1 : 0);
+    });
   }
   // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
   const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
@@ -1095,7 +1119,6 @@
     if (whatIfDue(s, job, j)) return whatIfScreen(s, job, j);
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
       ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
-      ${reportHtml(job, j)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
     if (RS) RS.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
@@ -1323,9 +1346,11 @@
         ${line ? say(job.client, line) : ''}
         ${office ? '' : say('seymour', sey)}
       </div></div>
+      ${reportHtml(job, j)}
       ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : (job.grand ? 'The plan didn\'t hold. This Grand Opening comes back as a later night\'s.' : 'The plan didn\'t hold. This job comes back first on a later night.')}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-next">${s.at + 1 < s.jobs.length ? 'Next job' : 'End the night'}</button></div>`);
     if (office) SD.renoStreet.mount(b);
+    bindReport(b);
     const cv = b.querySelector('.rn-bcv');
     if (cv && bld && SD.draftArt) { try { SD.draftArt.building(cv, { client: Object.assign({}, c, { roof: NEW_ROOF }), floors: Math.max(1, Math.min(6, bld.floors)), scaf: !!bld.scaf, cracks: bld.cracks }); } catch (e) { /* optional */ } }
     b.querySelector('#rn-next').onclick = () => {
@@ -1666,7 +1691,21 @@
     .rn-r-sub { margin: 2px 0 0; font-size: 13px; color: #6a4a26; }
     .rn-r-sub code { font: 600 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(120,90,50,.12); padding: 1px 5px; border-radius: 4px; }
     .rn-r-cols { display: grid; gap: 12px; }
-    @media (min-width: 700px) { .rn-r-cols:not(.one) { grid-template-columns: 1fr 1fr; } }
+    .rn-r-flip { display: flex; gap: 0; margin: 0 0 10px; border: 2px solid #b8955a; border-radius: 999px; overflow: hidden; width: fit-content; }
+    .rn-r-flip button { min-height: 36px; padding: 4px 14px; border: 0; background: transparent; color: #6a4a26; font: 700 12px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+    .rn-r-flip button.on[data-rp="0"] { background: #a3261b; color: #fff4e8; } .rn-r-flip button.on[data-rp="1"] { background: #24734a; color: #effff4; }
+    @media (max-width: 699px) {
+      .rn-r-cols:not(.one) { touch-action: pan-y; }
+      .rn-r-cols:not(.one)[data-show="0"] > .rn-r-panel.good, .rn-r-cols:not(.one)[data-show="1"] > .rn-r-panel.bad { display: none; }
+      .rn-r-cols:not(.one) .rn-r-lab { display: none; }
+      .rn-r-cols:not(.one) .rn-r-stamp { top: -12px; }
+      .rn-r-panel.rn-r-in { animation: rn-r-in .32s ease-out; }
+      .rn-r-panel.rn-r-in .rn-r-bad b, .rn-r-panel.rn-r-in .rn-r-good b { animation: rn-r-pop .9s ease-out; }
+    }
+    @media (min-width: 700px) { .rn-r-cols:not(.one) { grid-template-columns: 1fr 1fr; } .rn-r-flip { display: none; } }
+    @keyframes rn-r-in { from { opacity: 0; transform: perspective(600px) rotateY(-12deg); } }
+    @keyframes rn-r-pop { 0%, 30% { box-shadow: 0 0 0 6px rgba(255,212,90,.55); } 100% { box-shadow: 0 0 0 0 rgba(255,212,90,0); } }
+    @media (prefers-reduced-motion: reduce) { .rn-r-panel.rn-r-in, .rn-r-panel.rn-r-in b { animation: none !important; } }
     .rn-r-panel { position: relative; min-width: 0; }
     .rn-r-lab { margin: 0 0 5px; font: 700 12px/1 var(--f-head); letter-spacing: .1em; text-transform: uppercase; }
     .rn-r-panel.bad .rn-r-lab { color: #a3261b; } .rn-r-panel.good .rn-r-lab { color: #24734a; }
