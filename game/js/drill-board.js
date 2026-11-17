@@ -99,8 +99,9 @@
   const TROUBLE = {
     seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.cstale || m.leaked,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost || m.filtered || m.misrouted || m.execFailed,
-    kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked || m.upFail || m.misses * 2 > m.reads,
+    kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked || m.upFail || m.misses * 2 > m.reads || m.chunky || (m.piiLeak && !m.envPlain),
     dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.filtered || m.misrouted || m.stuck || m.cstale || m.evictions || m.upFail || m.userKey || m.pubPut
+      || m.assumeDenied || m.xDenied || m.pwLeak || m.piiLeak || m.envPlain || m.plainParam || m.plainKey || m.trustStar || m.pubRead
   };
   B.bubbles = function (lines, m) {
     const by = {};
@@ -114,14 +115,22 @@
   function events(f, fr) {
     const d = fr.d, out = [], async = D.DRILLS[f.drill].path === 'async';
     if (d.throttles429) out.push(['gate', `${d.throttles429} × 429`, 'throttle']);
-    if (d.fault5xx && !async && !d.hot && !d.denied && !d.over) out.push(['gate', `${d.fault5xx} × ${d.iamDenied || d.v2Fail ? '502' : '5xx'}`, 'fault']);
+    if (d.fault5xx && !async && !d.hot && !d.denied && !d.over) out.push(['gate', `${d.fault5xx} × ${d.iamDenied || d.v2Fail || d.assumeDenied || d.xDenied || d.tooBig || d.kmsDenied || d.secDenied ? '502' : '5xx'}`, 'fault']);
     if (d.v2Fail) out.push(['fn', `${d.v2Fail} failed on v2`, 'fault']);
     if (d.hookFailed) out.push(['fn', 'Test failed: no shift', 'ok']);
     else if (d.stopped) out.push(['fn', 'Rolled back to v1', 'ok']);
     else if (d.shifted) out.push(['fn', 'v2 gets traffic', 'ok']);
     if (d.slow) out.push(['fn', `${d.slow} cold start${d.slow > 1 ? 's' : ''}`, 'fault']);
     if (d.timeouts) out.push(['fn', `Task timed out after ${f.cfg.fn.timeout} s`, 'fault']);
-    if (d.errors && !d.timeouts && !d.hot && !d.denied && !d.iamDenied && !d.v2Fail && !d.over) out.push(['fn', `${d.errors} failed`, 'fault']);
+    if (d.errors && !d.timeouts && !d.hot && !d.denied && !d.iamDenied && !d.v2Fail && !d.over && !d.assumeDenied && !d.xDenied && !d.tooBig && !d.kmsDenied && !d.secDenied) out.push(['fn', `${d.errors} failed`, 'fault']);
+    // The Night Watch's drills (js/mode-watch.js)
+    if (d.assumeDenied) out.push(['store', `${d.assumeDenied} × AccessDenied: sts:AssumeRole`, 'error']);
+    if (d.xDenied) out.push(['store', `${d.xDenied} × 403 on GetObject`, 'error']);
+    if (d.tooBig) out.push(['fn', `${d.tooBig} × too big for Encrypt`, 'fault']);
+    if (d.kmsDenied) out.push(['fn', `${d.kmsDenied} × AccessDenied: kms:GenerateDataKey`, 'fault']);
+    if (d.secDenied) out.push(['fn', `${d.secDenied} × AccessDenied: the password`, 'fault']);
+    if (d.pwLeak) out.push(['store', `${d.pwLeak} × DB_PASSWORD in the logs`, 'error']);
+    else if (d.piiLeak) out.push(['store', `${d.piiLeak} × an email in the logs`, 'error']);
     if (d.hot) out.push(['store', `${d.hot} × ThrottlingException`, 'throttle']);
     if (d.over) out.push(['store', `${d.over} × ProvisionedThroughputExceeded`, 'throttle']);
     if (d.denied) out.push(['store', `${d.denied} × AccessDenied: kms:Decrypt`, 'error']);

@@ -242,15 +242,76 @@
     insights: { at: 'store', name: 'Contributor Insights', obs: true, text: 'The Store names its most throttled key.',
       back: 'CloudWatch Contributor Insights for DynamoDB shows the most accessed and throttled keys.', set: c => { c.store.insights = true; }, on: c => c.store.insights },
     trail: { at: 'store', name: 'Read CloudTrail', obs: true, text: 'Look up the key\'s recent Decrypt calls and who made them.',
-      back: 'CloudTrail records KMS calls such as Decrypt, and some denied calls too.', set: c => { c.store.trail = true; }, on: c => c.store.trail }
+      back: 'CloudTrail records KMS calls such as Decrypt, and some denied calls too.', set: c => { c.store.trail = true; }, on: c => c.store.trail },
+    // ---- The Night Watch's own drills (js/mode-watch.js; checked against the AWS docs listed in js/aws-sim-ops.js) ----
+    // The Borrowed Cloak: the function assumes the role ledger-writer to write to the ledger. The role's trust policy
+    // (a resource-based policy on the role) says who may assume it. It sits at Dutch's desk: the ledger is his.
+    trustfin: { at: 'store', dial: 'trust', needs: 'cloak', name: 'Trust policy: trust role finance-fn-role', text: 'Only the finance team\'s function may assume ledger-writer.',
+      back: 'A trust policy lists the principals that may assume the role. A caller it doesn\'t list is turned away.', set: c => { c.xs.trust = 'fin'; }, on: c => c.xs.trust === 'fin' },
+    trustfn: { at: 'store', dial: 'trust', needs: 'cloak', name: 'Trust policy: also trust role orders-fn-role', text: 'ledger-writer\'s trust policy names the order function\'s role as a Principal for sts:AssumeRole.',
+      back: 'A role\'s trust policy is the resource-based policy that says who may assume it. Name exactly the caller that needs it.', set: c => { c.xs.trust = 'fn'; }, on: c => c.xs.trust === 'fn' },
+    trustacct: { at: 'store', dial: 'trust', needs: 'cloak', name: 'Trust policy: trust this account', text: 'Any principal in this account whose own policy allows sts:AssumeRole on ledger-writer may assume it.',
+      back: 'Naming the account (its root ARN) hands the decision to IAM: the caller\'s identity policy must allow sts:AssumeRole too.', set: c => { c.xs.trust = 'acct'; }, on: c => c.xs.trust === 'acct' },
+    truststar: { at: 'store', dial: 'trust', needs: 'cloak', name: 'Trust policy: Principal "*"', text: 'Anyone may assume ledger-writer.',
+      back: 'It works, and it trusts every AWS principal in every account. Never on a role that can write to your ledger.', set: c => { c.xs.trust = 'star'; }, on: c => c.xs.trust === 'star' },
+    stsstar: { at: 'fn', needs: 'cloak', name: 'Role policy: allow sts:AssumeRole on *', text: 'The function\'s role may try to assume any role at all.',
+      back: 'The caller\'s policy is only half of it. The role it wants still has to trust the caller.', set: c => { c.xs.stsWide = true; }, on: c => c.xs.stsWide },
+    // The Neighbour's Bucket: every order reads the partner's price list from their bucket, in their account.
+    bpol: { at: 'store', needs: 'xacct', name: 'Partner\'s bucket policy: allow your role', text: 'The partner adds a statement to partner-prices\' bucket policy: orders-fn-role may s3:GetObject on prices/*.',
+      back: 'Across accounts both sides must allow it: your role\'s policy, and the resource policy in the account that owns the bucket.', set: c => { c.xs.bpol = true; }, on: c => c.xs.bpol },
+    bpub: { at: 'store', needs: 'xacct', name: 'Partner\'s bucket policy: Principal "*" may GetObject', text: 'Anyone at all may read the partner\'s price list.',
+      back: 'It works, once they also turn off Block Public Access, and now their prices are public. Name the one principal that needs it.', set: c => { c.xs.bpub = true; }, on: c => c.xs.bpub },
+    xrole: { at: 'store', needs: 'xacct', name: 'Partner\'s role price-reader, trusting your account', text: 'The partner makes a role that may read the bucket, with a trust policy that names your account.',
+      back: 'Assuming a role in the other account makes the read a request from inside that account. Your side still has to be allowed to assume it.', set: c => { c.xs.xrole = true; }, on: c => c.xs.xrole },
+    bpolme: { at: 'store', needs: 'xacct', name: 'Edit partner-prices\' bucket policy yourself', text: 'Write the statement into their bucket policy from your account.',
+      back: 'A bucket policy is changed by the account that owns the bucket.', why: () => 'Refused: partner-prices belongs to account 222233334444. Its bucket policy is theirs to change.', set: () => {}, on: () => false },
+    xsts: { at: 'fn', needs: 'xacct', name: 'Role policy: allow sts:AssumeRole on price-reader', text: 'The function assumes the partner\'s role, then reads the bucket with its temporary credentials.',
+      back: 'Assuming a role in another account needs both halves: their trust policy, and your policy allowing sts:AssumeRole on that role\'s ARN.', set: c => { c.xs.xsts = true; }, on: c => c.xs.xsts },
+    s3star: { at: 'fn', needs: 'xacct', name: 'Role policy: allow s3:* on *', text: 'The function\'s role may do anything to any bucket.',
+      back: 'Your side already allowed GetObject. Across accounts the bucket\'s own policy has to agree, and a wider policy here can\'t make it.', set: c => { c.xs.s3wide = true; }, on: c => c.xs.s3wide },
+    // The Big Letter: each order's invoice PDF is encrypted with the invoice key before it goes in the invoices bucket.
+    encdirect: { at: 'fn', dial: 'enc', needs: 'letter', name: 'Encrypt: kms:Encrypt the whole PDF', text: 'Send each invoice to KMS Encrypt and store what comes back.',
+      back: 'Encrypt takes at most 4,096 bytes of plaintext. It\'s for small secrets, such as a password or a key.', set: c => { c.xs.enc = 'direct'; }, on: c => c.xs.enc === 'direct' },
+    encchunk: { at: 'fn', dial: 'enc', needs: 'letter', name: 'Encrypt: kms:Encrypt in 4 KB pieces', text: 'Cut each invoice into 4,096-byte pieces and send every piece to Encrypt.',
+      back: 'It fits, at 45 Encrypt calls an invoice. Each call counts against the account\'s KMS request quota, and each one is billed.', set: c => { c.xs.enc = 'chunk'; }, on: c => c.xs.enc === 'chunk' },
+    encenv: { at: 'fn', dial: 'enc', needs: 'letter', name: 'Encrypt: envelope, GenerateDataKey per invoice', text: 'Get a data key, encrypt the PDF here with it, then keep only the key\'s encrypted copy beside the file.',
+      back: 'GenerateDataKey returns the key twice: in plaintext, to use and then erase, and encrypted under the KMS key (CiphertextBlob), to store with the data.', set: c => { c.xs.enc = 'env'; }, on: c => c.xs.enc === 'env' },
+    encsse: { at: 'fn', dial: 'enc', needs: 'letter', name: 'Encrypt: S3 SSE-KMS with invoice-key', text: 'PutObject with ServerSideEncryption aws:kms. S3 gets a data key for each object and encrypts it.',
+      back: 'SSE-KMS is envelope encryption done by S3. The uploader needs kms:GenerateDataKey on the key, and a reader needs kms:Decrypt.', set: c => { c.xs.enc = 'sse'; }, on: c => c.xs.enc === 'sse' },
+    kmsgdk: { at: 'fn', needs: 'letter', name: 'Role policy: allow kms:GenerateDataKey on invoice-key', text: 'The function\'s role may ask the invoice key for data keys.',
+      back: 'Envelope encryption and SSE-KMS uploads both call GenerateDataKey, so the role needs that action on the key.', set: c => { c.xs.gdk = true; }, on: c => c.xs.gdk },
+    keepplain: { at: 'fn', needs: 'letter', name: 'Store the plaintext data key with the file', text: 'Save the data key itself next to each invoice, so reading one needs no KMS call.',
+      back: 'Then anyone who can read the bucket can read every invoice. Store only the encrypted copy, and erase the plaintext key after use.',
+      why: c => (c.xs.enc === 'env' ? '' : 'Only envelope encryption in your own code has a data key to store.'), set: c => { c.xs.plainKey = true; }, on: c => c.xs.plainKey },
+    bigger: { at: 'fn', needs: 'letter', name: 'Ask for a bigger Encrypt limit', text: 'Request a higher plaintext limit for Encrypt.',
+      back: 'Encrypt\'s 4,096 bytes is the API\'s limit, not a quota.', why: () => 'Refused: Encrypt takes at most 4,096 bytes of plaintext. That\'s the API\'s limit, not a quota you can raise.', set: () => {}, on: () => false },
+    // Loose Lips: where the ledger password lives, and what the function's debug line prints.
+    pwenv: { at: 'fn', dial: 'pw', needs: 'lips', name: 'Password: DB_PASSWORD environment variable', text: 'The ledger password is an environment variable on the function.',
+      back: 'Lambda encrypts environment variables at rest, and gives them to your code in plain text. AWS recommends Secrets Manager for credentials.', set: c => { c.xs.pw = 'env'; }, on: c => c.xs.pw === 'env' },
+    pwstr: { at: 'fn', dial: 'pw', needs: 'lips', name: 'Password: Parameter Store String', text: 'GetParameter on /orders/ledger-password, a String parameter.',
+      back: 'A String parameter isn\'t encrypted. Anyone who can read the parameter reads the password.', set: c => { c.xs.pw = 'str'; }, on: c => c.xs.pw === 'str' },
+    pwssm: { at: 'fn', dial: 'pw', needs: 'lips', name: 'Password: Parameter Store SecureString', text: 'GetParameter on /orders/ledger-password WithDecryption.',
+      back: 'A SecureString is encrypted with a KMS key. Reading it needs ssm:GetParameter, and kms:Decrypt on that key.', set: c => { c.xs.pw = 'ssm'; }, on: c => c.xs.pw === 'ssm' },
+    pwsm: { at: 'fn', dial: 'pw', needs: 'lips', name: 'Password: Secrets Manager, through the extension', text: 'The Parameters and Secrets extension fetches ledger/orders_app and caches it.',
+      back: 'The role needs secretsmanager:GetSecretValue on the secret. The extension caches it for 300 seconds by default.', set: c => { c.xs.pw = 'sm'; }, on: c => c.xs.pw === 'sm' },
+    smread: { at: 'fn', needs: 'lips', name: 'Role policy: allow secretsmanager:GetSecretValue on ledger/orders_app', text: 'The function\'s role may read that one secret.',
+      back: 'Least privilege: one action, one secret ARN.', set: c => { c.xs.smread = true; }, on: c => c.xs.smread },
+    ssmread: { at: 'fn', needs: 'lips', name: 'Role policy: allow ssm:GetParameter and kms:Decrypt for /orders/ledger-password', text: 'The function\'s role may read that parameter and decrypt it.',
+      back: 'Decrypting a SecureString needs kms:Decrypt on its key as well as ssm:GetParameter.', set: c => { c.xs.ssmread = true; }, on: c => c.xs.ssmread },
+    redact: { at: 'fn', needs: 'lips', name: 'Debug line: log only the orderId', text: 'The debug line prints the order\'s id instead of the whole event and the environment.',
+      back: 'Sanitise what you log. Keep secrets and personal data, such as a customer\'s email, out of logs: more people can read logs than the data.', set: c => { c.xs.redact = true; }, on: c => c.xs.redact },
+    envcmk: { at: 'fn', needs: 'lips', name: 'Encrypt environment variables with a customer managed key', text: 'Use your own KMS key for the function\'s environment variables instead of the AWS managed one.',
+      back: 'Then only people allowed to use that key can view the variables. The function still gets them in plain text, and still prints them.', set: c => { c.xs.cmk = true; }, on: c => c.xs.cmk }
   };
   const C = D.CARDS;
   D.HANDS = {
     gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'snsattr', 'keysplit', 'quotaup', 'stagerate', 'gttl0', 'gttl300', 'gttl3600', 'ckey', 'gflush', 'maxage', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail', 'scopebody', 'nofilter', 'subdlq', 'rawon',
       'rnone', 'rtrans', 'rall', 'catchnone', 'catchno', 'catchrp', 'catchfirst'],
-    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'exp60', 'exp900', 'exp7d', 'exp30d', 'demand', 'userkey', 'single', 'ftrace'],
-    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'cachelazy', 'cachewt', 'cttl0', 'cttl10', 'cttl60', 'cttl3600', 'replica', 'flush', 'lifecycle', 'publicput', 'insights', 'trail']
+    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'exp60', 'exp900', 'exp7d', 'exp30d', 'demand', 'userkey', 'single', 'ftrace',
+      'stsstar', 'xsts', 's3star', 'encdirect', 'encchunk', 'encenv', 'encsse', 'kmsgdk', 'keepplain', 'bigger', 'pwenv', 'pwstr', 'pwssm', 'pwsm', 'smread', 'ssmread', 'redact', 'envcmk'],
+    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'cachelazy', 'cachewt', 'cttl0', 'cttl10', 'cttl60', 'cttl3600', 'replica', 'flush', 'lifecycle', 'publicput', 'insights', 'trail',
+      'trustfin', 'trustfn', 'trustacct', 'truststar', 'bpol', 'bpub', 'xrole', 'bpolme']
   };
 
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
@@ -265,7 +326,10 @@
       cache: { wt: false, ttl: 0, replica: false, flush: false },
       up: { exp: 60, demand: false, userKey: false, pub: false, lifecycle: false },
       topic: { scope: 'attrs', filter: true, dlq: false },
-      flow: { retry: 'none', catch: 'none' }
+      flow: { retry: 'none', catch: 'none' },
+      // The Night Watch's drills: a healthy version of each, which its drill then breaks.
+      xs: { trust: 'fn', stsWide: false, bpol: true, bpub: false, xrole: false, xsts: false, s3wide: false, enc: 'sse', gdk: true, plainKey: false,
+        pw: 'sm', smread: true, ssmread: false, redact: true, cmk: false }
     };
   }
   const clone = o => JSON.parse(JSON.stringify(o));
@@ -454,7 +518,48 @@
       ok: m => m.dupes === 0 && m.poisonLoose === 0 && m.goodParked === 0 && m.lost === 0 && m.left === 0,
       fix: [['groups', 'dlqfifo']], lazy: [['groups'], ['dlqfifo'], ['reserved', 'vis360']],
       hidden: 'Every message shared one group, so the function worked one at a time, and the poison message blocked the group behind it.',
-      q: /FIFO|message group|MessageGroupId|dead-letter|\bDLQ\b/i }
+      q: /FIFO|message group|MessageGroupId|dead-letter|\bDLQ\b/i },
+    // ---- The Night Watch's own drills (js/mode-watch.js): every break is a lock, a key or a badge. Each is a flag
+    // the run checks on every order (D.run's sync path), on top of the shared rules. ----
+    cloak: { name: 'The Borrowed Cloak', cause: 'store', lead: 'dutch', path: 'sync', cloak: true, stations: { store: { svc: 'Ledger role' } },
+      says: 'The function has the right badge. The door doesn\'t know its face.',
+      setup: v => ({ bucket: [40, 40], arrivals: steady(3 + (v.k % 2)) }),
+      break: c => { c.xs.trust = 'fin'; },
+      ok: m => m.assumeDenied === 0 && !m.trustStar && !m.adminUsed && !m.stsWide, fix: [['trustfn'], ['trustacct']], lazy: [['admin'], ['stsstar'], ['truststar'], ['reserved']],
+      hidden: 'ledger-writer\'s trust policy named only the finance function, so every sts:AssumeRole from the order function was denied, however much its own policy allowed.',
+      q: /trust polic|AssumeRole|assume (a|the) role|role session|sts:/i },
+    bucket: { name: 'The Neighbour\'s Bucket', cause: 'store', lead: 'dutch', path: 'sync', xacct: true, stations: { store: { svc: 'Partner\'s S3' } },
+      says: 'Our policy says yes. Their bucket says no. Guess which one wins.',
+      setup: v => ({ bucket: [40, 40], arrivals: steady(3 + (v.k % 2)) }),
+      break: c => { c.xs.bpol = false; },
+      ok: m => m.xDenied === 0 && !m.pubRead && !m.wideS3 && !m.adminUsed, fix: [['bpol'], ['xrole', 'xsts']], lazy: [['s3star'], ['admin'], ['bpub'], ['xrole'], ['xsts']],
+      hidden: 'The bucket is in the partner\'s account, and its bucket policy didn\'t name the order function\'s role. Across accounts, an Allow on your side alone isn\'t enough.',
+      q: /cross[- ]account|another (AWS )?account|bucket polic|resource-based polic/i },
+    letter: { name: 'The Big Letter', cause: 'fn', lead: 'kai', path: 'sync', letter: true, stations: { store: { svc: 'S3 + KMS' } },
+      says: 'The small invoices go through. The big ones bounce off the key.',
+      setup: v => ({ bucket: [40, 40], arrivals: t => steady(4)(t).map((r, i) => Object.assign(r, { size: (i + t + v.k) % 4 === 0 ? 3 : 180 })) }),
+      break: c => { c.xs.enc = 'direct'; c.xs.gdk = false; },
+      ok: m => m.tooBig === 0 && m.kmsDenied === 0 && !m.chunky && !m.plainKey, fix: [['encenv', 'kmsgdk'], ['encsse', 'kmsgdk']],
+      lazy: [['kmsgdk'], ['encchunk'], ['encenv'], ['encsse'], ['encenv', 'kmsgdk', 'keepplain'], ['admin']],
+      hidden: 'The function sent each 180 KB invoice straight to KMS Encrypt, which takes at most 4,096 bytes. Big data wants envelope encryption: a data key from GenerateDataKey.',
+      q: /envelope encryption|data key|GenerateDataKey|4 ?KB|4,096|SSE-KMS|client-side encryption/i },
+    lips: { name: 'Loose Lips', cause: 'fn', lead: 'kai', path: 'sync', lips: true, stations: { store: { svc: 'Ledger DB' } },
+      says: 'Nothing\'s broken. That\'s what worries me.',
+      setup: v => ({ bucket: [40, 40], arrivals: steady(3 + (v.k % 2)) }),
+      break: c => { c.xs.pw = 'env'; c.xs.smread = false; c.xs.redact = false; },
+      ok: m => m.pwLeak === 0 && m.piiLeak === 0 && !m.envPlain && !m.plainParam && m.secDenied === 0,
+      fix: [['redact', 'pwsm', 'smread'], ['redact', 'pwssm', 'ssmread']],
+      lazy: [['redact'], ['pwsm', 'smread'], ['envcmk', 'redact'], ['pwstr', 'ssmread', 'redact'], ['redact', 'pwsm'], ['redact', 'pwssm', 'smread']],
+      hidden: 'The ledger password was a plain environment variable, and the debug line printed the whole environment and the event, customer emails included, into CloudWatch Logs.',
+      q: /environment variable|Parameter Store|SecureString|Secrets Manager|sensitive (data|information)|PII|sanitiz|plaintext (password|secret|credential)/i },
+    night: { name: 'The Long Night', boss: true, cause: 'store+fn', lead: 'dutch', path: 'sync', cloak: true, letter: true, stations: { store: { svc: 'Ledger + S3' } },
+      says: 'Two locks tonight. Open one and you\'ll find the other.',
+      setup: v => ({ bucket: [40, 40], arrivals: t => steady(4)(t).map((r, i) => Object.assign(r, { size: (i + t + v.k) % 4 === 0 ? 3 : 180 })) }),
+      break: c => { c.xs.trust = 'fin'; c.xs.enc = 'direct'; c.xs.gdk = false; },
+      ok: m => m.assumeDenied === 0 && m.tooBig === 0 && m.kmsDenied === 0 && !m.trustStar && !m.adminUsed && !m.stsWide && !m.chunky && !m.plainKey,
+      fix: [['trustfn', 'encenv', 'kmsgdk'], ['trustacct', 'encsse', 'kmsgdk']], lazy: [['trustfn'], ['encenv', 'kmsgdk'], ['admin', 'encchunk'], ['truststar', 'encsse', 'kmsgdk']],
+      hidden: 'Two faults: ledger-writer\'s trust policy didn\'t name the order function, and the invoices were too big for KMS Encrypt.',
+      q: /trust polic|AssumeRole|envelope encryption|data key|GenerateDataKey/i }
   };
   const DR = D.DRILLS;
   // The SQS drills' starting visibility timeout against AWS's 6x rule (a queue feeding a Lambda event source mapping
@@ -463,7 +568,10 @@
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
   D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet', 'receipt'], ['poison', 'stampede', 'catch'], ['midnight']];
-  D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
+  // The Night Watch's night (js/mode-watch.js, storyboard 2A): every drill a Security one. Night 1 opens on a new drill in
+  // each pair; later nights let you pick. A rows list can be passed to D.choices and D.settle; the Fire Drill's is D.ROWS.
+  D.WATCH_ROWS = [['cloak', 'pass'], ['badge', 'bucket'], ['letter', 'locked'], ['lips', 'vault'], ['night']];
+  D.choices = (night, row, rows) => { const R = rows || D.ROWS; return night <= 1 ? R[row].slice(0, 1) : R[row].slice(); };
 
   // ---- One run ----
   // Returns { m: counts and metrics, lines: the pager, nodes: trace map status per station }.
@@ -481,7 +589,12 @@
       uploads: 0, upDone: 0, upFail: 0, up403: 0, upToken: 0, parts: 0, signed: 0, orphans: 0, userKey: !!(set.upload && cfg.up.userKey), pubPut: !!(set.upload && cfg.up.pub),
       visShort: !!(d.visLine && cfg.queue.vis < 6 * cfg.fn.timeout),
       published: 0, delivered: 0, filteredOut: 0, noAttr: 0, filtered: 0, misrouted: 0,
-      started: 0, succeeded: 0, execFailed: 0, fnThrottled: 0, retried: 0, declines: 0, recharged: 0, stuck: 0, released: 0, releaseFailed: 0 };
+      started: 0, succeeded: 0, execFailed: 0, fnThrottled: 0, retried: 0, declines: 0, recharged: 0, stuck: 0, released: 0, releaseFailed: 0,
+      // The Night Watch: denials, oversized plaintext, and what leaked where.
+      assumeDenied: 0, assumed: 0, trustStar: !!(d.cloak && cfg.xs.trust === 'star'), stsWide: !!(d.cloak && cfg.xs.stsWide),
+      xDenied: 0, gets: 0, pubRead: !!(d.xacct && cfg.xs.bpub), wideS3: !!(d.xacct && cfg.xs.s3wide),
+      tooBig: 0, smallOk: 0, kmsDenied: 0, kmsCalls: 0, gdkCalls: 0, puts: 0, chunky: !!(d.letter && cfg.xs.enc === 'chunk'), plainKey: !!(d.letter && cfg.xs.enc === 'env' && cfg.xs.plainKey),
+      pwLeak: 0, piiLeak: 0, secDenied: 0, logins: 0, envPlain: !!(d.lips && cfg.xs.pw === 'env'), plainParam: !!(d.lips && cfg.xs.pw === 'str') };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
     const q = { items: [], dlq: [] };               // { r, vis (tick visible from), recv, sentAt, inflight }
     for (let i = 0; i < (cfg.fn.prov | 0); i++) envs.push({ busy: -1, last: -1, prov: true });
@@ -578,6 +691,39 @@
         if (u.next >= u.P) m.upDone++;
       });
     };
+    // ---- The Night Watch ----
+    const fail = k => { m[k]++; m.errors++; m.fault5xx++; return false; };
+    const X = cfg.xs, admin = !!cfg.fn.admin;
+    // The function's role already allows sts:AssumeRole on ledger-writer and s3:GetObject on the partner's bucket:
+    // its half was never the problem in those two drills.
+    const ownAssume = true, ownGet = true;
+    // The Borrowed Cloak: sts:AssumeRole on ledger-writer, then the ledger write with its credentials.
+    const watchCloak = () => {
+      if (!AS.trustAllows(X.trust, ownAssume || X.stsWide || admin)) return fail('assumeDenied');
+      m.assumed++; return true;
+    };
+    // The Neighbour's Bucket: GetObject on the partner's bucket, directly or as their role price-reader.
+    const watchBucket = () => {
+      m.gets++;
+      const direct = AS.crossAccountAllows(ownGet || X.s3wide || admin, X.bpol || X.bpub);
+      const viaRole = X.xrole && AS.crossAccountAllows(X.xsts || admin, true);
+      return direct || viaRole ? true : fail('xDenied');
+    };
+    // The Big Letter: each invoice encrypted before PutObject.
+    const watchLetter = r => {
+      const kb = r.size || 180;
+      if (X.enc === 'direct') { m.kmsCalls++; if (kb * 1024 > AS.KMS_ENCRYPT_MAX) return fail('tooBig'); m.smallOk++; }
+      else if (X.enc === 'chunk') m.kmsCalls += Math.ceil(kb * 1024 / AS.KMS_ENCRYPT_MAX);
+      else { m.gdkCalls++; if (!(X.gdk || admin)) return fail('kmsDenied'); }
+      m.puts++; return true;
+    };
+    // Loose Lips: the debug line, then the password from wherever it lives.
+    const watchLips = () => {
+      if (!X.redact) { m.piiLeak++; if (X.pw === 'env') m.pwLeak++; }
+      if (X.pw === 'sm' && !(X.smread || admin)) return fail('secDenied');
+      if ((X.pw === 'ssm' || X.pw === 'str') && !(X.ssmread || admin)) return fail('secDenied');
+      m.logins++; return true;
+    };
     const sync = (r, t) => {
       if (set.gcache) return gcached(r, t);
       if (set.auth && !authorize(r, t)) return;
@@ -620,6 +766,12 @@
           else { m.authFail++; m.errors++; m.fault5xx++; return; }
         }
       }
+      // The Night Watch's checks, in the order the function meets them (AS.trustAllows, AS.crossAccountAllows,
+      // AS.KMS_ENCRYPT_MAX: js/aws-sim-ops.js, with the docs).
+      if (d.lips && !watchLips(r)) return;
+      if (d.xacct && !watchBucket()) return;
+      if (d.letter && !watchLetter(r)) return;
+      if (d.cloak && !watchCloak()) return;
       if (r.read) { cacheRead(r, t); return; }
       if (r.up) { uploadStart(r, t); m.ok++; return; }
       // Charge's errors and how the state machine handles them. A flaky order's first invocation is throttled
@@ -821,7 +973,9 @@
         : hub === 'sfn' ? { ExecutionsStarted: by(d => d.started), ExecutionsSucceeded: by(d => d.succeeded), ExecutionsFailed: by(d => d.execFailed) }
         : stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
       fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy), Throttles: by(d => d.fnThrottled) },
-      store: dd && dd.cache ? { CacheHits: by(x => x.hits), CacheMisses: by(x => x.misses), Evictions: by(x => x.evictions) }
+      store: dd && dd.lips ? { 'Lines with DB_PASSWORD': by(x => x.pwLeak), 'Lines with an email': by(x => x.piiLeak) }
+        : dd && (dd.cloak || dd.xacct || dd.letter) ? { Denied: by(x => (x.assumeDenied | 0) + (x.xDenied | 0) + (x.tooBig | 0) + (x.kmsDenied | 0)), Stored: by(x => (x.puts | 0) + (x.assumed | 0) + (x.gets | 0) - (x.xDenied | 0)) }
+        : dd && dd.cache ? { CacheHits: by(x => x.hits), CacheMisses: by(x => x.misses), Evictions: by(x => x.evictions) }
         : dd && dd.upload ? { PutRequests: by(x => x.parts), '4xxErrors': by(x => (x.up403 | 0) + (x.upToken | 0)) }
           : { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
     };
@@ -832,7 +986,9 @@
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
       + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged
       + m.cstale + Math.ceil(m.evictions / 3) + (m.misses * 2 > m.reads ? Math.ceil((m.misses - m.reads / 2) / 3) : 0)
-      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0) + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0) + (m.visShort ? 2 : 0);
+      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0) + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0) + (m.visShort ? 2 : 0)
+      + (m.trustStar ? 3 : 0) + (m.stsWide ? 2 : 0) + (m.pubRead ? 3 : 0) + (m.wideS3 ? 2 : 0) + (m.chunky ? 2 : 0) + (m.plainKey ? 3 : 0)
+      + Math.ceil(m.pwLeak / 2) + Math.ceil(m.piiLeak / 3) + (m.envPlain ? 2 : 0) + (m.plainParam ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -845,7 +1001,7 @@
       gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0, error: m.forbidden + m.unauth + m.stale > 0 }),
       queue: d.hub === 'sfn' ? AS.xrayStatus({ fault: m.execFailed > 0 }) : 'ok',
       fn: AS.xrayStatus({ fault: m.errors > 0 }),
-      store: AS.xrayStatus({ throttle: m.hot + m.over + m.evictions > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 || m.cstale > 0 || m.upFail > 0 })
+      store: AS.xrayStatus({ throttle: m.hot + m.over + m.evictions > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 || m.cstale > 0 || m.upFail > 0 || m.assumeDenied > 0 || m.xDenied > 0 || m.tooBig > 0 || m.kmsDenied > 0 })
     };
     const out = {};
     D.ORDER.forEach(k => { out[k] = traced[k] ? st[k] : 'dark'; });
@@ -861,7 +1017,12 @@
         : d.hub === 'sfn' ? [['ExecutionsStarted', m.started], ['ExecutionsSucceeded', m.succeeded], ['ExecutionsFailed', m.execFailed]]
         : d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
       fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]].concat(m.fnThrottled ? [['Throttles', m.fnThrottled]] : []),
-      store: d.cache ? [['CacheHits', m.hits], ['CacheMisses', m.misses], ['Evictions', m.evictions], ['DatabaseMemoryUsagePercentage', Math.round(100 * m.cacheMax / d.setup({ k: 0 }).cache.cap) + '%']]
+      store: d.cloak || d.xacct || d.letter || d.lips ? [].concat(
+        d.cloak ? [['ConsumedWriteCapacityUnits', m.wcuUsed], ['AssumeRole denied (CloudTrail)', m.assumeDenied]] : [],
+        d.xacct ? [['GetObject calls', m.gets], ['403 AccessDenied', m.xDenied]] : [],
+        d.letter ? [['PutObject', m.puts], ['Encrypt calls', m.kmsCalls], ['GenerateDataKey calls', m.gdkCalls]] : [],
+        d.lips ? [['Ledger logins', m.logins], ['Log lines matching "DB_PASSWORD"', m.pwLeak], ['Log lines matching "@"', m.piiLeak]] : [])
+        : d.cache ? [['CacheHits', m.hits], ['CacheMisses', m.misses], ['Evictions', m.evictions], ['DatabaseMemoryUsagePercentage', Math.round(100 * m.cacheMax / d.setup({ k: 0 }).cache.cap) + '%']]
         : d.upload ? [['PutRequests', m.parts], ['4xxErrors', m.up403 + m.upToken], ['BytesUploaded', m.parts + ' GB']]
           : [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
     };
@@ -877,7 +1038,7 @@
     else if (m.cstale) L.push(['seoyeon', `${n(m.cstale, 'caller')} got a 200 with this morning's price. Nothing failed. The answer was just old.`]);
     else if (d.cache && m.misses * 2 > m.reads) L.push(['seoyeon', `Every caller got an answer, slowly: ${m.misses} of ${m.reads} price lookups went all the way to the table.`]);
     else if (d.upload && !m.fault5xx) L.push(['seoyeon', `Every request for upload URLs got a 200. The uploads themselves go straight to S3. They never pass me.`]);
-    else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
+    else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail || m.assumeDenied || m.xDenied || m.tooBig || m.kmsDenied || m.secDenied)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
     else if (m.leaked) L.push(['seoyeon', `Every response was 200 OK, fast, and CacheHitCount is ${m.ghits}. But ${m.leaked} of those answers showed a customer someone else's orders.`]);
@@ -938,8 +1099,18 @@
     else if (m.shifted && cfg.fn.shift !== 'all') L.push(['kai', `CodeDeploy is still shifting: version 2 has ${cfg.fn.shift === 'canary' ? '10%' : 'a growing share'} of live, and nothing is watching it.`]);
     if (m.hot) L.push(['kai', `ThrottlingException on ${n(m.hot, 'write')}.`]);
     if (m.over) L.push(['kai', `ProvisionedThroughputExceededException on ${n(m.over, 'write')}.`]);
-    if (m.errors && !d.hub && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.authFail && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
+    if (m.errors && !d.hub && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.authFail && !m.hot && !m.over
+      && !m.assumeDenied && !m.xDenied && !m.tooBig && !m.kmsDenied && !m.secDenied) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
     if (d.stream && m.reported) L.push(['kai', `${n(m.reported, 'invocation')} returned batchItemFailures with the sequence number of the record that failed. Each returned normally, so Errors doesn't count ${m.reported === 1 ? 'it' : 'them'}.`]);
+    // The Night Watch's drills: what the function's own logs say.
+    const X = cfg.xs;
+    if (m.assumeDenied) L.push(['kai', `AccessDenied on ${n(m.assumeDenied, 'call')} to sts:AssumeRole: orders-fn-role is not authorized to perform sts:AssumeRole on role/ledger-writer, because no role trust policy allows the sts:AssumeRole action. My role's own policy allows it.`]);
+    if (m.xDenied) L.push(['kai', `403 AccessDenied on ${n(m.xDenied, 'GetObject call')} for s3://partner-prices/prices.json. My role's policy allows s3:GetObject on that bucket${X.xrole && !X.xsts ? ', and nothing lets me assume their price-reader role' : ''}.`]);
+    if (m.tooBig) L.push(['kai', `Encrypt failed on ${n(m.tooBig, 'invoice')} with ValidationException: Encrypt takes at most 4,096 bytes of plaintext, and these PDFs are 180 KB.${m.smallOk ? ` The ${n(m.smallOk, 'small one')} (3 KB) went through.` : ''}`]);
+    if (m.kmsDenied) L.push(['kai', `AccessDeniedException on ${n(m.kmsDenied, 'invoice')}: orders-fn-role is not authorized to perform kms:GenerateDataKey on key/invoice-key.`]);
+    if (m.chunky) L.push(['kai', `Every invoice fits now, in 45 pieces: ${m.kmsCalls} Encrypt calls tonight, each one against the account's KMS request quota.`]);
+    if (m.secDenied) L.push(['kai', `AccessDeniedException on ${n(m.secDenied, 'read')} of the ledger password: orders-fn-role is not authorized to perform ${X.pw === 'sm' ? 'secretsmanager:GetSecretValue on ledger/orders_app' : 'ssm:GetParameter on /orders/ledger-password'}.`]);
+    if (d.lips && !X.redact) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors. Every one printed its debug line: the whole event and process.env.`]);
     if (m.condBlocked) L.push(['kai', `ConditionalCheckFailedException ${n(m.condBlocked, 'time')}: the order was already written.`]);
     if (!L.some(x => x[0] === 'kai')) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors${m.maxConc ? `, at most ${m.maxConc} at once` : ''}.`]);
     if (m.dupes) L.push(['dutch', `${n(m.dupes, 'order')} written twice.`]);
@@ -971,6 +1142,22 @@
     if (d.hub === 'sns' && m.misrouted) L.push(['dutch', `${n(m.misrouted, 'shipping label')} for orders the customer is picking up in store.`]);
     if (m.stuck) L.push(['dutch', `${n(m.stuck, 'order')} still hold stock in the inventory table, for payments that never went through.`]);
     if (m.iamDenied) L.push(['dutch', `The table turned away ${n(m.iamDenied, 'write')} with a 400. It never got as far as capacity.`]);
+    if (d.cloak) L.push(['dutch', { fin: 'ledger-writer\'s trust policy names one principal: role/finance-fn-role.', fn: 'ledger-writer trusts orders-fn-role now.',
+      acct: 'ledger-writer trusts this account, so each caller\'s own policy decides.', star: 'ledger-writer\'s trust policy says Principal "*": any AWS principal, in any account.' }[X.trust] + (m.assumed ? ` ${n(m.assumed, 'ledger write')} went in.` : '')]);
+    if (d.xacct) L.push(['dutch', X.bpub ? 'partner-prices lets anyone read it now. Their price list is public.' : X.bpol ? 'partner-prices\' bucket policy names orders-fn-role now.'
+      : X.xrole ? `The partner made price-reader. Its trust policy names our account.${X.xsts ? ' We read as price-reader, with its temporary credentials.' : ''}` : 'partner-prices is in account 222233334444, not ours. Its bucket policy names only their own roles.']);
+    if (d.letter) {
+      if (m.plainKey) L.push(['dutch', 'Each invoice sits next to its own plaintext data key. Anyone who can read the bucket can read every invoice.']);
+      else if (m.puts && X.enc === 'sse') L.push(['dutch', `${n(m.puts, 'invoice')} stored with SSE-KMS. S3 asked KMS for a data key for each one.`]);
+      else if (m.puts && X.enc === 'env') L.push(['dutch', `${n(m.puts, 'invoice')} stored encrypted, each with its encrypted data key beside it.`]);
+    }
+    if (d.lips) {
+      if (m.pwLeak) L.push(['dutch', `CloudWatch Logs, /aws/lambda/orders-fn: DB_PASSWORD in plain text in ${n(m.pwLeak, 'log line')}.`]);
+      if (m.piiLeak) L.push(['dutch', `${n(m.piiLeak, 'log line')} ${m.piiLeak === 1 ? 'holds' : 'hold'} a customer's email address.`]);
+      if (m.envPlain) L.push(['dutch', `The password is an environment variable${X.cmk ? ', under our own key now' : ''}. Whoever can view the function's environment variables can read it, and the code gets it in plain text.`]);
+      if (m.plainParam) L.push(['dutch', 'The password is a Parameter Store String: not encrypted, readable by anyone who can read the parameter.']);
+      if (!m.pwLeak && !m.piiLeak && !m.envPlain && !m.plainParam && m.logins) L.push(['dutch', `${n(m.logins, 'login')} to the ledger. The logs hold order ids and nothing else.`]);
+    }
     if (!L.some(x => x[0] === 'dutch')) L.push(['dutch', m.denied ? 'Nothing reached the table.' : 'Table\'s fine from here.']);
     return L;
   }
@@ -993,7 +1180,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async' && !d.hub) return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', keys: 'This API has no API keys or usage plan.', gcache: 'This stage has no cache.', upload: 'Nothing uploads to S3 in this drill.', visLine: 'This queue\'s timeout is set on its dial.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', keys: 'This API has no API keys or usage plan.', gcache: 'This stage has no cache.', upload: 'Nothing uploads to S3 in this drill.', cloak: 'No role is assumed in this drill.', xacct: 'Nothing reads another account\'s bucket in this drill.', letter: 'Nothing is encrypted with KMS in this drill.', lips: 'This drill\'s password isn\'t the problem.', visLine: 'This queue\'s timeout is set on its dial.' }[c.needs];
     if (c.sqs && (d.stream || d.hub)) return `That's an SQS setting, and this is ${d.hub === 'sns' ? 'an SNS topic' : d.hub === 'sfn' ? 'a state machine' : 'a stream'}.`;
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -1070,6 +1257,10 @@
     flow: ['kai', 'Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.'],
     quota: ['seoyeon', 'A usage plan counts each API key on its own. Share a key and you share its quota, and once it\'s spent, everyone on that key gets 429.'],
     gcache: ['seoyeon', 'The stage cache tells requests apart only by the cache keys you give it. Leave out who\'s asking, and everyone gets the first answer.'],
+    trust: ['dutch', 'A role lets in only who its trust policy names. However much your own policy allows, a role that doesn\'t trust you stays shut.'],
+    xacct: ['dutch', 'Across accounts, both sides have to say yes: your policy, and the policy on their bucket.'],
+    envelope: ['kai', 'KMS Encrypt takes 4 KB at most. For anything bigger, ask for a data key and encrypt it yourself, or let S3 do it.'],
+    lips: ['seoyeon', 'Nothing failed. Nothing has to fail for a secret to leak. Read the logs.'],
     canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
   };
   // Which teach line a run earns first.
@@ -1090,6 +1281,10 @@
     if (m.up403) keys.push('presign');
     if (DR[f.drill].stream && m.maxAge > 30) keys.push('stream');
     if (m.v2Fail) keys.push('canary');
+    if (m.assumeDenied) keys.push('trust');
+    if (m.xDenied) keys.push('xacct');
+    if (m.tooBig) keys.push('envelope');
+    if (m.pwLeak || m.piiLeak) keys.push('lips');
     if (m.filtered) keys.push('fanout');
     if (DR[f.drill].hub === 'sfn' && (m.lost || m.stuck || m.recharged)) keys.push('flow');
     if (m.slow) keys.push('cold');
@@ -1114,13 +1309,13 @@
     if (s.budget <= 0) { s.phase = 'zero'; return; }
     if (f.state !== 'read') s.phase = 'debrief';
   };
-  D.settle = function (s, ok) {
+  D.settle = function (s, ok, rows) {
     const f = s.drill;
     s.done.push({ drill: f.drill, state: f.state, deploys: f.deploys, clean: D.clean(f), proof: ok });
     if (ok && s.budget > 0) s.budget = Math.min(D.BUDGET, s.budget + 3);
     s.row++;
     s.drill = null;
-    s.phase = s.row >= D.ROWS.length ? 'end' : 'map';
+    s.phase = s.row >= (rows || D.ROWS).length ? 'end' : 'map';
   };
   D.baseCfg = baseCfg;
   D.clone = clone;

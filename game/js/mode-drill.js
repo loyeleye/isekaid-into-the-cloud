@@ -9,16 +9,22 @@
 //   - The question is the debrief: after each drill, one bank question on its cause, verified only, on the plain exam
 //     screen with the shared stake table (SD.modes.ask). A miss's twin opens next night's first debrief.
 //   - Saves after every step (S.save.drill). Ends on the last boss, win or lose, then Pip's "why did that work?".
+// SD.drillMode(V) builds one mode on this screen (the Night Watch, js/mode-watch.js, is the second). V: { id, title,
+// name, host, blurb, minutes, rows (D.ROWS by default), save (the S.save key, keep: '<save>Keep'), domain (debriefs from
+// that DVA domain only), say (Uptima's lines, over SAY below), open (a host's line on the night's map), pip (Pip's
+// topic) }. The Fire Drill is SD.drillMode({}) at the bottom of this file.
 (function () {
   if (!SD.modes || !SD.drill || !SD.awsSim) return;
+  SD.drillMode = function (V) {
+  V = V || {};
   const M = SD.modes, U = SD.ui, S = SD.state, D = SD.drill, C = D.CARDS;
   const E = () => SD.exam, TD = () => SD.topicDrill;
-  const ID = 'drill', TITLE = 'THE FIRE DRILL';
+  const ID = V.id || 'drill', TITLE = V.title || 'THE FIRE DRILL', ROWS = V.rows || D.ROWS, KEY = V.save || 'drill', KEEP = KEY + 'Keep';
   const esc = s => U.esc(String(s == null ? '' : s));
   const sv = () => S.save;
-  const cur = () => sv().drill || null;
-  const keep = () => (sv().drillKeep = sv().drillKeep || { night: 0, taught: {}, carry: [], best: null, clean: {} });
-  const save = s => { sv().drill = s; S.persist(); };
+  const cur = () => sv()[KEY] || null;
+  const keep = () => (sv()[KEEP] = sv()[KEEP] || { night: 0, taught: {}, carry: [], best: null, clean: {} });
+  const save = s => { sv()[KEY] = s; S.persist(); };
   const icon = (n, cls) => `<svg class="dr-gi${cls ? ' ' + cls : ''}" viewBox="0 0 512 512" aria-hidden="true">${(SD.icons && SD.icons[n]) || ''}</svg>`;
   const head = (who, mood) => { try { return SD.art && SD.art.portrait ? `<span class="dr-head">${SD.art.portrait(who, 34, mood || 'neutral')}</span>` : ''; } catch (e) { return ''; } };
   const NAMES = Object.assign({ uptima: 'Uptima' }, D.NAMES);
@@ -36,6 +42,7 @@
     pm: 'Postmortem time! One answer, and tell me how sure you are. If you\'re right, I\'m taking the credit.',
     zero: 'The budget\'s gone. In a real outage, this is where everyone gets paged. Including me. Please don\'t page me. We\'ll try again tomorrow.'
   };
+  Object.assign(SAY, V.say || {});
 
   const RM = () => SD.drillRoom;
   // Uptima's cutscenes (storyboard panels 2 and 10): the interface drops away and she stands full size over the
@@ -95,8 +102,9 @@
     const A = SD.audio, ST = SD.modeStage;
     if (!A || !A.music || !ST || ST.active() !== ID) return;
     const boss = s.drill && (s.phase === 'drill' || s.phase === 'debrief') && D.DRILLS[s.drill.drill].boss;
-    if (boss) { if (A.add) A.add({ songs: { 'stage-drill-boss': 'm-drill-boss' } }); A.music('stage-drill-boss'); }
-    else if (A.loopName === 'stage-drill-boss') A.music('stage-drill');
+    const bossLoop = 'stage-' + ID + '-boss';
+    if (boss) { if (A.add) A.add({ songs: { [bossLoop]: 'm-drill-boss' } }); A.music(bossLoop); }
+    else if (A.loopName === bossLoop) A.music('stage-' + ID);
   }
   function draw(s) {
     music(s);
@@ -116,8 +124,8 @@
     : d.path === 'async' ? ['queue', 'With a queue'] : ['gate', 'Straight through'];
   const TILT = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0; return ((Math.abs(h) % 7) - 3) * 0.7; };
   function mapScreen(s) {
-    const rows = D.ROWS.map((r, i) => {
-      const ch = D.choices(s.night, i);
+    const rows = ROWS.map((r, i) => {
+      const ch = D.choices(s.night, i, ROWS);
       return `<div class="dr-row${i < s.row ? ' past' : i > s.row ? ' ahead' : ' now'}" data-n="${ch.length}">${ch.map(id => {
         const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id, skip = i < s.row && !done;
         const [k, kt] = KIND(d), kind = kt + (d.boss ? ' · two faults' : '');
@@ -138,6 +146,7 @@
     }
     const b = panel(`<div class="dr-board"><p class="dr-night">Night ${s.night}</p>
       ${RM() ? '' : say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? SAY.next : SAY.again)}
+      ${V.open && !s.done.length ? say(V.open[0], V.open[1], V.open[2]) : ''}
       ${budgetJar(s)}
       <div class="dr-wall">${rows}</div></div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
@@ -190,7 +199,11 @@
     sfnretry: { at: 'queue', needs: 'sfn', label: 'Charge: Retry, 3 attempts', icon: 'anticlockwise-rotation', ids: ['rnone', 'rtrans', 'rall'] },
     sfncatch: { at: 'queue', needs: 'sfn', label: 'Catch CardDeclined → ReleaseStock', icon: 'return-arrow', ids: ['catchnone', 'catchno', 'catchrp'] },
     rot: { at: 'store', needs: 'secret', label: 'Secret rotation', icon: 'anticlockwise-rotation', ids: ['rotsingle', 'rotalt', 'rotoff'] },
-    kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
+    kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') },
+    // The Night Watch's dials (js/mode-watch.js)
+    trust: { at: 'store', needs: 'cloak', label: 'ledger-writer\'s trust policy', icon: 'padlock', ids: ['trustfin', 'trustfn', 'trustacct', 'truststar'] },
+    enc: { at: 'fn', needs: 'letter', label: 'How each invoice is encrypted', icon: 'padlock', ids: ['encdirect', 'encchunk', 'encenv', 'encsse'] },
+    pw: { at: 'fn', needs: 'lips', label: 'Where the ledger password lives', icon: 'key', ids: ['pwenv', 'pwstr', 'pwssm', 'pwsm'] }
   };
   const SHORT = { backoff: 'Backoff + jitter', immediate: 'Right away', plan: 'Usage plan: batch client', burst: 'Bigger account burst', gtrace: 'X-Ray on the stage',
     vis30: '30 s', vis60: '60 s', vis120: '2 min', vis360: '6 min', dlq: 'Redrive → orders-dlq', dlqfifo: 'Redrive → orders-dlq.fifo', groups: 'MessageGroupId = customerId', purge: 'Purge the queue',
@@ -209,13 +222,21 @@
     lifecycle: 'Abort unfinished uploads, 1 day', publicput: 'Anyone may PutObject',
     snsattr: 'order_type as an attribute', scopebody: 'Filter reads the body', nofilter: 'Remove the filter', subdlq: 'Redrive → shipping-dlq', rawon: 'Raw message delivery',
     rnone: 'Off', rtrans: 'Lambda ×3', rall: 'States.ALL', catchnone: 'Off', catchno: 'On', catchrp: 'On + $.error', catchfirst: 'States.ALL first',
-    kstatus: 'status', korder: 'v2: orderId', kshard: 'v2: status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
+    kstatus: 'status', korder: 'v2: orderId', kshard: 'v2: status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail',
+    trustfin: 'finance-fn only', trustfn: '+ orders-fn-role', trustacct: 'This account', truststar: 'Principal "*"', stsstar: 'Allow AssumeRole on *',
+    bpol: 'Their policy names your role', bpub: 'Their bucket, public', xrole: 'Their role price-reader', bpolme: 'Edit their policy yourself',
+    xsts: 'Allow AssumeRole on price-reader', s3star: 'Allow s3:* on *', encdirect: 'Encrypt the PDF', encchunk: '4 KB pieces', encenv: 'Envelope: data key',
+    encsse: 'S3 SSE-KMS', kmsgdk: 'Allow GenerateDataKey', keepplain: 'Keep the plaintext key', bigger: 'Bigger Encrypt limit',
+    pwenv: 'Env var', pwstr: 'SSM String', pwssm: 'SSM SecureString', pwsm: 'Secrets Manager', smread: 'Allow GetSecretValue', ssmread: 'Allow GetParameter + Decrypt',
+    redact: 'Log only the orderId', envcmk: 'Env vars under your own key' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
     ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
     refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox',
     snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open',
-    keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', gflush: 'broom', maxage: 'anticlockwise-rotation' };
+    keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', gflush: 'broom', maxage: 'anticlockwise-rotation',
+    stsstar: 'padlock-open', bpol: 'scroll-quill', bpub: 'padlock-open', xrole: 'key', bpolme: 'scroll-quill', xsts: 'key', s3star: 'padlock-open',
+    kmsgdk: 'key', keepplain: 'padlock-open', bigger: 'pie-chart', smread: 'key', ssmread: 'key', redact: 'broom', envcmk: 'padlock' };
   // The real setting each control writes (Ladi, Nov 17: the AWS term sits beside the action and its result). A dial
   // shows the line for the value it's on, rewritten as you turn it; a switch or a look carries its own line. These are
   // the names in the CloudFormation / SAM templates, the API or the SDK config, so the words on the desk are the
@@ -253,7 +274,17 @@
     rotsingle: 'RotationType: PostgreSQLSingleUser', rotalt: 'RotationType: PostgreSQLMultiUser', rotoff: 'RotationSchedule: (removed)',
     cachelazy: 'read miss → SET key', cachewt: 'every write → SET key', cttl0: 'SET key value  # no EX', cttl10: 'SET key value EX 10', cttl60: 'SET key value EX 60', cttl3600: 'SET key value EX 3600',
     replica: 'ReplicasPerNodeGroup: 1', flush: 'FLUSHALL', lifecycle: 'AbortIncompleteMultipartUpload: DaysAfterInitiation 1',
-    publicput: 'Principal: "*", Action: s3:PutObject', insights: 'ContributorInsightsSpecification: Enabled', trail: 'lookup-events EventName=Decrypt'
+    publicput: 'Principal: "*", Action: s3:PutObject', insights: 'ContributorInsightsSpecification: Enabled', trail: 'lookup-events EventName=Decrypt',
+    trustfin: 'Principal: { AWS: role/finance-fn-role }', trustfn: 'Principal: { AWS: [role/finance-fn-role, role/orders-fn-role] }',
+    trustacct: 'Principal: { AWS: arn:aws:iam::111122223333:root }', truststar: 'Principal: "*"', stsstar: 'Allow sts:AssumeRole on *',
+    bpol: 'Bucket policy: Principal role/orders-fn-role, Action s3:GetObject', bpub: 'Bucket policy: Principal "*", Action s3:GetObject',
+    xrole: 'role/price-reader trusts arn:aws:iam::111122223333:root', bpolme: 'aws s3api put-bucket-policy --bucket partner-prices',
+    xsts: 'Allow sts:AssumeRole on arn:aws:iam::222233334444:role/price-reader', s3star: 'Allow s3:* on *',
+    encdirect: 'kms.encrypt(KeyId=invoice-key, Plaintext=pdf)', encchunk: 'kms.encrypt(...) for each 4096-byte piece', encenv: 'kms.generate_data_key(KeyId=invoice-key, KeySpec=AES_256)',
+    encsse: 'ServerSideEncryption: aws:kms, SSEKMSKeyId: invoice-key', kmsgdk: 'Allow kms:GenerateDataKey on key/invoice-key', keepplain: 'Metadata: the plaintext data key',
+    bigger: 'Service Quotas: a bigger Encrypt plaintext', pwenv: 'Environment: Variables: DB_PASSWORD', pwstr: 'Type: String', pwssm: 'get_parameter(Name, WithDecryption=True)  # SecureString',
+    pwsm: 'GET localhost:2773/secretsmanager/get?secretId=ledger/orders_app', smread: 'Allow secretsmanager:GetSecretValue on ledger/orders_app',
+    ssmread: 'Allow ssm:GetParameter and kms:Decrypt', redact: 'print({"orderId": event["orderId"]})', envcmk: 'KmsKeyArn: your own key'
   };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   // ---- The Short Fuse's timeline (audit, Nov 17: a gesture that works the way the AWS setting does). At the Queue,
@@ -533,7 +564,10 @@
       if (q && E().allowed(q) && !used.has(q.id)) { k.carry = s.carry.slice(); return q; }
     }
     const text = q => [q.q].concat(q.opts || []).join(' ');
-    const r = M.pick({ match: q => d.q.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    // A mode with a domain asks only that domain's questions: on the drill's cause first, then any in the domain.
+    const inDom = q => !V.domain || (E().domainOf && E().domainOf(q) === V.domain);
+    let r = M.pick({ match: q => inDom(q) && d.q.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    if (!r.items[0] && V.domain) r = M.pick({ match: inDom, n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
     return r.items[0] ? E().find(r.items[0].q) : null;
   }
   // Type it once (js/type-once.js): after the postmortem, the lead has you write the fix into the runbook, its key
@@ -562,7 +596,7 @@
     b.querySelector('#dr-ask').onclick = () => RM() ? cutScreen([['smug', SAY.pm]], ask) : ask();
     const ask = async () => {
       const q = debriefQuestion(s);
-      if (!q) { D.settle(s, false); save(s); draw(s); return; }
+      if (!q) { D.settle(s, false, ROWS); save(s); draw(s); return; }
       document.body.classList.add('dr-pm');   // the question on the war room's chalkboard (CSS below)
       let r;
       try { r = await M.ask(q, { tally: s.tally, title: 'THE POSTMORTEM' }); } finally { document.body.classList.remove('dr-pm'); }
@@ -573,7 +607,7 @@
         keep().carry = (keep().carry || []).concat([tw.length ? tw[0].id : q.id]).slice(-3);
       }
       if (D.clean(f)) keep().clean[f.drill] = (keep().clean[f.drill] | 0) + 1;
-      D.settle(s, !!r.ok);
+      D.settle(s, !!r.ok, ROWS);
       save(s);
       await runbook(d);
       draw(s);
@@ -607,21 +641,24 @@
       <div class="dr-pipcard">${M.pipHtml()}</div>
       <p class="dr-chalk">That's the night. Stop here.</p></div>
       <div class="dr-dock"><button class="primary" id="dr-done">Done</button></div>`);
-    M.pipWire(b, 'The Fire Drill');
+    M.pipWire(b, V.pip || V.name || 'The Fire Drill');
     b.querySelector('#dr-done').onclick = () => { s.phase = 'done'; save(s); U.closePanel(); stopNow(); };
     save(s);
   }
 
   M.register({
-    id: ID, name: 'The Fire Drill', minutes: 'about 20', host: 'Uptima',
-    blurb: 'Something in the system is broken. Four leads, four stations, real metrics. Find it and fix it together.',
+    id: ID, name: V.name || 'The Fire Drill', minutes: V.minutes || 'about 20', host: V.host || 'Uptima',
+    blurb: V.blurb || 'Something in the system is broken. Four leads, four stations, real metrics. Find it and fix it together.',
     start,
     status: () => { const s = cur(); if (!s || s.v !== 1 || s.phase === 'done') return '';
       return `Resume · Night ${s.night} · ${s.drill ? D.DRILLS[s.drill.drill].name + ' · ' : ''}Budget ${Math.max(0, s.budget)}%`; }
   });
-  SD.drillUi = { draw: () => { const s = cur(); if (s) draw(s); }, start };
+  const ui = { draw: () => { const s = cur(); if (s) draw(s); }, start };
+  if (ID === 'drill') SD.drillUi = ui;
+  if (document.getElementById('dr-css')) return ui;   // one stylesheet for every mode on this screen
 
   const css = document.createElement('style');
+  css.id = 'dr-css';
   css.textContent = `
     .dr { display: flex; flex-direction: column; gap: 8px; }
     .dr p { margin: 0; }
@@ -684,9 +721,9 @@
       .dr-row { gap: 16px; } .dr-up { height: 38px; } .dr-board .dr-night { font-size: 32px; }
     }
     /* The board fills the screen behind the map (tall on portrait screens, wide on landscape); the dock goes clear. */
-    body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background: #1c2420 url(assets/img/drill/map-board-tall.webp) center / cover no-repeat; }
-    @media (min-aspect-ratio: 1 / 1) { body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background-image: url(assets/img/drill/map-board-wide.webp); } }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr:has(> .dr-board) > .dr-dock { background: rgba(12, 14, 13, .82); border-top: 1px solid rgba(244, 241, 230, .15); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win:has(.dr-board) { background: #1c2420 url(assets/img/drill/map-board-tall.webp) center / cover no-repeat; }
+    @media (min-aspect-ratio: 1 / 1) { body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win:has(.dr-board) { background-image: url(assets/img/drill/map-board-wide.webp); } }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr:has(> .dr-board) > .dr-dock { background: rgba(12, 14, 13, .82); border-top: 1px solid rgba(244, 241, 230, .15); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
     .dr:has(> .dr-board) { background: none; }
     .dr-trace { display: flex; align-items: stretch; gap: 0; padding: 8px 6px; border-radius: 10px; border: 3px solid var(--ink, #17131f); background: #1d2130; }
     .dr-edge { flex: 0 1 8px; min-width: 2px; align-self: center; height: 3px; background: #8d93a8; }
@@ -833,17 +870,17 @@
        everything under the top bar, the war room behind a darker wash, and the text keeps a readable column in the
        middle. Wide screens put the map, verdict and pager on the left and the station you're working on the right.
        Only the drill's own screens: the postmortem stays on the shared exam screen. */
-    body.in-mode[data-stage="drill"] #panel:has(> .win.dr-win) { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel:has(> .win.dr-win) { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
       padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
       background: radial-gradient(120% 90% at 50% 40%, rgba(12, 10, 16, .55), rgba(12, 10, 16, .85)); }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-h { display: none; }   /* the bar above already names it */
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b { border-radius: 0; background: none; box-shadow: none; overflow-y: auto;
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-h { display: none; }   /* the bar above already names it */
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-b { border-radius: 0; background: none; box-shadow: none; overflow-y: auto;
       padding: 14px max(16px, calc((100% - 1148px) / 2)) 0; }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-say, body.in-mode[data-stage="drill"] #panel .win.dr-win :is(.dr-night, .dr-claim, .dr-top .small) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr { min-height: 100%; }   /* so the dock sits at the bottom of the screen */
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:not(:has(.dr-cols)) { width: 100%; max-width: 820px; margin: 0 auto; }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr-dock { bottom: 0; margin: auto calc(50% - 50vw) 0;
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr > .dr-say, body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win :is(.dr-night, .dr-claim, .dr-top .small) { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-b > .dr { min-height: 100%; }   /* so the dock sits at the bottom of the screen */
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-b > .dr:not(:has(.dr-cols)) { width: 100%; max-width: 820px; margin: 0 auto; }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr-dock { bottom: 0; margin: auto calc(50% - 50vw) 0;
       padding: 10px calc(50vw - 50%) calc(10px + env(safe-area-inset-bottom, 0px));
       background: rgba(20, 17, 28, .94); border-top: 2px solid #0c0a10; }
     .dr-cols { display: flex; flex-direction: column; gap: 8px; }
@@ -916,9 +953,9 @@
       .dr-roomw.zoomed:is(.tray-l, .tray-r) .dr-tray .dr-station { border-radius: 14px 14px 0 0; }
       @keyframes drtrays { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
     }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: 1240px; margin: 0 auto; }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: 1240px; margin: 0 auto; }
     @media (max-height: 820px) and (min-width: 900px) {
-      body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: min(1240px, calc((100vh - 230px) * 1.79)); }
+      body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: min(1240px, calc((100vh - 230px) * 1.79)); }
     }
     /* Uptima's cutscenes: the interface drops away, she stands full size over the blurred room. */
     .dr:has(> .dr-cut) { min-height: 100%; }
@@ -983,10 +1020,10 @@
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.new::after { right: 2px; top: -16px; }
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-tip { color: #f3e3b5; text-shadow: 0 1px 3px #000; }
     /* The dock is the front of the war room's counter: dark oak under a brass rail. */
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr:not(:has(> .dr-board)) > .dr-dock { background: #2b1a0e url(assets/img/drill/desk-dock.webp) center top / max(100%, 1200px) auto no-repeat;
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr:not(:has(> .dr-board)) > .dr-dock { background: #2b1a0e url(assets/img/drill/desk-dock.webp) center top / max(100%, 1200px) auto no-repeat;
       border-top: 0; padding-top: 18px; box-shadow: 0 -6px 14px rgba(0, 0, 0, .45); }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-dock .ghost { background: rgba(28, 16, 8, .72); color: #f3e3b5; border-color: #c99a3c; }
-    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-dock .dr-hint { color: #f3e3b5; text-shadow: 0 1px 2px #000; }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr > .dr-dock .ghost { background: rgba(28, 16, 8, .72); color: #f3e3b5; border-color: #c99a3c; }
+    body.in-mode:is([data-stage="drill"], [data-stage="watch"]) #panel .win.dr-win .dr > .dr-dock .dr-hint { color: #f3e3b5; text-shadow: 0 1px 2px #000; }
     /* The debrief and the end of the night, on the chalkboard: the cause on an index card, the night on a sealed report. */
     .dr-boardx { gap: 12px; padding-bottom: 12px; }
     .dr-boardx .dr-night { font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-head); font-weight: 400; font-size: 28px; }
@@ -1031,4 +1068,7 @@
     body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
     body.dr-pm.in-mode #panel .win.quiz button:not(.primary):not(.ghost) { background: #f6efdc; color: #17131f; border: 3px solid #17131f; border-radius: 10px; box-shadow: 0 4px 0 #0c0a10; }`;
   document.head.appendChild(css);
+  return ui;
+  };
+  SD.drillMode({});
 })();

@@ -29,17 +29,17 @@ for (const id of Object.keys(D.DRILLS)) {
   check(JSON.stringify(a.e.m) === JSON.stringify(b.e.m), 'a run is deterministic');
 }
 // A night: every row's first choice, fixed on the first deploy, then nothing changed.
-const night = fix => {
+const night = (fix, rows) => {
   const s = D.newNight({ night: 1 });
   while (s.phase !== 'end' && s.phase !== 'zero') {
-    const id = D.choices(s.night, s.row)[0];
+    const id = D.choices(s.night, s.row, rows)[0];
     D.startDrill(s, id, s.row * 13);
     while (s.phase === 'drill') {
       if (fix && s.drill.deploys === 0) D.DRILLS[id].fix[0].forEach(c => D.place(s.drill, c));
       const e = D.deploy(s.drill);
       D.afterDeploy(s, e);
     }
-    if (s.phase === 'debrief') D.settle(s, true);
+    if (s.phase === 'debrief') D.settle(s, true, rows);
   }
   return s;
 };
@@ -47,6 +47,16 @@ const night = fix => {
   const good = night(true), bad = night(false);
   check(good.phase === 'end' && good.budget >= 90, `a night of clean fixes ends with budget to spare (${good.budget}%)`);
   check(bad.phase === 'zero', `a night of changing nothing runs out of budget (${bad.phase}, row ${bad.row})`);
+}
+// The Night Watch (js/mode-watch.js): its own rows, every drill a Security one, the same budget rules.
+{
+  const R = D.WATCH_ROWS, ids = [].concat(...R);
+  check(ids.every(id => D.DRILLS[id]), `the Night Watch's rows name real drills (${ids.join(', ')})`);
+  check(['pass', 'locked', 'badge', 'vault', 'cloak', 'bucket', 'letter', 'lips'].every(id => ids.includes(id)), 'the Night Watch has the four moved drills and the four new ones');
+  check(D.DRILLS[R[R.length - 1][0]].boss, 'the Night Watch ends on a boss');
+  const good = night(true, R), bad = night(false, R);
+  check(good.phase === 'end' && good.budget >= 90, `a Night Watch of clean fixes ends with budget to spare (${good.budget}%)`);
+  check(bad.phase === 'zero', `a Night Watch of changing nothing runs out of budget (${bad.phase}, row ${bad.row})`);
 }
 console.log(fails.length ? `\n${fails.length} FAILED` : '\nall ok');
 process.exit(fails.length ? 1 : 0);

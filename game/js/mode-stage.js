@@ -39,13 +39,15 @@
   // The Sorting Floor's sorting room (Gemini, Nov 16). The Fire Drill's war room is a Gemini image too
   // (project files game-modes/multiplayer-real/art-and-music.md).
   const PLATES = ['floor', 'drill', 'lf'];
+  // A mode that plays in a sibling's place: the Night Watch keeps the Fire Drill's war room, after dark (js/mode-watch.js).
+  const PLATE_OF = { watch: 'drill' };
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
   // Incident Commander's live incident loop starts on its menu (Ladi, Nov 17: "the music should start playing on this
   // screen"), and plays through both shifts; js/ic-live.js keeps it going rather than starting it over.
   // 'lf' is the Lost and Found's chooser (js/lf-hub.js): the Sorting Floor's song, which carries on through either door.
-  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor' };
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill', watch: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor' };
   // Mode id: { win, lose } jingle files in assets/audio/.
-  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
+  const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, watch: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
   let cur = null, el = null, bar = null, timer = null;
 
@@ -73,10 +75,10 @@
     clearTimeout(timer);
     if (cur && cur.id === def.id) return;
     cur = def;
-    const bg = el.querySelector('.ms-bg'), id = def.id;
-    if (PLATES.includes(id)) {
-      bg.style.backgroundImage = ''; bg.innerHTML = `<picture><source media="(orientation: portrait)" srcset="assets/img/stage/${id}-tall.webp">
-        <img src="assets/img/stage/${id}-wide.webp" alt="" draggable="false"></picture>`;
+    const bg = el.querySelector('.ms-bg'), id = def.id, plate = PLATE_OF[id] || id;
+    if (PLATES.includes(plate)) {
+      bg.style.backgroundImage = ''; bg.innerHTML = `<picture><source media="(orientation: portrait)" srcset="assets/img/stage/${plate}-tall.webp">
+        <img src="assets/img/stage/${plate}-wide.webp" alt="" draggable="false"></picture>`;
     } else if (LOOPS.includes(LOOP_OF[id] || id)) {
       const v = `assets/video/cards/${LOOP_OF[id] || id}`;
       bg.style.backgroundImage = `url(${v}.webp)`;
