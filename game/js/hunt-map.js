@@ -23,13 +23,11 @@
   M.lairOf = topic => Object.keys(M.LAIRS).find(k => M.LAIRS[k].topics.includes(String(topic || ''))) || 'outskirts';
   M.bg = key => DIR + (M.LAIRS[key] ? key : 'outskirts') + (innerWidth > 700 || innerWidth > innerHeight ? '-wide' : '-tall') + '.webp';
   // Each step of a battle stands somewhere else in the same place.
-  // Where a place's ground is, per lair: at the docks only the pier on the left of the picture holds Bru up, so the
-  // steps move along it instead of out over the water.
-  const SHIFT = { track: 18, fight: 50, retry: 62, pin: 82 }, GROUND = { docks: { track: 0, fight: 6, retry: 10, pin: 14 } };
+  // Per lair, where its ground is, if a picture needs it: GROUND moves the steps along the part of it that holds Bru
+  // up, and LIFT stands her higher on a wide screen (% of the scene's height). Every picture now has ground across
+  // its whole bottom (the docks were redrawn with a pier deck in front, Nov 16), so both are empty.
+  const SHIFT = { track: 18, fight: 50, retry: 62, pin: 82 }, GROUND = {}, LIFT = {};
   M.shift = (step, key) => ((GROUND[key] || SHIFT)[step] ?? SHIFT[step] ?? 50);
-  // How far up the scene her feet stand on a wide screen (% of its height): at the docks the pier's planks are above
-  // the water line at the bottom of the picture, so she stands up on them, feet showing.
-  const LIFT = { docks: 15 };
   M.lift = key => LIFT[key] || 0;
   // Warm the map so it's there the moment the hunting grounds open.
   M.warm = () => { const i = new Image(); i.src = M.MAP; };
