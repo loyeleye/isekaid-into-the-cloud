@@ -118,16 +118,17 @@
 /* The debrief and the cart: over the room you just played. */
 .hl-scene { position: absolute; inset: 0; }
 .hl-scene .hl-dutch { right: 2%; bottom: 0; height: 88%; }
-.hl-ticket { position: absolute; left: 50%; top: 15%; width: min(640px, 64vw); transform: translateX(-60%) rotate(-1.5deg); box-sizing: border-box; padding: 26px 40px 26px 28px;
-  background: url(${ART}ticket.webp) center / 100% 100% no-repeat; min-height: 200px; display: flex; flex-direction: column; justify-content: center; transition: transform .25s; }
-.hl-ticket.flip { transform: translateX(-60%) rotate(1deg) scale(1.02); }
+.hl-card { position: absolute; left: 4%; top: 13%; width: min(640px, 62vw); display: flex; flex-direction: column; gap: 14px; }
+.hl-ticket { position: relative; box-sizing: border-box; transform: rotate(-1.2deg); border-style: solid; border-width: 26px 150px 30px 26px;
+  border-image: url(${ART}ticket.webp) 24 160 30 24 fill / 26px 150px 30px 26px stretch; padding: 22px 30px 22px 26px; min-height: 200px; display: flex; flex-direction: column; justify-content: center; transition: transform .25s; }
+.hl-ticket.flip { transform: rotate(.8deg) scale(1.01); }
 .hl-ticket.hot { filter: drop-shadow(0 0 16px rgba(255, 210, 110, .95)); }
-.hl-ticket p { margin: 0; padding-right: 27%; font: 800 18px/1.35 var(--f-body); color: #2a1d10; }
-.hl-ticket .hl-kind { padding-right: 27%; font: 700 13px var(--f-head); letter-spacing: .1em; text-transform: uppercase; color: #8a5f1c; margin-bottom: 6px; }
-.hl-ink { align-self: flex-start; margin-top: 10px; transform: rotate(-5deg); max-width: 66%; padding: 4px 10px; border: 4px solid; border-radius: 8px; font: 700 16px/1.2 var(--f-head); text-align: center; opacity: .88; animation: hl-thump .25s cubic-bezier(.3,1.6,.5,1); background: rgba(255,255,255,.25); }
+.hl-ticket p { margin: 0; font: 800 18px/1.4 var(--f-body); color: #2a1d10; }
+.hl-ticket .hl-kind { font: 700 13px var(--f-head); letter-spacing: .1em; text-transform: uppercase; color: #8a5f1c; margin-bottom: 8px; }
+.hl-ink { align-self: flex-start; margin: 14px 0 2px 6px; transform: rotate(-4deg); max-width: 88%; padding: 4px 10px; border: 4px solid; border-radius: 8px; font: 700 16px/1.2 var(--f-head); text-align: center; opacity: .88; animation: hl-thump .25s cubic-bezier(.3,1.6,.5,1); background: rgba(255,255,255,.25); }
 .hl-ink.ok { color: #1f8a55; border-color: #1f8a55; } .hl-ink.no { color: #b23a2f; border-color: #b23a2f; }
 @keyframes hl-thump { from { transform: rotate(-5deg) scale(1.8); opacity: 0; } }
-.hl-why { position: absolute; left: 50%; top: calc(15% + 230px); width: min(620px, 62vw); transform: translateX(-60%) rotate(1deg); box-sizing: border-box; padding: 12px 16px; background: #fff7d8; border: 2px solid #b08a3c; border-radius: 4px; box-shadow: 0 8px 20px rgba(0,0,0,.45); font: 700 15px/1.4 var(--f-body); }
+.hl-why { margin: 0 150px 0 10px; transform: rotate(.6deg); box-sizing: border-box; padding: 12px 16px; background: #fff7d8; border: 2px solid #b08a3c; border-radius: 4px; box-shadow: 0 8px 20px rgba(0,0,0,.45); font: 700 15px/1.4 var(--f-body); }
 .hl-why b { display: block; margin-bottom: 2px; font: 700 13px var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: #8a5f1c; }
 .hl-stamps { position: absolute; left: 3%; right: 26%; bottom: 3%; display: flex; gap: 10px; justify-content: center; align-items: flex-end; }
 .hl-st { position: relative; flex: 1 1 0; max-width: 200px; min-height: 196px; padding: 0; border: 0; background: transparent; cursor: grab; touch-action: none; display: flex; flex-direction: column; align-items: center; font-family: var(--f-body); }
@@ -137,6 +138,8 @@
 .hl-st.lift { cursor: grabbing; z-index: 3; transition: none; }
 .hl-st.used { opacity: .35; } .hl-st.right span { background: #d9f5e4; border-color: #1f8a55; } .hl-st.wrong span { background: #fde0dc; border-color: #b23a2f; }
 .hl-st:disabled { cursor: default; }
+/* Once stamped, the stamps go back in the drawer: the ink on the ticket and the note say which was right. */
+.settled .hl-stamps { display: none; }
 .hl-go { position: absolute; right: 3%; bottom: 4%; z-index: 4; min-height: 52px; padding: 10px 22px; border: 0; border-radius: 12px; background: linear-gradient(#ffd977, #e5a93a); box-shadow: 0 4px 0 #8a5a14, 0 10px 20px rgba(0,0,0,.4); font: 700 18px var(--f-head); color: #3a2208; cursor: pointer; }
 /* The parts cart */
 .hl-cart { position: absolute; left: 50%; top: 30%; width: min(560px, 56vw); transform: translateX(-62%); }
@@ -177,14 +180,13 @@
 .hl-ledger .hl-go { position: static; }
 @media (max-width: 700px), (orientation: portrait) {
   .hl-scene .hl-dutch { height: 46%; right: -6%; opacity: .95; }
-  .hl-ticket { left: 4%; right: 4%; width: auto; top: 12%; transform: rotate(-1deg); padding: 30px 26px 24px 20px; }
-  .hl-ticket.flip { transform: rotate(1deg) scale(1.02); }
-  .hl-ticket p, .hl-ticket .hl-kind { padding-right: 31%; }
-  .hl-ticket p { font-size: 15px; }
-  .hl-ink { max-width: 72%; }
-  .settled .hl-stamps { display: none; }
-  .hl-why { bottom: 90px; }
-  .hl-why { left: 4%; right: 4%; width: auto; transform: none; top: auto; font-size: 14px; }
+  .hl-card { left: 4%; right: 4%; width: auto; top: 11%; gap: 10px; }
+  .hl-ticket { border-width: 18px 96px 22px 18px; border-image-width: 18px 96px 22px 18px; padding: 16px 16px 16px 16px; min-height: 0; }
+  .hl-ticket.flip { transform: rotate(.8deg); }
+  .hl-ticket .hl-kind { margin-bottom: 4px; }
+  .hl-ticket p { font-size: 15px; line-height: 1.35; }
+  .hl-ink { max-width: 100%; }
+  .hl-why { margin: 0 4px; transform: none; font-size: 14px; }
   .hl-stamps { left: 2%; right: 2%; bottom: 82px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .hl-st { min-height: 0; max-width: none; flex-direction: row; gap: 6px; }
   .hl-st img { width: 46px; }
@@ -307,7 +309,7 @@
       <img class="hl-dutch" src="${ART}dutch.webp" alt="Dutch">
       <div class="hl-ui"><div class="hl-top"><div class="hl-title">Debrief<small>${esc(cap(title(info.claim)))} · closed</small></div>
       ${say('dutch', Q.twin ? 'This one got away from you last time. Again, properly.' : 'You built it. Now tell me why it worked. Stamp the ticket.')}</div></div>
-      <div class="hl-ticket" id="hl-tk"><div class="hl-kind">Claim ticket${Q.twin ? ' · back again' : ''}</div><p>${esc(Q.q)}</p></div>
+      <div class="hl-card"><div class="hl-ticket" id="hl-tk"><div class="hl-kind">Claim ticket${Q.twin ? ' · back again' : ''}</div><p>${esc(Q.q)}</p></div></div>
       <div class="hl-stamps">${order.map((o, n) => `<button type="button" class="hl-st" data-i="${o.i}"><kbd>${n + 1}</kbd><img src="${ART}stamp.webp" alt=""><span>${esc(o.t)}</span></button>`).join('')}</div></div>`;
     const tk = el.querySelector('#hl-tk');
     let settled = false;
@@ -321,8 +323,8 @@
       if (right) { if (st.missed === key) st.missed = null; } else st.missed = key;
       if (right) st.ledger[info.claim] = Q.opts[0];
       save();
-      el.querySelector('.hl-scene').insertAdjacentHTML('beforeend', `<div class="hl-why"><b>${right ? 'Why it worked' : 'The right stamp: ' + esc(Q.opts[0])}</b>${esc(Q.why || '')}</div>
-        <button type="button" class="hl-go">${then.label || 'On to the parts cart'}</button>`);
+      el.querySelector('.hl-card').insertAdjacentHTML('beforeend', `<div class="hl-why"><b>${right ? 'Why it worked' : 'The right stamp: ' + esc(Q.opts[0])}</b>${esc(Q.why || '')}</div>`);
+      el.querySelector('.hl-scene').insertAdjacentHTML('beforeend', `<button type="button" class="hl-go">${then.label || 'On to the parts cart'}</button>`);
       const say1 = el.querySelector('.hl-say span');
       if (say1) say1.innerHTML = `<b>Dutch:</b> ${esc(right ? 'Good. That\'s the rule you just ran.' : 'Not that one. That ticket comes back to you later.')}`;
       const go = el.querySelector('.hl-go'); go.addEventListener('click', then); go.focus();
