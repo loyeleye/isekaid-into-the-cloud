@@ -247,7 +247,7 @@
     alarm: 'DeploymentPreference.Alarms: [ErrorsAlarm]', hook: 'DeploymentPreference.Hooks: PreTraffic',
     exp60: 'ExpiresIn=60', exp900: 'ExpiresIn=900', exp7d: 'ExpiresIn=604800', exp30d: 'ExpiresIn=2592000',
     demand: 'presign UploadPart per part, when asked', userkey: 'AWS_ACCESS_KEY_ID in env vars', single: 'presigned PutObject, one PUT', ftrace: 'Tracing: Active',
-    kstatus: 'orders  KeySchema: status (HASH)', korder: 'orders-v2  KeySchema: orderId (HASH)', kshard: 'orders-v2  KeySchema: status#1-9 (HASH)',
+    kstatus: 'KeySchema: [{ AttributeName: status, KeyType: HASH }]', korder: 'KeySchema: [{ AttributeName: orderId, KeyType: HASH }]', kshard: 'KeySchema: [{ AttributeName: statusShard, KeyType: HASH }]',
     wcu: 'WriteCapacityUnits × 2', kprole: 'Key policy: Principal role/orders-fn', kpiam: 'Key policy: Principal arn:aws:iam::<account>:root',
     consread: 'ConsistentRead: true', daxnode: 'DAX ReplicationFactor: 3', gsiread: 'IndexName: byCustomer, ConsistentRead: true',
     rotsingle: 'RotationType: PostgreSQLSingleUser', rotalt: 'RotationType: PostgreSQLMultiUser', rotoff: 'RotationSchedule: (removed)',
@@ -278,6 +278,7 @@
     const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
     const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
     const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
+      if (n === 'key' && SD.drillHotKey) return SD.drillHotKey.html(f);   // the partition key desk: js/drill-hotkey.js
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '', onId = g.ids.find(id => C[id].on(f.cfg));
       const line = onId && REAL[onId] ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(REAL[onId])}</code>` : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
