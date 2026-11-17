@@ -58,6 +58,8 @@
     "kai|A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.": 'kai-mg-drill-teach-canary',
     "dutch|A secret you read once and keep goes stale the moment it rotates. Cache it, and know when to read it again.": 'dutch-mg-drill-teach-secret',
     "mira|A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.": 'mira-mg-drill-teach-stream',
+    "seoyeon|401 means no pass at all. 403 means a pass that says no. And the Gate remembers what a pass said.": 'seoyeon-mg-drill-teach-auth',
+    "dutch|Reads are eventually consistent unless you ask. Right after a write, ask: ConsistentRead.": 'dutch-mg-drill-teach-reads',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
