@@ -1,4 +1,4 @@
-// The Rush (prototype), four claims: draws js/rush-core.js on a canvas over Ladi's Sogni cellar (the Slow Courier plays in a loading dock), and takes the player's hands.
+// The Rush (prototype), five claims: draws js/rush-core.js on a canvas over Ladi's Sogni cellar (the Slow Courier plays in a loading dock), and takes the player's hands.
 // The room is the screen: tickets slide down the painted chute, sit on Mira's stools, bounce back up on a 429,
 // splat into the puddle, and the tank on the wall fills. You drag tools off the toolbelt into the room while it runs.
 // Before each claim the player pins one of two Night Orders, twists that stack for the rest of the run. One of them
@@ -37,13 +37,13 @@
     clerk: { x: 108, y: 1048, h: 170 }, puddle: { x: 300, y: 1020 },
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
     desk: { x: 660, y: 1024, h: 160 }, tank: { x: 700, y: 600, h: 170, feed: 470, feedTo: 768 }, bin: { x: 104, y: 1222, h: 92 },
-    bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
+    bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], filterLabel: [140, 962], reports: [690, 120],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   // The loading dock (claim 4 on): the same floor, chute and lever, a new back wall with the alley behind the shutter.
   const DOCK_WIDE = Object.assign({}, WIDE, { bg: 'dock-wide', tank: { x: 1150, y: 196, h: 190, feed: 0 } });
   const DOCK_TALL = Object.assign({}, TALL, { bg: 'dock-tall', chute: [[660, 250], [525, 455]], foot: [400, 990], tank: { x: 330, y: 478, h: 150, feed: 214 } });
-  const DOCK = new Set(['slow']);
+  const DOCK = new Set(['slow', 'picky']);
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
   // ---- State ----
@@ -57,7 +57,8 @@
     S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0; resize();
     qEl.className = ''; qEl.innerHTML = '';
-    if (S.claim === 'slow') say('intro', 'neutral', 'The Slow Courier. Heavy parcels take a while, and some never finish. The rack only hides a ticket for 3 seconds. Take longer and it\'s back up for someone else.', 9);
+    if (S.claim === 'picky') say('intro', 'neutral', 'The Picky Bell. The bell rings for every ticket now, and Reports only wants the refunds, the gold ones. It still has to open every copy to find out.', 9);
+    else if (S.claim === 'slow') say('intro', 'neutral', 'The Slow Courier. Heavy parcels take a while, and some never finish. The rack only hides a ticket for 3 seconds. Take longer and it\'s back up for someone else.', 9);
     else if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
     else if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
     else say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
@@ -86,6 +87,11 @@
     timedOut: 'Cut off. Over the time limit, so it failed and goes back on the rack.',
     batchFail: 'One bad ticket in the batch, so the whole batch goes back. Both of them.',
     heavy: 'Heavy parcel, the strapped ones. Four seconds a go.',
+    filter: 'A filter card on Reports\' subscription: refunds only. The bell still rings for everything, but Reports only hears the refunds. That\'s a filter policy.',
+    tossed: 'Reports opened that one, saw it wasn\'t a refund and binned it. A whole stool\'s worth of time for nothing.',
+    aged: 'A refund sat in Reports\' tray too long and got thrown out. That\'s the maximum event age. Lost.',
+    filtered: 'Not a refund, so the bell didn\'t bother Reports with it. Mira still gets it.',
+    dedup: 'The rack\'s seen that ticket already and dropped the copy. A FIFO queue deduplicates.',
     ledger: 'A ledger. Mira writes each ticket\'s number first, and only if it isn\'t there yet. A repeat fails the write and goes straight out.',
     close: 'Shutters down. Whatever\'s still in the room is lost.',
     throttle: 'Bounced. Two free stools, more people than that. Do the sums.',
@@ -120,6 +126,10 @@
     batch: { name: 'Batching', tag: 'Batching', aws: 'Lambda batch size on SQS',
       rule: 'If one ticket in a batch fails, both go back on the rack.', up: 'Each stool takes two tickets off the rack per trip, and does both in 1.5 times the time of one.',
       dutch: 'Mira\'s started taking tickets off the rack two at a time. Faster, I\'ll give her that. That\'s batch size on an SQS trigger: Lambda hands your function several messages in one go. The catch: if one of them fails, the whole batch goes back on the rack, the good one too. Unless your function reports which ones failed. Ours doesn\'t. Ours barely reports for work.' },
+    fifo: { name: 'First in, first out', tag: 'FIFO', aws: 'SQS FIFO queue',
+      rule: 'On the rack, each caller\'s tickets go out one at a time, in order. While one is out, that caller\'s next one waits.',
+      up: 'The rack drops any ticket it has already been sent, and never hands out the same one twice.',
+      dutch: 'The rack\'s gone strict. Every caller gets a little line of their own, and their tickets come off in order, one at a time. While one of theirs is out, the next one waits, even if a stool\'s free. That\'s an SQS FIFO queue: order is kept per message group, one group at a time. The bright side: it remembers what it\'s been sent, so a resend of the same ticket gets dropped at the door. Five minutes, it remembers. Longer than I do.' },
     stakes: { name: 'High stakes', tag: 'Stakes', aws: 'Exam tip: never leave a blank',
       needs: 'letters', rule: 'Bet up to 2 coins on each letter. A wrong answer loses the bet.', up: 'A right answer pays the bet back double.',
       dutch: 'You can bet on the letters now. Sure of yourself? Put coins down. Not sure? Put nothing down, and still answer. The real exam works like that: a blank scores the same as a wrong answer, so never leave one. In here a wrong answer costs you. I\'ll mind the coins.' },
@@ -179,11 +189,16 @@
       const c = document.createElement('canvas'); c.width = e.width; c.height = e.height;
       const g = c.getContext('2d'); g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop';
       g.fillStyle = 'rgba(120, 40, 170, .62)'; g.fillRect(0, 0, c.width, c.height); IMG.envPoison = c;
+      // A refund: the envelope tinted gold.
+      const c2 = document.createElement('canvas'); c2.width = e.width; c2.height = e.height;
+      const g2 = c2.getContext('2d'); g2.drawImage(e, 0, 0); g2.globalCompositeOperation = 'source-atop';
+      g2.fillStyle = 'rgba(255, 186, 40, .55)'; g2.fillRect(0, 0, c2.width, c2.height); IMG.envRefund = c2;
       // Floor props: the lantern light falls off toward the floor, so their feet sit in shade like the boards.
       ['desk', 'rack', 'stool', 'bolted', 'bin', 'bell', 'clerk'].forEach(k => { if (IMG[k]) IMG[k] = shade(IMG[k]); });
       IMG.ledger = IMG.ledger || drawLedger();
       IMG.hourglass = IMG.hourglass || drawHourglass();
       IMG.stopwatch = IMG.stopwatch || drawStopwatch();
+      IMG.filter = IMG.filter || drawFilter();
     });
   }
 
@@ -230,6 +245,20 @@
     return c;
   }
 
+  // The filter card: a brass funnel with a gold tag, the refunds-only rule on Reports' subscription.
+  function drawFilter() {
+    const c = document.createElement('canvas'); c.width = 150; c.height = 170; const g = c.getContext('2d');
+    g.lineJoin = 'round'; g.strokeStyle = '#1e0f08'; g.lineWidth = 5;
+    const br = g.createLinearGradient(14, 0, 136, 0); br.addColorStop(0, '#8a6726'); br.addColorStop(.45, '#e2bd62'); br.addColorStop(1, '#6b4e1c');
+    g.fillStyle = br; g.beginPath(); g.moveTo(14, 20); g.lineTo(136, 20); g.lineTo(88, 96); g.lineTo(88, 150); g.lineTo(62, 162); g.lineTo(62, 96); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#3a2a14'; g.beginPath(); g.ellipse(75, 20, 61, 10, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.strokeStyle = 'rgba(30,15,8,.55)'; g.lineWidth = 2; for (let x = 30; x < 125; x += 12) { g.beginPath(); g.moveTo(x, 14); g.lineTo(x, 26); g.stroke(); }
+    // The tag: a red stamp, refunds only.
+    g.strokeStyle = '#1e0f08'; g.lineWidth = 3; g.beginPath(); g.moveTo(112, 40); g.lineTo(128, 74); g.stroke();
+    g.fillStyle = '#f4ead2'; g.fillRect(104, 72, 42, 34); g.strokeRect(104, 72, 42, 34);
+    g.fillStyle = '#f2b52a'; g.fillRect(113, 79, 24, 20); g.lineWidth = 2; g.strokeRect(113, 79, 24, 20);
+    return c;
+  }
   // ---- Geometry ----
   const lerp = (a, b, t) => a + (b - a) * t;
   const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -256,6 +285,7 @@
     if (tool === 'bin') { const b = L.bin, w = b.h * 0.95; return [b.x - w / 2, b.y - b.h - 6, w, b.h + 12]; }
     if (tool === 'hourglass') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
     if (tool === 'stopwatch') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
+    if (tool === 'filter') { const w = 120; return [L.tray[0] - w / 2 + 20, L.tray[1] - 120, w, 130]; }
     if (tool === 'ledger') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
     if (tool === 'bell') { const b = L.bell, w = b.h * 1.5; return [b.x - w / 2, b.y - b.h - 8, w, b.h + 16]; }
     if (tool === 'reserve') { const xs = L.stools.xs.slice(0, 4), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
@@ -264,8 +294,8 @@
   // The belt's four slots change with the claim (the Double-claimer swaps the bell for the ledger).
   const TOOLS = { get length() { return S.belt.length; }, forEach: f => S.belt.forEach(f) };
   const tool = i => S.belt[i];
-  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger', hourglass: 'hourglass', stopwatch: 'stopwatch' };
-  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger', hourglass: 'Hourglass', stopwatch: 'Stopwatch' };
+  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger', hourglass: 'hourglass', stopwatch: 'stopwatch', filter: 'filter' };
+  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger', hourglass: 'Hourglass', stopwatch: 'Stopwatch', filter: 'Filter card' };
   // An image URL for a tool, for the letters (the code-drawn ones as data URLs).
   function toolSrc(t) { const k = TOOL_IMG[t]; return SRC[k] || (IMG[k] && IMG[k].toDataURL ? IMG[k].toDataURL() : ''); }
   function beltRect() {
@@ -336,6 +366,10 @@
       case 'reappear': popAt(rackSlot(2), 'back on the rack!', '#ffc95a', 26); say('reappear', 'surprised', LINES.reappear); break;
       case 'timedOut': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 44], 'timed out', '#ff9a8a', 24); } say('timedOut', 'neutral', LINES.timedOut); break;
       case 'stuck': say('stuck', 'tired', LINES.stuck); break;
+      case 'tossed': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 40], 'not a refund', '#c9c0b0', 22); } if (S.tossed >= 3) say('tossed', 'tired', LINES.tossed); break;
+      case 'aged': if (e.want) { popAt([L.tray[0] + 20, L.tray[1] - 70], 'too old!', '#ff9a8a', 26); say('aged', 'angry', LINES.aged); } break;
+      case 'filtered': if (S.filtered >= 2) say('filtered', 'smile', LINES.filtered); break;
+      case 'dedup': popAt(rackSlot(0), 'duplicate dropped', '#9be59b', 24); say('dedup', 'smile', LINES.dedup); break;
       case 'batchFail': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 60], 'batch failed: both back', '#d59cff', 24); } say('batchFail', 'tired', LINES.batchFail); break;
       case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
@@ -460,6 +494,18 @@
       plaque('Bell · SNS topic', b.x, b.y - b.h - 16 * L.fs);
     } else if (dragging === 'bell' || (!drag && !S.started && S.claim === 'bell' && !S.placed.length)) glowSpot(spot('bell'), dragging === 'bell');
     const trayN = S.tray.length;
+    if (S.claim === 'picky') {
+      if (S.filter) { img('filter', L.tray[0] + 52, L.tray[1] + 6, 70, 'mb'); plaque('Filter · refunds only', ...(L.filterLabel || [L.tray[0] + 40, L.tray[1] - 80 * L.fs])); }
+      else if (dragging === 'filter' || (!drag && !S.started && !S.placed.length)) glowSpot(spot('filter'), dragging === 'filter');
+      for (let i = 0; i < Math.min(trayN, 6); i++) {
+        const k = S.tickets.find(x => x.id === S.tray[i]), p = [L.tray[0] + (i % 2) * 6, L.tray[1] - i * 7];
+        // Old copies blink: about to pass the maximum event age.
+        const old = k && S.time - k.trayAt > R.T.maxAge - 1.5, a = old ? .35 + .65 * Math.abs(Math.sin(performance.now() / 110)) : 1;
+        img(k && k.want ? 'envRefund' : 'env', p[0], p[1], 0, 'mm', a, (i % 2 ? .08 : -.06), 46);
+      }
+      if (trayN > 6) text('+' + (trayN - 6), L.tray[0] + 34, L.tray[1] - 44, 22, '#cfe0ff');
+      plaque('Reports', L.clerk.x, L.clerk.y - L.clerk.h - 12 * L.fs);
+    }
     if (S.claim === 'bell') {
       for (let i = 0; i < Math.min(trayN, 6); i++) { const p = [L.tray[0] + (i % 2) * 6, L.tray[1] - i * 7]; img('env', p[0], p[1], 0, 'mm', 1, (i % 2 ? .08 : -.06), 46); ribbon(p, 46, 0); }
       if (trayN > 6) text('+' + (trayN - 6), L.tray[0] + 34, L.tray[1] - 44, 22, '#cfe0ff');
@@ -472,11 +518,11 @@
     const waitN = S.tickets.filter(k => k.phase === 'wait').length;
     for (const k of S.tickets) {
       const d = ticketDraw(k); if (!d) continue;
-      const key = d.img || (k.poison ? 'envPoison' : 'env'), ew = 110 * (d.s || .5);
+      const key = d.img || (k.poison ? 'envPoison' : k.refund || k.want ? 'envRefund' : 'env'), ew = 110 * (d.s || .5);
       // Shelf life: a ticket about to expire blinks on the rack.
       const old = k.phase === 'shelf' && S.orders.has('shelf') && S.time - k.queuedAt > R.T.retain - 6;
       img(key, d.p[0], d.p[1], 0, 'mm', old ? .3 + .7 * Math.abs(Math.sin(performance.now() / 110)) : d.a, d.rot || 0, ew);
-      if ((k.ribbon || k.desk === 'reports') && !d.img) ribbon(d.p, ew, d.rot || 0, d.a);
+      if ((k.ribbon || (k.desk === 'reports' && !S.picky)) && !d.img) ribbon(d.p, ew, d.rot || 0, d.a);
       if (k.twin && k.phase !== 'done' && k.phase !== 'drop') text('x2', d.p[0] + 26, d.p[1] - 20, 18, '#ffb27a');
       // Heavy parcels: a brown strap both ways.
       if (k.heavy && !d.img) { ribbon(d.p, ew, (d.rot || 0), d.a, '#7a4a22'); ribbon(d.p, ew * .7, (d.rot || 0) + Math.PI / 2, d.a, '#7a4a22'); }
@@ -600,7 +646,7 @@
     }
     img('envDone', L.handled[0] - 30 - 16 * L.fs, L.handled[1], 0, 'mm', 1, 0, 52 * L.fs);
     text(String(S.handled), L.handled[0], L.handled[1], 34, '#bff5b4', 'left');
-    if (S.claim === 'bell') { plaque('Reports ' + S.reports, L.reports[0] - 10, L.reports[1]); }
+    if (S.claim === 'bell' || S.claim === 'picky') { plaque('Reports ' + S.reports, L.reports[0] - 10, L.reports[1]); }
     if (S.started && S.close) {
       const left = Math.max(0, Math.ceil(S.close - S.time));
       text(`Shutters in ${left}s`, L.title[0] + 128 * L.fs, L.title[1] + 56 * L.fs, 18, left <= 10 ? '#ff9a8a' : '#e8dcc4', 'left');
@@ -682,6 +728,36 @@
       why: 'A redrive policy on the source queue moves a message to the dead-letter queue once it has been received maxReceiveCount times without being deleted. A shorter visibility timeout only brings it back sooner, and long polling and batch size don\'t change what happens to a message that keeps failing.'
     }
   };
+  const PICKY_QS = {
+    q: 'An SNS topic sends every ticket to two Lambda functions. The Reports function only needs tickets whose ticket_type message attribute is "refund". Today it is invoked for every ticket and throws most away, and some refund events age out before they run. What is the best fix?',
+    opts: ['Add a filter policy to the Reports subscription that matches ticket_type "refund"', 'Raise the Reports function\'s maximum age of event to 6 hours', 'Set reserved concurrency on the Reports function', 'Check ticket_type at the top of the Reports handler and return early'],
+    why: 'A filter policy on Reports\' subscription makes SNS deliver only the messages that match, so Reports is invoked only for refunds. It sits on the subscription, so the other function still gets every ticket. A longer maximum event age only lets events wait longer in a queue still full of unwanted ones. Reserved concurrency caps Reports, so the backlog grows. Returning early still costs one invocation per ticket.'
+  };
+  const PICKY_LETTERS = {
+    a: [
+      { f: 'a', q: 'Reports\' subscription has the filter policy {"ticket_type": ["refund"]}, but a day later no refunds reach it. The publisher puts ticket_type inside the JSON message body and sends no message attributes. What should you change?', opts: ['Set the subscription\'s FilterPolicyScope to MessageBody', 'Turn on raw message delivery for the subscription', 'Move the filter policy from the subscription to the topic', 'Change the policy to {"ticket_type": [{"anything-but": ["refund"]}]}'], why: 'By default a filter policy is matched against message attributes. With FilterPolicyScope set to MessageBody, SNS matches it against the JSON body instead. Raw message delivery isn\'t needed for filtering, filter policies belong to subscriptions, not topics, and anything-but would let through everything except refunds.' },
+      Object.assign({ f: 'a' }, PICKY_QS)
+    ],
+    b: [
+      { f: 'b', tools: ['filter', 'rack', 'reserve', 'bin'], q: 'The bell rings Reports for every ticket, and Reports throws most of them away. Its pile of waiting events grows until the refunds it wants get too old and are dropped. Which piece makes the bell ring Reports only for refunds?', why: 'The filter card is a filter policy on Reports\' subscription. SNS checks each message against it and sends Reports only the matches. A rack would hold the flood, but Reports would still get every ticket.' },
+      { f: 'b', tools: ['rack', 'filter', 'reserve', 'bin'], q: 'The filter card is on, and Reports only hears refunds now. But on busy nights the refunds come in bursts Reports can\'t keep up with, and some still age out of Lambda\'s event queue. Filing them late is fine. Which piece goes between the bell and Reports?', why: 'Subscribe an SQS queue to the topic and let Reports poll it. Messages wait on the rack instead of in Lambda\'s own event queue, which drops an event once it passes its maximum age (6 hours at most). The filter card is already doing its job; it can\'t cut refunds Reports needs.' }
+    ],
+    c: [
+      { f: 'c', q: 'Three of these are true of SNS filter policies. Which one is false?', opts: ['A filter policy goes on the topic and applies to every subscriber', 'A subscription with no filter policy gets every message', 'By default, a filter policy is matched against message attributes', 'A change to a filter policy can take up to 15 minutes to fully take effect'], why: 'A filter policy goes on one subscription, so each subscriber can filter differently. Subscriptions without one still get everything.' },
+      { f: 'c', q: 'Three of these are true of Lambda\'s asynchronous invocation settings. Which one is false?', opts: ['An event that fails every retry stays in the queue until you delete it', 'Retry attempts can be set from 0 to 2', 'Maximum age of event can be set from 60 seconds to 6 hours', 'SNS invokes a subscribed Lambda function asynchronously'], why: 'When an event fails all its retries or passes its maximum age, Lambda discards it. To keep a copy, configure a dead-letter queue or an on-failure destination.' }
+    ]
+  };
+  const FIFO_LETTERS = {
+    a: [
+      { f: 'a', q: 'Each customer\'s order events must be handled in the order they were sent, but different customers can be handled at the same time. The events go on an SQS FIFO queue. What should the producer use as the message group ID?', opts: ['The customer ID', 'The same fixed value for every message', 'A new random value for every message', 'Leave it out and set the deduplication ID to the customer ID'], why: 'Order is kept within a message group, and different groups can be processed in parallel, so one group per customer fits. One fixed group puts every customer in a single line. A random group per message keeps no order. A FIFO send without a group ID fails, and reusing one deduplication ID would make that customer\'s later messages within 5 minutes count as duplicates.' },
+      { f: 'a', q: 'A producer\'s SendMessage call to a FIFO queue times out, and it sends the same order again 30 seconds later. Content-based deduplication is off, and the producer makes a new random deduplication ID for every attempt. Some orders now appear twice. What fixes it?', opts: ['Send the retry with the same deduplication ID as the first attempt', 'Give the retry a new message group ID', 'Wait at least 5 minutes before retrying', 'Turn on long polling on the queue'], why: 'If a message with the same deduplication ID was sent in the last 5 minutes, SQS treats the new one as a duplicate and delivers only one copy. A new random ID looks like a new message. Waiting 5 minutes puts the retry outside the deduplication interval, so it would be added again, and a new group ID or long polling doesn\'t change deduplication.' }
+    ],
+    b: [],
+    c: [
+      { f: 'c', q: 'Three of these are true of SQS FIFO queues. Which one is false?', opts: ['Two consumers can work on messages from the same message group at the same time', 'A message sent without a message group ID fails', 'Content-based deduplication hashes the message body, not its attributes', 'A FIFO queue\'s name must end in .fifo'], why: 'Messages in one group are processed one at a time, in order. Until the received messages are deleted or become visible again, no more from that group are handed out. For parallel work, use more message groups.' }
+    ]
+  };
+  QS.picky = PICKY_QS;
   // ---- Letters: the questions arrive as mail between waves (Ladi, Nov 16: not the same popup every claim) ----
   // Three formats, one of each per claim (waves 2 to 4), in a random order: a letter (pick the answer), "which piece
   // fixes it?" (answer with a belt tool) and "find the false one". The room waits while you read. Right: a coin.
@@ -689,7 +765,9 @@
   // strip held the answer, "None of these" (or "They're all true") is right.
   function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function pickLetters(claim) {
-    const pool = LETTERS[claim] || LETTERS.rush, pick = a => a[Math.floor(Math.random() * a.length)];
+    const base = LETTERS[claim] || LETTERS.rush, pick = a => a[Math.floor(Math.random() * a.length)];
+    // With FIFO pinned, its letters join the pool.
+    const fifo = run.orders.includes('fifo'), pool = fifo ? { a: base.a.concat(FIFO_LETTERS.a), b: base.b, c: base.c.concat(FIFO_LETTERS.c) } : base;
     return shuffle([pick(pool.a), pick(pool.b), pick(pool.c)], Math.random);
   }
   function openLetter(Lt) {
@@ -753,6 +831,8 @@
     const bits = [`${S.handled} handled`];
     if (S.claim === 'bell') bits.push(`${S.reports} reports`);
     if (S.claim === 'double') bits.push(`${S.paidTwice} paid twice`, `${S.dropped} repeats stopped`);
+    if (S.claim === 'picky') bits.push(`${S.reports} refunds reported`, `${S.tossed} opened for nothing`, `${S.aged} refunds too old`);
+    if (S.deduped) bits.push(`${S.deduped} duplicates dropped`);
     if (S.claim === 'slow') bits.push(`${S.reappeared} reappeared`, `${S.paidTwice} paid twice`, `${S.timedOut} cut off`);
     const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
     bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
@@ -806,6 +886,7 @@
         { f: 'c', q: 'Three of these are true about making a handler idempotent. Which one is false?', opts: ['An SQS standard queue removes duplicate messages for you', 'A conditional write fails if its condition isn\'t met', 'attribute_not_exists on the key lets only the first write succeed', 'Doing an idempotent operation twice has the same effect as doing it once'], why: 'Standard queues can deliver duplicates. Deduplication is a FIFO queue feature, and even then the handler should be safe to repeat.' }
       ]
     },
+    picky: PICKY_LETTERS,
     slow: {
       a: [
         { f: 'a', q: 'What is the longest timeout you can set on a Lambda function?', opts: ['15 minutes', '5 minutes', '1 hour', '30 seconds'], why: 'A Lambda function can run for up to 15 minutes (900 seconds). The default timeout is 3 seconds.' },
