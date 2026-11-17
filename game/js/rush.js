@@ -36,7 +36,7 @@
     lever: { x: 118, y: 660, r: 140, pivot: [120, 750], label: [118, 470] },
     clerk: { x: 108, y: 1048, h: 170 }, puddle: { x: 300, y: 1020 },
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
-    desk: { x: 660, y: 1024, h: 160 }, tank: { x: 700, y: 600, h: 170, side: 768 }, bin: { x: 104, y: 1222, h: 92 },
+    desk: { x: 660, y: 1024, h: 160 }, tank: { x: 700, y: 600, h: 170, feed: 470, feedTo: 768 }, bin: { x: 104, y: 1222, h: 92 },
     bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
@@ -163,6 +163,10 @@
   }
 
   // ---- Images ----
+  function cutBracket(im) {
+    const c = document.createElement('canvas'), W = Math.round(im.width * .74); c.width = W; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.clearRect(Math.round(im.width * .61), Math.round(im.height * .735), W, im.height); c.cut = true; return c;
+  }
   function shade(im) {
     const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
     const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop';
@@ -181,6 +185,8 @@
       g.fillStyle = 'rgba(120, 40, 170, .62)'; g.fillRect(0, 0, c.width, c.height); IMG.envPoison = c;
       // Floor props: the lantern light falls off toward the floor, so their feet sit in shade like the boards.
       ['desk', 'rack', 'stool', 'bolted', 'bin', 'bell', 'clerk'].forEach(k => { if (IMG[k]) IMG[k] = shade(IMG[k]); });
+      // The tank's side bracket had no side wall to hold: cut it off, and drawTank mounts the glass flat on the back wall.
+      if (IMG.tank && !IMG.tank.cut) IMG.tank = cutBracket(IMG.tank);
       IMG.ledger = IMG.ledger || drawLedger();
       IMG.hourglass = IMG.hourglass || drawHourglass();
       IMG.stopwatch = IMG.stopwatch || drawStopwatch();
@@ -518,33 +524,37 @@
   }
   function drawTank() {
     const t = L.tank, im = IMG.tank; if (!im) return;
-    const w = im.width * t.h / im.height, x0 = t.x - w / 2, y0 = t.y - t.h / 2;
-    // Its feed pipe: up from the cap into the room's pipe (or the ceiling), so the gauge is plumbed in.
+    const w = im.width * t.h / im.height, x0 = t.x - w / 2, y0 = t.y - t.h / 2, px = x0 + w * .48;
+    const brass = (x, y, ww, hh, across) => {
+      const g = across ? cx.createLinearGradient(0, y, 0, y + hh) : cx.createLinearGradient(x, 0, x + ww, 0);
+      g.addColorStop(0, '#6b4e1c'); g.addColorStop(.45, '#d8b25a'); g.addColorStop(1, '#5a3f14'); cx.fillStyle = g; cx.fillRect(x, y, ww, hh);
+    };
+    cx.save();
+    // Its feed pipe: up from the cap into the room's pipe, the ceiling, or across to the side wall, so it's plumbed in.
     if (t.feed != null) {
-      const px = x0 + w * .41, top = y0 + t.h * .03;
-      cx.save(); const pg = cx.createLinearGradient(px - 6, 0, px + 6, 0);
-      pg.addColorStop(0, '#6b4e1c'); pg.addColorStop(.45, '#d8b25a'); pg.addColorStop(1, '#5a3f14');
-      cx.fillStyle = pg; cx.fillRect(px - 6, t.feed, 12, top - t.feed + 4);
+      const top = y0 + t.h * .03;
+      brass(px - 6, t.feed - (t.feedTo ? 6 : 0), 12, top - t.feed + 4 + (t.feedTo ? 6 : 0));
+      if (t.feedTo) brass(px, t.feed - 6, t.feedTo - px, 12, true);
       cx.fillStyle = '#8a6726'; [t.feed + 4, (t.feed + top) / 2].forEach(yy => { rrect(px - 9, yy - 4, 18, 8, 3); cx.fill(); });
-      cx.restore();
     }
-    // Or out through the wall plate to the side wall.
-    if (t.side != null) {
-      const py = y0 + t.h * .8, px0 = x0 + w * .9;
-      cx.save(); const pg = cx.createLinearGradient(0, py - 6, 0, py + 6);
-      pg.addColorStop(0, '#6b4e1c'); pg.addColorStop(.45, '#d8b25a'); pg.addColorStop(1, '#5a3f14');
-      cx.fillStyle = pg; cx.fillRect(px0, py - 6, t.side - px0, 12);
-      cx.fillStyle = '#8a6726'; rrect(t.side - 20, py - 9, 8, 18, 3); cx.fill(); cx.restore();
-    }
+    // Mounted flat on the back wall: an iron backing plate, bolted on, with a soft shadow on the wall.
+    const bx = x0 - w * .1, bw = w * 1.2, by = y0 + t.h * .14, bh = t.h * .74;
+    cx.fillStyle = 'rgba(0,0,0,.35)'; rrect(bx + 5, by + 7, bw, bh, 10); cx.fill();
+    const pg = cx.createLinearGradient(bx, 0, bx + bw, 0); pg.addColorStop(0, '#3a322b'); pg.addColorStop(.5, '#4d443a'); pg.addColorStop(1, '#2c2621');
+    cx.fillStyle = pg; rrect(bx, by, bw, bh, 10); cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#6e5f4c'; cx.stroke();
+    cx.fillStyle = '#b08d45'; [[bx + 9, by + 9], [bx + bw - 9, by + 9], [bx + 9, by + bh - 9], [bx + bw - 9, by + bh - 9]].forEach(([u, v]) => { cx.beginPath(); cx.arc(u, v, 4, 0, Math.PI * 2); cx.fill(); });
+    cx.restore();
     img('tank', t.x, t.y, t.h, 'mm');
+    // Two brass straps hold the glass to the plate.
+    cx.save(); [.36, .6].forEach(f => { const yy = y0 + t.h * f; brass(bx + 4, yy - 4, bw - 8, 8, true); cx.fillStyle = '#5a3f14'; [bx + 9, bx + bw - 9].forEach(u => { cx.beginPath(); cx.arc(u, yy, 3, 0, Math.PI * 2); cx.fill(); }); }); cx.restore();
     // Lost requests running in: a drop rides the pipe down into the glass.
     for (const d of drops) {
-      const px = x0 + w * .41, yy = lerp(Math.max(0, t.feed == null ? y0 - 40 : t.feed), y0 + t.h * .3, d.t / .7);
-      cx.save(); cx.fillStyle = 'rgba(120,180,255,.95)'; cx.beginPath(); cx.arc(px, yy, 7, 0, Math.PI * 2); cx.fill(); cx.restore();
+      const yy = lerp(Math.max(0, t.feed == null ? y0 - 40 : t.feed), y0 + t.h * .3, d.t / .7), xx = t.feedTo && d.t < .25 ? lerp(t.feedTo, px, d.t / .25) : px;
+      cx.save(); cx.fillStyle = 'rgba(120,180,255,.95)'; cx.beginPath(); cx.arc(xx, t.feedTo && d.t < .25 ? t.feed : yy, 7, 0, Math.PI * 2); cx.fill(); cx.restore();
     }
     const lvl = Math.min(1, S.spill / S.cap);
     if (lvl) {
-      const gx0 = x0 + w * .2, gx1 = x0 + w * .62, gy0 = y0 + t.h * .2, gy1 = y0 + t.h * .74, top = gy1 - (gy1 - gy0) * lvl;
+      const gx0 = x0 + w * .27, gx1 = x0 + w * .83, gy0 = y0 + t.h * .2, gy1 = y0 + t.h * .74, top = gy1 - (gy1 - gy0) * lvl;
       cx.save(); rrect(gx0, top, gx1 - gx0, gy1 - top, 6); cx.fillStyle = lvl > .75 ? 'rgba(230,90,80,.75)' : 'rgba(60,130,230,.72)'; cx.fill(); cx.restore();
     }
     plaque(`Error budget ${S.spill}/${S.cap}`, t.x, y0 + t.h + 16);
