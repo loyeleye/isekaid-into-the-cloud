@@ -138,6 +138,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const permit = async (right, conf, marks) => {
     await page.click('#rn-deb');
     permit.wi = await whatIf(marks);
+    permit.report = await page.$eval('.rn-report', x => x.innerText).catch(() => '');
     await page.click('#rn-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'), null, { timeout: 5000 });
     const plain = await page.evaluate(() => !document.querySelector('#panel .rn-street, #panel .rn-bridge'));
@@ -181,12 +182,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   t = await txt('#panel');
   check(/✗ Nobody turned away/.test(t) && /turned away/.test(t) && !!(await page.$('#rn-again')), 'all at once fails the slate, with the gate\'s marks, and offers another plan');
   check(/Red mark on the gate/.test(t), 'the first turned-away resident is taught by one line');
+  check(!(await page.$('.rn-report')), 'with plans left, nothing points at the line to change');
   await noHScroll('inspect'); await shot('inspect-fail');
   await page.click('#rn-again');
   await setPlan({ policy: 'rollingBatch', batch: 1 });
   await renovate();
   check(!!(await page.$('#rn-deb')) && /SEYMOUR SIGNS/.test(await txt('#panel')), 'rolling with an additional batch of 1 passes, and Seymour signs');
   const p1 = await permit(true, 2);
+  check(/DeploymentPolicy: AllAtOnce/.test(permit.report) && /✗ Nobody turned away/.test(permit.report) && /DeploymentPolicy: RollingWithAdditionalBatch/.test(permit.report), 'once settled, Seymour\'s report circles the line that broke the slate and shows the one that held');
   check(p1.plain, 'the permit question is on its own screen: no street while the stem is open');
   const q1 = await page.evaluate(id => SD.exam.find(id), p1.qid);
   check(/Beanstalk/i.test([q1.q].concat(q1.opts || [], (q1.items || []).map(i => i.t)).join(' ')), 'the permit question is about Elastic Beanstalk');
@@ -334,6 +337,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     check(await bl.getAttribute('placeholder') === 'Retain', 'two misses show the word faintly in the blank');
     await bl.fill('retain'); await page.waitForTimeout(520);
     check(await page.evaluate(() => !!SD.state.save.renoKeep.typed.Retain) && !(await page.$('.rn-blank[data-term="Retain"]')), 'written out once (any case), the word is learned for the save');
+    // Spaced recall: when Retain is due again, it's a blank on the card again, from memory.
+    await page.evaluate(id => { SD.state.save.typedDue.retain.due = Date.now() - 1; SD.renoUi.draw(); }, id);
+    await page.waitForTimeout(150);
+    check(!!(await page.$('.rn-blank[data-term="Retain"]')) && /from memory|a few days ago/.test(await txt('.rn-tplnote')), 'a due term comes back as a blank on the card, from memory');
+    const rb = await page.$('.rn-blank[data-term="Retain"]'); await rb.fill('Retain'); await page.waitForTimeout(520);
+    check(await page.evaluate(() => SD.state.save.typedDue.retain.n === 1 && SD.state.save.typedDue.retain.due - Date.now() > 1.9 * 864e5), 'remembered cleanly, it comes back in 2 days');
     await setPlan({ ['cfn:' + id]: 'Delete' });
   }
   await setPlan({ 'cfn:ledger': 'Snapshot' });

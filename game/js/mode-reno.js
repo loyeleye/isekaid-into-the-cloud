@@ -201,20 +201,24 @@
   // reads this mode's own record (renoKeep.typed), which is kept up too.
   const typedSet = () => { const k = keep(); return (k.typed = k.typed || {}); };
   const learned = t => !!typedSet()[t] || !!(SD.typeOnce && SD.typeOnce.learned && SD.typeOnce.learned(t));
-  const learn = t => { typedSet()[t] = true; if (SD.typeOnce && SD.typeOnce.mark) SD.typeOnce.mark(t); };
-  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && !learned(t)).filter((t, i, a) => a.indexOf(t) === i);
+  const learn = (t, misses) => { typedSet()[t] = true; if (SD.typeOnce && SD.typeOnce.mark) SD.typeOnce.mark(t, misses); };
+  // A typed term comes back as a blank when it's due again (spaced recall, js/type-once.js).
+  const due = t => !!(SD.typeOnce && SD.typeOnce.due && SD.typeOnce.due(t));
+  const fresh = t => !learned(t) || due(t);
+  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && fresh(t)).filter((t, i, a) => a.indexOf(t) === i);
   function tplHtml(job, p, hi) {
     const t = tplLines(job, p), seen = {};
     return `<div class="rn-tpl" aria-label="Your plan as AWS writes it: ${esc(t.file)}"><p class="rn-tplh">${esc(t.file)}</p><pre>${t.lines.map(([ind, text, keys, term]) => {
       let body = esc(text);
-      if (term && !learned(term) && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
-      else if (term && !learned(term)) {
+      if (term && fresh(term) && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
+      else if (term && fresh(term)) {
         seen[term] = 1;
         const at = text.indexOf(term);
         body = esc(text.slice(0, at)) + `<input class="rn-blank" data-term="${esc(term)}" size="${term.length}" maxlength="${term.length + 4}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Write out ${esc(term.length)} letters: the setting for this line" placeholder="${'_'.repeat(Math.min(term.length, 28))}">` + esc(text.slice(at + term.length));
       }
       return `<span class="${keys && hi && keys.includes(hi) ? 'hi' : ''}">${'  '.repeat(ind)}${body}</span>`;
-    }).join('\n')}</pre>${blanksOf(job, p).length ? '<p class="small rn-tplnote">New on your card: write it out in full, once. Seymour likes things in writing.</p>' : ''}</div>`;
+    }).join('\n')}</pre>${(() => { const bl = blanksOf(job, p); if (!bl.length) return ''; const back = bl.filter(learned).length;
+      return `<p class="small rn-tplnote">${back === bl.length ? 'Back on your card from a few days ago: write it from memory. Seymour checks.' : back ? 'On your card: some new, some from a few days ago. Write them out in full.' : 'New on your card: write it out in full, once. Seymour likes things in writing.'}</p>`; })()}</div>`;
   }
   const norm = v => String(v).replace(/\s+/g, '').toLowerCase();
   function bindBlanks(b, onDone) {
@@ -224,7 +228,7 @@
       const check = final => {
         if (inp.readOnly) return;   // already written (a blur after the last letter fires change again)
         if (norm(inp.value) === norm(term)) {
-          learn(term); SD.state.persist();
+          learn(term, misses); SD.state.persist();
           inp.classList.add('ok'); inp.value = term; inp.readOnly = true;
           if (SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
           setTimeout(() => { if (inp.isConnected) onDone(); }, 420); return;
@@ -893,6 +897,78 @@
     }
     return null;
   }
+  // ---- Blame the line: once a job is settled, the template line behind each broken slate line, circled ----
+  // (Ladi, Nov 17.) Only on the permit screen, after the plan passed or the plans ran out, so it never hints at a fix
+  // while one can still be tried. The culprit is found by the rules, not by hand: the setting whose change alone (or,
+  // failing that, with one other) would have kept that slate line. Its template line is circled in red with the slate
+  // line it broke beside it; if a later plan held, that plan's same line is shown underneath in green.
+  const knobKeys = (job, a, b) => {
+    if (job.d === 'cfn') return job.stack.filter(r => (a[r.id] || AD.cfnDefault(r.type)) !== (b[r.id] || AD.cfnDefault(r.type))).map(r => r.id);
+    a = knobsOf(job, a); b = knobsOf(job, b);
+    return [...new Set(Object.keys(a).concat(Object.keys(b)))].filter(k => (a[k] === undefined ? null : a[k]) !== (b[k] === undefined ? null : b[k]));
+  };
+  // A different policy (or traffic-shifting config) counts as one change, whatever settings come with it.
+  const headKey = job => (job.d === 'eb' ? 'policy' : job.d === 'lam' ? 'cfg' : null);
+  const blameKeys = (job, a, b) => { const h = headKey(job); return h && a[h] !== b[h] ? [h] : knobKeys(job, a, b); };
+  function blame(job, plan) {
+    const res = R.inspect(job, plan);
+    if (res.refused) return [];
+    const all = R.plans(job).map(p => ({ plan: p, res: null }));
+    const out = [];
+    res.lines.forEach((l, i) => {
+      if (l.ok) return;
+      for (const want of [1, 2]) {
+        const keys = new Set();
+        let fix = null;
+        all.forEach(x => {
+          const ks = blameKeys(job, x.plan, plan);
+          if (ks.length !== want) return;
+          x.res = x.res || R.inspect(job, x.plan);
+          if (!x.res.refused && x.res.lines[i].ok) { ks.forEach(k => keys.add(k)); fix = fix || x.plan; }
+        });
+        if (keys.size) { out.push({ line: l, keys: [...keys], fix }); return; }
+      }
+      out.push({ line: l, keys: [] });
+    });
+    return out;
+  }
+  function reportHtml(job, j) {
+    const ps = j.plans || [];
+    const failed = ps.filter(x => !x.pass).pop(), last = ps[ps.length - 1];
+    if (!failed) return '';
+    const bl = blame(job, failed.plan).filter(x => x.keys.length);
+    if (!bl.length) return '';
+    const fixed = last && last.pass ? last.plan : null;
+    // A setting that broke the slate by being left out (no alarm, no hook) has no line to circle: the line it needed
+    // is shown where it would go, marked missing (the job is settled, so this is the lesson, not a hint).
+    const card = (plan, cls, keys, note) => {
+      const t = tplLines(job, plan), shown = new Set();
+      t.lines.forEach(l => (l[2] || []).forEach(k => shown.add(k)));
+      const rows = t.lines.map(([ind, text, ks]) => {
+        const hit = ks && ks.some(k => keys.includes(k));
+        return `<span class="${hit ? 'hit' : 'dim'}">${'  '.repeat(ind)}${esc(text.replace(/\s+#.*$/, ''))}</span>${hit && note ? `<i>${esc(note(ks))}</i>` : ''}`;
+      });
+      if (note) bl.forEach(x => {
+        const gone = x.keys.filter(k => !shown.has(k));
+        if (!gone.length || !x.fix) return;
+        const has = text => rows.some(r => r.includes(esc(text)));
+        let parents = [];   // a missing line's parent keys (Hooks:) come with it
+        tplLines(job, x.fix).lines.forEach(([ind, text, ks]) => {
+          if (!ks || !ks.length) { if (!has(text)) parents.push(`<span class="hit miss">${'  '.repeat(ind)}${esc(text)}</span>`); else parents = []; return; }
+          if (!ks.some(k => gone.includes(k)) || has(text)) { parents = []; return; }
+          ks.forEach(k => shown.add(k));
+          rows.push(...parents); parents = [];
+          rows.push(`<span class="hit miss">${'  '.repeat(ind)}${esc(text.replace(/\s+#.*$/, ''))}</span><i>missing · ${esc(note(ks))}</i>`);
+        });
+      });
+      return `<pre class="rn-rep ${cls}">${rows.join('\n')}</pre>`;
+    };
+    const keysAll = [...new Set([].concat(...bl.map(x => x.keys)))];
+    const why = ks => '✗ ' + bl.filter(x => x.keys.some(k => ks.includes(k))).map(x => x.line.text).join('; ');
+    return `<div class="rn-report"><p class="rn-tplh">Seymour's report · ${esc(tplLines(job, failed.plan).file)}</p>
+      <p class="small">Plan ${ps.indexOf(failed) + 1}, the line that broke the slate:</p>${card(failed.plan, 'bad', keysAll, why)}
+      ${fixed ? `<p class="small">Plan ${ps.length}, the line that held:</p>${card(fixed, 'good', keysAll, null)}` : ''}</div>`;
+  }
   // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
   const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
   function whatIfDue(s, job, j) {
@@ -992,6 +1068,7 @@
     if (whatIfDue(s, job, j)) return whatIfScreen(s, job, j);
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
       ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
+      ${reportHtml(job, j)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
     if (RS) RS.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
@@ -1551,6 +1628,15 @@
     .rn-tplh { margin: 0 0 4px; font: 700 12px/1.2 var(--f-mono, ui-monospace, monospace); color: #7a5a30; letter-spacing: .02em; }
     .rn-tpl pre { margin: 0; font: 600 13.5px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
     .rn-tpl pre span { display: inline; border-radius: 3px; }
+    /* Seymour's report: the line that broke the slate, circled in red; the line that held, in green. */
+    .rn-report { margin: 10px 0 4px; padding: 8px 12px 10px; border-radius: 6px; background: #fbf4e2; color: #241a10; border: 2px solid #8a6a3a; box-shadow: 0 3px 0 #5a4020; }
+    .rn-report > .small { margin: 6px 0 2px; color: #5a3a18; }
+    .rn-rep { margin: 0; font: 600 13px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .rn-rep span.dim { opacity: .45; }
+    .rn-rep.bad span.hit { color: #8f1d1d; border: 2px solid #c0392b; border-radius: 12px; padding: 0 6px; margin-left: -8px; }
+    .rn-rep.good span.hit { color: #1d6b3a; background: #e3f6e8; border-radius: 4px; padding: 0 4px; }
+    .rn-rep.bad span.miss { color: #8f1d1d; border-style: dashed; opacity: .9; }
+    .rn-rep i { display: block; font: italic 600 12px/1.3 var(--f-body, sans-serif); color: #8f1d1d; margin: 2px 0 2px 2ch; white-space: normal; }
     .rn-tpl pre span.hi { background: #ffe08a; box-shadow: 0 0 0 2px #ffe08a; animation: rn-tplhi 1.6s ease-out; }
     @keyframes rn-tplhi { from { background: #ffc531; box-shadow: 0 0 0 4px #ffc531; } }
     .rn-blank { font: inherit; color: #1f4e8c; background: #fff; border: 0; border-bottom: 2px dashed #1f4e8c; padding: 0 2px; width: auto; min-width: 6ch; max-width: 100%; border-radius: 3px 3px 0 0; }
