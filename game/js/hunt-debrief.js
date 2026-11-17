@@ -494,6 +494,9 @@
       background: rgba(20, 13, 6, .96); color: #e6d3a6; }
     .hd-sat .conf > .muted { color: #e6d3a6; }
     .hd-sat .conf-b { margin-top: 4px; }
+    /* Before an option is picked the stakes still read: dark wood, not a washed-out light button. */
+    .hd-sat .conf-b button:disabled { background: rgba(28, 22, 16, .9); color: #cdbb93; border-color: rgba(255, 210, 130, .3); opacity: .8; }
+    .hd-sat .conf-b button:disabled .up { color: #8fd6a0; } .hd-sat .conf-b button:disabled .dn { color: #f09a8a; }
     .hd-sat .stake-help { margin: 4px 0 0; color: #c9bca4; }
     .hd-sat :is(.type-first, .say-first, .num, .order-done) { color: #efe6d2; }
     .hd-sat .q-foot { position: static; margin: 0 -12px 0 calc(-1 * max(12px, var(--hd-sl, 0px))); padding: 8px 12px 12px max(12px, var(--hd-sl, 0px)); background: rgba(20, 13, 6, .96); border-top: 1px solid rgba(255, 210, 130, .25); }
