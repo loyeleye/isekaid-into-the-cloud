@@ -69,7 +69,7 @@ async function playOut(pg, policy, seen, each) {
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const port = srv.address().port, browser = await chromium.launch();
   for (const [name, vp] of [['desktop', { width: 1366, height: 768 }], ['phone', { width: 390, height: 844 }]]) {
-    const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 2 });
+    const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 2 }); await pg.addInitScript(() => { window.SD_SHEET_KNOWN = true; }); // every template-card blank already typed (js/rush-sheet.js)
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errs.push(m.text()); });
     await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&nohall`); // the claims back to back, without the hall (tools/rush_hall_check.js covers that)

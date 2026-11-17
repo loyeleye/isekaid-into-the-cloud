@@ -5,8 +5,13 @@
 // is letters: questions sent as mail between waves. The pick and the letters are plain screens (#q).
 (function () {
   const R = SD.rushCore;
+  const SHEET = SD.rushSheet; // the template card (js/rush-sheet.js): presentation only
   const cv = document.getElementById('rush'), cx = cv.getContext('2d'), qEl = document.getElementById('q');
+  const PAINTED_IMG = new Set(); // keys that loaded from a picture file, not drawn in code
   const IMG = {}, SRC = {
+    // Painted props for the buys (Sogni, see CREDITS.md); the code drawings below stay as the fallback.
+    ...Object.fromEntries(['ledger', 'hourglass', 'stopwatch', 'filter', 'shard', 'ondemand', 'intern', 'memory', 'warm', 'jitter', 'handoff', 'ttl', 'partial', 'dest', 'retries', 'basket']
+      .map(k => [k, `assets/img/rush/props/${k}.webp`])), 'y-i-manifest': 'assets/img/rush/props/manifest.webp',
     'room-wide': 'assets/img/rush/room-wide.webp', 'room-tall': 'assets/img/rush/room-tall.webp',
     'dock-wide': 'assets/img/rush/dock-wide.webp', 'dock-tall': 'assets/img/rush/dock-tall.webp',
     'vault-wide': 'assets/img/rush/vault-wide.webp', 'vault-tall': 'assets/img/rush/vault-tall.webp',
@@ -405,7 +410,7 @@
   }
   function load() {
     return Promise.all(Object.keys(SRC).map(k => new Promise(res => {
-      const im = new Image(); im.onload = () => { IMG[k] = im; res(); }; im.onerror = () => res(); im.src = SRC[k];
+      const im = new Image(); im.onload = () => { IMG[k] = im; PAINTED_IMG.add(k); res(); }; im.onerror = () => res(); im.src = SRC[k];
     }))).then(() => {
       // The poison ticket: the envelope tinted violet.
       const e = IMG.env; if (!e) return;
@@ -423,7 +428,7 @@
         const c3 = document.createElement('canvas'); c3.width = f.width; c3.height = f.height;
         const g3 = c3.getContext('2d'); g3.drawImage(f, 0, 0); g3.globalCompositeOperation = 'source-atop'; g3.fillStyle = col; g3.fillRect(0, 0, c3.width, c3.height); IMG[k] = c3;
       });
-      ['desk', 'rack', 'stool', 'bolted', 'bin', 'bell', 'clerk', 'v-desk', 'v-drawer', 'v-cart', 'v-cart-bolted'].forEach(k => { if (IMG[k]) IMG[k] = shade(IMG[k]); });
+      ['desk', 'rack', 'stool', 'bolted', 'bin', 'bell', 'clerk', 'warm', 'dest', 'v-desk', 'v-drawer', 'v-cart', 'v-cart-bolted'].forEach(k => { if (IMG[k]) IMG[k] = shade(IMG[k]); });
       IMG.ledger = IMG.ledger || drawLedger();
       IMG.hourglass = IMG.hourglass || drawHourglass();
       IMG.stopwatch = IMG.stopwatch || drawStopwatch();
@@ -634,7 +639,7 @@
   const USE_LABEL = { retries: () => 'Retries ' + V().retryN, dest: () => V().crate.length ? `Replay (${V().crate.length})` : 'Crate empty' };
   function used0(t) { return V()[t] && USE_LABEL[t] ? USE_LABEL[t]() : ''; }
   // An image URL for a tool, for the letters (the code-drawn ones as data URLs).
-  function toolSrc(t) { const k = TOOL_IMG[t]; return SRC[k] || (IMG[k] && IMG[k].toDataURL ? IMG[k].toDataURL() : ''); }
+  function toolSrc(t) { const k = TOOL_IMG[t], im = IMG[k]; return SRC[k] || (im && im.toDataURL ? im.toDataURL() : im && im.src) || ''; }
   // Six tools on a phone: the slots narrow to fit the stage.
   function slotW() { return Math.min(L.belt.slot, (L.W - 24 - (L.coinsAt ? 16 : 150)) / TOOLS.length); }
   function beltRect() {
@@ -673,8 +678,8 @@
   function frame(now) {
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0); last = now;
     if (M.started && !M.over && !letterOpen) R.step(M, dt);
-    withRoom('main', () => { for (const e of R.drain(M)) onEvent(e, 'main'); });
-    if (M.review) withRoom('review', () => { for (const e of R.drain(M.review)) onEvent(e, 'review'); });
+    withRoom('main', () => { for (const e of R.drain(M)) { const n = pops.length; onEvent(e, 'main'); if (SHEET) SHEET.event(e, 'main', pops, n); } });
+    if (M.review) withRoom('review', () => { for (const e of R.drain(M.review)) { const n = pops.length; onEvent(e, 'review'); if (SHEET) SHEET.event(e, 'review', pops, n); } });
     tick(dt);
     draw();
     requestAnimationFrame(frame);
@@ -816,11 +821,13 @@
   function text(t, x, y, size, col, align, weight) {
     size = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
     if (labelLog) { const w = cx.measureText(t).width, x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2; labelLog.push({ kind: /^([\d*?+.\-]+|\.\.\.)$/.test(t) ? 'counter' : 'prompt', t, r: [x0, y - size / 2, w, size] }); }
+    if (SHEET && SHEET.rec) { const w = cx.measureText(t).width; SHEET.rec('text', t, [align === 'left' ? x : align === 'right' ? x - w : x - w / 2, y - size / 2, w, size]); }
     cx.lineJoin = 'round'; cx.lineWidth = Math.max(3, size / 6); cx.strokeStyle = 'rgba(0,0,0,.9)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.restore();
   }
   function plaque(t, x, y) {
     const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; x = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x));
     if (labelLog) labelLog.push({ kind: 'label', t, r: [x - w / 2, y - f * .75, w, f * 1.5] });
+    if (SHEET && SHEET.rec) SHEET.rec('label', t, [x - w / 2, y - f * .75, w, f * 1.5]);
     rrect(x - w / 2, y - f * .75, w, f * 1.5, 8); cx.fillStyle = 'rgba(32,24,18,.82)'; cx.fill(); cx.strokeStyle = 'rgba(214,178,84,.9)'; cx.lineWidth = 1.5; cx.stroke();
     cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore();
   }
@@ -836,7 +843,7 @@
     if (cur) lines.push(cur); return lines;
   }
   function draw() {
-    if (M.audit) { AUD.draw(); return; } // claim 8: the Watch Room draws itself
+    if (M.audit) { AUD.draw(); if (SHEET) SHEET.draw(); return; } // claim 8: the Watch Room draws itself
     const cw = cv.width, ch = cv.height;
     cx.setTransform(1, 0, 0, 1, 0, 0);
     // The backdrop fills the whole screen behind the stage, dimmed, so there are no bars.
@@ -851,6 +858,7 @@
     } else { cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch); }
     cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
     withRoom(view, () => (L.yard ? drawYard : drawRoom)(drag && drag.moved ? drag.tool : null, false));
+    if (SHEET) SHEET.draw(); // the template card, on the wall
     if (M.review) drawInset();
     drawHud(); drawBelt(); drawSay();
     if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85, 0, drag.tool === 'ledger' ? 150 : 0);
@@ -1161,9 +1169,10 @@
     for (const t of S.belt) {
       if (!R.TOOLS[t].upkeep && !R.TOOLS[t].order && !['handoff', 'ttl', 'dest', 'retries'].includes(t)) continue;
       if (!S[t]) { if (dragging === t && spot(t)) glowSpot(spot(t), true); continue; }
-      if (t === 'memory') { img('memory', d.x + d.h * .42, d.y - d.h * .62, 0, 'mm', 1, -0.1, d.h * .42); plaque('Memory · more CPU', d.x, d.y + 22 * L.fs); }
+      if (t === 'memory') { img('memory', d.x - d.h * .05, d.y - d.h * .58, 0, 'mm', 1, -0.1, d.h * .38); plaque('Memory · more CPU', d.x, d.y + 22 * L.fs); }
       if (t === 'warm') {
         for (const i of [0]) { const g = cx.createRadialGradient(st.xs[i], st.y - st.h * .6, 4, st.xs[i], st.y - st.h * .6, st.h * .9); g.addColorStop(0, 'rgba(255,180,70,.45)'); g.addColorStop(1, 'rgba(255,180,70,0)'); cx.fillStyle = g; cx.fillRect(st.xs[i] - st.h, st.y - st.h * 1.6, st.h * 2, st.h * 2); }
+        if (PAINTED_IMG.has('warm')) img('warm', st.xs[0] + st.h * .12, st.y + 2, st.h * 2.1, 'mb'); // the painted warm stool, its lamp lit, over the first stool
         if (L.W > L.H) plaque('Warm 1 · provisioned', st.xs[0], st.y + 22 * L.fs); // on phone it rides on the stools' own label
       }
       if (t === 'partial') plaque('Partial batch replies', (st.xs[2] + st.xs[3]) / 2, st.y + 22 * L.fs);
@@ -1174,7 +1183,7 @@
         if (S.crate.length) text(String(S.crate.length), tr[0] - 50, tr[1] - 34, 24, '#ffd666');
         plaque('Crate · on failure', tr[0] - 76, tr[1] + 40 * L.fs);
       }
-      if (t === 'retries') { img('retries', tr[0] + 120, tr[1] - 30, 0, 'mm', 1, 0, 50); plaque('Retries ' + S.retryN, tr[0] + 120, tr[1] + 8 * L.fs); }
+      if (t === 'retries') { img('retries', tr[0] - 76, tr[1] - 56, 0, 'mm', 1, 0, 40); /* on the crate: both are the async invoke config */ plaque('Retries ' + S.retryN, tr[0] - 76, tr[1] - 56 - 36 * L.fs); }
     }
     // The ledger's keys: with TTL they come and go; without it the pile (and the bill) grows.
     if (S.ledger && S.belt.includes('ttl')) {
@@ -1791,7 +1800,7 @@
   ];
   function bpYaml(t) {
     const L2 = ['Transform: AWS::Serverless-2016-10-31', 'Resources:', '  Sorter:', '    Type: AWS::Serverless::Function', '    Properties:', '      AutoPublishAlias: live'];
-    if (t.board) { L2.push('      DeploymentPreference:', '        Type: Canary10Percent5Minutes'); if (t.wire) L2.push('        Alarms: [!Ref NewVersionErrors]'); if (t.tests) L2.push('        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'); }
+    if (t.board) { L2.push('      DeploymentPreference:', '        Type: Canary10Percent5Minutes'); if (t.wire) L2.push('        Alarms: [!Ref ' + (M.watch === 'new' ? 'NewVersionErrors' : 'AliasErrors') + ']'); if (t.tests) L2.push('        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'); }
     if (t.rack) { L2.push('  WaitingPlatform:', '    Type: AWS::SQS::Queue'); if (t.bin) L2.push('    Properties:', '      RedrivePolicy:', '        deadLetterTargetArn: !GetAtt Returns.Arn', '        maxReceiveCount: 3', '  Returns:', '    Type: AWS::SQS::Queue'); }
     if (t.ledger) L2.push('  Ledger:', '    Type: AWS::DynamoDB::Table');
     return L2.join('\n');
@@ -1819,7 +1828,9 @@
       qEl.querySelector('.bp-go').textContent = t.manifest ? '$ sam deploy --confirm-changeset' : '$ sam deploy';
     };
     qEl.querySelectorAll('.bp-line').forEach(b => b.addEventListener('click', () => {
-      const k = b.dataset.t; t[k] = !t[k];
+      const k = b.dataset.t;
+      if (!t[k] && SHEET && SHEET.needs(k, M)) { SHEET.askInto(b, k, () => { if (!t[k] && !b.disabled) { t[k] = true; sync(); } }); return; } // the first time: its blank (js/rush-sheet.js)
+      t[k] = !t[k];
       if (k === 'board' && !t.board) { t.wire = false; t.tests = false; }
       sync();
     }));
@@ -3218,6 +3229,7 @@
   }
   function openLens() {
     const c = AU8.card && AU8.card.kind === 'lens' ? AU8.card : { res: null, sel: null };
+    if (SHEET && !M.started) SHEET.use('lens', M); // its line (and its blank, before winding)
     const q = Object.keys(A8.QUERIES).map(k => `<button type="button" class="ln" data-act="q:${k}">${esc(A8.QUERIES[k])}</button>`).join('');
     const rows = c.res ? (c.res.rows.length ? c.res.rows.map((r, i) => `<button type="button" class="ln${c.sel === i ? ' sel' : ''}" data-act="qrow:${i}">${esc(r.text)}</button>` + (c.sel === i ? `<div class="note">${esc(r.note || 'This row stands out.')}${r.points ? `<div class="row">${jobBtn(r.points.station, r.points.job)}</div>` : ''}</div>` : '')).join('') : '<p class="sub">No rows.</p>') : '';
     cardOpen('lens', `<h3>The lens · Logs Insights</h3><p class="sub">A coin a query, over the last hour of the log groups that exist (the Counter's and Mira's).</p>${q}${c.res ? `<p class="sub">Results: ${esc(c.res.q)}</p>${rows}` : ''}`, { res: c.res, sel: c.sel });
@@ -3866,6 +3878,8 @@
       const c = document.createElement('canvas'); c.width = e.width; c.height = e.height; const g = c.getContext('2d');
       g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); IMG[k] = c;
     });
+    // The belt shows the office's painted pieces, not the code drawings, where they loaded.
+    for (const [k, sp] of [['badge', 'badge'], ['pad', 'pad'], ['cache', 'tin'], ['param', 'param'], ['safe', 'safe'], ['waiter', 'waiter']]) if (IMG['of-' + sp]) IMG[k] = IMG['of-' + sp];
     if (!IMG['office-wide']) IMG['office-wide'] = officeBackdrop(OFFICE_WIDE);
     if (!IMG['office-tall']) IMG['office-tall'] = officeBackdrop(OFFICE_TALL);
   }
@@ -4030,7 +4044,7 @@
     drawTank();
     // The painting has no waiting basket: a wire one on the floor by the latch, its back here and its front after the
     // letters, so they sit inside it.
-    if (painted) { const [x, y] = L.wait; shadow(x, y + 2, 70 * s); cx.save(); cx.fillStyle = 'rgba(28,20,14,.85)'; cx.fillRect(x - 34 * s, y - 30 * s, 68 * s, 30 * s); cx.restore(); }
+    if (painted) { const [x, y] = L.wait; shadow(x, y + 2, 70 * s); if (IMG.basket) img('basket', x, y + 4 * s, 0, 'mb', 1, 0, 96 * s); else { cx.save(); cx.fillStyle = 'rgba(28,20,14,.85)'; cx.fillRect(x - 34 * s, y - 30 * s, 68 * s, 30 * s); cx.restore(); } }
     // The Alibi at the window: a hooded shape with yellow eyes, while she's busy.
     const busyAlibi = ofx.alibi > 0 || S.tickets.some(k => k.phase === 'combo');
     if (busyAlibi) { const [x, y] = L.alibi, a = Math.min(1, Math.max(ofx.alibi, .6)); cx.save(); cx.globalAlpha = a; cx.fillStyle = '#0a0612'; cx.beginPath(); cx.ellipse(x, y + 10 * s, 34 * s, 46 * s, 0, 0, Math.PI * 2); cx.fill(); cx.beginPath(); cx.arc(x, y - 30 * s, 24 * s, 0, Math.PI * 2); cx.fill();
@@ -4130,7 +4144,10 @@
     if (!mini && S.started) plaque(`Mira · ${S.seat.length} seats`, L.desk.x, L.fl - (L.W > L.H ? 20 : 4) * L.fs);
     // Tickets.
     for (const k of S.tickets) { if (k.quiz) { if (k.phase === 'slide') { const u = k.dur ? Math.min(1, k.t / k.dur) : 0; img('env', ...arc(L.slot, [L.asks.x, L.asks.y], 120, ease(u)), 0, 'mm', 1, 0, 40 * s); } continue; } const d = officeTicketDraw(k); if (d) drawEnvelope(k, d); }
-    if (painted) { const [x, y] = L.wait; cx.save(); cx.strokeStyle = '#9a9fa6'; cx.lineWidth = 3; cx.fillStyle = 'rgba(28,20,14,.55)'; cx.fillRect(x - 34 * s, y - 16 * s, 68 * s, 16 * s);
+    if (painted && IMG.basket) { // the basket's front (its lower half), over its letters
+      const [x, y] = L.wait, b = IMG.basket, w = 96 * s, h = b.height * w / b.width, f = .5;
+      cx.drawImage(b, 0, b.height * (1 - f), b.width, b.height * f, x - w / 2, y + 4 * s - h * f, w, h * f);
+    } else if (painted) { const [x, y] = L.wait; cx.save(); cx.strokeStyle = '#9a9fa6'; cx.lineWidth = 3; cx.fillStyle = 'rgba(28,20,14,.55)'; cx.fillRect(x - 34 * s, y - 16 * s, 68 * s, 16 * s);
       cx.strokeRect(x - 34 * s, y - 30 * s, 68 * s, 30 * s); cx.lineWidth = 2; for (let i = 1; i < 6; i++) { cx.beginPath(); cx.moveTo(x - 34 * s + i * 11 * s, y - 30 * s); cx.lineTo(x - 34 * s + i * 11 * s, y); cx.stroke(); }
       cx.beginPath(); cx.moveTo(x - 34 * s, y - 15 * s); cx.lineTo(x + 34 * s, y - 15 * s); cx.stroke(); cx.restore(); } // the basket's front, over its letters
     if (L.asks) drawAsks(dragging);
@@ -4374,5 +4391,6 @@
   // ==== end claim 9 ====
   window.SD_RUSH.audit = AUD.api; // claim 8, for tools/rush_check_audit.js
   window.SD_RUSH.office = officeHooks(toClient); // claim 7, for tools/rush_check_office.js
+  if (SHEET) SHEET.attach({ cx, cv, get M() { return M; }, get S() { return room(view); }, get L() { return L; }, room, xf: () => ({ scale, ox, oy, dpr }), beltRect, spot, get say() { return lastSay; }, blocked: () => qEl.classList.contains('on') });
   load().then(() => requestAnimationFrame(frame));
 })();
