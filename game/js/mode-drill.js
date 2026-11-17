@@ -191,7 +191,8 @@
     return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text)}">
       ${opts.icon ? icon(opts.icon) : ''}<span>${esc(SHORT[id] || c.name)}</span>${opts.sw ? `<i class="dr-sw" aria-hidden="true"></i>` : ''}</button>`;
   }
-  function stationHtml(s, f, e) {
+  // talk: { lines, notes } — in the room, what this station's lead says, shown as their speech bubble at their desk.
+  function stationHtml(s, f, e, talk) {
     const k = s.at, st = D.STATIONS[k], d = D.DRILLS[f.drill];
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
@@ -207,11 +208,19 @@
     const looks = hand.filter(id => C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-look obs', icon: 'all-seeing-eye' })).join('');
     return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
+      ${talk ? said(k, st.who, talk, e.m) : ''}
       <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
       ${dials}
       ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
+  }
+  function said(k, who, talk, m) {
+    const ls = (talk.lines || []).filter(x => x[0] === who).map(x => x[1]);
+    const ns = (talk.notes || []).filter(x => x[0] === k);
+    if (!ls.length && !ns.length) return '';
+    const bad = SD.drillBoard && SD.drillBoard.TROUBLE[who] && SD.drillBoard.TROUBLE[who](m);
+    return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
   const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn' };
@@ -242,7 +251,7 @@
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
       <div class="dr-bw dr-roomw${zoom ? ' zoomed' : ''}">${RO.html(f, e, { at: s.at, zoom, notes: play ? [] : notes, lines: play ? [] : e.lines, m: e.m, play: !!play })}${stamp}
-        ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e)}</div>` : ''}</div>
+        ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e, { lines: e.lines, notes })}</div>` : ''}</div>
       ${reveal}
       <div class="dr-dock">${dock}</div>`) : panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
@@ -447,6 +456,12 @@
     .dr-station .small { color: #2a2333; }
     .dr-station { border: 3px solid var(--ink, #17131f); border-radius: 10px; padding: 6px 8px; background: #c9b590; color: #17131f; display: flex; flex-direction: column; gap: 6px; }
     .dr-sh { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    /* The lead speaks from their portrait: a comic speech bubble, not a text box. */
+    .dr-said { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 0 4px; }
+    .dr-say { position: relative; margin: 0; padding: 6px 10px; border-radius: 14px; background: #fffaf0; color: #17131f; border: 2px solid #17131f; font-size: 14px; line-height: 1.3; }
+    .dr-said .dr-say:first-child::before { content: ''; position: absolute; top: -9px; left: 12px; border: 8px solid transparent; border-bottom-color: #17131f; border-top: 0; }
+    .dr-say.bad { background: #fbe4dc; border-color: #9e3a34; } .dr-said .dr-say.bad:first-child::before { border-bottom-color: #9e3a34; }
+    .dr-say.teach { background: #fff3c4; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }
     .dr-mt code { font-size: 10.5px; overflow-wrap: anywhere; color: #3a3346; background: none; padding: 0; }
