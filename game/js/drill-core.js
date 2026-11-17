@@ -155,6 +155,21 @@
       back: 'CodeDeploy stops and rolls back a deployment when one of its alarms goes off while it\'s running.', set: c => { c.fn.alarm = true; }, on: c => c.fn.alarm },
     hook: { at: 'fn', needs: 'release', name: 'Hooks: PreTraffic test', text: 'Before any traffic moves, a test function sends the new version one order and reports back.',
       back: 'CodeDeploy runs the PreTraffic hook before shifting. If it reports Failed, the deployment rolls back.', set: c => { c.fn.hook = true; }, on: c => c.fn.hook },
+    // The uploads (only in a drill with them): how the function presigns the S3 multipart upload's part URLs.
+    exp60: { at: 'fn', dial: 'uexp', needs: 'upload', name: 'Presigned URLs: ExpiresIn 60 s', text: 'Each part\'s URL works for one minute after it\'s signed.',
+      back: 'S3 checks a presigned URL\'s expiry when each request starts. A part sent after that is turned away.', set: c => { c.up.exp = 60; }, on: c => c.up.exp === 60 },
+    exp900: { at: 'fn', dial: 'uexp', needs: 'upload', name: 'Presigned URLs: ExpiresIn 15 min', text: 'Each part\'s URL works for 15 minutes after it\'s signed.',
+      back: 'A URL expires at its ExpiresIn or when the credentials that signed it expire, whichever comes first.', set: c => { c.up.exp = 900; }, on: c => c.up.exp === 900 },
+    exp7d: { at: 'fn', dial: 'uexp', needs: 'upload', name: 'Presigned URLs: ExpiresIn 7 days', text: 'Each part\'s URL works for a week after it\'s signed.',
+      back: '7 days (604,800 seconds) is the most Signature Version 4 allows. Signed by a role, the URL still dies with the role\'s session.', set: c => { c.up.exp = 604800; }, on: c => c.up.exp === 604800 },
+    exp30d: { at: 'fn', dial: 'uexp', needs: 'upload', name: 'Presigned URLs: ExpiresIn 30 days', text: 'Each part\'s URL works for a month.',
+      back: 'Signature Version 4 caps a presigned URL at 7 days.', why: () => 'Refused: a presigned URL lasts at most 7 days (604,800 seconds).', set: () => {}, on: () => false },
+    demand: { at: 'fn', needs: 'upload', name: 'Presign each part when it\'s sent', text: 'The phone asks the function for a part\'s URL just before sending that part.',
+      back: 'Each URL is signed moments before it\'s used, with whatever credentials the function has right then.', set: c => { c.up.demand = true; }, on: c => c.up.demand },
+    userkey: { at: 'fn', needs: 'upload', name: 'Sign with an IAM user\'s access key', text: 'Put a long-term access key in an environment variable and sign with that instead of the role.',
+      back: 'A user\'s key outlives any session, and it\'s a long-term secret sitting in your function. Roles exist so you don\'t do this.', set: c => { c.up.userKey = true; }, on: c => c.up.userKey },
+    single: { at: 'fn', needs: 'upload', name: 'Upload in one PUT', text: 'One presigned PutObject URL for the whole video, no parts.',
+      back: 'A single PUT uploads at most 5 GB. Past that you need a multipart upload.', why: () => 'Refused: one PUT uploads at most 5 GB, and these videos are 8 GB. Use a multipart upload.', set: () => {}, on: () => false },
     ftrace: { at: 'fn', name: 'X-Ray active tracing', obs: true, text: 'The function, and the calls it makes, show on the trace map in their real colours.',
       back: 'Lambda sends traces to X-Ray only with Active tracing on.', set: c => { c.fn.trace = true; }, on: c => c.fn.trace },
     // Dutch: the Store
@@ -180,6 +195,25 @@
       back: 'Alternating users: the previous credentials keep working until the next rotation, so a cached copy still logs in.', set: c => { c.store.rot = 'alt'; }, on: c => c.store.rot === 'alt' },
     rotoff: { at: 'store', dial: 'rot', needs: 'secret', name: 'Turn off rotation', text: 'The password never changes.',
       back: 'Nothing goes stale, and nothing rotates: a leaked password stays good forever.', set: c => { c.store.rot = 'off'; }, on: c => c.store.rot === 'off' },
+    // The cache (only in a drill with one): ElastiCache in front of the table. The strategy and TTL are the
+    // function's code (SET with EX); they sit at Dutch's desk because the cache is his.
+    cachelazy: { at: 'store', dial: 'cstrat', needs: 'cache', name: 'Cache: lazy loading only', text: 'A key goes into the cache only when a read misses it.',
+      back: 'Lazy loading caches only what is read, and nothing updates a key once it\'s there: it can go stale.', set: c => { c.cache.wt = false; }, on: c => !c.cache.wt },
+    cachewt: { at: 'store', dial: 'cstrat', needs: 'cache', name: 'Cache: write-through', text: 'Every write to the table also writes the cache. A read that misses still loads the key.',
+      back: 'Write-through keeps cached data current. It also caches everything written, most of which is never read: cache churn.', set: c => { c.cache.wt = true; }, on: c => c.cache.wt },
+    cttl0: { at: 'store', dial: 'cttl', needs: 'cache', name: 'Cache TTL: none', text: 'Cached keys never expire.', back: 'With no TTL a key stays until it\'s overwritten or evicted.', set: c => { c.cache.ttl = 0; }, on: c => c.cache.ttl === 0 },
+    cttl10: { at: 'store', dial: 'cttl', needs: 'cache', name: 'Cache TTL 10 s', text: 'Every cached key expires 10 seconds after it\'s set.', back: 'A TTL shorter than the time between reads means nearly every read misses.', set: c => { c.cache.ttl = 10; }, on: c => c.cache.ttl === 10 },
+    cttl60: { at: 'store', dial: 'cttl', needs: 'cache', name: 'Cache TTL 60 s', text: 'Every cached key expires a minute after it\'s set.', back: 'Adding a TTL to each write gives you the strengths of both strategies.', set: c => { c.cache.ttl = 60; }, on: c => c.cache.ttl === 60 },
+    cttl3600: { at: 'store', dial: 'cttl', needs: 'cache', name: 'Cache TTL 1 hour', text: 'Every cached key expires an hour after it\'s set.', back: 'A TTL longer than the night is, for tonight, no TTL at all.', set: c => { c.cache.ttl = 3600; }, on: c => c.cache.ttl === 3600 },
+    replica: { at: 'store', needs: 'cache', name: 'Add a read replica to the cache', text: 'A second node copies the primary and serves reads too.',
+      back: 'A replica adds read capacity and failover. It copies what the primary holds, stale keys included.', set: c => { c.cache.replica = true; }, on: c => c.cache.replica },
+    flush: { at: 'store', needs: 'cache', name: 'FLUSHALL the cache', text: 'Delete every key in the cache, once, early in the run.',
+      back: 'Flushing empties the cache. Every read then misses once, and lazy loading fills it again the same way as before.', set: c => { c.cache.flush = true; }, on: c => c.cache.flush, once: true },
+    // The bucket (only in a drill with uploads): S3, where callers upload straight from their phones with presigned URLs.
+    lifecycle: { at: 'store', needs: 'upload', name: 'Lifecycle: abort incomplete multipart uploads after 1 day', text: 'Parts of an upload nobody finished are deleted a day later.',
+      back: 'S3 keeps, and bills, an incomplete upload\'s parts until it\'s completed or aborted. This rule cleans them up. It finishes nothing.', set: c => { c.up.lifecycle = true; }, on: c => c.up.lifecycle },
+    publicput: { at: 'store', needs: 'upload', name: 'Bucket policy: anyone may PutObject', text: 'Uploads need no signature at all.',
+      back: 'It works, and now anyone on the internet can write to your bucket. Presigned URLs exist so you never have to do this.', set: c => { c.up.pub = true; }, on: c => c.up.pub },
     insights: { at: 'store', name: 'Contributor Insights', obs: true, text: 'The Store names its most throttled key.',
       back: 'CloudWatch Contributor Insights for DynamoDB shows the most accessed and throttled keys.', set: c => { c.store.insights = true; }, on: c => c.store.insights },
     trail: { at: 'store', name: 'Read CloudTrail', obs: true, text: 'Look up the key\'s recent Decrypt calls and who made them.',
@@ -190,8 +224,8 @@
     gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'snsattr', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail', 'scopebody', 'nofilter', 'subdlq', 'rawon',
       'rnone', 'rtrans', 'rall', 'catchnone', 'catchno', 'catchrp', 'catchfirst'],
-    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
-    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'insights', 'trail']
+    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'exp60', 'exp900', 'exp7d', 'exp30d', 'demand', 'userkey', 'single', 'ftrace'],
+    store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'cachelazy', 'cachewt', 'cttl0', 'cttl10', 'cttl60', 'cttl3600', 'replica', 'flush', 'lifecycle', 'publicput', 'insights', 'trail']
   };
 
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
@@ -203,6 +237,8 @@
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
       store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false, rot: 'single', consistent: false, dax: 2 },
       stream: { bisect: false, retries: null, onfail: false },
+      cache: { wt: false, ttl: 0, replica: false, flush: false },
+      up: { exp: 60, demand: false, userKey: false, pub: false, lifecycle: false },
       topic: { scope: 'attrs', filter: true, dlq: false },
       flow: { retry: 'none', catch: 'none' }
     };
@@ -284,6 +320,28 @@
       ok: m => m.stale === 0, fix: [['consread']], lazy: [['daxnode'], ['wcu'], ['gsiread'], ['reserved'], ['cond']],
       hidden: 'The function read each order back right after writing it, with an eventually consistent read through DAX, so some reads didn\'t see the write yet.',
       q: /ConsistentRead|strongly consistent|eventually consistent|read-after-write|\bDAX\b/i },
+    cache: { name: 'The Old Price', cause: 'store', lead: 'dutch', path: 'sync', cache: true,
+      stations: { store: { svc: 'ElastiCache' } },
+      says: 'The prices changed at noon. The shop is still quoting this morning\'s.',
+      // reads: price lookups, 4 a tick over 8 products. The shop's orders go on as usual (3 a tick).
+      setup: v => ({ bucket: [40, 40], cache: { prods: 8, cap: 28, upd: 7 + (v.k % 2) },
+        arrivals: t => (t < D.TICKS ? Array.from({ length: 4 }, (_, i) => R(`r${t}-${i}`, { read: 'p' + ((2 * t + i + v.k) % 8) })).concat(steady(3)(t)) : []) }),
+      break: () => {},
+      ok: m => m.cstale === 0 && m.evictions === 0 && m.misses * 2 <= m.reads,
+      fix: [['cachewt', 'cttl60']], lazy: [['cttl60'], ['cttl10'], ['cachewt'], ['cachewt', 'cttl10'], ['cachewt', 'cttl3600'], ['flush'], ['replica'], ['consread'], ['reserved']],
+      hidden: 'The cache used lazy loading with no TTL, so once a price was cached nothing ever refreshed it. Write-through alone would have filled it with orders nobody reads.',
+      q: /ElastiCache|lazy loading|write-through|cache churn|cache-aside/i },
+    upload: { name: 'The Half Upload', cause: 'fn', lead: 'kai', path: 'sync', upload: true,
+      stations: { store: { name: 'The Bucket', svc: 'S3' } },
+      says: 'The big videos start uploading fine. They just never finish.',
+      // One 8 GB video upload a tick, in 8 parts of 1 GB, one part a tick from the caller's phone. The function's role
+      // credentials, which sign the URLs, expire at credAt (the game's number; Lambda gives later calls fresh ones).
+      setup: v => ({ bucket: [40, 40], upload: { parts: 8, credAt: 4 + (v.k % 2) }, arrivals: t => (t < D.TICKS ? [R(`u${t}`, { up: true })] : []) }),
+      break: () => {},
+      ok: m => m.upFail === 0 && !m.userKey && !m.pubPut,
+      fix: [['demand'], ['demand', 'lifecycle']], lazy: [['exp900'], ['exp7d'], ['lifecycle'], ['userkey'], ['exp900', 'userkey'], ['publicput'], ['reserved'], ['to120']],
+      hidden: 'The function signed all of a video\'s part URLs at the start. Late parts outlived the URL\'s 60 seconds, and parts sent after the role\'s credentials expired failed whatever ExpiresIn said.',
+      q: /presigned|pre-signed|multipart upload/i },
     cold: { name: 'Cold Open', cause: 'fn', lead: 'kai', path: 'sync',
       says: 'Quiet, quiet, then everyone at once.',
       setup: v => ({ bucket: [40, 40], cold: true, arrivals: t => (t % 4 === 0 ? Array.from({ length: 5 + (v.k % 2) }, (_, i) => R(`c${t}-${i}`)) : []) }),
@@ -351,7 +409,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold', 'pass'], ['hot', 'locked', 'shelf'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single', 'quiet'], ['poison', 'stampede', 'catch'], ['midnight']];
+  D.ROWS = [['storm', 'cold', 'pass'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet'], ['poison', 'stampede', 'catch'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -365,6 +423,8 @@
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
       poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
+      reads: 0, hits: 0, misses: 0, cstale: 0, evictions: 0, cacheMax: 0, flushed: 0,
+      uploads: 0, upDone: 0, upFail: 0, up403: 0, upToken: 0, parts: 0, signed: 0, orphans: 0, userKey: !!(set.upload && cfg.up.userKey), pubPut: !!(set.upload && cfg.up.pub),
       published: 0, delivered: 0, filteredOut: 0, noAttr: 0, filtered: 0, misrouted: 0,
       started: 0, succeeded: 0, execFailed: 0, fnThrottled: 0, retried: 0, declines: 0, recharged: 0, stuck: 0, released: 0, releaseFailed: 0 };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
@@ -403,6 +463,48 @@
       m.wcuUsed++;
       if (written[r.id]) { if (cfg.fn.cond) { m.condBlocked++; return 'blocked'; } m.dupes++; return 'dupe'; }
       written[r.id] = 1; return 'ok';
+    };
+    // The cache (The Old Price): key -> { ver, exp (tick it expires at), used (tick last read or set) }. Full at cap
+    // keys; the cluster's maxmemory-policy here is allkeys-lru, so the least recently used key is evicted to make room.
+    // The prices change at cc.upd (a job writes them to the table). Starts warm: every product cached, at version 1.
+    const cc = set.cache, cache = new Map(), price = { ver: 1 };
+    const ttlT = cfg.cache.ttl ? Math.ceil(cfg.cache.ttl / D.TICK_S) : Infinity;
+    const cset = (k, ver, t) => {
+      if (!cache.has(k) && cache.size >= cc.cap) { let lk = null, lu = Infinity; cache.forEach((e, key) => { if (e.used < lu) { lu = e.used; lk = key; } }); cache.delete(lk); m.evictions++; }
+      cache.set(k, { ver, exp: t + ttlT, used: t }); m.cacheMax = Math.max(m.cacheMax, cache.size);
+    };
+    if (cc) for (let i = 0; i < cc.prods; i++) cset('p' + i, 1, -1);
+    const cacheRead = (r, t) => {
+      m.reads++;
+      const e = cache.get(r.read);
+      if (e && t < e.exp) { e.used = t; m.hits++; if (e.ver < price.ver) m.cstale++; else m.ok++; return; }
+      m.misses++; m.rcu++; cset(r.read, price.ver, t); m.ok++;
+    };
+    // The uploads (The Half Upload): each caller asks the function for URLs, then sends part i at tick start + i,
+    // straight to S3. S3 checks a URL when each request starts: past ExpiresIn, or past the signing credentials' expiry,
+    // it's refused, and the caller gives up, leaving an incomplete multipart upload.
+    const ups = [];
+    const credExp = t => (cfg.up.userKey ? Infinity : t < set.upload.credAt ? set.upload.credAt : Infinity);
+    const uploadStart = (r, t) => {
+      m.uploads++;
+      const P = set.upload.parts;
+      if (cfg.up.demand) m.signed++; else m.signed += P;
+      ups.push({ start: t, next: 0, P, dead: false });
+    };
+    const uploadTick = t => {
+      ups.forEach(u => {
+        if (u.dead || u.next >= u.P || t < u.start + u.next) return;
+        const sentAt = t, signedAt = cfg.up.demand ? t : u.start;
+        if (cfg.up.demand && u.next > 0) { m.signed++; m.invocations++; }
+        m.parts++;
+        if (!cfg.up.pub) {
+          if (sentAt >= credExp(signedAt)) { m.upToken++; u.dead = true; }
+          else if ((sentAt - signedAt) * D.TICK_S >= cfg.up.exp) { m.up403++; u.dead = true; }
+        }
+        if (u.dead) { m.upFail++; m.orphans++; return; }
+        u.next++;
+        if (u.next >= u.P) m.upDone++;
+      });
     };
     const sync = (r, t) => {
       if (set.auth && !authorize(r, t)) return;
@@ -445,6 +547,8 @@
           else { m.authFail++; m.errors++; m.fault5xx++; return; }
         }
       }
+      if (r.read) { cacheRead(r, t); return; }
+      if (r.up) { uploadStart(r, t); m.ok++; return; }
       // Charge's errors and how the state machine handles them. A flaky order's first invocation is throttled
       // (Lambda.TooManyRequestsException); a declined card throws CardDeclined every time.
       if (d.hub === 'sfn') {
@@ -465,6 +569,7 @@
       const w = write(r);
       if (d.hub === 'sfn' && w === 'ok') m.succeeded++;
       if (w !== 'ok' && w !== 'blocked') { m.errors++; m.fault5xx++; return; }
+      if (cc && cfg.cache.wt) cset('order:' + r.id, 1, t);
       // Reading the order straight back (The Stale Shelf). Through DAX, eventually consistent: a read this soon after
       // the write misses it about one time in three (the game's number). ConsistentRead goes to the table and sees it.
       if (set.reads) {
@@ -534,6 +639,12 @@
       tickWrites = [];
       AS.gateRefill(gate);
       if (rel.at != null) releaseTick(t);
+      if (cc) {
+        cache.forEach((e, k) => { if (t >= e.exp) cache.delete(k); });
+        if (cfg.cache.flush && t === 2) { m.flushed = cache.size; cache.clear(); }
+        if (t === cc.upd) { price.ver++; if (cfg.cache.wt) for (let i = 0; i < cc.prods; i++) cset('p' + i, price.ver, t); }
+      }
+      if (set.upload) uploadTick(t);
       if (t === set.rotate && cfg.store.rot !== 'off') { sec.ver++; sec.valid = cfg.store.rot === 'alt' ? [sec.ver, sec.ver - 1] : [sec.ver]; m.rotated = t * D.TICK_S || 1; }
       // Arrivals and due retries, interleaved by client so no client always goes first.
       const now = (t < D.TICKS ? set.arrivals(t) : []).map(r => ({ r, att: 1 }));
@@ -616,11 +727,12 @@
     m.left = q.items.filter(x => !x.r.poison).length;
     m.poisonLoose = q.items.filter(x => x.r.poison).length;
     m.ok = path === 'async' ? Object.keys(written).length : m.ok;
-    return { m, lines: pager(d, cfg, m), nodes: nodes(d, cfg, m), frames };
+    return { m, lines: pager(d, cfg, m, set), nodes: nodes(d, cfg, m), frames };
   };
 
   // Per-tick series for each station's metrics (the console's small charts). Small: 20 numbers each.
-  D.sparks = function (frames, stream, hub) {
+  D.sparks = function (frames, stream, dd) {
+    const hub = dd && dd.hub;
     const by = f => frames.map(fr => f(fr.d, fr) | 0);
     return {
       gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
@@ -628,14 +740,18 @@
         : hub === 'sfn' ? { ExecutionsStarted: by(d => d.started), ExecutionsSucceeded: by(d => d.succeeded), ExecutionsFailed: by(d => d.execFailed) }
         : stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
       fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy), Throttles: by(d => d.fnThrottled) },
-      store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
+      store: dd && dd.cache ? { CacheHits: by(x => x.hits), CacheMisses: by(x => x.misses), Evictions: by(x => x.evictions) }
+        : dd && dd.upload ? { PutRequests: by(x => x.parts), '4xxErrors': by(x => (x.up403 | 0) + (x.upToken | 0)) }
+          : { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
     };
   };
 
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
-      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged;
+      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged
+      + m.cstale + Math.ceil(m.evictions / 3) + (m.misses * 2 > m.reads ? Math.ceil((m.misses - m.reads / 2) / 3) : 0)
+      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -648,7 +764,7 @@
       gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0, error: m.forbidden + m.unauth + m.stale > 0 }),
       queue: d.hub === 'sfn' ? AS.xrayStatus({ fault: m.execFailed > 0 }) : 'ok',
       fn: AS.xrayStatus({ fault: m.errors > 0 }),
-      store: AS.xrayStatus({ throttle: m.hot + m.over > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 })
+      store: AS.xrayStatus({ throttle: m.hot + m.over + m.evictions > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 || m.cstale > 0 || m.upFail > 0 })
     };
     const out = {};
     D.ORDER.forEach(k => { out[k] = traced[k] ? st[k] : 'dark'; });
@@ -663,16 +779,21 @@
         : d.hub === 'sfn' ? [['ExecutionsStarted', m.started], ['ExecutionsSucceeded', m.succeeded], ['ExecutionsFailed', m.execFailed]]
         : d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
       fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]].concat(m.fnThrottled ? [['Throttles', m.fnThrottled]] : []),
-      store: [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
+      store: d.cache ? [['CacheHits', m.hits], ['CacheMisses', m.misses], ['Evictions', m.evictions], ['DatabaseMemoryUsagePercentage', Math.round(100 * m.cacheMax / d.setup({ k: 0 }).cache.cap) + '%']]
+        : d.upload ? [['PutRequests', m.parts], ['4xxErrors', m.up403 + m.upToken], ['BytesUploaded', m.parts + ' GB']]
+          : [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
     };
   };
   // One line per station, in its owner's voice: what their logs and metrics say, never why.
-  function pager(d, cfg, m) {
+  function pager(d, cfg, m, set) {
     const L = [];
     const n = (x, a, b) => `${x} ${x === 1 ? a : (b || a + 's')}`;
     if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
     else if (m.forbidden) L.push(['seoyeon', `${n(m.forbidden, 'request')} got 403 Forbidden${m.forbidPost === m.forbidden ? ', every one a POST' : ''}. The same tokens' first calls went through.${m.unauth ? ` ${n(m.unauth, 'request')} got 401 Unauthorized: no token at all, the scraper bot.` : ''}`]);
     else if (m.stale) L.push(['seoyeon', `${n(m.stale, 'caller')} got 404 Not Found for an order they had just placed.`]);
+    else if (m.cstale) L.push(['seoyeon', `${n(m.cstale, 'caller')} got a 200 with this morning's price. Nothing failed. The answer was just old.`]);
+    else if (d.cache && m.misses * 2 > m.reads) L.push(['seoyeon', `Every caller got an answer, slowly: ${m.misses} of ${m.reads} price lookups went all the way to the table.`]);
+    else if (d.upload && !m.fault5xx) L.push(['seoyeon', `Every request for upload URLs got a 200. The uploads themselves go straight to S3. They never pass me.`]);
     else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
@@ -704,6 +825,8 @@
       if (m.maxAge > 30) L.push(['mira', `ApproximateAgeOfOldestMessage reached ${m.maxAge} seconds.${m.left + m.poisonLoose ? ` ${n(m.left + m.poisonLoose, 'message')} still waiting.` : ''}`]);
       if (m.lost) L.push(['mira', `The purge took ${n(m.lost, 'good message')} with it.`]);
     }
+    if (d.cache) L.push(['kai', `${m.reads} price lookups: ${m.hits} came from the cache, ${m.misses} missed and read the table.`]);
+    if (d.upload) L.push(['kai', `I signed ${n(m.signed, 'part URL')}${cfg.up.demand ? ', each one just before its part went' : `, all ${set.upload.parts} for a video at once, when it started`}. ${m.upDone} of ${n(m.uploads, 'upload')} finished.`]);
     if (d.hub === 'sns') {
       if (!m.invocations) L.push(['kai', 'Not one invocation. Nothing reached the shipping function.']);
       else if (m.misrouted) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors. ${m.misrouted} of them printed shipping labels for pickup orders.`]);
@@ -731,6 +854,22 @@
     if (m.condBlocked) L.push(['kai', `ConditionalCheckFailedException ${n(m.condBlocked, 'time')}: the order was already written.`]);
     if (!L.some(x => x[0] === 'kai')) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors${m.maxConc ? `, at most ${m.maxConc} at once` : ''}.`]);
     if (m.dupes) L.push(['dutch', `${n(m.dupes, 'order')} written twice.`]);
+    if (d.cache) {
+      const upd = set.cache.upd * D.TICK_S;
+      if (m.cstale) L.push(['dutch', `The table has had the new prices since ${upd} seconds in. The cache still hands out ${m.cstale} old ones. Nothing told it.`]);
+      if (m.evictions) L.push(['dutch', `Evictions: ${m.evictions}. The cache is full of orders nobody reads, so it throws keys out to make room (maxmemory-policy allkeys-lru).`]);
+      if (m.misses * 2 > m.reads) L.push(['dutch', 'Keys expire before anyone reads them twice. The cache is mostly empty, and the table takes the reads.']);
+      if (m.flushed) L.push(['dutch', `FLUSHALL cleared ${n(m.flushed, 'key')}. They came straight back the same way.`]);
+      if (!m.cstale && !m.evictions && m.misses * 2 <= m.reads) L.push(['dutch', `Cache and table agree. Memory peaked at ${m.cacheMax} keys.`]);
+    }
+    if (d.upload) {
+      if (m.up403) L.push(['dutch', `${n(m.up403, 'part')} got 403 AccessDenied: Request has expired.`]);
+      if (m.upToken) L.push(['dutch', `${n(m.upToken, 'part')} got ExpiredToken: the credentials that signed the URL had expired.`]);
+      if (m.orphans) L.push(['dutch', `${n(m.orphans, 'incomplete multipart upload')} left behind. S3 keeps their parts, and bills them, until someone aborts them${cfg.up.lifecycle ? ': the lifecycle rule will, in a day' : ''}.`]);
+      if (m.userKey) L.push(['dutch', 'Those URLs were signed with an IAM user\'s long-term access key, sitting in an environment variable.']);
+      if (m.pubPut) L.push(['dutch', 'The bucket takes a PutObject from anyone now. Anyone at all.']);
+      if (!m.upFail && !m.userKey && !m.pubPut) L.push(['dutch', `${m.parts} GB in. Every multipart upload completed.`]);
+    }
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
     if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
@@ -755,7 +894,7 @@
     const f = { drill, cfg, v, deploys: 0, changes: [], log: [], state: 'read' };
     // The warm-up run: the fault in place, free.
     const r = D.run(drill, cfg, v);
-    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream, DR[drill].hub) });
+    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream, DR[drill]) });
     D.lastFrames = r.frames;
     return f;
   };
@@ -764,7 +903,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async' && !d.hub) return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', upload: 'Nothing uploads to S3 in this drill.' }[c.needs];
     if (c.sqs && (d.stream || d.hub)) return `That's an SQS setting, and this is ${d.hub === 'sns' ? 'an SNS topic' : d.hub === 'sfn' ? 'a state machine' : 'a stream'}.`;
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -787,7 +926,7 @@
     const r = D.run(f.drill, f.cfg, f.v);
     const ok = d.ok(r.m);
     const e = { m: r.m, lines: r.lines, nodes: r.nodes, cost: D.cost(f.drill, r.m), ok, changes: f.changes.slice() };
-    e.spark = D.sparks(r.frames, d.stream, d.hub);
+    e.spark = D.sparks(r.frames, d.stream, d);
     D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
     f.cfg.queue.purge = false;
@@ -812,6 +951,10 @@
     secret: ['dutch', 'A secret you read once and keep goes stale the moment it rotates. Cache it, and know when to read it again.'],
     stream: ['mira', 'A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.'],
     iam: ['dutch', 'A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.'],
+    cache: ['dutch', 'Lazy loading only fills what misses, and nothing refreshes it. Write-through keeps it current. Put a TTL on every write.'],
+    churn: ['kai', 'Cache everything you write and most of it is never read. A TTL clears that out. Too short, though, and nothing stays long enough to hit.'],
+    presign: ['kai', 'S3 checks a presigned URL when each request starts. Sign every part up front and the last ones arrive too late.'],
+    token: ['dutch', 'A URL can\'t outlive the credentials that signed it. Signed by a role, it dies with the role\'s session, whatever ExpiresIn says.'],
     fanout: ['mira', 'A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn\'t call that an error.'],
     flow: ['kai', 'Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.'],
     canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
@@ -826,6 +969,10 @@
     if (m.authFail) keys.push('secret');
     if (m.forbidden) keys.push('auth');
     if (m.stale) keys.push('reads');
+    if (m.cstale) keys.push('cache');
+    if (m.evictions || m.misses * 2 > m.reads) keys.push('churn');
+    if (m.upToken) keys.push('token');
+    if (m.up403) keys.push('presign');
     if (DR[f.drill].stream && m.maxAge > 30) keys.push('stream');
     if (m.v2Fail) keys.push('canary');
     if (m.filtered) keys.push('fanout');

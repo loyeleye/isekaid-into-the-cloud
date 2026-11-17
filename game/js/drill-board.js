@@ -97,10 +97,10 @@
   // The lead's lines after a run, as speech bubbles under the board.
   // Each lead's face reacts to what their station saw: a problem there, or not.
   const TROUBLE = {
-    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale,
+    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.cstale,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost || m.filtered || m.misrouted || m.execFailed,
-    kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked,
-    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.filtered || m.misrouted || m.stuck
+    kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked || m.upFail || m.misses * 2 > m.reads,
+    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.filtered || m.misrouted || m.stuck || m.cstale || m.evictions || m.upFail || m.userKey || m.pubPut
   };
   B.bubbles = function (lines, m) {
     const by = {};
@@ -128,6 +128,12 @@
     if (d.forbidden) out.push(['gate', `${d.forbidden} × 403`, 'error']);
     if (d.unauth) out.push(['gate', `${d.unauth} × 401`, 'error']);
     if (d.stale) out.push(['store', `${d.stale} not found yet`, 'error']);
+    if (d.cstale) out.push(['store', `${d.cstale} old price${d.cstale > 1 ? 's' : ''}`, 'error']);
+    if (d.evictions) out.push(['store', `${d.evictions} evicted`, 'throttle']);
+    if (d.misses) out.push(['store', `${d.misses} cache miss${d.misses > 1 ? 'es' : ''}`, 'ok']);
+    if (d.up403) out.push(['store', `${d.up403} × URL expired`, 'error']);
+    if (d.upToken) out.push(['store', `${d.upToken} × ExpiredToken`, 'error']);
+    if (d.upDone) out.push(['store', `${d.upDone} upload${d.upDone > 1 ? 's' : ''} done`, 'ok']);
     if (d.iamDenied) out.push(['store', `${d.iamDenied} × 400 denied`, 'error']);
     if (d.dupes) out.push(['store', `${d.dupes} twice`, 'ok']);
     if (d.condBlocked) out.push(['store', `${d.condBlocked} blocked`, 'error']);
