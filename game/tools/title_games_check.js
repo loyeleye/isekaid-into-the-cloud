@@ -45,7 +45,7 @@ const RETURNING = () => { const s = SD.state.save; s.flags.prologue = true; s.c1
     await page.click('#t-start');
     await page.waitForSelector('.tg-card', { timeout: 5000 }).catch(() => {});
     const games = await page.$$eval('.tg-card', cs => cs.map(c => c.dataset.game));
-    const modes = await page.evaluate(() => SD.modes.list().map(m => m.id));
+    const modes = await page.evaluate(() => SD.modes.list().filter(m => !m.folded).map(m => m.id));   // folded modes open from another card (js/lf-hub.js)
     check(games[0] === 'story', `${tag}: the story card comes first (${games.join(', ')})`);
     check(modes.every(id => games.includes(id)), `${tag}: every game mode has a card (${modes.length})`);
     check(games[games.length - 1] === 'mp' || !(await page.evaluate(() => SD.mp && SD.mp.available())), `${tag}: Multiplayer is the last card`);

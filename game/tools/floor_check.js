@@ -94,8 +94,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(await page.evaluate(() => !!SD.modes.get('floor')), 'the Sorting Floor is registered');
   check(await page.evaluate(() => SD.awsSim && SD.floor && typeof SD.awsSim.tick === 'function'), 'the shared rules module loads in the page');
   await page.evaluate(() => SD.modes.open());
-  check(/The Sorting Floor/.test(await txt('#panel')) && /Host: Dutch/.test(await txt('[data-mode="floor"]')), 'the picker lists it, hosted by Dutch');
-  await page.click('[data-mode="floor"]');
+  check(!(await page.$('[data-mode="floor"]')) && /Host: Dutch/.test(await txt('[data-mode="pop"]')), 'the picker lists the Lost and Found, hosted by Dutch, and not the floor on its own');
+  await page.click('[data-mode="pop"]');
+  check(/The Sorting Floor/.test(await txt('#lf-floor')) && !!(await page.$('#lf-heap')), 'its chooser offers the Sorting Floor and the heap (js/lf-hub.js)');
+  await page.click('#lf-floor');
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: it opens on the map');
   check(/Night 1/.test(await txt('#panel')) && !!(await page.$('.fl-boss')), 'the map shows Night 1 and the Hunch\'s door in view');
   check(await page.$$eval('.fl-row', r => r.every(x => x.querySelectorAll('.fl-door').length === 1)), 'night 1 is one path (one door a row)');
@@ -168,8 +170,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => sessionStorage.setItem('keep', '1'));
   await boot();
   await page.evaluate(() => SD.modes.open());
-  check(/Resume · Night 1/.test(await txt('[data-mode="floor"]')), 'the picker offers Resume');
-  await page.click('[data-mode="floor"]');
+  check(/Resume · Sorting Floor · Night 1/.test(await txt('[data-mode="pop"]')), 'the picker offers Resume');
+  await page.click('[data-mode="pop"]'); await page.click('#lf-floor');   // the Lost and Found card's chooser (js/lf-hub.js)
   const after = await st();
   check(after.phase === 'floor' && after.fight.turn === before.fight.turn && after.budget === before.budget, 'resuming opens the same claim on the same turn');
   // Same world in, same events out after a reload.
@@ -201,7 +203,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('end'); await shot('end');
   await page.click('#fl-done');
   await page.evaluate(() => SD.modes.open());
-  await page.click('[data-mode="floor"]');
+  await page.click('[data-mode="pop"]'); await page.click('#lf-floor');   // the Lost and Found card's chooser (js/lf-hub.js)
   check(/Night 2/.test(await txt('#panel')) && await page.$$eval('.fl-row', r => r.some(x => x.querySelectorAll('.fl-door').length === 2)), 'night 2 opens with forks');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));

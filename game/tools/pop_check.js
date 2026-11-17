@@ -91,7 +91,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/The Lost and Found/.test(await txt('#panel')), 'the picker lists The Lost and Found');
   check(/Host: Dutch/.test(await txt('[data-mode="pop"]')), 'its host is Dutch');
-  await page.click('[data-mode="pop"]');
+  await page.click('[data-mode="pop"]'); await page.click('#lf-heap');   // the chooser (js/lf-hub.js)
   check(/Step 1 of 3/.test(await txt('#panel')), 'the first run opens the 3-step walkthrough');
   const s0 = await pop();
   const firstAsk = await page.evaluate(id => SD.modes.split(SD.exam.find(id)).ask, s0.rooms[0].q);
@@ -219,8 +219,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.click('#t-start');
     await page.waitForSelector('#today-card:not([hidden])');
     await page.evaluate(() => SD.modes.open());
-    check(/Resume · \d+ of \d+ checks · Budget \d+%/.test(await txt('[data-mode="pop"]')), 'after a reload the picker offers Resume: ' + (await txt('[data-mode="pop"]')).replace(/\s+/g, ' ').trim().slice(-50));
-    await page.click('[data-mode="pop"]');
+    check(/Resume · (Heap · )?\d+ of \d+ checks · Budget \d+%/.test(await txt('[data-mode="pop"]')), 'after a reload the picker offers Resume: ' + (await txt('[data-mode="pop"]')).replace(/\s+/g, ' ').trim().slice(-50));
+    await page.click('[data-mode="pop"]'); await page.click('#lf-heap');   // the chooser (js/lf-hub.js)
     await page.waitForSelector('.pop');
     check(/Your stake is locked/.test(await txt('#panel')) && /still sealed/.test(await txt('#panel')), 'resume shows the locked stake, never the question');
     await noHScroll('resume');

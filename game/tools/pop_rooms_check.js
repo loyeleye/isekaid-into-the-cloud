@@ -116,7 +116,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     if (N === 4) await page.clock.setSystemTime(new Date('2026-12-01T20:00:00'));
     await page.evaluate(n => { const s = SD.state.save; s.modes.popNights = n - 1; delete s.pop; s.popCarry = []; SD.state.persist(); SD.ui.closePanel && SD.ui.closePanel(); }, N);
     await page.evaluate(() => SD.modes.open());
-    await page.click('[data-mode="pop"]');
+    await page.click('[data-mode="pop"]'); await page.click('#lf-heap');   // the chooser (js/lf-hub.js)
     await page.waitForSelector('#pop-in');
     let s = await pop();
     check(s.night === N, `the night is night ${N}`);
