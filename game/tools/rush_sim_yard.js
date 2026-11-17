@@ -5,7 +5,7 @@
 //   rack bin ledger board wire tests manifest   pieces ticked on the blueprint before the whistle
 //   card:canary|linear|all                       the departure board's timetable
 //   watch:new|live                               what the alarm wire watches (bought, it watches LIVE)
-//   lever@2                                      the lever bot: pulls the red lever 2 s after it sees 3 errors on the
+//   lever@2                                      the lever bot: pulls the red lever 2 s after it sees 2 errors on the
 //                                                newest version (not poison, not new forms: those show on the waybill)
 //   hold4                                        with the manifest, slot 4 waits for the platform to empty
 //   never                                        never deploys: sends every crate back (manifest) or never turns the dial
@@ -19,7 +19,7 @@
 const R = require('../js/rush-core.js');
 const Y = require('../js/rush-yard.js');
 const N = +process.argv[2] || 200, TABLE = process.argv[3] || 'builds', CRATES = process.argv[4] || process.env.SIM_CRATES || 'mixed';
-const SOLVE = 6, NOTICE = 0.5, REACT = 1, WATCH = +process.env.SIM_WATCH || 0, POOL = Array.from({ length: 12 }, (_, i) => 'L' + i);
+const LEVN = +process.env.SIM_LEVN || 2, SOLVE = 6, NOTICE = 0.5, REACT = 1, WATCH = +process.env.SIM_WATCH || 0, POOL = Array.from({ length: 12 }, (_, i) => 'L' + i);
 const LESSON = ['rack', 'bin', 'board', 'wire', 'card:canary', 'watch:new'];
 const BUILDS = {
   builds: [
@@ -95,7 +95,7 @@ function play(seed, build, crates, orders) {
     if (S.y.held && !S.y.held.when) { const c = S.y.held.crate; if (has('never')) Y.sendBack(S); else Y.execute(S, has('hold4') && c.slot === 4 ? 'empty' : 'now'); }
     // The lever bot.
     if (lev) {
-      for (const v of Object.keys(me.errs)) if (me.errs[v] >= 3 && !me.pull) { me.pull = { v: +v, at: S.time + lev }; me.errs[v] = -99; }
+      for (const v of Object.keys(me.errs)) if (me.errs[v] >= LEVN && !me.pull) { me.pull = { v: +v, at: S.time + lev }; me.errs[v] = -99; }
       if (me.pull && S.time >= me.pull.at) { const v = me.pull.v; me.pull = null; if (S.alias.cur === v || S.alias.next === v) Y.lever(S); }
     }
     // The hotfix card.

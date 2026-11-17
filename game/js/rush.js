@@ -123,8 +123,8 @@
     rack: { x: 156, y: 880, h: 100, w: 116 }, sorters: [{ x: 336, y: 868, h: 140 }, { x: 488, y: 868, h: 140 }],
     stools: { xs: [432, 516, 600, 684], y: 1114, h: 76, w: 76 }, bin: { x: 668, y: 884, h: 80, w: 118 },
     tank: { x: 700, y: 606, h: 210 }, mast: { x: 604, y: 612, h: 190 }, office: { x: 486, y: 608, h: 104 },
-    siding: { x0: 20, x1: 196, y: 608 }, train: { y: 608, stop: 336 }, board: { x: 384, y: 392, w: 300, h: 92 },
-    counter: { x: 330, y: 560, w: 84, h: 60 }, ledger: { x: 86, y: 1172, h: 40 }, depot: { x: 640, y: 352 },
+    siding: { x0: 20, x1: 196, y: 608 }, train: { y: 608, stop: 336 }, board: { x: 384, y: 392, w: 360, h: 92 },
+    counter: { x: 330, y: 560, w: 84, h: 60 }, ledger: { x: 86, y: 1172, h: 40 }, depot: { x: 655, y: 646 },
     inset: { r: [12, 642, 150, 125], src: INSET_TALL.src }, hatch: [16, 930], foot: [270, 968],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
@@ -1683,12 +1683,14 @@
       dutch: 'Express. Bolts it all down as fast as it can and doesn\'t look back. Which means if something breaks halfway, it stays broken until somebody says retry or put it back. That\'s what you get when rollback\'s off.' }
   });
   Object.assign(TOOL_IMG, { board: 'y-i-board', wire: 'y-i-wire', tests: 'y-i-tests', manifest: 'y-i-manifest' });
-  Object.assign(TOOL_LABEL, { board: 'Timetable', wire: 'Alarm wire', tests: 'Test track', manifest: 'Manifest' });
+  // The belt's words: the long names on the wide yard, short ones on the phone (its seven slots are narrow).
+  for (const [t, wide, tall] of [['board', 'Timetable', 'Board'], ['wire', 'Alarm wire', 'Alarm'], ['tests', 'Test track', 'Tests'], ['manifest', 'Manifest', 'Papers']])
+    Object.defineProperty(TOOL_LABEL, t, { get: () => L.W > L.H ? wide : tall, enumerable: true, configurable: true });
   const CFG_WORD = { canary: 'Canary', linear: 'Linear', all: 'All at once' };
   Object.assign(USE_LABEL, {
-    board: () => V().yard ? CFG_WORD[V().cfg] + ' ▸' : '',
-    wire: () => V().yard ? (V().wireOn ? 'Watch: ' + (V().watch === 'new' ? 'new' : 'LIVE') : 'Dark (no coin)') : '',
-    tests: () => V().yard ? 'Tests ' + (V().testsOn ? 'on' : 'off') : ''
+    board: () => V().yard ? (L.W > L.H ? CFG_WORD[V().cfg] + ' ▸' : { canary: 'Canary', linear: 'Linear', all: 'At once' }[V().cfg]) : '',
+    wire: () => V().yard ? (V().wireOn ? (L.W > L.H ? 'Watch: ' : 'On ') + (V().watch === 'new' ? 'new' : 'LIVE') : (L.W > L.H ? 'Dark (no coin)' : 'No coin')) : '',
+    tests: () => V().yard ? 'Tests ' + (V().testsOn ? (L.W > L.H ? 'on' : '✓') : (L.W > L.H ? 'off' : '✗')) : ''
   });
   // The letters for claim 9 (design section 11), the alarm buy renamed to the alarm wire.
   QS.sorter = {
@@ -2138,15 +2140,17 @@
     if (flashT) { cx.save(); cx.fillStyle = `rgba(255,80,60,${flashT * .35})`; cx.fillRect(0, 0, L.W, L.H); cx.restore(); }
     if (letterAnim && S === M) { const p = [L.W / 2, L.H * .4 + Math.sin(now / 120) * 4]; img('y-waybill-gold', p[0], p[1], 0, 'mm', 1, 0, 90); text('A letter!', p[0], p[1] - 56, 26, '#ffe08a'); }
   }
-  function hotTag(x, y) { cx.save(); rrect(x - 34, y - 12, 68, 24, 4); cx.fillStyle = '#c8302a'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#3a0c08'; cx.stroke(); cx.font = `800 ${13}px Nunito, sans-serif`; cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('HOTFIX', x, y + 1); cx.restore(); }
+  function hotTag(x, y) { const k = yk(); cx.save(); rrect(x - 34 * k, y - 12 * k, 68 * k, 24 * k, 4); cx.fillStyle = '#c8302a'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#3a0c08'; cx.stroke(); cx.font = `800 ${13 * k}px Nunito, sans-serif`; cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('HOTFIX', x, y + 1); cx.restore(); }
+  // Small canvas words in the tall yard: scaled up so none draws under about 11 CSS px on a 390 px phone.
+  function yk() { return L.W > L.H ? 1 : L.fs; }
   function drawBoard() {
     const b = L.board, Y2 = S.y, d = Y2.dep, x0 = b.x - b.w / 2, y0 = b.y - b.h / 2;
     // Two chains up to the roof, the frame, then two rows of flaps.
     cx.save(); cx.strokeStyle = '#3a3026'; cx.lineWidth = 3; for (const dx of [-b.w * .36, b.w * .36]) { cx.beginPath(); cx.moveTo(b.x + dx, 0); cx.lineTo(b.x + dx, y0); cx.stroke(); }
     rrect(x0, y0, b.w, b.h, 8); cx.fillStyle = '#2a2622'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = S.board ? '#c9a24e' : '#6b5d4a'; cx.stroke(); cx.restore();
-    const flaps = (str, y, h, col) => {
+    const flaps = (str, y, h, col, minF) => {
       const n = Math.max(14, str.length), cw = (b.w - 20) / n;
-      cx.save(); cx.font = `700 ${h * .72}px "Courier New", monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.save(); cx.font = `700 ${Math.max(h * .72, minF || 0)}px "Courier New", monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
       for (let i = 0; i < n; i++) { const xx = x0 + 10 + i * cw; rrect(xx + 1, y - h / 2, cw - 2, h, 2); cx.fillStyle = '#141210'; cx.fill(); cx.fillStyle = 'rgba(255,255,255,.07)'; cx.fillRect(xx + 1, y - 1, cw - 2, 2); cx.fillStyle = col; cx.fillText(str[i] || '', xx + cw / 2, y + 1); }
       cx.restore();
     };
@@ -2155,11 +2159,13 @@
     if (yUI.boardFlash && yUI.boardMsg) row2 = yUI.boardMsg;
     else if (d) row2 = d.phase === 'stack' ? (d.crate.hotfix ? 'HOTFIX · ' : '') + 'STACK UPDATE' : d.phase === 'pre' ? 'PRE-TRAFFIC TEST' : d.phase === 'post' ? 'POST-TRAFFIC TEST' : d.phase === 'shift' ? `v${d.v} ${Math.round(S.alias.w * 100)}%` + (d.cfg === 'canary' && S.alias.w < 1 ? ` · ${Math.max(0, Math.ceil(YD.YT.canary - d.t))}s` : d.cfg === 'hand' ? ' · BY HAND' : '') : '';
     else if (Y2.held) row2 = 'CRATE AT THE OFFICE';
-    else if (!S.started) row2 = 'MIN = 1 SEC';
+    else if (!S.started) row2 = '1 MIN = 1.5 S';
     else row2 = `LIVE v${S.alias.cur}`;
     const fh = b.h * .34;
     flaps(row1, y0 + b.h * .3, fh, S.board ? '#ffe6a8' : '#9d907c');
-    flaps(row2.slice(0, 26), y0 + b.h * .72, fh * .78, yUI.boardFlash ? '#ff9a7a' : '#9fe0a8');
+    // The phone's board holds 24 flaps at a readable size: a long message drops its last ' · ' part.
+    let r2 = row2.slice(0, 26); if (L.W < L.H) { while (r2.length > 24 && r2.includes(' · ')) r2 = r2.slice(0, r2.lastIndexOf(' · ')); r2 = r2.slice(0, 24); }
+    flaps(r2, y0 + b.h * .72, fh * .78, yUI.boardFlash ? '#ff9a7a' : '#9fe0a8', L.W < L.H ? 22.5 : 0);
     if (L.W > L.H) plaque(S.board ? 'Timetable · tap to change' : 'Timetable · not bought', b.x, y0 + b.h + 14 * L.fs);
   }
   function drawSiding() {
@@ -2184,7 +2190,7 @@
     const onWagon = H.state === 'card' ? 'hot' : Y2.held || Y2.train ? 'crate' : '';
     if (onWagon && !(H.state === 'card' && yUI.drag)) { img('y-crate', wx, t.y - 22 * k1, 86 * k1, 'mb'); if (onWagon === 'hot') hotTag(wx, t.y - 120 * k1); else { const c = (Y2.held || Y2.train).crate; tagLabel(wx + 26 * k1, t.y - 70 * k1, 'crate ' + c.slot); } }
   }
-  function tagLabel(x, y, t) { cx.save(); cx.font = `800 ${12 * Math.min(L.fs, 1.3)}px Nunito, sans-serif`; const w = cx.measureText(t).width + 10; rrect(x - w / 2, y - 10, w, 20, 3); cx.fillStyle = '#f4e8c8'; cx.fill(); cx.strokeStyle = '#5a4026'; cx.lineWidth = 1.5; cx.stroke(); cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore(); }
+  function tagLabel(x, y, t) { const k = yk(); cx.save(); cx.font = `800 ${13 * k}px Nunito, sans-serif`; const w = cx.measureText(t).width + 10; rrect(x - w / 2, y - 10 * k, w, 20 * k, 3); cx.fillStyle = '#f4e8c8'; cx.fill(); cx.strokeStyle = '#5a4026'; cx.lineWidth = 1.5; cx.stroke(); cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore(); }
   function drawTower() {
     const t = L.tank, im = IMG['y-tower']; if (!im) return;
     img('y-tower', t.x, t.y, t.h, 'mb');
@@ -2209,9 +2215,9 @@
     if (red) { const p = .5 + .5 * Math.sin(performance.now() / 90); cx.save(); cx.strokeStyle = `rgba(255,80,60,${.5 + p * .5})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(lx, ly, r * 1.9, 0, Math.PI * 2); cx.stroke(); cx.restore(); text('ALARM', lx, ly - r * 2.4, 24, '#ff7a6a'); }
     if (S.wire) {
       // The switch plate: what the alarm watches.
-      const py = m.y - m.h * .3, w = 70 * Math.min(L.fs, 1.25), h = 26 * Math.min(L.fs, 1.25);
+      const py = m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
       cx.save(); rrect(m.x - w / 2, py - h / 2, w, h, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4026'; cx.stroke();
-      cx.font = `800 ${13 * Math.min(L.fs, 1.25)}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', m.x, py + 1); cx.restore();
+      cx.font = `800 ${13 * yk()}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', m.x, py + 1); cx.restore();
     }
     if (L.W > L.H) plaque(S.wire ? 'Signal · alarm' : 'Signal · not wired', m.x, m.y + 14 * L.fs);
   }
@@ -2221,8 +2227,8 @@
       const s = sp[i]; shadow(s.x, s.y + 2, s.h * .7); img(key, s.x, s.y + 4, s.h, 'mb', alpha);
       // The engraved plate, and the wax seal (published, immutable).
       const pw = s.h * .36, py = s.y - s.h * .32;
-      cx.save(); rrect(s.x - pw / 2, py - 13, pw, 26, 4); cx.fillStyle = '#e8cf86'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4016'; cx.stroke();
-      cx.font = `800 ${18 * Math.min(L.fs, 1.2)}px Fredoka, sans-serif`; cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('v' + n, s.x, py + 1); cx.restore();
+      const pk = Math.min(yk(), 1.4); cx.save(); rrect(s.x - pw / 2, py - 13 * pk, pw, 26 * pk, 4); cx.fillStyle = '#e8cf86'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4016'; cx.stroke();
+      cx.font = `800 ${18 * pk}px Fredoka, sans-serif`; cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('v' + n, s.x, py + 1); cx.restore();
       img('y-seal', s.x + pw / 2 + 12, py, 26, 'mm');
       if (label && !mini) text(label, s.x, s.y - s.h - 16, 18, '#f6e7c4');
     };
@@ -2243,8 +2249,8 @@
     // Every sealed version so far, as a row of little seals: the old ones are still there to roll back to.
     if (S.versions.length > 2 && !mini) {
       const s0 = sp[0], s1 = sp[1], y = s0.y - s0.h - 44 * Math.min(L.fs, 1.2);
-      const vs = S.versions.filter(Boolean).map(v => v.n), w = 30;
-      vs.forEach((n, i) => { const x = (s0.x + s1.x) / 2 + (i - (vs.length - 1) / 2) * w; img('y-seal', x, y, 22, 'mm', n === S.alias.cur || n === S.alias.next ? 1 : .55); text(String(n), x, y + 1, 11, '#fff'); });
+      const vs = S.versions.filter(Boolean).map(v => v.n), sk = L.W > L.H ? 1 : 1.35, w = 30 * sk;
+      vs.forEach((n, i) => { const x = (s0.x + s1.x) / 2 + (i - (vs.length - 1) / 2) * w; img('y-seal', x, y, 22 * sk, 'mm', n === S.alias.cur || n === S.alias.next ? 1 : .55); text(String(n), x, y + 1, L.W > L.H ? 11 : 13, '#fff'); });
     }
   }
   function drawBays() {
@@ -2284,11 +2290,12 @@
     if (!mini) plaque('LIVE · alias', dx, dy - r - 18 * L.fs);
   }
   function drawDepot() {
-    const D = S.y.depot, p = L.depot, w = 150 * Math.min(L.fs, 1.2), h = 54 * Math.min(L.fs, 1.2);
+    const D = S.y.depot, p = L.depot, tall = L.W < L.H, w = tall ? 210 : 150, h = tall ? 96 : 54;
     cx.save(); rrect(p.x - w / 2, p.y, w, h, 8); cx.fillStyle = 'rgba(32,24,18,.85)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = yUI.depotFlash ? '#ffd666' : '#be9650'; cx.stroke();
     for (let i = 0; i < 4; i++) { const bx = p.x - w / 2 + 12 + i * (w - 24) / 4; rrect(bx + 2, p.y + h * .45, (w - 24) / 4 - 4, h * .38, 3); cx.fillStyle = D.bench === 'bad' ? '#c8473b' : '#7a5a3a'; cx.fill(); }
-    cx.font = `800 ${11 * Math.min(L.fs, 1.3)}px Nunito, sans-serif`; cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.fillText('Depot · ' + { all: 'all at once', rolling: 'rolling', additional: 'rolling + batch', immutable: 'immutable', split: 'splitting' }[D.policy], p.x, p.y + h * .24); cx.restore();
+    cx.font = `800 ${tall ? 22 : 11}px Nunito, sans-serif`; cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    const pol = { all: 'all at once', rolling: 'rolling', additional: 'rolling + batch', immutable: 'immutable', split: 'splitting' }[D.policy];
+    if (tall) { cx.fillText('Depot', p.x, p.y + 16); cx.fillText(pol, p.x, p.y + 40); } else cx.fillText('Depot · ' + pol, p.x, p.y + h * .24); cx.restore();
   }
   // ---- The yard's art, drawn in code until the painted backdrop and Sogni props come in. Each prop is drawn on its
   // own canvas at about twice its size on the wide stage. A painted file in SRC under the same key replaces it. ----
@@ -2390,7 +2397,7 @@
     put('y-returns', cvs(300, 192, g => {
       g.fillStyle = '#6c737c'; g.fillRect(14, 20, 272, 128); g.strokeRect(14, 20, 272, 128);
       g.strokeStyle = 'rgba(20,24,30,.5)'; g.lineWidth = 3; for (let x = 60; x < 280; x += 46) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x, 148); g.stroke(); }
-      g.fillStyle = '#e8e2d4'; g.font = '800 34px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RETURNS', 150, 86);
+      g.strokeStyle = '#e8e2d4'; g.lineWidth = 8; g.beginPath(); g.arc(150, 86, 22, -2.6, 1.6); g.stroke(); g.fillStyle = '#e8e2d4'; g.beginPath(); g.moveTo(118, 58); g.lineTo(142, 62); g.lineTo(124, 80); g.fill();
       g.fillStyle = '#2b2b2f'; g.strokeStyle = '#1e140c'; g.lineWidth = 4; for (const x of [62, 238]) { g.beginPath(); g.arc(x, 160, 26, 0, Math.PI * 2); g.fill(); g.stroke(); }
     }));
     put('y-tower', cvs(240, 560, g => {
@@ -2436,10 +2443,10 @@
     }));
     put('y-gate', cvs(80, 340, g => { g.fillStyle = '#7a5532'; g.fillRect(10, 0, 20, 340); g.strokeRect(10, 0, 20, 340); g.fillRect(50, 0, 20, 340); g.strokeRect(50, 0, 20, 340); g.fillRect(0, 40, 80, 18); g.strokeRect(0, 40, 80, 18); }));
     // Belt icons.
-    put('y-i-board', cvs(150, 150, g => { g.fillStyle = '#2a2622'; g.fillRect(10, 40, 130, 70); g.strokeRect(10, 40, 130, 70); g.fillStyle = '#ffe6a8'; g.font = '700 22px monospace'; g.textAlign = 'center'; g.fillText('CANARY', 75, 70); g.fillStyle = '#9fe0a8'; g.fillText('10% 5', 75, 98); g.strokeStyle = '#3a3026'; g.lineWidth = 4; g.beginPath(); g.moveTo(40, 0); g.lineTo(40, 40); g.moveTo(110, 0); g.lineTo(110, 40); g.stroke(); }));
+    put('y-i-board', cvs(150, 150, g => { g.fillStyle = '#2a2622'; g.fillRect(10, 40, 130, 70); g.strokeRect(10, 40, 130, 70); g.fillStyle = '#ffe6a8'; for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) { g.fillStyle = r ? '#9fe0a8' : '#ffe6a8'; g.fillRect(18 + i * 19, 52 + r * 28, 15, 18); } g.strokeStyle = '#3a3026'; g.lineWidth = 4; g.beginPath(); g.moveTo(40, 0); g.lineTo(40, 40); g.moveTo(110, 0); g.lineTo(110, 40); g.stroke(); }));
     put('y-i-wire', cvs(150, 150, g => { g.fillStyle = '#2b2b2f'; g.fillRect(66, 50, 14, 96); g.beginPath(); g.arc(73, 40, 30, 0, Math.PI * 2); g.fill(); g.stroke(); g.fillStyle = '#38d26b'; g.beginPath(); g.arc(73, 40, 18, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#e8c04a'; g.lineWidth = 5; g.beginPath(); g.moveTo(80, 90); g.bezierCurveTo(120, 80, 110, 130, 146, 120); g.stroke(); }));
     put('y-i-tests', cvs(150, 150, g => { g.fillStyle = '#b8bcc4'; g.fillRect(0, 110, 150, 8); g.fillStyle = '#c0302a'; g.fillRect(8, 74, 22, 40); g.strokeRect(8, 74, 22, 40); g.fillStyle = '#8a6038'; g.fillRect(50, 80, 80, 22); g.strokeRect(50, 80, 80, 22); g.fillStyle = '#9ccaf2'; g.save(); g.translate(90, 56); g.rotate(-.15); g.fillRect(-26, -18, 52, 36); g.strokeRect(-26, -18, 52, 36); g.restore(); }));
-    put('y-i-manifest', cvs(150, 150, g => { g.fillStyle = '#8a5a2c'; g.fillRect(28, 14, 94, 128); g.strokeRect(28, 14, 94, 128); g.fillStyle = '#f7f0dc'; g.fillRect(38, 30, 74, 104); g.fillStyle = '#c9a23a'; g.fillRect(56, 6, 38, 16); g.strokeRect(56, 6, 38, 16); g.fillStyle = '#2a1d10'; g.font = '800 13px sans-serif'; for (let i = 0; i < 4; i++) { g.fillRect(44, 44 + i * 20, 40, 4); } g.fillStyle = '#c0302a'; g.fillText('True', 84, 110); }));
+    put('y-i-manifest', cvs(150, 150, g => { g.fillStyle = '#8a5a2c'; g.fillRect(28, 14, 94, 128); g.strokeRect(28, 14, 94, 128); g.fillStyle = '#f7f0dc'; g.fillRect(38, 30, 74, 104); g.fillStyle = '#c9a23a'; g.fillRect(56, 6, 38, 16); g.strokeRect(56, 6, 38, 16); g.fillStyle = '#2a1d10'; g.font = '800 13px sans-serif'; for (let i = 0; i < 4; i++) { g.fillRect(44, 44 + i * 20, 40, 4); } g.fillStyle = '#c0302a'; g.fillRect(70, 104, 30, 10); }));
   }
   // ==== end claim 9 ====
 

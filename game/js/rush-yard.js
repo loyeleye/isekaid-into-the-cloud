@@ -44,8 +44,8 @@
   const YT = {
     // The old sorter and a good new one: how long a waybill takes at a bay (plus the walk to it).
     v1: 1.1, vNew: 0.5,
-    stack: 2, express: 0.5, pre: 3, post: 2, canary: 5, canaryW: 0.1, linear: 1, linearW: 0.1,
-    card: 6, office: 2, follow: 4, shipGrace: 1, train: 1.6, mast: 2, fixRollback: 3,
+    stack: 2, express: 0.5, pre: 3, post: 2, canary: 7.5, canaryW: 0.1, linear: 1.5, linearW: 0.1,
+    card: 6, office: 2, follow: 4, shipGrace: 4, train: 1.6, mast: 2, fixRollback: 3,
     shiftLeft: 1.5, burst: 10, burstSecs: 3, form2: 0.3, rushed: 0.25, burstRefund: 0.35
   };
   // The claim. Waves from the design (section 7), 6 seconds apart. Four bays, all Mira's.
@@ -121,6 +121,8 @@
   }
   // When a wave's crate is judged for its ship coin: by the end of its wave (the last wave's, at closing).
   function shipBy(S, w) { return w >= S.y.win.length ? S.close : S.y.win[w - 1][1] + YT.shipGrace; }
+  // A hotfix has till the next wave's first waybill (the last wave's, till closing).
+  function hotShipBy(S, w) { return w >= S.y.win.length ? S.close : S.y.win[w][0]; }
   // A debug seed option (?fresh in rush.html): the second crate is good. Or set the two middle crates for the sim.
   function setCrates(S, kinds) { kinds.forEach((k, i) => { if (S.y.crates[i + 1]) S.y.crates[i + 1].kind = k; }); }
   // ---- Hooks from rush-core ----
@@ -182,6 +184,13 @@
     const Y = S.y;
     Y.dep = { crate, v: 0, phase: 'stack', t: 0, cfg: cfg || (S.board ? S.cfg : 'hand'), id: 'd-' + (++Y.depN) };
     ev(S, 'stack', { slot: crate.slot, hotfix: !!crate.hotfix, cfg: Y.dep.cfg });
+    // Replacement: True. The update swaps in a new platform and deletes the old one, with everything waiting on it.
+    if (crate.rebuild && !crate.replacedDone && S.rack) {
+      crate.replacedDone = true;
+      const lost = S.queue.slice(); S.queue = [];
+      for (const id of lost) { const k = S.tickets.find(x => x.id === id); if (k) { L().remove(S, k); S.replaced++; L().lose1(S, k, 'replaced'); if (purse(S).over) return; } }
+      ev(S, 'replaced', { n: lost.length });
+    }
   }
   // A crate that's ready to go: deploy now if the group is free, otherwise it waits its turn (a pipeline would).
   function offerCrate(S, crate) {
@@ -204,7 +213,7 @@
   }
   function finish(S) {
     const Y = S.y, d = Y.dep;
-    Y.prev.push(S.alias.cur); S.alias.cur = d.v; S.alias.next = null; S.alias.w = 0; Y.dep = null;
+    Y.prev.push(S.alias.cur); S.alias.cur = d.v; S.alias.next = null; S.alias.w = 0; Y.dep = null; d.crate.wentLive = true;
     ev(S, 'deployed', { v: d.v, slot: d.crate.slot, hotfix: !!d.crate.hotfix, cfg: d.cfg });
     if (d.crate.hotfix && S.versions[d.v].kind === 'good') Y.hf.state = 'done';
     // A forced deployment is over before the signal could watch it.
@@ -238,7 +247,7 @@
     // Mid-claim blueprint changes: each is a small stack update that takes a couple of seconds.
     for (const a of Y.amends.slice()) if (S.time >= a.at) { Y.amends = Y.amends.filter(x => x !== a); S[a.tool] = true; S.placed.push(a.tool); if (a.tool === 'wire') S.wireOn = true; ev(S, 'place', { tool: a.tool, amend: true }); }
     // The office: a crate held for "when the platform's empty" goes when it is.
-    if (Y.held && Y.held.when === 'empty' && S.time >= Y.held.readyAt && gapNow(S) && (!S.rack || !S.queue.length) && !groupBusy(S)) { const c = Y.held.crate; Y.held = null; ev(S, 'execute', { slot: c.slot, when: 'empty' }); offerCrate(S, c); }
+    if (Y.held && Y.held.when === 'empty' && S.time >= Y.held.readyAt && (gapNow(S) || S.wave >= Y.win.length) && (!S.rack || !S.queue.length) && !groupBusy(S)) { const c = Y.held.crate; Y.held = null; ev(S, 'execute', { slot: c.slot, when: 'empty' }); offerCrate(S, c); }
     if (Y.held && Y.held.when === 'now' && S.time >= Y.held.readyAt) { const c = Y.held.crate; Y.held = null; ev(S, 'execute', { slot: c.slot, when: 'now' }); offerCrate(S, c); }
     // Express mode's half-built yard, put back by a rollback.
     if (Y.broken && Y.fixAt && S.time >= Y.fixAt) { S[Y.broken] = true; ev(S, 'stackFixed', { piece: Y.broken, how: 'rollback' }); Y.broken = null; Y.fixAt = 0; }
@@ -266,12 +275,6 @@
           ev(S, 'updateFailed', { piece, slot: c.slot });
         } else ev(S, 'stackRollback', { slot: c.slot });
         nextQueued(S); return;
-      }
-      // Replacement: True. A new platform, the old one deleted, and everything on it with it.
-      if (c.rebuild && S.rack) {
-        const lost = S.queue.slice(); S.queue = [];
-        for (const id of lost) { const k = S.tickets.find(x => x.id === id); if (k) { L().remove(S, k); S.replaced++; L().lose1(S, k, 'replaced'); if (purse(S).over) return; } }
-        ev(S, 'replaced', { n: lost.length });
       }
       publish(S, d);
       depotDeploy(S, d);
@@ -338,11 +341,16 @@
   function judge(S, c) {
     c.judged = true;
     const v = c.v && S.versions[c.v];
-    const live = !!(v && S.alias.cur === c.v && !S.alias.next);
+    // Live: it went live, and LIVE hasn't been rolled back past it (a newer version on top still carries it).
+    const live = !!(v && c.wentLive && S.alias.cur >= c.v);
     if (live && v.kind === 'good') { purse(S).coins++; S.shipped++; ev(S, 'ship', { slot: c.slot, v: c.v, hotfix: !!c.hotfix }); }
   }
   // At the end of the claim: anything not judged yet is judged now (the sim and js/rush.js call this).
-  function settle(S) { const Y = S.y; if (!Y) return; for (const c of Y.crates.concat(Y.extra || [])) if (!c.judged && c.shipBy) judge(S, c); if (Y.depot) depotWave(S, 99); }
+  function settle(S) {
+    const Y = S.y; if (!Y) return;
+    // The mail's all done before the shutters: with no traffic left, a deployment that's past its stack update runs out.
+    if (S.over === 'win' && Y.dep && ['pre', 'shift', 'post'].includes(Y.dep.phase) && !Y.settled) { Y.settled = true; finish(S); }
+    for (const c of Y.crates.concat(Y.extra || [])) if (!c.judged && c.shipBy) judge(S, c); if (Y.depot) depotWave(S, 99); }
   // ---- The hotfix ----
   function hotfixStep(S) {
     const Y = S.y, H = Y.hf;
@@ -355,7 +363,7 @@
     if (H.state === 'card' && S.time >= H.deadline) choose(S, 'wait', true);
     if (H.state === 'follow' && H.followAt && S.time >= H.followAt) {
       H.followAt = 0; H.state = 'chosen';
-      const c = { slot: 'H2', kind: 'good', hotfix: true, follow: true, wave: S.wave, shipBy: shipBy(S, S.wave) };
+      const c = { slot: 'H2', kind: 'good', hotfix: true, follow: true, wave: S.wave, shipBy: hotShipBy(S, S.wave) };
       if (c.shipBy < S.time + 1) c.shipBy = S.time + 8;
       (Y.extra = Y.extra || []).push(c);
       ev(S, 'followUp');
@@ -378,7 +386,7 @@
     if (H.state !== 'card') return 'no';
     H.state = 'chosen'; H.choice = choice; S.hotfixChoice = choice + (auto ? ' (auto)' : '');
     const w = H.wave || S.wave;
-    const c = { slot: 'H', kind: H.rushed ? 'cracked' : 'good', hotfix: true, wave: w, shipBy: shipBy(S, w) };
+    const c = { slot: 'H', kind: H.rushed ? 'cracked' : 'good', hotfix: true, wave: w, shipBy: hotShipBy(S, w) };
     if (c.shipBy < S.time + 1) c.shipBy = S.time + 8;
     (Y.extra = Y.extra || []).push(c);
     const busy = groupBusy(S);

@@ -26,6 +26,43 @@ const tendCellar = pg => pg.evaluate(() => {
   V.tickets.filter(k => k.quiz && (k.phase === 'stamped' || k.phase === 'leak')).forEach(k => R.check(V, k.id, k.internRight ? 'ok' : 'wrong'));
   V.tickets.filter(k => k.quiz && k.phase === 'ask' && V.time - k.askAt > 3).forEach(k => R.reply(V, k.id, true));
 });
+// Phone legibility: no text on a card or the blueprint under 11 CSS px, and every tap-the-line row at least 40 px tall.
+const MIN_PX = 11, LINE_H = 40;
+async function legible(pg, name, what) {
+  if (name !== 'phone') return;
+  const r = await pg.evaluate(([MIN_PX, LINE_H]) => {
+    const small = [], short = [];
+    for (const root of [document.getElementById('q'), document.getElementById('ycard')]) {
+      if (!root || !root.classList.contains('on')) continue;
+      const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n; (n = walk.nextNode());) {
+        const t = n.textContent.trim(), el = n.parentElement; if (!t || !el) continue;
+        const b = el.getBoundingClientRect(), cs = getComputedStyle(el);
+        if (!b.width || !b.height || cs.visibility === 'hidden' || el.closest('details:not([open]) > :not(summary)')) continue;
+        const f = parseFloat(cs.fontSize); if (f < MIN_PX) small.push(t.slice(0, 30) + ' ' + f);
+      }
+      root.querySelectorAll('button.yc-line').forEach(b => { const h = b.getBoundingClientRect().height; if (h < LINE_H) short.push(Math.round(h)); });
+    }
+    return { small, short };
+  }, [MIN_PX, LINE_H]);
+  if (r.small.length) bad(name, what, 'text under ' + MIN_PX + ' px', r.small.slice(0, 6)); else ok(name, what, 'card text >= ' + MIN_PX + ' px');
+  if (r.short.length) bad(name, what, 'tap lines under ' + LINE_H + ' px', r.short);
+}
+// The canvas words drawn on the phone (fillText on the game canvas): the smallest, in CSS px.
+const CANVAS_WATCH = () => {
+  window.__small = {};
+  for (const fn of ['fillText', 'strokeText']) {
+    const orig = CanvasRenderingContext2D.prototype[fn];
+    CanvasRenderingContext2D.prototype[fn] = function (t, ...a) {
+      // (The live window onto the other room is a thumbnail: its words are skipped.)
+      if (this.canvas && this.canvas.id === 'rush' && innerWidth < 600 && String(t).trim() && this.getTransform().a / (devicePixelRatio || 1) > 0.3) {
+        const px = parseFloat((this.font.match(/([\d.]+)px/) || [])[1]) * this.getTransform().a / (devicePixelRatio || 1);
+        const k = String(t).slice(0, 24); if (!(k in window.__small) || px < window.__small[k]) window.__small[k] = px;
+      }
+      return orig.call(this, t, ...a);
+    };
+  }
+};
 async function fits(pg, name, what) {
   const r = await pg.evaluate(() => {
     const c = document.getElementById('rush'), y = document.getElementById('ycard'), b = y && y.getBoundingClientRect();
@@ -45,6 +82,7 @@ async function fits(pg, name, what) {
     const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 2 });
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errs.push(m.text()); });
     await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
+    await pg.addInitScript(CANVAS_WATCH);
     // The depot on the wide run, express mode on the phone. Crates: cracked then a snag, so a rollback and a stack
     // rollback both happen.
     const orders = name === 'wide' ? 'depot' : 'express';
@@ -60,6 +98,7 @@ async function fits(pg, name, what) {
     await pg.evaluate(() => { const d = document.querySelector('.bp-yaml-d'); if (d) d.open = true; });
     const yaml = await pg.evaluate(() => document.querySelector('.bp-yaml').textContent);
     if (!/AutoPublishAlias: live/.test(yaml) || !/DeploymentPreference/.test(yaml) || !/Hooks/.test(yaml)) bad(name, 'template.yaml preview', yaml.slice(0, 200));
+    await legible(pg, name, 'blueprint');
     await pg.screenshot({ path: `${OUT}/${name}-1-blueprint.png` });
     await pg.click('.bp-go');
     await pg.waitForTimeout(500);
@@ -99,6 +138,7 @@ async function fits(pg, name, what) {
       await tendCellar(pg);
       if (st.insp) {
         // Spot the line: the card's right line.
+        await legible(pg, name, 'inspection card');
         await pg.screenshot({ path: `${OUT}/${name}-6-config-card.png` });
         const r = await pg.evaluate(() => {
           const btn = [...document.querySelectorAll('#q .yc-line[data-i], #q .lt-opts button[data-i]')];
@@ -109,16 +149,17 @@ async function fits(pg, name, what) {
         await pg.click(pick).catch(e => bad(name, 'card click', e.message));
         const right = await pg.evaluate(() => !!document.querySelector('#q .right') && !document.querySelector('#q .wrong'));
         right ? ok(name, 'inspection card answered', r.id) : bad(name, 'inspection card', r.id);
+        await legible(pg, name, 'inspection answer');
         await pg.screenshot({ path: `${OUT}/${name}-6b-config-card-answer.png` });
         await pg.click('.lt-go'); seen.card = true; continue;
       }
       if (st.go) { await pg.click('.lt-go'); continue; }
       if (st.ycard.includes('slip')) {
-        if (!seen.slip) { await pg.waitForTimeout(400); await fits(pg, name, 'slip'); await pg.screenshot({ path: `${OUT}/${name}-4-change-set.png` }); seen.slip = true; }
+        if (!seen.slip) { await pg.waitForTimeout(400); await fits(pg, name, 'slip'); await legible(pg, name, 'slip'); await pg.screenshot({ path: `${OUT}/${name}-4-change-set.png` }); seen.slip = true; }
         await pg.click('#ycard button[data-x="now"]').catch(() => {});
       }
       if (st.ycard.includes('express')) {
-        seen.express = true; await pg.waitForTimeout(400); await fits(pg, name, 'express'); await pg.screenshot({ path: `${OUT}/${name}-4b-update-failed.png` });
+        seen.express = true; await pg.waitForTimeout(400); await fits(pg, name, 'express'); await legible(pg, name, 'express'); await pg.screenshot({ path: `${OUT}/${name}-4b-update-failed.png` });
         await pg.click('#ycard button[data-f="rollback"]').catch(() => {});
       }
       if (st.hf === 'card' && !seen.hotfix) {
@@ -135,7 +176,7 @@ async function fits(pg, name, what) {
           else ok(name, 'hotfix drag on a free group:', r[1]);
         }
         if (await pg.evaluate(() => SD_RUSH.S.y.hf.state === 'card')) {
-          await fits(pg, name, 'hotfix card');
+          await fits(pg, name, 'hotfix card'); await legible(pg, name, 'hotfix card');
           await pg.screenshot({ path: `${OUT}/${name}-5b-hotfix-card.png` });
           await pg.click('#ycard button[data-c="stop"]').catch(() => pg.click('#ycard button[data-c]'));
         }
@@ -170,6 +211,11 @@ async function fits(pg, name, what) {
     const sum = await pg.evaluate(() => { const S = SD_RUSH.S; return { over: S.over, spill: S.spill, shipped: S.shipped, rollbacks: S.rollbacks, snags: S.snags, hotfix: S.hotfixChoice, strip: (document.querySelector('.end-strip') || {}).textContent }; });
     console.log(name, JSON.stringify(sum));
     for (const k of ['mid', 'rollback', 'slip', 'card', 'review', 'hotfix']) if (!seen[k]) bad(name, 'never saw', k);
+    if (name === 'phone') {
+      // The yard's own canvas words (the cellar room's art and shared pieces are claims 1-6's, not checked here).
+      const small = await pg.evaluate(MIN => Object.entries(window.__small).filter(([, px]) => px < MIN - 0.25).map(([t, px]) => t + ' ' + px.toFixed(1)), MIN_PX);
+      if (small.length) bad(name, 'canvas text under ' + MIN_PX + ' px', small.slice(0, 12)); else ok(name, 'canvas text >= ' + MIN_PX + ' px');
+    }
     if (name === 'phone' && !seen.express) console.log('note', name, 'express: no snag broke the stack this run');
     if (errs.length) bad(name, 'page errors', errs.slice(0, 5)); else ok(name, 'no page errors');
     await pg.close();
