@@ -549,6 +549,43 @@
     .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
     @keyframes drtray { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
     .dr-tray .dr-station { box-shadow: 0 -6px 24px rgba(0, 0, 0, .55); border-radius: 14px; }
+    /* The desk itself, not a panel (Ladi, Nov 16: "there's still a box"). Pushing in on a lead slides their desk up
+       from the counter: wood planks with the metrics pinned to it as paper notes, the dials as brass lever plates,
+       the switches as brass tags and the looks as index cards. */
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station { border: 0; border-radius: 0; padding: 12px 12px 10px; gap: 9px; color: #f3e6c8; box-shadow: inset 0 6px 10px rgba(0, 0, 0, .45);
+      background: linear-gradient(180deg, #6b4524 0, #6b4524 5px, #3b2413 5px, #3b2413 8px, transparent 8px),
+        repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 38px, rgba(0, 0, 0, .28) 38px 40px),
+        repeating-linear-gradient(97deg, rgba(255, 220, 160, .035) 0 3px, rgba(0, 0, 0, .04) 3px 9px),
+        linear-gradient(180deg, #7a5230, #5c3a1e 60%, #4a2e17); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station .small { color: #e8d6b0; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sh b { font-family: var(--f-head, serif); color: #2a1a08; padding: 1px 10px; border-radius: 4px; border: 2px solid #5a3b10;
+      background: linear-gradient(#e3c06a, #a77d2c); box-shadow: 0 2px 0 rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .45); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-head { display: none; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i { border-color: #2a1a08; background: #3b2413; } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i.on { background: radial-gradient(circle at 35% 35%, #ffe7a0, #c9952d 60%, #7a5418); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-metrics { gap: 10px 8px; padding: 2px 2px 4px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt { position: relative; border: 0; border-radius: 1px; background: linear-gradient(#fbf4df, #efe3c2); color: #2a2018; padding: 8px 7px 4px;
+      box-shadow: 1px 3px 4px rgba(0, 0, 0, .5); transform: rotate(-1.2deg); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt:nth-child(2n) { transform: rotate(1.4deg); } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt:nth-child(3n) { transform: rotate(.4deg); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt::before { content: ''; position: absolute; top: 2px; left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ff9a8a, #b0302a 65%); box-shadow: 0 1px 1px rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt code { color: #5a4a3a; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-dl { color: #f0dcb0; text-shadow: 0 1px 0 rgba(0, 0, 0, .6); } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-dl .dr-gi { fill: currentColor; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-seg { border: 2px solid #3b2413; border-radius: 7px; padding: 3px; gap: 3px; background: linear-gradient(#d7b462, #9b7228); box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .4); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-seg > * + * { border-left: 0 !important; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick { border-radius: 4px; background: rgba(255, 244, 210, .35); color: #2a1a08; min-height: 36px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on { background: #3b2413; color: #ffe7a0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, .7); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-cur { background: transparent; color: #4a2e10; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog { border: 2px solid #5a3b10; border-radius: 6px; background: linear-gradient(#e6c879, #b48a38); color: #2a1a08;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .45); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on { background: linear-gradient(#f5dc8e, #c99a3c); border-color: #2a1a08; color: #2a1a08; box-shadow: 0 0 0 2px #ffe7a0, 0 2px 0 rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.no { background: linear-gradient(#b9a77c, #8a7448); opacity: .8; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.once { border-color: #7a1f1a; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sw { background: #3b2413; border-color: #2a1a08; } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw { background: #4f7f5c; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-look { border: 0; border-radius: 2px; background: repeating-linear-gradient(180deg, #fbf6e6 0 15px, #d9e3ee 15px 16px); color: #2a2018; box-shadow: 1px 3px 4px rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.new { outline: 3px solid #ffe7a0; outline-offset: 1px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-tip { background: none; color: #e8d6b0; font-style: italic; padding: 0 2px; min-height: 2.4em; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-say { box-shadow: 0 2px 4px rgba(0, 0, 0, .45); }
+    @media (max-width: 700px) { .dr-roomw.zoomed .dr-tray { margin-top: -64px; } .dr-roomw.zoomed .dr-tray .dr-station { box-shadow: inset 0 6px 10px rgba(0, 0, 0, .45); } }
     @media (min-width: 900px) {
       .dr-roomw.zoomed .dr-tray { position: absolute; left: 50%; bottom: 0; width: min(780px, 92%); max-height: 74%; overflow-y: auto; margin: 0;
         transform: translateX(-50%); animation: drtrayw .45s cubic-bezier(.2, .8, .2, 1) both; }
