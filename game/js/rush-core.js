@@ -220,6 +220,16 @@
     ]
   };
   CLAIMS.hot.review = 'review';
+  // ---- Claim 8, the Night Audit (rules in js/rush-audit.js, SD.rushAudit) ----
+  // One continuous night, 22:00 to 06:00, no waves: faults overlap at four stations, and the buys change what you can
+  // see. Not chained yet (claim 7 comes before it); play it with rush.html?claim=audit.
+  CLAIMS.audit = {
+    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: null, close: 144, clerk: 'papers', cap: 18,
+    belt: ['tracer', 'pins', 'alarm', 'stamp', 'tally', 'hires'], extras: ['rule', 'lens'],
+    night: { start: 22, hours: 8, hourSecs: 18, rate: [0.32, 0.36, 0.4, 0.44, 0.48, 0.52, 0.56, 0.6], maxLive: [1, 1, 2, 2, 2, 3, 3, 3],
+      gap: [[0, 0], [0, 0], [16, 20], [14, 20], [14, 18], [13, 17], [12, 17], [12, 16]], transientP: 0.35, refund: 0.3 }
+  };
+  // ---- end claim 8 ----
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
@@ -244,6 +254,17 @@
     partial: { name: 'Partial batch', aws: 'ReportBatchItemFailures', cost: 1, order: 'batch' },
     dest: { name: 'Failure crate', aws: 'On-failure destination (async)', cost: 1 },
     retries: { name: 'Retry dial', aws: 'Async retry attempts (0 to 2)', cost: 1 }
+  });
+  // Claim 8's buys (the Night Audit). hourly: coins billed on the clock's hour. where: what it's placed on.
+  Object.assign(TOOLS, {
+    tracer: { name: 'Tracer', aws: 'X-Ray active tracing', cost: 2, hourly: 1, where: 'room' },
+    pins: { name: 'Pins', aws: 'X-Ray annotations (searchable)', cost: 1, where: 'room' },
+    rule: { name: 'Rule card', aws: 'X-Ray sampling rule (at the root)', cost: 1, where: 'counter' },
+    alarm: { name: 'Klaxon', aws: 'CloudWatch alarm (SNS action)', cost: 1, where: 'gauge' },
+    stamp: { name: 'EMF stamp', aws: 'Embedded metric format', cost: 1, where: 'desk' },
+    tally: { name: 'Tally', aws: 'Custom metric (PutMetricData)', cost: 1, where: 'station' },
+    hires: { name: '1s dial', aws: 'High-resolution metric and alarm', cost: 1, hourly: 1, where: 'gauge' },
+    lens: { name: 'Lens', aws: 'CloudWatch Logs Insights query', cost: 1, where: 'room' }
   });
   CLAIMS.rush.extra = ['memory', 'warm', 'jitter'];
   CLAIMS.bell.extra = ['handoff', 'memory', 'partial'];
@@ -281,6 +302,8 @@
     // The extra buys: on the belt after the claim's own tools, an order's buy only while that order is pinned.
     for (const t of C.extra || []) if (!TOOLS[t].order || S.orders.has(TOOLS[t].order)) S.belt.push(t);
     Object.assign(S, { costs: C.costs || null, handed: 0, upkeepPaid: 0, bills: 0, retryN: 2, landed: [], crate: [], crated: 0, replayed: 0, failedOut: 0, jams: 0, ttlGone: 0, paidKeys: new Set(), keyAt: new Map(), partials: 0 });
+    // Claim 8: the Watch Room has its own engine (js/rush-audit.js), with no waves.
+    if (C.engine === 'audit') return root.SD.rushAudit.init(S, C);
     // Spawn times: each wave spreads its tickets over its seconds, with a little jitter, poison mixed in.
     let t = 0.4;
     C.waves.forEach((w, wi) => {
@@ -326,7 +349,8 @@
   const purse = S => S.parent || S;
   // Shelf life's upside: the rack is free.
   function costOf(S, tool) { return tool === 'rack' && S.orders.has('shelf') ? 0 : S.costs && S.costs[tool] != null ? S.costs[tool] : TOOLS[tool].cost; }
-  function canPlace(S, tool) {
+  function canPlace(S, tool, target, opts) {
+    if (S.audit) return root.SD.rushAudit.canPlace(S, tool, target, opts); // claim 8
     const d = TOOLS[tool];
     if (!d) return 'unknown';
     if (S.locked.includes(tool) || !S.belt.includes(tool)) return 'locked';
@@ -336,7 +360,8 @@
     if (S.over || purse(S).over) return 'over';
     return '';
   }
-  function place(S, tool) {
+  function place(S, tool, target, opts) {
+    if (S.audit) return root.SD.rushAudit.place(S, tool, target, opts); // claim 8
     const why = canPlace(S, tool);
     if (why) return why;
     S[tool] = true; purse(S).coins -= costOf(S, tool); S.placed.push(tool);
@@ -530,6 +555,7 @@
   }
   function step(S, dt) {
     if (!S.started || S.over) return;
+    if (S.audit) { root.SD.rushAudit.step(S, dt); return; } // claim 8: the Watch Room's own step
     // The second room runs first, on the same clock. If it floods the shared tank, the night is over.
     if (S.review) { step(S.review, dt); if (S.over) return; }
     S.time += dt;
