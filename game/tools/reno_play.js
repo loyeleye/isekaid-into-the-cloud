@@ -165,6 +165,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     console.log('     sounds through the runs: ' + (await sounds()).join(', '));
     check(!!(await page.$('#rn-deb')), `${TAG} ${tag}: the plan passes and the permit follows`);
     await click('#rn-deb', tag + '-to-permit');
+    // Seymour's what-if (the second and fourth job of a night): chalk every line, run it, then on to the permit.
+    if (await page.$('#rn-wi-run')) {
+      await audit(tag + ' what-if'); await shot(tag + '-whatif');
+      check(await page.$eval('#rn-wi-run', x => x.disabled), `${TAG} ${tag}: the what-if can't run until every line is chalked`);
+      const n = (await page.$$('[data-wi]')).length;
+      for (let i = 0; i < n; i++) await page.click(`[data-wi="${i}"]`);
+      await click('#rn-wi-run', tag + '-whatif-run'); await wait(400);
+      check(!!(await page.$('.rn-wi .rn-wiyou')), `${TAG} ${tag}: the what-if fills in the slate and marks each line you chalked`);
+      await audit(tag + ' what-if result'); await shot(tag + '-whatif-result');
+      await click('#rn-wi-on', tag + '-whatif-on');
+    }
     await audit(tag + ' permit'); await shot(tag + '-permit');
     await page.click('#rn-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'), null, { timeout: 8000 });
