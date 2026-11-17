@@ -94,7 +94,8 @@
     // the turned-away ones in a line at the gate.
     if (o.tick) out += folk(Object.assign({ live: true }, o.tick), houses, gx, gW);
     else if (o.folk) out += folk({ served: o.folk, soot: 0, turned: 0 }, houses, gx, gW);
-    return { html: out, width: worldW, houses };
+    // The camera's tour on a phone: the gate and the first houses, then the far end (rented lots, a new street).
+    return { html: out, width: worldW, houses, stops: [GATE_X + 260, centreX(lastSlot)] };
   }
   // ---- Walking: a resident who travels along a path, stepping through the walk frames, growing as they come nearer ----
   // The path is resampled to equal steps so the pace is even, and the frames step every quarter second while they walk.
@@ -184,7 +185,7 @@
       out += `<span class="rs-plq${res ? ' done' : ''}" style="left:${px(cx - 90)};top:${px(YF - YA * (YARD_ART[standing] || [0, 0, 1])[2] - 56)}">${esc(pol)}</span>`;
       if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(cx - YSTEP / 2 + 10)};top:${px(YF - YA * 2.3)};width:${px(YSTEP - 20)};height:${px(YA * 2.3 + 80)}"></button>`;
     });
-    return { html: out, width: worldW, kind: 'yard' };
+    return { html: out, width: worldW, kind: 'yard', stops: [yx(0), yx(n - 1)] };
   }
 
   // ---- Night 2, the Shrine Bridge: a Lambda function behind its live alias, traffic shifted by CodeDeploy ----
@@ -269,7 +270,7 @@
     }
     // Seymour watches from the far bank, beside the path.
     if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups' }); }
-    return { html: out, width: W, kind: 'bridge' };
+    return { html: out, width: W, kind: 'bridge', stops: [BR.sign.x, BR.old.x, BR.nw.x, BR.bell.x - 80] };
   }
 
   // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
@@ -352,7 +353,7 @@
     const w = build(o), focus = o.focus != null ? o.focus : w.focus;   // the Wall frames a poster coming down
     const kai = o.kai ? `<img class="rs-kai" src="${IMG('kai-' + o.kai)}" alt="Kai" draggable="false" data-face="${esc(o.kai)}">` : '';
     const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" data-pose="${esc(o.close)}" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
-    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}${o.cls ? ' ' + o.cls : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${focus == null ? '' : focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
+    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}${o.cls ? ' ' + o.cls : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${focus == null ? '' : focus}" data-kind="${w.kind || 'street'}"${w.stops ? ` data-stops="${w.stops.map(Math.round).join(',')}"` : ''} role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
       <div class="rs-cam"><div class="rs-sizer"><div class="rs-world" style="width:${Math.round(w.width)}px">${w.html}</div></div></div>
       <div class="rs-fg">${kai}${sey}</div><div class="rs-ui">${o.ui || ''}</div></div>`;
   }
@@ -384,9 +385,44 @@
     y0 = Math.max(0, Math.min(y0, H - vh));
     sizer.style.width = Math.round(ww * s) + 'px'; sizer.style.height = CH + 'px';
     wd.style.transform = `translate(0, ${-y0 * s}px) scale(${s})`;
+    el.dataset.s = s;
     const left = Math.max(0, Math.min(cx * s - CW / 2, ww * s - CW));
     if (shot !== 'wide' || !el.dataset.framed) cam.scrollLeft = left;
     el.dataset.framed = '1';
+  }
+
+  // A phone can't show a whole job at once (the street, the bridge, the yard are wider than they are tall), so the
+  // camera tours it once: from where it starts, along each stop in data-stops (the far end, the shrines, the bell, the
+  // last resource), then back. A touch on the scene hands the camera back to the player. Not with reduced motion.
+  function tour(el, done) {
+    const cam = el && el.querySelector('.rs-cam');
+    if (!cam || reduced() || !el.dataset.stops || el.dataset.touring) return false;
+    const s = +el.dataset.s || 1, CW = cam.clientWidth, max = cam.scrollWidth - CW;
+    if (max < 20) return false;
+    const at = x => Math.max(0, Math.min(max, x * s - CW / 2));
+    const home = cam.scrollLeft, legs = [];
+    el.dataset.stops.split(',').map(Number).forEach(x => { const v = at(x), last = legs.length ? legs[legs.length - 1] : home; if (Math.abs(v - last) > 30) legs.push(v); });
+    if (!legs.length) return false;
+    if (Math.abs(legs[legs.length - 1] - home) > 30) legs.push(home);
+    el.dataset.touring = '1';
+    let stop = false;
+    const quit = () => { stop = true; };
+    ['pointerdown', 'wheel', 'touchstart'].forEach(e => cam.addEventListener(e, quit, { once: true, passive: true }));
+    const ease = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    let i = 0;
+    const leg = () => {
+      if (stop || !el.isConnected || i >= legs.length) { delete el.dataset.touring; if (done) done(); return; }
+      const from = cam.scrollLeft, to = legs[i++], dur = Math.min(1600, 500 + Math.abs(to - from) * 2.2), t0 = performance.now();
+      const step = now => {
+        if (stop || !el.isConnected) return leg();
+        const k = Math.min(1, (now - t0) / dur);
+        cam.scrollLeft = from + (to - from) * ease(k);
+        if (k < 1) requestAnimationFrame(step); else setTimeout(leg, i < legs.length ? 700 : 0);
+      };
+      requestAnimationFrame(step);
+    };
+    setTimeout(leg, 600);
+    return true;
   }
 
   // Kai: breath (CSS), a blink every few seconds, talking for a line, and a held reaction.
@@ -543,5 +579,5 @@
   `;
   document.head.appendChild(css);
 
-  SD.renoStreet = { scene, mount, cut, update, frame, pose, world, yard, bridge, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
+  SD.renoStreet = { scene, mount, cut, update, frame, pose, tour, world, yard, bridge, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
 })();
