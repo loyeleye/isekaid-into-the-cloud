@@ -50,7 +50,7 @@
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
         <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()">${['bite', 'chew', 'smug'].map(n => `<img class="up-e up-${n}" src="assets/img/drill/uptima-cloud-${n}.webp" alt="" draggable="false" onerror="this.remove()">`).join('')}</span><span class="rm-emote"></span></div>
-        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}${SQUIG}</div>
+        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="up-fly"><img class="fly-in" src="assets/img/drill/uptima-fly-in.webp" alt="" draggable="false"><img class="fly-out" src="assets/img/drill/uptima-fly-out.webp" alt="" draggable="false"></span>${SQUIG}</div>
         <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
   function drawOver(c) {
@@ -81,6 +81,15 @@
   }
   R.kickOver = () => { if (!overRaf) overRaf = requestAnimationFrame(overLoop); };
   // A bare room for Uptima's lines: no stations or gauges, the leads faded behind her.
+  // Her flight between the cloud and the desk (Ladi, Nov 17): while .rm-up glides, a full-body flying sprite stands in
+  // for the pose (flying at the camera on the way down, backing away still facing it on the way up), uncut by the
+  // counter. The cloud stays hidden until she's back up there.
+  R.FLY_MS = 700;
+  R.flyIn = rm => { clearTimeout(rm._fly); rm.classList.add('fly', 'talk'); rm._fly = setTimeout(() => rm.classList.remove('fly'), R.FLY_MS); };
+  R.flyOut = (rm, cb) => {
+    clearTimeout(rm._fly); rm.classList.add('fly'); rm.classList.remove('talk');
+    rm._fly = setTimeout(() => { rm.classList.remove('fly'); if (cb) cb(); }, R.FLY_MS);
+  };
   R.scene = (pose, talk = true) => `<div class="rm${talk ? ' talk' : ''} scene" aria-hidden="true"><div class="rm-cam">${R.layers(pose)}</div></div>`;
   // The room. o: { at, zoom, notes: [[station, who, text]], lines: [[who, text]], m, play }
   R.html = function (f, e, o) {
@@ -345,10 +354,18 @@
     @keyframes upsmug { 0%, 60% { opacity: 0; } 61%, 82% { opacity: 1; } 83%, 100% { opacity: 0; } }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
     /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
-    .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
-    .rm.talk .rm-up { opacity: 1; transform: none; }
-    .rm-cloud { transition: opacity .45s ease; }
-    .rm.talk .rm-cloud { opacity: 0; }
+    .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .2s ease .5s, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    .rm.talk .rm-up { opacity: 1; transform: none; transition: opacity .2s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    .rm-cloud { transition: opacity .3s ease; }
+    .rm.talk .rm-cloud, .rm.fly .rm-cloud { opacity: 0; transition-duration: .15s; }
+    /* In flight (R.flyIn / R.flyOut): the whole of her, flying, in place of the pose cut off at the counter. */
+    .up-fly { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .up-fly img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: 0; user-select: none; }
+    .rm.fly .rm-up { clip-path: none; }
+    .rm.fly .up-fly { opacity: 1; }
+    .rm.fly .rm-up .up-fig, .rm.fly .rm-sq { opacity: 0; }
+    .rm.fly.talk .fly-in, .rm.fly:not(.talk) .fly-out { opacity: 1; }
+    .rm-up .up-fig { transition: opacity .15s ease; }
     .rm-over { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; transition: opacity .45s ease, filter .45s ease; }
     /* While she talks: the room behind the leads (room-empty.webp, the plate with the leads painted out and
        softened), then her, then the leads alone (the room cut through room-leads-matte.png), see-through and

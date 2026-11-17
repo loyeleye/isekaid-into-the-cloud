@@ -151,7 +151,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/The Fire Drill/.test(await txt('#panel')) && /Host: Uptima/.test(await txt('[data-mode="drill"]')), 'the picker lists it, hosted by Uptima');
   await page.click('[data-mode="drill"]');
   check(/Behold, mortals/.test(await txt('#panel')) && !!await page.$('.dr-cut .up-fig'), 'Uptima opens the night in a cutscene, full size');
+  // Her flight (Ladi, Nov 17): a full-body flying sprite while she glides, and her cloud hidden until she's back on it.
+  await page.waitForSelector('.dr-cut .rm.fly.talk', { timeout: 3000 }); await page.waitForTimeout(250);
+  const flight = () => page.evaluate(() => { const r = document.querySelector('.dr-cut .rm'), op = q => +getComputedStyle(r.querySelector(q)).opacity;
+    return { fly: r.classList.contains('fly'), talk: r.classList.contains('talk'), cloud: op('.rm-cloud'), inn: op('.fly-in'), out: op('.fly-out'), clip: getComputedStyle(r.querySelector('.rm-up')).clipPath }; });
+  let fl = await flight();
+  check(fl.fly && fl.talk && fl.inn === 1 && fl.out === 0 && fl.cloud === 0 && fl.clip === 'none', `on the way down she flies at the camera, whole, and the cloud is empty (${JSON.stringify(fl)})`);
+  await page.waitForFunction(() => !document.querySelector('.dr-cut .rm.fly'), null, { timeout: 3000 });
   await shot('cutscene');
+  for (let i = 0; i < 6 && !await page.$('.dr-cut .rm.fly:not(.talk)'); i++) { if (await page.$('#dr-cut-next:not([disabled])')) await page.click('#dr-cut-next:not([disabled])'); await page.waitForTimeout(60); }
+  await page.waitForTimeout(250);
+  fl = await flight();
+  check(fl.fly && !fl.talk && fl.out === 1 && fl.inn === 0 && fl.cloud === 0, `on the way back up she backs away facing the camera, and the cloud stays empty until she lands (${JSON.stringify(fl)})`);
   await cut();
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: it opens on the map');
   check(/Night 1/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.every(x => x.querySelectorAll('.dr-door').length === 1)), 'night 1 is one path');
@@ -184,6 +195,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   s = await st();
   check(s.drill.deploys === 1 && s.drill.state === 'read' && s.budget < 100, `a look-alike doesn't contain it, and the run costs budget (${s.budget}%)`);
   check(await page.$$eval('.rm-st[data-at="gate"]', x => x[0].classList.contains('st-throttle')), 'with stage tracing on, the Gate shows purple: Throttle 429');
+  // Each teach bubble hangs under its own speaker (Ladi, Nov 17: Seo-yeon's grey-map line sat under Kai, The Function).
+  const LEAD = { gate: 'Seo-yeon', queue: 'Mira', fn: 'Kai', store: 'Dutch' };
+  const notesAt = await page.$$eval('.rm-col .rm-note', x => x.map(n => [n.closest('.rm-col').dataset.col, n.querySelector('b').textContent]));
+  check(notesAt.length > 0 && notesAt.every(([k, who]) => LEAD[k] === who), `every teach bubble sits under the lead who says it (${notesAt.map(n => n.join(': ')).join(', ') || 'none'})`);
   await shot('traced');
   await place('backoff');
   await deploy();

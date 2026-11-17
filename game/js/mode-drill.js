@@ -54,7 +54,7 @@
         <button class="dr-cut-box" id="dr-cut-next" data-vo="${esc('uptima|' + text)}"><b>Uptima</b><span>${esc(text)}</span><i aria-hidden="true">▼</i></button></div>`);
       const rm = b.querySelector('.rm'), fig = b.querySelector('.rm-up .up-fig');
       // She glides down from her cloud to the desk as the scene opens, and floats back up when it closes.
-      if (first) setTimeout(() => rm.classList.add('talk'), 250);
+      if (first) setTimeout(() => RM().flyIn(rm), 250);
       if (fig) fig.classList.add('talking');
       // Fuss lines only on lines that shout, and never two beats running.
       const sq = b.querySelector('.rm-sq');
@@ -70,8 +70,8 @@
         if (i < beats.length) return show();
         RM().listen(false);
         if (calm) return done();
-        next.disabled = true; rm.classList.remove('talk');
-        setTimeout(done, 750);
+        next.disabled = true;
+        RM().flyOut(rm, () => setTimeout(done, 300));   // the cloud fades back in once she's up there
       };
       next.focus({ preventScroll: true });
     };
@@ -431,7 +431,10 @@
     const RO = RM(), zoom = !!(RO && s.zoom && !play && !over);
     const dock = play ? '<button class="ghost" id="dr-skip">Skip to the end</button>'
       : `<button class="ghost" id="dr-stop">☰ Stop</button>${RO ? (zoom ? '<button class="ghost" id="dr-back">‹ Back to the room</button>' : over ? '' : '<span class="dr-hint">Tap a lead to work their station.</span>') : ''}${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}`;
-    const notes = teach.map(t => [TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate', D.TEACH[t][0], D.TEACH[t][1]]);
+    // A teach bubble carries its speaker's name, so it sits under that speaker's own station (Ladi, Nov 17: Seo-yeon's
+    // grey-map line hung under Kai). TEACH_AT is only the fallback for a speaker with no station on the counter.
+    const ownAt = w => D.ORDER.find(k => D.station(f.drill, k).who === w);
+    const notes = teach.map(t => [ownAt(D.TEACH[t][0]) || (TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate'), D.TEACH[t][0], D.TEACH[t][1]]);
     const b = RO ? panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
