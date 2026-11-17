@@ -18,6 +18,10 @@
     'v-folder': 'assets/img/rush/vault/folder.webp', 'v-folder-done': 'assets/img/rush/vault/folder-done.webp', 'v-folder-bounced': 'assets/img/rush/vault/folder-bounced.webp',
     'v-drawer': 'assets/img/rush/vault/drawer.webp', 'v-cart': 'assets/img/rush/vault/cart.webp', 'v-cart-bolted': 'assets/img/rush/vault/cart-bolted.webp',
     'v-desk': 'assets/img/rush/vault/desk.webp',
+    // The Night Audit's Watch Room (claim 8): the painted rooms, and the sprites for what moves or is bought (tools/rush_watch_pack.py).
+    'watch-wide': 'assets/img/rush/watch-wide.webp', 'watch-tall': 'assets/img/rush/watch-tall.webp',
+    ...Object.fromEntries(['porter', 'porter-walk', 'gauge', 'gauge-hires', 'capsule', 'capsule-cracked', 'capsule-late', 'capsule-refund', 'tracer', 'pins', 'alarm',
+      'stamp', 'tally', 'rule', 'lens', 'logbook', 'shutter', 'key', 'pile', 'mail'].map(n => ['w-' + n, `assets/img/rush/watch/${n}.webp`])),
     'dutch-neutral': 'assets/img/portraits/dutch-neutral.webp', 'dutch-smile': 'assets/img/portraits/dutch-smile.webp',
     'dutch-tired': 'assets/img/portraits/dutch-tired.webp', 'dutch-surprised': 'assets/img/portraits/dutch-surprised.webp', 'dutch-angry': 'assets/img/portraits/dutch-angry.webp'
   };
@@ -1595,36 +1599,38 @@
   // at a time. You buy what you can see (the tracer, the stamp, tallies, klaxons, the 1-second dial), read it on
   // cards (log lines, trace segments, query rows, gauge settings), and send the porter. Downstairs, the cellar pays
   // coins for review answers, and only a klaxon reaches you there.
-  // The room is drawn in code until its painted backdrop and props come in (claim-8/sogni-prompts.md): the layouts
-  // below are measured so the painted art can drop in (painted: false, as VAULT_* was before its art).
+  // The rooms are painted (Ladi's Sogni room and props, collaged and repainted as one: tools/rush_watch_collage.py and
+  // rush_watch_pack.py), with the cabinets, the clock case, the ink column and the out basket in the painting; the
+  // layouts below are measured off the paintings. The code draws over them what moves or is bought.
   // Nothing here runs for claims 1 to 6: every hook into the code above checks M.audit first.
   // ==================================================================================================================
   const A8 = SD.rushAudit;
   // A station by name: Mira is a person, the rest are things.
   const WHO = st => st === 'desk' ? 'Mira' : 'the ' + A8.NAME[st];
   const WATCH_WIDE = {
-    W: 1344, H: 768, bg: 'watch-wide', painted: false, fs: 1, watch: true,
+    W: 1344, H: 768, bg: 'watch-wide', painted: true, fs: 1, watch: true,
     title: [24, 22], say: { x: 300, y: 12, w: 640 }, belt: { h: 100, slot: 116 },
     // The stations, in tube order: centres, cabinet size and bottom (the floor line is 556).
     st: { counter: [380, 556], desk: [600, 556], drawer: [820, 556], engine: [1040, 556] }, cab: [168, 210], floor: 556,
-    tube: 410, ret: 372, intake: [230, 0], cup: [230, 410], outX: 1196, basket: [1200, 548, 112, 74],
-    dialY: 300, dialR: 30, dialDx: 66,
-    clock: [95, 240, 130, 230], ink: [1290, 130, 40, 340], jobs: [980, 116, 290, 130], board: [600, 124, 340, 120],
-    logs: { counter: [300, 626, 60, 72], desk: [528, 626, 60, 72] }, bench: [222, 650], porterH: 300,
+    tube: 445, ret: 372, intake: [230, 0], cup: [230, 445], outX: 1196, basket: [1200, 548, 112, 74],
+    dialY: 300, dialR: 24, dialDx: 78,
+    // The painted clock's face (centre, radius), its keyhole, and the ink column's glass; the Engine's porthole (for the shutter).
+    clock: [95, 238, 110, 230], face: [83, 185, 27], key: [64, 282], ink: [1292, 172, 44, 232], port: [-37, -101, 120], jobs: [980, 116, 290, 130], board: [600, 124, 340, 120],
+    logs: { counter: [478, 292, 52, 64], desk: [700, 292, 52, 64] }, bench: [178, 655], porterH: 300,
     door: [0, 476, 44, 150], bellAt: [960, 186],
     // The cellar below (the claim-6 cellar backdrop, dimmed): the question pile, the mail slot, the intern's tray.
     down: { pile: [560, 470, 220, 130], mail: [990, 330, 120, 66], tray: [860, 500, 170, 90], lamp: [1110, 70], up: [0, 476, 44, 150] }
   };
   const WATCH_TALL = {
-    W: 768, H: 1504, bg: 'watch-tall', painted: false, fs: 1.6, watch: true,
+    W: 768, H: 1504, bg: 'watch-tall', painted: true, fs: 1.6, watch: true,
     title: [20, 20], say: { x: 16, y: 150, w: 736 }, belt: { h: 150, slot: 162 }, coinsAt: [470, 50],
     // Two rows: the Counter and Mira up top, the Engine and the Drawer (the calls she makes) below. The board and the
     // porter's list sit above them at phone-readable size (22 px on this stage is 11 CSS px on a 390 px phone).
-    st: { counter: [210, 880], desk: [510, 880], drawer: [510, 1220], engine: [210, 1220] }, cab: [176, 200], floor: 1220,
-    tube: 760, ret: 760, intake: [44, 400], cup: [44, 760], outX: 700, basket: [700, 1290, 90, 60],
+    st: { counter: [210, 906], desk: [512, 906], drawer: [512, 1255], engine: [208, 1255] }, cab: [176, 200], floor: 1255,
+    tube: 805, ret: 805, intake: [44, 480], cup: [44, 805], outX: 700, basket: [700, 1315, 90, 60],
     dialY: null, dialR: 30, dialDx: 100,
-    clock: [92, 380, 110, 200], ink: [716, 290, 36, 360], jobs: [212, 350, 470, 176], board: [212, 150, 470, 190],
-    logs: { counter: [44, 810, 64, 76], desk: [360, 810, 64, 76] }, bench: [360, 1300], porterH: 224,
+    clock: [88, 380, 96, 200], face: [78, 325, 23], key: [62, 420], ink: [712, 335, 50, 240], port: [-23, -85, 120], jobs: [212, 350, 470, 176], board: [212, 150, 470, 190],
+    logs: { counter: [44, 830, 64, 76], desk: [360, 830, 64, 76] }, bench: [360, 1310], porterH: 224,
     door: [0, 1180, 44, 120], bellAt: [700, 250],
     down: { pile: [384, 700, 300, 150], mail: [600, 470, 130, 70], tray: [384, 940, 240, 100], lamp: [384, 300], up: [0, 1180, 44, 120] }
   };
@@ -1889,6 +1895,12 @@
   // ---- Drawing ----
   // Plain small print (no outline), for badges and price tags.
   function ptext(t, x, y, size, col) { cx.save(); cx.font = `800 ${Math.max(size * L.fs, audMinPx())}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(t, x, y); cx.restore(); }
+  // A Watch Room sprite (assets/img/rush/watch/), fitted in a w x h box: anchored at its bottom centre ('mb') or centre.
+  function wimg(n, x, y, w, h, anchor, flip) {
+    const im = IMG['w-' + n]; if (!im) return false;
+    const s = Math.min(w / im.width, h / im.height), ww = im.width * s, hh = im.height * s;
+    cx.save(); cx.translate(x, y); if (flip) cx.scale(-1, 1); cx.drawImage(im, -ww / 2, anchor === 'mb' ? -hh : -hh / 2, ww, hh); cx.restore(); return true;
+  }
   function audBg() {
     const bg = IMG[L.bg];
     if (bg) { cx.drawImage(bg, 0, 0, L.W, L.H); return; }
@@ -1908,6 +1920,7 @@
   }
   function audCabinet(st) {
     const [x, y] = L.st[st], [w, h] = L.cab, a = M.audit, sx = x - w / 2, sy = y - h;
+    if (L.painted && IMG[L.bg]) { audCabinetOver(st, x, y, w, h, sx, sy); return; }
     shadow(x, y + 2, w * 1.1);
     const body = { counter: '#5a3a24', desk: '#3e4a5a', drawer: '#4a3a2a', engine: '#3a3a3a' }[st];
     cx.save(); rrect(sx, sy, w, h, 10); cx.fillStyle = body; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#140c06'; cx.stroke();
@@ -1934,12 +1947,33 @@
     if (st === 'counter' && a.rule) { cx.fillStyle = '#f1e2b8'; rrect(sx + 8, sy + h - 40, 34, 24, 3); cx.fill(); ptext('100%', sx + 25, sy + h - 28, 9, '#2b1a08'); }
     if (AU8.armed && targetOk(AU8.armed, st)) glowSpot([sx - 6, sy - 6, w + 12, h + 12], true);
   }
+  // Over a painted cabinet: its busy lamps, the Engine's shutter until something reports from it, and the buys on it.
+  function audCabinetOver(st, x, y, w, h, sx, sy) {
+    const a = M.audit, n = st === 'counter' ? 3 : st === 'desk' ? 4 : 0, busy = st === 'counter' ? a.windowsBusy : a.seatsBusy;
+    for (let i = 0; i < n; i++) { cx.beginPath(); cx.arc(x - (n - 1) * 9 + i * 18, sy + h - 14, 6, 0, 7); cx.fillStyle = i < busy ? '#ffd666' : '#3a3026'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke(); }
+    if (st === 'engine' && !a.seenStation.engine) { const [dx, dy, ph] = L.port; wimg('shutter', x + dx, y + dy, ph, ph, 'mm'); }
+    const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
+    plaque(`${A8.NAME[st]} · ${aws}`, x, y + 18 * L.fs);
+    const b = h * .3;
+    if (a.tallies.includes(st)) { cx.save(); if (a.dark.has('tally:' + st)) cx.globalAlpha = .45; wimg('tally', sx + w - b * .4, y - 6, b, b, 'mb'); cx.restore(); }
+    if (st === 'desk' && a.stamp) { cx.save(); if (a.dark.has('stamp')) cx.globalAlpha = .45; wimg('stamp', sx + b * .4, y - 6, b, b, 'mb'); cx.restore(); }
+    if (st === 'counter' && a.rule) wimg('rule', sx + b * .5, y - 8, b, b, 'mb');
+    if (AU8.armed && targetOk(AU8.armed, st)) glowSpot([sx - 6, sy - 6, w + 12, h + 12], true);
+  }
   function targetOk(tool, st) { return (tool === 'tally' && !M.audit.tallies.includes(st)) || (tool === 'stamp' && st === 'desk') || (tool === 'rule' && st === 'counter'); }
   function audDial(g) {
     const [x, y] = gaugePos(g), r = L.dialR, m = g.metrics[0], v = g.vals[m.key], a = M.audit;
     const dark = (g.src === 'tally' && a.dark.has('tally:' + g.station)) || (g.src === 'stamp' && a.dark.has('stamp'));
-    cx.save(); cx.beginPath(); cx.arc(x, y, r + 5, 0, 7); cx.fillStyle = g.hires && !a.dark.has('hires:' + g.id) ? '#2a5ab8' : '#8a6a2a'; cx.fill();
-    cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke();
+    const hi = g.hires && !a.dark.has('hires:' + g.id), spr = IMG[hi ? 'w-gauge-hires' : 'w-gauge'];
+    cx.save();
+    if (spr) { // the painted gauge: its face (an ellipse at these fractions of the sprite) under the code's needle
+      const F = hi ? [.407, .507, .306, .379] : [.438, .52, .333, .39], sw = r / F[2], sh = sw * spr.height / spr.width;
+      cx.drawImage(spr, x - F[0] * sw, y - F[1] * sh, sw, sh);
+      cx.beginPath(); cx.ellipse(x, y, r * 1.02, F[3] * sh * 1.02, 0, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill();
+    } else {
+      cx.beginPath(); cx.arc(x, y, r + 5, 0, 7); cx.fillStyle = hi ? '#2a5ab8' : '#8a6a2a'; cx.fill();
+      cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke();
+    }
     // The red zone past the threshold (a time gauge: its line; a rate: 0.4; a heartbeat: none).
     const lim = m.kind === 'time' ? m.thr : m.kind === 'rate' ? A8.T.rateThr : null, full = m.kind === 'time' ? m.thr * 2 : m.kind === 'rate' ? 1 : 6;
     const ang = f => Math.PI * .8 + f * Math.PI * 1.4;
@@ -1948,7 +1982,7 @@
     cx.save(); cx.translate(x, y); cx.rotate(ang(g.needle)); cx.fillStyle = v == null ? '#999' : '#1a1410'; cx.fillRect(0, -1.5, r - 6, 3); cx.restore();
     cx.beginPath(); cx.arc(x, y, 3, 0, 7); cx.fillStyle = '#1a1410'; cx.fill(); cx.restore();
     const lab = g.src === 'builtin' ? m.key.replace('SuccessfulRequestLatency', 'Latency') : g.src === 'stamp' ? 'EMF ms' : 'Tally';
-    text(lab, x, y + r + 14, 12, '#f2e6cc');
+    text(lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12, '#f2e6cc');
     // Its klaxons: a lamp each over the dial, grey for no data, green OK, red ALARM.
     const als = a.alarms.filter(al => al.gauge === g.id);
     als.forEach((al, i) => {
@@ -1960,10 +1994,13 @@
   }
   function audCapsule(k) {
     const p = ticketPos(k); if (!p) return;
-    const col = k.bad === 'failed' ? '#8a2a20' : k.bad === 'late' ? '#d0702a' : '#c9a23a';
-    cx.save(); cx.translate(p[0], p[1]); rrect(-16, -8, 32, 16, 7); cx.fillStyle = col; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#1a0f06'; cx.stroke();
-    if (k.refund) { cx.fillStyle = '#ffd040'; cx.fillRect(-3, -8, 6, 16); }
-    if (k.bad === 'failed') { cx.strokeStyle = '#000'; cx.beginPath(); cx.moveTo(-6, -8); cx.lineTo(0, 0); cx.lineTo(-4, 8); cx.stroke(); }
+    const col = k.bad === 'failed' ? '#8a2a20' : k.bad === 'late' ? '#d0702a' : '#c9a23a', cap = k.bad === 'failed' ? 'capsule-cracked' : k.bad === 'late' ? 'capsule-late' : k.refund ? 'capsule-refund' : 'capsule';
+    cx.save(); cx.translate(p[0], p[1]);
+    if (!wimg(cap, 0, 0, 44, 30, 'mm')) {
+      rrect(-16, -8, 32, 16, 7); cx.fillStyle = col; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#1a0f06'; cx.stroke();
+      if (k.refund) { cx.fillStyle = '#ffd040'; cx.fillRect(-3, -8, 6, 16); }
+      if (k.bad === 'failed') { cx.strokeStyle = '#000'; cx.beginPath(); cx.moveTo(-6, -8); cx.lineTo(0, 0); cx.lineTo(-4, 8); cx.stroke(); }
+    }
     if (k.traced && M.audit.tracer) { cx.strokeStyle = '#e03030'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(16, 0); cx.quadraticCurveTo(26, -10, 34, 0); cx.stroke(); }
     cx.restore();
     // At Mira's desk: the call she's waiting on goes out as a grey pellet along the return pipe.
@@ -1983,6 +2020,12 @@
     if (p.phase === 'back') { const f = Math.min(1, p.t / Math.max(.01, p.dur)); pos = [lerp(at(p.at)[0], L.bench[0], ease(f)), lerp(at(p.at)[1], L.bench[1], ease(f))]; walking = true; }
     const H = L.porterH, s = H / 300, [x, y] = pos, step = walking ? Math.sin(performance.now() / 90) : 0, bob = p.phase === 'work' ? Math.sin(performance.now() / 70) * 4 : 0;
     shadow(x, y, 90 * s);
+    if (IMG['w-porter']) { // the painted porter: standing (oil can and wrench in hand), or his walking frame, facing his way
+      const to = p.phase === 'walk' && p.job ? at(p.job.station)[0] - at(p.from || 'bench')[0] : p.phase === 'back' ? L.bench[0] - at(p.at)[0] : 0;
+      cx.save(); cx.translate(0, bob - (walking ? Math.abs(step) * 4 : 0)); wimg(walking ? 'porter-walk' : 'porter', x, y + 4, H * 2, H, 'mb', walking ? to > 0 : false); cx.restore();
+      if (p.phase === 'work' && p.job) text(p.job.job === 'oil' ? 'oiling' : 'patching', x, y - H - 16, 18, '#ffe6a8');
+      return;
+    }
     cx.save(); cx.translate(x, y); cx.scale(s, s); cx.lineJoin = 'round'; cx.lineWidth = 4; cx.strokeStyle = '#120a06';
     // Legs, coat, arms, head, cap: a standing adult about 300 px tall in the wide room.
     cx.fillStyle = '#2a2a3a'; cx.fillRect(-26 + step * 8, -110, 20, 110); cx.strokeRect(-26 + step * 8, -110, 20, 110); cx.fillRect(6 - step * 8, -110, 20, 110); cx.strokeRect(6 - step * 8, -110, 20, 110);
@@ -2003,22 +2046,26 @@
     if (p.phase === 'work' && p.job) text(p.job.job === 'oil' ? 'oiling' : 'patching', x, y - H - 16, 18, '#ffe6a8');
   }
   function audClock() {
-    const [x, y, w, h] = L.clock, a = M.audit;
-    cx.save(); rrect(x - w / 2, y - h / 2, w, h, 16); cx.fillStyle = '#4a2e1a'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#140c06'; cx.stroke();
-    const r = w * .38, cy0 = y - h / 2 + w * .5;
-    cx.beginPath(); cx.arc(x, cy0, r, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.stroke();
+    const [x, y, w, h] = L.clock, a = M.audit, painted = L.painted && IMG[L.bg];
+    cx.save(); cx.lineWidth = 4; cx.strokeStyle = '#140c06';
+    if (!painted) { rrect(x - w / 2, y - h / 2, w, h, 16); cx.fillStyle = '#4a2e1a'; cx.fill(); cx.stroke(); }
+    // The painted case keeps its own face; the code paints a plain one over it, flat to the camera, for the hands.
+    const fx = painted ? L.face[0] : x, r = painted ? L.face[2] : w * .38, cy0 = painted ? L.face[1] : y - h / 2 + w * .5;
+    cx.lineWidth = painted ? 2 : 4; cx.beginPath(); cx.arc(fx, cy0, r, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.stroke();
+    for (let i = 0; painted && i < 12; i++) { const an = i * Math.PI / 6; cx.fillStyle = '#3a2510'; cx.fillRect(fx + Math.sin(an) * r * .82 - 1.5, cy0 - Math.cos(an) * r * .82 - 1.5, 3, 3); }
     const mins = M.started ? (M.time / a.night.hourSecs) * 60 : 0, hh = (a.night.start + mins / 60) % 12, mm = mins % 60;
-    const hand = (f, len, wd) => { cx.save(); cx.translate(x, cy0); cx.rotate(f * Math.PI * 2); cx.fillStyle = '#1a1410'; cx.fillRect(-wd / 2, -len, wd, len); cx.restore(); };
-    hand(hh / 12, r * .5, 5); hand(mm / 60, r * .8, 3);
+    const hand = (f, len, wd) => { cx.save(); cx.translate(fx, cy0); cx.rotate(f * Math.PI * 2); cx.fillStyle = '#1a1410'; cx.fillRect(-wd / 2, -len, wd, len); cx.restore(); };
+    hand(hh / 12, r * .5, painted ? 3 : 5); hand(mm / 60, r * .8, painted ? 2 : 3);
     // The key: wind it to start the night.
-    const ky = y + h * .22; cx.save(); cx.translate(x, ky); cx.rotate(AU8.keyT * 6); cx.fillStyle = '#d6b254'; cx.fillRect(-4, -26, 8, 40); cx.beginPath(); cx.arc(0, -30, 12, 0, 7); cx.fill(); cx.stroke(); cx.restore();
+    if (painted && IMG['w-key']) { cx.save(); cx.translate(L.key[0], L.key[1]); cx.rotate(AU8.keyT * 6 - .6); wimg('key', 0, 0, 44, 44, 'mm'); cx.restore(); }
+    const ky = y + h * .22; if (!painted || !IMG['w-key']) { cx.save(); cx.translate(x, ky); cx.rotate(AU8.keyT * 6); cx.fillStyle = '#d6b254'; cx.fillRect(-4, -26, 8, 40); cx.beginPath(); cx.arc(0, -30, 12, 0, 7); cx.fill(); cx.stroke(); cx.restore(); }
     cx.restore();
     if (!M.started) { glowSpot([x - w / 2 - 6, y - h / 2 - 6, w + 12, h + 12], true); plaque('Wind the clock to start', x + 40, y + h / 2 + 22); }
   }
   function audInk() {
-    const [x, y, w, h] = L.ink, f = Math.min(1, M.spill / M.cap);
-    cx.save(); rrect(x, y, w, h, 10); cx.fillStyle = 'rgba(200,220,240,.18)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#b8924a'; cx.stroke();
-    cx.save(); rrect(x + 4, y + 4, w - 8, h - 8, 8); cx.clip(); cx.fillStyle = '#2a1a5a'; cx.fillRect(x, y + h - f * h, w, f * h); cx.restore();
+    const [x, y, w, h] = L.ink, f = Math.min(1, M.spill / M.cap), glass = !(L.painted && IMG[L.bg] && AU8.room === 'up');
+    cx.save(); if (glass) { rrect(x, y, w, h, 10); cx.fillStyle = 'rgba(200,220,240,.18)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#b8924a'; cx.stroke(); }
+    cx.save(); rrect(x + 4, y + 4, w - 8, h - 8, 8); cx.clip(); cx.fillStyle = glass ? '#2a1a5a' : 'rgba(42,26,90,.88)'; cx.fillRect(x, y + h - f * h, w, f * h); cx.restore();
     cx.restore(); text(`${M.spill}/${M.cap}`, x + w / 2, y + h + 18, 16, M.spill >= M.cap - 3 ? '#ff9a8a' : '#e8dcc4'); text('lost', x + w / 2, y - 14, 13, '#c9c0b0');
   }
   function audBoard() {
@@ -2055,14 +2102,17 @@
   function audLogbooks() {
     for (const src of ['counter', 'desk']) {
       const [x, y, w, h] = L.logs[src], fresh = M.audit.logs[src].length && M.time - M.audit.logs[src][M.audit.logs[src].length - 1].t < .6;
-      cx.save(); rrect(x - w / 2, y - h / 2, w, h, 6); cx.fillStyle = src === 'desk' ? '#6a2a2a' : '#2a4a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#140c06'; cx.stroke();
-      cx.fillStyle = '#f1e2b8'; cx.fillRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, 14); cx.fillStyle = '#c8473b'; cx.fillRect(x + w / 2 - 14, y + h / 2 - 4, 6, 20); cx.restore();
+      if (!wimg('logbook', x, y, w * 1.3, h * 1.15, 'mm')) {
+        cx.save(); rrect(x - w / 2, y - h / 2, w, h, 6); cx.fillStyle = src === 'desk' ? '#6a2a2a' : '#2a4a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#140c06'; cx.stroke();
+        cx.fillStyle = '#f1e2b8'; cx.fillRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, 14); cx.fillStyle = '#c8473b'; cx.fillRect(x + w / 2 - 14, y + h / 2 - 4, 6, 20); cx.restore();
+      }
       if (fresh) { cx.beginPath(); cx.arc(x + w / 2 - 6, y - h / 2 + 6, 6, 0, 7); cx.fillStyle = '#ffe6a8'; cx.fill(); }
       text(src === 'desk' ? 'Mira' : 'Counter', x, y + 8, 11, '#f2e6cc'); text('LOG', x, y + 24, 11, '#f2e6cc');
     }
   }
   function audBasket() {
     const [x, y, w, h] = L.basket;
+    if (L.painted && IMG[L.bg]) { text(String(M.handled), x, L.W < L.H ? y - h / 2 - 16 : y + h / 2 + 16, 18, '#bff5b4'); return; }
     cx.save(); cx.beginPath(); cx.moveTo(x - w / 2, y - h / 2); cx.lineTo(x + w / 2, y - h / 2); cx.lineTo(x + w / 2 - 12, y + h / 2); cx.lineTo(x - w / 2 + 12, y + h / 2); cx.closePath();
     cx.fillStyle = '#8a6a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(x - w / 2 + 6, y - h / 2 + i * h / 4); cx.lineTo(x + w / 2 - 6, y - h / 2 + i * h / 4); cx.stroke(); } cx.restore();
     text(String(M.handled), x, y + h / 2 + 16, 18, '#bff5b4');
@@ -2122,7 +2172,8 @@
   // The buys' icons, drawn in code: a spool, a pin, a bell, a stamp, a tally, a blue dial, a card, a lens, a clipboard.
   function audIcon(t, x, y, s, alpha) {
     cx.save(); cx.globalAlpha = alpha; cx.translate(x, y); cx.lineWidth = 3; cx.strokeStyle = '#140c06'; cx.lineJoin = 'round';
-    const R0 = s * .5;
+    const R0 = s * .5, spr = { tracer: 'tracer', pins: 'pins', alarm: 'alarm', stamp: 'stamp', tally: 'tally', hires: 'gauge-hires', rule: 'rule', lens: 'lens' }[t];
+    if (spr && wimg(spr, 0, 0, s * 1.05, s * 1.05, 'mm')) { cx.restore(); return; }
     if (t === 'tracer') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .7, -R0, R0 * 1.4, R0 * .3); cx.fillRect(-R0 * .7, R0 * .7, R0 * 1.4, R0 * .3); cx.fillStyle = '#d03030'; cx.fillRect(-R0 * .5, -R0 * .7, R0, R0 * 1.4); cx.strokeRect(-R0 * .7, -R0, R0 * 1.4, R0 * 2); }
     else if (t === 'pins') { cx.fillStyle = '#c8c8c8'; cx.fillRect(-2, -R0 * .2, 4, R0 * 1.2); cx.beginPath(); cx.arc(0, -R0 * .4, R0 * .45, 0, 7); cx.fillStyle = '#d03030'; cx.fill(); cx.stroke(); }
     else if (t === 'alarm') { cx.beginPath(); cx.arc(0, 0, R0 * .8, Math.PI, 0); cx.lineTo(R0 * .8, R0 * .5); cx.lineTo(-R0 * .8, R0 * .5); cx.closePath(); cx.fillStyle = '#d6b254'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, -R0 * .9, R0 * .25, 0, 7); cx.fillStyle = '#ff4a3a'; cx.fill(); cx.stroke(); }
@@ -2147,13 +2198,14 @@
     text(a.alarms.length ? (on ? 'KLAXON!' : 'klaxons quiet') : 'no klaxons up', lx, ly + 44, 18, on ? '#ff9a8a' : '#c9c0b0');
     // The question pile.
     const [px, py, pw, ph] = D.pile, ready = A8.reviewReady(M);
-    cx.save(); rrect(px - pw / 2, py - ph / 2, pw, ph, 10); cx.fillStyle = 'rgba(70,50,30,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
-    for (let i = 0; i < 5; i++) { cx.save(); cx.translate(px - 40 + i * 20, py - 10 - i * 3); cx.rotate((i - 2) * .08); cx.fillStyle = '#f1e2b8'; cx.fillRect(-30, -20, 60, 40); cx.strokeStyle = '#6b4e24'; cx.lineWidth = 1.5; cx.strokeRect(-30, -20, 60, 40); cx.restore(); }
+    if (wimg('pile', px, py + ph / 2, pw * 1.1, ph * 1.3, 'mb')) { /* the painted question table */ }
+    else { cx.save(); rrect(px - pw / 2, py - ph / 2, pw, ph, 10); cx.fillStyle = 'rgba(70,50,30,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore(); }
+    for (let i = 0; !IMG['w-pile'] && i < 5; i++) { cx.save(); cx.translate(px - 40 + i * 20, py - 10 - i * 3); cx.rotate((i - 2) * .08); cx.fillStyle = '#f1e2b8'; cx.fillRect(-30, -20, 60, 40); cx.strokeStyle = '#6b4e24'; cx.lineWidth = 1.5; cx.strokeRect(-30, -20, 60, 40); cx.restore(); }
     text(ready ? 'Review questions · tap for a coin' : 'next question in a moment', px, py + ph / 2 + 18, 16, ready ? '#ffe6a8' : '#c9c0b0');
     if (ready && !AU8.card) glowSpot([px - pw / 2 - 6, py - ph / 2 - 6, pw + 12, ph + 12], false);
     // The mail slot: letters (with that Night Order) land here every second hour.
     const [mx, my, mw, mh] = D.mail;
-    cx.save(); rrect(mx - mw / 2, my - mh / 2, mw, mh, 8); cx.fillStyle = '#b8924a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.fillStyle = '#1a1008'; cx.fillRect(mx - mw / 2 + 14, my - 5, mw - 28, 10); cx.restore();
+    if (!wimg('mail', mx, my, mw * 1.1, mh * 1.6, 'mm')) { cx.save(); rrect(mx - mw / 2, my - mh / 2, mw, mh, 8); cx.fillStyle = '#b8924a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.fillStyle = '#1a1008'; cx.fillRect(mx - mw / 2 + 14, my - 5, mw - 28, 10); cx.restore(); }
     text(a.mail ? `${a.mail} letter${a.mail > 1 ? 's' : ''}!` : 'mail slot', mx, my + mh / 2 + 16, 15, a.mail ? '#ffe6a8' : '#c9c0b0');
     // The intern's tray.
     if (a.cellar.intern) {
