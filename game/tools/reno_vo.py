@@ -18,6 +18,10 @@ STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-th
          'kai': 'Say this dryly and deadpan, as a tired aside to a friend. Say only these words: '}
 # The stern delivery sometimes leaves seconds of dead air mid-line: shorten any pause to 0.6s.
 PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_silence=0.6:stop_threshold=-40dB'
+# The lines heard on every job are read gently and encouragingly, in his own way: still proper, never nagging.
+SOFT = {'seymour-mg-reno-' + k for k in ('again-beam', 'again-test', 'again-crowd', 'again-twice', 'notyet', 'nosign', 'permit', 'clean', 'scaf')}
+SOFT_STYLE = ('Read this aloud as a kind, slightly formal inspector who is encouraging in his own stiff, by-the-book way: calm and warm, '
+             'with a dry little lift on the last few words, at a brisk natural pace. Say only these words: ')
 API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'
 
 
@@ -61,7 +65,8 @@ def say(who, text, dst):
     """Record until a take says the line (and only the line) at a fair pace: about two words a second, plus room for
     a pause. If no take is quick enough, keep the quickest one that said the line."""
     model, voice = VOICES[who]
-    body = {'contents': [{'parts': [{'text': STYLE.get(who, '') + text}]}],
+    style = SOFT_STYLE if os.path.basename(dst)[:-4] in SOFT else STYLE.get(who, '')
+    body = {'contents': [{'parts': [{'text': style + text}]}],
             'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': voice}}}}}
     limit, best = len(words(text)) / 2.0 + 2.5, None
     for tries in range(6):

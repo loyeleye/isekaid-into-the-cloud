@@ -34,10 +34,10 @@
   // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
   const bubble = (who, line) => `<p class="rs-say" data-vo="${esc(who + '|' + line)}"><b>${esc(who === 'seymour' ? 'Seymour' : NAMES[who] || who)}:</b> ${esc(line)}</p>`;
   // Seymour's line between the Shrine Bridge's two runs, by the kind of crack in the second (a job's crack: test, crowd).
-  const AGAIN = { test: 'Again. This time the new shrine has a crack a test can find.', load: 'Again. This time the new shrine has a crack only a crowd finds.', none: 'Again. I check everything twice.' };
-  // Seymour is the Quarter's hall monitor. Lines heard on every job stay strict and short; the jokes live in the
+  const AGAIN = { test: 'Once more. This time the new shrine has a crack a test can find. Good luck. Officially.', load: 'Once more. This time the new shrine has a crack only a crowd finds. You\'re doing fine. Noted.', none: 'Once more. I always check twice. It\'s nothing personal. It\'s procedure.' };
+  // Seymour is the Quarter's hall monitor. Lines heard on every job stay short and kind (Ladi, Nov 17: strictness on repeat wears on a player); the jokes live in the
   // once-per-save teach lines, where Kai plays the straight man.
-  const SEY = { clean: 'HALT! ...Both runs held. I checked. It stands.', scaf: 'The scaffolding stays up. I sign for nothing I haven\'t seen hold twice.', notyet: 'Stop. That is not what the slate says. Read the slate.', nosign: 'Three plans, none signed. The scaffolding goes up anyway, and you still owe me the permit question.' };
+  const SEY = { clean: 'Both runs held. It stands. Well done. I mean that. It\'s going in the report.', scaf: 'The scaffolding stays up for now. Show me it holds twice, and I\'ll sign. I\'d like to sign.', notyet: 'Not quite. Have another look at the slate. You\'re close. I\'d put that in writing.', nosign: 'Three plans, none signed. That\'s all right. Good builders have nights like this. I have the records. On to the permit question.' };
   const say = (who, line) => `<p class="rn-say" data-vo="${esc(who + '|' + line)}">${head(who)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   // A screen with the living street (js/reno-street.js) puts the street behind everything, filling the screen, and the
   // text floats over it in boxes (Ladi, Nov 16: boxes around the scene take away the real-world feel).
@@ -488,7 +488,7 @@
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody turned away';
           ui('.rs-tk').textContent = `tick ${res.bad.ticks[0].t}`;
           ui('.rs-ticks').innerHTML = res.bad.ticks.map((x, k) => `<i class="${k ? '' : 'on'}"></i>`).join('');
-          ui('.rs-mid').innerHTML = bubble('seymour', 'Again. This time the beam is cracked.');
+          ui('.rs-mid').innerHTML = bubble('seymour', 'Once more. This time the beam is cracked. I have every confidence in you. Within tolerances.');
           said = {};
           timer = later(step, 1700);
         }, 900);
@@ -713,7 +713,7 @@
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
   const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'permit-office', focus: PERMIT_X, close: pose, kai: face, ui,
     label: 'The permit office: Sir Seymour Backups at his desk, Kai waiting for the verdict' });
-  const PERMIT_ASK = 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.';
+  const PERMIT_ASK = 'Before I sign, one question about what you just did. Tell me how sure you are. Take your time. Within reason.';
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
