@@ -43,6 +43,7 @@
   // opening collapsing at "...okay"). One tap per beat; then done().
   function cutScreen(beats, done) {
     let i = 0;
+    const fuss = []; beats.forEach(([, t], k) => { fuss[k] = /!/.test(t) && !fuss[k - 1]; });
     const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const show = () => {
       const [pose, text] = beats[i];
@@ -55,6 +56,9 @@
       // She glides down from her cloud to the desk as the scene opens, and floats back up when it closes.
       if (first) setTimeout(() => rm.classList.add('talk'), 250);
       if (fig) fig.classList.add('talking');
+      // Fuss lines only on lines that shout, and never two beats running.
+      const sq = b.querySelector('.rm-sq');
+      if (sq && fuss[i]) setTimeout(() => sq.classList.add('fuss'), first ? 900 : 120);
       RM().mount(b.querySelector('.dr-cut-room'));
       const talkMs = Math.min(11000, 800 + text.length * 62);
       const t1 = m[2] ? setTimeout(() => RM().setPose(fig, m[2]), +m[3]) : 0;

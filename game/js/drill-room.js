@@ -40,12 +40,17 @@
   // whatever the room shows right now, cut out with a matte (room-leads-mask.png, from a segmentation model), so they
   // stand in front of her. While she talks (.rm.talk) all four leads turn see-through and soft over her (see the CSS).
   R.IDLE_POSE = 'smug';
+  // Anime fuss lines around her head while her mouth moves (Ladi: "to emphasize the obnoxiousness of it").
+  const SQUIG = `<svg class="rm-sq" viewBox="0 0 200 80" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g class="sq-a"><path d="M58 18 q-12 12 0 26"/><path d="M44 10 q-18 20 0 42"/><path d="M28 30 l-8 -6 m8 16 l-12 0 m12 10 l-8 6"/></g>
+    <g class="sq-b"><path d="M142 18 q12 12 0 26"/><path d="M156 10 q18 20 0 42"/><path d="M172 30 l8 -6 m-8 16 l12 0 m-12 10 l8 6"/></g>
+    <g class="sq-c"><path d="M70 2 l4 -8 l4 6 l4 -8"/><path d="M118 0 l4 -8 l4 6 l4 -8"/><path d="M178 66 q8 -4 6 -12 q8 2 10 -6"/><path d="M22 66 q-8 -4 -6 -12 q-8 2 -10 -6"/></g></g></svg>`;
   const VX = .010417, VW = .979167;
   R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
         <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()"></span><span class="rm-emote"></span></div>
-        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}</div>
+        <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}${SQUIG}</div>
         <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
   function drawOver(c) {
@@ -310,6 +315,17 @@
     @keyframes upblink { 0%, 93% { opacity: 0; } 94%, 97% { opacity: 1; } 98% { opacity: 0; } }
     .up-fig.talking .up-t { animation: uptalk .32s steps(1, end) infinite; }
     @keyframes uptalk { 0%, 49% { opacity: 1; } 50% { opacity: 0; } }
+    .rm-sq { position: absolute; left: 4%; top: 3%; width: 92%; height: 22%; overflow: visible; pointer-events: none; opacity: 0; transition: opacity .15s; }
+    .rm-sq path { stroke: #fff; stroke-width: 3.2; paint-order: stroke; filter: drop-shadow(0 0 1.5px #17131f) drop-shadow(0 0 1px #17131f); }
+    .rm-sq .sq-c path { stroke: #ffd36b; stroke-width: 2.6; }
+    /* In moderation (Ladi): a short burst at the start of her loudest lines only (the cutscene adds .fuss). */
+    .rm-sq.fuss { animation: sqshow 1.7s ease-out both; }
+    .rm-sq.fuss .sq-a { animation: sqjit .22s steps(2) infinite; transform-origin: 30% 50%; }
+    .rm-sq.fuss .sq-b { animation: sqjit .22s steps(2) infinite reverse; transform-origin: 70% 50%; }
+    .rm-sq.fuss .sq-c { animation: sqpop .5s steps(2) infinite; transform-origin: 50% 50%; }
+    @keyframes sqshow { 0% { opacity: 0; } 8%, 70% { opacity: 1; } 100% { opacity: 0; } }
+    @keyframes sqjit { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-1.5%, -2%) scale(1.06) rotate(-2deg); } }
+    @keyframes sqpop { 0% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(1.08) rotate(3deg); } }
     .rm-up .up-fig { filter: drop-shadow(0 .8cqi .8cqi rgba(0, 0, 0, .55)); animation: upbreathe 3.8s ease-in-out infinite; transform-origin: 50% 100%; }
     @keyframes upbreathe { 50% { transform: scaleY(1.008) translateY(-.15%); } }
     .rm-emote { position: absolute; left: 30%; top: -8%; font-size: 3.2cqi; opacity: 0; pointer-events: none; }
@@ -338,6 +354,6 @@
       .rm-chat .rm-say { display: block; }
       .rm-plq span { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud { animation: none !important; } }`;
+    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud { animation: none !important; } .rm-sq { display: none; } }`;
   document.head.appendChild(css);
 })();
