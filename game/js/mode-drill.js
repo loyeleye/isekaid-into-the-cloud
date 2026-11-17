@@ -256,6 +256,89 @@
     publicput: 'Principal: "*", Action: s3:PutObject', insights: 'ContributorInsightsSpecification: Enabled', trail: 'lookup-events EventName=Decrypt'
   };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
+  // ---- The Short Fuse's timeline (audit, Nov 17: a gesture that works the way the AWS setting does). At the Queue,
+  // the visibility window is a band you drag along the function's Duration bars, one bar per received message,
+  // with the function's Timeout dashed around each and a chalk mark at 6x it. A message whose window ends before its
+  // bar does pops back into the queue, there and then, as it would be received again. The real line,
+  // VisibilityTimeout: N, rewrites under it as you drag. Touch or mouse (pointer events), or the handle with the
+  // arrow keys (10 s), Page Up/Down (1 min), Home/End. One change a deploy, however often you drag
+  // (D.setVis); the drill takes 6x as fixed (m.visShort), and the line under the bars says why. ----
+  const VL_LANES = 3;
+  const vlPct = (x, max) => `${Math.min(100, x / max * 100).toFixed(2)}%`;
+  const vlFmt = s => (s >= 3600 && s % 3600 === 0 ? `${s / 3600} h` : s >= 60 && s % 60 === 0 ? `${s / 60} min` : s >= 120 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
+  function vlSays(L, vis) {
+    if (vis < L.work) return ['pop', `The window shuts at ${vis} s and the work runs to ${L.work} s. Each message turns visible mid-run, is received again (ApproximateReceiveCount 2) and gets worked twice.`];
+    if (vis < L.timeout) return ['mid', `Clears tonight's ${L.work} s runs, not the function's ${L.timeout} s timeout. A slower run would still pop back.`];
+    if (vis < L.six) return ['mid', `Covers the timeout, still short of 6x (${L.six} s). That margin keeps a batch hidden while Lambda retries it after a throttle.`];
+    return ['ok', 'At least 6x the function\'s timeout: each message stays hidden for its whole run, retries included. SQS allows up to 12 hours.'];
+  }
+  function visLineHtml(f) {
+    const L = D.visLine(f), vis = L.vis, pop = vis < L.work, [tone, line] = vlSays(L, vis), placed = f.changes.includes('visline');
+    const step = L.max > 600 ? 120 : 60, ticks = [];
+    for (let x = 0; x <= L.max; x += step) ticks.push(`<i style="left:${vlPct(x, L.max)}">${x % (2 * step) ? '' : `<span>${x ? vlFmt(x) : '0'}</span>`}</i>`);
+    const lanes = Array.from({ length: VL_LANES }, (_, i) => `<div class="dr-vl-lane${pop ? ' pop' : ''}" data-lane="${i}">
+        <span class="dr-vl-to" style="width:${vlPct(L.timeout, L.max)}" aria-hidden="true"><b>${L.work} s</b></span>
+        <span class="dr-vl-bar" style="width:${vlPct(L.work, L.max)}"></span>
+        <span class="dr-vl-pop" style="left:${vlPct(vis, L.max)}" aria-hidden="true">↩ back in the queue</span></div>`).join('');
+    return `<div class="dr-vl${placed ? ' new' : ''}" role="group" aria-label="Visibility timeout: drag the window">
+      <span class="dr-dl">${icon('hourglass')}Visibility timeout<span class="dr-vl-hint">drag the window</span></span>
+      <div class="dr-vl-board">
+        <div class="dr-vl-lanes">${lanes}
+          <span class="dr-vl-six" style="left:${vlPct(L.six, L.max)}" aria-hidden="true"><b>6x</b></span>
+          <span class="dr-vl-win" style="width:${vlPct(vis, L.max)}" aria-hidden="true"></span>
+          <span class="dr-vl-h" role="slider" tabindex="0" style="left:${vlPct(vis, L.max)}" aria-label="Visibility timeout, seconds" aria-valuemin="0" aria-valuemax="${D.VIS_MAX}"
+            aria-valuenow="${vis}" aria-valuetext="${esc(vlFmt(vis))}"></span>
+        </div>
+        <div class="dr-vl-ruler" aria-hidden="true">${ticks.join('')}</div>
+        <p class="dr-vl-key" aria-hidden="true"><span><i class="k-bar"></i>Duration</span><span><i class="k-to"></i>Timeout ${L.timeout} s</span><span><i class="k-win"></i>Window</span><span><i class="k-six"></i>6x = ${L.six} s</span></p>
+      </div>
+      <code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">VisibilityTimeout: ${vis}</code>
+      <p class="dr-vl-say ${tone}" aria-live="polite">${esc(line)}</p></div>`;
+  }
+  // The drag rewrites the band, the pop-backs, the line and the setting in place; letting go (or a key) saves it.
+  let vlFocus = false;
+  function wireVisLine(b, s, f) {
+    const el = b.querySelector('.dr-vl'); if (!el) return;
+    const bd = el.querySelector('.dr-vl-board'), lanes = el.querySelector('.dr-vl-lanes'), h = el.querySelector('.dr-vl-h');
+    const L = D.visLine(f), cfg = el.querySelector('.dr-cfg'), say = el.querySelector('.dr-vl-say');
+    let vis = L.vis, dragging = false;
+    const show = v => {
+      vis = Math.max(0, Math.min(D.VIS_MAX, Math.round(v / 10) * 10));
+      const p = vlPct(vis, L.max), [tone, line] = vlSays(L, vis);
+      el.querySelector('.dr-vl-win').style.width = p; h.style.left = p;
+      el.querySelectorAll('.dr-vl-pop').forEach(x => { x.style.left = p; });
+      el.querySelectorAll('.dr-vl-lane').forEach(x => x.classList.toggle('pop', vis < L.work));
+      h.setAttribute('aria-valuenow', vis); h.setAttribute('aria-valuetext', vlFmt(vis));
+      cfg.textContent = `VisibilityTimeout: ${vis}`;
+      say.className = `dr-vl-say ${tone}`; say.textContent = line;
+    };
+    const commit = () => {
+      const why = D.setVis(f, vis);
+      if (why) { if (U.float) U.float(h, why); show(f.cfg.queue.vis); return; }
+      vlFocus = document.activeElement === h;
+      save(s); draw(s);
+    };
+    const at = e => { const r = lanes.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * L.max; };
+    bd.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      const why = f.changes.includes('visline') ? '' : D.why(f, 'visline');
+      if (why) { if (U.float) U.float(h, why); return; }
+      dragging = true; el.classList.add('dragging');
+      try { bd.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+      show(at(e)); e.preventDefault();
+    });
+    bd.addEventListener('pointermove', e => { if (dragging) show(at(e)); });
+    const end = e => { if (!dragging) return; dragging = false; el.classList.remove('dragging'); if (e.type !== 'pointercancel') show(at(e)); commit(); };
+    bd.addEventListener('pointerup', end); bd.addEventListener('pointercancel', end);
+    h.addEventListener('keydown', e => {
+      const step = { ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10, PageUp: 60, PageDown: -60 }[e.key];
+      if (step == null && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      show(e.key === 'Home' ? 0 : e.key === 'End' ? D.VIS_MAX : vis + step);
+      commit();
+    });
+    if (vlFocus) { vlFocus = false; h.focus({ preventScroll: true }); }
+  }
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
     const max = Math.max(1, ...arr), w = 100, h = 22, n = arr.length;
@@ -277,7 +360,7 @@
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
     const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
     const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
+    const dials = (k === 'queue' && d.visLine ? visLineHtml(f) : '') + Object.keys(DIALS).filter(n => DIALS[n].at === k && !(n === 'vis' && d.visLine) && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
       if (n === 'key' && SD.drillHotKey) return SD.drillHotKey.html(f);   // the partition key desk: js/drill-hotkey.js
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '', onId = g.ids.find(id => C[id].on(f.cfg));
       const line = onId && REAL[onId] ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(REAL[onId])}</code>` : '';
@@ -410,6 +493,7 @@
       }
       save(s); draw(s);
     });
+    wireVisLine(b, s, f);
     const tip = b.querySelector('.dr-tip');
     if (tip) { const base = tip.textContent; b.querySelectorAll('[data-tip]').forEach(el => { const show = () => { tip.textContent = el.dataset.tip; }; el.onmouseenter = show; el.onfocus = show; el.onmouseleave = () => { tip.textContent = base; }; }); }
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
@@ -673,6 +757,47 @@
     .dr-left { margin-left: auto; display: inline-flex; gap: 3px; } .dr-left i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #17131f; background: transparent; } .dr-left i.on { background: #d6a63a; }
     .dr-spark { display: block; width: 100%; height: 22px; margin-top: 2px; } .dr-spark polyline { fill: none; stroke: #3f5f80; stroke-width: 2; vector-effect: non-scaling-stroke; }
     .dr-spark.bad polyline { stroke: #b23a2f; }
+    /* The Short Fuse's timeline: a small chalk slate on the desk. Chalk bars are the function's Duration, dashed
+       chalk its Timeout, the blue band the visibility window (drag its edge), the yellow dashes the 6x mark. */
+    .dr-vl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .dr-vl-hint { font: 400 12px/1 'Patrick Hand', 'Comic Sans MS', cursive, var(--f-body); font-style: italic; margin-left: 6px; opacity: .85; }
+    .dr-vl-board { position: relative; padding: 18px 12px 6px; border: 6px solid #6b4a2a; border-radius: 6px; background: #24382c; color: #f2f2e6;
+      box-shadow: inset 0 0 22px rgba(0, 0, 0, .5), 0 3px 6px rgba(0, 0, 0, .45); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ew-resize;
+      font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
+    .dr-vl-lanes { position: relative; display: flex; flex-direction: column; gap: 7px; padding: 4px 0; }
+    .dr-vl-lane { position: relative; height: 18px; }
+    .dr-vl-to { position: absolute; left: 0; top: -2px; bottom: -2px; border: 2px dashed rgba(242, 242, 230, .55); border-left: 0; border-radius: 0 4px 4px 0; }
+    .dr-vl-bar { position: absolute; left: 0; top: 2px; bottom: 2px; border-radius: 0 3px 3px 0; background: #ece6cf; box-shadow: 0 0 0 1px rgba(255, 255, 255, .2); }
+    .dr-vl-to b { position: absolute; left: calc(100% + 4px); top: 50%; transform: translateY(-50%); font-size: 11.5px; font-weight: 400; white-space: nowrap; color: #f2f2e6; }
+    .dr-vl-lane.pop .dr-vl-bar { background: repeating-linear-gradient(135deg, #f19a8e 0 5px, #c9554a 5px 10px); }
+    .dr-vl-lane.pop .dr-vl-to b { visibility: hidden; }
+    .dr-vl-pop { position: absolute; top: 50%; display: none; transform: translate(6px, -50%); white-space: nowrap; padding: 0 6px; border-radius: 9px; z-index: 3;
+      font-size: 12px; line-height: 17px; background: #f6efdc; color: #8f1d14; border: 2px solid #8f1d14; pointer-events: none; }
+    .dr-vl-lane.pop .dr-vl-pop { display: block; animation: drvlpop .45s cubic-bezier(.2, 1.6, .4, 1) both; }
+    .dr-vl-lane.pop:nth-child(2) .dr-vl-pop { animation-delay: .08s; } .dr-vl-lane.pop:nth-child(3) .dr-vl-pop { animation-delay: .16s; }
+    @keyframes drvlpop { from { opacity: 0; transform: translate(-4px, 20%) scale(.6); } to { opacity: 1; transform: translate(6px, -50%); } }
+    .dr-vl-win { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(120, 180, 235, .22); border-right: 3px solid #8fc4ee; pointer-events: none; z-index: 1; }
+    .dr-vl-six { position: absolute; top: -16px; bottom: 0; border-left: 2px dashed #ffd257; pointer-events: none; z-index: 2; }
+    .dr-vl-six b { position: absolute; top: -2px; left: 3px; white-space: nowrap; font-size: 13px; color: #ffd257; font-weight: 400; }
+    .dr-vl-h { position: absolute; top: -8px; bottom: -8px; width: 30px; margin-left: -15px; z-index: 4; cursor: ew-resize; outline: none; }
+    .dr-vl-h::before { content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 30px; margin-top: -15px; border-radius: 7px; background: #8fc4ee; border: 2px solid #17131f;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, .5); background-image: repeating-linear-gradient(0deg, transparent 0 6px, rgba(23, 19, 31, .45) 6px 7px); background-size: 4px 100%; background-position: center; background-repeat: no-repeat; }
+    .dr-vl-h:focus-visible::before { box-shadow: 0 0 0 3px #ffd257; }
+    .dr-vl.dragging .dr-vl-h::before { background-color: #c4e2f8; }
+    .dr-vl-ruler { position: relative; height: 15px; margin-top: 6px; border-top: 1px solid rgba(242, 242, 230, .45); font-size: 11px; }
+    .dr-vl-ruler i { position: absolute; top: 0; height: 4px; border-left: 1px solid rgba(242, 242, 230, .6); font-style: normal; }
+    .dr-vl-ruler i span { position: absolute; top: 2px; transform: translateX(-50%); white-space: nowrap; opacity: .8; }
+    .dr-vl-ruler i:first-child span { transform: none; } .dr-vl-ruler i:last-child span { transform: translateX(-100%); }
+    .dr-vl-ruler i:nth-child(2n) { height: 3px; opacity: .7; }
+    .dr-vl-key { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 4px 0 0 !important; font-size: 12px; opacity: .9; }
+    .dr-vl-key > span { display: inline-flex; align-items: center; gap: 4px; }
+    .dr-vl-key i { display: inline-block; width: 14px; height: 8px; }
+    .dr-vl-key .k-bar { background: #ece6cf; } .dr-vl-key .k-to { border: 2px dashed rgba(242, 242, 230, .6); height: 10px; }
+    .dr-vl-key .k-win { background: rgba(120, 180, 235, .35); border-right: 3px solid #8fc4ee; } .dr-vl-key .k-six { width: 0; height: 12px; border-left: 2px dashed #ffd257; }
+    .dr-vl-say { font-size: 13px; line-height: 1.3; padding: 3px 7px; border-radius: 5px; border-left: 5px solid #8a7448; background: rgba(255, 250, 240, .85); color: #2a2018; }
+    .dr-vl-say.pop { border-left-color: #b0302a; } .dr-vl-say.mid { border-left-color: #c9952d; } .dr-vl-say.ok { border-left-color: #4f7f5c; }
+    .dr-vl.new .dr-vl-board { box-shadow: 0 0 0 3px #ffe7a0, inset 0 0 22px rgba(0, 0, 0, .5); }
+    @media (prefers-reduced-motion: reduce) { .dr-vl-lane.pop .dr-vl-pop { animation: none; } }
     .dr-dial { display: flex; flex-direction: column; gap: 3px; }
     .dr-cfg { display: block; font: 600 11.5px/1.35 ui-monospace, Menlo, Consolas, monospace; color: #2a2333; overflow-wrap: anywhere; padding: 1px 2px; }
     .dr-cfgs { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
