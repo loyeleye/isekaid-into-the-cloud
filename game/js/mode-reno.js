@@ -780,6 +780,42 @@
       });
       b.querySelector('#rn-wi-run').disabled = !marks.every(m => m !== null);
     }
+    // The what-if plays out where the job is (Ladi, Nov 17): the street, the bridge or the yard runs Seymour's changed
+    // plan for a few seconds, the same frames his inspection shows, then he gives his verdict in the scene. The run
+    // shown is the one that tells: the sound run when the change slows it past sundown or turns people away on its
+    // own, otherwise the cracked one. Reduced motion shows the last frame at once.
+    const sound = job.d === 'cfn' || w.res.lines.some(l => l.k === 'sundown' && !l.ok) || (w.res.good.turned || 0) > (w.res.bad.turned || 0);
+    const run = sound ? w.res.good : w.res.bad, frames = job.d === 'cfn' ? (run.res || []).length + 1 : run.ticks.length;
+    const lamBase = job.d === 'lam' ? { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!w.plan.alarm, pre: !!w.plan.pre, post: !!w.plan.post } : null;
+    const frame = i => {
+      if (job.d === 'cfn') return { stack: job.stack, plan: w.plan, res: run.res, upto: i, seymour: 'inspect' };
+      const tick = run.ticks[Math.min(i, run.ticks.length - 1)], upto = run.ticks.slice(0, i + 1);
+      const soot = upto.reduce((a, x) => a + (x.soot || 0), 0), turned = upto.reduce((a, x) => a + (x.turned || 0), 0);
+      if (job.d === 'lam') return Object.assign({}, lamBase, { w: tick.w, soot: tick.soot, note: tick.note, rang: tick.note === 'rollback', cracked: !sound && soot > 0, seymour: 'inspect' });
+      return { tick, bad: !sound, seymour: 'inspect', turned };
+    };
+    const unit = job.d === 'lam' ? 'minute' : job.d === 'cfn' ? 'step' : 'tick';
+    function replayScene() {
+      return RS.scene(Object.assign(frame(0), { kai: 'neutral', shot: 'wide', label: `Seymour's what-if playing out: ${planName(job, w.plan)}`,
+        ui: `<div class="rs-row"><span class="rs-chip rs-runlab">What if: ${esc(planName(job, w.plan))}${job.d === 'cfn' ? '' : sound ? ' · a sound release' : ' · the cracked one'}</span><span></span></div><div class="rs-row rs-mid"></div><div class="rs-bar"><b class="rs-tk">${unit} 1</b></div>` }));
+    }
+    function replay(b, ok) {
+      const el = b.querySelector('.rn-wiscene .rs');
+      if (!el) return;
+      const tk = () => el.querySelector('.rs-tk'), done = () => {
+        if (!el.isConnected) return;
+        const mid = el.querySelector('.rs-mid'); if (mid) mid.innerHTML = bubble('seymour', ok ? WI_RIGHT : WI_WRONG);
+        RS.update(el, Object.assign(frame(frames - 1), { seymour: ok ? 'approve' : 'disapprove', kai: ok ? 'happy' : 'worried' }));
+      };
+      if (reduced() || frames <= 1) { RS.update(el, frame(frames - 1)); if (tk()) tk().textContent = `${unit} ${frames}`; return done(); }
+      let i = 0;
+      const step = () => {
+        if (!el.isConnected) return;
+        RS.update(el, frame(i)); if (tk()) tk().textContent = `${unit} ${i + 1}`;
+        if (++i < frames) setTimeout(step, 700); else setTimeout(done, 500);
+      };
+      setTimeout(step, 400);
+    }
     function reveal() {
       const right = w.res.lines.map((l, i) => l.ok === marks[i]), ok = right.every(Boolean);
       j.wi = { ok, plan: w.plan };
@@ -789,11 +825,11 @@
         `<li class="${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✗'} ${esc(l.text)} <span class="small">(${esc(l.got)})</span> <span class="rn-wiyou ${right[i] ? 'ok' : 'bad'}">${right[i] ? 'you read it right' : `you chalked ${marks[i] ? '✓' : '✗'}`}</span></li>`).join('')}</ul>
         <p class="small rn-wihint">${esc(runSummary(job, job.d === 'cfn' ? w.res.good : w.res.bad, job.d === 'cfn' ? 'g' : 'b'))}</p></div>`;
       const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
-        ${office(ok ? 'stamp' : 'disapprove', ok ? 'happy' : 'worried', ok ? WI_RIGHT : WI_WRONG)}
+        ${RS ? `<div class="rn-bleed rn-wiscene">${replayScene()}</div>` : say('seymour', ok ? WI_RIGHT : WI_WRONG)}
         <div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'READ RIGHT' : 'NOT QUITE'}</div><span class="chip">${ok ? '+1 floor on this building' : 'no floor this time'}</span></div>
         ${plans}${lines}
         <div class="rn-dock"><button class="primary" id="rn-wi-on">On to the permit question</button></div>`, 'THE PERMIT');
-      if (RS) RS.mount(b);
+      if (RS) { RS.mount(b); replay(b, ok); }
       const wb = b.closest('.win-b') || document.querySelector('#panel > .win > .win-b'); if (wb) wb.scrollTop = 0;   // the result opens at its top
       b.querySelector('#rn-wi-on').onclick = () => draw(s);
     }
