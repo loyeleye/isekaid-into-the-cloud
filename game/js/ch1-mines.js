@@ -276,11 +276,11 @@
     maps: { title: 'The surveyor\'s role', c: 'polanatomy', type: { line: '{ "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::ore-maps" }', ans: 'arn:aws:s3:::ore-maps' },
       ev: 'The role\'s only policy (same account, no bucket policy):\n[\n  { "Effect": "Allow", "Action": ["s3:GetObject", "s3:PutObject"], "Resource": "arn:aws:s3:::ore-maps/*" },\n  { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::ore-maps" },\n  { "Effect": "Deny", "Action": "s3:DeleteObject", "Resource": "*" }\n]',
       reqs: [
-        { t: 'GetObject on ore-maps/north.png', ok: true, why: 'GetObject on an object in ore-maps: the first statement matches.' },
-        { t: 'ListBucket on ore-maps', ok: true, why: 'ListBucket on the bucket ARN: the second statement matches.' },
-        { t: 'DeleteObject on ore-maps/old.png', ok: false, why: 'The explicit Deny matches, and a Deny beats every Allow.' },
-        { t: 'GetObject on ore-maps-backup/north.png', ok: false, why: 'A different bucket. Nothing allows it, so the implicit deny stands.' },
-        { t: 'PutObject on ore-maps/routes/new.png', ok: true, why: 'The star matches any key, slashes included.' }] },
+        { t: 'GetObject on ore-maps/north.png', ok: true, by: 'Permissions boundary: Allow s3:GetObject, s3:PutObject and sqs:SendMessage on *', by: '{ "Effect": "Allow", "Action": ["s3:GetObject", "s3:PutObject"], "Resource": "arn:aws:s3:::ore-maps/*" }', why: 'GetObject on an object in ore-maps: the first statement matches.' },
+        { t: 'ListBucket on ore-maps', ok: true, by: 'Permissions boundary: Allow s3:GetObject, s3:PutObject and sqs:SendMessage on *', by: '{ "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::ore-maps" }', why: 'ListBucket on the bucket ARN: the second statement matches.' },
+        { t: 'DeleteObject on ore-maps/old.png', ok: false, by: 'Identity policy:      Allow s3:* and dynamodb:* on *', by: '{ "Effect": "Deny", "Action": "s3:DeleteObject", "Resource": "*" }', why: 'The explicit Deny matches, and a Deny beats every Allow.' },
+        { t: 'GetObject on ore-maps-backup/north.png', ok: false, by: 'Permissions boundary: Allow s3:GetObject, s3:PutObject and sqs:SendMessage on *', by: '', why: 'A different bucket. Nothing allows it, so the implicit deny stands.' },
+        { t: 'PutObject on ore-maps/routes/new.png', ok: true, by: 'Permissions boundary: Allow s3:GetObject, s3:PutObject and sqs:SendMessage on *', by: '{ "Effect": "Allow", "Action": ["s3:GetObject", "s3:PutObject"], "Resource": "arn:aws:s3:::ore-maps/*" }', why: 'The star matches any key, slashes included.' }] },
     boundary: { title: 'The capped builder', c: 'guardrails', type: { line: 'aws iam put-role-permissions-boundary --role-name builder --permissions-boundary <policy ARN>', ans: '--permissions-boundary' },
       ev: 'Identity policy:      Allow s3:* and dynamodb:* on *\nPermissions boundary: Allow s3:GetObject, s3:PutObject and sqs:SendMessage on *\nNo SCPs, no resource policies.',
       reqs: [
@@ -292,27 +292,27 @@
     trust: { title: 'The vendor\'s door', c: 'xacct', type: { line: '"Condition": { "StringEquals": { "sts:ExternalId": "mine-7731" } }', ans: 'sts:ExternalId' },
       ev: 'Trust policy of a role in account 111122223333:\n{\n  "Effect": "Allow",\n  "Principal": { "AWS": "arn:aws:iam::444455556666:root" },\n  "Action": "sts:AssumeRole",\n  "Condition": { "StringEquals": { "sts:ExternalId": "mine-7731" } }\n}\nEvery caller\'s own policy allows sts:AssumeRole on this role.',
       reqs: [
-        { t: 'A role in 444455556666 calls AssumeRole with ExternalId mine-7731', ok: true, why: 'The account is trusted, the ExternalId matches, and the caller\'s own policy allows the call.' },
-        { t: 'A role in 444455556666 calls AssumeRole with no ExternalId', ok: false, why: 'The condition needs sts:ExternalId to equal mine-7731. Missing doesn\'t match.' },
-        { t: 'A role in 444455556666 calls AssumeRole with ExternalId mine-0000', ok: false, why: 'The wrong ID. That\'s exactly what stops a confused deputy.' },
-        { t: 'A user in 999988887777 calls AssumeRole with ExternalId mine-7731', ok: false, why: 'That account isn\'t in the trust policy, whatever ID it sends.' },
-        { t: 'A user in 444455556666 calls AssumeRole with ExternalId mine-7731', ok: true, why: 'Trusting the account root trusts any principal in it whose own policy allows the call.' }] },
+        { t: 'A role in 444455556666 calls AssumeRole with ExternalId mine-7731', ok: true, by: '"Condition": { "StringEquals": { "sts:ExternalId": "mine-7731" } }', why: 'The account is trusted, the ExternalId matches, and the caller\'s own policy allows the call.' },
+        { t: 'A role in 444455556666 calls AssumeRole with no ExternalId', ok: false, by: '"Condition": { "StringEquals": { "sts:ExternalId": "mine-7731" } }', why: 'The condition needs sts:ExternalId to equal mine-7731. Missing doesn\'t match.' },
+        { t: 'A role in 444455556666 calls AssumeRole with ExternalId mine-0000', ok: false, by: '"Condition": { "StringEquals": { "sts:ExternalId": "mine-7731" } }', why: 'The wrong ID. That\'s exactly what stops a confused deputy.' },
+        { t: 'A user in 999988887777 calls AssumeRole with ExternalId mine-7731', ok: false, by: '"Principal": { "AWS": "arn:aws:iam::444455556666:root" }', why: 'That account isn\'t in the trust policy, whatever ID it sends.' },
+        { t: 'A user in 444455556666 calls AssumeRole with ExternalId mine-7731', ok: true, by: '"Principal": { "AWS": "arn:aws:iam::444455556666:root" }', why: 'Trusting the account root trusts any principal in it whose own policy allows the call.' }] },
     keyvault: { title: 'The vault key', c: 'authdebug', type: { line: '{ "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::111122223333:root" }, "Action": "kms:*", "Resource": "*" }', ans: 'arn:aws:iam::111122223333:root' },
       ev: 'KMS key policy (account 111122223333): lets the account\'s IAM policies grant access to the key.\nRole vault-reader: identity policy allows kms:Decrypt on this key.\nRole vault-writer: identity policy allows s3:PutObject only.',
       reqs: [
-        { t: 'vault-reader calls kms:Decrypt', ok: true, why: 'The key policy lets IAM policies count, and vault-reader\'s allows Decrypt.' },
-        { t: 'vault-writer calls kms:Decrypt', ok: false, why: 'No IAM policy allows it for vault-writer.' },
-        { t: 'vault-reader calls kms:ScheduleKeyDeletion', ok: false, why: 'Its identity policy allows only Decrypt.' },
-        { t: 'An admin role in account 444455556666 calls kms:Decrypt', ok: false, why: 'The key policy trusts only its own account. Another account\'s AdministratorAccess doesn\'t reach it.' },
-        { t: 'vault-writer uploads to an SSE-KMS bucket, so S3 asks for kms:GenerateDataKey', ok: false, why: 'A KMS-encrypted upload needs kms:GenerateDataKey for the caller as well as s3:PutObject.' }] },
+        { t: 'vault-reader calls kms:Decrypt', ok: true, by: 'Role vault-reader: identity policy allows kms:Decrypt on this key.', why: 'The key policy lets IAM policies count, and vault-reader\'s allows Decrypt.' },
+        { t: 'vault-writer calls kms:Decrypt', ok: false, by: 'Role vault-writer: identity policy allows s3:PutObject only.', why: 'No IAM policy allows it for vault-writer.' },
+        { t: 'vault-reader calls kms:ScheduleKeyDeletion', ok: false, by: 'Role vault-reader: identity policy allows kms:Decrypt on this key.', why: 'Its identity policy allows only Decrypt.' },
+        { t: 'An admin role in account 444455556666 calls kms:Decrypt', ok: false, by: 'KMS key policy (account 111122223333): lets the account\'s IAM policies grant access to the key.', why: 'The key policy trusts only its own account. Another account\'s AdministratorAccess doesn\'t reach it.' },
+        { t: 'vault-writer uploads to an SSE-KMS bucket, so S3 asks for kms:GenerateDataKey', ok: false, by: 'Role vault-writer: identity policy allows s3:PutObject only.', why: 'A KMS-encrypted upload needs kms:GenerateDataKey for the caller as well as s3:PutObject.' }] },
     revoke: { title: 'Revoked at nine', c: 'roles', type: { line: '"Condition": { "DateLessThan": { "aws:TokenIssueTime": "2026-11-17T09:00:00Z" } }', ans: 'aws:TokenIssueTime' },
       ev: 'At 09:00 the role\'s sessions were revoked. Its new inline policy:\n{\n  "Effect": "Deny", "Action": "*", "Resource": "*",\n  "Condition": { "DateLessThan": { "aws:TokenIssueTime": "2026-11-17T09:00:00Z" } }\n}\nThe role\'s other policy allows s3:GetObject on the ore bucket.',
       reqs: [
-        { t: 'A session issued at 08:30 reads an ore object', ok: false, why: 'Issued before 09:00, so the Deny matches.' },
-        { t: 'A session issued at 09:15 reads an ore object', ok: true, why: 'Issued after the revoke: the Deny doesn\'t match and the Allow does.' },
-        { t: 'A session issued at 08:59 reads an ore object', ok: false, why: 'One minute too early. Still denied.' },
-        { t: 'A session issued at 10:00 deletes an ore object', ok: false, why: 'The revoke doesn\'t touch it, but nothing allows DeleteObject.' },
-        { t: 'The miner assumes the role again at 09:05 with their own keys, then reads an ore object', ok: true, why: 'A fresh session, issued after the revoke.' }] }
+        { t: 'A session issued at 08:30 reads an ore object', ok: false, by: '"Condition": { "DateLessThan": { "aws:TokenIssueTime": "2026-11-17T09:00:00Z" } }', why: 'Issued before 09:00, so the Deny matches.' },
+        { t: 'A session issued at 09:15 reads an ore object', ok: true, by: 'The role\'s other policy allows s3:GetObject on the ore bucket.', why: 'Issued after the revoke: the Deny doesn\'t match and the Allow does.' },
+        { t: 'A session issued at 08:59 reads an ore object', ok: false, by: '"Condition": { "DateLessThan": { "aws:TokenIssueTime": "2026-11-17T09:00:00Z" } }', why: 'One minute too early. Still denied.' },
+        { t: 'A session issued at 10:00 deletes an ore object', ok: false, by: '', why: 'The revoke doesn\'t touch it, but nothing allows DeleteObject.' },
+        { t: 'The miner assumes the role again at 09:05 with their own keys, then reads an ore object', ok: true, by: 'The role\'s other policy allows s3:GetObject on the ore bucket.', why: 'A fresh session, issued after the revoke.' }] }
   };
 
   // ---------- Questions ----------

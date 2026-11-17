@@ -41,6 +41,8 @@ module.exports = function ch1Step([WIN, LEAD]) {
     // The Deny Mines' Policy Sort: a guess, then each request sorted (all Allowed, so some are wrong).
     if ((x = b('.ps-n'))) return click(x) && 'sort-guess';
     if ((x = [...p.querySelectorAll('.ps-tg')].find(g => !g.querySelector('.on')))) return click(x.querySelector('button')) && 'sort-one';
+    // Its verdict, once: the deciding lines lit in the policy and under each request (read by ch1_check), then on.
+    if ((x = b('#ps-done')) && !window.__psv) { window.__psv = { lit: p.querySelectorAll('.q-ev mark.ps-lit').length, by: p.querySelectorAll('.ps-req .ps-by').length, reqs: p.querySelectorAll('.ps-req').length }; return 'sort-verdict'; }
     if (p.querySelector('[data-p]') && !p.querySelector('[data-p].on')) return click(p.querySelector('[data-p]')) && 'compass';
     const conf = b('.conf-b button');
     if (!conf && (x = b('.opts .opt:not(.on):not(.struck)'))) return click(x) && 'opt';

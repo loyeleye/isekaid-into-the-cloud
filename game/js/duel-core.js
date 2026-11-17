@@ -110,8 +110,8 @@
     resv: { set: 'kk', name: 'Reserved concurrency', term: 'ReservedConcurrentExecutions', back: 'A floor and a ceiling for one function, carved from the account pool. No extra charge. Doesn\'t warm anything.', q: /reserved concurrency/i },
     prov: { set: 'kk', name: 'Provisioned concurrency', term: 'ProvisionedConcurrentExecutions, on a version or alias', back: 'Execution environments initialised ahead of time, so no cold-start wait. Charged.', q: /provisioned concurrency|cold start/i },
     walias: { set: 'kk', name: 'Weighted alias', type: 'AdditionalVersionWeights', term: 'Alias RoutingConfig: AdditionalVersionWeights', back: 'An alias pointing at two published versions, splitting traffic by weight.', q: /\balias(es)?\b|weighted/i },
-    ver: { set: 'kk', name: 'Published version', term: 'PublishVersion → my-fn:3', back: 'A snapshot of code and settings that can\'t change once published.', q: /\bversion(s)?\b|\$LATEST/i },
-    latest: { set: 'kk', name: '$LATEST', term: '$LATEST (the unqualified function ARN)', back: 'The unpublished, editable code. Changes with every edit.', q: /\$LATEST|\bversion(s)?\b/i }
+    ver: { set: 'kk', name: 'Published version', term: 'PublishVersion → my-fn:3', back: 'A snapshot of code and settings that can\'t change once published.', q: /\$LATEST|PublishVersion|unqualified|Lambda[^.]{0,120}\bversions?\b|\bversions?\b[^.]{0,120}\b(Lambda|alias)/i },
+    latest: { set: 'kk', name: '$LATEST', term: '$LATEST (the unqualified function ARN)', back: 'The unpublished, editable code. Changes with every edit.', q: /\$LATEST|PublishVersion|unqualified|Lambda[^.]{0,120}\bversions?\b|\bversions?\b[^.]{0,120}\b(Lambda|alias)/i }
   };
   T.pinsOf = set => Object.keys(T.PINS).filter(id => T.PINS[id].set === set);
 
