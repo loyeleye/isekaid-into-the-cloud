@@ -10,7 +10,10 @@ here: PIL only.
 The props are 1024x1024 on light grey: each is cut out (the grey goes transparent, and only the biggest shape is
 kept, which drops the small signature in a corner), cropped and saved at twice its on-screen size.
 
-python3 tools/office_art.py <art-src/claim7 dir> <assets/img/rush dir> [--rooms]
+python3 tools/office_art.py <art-src/claim7 dir> <assets/img/rush dir> [--rooms]     the collages and sprites
+python3 tools/office_art.py <art-src/claim7 dir> <assets/img/rush dir> --gem-in       the repaint's inputs
+python3 tools/office_art.py <art-src/claim7 dir> <assets/img/rush dir> --gem-fit NAME REPAINT.png
+The repaint itself is one image edit per room, run by hand with the prompt in office_repaint_prompt.txt.
 """
 import sys
 from collections import deque
@@ -139,16 +142,20 @@ ROOMS = {
                         top_rows=(58, 97), floor_rows=(724, 768), feather=(10, 6),
                         bands=[(30, 491, (270, 60, 345, 330), (0, 60, 12, 420)),
                                (491, 640, (395, 428, 488, 662), (0, 440, 12, 640)),
-                               (640, 768, (30, 668, 240, 768), None)]),
-    # Tall: the door (y 748-1118, 370 px) becomes 270 px, so scale 0.73; door foot on y 1150.
-    # Game coords of a render point (x, y): (103 + 0.73x, 334 + 0.73y).
-    'office-tall': dict(src='office-tall-1.png', W=768, H=1344, scale=0.73, ox=103, oy=1150 - round(1118 * 0.73),
+                               (640, 768, (30, 668, 240, 768), None)],
+                        baskets=[(522, 646, 68, 30)]),
+    # Tall: the door (y 748-1118, 370 px) becomes 270 px, so scale 0.73; door foot on y 1090 (high enough that the
+    # stools clear the phone's belt, and less bare wall above the room).
+    # Game coords of a render point (x, y): (103 + 0.73x, 274 + 0.73y).
+    'office-tall': dict(src='office-tall-1.png', W=768, H=1344, scale=0.73, ox=103, oy=1090 - round(1118 * 0.73),
                         top_rows=(0, 395), floor_rows=(1300, 1344), feather=(8, 8),
-                        bands=[(0, 834, (0, 0, 28, 460), (755, 600, 768, 680)),
-                               (834, 860, (330, 684, 470, 720), None),
-                               (860, 1150, (240, 725, 330, 870), (755, 700, 768, 760)),
-                               (1150, 1254, (10, 1122, 170, 1258), None),
-                               (1254, 1344, (10, 1262, 170, 1344), None)]),
+                        bands=[(0, 774, (0, 0, 28, 460), (755, 600, 768, 680)),
+                               (774, 800, (330, 684, 470, 720), None),
+                               (800, 1090, (240, 725, 330, 870), (755, 700, 768, 760)),
+                               (1090, 1194, (10, 1122, 170, 1258), None),
+                               (1194, 1344, (10, 1262, 170, 1344), None)],
+                        # wire baskets sketched in for the repaint: the waiting basket, and an in-tray under the slot
+                        baskets=[(196, 1158, 68, 30), (176, 1022, 56, 22)]),
 }
 
 # ---- Sprites: (source, out name, longest side in px at 2x the on-screen size) ----
@@ -230,7 +237,83 @@ def cutout(path, size):
     return rgba.resize((max(1, round(rgba.width * k)), max(1, round(rgba.height * k))), Image.LANCZOS)
 
 
+# ---- The repaint: the collage goes through one image edit (see CREDITS.md) so the stretched walls, the side bands and
+#      the seams become one painting. These two steps prepare its input and fit its output back on the layout. ----
+def sketch_baskets(im, cfg):
+    """Rough wire baskets where the layout wants them, for the repaint to paint properly."""
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(im)
+    for (x, y, w, h) in cfg.get('baskets', []):
+        d.rectangle((x - w / 2, y - h, x + w / 2, y), fill=(52, 40, 30), outline=(150, 150, 150), width=3)
+        for i in range(1, 6):
+            xx = x - w / 2 + i * w / 6
+            d.line((xx, y - h, xx, y), fill=(150, 150, 150), width=2)
+        d.line((x - w / 2, y - h / 2, x + w / 2, y - h / 2), fill=(150, 150, 150), width=2)
+    return im
+
+
+def gem_input(name, cfg):
+    """The collage with its baskets, padded to an exact 16:9 or 9:16 frame (the edit keeps that ratio)."""
+    im = sketch_baskets(Image.open(f'{SRC}/out-{name}.png').convert('RGB'), cfg)
+    W, H = im.size
+    PW, PH = (round(H * 16 / 9), H) if W > H else (W, round(W * 16 / 9))
+    pad = Image.new('RGB', (PW, PH))
+    pad.paste(im, (0, 0))
+    if PW > W:
+        pad.paste(im.crop((W - (PW - W), 0, W, H)).transpose(Image.FLIP_LEFT_RIGHT), (W, 0))
+    if PH > H:
+        pad.paste(im.crop((0, H - (PH - H), W, H)).transpose(Image.FLIP_TOP_BOTTOM), (0, H))
+    pad.save(f'{SRC}/gem-in-{name}.png')
+    print('wrote', f'{SRC}/gem-in-{name}.png', pad.size)
+
+
+def shift_between(a, b):
+    """How far b is moved from a, by phase correlation of their edges (whole pixels)."""
+    import numpy as np
+    def edges(im):
+        g = np.asarray(im.convert('L').filter(ImageFilter.FIND_EDGES), dtype=float)
+        return g - g.mean()
+    A, B = np.fft.fft2(edges(a)), np.fft.fft2(edges(b))
+    r = A.conj() * B
+    c = np.fft.ifft2(r / (np.abs(r) + 1e-9)).real
+    dy, dx = np.unravel_index(np.argmax(c), c.shape)
+    h, w = c.shape
+    return (dx - w if dx > w // 2 else dx), (dy - h if dy > h // 2 else dy)
+
+
+def gem_fit(name, cfg, out_png):
+    """The repainted frame scaled to the padded size, moved back if it drifted, cropped to the game's size."""
+    W, H = cfg['W'], cfg['H']
+    ref = Image.open(f'{SRC}/gem-in-{name}.png').convert('RGB')
+    im = Image.open(out_png).convert('RGB').resize(ref.size, Image.LANCZOS)
+    dx, dy = shift_between(ref, im)
+    print(name, 'repaint drifted by', (dx, dy))
+    if abs(dx) > 40 or abs(dy) > 40:
+        sys.exit('drift too large: check the repaint by eye')
+    moved = Image.new('RGB', im.size)
+    moved.paste(im, (-dx, -dy))
+    fixed = moved.crop((0, 0, W, H))
+    # Whatever the shift left uncovered at the edges comes from the collage.
+    if dx or dy:
+        base = Image.open(f'{SRC}/out-{name}.png').convert('RGB')
+        mask = Image.new('L', (W, H), 0)
+        from PIL import ImageDraw
+        ImageDraw.Draw(mask).rectangle((max(0, -dx), max(0, -dy), W - 1 - max(0, dx), H - 1 - max(0, dy)), fill=255)
+        fixed = Image.composite(fixed, base, mask)
+    fixed.save(f'{OUT}/{name}.webp', quality=90, method=6)
+    fixed.save(f'{SRC}/painted-{name}.png')
+    print('wrote', f'{OUT}/{name}.webp')
+
+
 if __name__ == '__main__':
+    if '--gem-in' in sys.argv:  # office_art.py SRC OUT --gem-in: the repaint's inputs, from the collages
+        for name, cfg in ROOMS.items():
+            gem_input(name, cfg)
+        sys.exit()
+    if '--gem-fit' in sys.argv:  # office_art.py SRC OUT --gem-fit NAME REPAINT.png
+        i = sys.argv.index('--gem-fit')
+        gem_fit(sys.argv[i + 1], ROOMS[sys.argv[i + 1]], sys.argv[i + 2])
+        sys.exit()
     for name, cfg in ROOMS.items():
         build(name, cfg)
     if '--rooms' in sys.argv:

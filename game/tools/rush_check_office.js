@@ -3,7 +3,8 @@
 // screen; drags in every buy (badge, pad, cache, param, safe, waiter); works the badge card's stamps (and that a
 // mid-wave change is refused), the cabinet sign, shredding the keyring, rotating the drawer, the dumbwaiter and the
 // intern's scope; answers a spot-the-line desk letter in the office and one in the cellar, and a spot-the-line letter
-// from the letters order; then plays through to the end strip.
+// from the letters order; then plays through to the end strip. Along the way, no label overlaps another label or a
+// counter, and Dutch's bubble covers no prompt.
 // node tools/rush_check_office.js [outDir]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -27,6 +28,18 @@ async function dragTo(pg, tool) {
   const [ax, ay] = await pg.evaluate(i => SD_RUSH.at.slot(i), i), [bx, by] = await pg.evaluate(t => SD_RUSH.at.spot(t), tool);
   await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx, by, { steps: 8 }); await pg.mouse.up();
   return pg.evaluate(`!!(${room})()[${JSON.stringify(tool)}]`);
+}
+// No label sits on another label or on a counter, and Dutch's bubble covers no prompt (labels: plaques and the sign's
+// tag; counters: the numbers and marks drawn by props; prompts: the other words drawn in the room).
+async function labelsClear(pg, name, when) {
+  const ls = await pg.evaluate(() => SD_RUSH.office.labels());
+  if (!ls.some(l => l.kind === 'label')) bad(name, when, 'no labels recorded');
+  if (when !== 'playing') console.log(name, when, 'labels', ls.map(l => l.kind[0] + ':' + l.t).join(', '));
+  const hit = (a, b) => a.r[0] < b.r[0] + b.r[2] - 1 && b.r[0] < a.r[0] + a.r[2] - 1 && a.r[1] < b.r[1] + b.r[3] - 1 && b.r[1] < a.r[1] + a.r[3] - 1;
+  const pairs = { 'label|label': 1, 'label|counter': 1, 'counter|label': 1, 'bubble|prompt': 1, 'prompt|bubble': 1 };
+  for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++)
+    if (pairs[ls[i].kind + '|' + ls[j].kind] && hit(ls[i], ls[j])) bad(name, when, 'overlap:', `${ls[i].kind} "${ls[i].t}"`, 'and', `${ls[j].kind} "${ls[j].t}"`);
+  return ls.length;
 }
 const tap = async (pg, pt) => { await pg.mouse.click(pt[0], pt[1]); await pg.waitForTimeout(120); };
 // The belt and the canvas fit inside the viewport.
@@ -65,7 +78,11 @@ async function tend(pg, desk, cellar = true) {
 }
 async function playOut(pg, ms) {
   const t0 = Date.now();
-  while (Date.now() - t0 < ms) { if (await endShown(pg)) return true; await tend(pg, true); await pg.waitForTimeout(200); }
+  let n = 0;
+  while (Date.now() - t0 < ms) {
+    if (await endShown(pg)) return true; await tend(pg, true); await pg.waitForTimeout(200);
+    if (++n % 25 === 0 && !/\bon\b/.test(await qClass(pg)) && (await pg.evaluate(() => SD_RUSH.view)) === 'main') await labelsClear(pg, pg.__name, 'playing');
+  }
   return false;
 }
 // Wait for a letter (not a review or office card) while tending everything else, desk included.
@@ -97,6 +114,7 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 2 });
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errs.push(m.text()); });
     await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
+    pg.__name = name;
     const shot = async n => { await pg.waitForTimeout(250); await pg.screenshot({ path: `${OUT}/${name}-${n}.png` }); };
 
     // ---- 1. The build: the office, Dutch's intro, all six buys on the belt. ----
@@ -110,6 +128,7 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     if (!b0.office || b0.belt !== 'badge,pad,cache,param,safe,waiter' || !b0.review) bad(name, 'not the office', JSON.stringify(b0));
     let f = await fits(pg); if (!f.ok || f.sw > f.w) bad(name, 'belt or page does not fit', JSON.stringify(f));
     await shot('1-build');
+    await labelsClear(pg, name, 'build');
 
     // ---- 2. The badge card: stamps, the policy preview. Tighten to seal+file+read. ----
     await tap(pg, await pg.evaluate(() => SD_RUSH.office.mira()));
@@ -158,6 +177,7 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
       await pg.click('.lt-go');
     }
     await shot('3-built');
+    await labelsClear(pg, name, 'built');
     // The keyring: shred it now the badge is on.
     await tap(pg, await pg.evaluate(() => SD_RUSH.office.keyring()));
     if (await pg.$('.of-btns button[data-k="shred"]:not([disabled])')) { await pg.click('.of-btns button[data-k="shred"]'); }
@@ -179,6 +199,7 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     if (!(await pg.evaluate(() => SD_RUSH.S.started))) bad(name, 'the lock did not start the night');
     await pg.waitForTimeout(2500);
     await shot('4-mid');
+    await labelsClear(pg, name, 'mid');
     // Mid-wave a stamp change is a deploy: the card shows it at once, the latch gets it a few seconds later.
     const editMid = await pg.evaluate(() => SD.rushOffice.canEdit(SD_RUSH.S));
     if (editMid) bad(name, 'mid-wave should be a deploy, not an instant change');
