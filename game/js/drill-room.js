@@ -91,7 +91,7 @@
     const notes = {};
     (o.notes || []).forEach(n => { (notes[n[0]] = notes[n[0]] || []).push(n); });
     const sts = D.ORDER.map(k => {
-      const s = D.STATIONS[k], on = path.includes(k), st = on ? (e.nodes[k] || 'dark') : 'off';
+      const s = D.station(f.drill, k), on = path.includes(k), st = on ? (e.nodes[k] || 'dark') : 'off';
       const [a, b] = HIT[k];
       const bad = o.m && BD.TROUBLE[s.who] && BD.TROUBLE[s.who](o.m);
       const say = by[s.who] ? `<p class="rm-say${bad ? ' bad' : ''}" data-vo="${esc(s.who + '|' + by[s.who][0])}"><b>${esc(D.NAMES[s.who])}</b> ${by[s.who].map(esc).join(' ')}</p>` : '';
