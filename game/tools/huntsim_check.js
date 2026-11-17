@@ -99,6 +99,15 @@ HC.BOARDS.forEach(b => {
   check((HC.run(HC.board('w-teach'), 1, ['admin']).counts.leak | 0) === 1, 'AdministratorAccess also lets the stale script through');
   const c = HC.board('c-gate-hydra');
   check((HC.run(c, 1, ['backoff']).counts.wthrottle | 0) > (HC.run(c, 1, []).counts.wthrottle | 0), 'combo: fixing the gate sends more traffic onto the hot key');
+  // The Phantom: one symptom, three causes. Only the clue's own fix holds, and the look-alikes change nothing.
+  [['x-teach', 'tmo15', 'timeout'], ['x-oom', 'mem1g', 'oom'], ['x-throttle', 'rcup', 'throttled']].forEach(([id, fix, type]) => {
+    const pb = HC.board(id), pn = HC.run(pb, 1, []);
+    check((pn.counts[type] | 0) > 0 && !pn.won && HC.run(pb, 1, [fix]).won, `${id}: ${type} errors until ${HC.CARDS[fix].name}`);
+    pb.hand.filter(x => x !== fix).forEach(x => check(JSON.stringify(HC.run(pb, 1, [x]).counts) === JSON.stringify(pn.counts), `${id}: ${HC.CARDS[x].name} changes nothing here`));
+  });
+  check(/reserved concurrency/.test(HC.refused(HC.board('x-throttle'), 1, 'provconc')) && !HC.refused(HC.board('x-teach'), 1, 'provconc'), 'provisioned concurrency is refused above the reserved concurrency');
+  const two = HC.board('x-two');
+  check(!HC.run(two, 1, ['tmo15']).won && !HC.run(two, 1, ['rcup']).won && HC.run(two, 1, ['tmo15', 'rcup']).won, 'two clues: each fix alone isn\'t enough, both together hold');
 }
 // Cards and ladders.
 Object.entries(HC.CARDS).forEach(([id, c]) => {

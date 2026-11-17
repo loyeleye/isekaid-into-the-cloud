@@ -19,6 +19,7 @@ MONSTERS = {
     'poison': 'a horror mimic: a rotting sealed parchment envelope that has grown a gaping mouth of needle teeth and one bloodshot eye, black ooze dripping from a cracked skull wax seal, scratched tally marks carved into it, lurking',
     'gate': 'a horror mimic: a looming ancient stone shrine gate that has come alive, hollow glowing eye sockets, a long jaw of broken stone teeth, clutching a bucket of pale glowing marbles to its chest, moss and chains',
     'hydra': 'a horror creature: a three-headed hydra of rusted iron filing-cabinet drawers with drawer-mouths full of teeth, one head swollen, red-hot and steaming, the other two small and starved, lurching',
+    'phantom': 'a horror ghost: a pale tattered shroud floating over a broken wooden workbench stool, a cracked pocket watch for a face with its hands spinning, long thin smoky fingers trailing glitching red error sparks, hollow and flickering',
     'warden': 'a horror mimic: a tall iron dungeon door standing upright with long thin clawed arms, a slot of glowing eyes in its grille, holding a dripping red wax seal stamp, a ring of rusty keys rattling at its hinge',
 }
 PLACES = {
@@ -57,6 +58,10 @@ CARDS = {
     'trust': 'two hands shaking over a scroll',
     'stsallow': 'a mask on a stick, a masquerade mask',
     'roleadmin': 'a gold crown on a mask',
+    'tmo15': 'a large brass alarm clock with its hands turned forward',
+    'mem1g': 'a glass jar overflowing with glowing blue marbles',
+    'rcup': 'a long wooden bench with many seats and a reserved sign',
+    'provconc': 'a row of five lit lanterns kept warm on a shelf',
 }
 SEED = 11
 SIZE = 96
