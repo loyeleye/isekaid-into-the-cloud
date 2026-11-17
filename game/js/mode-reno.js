@@ -708,6 +708,97 @@
   function verifiedTwin(q, avoid) {
     return ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).find(x => x && E().allowed(x) && D() && D().isVerified(x) && !avoid.has(x.id)) || null;
   }
+  // ---- Seymour's what-if (Ladi, Nov 17: fewer multiple-choice screens) ----
+  // On the second and fourth job of a night, before the permit, Seymour changes one thing about your plan and asks how
+  // the slate would go (usually a change that flips a line, sometimes one that flips none). You chalk a tick or a
+  // cross on each line, then he runs it (the same rules as his inspection,
+  // R.inspect) and the slate fills in. Reading every line right adds a floor to the job's building. Nothing here is a
+  // bank question: the permit question still follows.
+  const WI_ASK = 'One what-if before I sign. Same job, one change. Chalk how each line on the slate would go.';
+  const WI_RIGHT = 'Exactly right. I would have chalked it the same way.';
+  const WI_WRONG = 'Not quite. That is what a what-if is for. Better here than on the street.';
+  // Only the knobs a plan actually uses (a rolling batch size means nothing on Immutable).
+  const knobsOf = (job, p) => {
+    if (job.d === 'eb') return Object.assign({ policy: p.policy }, p.policy === 'rolling' || p.policy === 'rollingBatch' ? { batch: p.batch, ignoreHC: !!p.ignoreHC } : p.policy === 'split' ? { split: p.split, evalT: p.evalT } : p.policy === 'blueGreen' ? { wait: p.wait } : {});
+    if (job.d === 'lam') return Object.assign({ cfg: p.cfg, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post }, p.cfg === 'canary' ? { wait: p.wait } : p.cfg === 'linear' ? { every: p.every } : {});
+    return p;
+  };
+  const planDiff = (job, a, b) => {
+    if (job.d === 'cfn') return job.stack.filter(r => a[r.id] !== b[r.id]).length;
+    a = knobsOf(job, a); b = knobsOf(job, b);
+    const ks = new Set(Object.keys(a).concat(Object.keys(b)));
+    let n = 0; ks.forEach(k => { if ((a[k] === undefined ? null : a[k]) !== (b[k] === undefined ? null : b[k])) n++; });
+    return n;
+  };
+  function whatIf(job, mine, seed) {
+    const base = R.inspect(job, mine);
+    if (base.refused) return null;
+    const all = R.plans(job).map(p => job.d === 'eb' ? Object.assign({}, p) : p);
+    // About one what-if in three changes nothing on the slate (Ladi, Nov 17: if it always flipped a line, you could
+    // skip checking the ones that can't flip). `seed` is the job's own roll (j.wiR), made fresh the first time the
+    // what-if comes up, so each playthrough gets a different change; a reload keeps the same one.
+    const same = (seed >>> 0) % 3 === 0;
+    for (const want of [1, 2]) {
+      const c = all.filter(p => planDiff(job, p, mine) === want && planName(job, p) !== planName(job, mine)).map(p => ({ plan: p, res: R.inspect(job, p) }))
+        .filter(x => !x.res.refused);
+      const flip = c.filter(x => x.res.lines.some((l, i) => l.ok !== base.lines[i].ok)), keepAll = c.filter(x => !flip.includes(x));
+      const pool = same && keepAll.length ? keepAll : flip.length ? flip : keepAll;
+      if (pool.length) return pool[((seed >>> 0) >> 2) % pool.length];
+    }
+    return null;
+  }
+  // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
+  const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
+  function whatIfDue(s, job, j) {
+    if (j.wi || !(s.at === 1 || s.at === 3) || !j.plans.length) return false;
+    const w = whatIf(job, j.plans[j.plans.length - 1].plan, wiRoll(s, j));
+    if (!w) { j.wi = { skip: true }; return false; }
+    return true;
+  }
+  function whatIfScreen(s, job, j) {
+    const RS = SD.renoStreet, mine = j.plans[j.plans.length - 1].plan, w = whatIf(job, mine, wiRoll(s, j));
+    const marks = job.lines.map(() => null);
+    j.wiq = w.plan;   // for the checks (tools/reno_check.js works out the right marks from it)
+    const office = (pose, face, line) => RS ? `<div class="rn-bleed">${permitScene(pose, face, `<div class="rs-row"><span></span>${bubble('seymour', line)}</div><div></div>`)}</div>` : say('seymour', line);
+    const plans = `<div class="rn-wiplans"><p class="small"><span class="rn-wik">Your plan</span> ${esc(planName(job, mine))}</p><p><span class="rn-wik">What if</span> <b>${esc(planName(job, w.plan))}</b></p></div>`;
+    const board = () => `<div class="rn-chalk rn-wi"><p class="rn-chalkh">The slate, if it went like this</p><ul class="rn-slate">${job.lines.map((t, i) =>
+      `<li><button class="rn-wil${marks[i] === true ? ' ok' : marks[i] === false ? ' bad' : ''}" data-wi="${i}" aria-label="${esc(t)}: ${marks[i] === true ? 'holds' : marks[i] === false ? 'breaks' : 'not marked'}"><span class="rn-wim">${marks[i] === true ? '✓' : marks[i] === false ? '✗' : '▢'}</span>${esc(t)}</button></li>`).join('')}</ul>
+      <p class="small rn-wihint">Tap a line: ✓ it holds, tap again: ✗ it breaks.</p></div>`;
+    const ask = () => {
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${office('inspect', 'neutral', WI_ASK)}${plans}${board()}
+        <div class="rn-dock"><button class="primary" id="rn-wi-run" ${marks.every(m => m !== null) ? '' : 'disabled'}>Run the what-if</button></div>`, 'THE PERMIT');
+      if (RS) RS.mount(b);
+      b.querySelector('#rn-wi-run').onclick = () => reveal();
+      rewire(b);
+    };
+    function rewire(b) {
+      b.querySelectorAll('[data-wi]').forEach(el => el.onclick = () => {
+        const i = +el.dataset.wi; marks[i] = marks[i] === null ? true : marks[i] === true ? false : null;
+        if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+        b.querySelector('.rn-wi').outerHTML = board(); rewire(b);
+      });
+      b.querySelector('#rn-wi-run').disabled = !marks.every(m => m !== null);
+    }
+    function reveal() {
+      const right = w.res.lines.map((l, i) => l.ok === marks[i]), ok = right.every(Boolean);
+      j.wi = { ok, plan: w.plan };
+      save(s);
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx(ok ? 'right' : 'wrong');
+      const lines = `<div class="rn-chalk rn-wi"><p class="rn-chalkh">How it would have gone</p><ul class="rn-slate">${w.res.lines.map((l, i) =>
+        `<li class="${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✗'} ${esc(l.text)} <span class="small">(${esc(l.got)})</span> <span class="rn-wiyou ${right[i] ? 'ok' : 'bad'}">${right[i] ? 'you read it right' : `you chalked ${marks[i] ? '✓' : '✗'}`}</span></li>`).join('')}</ul>
+        <p class="small rn-wihint">${esc(runSummary(job, job.d === 'cfn' ? w.res.good : w.res.bad, job.d === 'cfn' ? 'g' : 'b'))}</p></div>`;
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${office(ok ? 'stamp' : 'disapprove', ok ? 'happy' : 'worried', ok ? WI_RIGHT : WI_WRONG)}
+        <div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'READ RIGHT' : 'NOT QUITE'}</div><span class="chip">${ok ? '+1 floor on this building' : 'no floor this time'}</span></div>
+        ${plans}${lines}
+        <div class="rn-dock"><button class="primary" id="rn-wi-on">On to the permit question</button></div>`, 'THE PERMIT');
+      if (RS) RS.mount(b);
+      const wb = b.closest('.win-b') || document.querySelector('#panel > .win > .win-b'); if (wb) wb.scrollTop = 0;   // the result opens at its top
+      b.querySelector('#rn-wi-on').onclick = () => draw(s);
+    }
+    ask();
+  }
   // The permit office (Ladi's Sogni painting, Nov 17): one close-up for every district. Seymour stands at his desk with
   // his magnifier while you answer; a right answer gets his stamp, a wrong one his disapproval. Kai waits on the left.
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
@@ -716,6 +807,7 @@
   const PERMIT_ASK = 'Before I sign, one question about what you just did. Tell me how sure you are. Take your time. Within reason.';
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
+    if (whatIfDue(s, job, j)) return whatIfScreen(s, job, j);
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
       ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
@@ -755,11 +847,89 @@
       const v = win.querySelector(':scope > .win-b > .verdict-row > .verdict');
       const now = v ? (v.classList.contains('ok') ? 'ok' : 'bad') : 'q';
       if (now !== beat) { beat = now; RS.pose(el, now === 'ok' ? 'stamp' : now === 'bad' ? 'disapprove' : 'inspect', now === 'ok' ? 'happy' : now === 'bad' ? 'worried' : 'neutral'); }
+      if (now === 'q') skin(win);
     };
     const obs = new MutationObserver(put);
     obs.observe(p, { childList: true, subtree: true });
     put();
     return () => { live = false; obs.disconnect(); box.remove(); };
+  }
+  // Hands-on permit (Ladi, Nov 17: fewer multiple-choice screens). The quiz underneath is unchanged and still
+  // judges and records the answer; this only changes how you give it. The options are plans laid on Seymour's desk:
+  // drag his stamp onto the one that answers him (or tap it), and an APPROVED mark lands on it. Then you set his
+  // confidence gauge: the needle swings to Guess, Think so or Sure, and that commits the answer. Idempotent: the quiz
+  // redraws its window on every tap, so this runs again after each one.
+  function skin(win) {
+    const body = win.querySelector(':scope > .win-b');
+    const opts = body && body.querySelector(':scope > .opts');
+    if (!opts || opts.dataset.rnSk) return;
+    opts.dataset.rnSk = '1';
+    opts.classList.add('rn-sheets');
+    const multi = !!opts.querySelector('[data-m]'), order = !!opts.querySelector('[data-ord]');
+    opts.querySelectorAll('.opt').forEach((o, i) => { o.style.setProperty('--tilt', ((i * 37) % 5 - 2) * 0.45 + 'deg'); });
+    if (!order) {
+      const pad = document.createElement('div');
+      pad.className = 'rn-stampbar';
+      pad.innerHTML = `<span class="rn-stamp" role="img" aria-label="Seymour's stamp">APPROVED</span><span>${multi ? 'Stamp every plan that answers him. Drag the stamp, or tap a plan.' : 'Stamp the plan that answers him. Drag the stamp, or tap a plan.'}</span>`;
+      opts.before(pad);
+      const st = pad.querySelector('.rn-stamp');
+      st.onpointerdown = e => {
+        e.preventDefault();
+        const ghost = st.cloneNode(true);
+        ghost.classList.add('rn-ghost');
+        document.body.appendChild(ghost);
+        const at = ev => { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; };
+        at(e);
+        // Near the top or bottom edge, the column scrolls under the stamp, so a plan below the fold can be reached.
+        const sc = (() => { for (let e = opts.parentElement; e; e = e.parentElement) { const c = getComputedStyle(e).overflowY; if ((c === 'auto' || c === 'scroll') && e.scrollHeight > e.clientHeight) return e; } return document.scrollingElement; })();
+        let y = e.clientY, raf = 0;
+        const edge = () => { const d = y > innerHeight - 70 ? 14 : y < 150 ? -14 : 0; if (d) sc.scrollTop += d; raf = requestAnimationFrame(edge); };
+        raf = requestAnimationFrame(edge);
+        const move = ev => { y = ev.clientY; at(ev); };
+        const up = ev => {
+          cancelAnimationFrame(raf);
+          window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+          ghost.remove();
+          const hit = ev.type === 'pointerup' && document.elementFromPoint(ev.clientX, ev.clientY);
+          const o = hit && hit.closest && hit.closest('.rn-sheets .opt');
+          if (o && !o.disabled) o.click();
+        };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+      };
+    }
+    // A stamp lands with a thunk (the quiz's redraw makes the new .on sheet; mark it as freshly stamped).
+    const qk = (body.querySelector('.q-q') || {}).textContent || '', now = new Set();
+    if (skin.q !== qk) { skin.q = qk; skin.on = new Set(); }
+    let fresh = false;
+    opts.querySelectorAll('.opt.on').forEach(o => { const k = o.dataset.o || o.dataset.m; now.add(k); if (!skin.on.has(k)) { o.classList.add('rn-fresh'); fresh = true; } });
+    skin.on = now;
+    if (fresh && SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
+    const conf = body.querySelector(':scope > .conf'), cb = conf && conf.querySelector('.conf-b');
+    if (!cb || cb.dataset.rnSk) return;
+    cb.dataset.rnSk = '1';
+    conf.classList.add('rn-gauge');
+    const lab = conf.querySelector(':scope > span');
+    if (lab) lab.textContent = 'How sure are you? Set his gauge to sign it.';
+    const dial = document.createElement('div');
+    dial.className = 'rn-dial';
+    dial.setAttribute('aria-hidden', 'true');
+    dial.innerHTML = `<svg viewBox="0 0 200 112"><path d="M14 100 A86 86 0 0 1 57 25.5" class="z0"/><path d="M57 25.5 A86 86 0 0 1 143 25.5" class="z1"/><path d="M143 25.5 A86 86 0 0 1 186 100" class="z2"/>
+      <g class="rn-needle"><line x1="100" y1="100" x2="100" y2="26"/><circle cx="100" cy="100" r="9"/></g></svg>`;
+    cb.before(dial);
+    const needle = dial.querySelector('.rn-needle');
+    const aim = c => needle.style.transform = `rotate(${[-60, 0, 60][c]}deg)`;
+    cb.addEventListener('pointerover', e => { const b = e.target.closest('[data-c]'); if (b && !b.disabled) aim(+b.dataset.c); });
+    cb.addEventListener('focusin', e => { const b = e.target.closest('[data-c]'); if (b) aim(+b.dataset.c); });
+    // The needle swings first, then the quiz's own button commits the answer.
+    cb.addEventListener('click', e => {
+      const b = e.target.closest('[data-c]');
+      if (!b || b.disabled || b.dataset.go) return;
+      e.stopPropagation(); e.preventDefault();
+      aim(+b.dataset.c); cb.classList.add('set'); b.classList.add('rn-pick');
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setTimeout(() => { b.dataset.go = '1'; b.click(); }, reduce ? 0 : 520);
+    }, true);
   }
   // The permit question's window over the office: no frame, the scene fills the stage under the top bar, and the
   // question, options and feedback are blueprint boxes floating in a column between Kai and Seymour (on a phone, under
@@ -782,6 +952,38 @@
       ${WIN} .win-b > :is(.q-ctx, .verdict-row) { align-self: flex-start; max-width: 100%; }
       ${WIN} .win-b > .q-ctx { background: rgba(23, 33, 58, .9); padding: 4px 10px; }
       ${WIN} .q-recap .qr-peek { color: #b9cce4; }
+      /* Hands-on permit: plans on the desk, Seymour's stamp, his gauge. */
+      ${WIN} .win-b > .rn-stampbar { position: sticky; top: 6px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; display: flex; align-items: center; gap: 10px; background: rgba(23, 33, 58, .92); }
+      ${WIN} .win-b > .rn-stampbar > span:last-child { color: #e9f1ff; font-size: .92rem; }
+      .rn-stamp { flex: none; display: inline-grid; place-items: center; padding: 6px 10px; border: 3px double #c8323a; border-radius: 8px; color: #c8323a;
+        background: #f6ead0; font: 800 .8rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-6deg); cursor: grab; touch-action: none; user-select: none;
+        box-shadow: 0 3px 0 #7a5b2c, 0 6px 14px rgba(0,0,0,.35); }
+      .rn-stamp.rn-ghost { position: fixed; z-index: 1000; pointer-events: none; transform: translate(-50%, -60%) rotate(-12deg) scale(1.15); cursor: grabbing; opacity: .92; }
+      ${WIN} .win-b > .opts.rn-sheets { background: none; box-shadow: none; padding: 4px 2px; gap: 12px; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt) { position: relative; background: #f3ead2 linear-gradient(transparent 23px, rgba(70,110,170,.18) 24px) 0 0 / 100% 24px; color: #2b2340;
+        border: 1px solid #b89c62; border-radius: 4px; box-shadow: 0 6px 14px rgba(0,0,0,.4); transform: rotate(var(--tilt, 0deg)); padding: 14px 14px 12px 18px; font-size: .95rem; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt)::before { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #c8323a; box-shadow: 0 2px 2px rgba(0,0,0,.5); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt):hover:not(:disabled) { background-color: #fbf4df; transform: rotate(0deg) translateY(-2px); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on { background-color: #fff7e2; border-color: #c8323a; box-shadow: 0 0 0 2px rgba(200,50,58,.35), 0 6px 14px rgba(0,0,0,.4); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on::after { content: 'APPROVED'; position: absolute; right: 8px; bottom: 6px; padding: 3px 8px; border: 3px double rgba(200,50,58,.85); border-radius: 6px;
+        color: #c8323a; background: rgba(255,248,232,.7); font: 800 .78rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-9deg); pointer-events: none; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: rn-thunk .28s cubic-bezier(.3,1.6,.5,1) both; }
+      @keyframes rn-thunk { from { transform: rotate(-9deg) scale(2.2); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: 1; } }
+      ${WIN} .win-b > .conf.rn-gauge { border: 0; text-align: center; background: rgba(23, 33, 58, .94); }
+      .rn-gauge > span { color: #e9f1ff; }
+      .rn-dial { width: min(240px, 70%); margin: 6px auto 0; }
+      .rn-dial svg { display: block; width: 100%; overflow: visible; }
+      .rn-dial path { fill: none; stroke-width: 16; }
+      .rn-dial .z0 { stroke: #6f8fb8; } .rn-dial .z1 { stroke: #d9a93a; } .rn-dial .z2 { stroke: #c8323a; }
+      .rn-needle { transform-origin: 100px 100px; transform: rotate(-90deg); transition: transform .5s cubic-bezier(.4,1.7,.5,1); }
+      .rn-needle line { stroke: #f6ead0; stroke-width: 4; stroke-linecap: round; } .rn-needle circle { fill: #b89c62; stroke: #2b2340; stroke-width: 2; }
+      ${WIN} .rn-gauge .conf-b { justify-content: center; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt) { flex: 1 1 0; max-width: 140px; background: #e8d9b0; border: 2px solid #7a5b2c; color: #2b2340; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):hover:not(:disabled) { background: #f3e6c2; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):disabled { opacity: .55; }
+      ${WIN} .rn-gauge .stake .up { color: #1f6b33; } ${WIN} .rn-gauge .stake .dn { color: #9b1f26; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt).rn-pick { background: #f6ead0; box-shadow: 0 0 0 3px #d9a93a; }
+      @media (prefers-reduced-motion: reduce) { .rn-needle { transition: none; } ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: none; } }
       /* A phone: Kai and Seymour stand in the band above the boxes, so the verdict's stamp or wave-off stays in view. */
       @media (max-width: 899px) {
         .rn-pq .rs-fg { bottom: auto; height: calc(max(150px, 52vh - 120px) + 74px); }
@@ -809,7 +1011,7 @@
       const stands = j.pass && j.ok;
       const free = DR.freePlots ? DR.freePlots() : [];
       town[q.id] = Object.assign({}, prev || {}, { q: q.id, d: prev ? prev.d : (E().domainOf(q) || 3), client: prev ? prev.client : job.client,
-        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
+        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0) + (j.wi && j.wi.ok ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
         scaf: !stands, t: prev ? prev.t : Date.now(), last: Date.now(), idea: prev && prev.idea ? prev.idea : job.title, plot: prev && prev.plot != null ? prev.plot : (free.length ? free[0] : null) });
       j.bld = q.id;
     }
@@ -1057,6 +1259,15 @@
     .rn-chalkh { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; opacity: .85; border-bottom: 1px dashed rgba(244,241,230,.4); margin-bottom: 3px !important; }
     .rn-slate { list-style: none; margin: 0; padding: 0; font-size: 16px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; text-shadow: 0 0 1px rgba(255,255,255,.5); }
     .rn-slate .small { opacity: .8; }
+    /* Seymour's what-if: your plan against his, and a slate you chalk yourself. */
+    .rn-wiplans p { margin: 2px 0; } .rn-wik { display: inline-block; min-width: 64px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd45a; }
+    .rn-wi { max-width: 640px; } .rn-wi .rn-wihint { margin: 6px 0 0; opacity: .85; }
+    .rn-wil { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px dashed rgba(244,241,230,.25); color: inherit; font: inherit; padding: 6px 2px; cursor: pointer; }
+    .rn-wil:hover { background: rgba(255,255,255,.06); }
+    .rn-wim { flex: none; width: 1.4em; font-size: 20px; line-height: 1; text-align: center; font-family: 'Segoe Print', 'Comic Sans MS', cursive; }
+    .rn-wil.ok .rn-wim { color: #9be3b0; } .rn-wil.bad .rn-wim { color: #ffb1a1; }
+    .rn-wiyou { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; font-size: 12px; background: rgba(255,255,255,.12); }
+    .rn-wiyou.ok { color: #9be3b0; } .rn-wiyou.bad { color: #ffb1a1; }
     .rn-after .rn-chalk { max-width: 640px; }
     /* Policies are blueprints you pin onto the street. */
     .rn-card { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid #9cc7f2; border-radius: 6px; color: #fff; overflow-wrap: anywhere;
@@ -1141,7 +1352,7 @@
     ${FULL} .rn.rn-world > .rn-dock:has(#rn-run), ${FULL} .rn.rn-world > .rn-after > .rn-dock { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; background: #17213a; box-shadow: 0 -2px 0 rgba(255,212,90,.25), 0 6px 22px rgba(0,0,0,.55); }
     /* The night's tally over the market square: one box, so its lines never sit bare on the painting. */
     ${FULL} .rn.rn-world > .rn-endbox { display: flex; flex-direction: column; gap: 8px; color: #fff; }
-    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night, .rn-wiplans) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
     ${FULL} .rn.rn-world > .rn-scroll { background: #f3e7c8; }
     ${FULL} .rn.rn-world > .rn-after { display: flex; flex-direction: column; gap: 8px; }
     ${FULL} .rn.rn-world > .rn-after > :is(.verdict-row, .rn-say, .rn-dock) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; }

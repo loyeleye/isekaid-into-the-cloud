@@ -1,9 +1,11 @@
-"""The Renovation's spoken lines during and after Seymour's runs (see CREDITS.md): assets/audio/vo/<who>-mg-reno-<key>.mp3.
+"""The Renovation's spoken lines during and after Seymour's runs, and Sir Seymour's Architect's Draft quiz lines
+(see CREDITS.md): assets/audio/vo/<who>-mg-reno-<key>.mp3 and seymour-mg-draft-<key>.mp3.
 
-usage: reno_vo.py [KEY ...]     record the lines (all, or the keys named, e.g. seymour-mg-reno-permit) with Gemini TTS (needs GEMINI_API_KEY)
+usage: reno_vo.py [KEY ...]     record the lines (all, or the keys named, e.g. seymour-mg-reno-permit or
+                                seymour-mg-draft-clean) with Gemini TTS (needs GEMINI_API_KEY)
 
-The text is read from js/vo-modes.js (every line mapped to a *-mg-reno-* file), so the recording always matches the
-screen. Each speaker keeps the voice he has everywhere else in the game (Seymour read as a strict hall monitor, see STYLE): Sir Seymour (Orus on
+The text is read from js/vo-modes.js (every line mapped to a *-mg-reno-* file, and Seymour's seymour-mg-draft-* lines
+from js/draft.js; the Draft's other speakers are not recorded here), so the recording always matches the screen. Each speaker keeps the voice he has everywhere else in the game (Seymour read as a strict hall monitor, see STYLE): Sir Seymour (Orus on
 gemini-2.5-flash-preview-tts) and Kai (Alnilam on gemini-2.5-pro-preview-tts). Each take is transcribed with Gemini and
 retaken if it says more than the line, then trimmed and loudness-matched like tools/ic_live_vo.py.
 """
@@ -19,7 +21,9 @@ STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-th
 # The stern delivery sometimes leaves seconds of dead air mid-line: shorten any pause to 0.6s.
 PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_silence=0.6:stop_threshold=-40dB'
 # The lines heard on every job are read gently and encouragingly, in his own way: still proper, never nagging.
-SOFT = {'seymour-mg-reno-' + k for k in ('again-beam', 'again-test', 'again-crowd', 'again-twice', 'notyet', 'nosign', 'permit', 'clean', 'scaf')}
+SOFT = {'seymour-mg-reno-' + k for k in ('again-beam', 'again-test', 'again-crowd', 'again-twice', 'notyet', 'nosign', 'permit', 'clean', 'scaf', 'whatif', 'whatif-right', 'whatif-wrong')}
+# Seymour's Architect's Draft quiz lines repeat across many questions, so they are read the same soft way.
+SOFT |= {'seymour-mg-draft-' + k for k in ('clean', 'scaf', 'retry', 'half')}
 SOFT_STYLE = ('Read this aloud as a kind, slightly formal inspector who is encouraging in his own stiff, by-the-book way: calm and warm, '
              'with a dry little lift on the last few words, at a brisk natural pace. Say only these words: ')
 API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'
@@ -28,7 +32,7 @@ API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateConten
 def lines():
     src = open(os.path.join(GAME, 'js/vo-modes.js')).read()
     out = {}
-    for who, text, f in re.findall(r'\n\s*"(\w+)\|((?:[^"\\]|\\.)*)": \'(\w+-mg-reno-[\w-]+)\'', src):
+    for who, text, f in re.findall(r'\n\s*"(\w+)\|((?:[^"\\]|\\.)*)": \'(\w+-mg-reno-[\w-]+|seymour-mg-draft-[\w-]+)\'', src):
         out[f] = (who, text.replace('\\"', '"'))
     return out
 
