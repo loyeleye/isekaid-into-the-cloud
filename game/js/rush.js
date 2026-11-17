@@ -75,7 +75,7 @@
   const carry = { torn: false };
   // The run: the Night Orders pinned so far. The pick before the Rush takes them all down.
   // bank: coins left over at the end of a won claim, carried into the next one.
-  const run = { orders: [], bank: 0 };
+  const run = { orders: [], bank: 0, offered: {} };
   function reset(seed, claim) {
     S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0; resize(); roomSound();
@@ -85,6 +85,8 @@
     else if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
     else if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
     else say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
+    // The extra buys on tonight's belt: a word from Dutch on each, the first time it's offered in a run.
+    for (const t of S.belt) if (OFFER[t] && (R.CLAIMS[S.claim].extra || []).includes(t) && !run.offered[S.claim + t]) { run.offered[S.claim + t] = 1; say('offer-' + t, 'neutral', OFFER[t]); }
   }
 
   // ---- Dutch: one line per lesson, once per claim ----
@@ -126,7 +128,37 @@
     coin: 'Halfway. Have another coin.',
     cold: 'Cold stool. Mira had to warm it up before she could start. A busy stool stays warm.',
     herd: 'There they all go at once. And they\'ve brought a friend. A queue would let them wait instead.',
-    expired: 'That one sat on the rack too long and went off. Lost.'
+    expired: 'That one sat on the rack too long and went off. Lost.',
+    // The extra buys: when each goes in, and what happens because of it.
+    memory: 'More memory for Mira. Lambda hands out CPU in proportion to memory, so every job goes quicker. You pay for it every wave, busy or not.',
+    warm: 'A warm stool. The lamp\'s always on, so whoever sits there never waits for a cold start. That\'s provisioned concurrency, and it bills every wave, empty or not.',
+    jitter: 'A jitter dial. Each caller waits its own backoff plus a random bit, so far fewer land together. And they\'re back to three tries, not four.',
+    handoff: 'A hand-off tray. Mira drops Reports\' copy in its tray and gets on with it: an async invoke. Lambda says "got it" straight away. It still takes a bit of her time.',
+    ttl: 'TTL on the ledger. Each key gets an expiry, and DynamoDB deletes it after that, for free. Real ones can take a day or two to go; ours go at twelve seconds. Longer than any resend, I hope.',
+    partial: 'Partial batch response. If one ticket in a batch fails, Mira says which one, and only that one goes back. ReportBatchItemFailures.',
+    dest: 'A failure crate for Reports. A refund that ages out or fails every retry lands here with a note saying why, instead of vanishing. Tap the crate on the belt to replay one, a coin a go.',
+    retries: 'The retry dial on Reports. Two retries is the default; one or none if you like. Tap it on the belt to turn it.',
+    upkeep: 'Upkeep\'s due. That comes off the coins at the start of every wave.',
+    debt: 'We\'re in the red. Nothing new until the coins are back above zero.',
+    bill: 'The ledger\'s storage bill. Every key we\'ve ever written is still sitting there, and we pay for the lot.',
+    ttlTwice: 'Paid twice. That key had expired before the repeat came in. A TTL has to outlast the retries.',
+    partialOk: 'One bad ticket, and only it went back. The good one\'s done.',
+    reportFail: 'Reports choked on that refund. Lambda will try it again, if the dial lets it.',
+    discarded: 'Lambda gave up on that refund. Out of retries, and nobody kept a record.',
+    caught: 'Into the crate. Not lost yet: replay it before the shutters come down.',
+    handoffDone: 'Handed to Reports. Mira didn\'t wait for it.'
+  };
+  // Dutch on each extra buy, the first time it's on the belt.
+  const OFFER = {
+    memory: 'New on the belt: memory. Faster jobs, but a coin every wave. Buy it too early and you can\'t afford the rest.',
+    warm: 'New on the belt, with cold stools pinned: a warm stool. No cold starts on Mira\'s first stool, for a coin every wave.',
+    jitter: 'New on the belt, because of the stampede: the jitter dial. It costs about what the stampede costs you. Your call.',
+    handoff: 'New on the belt: the hand-off. Mira passes ribboned copies to Reports without waiting on them. Not as good as the bell, mind.',
+    ttl: 'New on the belt: TTL. The ledger keeps every key forever and bills us for the storage. TTL clears the old ones out.',
+    ledger: 'The ledger\'s on the belt again, two coins at the dock. Duplicates off the rack don\'t pay twice with it.',
+    partial: 'New on the belt, with batching pinned: partial batch response. One bad ticket stops dragging the good one back.',
+    dest: 'New on the belt: a failure crate for Reports, an on-failure destination. Like the bin, but for Reports\' tray, and it keeps the reason.',
+    retries: 'New on the belt: a retry dial for Reports. Some refunds jam once and some never go through. Retries save one and waste time on the other.'
   };
 
   // ---- Night Orders: one of two pinned before each claim from claim 2 on. Dutch explains each when it goes up ----
@@ -222,6 +254,7 @@
       IMG.hourglass = IMG.hourglass || drawHourglass();
       IMG.stopwatch = IMG.stopwatch || drawStopwatch();
       IMG.filter = IMG.filter || drawFilter();
+      for (const k of Object.keys(ICONS)) IMG[k] = IMG[k] || drawIcon(k);
     });
   }
 
@@ -282,6 +315,63 @@
     g.fillStyle = '#f2b52a'; g.fillRect(113, 79, 24, 20); g.lineWidth = 2; g.strokeRect(113, 79, 24, 20);
     return c;
   }
+  // The extra buys' props, drawn in code like the ledger: one small picture each, on a 150 x 150 canvas.
+  const ICONS = {
+    memory: g => { // a memory stick with gold pins
+      g.fillStyle = '#2f7a4a'; g.fillRect(10, 50, 130, 50); g.strokeRect(10, 50, 130, 50);
+      g.fillStyle = '#1b1b1b'; for (let x = 22; x < 130; x += 28) { g.fillRect(x, 58, 20, 26); g.strokeRect(x, 58, 20, 26); }
+      g.fillStyle = '#e2bd62'; for (let x = 16; x < 136; x += 9) g.fillRect(x, 100, 5, 14);
+    },
+    warm: g => { // a stool with a lamp glowing over it
+      const gr = g.createRadialGradient(75, 46, 4, 75, 46, 60); gr.addColorStop(0, 'rgba(255,190,80,.9)'); gr.addColorStop(1, 'rgba(255,190,80,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 150, 120);
+      g.fillStyle = '#7a4a22'; g.fillRect(40, 92, 70, 14); g.strokeRect(40, 92, 70, 14); g.fillRect(48, 106, 10, 36); g.fillRect(92, 106, 10, 36);
+      g.fillStyle = '#c9a23a'; g.beginPath(); g.moveTo(52, 46); g.lineTo(98, 46); g.lineTo(86, 22); g.lineTo(64, 22); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(75, 52, 8, 0, Math.PI * 2); g.fill();
+    },
+    jitter: g => { // a dial with a wobbly trace
+      g.fillStyle = '#c9a23a'; g.beginPath(); g.arc(75, 80, 60, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#f7f0dc'; g.beginPath(); g.arc(75, 80, 48, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#b23a2f'; g.lineWidth = 4; g.beginPath(); for (let i = 0; i <= 10; i++) { const a = Math.PI * (1.1 + i * 0.08), r = 34 + (i % 2 ? 8 : -4); g.lineTo(75 + Math.cos(a) * r, 80 + Math.sin(a) * r); } g.stroke();
+      g.strokeStyle = '#1e0f08'; g.lineWidth = 6; g.beginPath(); g.moveTo(75, 80); g.lineTo(110, 52); g.stroke();
+    },
+    handoff: g => { // an in-tray with a letter dropping in
+      g.fillStyle = '#8a5a32'; g.fillRect(14, 92, 122, 34); g.strokeRect(14, 92, 122, 34);
+      g.fillStyle = '#f4e8c8'; g.save(); g.translate(78, 60); g.rotate(-0.25); g.fillRect(-36, -22, 72, 44); g.strokeRect(-36, -22, 72, 44);
+      g.beginPath(); g.moveTo(-36, -22); g.lineTo(0, 4); g.lineTo(36, -22); g.stroke(); g.restore();
+      g.strokeStyle = '#3f7fe0'; g.lineWidth = 6; g.beginPath(); g.moveTo(120, 20); g.quadraticCurveTo(138, 50, 118, 82); g.stroke();
+    },
+    ttl: g => { // a tag with a little clock: the expiry
+      g.fillStyle = '#f4ead2'; g.beginPath(); g.moveTo(20, 40); g.lineTo(110, 40); g.lineTo(136, 75); g.lineTo(110, 110); g.lineTo(20, 110); g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.arc(112, 75, 6, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(58, 75, 26, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(58, 75); g.lineTo(58, 56); g.moveTo(58, 75); g.lineTo(72, 82); g.stroke();
+    },
+    partial: g => { // a clipboard: a tick and a cross
+      g.fillStyle = '#8a5a32'; g.fillRect(24, 14, 102, 128); g.strokeRect(24, 14, 102, 128);
+      g.fillStyle = '#f7f0dc'; g.fillRect(34, 30, 82, 104); g.fillStyle = '#c9a23a'; g.fillRect(56, 6, 38, 18); g.strokeRect(56, 6, 38, 18);
+      g.lineWidth = 7; g.strokeStyle = '#2a7a3e'; g.beginPath(); g.moveTo(46, 62); g.lineTo(60, 76); g.lineTo(84, 48); g.stroke();
+      g.strokeStyle = '#b23a2f'; g.beginPath(); g.moveTo(50, 96); g.lineTo(76, 122); g.moveTo(76, 96); g.lineTo(50, 122); g.stroke();
+    },
+    dest: g => { // a wooden crate with a red-crossed label
+      g.fillStyle = '#9a6a3a'; g.fillRect(14, 40, 122, 96); g.strokeRect(14, 40, 122, 96);
+      g.strokeStyle = 'rgba(30,15,8,.6)'; g.lineWidth = 3; for (let y = 64; y < 136; y += 24) { g.beginPath(); g.moveTo(14, y); g.lineTo(136, y); g.stroke(); }
+      g.strokeStyle = '#1e0f08'; g.lineWidth = 5; g.beginPath(); g.moveTo(14, 40); g.lineTo(136, 136); g.stroke();
+      g.fillStyle = '#f4e8c8'; g.fillRect(52, 18, 46, 30); g.strokeRect(52, 18, 46, 30);
+      g.strokeStyle = '#b23a2f'; g.lineWidth = 5; g.beginPath(); g.moveTo(64, 24); g.lineTo(86, 42); g.moveTo(86, 24); g.lineTo(64, 42); g.stroke();
+    },
+    retries: g => { // a dial marked 0, 1, 2
+      g.fillStyle = '#5a6a7a'; g.beginPath(); g.arc(75, 82, 58, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#f7f0dc'; g.beginPath(); g.arc(75, 82, 44, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#1e0f08'; g.font = '700 26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      [['0', -2.4], ['1', -1.57], ['2', -0.74]].forEach(([n, a]) => g.fillText(n, 75 + Math.cos(a) * 30, 82 + Math.sin(a) * 30));
+      g.lineWidth = 6; g.beginPath(); g.moveTo(75, 82); g.lineTo(75, 52); g.stroke();
+    }
+  };
+  function drawIcon(k) {
+    const c = document.createElement('canvas'); c.width = 150; c.height = 150; const g = c.getContext('2d');
+    g.lineJoin = 'round'; g.strokeStyle = '#1e0f08'; g.lineWidth = 5; ICONS[k](g); return c;
+  }
   // ---- Geometry ----
   const lerp = (a, b, t) => a + (b - a) * t;
   const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -311,6 +401,10 @@
     if (tool === 'filter') { const w = 120; return [L.tray[0] - w / 2 + 20, L.tray[1] - 120, w, 130]; }
     if (tool === 'ledger') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
     if (tool === 'bell') { const b = L.bell, w = b.h * 1.5; return [b.x - w / 2, b.y - b.h - 8, w, b.h + 16]; }
+    if (tool === 'memory' || tool === 'ttl') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
+    if (tool === 'warm' || tool === 'partial') { const xs = L.stools.xs.slice(0, 2), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
+    if (tool === 'jitter') return [L.hatch[0] - 60, L.hatch[1] - 50, 200, 140];
+    if (tool === 'handoff' || tool === 'dest' || tool === 'retries') { const w = 140; return [L.tray[0] - w / 2 + 20, L.tray[1] - 120, w, 140]; }
     if (tool === 'reserve') { const xs = L.stools.xs.slice(0, 4), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
     return null;
   }
@@ -319,13 +413,20 @@
   const tool = i => S.belt[i];
   const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger', hourglass: 'hourglass', stopwatch: 'stopwatch', filter: 'filter' };
   const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger', hourglass: 'Hourglass', stopwatch: 'Stopwatch', filter: 'Filter card' };
+  Object.assign(TOOL_IMG, { memory: 'memory', warm: 'warm', jitter: 'jitter', handoff: 'handoff', ttl: 'ttl', partial: 'partial', dest: 'dest', retries: 'retries' });
+  Object.assign(TOOL_LABEL, { memory: 'Memory', warm: 'Warm 1', jitter: 'Jitter', handoff: 'Hand-off', ttl: 'TTL', partial: 'Partial', dest: 'Crate', retries: 'Retries' });
+  // A placed tool you can still use from the belt: the retry dial turns, the crate replays.
+  const USE_LABEL = { retries: () => 'Retries ' + S.retryN, dest: () => S.crate.length ? `Replay (${S.crate.length})` : 'Crate empty' };
+  function used0(t) { return S[t] && USE_LABEL[t] ? USE_LABEL[t]() : ''; }
   // An image URL for a tool, for the letters (the code-drawn ones as data URLs).
   function toolSrc(t) { const k = TOOL_IMG[t]; return SRC[k] || (IMG[k] && IMG[k].toDataURL ? IMG[k].toDataURL() : ''); }
+  // Six tools on a phone: the slots narrow to fit the stage.
+  function slotW() { return Math.min(L.belt.slot, (L.W - 24 - (L.coinsAt ? 16 : 150)) / TOOLS.length); }
   function beltRect() {
-    const n = TOOLS.length, s = L.belt.slot, w = n * s + 24, h = L.belt.h;
+    const n = TOOLS.length, s = slotW(), w = n * s + 24, h = L.belt.h;
     return [(L.W - w) / 2, L.H - h - 12, w, h];
   }
-  function slotRect(i) { const [bx, by, , bh] = beltRect(); return [bx + 12 + i * L.belt.slot + 4, by + 8, L.belt.slot - 8, bh - 16]; }
+  function slotRect(i) { const [bx, by, , bh] = beltRect(), s = slotW(); return [bx + 12 + i * s + 4, by + 8, s - 8, bh - 16]; }
   const inRect = (p, r, pad) => p[0] >= r[0] - (pad || 0) && p[0] <= r[0] + r[2] + (pad || 0) && p[1] >= r[1] - (pad || 0) && p[1] <= r[1] + r[3] + (pad || 0);
 
   // ---- Where each ticket is, from its phase ----
@@ -360,6 +461,7 @@
     draw();
     requestAnimationFrame(frame);
   }
+  const tr0 = () => L.tray[0];
   function popAt(p, text, col, size) { pops.push({ x: Math.max(130, Math.min(L.W - 130, p[0])), y: p[1], text, col, size: size || 34, t: 0 }); }
   function onEvent(e) {
     const k = S.tickets.find(x => x.id === e.id);
@@ -376,7 +478,7 @@
         drops.push({ t: 0 });
         for (let i = 0; i < 8; i++) fx.push({ x: L.puddle.x, y: L.puddle.y - 4, vx: (Math.random() - .5) * 220, vy: -120 - Math.random() * 160, t: 0 });
         if (e.why === 'throttled') say('splat', 'tired', LINES.splat);
-        if (e.why === 'twice') { popAt([L.desk.x - 60, L.desk.y - L.desk.h - 40], 'paid twice', '#ffd666', 30); say('twice', 'angry', LINES.twice); }
+        if (e.why === 'twice') { popAt([L.desk.x - 60, L.desk.y - L.desk.h - 40], 'paid twice', '#ffd666', 30); if (S.ledger && S.ttl) say('ttlTwice', 'angry', LINES.ttlTwice); else say('twice', 'angry', LINES.twice); }
         break;
       case 'poisonFail': if (k && k.stool == null) popAt(k.from === 'rack' ? rackSlot(4) : L.foot, 'fail', '#d59cff', 30); say('poison', 'surprised', S.rack && !S.bin ? LINES.poisonRack : LINES.poison); break;
       case 'twin': popAt(rackSlot(0), 'x2', '#ffb27a', 38); say('twin', 'neutral', LINES.twin); break;
@@ -395,6 +497,15 @@
       case 'filtered': if (S.filtered >= 2) say('filtered', 'smile', LINES.filtered); break;
       case 'dedup': popAt(rackSlot(0), 'duplicate dropped', '#9be59b', 24); say('dedup', 'smile', LINES.dedup); break;
       case 'batchFail': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 60], 'batch failed: both back', '#d59cff', 24); } say('batchFail', 'tired', LINES.batchFail); break;
+      case 'upkeep': coinPulse = 1; popAt([L.coinsAt ? L.coinsAt[0] + 30 : beltRect()[0] + beltRect()[2] + 50, (L.coinsAt ? L.coinsAt[1] : beltRect()[1]) + 40], '-' + e.n + ' upkeep', '#ff9a8a', 26);
+        say(S.ledger && !S.ttl && S.belt.includes('ttl') ? 'bill' : 'upkeep', 'tired', S.ledger && !S.ttl && S.belt.includes('ttl') ? LINES.bill : LINES.upkeep); if (S.coins < 0) say('debt', 'angry', LINES.debt); break;
+      case 'partial': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 60], 'only the bad one back', '#9be59b', 24); } say('partialOk', 'smile', LINES.partialOk); break;
+      case 'reportFail': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 40], e.bad ? 'failed again' : 'jammed', '#d59cff', 22); } say('reportFail', 'neutral', LINES.reportFail); break;
+      case 'discarded': if (e.want) { popAt([tr0(), L.tray[1] - 70], 'given up', '#ff9a8a', 24); say('discarded', 'angry', LINES.discarded); } break;
+      case 'caught': popAt([tr0() - 76, L.tray[1] - 70], 'into the crate', '#ffd666', 24); say('caught', 'neutral', LINES.caught); break;
+      case 'replay': popAt([tr0(), L.tray[1] - 70], 'replay', '#9be59b', 26); break;
+      case 'dial': popAt([tr0() + 120, L.tray[1] - 80], 'retries ' + e.n, '#cfe0ff', 26); break;
+      case 'handoff': if (S.handed <= 3) popAt([L.desk.x - 60, L.desk.y - L.desk.h - 40], 'handed off', '#9fc8ff', 24); say('handoffDone', 'smile', LINES.handoffDone); break;
       case 'ring': sfx('rBell'); ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
       case 'win': sfx('rStamp'); if (AU) AU.jingle('rushWin', null); stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
@@ -498,7 +609,7 @@
     shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb');
     plaque('Mira', L.desk.x, L.desk.y - L.desk.h - 4);
     if (S.ledger) {
-      const d = L.desk; img('ledger', d.x - d.h * .1, d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
+      const d = L.desk; img('ledger', d.x - d.h * (S.stopwatch ? -.18 : .1), d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
       plaque('Ledger · DynamoDB', d.x, d.y - d.h - 30 * L.fs);
     } else if (dragging === 'ledger' || (!drag && !S.started && S.belt.includes('ledger') && !S.placed.length)) glowSpot(spot('ledger'), dragging === 'ledger');
     // The Slow Courier's pieces: the hourglass by the rack, the stopwatch on Mira's desk.
@@ -536,6 +647,7 @@
       if (trayN > 6) text('+' + (trayN - 6), L.tray[0] + 34, L.tray[1] - 44, 22, '#cfe0ff');
       plaque('Reports', L.clerk.x, L.clerk.y - L.clerk.h - 12 * L.fs);
     }
+    drawExtras(dragging);
     // The bin.
     if (S.bin) { shadow(L.bin.x, L.bin.y + 2, L.bin.h * .8); img('bin', L.bin.x, L.bin.y + 4, L.bin.h, 'mb'); plaque('Bin · DLQ', L.bin.x, L.bin.y - L.bin.h - 14); if (S.binned) text(String(S.binned), L.bin.x + L.bin.h * .4, L.bin.y - L.bin.h * .55, 24, '#e5b8ff'); }
     else if (dragging === 'bin') glowSpot(spot('bin'), true);
@@ -580,6 +692,33 @@
     drawHud(); drawBelt(); drawSay();
     if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85, 0, drag.tool === 'ledger' ? 150 : 0);
     if (stamp) drawStamp();
+  }
+  // The extra buys in the room: each one's prop and plaque once placed, its glowing spot while it's dragged.
+  function drawExtras(dragging) {
+    const d = L.desk, st = L.stools, tr = L.tray;
+    for (const t of S.belt) {
+      if (!R.TOOLS[t].upkeep && !R.TOOLS[t].order && !['handoff', 'ttl', 'dest', 'retries'].includes(t)) continue;
+      if (!S[t]) { if (dragging === t && spot(t)) glowSpot(spot(t), true); continue; }
+      if (t === 'memory') { img('memory', d.x + d.h * .42, d.y - d.h * .62, 0, 'mm', 1, -0.1, d.h * .42); plaque('Memory · more CPU', d.x, d.y + 22 * L.fs); }
+      if (t === 'warm') {
+        for (const i of [0]) { const g = cx.createRadialGradient(st.xs[i], st.y - st.h * .6, 4, st.xs[i], st.y - st.h * .6, st.h * .9); g.addColorStop(0, 'rgba(255,180,70,.45)'); g.addColorStop(1, 'rgba(255,180,70,0)'); cx.fillStyle = g; cx.fillRect(st.xs[i] - st.h, st.y - st.h * 1.6, st.h * 2, st.h * 2); }
+        if (L.W > L.H) plaque('Warm 1 · provisioned', st.xs[0], st.y + 22 * L.fs); // on phone it rides on the stools' own label
+      }
+      if (t === 'partial') plaque('Partial batch replies', (st.xs[2] + st.xs[3]) / 2, st.y + 22 * L.fs);
+      if (t === 'jitter') { img('jitter', L.hatch[0] + 40, L.hatch[1] + 70, 0, 'mm', 1, 0, 64); plaque('Jitter · spread retries', L.hatch[0] + 40, L.hatch[1] + 116); }
+      if (t === 'handoff') { img('handoff', tr[0] + 4, tr[1] - 6, 0, 'mm', 1, 0, 70); plaque('Hand-off · async invoke', tr[0], tr[1] - 62 * L.fs); }
+      if (t === 'dest') {
+        img('dest', tr[0] - 76, tr[1] - 8, 0, 'mm', 1, 0, 66);
+        if (S.crate.length) text(String(S.crate.length), tr[0] - 50, tr[1] - 34, 24, '#ffd666');
+        plaque('Crate · on failure', tr[0] - 76, tr[1] + 40 * L.fs);
+      }
+      if (t === 'retries') { img('retries', tr[0] + 120, tr[1] - 30, 0, 'mm', 1, 0, 50); plaque('Retries ' + S.retryN, tr[0] + 120, tr[1] + 8 * L.fs); }
+    }
+    // The ledger's keys: with TTL they come and go; without it the pile (and the bill) grows.
+    if (S.ledger && S.belt.includes('ttl')) {
+      const bill = Math.floor(S.keys.size / R.T.perBill);
+      plaque(S.ttl ? `TTL ${R.T.ttl}s · ${S.keys.size} keys` : `${S.keys.size} keys · bill ${bill}/wave`, d.x, d.y - d.h - 58 * L.fs);
+    }
   }
   // A ribbon across an envelope: this one goes to Reports too.
   function ribbon(p, w, rot, a, col) {
@@ -635,7 +774,7 @@
     });
     const mira = own.filter(o => o === 'mira').length;
     const other = S.clerk === 'reports' ? 'Reports' : 'Night Clerk';
-    plaque(S.reserve ? `Mira ${mira} reserved · ${other} ${6 - mira}` : `${other} ${6 - mira} · Mira ${mira}`, (st.xs[0] + st.xs[st.xs.length - 1]) / 2, st.y - st.h - 44 - 10 * L.fs);
+    plaque((S.reserve ? `Mira ${mira} reserved · ${other} ${6 - mira}` : `${other} ${6 - mira} · Mira ${mira}`) + (S.warm && L.W < L.H ? ' · warm 1' : ''), (st.xs[0] + st.xs[st.xs.length - 1]) / 2, st.y - st.h - 44 - 10 * L.fs);
   }
   function frost(x, y, r) {
     cx.save(); cx.fillStyle = 'rgba(170,220,255,.28)'; cx.beginPath(); cx.arc(x, y, r * 1.25, 0, Math.PI * 2); cx.fill();
@@ -681,22 +820,31 @@
     const [bx, by, bw, bh] = beltRect();
     cx.save(); rrect(bx, by, bw, bh, 22); cx.fillStyle = 'rgba(24,20,30,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
     TOOLS.forEach((t, i) => {
-      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), cost = R.costOf(S, t), poor = !used && !locked && S.coins < cost;
+      const r = slotRect(i), use = used0(t), used = S[t] && !use, locked = S.locked.includes(t), cost = R.costOf(S, t), poor = !S[t] && !locked && S.coins < cost;
       const hot = drag && drag.tool === t;
       cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = used ? 'rgba(30,26,34,1)' : 'rgba(58,48,62,1)'; cx.fill();
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
       if (!used) img(TOOL_IMG[t], r[0] + r[2] / 2, r[1] + r[3] / 2 - 8 * L.fs, 52 * L.fs, 'mm', locked || poor ? .4 : 1);
-      cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.fillStyle = used ? '#8a7f92' : '#f2e6cc';
-      cx.fillText(used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t], r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
-      if (!used && !locked) {
+      // The label shrinks to fit a narrow slot.
+      const label = use || (used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t]);
+      cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
+      if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
+      cx.textAlign = 'center'; cx.fillStyle = used ? '#8a7f92' : '#f2e6cc';
+      cx.fillText(label, r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
+      if (!S[t] && !locked) {
         cx.save(); cx.beginPath(); cx.arc(r[0] + r[2] - 10, r[1] + 10, 13 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 2.5; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
         text(String(cost), r[0] + r[2] - 10, r[1] + 11, 15, '#2b1a08');
       }
       if (!used && !locked) text(String(i + 1), r[0] + 12, r[1] + 12, 14, '#9d90a8');
+      // Upkeep: a small red tag with what it bills each wave.
+      if (R.TOOLS[t].upkeep && !locked) text(`-${R.TOOLS[t].upkeep}/wave`, r[0] + r[2] / 2, r[1] + r[3] - 24 * L.fs, 11, '#ff9a8a');
     });
     const cxp = L.coinsAt ? L.coinsAt[0] : bx + bw + 26, cyp = L.coinsAt ? L.coinsAt[1] : by + bh / 2, puls = coinPulse ? 1 + .2 * Math.sin(coinPulse * 12) : 1;
     cx.save(); cx.translate(cxp + 14, cyp); cx.scale(puls, puls); cx.beginPath(); cx.arc(0, 0, 16 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
-    text(String(S.coins), cxp + 22 + 22 * L.fs, cyp, 30, '#ffdc78', 'left');
+    text(String(S.coins), cxp + 22 + 22 * L.fs, cyp, 30, S.coins < 0 ? '#ff7a6a' : '#ffdc78', 'left');
+    // Upkeep due at the next wave, under the coins.
+    const due = R.upkeep(S);
+    if (due && !S.over && S.wave < 4) text(`upkeep -${due}/wave`, cxp + 2, cyp + 30 * L.fs, 14, '#ff9a8a', 'left');
   }
   function drawSay() {
     if (!saying) return;
@@ -850,7 +998,7 @@
   function showEnd() {
     const won = S.over === 'win';
     // Coins left over from a win carry into the next claim. Losing keeps what you started this claim with.
-    if (won) run.bank = S.next ? S.coins : 0;
+    if (won) run.bank = S.next ? Math.max(0, S.coins) : 0;
     // Won with a claim after it: on to that one. Lost: this claim again. Won the last: back to the start.
     const nextClaim = won ? (S.next || 'rush') : S.claim;
     const againLabel = won && S.next ? 'Next claim: ' + R.CLAIMS[S.next].title : won && S.claim !== 'rush' ? 'Play again from the Rush' : 'Try ' + R.CLAIMS[S.claim].title + ' again';
@@ -862,7 +1010,10 @@
     if (S.claim === 'slow') bits.push(`${S.reappeared} reappeared`, `${S.paidTwice} paid twice`, `${S.timedOut} cut off`);
     const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
     bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
-    if (won && S.next && S.coins) bits.push(`${S.coins} coin${S.coins > 1 ? 's' : ''} carried over`);
+    if (S.upkeepPaid) bits.push(`${S.upkeepPaid} coin${S.upkeepPaid > 1 ? 's' : ''} of upkeep` + (S.coins < 0 ? ', debt written off' : ''));
+    if (S.handed) bits.push(`${S.handed} handed off`);
+    if (S.partials) bits.push(`${S.partials} partial batches`); if (S.caught) bits.push(`${S.caught} into the crate, ${S.replayed} replayed`);
+    if (won && S.next && S.coins > 0) bits.push(`${S.coins} coin${S.coins > 1 ? 's' : ''} carried over`);
     if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;
@@ -928,11 +1079,79 @@
       ]
     }
   };
+  // Letters for the extra buys, written for this game from the AWS docs (sources in js/rush-core.js's header). They
+  // join each claim's pools, so a claim's three letters can be about its new buys too.
+  const EXTRA_LETTERS = {
+    rush: {
+      a: [
+        { f: 'a', q: 'A Lambda function that resizes images is CPU-bound and runs slowly. Which change gives it more CPU?', opts: ['Raise its memory setting', 'Raise its timeout', 'Set reserved concurrency on it', 'Move it to a larger Region'], why: 'Lambda allocates CPU power in proportion to the memory you configure, from 128 MB up to 10,240 MB. Timeout and reserved concurrency don\'t change how fast one invocation runs.' },
+        { f: 'a', q: 'A web API on Lambda is slow for the first requests after quiet periods because new execution environments are starting. Which setting keeps environments initialized before requests arrive?', opts: ['Provisioned concurrency on an alias or version', 'Reserved concurrency on the function', 'A longer function timeout', 'A larger batch size'], why: 'Provisioned concurrency pre-initializes execution environments, so they answer without a cold start. It is billed while configured, even when idle. Reserved concurrency only guarantees and caps capacity.' }
+      ],
+      b: [
+        { f: 'b', tools: ['memory', 'reserve', 'rack', 'bin'], q: 'Mira has her stools and nobody else takes them, but every job is slow because her function is short of CPU. Which piece makes each job quicker?', why: 'Memory: Lambda hands out CPU in proportion to memory, so more memory means faster jobs. You pay for it all the same, busy or not.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of retrying throttled calls to AWS. Which one is false?', opts: ['Retrying straight away with no wait is the best way to clear a throttle', 'The SDKs\' standard retry mode uses exponential backoff with jitter', 'Jitter spreads out retries from many clients so they don\'t land together', 'You can change the maximum number of attempts the SDK makes'], why: 'Retrying with no wait adds load to a service that is already throttling. Backoff waits longer each time, and jitter randomizes the wait so clients don\'t retry in step.' }
+      ]
+    },
+    bell: {
+      a: [
+        { f: 'a', q: 'An order function must pass each order to a reporting function and shouldn\'t wait for it to finish. Without adding another service, how should it call the reporting function?', opts: ['Invoke it with the Event invocation type (asynchronous)', 'Invoke it with the RequestResponse invocation type', 'Invoke it with the DryRun invocation type', 'Put both functions behind the same API Gateway stage'], why: 'With the Event invocation type, Lambda queues the event and returns straight away, then runs the function and retries errors itself. RequestResponse waits for the result, and DryRun only checks that the call would be allowed.' }
+      ],
+      b: [
+        { f: 'b', tools: ['handoff', 'reserve', 'rack', 'bin'], q: 'There\'s no bell tonight. Mira copies ribboned tickets out for Reports herself, and her stool is tied up twice as long. Which piece lets her pass them on without waiting?', why: 'The hand-off is an asynchronous invoke: Lambda queues the event for Reports and answers Mira at once. The bell does better still, because Mira doesn\'t need to know Reports exists.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of invoking a Lambda function asynchronously. Which one is false?', opts: ['The caller gets the function\'s return value in the response', 'Lambda puts the event in a queue before the function runs', 'By default Lambda retries a function error twice', 'An on-failure destination can receive events that fail every attempt'], why: 'An asynchronous invoke returns as soon as the event is queued, so the caller never sees the result. To capture results, use destinations.' }
+      ]
+    },
+    double: {
+      a: [
+        { f: 'a', q: 'A DynamoDB table of idempotency keys keeps growing, because every key is kept forever. Keys are only needed for 24 hours. What is the simplest fix?', opts: ['Store an expiry time (epoch seconds) in each item and turn on TTL for that attribute', 'Run a scheduled Scan that deletes old items', 'Switch the table to provisioned capacity', 'Add a global secondary index on the key'], why: 'TTL deletes expired items for you, without using write throughput, usually within a few days of expiry. A scheduled Scan works, but you pay for the reads and the deletes.' }
+      ],
+      b: [
+        { f: 'b', tools: ['ttl', 'ledger', 'rack', 'bin'], q: 'The ledger stops the double payouts, but it keeps every key it has ever seen, and its storage bill grows every wave. Which piece clears out the old keys for free?', why: 'TTL: each key carries an expiry, and DynamoDB deletes expired items without charging write throughput. Make the TTL longer than any retry, or a late repeat gets through.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of an idempotency check in DynamoDB. Which one is false?', opts: ['Reading the key with GetItem, then writing it with PutItem if it\'s missing, is safe when two copies arrive at once', 'A PutItem with attribute_not_exists on the key fails if the key is already there', 'A conditional write checks and writes in a single operation', 'A request and its retries should carry the same idempotency key'], why: 'Between the read and the write, a second copy can read the same "missing" key, and both go ahead. A conditional write does the check and the write in one step, so only one can succeed.' }
+      ]
+    },
+    slow: {
+      a: [
+        { f: 'a', q: 'A Lambda function reads batches of 10 messages from an SQS queue. When one message fails, all 10 come back and the other 9 are processed again. What should you configure?', opts: ['ReportBatchItemFailures on the event source mapping, returning the failed message IDs', 'A larger batch size', 'A shorter visibility timeout', 'A dead-letter queue on the function'], why: 'With ReportBatchItemFailures turned on, the function returns the IDs of the failed messages in batchItemFailures, and only those become visible again. A function\'s dead-letter queue is for asynchronous invocations, not SQS batches.' }
+      ],
+      b: [
+        { f: 'b', tools: ['ledger', 'hourglass', 'stopwatch', 'bin'], q: 'The hourglass is up and the stopwatch too, but the rack still hands out the odd parcel twice (it delivers at least once), and those get paid twice. Which piece makes doing one twice harmless?', why: 'The ledger: an idempotency record written with a conditional write, so a duplicate is spotted and dropped. With an SQS event source, AWS recommends making the function idempotent.' }
+      ],
+      c: []
+    },
+    picky: {
+      a: [
+        { f: 'a', q: 'An SNS topic invokes a Lambda function. For each event that fails every attempt, the team wants a record sent to an EventBridge event bus, including details of the function\'s response. What should they configure?', opts: ['An on-failure destination on the function\'s asynchronous invocation', 'A dead-letter queue on the function', 'A redrive policy on the SNS subscription', 'Reserved concurrency on the function'], why: 'On-failure destinations can be an SQS queue, an SNS topic, an S3 bucket, a Lambda function or an EventBridge bus, and the record includes the response. A function\'s dead-letter queue takes only SQS or SNS and gets the event without the response. A subscription\'s redrive policy only catches messages SNS couldn\'t deliver.' }
+      ],
+      b: [
+        { f: 'b', tools: ['retries', 'dest', 'filter', 'rack'], q: 'A few refunds are malformed and fail every time. Reports tries each one three times, and its stools are busy with them while good refunds wait. Which piece cuts down the wasted tries?', why: 'The retry dial: retry attempts for asynchronous invocation go from 2 (the default) down to 0. Fewer retries means a failure is given up sooner, so add a destination to keep a record of it.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of a Lambda function\'s on-failure destination for asynchronous invocation. Which one is false?', opts: ['It can be an SQS FIFO queue', 'It also receives events that pass the maximum event age', 'It can be an EventBridge event bus', 'The record it receives includes details of the function\'s response'], why: 'A FIFO queue or FIFO topic isn\'t supported as a destination; Lambda reports those as delivery failures. Use a standard queue or topic.' }
+      ]
+    }
+  };
+  for (const c of Object.keys(EXTRA_LETTERS)) for (const f of ['a', 'b', 'c']) LETTERS[c][f] = LETTERS[c][f].concat(EXTRA_LETTERS[c][f]);
 
   // ---- Hands ----
   function toStage(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / scale, (e.clientY - r.top - oy) / scale]; }
   function tryPlace(tool, where) {
+    // A placed tool with a use: the retry dial turns, the crate replays a refund for a coin.
+    if (S[tool] && USE_LABEL[tool]) {
+      const u = R.turn(S, tool), at = where || [L.W / 2, beltRect()[1] - 20];
+      if (u === 'coins') { popAt(at, 'No coins', '#ffdc78', 28); if (S.coins < 0) say('debt', 'angry', LINES.debt); }
+      else if (u === 'empty') popAt(at, 'Crate empty', '#e8dcc4', 26);
+      return;
+    }
     const why = R.canPlace(S, tool);
+    if (why === 'needs') { popAt(where || [L.W / 2, beltRect()[1] - 20], 'Needs the ' + TOOL_LABEL[R.TOOLS[tool].needs].toLowerCase() + ' first', '#ffdc78', 26); return; }
+    if (why === 'coins' && S.coins < 0) say('debt', 'angry', LINES.debt);
     if (why === 'locked') { say('bellLocked', 'neutral', LINES.bellLocked); said.bellLocked = 0; return; }
     if (why === 'coins') { popAt(where || [L.W / 2, beltRect()[1] - 20], 'No coins', '#ffdc78', 28); return; }
     if (why) return;
@@ -990,7 +1209,7 @@
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {
-    get S() { return S; }, get run() { return run; }, reset, showPick, place: tryPlace, start: () => R.start(S),
+    get S() { return S; }, get run() { return run; }, reset, showPick, place: tryPlace, start: () => R.start(S), turn: t => R.turn(S, t),
     at: { slot: i => { const r = slotRect(i); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, spot: t => { const r = spot(t); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, lever: () => toClient([L.lever.x, L.lever.y]) }
   };
   load().then(() => requestAnimationFrame(frame));
