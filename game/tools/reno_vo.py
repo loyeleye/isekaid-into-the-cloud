@@ -11,9 +11,13 @@ import base64, io, json, os, re, subprocess, sys, tempfile, urllib.request, wave
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VOICES = {'seymour': ('gemini-2.5-flash-preview-tts', 'Orus'), 'kai': ('gemini-2.5-pro-preview-tts', 'Alnilam')}
 # How each speaker delivers his lines (the TTS models take a spoken-style direction ahead of the text).
-STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-the-book night security guard: clipped, stern and officious, '
+STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-the-book night security guard: clipped, stern and officious, at a brisk pace, '
                     'barking the exclamations. Where the line trails off with an ellipsis, pause, then say the rest more quietly, '
-                    'a little embarrassed, reining himself in. Say only these words: '}
+                    'a little embarrassed, reining himself in. Say only these words: ',
+         # Kai is the straight man to Seymour's jokes (his three replies, kai-mg-reno-hinges, -ledger, -frame).
+         'kai': 'Say this dryly and deadpan, as a tired aside to a friend. Say only these words: '}
+# The stern delivery sometimes leaves seconds of dead air mid-line: shorten any pause to 0.6s.
+PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_silence=0.6:stop_threshold=-40dB'
 API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'
 
 
@@ -44,23 +48,36 @@ def heard(pcm, text):
     return len(extra) <= 2 and len(missing) <= 2, got
 
 
+def encode(pcm, dst):
+    with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as f: f.write(pcm)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', f.name,
+                    '-af', PAUSES + ',' + 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-18:TP=-1.5',
+                    '-ar', '24000', '-ac', '1', '-b:a', '40k', dst], check=True)
+    os.unlink(f.name)
+    return float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', dst], capture_output=True, text=True).stdout)
+
+
 def say(who, text, dst):
+    """Record until a take says the line (and only the line) at a fair pace: about two words a second, plus room for
+    a pause. If no take is quick enough, keep the quickest one that said the line."""
     model, voice = VOICES[who]
     body = {'contents': [{'parts': [{'text': STYLE.get(who, '') + text}]}],
             'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': voice}}}}}
-    for tries in range(4):
+    limit, best = len(words(text)) / 2.0 + 2.5, None
+    for tries in range(6):
         try: pcm = base64.b64decode(post(model, body)['candidates'][0]['content']['parts'][0]['inlineData']['data'])
         except (KeyError, IndexError): print('  retake: no audio came back', flush=True); continue
         ok, got = heard(pcm, text)
-        if ok: break
-        print('  retake: heard ' + got[:160], flush=True)
-    else: sys.exit('could not get a clean take of: ' + text)
-    with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as f: f.write(pcm)
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', f.name,
-                    '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-18:TP=-1.5',
-                    '-ar', '24000', '-ac', '1', '-b:a', '40k', dst], check=True)
-    os.unlink(f.name)
-
+        if not ok: print('  retake: heard ' + got[:160], flush=True); continue
+        tmp = dst + '.take.mp3'; secs = encode(pcm, tmp)
+        if best is None or secs < best[0]:
+            if best: os.unlink(best[1])
+            os.replace(tmp, dst + '.best.mp3'); best = (secs, dst + '.best.mp3')
+        else: os.unlink(tmp)
+        if secs <= limit: break
+        print('  retake: too slow, %.1fs for %d words' % (secs, len(words(text))), flush=True)
+    if not best: sys.exit('could not get a clean take of: ' + text)
+    os.replace(best[1], dst)
 
 if __name__ == '__main__':
     want = sys.argv[1:]
