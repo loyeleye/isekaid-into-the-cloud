@@ -60,6 +60,7 @@
       const sq = b.querySelector('.rm-sq');
       if (sq && fuss[i]) setTimeout(() => sq.classList.add('fuss'), first ? 900 : 120);
       RM().mount(b.querySelector('.dr-cut-room'));
+      if (i === 0) RM().listen(true);   // the leads turn toward her
       const talkMs = Math.min(11000, 800 + text.length * 62);
       const t1 = m[2] ? setTimeout(() => RM().setPose(fig, m[2]), +m[3]) : 0;
       const t2 = setTimeout(() => fig && fig.classList.remove('talking'), talkMs);
@@ -67,6 +68,7 @@
       next.onclick = () => {
         clearTimeout(t1); clearTimeout(t2); i++;
         if (i < beats.length) return show();
+        RM().listen(false);
         if (calm) return done();
         next.disabled = true; rm.classList.remove('talk');
         setTimeout(done, 750);

@@ -116,7 +116,8 @@
   // Idle takes play back to back in random order; alarm / clear / slump fade in over them, hold their last
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
   const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
-  let stage = null, lastKey = null, moodT = 0, lastNight = null, arriving = false, arriveT = 0;
+  const LISTEN_HOLD = 2.0;
+  let listening = false, stage = null, lastKey = null, moodT = 0, lastNight = null, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
     (navigator.connection && navigator.connection.saveData);
   function vEl(cls) {
@@ -136,6 +137,11 @@
     const st = document.createElement('div'); st.className = 'rm-vid';
     const idle = vEl('rm-v-idle'), mood = vEl('rm-v-mood');
     idle.addEventListener('ended', () => nextIdle(idle));
+    // The listen clip (Ladi's look-back take): play to where the leads have turned toward her, hold there
+    // while she talks, then let it run out when she's done (R.listen).
+    mood.addEventListener('timeupdate', () => {
+      if (mood.dataset.clip === 'listen' && listening && mood.currentTime >= LISTEN_HOLD) mood.pause();
+    });
     mood.addEventListener('ended', () => {
       if (mood.dataset.clip === 'intro') arrived();
       if (mood.dataset.then) return R.mood(mood.dataset.then);
@@ -178,6 +184,14 @@
     mood.classList.remove('on');
     mood.dataset.clip = clip; mood.src = VID + clip + '.mp4';
     mood.play().catch(() => {});
+  };
+
+  R.listen = function (on) {
+    listening = !!on;
+    if (!stage) return;
+    const mood = stage.querySelector('.rm-v-mood');
+    if (on) R.mood('listen');
+    else if (mood.dataset.clip === 'listen' && mood.paused) mood.play().catch(() => {});
   };
 
   // Uptima's reaction on the counter: '!' when it goes wrong, sparkles when it holds.
