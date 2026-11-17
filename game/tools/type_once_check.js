@@ -61,7 +61,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- Every hand-picked answer sits in its line ----
   const bad = await page.evaluate(() => {
     const out = [];
-    Object.entries(SD.policySorts || {}).forEach(([k, P]) => { if (P.type && !P.type.line.includes(P.type.ans)) out.push('sort ' + k); });
+    Object.entries(SD.policySorts || {}).forEach(([k, P]) => { if (P.type && !P.type.line.includes(P.type.ans)) out.push('sort ' + k); (P.reqs || []).forEach((x, i) => { if (x.by && !String(P.ev).includes(x.by)) out.push('sort ' + k + ' request ' + i + ': its deciding line is not in the policy'); }); });
     Object.entries((SD.table && SD.table.PINS) || {}).forEach(([k, p]) => { if (p.type ? !p.term.includes(p.type) : p.term && !SD.typeOnce.token(p.term) && !/^(pss|xmeta)$/.test(k)) out.push('pin ' + k + ' ("' + p.term + '")'); });
     return out;
   });
@@ -166,6 +166,26 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return t;
   });
   check(/from memory/i.test(rc) && /FROM MEMORY/.test(rc), 'a due term comes back through maybe(), from memory');
+  // ---- Monster Hunt's Track on code options: the key token, typed before the options show (js/quiz.js) ----
+  const tq = await page.evaluate(() => {
+    const all = SD.modes.pick({ match: q => q.type === 'mc' && SD.recall.codey(q.opts), n: 9999, verifiedOnly: true, mix: 0 }).items.map(i => SD.exam.find(i.q));
+    const q = all.find(q => { const t = SD.typeOnce.token(q.opts[q.a]); return t && q.opts.filter(o => o.includes(t)).length === 1 && SD.typeOnce.need(t); });
+    return q ? { id: q.id, tok: SD.typeOnce.token(q.opts[q.a]), n: all.length } : null;
+  });
+  check(!!tq, 'the bank has code-option questions whose right option holds a token no wrong option has' + (tq ? ` (${tq.n} code-option questions; this one: ${tq.tok})` : ''));
+  if (tq) {
+    await page.evaluate(id => { window.__r = null; SD.quiz.ask(SD.exam.find(id), { title: 'THE HUNT', typeFirst: true, noRecord: true }).then(r => { window.__r = r; }); }, tq.id);
+    await page.waitForSelector('#panel .tf-tok #tf-in');
+    check(!await page.$('#panel .opt, #panel [data-i]') && /turns on one/.test(await txt('#panel .tf-tok')), 'Track on code options asks for the one token first, options hidden');
+    await noHScroll('track token'); await shot('track-token');
+    for (const w of ['nope', 'still-nope']) { await page.fill('#tf-in', w); await page.click('#tf-go'); }
+    check(await page.getAttribute('#tf-in', 'placeholder') === tq.tok && /faintly/.test(await txt('#panel .tf-note')), 'two misses show it faintly');
+    await page.fill('#tf-in', tq.tok.toUpperCase()); await page.click('#tf-go');
+    await page.waitForFunction(() => !document.querySelector('#panel #tf-in'));
+    check(await page.evaluate(t => SD.typeOnce.learned(t), tq.tok), 'typed, the options show and the token counts as typed in every mode');
+    await page.evaluate(() => SD.ui.closePanel());
+  }
+
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   if (fails.length) { console.log(`\n${fails.length} FAILED`); process.exit(1); }

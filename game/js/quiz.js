@@ -21,7 +21,15 @@
   // Never for options that are JSON, policies or commands, which nobody should type on a phone.
   Q.TYPE_MODES = ['missed', 'all', 'off'];
   Q.typeMode = () => (SD.state.save && Q.TYPE_MODES.includes(SD.state.save.typeFirst)) ? SD.state.save.typeFirst : 'missed';
+  // Where the options are code and a caller forces it (Monster Hunt's Track), it asks for the one token the right
+  // option turns on instead (audit, Nov 17): an API, a setting or a condition key no wrong option has, matched exactly
+  // but for case, two misses showing it faintly (js/type-once.js).
+  const tokenOf = q => {
+    const t = SD.typeOnce && SD.typeOnce.token(q.opts[q.a]);
+    return t && q.opts.filter(o => String(o).includes(t)).length === 1 ? t : '';
+  };
   const typeFirst = (q, opts) => {
+    if (q.type === 'mc' && opts.typeFirst === true && !opts.noThink && SD.recall && SD.recall.codey(q.opts) && Q.typeMode() !== 'off') return tokenOf(q) ? 'token' : false;
     if (q.type !== 'mc' || opts.noThink || !SD.recall || SD.recall.codey(q.opts) || opts.typeFirst === false) return false;
     const m = Q.typeMode();
     if (m === 'off') return false;
@@ -112,6 +120,23 @@
       // opts.act ({ label, icon }, game modes): the options are actions in the world, with the label above them.
       function render() {
         let h = `<div class="q-ctx">${U.esc(opts.context || (concept ? concept.name : 'Question'))}</div>${q.ev ? `<pre class="q-ev">${U.esc(q.ev)}</pre>` : ''}<p class="q-q">${U.esc(q.q)}</p>`;
+        if (typing === 'token') {
+          const tok = tokenOf(q);
+          h += `<div class="type-first tf-tok"><p><b>Type it first.</b> The answer turns on one ${/^--/.test(tok) ? 'flag' : /:/.test(tok) ? 'action or condition key' : 'name'}. Type it the way AWS spells it before you see the options.</p>
+            <form class="tf-row" id="tf-form"><label class="sr" for="tf-in">The key token</label><input id="tf-in" type="text" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="80">
+            <button class="primary" id="tf-go" type="submit">Check</button></form>
+            <p class="small tf-note" aria-live="polite">Two misses and it shows faintly to copy.</p>
+            <button class="tf-idk" id="tf-idk" type="button">I don't know yet</button></div>`;
+          const b = panel(h);
+          const inp = b.querySelector('#tf-in'), win = b.closest('.win'), note = b.querySelector('.tf-note');
+          const go = kind => { first = kind === 'memory' ? tok : ''; recall0 = { kind }; typing = false; if (win) win.classList.remove('typing'); t0 = Date.now(); render(); };
+          const bd = SD.typeOnce.bind(inp, tok, { onOk: m => go(m < 2 ? 'memory' : 'none'), onMiss: m => { note.textContent = m >= 2 ? 'Here it is, faintly. Copy it in.' : 'Not quite. One more try, then it shows faintly.'; inp.focus(); } });
+          b.querySelector('#tf-form').onsubmit = e => { e.preventDefault(); bd.check(); };
+          b.querySelector('#tf-idk').onclick = () => go('none');
+          inp.onfocus = () => { if (win) win.classList.add('typing'); setTimeout(() => inp.scrollIntoView({ block: 'nearest' }), 250); };
+          if (window.matchMedia && matchMedia('(pointer: fine)').matches) setTimeout(() => inp.focus(), 50);
+          return;
+        }
         if (typing) {
           const who = host(opts);
           const line = who === 'uptima' ? 'This one got away from you last time. Type it before you peek. I\'m not looking. I\'m looking a bit.'
@@ -198,7 +223,8 @@
         // Type it first: did your own words match the right option before you saw the options?
         //   memory   sure match on the right option        none     "I don't know yet" or nothing typed
         //   options  sure match on a wrong option          unsure   no clear match; you're asked
-        if (first !== null) {
+        if (recall0) recall = recall0.kind === 'memory' ? { kind: 'memory', near: q.a } : { kind: 'none' };
+        else if (first !== null) {
           const m = first ? SD.recall.match(first, q.opts) : null;
           recall = !m ? { kind: 'none' } : !m.sure ? { kind: 'unsure', near: m.best } : { kind: m.best === q.a ? 'memory' : 'options', near: m.best };
         }
@@ -208,7 +234,7 @@
         SD.state.persist();
         feedback(ok, conf, ms, page, score);
       }
-      let recall = null;
+      let recall = null, recall0 = null;   // recall0: Type it first's verdict when it asked for the token
       // Typed answer: the game pre-ticks the rubric points it can see, and the player confirms or corrects them.
       async function checkTyped(conf, ms) {
         const E = SD.embed;
