@@ -44,6 +44,29 @@
   const DOCK_WIDE = Object.assign({}, WIDE, { bg: 'dock-wide', tank: { x: 1150, y: 196, h: 190, feed: 0 } });
   const DOCK_TALL = Object.assign({}, TALL, { bg: 'dock-tall', chute: [[660, 250], [525, 455]], foot: [400, 990], tank: { x: 330, y: 478, h: 150, feed: 214 } });
   const DOCK = new Set(['slow', 'picky']);
+
+  // ---- Sound (js/audio.js): recorded samples the game already has, the synth for the rest, and the Sorting Floor's
+  // loop and stings until the Rush's own tracks come in (project files real-game/v3/audio/mureka-prompts.md) ----
+  const AU = SD.audio;
+  if (AU) AU.add({
+    songs: { rushCellar: 'm-floor', rushDock: 'm-floor' },
+    jingles: { rushWin: 'j-floor-win', rushLose: 'j-floor-lose' },
+    samples: { rLever: 's-x-lever', rBell: 's-x-bell', rStamp: 's-x-stamp', rPage: 's-x-page', rThud: 's-thud', rLock: 's-x-lock', rTick: 's-x-tick', rChime: 's-x-chime', rClank: 's-clank2' }
+  });
+  // A busy floor makes a lot of noise: each sound waits a moment before it can play again.
+  const quiet = {}, GAP = { rPage: .18, rTick: .12, rThud: .15, splat: .2, coin: .1 };
+  function sfx(name) {
+    if (!AU) return;
+    const now = performance.now() / 1000;
+    if (quiet[name] && now < quiet[name]) return;
+    quiet[name] = now + (GAP[name] || .05); AU.sfx(name);
+  }
+  function roomSound() {
+    if (!AU) return;
+    const dock = DOCK.has(S.claim);
+    AU.music(dock ? 'rushDock' : 'rushCellar');
+    AU.weather(dock ? 'drizzle' : null);
+  }
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
   // ---- State ----
@@ -55,7 +78,7 @@
   const run = { orders: [], bank: 0 };
   function reset(seed, claim) {
     S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
-    flashT = 0; leverT = 0; coinPulse = 0; resize();
+    flashT = 0; leverT = 0; coinPulse = 0; resize(); roomSound();
     qEl.className = ''; qEl.innerHTML = '';
     if (S.claim === 'picky') say('intro', 'neutral', 'The Picky Bell. The bell rings for every ticket now, and Reports only wants the refunds, the gold ones. It still has to open every copy to find out.', 9);
     else if (S.claim === 'slow') say('intro', 'neutral', 'The Slow Courier. Heavy parcels take a while, and some never finish. The rack only hides a ticket for 3 seconds. Take longer and it\'s back up for someone else.', 9);
@@ -341,12 +364,13 @@
   function onEvent(e) {
     const k = S.tickets.find(x => x.id === e.id);
     switch (e.type) {
-      case 'lever': leverT = 1; if (saying && said.intro && sayQ.indexOf(saying) < 0 && /pull the lever/.test(saying.text)) saying = null; break;
-      case 'wave': popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); if (e.wave >= 2 && letters.length) letterAnim = { t: 0, L: letters.shift() }; break;
-      case 'coin': coinPulse = 1.5; say('coin', 'smile', LINES.coin); break;
-      case 'saved': coinPulse = 1.5; popAt([L.W / 2, L.H * 0.36 + 60], '+1 coin, idle stools saved', '#ffdc78', 30); break;
-      case 'throttle': popAt([L.foot[0] + 20 + (Math.random() - .5) * 60, L.foot[1] - 70 - Math.random() * 40], '429', '#ff8a7a', 40); flashT = .25; say('throttle', 'tired', LINES.throttle); break;
+      case 'lever': sfx('rLever'); leverT = 1; if (saying && said.intro && sayQ.indexOf(saying) < 0 && /pull the lever/.test(saying.text)) saying = null; break;
+      case 'wave': sfx('rChime'); popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); if (e.wave >= 2 && letters.length) letterAnim = { t: 0, L: letters.shift() }; break;
+      case 'coin': sfx('coin'); coinPulse = 1.5; say('coin', 'smile', LINES.coin); break;
+      case 'saved': sfx('coin'); coinPulse = 1.5; popAt([L.W / 2, L.H * 0.36 + 60], '+1 coin, idle stools saved', '#ffdc78', 30); break;
+      case 'throttle': sfx('rThud'); popAt([L.foot[0] + 20 + (Math.random() - .5) * 60, L.foot[1] - 70 - Math.random() * 40], '429', '#ff8a7a', 40); flashT = .25; say('throttle', 'tired', LINES.throttle); break;
       case 'spill':
+        sfx('splat');
         popAt([L.puddle.x, L.puddle.y - 60], '-1', '#9cc8ff', 36);
         popAt([L.tank.x - 70, L.tank.y - L.tank.h * .2], '+1', '#9cc8ff', 28);
         drops.push({ t: 0 });
@@ -356,25 +380,26 @@
         break;
       case 'poisonFail': if (k && k.stool == null) popAt(k.from === 'rack' ? rackSlot(4) : L.foot, 'fail', '#d59cff', 30); say('poison', 'surprised', S.rack && !S.bin ? LINES.poisonRack : LINES.poison); break;
       case 'twin': popAt(rackSlot(0), 'x2', '#ffb27a', 38); say('twin', 'neutral', LINES.twin); break;
-      case 'binned': popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'binned', '#d59cff', 28); break;
+      case 'binned': sfx('rClank'); popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'binned', '#d59cff', 28); break;
       case 'clog': say('clog', 'tired', LINES.clog); break;
       case 'resend': popAt([L.hatch[0] + 120, L.hatch[1] + 40], 'Sending again!', '#ffb27a', 26); say('resend', 'surprised', LINES.resend); break;
       case 'dropped': if (k) popAt([stoolPos(k.seat || 0)[0], stoolPos(k.seat || 0)[1] - 40], 'already done', '#9be59b', 24); break;
       case 'cold': { const p = stoolPos(e.stool); popAt([p[0], p[1] - 40], 'cold start', '#9fd8ff', 24); say('cold', 'tired', LINES.cold); break; }
       case 'herd': popAt([L.hatch[0] + 130, L.hatch[1] + 70], 'Stampede! x' + e.n, '#ff9a8a', 34); if (e.n >= 4) popAt([L.hatch[0] + 130, L.hatch[1] + 115], '+' + Math.floor(e.n / 4) + ' new caller', '#ffb27a', 26); say('herd', 'surprised', LINES.herd); break;
       case 'expired': popAt(rackSlot(1), 'expired', '#e2c48a', 28); say('expired', 'tired', LINES.expired); break;
-      case 'reappear': popAt(rackSlot(2), 'back on the rack!', '#ffc95a', 26); say('reappear', 'surprised', LINES.reappear); break;
-      case 'timedOut': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 44], 'timed out', '#ff9a8a', 24); } say('timedOut', 'neutral', LINES.timedOut); break;
+      case 'reappear': sfx('wrong'); popAt(rackSlot(2), 'back on the rack!', '#ffc95a', 26); say('reappear', 'surprised', LINES.reappear); break;
+      case 'timedOut': sfx('rTick'); if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 44], 'timed out', '#ff9a8a', 24); } say('timedOut', 'neutral', LINES.timedOut); break;
       case 'stuck': say('stuck', 'tired', LINES.stuck); break;
-      case 'tossed': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 40], 'not a refund', '#c9c0b0', 22); } if (S.tossed >= 3) say('tossed', 'tired', LINES.tossed); break;
-      case 'aged': if (e.want) { popAt([L.tray[0] + 20, L.tray[1] - 70], 'too old!', '#ff9a8a', 26); say('aged', 'angry', LINES.aged); } break;
+      case 'tossed': sfx('rPage'); if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 40], 'not a refund', '#c9c0b0', 22); } if (S.tossed >= 3) say('tossed', 'tired', LINES.tossed); break;
+      case 'aged': if (e.want) { sfx('wrong'); popAt([L.tray[0] + 20, L.tray[1] - 70], 'too old!', '#ff9a8a', 26); say('aged', 'angry', LINES.aged); } break;
       case 'filtered': if (S.filtered >= 2) say('filtered', 'smile', LINES.filtered); break;
       case 'dedup': popAt(rackSlot(0), 'duplicate dropped', '#9be59b', 24); say('dedup', 'smile', LINES.dedup); break;
       case 'batchFail': if (k) { const p = stoolPos(k.seat || 0); popAt([p[0], p[1] - 60], 'batch failed: both back', '#d59cff', 24); } say('batchFail', 'tired', LINES.batchFail); break;
-      case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
+      case 'ring': sfx('rBell'); ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
-      case 'win': stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
-      case 'lose': stamp = { text: 'FLOODED', col: '#c8473b', t: 0 }; endAt = 1.8; break;
+      case 'win': sfx('rStamp'); if (AU) AU.jingle('rushWin', null); stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
+      case 'lose': sfx('rStamp'); if (AU) AU.jingle('rushLose', null); stamp = { text: 'FLOODED', col: '#c8473b', t: 0 }; endAt = 1.8; break;
+      case 'handled': if (e.desk !== 'reports') sfx('rTick'); break;
     }
   }
   function tick(dt) {
@@ -389,7 +414,7 @@
     if (!saying && sayQ.length) saying = Object.assign(sayQ.shift(), { t: 0 });
     if (saying) { saying.t += dt; if (saying.t > saying.secs) saying = null; }
     if (stamp) stamp.t += dt;
-    if (letterAnim && !letterOpen && !S.over) { letterAnim.t += dt; if (letterAnim.t >= 1.4) { const l = letterAnim.L; letterAnim = null; openLetter(l); } }
+    if (letterAnim && !letterOpen && !S.over) { letterAnim.t += dt; if (letterAnim.t >= 1.4) { const l = letterAnim.L; letterAnim = null; sfx('rPage'); openLetter(l); } }
     if (letterOpen && letterClock && !letterClock.done) {
       letterClock.left -= dt; const bar = qEl.querySelector('.lt-clock i'); if (bar) bar.style.width = Math.max(0, 100 * letterClock.left / LETTER_SECS) + '%';
       if (letterClock.left <= 0) { letterClock.done = true; letterClock.timeUp(); }
@@ -812,6 +837,7 @@
         : (b ? 'Not quite.' : 'Time\'s up.') + (bet ? ` That's ${s(bet)} gone.` : '') + ' The next letter will arrive torn.';
       why.innerHTML = `<b>${head}</b> ${Lt.why}${tornNote}`; why.classList.add('on');
       goBtn.classList.add('on'); goBtn.focus();
+      sfx(right ? 'right' : 'wrong');
       if (right) { S.coins += 1 + bet + quick; coinPulse = 1.5; S.lettersRight = (S.lettersRight || 0) + 1; } else { S.coins -= bet; carry.torn = true; S.lettersWrong = (S.lettersWrong || 0) + 1; }
     }
     qEl.querySelectorAll('.lt-opts button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) settle(b); }));
@@ -911,6 +937,7 @@
     if (why === 'coins') { popAt(where || [L.W / 2, beltRect()[1] - 20], 'No coins', '#ffdc78', 28); return; }
     if (why) return;
     R.place(S, tool);
+    sfx(tool === 'reserve' ? 'rLock' : tool === 'bell' ? 'rBell' : 'rClank');
     say(tool, 'neutral', LINES[tool]);
     if (tool === 'bin' && !S.rack) say('binNoRack', 'neutral', LINES.binNoRack);
   }
@@ -935,6 +962,8 @@
   });
   cv.addEventListener('pointercancel', () => { drag = null; });
   addEventListener('keydown', e => {
+    // M (or V, as in the main game) mutes and unmutes everything.
+    if ((e.key === 'm' || e.key === 'v') && AU) { AU.toggleMute(); return; }
     if (letterOpen) { const n = +e.key, b = qEl.querySelectorAll('.lt-opts button')[n - 1]; if (b) b.click(); return; }
     if (qEl.classList.contains('orders')) { const b = qEl.querySelectorAll('.no-card')[+e.key - 1]; if (b) b.click(); return; }
     if (qEl.classList.contains('on')) return;
