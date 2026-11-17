@@ -70,11 +70,15 @@ const dbg = pg => pg.evaluate(() => SD.rushSheet.debug());
 // What's drawn in the room this frame (stage px): labels, counters, the sheet itself.
 async function drawnBoxes(pg) {
   return pg.evaluate(() => new Promise(res => {
-    const out = []; SD.rushSheet.rec = (kind, t, r) => out.push({ kind, t, r: r.slice() });
-    requestAnimationFrame(() => requestAnimationFrame(() => { SD.rushSheet.rec = null; res(out); }));
+    const out = []; SD.rushSheet.spy = (kind, t, r) => out.push({ kind, t, r: r.slice() });
+    requestAnimationFrame(() => requestAnimationFrame(() => { SD.rushSheet.spy = null; res(out); }));
   }));
 }
 async function clearOf(pg, name, tag) {
+  // Wrapping keeps a key with its colon: no row of the card starts with the colon.
+  const dw = await dbg(pg);
+  ok(!(dw.rows || []).some(r => /^\s*:/.test(r)), name, tag, 'a row starts with a colon', JSON.stringify((dw.rows || []).find(r => /^\s*:/.test(r))));
+  if (name === 'desktop' && /^(room|dock)-wide/.test(dw.key || '')) ok(dw.maxCh >= 40, name, tag, 'desktop card under 40 characters a row', dw.maxCh);
   const boxes = await drawnBoxes(pg);
   // Everything the card or the tab must stay clear of, in stage px.
   const extra = await pg.evaluate(() => {
@@ -94,6 +98,17 @@ async function clearOf(pg, name, tag) {
   // The phone's open card is over the room on purpose (while building), but never over the lever, the belt or Dutch.
   const said = new Set();
   for (const m of me) for (const o of boxes.filter(b => !mine(b.kind)).concat(extra)) if (hit(m.r, o.r) && (m.kind !== 'sheet-open' || ['belt', 'lever', 'bubble'].includes(o.kind)) && !said.has(m.kind + o.kind + o.t) && said.add(m.kind + o.kind + o.t)) bad(name, tag, m.kind, 'overlaps', o.kind, o.t || '', JSON.stringify(o.r.map(Math.round)), 'sheet', JSON.stringify(m.r.map(Math.round)));
+}
+async function termsClear(pg, name, tag) {
+  const boxes = await drawnBoxes(pg);
+  const env = await pg.evaluate(() => { const h = SD.rushSheet._h(), out = [{ kind: 'belt', r: h.beltRect() }]; if (h.say) out.push({ kind: 'bubble', r: h.say }); return { out, W: h.L.W, H: h.L.H }; });
+  const seenT = new Set(), terms = boxes.filter(b => b.kind === 'term' && !seenT.has(b.t + b.r.join()) && seenT.add(b.t + b.r.join())), /* two frames: each plaque once */ others = boxes.filter(b => ['label', 'sheet', 'sheet-tab', 'sheet-open'].includes(b.kind)).concat(env.out);
+  terms.forEach((m, i) => {
+    ok(m.r[0] >= 0 && m.r[1] >= 0 && m.r[0] + m.r[2] <= env.W && m.r[1] + m.r[3] <= env.H, name, tag, 'term off screen', m.t, JSON.stringify(m.r));
+    for (const o of others) ok(!hit(m.r, o.r), name, tag, 'term', JSON.stringify(m.t), 'overlaps', o.kind, o.t || '');
+    for (const o of terms.slice(i + 1)) ok(!hit(m.r, o.r), name, tag, 'terms overlap each other', m.t, o.t);
+  });
+  return terms.length;
 }
 async function answerBlank(pg, how) {
   const d = await dbg(pg); if (!d.blank) return null;
@@ -147,6 +162,14 @@ async function answerBlank(pg, how) {
           if (first) {
             ok(asked, name, claim, t, 'no blank the first time');
             if (d.blank && d.blank.t === t) {
+              // A blanked key keeps its colon (and a short value) on its row: "[______]: 4".
+              const br = d.rows[d.blankRow] || '', tail = br.slice(br.lastIndexOf('_') + 1);
+              const lineOf = d.lines.find(l => l.includes(d.blank.token)) || '', keyed = new RegExp(d.blank.token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':').test(lineOf);
+              if (keyed) ok(/^:/.test(tail), name, claim, t, 'blanked key lost its colon', JSON.stringify(br));
+              const val = (lineOf.split(d.blank.token + ':')[1] || '').trim();
+              if (keyed && val && val.length <= 8) ok(tail.replace(/^:\s*/, '').trim().startsWith(val), name, claim, t, 'blanked key: its short value went to the next row', JSON.stringify(br));
+              // Desktop: the panel's arrow points at the card, level with the blank's row.
+              if (name === 'desktop') ok(await pg.evaluate(() => { const p = document.querySelector('#sheet-ui .sh-panel'); return !!p && (p.classList.contains('sh-to-r') || p.classList.contains('sh-to-l')); }), name, claim, t, 'blank panel has no pointer to the sheet');
               if (!shotBlank && (claim === 'slow' || claim === 'rush') && t !== 'rack') { await pg.waitForTimeout(250); await pg.screenshot({ path: `${OUT}/${name}-building-blank.png` }); shotBlank = true; }
               const how = seenBlank.size % 3 === 1 ? 'wrong' : seenBlank.size % 3 === 2 ? 'choice' : 'right';
               const res = await answerBlank(pg, how);
@@ -192,7 +215,11 @@ async function answerBlank(pg, how) {
     let term = null;
     for (let i = 0; i < 40 && !term; i++) { await pg.waitForTimeout(150); const d = await dbg(pg); term = d.terms.find(x => /TooManyRequestsException|At-least-once|maxReceiveCount|Function error/.test(x.text)); }
     ok(term, name, 'no real term on a pop mid-wave');
+    // The term plaques sit in free space: clear of the room's plaques, the belt, the card, Dutch, each other, and on screen.
     if (term && !shotWave) { await pg.screenshot({ path: `${OUT}/${name}-wave-pop.png` }); shotWave = true; }
+    let seenTerms = 0;
+    for (let i = 0; i < 8; i++) { seenTerms += await termsClear(pg, name, 'wave'); await pg.waitForTimeout(200); }
+    ok(seenTerms > 0, name, 'no term plaque drawn mid-wave');
     // An open blank when the lever is pulled: it fills in and the night starts at once.
     await open('slow'); await pg.evaluate(() => SD.rushSheet.forget());
     await pg.evaluate(() => { SD_RUSH.S.coins = 20; SD_RUSH.place('hourglass'); }); await pg.waitForTimeout(150);

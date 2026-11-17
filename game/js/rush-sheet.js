@@ -60,9 +60,10 @@
   // ---- Where the card hangs (stage pixels of each backdrop) ----
   // Pinned on the wall where the painting is bare: the cellar between its two lanterns, the dock's shutter, the vault's
   // riveted panels above the cabinets, the office's green wall right of the strongroom. The cellar as a review room
-  // keeps its questions there, so its card is shorter.
+  // keeps its questions there, so its card is shorter. About 40 characters a row where the wall allows (the cellar's
+  // card reaches just past the inner edges of its lanterns' frames); the office's is held by the strongroom's label.
   const PIN = {
-    'room-wide': [600, 150, 250, 248], 'room-wide:review': [600, 150, 250, 150], 'dock-wide': [600, 148, 262, 248],
+    'room-wide': [588, 150, 282, 248], 'room-wide:review': [588, 150, 282, 150], 'dock-wide': [588, 148, 292, 248],
     'vault-wide': [640, 148, 300, 230], 'office-wide': [1126, 192, 214, 292]
   };
   // A tab where there's no bare wall: [x, y, w, h], and the card it opens. Phones: under the title row, right side.
@@ -241,10 +242,17 @@
       let s = l.t, off = 0;
       const bt = blank && blank.li === li ? [blank.a, blank.a + blank.len] : null;
       const pad = Math.min(ind(l.t) + 2, Math.floor(maxCh / 3));
+      // The key and its colon stay together on the first row ("ReservedConcurrentExecutions: 4" never puts ": 4"
+      // alone underneath); a wrap breaks inside the value, at a space where there is one.
+      const km = l.t.trimStart().startsWith('#') ? null : l.t.match(/^(\s*(?:- )?[^:#'"{}[\]\s][^:#'"{}[\]]*?:)(?=\s|$)/);
+      const keyEnd = km ? km[1].length : 0;
       let first = true;
       while (s.length > maxCh) {
+        const lo = first ? Math.max(ind(s) + 1, keyEnd) : pad + 1;
         let cut = s.lastIndexOf(' ', maxCh);
-        if (cut <= (first ? ind(s) : pad) + 1) cut = maxCh;
+        if (cut <= lo) cut = first && keyEnd > maxCh ? keyEnd : maxCh;
+        if (first && keyEnd && cut < keyEnd) cut = keyEnd;
+        if (cut >= s.length) break;
         if (bt) { const a = bt[0] - off + (first ? 0 : pad), b = bt[1] - off + (first ? 0 : pad); if (cut > a && cut < b && a > (first ? ind(s) : pad) + 1) cut = a; }
         rows.push({ t: s.slice(0, cut), li, off, cont: !first, pad: first ? 0 : pad });
         const rest = s.slice(cut).replace(/^ /, ''), used = cut + (s[cut] === ' ' ? 1 : 0);
@@ -316,6 +324,7 @@
     if (card) drawCard(cx, card, res, r, S, fp, cw, t, g.mode === 'tab');
     drawTerms(cx, r, L, g, xf, t);
     cx.restore();
+    frame.length = 0; // what the room drew; refilled by rec() until the next draw
     place(g);
   }
   function drawTab(cx, tb, res, r, L, fp, t) {
@@ -331,10 +340,10 @@
     cx.fillText(label, x + 28, y + h / 2 + 1);
     cx.fillStyle = '#8a5f1c'; cx.textAlign = 'right'; cx.fillText(r.open ? '▴' : '▾', x + w - 8, y + h / 2 + 1);
     cx.restore();
-    const rec = SD.rushSheet.rec; if (rec) rec('sheet-tab', res.name, tb);
+    if (api.spy) api.spy('sheet-tab', res.name, tb);
   }
   function drawCard(cx, card, res, r, S, fp, cw, t, over) {
-    const [x, y, w, h] = card, lh = fp * 1.32, head = fp * 2.1, padX = Math.max(8, fp * .6);
+    const [x, y, w, h] = card, lh = fp * 1.32, head = fp * 2.1, padX = Math.max(6, fp * .55);
     // An open card (phone) leaves room at the bottom for the blank's buttons.
     const panelH = over && cur && cur.S === S ? ui.panelH / H.xf().scale : 0;
     cx.save(); cx.translate(x + w / 2, y + h / 2); if (!over) cx.rotate(-.008); cx.translate(-(x + w / 2), -(y + h / 2));
@@ -343,7 +352,6 @@
     cx.strokeStyle = 'rgba(107,78,36,.12)'; cx.lineWidth = 1;
     for (let yy = y + head + lh; yy < y + h - 6 - panelH; yy += lh) { cx.beginPath(); cx.moveTo(x + 6, yy + 2); cx.lineTo(x + w - 6, yy + 2); cx.stroke(); }
     cx.restore();
-    pin(cx, x + w * .74, y + 9, Math.max(1, fp / 13));
     cx.save(); cx.textBaseline = 'middle';
     cx.font = `700 ${fp * 1.08}px ${MONO}`; cx.fillStyle = '#8a5f1c'; cx.fillText(res.name, x + padX, y + head * .62);
     cx.strokeStyle = 'rgba(138,95,28,.5)'; cx.beginPath(); cx.moveTo(x + padX, y + head - 3); cx.lineTo(x + w - padX, y + head - 3); cx.stroke();
@@ -354,11 +362,14 @@
     if (cur && cur.S === S) {
       const li = res.lines.findIndex(l => l.tool === cur.t && l.t.includes(cur.d.blank));
       if (li >= 0) {
-        const a = res.lines[li].t.indexOf(cur.d.blank), len = cur.d.blank.length;
+        const lt = res.lines[li].t, a = lt.indexOf(cur.d.blank), len = cur.d.blank.length;
         const faint = cur.state === 'ask' && cur.faint && !cur.typed;
-        const shown = cur.state === 'ask' && !faint ? (cur.typed ? cur.typed.slice(0, len).padEnd(len, '_') : '_'.repeat(len)) : cur.d.blank;
-        res.lines[li] = Object.assign({}, res.lines[li], { t: res.lines[li].t.slice(0, a) + '_'.repeat(len) + res.lines[li].t.slice(a + len) });
-        blank = { li, a, len, shown, state: faint ? 'faint' : cur.state };
+        // While it's asked, a blank on a line too long for the card is drawn shorter, so the rest of its line (": 4")
+        // stays on its row; the answer then shows in full.
+        const dl = cur.state === 'ask' && !faint && lt.length > maxCh ? Math.max(6, len - (lt.length - maxCh)) : len;
+        const shown = cur.state === 'ask' && !faint ? (cur.typed ? cur.typed.slice(-dl).padEnd(dl, '_') : '_'.repeat(dl)) : cur.d.blank;
+        res.lines[li] = Object.assign({}, res.lines[li], { t: lt.slice(0, a) + '_'.repeat(dl) + lt.slice(a + len) });
+        blank = { li, a, len: dl, shown, state: faint ? 'faint' : cur.state };
       }
     }
     const rows = wrapRows(res.lines, maxCh, blank);
@@ -377,6 +388,7 @@
       r.keep = first;
     }
     const shownRows = rows.slice(first, first + fit);
+    let blankAt = null;
     shownRows.forEach((rw, i) => {
       const yy = y + head + lh * (i + .55), l = res.lines[rw.li], age = l.tool && r.born[l.tool] ? t - r.born[l.tool] : 1e9;
       const lit = r.lit && t - r.lit.t0 < 1800 && l.t.includes(r.lit.s);
@@ -390,46 +402,88 @@
         if (B > A) hl = [A, B, blank.state, blank.shown.slice(A - a, B - a)];
       }
       drawRow(cx, rw, x + padX + cw * .4, yy, fp, cw, hl);
+      if (hl && !blankAt) blankAt = [x + padX + cw * .4 + hl[0] * cw - 2, yy, (hl[1] - hl[0]) * cw + 4];
     });
+    // Beside a pinned card, the blank's box gets a leader from the card's edge on the panel's side, so the eye goes from
+    // the panel's arrow to where the word belongs.
+    if (blankAt && !over && cur && cur.state === 'ask' && ui.side) {
+      const edge = ui.side === 'left' ? x : x + w, to = ui.side === 'left' ? blankAt[0] - 2 : blankAt[0] + blankAt[2] + 2;
+      cx.save(); cx.strokeStyle = '#b07a22'; cx.lineWidth = 2; cx.setLineDash([4, 3]);
+      cx.beginPath(); cx.moveTo(edge, blankAt[1]); cx.lineTo(to, blankAt[1]); cx.stroke(); cx.restore();
+    }
     // More above or below: a fold mark.
-    cx.fillStyle = 'rgba(107,78,36,.7)'; cx.font = `700 ${fp}px ${MONO}`; cx.textAlign = 'right';
-    if (first > 0) cx.fillText('▲ ' + first, x + w - padX, y + head * .62);
-    if (first + fit < rows.length) cx.fillText('▼ ' + (rows.length - first - fit), x + w - padX, y + head + lh * (fit - .45));
+    const nLines = n => n + (n === 1 ? ' line ' : ' lines ');
+    cx.fillStyle = 'rgba(107,78,36,.8)'; cx.font = `700 ${fp}px ${MONO}`; cx.textAlign = 'right';
+    const up = first > 0 ? nLines(first) + '▲' : '', down = first + fit < rows.length ? nLines(rows.length - first - fit) + '▼' : '';
+    // Over the room (phone), the close button sits at the header's right: the fold mark goes left of it.
+    const rx = x + w - padX - (over ? 54 / H.xf().scale : 0);
+    if (up) cx.fillText(up, rx, y + head * .62);
+    if (down) { const dw = cx.measureText(down).width + 8, yy = y + head + lh * (fit - .5); cx.save(); cx.fillStyle = 'rgba(251,242,219,.92)'; cx.fillRect(x + w - padX - dw, yy - lh / 2, dw + 2, lh); cx.restore(); cx.fillText(down, x + w - padX, yy + 1); }
     cx.restore();
+    // The pin: in the header's gap between the file name and the fold mark, else on the top edge.
+    cx.save(); cx.font = `700 ${fp * 1.08}px ${MONO}`; const nameEnd = padX + cx.measureText(res.name).width; cx.font = `700 ${fp}px ${MONO}`;
+    const foldAt = rx - x - (up ? cx.measureText(up).width : 0); cx.restore();
+    const gapOk = foldAt - nameEnd > 18;
+    pin(cx, x + (gapOk ? (nameEnd + foldAt) / 2 : w * .5), gapOk ? y + head * .55 : y + 2, Math.max(1, fp / 13));
     last.rows = shownRows.map(rw => rw.t); last.first = first; last.total = rows.length; last.fit = fit; last.maxCh = maxCh;
     last.blankRow = blank ? shownRows.findIndex(rw => rw.li === blank.li) : -1;
     last.blankShown = blank ? blank.shown : '';
-    const rec = SD.rushSheet.rec; if (rec) rec(over ? 'sheet-open' : 'sheet', res.name, card);
+    last.blankAt = blankAt;
+    if (api.spy) api.spy(over ? 'sheet-open' : 'sheet', res.name, card);
   }
-  // The real term under the pop: a dark plaque in the sheet's own type.
+  // The real term beside the pop: a dark plaque in the sheet's own type. It goes in free space, as near its pop as it
+  // can: clear of the room's plaques, the belt, the card, Dutch's bubble, the lever and the other terms (and of the
+  // room's words where it can be), and on screen. Its place is chosen once, when it first shows, and kept.
+  function obstacles(L, g) {
+    const hard = [], soft = [];
+    for (const o of frame) (o.kind === 'label' ? hard : soft).push(o.r);
+    try { hard.push(H.beltRect()); } catch (e) { /* no belt */ }
+    if (g.mode === 'pin') hard.push(g.rect); else { hard.push(g.tab); if (last.open && last.card) hard.push(last.card); }
+    if (H.say) hard.push(H.say);
+    if (L.inset && L.inset.r) hard.push(L.inset.r);
+    if (L.lever) hard.push([L.lever.x - L.lever.r * .6, L.lever.y - L.lever.r * .8, L.lever.r * 1.2, L.lever.r * 1.6]);
+    if (L.tank) hard.push([L.tank.x - 60, L.tank.y - L.tank.h, 120, L.tank.h + 40]); // and its foot
+    if (L.desk && L.desk.h) hard.push([L.desk.x - L.desk.h * .7, L.desk.y - L.desk.h, L.desk.h * 1.4, L.desk.h]);
+    for (const t of (H.S && H.S.belt) || []) { try { const r = H.spot(t); if (r) soft.push(r); } catch (e) { /* not drawn */ } }
+    return { hard, soft };
+  }
+  function spotFor(p, w, h, L, g, taken) {
+    const top = 64, bot = beltTop(L) - 8, pad = 6;
+    const ok = (b, list) => b[0] >= pad && b[0] + b[2] <= L.W - pad && b[1] >= top && b[1] + b[3] <= bot && !list.some(o => hit(b, o));
+    const { hard, soft } = obstacles(L, g); hard.push(...taken);
+    const anchor = p.at ? [p.at[0], p.at[1]] : (g.mode === 'pin' ? [g.rect[0] + g.rect[2] / 2, g.rect[1] + g.rect[3]] : [g.tab[0] + g.tab[2] / 2, g.tab[1] + g.tab[3]]);
+    const cands = [];
+    const add = (cx0, cy0) => cands.push([Math.max(w / 2 + pad, Math.min(L.W - w / 2 - pad, cx0)) - w / 2, cy0 - h / 2, w, h]);
+    if (p.at) { add(p.at[0], p.at[1] + p.at[2] * (L.fs || 1) * .55 + h / 2 + 6); add(p.at[0], p.at[1] - p.at[2] * (L.fs || 1) * .6 - 60 - h / 2); }
+    if (g.mode === 'pin') add(g.rect[0] + g.rect[2] / 2, g.rect[1] + g.rect[3] + h / 2 + 8);
+    for (let y = bot - h / 2 - 4; y - h / 2 >= top; y -= h / 2 + 4) for (let x = w / 2 + pad; x <= L.W - w / 2 - pad + 1; x += 40) add(x, y);
+    const dist = b => Math.hypot(b[0] + b[2] / 2 - anchor[0], b[1] + b[3] / 2 - anchor[1]);
+    const pick = list => { let best = null, bd = 1e9; cands.forEach((b, i) => { if (!ok(b, list)) return; const d = dist(b) + (i < 3 ? -200 : 0); if (d < bd) { bd = d; best = b; } }); return best; };
+    return pick(hard.concat(soft)) || pick(hard) || cands[0];
+  }
   function drawTerms(cx, r, L, g, xf, t) {
     r.terms = r.terms.filter(p => t - p.t0 < 3200);
     const fp = Math.max(14 * Math.min(L.fs || 1, 1.2), 12 / Math.max(xf.scale, .05));
     cx.save(); cx.font = `700 ${fp}px ${MONO}`; cx.textBaseline = 'middle'; cx.textAlign = 'center';
-    const maxW = Math.min(L.W - 40, 720), placed = [];
+    const maxW = Math.min(L.W - 40, 480), taken = [];
     last.terms = [];
     for (const p of r.terms) {
-      const words = p.text.split(' '), lines = []; let cur2 = '';
-      for (const wd of words) { const n = cur2 ? cur2 + ' ' + wd : wd; if (cx.measureText(n).width > maxW - 20 && cur2) { lines.push(cur2); cur2 = wd; } else cur2 = n; }
-      if (cur2) lines.push(cur2);
-      const w = Math.max(...lines.map(l => cx.measureText(l).width)) + 20, h = lines.length * fp * 1.3 + 10;
-      const u = (t - p.t0) / 1000, a = Math.min(1, u * 6, (3.2 - u) * 2.5);
-      let px, py;
-      if (p.at) { px = p.at[0]; py = p.at[1] + p.at[2] * (L.fs || 1) * .55 + h / 2 + 6; }
-      else { const b = g.mode === 'pin' ? g.rect : g.tab; px = b[0] + b[2] / 2; py = b[1] + b[3] + h / 2 + 10; }
-      py -= u * 8;
-      px = Math.max(w / 2 + 6, Math.min(L.W - w / 2 - 6, px));
-      py = Math.max(h / 2 + 70, Math.min(beltTop(L) - h / 2 - 8, py));
-      // Clear of the pinned card and of the term before it.
-      const box = () => [px - w / 2, py - h / 2, w, h];
-      if (g.mode === 'pin' && hit(box(), g.rect)) py = g.rect[1] + g.rect[3] + h / 2 + 8;
-      for (const q of placed) if (hit(box(), q)) py = q[1] + q[3] + h / 2 + 4;
-      placed.push(box());
+      if (!p.lines) {
+        const words = p.text.split(' '), lines = []; let cur2 = '';
+        for (const wd of words) { const n = cur2 ? cur2 + ' ' + wd : wd; if (cx.measureText(n).width > maxW - 20 && cur2) { lines.push(cur2); cur2 = wd; } else cur2 = n; }
+        if (cur2) lines.push(cur2);
+        p.lines = lines;
+      }
+      const w = Math.max(...p.lines.map(l => cx.measureText(l).width)) + 20, h = p.lines.length * fp * 1.3 + 10;
+      if (!p.box || p.box[2] !== w) p.box = spotFor(p, w, h, L, g, r.terms.filter(q => q !== p && q.box).map(q => q.box));
+      const [bx, by] = p.box, u = (t - p.t0) / 1000, a = Math.min(1, u * 6, (3.2 - u) * 2.5);
+      taken.push(p.box);
       cx.save(); cx.globalAlpha = Math.max(0, a);
-      rr(cx, px - w / 2, py - h / 2, w, h, 7); cx.fillStyle = 'rgba(24,18,12,.9)'; cx.fill(); cx.lineWidth = 1.5; cx.strokeStyle = 'rgba(214,178,84,.95)'; cx.stroke();
-      cx.fillStyle = '#ffe6a8'; lines.forEach((l, i) => cx.fillText(l, px, py - h / 2 + 5 + fp * 1.3 * (i + .5)));
+      rr(cx, bx, by, w, h, 7); cx.fillStyle = 'rgba(24,18,12,.9)'; cx.fill(); cx.lineWidth = 1.5; cx.strokeStyle = 'rgba(214,178,84,.95)'; cx.stroke();
+      cx.fillStyle = '#ffe6a8'; p.lines.forEach((l, i) => cx.fillText(l, bx + w / 2, by + 5 + fp * 1.3 * (i + .5)));
       cx.restore();
-      last.terms.push({ text: p.text, r: box() });
+      last.terms.push({ text: p.text, r: p.box.slice() });
+      if (api.spy) api.spy('term', p.text, p.box);
     }
     cx.restore();
   }
@@ -478,6 +532,9 @@
 :is(#sheet-ui,.bp-ask) .sh-ch button{min-height:44px;padding:4px 8px;text-align:left;font:700 11px ${MONO};border:2px solid #6b4e24;border-radius:8px;background:rgba(255,255,255,.7);overflow-wrap:anywhere}
 :is(#sheet-ui,.bp-ask) .sh-ch button.right{background:#d9f5e4;border-color:#1f8a55}:is(#sheet-ui,.bp-ask) .sh-ch button.wrong{background:#fde0dc;border-color:#b23a2f}
 :is(#sheet-ui,.bp-ask) .sh-ok{color:#1f7a4a}:is(#sheet-ui,.bp-ask) .sh-no{color:#9a2a20}:is(#sheet-ui,.bp-ask) .sh-panel a{color:#7a4a10;font-size:12px}
+#sheet-ui .sh-panel.sh-to-r::after,#sheet-ui .sh-panel.sh-to-l::after{content:'';position:absolute;top:var(--ay,20px);transform:translateY(-50%);border:10px solid transparent}
+#sheet-ui .sh-panel.sh-to-r::after{right:-17px;border-left:15px solid #6b4e24;border-right:0}
+#sheet-ui .sh-panel.sh-to-l::after{left:-17px;border-right:15px solid #6b4e24;border-left:0}
 .bp-ask{grid-column:1/-1}.bp-ask .sh-panel{position:static!important;box-shadow:none!important}`;
     document.head.appendChild(st);
     ui.el = document.createElement('div'); ui.el.id = 'sheet-ui';
@@ -532,7 +589,7 @@
     else ui.close.style.display = 'none';
     // The blank's panel.
     const show = cur && cur.S === S && b && last.card;
-    if (!show) { ui.panel.style.display = 'none'; ui.shownFor = null; ui.panelH = 0; return; }
+    if (!show) { ui.panel.style.display = 'none'; ui.shownFor = null; ui.panelH = 0; ui.side = ''; return; }
     const key2 = cur.t + ':' + cur.state + ':' + (cur.mode || '') + ':' + (cur.miss || 0);
     if (ui.shownFor !== key2 || ui.dirty) {
       ui.shownFor = key2; ui.dirty = false;
@@ -542,6 +599,7 @@
     ui.panel.style.display = '';
     const c = last.card;
     if (g.mode === 'tab') {
+      ui.side = ''; ui.panel.classList.remove('sh-to-r', 'sh-to-l');
       // Inside the open card, at its foot.
       const [x0, y0] = toC(c[0], c[1]), w = c[2] * xf.scale - 16, hh = ui.panel.offsetHeight || 200;
       ui.panelH = hh + 12;
@@ -549,10 +607,16 @@
     } else {
       // Beside the pinned card, on the side with more room, level with the blank.
       const [x0, y0] = toC(c[0], c[1]), cw = c[2] * xf.scale, w = 250, vw = root.innerWidth || 1000, vh = root.innerHeight || 700;
-      const left = x0 - 12 - w, right = x0 + cw + 12;
+      const left = x0 - 16 - w, right = x0 + cw + 16;
       const x = (x0 > vw - (x0 + cw) && left > 4) || right + w > vw ? Math.max(4, left) : right;
-      const hh = ui.panel.offsetHeight || 120, rowY = y0 + (2.1 + 1.32 * Math.max(0, last.blankRow)) * last.font;
-      Object.assign(ui.panel.style, { left: x + 'px', top: Math.max(4, Math.min(vh - hh - 4, rowY - 20)) + 'px', width: w + 'px' });
+      // Its input (or first choice) sits level with the blank's row, and an arrow on its edge points at the card.
+      const hh = ui.panel.offsetHeight || 120, rowY = last.blankAt ? toC(0, last.blankAt[1])[1] : y0 + (2.1 + 1.32 * (Math.max(0, last.blankRow) + .55)) * last.font;
+      const aim = ui.panel.querySelector('input, .sh-ch button, p'), ay = aim ? aim.offsetTop + aim.offsetHeight / 2 : 20;
+      const top = Math.max(4, Math.min(vh - hh - 4, rowY - ay));
+      ui.side = x < x0 ? 'left' : 'right';
+      ui.panel.classList.toggle('sh-to-r', ui.side === 'left'); ui.panel.classList.toggle('sh-to-l', ui.side === 'right');
+      Object.assign(ui.panel.style, { left: x + 'px', top: top + 'px', width: w + 'px' });
+      ui.panel.style.setProperty('--ay', Math.max(12, Math.min(hh - 12, rowY - top)) + 'px');
       ui.panelH = 0;
     }
   }
@@ -585,18 +649,21 @@
   }
 
   // ---- For js/rush.js and the check ----
-  SD.rushSheet = {
+  // What the room drew this frame (js/rush.js calls rec for its plaques and words), for placing the term plaques.
+  const frame = [];
+  function recAll(kind, t, r) { if (frame.length < 400) frame.push({ kind, t, r }); if (api.spy) api.spy(kind, t, r); }
+  const api = SD.rushSheet = {
     attach(h) { H = h; build(); },
     draw() { try { draw(); } catch (e) { if (root.console) console.error('rush-sheet', e); } },
     event(e, where, pops, n0) { try { event(e, where, pops, n0); } catch (err) { if (root.console) console.error('rush-sheet', err); } },
     use, needs, askInto, seen: known, markSeen,
-    rec: null,
+    rec: recAll, spy: null, // spy: tools/rush_check_sheet.js listens to everything drawn
     _h: () => H, // for tools/rush_check_sheet.js
     lines: S => resolve(S || H.S).lines.map(l => l.t),
     forget() { shim.forget(); }, // for the check (the stand-in's memory only)
     debug: () => {
       const xf = H.xf(), c = b => b && [xf.ox + b[0] * xf.scale, xf.oy + b[1] * xf.scale, b[2] * xf.scale, b[3] * xf.scale];
-      return { mode: last.mode, key: last.key, blankShown: last.blankShown || '', open: !!last.open, card: c(last.card), tab: c(last.tab), rows: last.rows, total: last.total, first: last.first, font: last.font, lines: last.lines || [], maxCh: last.maxCh,
+      return { mode: last.mode, key: last.key, blankShown: last.blankShown || '', open: !!last.open, card: c(last.card), tab: c(last.tab), rows: last.rows, blankRow: last.blankRow, total: last.total, first: last.first, font: last.font, lines: last.lines || [], maxCh: last.maxCh,
         terms: (last.terms || []).map(p => ({ text: p.text, r: c(p.r) })), blank: cur ? { t: cur.t, state: cur.state, token: cur.d.blank, choices: cur.choices.slice() } : null, queued: queue.map(q => q.t) };
     }
   };
