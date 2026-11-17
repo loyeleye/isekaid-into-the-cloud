@@ -248,7 +248,10 @@
       ${BD ? '' : teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
       <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
       <div class="dr-dock">${dock}</div>`);
-    if (RO) RO.mount(b, s.night + ':' + s.row + ':' + f.drill, s.night);
+    // The walk-in intro plays once, on the first night only (Ladi: "otherwise it would get a little annoying").
+    const intro = RO && !play && s.night === 1 && !s.introSeen;
+    if (intro) { s.introSeen = true; save(s); }
+    if (RO) RO.mount(b, s.night + ':' + s.row + ':' + f.drill, intro ? 'intro' : null);
     if (play) {
       if (play.started) return;
       play.started = true;

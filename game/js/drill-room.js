@@ -117,7 +117,7 @@
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
   const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
   const LISTEN_HOLD = 2.0;
-  let listening = false, stage = null, lastKey = null, moodT = 0, lastNight = null, arriving = false, arriveT = 0;
+  let listening = false, stage = null, lastKey = null, moodT = 0, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
     (navigator.connection && navigator.connection.saveData);
   function vEl(cls) {
@@ -153,7 +153,7 @@
     return st;
   }
   // Put the living plate into a freshly drawn room. key: changes when a new drill starts (plays the alarm).
-  R.mount = function (root, key, night) {
+  R.mount = function (root, key, intro) {
     const slot = root && root.querySelector('.rm-vslot');
     R.kickOver();
     if (!slot || still()) return;
@@ -163,9 +163,10 @@
     if (idle.paused) idle.play().catch(() => {});
     const rm = stage.closest('.rm');
     if (rm) rm.classList.toggle('arriving', arriving);
-    // The first room of a night opens empty and the leads walk in (Ladi's intro clip), then the alarm.
-    if (night != null && night !== lastNight) {
-      lastNight = night; lastKey = key;
+    // On the very first night the room opens empty and the leads walk in (Ladi's intro clip), then the alarm; every
+    // other drill, every night, opens straight on the alarm.
+    if (intro === 'intro') {
+      lastKey = key;
       arriving = true; if (rm) rm.classList.add('arriving');
       clearTimeout(arriveT); arriveT = setTimeout(arrived, 9000);   // never leave the counter empty
       R.mood('intro', 'alarm');
