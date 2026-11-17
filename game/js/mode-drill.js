@@ -359,8 +359,10 @@
     const left = D.CHANGES - f.changes.length;
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
     const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
-    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
-    const dials = (k === 'queue' && d.visLine ? visLineHtml(f) : '') + Object.keys(DIALS).filter(n => DIALS[n].at === k && !(n === 'vis' && d.visLine) && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
+    // The Poison Batch: ReportBatchItemFailures is the message you tap on the batch desk (js/drill-batch.js), not a switch.
+    const desk = k === 'fn' && d.itemFailures && SD.drillBatch;
+    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id) && !(desk && id === 'partial'));
+    const dials = (desk ? SD.drillBatch.html(f) : '') + (k === 'queue' && d.visLine ? visLineHtml(f) : '') + Object.keys(DIALS).filter(n => DIALS[n].at === k && !(n === 'vis' && d.visLine) && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
       if (n === 'key' && SD.drillHotKey) return SD.drillHotKey.html(f);   // the partition key desk: js/drill-hotkey.js
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '', onId = g.ids.find(id => C[id].on(f.cfg));
       const line = onId && REAL[onId] ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(REAL[onId])}</code>` : '';
@@ -494,6 +496,7 @@
       save(s); draw(s);
     });
     wireVisLine(b, s, f);
+    if (SD.drillBatch) SD.drillBatch.wire(b);
     const tip = b.querySelector('.dr-tip');
     if (tip) { const base = tip.textContent; b.querySelectorAll('[data-tip]').forEach(el => { const show = () => { tip.textContent = el.dataset.tip; }; el.onmouseenter = show; el.onfocus = show; el.onmouseleave = () => { tip.textContent = base; }; }); }
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
@@ -808,7 +811,7 @@
     .dr-cur { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 12px; font-weight: 800; color: #6a5a48; background: #e6dfd0; }
     body.in-mode #panel .win .dr-card.dr-pick.on[aria-pressed="true"], .dr-card.dr-pick.on { background: #3f5f80; color: #fff; box-shadow: none; }
     .dr-card.new { outline: 3px solid #d6a63a; outline-offset: -3px; }
-    .dr-togs { grid-template-columns: 1fr 1fr; }
+    .dr-togs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }   /* minmax: a long unbroken name (AdministratorAccess) wraps instead of pushing past a phone */
     .dr-card.dr-tog, .dr-card.dr-look { min-height: 48px; flex-direction: row; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
     .dr-card.dr-tog > span, .dr-card.dr-look > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
     .dr-sw { flex: 0 0 auto; width: 30px; height: 17px; border-radius: 9px; background: #b9b2a2; position: relative; border: 2px solid #17131f; }

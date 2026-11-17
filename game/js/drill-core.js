@@ -399,7 +399,8 @@
       ok: m => m.dupes === 0 && m.condBlocked === 0 && m.timeouts === 0 && m.left === 0 && !m.visShort, fix: [['vis360']], lazy: [['vis60'], ['vis120'], ['to120'], ['to30'], ['cond'], ['to120', 'vis360']],
       hidden: 'The queue\'s visibility timeout was shorter than the work, so messages came back while still being worked.',
       q: /visibility timeout|received (more than once|twice)|duplicate|six times|6x/i },
-    poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async',
+    // itemFailures: at the Function, ReportBatchItemFailures is a batch you tap the failing message in (js/drill-batch.js).
+    poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async', itemFailures: true,
       says: 'One order in there will never go through.',
       setup: v => ({ arrivals: t => steady(2)(t).concat(t === 1 + (v.k % 3) ? [R('bad', { poison: true })] : []) }),
       break: c => { c.queue.on = true; c.queue.vis = 30; c.fn.timeout = 30; c.fn.batch = 3; },
