@@ -55,10 +55,10 @@
   // ---------- Cards ----------
   // What the mines teach, found in its card rewards (SD.champions.rewards) and from Freya's trade on floor 2.
   Object.assign(SD.cards, {
-    splitarn:  { name: 'Split the ARNs', cost: 1, kind: 'action', pow: 7, tags: ['arn'], art: 'note', rarity: 'common', concept: 's3arn', ch: 1, text: 'Two statements, two ARNs: s3:ListBucket on the bucket, s3:GetObject on bucket/*. Each action meets the resource it acts on.' },
-    defchain:  { name: 'Default Credential Chain', cost: 1, kind: 'infra', pow: 5, each: { any: 2 }, tags: ['chain'], art: 'key', rarity: 'common', concept: 'credchain', ch: 1, text: 'Infra. Each turn absorb {each.any} load. The SDK takes the first keys it finds: environment, shared files, container, instance profile.' },
-    readbound: { name: 'Read the Boundary', cost: 1, kind: 'action', pow: 8, tags: ['boundary'], art: 'gate', rarity: 'uncommon', concept: 'guardrails', ch: 1, text: 'A permissions boundary only caps; it never grants. What you can do is the overlap of the boundary and your policies.' },
-    extid:     { name: 'Require an ExternalId', cost: 2, kind: 'action', pow: 11, tags: ['externalid'], art: 'lock', rarity: 'uncommon', concept: 'xacct', ch: 1, text: 'The trust policy requires sts:ExternalId, so a deputy acting for someone else can\'t put on your role.' }
+    splitarn:  { name: 'Split the ARNs', real: 's3:ListBucket on arn:aws:s3:::bucket · s3:GetObject on arn:aws:s3:::bucket/*', cost: 1, kind: 'action', pow: 7, tags: ['arn'], art: 'note', rarity: 'common', concept: 's3arn', ch: 1, text: 'Two statements, two ARNs: s3:ListBucket on the bucket, s3:GetObject on bucket/*. Each action meets the resource it acts on.' },
+    defchain:  { name: 'Default Credential Chain', real: 'SDK default credential provider chain', cost: 1, kind: 'infra', pow: 5, each: { any: 2 }, tags: ['chain'], art: 'key', rarity: 'common', concept: 'credchain', ch: 1, text: 'Infra. Each turn absorb {each.any} load. The SDK takes the first keys it finds: environment, shared files, container, instance profile.' },
+    readbound: { name: 'Read the Boundary', real: 'PermissionsBoundary', cost: 1, kind: 'action', pow: 8, tags: ['boundary'], art: 'gate', rarity: 'uncommon', concept: 'guardrails', ch: 1, text: 'A permissions boundary only caps; it never grants. What you can do is the overlap of the boundary and your policies.' },
+    extid:     { name: 'Require an ExternalId', real: '"Condition": { "StringEquals": { "sts:ExternalId": "…" } }', cost: 2, kind: 'action', pow: 11, tags: ['externalid'], art: 'lock', rarity: 'uncommon', concept: 'xacct', ch: 1, text: 'The trust policy requires sts:ExternalId, so a deputy acting for someone else can\'t put on your role.' }
   });
   const MINE_CARDS = ['splitarn', 'defchain', 'readbound', 'extid'];
   // Freya's AdministratorAccess in the mines: every play asks a least-privilege question (lp, js/ch1-trek.js). Fast
@@ -77,7 +77,7 @@
       ['triage', { name: 'Field Triage', cost: 1, kind: 'action', abs: { any: 6 }, draw: 1, art: 'pulse', text: 'Absorb {any} load. Draw 1. "Worst first. You, sit. You, breathe."' }],
       ['splint', { name: 'Splint and Carry On', cost: 2, kind: 'action', mit: 12, art: 'pulse', text: 'Mitigate {mit}. She has splinted a dragon. It said thank you.' }]]],
     ['kai', 'Kai', 'Undoes what props it up', 84, 138, 'unmaking', [
-      ['revoke', { name: 'Revoke Older Sessions', cost: 1, kind: 'action', pow: 8, tags: ['revoke'], art: 'eraser', text: 'Deny everything for sessions issued before now. Old keys stop working; fresh ones don\'t.' }],
+      ['revoke', { name: 'Revoke Older Sessions', real: 'AWSRevokeOlderSessions: Deny if aws:TokenIssueTime < now', cost: 1, kind: 'action', pow: 8, tags: ['revoke'], art: 'eraser', text: 'Deny everything for sessions issued before now. Old keys stop working; fresh ones don\'t.' }],
       ['unpick', { name: 'Unpick the Grant', cost: 0, kind: 'action', vuln: 1, selfDmg: 1, exhaust: true, art: 'eraser', text: 'This turn the enemy takes 50% more mitigation. The team loses 1 SLA. Exhaust. He pulls one thread.' }]]],
     ['seoyeon', 'Seo-yeon', 'Hits hardest', 107, 145, 'peakstyle', [
       ['summit', { name: 'Summit Strike', cost: 1, kind: 'action', mit: 8, art: 'bolt2', text: 'Mitigate {mit}. From the top of the mountain, down.' }],
@@ -132,7 +132,7 @@
   };
 
   // ---------- Enemies ----------
-  // raid: only the mines fight them. denies: cards this enemy's policies explicitly deny (js/raid.js).
+  // raid: only the mines fight them. denies: cards this enemy refuses (js/raid.js); denyWhy: why, when it isn't an explicit Deny.
   const F = (o) => Object.assign({ ch: 1, raid: true, resist: {} }, o);
   Object.assign(SD.enemies, {
     // Floor 1, the Galleries
@@ -165,6 +165,7 @@
       symptom: 'The role has AdministratorAccess, but its permissions boundary allows only s3:GetObject. Everything else is denied.',
       weak: { boundary: 'What a role can do is the overlap of its policies and its boundary. Ask for what the boundary allows.', deny: 'Find which policy said no: here, the boundary.', leastpriv: 'A role scoped inside the boundary works first time.' },
       resist: { allow: 'More Allows don\'t lift a boundary. It caps them.', admin: 'AdministratorAccess is capped like everything else.' },
+      denyWhy: 'Its permissions boundary caps the role at s3:GetObject. A boundary isn\'t a Deny: it never grants, so anything outside it is simply not allowed (an implicit deny), however much the role\'s own policy allows.',
       denies: ['adminaccess'],
       pattern: [{ t: 'read', n: 9 }, { t: 'write', n: 10 }, { t: 'escalate' }, { t: 'burst', n: 11 }] }),
     asterisk: F({ name: 'The Great Asterisk', short: 'Asterisk', cause: 'Allow * on *, everywhere, for everyone', sev: 78, concept: 'guardrails', tier: 3, boss: true, sprite: 'm1asterisk',
@@ -172,6 +173,7 @@
       symptom: 'Every role in the galleries has Allow * on *. An SCP denies the dangerous actions, and nobody knows which ones are which any more.',
       weak: { deny: 'An explicit Deny in an SCP or a policy beats every Allow, even *.', leastpriv: 'Replace * with what each role really calls.', boundary: 'A boundary caps * down to what you meant.' },
       resist: { allow: 'Allowing more doesn\'t help against Allow *.', admin: 'AdministratorAccess is the Asterisk\'s own policy. It only feeds it.' },
+      denyWhy: 'The SCP over these galleries carries an explicit Deny for the dangerous actions, and an explicit Deny beats every Allow, even AdministratorAccess.',
       denies: ['adminaccess'],
       pattern: [{ t: 'write', n: 10 }, { t: 'read', n: 11 }, { t: 'burst', n: 13 }, { t: 'escalate', up: 3 }, { t: 'write', n: 12 }] }),
     // Floor 2, the Trust Vaults
@@ -210,6 +212,7 @@
       symptom: 'The role\'s policy allows kms:Decrypt, but the key policy lists only its administrators. Decrypt fails with AccessDeniedException.',
       weak: { resource: 'The key policy is the key\'s own resource policy: name the role there, or let the account\'s IAM policies count.', deny: 'Read the error: the refusal came from the key policy.' },
       resist: { allow: 'An IAM Allow doesn\'t count until the key policy lets it.', admin: 'Even AdministratorAccess can\'t use a key whose policy doesn\'t trust the account.' },
+      denyWhy: 'Its key policy names only the key\'s admins and doesn\'t let the account\'s IAM policies count. That isn\'t a Deny: an IAM Allow, even AdministratorAccess, just never gets a say (an implicit deny).',
       denies: ['adminaccess'],
       pattern: [{ t: 'read', n: 10 }, { t: 'write', n: 10 }, { t: 'escalate' }, { t: 'burst', n: 12 }] }),
     deputy: F({ name: 'The Confused Deputy', short: 'Deputy', cause: 'A vendor\'s role can be used for the wrong customer, with no ExternalId', sev: 84, concept: 'xacct', tier: 3, boss: true, sprite: 'm2deputy',

@@ -38,9 +38,9 @@
   // back: the real rule, shown on the card's back.
   D.CARDS = {
     // Seo-yeon: the Gate
-    backoff: { at: 'gate', name: 'Retry: backoff and jitter', text: 'Callers who get a 429 wait 1, 2, then 4 ticks, spread apart, before trying again.',
+    backoff: { at: 'gate', name: 'Callers\' SDK retry: backoff and jitter', text: 'Callers who get a 429 wait 1, 2, then 4 ticks, spread apart, before trying again.',
       back: 'The SDKs retry throttling errors with exponential backoff and jitter.', set: c => { c.gate.retry = 'backoff'; }, on: c => c.gate.retry === 'backoff' },
-    immediate: { at: 'gate', name: 'Retry: immediately', text: 'Callers who get a 429 try again on the very next tick.',
+    immediate: { at: 'gate', name: 'Callers\' retry: immediately', text: 'Callers who get a 429 try again on the very next tick.',
       back: 'Retrying at once just hits the same empty bucket.', set: c => { c.gate.retry = 'immediate'; }, on: c => c.gate.retry === 'immediate' },
     plan: { at: 'gate', name: 'Usage plan: throttle the batch client', text: 'The batch client\'s API key gets its own limit: 2 requests a tick.',
       back: 'Usage plans throttle per client, by the API key each client sends.', set: c => { c.gate.plan = true; }, on: c => c.gate.plan },
@@ -193,9 +193,9 @@
     ftrace: { at: 'fn', name: 'X-Ray active tracing', obs: true, text: 'The function, and the calls it makes, show on the trace map in their real colours.',
       back: 'Lambda sends traces to X-Ray only with Active tracing on.', set: c => { c.fn.trace = true; }, on: c => c.fn.trace },
     // Dutch: the Store
-    kstatus: { at: 'store', dial: 'key', name: 'Partition key: status', text: 'Orders are keyed by status. Almost all of them are PENDING.', back: 'A low-cardinality key puts most writes on one partition.', set: c => { c.store.key = 'status'; }, on: c => c.store.key === 'status' },
-    korder: { at: 'store', dial: 'key', name: 'Partition key: orderId', text: 'Orders are keyed by their own id.', back: 'A high-cardinality key spreads writes across partitions.', set: c => { c.store.key = 'orderId'; }, on: c => c.store.key === 'orderId' },
-    kshard: { at: 'store', dial: 'key', name: 'Partition key: status#suffix', text: 'Keep status, and add a calculated suffix from 1 to 9.', back: 'Write sharding: a random or calculated suffix spreads one hot value.', set: c => { c.store.key = 'shard'; }, on: c => c.store.key === 'shard' },
+    kstatus: { at: 'store', dial: 'key', name: 'Keep orders keyed by status', text: 'Orders are keyed by status. Almost all of them are PENDING.', back: 'A low-cardinality key puts most writes on one partition. A table\'s key schema is set when it\'s created and can\'t be changed.', set: c => { c.store.key = 'status'; }, on: c => c.store.key === 'status' },
+    korder: { at: 'store', dial: 'key', name: 'New table orders-v2, keyed by orderId', text: 'A key can\'t change in place, so create orders-v2 keyed by each order\'s own id and send the writes there.', back: 'A high-cardinality key spreads writes across partitions. To change a table\'s partition key you create a new table (KeySchema: orderId HASH) and move the data.', set: c => { c.store.key = 'orderId'; }, on: c => c.store.key === 'orderId' },
+    kshard: { at: 'store', dial: 'key', name: 'New table orders-v2, keyed by status#suffix', text: 'Create orders-v2 keyed by status plus a calculated suffix from 1 to 9, and send the writes there.', back: 'Write sharding: a random or calculated suffix spreads one hot value. The key is set when the table is created, so this is a new table too.', set: c => { c.store.key = 'shard'; }, on: c => c.store.key === 'shard' },
     wcu: { at: 'store', name: 'Double the table\'s WCU', text: 'Provision twice the write capacity for the table.',
       back: 'Each partition still serves at most 1,000 WCU a second.', set: c => { c.store.wcu = 2 * c.store.wcu0; }, on: c => c.store.wcu > c.store.wcu0 },
     kprole: { at: 'store', name: 'Key policy: allow the function\'s role', text: 'Add the function\'s role to the key policy, for kms:Decrypt and kms:GenerateDataKey.',
@@ -905,7 +905,7 @@
     if (m.refetched) L.push(['kai', `${n(m.refetched, 'login')} failed once, then worked after reading the secret again.`]);
     if (m.perCall) L.push(['kai', `GetSecretValue ran ${m.secretCalls} times: once for every order.`]);
     if (m.iamDenied) L.push(['kai', `AccessDeniedException on ${n(m.iamDenied, 'write')}: orders-fn-role is not authorized to perform dynamodb:PutItem on table/orders, because no identity-based policy allows it.`]);
-    if (m.denied) L.push(['kai', `AccessDeniedException on ${n(m.denied, 'write')}: not authorized to perform kms:GenerateDataKey.`]);
+    if (m.denied) L.push(['kai', `AccessDeniedException on ${n(m.denied, 'write')}: not authorized to perform kms:Decrypt.`]);
     if (m.v2Fail) L.push(['kai', (m.v2Fail === 1 ? '1 invocation failed, on version 2 (ExecutedVersion).' : `${m.v2Fail} invocations failed, every one on version 2 (ExecutedVersion).`) + ' Version 1 had none.']);
     if (m.hookFailed) L.push(['kai', 'The PreTraffic hook\'s test order failed on version 2, so CodeDeploy rolled back before live moved at all.']);
     else if (m.stopped) L.push(['kai', 'The Errors alarm went off mid-deployment, and CodeDeploy rolled live back to version 1.']);
@@ -935,7 +935,7 @@
     }
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
-    if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
+    if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: Decrypt (invoked by dynamodb.amazonaws.com) denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
     if (d.gcache) L.push(['dutch', 'Table\'s fine. Every order is filed under the right customer.']);
     if (m.stale) L.push(['dutch', 'Every one of those orders is in the table. Read it again a second later and it\'s there.']);
     else if (cfg.store.consistent && m.rcu) L.push(['dutch', `Strongly consistent reads: ${m.rcu} read units, twice what eventually consistent costs. DAX passed them all through.`]);
@@ -1002,7 +1002,7 @@
   // Lines a rule's first appearance carries (once per save, L9).
   D.TEACH = {
     '429': ['seoyeon', 'The Gate\'s bucket only refills so fast. A 429 means it was empty.'],
-    vis: ['mira', 'AWS says a queue in front of a function wants a visibility timeout of at least six times the function\'s timeout.'],
+    vis: ['mira', 'A message hides for the visibility timeout. Shorter than the work, and it comes back while it\'s still being worked. AWS recommends at least six times the function\'s timeout, so retries fit too.'],
     hot: ['dutch', 'The table has room. One partition doesn\'t. Each one only takes so many writes a second.'],
     kms: ['dutch', 'A KMS key listens to its key policy first. If that doesn\'t let IAM decide, no IAM policy helps.'],
     cold: ['kai', 'New environment, new start-up. Reserved concurrency saves a place. It doesn\'t warm it.'],
