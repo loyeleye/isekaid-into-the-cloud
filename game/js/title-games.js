@@ -52,6 +52,8 @@
   };
   const still = () => reduced() || !!(navigator.connection && navigator.connection.saveData);
   const CONTINUE = '#ds-go, #t-go, #dbg-go, [id^="t-c"][id$="go"]';
+  // New game: the title's own, or a standalone chapter's (#t-c2new ... #t-c7new, #t-c2xnew; js/c2-world.js and on).
+  const NEW = '#ds-new, #t-new, #t-new2, [id^="t-c"][id$="new"]';
   let hidden = null;
 
   const mins = m => (SD.modes && SD.modes.mins ? SD.modes.mins(m) : '');
@@ -107,7 +109,7 @@
   function build() {
     const box = $('#title-actions');
     if (!box || box.querySelector('#t-start') || box.querySelector('.tg-track')) return;
-    const go = box.querySelector(CONTINUE), neu = box.querySelector('#ds-new, #t-new, #t-new2'), mp = box.querySelector('#t-mp');
+    const go = box.querySelector(CONTINUE), neu = box.querySelector(NEW), mp = box.querySelector('#t-mp');
     const help = box.querySelector('#t-help'), old = box.querySelector('#t-modes');
     if (old) old.remove();
     const list = document.createElement('ul');
@@ -211,7 +213,7 @@
     b.hidden = false;
   }
 
-  TG.newGame = () => (hidden && hidden.isConnected && hidden.querySelector('#ds-new, #t-new, #t-new2')) || null;
+  TG.newGame = () => (hidden && hidden.isConnected && hidden.querySelector(NEW)) || null;
   TG.help = () => (hidden && hidden.isConnected && hidden.querySelector('#t-help')) || $('#title-actions #t-help');
   TG.build = build;
 

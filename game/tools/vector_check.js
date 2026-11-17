@@ -1,7 +1,7 @@
 // Headless playthrough of the vector proof of concept (index.html?vector): the opening ("the files") and choosing a
 // file, then chapter 1 as tools/ch1_check.js plays it, then the chapter 2 slice to its "to be continued" card.
 // Fails on any page error or console error, and on any request for a painted or generated image (.webp, .png,
-// .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening) and the cutscene stills (assets/img/cut).
+// .jpg, .gif): every picture in this build is drawn in code, except the opening's painted stills (assets/img/opening), the cutscene stills (assets/img/cut) and the title carousel's card stills (assets/video/cards).
 // Chapter 2 starts from chapter 1's #c1-next with its act 1 world marked done (tools/c2_check.js walks the world), so
 // this plays the stair, Expedition I on the raid engine, and the camp.
 // Run from game/:  node tools/vector_check.js [mira|kai|seoyeon|dutch] [--win]   SHOTS=dir saves screenshots.
@@ -29,7 +29,8 @@ const server = http.createServer((req, res) => {
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  // The title carousel's card stills (assets/video/cards/, js/title-games.js) are photos the vector build shows on purpose.
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png|\/assets\/video\/cards\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   // Chapter 1 plays as tools/ch1_check.js plays it (tools/ch1_step.js); SD_TEST opens the mines' test hook.
   await page.addInitScript(`window.SD_TEST = 1; window.__ch1step = ${ch1Step.toString()};`);
@@ -43,7 +44,7 @@ const server = http.createServer((req, res) => {
   const seen = new Set(), last = [], shotsTaken = new Set();
   let steps = 0;
   for (; steps < 30000; steps++) {
-    const what = await page.evaluate(([WIN, LEAD]) => {
+    const what = await page.evaluate(([WIN, LEAD, SHOTS]) => {
       const vis = el => el && !el.hidden && el.offsetParent !== null;
       const $ = s => document.querySelector(s);
       const click = el => { el.click(); return true; };
@@ -63,7 +64,9 @@ const server = http.createServer((req, res) => {
         const btn = [...vn.querySelectorAll('.vn-act button')].find(x => !x.disabled);
         if (btn) { const k = 'act-' + vn.querySelector('.vn-panel').className.split(' ')[1]; if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:prologue-' + k; } return click(btn) && 'vn-act'; }
         const box = vn.querySelector('.vn-box');
-        if (box.hidden || !vn.classList.contains('vn-ready')) return 'vn-wait';
+        if (box.hidden) return 'vn-wait';
+        // A line still typing: left to finish for its screenshot, else tapped to show it whole (as a player can).
+        if (!vn.classList.contains('vn-ready')) { if (SHOTS) return 'vn-wait'; box.click(); return 'vn-type'; }
         const k = (vn.classList.contains('vn-incg') ? vn.dataset.cg : vn.dataset.bg) + '-' + box.dataset.who;
         if (!window.__vnShots[k]) { window.__vnShots[k] = 1; return 'scene:vn-' + k; }
         box.click(); return 'vn-line';
@@ -115,7 +118,8 @@ const server = http.createServer((req, res) => {
       const rd = vis($('#run')) && $('#run').querySelector('.rd'), RT = (SD.test || {}).raid;
       if (rd && RT && RT.G()) {
         const G = RT.G();
-        if (!window.__paced) { window.__paced = 1; RT.pace(0.05); }
+        // Each raid has its own pace, and chapter 1's mines (tools/ch1_step.js) already marked theirs: pace this one too.
+        if (window.__paced !== RT) { window.__paced = RT; RT.pace(0.05); }
         const bk = rd.querySelector('#rd-back'); if (bk) return click(bk) && 'raid:back';
         const me = G.players[RT.me()]; if (me && !me.bot) me.bot = true;
         if (G.ph === 'fight' && G.tier === 'boss' && G.main && !(window.__boss = window.__boss || {})[G.main]) { window.__boss[G.main] = 1; return 'boss:' + G.main; }
@@ -159,7 +163,7 @@ const server = http.createServer((req, res) => {
         return 'world-wait';
       }
       return 'wait';
-    }, [WIN, LEAD]);
+    }, [WIN, LEAD, !!SHOTS]);
     last.push(what); if (last.length > 16) last.shift();
     if (process.env.V && steps % 100 === 0) console.log(steps, last.slice(-5).join(' '));
     seen.add(what.replace(/^(node|dialog|play|scene):.*/, '$1'));
@@ -168,8 +172,8 @@ const server = http.createServer((req, res) => {
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
     const key = { 'lead-wait': 'lead-select', 'boss:postmistress': 'c2-postmistress', 'boss:belfry': 'c2-belfry', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
       || (/^scene:/.test(what) && what.replace(':', '-'));
-    if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
-    if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
+    if (key && !shotsTaken.has(key)) { shotsTaken.add(key); if (SHOTS) { await page.waitForTimeout(1500); await shot(key); } }
+    if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); if (SHOTS) { await page.waitForTimeout(600); await shot(what.replace(':', '-')); } }
     if (what === 'done') { await page.waitForTimeout(600); await shot('end'); await page.evaluate(() => { window.__c2 = 1; SD.state.save.c2 = { f: { act1: true, cold: true }, dev: {}, bonus: {} }; document.querySelector('#c1-next').click(); }); continue; }
     if (what === 'end2') { await page.waitForTimeout(800); await shot('c2-to-be-continued'); break; }
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
