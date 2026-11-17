@@ -307,8 +307,10 @@
     clearTimeout(bolt);
     const strike = () => {
       if ($('#screen-title').hidden) return;
+      // A game opened from the title covers it (js/mode-stage.js): no lightning or thunder under its music until it closes.
+      if (document.body.classList.contains('in-mode')) { bolt = setTimeout(strike, 4000); return; }
       const b = $('.t-bolt'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
-      if (started) setTimeout(() => AU.sfx('thunder'), 300 + Math.random() * 700);
+      if (started) setTimeout(() => { if (!document.body.classList.contains('in-mode')) AU.sfx('thunder'); }, 300 + Math.random() * 700);
       bolt = setTimeout(strike, 9000 + Math.random() * 12000);
     };
     bolt = setTimeout(strike, 2500 + Math.random() * 3000);
