@@ -755,11 +755,89 @@
       const v = win.querySelector(':scope > .win-b > .verdict-row > .verdict');
       const now = v ? (v.classList.contains('ok') ? 'ok' : 'bad') : 'q';
       if (now !== beat) { beat = now; RS.pose(el, now === 'ok' ? 'stamp' : now === 'bad' ? 'disapprove' : 'inspect', now === 'ok' ? 'happy' : now === 'bad' ? 'worried' : 'neutral'); }
+      if (now === 'q') skin(win);
     };
     const obs = new MutationObserver(put);
     obs.observe(p, { childList: true, subtree: true });
     put();
     return () => { live = false; obs.disconnect(); box.remove(); };
+  }
+  // Hands-on permit (Ladi, Nov 17: fewer multiple-choice screens). The quiz underneath is unchanged and still
+  // judges and records the answer; this only changes how you give it. The options are plans laid on Seymour's desk:
+  // drag his stamp onto the one that answers him (or tap it), and an APPROVED mark lands on it. Then you set his
+  // confidence gauge: the needle swings to Guess, Think so or Sure, and that commits the answer. Idempotent: the quiz
+  // redraws its window on every tap, so this runs again after each one.
+  function skin(win) {
+    const body = win.querySelector(':scope > .win-b');
+    const opts = body && body.querySelector(':scope > .opts');
+    if (!opts || opts.dataset.rnSk) return;
+    opts.dataset.rnSk = '1';
+    opts.classList.add('rn-sheets');
+    const multi = !!opts.querySelector('[data-m]'), order = !!opts.querySelector('[data-ord]');
+    opts.querySelectorAll('.opt').forEach((o, i) => { o.style.setProperty('--tilt', ((i * 37) % 5 - 2) * 0.45 + 'deg'); });
+    if (!order) {
+      const pad = document.createElement('div');
+      pad.className = 'rn-stampbar';
+      pad.innerHTML = `<span class="rn-stamp" role="img" aria-label="Seymour's stamp">APPROVED</span><span>${multi ? 'Stamp every plan that answers him. Drag the stamp, or tap a plan.' : 'Stamp the plan that answers him. Drag the stamp, or tap a plan.'}</span>`;
+      opts.before(pad);
+      const st = pad.querySelector('.rn-stamp');
+      st.onpointerdown = e => {
+        e.preventDefault();
+        const ghost = st.cloneNode(true);
+        ghost.classList.add('rn-ghost');
+        document.body.appendChild(ghost);
+        const at = ev => { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; };
+        at(e);
+        // Near the top or bottom edge, the column scrolls under the stamp, so a plan below the fold can be reached.
+        const sc = (() => { for (let e = opts.parentElement; e; e = e.parentElement) { const c = getComputedStyle(e).overflowY; if ((c === 'auto' || c === 'scroll') && e.scrollHeight > e.clientHeight) return e; } return document.scrollingElement; })();
+        let y = e.clientY, raf = 0;
+        const edge = () => { const d = y > innerHeight - 70 ? 14 : y < 150 ? -14 : 0; if (d) sc.scrollTop += d; raf = requestAnimationFrame(edge); };
+        raf = requestAnimationFrame(edge);
+        const move = ev => { y = ev.clientY; at(ev); };
+        const up = ev => {
+          cancelAnimationFrame(raf);
+          window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+          ghost.remove();
+          const hit = ev.type === 'pointerup' && document.elementFromPoint(ev.clientX, ev.clientY);
+          const o = hit && hit.closest && hit.closest('.rn-sheets .opt');
+          if (o && !o.disabled) o.click();
+        };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+      };
+    }
+    // A stamp lands with a thunk (the quiz's redraw makes the new .on sheet; mark it as freshly stamped).
+    const qk = (body.querySelector('.q-q') || {}).textContent || '', now = new Set();
+    if (skin.q !== qk) { skin.q = qk; skin.on = new Set(); }
+    let fresh = false;
+    opts.querySelectorAll('.opt.on').forEach(o => { const k = o.dataset.o || o.dataset.m; now.add(k); if (!skin.on.has(k)) { o.classList.add('rn-fresh'); fresh = true; } });
+    skin.on = now;
+    if (fresh && SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
+    const conf = body.querySelector(':scope > .conf'), cb = conf && conf.querySelector('.conf-b');
+    if (!cb || cb.dataset.rnSk) return;
+    cb.dataset.rnSk = '1';
+    conf.classList.add('rn-gauge');
+    const lab = conf.querySelector(':scope > span');
+    if (lab) lab.textContent = 'How sure are you? Set his gauge to sign it.';
+    const dial = document.createElement('div');
+    dial.className = 'rn-dial';
+    dial.setAttribute('aria-hidden', 'true');
+    dial.innerHTML = `<svg viewBox="0 0 200 112"><path d="M14 100 A86 86 0 0 1 57 25.5" class="z0"/><path d="M57 25.5 A86 86 0 0 1 143 25.5" class="z1"/><path d="M143 25.5 A86 86 0 0 1 186 100" class="z2"/>
+      <g class="rn-needle"><line x1="100" y1="100" x2="100" y2="26"/><circle cx="100" cy="100" r="9"/></g></svg>`;
+    cb.before(dial);
+    const needle = dial.querySelector('.rn-needle');
+    const aim = c => needle.style.transform = `rotate(${[-60, 0, 60][c]}deg)`;
+    cb.addEventListener('pointerover', e => { const b = e.target.closest('[data-c]'); if (b && !b.disabled) aim(+b.dataset.c); });
+    cb.addEventListener('focusin', e => { const b = e.target.closest('[data-c]'); if (b) aim(+b.dataset.c); });
+    // The needle swings first, then the quiz's own button commits the answer.
+    cb.addEventListener('click', e => {
+      const b = e.target.closest('[data-c]');
+      if (!b || b.disabled || b.dataset.go) return;
+      e.stopPropagation(); e.preventDefault();
+      aim(+b.dataset.c); cb.classList.add('set'); b.classList.add('rn-pick');
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setTimeout(() => { b.dataset.go = '1'; b.click(); }, reduce ? 0 : 520);
+    }, true);
   }
   // The permit question's window over the office: no frame, the scene fills the stage under the top bar, and the
   // question, options and feedback are blueprint boxes floating in a column between Kai and Seymour (on a phone, under
@@ -782,6 +860,38 @@
       ${WIN} .win-b > :is(.q-ctx, .verdict-row) { align-self: flex-start; max-width: 100%; }
       ${WIN} .win-b > .q-ctx { background: rgba(23, 33, 58, .9); padding: 4px 10px; }
       ${WIN} .q-recap .qr-peek { color: #b9cce4; }
+      /* Hands-on permit: plans on the desk, Seymour's stamp, his gauge. */
+      ${WIN} .win-b > .rn-stampbar { position: sticky; top: 6px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; display: flex; align-items: center; gap: 10px; background: rgba(23, 33, 58, .92); }
+      ${WIN} .win-b > .rn-stampbar > span:last-child { color: #e9f1ff; font-size: .92rem; }
+      .rn-stamp { flex: none; display: inline-grid; place-items: center; padding: 6px 10px; border: 3px double #c8323a; border-radius: 8px; color: #c8323a;
+        background: #f6ead0; font: 800 .8rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-6deg); cursor: grab; touch-action: none; user-select: none;
+        box-shadow: 0 3px 0 #7a5b2c, 0 6px 14px rgba(0,0,0,.35); }
+      .rn-stamp.rn-ghost { position: fixed; z-index: 1000; pointer-events: none; transform: translate(-50%, -60%) rotate(-12deg) scale(1.15); cursor: grabbing; opacity: .92; }
+      ${WIN} .win-b > .opts.rn-sheets { background: none; box-shadow: none; padding: 4px 2px; gap: 12px; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt) { position: relative; background: #f3ead2 linear-gradient(transparent 23px, rgba(70,110,170,.18) 24px) 0 0 / 100% 24px; color: #2b2340;
+        border: 1px solid #b89c62; border-radius: 4px; box-shadow: 0 6px 14px rgba(0,0,0,.4); transform: rotate(var(--tilt, 0deg)); padding: 14px 14px 12px 18px; font-size: .95rem; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt)::before { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #c8323a; box-shadow: 0 2px 2px rgba(0,0,0,.5); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt):hover:not(:disabled) { background-color: #fbf4df; transform: rotate(0deg) translateY(-2px); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on { background-color: #fff7e2; border-color: #c8323a; box-shadow: 0 0 0 2px rgba(200,50,58,.35), 0 6px 14px rgba(0,0,0,.4); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on::after { content: 'APPROVED'; position: absolute; right: 8px; bottom: 6px; padding: 3px 8px; border: 3px double rgba(200,50,58,.85); border-radius: 6px;
+        color: #c8323a; background: rgba(255,248,232,.7); font: 800 .78rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-9deg); pointer-events: none; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: rn-thunk .28s cubic-bezier(.3,1.6,.5,1) both; }
+      @keyframes rn-thunk { from { transform: rotate(-9deg) scale(2.2); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: 1; } }
+      ${WIN} .win-b > .conf.rn-gauge { border: 0; text-align: center; background: rgba(23, 33, 58, .94); }
+      .rn-gauge > span { color: #e9f1ff; }
+      .rn-dial { width: min(240px, 70%); margin: 6px auto 0; }
+      .rn-dial svg { display: block; width: 100%; overflow: visible; }
+      .rn-dial path { fill: none; stroke-width: 16; }
+      .rn-dial .z0 { stroke: #6f8fb8; } .rn-dial .z1 { stroke: #d9a93a; } .rn-dial .z2 { stroke: #c8323a; }
+      .rn-needle { transform-origin: 100px 100px; transform: rotate(-90deg); transition: transform .5s cubic-bezier(.4,1.7,.5,1); }
+      .rn-needle line { stroke: #f6ead0; stroke-width: 4; stroke-linecap: round; } .rn-needle circle { fill: #b89c62; stroke: #2b2340; stroke-width: 2; }
+      ${WIN} .rn-gauge .conf-b { justify-content: center; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt) { flex: 1 1 0; max-width: 140px; background: #e8d9b0; border: 2px solid #7a5b2c; color: #2b2340; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):hover:not(:disabled) { background: #f3e6c2; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):disabled { opacity: .55; }
+      ${WIN} .rn-gauge .stake .up { color: #1f6b33; } ${WIN} .rn-gauge .stake .dn { color: #9b1f26; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt).rn-pick { background: #f6ead0; box-shadow: 0 0 0 3px #d9a93a; }
+      @media (prefers-reduced-motion: reduce) { .rn-needle { transition: none; } ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: none; } }
       /* A phone: Kai and Seymour stand in the band above the boxes, so the verdict's stamp or wave-off stays in view. */
       @media (max-width: 899px) {
         .rn-pq .rs-fg { bottom: auto; height: calc(max(150px, 52vh - 120px) + 74px); }
