@@ -2,7 +2,7 @@
 // Architect's Draft as a real game. Pure rules on js/aws-deploy.js, no DOM: the jobs (a client, a street or a function
 // or a stack, and the slate of constraints chalked on the gate), the plans and their knobs, Seymour's double inspection
 // (a sound release and a cracked one), par, and the nights. Loads in the browser (SD.reno) and in Node (require).
-//   R.newNight({ night, seed, misses })     a night: five jobs, the last one the Grand Opening
+//   R.newNight({ night, seed, misses, lastGrand })     a night: five jobs, the last one the Grand Opening
 //   R.job(tpl, seed)                        one job, its numbers shifted by the seed
 //   R.inspect(job, plan)                    { refused, good, bad, lines: [{ id, text, ok }], pass }
 //   R.plans(job)                            every plan the job's hand allows (par searches these)
@@ -77,7 +77,7 @@
       scroll: 'Old building, old gate. A Classic one, they tell me. Full house every night. If it cracks I want one sooty clerk at most, and everyone back where they were next tick.',
       street: r => { const n = N456(r); return { houses: n, demand: n, gate: 'clb' }; },
       slate: () => [['noTurn'], ['soot', 1], ['back', 1], ['sundown', 8]] },
-    quickSafe: { d: 'eb', client: 'seoyeon', title: 'The new gate', grand: true,
+    quickSafe: { d: 'eb', client: 'seoyeon', title: 'Grand Opening: the new gate', grand: true,
       scroll: 'A few real visitors try the new gate first, and if it cracks they are the only ones. It must be finished by tick six. My gate is the modern kind.',
       street: r => { const n = N456(r); return { houses: n, demand: n, gate: 'alb' }; },
       slate: () => [['noTurn'], ['soot', 1], ['back', 1], ['sundown', 6]] },
@@ -126,7 +126,7 @@
     3: ['ledger', 'classic', 'lateCheck', 'well', 'sweep']
   };
   R.districtsOpen = night => Object.keys(R.DISTRICTS).filter(d => R.DISTRICTS[d].night <= night);
-  R.nightPlan = function (night, rnd, misses) {
+  R.nightPlan = function (night, rnd, misses, lastGrand) {
     if (R.NIGHTS[night]) return R.NIGHTS[night].slice();
     const ids = Object.keys(R.T), grand = ids.filter(id => R.T[id].grand), rest = ids.filter(id => !R.T[id].grand && R.T[id].client && id !== 'firstBell');
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -135,8 +135,21 @@
     // Mix districts (P9): no more than two from one district before the Grand Opening.
     const out = [], per = {};
     pool.forEach(id => { const d = R.T[id].d; if (out.length < R.JOBS - 1 && (per[d] | 0) < 2) { out.push(id); per[d] = (per[d] | 0) + 1; } });
+    // And every district at least once (playtest, Nov 17: with only two Blueprint Office jobs in the pool, nights 4
+    // to 7 drew none): a missing district swaps in for the last fresh job of the busiest one. Misses keep their seats.
+    R.districtsOpen(night).forEach(d => {
+      if (per[d]) return;
+      const add = pool.find(id => R.T[id].d === d && !out.includes(id));
+      let at = -1;
+      out.forEach((id, i) => { if (!back.includes(id) && (at < 0 || per[R.T[id].d] >= per[R.T[out[at]].d])) at = i; });
+      if (!add || at < 0) return;
+      per[R.T[out[at]].d]--; out.splice(at, 1); out.push(add); per[d] = 1;
+    });
     const gm = (misses || []).find(id => R.T[id] && R.T[id].grand);
-    out.push(gm || shuffle(grand)[0]);
+    // A fresh Grand Opening goes round all four in turn (playtest, Nov 17: a shuffle per night gave the new gate on
+    // nights 4 and 6, and with a miss in between, three nights running), never the one that just opened.
+    const turn = grand.slice(night % grand.length).concat(grand.slice(0, night % grand.length)).filter(id => id !== lastGrand);
+    out.push(gm || turn[0]);
     return out;
   };
 
@@ -215,7 +228,7 @@
     o = o || {};
     const night = Math.max(1, o.night | 0 || 1), seed = (o.seed >>> 0) || (night * 7919 + 13);
     const rnd = R.rng(seed);
-    const ids = R.nightPlan(night, rnd, o.misses);
+    const ids = R.nightPlan(night, rnd, o.misses, o.lastGrand);
     return { v: 1, night, seed, phase: 'board', at: 0, jobs: ids.map((id, i) => ({ id, seed: seed + i * 101, plans: [], done: false, pass: false })), debriefs: [], open: R.districtsOpen(night) };
   };
 

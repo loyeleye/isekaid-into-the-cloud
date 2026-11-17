@@ -555,3 +555,111 @@
   };
   if (typeof module !== 'undefined') module.exports = SD.rushYard;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+// ==== Claim 9: the template card's data (contract: project files real-game/v3/claims/learn/contract.md) ====
+// The sheet is the yard's SAM template.yaml, built by the pieces you place. Data only: js/rush-sheet.js draws it.
+// Checked against the AWS docs on Nov 17, 2026:
+//   SAM function (AutoPublishAlias, ReservedConcurrentExecutions, Events):
+//     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+//   DeploymentPreference (Type, Alarms, Hooks: PreTraffic / PostTraffic; the Type values):
+//     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-deploymentpreference.html
+//     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/automating-updates-to-serverless-apps.html
+//   SQS event source (Queue, BatchSize):
+//     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-sqs.html
+//   Lambda hooks in CodeDeploy (BeforeAllowTraffic / AfterAllowTraffic, PutLifecycleEventHookExecutionStatus):
+//     https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html
+//   Change sets (create, describe, execute, delete; Replacement True / False):
+//     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html
+//     https://docs.aws.amazon.com/cli/latest/reference/cloudformation/create-change-set.html
+//   Stack update rollback (UPDATE_ROLLBACK_COMPLETE, --disable-rollback leaves UPDATE_FAILED):
+//     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stack-failure-options.html
+//   Lambda's ExecutedVersion dimension on Errors: https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html
+//   Beanstalk DeploymentPolicy values: https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.rolling-version-deploy.html
+// Names match the blueprint card's template.yaml preview in js/rush.js (Sorter, WaitingPlatform, PreTrafficTest, ...).
+(function (root) {
+  const SD = root.SD;
+  if (!SD) return;
+  const RL = SD.rushLearn = SD.rushLearn || { files: {}, tools: {}, pops: {} };
+  RL.files = RL.files || {}; RL.tools = RL.tools || {}; RL.pops = RL.pops || {};
+  // The game's three timetables (one game second stands for one real minute).
+  const TYPE = { canary: 'Canary10Percent5Minutes', linear: 'Linear10PercentEvery1Minute', all: 'AllAtOnce' };
+  const ANCHOR = '      AutoPublishAlias: live', DP = '      DeploymentPreference:';
+  // Before anything is placed: the function with its alias (the LIVE points are always there; without the board you
+  // turn the alias weights by hand), the four bays as reserved concurrency, and the platform as its SQS event source,
+  // one waybill per bay at a time.
+  RL.files.sorter = { name: 'template.yaml', lang: 'yaml', base: [
+    'Transform: AWS::Serverless-2016-10-31',
+    'Resources:',
+    '  Sorter:',
+    '    Type: AWS::Serverless::Function',
+    '    Properties:',
+    '      Handler: app.handler',
+    '      Runtime: nodejs20.x',
+    '      ReservedConcurrentExecutions: 4',
+    '      Events:',
+    '        Platform:',
+    '          Type: SQS',
+    '          Properties:',
+    '            Queue: !GetAtt WaitingPlatform.Arn',
+    '            BatchSize: 1',
+    ANCHOR
+  ] };
+  // The departure board: DeploymentPreference and its Type, which follows the board (tap it to change the timetable).
+  // The first time it's placed is in the blueprint, before the board can be turned, so the blank is the canary.
+  RL.tools.board = { claims: ['sorter'], at: ANCHOR, lines: S => [DP, '        Type: ' + (TYPE[S && S.cfg] || TYPE.canary)],
+    blank: 'Canary10Percent5Minutes', choices: ['Canary10Percent5Minutes', 'Linear10PercentEvery1Minute', 'AllAtOnce', 'Canary10Percent30Minutes'],
+    doc: 'https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-deploymentpreference.html' };
+  // The alarm wire: DeploymentPreference.Alarms. Watching LIVE, the alarm is on the alias's errors (every version);
+  // flipped to NEW, on the new version's only (the ExecutedVersion dimension). The wire needs the board first, so its
+  // line goes under the board's DeploymentPreference (key order inside a YAML mapping doesn't matter).
+  RL.tools.wire = { claims: ['sorter'], at: DP, lines: S => ['        Alarms:', '          - !Ref ' + (S && S.watch === 'new' ? 'NewVersionErrors' : 'AliasErrors')],
+    blank: 'Alarms', choices: ['Alarms', 'TriggerConfigurations', 'Hooks', 'Events'],
+    doc: 'https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-deploymentpreference.html' };
+  // The test track: DeploymentPreference.Hooks. SAM's PreTraffic / PostTraffic are CodeDeploy's BeforeAllowTraffic /
+  // AfterAllowTraffic. Switched off for the night, the hooks don't run.
+  RL.tools.tests = { claims: ['sorter'], at: DP,
+    lines: S => S && S.testsOn === false ? ['        # Hooks: switched off tonight'] : ['        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'],
+    blank: 'PreTraffic', choices: ['PreTraffic', 'BeforeAllowTraffic', 'PostTraffic', 'BeforeInstall'],
+    doc: 'https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html' };
+  // The weighbridge office: every crate becomes a change set you review before it executes (or delete: send it back).
+  // It isn't a template line, so it's a note at the end of the sheet.
+  RL.tools.manifest = { claims: ['sorter'], at: 'end',
+    lines: ['# Each crate stops at the office:', '# aws cloudformation', '#   create-change-set ...', '#   describe-change-set ...', '#   execute-change-set ...'],
+    blank: 'create-change-set', choices: ['create-change-set', 'update-stack', 'create-stack', 'validate-template'],
+    doc: 'https://docs.aws.amazon.com/cli/latest/reference/cloudformation/create-change-set.html' };
+  // Pops: claim 9's events (js/rush-yard.js ev()), as 'sorter:<event>'. A function gets the event and the room.
+  const STAGE = { pre: ['PreTraffic', 'BeforeAllowTraffic'], post: ['PostTraffic', 'AfterAllowTraffic'] };
+  const POLICY = { all: 'AllAtOnce', rolling: 'Rolling', additional: 'RollingWithAdditionalBatch', immutable: 'Immutable', split: 'TrafficSplitting' };
+  Object.assign(RL.pops, {
+    'sorter:stack': 'UPDATE_IN_PROGRESS: CloudFormation updates the stack',
+    'sorter:held': 'Change set created: read it, then execute it or delete it',
+    'sorter:execute': 'ExecuteChangeSet: the stack update starts',
+    'sorter:sentBack': 'DeleteChangeSet: nothing in the stack changed',
+    'sorter:replaced': e => `Replacement: True: a new queue, and ${e && e.n || 0} message${e && e.n === 1 ? '' : 's'} deleted with the old one`,
+    'sorter:stackRollback': 'Update failed, UPDATE_ROLLBACK_COMPLETE: the stack is back to its last stable state',
+    'sorter:updateFailed': 'UPDATE_FAILED with rollback disabled: the stack stays half updated',
+    'sorter:publish': e => `AutoPublishAlias: version ${e && e.v} published. It can't change now`,
+    'sorter:hook': e => `${STAGE[e && e.stage === 'post' ? 'post' : 'pre'][0]} hook (${STAGE[e && e.stage === 'post' ? 'post' : 'pre'][1]}) is testing the new version`,
+    'sorter:hookResult': e => { const s = STAGE[e && e.stage === 'post' ? 'post' : 'pre'][0]; return e && e.ok ? `${s} hook: Succeeded` : `${s} hook: Failed, so CodeDeploy rolls back`; },
+    'sorter:testsSkipped': 'No hook ran: traffic shifts to the new version untested',
+    'sorter:shift': e => ({
+      canary: `Canary10Percent5Minutes: 10% of live goes to v${e && e.v}`,
+      linear: `Linear10PercentEvery1Minute: 10% more of live to v${e && e.v} each minute`,
+      all: `AllAtOnce: all of live goes to v${e && e.v} now`,
+      hand: `No DeploymentPreference: you set the alias's AdditionalVersionWeights`
+    })[e && e.cfg] || `Traffic shifting to v${e && e.v}`,
+    'sorter:deployed': e => `Deployment Succeeded: alias live now points to v${e && e.v}`,
+    'sorter:noWindow': 'AllAtOnce: the deployment ended before any alarm could stop it',
+    'sorter:rollback': e => {
+      const why = e && e.why;
+      if (why === 'alarm') return 'Alarm went to ALARM: CodeDeploy stops the deployment and rolls back';
+      if (why === 'hook') return 'Hook reported Failed: CodeDeploy rolls back, live stays on the old version';
+      if (why === 'lever' && e.after) return 'update-alias: live points back at the previous version';
+      if (why === 'lever') return 'StopDeployment: traffic shifts back to the old version';
+      return 'Deployment stopped: live goes back to the old version';
+    },
+    'sorter:yardError': e => `Errors +1 on the alias (ExecutedVersion ${e && e.ver})`,
+    'sorter:depotPolicy': e => `Elastic Beanstalk DeploymentPolicy: ${POLICY[e && e.policy] || 'AllAtOnce'}`
+  });
+})(typeof window !== 'undefined' ? window : globalThis);
+// ==== end claim 9 template card ====

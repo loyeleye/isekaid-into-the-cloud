@@ -442,4 +442,195 @@
   }
   SD.rushOffice = { T, STAMPS, NEEDS, SIGNS, OFFICE_ORDERS, init, step, latch, needs, thiefHarm, copyLive, canEdit, setStamp, stampsView, setSign, shred, rotateKeys, rotate, setInternScope, placed, wide, comboAge, seatFree };
   if (typeof module !== 'undefined') module.exports = SD.rushOffice;
+
+  // ---- The template card (js/rush-sheet.js draws it; contract: project files real-game/v3/claims/learn/contract.md) ----
+  // Claim 7's sheet is one template.yaml: the badge (execution role), the keyring (an IAM user's access key), Mira's
+  // stamps (the policy), the key box (a KMS key), the cabinet and its sign (bucket and bucket policy) and the strongroom
+  // (an RDS database whose master password is the combination). The base has a comment line for each piece; a piece's
+  // lines go in under its comment. Lines that follow the room (stamps, sign, keyring, the combination) are functions of
+  // the state, so the sheet always shows what's set now. Entries marked setting: true aren't bought: they're the room's
+  // own settings, on the sheet from the start. Data only: nothing here changes a rule or a roll.
+  if (typeof SD !== 'undefined') {
+    const LN = SD.rushLearn = SD.rushLearn || { files: {}, tools: {}, pops: {} };
+    LN.files.locked = { name: 'template.yaml', lang: 'yaml', base: [
+      'Resources:',
+      "  # Mira's badge",
+      "  # Mira's keyring",
+      "  # Mira's stamps",
+      '  KeyBox:',
+      '    Type: AWS::KMS::Key',
+      '  Cabinet:',
+      '    Type: AWS::S3::Bucket',
+      '  # the cabinet sign',
+      '  Strongroom:',
+      '    Type: AWS::RDS::DBInstance',
+      '    Properties:',
+      '      Engine: postgres',
+      '      DBInstanceClass: db.t4g.micro',
+      "      AllocatedStorage: '20'",
+      '      MasterUsername: postmaster'
+    ] };
+    const RIVERSIDE = "'222233334444'"; // Riverside's account (an example ID)
+    const L7 = (o) => Object.assign({ claims: ['locked'] }, o);
+
+    // The badge: Lambda's execution role. Lambda assumes it for Mira on every invoke (the trust policy's
+    // sts:AssumeRole), so she holds short-lived credentials, not keys.
+    // https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html
+    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
+    LN.tools.badge = L7({ at: "  # Mira's badge", lines: [
+      '  MiraRole:',
+      '    Type: AWS::IAM::Role',
+      '    Properties:',
+      '      AssumeRolePolicyDocument:',
+      "        Version: '2012-10-17'",
+      '        Statement:',
+      '        - Effect: Allow',
+      '          Principal:',
+      '            Service: lambda.amazonaws.com',
+      '          Action: sts:AssumeRole'
+    ], blank: 'sts:AssumeRole', choices: ['sts:AssumeRole', 'sts:GetSessionToken', 'sts:AssumeRoleWithWebIdentity', 'iam:PassRole'],
+    doc: 'https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html' });
+
+    // The keyring: an IAM user with a long-term access key pasted into Mira's function. Gone once shredded (the key
+    // deleted). https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-accesskey.html
+    LN.tools['locked:keyring'] = L7({ setting: true, at: "  # Mira's keyring", lines: S => (S.keyringLive ? [
+      '  MiraUser:',
+      '    Type: AWS::IAM::User',
+      '  MiraKey:',
+      '    Type: AWS::IAM::AccessKey',
+      '    Properties:',
+      '      UserName: !Ref MiraUser',
+      '      Status: Active'
+    ] : ['  # (access key deleted)']), blank: 'AWS::IAM::AccessKey', choices: ['AWS::IAM::AccessKey', 'AWS::IAM::User', 'AWS::IAM::Role', 'AWS::IAM::InstanceProfile'],
+    doc: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html' });
+
+    // Mira's stamps: the policy's actions, on the role (and on the old user while its key lives, since buying the badge
+    // doesn't delete the keys). seal is kms:Encrypt (plus kms:GenerateDataKey once the pad is in), file s3:PutObject,
+    // read s3:GetObject (and kms:Decrypt to open what was sealed), payroll s3:GetObject on the payroll prefix, empty
+    // s3:DeleteObject, the star "*". The deny order adds an explicit Deny on emptying.
+    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-policy.html
+    // https://docs.aws.amazon.com/service-authorization/latest/reference/list_awskeymanagementservice.html
+    // https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html
+    const stmt = (eff, acts, res) => ['        - Effect: ' + eff, '          Action:'].concat(acts.map(a => '          - ' + a), ['          Resource: ' + res]);
+    LN.tools['locked:stamps'] = L7({ setting: true, at: "  # Mira's stamps", lines: S => {
+      const st = SD.rushOffice.stampsView(S), out = ['  MiraStamps:', '    Type: AWS::IAM::Policy', '    Properties:', '      PolicyName: stamps'];
+      if (S.badge) out.push('      Roles: [!Ref MiraRole]');
+      if (S.keyringLive) out.push('      Users: [!Ref MiraUser]');
+      out.push('      PolicyDocument:', "        Version: '2012-10-17'", '        Statement:');
+      if (st.has('star')) out.push(...stmt('Allow', ["'*'"], "'*'"));
+      else {
+        const kms = [], box = [];
+        if (st.has('seal')) kms.push('kms:Encrypt'), S.pad && kms.push('kms:GenerateDataKey');
+        if (st.has('read')) kms.push('kms:Decrypt');
+        if (st.has('file')) box.push('s3:PutObject');
+        if (st.has('read')) box.push('s3:GetObject');
+        if (kms.length) out.push(...stmt('Allow', kms, '!GetAtt KeyBox.Arn'));
+        if (box.length) out.push(...stmt('Allow', box, '!Sub ${Cabinet.Arn}/parcels/*'));
+        if (st.has('payroll')) out.push(...stmt('Allow', ['s3:GetObject'], '!Sub ${Cabinet.Arn}/payroll/*'));
+        if (st.has('empty')) out.push(...stmt('Allow', ['s3:DeleteObject'], '!Sub ${Cabinet.Arn}/*'));
+        if (!kms.length && !box.length && !st.has('payroll') && !st.has('empty')) out.push('          []');
+      }
+      if (S.deny) out.push(...stmt('Deny', ['s3:DeleteObject'], "'*'"));
+      return out;
+    }, blank: 's3:PutObject', choices: ['s3:PutObject', 's3:GetObject', 's3:DeleteObject', 's3:ListBucket'],
+    doc: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_action.html' });
+
+    // The latch: how a request is judged. Everything is denied unless a policy allows it (implicit deny, grey); an
+    // explicit Deny beats any Allow (red). https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html
+    LN.tools['locked:latch'] = L7({ setting: true, at: 'end', lines: [
+      '# The latch: no Allow means an',
+      '# implicit deny; an explicit Deny',
+      '# beats any Allow.'
+    ], blank: 'Deny', choices: ['Deny', 'Allow', 'NotAction', 'Condition'],
+    doc: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html' });
+
+    // The cabinet's sign: the bucket policy's Principal. Anyone is "*" (anonymous requests too); this office is our own
+    // account (a bare account ID is allowed in Principal); Riverside adds the other account, which also needs its own
+    // badge to allow the call (cross-account takes both sides). The visitors order instead has Riverside sign the book:
+    // a role in our account whose trust policy names Riverside, assumed with sts:AssumeRole.
+    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3-bucketpolicy.html
+    // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html
+    // https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies-cross-account-resource-access.html
+    LN.tools['locked:sign'] = L7({ setting: true, at: '  # the cabinet sign', lines: S => {
+      const out = ['  CabinetSign:', '    Type: AWS::S3::BucketPolicy', '    Properties:', '      Bucket: !Ref Cabinet', '      PolicyDocument:', "        Version: '2012-10-17'", '        Statement:', '        - Effect: Allow'];
+      if (S.sign === 'anyone') out.push("          Principal: '*'", '          Action: s3:GetObject');
+      else if (S.sign === 'riverside') out.push('          Principal:', '            AWS:', '            - !Ref AWS::AccountId', '            - ' + RIVERSIDE + '  # Riverside', '          Action: s3:PutObject');
+      else out.push('          Principal:', '            AWS: !Ref AWS::AccountId', '          Action: s3:PutObject');
+      out.push('          Resource: !Sub ${Cabinet.Arn}/*');
+      if (S.visitors) out.push('  VisitorsBook:', '    Type: AWS::IAM::Role', '    Properties:', '      AssumeRolePolicyDocument:', "        Version: '2012-10-17'", '        Statement:', '        - Effect: Allow', '          Principal:', '            AWS: ' + RIVERSIDE, '          Action: sts:AssumeRole');
+      return out;
+    }, blank: 'Principal', choices: ['Principal', 'NotPrincipal', 'Condition', 'Resource'],
+    doc: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html' });
+
+    // The data-key pad: envelope encryption. GenerateDataKey returns the key in plain text (seal with it, then erase it)
+    // and the same key encrypted under the KMS key (kept with the parcel). Encrypt alone takes at most 4,096 bytes.
+    // https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html
+    LN.tools.pad = L7({ at: '    Type: AWS::KMS::Key', lines: [
+      '    # pad: kms:GenerateDataKey',
+      '    #   KeySpec: AES_256',
+      '    #   -> Plaintext, CiphertextBlob'
+    ], blank: 'kms:GenerateDataKey', choices: ['kms:GenerateDataKey', 'kms:Encrypt', 'kms:GenerateRandom', 'kms:ReEncryptTo'],
+    doc: 'https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html' });
+
+    // The key tin: data key caching in the AWS Encryption SDK (Python names). One data key serves several tickets until
+    // it ages out (max_age) or hits its use limit.
+    // https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/data-key-caching.html
+    // https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/thresholds.html
+    LN.tools.cache = L7({ at: 'end', lines: [
+      '# tin: AWS Encryption SDK cache',
+      '# CachingCryptoMaterialsManager(',
+      '#   max_age=' + T.tinAge + ',',
+      '#   max_messages_encrypted=' + T.tinUses + ')'
+    ], blank: 'max_age', choices: ['max_age', 'max_messages_encrypted', 'max_bytes_encrypted', 'capacity'],
+    doc: 'https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/thresholds.html' });
+
+    // The combination: the database's master password. On the sticky note it's plain text in the template. The
+    // drawer is a Parameter Store SecureString, read with an ssm-secure dynamic reference (CloudFormation can read one
+    // but can't create one). The safe is Secrets Manager: RDS keeps the password there and rotates it on a schedule.
+    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/dynamic-references-ssm-secure-strings.html
+    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ssm-parameter.html
+    // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html
+    LN.tools['locked:secret'] = L7({ setting: true, at: '      MasterUsername: postmaster', lines: S => (S.secret === 'note' ? [
+      '      # sticky note: plain text',
+      '      MasterUserPassword: Postmaster1'
+    ] : []), blank: 'MasterUserPassword', choices: ['MasterUserPassword', 'MasterUsername', 'MasterUserSecret', 'DBName'],
+    doc: 'https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbinstance.html' });
+    LN.tools.param = L7({ at: '      MasterUsername: postmaster', lines: S => (S.secret === 'param' ? [
+      '      # Parameter Store SecureString',
+      '      MasterUserPassword:',
+      "        '{{resolve:ssm-secure:combo}}'"
+    ] : []), blank: 'SecureString', choices: ['SecureString', 'String', 'StringList', 'SecretString'],
+    doc: 'https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html' });
+    LN.tools.safe = L7({ at: '      MasterUsername: postmaster', lines: S => (S.secret === 'safe' ? [
+      '      # Secrets Manager, rotated',
+      '      ManageMasterUserPassword: true'
+    ] : []), blank: 'ManageMasterUserPassword', choices: ['ManageMasterUserPassword', 'MasterUserPassword', 'EnableIAMDatabaseAuthentication', 'StorageEncrypted'],
+    doc: 'https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html' });
+    // The dumbwaiter is a helper (it brings the cellar's checks up): no line.
+
+    // The real term on each event's pop. ('deployed' also means a deploy in claim 9, so it's claim-scoped.)
+    // https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_eventual-consistency
+    // https://docs.aws.amazon.com/kms/latest/developerguide/requests-per-second.html
+    Object.assign(LN.pops, {
+      latch: 'Policy evaluation: no Allow is an implicit deny; an explicit Deny wins',
+      pickpocket: 'Access key copied: a long-term key works for whoever holds it',
+      thief: 'An old access key used: it works until rotated or deleted',
+      copyDead: 'Role credentials expired: the copied session token stops working',
+      thiefDone: 'Leaked credentials: the copy could do whatever the policy allows',
+      forgedDone: 'Least privilege missed: an action the job never needed was allowed',
+      streetIn: 'Principal "*": an anonymous request got into the bucket',
+      tooBig: 'kms:Encrypt takes at most 4 KB: envelope-encrypt with GenerateDataKey',
+      boxThrottle: 'ThrottlingException: over the KMS requests-per-second quota, retry with backoff',
+      tinPicked: 'Cached data key exposed: one data key served several messages',
+      comboLeak: 'Secret exposed: a plain-text or unrotated password was read',
+      comboDone: 'Database breached with the leaked password',
+      rotate: 'Secret rotated: the old password stops working',
+      shredKeys: 'Access key deleted: every copy of it stops working',
+      rotateKeys: 'New access key created: the old one works until it is deactivated',
+      keysRotated: 'Old access key deactivated: its copies stop working',
+      'locked:deployed': 'Policy updated: IAM changes take a moment to reach every request',
+      book: 'sts:AssumeRole: Riverside works as our role until its session ends',
+      badgeOn: 'Execution role: Lambda gives Mira temporary credentials on each invoke'
+    });
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

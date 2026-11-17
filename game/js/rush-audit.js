@@ -678,3 +678,151 @@
     faultPlan, rng, clock, hourOf, logView, search, traceMap, query, reviewReady, reviewAnswer, mailAnswer, checkIntern, setDown, live, breach };
   if (typeof module !== 'undefined') module.exports = SD.rushAudit;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+// ---- The template card (js/rush-sheet.js draws it; contract: claims/learn/contract.md) ----
+// Claim 8's sheet is one template.yaml (SAM). The parts that live in Mira's code (the pins, the EMF stamp, the tally,
+// the 1s dial) and the lens's query go under it as # comment blocks, so it stays valid YAML and one sheet on a phone.
+// Data only: nothing here is read by the rules above, so the sim's rolls don't change.
+(function (root) {
+  const SD = root.SD; if (!SD || !SD.rushAudit) return;
+  const L = SD.rushLearn = SD.rushLearn || { files: {}, tools: {}, pops: {} };
+  L.files = L.files || {}; L.tools = L.tools || {}; L.pops = L.pops || {};
+  const A = SD.rushAudit, T = A.T, a = S => (S && S.audit) || null;
+  const CODE = '# index.js, in Mira\'s code:';
+
+  // Mira's function behind the Counter (an API event), with her 6 s timeout, and the bell (an SNS topic, the porter
+  // subscribed). https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+  L.files.audit = { name: 'template.yaml', lang: 'yaml', base: [
+    'Globals:', '  Function:', '    Timeout: 6',
+    'Resources:', '  MiraFunction:', '    Type:', '      AWS::Serverless::Function', '    Properties:', '      Handler: index.handler',
+    '      Events:', '        Counter:', '          Type: Api', '          Properties:', '            Path: /{route}', '            Method: post',
+    '  PorterBell:', '    Type: AWS::SNS::Topic',
+    CODE] };
+
+  // The tracer: active tracing on the function, and on the API (the root, which makes the sampling decision).
+  // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-tracing
+  // https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-api.html#sam-api-tracingenabled
+  L.tools.tracer = { claims: ['audit'], at: '    Timeout: 6',
+    lines: ['    Tracing: Active', '  Api:', '    TracingEnabled: true'],
+    blank: 'Tracing: Active', choices: ['Tracing: Active', 'Tracing: PassThrough', 'Tracing: Enabled'],
+    doc: 'https://docs.aws.amazon.com/lambda/latest/dg/services-xray.html' };
+
+  // The rule card: an X-Ray sampling rule. Reservoir 0, then FixedRate 1 = every matching request. Every property
+  // below is required (RuleName, or RuleARN). https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-xray-samplingrule-samplingrule.html
+  L.tools.rule = { claims: ['audit'], at: '    Type: AWS::SNS::Topic',
+    lines: S => { const all = (a(S) && a(S).rule) === 'all';
+      return [all ? '  AllRule:' : '  RefundRule:', '    Type: AWS::XRay::SamplingRule', '    Properties:', '      SamplingRule:',
+        all ? '        RuleName: everything' : '        RuleName: refunds', '        Priority: 10',
+        '        ReservoirSize: 0', '        FixedRate: 1', all ? '        URLPath: "*"' : '        URLPath: /refund',
+        '        HTTPMethod: "*"', '        Host: "*"', '        ServiceName: "*"', '        ServiceType: "*"',
+        '        ResourceARN: "*"', '        Version: 1']; },
+    blank: 'FixedRate', choices: ['FixedRate', 'ReservoirSize', 'Priority', 'SamplingRate'],
+    doc: 'https://docs.aws.amazon.com/xray/latest/devguide/xray-console-sampling.html' };
+
+  // The klaxons: metric alarms, M of N, missing data, the action (the bell). Built-in gauges are standard
+  // resolution (Period 60); an alarm on a 1s-dial metric uses a 10 s period. Under the composite Night Order the
+  // klaxons have no action and one composite alarm rings instead. Dimensions are left off the sheet to fit.
+  // https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudwatch-alarm.html
+  // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html
+  // https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudwatch-compositealarm.html
+  const NS = { counter: 'AWS/ApiGateway', desk: 'AWS/Lambda', drawer: 'AWS/DynamoDB' };
+  const MS = { counter: T.thr.counter, desk: T.thr.desk, drawer: T.thr.drawer, DrawerMs: T.thr.drawerMs, EngineMs: T.thr.engineMs };
+  function alarmLines(S) {
+    const s = a(S); if (!s || !s.alarms.length) return [];
+    const comp = S.orders && S.orders.has && S.orders.has('composite'), out = [];
+    for (const al of s.alarms) {
+      const g = s.gauges.find(x => x.id === al.gauge); if (!g) continue;
+      const m = g.metrics.find(x => x.key === al.metric) || g.metrics[0];
+      let ns, name = m.key, stat = 'Average', thr, op = 'GreaterThanThreshold';
+      if (g.src === 'builtin') ns = NS[g.station];
+      else if (g.src === 'stamp') { ns = 'Mira'; name = m.key === 'DrawerMs' ? 'drawerMs' : 'engineMs'; }
+      else ns = 'Tally/' + A.NAME[g.station];
+      if (m.kind === 'time') thr = Math.round((g.src === 'stamp' ? MS[m.key] : MS[g.station]) * 1000);
+      else if (m.kind === 'beat') { stat = 'SampleCount'; thr = 1; op = 'LessThanThreshold'; }
+      // DynamoDB publishes SystemErrors as a count (Sum or SampleCount only), so its real alarm is Sum > 0.
+      // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/metrics-dimensions.html
+      else if (m.key === 'SystemErrors') { stat = 'Sum'; thr = 0; }
+      // 5XXError's Average is the error rate; Lambda's Errors is a 0-or-1 per invocation, and so is the tally's Failed.
+      else thr = T.rateThr;
+      out.push('  Klaxon' + al.id + ':', '    Type: AWS::CloudWatch::Alarm', '    Properties:',
+        '      Namespace: ' + ns, '      MetricName:', '        ' + name, '      Statistic: ' + stat,
+        '      Period: ' + (g.hires ? 10 : 60), '      EvaluationPeriods: ' + al.n, '      DatapointsToAlarm: ' + al.m,
+        '      Threshold: ' + thr, '      ComparisonOperator:', '        ' + op, '      TreatMissingData: ' + al.missing);
+      if (al.act && !comp) out.push('      AlarmActions:', '        - !Ref PorterBell');
+    }
+    if (comp) {
+      const ids = s.alarms.map(al => 'ALARM(${Klaxon' + al.id + '})'), J = s.bell.op === 'and' ? ' AND' : ' OR';
+      out.push('  Bell:', '    Type:', '      AWS::CloudWatch::CompositeAlarm', '    Properties:', '      AlarmRule: !Sub >-',
+        ...ids.map((x, i) => '        ' + x + (i < ids.length - 1 ? J : '')), '      AlarmActions:', '        - !Ref PorterBell');
+    }
+    return out;
+  }
+  L.tools.alarm = { claims: ['audit'], at: '    Type: AWS::SNS::Topic', lines: alarmLines,
+    blank: 'DatapointsToAlarm', choices: ['DatapointsToAlarm', 'EvaluationPeriods', 'Period', 'TreatMissingData'],
+    doc: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-evaluation.html' };
+
+  // Pins: an annotation (indexed, so a filter expression can find it). Lambda's own segment can't be annotated,
+  // so it goes on a subsegment. Notes (metadata) are there without pins, but aren't indexed.
+  // https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-nodejs-segment.html
+  L.tools.pins = { claims: ['audit'], at: CODE,
+    lines: ['# const sub = AWSXRay.getSegment()', '#   .addNewSubsegment(\'ticket\');', '# sub.addAnnotation(\'route\', r);'],
+    blank: 'addAnnotation', choices: ['addAnnotation', 'addMetadata', 'putAnnotation'],
+    doc: 'https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-nodejs-segment.html' };
+
+  // The EMF stamp: one log line, the metrics in _aws. By station = no dimension (the metric names say which call);
+  // by ticket = a ticket dimension, a new metric for every ticket. An empty DimensionSet is allowed.
+  // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
+  L.tools.stamp = { claims: ['audit'], at: CODE,
+    lines: S => { const t = a(S) && a(S).stamp && a(S).stamp.dim === 'ticket';
+      return ['# console.log(JSON.stringify({', '#  _aws: {', '#   Timestamp: Date.now(),', '#   CloudWatchMetrics: [{',
+        '#    Namespace: \'Mira\',', t ? '#    Dimensions: [[\'ticket\']],' : '#    Dimensions: [[]],', '#    Metrics: [',
+        '#     { Name: \'drawerMs\',', '#       Unit: \'Milliseconds\' },', '#     { Name: \'engineMs\',', '#       Unit: \'Milliseconds\' }]',
+        '#   }]', '#  },', ...(t ? ['#  ticket: id,'] : []), '#  drawerMs, engineMs', '# }));']; },
+    blank: '_aws', choices: ['_aws', 'aws', 'CloudWatchMetrics', 'Metrics'],
+    doc: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html' };
+
+  // The tally: PutMetricData from the cabinet's own code (SDK for JavaScript v3), billed per call. Jobs is a 1 per
+  // finished job (a heartbeat: alarm on SampleCount < 1, missing data breaching); Failed is 0 or 1 (its Average is
+  // the failure rate). https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
+  L.tools.tally = { claims: ['audit'], at: CODE,
+    lines: S => { const st = ((a(S) && a(S).tallies) || []).map(x => A.NAME[x]);
+      return ['# tally, in: ' + (st.join(', ') || 'a cabinet'), '# await cw.send(new', '#  PutMetricDataCommand({',
+        '#   Namespace: `Tally/${station}`,', '#   MetricData: [', '#    { MetricName: \'Jobs\',', '#      Value: 1 },',
+        '#    { MetricName: \'Failed\',', '#      Value: failed ? 1 : 0 }]', '# }));']; },
+    blank: 'PutMetricData', choices: ['PutMetricData', 'PutMetricAlarm', 'PutLogEvents', 'GetMetricData'],
+    doc: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/publishingMetrics.html' };
+
+  // The 1s dial: a high-resolution custom metric, set where the metric is published (the EMF metric definition, or
+  // the PutMetricData datum). Built-in AWS metrics can't take it. Its klaxon's Period goes to 10 (above).
+  // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/publishingMetrics.html#high-resolution-metrics
+  L.tools.hires = { claims: ['audit'], at: CODE,
+    lines: S => { const gs = ((a(S) && a(S).gauges) || []).filter(g => g.hires);
+      return ['# 1s dial, in the metric\'s', '# definition or datum:', '#   StorageResolution: 1',
+        ...gs.map(g => '#   for ' + (g.src === 'stamp' ? g.metrics[0].key[0].toLowerCase() + g.metrics[0].key.slice(1) : 'Tally/' + A.NAME[g.station]))]; },
+    blank: 'StorageResolution: 1', choices: ['StorageResolution: 1', 'StorageResolution: 60', 'Period: 1', 'HighResolution: true'],
+    doc: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/publishingMetrics.html#high-resolution-metrics' };
+
+  // The lens: a Logs Insights query (a coin each). The lens is never placed with place(): its first query
+  // (the 'query' event) is when it's used. https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
+  L.tools.lens = { claims: ['audit'], at: 'end',
+    lines: ['# Logs Insights (the lens):', '# fields @timestamp, @message', '# | filter @message like /ERROR/', '# | stats count(*) by errorType'],
+    blank: 'stats', choices: ['stats', 'filter', 'parse', 'sort'],
+    doc: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html' };
+
+  // The pops: the event as rush-audit.js emits it -> the real term and what you see. 'audit:' keys throughout.
+  Object.assign(L.pops, {
+    'audit:alarm': 'Alarm state change: OK, ALARM or INSUFFICIENT_DATA, from the last N datapoints',
+    'audit:ring': 'DatapointsToAlarm of EvaluationPeriods breached: ALARM, and AlarmActions publish to the SNS topic',
+    'audit:bell': 'Composite alarm: its AlarmRule over the klaxons\' states decides, and only it notifies',
+    'audit:job': 'SNS delivered: the porter, a subscriber, takes the job',
+    'audit:trace': 'X-Ray trace: one segment per hop; the deepest red or long bar is where it went wrong',
+    'audit:query': 'Logs Insights ran over the log groups: the rows point at a station',
+    'audit:cardinality': 'High-cardinality dimension: every ticket number is a new custom metric, and each is billed',
+    'audit:dark': 'Unpaid: the tool stops, so no PutMetricData calls and no data points',
+    'audit:late': 'API Gateway integration timeout: the Counter answers 504',
+    'audit:failed': '5xx: a station failed, and the Counter returns the error',
+    'audit:mend': 'Fixed at the station the evidence pointed to',
+    'audit:mendWrong': 'Nothing wrong there: the evidence pointed elsewhere',
+    'audit:wasted': 'A transient fault: it had already cleared itself'
+  });
+})(typeof window !== 'undefined' ? window : globalThis);

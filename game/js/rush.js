@@ -5,6 +5,7 @@
 // is letters: questions sent as mail between waves. The pick and the letters are plain screens (#q).
 (function () {
   const R = SD.rushCore;
+  const SHEET = SD.rushSheet; // the template card (js/rush-sheet.js): presentation only
   const cv = document.getElementById('rush'), cx = cv.getContext('2d'), qEl = document.getElementById('q');
   const IMG = {}, SRC = {
     'room-wide': 'assets/img/rush/room-wide.webp', 'room-tall': 'assets/img/rush/room-tall.webp',
@@ -672,8 +673,8 @@
   function frame(now) {
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0); last = now;
     if (M.started && !M.over && !letterOpen) R.step(M, dt);
-    withRoom('main', () => { for (const e of R.drain(M)) onEvent(e, 'main'); });
-    if (M.review) withRoom('review', () => { for (const e of R.drain(M.review)) onEvent(e, 'review'); });
+    withRoom('main', () => { for (const e of R.drain(M)) { const n = pops.length; onEvent(e, 'main'); if (SHEET) SHEET.event(e, 'main', pops, n); } });
+    if (M.review) withRoom('review', () => { for (const e of R.drain(M.review)) { const n = pops.length; onEvent(e, 'review'); if (SHEET) SHEET.event(e, 'review', pops, n); } });
     tick(dt);
     draw();
     requestAnimationFrame(frame);
@@ -815,11 +816,13 @@
   function text(t, x, y, size, col, align, weight) {
     size = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
     if (labelLog) { const w = cx.measureText(t).width, x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2; labelLog.push({ kind: /^([\d*?+.\-]+|\.\.\.)$/.test(t) ? 'counter' : 'prompt', t, r: [x0, y - size / 2, w, size] }); }
+    if (SHEET && SHEET.rec) { const w = cx.measureText(t).width; SHEET.rec('text', t, [align === 'left' ? x : align === 'right' ? x - w : x - w / 2, y - size / 2, w, size]); }
     cx.lineJoin = 'round'; cx.lineWidth = Math.max(3, size / 6); cx.strokeStyle = 'rgba(0,0,0,.9)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.restore();
   }
   function plaque(t, x, y) {
     const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; x = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x));
     if (labelLog) labelLog.push({ kind: 'label', t, r: [x - w / 2, y - f * .75, w, f * 1.5] });
+    if (SHEET && SHEET.rec) SHEET.rec('label', t, [x - w / 2, y - f * .75, w, f * 1.5]);
     rrect(x - w / 2, y - f * .75, w, f * 1.5, 8); cx.fillStyle = 'rgba(32,24,18,.82)'; cx.fill(); cx.strokeStyle = 'rgba(214,178,84,.9)'; cx.lineWidth = 1.5; cx.stroke();
     cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore();
   }
@@ -835,7 +838,7 @@
     if (cur) lines.push(cur); return lines;
   }
   function draw() {
-    if (M.audit) { AUD.draw(); return; } // claim 8: the Watch Room draws itself
+    if (M.audit) { AUD.draw(); if (SHEET) SHEET.draw(); return; } // claim 8: the Watch Room draws itself
     const cw = cv.width, ch = cv.height;
     cx.setTransform(1, 0, 0, 1, 0, 0);
     // The backdrop fills the whole screen behind the stage, dimmed, so there are no bars.
@@ -850,6 +853,7 @@
     } else { cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch); }
     cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
     withRoom(view, () => (L.yard ? drawYard : drawRoom)(drag && drag.moved ? drag.tool : null, false));
+    if (SHEET) SHEET.draw(); // the template card, on the wall
     if (M.review) drawInset();
     drawHud(); drawBelt(); drawSay();
     if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85, 0, drag.tool === 'ledger' ? 150 : 0);
@@ -1790,7 +1794,7 @@
   ];
   function bpYaml(t) {
     const L2 = ['Transform: AWS::Serverless-2016-10-31', 'Resources:', '  Sorter:', '    Type: AWS::Serverless::Function', '    Properties:', '      AutoPublishAlias: live'];
-    if (t.board) { L2.push('      DeploymentPreference:', '        Type: Canary10Percent5Minutes'); if (t.wire) L2.push('        Alarms: [!Ref NewVersionErrors]'); if (t.tests) L2.push('        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'); }
+    if (t.board) { L2.push('      DeploymentPreference:', '        Type: Canary10Percent5Minutes'); if (t.wire) L2.push('        Alarms: [!Ref ' + (M.watch === 'new' ? 'NewVersionErrors' : 'AliasErrors') + ']'); if (t.tests) L2.push('        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'); }
     if (t.rack) { L2.push('  WaitingPlatform:', '    Type: AWS::SQS::Queue'); if (t.bin) L2.push('    Properties:', '      RedrivePolicy:', '        deadLetterTargetArn: !GetAtt Returns.Arn', '        maxReceiveCount: 3', '  Returns:', '    Type: AWS::SQS::Queue'); }
     if (t.ledger) L2.push('  Ledger:', '    Type: AWS::DynamoDB::Table');
     return L2.join('\n');
@@ -1818,7 +1822,9 @@
       qEl.querySelector('.bp-go').textContent = t.manifest ? '$ sam deploy --confirm-changeset' : '$ sam deploy';
     };
     qEl.querySelectorAll('.bp-line').forEach(b => b.addEventListener('click', () => {
-      const k = b.dataset.t; t[k] = !t[k];
+      const k = b.dataset.t;
+      if (!t[k] && SHEET && SHEET.needs(k, M)) { SHEET.askInto(b, k, () => { if (!t[k] && !b.disabled) { t[k] = true; sync(); } }); return; } // the first time: its blank (js/rush-sheet.js)
+      t[k] = !t[k];
       if (k === 'board' && !t.board) { t.wire = false; t.tests = false; }
       sync();
     }));
@@ -3217,6 +3223,7 @@
   }
   function openLens() {
     const c = AU8.card && AU8.card.kind === 'lens' ? AU8.card : { res: null, sel: null };
+    if (SHEET && !M.started) SHEET.use('lens', M); // its line (and its blank, before winding)
     const q = Object.keys(A8.QUERIES).map(k => `<button type="button" class="ln" data-act="q:${k}">${esc(A8.QUERIES[k])}</button>`).join('');
     const rows = c.res ? (c.res.rows.length ? c.res.rows.map((r, i) => `<button type="button" class="ln${c.sel === i ? ' sel' : ''}" data-act="qrow:${i}">${esc(r.text)}</button>` + (c.sel === i ? `<div class="note">${esc(r.note || 'This row stands out.')}${r.points ? `<div class="row">${jobBtn(r.points.station, r.points.job)}</div>` : ''}</div>` : '')).join('') : '<p class="sub">No rows.</p>') : '';
     cardOpen('lens', `<h3>The lens · Logs Insights</h3><p class="sub">A coin a query, over the last hour of the log groups that exist (the Counter's and Mira's).</p>${q}${c.res ? `<p class="sub">Results: ${esc(c.res.q)}</p>${rows}` : ''}`, { res: c.res, sel: c.sel });
@@ -4370,5 +4377,6 @@
   // ==== end claim 9 ====
   window.SD_RUSH.audit = AUD.api; // claim 8, for tools/rush_check_audit.js
   window.SD_RUSH.office = officeHooks(toClient); // claim 7, for tools/rush_check_office.js
+  if (SHEET) SHEET.attach({ cx, cv, get M() { return M; }, get S() { return room(view); }, get L() { return L; }, room, xf: () => ({ scale, ox, oy, dpr }), beltRect, spot, get say() { return lastSay; }, blocked: () => qEl.classList.contains('on') });
   load().then(() => requestAnimationFrame(frame));
 })();
