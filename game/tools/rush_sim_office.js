@@ -12,6 +12,11 @@
 //   keys                                tap the keyring to rotate it 1 s after each pickpocket (the keyring-only answer)
 //   scope=topics                        the intern's scope
 //   p:check (default) | p:solve | p:ignore | p:none   how the player handles review questions (see player())
+//   fix                                 the player fixes each mistake once Dutch names it, REACT s after his line (at
+//                                       wave 1 he names the star, the note and an Anyone sign, one a time): a
+//                                       pickpocketed keyring (buy the badge, shred), the star or a forged ticket (job
+//                                       stamps, at the next wave change), a walk-in (sign Office + Riverside), the note
+//                                       read (the drawer), a parcel too big (the pad)
 // The player has one pair of hands. Answering a question means reading it all (SOLVE s; one they've solved before is
 // KNOWN s; a desk letter, a short snippet, SPOT s); checking an intern's answer is a glance (CHECK). Going to the other room takes SWITCH s. Upstairs
 // letters and the cellar's are in different rooms; the dumbwaiter brings the cellar's checks up and lets the intern
@@ -19,7 +24,7 @@
 const R = require('../js/rush-core.js');
 const O = require('../js/rush-office.js');
 const N = +process.argv[2] || 200, ORDERS = (process.argv[3] || '').split(',').filter(Boolean), ONLY = process.argv[4] || '';
-const SOLVE = 6, KNOWN = 6, SPOT = 5, CHECK = 1.5, NOTICE = 0.5, SWITCH = 0.6, TAP = 0.5;
+const REACT = 2.5, SOLVE = 6, KNOWN = 6, SPOT = 5, CHECK = 1.5, NOTICE = 0.5, SWITCH = 0.6, TAP = 0.5;
 // The cellar's pool: two letters from each of claims 1 to 6, nine of them solved (a player who's got most letters
 // right so far). The desk's own letters are claim 7's spot-the-line cards, none solved yet.
 const TOPICS = ['rush', 'bell', 'double', 'slow', 'picky', 'hot'];
@@ -33,12 +38,16 @@ const BUILDS = [
   ['Intended B: the safe', swap(swap(A, 'param', 'safe'), 'rot=14', null)],
   ['Intended C: A + key tin', A.concat('cache')],
   ['Lazy star: keyring, *, Anyone, pad', ['pad', 'r:intern', 'r:rack']],
+  ['Lazy star, fixed as Dutch says', ['pad', 'r:intern', 'r:rack', 'r:bin', 'fix']],
   ['Badge with the star', A.filter(x => !x.startsWith('stamps') && x !== '+read')],
   ['Badge, keyring never shredded', swap(A, 'shred=1', null)],
+  ['Badge with the star, fixed as Dutch says', A.filter(x => !x.startsWith('stamps') && x !== '+read').concat('fix')],
   ['Lock it all: Office only, no Read', swap(swap(A, 'sign=riverside', 'sign=office'), '+read', null)],
   ['No pad', swap(A, 'pad', null)],
+  ['No pad, fixed as Dutch says', swap(A, 'pad', 'fix')],
   ['Key tin with the star', A.filter(x => !x.startsWith('stamps') && x !== '+read').concat('cache')],
   ['Sticky note left', swap(swap(A, 'param', null), 'rot=14', null)],
+  ['Sticky note, fixed as Dutch says', swap(swap(A, 'param', 'fix'), 'rot=14', null)],
   ['Drawer never rotated', swap(A, 'rot=14', null)],
   ['No intern, the cellar by hand', swap(A, 'r:intern', null).concat('p:solve')],
   ['Solved topics, never checked', A.concat('scope=topics', 'p:ignore')],
@@ -48,7 +57,8 @@ const BUILDS = [
   ['A + dumbwaiter', A.concat('waiter')],
   ['A, intern bought (none carried)', swap(A, 'r:intern', 'r:intern=buy')],
   ['A, Office only', swap(A, 'sign=riverside', 'sign=office')],
-  ['A, sign Anyone', swap(A, 'sign=riverside', 'sign=anyone')]
+  ['A, sign Anyone', swap(A, 'sign=riverside', 'sign=anyone')],
+  ['A, sign Anyone, fixed as Dutch says', swap(A, 'sign=riverside', 'sign=anyone').concat('fix')]
 ].filter(([n]) => !ONLY || n.toLowerCase().includes(ONLY.toLowerCase()));
 
 function player(S, pol, me, waiter) {
@@ -98,6 +108,7 @@ for (const [name, b] of BUILDS) {
     const book = new Map(CELLAR.filter(id => !UNSOLVED.has(id)).map(id => [id, { id, solved: true, right: 1, wrong: 0, by: { player: { right: 1, wrong: 0 } }, last: null }]));
     const S = R.create(s, 'locked', ORDERS, process.env.SIM_COINS != null ? +process.env.SIM_COINS : 2, book), V = S.review, me = { task: null, busy: 0, room: 'main' };
     V.qpool = CELLAR.slice(); S.qpool = DESK.slice();
+    if (process.env.SIM_CAP) S.cap = +process.env.SIM_CAP; // measuring: a bigger tank, to see a whole night's spill
     for (const t of b) {
       if (['badge', 'pad', 'cache', 'param', 'safe', 'waiter'].includes(t)) R.place(S, t);
       else if (t === 'r:intern') { V.intern = true; V.internAt = 0; }
@@ -108,6 +119,7 @@ for (const [name, b] of BUILDS) {
     if (opt('scope')) O.setInternScope(S, opt('scope'));
     if (opt('shred') === '0') O.shred(S);
     R.start(S);
+    const fix = b.includes('fix'), fixes = [];
     let firstPick = null, readDone = false, pickSeen = 0, keyTaps = [];
     const waiter = () => S.waiter && !S.waiterLapsed;
     while (!S.over && S.time < 300) {
@@ -115,8 +127,33 @@ for (const [name, b] of BUILDS) {
       for (const e of R.drain(V)) if (e.type === 'spill') add('w:c-' + e.why, 1);
       for (const e of R.drain(S)) {
         if (e.type === 'spill') add('w:' + e.why, 1);
+        if (fix) {
+          const at = S.time + REACT;
+          // At wave 1 Dutch names what's already wrong: the star, the note, a sign that says Anyone. One fix at a time.
+          if (e.type === 'wave' && e.wave === 1) {
+            const now = [S.stamps.has('star') && 'stamps', S.secret === 'note' && 'param', S.sign === 'anyone' && 'sign'].filter(Boolean);
+            now.forEach((f, i) => fixes.push({ at: S.time + REACT * (i + 1), f }));
+          }
+          if (e.type === 'pickpocket' && e.cred === 'keyring') fixes.push({ at, f: 'keys' });
+          if ((e.type === 'thiefDone' || e.type === 'forgedDone') && S.stamps.has('star')) fixes.push({ at, f: 'stamps' });
+          if (e.type === 'streetIn') fixes.push({ at, f: 'sign' });
+          if (e.type === 'comboLeak' && e.why === 'note') fixes.push({ at, f: 'param' });
+          if (e.type === 'tooBigTry') fixes.push({ at, f: 'pad' });
+        }
         if (e.type === 'pickpocket') { pickSeen++; if (firstPick == null) firstPick = S.time; if (b.includes('keys')) keyTaps.push(S.time + 1); }
       }
+      for (const x of fixes.filter(x => S.time >= x.at)) {
+        const done = true;
+        if (x.f === 'keys') { if (!S.badge) { R.place(S, 'badge'); O.setStamp(S, 'star', false); ['seal', 'file'].concat(S.wave >= 2 ? ['read'] : []).forEach(st => O.setStamp(S, st, true)); } if (O.shred(S) === '') tap(me, V); }
+        if (x.f === 'stamps' && O.stampsView(S).has('star')) { O.setStamp(S, 'star', false); ['seal', 'file'].concat(S.wave >= 2 ? ['read'] : []).forEach(st => O.setStamp(S, st, true)); tap(me, V); }
+        if (x.f === 'sign' && S.sign === 'anyone') { O.setSign(S, 'riverside'); tap(me, V); }
+        if (x.f === 'param' && S.secret === 'note') { R.place(S, 'param'); tap(me, V); }
+        if (x.f === 'pad' && !S.pad) { R.place(S, 'pad'); tap(me, V); }
+        if (done) fixes.splice(fixes.indexOf(x), 1);
+      }
+      if (S.secret === 'param' && fix && O.comboAge(S) >= 14) { O.rotate(S); tap(me, V); }
+      // Dutch's readSoon: between waves 2 and 3, add Read if it's missing.
+      if (fix && S.wave === 2 && O.canEdit(S) && !O.stampsView(S).has('read') && !O.stampsView(S).has('star')) { O.setStamp(S, 'read', true); tap(me, V); }
       if (opt('shred') === '1' && firstPick != null && S.time >= firstPick + 1 && S.keyringLive) { if (O.shred(S) === '') tap(me, V); }
       if (keyTaps.length && S.time >= keyTaps[0]) { keyTaps.shift(); if (O.rotateKeys(S) === '') tap(me, V); }
       if (b.includes('+read') && !readDone && S.wave === 2 && O.canEdit(S)) { readDone = true; O.setStamp(S, 'read', true); tap(me, V); }

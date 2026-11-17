@@ -1000,8 +1000,11 @@
         text('?', p[0] + 18, p[1] - 13, 16, '#ffffff');
       } else {
         // The intern's stamp, red and crooked.
+        const inkOnly = M.office && L.W < L.H; // claim 7 on a phone: the word would be under 11 px, so ink bars instead
         cx.save(); cx.translate(p[0], p[1] + 2); cx.rotate(-.22); cx.strokeStyle = leak ? '#ff5a3a' : '#c8473b'; cx.lineWidth = 2.5; rrect(-30, -10, 60, 20, 3); cx.stroke();
-        cx.font = `800 ${12}px Nunito, "Segoe UI", sans-serif`; cx.fillStyle = leak ? '#ff5a3a' : '#c8473b'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('INTERN', 0, 1); cx.restore();
+        cx.fillStyle = leak ? '#ff5a3a' : '#c8473b';
+        if (inkOnly) { for (const [bx, bw] of [[-24, 14], [-7, 10], [6, 18]]) cx.fillRect(bx, -3, bw, 6); cx.restore(); }
+        else { cx.font = `800 ${12}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('INTERN', 0, 1); cx.restore(); }
       }
       if (left > 0) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = left < .3 ? '#ff7a5a' : st ? '#ffb04a' : '#8fc0ff'; cx.beginPath(); cx.arc(p[0], p[1], 33, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); cx.stroke(); cx.restore(); }
       if (leak) { const u = (now / 900) % 1; cx.save(); cx.fillStyle = `rgba(120,180,255,${1 - u})`; cx.beginPath(); cx.arc(p[0], p[1] + 30 + u * 40, 5, 0, Math.PI * 2); cx.fill(); cx.restore(); text('leaking', p[0], p[1] + 46, 14, '#ff9a8a'); }
@@ -1228,7 +1231,7 @@
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
       if (!used) img(TOOL_IMG[t], r[0] + r[2] / 2, r[1] + r[3] / 2 - 8 * L.fs, 52 * L.fs, 'mm', locked || poor ? .4 : 1);
       // The label shrinks to fit a narrow slot.
-      const label = use || (used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t]);
+      const label = use || (used ? 'placed' : locked ? 'next claim' : (M.office && L.W < L.H && OFFICE_SHORT[t]) || TOOL_LABEL[t]);
       cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
       if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
       cx.textAlign = 'center'; cx.fillStyle = used ? '#8a7f92' : '#f2e6cc';
@@ -1239,7 +1242,7 @@
       }
       if (!used && !locked) text(String(i + 1), r[0] + 12, r[1] + 12, 14, '#9d90a8');
       // Upkeep: a small red tag with what it bills each wave.
-      if (R.TOOLS[t].upkeep && !locked) text(`-${R.TOOLS[t].upkeep}/wave`, r[0] + r[2] / 2, r[1] + r[3] - 24 * L.fs, 11, '#ff9a8a');
+      if (R.TOOLS[t].upkeep && !locked) text(`-${R.TOOLS[t].upkeep}/wave`, r[0] + r[2] / 2, r[1] + r[3] - 24 * L.fs, M.office ? 13 : 11, '#ff9a8a');
     });
     const cxp = L.coinsAt ? L.coinsAt[0] : bx + bw + 26, cyp = L.coinsAt ? L.coinsAt[1] : by + bh / 2, puls = coinPulse ? 1 + .2 * Math.sin(coinPulse * 12) : 1;
     cx.save(); cx.translate(cxp + 14, cyp); cx.scale(puls, puls); cx.beginPath(); cx.arc(0, 0, 16 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
@@ -1627,7 +1630,7 @@
     window: [180, 716, 110, 150], alibi: [235, 800], keybox: [396, 836, 64, 80], wall: [400, 600],
     desk: { x: 402, y: 1150, h: 100, w: 226 }, deskTop: 1050, mira: [402, 978], badge: [425, 1018],
     seats: { xs: [334, 402, 470], y: 1150, h: 60 }, wait: [256, 1150], pad: [458, 1042], tin: [494, 1041], nail: [528, 982],
-    hatch: [566, 778, 70, 70], cab: [545, 978, 100, 172], sign: [595, 950, 104, 38],
+    hatch: [566, 778, 70, 70], cab: [545, 978, 100, 172], sign: [578, 930, 146, 66],
     strong: [655, 873, 106, 277], dial: [708, 975, 26], note: [742, 916], secret: [708, 1082], clock: [330, 470], portrait: [120, 470],
     lever: { x: 402, y: 1066, r: 40, label: [402, 1116] }, asks: { x: 316, y: 1034, dx: 46, max: 2, label: null, intern: [601, 870] },
     tank: { x: 74, y: 780, h: 120 }, inset: { r: [520, 384, 236, 176], src: INSET_TALL.src },
@@ -1646,6 +1649,8 @@
   };
   Object.assign(TOOL_IMG, { badge: 'badge', pad: 'pad', cache: 'cache', param: 'param', safe: 'safe', waiter: 'waiter' });
   Object.assign(TOOL_LABEL, { badge: 'Badge', pad: 'Data-key pad', cache: 'Key tin', param: 'Drawer', safe: 'Safe', waiter: 'Dumbwaiter' });
+  // On the tall belt the long names would shrink below 11 CSS px on a phone.
+  const OFFICE_SHORT = { pad: 'Key pad', waiter: 'Lift' };
   // The office buys' belt icons, drawn in code like the other extra buys (150 x 150).
   Object.assign(ICONS, {
     badge: g => { // a brass badge on a blue lanyard, six stamp slots
@@ -1711,6 +1716,7 @@
     tooBig: 'Won\'t fit the slot. The key box seals 4 KB at most. Ask it for a data key and seal it yourself.',
     pad: 'A data-key pad. One call, one key, twice: plain to seal with, sealed to keep. The plain one gets torn up.',
     cache: 'A key tin. One data key does four tickets, so a quarter of the calls. A cached key sits in Mira\'s pocket, though.',
+    tinPicked: 'She had the cached key off Mira too. Everything sealed with it is out. Reuse widens a leak.',
     cacheLeak: 'That forged one ran inside Mira\'s function, and the cached key was in her pocket. Everything sealed with it is out.',
     boxThrottle: 'The key box answers two calls a second. Over that it throttles, and Mira waits and tries again.',
     streetIn: 'Someone off the street just walked in on the sign. It says Anyone. They read.',
@@ -1728,6 +1734,7 @@
     paramSoon: 'That combination\'s getting old. Tap the drawer to change it.',
     safe: 'A safe. It changes the combination on a schedule, with a little function of its own. That costs upkeep.',
     rotate: 'New combination. Whatever she had is useless now.',
+    noteLeft: 'The combination\'s on a sticky note on the strongroom door. Drawer or safe, please.',
     noteTap: 'A sticky note with the combination on it. Put it in the drawer or the safe.',
     upkeepMissed: 'Couldn\'t pay for the {t}. It\'s stopped until the next bill\'s paid.',
     denied: 'Explicit deny on emptying. Even Mira\'s chores bounce off it.',
@@ -1737,7 +1744,7 @@
     noWaiter: 'No dumbwaiter. The cellar\'s answers stay in the cellar.',
     scopeTopics: 'Wider scope: the intern answers anything in a topic you\'ve solved one of. More answers, more wrong. Same rule as Mira\'s badge.',
     scopeSolved: 'Back to only what you\'ve solved. Fewer answers, fewer mistakes.',
-    midwave: 'Not mid-wave. Change the badge between waves: a deploy takes a moment.',
+    midwave: 'Mid-wave, that\'s a deploy. It goes live in a few seconds, and the old stamps work till then.',
     alarmOffice: 'The office has visitors. Back you go.',
     forged: 'A forged ticket, and Mira\'s stamps let it through. She did exactly what it asked.',
     thief: 'That was the Alibi\'s copy. It did whatever Mira\'s stamps allow.',
@@ -1912,7 +1919,7 @@
   };
   const STAMP_ACT = { seal: ['kms:Encrypt', 'kms:GenerateDataKey'], file: ['s3:PutObject'], read: ['s3:GetObject'], payroll: ['s3:GetObject (payroll)'], empty: ['s3:DeleteObject'] };
   function policyText() {
-    const st = M.stamps;
+    const st = OF.stampsView(M);
     if (st.has('star')) return '{ "Effect": "Allow",\n  "Action": "*",\n  "Resource": "*" }';
     const acts = [...st].flatMap(s => STAMP_ACT[s] || []);
     if (!acts.length) return '(no statements: everything is implicitly denied)';
@@ -1925,20 +1932,20 @@
     qEl.innerHTML = `<div class="lt-card of-card"><div class="lt-seal" aria-hidden="true"></div>
       <p class="lt-kind">${kind}</p><p class="lt-text" id="q-h">Stamp only what the job needs.</p>
       <p class="of-need">Tonight: every ticket needs <b>Seal</b> and <b>File</b>. Lookups (from wave 3) need <b>Read</b>.</p>
-      <div class="of-stamps">${OF.STAMPS.map(s => `<button type="button" class="of-stamp${M.stamps.has(s) ? ' on' : ''}" data-s="${s}"${edit ? '' : ' disabled'}><i aria-hidden="true"></i><span>${STAMP_INFO[s][0]}<small>${STAMP_INFO[s][1]}</small></span></button>`).join('')}</div>
-      ${edit ? '' : '<p class="of-note">Mid-wave: change it between waves. A deploy takes a moment.</p>'}
+      <div class="of-stamps">${OF.STAMPS.map(s => `<button type="button" class="of-stamp${OF.stampsView(M).has(s) ? ' on' : ''}" data-s="${s}"${M.over ? ' disabled' : ''}><i aria-hidden="true"></i><span>${STAMP_INFO[s][0]}<small>${STAMP_INFO[s][1]}</small></span></button>`).join('')}</div>
+      ${edit ? '' : `<p class="of-note">Mid-wave: a change deploys in ${OF.T.deploy} s. The old stamps work till then.</p>`}
       <pre class="of-policy">${esc(policyText())}</pre>
       <button type="button" class="lt-go on">Done</button></div>`;
     qEl.querySelectorAll('.of-stamp').forEach(b => b.addEventListener('click', () => {
-      const s = b.dataset.s, on = !M.stamps.has(s);
-      if (OF.setStamp(M, s, on)) { osay('midwave', 'tired'); return; }
+      const s = b.dataset.s, on = !OF.stampsView(M).has(s), r = OF.setStamp(M, s, on);
+      if (r && r !== 'deploy') return;
+      if (r === 'deploy') osay('midwave', 'tired');
       b.classList.toggle('on', on); qEl.querySelector('.of-policy').textContent = policyText(); sfx('rStamp');
       // The star's gone: drop Dutch's queued warning about it.
       if (s === 'star' && !on) { const w = [OLINES.star, OLINES.starKeyring].join(' '); sayQ = sayQ.filter(q => !w.includes(q.text)); if (saying && w.includes(saying.text)) saying = null; }
     }));
     qEl.querySelector('.lt-go').addEventListener('click', closeReview);
     reviewOpen = { k: null, mode: 'office', done: true };
-    if (!edit) osay('midwave', 'tired');
   }
   function openKeyring() {
     drag = null;
@@ -2187,12 +2194,12 @@
       cx.fillStyle = '#140a05'; cx.fillRect(x - w * .35, y - h * .9, w * .7, 4); cx.restore();
       if (!mini && S.shredded) text(String(S.shredded), x + w * .62, y - h * .7, 18, '#e8dcc4'); }
     // The cabinet's sign: the bucket policy.
-    { const [x, y, w, h] = L.sign, col = { anyone: '#e06a3a', office: '#efe6d0', riverside: '#bfe3c4' }[S.sign], word2 = { anyone: 'ANYONE may take', office: 'THIS OFFICE', riverside: 'OFFICE + RIVERSIDE' }[S.sign];
+    { const [x, y, w, h] = L.sign, col = { anyone: '#e06a3a', office: '#efe6d0', riverside: '#bfe3c4' }[S.sign], word2 = { anyone: 'ANYONE may take', office: 'THIS OFFICE', riverside: 'OFFICE + RIVERSIDE' }[S.sign], two = { anyone: ['ANYONE', 'may take'], office: ['THIS', 'OFFICE'], riverside: ['OFFICE +', 'RIVERSIDE'] }[S.sign];
       cx.save(); cx.strokeStyle = '#8a8f96'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x - w * .3, y - h / 2); cx.lineTo(x, y - h / 2 - 16 * s); cx.lineTo(x + w * .3, y - h / 2); cx.stroke();
       const pulse = ofx.sign > 0 ? 1 + .08 * Math.sin(ofx.sign * 20) : 1; cx.translate(x, y); cx.scale(pulse, pulse);
       rrect(-w / 2, -h / 2, w, h, 6); cx.fillStyle = col; cx.fill(); cx.strokeStyle = '#140a05'; cx.lineWidth = 3; cx.stroke();
-      cx.fillStyle = '#2a1d10'; cx.font = `800 ${Math.round(12 * (L.W > L.H ? 1 : 1.15))}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-      const ws = word2.split(' '), half = Math.ceil(ws.length / 2); if (cx.measureText(word2).width > w - 10) { cx.fillText(ws.slice(0, half).join(' '), 0, -7 * s); cx.fillText(ws.slice(half).join(' '), 0, 9 * s); } else cx.fillText(word2, 0, 1);
+      cx.fillStyle = '#2a1d10'; cx.font = `800 ${L.W > L.H ? 12 : 22}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      if (cx.measureText(word2).width > w - 10) { cx.fillText(two[0], 0, -h * .22); cx.fillText(two[1], 0, h * .25); } else cx.fillText(word2, 0, 1);
       cx.restore();
       if (!mini) plaque('Cabinet · S3', L.cab[0] + L.cab[2] / 2, L.cab[1] + L.cab[3] * .55); }
     // The strongroom: its dial, the sticky note, and where the combination lives (drawer or safe) with its age ring.
@@ -2236,7 +2243,7 @@
     if ((dragging === 'pad' && !S.pad) || (dragging === 'cache' && !S.cache)) glowSpot(OFFICE_SPOT.pad(), true);
     // Mira's three seats.
     for (let i = 0; i < S.seat.length; i++) drawStoolO(i);
-    if (!mini) plaque(`Mira · ${S.seat.length} seats`, L.desk.x, L.fl - 20 * L.fs);
+    if (!mini) if (L.W > L.H || S.started) plaque(`Mira · ${S.seat.length} seats`, L.desk.x, L.fl - (L.W > L.H ? 20 : 4) * L.fs);
     // Tickets.
     for (const k of S.tickets) { if (k.quiz) { if (k.phase === 'slide') { const u = k.dur ? Math.min(1, k.t / k.dur) : 0; img('env', ...arc(L.slot, [L.asks.x, L.asks.y], 120, ease(u)), 0, 'mm', 1, 0, 40 * s); } continue; } const d = officeTicketDraw(k); if (d) drawEnvelope(k, d); }
     if (L.asks) drawAsks(dragging);
@@ -2291,13 +2298,20 @@
       case 'rotateKeys': sfx('rLock'); osay('rotateKeys', 'neutral'); return true;
       case 'keysRotated': popAt([L.nail[0], L.nail[1] - 30 * s], 'new keys', '#9be59b', 22); return true;
       case 'badgeOn': osay('star', 'tired'); return true;
+      case 'deployed': popAt([L.mira[0], L.mira[1] - 70 * s], 'stamps deployed', '#9be59b', 22); return true;
+      case 'tinPicked': popAt([L.tin[0], L.tin[1] - 40 * s], 'cached key taken', '#ff8a7a', 22); alarm(); osay('tinPicked', 'angry'); return true;
       case 'stamp': case 'sign': case 'scope': return true;
       case 'book': popAt([L.door[0] + L.door[2] / 2, L.door[1] - 20 * s], 'signs the book', '#bfe3c4', 22); osay('book', 'neutral'); return true;
       case 'upkeepMissed': popAt([L.W / 2, L.H * .4], R.TOOLS[e.tool].name + ' unpaid', '#ff9a8a', 26); osay('upkeepMissed', 'angry', R.TOOLS[e.tool].name.toLowerCase()); return true;
       case 'ask': sfx('rPage'); osay('desk', 'neutral'); return true;
       case 'internAnswer': sfx('rStamp'); osay('internDesk', 'smile'); return true;
       case 'wave':
-        if (e.wave === 1 && M.stamps.has('star')) osay('works', 'neutral');
+        // Wave 1: Dutch names what's already wrong, so there's time to fix it before the Alibi turns up.
+        if (e.wave === 1) {
+          if (M.stamps.has('star')) { osay('works', 'neutral'); osay(M.badge ? 'star' : 'starKeyring', 'tired'); }
+          if (M.secret === 'note') osay('noteLeft', 'tired');
+          if (M.sign === 'anyone' && !M.visitors) osay('signAnyone', 'tired');
+        }
         return false;
     }
     return false;

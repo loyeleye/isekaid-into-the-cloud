@@ -115,10 +115,10 @@ body { font: 16px/1.45 var(--f-body); color: var(--ink); -webkit-tap-highlight-c
 /* Claim 7, the Locked Desk: the spot-the-line card (tap the wrong line, or pick the fix) and the office cards. */
 .sp-file { margin: -8px 0 8px; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #8a5f1c; }
 .sp-code { display: grid; gap: 0; padding: 6px 0; border-radius: 8px; background: #1f1a24; overflow-x: auto; }
-.sp-code button { display: flex; gap: 8px; align-items: flex-start; min-height: 34px; margin: 0; padding: 5px 10px; border: 0; border-left: 4px solid transparent;
+.sp-code button { display: flex; gap: 8px; align-items: center; min-height: 44px; margin: 0; padding: 5px 10px; border: 0; border-left: 4px solid transparent;
   border-radius: 0; background: transparent; color: #e9e2f2; text-align: left; font: 600 13px/1.35 ui-monospace, Menlo, Consolas, monospace; cursor: pointer; }
 .sp-code.lt-opts { gap: 0; }
-.sp-code.lt-opts button { min-height: 34px; font: 600 13px/1.35 ui-monospace, Menlo, Consolas, monospace; color: #e9e2f2; background: transparent; border: 0; border-left: 4px solid transparent; border-radius: 0; }
+.sp-code.lt-opts button { min-height: 44px; font: 600 13px/1.35 ui-monospace, Menlo, Consolas, monospace; color: #e9e2f2; background: transparent; border: 0; border-left: 4px solid transparent; border-radius: 0; }
 .sp-code button:hover:not(:disabled) { background: rgba(255,255,255,.08); }
 .sp-code button kbd { flex: none; width: 22px; color: #8d84a0; background: none; font: 600 12px/1.6 ui-monospace, Menlo, Consolas, monospace; text-align: right; }
 .sp-code button code { white-space: pre-wrap; word-break: break-word; font: inherit; }
@@ -138,7 +138,7 @@ body { font: 16px/1.45 var(--f-body); color: var(--ink); -webkit-tap-highlight-c
   background: rgba(255,255,255,.55); color: #2a1d10; font: 700 14px var(--f-body); cursor: pointer; }
 .of-stamp i { width: 28px; height: 28px; border-radius: 50%; border: 3px dashed #b89a62; }
 .of-stamp span { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.of-stamp small { font: 600 11px var(--f-body); color: #6b5530; }
+.of-stamp small { font: 600 12px var(--f-body); color: #6b5530; }
 .of-stamp.on { background: #fde9c8; border-color: #b23a2f; }
 .of-stamp.on i { border: 3px solid #b23a2f; background: radial-gradient(circle, #e0574a 40%, #b23a2f 41%); }
 .of-stamp:disabled { cursor: default; opacity: .65; }
@@ -151,7 +151,7 @@ body { font: 16px/1.45 var(--f-body); color: var(--ink); -webkit-tap-highlight-c
 .of-btns button small { font: 600 13px var(--f-body); color: #6b5530; }
 .of-btns button.on { background: #fde9c8; border-color: #b23a2f; }
 .of-btns button:disabled { cursor: default; opacity: .6; }
-@media (max-width: 520px) { .of-stamps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sp-code button, .sp-code.lt-opts button { font-size: 12px; padding: 5px 6px; } }
+@media (max-width: 520px) { .of-stamps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sp-code button, .sp-code.lt-opts button { font-size: 12px; padding: 4px 6px; } }
 </style>
 </head>
 <body>

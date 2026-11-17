@@ -53,6 +53,7 @@ async function tend(pg, desk, cellar = true) {
         V.tickets.filter(k => k.quiz && k.phase === 'ask' && V.time - k.askAt > 2).forEach(k => R.reply(V, k.id, true));
       }
       if (desk) M.tickets.filter(k => k.quiz && k.phase === 'ask' && M.time - k.askAt > 2).forEach(k => R.reply(M, k.id, true));
+      if (desk) M.tickets.filter(k => k.quiz && (k.phase === 'stamped' || k.phase === 'leak') && M.time - k.stampAt > 1).forEach(k => R.check(M, k.id, k.internRight ? 'ok' : 'wrong'));
     }, [desk, cellar]);
     const c = await qClass(pg);
     if (/\bletter\b/.test(c) && !/\bend\b/.test(c)) {
@@ -101,6 +102,8 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     // ---- 1. The build: the office, Dutch's intro, all six buys on the belt. ----
     await pg.goto(`http://127.0.0.1:${port}/rush.html?claim=locked&orders=letters&seed=7`);
     await pg.waitForTimeout(900);
+    // Count the office's losses by cause, for the end line.
+    await pg.evaluate(() => { const I = SD.rushCore.internal, f = I.lose1; window.__why = {}; I.lose1 = (S, k, w) => { __why[w] = (__why[w] || 0) + 1; return f(S, k, w); }; });
     const b0 = await pg.evaluate(() => ({ office: !!SD_RUSH.S.office, belt: SD_RUSH.S.belt.join(), coins: SD_RUSH.S.coins, review: !!SD_RUSH.S.review, intern: !!(SD_RUSH.S.review && SD_RUSH.S.review.intern) }));
     console.log(name, 'build', JSON.stringify(b0));
     if (!b0.intern) bad(name, 'no intern on a direct link');
@@ -176,8 +179,22 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     if (!(await pg.evaluate(() => SD_RUSH.S.started))) bad(name, 'the lock did not start the night');
     await pg.waitForTimeout(2500);
     await shot('4-mid');
+    // Mid-wave a stamp change is a deploy: the card shows it at once, the latch gets it a few seconds later.
     const editMid = await pg.evaluate(() => SD.rushOffice.canEdit(SD_RUSH.S));
-    if (editMid) bad(name, 'stamps editable mid-wave');
+    if (editMid) bad(name, 'mid-wave should be a deploy, not an instant change');
+    await tap(pg, await pg.evaluate(() => SD_RUSH.office.mira()));
+    if (!(await pg.$('.of-stamps .of-stamp[data-s="payroll"]:not([disabled])'))) bad(name, 'no live stamp buttons mid-wave');
+    else {
+      await pg.click('.of-stamp[data-s="payroll"]');
+      const mid = await pg.evaluate(() => ({ live: SD_RUSH.S.stamps.has('payroll'), next: !!(SD_RUSH.S.stampsNext && SD_RUSH.S.stampsNext.has('payroll')), on: document.querySelector('.of-stamp[data-s="payroll"]').classList.contains('on'), note: !!document.querySelector('.of-note') }));
+      if (mid.live || !mid.next || !mid.on || !mid.note) bad(name, 'mid-wave deploy', JSON.stringify(mid));
+      await shot('4b-deploy');
+      await pg.click('.of-stamp[data-s="payroll"]'); // and take it back off
+      await pg.click('.lt-go');
+      await pg.waitForTimeout(3600);
+      const after = await pg.evaluate(() => ({ next: SD_RUSH.S.stampsNext, st: [...SD_RUSH.S.stamps].sort().join() }));
+      if (after.next || after.st !== 'file,read,seal') bad(name, 'deploy did not land', JSON.stringify(after));
+    }
     // ---- 5. A spot-the-line desk letter in the office. ----
     const deskOk = await waitFor(pg, () => SD_RUSH.S.tickets.some(k => k.quiz && k.phase === 'ask'), null, 40000);
     if (!deskOk) bad(name, 'no desk letter');
@@ -240,7 +257,7 @@ async function waitFor(pg, fn, arg, ms, cellar = true) {
     // ---- 7. Play to the end. ----
     if (!(await playOut(pg, 170000))) bad(name, 'claim 7 never ended');
     await shot('7-end');
-    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth, end: document.querySelector('#q').innerText.slice(0, 300) }));
+    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth, end: document.querySelector('#q').innerText.slice(0, 300), why: window.__why, unans: SD_RUSH.S.unanswered, cUnans: SD_RUSH.S.review.unanswered, cSpill: SD_RUSH.S.review.spill, leaked: SD_RUSH.S.leaked + SD_RUSH.S.review.leaked }));
     console.log(name, 'end', JSON.stringify(st));
     if (st.sw > st.w) bad(name, 'horizontal scroll at the end');
     if (errs.length) bad(name, 'page errors:', errs.slice(0, 5).join(' | '));

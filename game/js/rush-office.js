@@ -44,17 +44,29 @@
     post: 1.2, parcel: 1.6, lookup: 0.8, forged: 1.0, chore: 1.0,
     // The key box: calls a second, the SDK's backoff and tries; the key tin's uses per data key.
     boxRate: 2, boxWin: 1, backoff: [0.6, 1.4], boxTries: 3, tinUses: 4,
-    // Copies: a badge copy's life (the session), thieves per copy and the gap between them, the keyring tap.
+    // Copies: a badge copy's life (the session), thieves per copy (a range: some nights she sends more) and the gap
+    // between them, how long rotating the keyring takes.
     // Lambda refreshes Mira's role credentials every session s, so a copied badge works until the end of the current one.
-    session: 6, thiefFirst: 1, thiefGap: 1.8, thiefMax: 4, rotateKeys: 3,
+    session: 6, thiefFirst: 1, thiefGap: 1.8, thiefMax: [2, 5], rotateKeys: 4,
     // The combination: aged out after comboLeak s; the safe rotates every safeEvery s and borrows a seat for safeHold;
     // a hand rotation takes a seat for rotate s. Combination thieves: the first comes comboFirst s after a leak, then
     // one every noteGap s while it's on the note (anyone can read it) or agedGap s once it has aged out (only the Alibi).
-    comboLeak: 18, safeEvery: 12, safeHold: 0.5, rotate: 2, comboFirst: 2, agedFirst: 4, noteGap: 6, agedGap: 30,
+    comboLeak: 18, safeEvery: 12, safeHold: 0.5, rotate: 2, comboFirst: 2, agedFirst: 4, noteGap: 14, agedGap: 30,
     // Visitors: a visitor badge lasts this long. The intern on 'topics' is wrong this often on unsolved questions.
     visitorBadge: 10, internWrongWide: 0.45,
     // Seconds between waves upstairs (the cellar's waves are spaced the same), and Mira's seats.
-    gap: 8, seats: 3
+    gap: 8, seats: 3,
+    // Night to night: the Alibi picks Mira's pocket pickDelay[0] to [0]+[1] s into the wave, and every gap between its
+    // visits (thieves, combination thieves) varies by jitter either way. Forged and street counts vary by one each way.
+    pickDelay: [0.5, 3], jitter: 0.4,
+    // What each mistake costs in the tank: a street walk-in, a combination theft.
+    streetHarm: 1, comboHarm: 2, forgedHarm: 2,
+    // The key tin's security threshold: a cached data key is thrown away tinAge s after it was made (the Encryption SDK's
+    // max age). A pickpocket while the tin is warm takes the cached key too: if it has sealed two or more tickets (that's
+    // the reuse, what one leak exposes beyond the one ticket in hand), tinPick lost.
+    tinAge: 1, tinPick: 1,
+    // A mid-wave change to the stamps goes live this many s later.
+    deploy: 3
   };
   const STAMPS = ['seal', 'file', 'read', 'payroll', 'empty', 'star'];
   // What each ticket needs stamped.
@@ -64,12 +76,12 @@
     name: 'THE LOCKED DESK', title: 'the Locked Desk', locked: [], next: null, close: 72, clerk: 'papers', office: true, mira: 3, coins: 2,
     belt: ['badge', 'pad', 'cache', 'param', 'safe', 'waiter'], review: 'review7',
     // parcel: share of Mira's and Riverside's tickets that are over 4 KB. clerk, lookup: shares of the wave. forged,
-    // street: counts. pick: the Alibi pickpockets at the wave's start. ask: review letters that land on the desk.
+    // street: counts. pick: the Alibi picks Mira's pocket early in the wave. Forged and street vary by one each way. ask: review letters that land on the desk.
     waves: [
       { n: 10, secs: 5, poison: 0, parcel: 0, clerk: 0.2, lookup: 0, forged: 0, street: 0, ask: 0 },
-      { n: 14, secs: 5, poison: 0, parcel: 0.4, clerk: 0.2, lookup: 0, forged: 2, street: 2, pick: true, ask: 1 },
-      { n: 14, secs: 5, poison: 0, parcel: 0.4, clerk: 0.15, lookup: 0.25, forged: 2, street: 2, ask: 2 },
-      { n: 22, secs: 6, poison: 0, parcel: 0.5, clerk: 0.2, lookup: 0.15, forged: 3, street: 3, pick: true, ask: 2 }
+      { n: 14, secs: 5, poison: 0, parcel: 0.2, clerk: 0.2, lookup: 0, forged: 2, street: 1, pick: true, ask: 1 },
+      { n: 14, secs: 5, poison: 0, parcel: 0.2, clerk: 0.15, lookup: 0.25, forged: 2, street: 2, ask: 2 },
+      { n: 22, secs: 6, poison: 0, parcel: 0.25, clerk: 0.2, lookup: 0.15, forged: 3, street: 2, pick: true, ask: 2 }
     ]
   };
   // The cellar as claim 7's review room: more review questions than claim 6, poison from wave 2.
@@ -101,7 +113,7 @@
       office: true, seat: Array.from({ length: T.seats }, () => ({ k: null, until: 0, why: '' })), holds: [],
       keyringLive: true, keyGen: 1, keyRotateAt: 0, copies: [], stamps: new Set(['star']), sign: orders.has('visitors') ? 'office' : 'anyone',
       secret: 'note', comboAt: 0, comboLeaked: false, leakAt: 0, nextCombo: Infinity, comboGap: T.noteGap,
-      box: [], tinLeft: 0, internScope: 'solved', deny: orders.has('deny'), visitors: orders.has('visitors'), visitorUntil: -1,
+      box: [], tinLeft: 0, tinAt: 0, pickAt: Infinity, stampsNext: null, deployAt: 0, internScope: 'solved', deny: orders.has('deny'), visitors: orders.has('visitors'), visitorUntil: -1,
       safeLapsed: false, waiterLapsed: false, waiterAt: 0, lastSpawnT: 0,
       // Counters.
       grey: 0, red: 0, greens: 0, thieves: 0, thiefSpill: 0, forgedDone: 0, streetIn: 0, comboThefts: 0, tooBig: 0, boxThrottles: 0, boxLost: 0,
@@ -116,11 +128,13 @@
     C.waves.forEach((w, wi) => {
       const list = S.spawns.filter(sp => sp.wave === wi + 1 && !sp.quiz), n = list.length;
       const kinds = [];
-      for (let i = 0; i < (w.forged || 0); i++) kinds.push('forged');
-      for (let i = 0; i < (w.street || 0); i++) kinds.push('street');
+      const vary = c => (c ? Math.max(0, c - 1 + Math.floor(S.rand() * 3)) : 0);
+      const nf = vary(w.forged), ns = vary(w.street);
+      for (let i = 0; i < nf; i++) kinds.push('forged');
+      for (let i = 0; i < ns; i++) kinds.push('street');
       for (let i = 0; i < Math.round(n * (w.clerk || 0)); i++) kinds.push('clerk');
       for (let i = 0; i < Math.round(n * (w.lookup || 0)); i++) kinds.push('lookup');
-      if (S.deny && wi >= 1) kinds.push('chore');
+      if (S.deny && wi >= 2) kinds.push('chore');
       while (kinds.length < n) kinds.push('post');
       for (let i = kinds.length - 1; i > 0; i--) { const j = Math.floor(S.rand() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
       for (let i = 0; i < 2 && i < n; i++) if (!HONEST.has(kinds[i]) || kinds[i] === 'chore') { const j = kinds.findIndex((x, x2) => x2 >= 2 && (x === 'post' || x === 'clerk')); if (j > 0) [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
@@ -137,11 +151,11 @@
 
   // ---- The latch: 'allow', 'implicit' (grey) or 'explicit' (red). Pure: it reads S, changes nothing. ----
   function copyLive(S, c) { return !!c && (c.cred === 'keyring' ? S.keyringLive && c.gen === S.keyGen : S.time < c.until); }
-  // What a thief can do with Mira's stamps: 3 with the star or Empty, 2 with payroll, 1 with job stamps only.
+  // What a thief can do with Mira's stamps: 2 with the star, Empty or payroll, 1 with job stamps only.
   // Under the deny notice, emptying is refused, so the worst it can do is read the payroll.
   function thiefHarm(S) {
     const st = S.stamps, star = st.has('star');
-    if (!S.deny && (star || st.has('empty'))) return { want: 'empty', n: 3 };
+    if (!S.deny && (star || st.has('empty'))) return { want: 'empty', n: 2 };
     if (star || st.has('payroll')) return { want: 'payroll', n: 2 };
     if (st.has('read') || st.has('file') || st.has('seal')) return { want: 'read', n: 1 };
     return { want: 'read', n: 0 };
@@ -158,7 +172,8 @@
     if (S.stamps.has('star')) return 'allow';
     return needs(k).every(s => S.stamps.has(s)) ? 'allow' : 'implicit';
   }
-  // Stamps change between waves (and before the key is turned), not mid-wave: a deploy takes a moment.
+  // Stamps change at once between waves (and before the key is turned). Mid-wave a change is a deploy: it goes live
+  // T.deploy s later, and the old policy works till then (canEdit says which).
   function canEdit(S) {
     if (!S.started) return true;
     if (S.over) return false;
@@ -178,26 +193,40 @@
 
   // ---- The key box ----
   function boxCall(S, k) {
+    if (S.cache && S.tinLeft > 0 && S.time - S.tinAt >= T.tinAge) S.tinLeft = 0; // aged out
     if (S.cache && S.tinLeft > 0) { S.tinLeft--; I.ev(S, 'tin', { id: k.id, left: S.tinLeft }); return true; }
     S.box = S.box.filter(t => S.time - t < T.boxWin);
     if (S.box.length < T.boxRate) {
       S.box.push(S.time); S.keyCalls++;
-      if (S.cache) S.tinLeft = T.tinUses - 1;
+      if (S.cache) { S.tinLeft = T.tinUses - 1; S.tinAt = S.time; }
       I.ev(S, 'box', { id: k.id, kind: k.big ? 'datakey' : k.kind === 'lookup' ? 'decrypt' : 'encrypt' });
       return true;
     }
     return false;
   }
+  const tinWarm = S => !!S.cache && S.tinLeft > 0 && S.time - S.tinAt < T.tinAge;
+  // A gap between the Alibi's visits, varied a little night to night.
+  const jit = (S, secs) => secs * (1 - T.jitter + 2 * T.jitter * S.rand());
   function spill(S, k, n, why) { for (let i = 0; i < n; i++) { I.lose1(S, k, why); if (I.purse(S).over) return; } }
 
   // ---- Credentials and secrets: the player's free knobs ----
   function setStamp(S, name, on) {
     if (!STAMPS.includes(name)) return 'unknown';
-    if (!canEdit(S)) return 'midwave';
+    if (S.over) return 'over';
+    if (!canEdit(S)) {
+      if (!S.stampsNext) S.stampsNext = new Set(S.stamps);
+      if (on) S.stampsNext.add(name); else S.stampsNext.delete(name);
+      S.deployAt = S.time + T.deploy; I.ev(S, 'stamp', { name, on: !!on, deploy: T.deploy });
+      return 'deploy';
+    }
+    // Between waves a pending deploy lands at once, with this change on top.
+    if (S.stampsNext) { S.stamps = S.stampsNext; S.stampsNext = null; }
     if (on) S.stamps.add(name); else S.stamps.delete(name);
     I.ev(S, 'stamp', { name, on: !!on });
     return '';
   }
+  // The stamps as they'll be once any deploy is done (what the badge card shows).
+  const stampsView = S => S.stampsNext || S.stamps;
   const SIGNS = ['anyone', 'office', 'riverside'];
   function setSign(S, v) {
     if (S.visitors) return 'screwed';
@@ -227,7 +256,7 @@
   function setInternScope(S, v) { const M = I.purse(S); if (v !== 'solved' && v !== 'topics') return 'unknown'; M.internScope = v; I.ev(M, 'scope', { v }); return ''; }
   // A placed buy (called from rush-core's place()).
   function placed(S, tool) {
-    if (tool === 'badge') { S.stamps = new Set(['star']); I.ev(S, 'badgeOn'); }
+    if (tool === 'badge') { S.stamps = new Set(['star']); S.stampsNext = null; I.ev(S, 'badgeOn'); }
     if (tool === 'param' && S.secret !== 'safe') { S.secret = 'param'; S.comboAt = S.time; S.comboLeaked = false; S.nextCombo = Infinity; }
     if (tool === 'safe') { S.secret = 'safe'; S.comboAt = S.time; S.comboLeaked = false; S.nextCombo = Infinity; }
     if (tool === 'cache') S.tinLeft = 0;
@@ -235,7 +264,7 @@
   }
   function leak(S, why) {
     if (S.comboLeaked) return;
-    S.comboLeaked = true; S.leakAt = S.time; S.comboGap = why === 'note' ? T.noteGap : T.agedGap; S.nextCombo = S.time + (why === 'note' ? T.comboFirst : T.agedFirst);
+    S.comboLeaked = true; S.leakAt = S.time; S.comboGap = why === 'note' ? T.noteGap : T.agedGap; S.nextCombo = S.time + jit(S, why === 'note' ? T.comboFirst : T.agedFirst);
     I.ev(S, 'comboLeak', { why });
   }
   const comboAge = S => S.time - S.comboAt;
@@ -294,11 +323,11 @@
     leaveSeat(S, k);
     if (k.kind === 'forged') {
       S.forgedDone++;
-      const warm = S.cache && S.tinLeft > 0;
+      const warm = tinWarm(S);
       I.ev(S, 'forgedDone', { id: k.id, want: k.want, warm });
       if (warm) { S.cacheLeaks++; S.tinLeft = 0; }
       go(k, 'shred', 0.01); k.gone = true;
-      spill(S, k, 3 + (warm ? 2 : 0), 'forged');
+      spill(S, k, T.forgedHarm + (warm ? 2 : 0), 'forged');
       return;
     }
     if (k.kind !== 'lookup') S.seals++;
@@ -322,22 +351,27 @@
         }
         if (sp.wave === 2 && S.secret === 'note') leak(S, 'note');
         const w = C.waves[sp.wave - 1];
-        if (w && w.pick) {
-          const cred = S.keyringLive ? 'keyring' : 'badge';
-          S.copies.push({ cred, at: tt, gen: S.keyGen, until: (Math.floor(tt / T.session) + 1) * T.session, n: 0, next: tt + T.thiefFirst, said: false });
-          S.picks++; I.ev(S, 'pickpocket', { cred });
-        }
+        if (w && w.pick) S.pickAt = tt + T.pickDelay[0] + S.rand() * T.pickDelay[1];
       }
       spawn(S, sp);
     }
+    // The Alibi picks Mira's pocket: a copy of whatever she works with, and the key tin's cached key if it's warm.
+    if (tt >= S.pickAt) {
+      S.pickAt = Infinity;
+      const cred = S.keyringLive ? 'keyring' : 'badge', tin = tinWarm(S) && T.tinUses - S.tinLeft >= 2; // reuse: 2+ sealed with it
+      S.copies.push({ cred, at: tt, gen: S.keyGen, until: (Math.floor(tt / T.session) + 1) * T.session, n: 0, max: T.thiefMax[0] + Math.floor(S.rand() * (T.thiefMax[1] - T.thiefMax[0] + 1)), next: tt + jit(S, T.thiefFirst), said: false });
+      S.picks++; I.ev(S, 'pickpocket', { cred, tin });
+      if (tin) { S.cacheLeaks++; S.tinLeft = 0; I.ev(S, 'tinPicked'); spill(S, { id: -1 }, T.tinPick, 'tin'); if (I.purse(S).over) return; }
+    }
     if (!S.spawns.length) S.allSpawned = true;
+    if (S.stampsNext && tt >= S.deployAt) { S.stamps = S.stampsNext; S.stampsNext = null; I.ev(S, 'deployed'); }
     if (S.keyRotateAt && tt >= S.keyRotateAt) { S.keyRotateAt = 0; S.keyGen++; I.ev(S, 'keysRotated'); }
     // While a copy works, the Alibi sends a thief every couple of seconds.
     const late = S.allSpawned && tt > S.lastSpawnT + 4;
     for (const c of S.copies) {
       const live = copyLive(S, c);
       if (!live && !c.said) { c.said = true; I.ev(S, 'copyDead', { cred: c.cred, n: c.n }); }
-      if (live && !late && c.n < T.thiefMax && tt >= c.next) { c.n++; c.next += T.thiefGap; S.thieves++; spawn(S, { kind: 'thief', copy: c, wave: S.wave }); I.ev(S, 'thief', { cred: c.cred }); }
+      if (live && !late && c.n < c.max && tt >= c.next) { c.n++; c.next += jit(S, T.thiefGap); S.thieves++; spawn(S, { kind: 'thief', copy: c, wave: S.wave }); I.ev(S, 'thief', { cred: c.cred }); }
     }
     // The combination: aging, the safe's rotation, and thieves once it's out.
     if (S.secret === 'param' || (S.secret === 'safe' && S.safeLapsed)) { if (comboAge(S) >= T.comboLeak) leak(S, 'aged'); }
@@ -350,7 +384,7 @@
       I.ev(S, 'rotate', { by: 'safe' });
     }
     if (S.comboLeaked && !late && tt >= S.nextCombo) {
-      S.nextCombo += S.comboGap; S.comboThefts++;
+      S.nextCombo += jit(S, S.comboGap); S.comboThefts++;
       const k = spawn(S, { kind: 'combo', wave: S.wave }); go(k, 'combo', T.direct); I.ev(S, 'comboThief', { id: k.id });
     }
     // Seat holds (rotations) waiting for a free seat go first.
@@ -380,10 +414,10 @@
         case 'shred': I.remove(S, k); break;
         case 'direct':
           I.remove(S, k);
-          if (k.kind === 'street') { S.streetIn++; I.ev(S, 'streetIn', { id: k.id }); spill(S, k, 2, 'street'); }
+          if (k.kind === 'street') { S.streetIn++; I.ev(S, 'streetIn', { id: k.id }); spill(S, k, T.streetHarm, 'street'); }
           else { S.thiefSpill += k.harm; I.ev(S, 'thiefDone', { id: k.id, n: k.harm, want: k.want }); spill(S, k, k.harm, 'thief'); }
           break;
-        case 'combo': I.remove(S, k); I.ev(S, 'comboDone', { id: k.id }); spill(S, k, 3, 'combo'); break;
+        case 'combo': I.remove(S, k); I.ev(S, 'comboDone', { id: k.id }); spill(S, k, T.comboHarm, 'combo'); break;
       }
       if (I.purse(S).over) return;
     }
@@ -406,6 +440,6 @@
     }
     if (S.allSpawned && late && !S.tickets.length && (!V || V.over)) { S.over = 'win'; I.ev(S, 'win'); }
   }
-  SD.rushOffice = { T, STAMPS, NEEDS, SIGNS, OFFICE_ORDERS, init, step, latch, needs, thiefHarm, copyLive, canEdit, setStamp, setSign, shred, rotateKeys, rotate, setInternScope, placed, wide, comboAge, seatFree };
+  SD.rushOffice = { T, STAMPS, NEEDS, SIGNS, OFFICE_ORDERS, init, step, latch, needs, thiefHarm, copyLive, canEdit, setStamp, stampsView, setSign, shred, rotateKeys, rotate, setInternScope, placed, wide, comboAge, seatFree };
   if (typeof module !== 'undefined') module.exports = SD.rushOffice;
 })(typeof window !== 'undefined' ? window : globalThis);
