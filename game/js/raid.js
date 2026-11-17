@@ -16,7 +16,8 @@
 //     starts at once, skipping the party room (solo). o.deckFor(champ): this player's own deck. o.say(lines): the
 //     story's dialogue for floor intros and outros. o.onMiss(q): a question this player got wrong, for the story's
 //     next waypoint. o.label: the mode's name on screen.
-//   - An enemy's `denies` lists cards it refuses outright (an explicit Deny): the card is spent and does nothing.
+//   - An enemy's `denies` lists cards it refuses outright: the card is spent and does nothing. The log gives the foe's
+//     own reason (denyWhy, else its resist line for the card's tag), since a boundary or a key policy is not a Deny.
 //   - A rare's ask.lp draws one of chapter 1's least-privilege questions (q.lp) on concepts this player has met.
 //   - Exam Twists (chapter 2, 2026-10-21): a boss with SD.twists[id], as in js/run.js, asks every player one twist the
 //     first time it falls to half Severity: its incident again with one thing changed, answered on each player's own
@@ -877,7 +878,7 @@
           const rs = tags.find(x => e.resist[x]), wk = d.wild ? Object.keys(e.weak)[0] : tags.find(x => e.weak[x]);
           if (wk) {
             // The log says what the hit did against the card's ⚔: the full number, half, or none.
-            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${e.weak[wk]} `; G.known.push('w:' + wk);
+            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${d.real ? `[${d.real}] ` : ''}${e.weak[wk]} `; G.known.push('w:' + wk);
             // A Tag Team: the second player to land an effective card this turn.
             if (!G.eff.includes(peer)) { G.eff.push(peer); if (G.eff.length === 2) log += `TAG TEAM! Mitigated ${mitigate(G, TAG_TEAM)} more. `; }
           } else if (rs) { log += `${who}RESISTED: 0 of ⚔${pw}. ${e.resist[rs]} `; G.known.push('r:' + rs); }
@@ -947,11 +948,16 @@
     p.played.push(id);
     const ro = !!G.intangible, multi = G.foes.length > 1, mate = typeof w === 'string' && G.players[w] ? w : null;
     let log = `${p.n}: ${d.name}${isUp(id) ? '+' : ''}${multi && !d.all ? ` at ${foeName(G, ti)}` : ''}. `;
-    // An enemy that denies this card (its `denies` list): an explicit Deny beats any Allow, so the card is spent for nothing.
-    const den = obj(SD.enemies[(G.foes[ti] || {}).boss]).denies;
+    // An enemy that refuses this card (its `denies` list): the card is spent for nothing. The reason is the foe's own
+    // (its denyWhy, else its resist line for one of the card's tags), because not every refusal is an explicit Deny: a
+    // permissions boundary caps, a key policy that doesn't trust IAM never lets an IAM Allow count, and another
+    // account's resource policy has to say yes as well. Only a foe with neither gets the explicit-Deny line.
+    const fe = obj(SD.enemies[(G.foes[ti] || {}).boss]), den = fe.denies;
     if (Array.isArray(den) && den.includes(base(id))) {
       if (!d.exhaust && d.kind !== 'infra') p.disc.push(id);
-      G.log = `${log}${foeName(G, ti)} carries an explicit Deny for it, and an explicit Deny beats every Allow. Nothing happens.`;
+      const rt = (d.tags || []).slice().sort((a, b) => (b === 'admin') - (a === 'admin')).find(x => fe.resist && fe.resist[x]);
+      const why = fe.denyWhy || (rt ? fe.resist[rt] : 'It carries an explicit Deny for it, and an explicit Deny beats every Allow.');
+      G.log = `${log}${foeName(G, ti)} refuses it. ${why} Nothing happens.`;
       return true;
     }
     const sh0 = shSum(G), raw = {};

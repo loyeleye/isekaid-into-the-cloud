@@ -130,6 +130,13 @@
   const mine = w => { const q = find(w.id); return !!q && !E().offTrack(q) && E().allowed(q); };
   const topicOf = q => String((q && q.topic) || 'idea');
   H.name = q => (TD() && TD().posterName ? TD().posterName(q) : topicOf(q).toUpperCase());
+  // The rule a monster stood for: the first sentence of its question's explanation, where the AWS term lives. Shown
+  // once it's caught (the stamp and the bestiary), never on the poster, which would give Track's answer away.
+  H.rule = q => {
+    const w = String((q && q.why) || '').trim();
+    const m = w.match(/^.+?[.!?](?=\s+[A-Z(`"]|$)/);
+    return (m ? m[0] : w).slice(0, 240);
+  };
   // Up to n twins of the poster's question, ones this monster hasn't been fought with first, then verified first,
   // then the one answered longest ago. Empty when the idea has no twin (the Wall then needs only two right days).
   // When every twin has been fought with, the most recently used come first, so two twins swap Track and Fight.
@@ -618,7 +625,8 @@
     if (h.mons.every(x => x.out)) h.ended = 'home';
     S.persist();
     const line = m.out === 'captured' ? rand(BRU.captured) : m.out === 'wounded' ? rand(BRU.wounded) : m.out === 'escaped' ? rand(BRU.escaped) : m.out === 'driven' ? BRU.wildOk : BRU.wildBad;
-    U.system(OUT[m.out][1].toUpperCase(), `<span data-vo="${esc('bru|' + line)}">${esc(line)}</span>`, m.out === 'captured' || m.out === 'driven' ? 'gold' : m.out === 'wounded' ? '' : 'red', 4000);
+    const rule = m.out === 'captured' || m.out === 'driven' ? H.rule(find(m.id)) : '';
+    U.system(OUT[m.out][1].toUpperCase(), `<span data-vo="${esc('bru|' + line)}">${esc(line)}</span>${rule ? `<br><small class="hn-rule">${esc(rule)}</small>` : ''}`, m.out === 'captured' || m.out === 'driven' ? 'gold' : m.out === 'wounded' ? '' : 'red', rule ? 6500 : 4000);
   }
   // Outcome labels: a word and a shape, never colour alone.
   const OUT = {
@@ -640,7 +648,7 @@
   // A board's bestiary lesson: the fix that held, and what it really does.
   function simLesson(r) {
     const C = SD.huntCore.CARDS, ids = (r.fix || []).filter(id => C[id]);
-    return ids.length ? { opt: 'The fix that held: ' + ids.map(id => C[id].name).join(' + '), no: ids.map(id => C[id].back).join(' ') } : null;
+    return ids.length ? { opt: 'The fix that held: ' + ids.map(id => C[id].name).join(' + '), no: ids.map(id => C[id].text + ' ' + C[id].back).join(' ') } : null;
   }
   async function run(h) {
     const tok = {};
@@ -858,8 +866,8 @@
     const list = beasts().slice().reverse();
     const fmt = t => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const cards = list.map((c, k) => {
-      const tw = c.twin ? find(c.twin) : null;
-      return `<li class="hn-card"><span class="hn-stamp" aria-hidden="true">CAPTURED</span><b class="td-pn">${esc(c.name)}</b><span class="muted small">Caught ${esc(fmt(c.on))}</span>
+      const tw = c.twin ? find(c.twin) : null, rule = H.rule(find(c.id));
+      return `<li class="hn-card"><span class="hn-stamp" aria-hidden="true">CAPTURED</span><b class="td-pn">${esc(c.name)}</b>${rule ? `<p class="small hn-rule"><b>The rule it stood for:</b> ${esc(rule)}</p>` : ''}<span class="muted small">Caught ${esc(fmt(c.on))}</span>
         ${tw ? `<details class="td-orig"><summary>The twin you beat it with</summary><p class="small">${esc(tw.q)}</p></details>` : ''}
         ${c.lesson ? `<p class="small">${/^The fix that held/.test(c.lesson.opt) ? '' : '<b>Why not:</b> '}${esc(c.lesson.opt)}</p><p class="small hn-why">${esc(c.lesson.no)}</p>` : ''}
         ${c.era ? `<p class="small src-era"><b>Heads up:</b> ${esc(c.era)}</p>` : ''}

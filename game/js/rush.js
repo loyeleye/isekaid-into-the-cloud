@@ -18,6 +18,10 @@
     'v-folder': 'assets/img/rush/vault/folder.webp', 'v-folder-done': 'assets/img/rush/vault/folder-done.webp', 'v-folder-bounced': 'assets/img/rush/vault/folder-bounced.webp',
     'v-drawer': 'assets/img/rush/vault/drawer.webp', 'v-cart': 'assets/img/rush/vault/cart.webp', 'v-cart-bolted': 'assets/img/rush/vault/cart-bolted.webp',
     'v-desk': 'assets/img/rush/vault/desk.webp',
+    // The Night Audit's Watch Room (claim 8): the painted rooms, and the sprites for what moves or is bought (tools/rush_watch_pack.py).
+    'watch-wide': 'assets/img/rush/watch-wide.webp', 'watch-tall': 'assets/img/rush/watch-tall.webp',
+    ...Object.fromEntries(['porter', 'porter-walk', 'gauge', 'gauge-hires', 'capsule', 'capsule-cracked', 'capsule-late', 'capsule-refund', 'tracer', 'pins', 'alarm',
+      'stamp', 'tally', 'rule', 'lens', 'logbook', 'shutter', 'key', 'pile', 'mail'].map(n => ['w-' + n, `assets/img/rush/watch/${n}.webp`])),
     'dutch-neutral': 'assets/img/portraits/dutch-neutral.webp', 'dutch-smile': 'assets/img/portraits/dutch-smile.webp',
     'dutch-tired': 'assets/img/portraits/dutch-tired.webp', 'dutch-surprised': 'assets/img/portraits/dutch-surprised.webp', 'dutch-angry': 'assets/img/portraits/dutch-angry.webp'
   };
@@ -96,6 +100,43 @@
   // On the phone the tank moves to the left wall to make room for the questions.
   const REVIEW_TALL = Object.assign({}, TALL, { inset: INSET_TALL, lever: LEVER_TALL, tank: { x: 300, y: 452, h: 140, feed: 352 }, asks: { x: 600, y: 640, dx: 70, max: 3, label: null, intern: [640, 790] } });
   const VAULT = new Set(['hot']);
+  // ==== Claim 9 (the New Sorter): the freight yard's layouts ====
+  // The yard is painted (painted: true): the fixed props are in the backdrop and the positions below were measured off
+  // the paintings (tools/rush_yard_art.py made the collages they were repainted from; yardArt() is the fallback):
+  // mb = middle-bottom of the sprite, in stage pixels, at real human scale (a standing adult is about 300 px tall at the
+  // front of the wide yard, 224 in the tall one). Things on the rail line stand further back, at about 0.45 of that.
+  // painted: false, so every fixture is drawn over the backdrop; set it true once the backdrop has them painted in.
+  const YARD_WIDE = {
+    W: 1344, H: 768, bg: 'yard-wide', yard: true, painted: true, rail: 466, wall: [186, 410],
+    conveyor: { x0: 0, x1: 250, y: 575 }, gate: { x: 18, y: 640, h: 170 },
+    whistle: { x: 107, y: 632, h: 250 }, lever: { x: 118, y: 500, r: 80, label: [112, 352] },
+    points: { x: 358, y: 634, h: 250, dial: [356, 476], r: 46 }, rlever: { x: 240, y: 646, h: 130 },
+    rack: { x: 486, y: 560, h: 80, w: 170 }, sorters: [{ x: 646, y: 508, h: 160 }, { x: 806, y: 508, h: 160 }],
+    stools: { xs: [585, 682, 782, 882], y: 652, h: 90, w: 92, lamp: [15, -118] }, bin: { x: 1218, y: 650, h: 96, w: 150 },
+    tank: { x: 1262, y: 456, h: 280, gauge: [1216, 196, 14, 84] }, mast: { x: 1140, y: 455, h: 300, lamp: [1122, 205, 13], plate: [1140, 308] },
+    office: { x: 1003, y: 455, h: 150 },
+    siding: { x0: 20, x1: 200, y: 440 }, train: { y: 470, stop: 900 }, board: { x: 950, y: 92, w: 300, h: 96 },
+    counter: { x: 236, y: 390, w: 92, h: 66 }, ledger: { x: 966, y: 646, h: 52 }, depot: { x: 560, y: 170 },
+    inset: { r: [20, 150, 240, 136], src: [0, 0, 1344, 768] }, hatch: [24, 560], foot: [262, 578],
+    belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 330, y: 16, w: 470 }, fs: 1
+  };
+  const YARD_TALL = {
+    W: 768, H: 1344, bg: 'yard-tall', yard: true, painted: true, rail: 616, wall: [290, 578],
+    conveyor: { x0: 0, x1: 185, y: 962 }, gate: { x: 14, y: 1004, h: 130 },
+    whistle: { x: 52, y: 1000, h: 180 }, lever: { x: 62, y: 900, r: 76, label: [96, 796] },
+    points: { x: 336, y: 1105, h: 190, dial: [336, 984], r: 40 }, rlever: { x: 150, y: 1162, h: 100 },
+    rack: { x: 156, y: 880, h: 62, w: 132 }, sorters: [{ x: 336, y: 868, h: 140 }, { x: 488, y: 868, h: 140 }],
+    stools: { xs: [428, 512, 596, 680], y: 1112, h: 90, w: 76, lamp: [20, -92] }, bin: { x: 668, y: 884, h: 80, w: 118 },
+    tank: { x: 700, y: 600, h: 210, gauge: [654, 430, 10, 52] }, mast: { x: 605, y: 603, h: 190, lamp: [598, 447, 9], plate: [601, 515] },
+    office: { x: 487, y: 600, h: 125 },
+    siding: { x0: 20, x1: 190, y: 605 }, train: { y: 616, stop: 336 }, board: { x: 384, y: 408, w: 360, h: 92, hang: 300 },
+    counter: { x: 330, y: 560, w: 84, h: 60 }, ledger: { x: 86, y: 1172, h: 40 }, depot: { x: 655, y: 646 },
+    inset: { r: [12, 642, 150, 125], src: INSET_TALL.src }, hatch: [16, 930], foot: [196, 966],
+    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 214, w: 736 }, fs: 1.7,
+    ext: 'yard-tall-ext'
+  };
+  const YARD = new Set(['sorter']);
+  // ==== end claim 9 layouts ====
 
   // ---- Sound (js/audio.js): recorded samples the game already has, the synth for the rest, and the Sorting Floor's
   // loop and stings until the Rush's own tracks come in (project files real-game/v3/audio/mureka-prompts.md) ----
@@ -157,7 +198,11 @@
     qEl.className = ''; qEl.innerHTML = '';
     // The cellar's review questions: letters from the earlier claims, the ones you've solved first.
     if (S.review) S.review.qpool = reviewPool();
-    if (S.claim === 'hot') {
+    if (SD.rushHall) SD.rushHall.afterReset(); // a piece from Dutch's parts cart starts placed (js/rush-hall.js)
+    if (S.audit) { AUD.reset(); return; } // claim 8: the Night Audit's own intro
+    if (S.office) officeReset(); // claim 7 (the office block below)
+    else if (S.claim === 'sorter') yardReset();
+    else if (S.claim === 'hot') {
       say('intro', 'neutral', 'The Hot Shelf. Mira files every ticket in one of four cabinets, and the caller\'s number picks which. Tonight one caller sends most of them, the red ones. A cabinet only files so many a second.', 9);
       say('twoRooms', 'neutral', 'And the cellar\'s open too, same tank. That little window is the other room. Tap it, or press Tab, to go and look.', 7);
     }
@@ -316,12 +361,15 @@
   // Two notices from the orders not pinned yet, so one you pass on can come back before a later claim. The first pick
   // of a run always offers letters. Stakes and the timeout only come up once letters are pinned.
   function offer(claim) {
-    const pool = shuffle(R.ORDERS.filter(o => !run.orders.includes(o) && (!ORDER[o].needs || run.orders.includes(ORDER[o].needs))), Math.random);
+    if (claim === 'audit') return AUD.orders.filter(o => !run.orders.includes(o)); // claim 8: its own two orders
+    // A claim's own orders (ORDER[o].only) are offered before that claim and no other.
+    const pool = shuffle(R.ORDERS.filter(o => !run.orders.includes(o) && (!ORDER[o].needs || run.orders.includes(ORDER[o].needs)) && (!ORDER[o].only || ORDER[o].only === claim) && officeOrderOk(o, claim)), Math.random);
+    if (claim === 'sorter') { const own = pool.filter(o => ORDER[o].only === 'sorter'); if (own.length) return own.slice(0, 2); }
     if (claim === 'rush' && pool.includes('letters')) return ['letters', pool.find(o => o !== 'letters')].filter(Boolean);
     return pool.slice(0, 2);
   }
   function showPick(claim, opts) {
-    if (claim === 'rush') { run.orders = []; run.bank = 0; run.book = new Map(); }
+    if (claim === 'rush') { run.orders = []; run.bank = 0; run.book = new Map(); run.intern = false; }
     const two = opts || offer(claim), title = R.CLAIMS[claim].title;
     if (!two.length) { reset(SEED + Math.floor(Math.random() * 1000), claim); return; }
     qEl.className = 'on orders';
@@ -384,6 +432,9 @@
       IMG.shard = IMG.shard || drawShard();
       IMG.ondemand = IMG.ondemand || drawDial();
       IMG.intern = IMG.intern || drawIntern();
+      yardArt(); // claim 9's code-drawn yard
+      AUD.art(); // claim 8
+      officeLoad(); // claim 7
     });
   }
 
@@ -552,6 +603,7 @@
     return ang;
   }
   function spot(tool) {
+    if (L.office && OFFICE_SPOT[tool]) return OFFICE_SPOT[tool]();
     if (tool === 'rack') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
     if (tool === 'bin') { const b = L.bin, w = b.h * 0.95; return [b.x - w / 2, b.y - b.h - 6, w, b.h + 12]; }
     if (tool === 'hourglass') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
@@ -633,14 +685,17 @@
   const ROOM_ONLY = new Set(['wave', 'coin', 'saved', 'win', 'lose', 'lever', 'answer']);
   const TROUBLE = new Set(['throttle', 'spill', 'poisonFail', 'hotThrottle', 'clog', 'internMiss', 'unanswered']);
   function onEvent(e, where) {
+    if (M.audit) { AUD.onEvent(e); return; } // claim 8
     if (where === 'review' && ROOM_ONLY.has(e.type)) return;
+    if (S.yard && yardEvent(e)) return; // claim 9
     // Off screen: no red flash, but the room's window glows, and Dutch says so once.
     const away = where !== view;
     if (TROUBLE.has(e.type)) {
       RC[where].alarm = 2.5;
-      if (away && M.started) say(where === 'review' ? 'alarmReview' : 'alarmMain', 'surprised', where === 'review' ? LINES.alarmReview : LINES.alarmMain);
+      if (away && M.started) say(where === 'review' ? 'alarmReview' : 'alarmMain', 'surprised', where === 'review' ? LINES.alarmReview : M.office ? OLINES.alarmOffice : LINES.alarmMain);
     }
     const k = S.tickets.find(x => x.id === e.id);
+    if (S.office && officeEvent(e, away, k)) return; // claim 7
     switch (e.type) {
       case 'lever': sfx('rLever'); leverT = 1; if (saying && said.intro && sayQ.indexOf(saying) < 0 && /pull the lever/.test(saying.text)) saying = null; break;
       case 'wave': sfx('rChime'); popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); if (e.wave >= 2 && letters.length) letterAnim = { t: 0, L: letters.shift() }; break;
@@ -707,6 +762,7 @@
     }
   }
   function tick(dt) {
+    if (M.audit) AUD.tick(dt); // claim 8
     for (const v of Object.keys(RC)) {
       const r = RC[v];
       r.pops.forEach(p => p.t += dt); r.pops = r.pops.filter(p => p.t < 1.2);
@@ -722,6 +778,7 @@
     if (ringT) ringT = Math.max(0, ringT - dt * 1.6);
     if (S.started && !S.bell && S.tickets.some(k => k.ribbon && k.phase === 'work')) say('ribbon', 'tired', LINES.ribbon);
     if (S.started && S.tickets.some(k => k.heavy && k.phase === 'work')) say('heavy', 'neutral', LINES.heavy);
+    if (S.office) officeTick(dt); // Claim 7: the Locked Desk
     if (!saying && sayQ.length) saying = Object.assign(sayQ.shift(), { t: 0 });
     if (saying) { saying.t += dt; if (saying.t > saying.secs) saying = null; }
     if (stamp) stamp.t += dt;
@@ -729,6 +786,7 @@
     // Sharded: once all four cabinets have filed a fair few, Dutch notices.
     if (S.vault && S.shard && S.cabs.every(c => c.filed >= 4)) say('spread', 'smile', LINES.spread);
     tickReview();
+    if (M.yard) yardTick(dt); // claim 9
     if (letterAnim && !letterOpen && !reviewOpen && !S.over) { letterAnim.t += dt; if (letterAnim.t >= 1.4) { const l = letterAnim.L; letterAnim = null; sfx('rPage'); openLetter(l); } }
     if (letterOpen && letterClock && !letterClock.done) {
       letterClock.left -= dt; const bar = qEl.querySelector('.lt-clock i'); if (bar) bar.style.width = Math.max(0, 100 * letterClock.left / LETTER_SECS) + '%';
@@ -753,12 +811,16 @@
     cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, w * .62, 0, Math.PI * 2); cx.fill(); cx.restore();
   }
   function rrect(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); }
+  // Claim 7's check (tools/rush_check_office.js) reads back where the room's labels, counters and prompts were drawn.
+  let labelLog = null, lastLabels = [];
   function text(t, x, y, size, col, align, weight) {
-    size *= L.fs; cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
+    size = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
+    if (labelLog) { const w = cx.measureText(t).width, x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2; labelLog.push({ kind: /^([\d*?+.\-]+|\.\.\.)$/.test(t) ? 'counter' : 'prompt', t, r: [x0, y - size / 2, w, size] }); }
     cx.lineJoin = 'round'; cx.lineWidth = Math.max(3, size / 6); cx.strokeStyle = 'rgba(0,0,0,.9)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.restore();
   }
   function plaque(t, x, y) {
     const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; x = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x));
+    if (labelLog) labelLog.push({ kind: 'label', t, r: [x - w / 2, y - f * .75, w, f * 1.5] });
     rrect(x - w / 2, y - f * .75, w, f * 1.5, 8); cx.fillStyle = 'rgba(32,24,18,.82)'; cx.fill(); cx.strokeStyle = 'rgba(214,178,84,.9)'; cx.lineWidth = 1.5; cx.stroke();
     cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore();
   }
@@ -774,6 +836,7 @@
     if (cur) lines.push(cur); return lines;
   }
   function draw() {
+    if (M.audit) { AUD.draw(); return; } // claim 8: the Watch Room draws itself
     const cw = cv.width, ch = cv.height;
     cx.setTransform(1, 0, 0, 1, 0, 0);
     // The backdrop fills the whole screen behind the stage, dimmed, so there are no bars.
@@ -782,9 +845,12 @@
       const cs = Math.max(cw / bg.width, ch / bg.height);
       cx.drawImage(bg, (cw - bg.width * cs) / 2, (ch - bg.height * cs) / 2, bg.width * cs, bg.height * cs);
       cx.fillStyle = 'rgba(10,8,14,.55)'; cx.fillRect(0, 0, cw, ch);
+      // A painting can carry its own continuation for the bands above and below the stage (the phone's yard).
+      const e = L.ext && IMG[L.ext];
+      if (e) { const E = e.height / 2, k = scale * dpr; cx.drawImage(e, 0, 0, e.width, E, ox * dpr, (oy - E * scale) * dpr + 2, L.W * k, E * k); cx.drawImage(e, 0, E, e.width, E, ox * dpr, (oy + L.H * scale) * dpr - 2, L.W * k, E * k); }
     } else { cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch); }
     cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
-    withRoom(view, () => drawRoom(drag && drag.moved ? drag.tool : null, false));
+    withRoom(view, () => (L.yard ? drawYard : drawRoom)(drag && drag.moved ? drag.tool : null, false));
     if (M.review) drawInset();
     drawHud(); drawBelt(); drawSay();
     if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85, 0, drag.tool === 'ledger' ? 150 : 0);
@@ -795,17 +861,18 @@
     const other = view === 'main' ? 'review' : 'main', r = L.inset.r, src = L.inset.src, k = r[2] / src[2], al = RC[other].alarm;
     cx.save(); rrect(r[0], r[1], r[2], r[3], 12); cx.fillStyle = '#0c0a10'; cx.fill(); cx.clip();
     cx.translate(r[0] - src[0] * k, r[1] - src[1] * k); cx.scale(k, k);
-    withRoom(other, () => { const bg = IMG[L.bg]; if (bg) cx.drawImage(bg, 0, 0, L.W, L.H); drawRoom(null, true); });
+    withRoom(other, () => { const bg = IMG[L.bg]; if (bg) cx.drawImage(bg, 0, 0, L.W, L.H); (L.yard ? drawYard : drawRoom)(null, true); });
     cx.restore();
     const pulse = .5 + .5 * Math.sin(performance.now() / 160);
     cx.save(); rrect(r[0], r[1], r[2], r[3], 12); cx.lineWidth = al ? 5 + pulse * 3 : 4;
     cx.strokeStyle = al ? `rgba(255,${80 + pulse * 40},60,.95)` : 'rgba(214,178,84,.95)'; cx.stroke();
     if (al) { cx.shadowColor = 'rgba(255,70,50,.9)'; cx.shadowBlur = 18 + pulse * 10; cx.stroke(); }
     cx.restore();
-    plaque((other === 'review' ? 'Cellar · review' : 'Vault') + ' · tap to switch', r[0] + r[2] / 2, r[1] - 14 * L.fs);
+    plaque((other === 'review' ? 'Cellar · review' : M.yard ? 'Yard' : M.office ? 'Office' : 'Vault') + ' · tap to switch', r[0] + r[2] / 2, r[1] - 14 * L.fs);
   }
   // One room: its backdrop, props, pieces and tickets. mini: drawn small in the other room's window.
   function drawRoom(dragging, mini) {
+    if (S.office) { drawOffice(dragging, mini); return; } // claim 7
     const bg = IMG[L.bg];
     if (bg && !mini) cx.drawImage(bg, 0, 0, L.W, L.H);
     // The lever: glows until it's pulled.
@@ -994,8 +1061,11 @@
         text('?', p[0] + 18, p[1] - 13, 16, '#ffffff');
       } else {
         // The intern's stamp, red and crooked.
+        const inkOnly = M.office && L.W < L.H; // claim 7 on a phone: the word would be under 11 px, so ink bars instead
         cx.save(); cx.translate(p[0], p[1] + 2); cx.rotate(-.22); cx.strokeStyle = leak ? '#ff5a3a' : '#c8473b'; cx.lineWidth = 2.5; rrect(-30, -10, 60, 20, 3); cx.stroke();
-        cx.font = `800 ${12}px Nunito, "Segoe UI", sans-serif`; cx.fillStyle = leak ? '#ff5a3a' : '#c8473b'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('INTERN', 0, 1); cx.restore();
+        cx.fillStyle = leak ? '#ff5a3a' : '#c8473b';
+        if (inkOnly) { for (const [bx, bw] of [[-24, 14], [-7, 10], [6, 18]]) cx.fillRect(bx, -3, bw, 6); cx.restore(); }
+        else { cx.font = `800 ${12}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('INTERN', 0, 1); cx.restore(); }
       }
       if (left > 0) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = left < .3 ? '#ff7a5a' : st ? '#ffb04a' : '#8fc0ff'; cx.beginPath(); cx.arc(p[0], p[1], 33, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); cx.stroke(); cx.restore(); }
       if (leak) { const u = (now / 900) % 1; cx.save(); cx.fillStyle = `rgba(120,180,255,${1 - u})`; cx.beginPath(); cx.arc(p[0], p[1] + 30 + u * 40, 5, 0, Math.PI * 2); cx.fill(); cx.restore(); text('leaking', p[0], p[1] + 46, 14, '#ff9a8a'); }
@@ -1033,9 +1103,10 @@
   }
   // A review card: answer a question waiting on the wall (mode 'ask'), or check the intern's answer ('check').
   // It doesn't stop the rooms. The first option is the answer, as in the letters.
-  function openReview(k, mode) {
-    const Lt = LETTER_BY_ID[k.q], S2 = M.review;
+  function openReview(k, mode, room) {
+    const Lt = LETTER_BY_ID[k.q], S2 = room || M.review;
     if (!Lt) { if (mode === 'ask') R.reply(S2, k.id, true); return; }
+    if (Lt.f === 's') { openSpotReview(k, mode, S2, Lt); return; } // claim 7's spot-the-line cards
     drag = null;
     const opts = (Lt.f === 'b' ? Lt.tools.map(t => `<img src="${toolSrc(t)}" alt=""><b>${TOOL_LABEL[t]}</b><small>${R.TOOLS[t].aws}</small>`) : Lt.opts).map((html, i) => ({ i, html }));
     // The intern's pick: the answer if it got it right, otherwise one of the others (the same one each time you look).
@@ -1049,7 +1120,7 @@
       <div class="lt-opts">${shown.map((o, n) => `<button type="button" data-i="${o.i}"${mode === 'check' ? ' disabled' : ''}${mode === 'check' && o.i === k.pick ? ' class="pick"' : ''}><kbd>${n + 1}</kbd><span>${o.html}</span>${mode === 'check' && o.i === k.pick ? '<em class="lt-intern">INTERN</em>' : ''}</button>`).join('')}</div>
       ${mode === 'check' ? '<div class="lt-verdict"><button type="button" data-v="ok">Looks right</button><button type="button" data-v="wrong">It\'s wrong</button></div>' : ''}
       <p class="lt-why"></p><button type="button" class="lt-go">Back to the floor</button></div>`;
-    reviewOpen = { k, mode };
+    reviewOpen = { k, mode, S2 };
     const why = qEl.querySelector('.lt-why'), goBtn = qEl.querySelector('.lt-go');
     const reveal = () => qEl.querySelectorAll('.lt-opts button').forEach(x => { x.disabled = true; if (+x.dataset.i === 0) x.classList.add('right'); });
     const finish = (head, body) => { why.innerHTML = `<b>${head}</b> ${body || ''}`; why.classList.add('on'); goBtn.classList.add('on'); goBtn.focus(); reviewOpen.done = true; };
@@ -1078,7 +1149,8 @@
   function tickReview() {
     if (!reviewOpen || reviewOpen.done) return;
     const k = reviewOpen.k, bar = qEl.querySelector('.lt-clock i');
-    const left = reviewOpen.mode === 'ask' ? 1 - (M.review.time - k.askAt) / R.T.askWait : k.phase === 'stamped' ? 1 - (M.review.time - k.stampAt) / R.T.checkWindow : 1;
+    const rt = (reviewOpen.S2 || M.review).time;
+    const left = reviewOpen.mode === 'ask' ? 1 - (rt - k.askAt) / R.T.askWait : k.phase === 'stamped' ? 1 - (rt - k.stampAt) / R.T.checkWindow : 1;
     if (bar) bar.style.width = Math.max(0, 100 * left) + '%';
     const gone = reviewOpen.mode === 'ask' ? k.phase !== 'ask' : !['stamped', 'leak'].includes(k.phase);
     if (gone) { qEl.querySelectorAll('.lt-opts button, .lt-verdict button').forEach(x => { x.disabled = true; }); const w = qEl.querySelector('.lt-why'); w.innerHTML = '<b>Too late.</b> That one\'s gone.'; w.classList.add('on'); qEl.querySelector('.lt-go').classList.add('on'); reviewOpen.done = true; }
@@ -1220,9 +1292,9 @@
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
       if (!used) img(TOOL_IMG[t], r[0] + r[2] / 2, r[1] + r[3] / 2 - 8 * L.fs, 52 * L.fs, 'mm', locked || poor ? .4 : 1);
       // The label shrinks to fit a narrow slot.
-      const label = use || (used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t]);
-      cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
-      if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
+      const label = use || (used ? 'placed' : locked ? 'next claim' : (M.office && L.W < L.H && OFFICE_SHORT[t]) || TOOL_LABEL[t]);
+      const bf = Math.max(14 * L.fs, audMinPx()); cx.save(); cx.font = `700 ${bf}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
+      if (lw > r[2] - 6) cx.font = `700 ${Math.max(bf * (r[2] - 6) / lw, audMinPx())}px Nunito, "Segoe UI", sans-serif`;
       cx.textAlign = 'center'; cx.fillStyle = used ? '#8a7f92' : '#f2e6cc';
       cx.fillText(label, r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
       if (!S[t] && !locked) {
@@ -1231,7 +1303,7 @@
       }
       if (!used && !locked) text(String(i + 1), r[0] + 12, r[1] + 12, 14, '#9d90a8');
       // Upkeep: a small red tag with what it bills each wave.
-      if (R.TOOLS[t].upkeep && !locked) text(`-${R.TOOLS[t].upkeep}/wave`, r[0] + r[2] / 2, r[1] + r[3] - 24 * L.fs, 11, '#ff9a8a');
+      if (R.TOOLS[t].upkeep && !locked) text(`-${R.TOOLS[t].upkeep}/wave`, r[0] + r[2] / 2, r[1] + r[3] - 24 * L.fs, M.office ? 13 : 11, '#ff9a8a');
     });
     const cxp = L.coinsAt ? L.coinsAt[0] : bx + bw + 26, cyp = L.coinsAt ? L.coinsAt[1] : by + bh / 2, puls = coinPulse ? 1 + .2 * Math.sin(coinPulse * 12) : 1;
     cx.save(); cx.translate(cxp + 14, cyp); cx.scale(puls, puls); cx.beginPath(); cx.arc(0, 0, 16 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
@@ -1240,13 +1312,17 @@
     const due = R.upkeep(M);
     if (due && !M.over && M.wave < 4) text(`upkeep -${due}/wave`, cxp + 2, cyp + 30 * L.fs, 14, '#ff9a8a', 'left');
   }
+  let lastSay = null; // Dutch's bubble as last drawn, for claim 7's check
   function drawSay() {
+    lastSay = null;
     if (!saying) return;
     const s = L.say, a = Math.min(1, saying.t * 5, (saying.secs - saying.t) * 3);
     cx.save(); cx.globalAlpha = Math.max(0, a);
     const fz = 20 * Math.min(L.fs, 1.45), lh = fz * 1.35; cx.font = `700 ${fz}px Nunito, "Segoe UI", system-ui, sans-serif`;
     const pw = 76 * Math.min(L.fs, 1.4), lines = wrap(saying.text, s.w - pw - 40), h = Math.max(pw + 12, 24 + lines.length * lh);
+    if (a > .5) lastSay = [s.x, s.y, s.w, h];
     rrect(s.x, s.y, s.w, h, 16); cx.fillStyle = 'rgba(255,250,238,.96)'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#111'; cx.stroke();
+    if (S && S.audit) audBox('say', 'bubble', s.x, s.y, s.w, h); // claim 8's overlap check
     const face = IMG['dutch-' + saying.mood] || IMG['dutch-neutral'];
     if (face) { cx.save(); rrect(s.x + 8, s.y + 6, pw, pw, 10); cx.clip(); cx.fillStyle = '#efe2c4'; cx.fillRect(s.x + 8, s.y + 6, pw, pw); cx.drawImage(face, s.x + 8, s.y + 6, pw, pw); cx.restore(); }
     cx.fillStyle = '#1e160f'; cx.textBaseline = 'top';
@@ -1381,6 +1457,7 @@
     return shuffle([pick(pool.a), pick(pool.b), pick(pool.c)], Math.random);
   }
   function openLetter(Lt) {
+    if (Lt.f === 's') { openSpotLetter(Lt); return; } // claim 7
     letterOpen = true; drag = null;
     const fmt = Lt.f;
     const base = fmt === 'b'
@@ -1434,6 +1511,7 @@
   function closeLetter() { letterOpen = false; letterClock = null; qEl.className = ''; qEl.innerHTML = ''; last = 0; }
   // The end of a claim: the stamp stays on the room, with a small strip along the bottom.
   function showEnd() {
+    if (S.audit) { AUD.end(); return; } // claim 8: the night report
     const won = S.over === 'win';
     // Coins left over from a win carry into the next claim. Losing keeps what you started this claim with.
     if (won) run.bank = S.next ? Math.max(0, S.coins) : 0;
@@ -1448,6 +1526,9 @@
     if (S.review) { const V2 = S.review; bits.push(`cellar: ${V2.handled} handled, ${V2.binned} binned, ${V2.lost} lost`, `review: ${V2.byYou} by you, ${V2.byIntern} by the intern, ${V2.caught} caught, ${V2.missed} missed`); }
     if (S.claim === 'hot') bits.push(`filed ${S.cabs.map((c, i) => 'ABCD'[i] + ' ' + c.filed).join(', ')}`, `${S.hotThrottles} writes throttled`, `${S.writeLost} gave up`);
     if (S.stale) bits.push(`${S.stale} stale reads`);
+    if (S.yard) bits.push(...yardBits()); // claim 9
+    if (S.office) bits.push(...officeBits()); // claim 7
+    if (S.review && S.review.intern) run.intern = true; // the intern carries over into claim 7
     if (S.claim === 'slow') bits.push(`${S.reappeared} reappeared`, `${S.paidTwice} paid twice`, `${S.timedOut} cut off`);
     const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
     bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
@@ -1458,7 +1539,7 @@
     if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;
-    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won && SD.rushHall ? SD.rushHall.won({ claim: S.claim, next: S.next || null, go: () => showPick(nextClaim) }) : won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
   }
   // The letters. Written for this game from the AWS docs, none copied from practice exams. The first option (or
   // first tool) is the answer; the order is shuffled when the letter opens.
@@ -1580,11 +1661,2619 @@
     }
   };
   for (const c of Object.keys(EXTRA_LETTERS)) for (const f of ['a', 'b', 'c']) LETTERS[c][f] = LETTERS[c][f].concat(EXTRA_LETTERS[c][f]);
+  // ==== Claim 9 (the New Sorter): the freight yard ====
+  // The rules are in js/rush-yard.js (SD.rushYard). This block draws the yard, takes the player's hands there, and runs
+  // its cards: the blueprint before the whistle, the manifest slip and the hotfix choice (non-pausing, docked in
+  // #ycard), and the weighbridge inspection cards between waves (spot the line in real config; the yard waits).
+  const YD = SD.rushYard;
+  const YLINES = {
+    intro: 'Opening day. The new sorter comes in crates on the goods train, one a wave. The mail doesn\'t stop while we change over.',
+    intro2: 'Tick the blueprint and sam deploy builds the yard as one stack. Then pull the whistle chain.',
+    built: 'Built, all in one go. That\'s a stack. Pull the whistle when you\'re ready.',
+    rack: 'The waiting platform. Waybills wait here for a free bay, and a failed one comes back for another go. A queue.',
+    bin: 'The returns wagon. Three failures off the platform and a waybill goes in here. Each one counts in the tank.',
+    ledger: 'The ledger. Callers send the same waybill twice when they\'re nervous. The ledger spots the repeat and drops it.',
+    board: 'A timetable. The yard shifts the mail to the new sorter by itself: a tenth first, then the lot. Tap the board to change it.',
+    wire: 'The signal\'s wired to the switchover. It goes red while a crate goes live, and the yard puts the old sorter back. Watch what it watches.',
+    tests: 'A test track. The new sorter does a test waybill before anyone\'s mail touches it, and two after. Tests only know what they test.',
+    manifest: 'The manifest. Every crate shows what it\'ll change before it changes it. Look for the word Replacement.',
+    amend: 'A change to the blueprint goes out as a small stack update. Two seconds.',
+    train: 'Here\'s the train. A new crate, a new version. We don\'t know what\'s in it till it runs.',
+    sealed: 'Sealed. Nobody opens a sealed one. If it\'s wrong, the next crate fixes it.',
+    split: 'Ten percent\'s a rough guess at this hour. Fewer callers, wilder split.',
+    scale: 'Minutes on the board, seconds in the yard. It\'s opening day; nobody\'s got all morning.',
+    hand: 'No timetable, so the dial\'s yours. Tap it to send the new sorter another tenth. That\'s a manual update-alias.',
+    rollback: 'Back to the old one. One pull. The alias is just a pointer.',
+    alarm: 'Red signal, so the switchover stopped and the old sorter\'s back. A rollback is a new deployment, see the number.',
+    alarmLive: 'Rolled back a good one. The signal\'s watching every sorter, and that poison waybill fails on all of them. Have it watch the new one.',
+    hook: 'The test caught it before any real mail did. Stopped, rolled back.',
+    hookOk: 'Test passed. The hook told CodeDeploy so itself: PutLifecycleEventHookExecutionStatus, Succeeded. Say nothing and it fails after an hour.',
+    snag: 'Crate didn\'t fit, so the whole yard put itself back how it was. That\'s a stack rollback. Nothing lost, nothing gained.',
+    paper: 'Looked fine on paper. The paper doesn\'t promise.',
+    replace: 'That platform\'s new. The old one went, and everything on it went too. It said Replacement: True.',
+    noWindow: 'All at once, and it\'s already over. Nothing left for the signal to stop. That one\'s yours to pull.',
+    hotfix: 'Hotfix! New refund forms, the blue-cornered ones, and nothing we\'ve got can read them. The points take one rollout at a time.',
+    hotfixFree: 'Hotfix! New refund forms, the blue-cornered ones, and nothing we\'ve got can read them. The points are free: send it.',
+    counter: 'New forms come over the counter. The caller stands there waiting, so an error goes straight back to them. No platform, no second go.',
+    busy: 'One at a time. The switchover\'s got one crew, and it\'s busy. Wait for it, or stop it.',
+    forced: 'Quick, I\'ll give you that. But the deployment ended the moment it started, so the signal isn\'t watching it. If it\'s bad, that lever\'s yours.',
+    innocent: 'The signal stopped that one. It wasn\'t its fault, the forms broke everything. Alarms count errors, not reasons.',
+    followUp: 'A hotfix for the hotfix. Rushed jobs, eh.',
+    wireDark: 'No coin for the signal\'s bill, so it\'s gone dark. It\'ll come back on when there\'s a coin at the start of a wave.',
+    testsSkipped: 'No coin for the test track, so that crate goes out untested.',
+    upkeep: 'The signal bills a coin a wave. CloudWatch alarms cost while they exist.',
+    poison: 'That one\'s poison. It fails on every sorter, old and new.',
+    bent: 'Refunds failing on the new sorter, the gold ones. The old one does them fine.',
+    cracked: 'Everything that sorter touches fails. Cracked.',
+    ship: 'Fully live by the end of its wave. That\'s a ship coin.',
+    expressFail: 'Half-built. Express doesn\'t roll back, so whatever broke stays broken. Retry it or put it back.',
+    depot: 'The parcel depot took the new version too. Watch what it did to the benches.',
+    sentBack: 'Sent back. No new version, no risk, no coin.',
+    held: 'The crate\'s at the office. Read the slip, then say when.',
+    inspect: 'The weighbridge inspector. Read it like it\'s yours, because it is.'
+  };
+  Object.assign(ORDER, {
+    depot: { name: 'The parcel depot', tag: 'Depot', aws: 'Elastic Beanstalk deployment policies', only: 'sorter',
+      rule: 'Every crate also goes onto the parcel depot\'s four benches, with the policy you pick on the blueprint. A bad crate on unprotected benches loses parcels.',
+      up: 'Each wave the depot finishes with no bounces and no losses pays a coin.',
+      dutch: 'Parcels are on the old machines, the ones you rent by the hour. Beanstalk, they call it. Same new version, different ways to put it on. All at once is cheap and blind: the benches go down together. Rolling does a couple at a time. Rolling with an extra batch rents a bench first so nothing drops. Immutable puts up a whole fresh set and bins it if it\'s bad. Traffic splitting sends a slice to a fresh set first. The safe ones cost a bench or two for an hour.' },
+    express: { name: 'Express mode', tag: 'Express', aws: 'CloudFormation express mode, rollback off', only: 'sorter',
+      rule: 'A crate unpacks in half a second instead of two. But a failed stack update doesn\'t roll back: the piece it broke stays broken until you Retry (a coin) or Roll back (free, 3 seconds).',
+      up: 'Faster crates: good versions go live sooner.',
+      dutch: 'Express. Bolts it all down as fast as it can and doesn\'t look back. Which means if something breaks halfway, it stays broken until somebody says retry or put it back. That\'s what you get when rollback\'s off.' }
+  });
+  // The painted yard (tools/rush_yard_art.py): the backdrops with the fixed props painted in, and the pieces that move
+  // or are bought. Anything missing falls back to the code-drawn placeholder (yardArt() fills only empty keys).
+  Object.assign(SRC, { 'yard-wide': 'assets/img/rush/yard-wide.webp', 'yard-tall': 'assets/img/rush/yard-tall.webp', 'yard-tall-ext': 'assets/img/rush/yard-tall-ext.webp' });
+  for (const [k, f] of [['y-platform', 'platform'], ['y-returns', 'returns'], ['y-sorter-old', 'sorter-old'], ['y-sorter-new', 'sorter-new'],
+    ['y-seal', 'seal'], ['y-crate', 'crate'], ['y-engine', 'engine'], ['y-flat', 'flat'], ['y-trolley', 'trolley'], ['y-lever', 'lever'],
+    ['y-waybill', 'waybill'], ['y-waybill-gold', 'waybill-gold'], ['y-waybill-error', 'waybill-error'], ['y-waybill-done', 'waybill-done'],
+    ['y-waybill-test', 'waybill-test'], ['y-i-board', 'i-board'], ['y-i-wire', 'i-wire']]) SRC[k] = 'assets/img/rush/yard/' + f + '.webp';
+  Object.assign(TOOL_IMG, { board: 'y-i-board', wire: 'y-i-wire', tests: 'y-trolley', manifest: 'y-i-manifest' });
+  // The belt's words: the long names on the wide yard, short ones on the phone (its seven slots are narrow).
+  for (const [t, wide, tall] of [['board', 'Timetable', 'Board'], ['wire', 'Alarm wire', 'Alarm'], ['tests', 'Test track', 'Tests'], ['manifest', 'Manifest', 'Papers']])
+    Object.defineProperty(TOOL_LABEL, t, { get: () => L.W > L.H ? wide : tall, enumerable: true, configurable: true });
+  const CFG_WORD = { canary: 'Canary', linear: 'Linear', all: 'All at once' };
+  Object.assign(USE_LABEL, {
+    board: () => V().yard ? (L.W > L.H ? CFG_WORD[V().cfg] + ' ▸' : { canary: 'Canary', linear: 'Linear', all: 'At once' }[V().cfg]) : '',
+    wire: () => V().yard ? (V().wireOn ? (L.W > L.H ? 'Watch: ' : 'On ') + (V().watch === 'new' ? 'new' : 'LIVE') : (L.W > L.H ? 'Dark (no coin)' : 'No coin')) : '',
+    tests: () => V().yard ? 'Tests ' + (V().testsOn ? (L.W > L.H ? 'on' : '✓') : (L.W > L.H ? 'off' : '✗')) : ''
+  });
+  // The letters for claim 9 (design section 11), the alarm buy renamed to the alarm wire.
+  QS.sorter = {
+    q: 'A team uses SAM. On every code change they want 10% of traffic to go to the new version for five minutes, then all of it, rolling back automatically if errors appear, with as little custom code as possible. What should they add to the function?',
+    opts: ['AutoPublishAlias plus DeploymentPreference with Type: Canary10Percent5Minutes and an error alarm under Alarms', 'A Step Functions workflow that calls UpdateAlias every minute', 'Route 53 weighted records pointing at two function URLs', 'Type: Linear10PercentEvery1Minute with no alarms'],
+    why: 'SAM creates the CodeDeploy application and deployment group for you. The canary type shifts 10% and then the remaining 90% five minutes later, and the listed alarms roll it back. The others need custom code, or give no automatic rollback.'
+  };
+  LETTERS.sorter = {
+    a: [
+      { f: 'a', q: 'A SAM function uses AutoPublishAlias: live and DeploymentPreference Type AllAtOnce, with an alarm on the new version\'s errors. A release that fails only on refunds goes out, and the alarm fires two minutes later, but nothing rolls back. Why?', opts: ['With all at once, the deployment had already finished; the alarm only stops a deployment while it is running', 'Alarms only work with Linear deployments', 'The alias can\'t point to a version that has errors', 'The alarm needed to watch $LATEST'], why: 'CodeDeploy watches the alarms while a deployment is in progress. All at once shifts everything at the start and ends, so a fault that appears later has no deployment to stop. A canary or linear shift (or a post-traffic hook) keeps the deployment open while only part of the traffic sees the new version.' },
+      { f: 'a', q: 'A team is adding gradual deployments to a SAM function that has never been deployed. CodeDeploy needs an earlier version to shift traffic from. How should they do the first deployment?', opts: ['Deploy once with AutoPublishAlias only, then add DeploymentPreference and deploy again', 'Point the alias at $LATEST first', 'Use Linear instead of Canary for the first deploy', 'Add a PostTraffic hook'], why: 'CodeDeploy needs an earlier version to shift traffic from, so the first gradual deployment is done in two steps: publish a version and create the alias, then deploy gradually.' },
+      Object.assign({ f: 'a' }, QS.sorter),
+      { f: 'a', q: 'A canary deployment of a Lambda function is three minutes into its 10-minute window when a critical bug is found in production. A fixed build is ready, and the team runs sam deploy for it. What\'s the quickest safe way to get the fix out?', opts: ['The deployment group allows one deployment at a time: stop the current deployment with rollback (or cancel the stack update), then deploy the fix', 'Nothing: CodeDeploy starts a second deployment and splits traffic three ways', 'Nothing: CodeDeploy queues the new deployment and starts it when the canary ends', 'The new deployment replaces the running one and inherits its traffic weights'], why: 'CodeDeploy allows one concurrent deployment per deployment group, and a weighted alias can point to only two versions. Stopping with rollback returns traffic to the current version, and then the fix can go out, with a canary if there\'s time or with AllAtOnce if there isn\'t (which gives up the alarm window).' }
+    ],
+    b: [
+      { f: 'b', tools: ['wire', 'board', 'tests', 'manifest'], q: 'The canary sends a bad crate one waybill in ten, it fails, and nobody\'s in the yard to pull the red lever. Which piece rolls it back by itself?', why: 'The alarm wire is a CloudWatch alarm on the deployment. When it goes off during a deployment, CodeDeploy stops it and rolls back.' },
+      { f: 'b', tools: ['tests', 'wire', 'board', 'manifest'], q: 'A hotfix has to go out all at once, right now, in the middle of a rush. With all at once, the signal has no time to watch it. Which piece still checks it before any waybill touches it?', why: 'The test track is the pre-traffic hook. It runs before traffic shifts in every deployment, whatever the timetable says. The alarm only acts while a deployment is still shifting.' },
+      { f: 'b', tools: ['manifest', 'wire', 'board', 'tests'], q: 'The next crate quietly rebuilds the waiting platform, and everything on it goes with the old one. Which piece would have shown you that before it happened?', why: 'The weighbridge office is a change set. It lists each change and whether it means Replacement: True, a new resource with the old one deleted.' }
+    ],
+    c: [
+      { f: 'c', q: 'Three of these are true of Lambda aliases. Which one is false?', opts: ['A weighted alias can split traffic between up to three versions', 'An alias is a pointer to a version that you can update', 'Each weighted invocation is routed by chance, so a small share can be uneven at low traffic', 'A synchronous response says which version ran in the x-amz-executed-version header'], why: 'An alias can point to at most two versions: the one it points to, and one more that gets an additional weight.' },
+      { f: 'c', q: 'Three of these are true of Lambda versions. Which one is false?', opts: ['You can update a published version\'s code if the update comes from CodeDeploy', 'Lambda never reuses a version number, even after the function is deleted and recreated', 'A qualified ARN ends with the version number', '$LATEST is the unpublished version you can still edit'], why: 'A published version\'s code and most of its settings can\'t be changed by anyone. You publish a new version from $LATEST.' }
+    ]
+  };
+  // ---- State for the yard's screen ----
+  let yUI = {};
+  const ycardEl = (() => { const d = document.createElement('div'); d.id = 'ycard'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-live', 'polite'); document.body.appendChild(d); return d; })();
+  function yardFresh() { return { slip: false, choice: false, express: false, boardFlash: 0, boardMsg: '', whistle: 0, cards: [], cardQ: [], cardN: 0, trainOut: 0, lamp: [0, 0, 0, 0], lampCol: ['', '', '', ''], drag: null, depotFlash: 0, dialT: 0 }; }
+  function yardReset() {
+    yUI = yardFresh(); ycard('');
+    say('intro', 'neutral', YLINES.intro, 8); say('intro2', 'neutral', YLINES.intro2, 6);
+    if (qs.has('fresh')) YD.setCrates(S, ['good', S.y.crates[2].kind]);
+    // Three inspection cards a claim, between waves.
+    yUI.cards = shuffle(YD.CARDS.slice(), Math.random).slice(0, 3);
+    if (S.review) S.review.qpool = yardPool();
+    showBlueprint();
+  }
+  // The cellar's questions in the finale: from every claim so far, the ones you got wrong first, then the ones you've
+  // solved (the intern can take those), then the rest.
+  function yardPool() {
+    const all = Object.keys(LETTER_BY_ID).filter(id => !['fifo', 'eventual'].includes(LETTER_BY_ID[id].claim) || run.orders.includes(LETTER_BY_ID[id].claim));
+    const book = M.book, missed = all.filter(id => { const r = book.get(id); return r && r.wrong > 0; }), solved = all.filter(id => { const r = book.get(id); return r && r.solved && !missed.includes(id); });
+    const rest = all.filter(id => !missed.includes(id) && !solved.includes(id));
+    return shuffle(shuffle(missed, Math.random).slice(0, 6).concat(shuffle(solved, Math.random), shuffle(rest, Math.random)).slice(0, 12), Math.random);
+  }
+  // ---- The blueprint: template.yaml before the whistle ----
+  const BP = [
+    ['rack', 'Waiting platform', 'SQS queue · claim 1'], ['bin', 'Returns wagon', 'Dead-letter queue · claim 1'], ['ledger', 'Ledger', 'DynamoDB idempotency · claim 3'],
+    ['board', 'Timetable', 'DeploymentPreference.Type'], ['wire', 'Alarm wire', 'DeploymentPreference.Alarms · 1 coin a wave'],
+    ['tests', 'Test track', 'Hooks: PreTraffic, PostTraffic · 1 coin a crate'], ['manifest', 'Manifest', 'Change sets: sam deploy --confirm-changeset']
+  ];
+  function bpYaml(t) {
+    const L2 = ['Transform: AWS::Serverless-2016-10-31', 'Resources:', '  Sorter:', '    Type: AWS::Serverless::Function', '    Properties:', '      AutoPublishAlias: live'];
+    if (t.board) { L2.push('      DeploymentPreference:', '        Type: Canary10Percent5Minutes'); if (t.wire) L2.push('        Alarms: [!Ref NewVersionErrors]'); if (t.tests) L2.push('        Hooks:', '          PreTraffic: !Ref PreTrafficTest', '          PostTraffic: !Ref PostTrafficTest'); }
+    if (t.rack) { L2.push('  WaitingPlatform:', '    Type: AWS::SQS::Queue'); if (t.bin) L2.push('    Properties:', '      RedrivePolicy:', '        deadLetterTargetArn: !GetAtt Returns.Arn', '        maxReceiveCount: 3', '  Returns:', '    Type: AWS::SQS::Queue'); }
+    if (t.ledger) L2.push('  Ledger:', '    Type: AWS::DynamoDB::Table');
+    return L2.join('\n');
+  }
+  function showBlueprint() {
+    const t = {}, coins = () => M.coins - BP.reduce((n, [k]) => n + (t[k] ? R.costOf(M, k) : 0), 0);
+    let policy = 'all';
+    qEl.className = 'on orders blueprint';
+    const depot = M.orders.has('depot');
+    qEl.innerHTML = `<div class="no-board bp-sheet"><p class="no-kind">Opening day · the blueprint</p><h2 id="q-h">template.yaml</h2>
+      <p class="bp-help">Tick what the yard is built with. <b>sam deploy</b> builds the lot as one stack. You can add a line later, as a two-second stack update.</p>
+      <div class="bp-lines">${BP.map(([k, name, aws]) => `<button type="button" class="bp-line" data-t="${k}" aria-pressed="false"><i class="bp-box" aria-hidden="true"></i><span><b>${name}</b><small>${aws}</small></span><em class="bp-cost">${R.costOf(M, k)}</em></button>`).join('')}</div>
+      ${depot ? `<div class="bp-depot"><b>Parcel depot policy</b><div>${Object.keys(YD.DEPOT).map(p => `<button type="button" data-p="${p}"${p === 'all' ? ' class="on"' : ''}>${{ all: 'All at once', rolling: 'Rolling', additional: 'Rolling + batch', immutable: 'Immutable', split: 'Traffic splitting' }[p]}${YD.DEPOT[p] ? ' · 1/crate' : ''}</button>`).join('')}</div></div>` : ''}
+      <details class="bp-yaml-d"><summary>Show template.yaml</summary><pre class="bp-yaml"></pre></details>
+      <p class="bp-coins"></p><button type="button" class="no-go bp-go">$ sam deploy</button></div>`;
+    const sync = () => {
+      qEl.querySelectorAll('.bp-line').forEach(b => {
+        const k = b.dataset.t, need = R.TOOLS[k].needs, blocked = need && !t[need];
+        b.setAttribute('aria-pressed', t[k] ? 'true' : 'false'); b.classList.toggle('on', !!t[k]);
+        b.disabled = !t[k] && (blocked || coins() < R.costOf(M, k));
+        b.querySelector('small').textContent = blocked && !t[k] ? 'Needs the timetable first' : BP.find(x => x[0] === k)[2];
+      });
+      qEl.querySelector('.bp-yaml').textContent = bpYaml(t);
+      qEl.querySelector('.bp-coins').textContent = `Coins ${M.coins} · left after sam deploy: ${coins()}`;
+      qEl.querySelector('.bp-go').textContent = t.manifest ? '$ sam deploy --confirm-changeset' : '$ sam deploy';
+    };
+    qEl.querySelectorAll('.bp-line').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.t; t[k] = !t[k];
+      if (k === 'board' && !t.board) { t.wire = false; t.tests = false; }
+      sync();
+    }));
+    qEl.querySelectorAll('.bp-depot button').forEach(b => b.addEventListener('click', () => { policy = b.dataset.p; qEl.querySelectorAll('.bp-depot button').forEach(x => x.classList.toggle('on', x === b)); }));
+    qEl.querySelector('.bp-go').addEventListener('click', () => {
+      if (depot) YD.setDepot(M, policy);
+      const order = BP.map(x => x[0]).filter(k => t[k]);
+      YD.blueprint(M, order);
+      qEl.className = ''; qEl.innerHTML = '';
+    });
+    sync(); qEl.querySelector('.bp-line').focus();
+  }
+  // ---- The docked card (#ycard): the manifest slip, the hotfix choice, express mode's half-built yard ----
+  function ycard(html, kind) {
+    ycardEl.className = html ? 'on ' + (kind || '') : ''; ycardEl.innerHTML = html || '';
+    yUI.cardKind = html ? kind : '';
+  }
+  // Closing one card leaves another alone: the half-built yard outranks the hotfix card, which outranks the slip.
+  function yclear(kind) { if (yUI.cardKind === kind) ycard(''); }
+  function showSlip() {
+    const H = S.y.held; if (!H || yUI.choice) return;
+    const c = H.crate, rows = YD.slip(c), next = S.versions.length;
+    yUI.slip = true;
+    ycard(`<p class="yc-h">Change set · crate ${c.slot} · version ${next} if it runs</p>
+      <div class="yc-rows">${rows.map((r, i) => `<button type="button" class="yc-row${r.rep === 'True' ? ' rep' : ''}" data-i="${i}"><span>${r.act}</span><code>${r.id}</code><em>${r.rep ? 'Replacement: ' + r.rep : 'new'}</em></button>`).join('')}</div>
+      <p class="yc-note">Tap a line to read it. A change set shows what will change. It doesn't promise it'll work.</p>
+      <div class="yc-btns"><button type="button" data-x="now">Execute now</button><button type="button" data-x="empty">Execute when the platform's empty</button><button type="button" data-x="back">Send it back</button></div>`, 'slip');
+    const note = ycardEl.querySelector('.yc-note');
+    ycardEl.querySelectorAll('.yc-row').forEach(b => b.addEventListener('click', () => {
+      const r = rows[+b.dataset.i];
+      note.textContent = r.rep === 'True' ? `${r.id} (${r.type}): Replacement True. CloudFormation makes a new one and deletes the old one, with whatever's on it.`
+        : r.rep === 'False' ? `${r.id} (${r.type}): updated in place. Replacement False.` : `${r.id} (${r.type}): a new resource. Nothing replaced.`;
+    }));
+    ycardEl.querySelectorAll('.yc-btns button').forEach(b => b.addEventListener('click', () => {
+      const x = b.dataset.x;
+      if (x === 'back') YD.sendBack(M); else YD.execute(M, x);
+      yUI.slip = false; yclear('slip');
+      popAt([L.office.x, L.office.y - L.office.h - 30], x === 'back' ? 'sent back' : x === 'empty' ? 'when it\'s empty' : 'executing', '#ffe6a8', 24);
+    }));
+  }
+  function showChoice(e) {
+    const H = S.y.hf, d = S.y.dep, v = d && d.v ? 'v' + d.v : 'the crate', cfg = S.board ? CFG_WORD[S.cfg].toLowerCase() : 'the hand dial';
+    yUI.choice = true; yUI.slip = false;
+    const left = Math.max(0, Math.ceil(YD.shiftLeft(S))), wait = d && d.cfg === 'hand' ? 'when you finish the dial' : `about ${left} s, then ${cfg}`;
+    const opts = e.busy ? [['wait', `Wait for ${v}, then send the hotfix`, wait], ['stop', `Stop ${v} (roll back), send the hotfix with ${cfg}`, '2 s, then ' + cfg], ['force', `Stop ${v}, ship the hotfix ALL AT ONCE`, '2 s · no alarm window']]
+      : [['wait', `Send the hotfix with ${cfg}`, '2 s, then ' + cfg], ['force', 'Ship it ALL AT ONCE', '2 s · no alarm window']];
+    ycard(`<p class="yc-h hot">Hotfix: new refund forms are failing</p>
+      <p class="yc-sub">${e.busy ? `${v} is still going out. The deployment group takes one at a time.` : 'Every sorter we have fails the new forms.'}</p>
+      <div class="yc-clock" aria-hidden="true"><i></i></div>
+      <div class="yc-btns col">${opts.map(([c, t, s2]) => `<button type="button" data-c="${c}"><b>${t}</b><small>${s2}</small></button>`).join('')}</div>
+      <p class="yc-note">Do nothing and it waits.</p>`, 'choice');
+    ycardEl.querySelectorAll('.yc-btns button').forEach(b => b.addEventListener('click', () => YD.choose(M, b.dataset.c)));
+    H.cardOpen = true;
+  }
+  function showExpress(piece) {
+    yUI.express = true;
+    const word = { rack: 'waiting platform', bin: 'returns wagon', ledger: 'ledger' }[piece] || 'yard';
+    ycard(`<p class="yc-h hot">UPDATE_FAILED · express mode</p><p class="yc-sub">The update broke halfway and rollback is off: the ${word} is gone until you fix it.</p>
+      <div class="yc-btns"><button type="button" data-f="retry">Retry · 1 coin</button><button type="button" data-f="rollback">Roll back · free, 3 s</button></div>`, 'express');
+    ycardEl.querySelectorAll('.yc-btns button').forEach(b => b.addEventListener('click', () => {
+      const r = YD.fixStack(M, b.dataset.f);
+      if (r === 'coins') { popAt([L.W / 2, L.H * .3], 'No coins', '#ffdc78', 28); return; }
+      yUI.express = false; yclear('express');
+    }));
+  }
+  // ---- The weighbridge inspection: a card between waves. The yard waits while it's open. ----
+  function openInspection(card) {
+    letterOpen = true; drag = null;
+    const right = i => YD.cardRight(card, i);
+    const code = card.lines.map((l, i) => card.kind === 'line'
+      ? `<button type="button" class="yc-line" data-i="${i}"><span class="yc-n">${i + 1}</span><code>${escHtml(l)}</code></button>`
+      : `<div class="yc-line ro"><span class="yc-n">${i + 1}</span><code>${escHtml(l)}</code></div>`).join('');
+    const opts = card.kind === 'fix' ? shuffle(card.opts.map((o, i) => ({ o, i })), Math.random) : [];
+    qEl.className = 'on letter yinsp';
+    qEl.innerHTML = `<div class="lt-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">Weighbridge inspection · ${card.file}</p><p class="lt-text" id="q-h">${card.q}</p>
+      <div class="yc-code">${code}</div>
+      ${opts.length ? `<div class="lt-opts">${opts.map((x, n) => `<button type="button" data-i="${x.i}"><kbd>${n + 1}</kbd><span><code>${escHtml(x.o).replace(/\n/g, '<br>')}</code></span></button>`).join('')}</div>` : ''}
+      <p class="lt-why"></p><button type="button" class="lt-go">Back to the yard</button></div>`;
+    const why = qEl.querySelector('.lt-why'), go = qEl.querySelector('.lt-go');
+    const settle = b => {
+      const i = +b.dataset.i, ok = right(i);
+      qEl.querySelectorAll('.yc-line, .lt-opts button').forEach(x => { x.disabled = true; if (x.dataset.i != null && right(+x.dataset.i) && (x.classList.contains('yc-line') === (card.kind === 'line'))) x.classList.add('right'); });
+      if (!ok) b.classList.add('wrong');
+      sfx(ok ? 'right' : 'wrong');
+      const fix = card.kind === 'line' ? `<br><span class="yc-fix">Fix: <code>${escHtml(card.fix)}</code></span>` : '';
+      why.innerHTML = `<b>${ok ? 'Signed off. A coin.' : 'Not that one.'}</b> ${card.why}${fix}`; why.classList.add('on');
+      go.classList.add('on'); go.focus();
+      R.answer(M, card.id, ok, 'player');
+      if (ok) { M.coins++; coinPulse = 1.5; M.cardsRight = (M.cardsRight || 0) + 1; } else M.cardsWrong = (M.cardsWrong || 0) + 1;
+    };
+    qEl.querySelectorAll(card.kind === 'line' ? '.yc-line' : '.lt-opts button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) settle(b); }));
+    go.addEventListener('click', () => { closeLetter(); yUI.cardOpen = false; });
+    yUI.cardOpen = true;
+    const first = qEl.querySelector('.yc-line:not(.ro), .lt-opts button'); if (first) first.focus();
+  }
+  function escHtml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // ---- Events from the yard's rules ----
+  function yardEvent(e) {
+    const vName = n => 'v' + n;
+    switch (e.type) {
+      case 'deploy': sfx('rClank'); popAt([L.W / 2, L.H * .42], 'Stack created', '#bff5b4', 40); if (e.tools.length) say('built', 'smile', YLINES.built); return true;
+      case 'lever': yUI.whistle = 1.2; return false;
+      case 'train': sfx('rChime'); say('train', 'neutral', YLINES.train); return true;
+      case 'crate': return true;
+      case 'held': sfx('rPage'); showSlip(); say('held', 'neutral', YLINES.held); return true;
+      case 'stack': yUI.boardMsg = e.hotfix ? 'HOTFIX · STACK UPDATE' : 'STACK UPDATE'; yUI.boardFlash = 0; return true;
+      case 'publish': sfx('rStamp'); { const p = sorterPos(1); popAt([p[0], p[1] - L.sorters[1].h - 30], vName(e.v) + ' sealed', '#ffd0a0', 30); } say('sealed', 'neutral', YLINES.sealed); return true;
+      case 'hook': yUI.trolley = { stage: e.stage, t: 0 }; return true;
+      case 'hookResult': popAt([L.W > L.H ? (L.siding.x0 + L.siding.x1) / 2 + 40 : 300, L.siding.y - 70], (e.stage === 'pre' ? 'Pre-traffic: ' : 'Post-traffic: ') + (e.ok ? 'Succeeded' : 'Failed'), e.ok ? '#9be59b' : '#ff8a7a', 24);
+        if (e.ok) say('hookOk', 'neutral', YLINES.hookOk); else say('hook', 'smile', YLINES.hook); return true;
+      case 'shift':
+        if (e.cfg === 'canary') { say('scale', 'neutral', YLINES.scale); say('split', 'neutral', YLINES.split); }
+        if (e.cfg === 'linear') say('scale', 'neutral', YLINES.scale);
+        if (e.cfg === 'hand') say('hand', 'neutral', YLINES.hand);
+        return true;
+      case 'deployed': sfx('right'); { const p = sorterPos(0); popAt([p[0], p[1] - L.sorters[0].h - 30], vName(e.v) + ' is LIVE', '#bff5b4', 30); } return true;
+      case 'noWindow': say('noWindow', 'tired', e.hotfix ? YLINES.forced : YLINES.noWindow); return true;
+      case 'rollback':
+        sfx('wrong'); yUI.boardMsg = `STOPPED · ROLLED BACK · ${e.dep}`; yUI.boardFlash = 2.5;
+        popAt(L.W > L.H ? [L.points.dial[0], L.points.dial[1] - L.points.r - 30] : [L.W / 2, L.sorters[0].y - L.sorters[0].h * .5], 'rolled back to ' + vName(S.alias.cur), '#ffb27a', 28);
+        if (e.why === 'alarm') { say('alarm', 'surprised', YLINES.alarm); if (e.good && e.poison && S.watch === 'live') say('alarmLive', 'tired', YLINES.alarmLive); else if (e.good && e.form2) say('innocent', 'tired', YLINES.innocent); }
+        else if (e.why === 'lever') say('rollback', 'neutral', YLINES.rollback);
+        return true;
+      case 'stackRollback': sfx('rThud'); yUI.boardMsg = 'UPDATE_ROLLBACK_COMPLETE'; yUI.boardFlash = 3; say('snag', 'tired', YLINES.snag); if (S.manifest) say('paper', 'tired', YLINES.paper); return true;
+      case 'updateFailed': sfx('wrong'); yUI.boardMsg = 'UPDATE_FAILED'; yUI.boardFlash = 4; showExpress(e.piece); say('expressFail', 'angry', YLINES.expressFail); return true;
+      case 'stackFixing': yUI.boardMsg = 'ROLLING BACK'; yUI.boardFlash = 3; return true;
+      case 'stackFixed': sfx('rClank'); yUI.boardMsg = e.how === 'retry' ? 'UPDATE_COMPLETE' : 'UPDATE_ROLLBACK_COMPLETE'; yUI.boardFlash = 2; if (yUI.express) { yUI.express = false; yclear('express'); } return true;
+      case 'replaced': if (e.n) { sfx('splat'); popAt([L.rack.x, L.rack.y - L.rack.h - 30], e.n + ' lost with the old platform', '#ff9a8a', 26); say('replace', 'angry', YLINES.replace); } return true;
+      case 'hotfix': sfx('rBell'); yUI.hfEv = e; if (!yUI.express) showChoice(e); say('hotfix', 'surprised', e.busy ? YLINES.hotfix : YLINES.hotfixFree); return true;
+      case 'choice': yUI.choice = false; yUI.hfEv = null; yclear('choice'); if (e.choice === 'force') say('forced', 'tired', YLINES.forced); if (S.y.held) showSlip(); return true;
+      case 'busy': sfx('rThud'); yUI.boardMsg = 'ONE AT A TIME · GROUP BUSY'; yUI.boardFlash = 2; say('busy', 'tired', YLINES.busy); return true;
+      case 'parked': popAt([(L.siding.x0 + L.siding.x1) / 2, L.siding.y - 60], 'hotfix waits', '#ffb27a', 24); return true;
+      case 'followUp': say('followUp', 'tired', YLINES.followUp); return true;
+      case 'ship': sfx('coin'); coinPulse = 1.5; popAt([L.W / 2, L.H * .3], '+1 ship coin · ' + (e.hotfix ? 'hotfix' : 'crate ' + e.slot), '#ffdc78', 30); say('ship', 'smile', YLINES.ship); return true;
+      case 'upkeep': coinPulse = 1; popAt([L.mast.x, L.mast.y - L.mast.h - 20], '-1 signal', '#ff9a8a', 24); say('upkeep', 'neutral', YLINES.upkeep); return true;
+      case 'wireDark': say('wireDark', 'tired', YLINES.wireDark); return true;
+      case 'wireBack': return true;
+      case 'testsSkipped': say('testsSkipped', 'tired', YLINES.testsSkipped); return true;
+      case 'amend': popAt([L.board.x, L.board.y + L.board.h], 'stack update · 2 s', '#cfe0ff', 24); say('amend', 'neutral', YLINES.amend); return true;
+      case 'place': if (e.amend) { sfx('rClank'); say(e.tool, 'neutral', YLINES[e.tool] || ''); } return true;
+      case 'card': return true; case 'watch': return true; case 'tests': return true; case 'dial': return true;
+      case 'execute': return true; case 'superseded': return true; case 'depotPolicy': return true;
+      case 'sentBack': say('sentBack', 'neutral', YLINES.sentBack); return true;
+      case 'yardError': {
+        const k = S.tickets.find(x => x.id === e.id);
+        if (k && k.stool != null) { yUI.lamp[k.stool] = .8; }
+        const v = S.versions[e.ver];
+        if (e.poison) say('poison', 'surprised', YLINES.poison);
+        else if (e.form2) say('counter', 'surprised', YLINES.counter);
+        else if (v && v.kind === 'bent') say('bent', 'surprised', YLINES.bent);
+        else if (v && v.kind === 'cracked') say('cracked', 'surprised', YLINES.cracked);
+        return true;
+      }
+      case 'poisonFail': return true;
+      case 'spill':
+        sfx('splat'); drops.push({ t: 0 });
+        popAt([L.tank.x - 60, L.tank.y - L.tank.h * .6], '+1', '#9cc8ff', 28);
+        if (e.why === 'error') popAt([L.counter.x, L.counter.y - L.counter.h], 'error', '#ff8a7a', 22);
+        return true;
+      case 'binned': sfx('rClank'); popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'returned', '#d59cff', 24); return true;
+      case 'depot': yUI.depotFlash = 2; if (e.lost) popAt([L.depot.x, L.depot.y + (L.W < L.H ? 150 : 100)], `depot: ${e.lost} parcel${e.lost > 1 ? 's' : ''} lost`, '#ff9a8a', 22); say('depot', 'neutral', YLINES.depot); return true;
+      case 'depotCoin': sfx('coin'); coinPulse = 1; popAt([L.depot.x, L.depot.y + 80], '+1 depot', '#ffdc78', 24); return true;
+      case 'depotPoor': return true;
+      case 'yardGap': {
+        const card = yUI.cards[yUI.cardN++]; if (!card) return true;
+        if (letterOpen || reviewOpen || letterAnim) yUI.cardQ.push(card); else { sfx('rPage'); say('inspect', 'neutral', YLINES.inspect); openInspection(card); }
+        return true;
+      }
+      case 'win': case 'lose': YD.settle(M); ycard(''); return false;
+    }
+    return false;
+  }
+  function yardTick(dt) {
+    yUI.whistle = Math.max(0, (yUI.whistle || 0) - dt);
+    yUI.boardFlash = Math.max(0, yUI.boardFlash - dt);
+    yUI.depotFlash = Math.max(0, yUI.depotFlash - dt);
+    for (let i = 0; i < 4; i++) yUI.lamp[i] = Math.max(0, yUI.lamp[i] - dt);
+    if (yUI.trolley) { yUI.trolley.t += dt; if (yUI.trolley.t > 3) yUI.trolley = null; }
+    const H = M.y && M.y.hf;
+    // The hotfix card's clock, and the slip going away once the crate's dealt with.
+    if (yUI.choice && H) { const bar = ycardEl.querySelector('.yc-clock i'); if (bar) bar.style.width = Math.max(0, 100 * (H.deadline - M.time) / YD.YT.card) + '%'; if (H.state !== 'card') { yUI.choice = false; yUI.hfEv = null; yclear('choice'); } }
+    if (yUI.slip && !M.y.held) { yUI.slip = false; yclear('slip'); }
+    // A card that was waiting behind another comes back once that one's gone.
+    if (!yUI.cardKind && !M.over) { if (yUI.express && M.y.broken) showExpress(M.y.broken); else if (yUI.hfEv && H && H.state === 'card') showChoice(yUI.hfEv); }
+    if (!yUI.slip && !yUI.choice && !yUI.express && M.y.held && !M.y.held.when && yUI.cardKind !== 'slip' && !M.over && yUI.slipAuto !== M.y.held.crate.slot) { yUI.slipAuto = M.y.held.crate.slot; showSlip(); }
+    // An inspection card that came while a letter was open.
+    if (yUI.cardQ.length && !letterOpen && !reviewOpen && !letterAnim && !M.over) openInspection(yUI.cardQ.shift());
+  }
+  // ---- The yard's belt: before the whistle a piece is placed at once; after it, it's a stack update. A placed
+  // switch flips: the timetable's card, what the alarm watches, the test track on or off. ----
+  function yardPlace(tool, where) {
+    const T2 = V(); if (!T2.yard) return false;
+    const at = where || [L.W / 2, beltRect()[1] - 20];
+    if (T2[tool]) {
+      if (tool === 'board') { YD.setCard(T2); popAt([L.board.x, L.board.y + L.board.h], CFG_WORD[T2.cfg], '#ffe6a8', 28); }
+      else if (tool === 'wire') { YD.setAlarm(T2); popAt([L.mast.x, L.mast.y - L.mast.h - 20], 'watching ' + (T2.watch === 'new' ? 'the new version' : 'LIVE (all)'), '#ffe6a8', 24); }
+      else if (tool === 'tests') { YD.setTests(T2); popAt([(L.siding.x0 + L.siding.x1) / 2, L.siding.y - 60], 'tests ' + (T2.testsOn ? 'on' : 'off'), '#ffe6a8', 24); }
+      else if (tool === 'manifest' && T2.y.held) showSlip();
+      else popAt(at, 'Already built', '#e8dcc4', 24);
+      return true;
+    }
+    if (T2.y.amends.some(a => a.tool === tool)) { popAt(at, 'Building…', '#cfe0ff', 24); return true; }
+    const why = YD.amend(T2, tool);
+    if (why === 'needs') { popAt(at, 'Needs the timetable first', '#ffdc78', 26); return true; }
+    if (why === 'coins') { popAt(at, 'No coins', '#ffdc78', 28); return true; }
+    if (why) return true;
+    if (!T2.started) { sfx('rClank'); say(tool, 'neutral', YLINES[tool]); }
+    return true;
+  }
+  // ---- The yard's hands: the red lever, the hand dial, the board, the signal's switch, the test track's switch, the
+  // office, and dragging the hotfix crate onto the points. ----
+  const near = (p, q, r) => Math.hypot(p[0] - q[0], p[1] - q[1]) < r;
+  function hotfixCratePos() {
+    const H = S.y.hf;
+    if (H.state === 'card') return wagonCratePos();
+    if (S.y.queue.some(c => c.hotfix)) return [L.siding.x0 + 60, L.siding.y - 26];
+    return null;
+  }
+  function yardDown(p, e) {
+    if (S.over) return false;
+    const rl = L.rlever;
+    if (S.started && near(p, [rl.x, rl.y - rl.h * .55], 64 * Math.max(1, L.fs * .8))) {
+      const r = YD.lever(S); if (r) popAt([rl.x, rl.y - rl.h - 20], 'Nothing to roll back', '#e8dcc4', 22); else { sfx('rLever'); yUI.leverT = 1; }
+      return true;
+    }
+    const hc = hotfixCratePos();
+    if (S.started && hc && near(p, hc, 60)) { yUI.drag = { x: p[0], y: p[1] }; cv.setPointerCapture(e.pointerId); return true; }
+    if (S.started && near(p, L.points.dial, L.points.r + 16)) {
+      const d = S.y.dep;
+      if (d && d.cfg === 'hand' && d.phase === 'shift') { YD.dial(S, S.alias.w + 0.1); sfx('rTick'); yUI.dialT = .4; }
+      else popAt([L.points.dial[0], L.points.dial[1] - L.points.r - 24], S.alias.next ? `v${S.alias.cur} ${Math.round(100 - S.alias.w * 100)}% · v${S.alias.next} ${Math.round(S.alias.w * 100)}%` : `LIVE → v${S.alias.cur}`, '#cfe0ff', 24);
+      return true;
+    }
+    const b = L.board;
+    if (inRect(p, [b.x - b.w / 2, b.y - b.h / 2, b.w, b.h])) { if (S.board) yardPlace('board'); else popAt([b.x, b.y + b.h], 'No timetable: the dial is yours', '#e8dcc4', 22); return true; }
+    const m = L.mast;
+    if (inRect(p, [m.x - 50, m.y - m.h, 100, m.h])) { if (S.wire) yardPlace('wire'); else popAt([m.x, m.y - m.h - 20], 'Not wired', '#e8dcc4', 22); return true; }
+    const sd = L.siding;
+    if (S.tests && inRect(p, [sd.x0, sd.y - 70, sd.x1 - sd.x0, 90])) { yardPlace('tests'); return true; }
+    const o = L.office;
+    if (inRect(p, [o.x - 70, o.y - o.h, 140, o.h]) && S.y.held) { showSlip(); return true; }
+    return false;
+  }
+  cv.addEventListener('pointermove', e => { if (!yUI.drag) return; const p = toStage(e); yUI.drag.x = p[0]; yUI.drag.y = p[1]; });
+  cv.addEventListener('pointerup', () => {
+    const d = yUI.drag; if (!d) return; yUI.drag = null;
+    if (near([d.x, d.y], L.points.dial, L.points.r + 80)) {
+      const r = YD.execute(M, 'hotfix');
+      if (r === '') popAt([L.points.dial[0], L.points.dial[1] - L.points.r - 30], 'hotfix going out', '#bff5b4', 26);
+    }
+  });
+  addEventListener('keydown', e => {
+    if (!M || !M.yard || qEl.classList.contains('on') || view !== 'main' || (SD.rushHall && SD.rushHall.up())) return;
+    if (e.key === 'r' || e.key === 'R') { if (!YD.lever(M)) { sfx('rLever'); yUI.leverT = 1; } }
+    if (e.key === 'd' || e.key === 'D') { const d = M.y.dep; if (d && d.cfg === 'hand') YD.dial(M, M.alias.w + 0.1); }
+    if (yUI.choice && ['w', 's', 'f'].includes(e.key)) YD.choose(M, { w: 'wait', s: 'stop', f: 'force' }[e.key]);
+  });
+  function yardBits() {
+    const out = [`${S.shipped} ship coin${S.shipped === 1 ? '' : 's'}`, `${S.rollbacks} rollback${S.rollbacks === 1 ? '' : 's'}`];
+    if (S.falseAlarms) out.push(`${S.falseAlarms} good crate${S.falseAlarms > 1 ? 's' : ''} rolled back by the signal`);
+    if (S.replaced) out.push(`${S.replaced} lost with the old platform`);
+    if (S.snags) out.push(`${S.snags} stack rollback${S.snags > 1 ? 's' : ''}`);
+    if (S.incident) out.push(`${S.incident} new forms failed`);
+    if (S.hotfixChoice) out.push('hotfix: ' + S.hotfixChoice);
+    if (S.busyTaps) out.push(`${S.busyTaps} "one at a time"`);
+    const nc = (S.cardsRight || 0) + (S.cardsWrong || 0); if (nc) out.push(`inspections ${S.cardsRight || 0} of ${nc}`);
+    if (S.depotCoins || S.depotLost) out.push(`depot: ${S.depotCoins} coins, ${S.depotLost} parcels lost`);
+    return out;
+  }
+  // ---- Geometry ----
+  function sorterPos(i) { const s = L.sorters[i]; return [s.x, s.y]; }
+  function bayTop(i) { const st = L.stools; return [st.xs[i], st.y - st.h - 18 * Math.min(L.fs, 1.2)]; }
+  function wagonCratePos() { const t = L.train; return [t.stop + trainSlide() , t.y - 34 * (L.W > L.H ? 1 : .7)]; }
+  // The train slides in from the right edge while a crate's on its way, and waits while anything's on the wagon.
+  function trainSlide() {
+    const Y2 = S.y; if (Y2.train) { const u = Math.min(1, Y2.train.t / YD.YT.train); return (1 - ease(u)) * (L.W + 200 - L.train.stop); }
+    return 0;
+  }
+  function trainHere() { const Y2 = S.y; return !!(Y2.train || Y2.held || Y2.hf.state === 'card' || (Y2.dep && Y2.dep.phase === 'stack')); }
+  function yRackSlot(n) {
+    const r = L.rack, cols = 3, c = n % cols, row = Math.floor(n / cols);
+    return [r.x + (c - 1) * r.w * .28, r.y - r.h * .78 + row * r.h * .24];
+  }
+  function conveyorPos(u) { const c = L.conveyor; return [lerp(c.x0 + 10, c.x1, u), c.y - 16 * Math.min(L.fs, 1.3)]; }
+  function yardTicketDraw(k) {
+    const u = k.dur ? Math.min(1, k.t / k.dur) : 0, qi = S.queue.indexOf(k.id), foot = L.foot;
+    const bay = i => bayTop(i == null ? 0 : i), fromRack = () => yRackSlot(4);
+    switch (k.phase) {
+      case 'slide': return { p: conveyorPos(u) };
+      case 'shelf': return qi < 9 ? { p: yRackSlot(Math.max(0, qi)), s: .85 } : null;
+      case 'hidden': return { p: [L.rack.x + L.rack.w * .45, L.rack.y - L.rack.h * .95], s: .8, a: .35 };
+      case 'walk': { const src = k.from === 'rack' ? fromRack() : foot; return { p: arc(src, bay(k.stool), 50, ease(u)) }; }
+      case 'work': return { p: bay(k.stool), ring: u };
+      case 'counter': return { p: [L.counter.x, L.counter.y - L.counter.h * .45], ring: u };
+      case 'drop': return { p: bay(k.seat), a: Math.max(0, 1 - u), s: lerp(1, .5, u) };
+      case 'done': return { p: arc(k.from === 'counter' ? [L.counter.x, L.counter.y - 30] : bay(k.seat), L.handled, 120, ease(u)), s: lerp(1, .6, u), img: 'y-waybill-done' };
+      case 'bounce': return { p: arc(foot, L.hatch, 120, ease(u)), rot: -0.6 + u * 4 };
+      case 'splat': { const src = k.from === 'counter' ? [L.counter.x, L.counter.y - 30] : k.stool != null || k.seat != null ? bay(k.seat) : foot; return { p: arc(src, [L.tank.x, L.tank.y - L.tank.h * .7], 140, u), rot: u * 3, img: 'y-waybill-error', a: 1 - u * .4 }; }
+      case 'tobin': return { p: arc(bay(k.seat), [L.bin.x, L.bin.y - L.bin.h * .75], 120, ease(u)), rot: u * 5, s: lerp(1, .7, u), img: 'y-waybill-error' };
+      case 'back': return { p: arc(bay(k.seat), fromRack(), 50, ease(u)), s: .85, img: 'y-waybill-error' };
+    }
+    return null;
+  }
+  // ---- Drawing ----
+  const VCOL = { cur: '#4f86d9', next: '#ef8a3a', old: '#8a8f9a', bad: '#d8473b' };
+  function verCol(n) { return n === S.alias.cur ? VCOL.cur : n === S.alias.next ? VCOL.next : VCOL.old; }
+  function drawYard(dragging, mini) {
+    const bg = IMG[L.bg], Y2 = S.y, now = performance.now();
+    if (bg && !mini) cx.drawImage(bg, 0, 0, L.W, L.H);
+    const k1 = L.W > L.H ? 1 : .78; // the tall yard's props are a little smaller
+    // The departure board: the timetable and what the deployment is doing.
+    drawBoard();
+    // The test track's siding and trolley.
+    drawSiding();
+    // The goods train with the crate (or the red-tagged hotfix).
+    if (trainHere() || yUI.drag) drawTrain();
+    // The weighbridge office (the manifest).
+    { const o = L.office; if (!L.painted) img('y-office', o.x, o.y, o.h, 'mb', S.manifest ? 1 : .55); if (S.manifest) { if (Y2.held) glowSpot([o.x - o.h * .5, o.y - o.h - 6, o.h, o.h + 12], true); if (!mini && L.W > L.H) plaque('Office · change set', o.x - (L.painted ? 14 : 0), o.y + 16 * L.fs); } }
+    // The water tower is the error budget.
+    drawTower();
+    drawMast();
+    // The counter hatch, where the new forms come in (synchronous).
+    // On the painted yard the hatch only appears once the new forms are in play (it isn't in the painting).
+    if (!L.painted || Y2.form2 || S.tickets.some(k => k.form2)) { const c = L.counter; cx.save(); rrect(c.x - c.w / 2, c.y - c.h, c.w, c.h, 6); cx.fillStyle = '#2b2018'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#7a5530'; cx.stroke();
+      rrect(c.x - c.w / 2 + 8, c.y - c.h + 8, c.w - 16, c.h - 24, 4); cx.fillStyle = Y2.form2 ? '#f6d68a' : '#5a4632'; cx.fill(); cx.fillStyle = '#7a5530'; cx.fillRect(c.x - c.w / 2 - 6, c.y - 14, c.w + 12, 10); cx.restore();
+      if (Y2.form2 && !mini) plaque('Counter · sync', c.x, c.y - c.h - 14 * L.fs); }
+    // The waiting platform (rack), or its glowing spot.
+    if (S.rack) {
+      const r = L.rack; shadow(r.x, r.y + 2, r.w); img('y-platform', r.x, r.y + 4, r.h, 'mb');
+      const n = S.queue.length; if (n > 9) text('+' + (n - 9), r.x + r.w * .5, r.y - r.h * .9 - 30 * Math.min(L.fs, 1.2), 24, '#ffe6a8');
+      if (!mini) plaque(L.W > L.H ? 'Platform · SQS queue' : 'Platform · SQS', r.x, r.y + 16 * L.fs);
+    } else if (dragging === 'rack') glowSpot([L.rack.x - L.rack.w / 2, L.rack.y - L.rack.h, L.rack.w, L.rack.h], true);
+    if (Y2.amends.some(a => a.tool === 'rack')) glowSpot([L.rack.x - L.rack.w / 2, L.rack.y - L.rack.h, L.rack.w, L.rack.h], false);
+    drawSorters(mini);
+    drawBays();
+    // The ledger on its stand by the bays.
+    if (S.ledger) { const lg = L.ledger; img('ledger', lg.x, lg.y - lg.h * .5, 0, 'mm', 1, -0.05, lg.h * 1.5); if (!mini && L.W > L.H) plaque('Ledger', lg.x, lg.y + 14 * L.fs); }
+    // The returns wagon (bin).
+    if (S.bin) { const b = L.bin; shadow(b.x, b.y + 2, b.w); img('y-returns', b.x, b.y + 4, b.h, 'mb'); if (S.binned) text(String(S.binned), b.x + b.w * .32, b.y - b.h * .62, 24, '#e5b8ff'); if (!mini) plaque('Returns · DLQ', b.x, b.y - b.h - 14 * L.fs); }
+    else if (dragging === 'bin') glowSpot([L.bin.x - L.bin.w / 2, L.bin.y - L.bin.h, L.bin.w, L.bin.h], true);
+    // The conveyor through the gate, the whistle, the points with the LIVE dial, the red lever.
+    if (!L.painted) { const c = L.conveyor; img('y-conveyor', (c.x0 + c.x1) / 2, c.y + 40 * k1, 0, 'mb', 1, 0, c.x1 - c.x0 + 20); img('y-gate', L.gate.x, L.gate.y, L.gate.h, 'mb'); }
+    drawWhistle(mini);
+    drawPoints(mini);
+    { const rl = L.rlever, t = yUI.leverT || 0; shadow(rl.x, rl.y + 2, rl.h * .5); img('y-lever', rl.x, rl.y, rl.h, 'mb', 1, t ? -0.5 * Math.sin(t * Math.PI) : 0); if (!mini && S.started) text('↶', rl.x + rl.h * .36, rl.y - rl.h * .82, 22, '#ffb0a0'); if (!mini) plaque('Reverse lever', rl.x, rl.y - rl.h - 18 * L.fs); }
+    if (yUI.leverT) yUI.leverT = Math.max(0, yUI.leverT - 1 / 30);
+    // Waybills.
+    const waitN = S.tickets.filter(k => k.phase === 'wait').length;
+    for (const k of S.tickets) {
+      const d = yardTicketDraw(k); if (!d) continue;
+      const key = d.img || (k.poison ? 'y-waybill-poison' : k.refund ? 'y-waybill-gold' : 'y-waybill'), w = (L.painted ? 54 : 42) * (d.s || 1) * (L.W > L.H ? 1 : 1.05);
+      img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, w);
+      if (k.form2 && !d.img) { cx.save(); cx.globalAlpha = d.a == null ? 1 : d.a; cx.translate(d.p[0], d.p[1]); cx.rotate(d.rot || 0); cx.fillStyle = '#2f6fe0'; cx.beginPath(); cx.moveTo(w * .5, -w * .34); cx.lineTo(w * .5, w * .02); cx.lineTo(w * .14, -w * .34); cx.closePath(); cx.fill(); cx.restore(); }
+      if (k.twin && ['shelf', 'work', 'counter'].includes(k.phase)) text('x2', d.p[0] + (d.ring != null ? 38 : 22), d.p[1] - (d.ring != null ? 28 : 16), 16, '#ffb27a');
+      if (d.ring != null) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = k.ver ? verCol(k.ver) : '#8fe68f'; cx.beginPath(); cx.arc(d.p[0], d.p[1], 28, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * d.ring); cx.stroke(); cx.restore(); }
+    }
+    if (waitN) text('↺ ' + waitN, L.hatch[0] + 40, L.hatch[1] - 30, 24, '#ff9a8a');
+    // The hotfix crate, dragged.
+    if (yUI.drag) { img('y-crate', yUI.drag.x, yUI.drag.y, 0, 'mm', .9, 0, 110 * k1); hotTag(yUI.drag.x, yUI.drag.y - 20); glowSpot([L.points.dial[0] - L.points.r - 20, L.points.dial[1] - L.points.r - 20, L.points.r * 2 + 40, L.points.r * 2 + 40], true); }
+    if (S.y.depot) drawDepot();
+    // Glows on the belt's targets before the claim starts are on the blueprint instead. Floating numbers.
+    cx.save(); cx.fillStyle = 'rgba(120,180,255,.85)'; fx.forEach(f => { cx.beginPath(); cx.arc(f.x, f.y, 5 * (1 - f.t), 0, Math.PI * 2); cx.fill(); }); cx.restore();
+    yUI.popping = true; pops.forEach(p => { cx.save(); cx.globalAlpha = Math.min(1, 2.4 - p.t * 2); text(p.text, p.x, p.y - p.t * 50, p.size, p.col); cx.restore(); }); yUI.popping = false;
+    if (mini) return;
+    if (flashT) { cx.save(); cx.fillStyle = `rgba(255,80,60,${flashT * .35})`; cx.fillRect(0, 0, L.W, L.H); cx.restore(); }
+    if (letterAnim && S === M) { const p = [L.W / 2, L.H * .4 + Math.sin(now / 120) * 4]; img('y-waybill-gold', p[0], p[1], 0, 'mm', 1, 0, 90); text('A letter!', p[0], p[1] - 56, 26, '#ffe08a'); }
+  }
+  function hotTag(x, y) { const k = yk(); cx.save(); rrect(x - 34 * k, y - 12 * k, 68 * k, 24 * k, 4); cx.fillStyle = '#c8302a'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#3a0c08'; cx.stroke(); cx.font = `800 ${13 * k}px Nunito, sans-serif`; cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('HOTFIX', x, y + 1); cx.restore(); }
+  // Small canvas words in the tall yard: scaled up so none draws under about 11 CSS px on a 390 px phone.
+  function yk() { return L.W > L.H ? 1 : L.fs; }
+  function drawBoard() {
+    const b = L.board, Y2 = S.y, d = Y2.dep, x0 = b.x - b.w / 2, y0 = b.y - b.h / 2;
+    // Two chains up to the roof, the frame, then two rows of flaps.
+    cx.save(); cx.strokeStyle = '#3a3026'; cx.lineWidth = 3; for (const dx of [-b.w * .36, b.w * .36]) { cx.beginPath(); cx.moveTo(b.x + dx, b.hang || 0); cx.lineTo(b.x + dx, y0); cx.stroke(); }
+    rrect(x0, y0, b.w, b.h, 8); cx.fillStyle = '#2a2622'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = S.board ? '#c9a24e' : '#6b5d4a'; cx.stroke(); cx.restore();
+    const flaps = (str, y, h, col, minF) => {
+      const n = Math.max(14, str.length), cw = (b.w - 20) / n;
+      cx.save(); cx.font = `700 ${Math.max(h * .72, minF || 0)}px "Courier New", monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      for (let i = 0; i < n; i++) { const xx = x0 + 10 + i * cw; rrect(xx + 1, y - h / 2, cw - 2, h, 2); cx.fillStyle = '#141210'; cx.fill(); cx.fillStyle = 'rgba(255,255,255,.07)'; cx.fillRect(xx + 1, y - 1, cw - 2, 2); cx.fillStyle = col; cx.fillText(str[i] || '', xx + cw / 2, y + 1); }
+      cx.restore();
+    };
+    const row1 = !S.board ? 'HAND DIAL' : { canary: 'CANARY 10% 5', linear: 'LINEAR 10% EVERY 1', all: 'ALL AT ONCE' }[S.cfg];
+    let row2 = '';
+    if (yUI.boardFlash && yUI.boardMsg) row2 = yUI.boardMsg;
+    else if (d) row2 = d.phase === 'stack' ? (d.crate.hotfix ? 'HOTFIX · ' : '') + 'STACK UPDATE' : d.phase === 'pre' ? 'PRE-TRAFFIC TEST' : d.phase === 'post' ? 'POST-TRAFFIC TEST' : d.phase === 'shift' ? `v${d.v} ${Math.round(S.alias.w * 100)}%` + (d.cfg === 'canary' && S.alias.w < 1 ? ` · ${Math.max(0, Math.ceil(YD.YT.canary - d.t))}s` : d.cfg === 'hand' ? ' · BY HAND' : '') : '';
+    else if (Y2.held) row2 = 'CRATE AT THE OFFICE';
+    else if (!S.started) row2 = '1 MIN = 1.5 S';
+    else row2 = `LIVE v${S.alias.cur}`;
+    const fh = b.h * .34;
+    flaps(row1, y0 + b.h * .3, fh, S.board ? '#ffe6a8' : '#9d907c');
+    // The phone's board holds 24 flaps at a readable size: a long message drops its last ' · ' part.
+    let r2 = row2.slice(0, 26); if (L.W < L.H) { while (r2.length > 24 && r2.includes(' · ')) r2 = r2.slice(0, r2.lastIndexOf(' · ')); r2 = r2.slice(0, 24); }
+    flaps(r2, y0 + b.h * .72, fh * .78, yUI.boardFlash ? '#ff9a7a' : '#9fe0a8', L.W < L.H ? 22.5 : 0);
+    if (L.W > L.H) plaque(S.board ? 'Timetable · tap to change' : 'Timetable · not bought', b.x, y0 + b.h + 14 * L.fs);
+  }
+  function drawSiding() {
+    const sd = L.siding, k1 = L.W > L.H ? 1 : .7;
+    if (!L.painted) img('y-siding', (sd.x0 + sd.x1) / 2, sd.y + 6, 0, 'mb', S.tests ? 1 : .6, 0, sd.x1 - sd.x0);
+    // The test trolley runs out along the siding during a hook, with a blue test waybill (and a gold one after).
+    const tr = yUI.trolley, u = tr ? Math.min(1, tr.t / 1.5) : 0, x = lerp(sd.x0 + 40 * k1, sd.x1 - 30 * k1, tr ? Math.sin(u * Math.PI) : 0);
+    if (S.tests) {
+      img('y-trolley', x, sd.y, 30 * k1 + 10, 'mb');
+      if (tr) { img('y-waybill-test', x - 8, sd.y - 38 * k1, 0, 'mm', 1, -.1, 34); if (tr.stage === 'post') img('y-waybill-gold', x + 14, sd.y - 40 * k1, 0, 'mm', 1, .1, 30); }
+      if (L.W > L.H) plaque('Test track · ' + (S.testsOn ? 'hooks on' : 'off'), (sd.x0 + sd.x1) / 2, sd.y + 18 * L.fs);
+    }
+    const parked = S.y.queue.find(c => c.hotfix);
+    if (parked) { img('y-crate', sd.x0 + 60, sd.y, 70 * k1, 'mb'); hotTag(sd.x0 + 60, sd.y - 74 * k1); }
+  }
+  function drawTrain() {
+    const t = L.train, k1 = L.W > L.H ? 1 : .62, off = trainSlide(), wx = t.stop + off;
+    img('y-flat', wx, t.y, 0, 'mb', 1, 0, 190 * k1);
+    img('y-engine', wx + 175 * k1, t.y, 140 * k1, 'mb');
+    // The crate on the wagon: the held one, the arriving one, or the hotfix.
+    const Y2 = S.y, H = Y2.hf;
+    const onWagon = H.state === 'card' ? 'hot' : Y2.held || Y2.train ? 'crate' : '';
+    if (onWagon && !(H.state === 'card' && yUI.drag)) { img('y-crate', wx, t.y - 22 * k1, 86 * k1, 'mb'); if (onWagon === 'hot') hotTag(wx, t.y - 120 * k1); else { const c = (Y2.held || Y2.train).crate; tagLabel(wx + 26 * k1, t.y - 70 * k1, 'crate ' + c.slot); } }
+  }
+  function tagLabel(x, y, t) { const k = yk(); cx.save(); cx.font = `800 ${13 * k}px Nunito, sans-serif`; const w = cx.measureText(t).width + 10; rrect(x - w / 2, y - 10 * k, w, 20 * k, 3); cx.fillStyle = '#f4e8c8'; cx.fill(); cx.strokeStyle = '#5a4026'; cx.lineWidth = 1.5; cx.stroke(); cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore(); }
+  function drawTower() {
+    const t = L.tank, im = IMG['y-tower']; if (!im && !t.gauge) return;
+    if (!L.painted) img('y-tower', t.x, t.y, t.h, 'mb');
+    // The tank's gauge: the glass strip on the side fills with every lost waybill (on the painting, where its glass is).
+    const w = im ? im.width * t.h / im.height : 0, tx0 = t.x - w * .4, lvl = Math.min(1, M.spill / M.cap);
+    let ty0 = t.y - t.h * .97, th = t.h * .36, gx = t.x + w * .18, gw = w * .14;
+    if (t.gauge) { [gx, ty0, gw, th] = t.gauge; ty0 -= th * .125; th *= 1.25; }
+    cx.save(); rrect(gx, ty0 + th * .1, gw, th * .8, 4); cx.fillStyle = 'rgba(20,30,40,.75)'; cx.fill();
+    if (lvl) { const h = th * .8 * lvl; rrect(gx, ty0 + th * .9 - h, gw, h, 4); cx.fillStyle = lvl > .75 ? '#e65a50' : '#3c82e6'; cx.fill(); }
+    cx.restore();
+    for (const d of drops) { const yy = lerp(ty0 - 40, ty0 + th * .5, d.t / .7); cx.save(); cx.fillStyle = 'rgba(120,180,255,.95)'; cx.beginPath(); cx.arc(gx + gw / 2, yy, 6, 0, Math.PI * 2); cx.fill(); cx.restore(); }
+    void tx0;
+    // (On the painted wide yard it sits a step lower, clear of the signal's plaque.)
+    plaque(`Error budget ${M.spill}/${M.cap}`, t.x, t.y + 14 * L.fs + (L.painted && L.W > L.H ? 30 : 0));
+  }
+  function drawMast() {
+    const m = L.mast, red = S.y.mastRed > 0, wired = S.wire && S.wireOn;
+    if (!L.painted) img('y-mast', m.x, m.y, m.h, 'mb');
+    const [lx, ly, r] = m.lamp || [m.x, m.y - m.h * .9, m.h * .075];
+    cx.save(); cx.beginPath(); cx.arc(lx, ly, r, 0, Math.PI * 2);
+    cx.fillStyle = !S.wire ? '#2a2a2a' : !wired ? '#3a3a3a' : red ? '#ff3b2f' : '#38d26b'; cx.fill();
+    if (wired) { cx.shadowColor = red ? 'rgba(255,60,40,.95)' : 'rgba(60,220,110,.8)'; cx.shadowBlur = red ? 30 : 16; cx.fill(); }
+    cx.restore();
+    if (red) { const p = .5 + .5 * Math.sin(performance.now() / 90); cx.save(); cx.strokeStyle = `rgba(255,80,60,${.5 + p * .5})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(lx, ly, r * 1.9, 0, Math.PI * 2); cx.stroke(); cx.restore(); text('ALARM', lx, ly - r * 2.4, 24, '#ff7a6a'); }
+    if (S.wire) {
+      // The switch plate: what the alarm watches.
+      const px = m.plate ? m.plate[0] : m.x, py = m.plate ? m.plate[1] : m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
+      cx.save(); rrect(px - w / 2, py - h / 2, w, h, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4026'; cx.stroke();
+      cx.font = `800 ${13 * yk()}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', px, py + 1); cx.restore();
+    }
+    if (L.W > L.H) plaque(S.wire ? 'Signal · alarm' : 'Signal · not wired', m.x, m.y + 14 * L.fs);
+  }
+  function drawSorters(mini) {
+    const Y2 = S.y, d = Y2.dep, sp = L.sorters;
+    const sorter = (i, n, key, label, alpha) => {
+      const s = sp[i]; shadow(s.x, s.y + 2, s.h * .7); img(key, s.x, s.y + 4, s.h, 'mb', alpha);
+      // The engraved plate, and the wax seal (published, immutable).
+      const pw = s.h * .36, py = s.y - s.h * (L.painted ? .5 : .32);
+      const pk = Math.min(yk(), 1.4); cx.save(); rrect(s.x - pw / 2, py - 13 * pk, pw, 26 * pk, 4); cx.fillStyle = '#e8cf86'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4016'; cx.stroke();
+      cx.font = `800 ${18 * pk}px Fredoka, sans-serif`; cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('v' + n, s.x, py + 1); cx.restore();
+      img('y-seal', s.x + pw / 2 + 12, py, 26, 'mm');
+      if (label && !mini) text(label, s.x, s.y - s.h - 16, 18, '#f6e7c4');
+    };
+    sorter(0, S.alias.cur, 'y-sorter-old', S.alias.next ? `${Math.round(100 - S.alias.w * 100)}%` : 'LIVE 100%');
+    if (d && d.phase === 'stack') {
+      // The crate at the unpack spot while its change set executes.
+      const s = sp[1], u = Math.min(1, d.t / (S.orders.has('express') ? YD.YT.express : YD.YT.stack));
+      img(d.crate.slot === 'H' || d.crate.hotfix ? 'y-crate' : 'y-crate', s.x + Math.sin(d.t * 30) * (d.crate.kind === 'snag' && u > .8 ? 4 : 0), s.y, s.h * .55, 'mb');
+      if (d.crate.hotfix) hotTag(s.x, s.y - s.h * .62);
+      cx.save(); rrect(s.x - 50, s.y + 10, 100, 10, 5); cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fill(); rrect(s.x - 50, s.y + 10, 100 * u, 10, 5); cx.fillStyle = '#9fe0a8'; cx.fill(); cx.restore();
+    } else if (d && d.v) sorter(1, d.v, 'y-sorter-new', d.phase === 'shift' ? `${Math.round(S.alias.w * 100)}%` : d.phase === 'pre' ? 'testing' : d.phase === 'post' ? 'testing' : '');
+    else {
+      // No deployment: the last version that didn't stay live sits on its spur, sealed and grey.
+      const last = S.versions.length - 1;
+      if (last > 1 && last !== S.alias.cur) sorter(1, last, 'y-sorter-old', mini ? '' : 'rolled back', .45);
+      else if (!mini) { const s = sp[1]; cx.save(); cx.setLineDash([8, 6]); cx.lineWidth = 3; cx.strokeStyle = 'rgba(255,214,102,.55)'; rrect(s.x - s.h * .36, s.y - s.h * .8, s.h * .72, s.h * .8, 10); cx.stroke(); cx.restore(); if (!S.started || last <= 1) { text('new sorter', s.x, s.y - s.h * .5, 14, '#ffe6a8'); text('unpacks here', s.x, s.y - s.h * .5 + 18 * L.fs, 14, '#ffe6a8'); } }
+    }
+    // Every sealed version so far, as a row of little seals: the old ones are still there to roll back to.
+    if (S.versions.length > 2 && !mini) {
+      const s0 = sp[0], s1 = sp[1], y = s0.y - s0.h - 44 * Math.min(L.fs, 1.2);
+      const vs = S.versions.filter(Boolean).map(v => v.n), sk = L.W > L.H ? 1 : 1.35, w = 30 * sk;
+      vs.forEach((n, i) => { const x = (s0.x + s1.x) / 2 + (i - (vs.length - 1) / 2) * w; img('y-seal', x, y, 22 * sk, 'mm', n === S.alias.cur || n === S.alias.next ? 1 : .55); text(String(n), x, y + 1, L.W > L.H ? 11 : 13, '#fff'); });
+    }
+  }
+  function drawBays() {
+    const st = L.stools, seats = R.seats(S);
+    for (let i = 0; i < 4; i++) {
+      const x = st.xs[i];
+      if (!L.painted) { shadow(x, st.y + 2, st.w); img('y-bay', x, st.y + 4, st.h, 'mb'); }
+      const k = seats[i] && seats[i].ticket != null ? S.tickets.find(t => t.id === seats[i].ticket) : null;
+      const lx = st.lamp ? x + st.lamp[0] : x + st.w * .36, ly = st.lamp ? st.y + st.lamp[1] : st.y - st.h * 1.02, col = yUI.lamp[i] ? VCOL.bad : k && k.ver && k.phase === 'work' ? verCol(k.ver) : null;
+      cx.save(); cx.beginPath(); cx.arc(lx, ly, 8 * Math.min(L.fs, 1.2), 0, Math.PI * 2); cx.fillStyle = col || '#3a332a'; cx.fill(); if (col) { cx.shadowColor = col; cx.shadowBlur = 14; cx.fill(); } cx.lineWidth = 2; cx.strokeStyle = '#1a140e'; cx.stroke(); cx.restore();
+      if (S.orders.has('cold') && !k && S.time - S.lastFree[i] > R.T.coldAfter) frost(x, st.y - st.h * .6, st.h * .22);
+    }
+    // (On the painted wide yard the belt covers the ground in front of the bays, so the plaque sits on their fronts.)
+    plaque('Bays · 4 · concurrency', (st.xs[0] + st.xs[3]) / 2, L.painted && L.W > L.H ? st.y - 22 : st.y + 16 * L.fs);
+  }
+  function drawWhistle(mini) {
+    const w = L.whistle, lv = L.lever;
+    if (!L.painted) img('y-whistle', w.x, w.y, w.h, 'mb', 1, 0);
+    if (yUI.whistle) { const u = yUI.whistle; for (let i = 0; i < 4; i++) { cx.save(); cx.globalAlpha = Math.max(0, u - i * .2) * .7; cx.fillStyle = '#f4f4f4'; cx.beginPath(); cx.arc(w.x + 10 + i * 14, w.y - w.h - 10 - i * 22 - (1.2 - u) * 30, 12 + i * 6, 0, Math.PI * 2); cx.fill(); cx.restore(); } text('TOOT', w.x + 60, w.y - w.h - 30, 24, '#fff6d6'); }
+    if (!S.started && !mini) {
+      const p = .5 + .5 * Math.sin(performance.now() / 260);
+      cx.save(); const g = cx.createRadialGradient(lv.x, lv.y, 10, lv.x, lv.y, lv.r); g.addColorStop(0, `rgba(255,214,102,${.35 + p * .2})`); g.addColorStop(1, 'rgba(255,214,102,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(lv.x, lv.y, lv.r, 0, Math.PI * 2); cx.fill(); cx.restore();
+      text('PULL', lv.label[0], lv.label[1], 28, '#ffe08a');
+    }
+  }
+  function drawPoints(mini) {
+    const pt = L.points, [dx, dy] = pt.dial, r = pt.r, a = S.alias;
+    if (!L.painted) img('y-points', pt.x, pt.y, pt.h, 'mb');
+    // The dial: the current version's blue, the new one's orange slice.
+    cx.save(); cx.beginPath(); cx.arc(dx, dy, r, 0, Math.PI * 2); cx.fillStyle = '#f6efdc'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = '#2a241c'; cx.stroke();
+    cx.beginPath(); cx.moveTo(dx, dy); cx.arc(dx, dy, r - 7, -Math.PI / 2, Math.PI * 1.5); cx.closePath(); cx.fillStyle = VCOL.cur; cx.fill();
+    if (a.next && a.w > 0) { cx.beginPath(); cx.moveTo(dx, dy); cx.arc(dx, dy, r - 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * a.w); cx.closePath(); cx.fillStyle = VCOL.next; cx.fill(); }
+    cx.beginPath(); cx.arc(dx, dy, r * .42, 0, Math.PI * 2); cx.fillStyle = '#f6efdc'; cx.fill(); cx.lineWidth = 2; cx.stroke();
+    cx.restore();
+    text(a.next ? Math.round(a.w * 100) + '%' : 'v' + a.cur, dx, dy + 1, 17, '#2a1d10');
+    const d = S.y.dep, hand = d && d.cfg === 'hand' && d.phase === 'shift';
+    if (hand && !mini) { const p = .5 + .5 * Math.sin(performance.now() / 200); cx.save(); cx.strokeStyle = `rgba(255,214,102,${.5 + p * .5})`; cx.lineWidth = 5; cx.setLineDash([8, 6]); cx.beginPath(); cx.arc(dx, dy, r + 10, 0, Math.PI * 2); cx.stroke(); cx.restore(); text('tap +10%', dx, dy + r + 22, 16, '#ffe08a'); }
+    if (!mini) plaque('LIVE · alias', dx, dy - r - 18 * L.fs);
+  }
+  function drawDepot() {
+    const D = S.y.depot, p = L.depot, tall = L.W < L.H, w = tall ? 210 : 150, h = tall ? 96 : 54;
+    cx.save(); rrect(p.x - w / 2, p.y, w, h, 8); cx.fillStyle = 'rgba(32,24,18,.85)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = yUI.depotFlash ? '#ffd666' : '#be9650'; cx.stroke();
+    for (let i = 0; i < 4; i++) { const bx = p.x - w / 2 + 12 + i * (w - 24) / 4; rrect(bx + 2, p.y + h * .45, (w - 24) / 4 - 4, h * .38, 3); cx.fillStyle = D.bench === 'bad' ? '#c8473b' : '#7a5a3a'; cx.fill(); }
+    cx.font = `800 ${tall ? 22 : 11}px Nunito, sans-serif`; cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    const pol = { all: 'all at once', rolling: 'rolling', additional: 'rolling + batch', immutable: 'immutable', split: 'splitting' }[D.policy];
+    if (tall) { cx.fillText('Depot', p.x, p.y + 16); cx.fillText(pol, p.x, p.y + 40); } else cx.fillText('Depot · ' + pol, p.x, p.y + h * .24); cx.restore();
+  }
+  // ---- The yard's art, drawn in code until the painted backdrop and Sogni props come in. Each prop is drawn on its
+  // own canvas at about twice its size on the wide stage. A painted file in SRC under the same key replaces it. ----
+  function cvs(w, h, f) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = '#1e140c'; g.lineWidth = 5; f(g, w, h); return c; }
+  function yardBackdrop(LY) {
+    return cvs(LY.W, LY.H, (g, W, H) => {
+      const [wt, wb] = LY.wall, rail = LY.rail;
+      const sky = g.createLinearGradient(0, 0, 0, wt); sky.addColorStop(0, '#8eaed6'); sky.addColorStop(.55, '#e9b8b0'); sky.addColorStop(1, '#f6cf92'); g.fillStyle = sky; g.fillRect(0, 0, W, wt);
+      g.fillStyle = 'rgba(255,240,230,.45)'; for (const [cx2, cy, r] of [[.2, .12, 60], [.55, .08, 80], [.8, .18, 50]]) { g.beginPath(); g.ellipse(W * cx2, wt * cy + 30, r * 2, r * .32, 0, 0, Math.PI * 2); g.fill(); }
+      // The goods shed: slate roofline, then the brick wall with two big arched doors.
+      g.fillStyle = '#4b4f5c'; g.fillRect(0, wt - 26, W, 30); g.fillStyle = '#5e6371'; g.fillRect(0, wt - 26, W, 6);
+      g.fillStyle = '#9a4c38'; g.fillRect(0, wt, W, wb - wt);
+      g.strokeStyle = 'rgba(60,24,16,.35)'; g.lineWidth = 1.5;
+      for (let y = wt + 12, row = 0; y < wb; y += 12, row++) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); for (let x = (row % 2) * 16; x < W; x += 32) { g.beginPath(); g.moveTo(x, y - 12); g.lineTo(x, y); g.stroke(); } }
+      g.fillStyle = 'rgba(40,20,14,.55)'; for (const fx2 of [.36, .7]) { const dw = Math.min(150, W * .16), x = W * fx2 - dw / 2; g.beginPath(); g.moveTo(x, wb); g.lineTo(x, wt + 40); g.quadraticCurveTo(x + dw / 2, wt + 4, x + dw, wt + 40); g.lineTo(x + dw, wb); g.closePath(); g.fill(); }
+      // Gravel and the rail line.
+      g.fillStyle = '#6a5d52'; g.fillRect(0, wb, W, rail + 18 - wb);
+      g.fillStyle = 'rgba(30,22,16,.35)'; for (let i = 0; i < W * .7; i++) { const x = (i * 97) % W, y = wb + ((i * 53) % (rail + 18 - wb)); g.fillRect(x, y, 3, 2); }
+      g.fillStyle = '#3d2c20'; for (let x = 6; x < W; x += 26) g.fillRect(x, rail - 4, 14, 12);
+      g.fillStyle = '#b8bcc4'; g.fillRect(0, rail - 9, W, 5); g.fillStyle = '#5a5f68'; g.fillRect(0, rail - 4, W, 2);
+      // Cobbles to the front, and a lighter worn lane.
+      const cob = g.createLinearGradient(0, rail + 18, 0, H); cob.addColorStop(0, '#6e6863'); cob.addColorStop(1, '#4e4844'); g.fillStyle = cob; g.fillRect(0, rail + 18, W, H - rail - 18);
+      g.strokeStyle = 'rgba(25,20,18,.35)'; g.lineWidth = 2;
+      for (let y = rail + 30, row = 0; y < H; y += 18 + row * .8, row++) { const sw = 26 + row * 1.6; for (let x = (row % 2) * sw / 2; x < W; x += sw) { g.beginPath(); g.ellipse(x, y, sw * .45, 7 + row * .25, 0, 0, Math.PI * 2); g.stroke(); } }
+      g.fillStyle = 'rgba(255,220,170,.06)'; g.fillRect(0, (rail + H) / 2, W, 60);
+      // The fence on the left.
+      g.fillStyle = '#6b4a2c'; for (let x = 0; x < 80; x += 18) g.fillRect(x, rail - 120, 12, 140);
+      g.fillRect(0, rail - 100, 90, 10); g.fillRect(0, rail - 50, 90, 10);
+      // Warm low light from the right, and a vignette.
+      const lit = g.createLinearGradient(0, 0, W, 0); lit.addColorStop(0, 'rgba(20,20,60,.18)'); lit.addColorStop(1, 'rgba(255,190,110,.12)'); g.fillStyle = lit; g.fillRect(0, 0, W, H);
+      const vg = g.createRadialGradient(W / 2, H * .45, Math.min(W, H) * .3, W / 2, H * .5, Math.max(W, H) * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,6,4,.45)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    });
+  }
+  function yardArt() {
+    const put = (k, c) => { if (!IMG[k]) IMG[k] = c; };
+    put('yard-wide', yardBackdrop(YARD_WIDE)); put('yard-tall', yardBackdrop(YARD_TALL));
+    const tag = (fill, extra) => cvs(92, 68, g => {
+      g.fillStyle = fill; g.beginPath(); g.moveTo(14, 6); g.lineTo(86, 6); g.lineTo(86, 62); g.lineTo(14, 62); g.lineTo(4, 50); g.lineTo(4, 18); g.closePath(); g.fill(); g.lineWidth = 4; g.stroke();
+      g.fillStyle = '#f7efdc'; g.beginPath(); g.arc(16, 34, 6, 0, Math.PI * 2); g.fill(); g.lineWidth = 2.5; g.stroke();
+      g.strokeStyle = 'rgba(60,40,20,.55)'; g.lineWidth = 3; for (const y of [26, 40]) { g.beginPath(); g.moveTo(32, y); g.lineTo(74, y); g.stroke(); }
+      g.fillStyle = '#c0302a'; g.beginPath(); g.arc(74, 52, 7, 0, Math.PI * 2); g.fill();
+      if (extra) extra(g);
+    });
+    put('y-waybill', tag('#e8d3a4')); put('y-waybill-gold', tag('#f3c443'));
+    // The poison waybill: the painted plain one tinted violet (or the placeholder's violet tag).
+    const plain = IMG['y-waybill'];
+    put('y-waybill-poison', plain && !plain.getContext ? cvs(plain.width, plain.height, g => { g.filter = 'hue-rotate(235deg) saturate(1.6)'; g.drawImage(plain, 0, 0); }) : tag('#a46ad0'));
+    put('y-waybill-test', tag('#9ccaf2', g => { g.strokeStyle = '#fff'; g.lineWidth = 8; g.beginPath(); g.moveTo(30, 62); g.lineTo(70, 6); g.stroke(); }));
+    put('y-waybill-error', tag('#e8b9a4', g => { g.strokeStyle = '#b8261d'; g.lineWidth = 7; g.beginPath(); g.moveTo(40, 14); g.lineTo(70, 54); g.moveTo(70, 14); g.lineTo(40, 54); g.stroke(); g.fillStyle = '#1e140c'; g.beginPath(); g.moveTo(86, 30); g.lineTo(76, 36); g.lineTo(86, 42); g.fill(); }));
+    put('y-waybill-done', tag('#e8d3a4', g => { g.strokeStyle = '#2a8a4a'; g.lineWidth = 5; g.beginPath(); g.arc(56, 34, 18, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(46, 34); g.lineTo(54, 42); g.lineTo(68, 26); g.stroke(); }));
+    put('y-whistle', cvs(80, 400, g => {
+      g.fillStyle = '#2b2b2f'; g.fillRect(32, 70, 16, 326); g.strokeRect(32, 70, 16, 326); g.fillRect(18, 380, 44, 16);
+      const br = g.createLinearGradient(20, 0, 60, 0); br.addColorStop(0, '#8a6726'); br.addColorStop(.5, '#f0cb6a'); br.addColorStop(1, '#6b4e1c');
+      g.fillStyle = br; g.beginPath(); g.moveTo(26, 70); g.lineTo(54, 70); g.lineTo(50, 14); g.quadraticCurveTo(40, 2, 30, 14); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#6b4e1c'; g.fillRect(22, 64, 36, 12); g.strokeRect(22, 64, 36, 12);
+      g.strokeStyle = '#a8261d'; g.lineWidth = 3; g.beginPath(); g.moveTo(54, 76); g.lineTo(62, 200); g.stroke();
+      g.fillStyle = '#c0302a'; g.fillRect(55, 198, 16, 30); g.strokeStyle = '#1e140c'; g.lineWidth = 2.5; g.strokeRect(55, 198, 16, 30);
+    }));
+    put('y-points', cvs(120, 360, g => {
+      g.fillStyle = '#2b2b2f'; g.fillRect(52, 80, 16, 270); g.strokeRect(52, 80, 16, 270);
+      g.fillStyle = '#5a4026'; g.fillRect(20, 336, 80, 20); g.strokeRect(20, 336, 80, 20);
+      g.fillStyle = '#c9a23a'; g.fillRect(36, 30, 48, 18); g.strokeRect(36, 30, 48, 18);
+      g.strokeStyle = '#2b2b2f'; g.lineWidth = 10; g.beginPath(); g.moveTo(60, 300); g.lineTo(98, 270); g.stroke();
+    }));
+    put('y-lever', cvs(90, 200, g => {
+      g.fillStyle = '#4a4f57'; g.beginPath(); g.arc(45, 184, 36, Math.PI, 0); g.fill(); g.stroke();
+      g.fillStyle = '#5a4026'; g.fillRect(4, 182, 82, 16); g.strokeRect(4, 182, 82, 16);
+      g.strokeStyle = '#2b2b2f'; g.lineWidth = 10; g.beginPath(); g.moveTo(45, 184); g.lineTo(56, 40); g.stroke();
+      g.fillStyle = '#d8342a'; g.strokeStyle = '#1e140c'; g.lineWidth = 4; g.beginPath(); g.ellipse(57, 30, 12, 24, .1, 0, Math.PI * 2); g.fill(); g.stroke();
+    }));
+    put('y-platform', cvs(280, 256, g => {
+      g.fillStyle = '#8a6038'; g.fillRect(14, 30, 252, 210); g.strokeRect(14, 30, 252, 210);
+      g.strokeStyle = 'rgba(40,24,12,.6)'; g.lineWidth = 3; for (let y = 90; y < 240; y += 56) { g.beginPath(); g.moveTo(14, y); g.lineTo(266, y); g.stroke(); }
+      for (let x = 98; x < 266; x += 84) { g.beginPath(); g.moveTo(x, 30); g.lineTo(x, 240); g.stroke(); }
+      g.fillStyle = '#6b4a2c'; g.fillRect(0, 22, 280, 14); g.strokeStyle = '#1e140c'; g.lineWidth = 4; g.strokeRect(0, 22, 280, 14);
+      g.fillStyle = '#3b2a1a'; for (const x of [20, 250]) g.fillRect(x, 240, 12, 16);
+    }));
+    const sorterArt = (paint, dark) => cvs(240, 330, g => {
+      g.fillStyle = '#2b2b2f'; g.fillRect(30, 300, 26, 28); g.fillRect(184, 300, 26, 28);
+      g.fillStyle = paint; g.fillRect(16, 80, 208, 224); g.strokeRect(16, 80, 208, 224);
+      g.fillStyle = dark; g.fillRect(16, 80, 208, 22);
+      g.fillStyle = '#c9a23a'; g.beginPath(); g.moveTo(60, 80); g.lineTo(180, 80); g.lineTo(150, 22); g.lineTo(90, 22); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#1b1712'; for (let i = 0; i < 5; i++) for (let j = 0; j < 2; j++) { g.fillRect(34 + i * 36, 122 + j * 46, 26, 34); }
+      g.strokeStyle = '#d8b25a'; g.lineWidth = 3; g.strokeRect(24, 112, 192, 100);
+      g.fillStyle = '#d8b25a'; for (const [x, y] of [[26, 92], [214, 92], [26, 292], [214, 292]]) { g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2); g.fill(); }
+    });
+    put('y-sorter-old', sorterArt('#4f7fc8', '#335a96')); put('y-sorter-new', sorterArt('#ec8a3c', '#b8622a'));
+    put('y-seal', cvs(60, 60, g => { g.fillStyle = '#b3241c'; g.beginPath(); for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = i % 2 ? 26 : 28; g.lineTo(30 + Math.cos(a) * r, 30 + Math.sin(a) * r); } g.closePath(); g.fill(); g.lineWidth = 3; g.stroke(); g.fillStyle = '#d8463a'; g.beginPath(); g.arc(30, 30, 15, 0, Math.PI * 2); g.fill(); }));
+    put('y-crate', cvs(220, 172, g => {
+      g.fillStyle = '#c99a5c'; g.fillRect(10, 10, 200, 152); g.strokeRect(10, 10, 200, 152);
+      g.strokeStyle = 'rgba(70,40,16,.7)'; g.lineWidth = 4; for (let y = 48; y < 162; y += 38) { g.beginPath(); g.moveTo(10, y); g.lineTo(210, y); g.stroke(); }
+      g.strokeStyle = '#7a5226'; g.lineWidth = 10; g.beginPath(); g.moveTo(16, 156); g.lineTo(204, 16); g.stroke();
+      g.strokeStyle = '#1e140c'; g.lineWidth = 5; g.strokeRect(10, 10, 200, 152);
+      g.fillStyle = '#4a4f57'; for (const [x, y] of [[10, 10], [186, 10], [10, 138], [186, 138]]) g.fillRect(x, y, 24, 24);
+    }));
+    put('y-bay', cvs(184, 192, g => {
+      g.fillStyle = '#9a6a3a'; g.beginPath(); g.moveTo(8, 60); g.lineTo(176, 40); g.lineTo(176, 70); g.lineTo(8, 84); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#6b4a2c'; for (const x of [18, 150]) { g.fillRect(x, 80, 16, 108); g.strokeRect(x, 80, 16, 108); }
+      g.fillRect(18, 140, 148, 12); g.strokeRect(18, 140, 148, 12);
+      g.strokeStyle = '#2b2b2f'; g.lineWidth = 5; g.beginPath(); g.moveTo(160, 44); g.lineTo(160, 10); g.stroke();
+    }));
+    put('y-returns', cvs(300, 192, g => {
+      g.fillStyle = '#6c737c'; g.fillRect(14, 20, 272, 128); g.strokeRect(14, 20, 272, 128);
+      g.strokeStyle = 'rgba(20,24,30,.5)'; g.lineWidth = 3; for (let x = 60; x < 280; x += 46) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x, 148); g.stroke(); }
+      g.strokeStyle = '#e8e2d4'; g.lineWidth = 8; g.beginPath(); g.arc(150, 86, 22, -2.6, 1.6); g.stroke(); g.fillStyle = '#e8e2d4'; g.beginPath(); g.moveTo(118, 58); g.lineTo(142, 62); g.lineTo(124, 80); g.fill();
+      g.fillStyle = '#2b2b2f'; g.strokeStyle = '#1e140c'; g.lineWidth = 4; for (const x of [62, 238]) { g.beginPath(); g.arc(x, 160, 26, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    }));
+    put('y-tower', cvs(240, 560, g => {
+      g.strokeStyle = '#2b2b2f'; g.lineWidth = 10; for (const [a, b] of [[40, 70], [200, 170], [70, 40], [170, 200]]) { g.beginPath(); g.moveTo(a, 556); g.lineTo(b, 210); g.stroke(); }
+      g.lineWidth = 5; for (let y = 300; y < 556; y += 90) { g.beginPath(); g.moveTo(52, y); g.lineTo(188, y + 70); g.moveTo(188, y); g.lineTo(52, y + 70); g.stroke(); }
+      g.strokeStyle = '#1e140c'; g.fillStyle = '#7a5532'; g.fillRect(20, 60, 200, 160); g.strokeRect(20, 60, 200, 160);
+      g.strokeStyle = 'rgba(40,24,12,.6)'; g.lineWidth = 3; for (let x = 44; x < 220; x += 24) { g.beginPath(); g.moveTo(x, 60); g.lineTo(x, 220); g.stroke(); }
+      g.strokeStyle = '#2b2b2f'; g.lineWidth = 7; for (const y of [86, 194]) { g.beginPath(); g.moveTo(20, y); g.lineTo(220, y); g.stroke(); }
+      g.strokeStyle = '#1e140c'; g.lineWidth = 5; g.fillStyle = '#4b4f5c'; g.beginPath(); g.moveTo(10, 62); g.lineTo(120, 8); g.lineTo(230, 62); g.closePath(); g.fill(); g.stroke();
+    }));
+    put('y-mast', cvs(100, 600, g => {
+      g.fillStyle = '#2b2b2f'; g.fillRect(42, 70, 16, 526); g.strokeRect(42, 70, 16, 526);
+      g.strokeStyle = '#4a4f57'; g.lineWidth = 3; for (let y = 120; y < 590; y += 26) { g.beginPath(); g.moveTo(30, y); g.lineTo(42, y); g.stroke(); } g.beginPath(); g.moveTo(30, 110); g.lineTo(30, 596); g.stroke();
+      g.strokeStyle = '#1e140c'; g.lineWidth = 5; g.fillStyle = '#1e1e22'; g.beginPath(); g.arc(50, 60, 46, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#2b2b2f'; g.beginPath(); g.arc(50, 52, 50, Math.PI * 1.05, Math.PI * 1.95); g.lineTo(96, 44); g.fill();
+    }));
+    put('y-office', cvs(260, 280, g => {
+      g.fillStyle = '#a8794a'; g.fillRect(24, 90, 212, 186); g.strokeRect(24, 90, 212, 186);
+      g.strokeStyle = 'rgba(60,34,14,.5)'; g.lineWidth = 3; for (let x = 48; x < 236; x += 24) { g.beginPath(); g.moveTo(x, 90); g.lineTo(x, 276); g.stroke(); }
+      g.strokeStyle = '#1e140c'; g.lineWidth = 5; g.fillStyle = '#5a3a2a'; g.beginPath(); g.moveTo(6, 96); g.lineTo(130, 16); g.lineTo(254, 96); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#f2d790'; g.fillRect(70, 126, 120, 70); g.strokeRect(70, 126, 120, 70); g.fillStyle = '#6b4a2c'; g.fillRect(62, 196, 136, 14); g.strokeRect(62, 196, 136, 14);
+      g.fillStyle = '#f4ead2'; g.fillRect(200, 214, 28, 38); g.lineWidth = 3; g.strokeRect(200, 214, 28, 38);
+      g.fillStyle = '#3b2a1a'; g.fillRect(190, 26, 18, 40); g.strokeRect(190, 26, 18, 40);
+    }));
+    put('y-siding', cvs(380, 60, g => {
+      g.fillStyle = '#3d2c20'; for (let x = 20; x < 370; x += 26) g.fillRect(x, 34, 14, 14);
+      g.fillStyle = '#b8bcc4'; g.fillRect(0, 28, 380, 6);
+      g.fillStyle = '#c0302a'; g.fillRect(4, 6, 24, 40); g.strokeRect(4, 6, 24, 40); g.fillStyle = '#e8e2d4'; g.fillRect(8, 14, 16, 6);
+    }));
+    put('y-trolley', cvs(100, 60, g => { g.fillStyle = '#8a6038'; g.fillRect(8, 14, 84, 22); g.strokeRect(8, 14, 84, 22); g.fillStyle = '#2b2b2f'; for (const x of [24, 76]) { g.beginPath(); g.arc(x, 44, 12, 0, Math.PI * 2); g.fill(); g.stroke(); } g.strokeStyle = '#2b2b2f'; g.lineWidth = 5; g.beginPath(); g.moveTo(84, 14); g.lineTo(96, 0); g.stroke(); }));
+    put('y-engine', cvs(400, 280, g => {
+      g.fillStyle = '#23252b'; g.fillRect(20, 120, 300, 110); g.strokeRect(20, 120, 300, 110);
+      g.fillRect(230, 40, 110, 190); g.strokeRect(230, 40, 110, 190); g.fillStyle = '#f2d790'; g.fillRect(250, 66, 64, 50); g.strokeRect(250, 66, 64, 50);
+      g.fillStyle = '#23252b'; g.fillRect(50, 60, 36, 64); g.strokeRect(50, 60, 36, 64); g.fillStyle = '#c9a23a'; g.beginPath(); g.ellipse(150, 118, 26, 20, 0, Math.PI, 0); g.fill(); g.stroke();
+      g.fillStyle = '#c0302a'; g.fillRect(4, 196, 24, 26); g.strokeRect(4, 196, 24, 26);
+      g.fillStyle = '#3a3d45'; for (const x of [80, 170, 270]) { g.beginPath(); g.arc(x, 236, 34, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    }));
+    put('y-flat', cvs(380, 100, g => { g.fillStyle = '#7a5532'; g.fillRect(6, 20, 368, 30); g.strokeRect(6, 20, 368, 30); g.fillStyle = '#3a3d45'; for (const x of [70, 310]) { g.beginPath(); g.arc(x, 66, 28, 0, Math.PI * 2); g.fill(); g.stroke(); } }));
+    put('y-conveyor', cvs(640, 140, g => {
+      g.fillStyle = '#6b4a2c'; g.fillRect(0, 34, 640, 26); g.strokeRect(0, 34, 640, 26);
+      g.fillStyle = '#c8ccd4'; for (let x = 10; x < 640; x += 30) { g.beginPath(); g.arc(x, 34, 9, 0, Math.PI * 2); g.fill(); g.lineWidth = 2.5; g.stroke(); }
+      g.lineWidth = 5; g.fillStyle = '#4a3420'; for (let x = 30; x < 640; x += 150) { g.fillRect(x, 60, 14, 80); g.strokeRect(x, 60, 14, 80); }
+    }));
+    put('y-gate', cvs(80, 340, g => { g.fillStyle = '#7a5532'; g.fillRect(10, 0, 20, 340); g.strokeRect(10, 0, 20, 340); g.fillRect(50, 0, 20, 340); g.strokeRect(50, 0, 20, 340); g.fillRect(0, 40, 80, 18); g.strokeRect(0, 40, 80, 18); }));
+    // Belt icons.
+    put('y-i-board', cvs(150, 150, g => { g.fillStyle = '#2a2622'; g.fillRect(10, 40, 130, 70); g.strokeRect(10, 40, 130, 70); g.fillStyle = '#ffe6a8'; for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) { g.fillStyle = r ? '#9fe0a8' : '#ffe6a8'; g.fillRect(18 + i * 19, 52 + r * 28, 15, 18); } g.strokeStyle = '#3a3026'; g.lineWidth = 4; g.beginPath(); g.moveTo(40, 0); g.lineTo(40, 40); g.moveTo(110, 0); g.lineTo(110, 40); g.stroke(); }));
+    put('y-i-wire', cvs(150, 150, g => { g.fillStyle = '#2b2b2f'; g.fillRect(66, 50, 14, 96); g.beginPath(); g.arc(73, 40, 30, 0, Math.PI * 2); g.fill(); g.stroke(); g.fillStyle = '#38d26b'; g.beginPath(); g.arc(73, 40, 18, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#e8c04a'; g.lineWidth = 5; g.beginPath(); g.moveTo(80, 90); g.bezierCurveTo(120, 80, 110, 130, 146, 120); g.stroke(); }));
+    put('y-i-tests', cvs(150, 150, g => { g.fillStyle = '#b8bcc4'; g.fillRect(0, 110, 150, 8); g.fillStyle = '#c0302a'; g.fillRect(8, 74, 22, 40); g.strokeRect(8, 74, 22, 40); g.fillStyle = '#8a6038'; g.fillRect(50, 80, 80, 22); g.strokeRect(50, 80, 80, 22); g.fillStyle = '#9ccaf2'; g.save(); g.translate(90, 56); g.rotate(-.15); g.fillRect(-26, -18, 52, 36); g.strokeRect(-26, -18, 52, 36); g.restore(); }));
+    put('y-i-manifest', cvs(150, 150, g => { g.fillStyle = '#8a5a2c'; g.fillRect(28, 14, 94, 128); g.strokeRect(28, 14, 94, 128); g.fillStyle = '#f7f0dc'; g.fillRect(38, 30, 74, 104); g.fillStyle = '#c9a23a'; g.fillRect(56, 6, 38, 16); g.strokeRect(56, 6, 38, 16); g.fillStyle = '#2a1d10'; g.font = '800 13px sans-serif'; for (let i = 0; i < 4; i++) { g.fillRect(44, 44 + i * 20, 40, 4); } g.fillStyle = '#c0302a'; g.fillRect(70, 104, 30, 10); }));
+  }
+  // ==== end claim 9 ====
+
   idLetters();
+  // ==================================================================================================================
+  // ---- Claim 8, the Night Audit: the Watch Room and the cellar below it (rules in js/rush-audit.js) ----
+  // One night, 22:00 to 06:00. Tickets ride a pneumatic tube from the Counter to Mira's desk and out to the basket;
+  // she calls the Drawer and the Engine on the way. Faults overlap at the four stations, and the porter mends one
+  // at a time. You buy what you can see (the tracer, the stamp, tallies, klaxons, the 1-second dial), read it on
+  // cards (log lines, trace segments, query rows, gauge settings), and send the porter. Downstairs, the cellar pays
+  // coins for review answers, and only a klaxon reaches you there.
+  // The rooms are painted (Ladi's Sogni room and props, collaged and repainted as one: tools/rush_watch_collage.py and
+  // rush_watch_pack.py), with the cabinets, the clock case, the ink column and the out basket in the painting; the
+  // layouts below are measured off the paintings. The code draws over them what moves or is bought.
+  // Nothing here runs for claims 1 to 6: every hook into the code above checks M.audit first.
+  // ==================================================================================================================
+  const A8 = SD.rushAudit;
+  // A station by name: Mira is a person, the rest are things.
+  const WHO = st => st === 'desk' ? 'Mira' : 'the ' + A8.NAME[st];
+  const WATCH_WIDE = {
+    W: 1344, H: 768, bg: 'watch-wide', painted: true, fs: 1, watch: true,
+    title: [24, 22], say: { x: 300, y: 12, w: 640 }, belt: { h: 100, slot: 116 },
+    // The stations, in tube order: centres, cabinet size and bottom (the floor line is 556).
+    st: { counter: [380, 556], desk: [600, 556], drawer: [820, 556], engine: [1040, 556] }, cab: [168, 210], floor: 556,
+    tube: 445, ret: 349, intake: [230, 0], cup: [230, 445], outX: 1196, basket: [1200, 548, 112, 74],
+    dialY: 292, dialR: 24, dialDx: 78,
+    // The painted clock's face (centre, radius), its keyhole, and the ink column's glass; the Engine's porthole (for the shutter).
+    clock: [95, 238, 110, 230], clockTipAt: [126, 104], face: [83, 185, 27], key: [64, 282], ink: [1292, 172, 44, 232], port: [-37, -101, 120], jobs: [980, 116, 290, 130], board: [600, 124, 340, 120],
+    logs: { counter: [478, 292, 52, 64], desk: [700, 292, 52, 64] }, bench: [178, 655], porterH: 300,
+    door: [0, 476, 44, 150], bellAt: [960, 186],
+    // The cellar below (the claim-6 cellar backdrop, dimmed): the question pile, the mail slot, the intern's tray.
+    down: { pile: [560, 470, 220, 130], mail: [990, 330, 120, 66], tray: [860, 500, 170, 90], lamp: [1110, 70], up: [0, 476, 44, 150] }
+  };
+  const WATCH_TALL = {
+    W: 768, H: 1504, bg: 'watch-tall', painted: true, fs: 1.6, watch: true,
+    title: [20, 20], say: { x: 16, y: 150, w: 736 }, sayBefore: 520, belt: { h: 150, slot: 162 }, coinsAt: [470, 50],
+    // Two rows: the Counter and Mira up top, the Engine and the Drawer (the calls she makes) below. The board and the
+    // porter's list sit above them at phone-readable size (22 px on this stage is 11 CSS px on a 390 px phone).
+    st: { counter: [210, 906], desk: [512, 906], drawer: [512, 1255], engine: [208, 1255] }, cab: [176, 200], floor: 1255,
+    tube: 805, ret: 805, intake: [44, 480], cup: [44, 805], outX: 700, basket: [700, 1315, 90, 60],
+    dialY: null, dialR: 30, dialDx: 100,
+    clock: [88, 380, 96, 200], face: [78, 325, 23], key: [62, 420], ink: [712, 335, 50, 240], port: [-23, -85, 120], jobs: [212, 350, 470, 176], board: [212, 150, 470, 190],
+    logs: { counter: [44, 862, 64, 76], desk: [360, 862, 64, 76] }, bench: [367, 1318], porterH: 224,
+    // The lower row's nameplates sit off-centre, outward, so the porter's bench between them stays clear.
+    plaqueDx: { engine: -30, drawer: 40 }, clockTip: 'Wind the clock', clockTipAt: [90, 262],
+    door: [0, 1180, 44, 120], bellAt: [700, 250],
+    down: { pile: [384, 700, 300, 150], mail: [600, 470, 130, 70], tray: [384, 940, 240, 100], lamp: [384, 300], up: [0, 1180, 44, 120] }
+  };
+
+  // Phone legibility: on the tall Watch Room (scaled to about half on a 390 px phone), no text under ~11 CSS px.
+  const AUD_MIN_TALL = 22;
+  function audMinPx() { return S && S.audit && L === WATCH_TALL ? AUD_MIN_TALL : 0; }
+  const AUD_BELT_LABEL = { tracer: 'Tracer', pins: 'Pins', alarm: 'Klaxon', stamp: 'EMF stamp', tally: 'Tally', hires: '1s dial', rule: 'Rule card', lens: 'Lens', intern: 'Intern' };
+  // What each buy goes on, for tap-to-arm: room-wide buys go on at once; the rest wait for a tap on their target.
+  const AUD_WHERE = { tracer: 'room', pins: 'room', lens: 'room', intern: 'room', rule: 'counter', stamp: 'desk', tally: 'station', alarm: 'gauge', hires: 'gauge' };
+  const KIND_WORD = { slow: 'slow', error: 'erroring', refund: 'failing refunds', burst: 'failing in bursts', silent: 'silent' };
+  // Dutch, once each (design section 4): short, a sentence or two.
+  const AUD_LINES = {
+    intro: 'The Night Audit. Tickets come down that tube all night, and things break, sometimes two at once. Wind the clock when you\'re ready.',
+    intro2: 'You can\'t see inside the cabinets. Gauges, logbooks and traces can. Tap a cabinet to send the porter.',
+    faultSlow: 'Something\'s slowed down. Don\'t oil the first gauge that moves. Find which cabinet it is.',
+    faultError: 'Tickets are coming back cracked. Read the log lines: the error says which call failed.',
+    faultRefund: 'Only refunds are failing. They\'re rare, so the default sampling barely catches one. Pins or a rule card help.',
+    faultBurst: 'Short bursts of failures. A one-minute average smooths them away. The 1-second dial won\'t.',
+    faultSilent: 'Quiet. Too quiet. A hung call writes no error and no EMF line. Silence is a signal too.',
+    decoy: 'Mira\'s Duration is up, but her Duration counts her waits on calls. Check the subsegments before you oil her.',
+    transient: 'It fixed itself. Some do. Chasing those costs you porter time.',
+    overlap: 'Two at once. One porter. Pick: silence first, then errors, then slowness.',
+    mendWrong: 'Nothing wrong there. That cost a coin, and a restart drops the call it was on. Look before you fix.',
+    wasted: 'Already fixed itself before he got there. A wasted trip.',
+    mend: 'Fixed. The gauge will settle over the next data point or two.',
+    alarm: 'A klaxon changed state. OK, ALARM, or grey for no data. Grey isn\'t OK: pick a missing-data treatment.',
+    ring: 'Klaxon! If it has an action, the porter\'s already on his way.',
+    cardinality: 'The stamp\'s making a gauge per ticket number. Every dimension value is its own metric, and we pay for each.',
+    hiresBuiltin: 'That\'s a built-in gauge. AWS service metrics are standard resolution. The 1-second dial goes on a custom metric.',
+    ruleDesk: 'Mira can\'t set her own sampling. The Counter\'s the root, and it decides. Put the rule card there.',
+    stampWhere: 'The stamp goes on Mira\'s desk. It writes her call timings into her log lines.',
+    needs: 'Pins and rule cards need the tracer first.',
+    dark: 'Couldn\'t pay the hour\'s upkeep, so something went dark. Coins come from the cellar.',
+    down: 'The cellar. Answer review questions for coins. Only a klaxon reaches you down here.',
+    downNoAlarm: 'No klaxons up. Nothing will call you back. Don\'t stay long.',
+    bonus: 'Trusting your klaxons pays. A coin for every few quiet seconds down here.',
+    jobsFull: 'He\'s got three jobs already. Cancel one, or wait.',
+    tracer: 'The tracer. One ticket in a while gets a thread: its trace shows every call and how long each took.',
+    pins: 'Pins are annotations. Indexed, so you can search traces by route. They cost nothing extra, so they\'re free.',
+    alarm: 'A klaxon: an alarm on one gauge. Tap the gauge to set M of N and what missing data means.',
+    stamp: 'The EMF stamp. Mira\'s log lines now carry her call timings, and CloudWatch turns them into gauges.',
+    tally: 'A tally counts finished jobs from inside the cabinet. A heartbeat: it stops when the cabinet hangs. Custom metrics bill by the month, so it\'s a coin an hour. Miss the bill and it goes quiet, which looks just like a hang.',
+    hires: 'The 1-second dial. A data point every second, not every minute. On the house, but it twitches: put a 1-of-1 klaxon on it and it\'ll ring at every hiccup.',
+    rule: 'A sampling rule at the root. Every refund gets traced now.',
+    lens: 'The lens runs a Logs Insights query over the last hour. A coin a query.',
+    intern: 'The intern answers the questions you\'ve already solved. Check his work: some of it\'s wrong.',
+    silentGauge: 'The Engine gauge went quiet, not red. A timed-out call never flushes its EMF line.',
+    mail: 'A letter in the mail slot downstairs.',
+    insights: 'Lambda Insights would show her memory and CPU, not which call was slow. That\'s X-Ray\'s job.'
+  };
+  const AUD_ORDERS = ['sampling', 'composite'];
+  Object.assign(ORDER, {
+    sampling: { name: 'Default sampling', tag: 'Sampling', aws: 'X-Ray sampling rules',
+      rule: 'The rule card isn\'t sold tonight. Traces follow the default rule only: the first ticket each second, plus 5%.', up: 'The tracer\'s upkeep is free.',
+      dutch: 'No custom sampling tonight. Whoever answers the door traces one a second and one in twenty after that, and that\'s that. Lambda can\'t change it anyway. On the bright side, the Post Office is paying for the thread.' },
+    composite: { name: 'One bell', tag: 'One bell', aws: 'CloudWatch composite alarms',
+      rule: 'Klaxons don\'t ring on their own. They feed one bell, joined with OR (or AND), and only the bell rings and sends the porter.', up: 'Klaxons cost nothing.',
+      dutch: 'The Post Office says you\'ve got too many bells. You get one, and you decide what it means. Desk AND drawer means fewer false alarms, and fewer true ones too. That\'s a composite alarm.' }
+  });
+  // The claim's letters (design section 11). The first option, or the first tool, is the answer.
+  LETTERS.audit = {
+    a: [
+      { f: 'a', q: 'A Lambda function\'s Duration has jumped, but its code hasn\'t changed. It calls DynamoDB and an outside HTTP API. With active tracing on and both clients instrumented, where do you look to see which call is slow?', opts: ['The subsegments in the function\'s X-Ray traces', 'The function\'s Throttles metric', 'The REPORT line\'s @maxMemoryUsed in its logs', 'The account\'s ConcurrentExecutions metric'], why: 'Each downstream call gets its own subsegment with its own timing, and DynamoDB appears as an inferred node built from that subsegment. Duration includes the time spent waiting on calls, so it can\'t say which one.' },
+      { f: 'a', q: 'A worker publishes a metric once per finished job. When it hangs, the metric just stops. How should the alarm treat missing data?', opts: ['As breaching', 'As notBreaching', 'As ignore', 'Leave it as missing'], why: 'For a metric that should always report, silence is the problem. notBreaching would show OK while the worker is dead.' },
+      { f: 'a', q: 'A metric filter counting "Timeout" lines went in today. Your manager wants last week\'s count. What do you use?', opts: ['A CloudWatch Logs Insights query over last week', 'The metric filter, with the period set to 1 week', 'A new metric filter with a backfill option', 'X-Ray Analytics over last week\'s traces'], why: 'Metric filters only count events ingested after the filter was created. Logs Insights queries the log data that\'s already stored.' }
+    ],
+    b: [
+      { f: 'b', tools: ['pins', 'tracer', 'stamp', 'alarm'], q: 'You have traces, but you need to find every one where the ticket was a refund. Which piece makes that searchable?', why: 'Pins are annotations: indexed key-value pairs you can use in filter expressions. Notes (metadata) aren\'t indexed.' },
+      { f: 'b', tools: ['hires', 'alarm', 'tally', 'stamp'], q: 'The drawer fails in four-second bursts, and its one-minute average never crosses the line. Which piece lets the alarm see the bursts?', why: 'The 1-second dial is a high-resolution custom metric (StorageResolution 1). A high-resolution alarm can use a period as short as 10 seconds.' }
+    ],
+    c: [
+      { f: 'c', q: 'Three of these are true of the CloudWatch embedded metric format. Which one is false?', opts: ['The function needs the cloudwatch:PutMetricData permission to publish its metrics', 'Metrics are extracted from the log events asynchronously', 'StorageResolution 1 makes a metric high resolution', 'In Lambda, writing the JSON to stdout is enough'], why: 'EMF needs only the log permissions the function already has, not cloudwatch:PutMetricData. Lambda already sends stdout to CloudWatch Logs, which extracts the metrics.' },
+      { f: 'c', q: 'Three of these are true of Lambda Insights. Which one is false?', opts: ['It replaces X-Ray traces with per-request timelines of every downstream call', 'It runs as a Lambda extension added as a layer', 'It reports system-level metrics such as memory and CPU time', 'It uses the embedded metric format to turn its log events into metrics'], why: 'Lambda Insights collects system-level metrics and cold starts for each invocation. It doesn\'t trace downstream calls; that\'s X-Ray.' }
+    ]
+  };
+  // The cellar's review questions for claim 8 (design section 10), with three distractors each. First option right.
+  const AUD_QS = [
+    { f: 'a', q: 'A function\'s average Duration has tripled. Its code hasn\'t changed; it reads DynamoDB and calls a partner API. How do you find the slow dependency with the least new code?', opts: ['Turn on active tracing, instrument the SDK and HTTP clients, and read the subsegments', 'Raise its memory until Duration drops', 'Raise its timeout', 'Add a metric filter on its REPORT lines'], why: 'Duration counts waits on calls. In a trace each call gets its own subsegment and timing.' },
+    { f: 'a', q: 'You want every X-Ray trace where customerTier is "gold" and the response took over 3 seconds. How do you record customerTier?', opts: ['As an annotation', 'As metadata', 'As a subsegment name', 'As a log field'], why: 'Annotations are indexed for filter expressions: annotation[customerTier] = "gold" AND responsetime > 3. Metadata isn\'t indexed.' },
+    { f: 'a', q: 'PaymentFailures is published only when a payment fails. Its alarm sits in INSUFFICIENT_DATA most of the night. What do you change?', opts: ['Treat missing data as notBreaching', 'Treat missing data as breaching', 'Raise the threshold', 'Lower the period to 10 seconds'], why: 'With the default (missing), no data points means INSUFFICIENT_DATA. Here no data means no failures: good news.' },
+    { f: 'a', q: 'Error spikes last 5 to 10 seconds and the 1-minute average stays under the threshold. What lets you alarm within seconds?', opts: ['A high-resolution custom metric with a 10-second alarm period', 'A 1-minute alarm at 1 of 1', 'A lower threshold on the built-in metric', 'An X-Ray sampling rule at 100%'], why: 'High-resolution custom metrics store per-second data, and their alarms can use 10-second periods. Service metrics are standard resolution.' },
+    { f: 'a', q: 'A function should emit a custom metric every invocation, without an extra API call or the cloudwatch:PutMetricData permission. How?', opts: ['Write embedded metric format log lines to stdout', 'Call PutMetricData in a background thread', 'Add a metric filter later', 'Use X-Ray annotations'], why: 'CloudWatch Logs extracts EMF metrics from the log events asynchronously, with the log permissions the function already has.' },
+    { f: 'a', q: 'After adding EMF, the CloudWatch bill jumped. The EMF directive lists requestId as a dimension. What\'s the fix?', opts: ['Keep requestId as a plain field; use low-cardinality dimensions', 'Drop EMF and call PutMetricData', 'Raise the metric\'s storage resolution', 'Put requestId in X-Ray metadata only'], why: 'Each unique dimension value is its own custom metric. A plain field is still searchable in Logs Insights.' },
+    { f: 'a', q: 'API Gateway (tracing on) calls a function with active tracing. A sampling rule targeting the function at 100% brings few traces. Why?', opts: ['Sampling is decided at the root (API Gateway); Lambda follows the header', 'Lambda samples at most 5%', 'Rules need an hour to apply', 'Active tracing ignores rules'], why: 'Sampling is parent-based. Put the rule where the trace starts.' },
+    { f: 'a', q: 'An Errors alarm at 1 of 1 with a 1-minute period pages on single stray errors. What\'s the best change?', opts: ['Make it M of N, such as 3 of 5, or alarm on the error rate', 'Raise the period to 1 day', 'Treat missing data as breaching', 'Turn off the alarm action'], why: 'Datapoints to Alarm counts how many of the last N data points must breach; they needn\'t be consecutive.' }
+  ];
+  const AUD_BY_ID = {};
+  AUD_QS.forEach((q, i) => { q.id = 'audit.r' + i; q.claim = 'audit'; AUD_BY_ID[q.id] = q; });
+  ['a', 'b', 'c'].forEach(f => LETTERS.audit[f].forEach((Lt, i) => { Lt.id = 'audit.' + f + i; Lt.claim = 'audit'; AUD_BY_ID[Lt.id] = Lt; }));
+  // ---- State: the room on screen, the armed buy, the open card ----
+  const AU8 = { room: 'up', armed: null, card: null, panel: null, cellarQ: null, ringT: 0, shake: {}, flash: 0, pellets: [], trSel: null, logSel: null, qi: 0, splash: [], keyT: 0, lastRing: -99 };
+  function audStyle() {
+    if (document.getElementById('aud-css')) return;
+    const st = document.createElement('style'); st.id = 'aud-css';
+    st.textContent = `
+#aud { position: fixed; z-index: 5; right: 12px; top: 96px; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 220px); overflow-y: auto; box-sizing: border-box;
+  padding: 14px 14px 12px; background: #f7eed8; color: #2a1d10; border: 3px solid #5a4020; border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.55); font: 600 15px var(--f-body); display: none; }
+#aud.on { display: block; }
+#aud.tall { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 62vh; }
+#aud h3 { margin: 0 34px 4px 0; font: 700 19px var(--f-head); color: #3a2510; }
+#aud .sub { margin: 0 0 10px; font-size: 13px; color: #7a6040; }
+#aud .x { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; background: none; font: 700 26px var(--f-head); color: #5a4020; cursor: pointer; }
+#aud .ln { display: block; width: 100%; min-height: 44px; margin: 0 0 6px; padding: 8px 10px; box-sizing: border-box; text-align: left; border: 2px solid #b89a6a; border-radius: 8px;
+  background: #fffaf0; font: 600 13.5px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; color: #2a1d10; cursor: pointer; overflow-wrap: anywhere; }
+#aud .ln:hover { background: #fff; }
+#aud .ln.sel { border-color: #c8473b; box-shadow: inset 0 0 0 2px #c8473b; }
+#aud .ln .t { color: #8a7050; margin-right: 6px; }
+#aud .ln.err { color: #9a2418; }
+#aud .note { margin: -2px 0 8px; padding: 8px 10px; background: #efe0bd; border-radius: 8px; font: 600 14px var(--f-body); }
+#aud .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; align-items: center; }
+#aud button.b { min-height: 44px; padding: 6px 14px; border: 2px solid #3a2a1a; border-radius: 10px; background: #f3d98a; font: 700 15px var(--f-head); color: #2b1a08; cursor: pointer; }
+#aud button.b.alt { background: #fff7e2; }
+#aud button.b.on { background: #2f7a4a; color: #fff; }
+#aud button.b:disabled { opacity: .45; cursor: default; }
+#aud .tabs { display: flex; gap: 6px; margin: 0 0 10px; }
+#aud .tabs button { flex: 1; min-height: 44px; border: 2px solid #5a4020; border-radius: 10px; background: #fff7e2; font: 700 15px var(--f-head); cursor: pointer; }
+#aud .tabs button.on { background: #5a4020; color: #fff7e2; }
+#aud .seg { display: grid; grid-template-columns: minmax(96px, 34%) 1fr; gap: 6px; align-items: center; width: 100%; min-height: 44px; margin: 0 0 4px; padding: 4px 6px; box-sizing: border-box;
+  border: 2px solid transparent; border-radius: 8px; background: rgba(255,255,255,.55); cursor: pointer; text-align: left; font: 600 13px var(--f-body); color: #2a1d10; }
+#aud .seg.sel { border-color: #c8473b; }
+#aud .seg .nm small { display: block; color: #7a6040; font-size: 11.5px; }
+#aud .bar { position: relative; height: 18px; background: rgba(90,64,32,.12); border-radius: 4px; }
+#aud .bar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: #4a9a5e; }
+#aud .bar i.slow { background: #d99a2a; } #aud .bar i.fault { background: #c8473b; } #aud .bar i.pend { background: repeating-linear-gradient(90deg, #d99a2a 0 6px, transparent 6px 10px); }
+#aud .bar b { position: absolute; right: 4px; top: 0; font: 700 11.5px var(--f-body); line-height: 18px; color: #2a1d10; }
+#aud .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 4px 0 8px; font-size: 14px; }
+#aud .lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1px solid #000; }
+#aud .q { margin: 0 0 8px; font: 800 16px var(--f-body); }
+#aud .opt { display: block; width: 100%; min-height: 48px; margin: 0 0 6px; padding: 8px 12px; text-align: left; border: 2px solid #6b4e24; border-radius: 10px; background: rgba(255,255,255,.6); font: 700 15px var(--f-body); color: #2a1d10; cursor: pointer; }
+#aud .opt.right { background: #d9f5e4; border-color: #1f8a55; } #aud .opt.wrong { background: #fde0dc; border-color: #b23a2f; } #aud .opt.pick { box-shadow: inset 0 0 0 3px #c8473b; }
+#aud .opt img { height: 36px; vertical-align: middle; margin-right: 8px; }
+@media (max-width: 480px) { #aud { font-size: 14px; } #aud .seg { grid-template-columns: 1fr; } }`;
+    document.head.appendChild(st);
+  }
+  function audPanel() {
+    if (AU8.panel) return AU8.panel;
+    audStyle(); const p = document.createElement('div'); p.id = 'aud'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', 'Watch room card'); document.body.appendChild(p); AU8.panel = p;
+    // Taps on the card stay on the card.
+    p.addEventListener('pointerdown', e => e.stopPropagation());
+    return p;
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function cardOpen(kind, html, data) {
+    const p = audPanel(); AU8.card = Object.assign({ kind }, data || {});
+    p.className = 'on' + (L.W < L.H ? ' tall' : '');
+    p.innerHTML = `<button type="button" class="x" aria-label="Close">×</button>${html}`;
+    p.querySelector('.x').addEventListener('click', cardClose);
+    p.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => audAct(b.dataset.act, b)));
+  }
+  function cardClose() { if (AU8.panel) { AU8.panel.className = ''; AU8.panel.innerHTML = ''; } AU8.card = null; AU8.trSel = null; AU8.logSel = null; }
+  // A suggestion button from a piece of evidence: a porter job on a station.
+  const jobBtn = (st, job) => `<button type="button" class="b" data-act="job:${st}:${job}">${job === 'oil' ? 'Oil' : 'Patch'} ${WHO(st)}</button>`;
+  const JOB_WORD = { oil: 'oil it (for slowness)', patch: 'patch it (for failures, or a restart if it\'s hung)' };
+  function audAct(act, b) {
+    const S8 = M, [k, x, y] = act.split(':');
+    if (k === 'job') { const why = A8.queueJob(S8, x, y); popAt(stationTop(x), why === '' ? (y === 'oil' ? 'oil' : 'patch') + ' queued' : why === 'full' ? 'three jobs already' : why === 'dup' ? 'already queued' : '', '#ffe6a8', 24); if (why === 'full') say('jobsFull', 'tired', AUD_LINES.jobsFull); if (why === '') { sfx('rClank'); cardClose(); } return; }
+    if (k === 'log') { AU8.logSel = +x; openLog(AU8.card.src); return; }
+    if (k === 'logsrc') { openLog(x); return; }
+    if (k === 'tab') { AU8.card.tab = x; AU8.trSel = null; openTraces(x, AU8.card.expr); return; }
+    if (k === 'srch') { openTraces('search', x); return; }
+    if (k === 'tr') { AU8.trSel = { id: +x, row: null }; openTraces(AU8.card.tab, AU8.card.expr); return; }
+    if (k === 'row') { AU8.trSel.row = +x; openTraces(AU8.card.tab, AU8.card.expr); return; }
+    if (k === 'q') { const res = A8.query(S8, x); if (res.error) { popAt(L.st.desk, res.error === 'coins' ? 'No coins' : 'Needs the stamp', '#ffdc78', 26); return; } AU8.card.res = res; AU8.card.sel = null; sfx('rPage'); say('lens', 'neutral', AUD_LINES.lens); openLens(); return; }
+    if (k === 'qrow') { AU8.card.sel = +x; openLens(); return; }
+    if (k === 'buy') { audPlace(x, y === 'g' ? AU8.card.g : y); return; }
+    if (k === 'al') { const al = S8.audit.alarms.find(a => a.id === +x); if (!al) return; const o = {}; const [f, v] = y.split('='); o[f] = f === 'act' ? v === '1' : f === 'missing' ? v : +v; if (f === 'n' && al.m > +v) o.m = +v; A8.configAlarm(S8, al.id, o); openGauge(AU8.card.g); return; }
+    if (k === 'alm') { const al = S8.audit.alarms.find(a => a.id === +x); if (al) { al.metric = y; al.hist = []; } openGauge(AU8.card.g); return; }
+    if (k === 'addal') { const why = R.place(S8, 'alarm', AU8.card.g, { metric: x }); audWhy(why, 'alarm', gaugePos(gaugeById(AU8.card.g))); openGauge(AU8.card.g); return; }
+    if (k === 'stamp') { const why = R.place(S8, 'stamp', 'desk', { dim: x }); audWhy(why, 'stamp', stationTop('desk')); cardClose(); AU8.armed = null; return; }
+    if (k === 'rule') { const why = R.place(S8, 'rule', 'counter', { route: x }); audWhy(why, 'rule', stationTop('counter')); cardClose(); AU8.armed = null; return; }
+    if (k === 'jobup') { A8.reorder(S8, +x, +x - 1); openJobs(); return; }
+    if (k === 'jobx') { A8.cancel(S8, +x); openJobs(); return; }
+    if (k === 'bell') { A8.setBell(S8, x); openBell(); return; }
+    if (k === 'ans') { cellarAnswer(+x, b); return; }
+    if (k === 'chk') { internCheck(x); return; }
+    if (k === 'go') { cardClose(); return; }
+  }
+  // ---- Placing a buy: tap the slot to arm it, then tap its target (room-wide buys go on at once) ----
+  function audWhy(why, tool, at) {
+    if (why === '') { sfx(tool === 'alarm' ? 'rBell' : tool === 'stamp' ? 'rStamp' : 'rClank'); say('buy-' + tool, 'neutral', AUD_LINES[tool]); return true; }
+    const p = at || [L.W / 2, beltRect()[1] - 30];
+    if (why === 'coins') popAt(p, 'No coins', '#ffdc78', 28);
+    else if (why === 'placed') popAt(p, 'Already there', '#e8dcc4', 24);
+    else if (why === 'hiresBuiltin') { say('hiresBuiltin', 'neutral', AUD_LINES.hiresBuiltin); said.hiresBuiltin = 0; }
+    else if (why === 'ruleDesk') { say('ruleDesk', 'neutral', AUD_LINES.ruleDesk); said.ruleDesk = 0; popAt(p, 'not here: the root decides', '#ffdc78', 22); }
+    else if (why === 'stampWhere') { say('stampWhere', 'neutral', AUD_LINES.stampWhere); said.stampWhere = 0; }
+    else if (why === 'needs') { say('needs', 'neutral', AUD_LINES.needs); said.needs = 0; popAt(p, 'Needs the tracer', '#ffdc78', 24); }
+    else if (why === 'locked') popAt(p, 'Not sold tonight', '#e8dcc4', 24);
+    else if (why === 'where') popAt(p, 'Not there', '#e8dcc4', 24);
+    return false;
+  }
+  function audPlace(tool, target) {
+    const S8 = M;
+    if (tool === 'lens') { openLens(); return; }
+    if (tool === 'stamp') { stampCard(); return; }
+    if (tool === 'rule' && target === 'counter') { ruleCard(); return; }
+    const why = R.place(S8, tool, target);
+    const at = tool === 'tally' ? stationTop(target) : (tool === 'alarm' || tool === 'hires') ? gaugePos(gaugeById(target)) : null;
+    if (audWhy(why, tool, at)) {
+      AU8.armed = null;
+      if (tool === 'alarm' || tool === 'hires') openGauge(target);
+    }
+  }
+  function audSlot(i) {
+    const t = audBelt()[i]; if (!t) return;
+    if (AU8.room === 'down') { if (t === 'intern') audWhy(R.place(M, 'intern'), 'intern'); return; }
+    if (AUD_WHERE[t] === 'room') { if (t === 'lens') openLens(); else audWhy(R.place(M, t), t); AU8.armed = null; return; }
+    AU8.armed = AU8.armed === t ? null : t; sfx('rTick');
+    if (t === 'stamp' && !M.audit.stamp) { stampCard(); return; }
+    if (t === 'rule' && !M.audit.rule) { ruleCard(); return; }
+  }
+  const audBelt = () => AU8.room === 'down' ? ['intern'] : M.belt;
+  // ---- Geometry ----
+  const stIdx = st => A8.STATIONS.indexOf(st);
+  function stationRect(st) { const [x, y] = L.st[st], [w, h] = L.cab; return [x - w / 2, y - h, w, h]; }
+  function stationTop(st) { const [x, y] = L.st[st]; return [x, y - L.cab[1] - 20]; }
+  const gaugeById = id => M.audit.gauges.find(g => g.id === id);
+  function gaugesAt(st) { return M.audit.gauges.filter(g => g.station === st); }
+  function gaugePos(g) {
+    if (!g) return [L.W / 2, L.H / 2];
+    const list = gaugesAt(g.station), j = list.indexOf(g), n = list.length, [x, y] = L.st[g.station];
+    const dy = L.dialY != null ? L.dialY : y - L.cab[1] - L.dialR - 12;
+    return [x + (j - (n - 1) / 2) * L.dialDx, dy];
+  }
+  function tubePoint(u) {
+    // Wide: along the tube from the cup to the basket's drop. Tall: the same through the layout's own turns.
+    const pts = tubePath(); let tot = 0; const seg = [];
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); tot += d; }
+    let want = Math.max(0, Math.min(1, u)) * tot;
+    for (let i = 0; i < seg.length; i++) { if (want <= seg[i]) { const f = seg[i] ? want / seg[i] : 0; return [lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)]; } want -= seg[i]; }
+    return pts[pts.length - 1];
+  }
+  function tubePath() {
+    const c = L.st.counter, d = L.st.desk;
+    if (L.W > L.H) return [L.cup, [c[0], L.tube], [d[0], L.tube], [L.outX, L.tube], [L.outX, L.basket[1] - 40]];
+    return [L.cup, [c[0], L.tube], [d[0], L.tube], [L.outX, L.tube], [L.outX, L.basket[1] - 30]];
+  }
+  // Where each stop sits along the path (0..1), measured once per layout.
+  function tubeU(pt) {
+    const pts = tubePath(); let best = 0, bd = 1e9, tot = 0, acc = [0];
+    for (let i = 1; i < pts.length; i++) { tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); acc.push(tot); }
+    for (let i = 1; i < pts.length; i++) for (let f = 0; f <= 1; f += .02) {
+      const x = lerp(pts[i - 1][0], pts[i][0], f), y = lerp(pts[i - 1][1], pts[i][1], f), dd = Math.hypot(x - pt[0], y - pt[1]);
+      if (dd < bd) { bd = dd; best = lerp(acc[i - 1], acc[i], f) / tot; }
+    }
+    return best;
+  }
+  function ticketPos(k) {
+    const uC = tubeU([L.st.counter[0], L.tube]), uD = tubeU([L.st.desk[0], L.tube]), u = k.dur ? Math.min(1, k.t / k.dur) : 0;
+    switch (k.phase) {
+      case 'in': return [L.intake[0] + (L.cup[0] - L.intake[0]) * u, lerp(L.intake[1], L.cup[1], ease(u))];
+      case 'cqueue': { const i = M.audit.cq.indexOf(k); return [L.cup[0], L.cup[1] - 20 - i * 18]; }
+      case 'counter': return [L.st.counter[0] + ((k.id % 3) - 1) * 30, L.tube];
+      case 'pipe': return tubePoint(lerp(uC, uD - .04, ease(u)));
+      case 'queue': { const i = M.audit.queue.indexOf(k); return tubePoint(Math.max(uC, uD - .04 - i * .022)); }
+      case 'desk': return [L.st.desk[0] + ((k.id % 4) - 1.5) * 26, L.tube];
+      case 'out': { const from = k.td != null ? uD : uC; return tubePoint(lerp(from, 1, ease(u))); }
+    }
+    return null;
+  }
+  // ---- Drawing ----
+  // Plain small print (no outline), for badges and price tags.
+  function ptext(t, x, y, size, col) { cx.save(); cx.font = `800 ${Math.max(size * L.fs, audMinPx())}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(t, x, y); cx.restore(); }
+  // What the frame drew where (stage px), for the overlap check in tools/rush_check_audit.js.
+  function audBox(kind, name, x, y, w, h) { (AU8.boxes = AU8.boxes || []).push({ kind, name, r: [x, y, w, h] }); }
+  function audTextBox(kind, name, t, x, y, size) {
+    const f = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `700 ${f}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; const w = cx.measureText(t).width; cx.restore();
+    audBox(kind, name, x - w / 2, y - f * .55, w, f * 1.1);
+  }
+  function audPlaque(t, x, y, name) {
+    const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; cx.restore();
+    const px = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x)); plaque(t, px, y); audBox('label', name, px - w / 2, y - f * .75, w, f * 1.5);
+  }
+  // A Watch Room sprite (assets/img/rush/watch/), fitted in a w x h box: anchored at its bottom centre ('mb') or centre.
+  function wimg(n, x, y, w, h, anchor, flip) {
+    const im = IMG['w-' + n]; if (!im) return false;
+    const s = Math.min(w / im.width, h / im.height), ww = im.width * s, hh = im.height * s;
+    cx.save(); cx.translate(x, y); if (flip) cx.scale(-1, 1); cx.drawImage(im, -ww / 2, anchor === 'mb' ? -hh : -hh / 2, ww, hh); cx.restore();
+    return [x - ww / 2, anchor === 'mb' ? y - hh : y - hh / 2, ww, hh];
+  }
+  function audBg() {
+    const bg = IMG[L.bg];
+    if (bg) { cx.drawImage(bg, 0, 0, L.W, L.H); return; }
+    // Code-drawn placeholder: a night-blue wall, a wainscot, floorboards, two high windows.
+    const g = cx.createLinearGradient(0, 0, 0, L.floor);
+    g.addColorStop(0, '#1b2233'); g.addColorStop(1, '#2a2a34'); cx.fillStyle = g; cx.fillRect(0, 0, L.W, L.floor);
+    cx.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 0; x < L.W; x += 48) cx.fillRect(x, 0, 2, L.floor);
+    cx.fillStyle = '#3a2a1e'; cx.fillRect(0, L.floor - 60, L.W, 60); cx.fillStyle = '#4a3626'; cx.fillRect(0, L.floor - 64, L.W, 6);
+    const f = cx.createLinearGradient(0, L.floor, 0, L.H); f.addColorStop(0, '#4a3222'); f.addColorStop(1, '#22160e'); cx.fillStyle = f; cx.fillRect(0, L.floor, L.W, L.H - L.floor);
+    cx.strokeStyle = 'rgba(0,0,0,.35)'; cx.lineWidth = 2; for (let y = L.floor + 18; y < L.H; y += 26) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(L.W, y); cx.stroke(); }
+    // Moonlit windows.
+    const wins = L.W > L.H ? [[470, 40], [770, 40]] : [[300, 560], [600, 1240]];
+    if (L.W > L.H) for (const [x, y] of wins) { cx.fillStyle = '#0d1424'; rrect(x, y, 90, 70, 6); cx.fill(); cx.fillStyle = 'rgba(160,190,255,.18)'; cx.fillRect(x + 6, y + 6, 78, 58); cx.strokeStyle = '#4a3626'; cx.lineWidth = 5; cx.strokeRect(x, y, 90, 70); cx.beginPath(); cx.moveTo(x + 45, y); cx.lineTo(x + 45, y + 70); cx.stroke(); }
+    if (L.W < L.H) { // the tall room's second floor line, for the lower row of cabinets
+      cx.fillStyle = '#3a2a1e'; cx.fillRect(0, L.st.counter[1] - 30, L.W, 30); cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(0, L.st.counter[1], L.W, 10);
+    }
+  }
+  function audCabinet(st) {
+    const [x, y] = L.st[st], [w, h] = L.cab, a = M.audit, sx = x - w / 2, sy = y - h;
+    if (L.painted && IMG[L.bg]) { audCabinetOver(st, x, y, w, h, sx, sy); return; }
+    shadow(x, y + 2, w * 1.1);
+    const body = { counter: '#5a3a24', desk: '#3e4a5a', drawer: '#4a3a2a', engine: '#3a3a3a' }[st];
+    cx.save(); rrect(sx, sy, w, h, 10); cx.fillStyle = body; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#140c06'; cx.stroke();
+    // Each front its own: a ticket grille, a glass door with a desk lamp, brass drawer pulls, a gear behind a window.
+    const wx = sx + 18, wy = sy + 18, ww = w - 36, wh = h * .46;
+    cx.fillStyle = '#1a1410'; cx.fillRect(wx, wy, ww, wh);
+    if (st === 'counter') { cx.strokeStyle = '#b8924a'; cx.lineWidth = 3; for (let i = 1; i < 6; i++) { cx.beginPath(); cx.moveTo(wx + ww * i / 6, wy); cx.lineTo(wx + ww * i / 6, wy + wh); cx.stroke(); } for (let i = 0; i < 3; i++) { cx.fillStyle = i < a.windowsBusy ? '#ffd666' : '#3a3026'; cx.beginPath(); cx.arc(wx + ww * (i + .5) / 3, wy + wh + 22, 7, 0, 7); cx.fill(); } }
+    if (st === 'desk') { cx.fillStyle = 'rgba(170,200,230,.18)'; cx.fillRect(wx, wy, ww, wh); for (let i = 0; i < 4; i++) { cx.fillStyle = i < a.seatsBusy ? '#ffd666' : '#2a3340'; cx.beginPath(); cx.arc(wx + ww * (i + .5) / 4, wy + wh + 22, 7, 0, 7); cx.fill(); } cx.fillStyle = '#c9a23a'; cx.fillRect(wx + ww / 2 - 4, wy + 10, 8, 30); }
+    if (st === 'drawer') { for (let i = 0; i < 3; i++) { cx.fillStyle = '#5a4630'; cx.fillRect(sx + 12, sy + 20 + i * (h - 40) / 3, w - 24, (h - 40) / 3 - 8); cx.fillStyle = '#d6b254'; cx.fillRect(x - 16, sy + 20 + i * (h - 40) / 3 + 18, 32, 8); } }
+    if (st === 'engine') {
+      const turn = (performance.now() / 600) % (Math.PI * 2);
+      cx.save(); cx.translate(x, wy + wh / 2); cx.rotate(turn); cx.strokeStyle = '#8a8a8a'; cx.lineWidth = 6; cx.beginPath(); cx.arc(0, 0, wh * .3, 0, 7); cx.stroke();
+      for (let i = 0; i < 8; i++) { cx.rotate(Math.PI / 4); cx.fillStyle = '#8a8a8a'; cx.fillRect(-4, -wh * .42, 8, 12); } cx.restore();
+      cx.fillStyle = '#2a2a2a'; cx.fillRect(x + w * .25, sy - 30, 16, 32);
+      // Not an AWS service: no built-in gauge, and you can't see in until something reports from it.
+      if (!a.seenStation.engine) { cx.fillStyle = '#5a5246'; cx.fillRect(wx - 4, wy - 4, ww + 8, h - 28); cx.strokeStyle = 'rgba(0,0,0,.4)'; cx.lineWidth = 2; for (let yy = wy + 6; yy < sy + h - 30; yy += 12) { cx.beginPath(); cx.moveTo(wx, yy); cx.lineTo(wx + ww, yy); cx.stroke(); } }
+    }
+    cx.restore();
+    // The nameplate: the station and its AWS service.
+    const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
+    audPlaque(`${A8.NAME[st]} · ${aws}`, x + ((L.plaqueDx || {})[st] || 0), y + 18 * L.fs, 'plaque:' + st);
+    if (a.tallies.includes(st)) { cx.fillStyle = a.dark.has('tally:' + st) ? '#555' : '#d6b254'; rrect(sx + w - 30, sy + h - 40, 22, 28, 4); cx.fill(); ptext('#', sx + w - 19, sy + h - 26, 14, '#2b1a08'); }
+    if (st === 'desk' && a.stamp) { cx.fillStyle = a.dark.has('stamp') ? '#555' : '#c8473b'; const bw = audMinPx() ? 58 : 26, bh = audMinPx() ? 32 : 28; rrect(sx + 8, sy + h - 12 - bh, bw, bh, 4); cx.fill(); ptext('EMF', sx + 8 + bw / 2, sy + h - 12 - bh / 2, 9, '#fff'); }
+    if (st === 'counter' && a.rule) { cx.fillStyle = '#f1e2b8'; rrect(sx + 8, sy + h - 40, 34, 24, 3); cx.fill(); ptext('100%', sx + 25, sy + h - 28, 9, '#2b1a08'); }
+    if (AU8.armed && targetOk(AU8.armed, st)) glowSpot([sx - 6, sy - 6, w + 12, h + 12], true);
+  }
+  // Over a painted cabinet: its busy lamps, the Engine's shutter until something reports from it, and the buys on it.
+  function audCabinetOver(st, x, y, w, h, sx, sy) {
+    const a = M.audit, n = st === 'counter' ? 3 : st === 'desk' ? 4 : 0, busy = st === 'counter' ? a.windowsBusy : a.seatsBusy;
+    for (let i = 0; i < n; i++) { cx.beginPath(); cx.arc(x - (n - 1) * 9 + i * 18, sy + h - 14, 6, 0, 7); cx.fillStyle = i < busy ? '#ffd666' : '#3a3026'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke(); }
+    if (st === 'engine' && !a.seenStation.engine) { const [dx, dy, ph] = L.port; wimg('shutter', x + dx, y + dy, ph, ph, 'mm'); }
+    const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
+    audPlaque(`${A8.NAME[st]} · ${aws}`, x + ((L.plaqueDx || {})[st] || 0), y + 18 * L.fs, 'plaque:' + st);
+    const b = h * .3;
+    if (a.tallies.includes(st)) { cx.save(); if (a.dark.has('tally:' + st)) cx.globalAlpha = .45; wimg('tally', sx + w - b * .4, y - 6, b, b, 'mb'); cx.restore(); }
+    if (st === 'desk' && a.stamp) { cx.save(); if (a.dark.has('stamp')) cx.globalAlpha = .45; wimg('stamp', sx + b * .4, y - 6, b, b, 'mb'); cx.restore(); }
+    if (st === 'counter' && a.rule) wimg('rule', sx + b * .5, y - 8, b, b, 'mb');
+    if (AU8.armed && targetOk(AU8.armed, st)) glowSpot([sx - 6, sy - 6, w + 12, h + 12], true);
+  }
+  function targetOk(tool, st) { return (tool === 'tally' && !M.audit.tallies.includes(st)) || (tool === 'stamp' && st === 'desk') || (tool === 'rule' && st === 'counter'); }
+  function audDial(g) {
+    const [x, y] = gaugePos(g), r = L.dialR, m = g.metrics[0], v = g.vals[m.key], a = M.audit;
+    const dark = (g.src === 'tally' && a.dark.has('tally:' + g.station)) || (g.src === 'stamp' && a.dark.has('stamp'));
+    const hi = g.hires && !a.dark.has('hires:' + g.id), spr = IMG[hi ? 'w-gauge-hires' : 'w-gauge'];
+    cx.save();
+    if (spr) { // the painted gauge: its face (an ellipse at these fractions of the sprite) under the code's needle
+      const F = hi ? [.407, .507, .306, .379] : [.438, .52, .333, .39], sw = r / F[2], sh = sw * spr.height / spr.width;
+      cx.drawImage(spr, x - F[0] * sw, y - F[1] * sh, sw, sh); audBox('gauge', 'gauge:' + g.id, x - F[0] * sw, y - F[1] * sh, sw, sh);
+      cx.beginPath(); cx.ellipse(x, y, r * 1.02, F[3] * sh * 1.02, 0, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill();
+    } else {
+      cx.beginPath(); cx.arc(x, y, r + 5, 0, 7); cx.fillStyle = hi ? '#2a5ab8' : '#8a6a2a'; cx.fill();
+      cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke();
+    }
+    // The red zone past the threshold (a time gauge: its line; a rate: 0.4; a heartbeat: none).
+    const lim = m.kind === 'time' ? m.thr : m.kind === 'rate' ? A8.T.rateThr : null, full = m.kind === 'time' ? m.thr * 2 : m.kind === 'rate' ? 1 : 6;
+    const ang = f => Math.PI * .8 + f * Math.PI * 1.4;
+    if (lim != null) { cx.beginPath(); cx.arc(x, y, r - 5, ang(lim / full), ang(1)); cx.lineWidth = 6; cx.strokeStyle = 'rgba(200,71,59,.8)'; cx.stroke(); }
+    const target = v == null ? 0 : Math.min(1, v / full); g.needle = (g.needle || 0) + (target - (g.needle || 0)) * .12;
+    cx.save(); cx.translate(x, y); cx.rotate(ang(g.needle)); cx.fillStyle = v == null ? '#999' : '#1a1410'; cx.fillRect(0, -1.5, r - 6, 3); cx.restore();
+    cx.beginPath(); cx.arc(x, y, 3, 0, 7); cx.fillStyle = '#1a1410'; cx.fill(); cx.restore();
+    const lab = g.src === 'builtin' ? m.key.replace('SuccessfulRequestLatency', 'Latency') : g.src === 'stamp' ? 'EMF ms' : 'Tally';
+    text(lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12, '#f2e6cc'); audTextBox('label', 'gaugeLabel:' + g.id, lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12);
+    // Its klaxons: a lamp each over the dial, grey for no data, green OK, red ALARM.
+    const als = a.alarms.filter(al => al.gauge === g.id);
+    als.forEach((al, i) => {
+      const lx = x - r + 4 + i * 18, ly = y - r - 10, sh = AU8.shake[al.id] ? Math.sin(performance.now() / 30) * 3 : 0;
+      cx.beginPath(); cx.arc(lx + sh, ly, 7, 0, 7); cx.fillStyle = al.state === 'ALARM' ? '#ff4a3a' : al.state === 'OK' ? '#4ad06a' : '#8a8a8a'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#000'; cx.stroke();
+      if (al.state === 'ALARM') { cx.beginPath(); cx.arc(lx, ly, 13 + 3 * Math.sin(performance.now() / 120), 0, 7); cx.strokeStyle = 'rgba(255,74,58,.6)'; cx.lineWidth = 3; cx.stroke(); }
+    });
+    if (AU8.armed && (AU8.armed === 'alarm' || AU8.armed === 'hires')) glowSpot([x - r - 8, y - r - 8, 2 * r + 16, 2 * r + 16], AU8.armed === 'alarm' || g.src !== 'builtin');
+  }
+  function audCapsule(k) {
+    const p = ticketPos(k); if (!p) return;
+    const col = k.bad === 'failed' ? '#8a2a20' : k.bad === 'late' ? '#d0702a' : '#c9a23a', cap = k.bad === 'failed' ? 'capsule-cracked' : k.bad === 'late' ? 'capsule-late' : k.refund ? 'capsule-refund' : 'capsule';
+    cx.save(); cx.translate(p[0], p[1]);
+    if (!wimg(cap, 0, 0, 44, 30, 'mm')) {
+      rrect(-16, -8, 32, 16, 7); cx.fillStyle = col; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#1a0f06'; cx.stroke();
+      if (k.refund) { cx.fillStyle = '#ffd040'; cx.fillRect(-3, -8, 6, 16); }
+      if (k.bad === 'failed') { cx.strokeStyle = '#000'; cx.beginPath(); cx.moveTo(-6, -8); cx.lineTo(0, 0); cx.lineTo(-4, 8); cx.stroke(); }
+    }
+    if (k.traced && M.audit.tracer) { cx.strokeStyle = '#e03030'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(16, 0); cx.quadraticCurveTo(26, -10, 34, 0); cx.stroke(); }
+    cx.restore();
+    // At Mira's desk: the call she's waiting on goes out as a grey pellet along the return pipe.
+    if (k.phase === 'desk' && k.segs) {
+      const s = k.segs.find(x => x.who !== 'desk' && k.t >= x.t0 && k.t < x.t0 + x.d);
+      if (s) {
+        const to = L.st[s.who], f = s.pending ? Math.min(1, (k.t - s.t0) / 0.6) : Math.min(1, (k.t - s.t0) / Math.max(.2, s.d)), back = f > .5 && !s.pending ? 2 - 2 * f : Math.min(1, 2 * f);
+        const px = lerp(L.st.desk[0], to[0], back), py = L.W > L.H ? L.ret : lerp(L.st.desk[1], to[1] - L.cab[1], back);
+        cx.fillStyle = '#9a9a9a'; rrect(px - 7, py - 5, 14, 10, 4); cx.fill(); cx.strokeStyle = '#222'; cx.lineWidth = 1.5; cx.stroke();
+      }
+    }
+  }
+  function audPorter() {
+    const p = M.audit.porter, at = st => st === 'bench' ? L.bench : [L.st[st][0] + L.cab[0] * .32, L.st[st][1] + (L.W > L.H ? 104 : 64)];
+    let pos = at(p.at), walking = false;
+    if (p.phase === 'walk' && p.job) { const f = Math.min(1, p.t / Math.max(.01, p.dur)); pos = [lerp(at(p.from || 'bench')[0], at(p.job.station)[0], ease(f)), lerp(at(p.from || 'bench')[1], at(p.job.station)[1], ease(f))]; walking = true; }
+    if (p.phase === 'back') { const f = Math.min(1, p.t / Math.max(.01, p.dur)); pos = [lerp(at(p.at)[0], L.bench[0], ease(f)), lerp(at(p.at)[1], L.bench[1], ease(f))]; walking = true; }
+    const H = L.porterH, s = H / 300, [x, y] = pos, step = walking ? Math.sin(performance.now() / 90) : 0, bob = p.phase === 'work' ? Math.sin(performance.now() / 70) * 4 : 0;
+    shadow(x, y, 90 * s);
+    if (IMG['w-porter']) { // the painted porter: standing (oil can and wrench in hand), or his walking frame, facing his way
+      const to = p.phase === 'walk' && p.job ? at(p.job.station)[0] - at(p.from || 'bench')[0] : p.phase === 'back' ? L.bench[0] - at(p.at)[0] : 0;
+      cx.save(); cx.translate(0, bob - (walking ? Math.abs(step) * 4 : 0)); const pr = wimg(walking ? 'porter-walk' : 'porter', x, y + 4, H * 2, H, 'mb', walking ? to > 0 : false); cx.restore();
+      if (pr) audBox('porter', 'porter', pr[0] + pr[2] * .15, pr[1], pr[2] * .7, pr[3]); // his body, not the oil can held out
+      if (p.phase === 'work' && p.job) text(p.job.job === 'oil' ? 'oiling' : 'patching', x, y - H - 16, 18, '#ffe6a8');
+      return;
+    }
+    cx.save(); cx.translate(x, y); cx.scale(s, s); cx.lineJoin = 'round'; cx.lineWidth = 4; cx.strokeStyle = '#120a06';
+    // Legs, coat, arms, head, cap: a standing adult about 300 px tall in the wide room.
+    cx.fillStyle = '#2a2a3a'; cx.fillRect(-26 + step * 8, -110, 20, 110); cx.strokeRect(-26 + step * 8, -110, 20, 110); cx.fillRect(6 - step * 8, -110, 20, 110); cx.strokeRect(6 - step * 8, -110, 20, 110);
+    cx.fillStyle = '#1a1410'; cx.fillRect(-30 + step * 8, -10, 28, 12); cx.fillRect(4 - step * 8, -10, 28, 12);
+    rrect(-44, -230 + bob, 88, 130, 14); cx.fillStyle = '#5a3a5a'; cx.fill(); cx.stroke();
+    cx.fillStyle = '#d6b254'; for (let i = 0; i < 3; i++) { cx.beginPath(); cx.arc(0, -210 + bob + i * 28, 4, 0, 7); cx.fill(); }
+    const arm = p.phase === 'work' ? -0.9 + Math.sin(performance.now() / 80) * .3 : step * .4;
+    cx.save(); cx.translate(38, -220 + bob); cx.rotate(arm); cx.fillStyle = '#5a3a5a'; cx.fillRect(-9, 0, 18, 80); cx.strokeRect(-9, 0, 18, 80);
+    // An oil can for an oiling, a wrench for a patch.
+    if (p.job && p.job.job === 'oil') { cx.fillStyle = '#b8924a'; cx.fillRect(-12, 78, 24, 22); cx.strokeRect(-12, 78, 24, 22); cx.beginPath(); cx.moveTo(12, 84); cx.lineTo(30, 70); cx.stroke(); }
+    else if (p.job) { cx.fillStyle = '#9a9aa8'; cx.fillRect(-4, 76, 8, 40); cx.strokeRect(-4, 76, 8, 40); cx.beginPath(); cx.arc(0, 118, 9, 0, 7); cx.fill(); cx.stroke(); }
+    cx.restore();
+    cx.save(); cx.translate(-38, -220 + bob); cx.rotate(-step * .4); cx.fillStyle = '#5a3a5a'; cx.fillRect(-9, 0, 18, 78); cx.strokeRect(-9, 0, 18, 78); cx.restore();
+    cx.beginPath(); cx.arc(0, -262 + bob, 30, 0, 7); cx.fillStyle = '#e8c09a'; cx.fill(); cx.stroke();
+    cx.fillStyle = '#1a1410'; cx.beginPath(); cx.arc(-10, -266 + bob, 3, 0, 7); cx.arc(10, -266 + bob, 3, 0, 7); cx.fill();
+    rrect(-34, -300 + bob, 68, 22, 6); cx.fillStyle = '#2a3a6a'; cx.fill(); cx.stroke(); cx.fillRect(-40, -282 + bob, 80, 6);
+    cx.restore();
+    if (p.phase === 'work' && p.job) text(p.job.job === 'oil' ? 'oiling' : 'patching', x, y - H - 16, 18, '#ffe6a8');
+  }
+  function audClock() {
+    const [x, y, w, h] = L.clock, a = M.audit, painted = L.painted && IMG[L.bg];
+    cx.save(); cx.lineWidth = 4; cx.strokeStyle = '#140c06';
+    if (!painted) { rrect(x - w / 2, y - h / 2, w, h, 16); cx.fillStyle = '#4a2e1a'; cx.fill(); cx.stroke(); }
+    // The painted case keeps its own face; the code paints a plain one over it, flat to the camera, for the hands.
+    const fx = painted ? L.face[0] : x, r = painted ? L.face[2] : w * .38, cy0 = painted ? L.face[1] : y - h / 2 + w * .5;
+    cx.lineWidth = painted ? 2 : 4; cx.beginPath(); cx.arc(fx, cy0, r, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.stroke();
+    for (let i = 0; painted && i < 12; i++) { const an = i * Math.PI / 6; cx.fillStyle = '#3a2510'; cx.fillRect(fx + Math.sin(an) * r * .82 - 1.5, cy0 - Math.cos(an) * r * .82 - 1.5, 3, 3); }
+    const mins = M.started ? (M.time / a.night.hourSecs) * 60 : 0, hh = (a.night.start + mins / 60) % 12, mm = mins % 60;
+    const hand = (f, len, wd) => { cx.save(); cx.translate(fx, cy0); cx.rotate(f * Math.PI * 2); cx.fillStyle = '#1a1410'; cx.fillRect(-wd / 2, -len, wd, len); cx.restore(); };
+    hand(hh / 12, r * .5, painted ? 3 : 5); hand(mm / 60, r * .8, painted ? 2 : 3);
+    // The key: wind it to start the night.
+    if (painted && IMG['w-key']) { cx.save(); cx.translate(L.key[0], L.key[1]); cx.rotate(AU8.keyT * 6 - .6); wimg('key', 0, 0, 44, 44, 'mm'); cx.restore(); }
+    const ky = y + h * .22; if (!painted || !IMG['w-key']) { cx.save(); cx.translate(x, ky); cx.rotate(AU8.keyT * 6); cx.fillStyle = '#d6b254'; cx.fillRect(-4, -26, 8, 40); cx.beginPath(); cx.arc(0, -30, 12, 0, 7); cx.fill(); cx.stroke(); cx.restore(); }
+    cx.restore();
+    if (!M.started) { glowSpot([x - w / 2 - 6, y - h / 2 - 6, w + 12, h + 12], true); audPlaque(L.clockTip || 'Wind the clock to start', L.clockTipAt ? L.clockTipAt[0] : L.clockTip ? x : x + 40, L.clockTipAt ? L.clockTipAt[1] : y + h / 2 + 22, 'clockTip'); }
+    audBox('clock', 'clock', x - w / 2, y - h / 2, w, h);
+  }
+  function audInk() {
+    const [x, y, w, h] = L.ink, f = Math.min(1, M.spill / M.cap), glass = !(L.painted && IMG[L.bg] && AU8.room === 'up');
+    cx.save(); if (glass) { rrect(x, y, w, h, 10); cx.fillStyle = 'rgba(200,220,240,.18)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#b8924a'; cx.stroke(); }
+    cx.save(); rrect(x + 4, y + 4, w - 8, h - 8, 8); cx.clip(); cx.fillStyle = glass ? '#2a1a5a' : 'rgba(42,26,90,.88)'; cx.fillRect(x, y + h - f * h, w, f * h); cx.restore();
+    cx.restore(); text(`${M.spill}/${M.cap}`, x + w / 2, y + h + 18, 16, M.spill >= M.cap - 3 ? '#ff9a8a' : '#e8dcc4'); text('lost', x + w / 2, y - 14, 13, '#c9c0b0');
+  }
+  function audBoard() {
+    const a = M.audit; if (!a.tracer) return;
+    const [x, y, w, h] = L.board;
+    cx.save(); rrect(x, y, w, h, 8); cx.fillStyle = a.dark.has('tracer') ? 'rgba(60,60,60,.9)' : 'rgba(240,228,200,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#5a4020'; cx.stroke();
+    const fz = Math.max(14 * Math.min(L.fs, 1.3), audMinPx()), head = fz + 12, rowH = (h - head - 6) / 4, bx = x + 20 + fz * 2.8;
+    cx.font = `700 ${fz}px Nunito, sans-serif`; cx.fillStyle = '#3a2510'; cx.textAlign = 'left'; cx.textBaseline = 'top';
+    cx.fillText(a.dark.has('tracer') ? 'X-RAY TRACES (dark: no upkeep)' : 'X-RAY TRACES · tap to read', x + 10, y + 6);
+    // The last few traces as thin timelines: red for a fault, amber for slow, green for fine.
+    const last = a.traces.slice(-4).reverse();
+    last.forEach((tr, i) => {
+      const ty = y + head + i * rowH, bad = tr.rows.some(r => r.points && r.points.job === 'patch'), slow = tr.rows.some(r => r.points && r.points.job === 'oil');
+      cx.fillStyle = '#7a6040'; cx.fillText(tr.at, x + 10, ty);
+      cx.fillStyle = bad ? '#c8473b' : slow ? '#d99a2a' : '#4a9a5e'; cx.fillRect(bx, ty + fz * .25, Math.min(x + w - 20 - bx, (x + w - 20 - bx) * tr.resp / 8), Math.max(10, fz * .5));
+    });
+    if (!last.length) { cx.fillStyle = '#7a6040'; cx.fillText('No traces yet.', x + 10, y + head + 4); }
+    cx.restore();
+  }
+  function audJobsPanel() {
+    const a = M.audit, [x, y, w, h] = L.jobs, p = a.porter;
+    cx.save(); rrect(x, y, w, h, 10); cx.fillStyle = 'rgba(24,20,30,.88)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
+    const fz = Math.max(14 * Math.min(L.fs, 1.3), audMinPx()), head = fz * 1.6, rowH = (h - head - 6) / 3;
+    cx.save(); cx.font = `700 ${fz}px Nunito, sans-serif`; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+    cx.fillStyle = '#ffe6a8'; cx.fillText(p.job ? `Porter: ${p.job.job === 'oil' ? 'oiling' : 'patching'} ${WHO(p.job.station)}` : 'Porter: on his bench', x + 10, y + fz * .9);
+    for (let i = 0; i < A8.T.jobs; i++) {
+      const j = a.jobs[i], ry = y + head + i * rowH + rowH / 2;
+      cx.fillStyle = j ? '#f2e6cc' : '#6a6070';
+      cx.fillText(j ? `${i + 1}. ${j.job === 'oil' ? 'Oil' : 'Patch'} ${WHO(j.station)}${j.from === 'alarm' ? ' (klaxon)' : ''}` : `${i + 1}. -`, x + 14, ry);
+    }
+    cx.restore();
+    if (M.orders.has('composite')) { const [bx, by] = L.bellAt; cx.beginPath(); cx.arc(bx, by, 18, 0, 7); cx.fillStyle = a.bell.state === 'ALARM' ? '#ff4a3a' : '#d6b254'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#000'; cx.stroke(); text(a.bell.op.toUpperCase(), bx, by + 30, 12, '#ffe6a8'); }
+  }
+  function audLogbooks() {
+    for (const src of ['counter', 'desk']) {
+      const [x, y, w, h] = L.logs[src], fresh = M.audit.logs[src].length && M.time - M.audit.logs[src][M.audit.logs[src].length - 1].t < .6;
+      if (!wimg('logbook', x, y, w * 1.3, h * 1.15, 'mm')) {
+        cx.save(); rrect(x - w / 2, y - h / 2, w, h, 6); cx.fillStyle = src === 'desk' ? '#6a2a2a' : '#2a4a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#140c06'; cx.stroke();
+        cx.fillStyle = '#f1e2b8'; cx.fillRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, 14); cx.fillStyle = '#c8473b'; cx.fillRect(x + w / 2 - 14, y + h / 2 - 4, 6, 20); cx.restore();
+      }
+      if (fresh) { cx.beginPath(); cx.arc(x + w / 2 - 6, y - h / 2 + 6, 6, 0, 7); cx.fillStyle = '#ffe6a8'; cx.fill(); }
+      text(src === 'desk' ? 'Mira' : 'Counter', x, y + 8, 11, '#f2e6cc'); text('LOG', x, y + 24, 11, '#f2e6cc');
+      audBox('log', 'log:' + src, x - w / 2, y - h / 2, w, h); audTextBox('label', 'logLabel:' + src, src === 'desk' ? 'Mira' : 'Counter', x, y + 8, 11);
+    }
+  }
+  function audBasket() {
+    const [x, y, w, h] = L.basket;
+    if (L.painted && IMG[L.bg]) { text(String(M.handled), x, L.W < L.H ? y + 4 : y + h / 2 + 16, 18, '#bff5b4'); return; }
+    cx.save(); cx.beginPath(); cx.moveTo(x - w / 2, y - h / 2); cx.lineTo(x + w / 2, y - h / 2); cx.lineTo(x + w / 2 - 12, y + h / 2); cx.lineTo(x - w / 2 + 12, y + h / 2); cx.closePath();
+    cx.fillStyle = '#8a6a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(x - w / 2 + 6, y - h / 2 + i * h / 4); cx.lineTo(x + w / 2 - 6, y - h / 2 + i * h / 4); cx.stroke(); } cx.restore();
+    text(String(M.handled), x, y + h / 2 + 16, 18, '#bff5b4');
+  }
+  function audTube() {
+    const pts = tubePath();
+    cx.save(); cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (const [wd, col] of [[22, '#2a1a08'], [16, '#b8924a'], [6, 'rgba(255,240,200,.35)']]) { cx.lineWidth = wd; cx.strokeStyle = col; cx.beginPath(); cx.moveTo(L.intake[0], L.intake[1]); pts.forEach(p => cx.lineTo(p[0], p[1])); cx.stroke(); }
+    const all = [L.intake].concat(pts); for (let i = 1; i < all.length; i++) { const [a, b] = [all[i - 1], all[i]]; audBox('pipe', 'tube' + i, Math.min(a[0], b[0]) - 11, Math.min(a[1], b[1]) - 11, Math.abs(a[0] - b[0]) + 22, Math.abs(a[1] - b[1]) + 22); }
+    // The call pipe: Mira's calls to the Drawer and the Engine come back to her (painted wide room: along the cabinet tops).
+    cx.lineWidth = 8; cx.strokeStyle = '#6a6a6a'; cx.beginPath();
+    if (L.W > L.H && L.painted && IMG[L.bg]) { cx.moveTo(L.st.desk[0], L.ret); cx.lineTo(L.st.engine[0], L.ret); }
+    else if (L.W > L.H) { cx.moveTo(L.st.desk[0], L.tube); cx.lineTo(L.st.desk[0], L.ret); cx.lineTo(L.st.engine[0], L.ret); cx.lineTo(L.st.engine[0], L.tube - 30); cx.moveTo(L.st.drawer[0], L.ret); cx.lineTo(L.st.drawer[0], L.tube - 30); }
+    else { const d = L.st.desk, gy = L.st.drawer[1] - L.cab[1]; cx.moveTo(d[0], d[1]); cx.lineTo(d[0], gy); cx.moveTo(d[0] - 60, d[1]); cx.lineTo(d[0] - 60, gy - 14); cx.lineTo(L.st.engine[0], gy - 14); cx.lineTo(L.st.engine[0], gy); }
+    cx.stroke(); cx.restore();
+    // The brass cup the intake drops into.
+    cx.save(); cx.fillStyle = '#d6b254'; rrect(L.cup[0] - 22, L.cup[1] - 14, 44, 28, 8); cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.restore();
+  }
+  function audDoor() {
+    const r = AU8.room === 'down' ? L.down.up : L.door, a = M.audit, ringing = AU8.room === 'down' && a.alarms.some(al => al.state === 'ALARM');
+    audBox('door', 'door', r[0], r[1], r[2], r[3]); cx.save(); rrect(r[0], r[1], r[2], r[3], 8); cx.fillStyle = ringing ? 'rgba(200,60,50,.9)' : 'rgba(40,30,20,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
+    cx.save(); cx.translate(r[0] + r[2] / 2, r[1] + r[3] / 2); cx.rotate(-Math.PI / 2); cx.font = `700 ${Math.max(16 * Math.min(L.fs, 1.2), audMinPx())}px Fredoka, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffe6a8';
+    cx.fillText(AU8.room === 'down' ? 'Up ▲' : 'Cellar ▼', 0, 0); cx.restore();
+  }
+  function audHud() {
+    const a = M.audit;
+    text(AU8.room === 'down' ? 'THE CELLAR' : 'THE NIGHT AUDIT', L.title[0], L.title[1] + 16 * L.fs, 28, '#fff0d2', 'left');
+    // The night bar, 22:00 to 06:00, and the clock time.
+    const bx = L.title[0], by = L.title[1] + 44 * L.fs, bw = 200 * Math.min(L.fs, 1.2), f = Math.min(1, M.time / M.close);
+    cx.save(); rrect(bx, by, bw, 10, 5); cx.fillStyle = 'rgba(40,36,50,.9)'; cx.fill(); rrect(bx, by, bw * f, 10, 5); cx.fillStyle = '#6a8ad6'; cx.fill(); cx.restore();
+    text(A8.clock(M), bx + bw + 12, by + 6, 22, '#ffe6a8', 'left');
+    const lit = a.dark.size ? `dark: ${[...a.dark].map(d => d.split(':')[0]).join(', ')}` : '';
+    if (lit) text(lit, bx, by + 30 * L.fs, 14, '#ff9a8a', 'left');
+  }
+  function audBeltDraw() {
+    const belt = audBelt(), [bx, by, bw, bh] = audBeltRect();
+    cx.save(); rrect(bx, by, bw, bh, 22); cx.fillStyle = 'rgba(24,20,30,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
+    belt.forEach((t, i) => {
+      const r = audSlotRect(i), a = M.audit, placed = t === 'intern' ? a.cellar.intern : ['tracer', 'pins', 'rule'].includes(t) ? !!a[t] : t === 'stamp' ? !!a.stamp : false;
+      const cost = A8.costOf(M, t), poor = !placed && M.coins < cost, armed = AU8.armed === t;
+      cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = placed ? 'rgba(30,26,34,1)' : armed ? 'rgba(110,86,40,1)' : 'rgba(58,48,62,1)'; cx.fill();
+      cx.lineWidth = armed ? 4 : 2; cx.strokeStyle = armed ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
+      audIcon(t, r[0] + r[2] / 2, r[1] + r[3] * .42, Math.min(r[2], r[3]) * .42, poor ? .4 : placed ? .35 : 1);
+      const label = placed ? 'placed' : audMinPx() && t === 'stamp' ? 'Stamp' : AUD_BELT_LABEL[t];
+      cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
+      if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
+      cx.textAlign = 'center'; cx.fillStyle = placed ? '#8a7f92' : '#f2e6cc'; cx.fillText(label, r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
+      if (!placed) { cx.save(); cx.beginPath(); cx.arc(r[0] + r[2] - 12, r[1] + 12, 12 * Math.min(L.fs, 1.3), 0, 7); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#000'; cx.stroke(); cx.restore(); ptext(String(cost), r[0] + r[2] - 12, r[1] + 13, 13, '#2b1a08'); }
+      const up = t === 'tracer' && M.orders.has('sampling') ? 0 : A8.UPKEEP[t];
+      if (up) text(`-${up}/h`, r[0] + 18, r[1] + 14, 11, '#ff9a8a');
+    });
+    const cxp = L.coinsAt ? L.coinsAt[0] : bx + bw + 26, cyp = L.coinsAt ? L.coinsAt[1] : by + bh / 2, puls = coinPulse ? 1 + .2 * Math.sin(coinPulse * 12) : 1;
+    cx.save(); cx.translate(cxp + 14, cyp); cx.scale(puls, puls); cx.beginPath(); cx.arc(0, 0, 16 * L.fs, 0, 7); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
+    text(String(M.coins), cxp + 22 + 22 * L.fs, cyp, 30, '#ffdc78', 'left');
+    if (AU8.armed) text(`Tap ${({ alarm: 'a gauge', hires: 'a custom gauge', tally: 'a cabinet', stamp: 'Mira\'s desk', rule: 'the Counter' })[AU8.armed] || 'its spot'} to place the ${AUD_BELT_LABEL[AU8.armed].toLowerCase()}`, L.W / 2, by - 18 * L.fs, 16, '#ffe6a8');
+  }
+  function audBeltRect() { const n = audBelt().length, s = Math.min(L.belt.slot, (L.W - 24 - (L.coinsAt ? 16 : 150)) / 8), w = n * s + 24; return [L.coinsAt ? (L.W - w) / 2 : Math.max(12, (L.W - 150 - w) / 2), L.H - L.belt.h - 6, w, L.belt.h]; }
+  function audSlotRect(i) { const [bx, by, , bh] = audBeltRect(), s = Math.min(L.belt.slot, (L.W - 24 - (L.coinsAt ? 16 : 150)) / 8); return [bx + 12 + i * s + 4, by + 8, s - 8, bh - 16]; }
+  // The buys' icons, drawn in code: a spool, a pin, a bell, a stamp, a tally, a blue dial, a card, a lens, a clipboard.
+  function audIcon(t, x, y, s, alpha) {
+    cx.save(); cx.globalAlpha = alpha; cx.translate(x, y); cx.lineWidth = 3; cx.strokeStyle = '#140c06'; cx.lineJoin = 'round';
+    const R0 = s * .5, spr = { tracer: 'tracer', pins: 'pins', alarm: 'alarm', stamp: 'stamp', tally: 'tally', hires: 'gauge-hires', rule: 'rule', lens: 'lens' }[t];
+    if (spr && wimg(spr, 0, 0, s * 1.05, s * 1.05, 'mm')) { cx.restore(); return; }
+    if (t === 'tracer') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .7, -R0, R0 * 1.4, R0 * .3); cx.fillRect(-R0 * .7, R0 * .7, R0 * 1.4, R0 * .3); cx.fillStyle = '#d03030'; cx.fillRect(-R0 * .5, -R0 * .7, R0, R0 * 1.4); cx.strokeRect(-R0 * .7, -R0, R0 * 1.4, R0 * 2); }
+    else if (t === 'pins') { cx.fillStyle = '#c8c8c8'; cx.fillRect(-2, -R0 * .2, 4, R0 * 1.2); cx.beginPath(); cx.arc(0, -R0 * .4, R0 * .45, 0, 7); cx.fillStyle = '#d03030'; cx.fill(); cx.stroke(); }
+    else if (t === 'alarm') { cx.beginPath(); cx.arc(0, 0, R0 * .8, Math.PI, 0); cx.lineTo(R0 * .8, R0 * .5); cx.lineTo(-R0 * .8, R0 * .5); cx.closePath(); cx.fillStyle = '#d6b254'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, -R0 * .9, R0 * .25, 0, 7); cx.fillStyle = '#ff4a3a'; cx.fill(); cx.stroke(); }
+    else if (t === 'stamp') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .2, -R0, R0 * .4, R0 * .9); cx.fillStyle = '#c8473b'; cx.fillRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.strokeRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.fillStyle = '#fff'; cx.font = `800 ${R0 * .45}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('EMF', 0, R0 * .2); }
+    else if (t === 'tally') { rrect(-R0 * .7, -R0 * .7, R0 * 1.4, R0 * 1.5, 8); cx.fillStyle = '#9a9aa8'; cx.fill(); cx.stroke(); cx.fillStyle = '#1a1410'; cx.fillRect(-R0 * .5, -R0 * .3, R0, R0 * .4); cx.fillStyle = '#7f7'; cx.font = `700 ${R0 * .35}px monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('0042', 0, -R0 * .1); }
+    else if (t === 'hires') { cx.beginPath(); cx.arc(0, 0, R0 * .85, 0, 7); cx.fillStyle = '#2a5ab8'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, 0, R0 * .65, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.fillStyle = '#1a1410'; cx.fillRect(0, -1.5, R0 * .55, 3); cx.font = `800 ${R0 * .4}px sans-serif`; cx.textAlign = 'center'; if (!audMinPx()) cx.fillText('1s', 0, R0 * .4); }
+    else if (t === 'rule') { rrect(-R0 * .9, -R0 * .6, R0 * 1.8, R0 * 1.2, 4); cx.fillStyle = '#f1e2b8'; cx.fill(); cx.stroke(); cx.fillStyle = '#2b1a08'; cx.font = `800 ${R0 * .5}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('100%', 0, 0); }
+    else if (t === 'lens') { cx.beginPath(); cx.arc(-R0 * .15, -R0 * .15, R0 * .55, 0, 7); cx.fillStyle = 'rgba(170,210,240,.6)'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = '#b8924a'; cx.stroke(); cx.lineWidth = 7; cx.beginPath(); cx.moveTo(R0 * .25, R0 * .25); cx.lineTo(R0 * .8, R0 * .8); cx.stroke(); }
+    else if (t === 'intern' && IMG.intern) { cx.drawImage(IMG.intern, -R0 * .6, -R0 * .8, R0 * 1.2, R0 * 1.6); }
+    cx.restore();
+  }
+  // ---- The cellar: the old cellar backdrop, dimmed, with the question pile, the mail slot and the intern's tray ----
+  function audCellar() {
+    const bg = IMG[L.W > L.H ? 'room-wide' : 'room-tall'], D = L.down, a = M.audit;
+    if (bg) cx.drawImage(bg, 0, 0, L.W, L.H); else { cx.fillStyle = '#1a140e'; cx.fillRect(0, 0, L.W, L.H); }
+    cx.fillStyle = 'rgba(10,8,14,.45)'; cx.fillRect(0, 0, L.W, L.H);
+    // The klaxon's ceiling lamp: red when any klaxon is in ALARM (the only thing that reaches you down here).
+    const on = a.alarms.some(al => al.state === 'ALARM') || (M.orders.has('composite') && a.bell.state === 'ALARM');
+    const [lx, ly] = D.lamp, g = cx.createRadialGradient(lx, ly, 6, lx, ly, 260);
+    g.addColorStop(0, on ? 'rgba(255,60,40,.8)' : 'rgba(120,120,120,.25)'); g.addColorStop(1, 'rgba(0,0,0,0)'); cx.fillStyle = g; cx.fillRect(lx - 260, ly - 60, 520, 400);
+    cx.beginPath(); cx.arc(lx, ly, 22, 0, 7); cx.fillStyle = on ? '#ff4a3a' : '#5a5a5a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke();
+    text(a.alarms.length ? (on ? 'KLAXON!' : 'klaxons quiet') : 'no klaxons up', lx, ly + 44, 18, on ? '#ff9a8a' : '#c9c0b0');
+    // The question pile.
+    const [px, py, pw, ph] = D.pile, ready = A8.reviewReady(M);
+    if (wimg('pile', px, py + ph / 2, pw * 1.1, ph * 1.3, 'mb')) { /* the painted question table */ }
+    else { cx.save(); rrect(px - pw / 2, py - ph / 2, pw, ph, 10); cx.fillStyle = 'rgba(70,50,30,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore(); }
+    for (let i = 0; !IMG['w-pile'] && i < 5; i++) { cx.save(); cx.translate(px - 40 + i * 20, py - 10 - i * 3); cx.rotate((i - 2) * .08); cx.fillStyle = '#f1e2b8'; cx.fillRect(-30, -20, 60, 40); cx.strokeStyle = '#6b4e24'; cx.lineWidth = 1.5; cx.strokeRect(-30, -20, 60, 40); cx.restore(); }
+    text(ready ? 'Review questions · tap for a coin' : 'next question in a moment', px, py + ph / 2 + 18, 16, ready ? '#ffe6a8' : '#c9c0b0');
+    if (ready && !AU8.card) glowSpot([px - pw / 2 - 6, py - ph / 2 - 6, pw + 12, ph + 12], false);
+    // The mail slot: letters (with that Night Order) land here every second hour.
+    const [mx, my, mw, mh] = D.mail;
+    if (!wimg('mail', mx, my, mw * 1.1, mh * 1.6, 'mm')) { cx.save(); rrect(mx - mw / 2, my - mh / 2, mw, mh, 8); cx.fillStyle = '#b8924a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.fillStyle = '#1a1008'; cx.fillRect(mx - mw / 2 + 14, my - 5, mw - 28, 10); cx.restore(); }
+    text(a.mail ? `${a.mail} letter${a.mail > 1 ? 's' : ''}!` : 'mail slot', mx, my + mh / 2 + 16, 15, a.mail ? '#ffe6a8' : '#c9c0b0');
+    // The intern's tray.
+    if (a.cellar.intern) {
+      const [tx, ty, tw, th] = D.tray;
+      cx.save(); rrect(tx - tw / 2, ty - th / 2, tw, th, 8); cx.fillStyle = 'rgba(60,46,30,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
+      a.cellar.tray.forEach((r, i) => { cx.fillStyle = '#f7f0dc'; cx.fillRect(tx - tw / 2 + 14 + i * 50, ty - 24, 40, 48); cx.fillStyle = '#c8473b'; cx.fillRect(tx - tw / 2 + 18 + i * 50, ty + 10, 32, 8); });
+      text(`Intern's tray · ${a.cellar.tray.length} to check`, tx, ty + th / 2 + 16, 15, '#ffe6a8');
+      if (IMG.intern) cx.drawImage(IMG.intern, tx + tw / 2 + 10, ty - 60, 60, 80);
+    }
+    // Upstairs, through the floor: just the ink and the clock.
+    audInk();
+  }
+  // ---- The cards ----
+  function openStation(st) {
+    const aws = { counter: 'API Gateway stage', desk: 'Lambda function', drawer: 'DynamoDB table', engine: 'an app on a server (no AWS metrics, no logs)' }[st];
+    const can = [];
+    if (st === 'desk' && !M.audit.stamp) can.push(`<button type="button" class="b alt" data-act="buy:stamp:desk">EMF stamp here (1)</button>`);
+    if (st === 'counter' && M.belt.includes('rule') && !M.audit.rule) can.push(`<button type="button" class="b alt" data-act="buy:rule:counter">Rule card here (1)</button>`);
+    if (st === 'desk' && M.belt.includes('rule')) can.push(`<button type="button" class="b alt" data-act="buy:rule:desk">Rule card here (1)</button>`);
+    if (!M.audit.tallies.includes(st)) can.push(`<button type="button" class="b alt" data-act="buy:tally:${st}">Tally here (1)</button>`);
+    cardOpen('station', `<h3>${A8.NAME[st] === 'Mira' ? 'Mira\'s desk' : 'The ' + A8.NAME[st]}</h3><p class="sub">${aws}. You can't see inside: send the porter when the evidence says so.</p>
+      <div class="row">${jobBtn(st, 'oil')}${jobBtn(st, 'patch')}</div>
+      <p class="sub">Oil: ${JOB_WORD.oil}. Patch: ${JOB_WORD.patch}. A mend on a healthy cabinet costs a coin.</p>
+      ${can.length ? `<div class="row">${can.join('')}</div>` : ''}`, { st });
+  }
+  function openLog(src) {
+    const a = M.audit, lines = A8.logView(M, src, 8).slice().reverse();
+    const group = src === 'desk' ? '/aws/lambda/mira' : 'API-Gateway-Execution-Logs/counter';
+    const sel = AU8.logSel, html = lines.map((l, i) => {
+      const err = /ERROR|timed out| 5\d\d /.test(l.text);
+      return `<button type="button" class="ln${sel === i ? ' sel' : ''}${err ? ' err' : ''}" data-act="log:${i}"><span class="t">${esc(l.at)}</span>${esc(l.text)}</button>` +
+        (sel === i ? `<div class="note">${esc(l.note || 'Nothing unusual in this line.')}${l.points ? `<div class="row">${jobBtn(l.points.station, l.points.job)}</div>` : ''}</div>` : '');
+    }).join('');
+    cardOpen('log', `<h3>${src === 'desk' ? 'Mira\'s log' : 'The Counter\'s access log'}</h3><p class="sub">CloudWatch Logs · ${group} · newest first. Tap the line that shows the trouble.</p>
+      <div class="tabs"><button type="button" class="${src === 'counter' ? 'on' : ''}" data-act="logsrc:counter">Counter</button><button type="button" class="${src === 'desk' ? 'on' : ''}" data-act="logsrc:desk">Mira</button></div>
+      ${html || '<p class="sub">Nothing logged yet.</p>'}`, { src });
+    if (AU8.card) AU8.card.src = src;
+    if (a.stamp && src === 'desk') say('stampLog', 'neutral', 'The EMF lines carry her call times: drawerMs and engineMs. A timed-out ticket never writes one.');
+  }
+  function segClass(r) { return r.pending ? 'pend' : r.fault ? 'fault' : r.points && r.points.job === 'oil' ? 'slow' : ''; }
+  function segNote(r) {
+    if (r.service) return 'AWS::Lambda, the service segment: time in Lambda itself. Mira\'s own segment is below it.';
+    if (r.pending) return `No response from the ${r.name}: the call never came back. A hang writes no error.`;
+    if (r.ownFault) return `The fault starts here: ${r.name === 'Mira' ? 'Mira' : 'the ' + r.name}'s own segment is red, and nothing under it is.`;
+    if (r.fault) return 'Red, but only because a call under it failed. Look for the deepest red bar.';
+    if (r.points && r.points.job === 'oil') return `Long, and most of it is ${r.name === 'Mira' ? 'Mira' : 'the ' + r.name}'s own time, not waits on calls under it.`;
+    if (r.own != null && r.d - r.own > 1.2) return `Long, but most of it is waiting on the calls below. ${r.name === 'Mira' ? 'Mira' : 'The ' + r.name} isn't the slow one.`;
+    return 'In good time.';
+  }
+  function traceHtml(tr) {
+    const span = Math.max(tr.resp, ...tr.rows.map(r => (r.t0 || 0) + r.d)) || 1, sel = AU8.trSel && AU8.trSel.row;
+    return `<p class="sub">${esc(tr.at)} · POST /${tr.meta.route} · ${Math.round(tr.resp * 1000)} ms${tr.ann ? ` · annotation route = "${tr.ann.route}"` : ''} · metadata ticket ${esc(tr.meta.ticket)}</p>` +
+      tr.rows.map((r, i) => `<button type="button" class="seg${sel === i ? ' sel' : ''}" data-act="row:${i}" style="padding-left:${6 + r.depth * 12}px"><span class="nm">${esc(r.name)}<small>${esc(r.aws)}${r.inferred ? ' (inferred)' : ''}</small></span>
+        <span class="bar"><i class="${segClass(r)}" style="left:${100 * (r.t0 || 0) / span}%;width:${Math.max(2, 100 * r.d / span)}%"></i><b>${r.pending ? 'no response' : Math.round(r.d * 1000) + ' ms'}</b></span></button>` +
+        (sel === i ? `<div class="note">${segNote(r)}${r.points ? `<div class="row">${jobBtn(r.points.station, r.points.job)}</div>` : ''}</div>` : '')).join('');
+  }
+  function openTraces(tab, expr) {
+    const a = M.audit; tab = tab || 'recent';
+    if (!a.tracer) { cardOpen('trace', '<h3>No traces</h3><p class="sub">Buy the tracer to see traces.</p>'); return; }
+    let body = '';
+    const list = tab === 'search' ? (expr ? A8.search(M, expr) : null) : a.traces.slice().reverse();
+    if (tab === 'map') {
+      const m = A8.traceMap(M), col = { none: '#999', ok: '#4a9a5e', slow: '#d99a2a', fault: '#c8473b' };
+      body = `<p class="sub">The service map over the last hour of traces: each node's worst.</p><div class="kv">${A8.STATIONS.map(s => `<span><i class="lamp" style="background:${col[m[s]]}"></i>${A8.NAME[s]}</span><span>${m[s] === 'none' ? 'no traces' : m[s]}</span>`).join('')}</div>`;
+      say('traceMap', 'neutral', 'The map shows where it\'s red. It can\'t say which bar inside a trace is the culprit. Open a trace for that.');
+    } else if (AU8.trSel) {
+      const tr = a.traces.find(x => x.id === AU8.trSel.id);
+      body = tr ? `<div class="row"><button type="button" class="b alt" data-act="tab:${tab}">◀ All traces</button></div>${traceHtml(tr)}` : '<p class="sub">That trace has gone.</p>';
+    } else {
+      const srch = tab === 'search' ? `<div class="row"><button type="button" class="b alt" data-act="srch:refund"${a.pins ? '' : ' disabled'}>annotation[route] = "refund"</button><button type="button" class="b alt" data-act="srch:slow">responsetime &gt; 5</button>${A8.STATIONS.map(s => `<button type="button" class="b alt" data-act="srch:${s}">fault at ${A8.NAME[s]}</button>`).join('')}</div>${a.pins ? '' : '<p class="sub">Searching by route needs pins (annotations). Metadata isn\'t indexed.</p>'}` : '';
+      const rows = (list || []).slice(0, 8).map(tr => {
+        const bad = tr.rows.some(r => r.points && r.points.job === 'patch'), slow = tr.rows.some(r => r.points && r.points.job === 'oil');
+        return `<button type="button" class="ln${bad ? ' err' : ''}" data-act="tr:${tr.id}"><span class="t">${esc(tr.at)}</span>/${tr.meta.route} ${Math.round(tr.resp * 1000)} ms ${bad ? '· fault' : slow ? '· slow' : '· ok'}</button>`;
+      }).join('');
+      body = srch + (rows || `<p class="sub">${tab === 'search' && !expr ? 'Pick a filter.' : 'No traces match.'}</p>`);
+    }
+    cardOpen('trace', `<h3>X-Ray traces</h3><div class="tabs"><button type="button" class="${tab === 'recent' ? 'on' : ''}" data-act="tab:recent">Recent</button><button type="button" class="${tab === 'search' ? 'on' : ''}" data-act="tab:search">Search</button><button type="button" class="${tab === 'map' ? 'on' : ''}" data-act="tab:map">Map</button></div>${body}`, { tab, expr });
+    if (AU8.card) { AU8.card.tab = tab; AU8.card.expr = expr; }
+  }
+  function openLens() {
+    const c = AU8.card && AU8.card.kind === 'lens' ? AU8.card : { res: null, sel: null };
+    const q = Object.keys(A8.QUERIES).map(k => `<button type="button" class="ln" data-act="q:${k}">${esc(A8.QUERIES[k])}</button>`).join('');
+    const rows = c.res ? (c.res.rows.length ? c.res.rows.map((r, i) => `<button type="button" class="ln${c.sel === i ? ' sel' : ''}" data-act="qrow:${i}">${esc(r.text)}</button>` + (c.sel === i ? `<div class="note">${esc(r.note || 'This row stands out.')}${r.points ? `<div class="row">${jobBtn(r.points.station, r.points.job)}</div>` : ''}</div>` : '')).join('') : '<p class="sub">No rows.</p>') : '';
+    cardOpen('lens', `<h3>The lens · Logs Insights</h3><p class="sub">A coin a query, over the last hour of the log groups that exist (the Counter's and Mira's).</p>${q}${c.res ? `<p class="sub">Results: ${esc(c.res.q)}</p>${rows}` : ''}`, { res: c.res, sel: c.sel });
+  }
+  function openGauge(id) {
+    const g = gaugeById(id); if (!g) return;
+    const a = M.audit, src = g.src === 'builtin' ? 'built-in (standard resolution)' : g.src === 'stamp' ? 'from the EMF stamp (custom)' : 'from the tally (custom, PutMetricData)';
+    const kv = g.metrics.map(m => `<span>${esc(m.key)}</span><span>${g.vals[m.key] == null ? 'no data' : m.kind === 'time' ? g.vals[m.key].toFixed(2) + ' s avg (line ' + m.thr + ')' : m.kind === 'rate' ? Math.round(g.vals[m.key] * 100) + '% (line ' + A8.T.rateThr * 100 + '%)' : g.vals[m.key] + ' jobs'}</span>`).join('');
+    const als = a.alarms.filter(al => al.gauge === g.id).map(al => {
+      const opt = (f, v, lab) => `<button type="button" class="b alt${al[f] === v ? ' on' : ''}" data-act="al:${al.id}:${f}=${f === 'act' ? (v ? 1 : 0) : v}">${lab}</button>`;
+      return `<div class="note"><b><i class="lamp" style="background:${al.state === 'ALARM' ? '#ff4a3a' : al.state === 'OK' ? '#4ad06a' : '#8a8a8a'}"></i>Klaxon on ${esc(al.metric)}: ${al.state === 'INSUFFICIENT_DATA' ? 'no data' : al.state}</b>
+        ${g.metrics.length > 1 ? `<div class="row">${g.metrics.map(m => `<button type="button" class="b alt${al.metric === m.key ? ' on' : ''}" data-act="alm:${al.id}:${m.key}">${m.key}</button>`).join('')}</div>` : ''}
+        <div class="row">Breaching ${[1, 2, 3].map(v => opt('m', v, v)).join('')} of ${[1, 3, 5].map(v => opt('n', v, v)).join('')} data points</div>
+        <div class="row">Missing data: ${['missing', 'notBreaching', 'breaching', 'ignore'].map(v => opt('missing', v, v)).join('')}</div>
+        <div class="row">Action: ${opt('act', true, 'send the porter')}${opt('act', false, 'just ring')}</div></div>`;
+    }).join('');
+    const free = g.metrics.filter(m => !a.alarms.some(al => al.gauge === g.id && al.metric === m.key));
+    const buy = free.map(m => `<button type="button" class="b" data-act="addal:${m.key}">Klaxon on ${m.key} (${A8.costOf(M, 'alarm')})</button>`).join('') + (g.src !== 'builtin' && !g.hires ? `<button type="button" class="b" data-act="buy:hires:g">1s dial (${A8.costOf(M, 'hires')}${A8.UPKEEP.hires ? `, -${A8.UPKEEP.hires}/h` : ''})</button>` : g.src === 'builtin' ? `<button type="button" class="b alt" data-act="buy:hires:g">1s dial</button>` : '');
+    cardOpen('gauge', `<h3>${A8.NAME[g.station]} gauge</h3><p class="sub">${src} · ${g.hires ? 'a data point every second' : 'a data point every minute'}</p><div class="kv">${kv}</div>${als}<div class="row">${buy}</div>`, { g: g.id });
+  }
+  function stampCard() {
+    cardOpen('stamp', `<h3>The EMF stamp</h3><p class="sub">Mira writes her call timings into each log line, and CloudWatch pulls metrics out of them. Which dimension?</p>
+      <button type="button" class="opt" data-act="stamp:station"><b>By station</b> · two gauges: Drawer call time, Engine call time</button>
+      <button type="button" class="opt" data-act="stamp:ticket"><b>By ticket number</b> · a gauge for every ticket</button>`);
+  }
+  function ruleCard() {
+    cardOpen('rule', `<h3>A sampling rule at the Counter</h3><p class="sub">The root decides what's traced. Which route at 100%?</p>
+      <button type="button" class="opt" data-act="rule:refund"><b>POST /refund</b> · every refund traced</button>
+      <button type="button" class="opt" data-act="rule:all"><b>Everything</b> · every ticket traced</button>`);
+  }
+  function openJobs() {
+    const a = M.audit, rows = a.jobs.map((j, i) => `<div class="row"><span style="flex:1">${i + 1}. ${j.job === 'oil' ? 'Oil' : 'Patch'} ${WHO(j.station)}${j.from === 'alarm' ? ' (klaxon)' : ''}</span>${i ? `<button type="button" class="b alt" data-act="jobup:${i}">Sooner</button>` : ''}<button type="button" class="b alt" data-act="jobx:${i}">Cancel</button></div>`).join('');
+    cardOpen('jobs', `<h3>The porter's jobs</h3><p class="sub">One pair of hands, three jobs at most, in order. Silence first, then errors, then slowness.</p>${rows || '<p class="sub">No jobs waiting.</p>'}`);
+  }
+  function openBell() {
+    const a = M.audit;
+    cardOpen('bell', `<h3>One bell</h3><p class="sub">A composite alarm over your klaxons. Only it rings, and only it sends the porter.</p><div class="row"><button type="button" class="b alt${a.bell.op === 'or' ? ' on' : ''}" data-act="bell:or">ANY in ALARM (OR)</button><button type="button" class="b alt${a.bell.op === 'and' ? ' on' : ''}" data-act="bell:and">ALL in ALARM (AND)</button></div>`);
+  }
+  // A cellar question: the claim's own review questions first, then letters from the earlier claims.
+  function cellarQuestion(kind) {
+    if (kind === 'ask' && !A8.reviewReady(M)) return;
+    if (kind === 'mail' && !M.audit.mail) return;
+    const pool = kind === 'mail' ? [].concat(LETTERS.audit.a, LETTERS.audit.c) : AUD_QS.concat(Object.keys(LETTER_BY_ID).map(id => LETTER_BY_ID[id]).filter(Lt => Lt.f !== 'b'));
+    const Lt = pool[AU8.qi++ % pool.length], order = shuffle(Lt.opts.map((h, i) => ({ h, i })), Math.random);
+    AU8.cellarQ = { Lt, kind, done: false };
+    cardOpen('ask', `<p class="sub">${kind === 'mail' ? 'A letter' : 'Review question'} · a coin if you're right</p><p class="q">${esc(Lt.q)}</p>${order.map(o => `<button type="button" class="opt" data-act="ans:${o.i}" data-i="${o.i}">${esc(o.h)}</button>`).join('')}<p class="note" style="display:none"></p>`);
+  }
+  function cellarAnswer(i, b) {
+    const c = AU8.cellarQ; if (!c || c.done) return; c.done = true;
+    const right = c.Lt.f === 'c' ? i === 0 : i === 0;
+    if (c.kind === 'mail') A8.mailAnswer(M, c.Lt.id || null, right); else A8.reviewAnswer(M, c.Lt.id || null, right);
+    AU8.panel.querySelectorAll('.opt').forEach(x => { x.disabled = true; if (+x.dataset.i === 0) x.classList.add('right'); });
+    if (!right) b.classList.add('wrong'); sfx(right ? 'right' : 'wrong'); if (right) { coinPulse = 1.5; }
+    const n = AU8.panel.querySelector('.note'); n.style.display = 'block'; n.innerHTML = `<b>${right ? 'Right. +1 coin.' : 'Not quite.'}</b> ${esc(c.Lt.why || '')}<div class="row"><button type="button" class="b" data-act="go">Done</button>${c.kind === 'ask' ? '<button type="button" class="b alt" data-act="go">Next</button>' : ''}</div>`;
+    n.querySelectorAll('[data-act]').forEach((x, j) => x.addEventListener('click', () => { cardClose(); if (j === 1) setTimeout(() => cellarQuestion('ask'), 0); }));
+  }
+  function internCheck(v) {
+    const c = AU8.cellarQ; if (!c || c.done) return; c.done = true;
+    const res = A8.checkIntern(M, 0, v);
+    const n = AU8.panel.querySelector('.note'); n.style.display = 'block';
+    n.innerHTML = `<b>${res === 'right' ? 'It was right. +1 coin.' : res === 'caught' ? 'Caught it. Set aside.' : 'It was wrong. That\'s a lost ticket.'}</b> ${esc(c.Lt.why || '')}<div class="row"><button type="button" class="b" data-act="go">Done</button></div>`;
+    n.querySelector('[data-act]').addEventListener('click', cardClose);
+    sfx(res === 'missed' ? 'wrong' : 'right');
+  }
+  function openIntern() {
+    const r = M.audit.cellar.tray[0]; if (!r) return;
+    const Lt = AUD_BY_ID[r.q] || LETTER_BY_ID[r.q] || AUD_QS[0], opts = Lt.opts || (Lt.tools || []).map(t => TOOL_LABEL[t] || AUD_BELT_LABEL[t] || t), pick = r.right ? 0 : 1 + (r.at * 7 | 0) % Math.max(1, opts.length - 1);
+    AU8.cellarQ = { Lt, kind: 'check', done: false };
+    cardOpen('check', `<p class="sub">Check the intern's answer</p><p class="q">${esc(Lt.q)}</p>${opts.map((h, i) => `<div class="opt${i === pick ? ' pick' : ''}">${esc(h)}${i === pick ? ' · INTERN' : ''}</div>`).join('')}
+      <div class="row"><button type="button" class="b" data-act="chk:ok">Looks right</button><button type="button" class="b alt" data-act="chk:wrong">It's wrong</button></div><p class="note" style="display:none"></p>`);
+  }
+  // ---- Input ----
+  function audDown(p) {
+    if (qEl.classList.contains('on')) return;
+    if (AU8.card) cardClose();
+    const belt = audBelt();
+    for (let i = 0; i < belt.length; i++) if (inRect(p, audSlotRect(i))) { audSlot(i); return; }
+    const door = AU8.room === 'down' ? L.down.up : L.door;
+    if (inRect(p, door, 10)) { audSwitch(); return; }
+    if (AU8.room === 'down') {
+      const D = L.down;
+      if (inRect(p, [D.pile[0] - D.pile[2] / 2, D.pile[1] - D.pile[3] / 2, D.pile[2], D.pile[3]], 10)) { cellarQuestion('ask'); return; }
+      if (inRect(p, [D.mail[0] - D.mail[2] / 2, D.mail[1] - D.mail[3] / 2, D.mail[2], D.mail[3]], 14)) { cellarQuestion('mail'); return; }
+      if (M.audit.cellar.intern && inRect(p, [D.tray[0] - D.tray[2] / 2, D.tray[1] - D.tray[3] / 2, D.tray[2], D.tray[3]], 10)) { openIntern(); return; }
+      return;
+    }
+    const [cx0, cy0, cw, ch] = L.clock;
+    if (!M.started && inRect(p, [cx0 - cw / 2, cy0 - ch / 2, cw, ch], 10)) { R.start(M); AU8.keyT = 1; sfx('rLever'); return; }
+    // Gauges first (they sit above the cabinets), then logbooks, the board, the jobs, the bell, the cabinets.
+    for (const g of M.audit.gauges) { const [x, y] = gaugePos(g); if (Math.hypot(p[0] - x, p[1] - y) < L.dialR + 12) { if (AU8.armed === 'alarm' || AU8.armed === 'hires') audPlace(AU8.armed, g.id); else openGauge(g.id); return; } }
+    for (const src of ['counter', 'desk']) { const [x, y, w, h] = L.logs[src]; if (inRect(p, [x - w / 2, y - h / 2, w, h], 10)) { AU8.logSel = null; openLog(src); return; } }
+    if (M.audit.tracer && inRect(p, L.board)) { AU8.trSel = null; openTraces('recent'); return; }
+    if (inRect(p, L.jobs)) { openJobs(); return; }
+    if (M.orders.has('composite') && Math.hypot(p[0] - L.bellAt[0], p[1] - L.bellAt[1]) < 30) { openBell(); return; }
+    for (const st of A8.STATIONS) if (inRect(p, stationRect(st), 6)) {
+      if (AU8.armed && AUD_WHERE[AU8.armed] !== 'gauge') { audPlace(AU8.armed, st === 'desk' && AU8.armed === 'rule' ? 'desk' : st); return; }
+      openStation(st); return;
+    }
+    AU8.armed = null;
+  }
+  function audSwitch() {
+    AU8.room = AU8.room === 'up' ? 'down' : 'up'; AU8.armed = null; cardClose(); A8.setDown(M, AU8.room === 'down'); sfx('rPage');
+    if (AU8.room === 'down') { say('down', 'neutral', AUD_LINES.down); if (!M.audit.alarms.length) say('downNoAlarm', 'tired', AUD_LINES.downNoAlarm); }
+  }
+  function audKey(e) {
+    if (e.key === 'Tab') { e.preventDefault(); audSwitch(); return true; }
+    if (e.key === 'Escape') { cardClose(); AU8.armed = null; return true; }
+    if (AU8.card || qEl.classList.contains('on')) return false;
+    if ((e.key === ' ' || e.key === 'Enter') && !M.started) { e.preventDefault(); R.start(M); AU8.keyT = 1; return true; }
+    const n = +e.key; if (n >= 1 && n <= audBelt().length) { audSlot(n - 1); return true; }
+    return false;
+  }
+  // ---- Events: Dutch's lines, pops, and sounds ----
+  function audEvent(e) {
+    const a = M.audit;
+    switch (e.type) {
+      case 'lever': sfx('rLever'); break;
+      case 'faultStart': if (e.first) say('f-' + e.kind, e.kind === 'silent' ? 'surprised' : 'neutral', AUD_LINES['fault' + e.kind[0].toUpperCase() + e.kind.slice(1)]); break;
+      case 'decoy': say('decoy', 'neutral', AUD_LINES.decoy); break;
+      case 'overlap': say('overlap', 'surprised', AUD_LINES.overlap); break;
+      case 'faultClear': say('transient', 'neutral', AUD_LINES.transient); break;
+      case 'mend': sfx('right'); popAt(stationTop(e.station), 'mended', '#9be59b', 30); say('mend', 'smile', AUD_LINES.mend); break;
+      case 'mendWrong': sfx('wrong'); popAt(stationTop(e.station), e.paid ? 'nothing wrong: -1 coin' : 'nothing wrong', '#ff9a8a', 26); say('mendWrong', 'tired', AUD_LINES.mendWrong); break;
+      case 'wasted': popAt(stationTop(e.station), 'fixed itself already', '#e8dcc4', 24); say('wasted', 'tired', AUD_LINES.wasted); break;
+      case 'alarm': say('alarmFirst', 'neutral', AUD_LINES.alarm); if (e.to === 'INSUFFICIENT_DATA' || (e.from === 'OK' && e.to === 'ALARM')) {} break;
+      case 'ring': sfx('rBell'); AU8.shake[e.id] = 1.2; AU8.ringT = 1; say('ring', 'surprised', AUD_LINES.ring); break;
+      case 'bell': if (e.to === 'ALARM') { sfx('rBell'); AU8.ringT = 1; } break;
+      case 'job': if (e.from === 'alarm') popAt(stationTop(e.station), 'klaxon: ' + e.job, '#ffd666', 22); break;
+      case 'jobsFull': if (e.from !== 'alarm') say('jobsFull', 'tired', AUD_LINES.jobsFull); break;
+      case 'hour': if (e.upkeep) { coinPulse = 1; popAt([L.W / 2, L.H * .3], `${e.clock} · upkeep -${e.upkeep}`, '#ff9a8a', 28); } else popAt([L.W / 2, L.H * .3], e.clock, '#ffe6a8', 30); break;
+      case 'dark': say('dark', 'tired', AUD_LINES.dark); break;
+      case 'bonus': coinPulse = 1.5; sfx('coin'); say('bonus', 'smile', AUD_LINES.bonus); break;
+      case 'spill': sfx('splat'); AU8.splash.push({ t: 0 }); if (AU8.room === 'up') popAt([L.basket[0], L.basket[1] - 50], e.why === 'late' ? '504 late' : e.why === 'silent' ? 'no answer' : e.why === 'intern' ? 'intern' : e.why === 'restart' ? 'dropped by the restart' : '5xx', '#ff9a8a', 24); break;
+      case 'cardinality': say('cardinality', 'angry', AUD_LINES.cardinality); break;
+      case 'place': if (e.tool === 'tracer') say('intro-tr', 'neutral', 'The board on the wall shows the latest traces. Tap it to read one.'); break;
+      case 'mail': say('mail', 'neutral', AUD_LINES.mail); break;
+      case 'internAnswer': sfx('rStamp'); break;
+      case 'win': sfx('rStamp'); if (AU) AU.jingle('rushWin', null); stamp = { text: 'AUDITED', col: '#3c9a58', t: 0 }; endAt = 1.8; cardClose(); break;
+      case 'lose': sfx('rStamp'); if (AU) AU.jingle('rushLose', null); stamp = { text: 'FLOODED', col: '#c8473b', t: 0 }; endAt = 1.8; cardClose(); break;
+    }
+    // The jobs card follows the porter's list as it changes.
+    if (AU8.card && AU8.card.kind === 'jobs' && ['job', 'porter', 'mend', 'mendWrong', 'wasted', 'cancel'].includes(e.type)) openJobs();
+    // The Engine's EMF gauge goes quiet, not red, when it hangs.
+    if (e.type === 'gauge' && a.stamp && a.live.engine && a.live.engine.kind === 'silent') { const g = gaugeById(e.id); if (g && g.src === 'stamp' && g.station === 'engine' && g.vals.EngineMs == null) say('silentGauge', 'surprised', AUD_LINES.silentGauge); }
+  }
+  function audTick(dt) {
+    for (const k of Object.keys(AU8.shake)) { AU8.shake[k] -= dt; if (AU8.shake[k] <= 0) delete AU8.shake[k]; }
+    AU8.ringT = Math.max(0, AU8.ringT - dt); AU8.keyT = Math.max(0, AU8.keyT - dt);
+    AU8.splash.forEach(s => s.t += dt); AU8.splash = AU8.splash.filter(s => s.t < .8);
+    // A klaxon downstairs brings you back up (you'd hear it). The card stays shut.
+    if (AU8.room === 'down' && AU8.ringT > .95) { AU8.room = 'up'; A8.setDown(M, false); cardClose(); popAt([L.W / 2, L.H * .45], 'Klaxon! Back upstairs', '#ff9a8a', 34); }
+  }
+  function audDraw() {
+    const cw = cv.width, ch = cv.height;
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch);
+    cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
+    cx.save(); cx.beginPath(); cx.rect(0, 0, L.W, L.H); cx.clip();
+    AU8.boxes = [];
+    if (L.sayBefore) L.say.y = M.started ? 150 : L.sayBefore; // the phone: Dutch's intro talks below the clock, so its prompt stays readable
+    if (AU8.room === 'down') audCellar();
+    else {
+      audBg(); audClock(); audTube();
+      for (const st of A8.STATIONS) audCabinet(st);
+      for (const g of M.audit.gauges) audDial(g);
+      audBasket(); audLogbooks(); audBoard(); audJobsPanel(); audInk();
+      for (const k of M.tickets) audCapsule(k);
+      for (const s of AU8.splash) { cx.globalAlpha = 1 - s.t / .8; cx.fillStyle = '#2a1a5a'; cx.beginPath(); cx.arc(L.basket[0], L.basket[1] - 20 - s.t * 60, 10 + s.t * 30, 0, 7); cx.fill(); cx.globalAlpha = 1; }
+      audPorter();
+    }
+    audDoor(); cx.restore();
+    for (const p of pops) { cx.globalAlpha = Math.max(0, 1 - p.t / 1.2); text(p.text, p.x, p.y - p.t * 50, p.size * .8, p.col); cx.globalAlpha = 1; }
+    audHud(); audBeltDraw(); drawSay();
+    if (stamp) drawStamp();
+  }
+  function audEnd() {
+    const won = M.over === 'win', st = M.audit.stats, span = Math.max(1, st.span);
+    const bits = [`${M.handled} delivered`, `${M.spill} of ${M.cap} lost`, `${st.mended} mended, ${st.cleared} fixed ${st.cleared === 1 ? 'itself' : 'themselves'}`, `${st.wrong} wrong mend${st.wrong === 1 ? '' : 's'}, ${st.wasted} wasted trip${st.wasted === 1 ? '' : 's'}`,
+      `two faults at once ${Math.round(100 * st.two / span)}% of 01:00 to 05:00`, `${Math.round(100 * st.downT / Math.max(1, st.downT + st.upT))}% of the night downstairs`, `${M.audit.cellar.right} review answer${M.audit.cellar.right === 1 ? '' : 's'} right`, `${st.upkeep} coins of upkeep`];
+    if (st.darkHours) bits.push(`${st.darkHours} tool-hours dark`);
+    qEl.className = 'on end';
+    qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Dawn. The night is audited.' : 'The ink column filled.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${won && M.next ? 'Next claim: ' + R.CLAIMS[M.next].title : won ? 'Play the Night Audit again' : 'Try the Night Audit again'}</button></div>`;
+    // Won: on to the next claim (the New Sorter), coins carried. Lost: the Night Audit again.
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => { if (won) run.bank = Math.max(0, M.coins); const go = () => showPick(won && M.next ? M.next : 'audit'); if (won && SD.rushHall) SD.rushHall.won({ claim: 'audit', next: M.next || null, go }); else go(); }); b.focus();
+  }
+  function audReset() {
+    AU8.room = 'up'; AU8.armed = null; AU8.splash = []; AU8.shake = {}; cardClose();
+    say('intro', 'neutral', AUD_LINES.intro, 9); say('intro2', 'neutral', AUD_LINES.intro2, 7);
+  }
+  // Called from load(): nothing to bake yet (every prop is drawn live); a painted backdrop in SRC replaces audBg().
+  function audArt() { }
+  const AUD = { draw: audDraw, onEvent: audEvent, tick: audTick, end: audEnd, reset: audReset, down: audDown, key: audKey, art: audArt, orders: AUD_ORDERS,
+    // For tools/rush_check_audit.js: the state, where things are on screen, and the cards.
+    api: {
+      get room() { return AU8.room; }, get card() { return AU8.card && AU8.card.kind; }, get armed() { return AU8.armed; },
+      slot: i => { const r = audSlotRect(i); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
+      station: st => { const r = stationRect(st); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
+      gauge: id => toClient(gaugePos(gaugeById(id))), clock: () => toClient([L.clock[0], L.clock[1]]), board: () => toClient([L.board[0] + L.board[2] / 2, L.board[1] + L.board[3] / 2]),
+      log: src => toClient([L.logs[src][0], L.logs[src][1]]), door: () => { const r = AU8.room === 'down' ? L.down.up : L.door; return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
+      pile: () => toClient([L.down.pile[0], L.down.pile[1]]), jobs: () => toClient([L.jobs[0] + L.jobs[2] / 2, L.jobs[1] + L.jobs[3] / 2]),
+      belt: () => { const r = audBeltRect(); return { x: toClient([r[0], r[1]]), w: r[2] * scale, right: toClient([r[0] + r[2], r[1]])[0] }; }, switchRoom: audSwitch,
+      boxes: () => (AU8.boxes || []).map(b => ({ kind: b.kind, name: b.name, r: b.r.map(v => Math.round(v)) })),
+      skipSay: () => { sayQ.length = 0; saying = null; said.intro = said.intro2 = true; }
+    }
+  };
+  // ---- end claim 8 (Night Audit) block ----
+
+  // ======== Claim 7: the Locked Desk (rules in js/rush-office.js) ========
+  // The postmaster's office upstairs. Tickets drop through the brass letter slot into the in-tray, stop at the latch
+  // (its lamp: green allowed, grey no allow, red an explicit deny), wait in the basket for one of Mira's three seats,
+  // then go to the key box (KMS) and into the parcel cabinet (S3). Denied ones go in the shredder. The night starts with
+  // a turn of the key in the desk lock. The cellar is the review room, as in claim 6.
+  // The room is Ladi's painting (tools/office_art.py sets it at human scale: a standing adult is about 300 px tall in
+  // the wide room and 224 px in the tall one, so the door is 2.05 m, the desk 0.76 m, the cabinet 1.3 m and the
+  // strongroom door 2.1 m). Every position below is measured off the painting. The door, window, key box, desk, stools,
+  // cabinet, strongroom and hatch are in it; what changes or is bought is a sprite (of-*) drawn over it. If the
+  // painting is missing the room is drawn in code (officeBackdrop) at the same positions.
+  const OF = SD.rushOffice;
+  const OFFICE_PAINTED = true;
+  const OFFICE_SPRITES = ['latch-green', 'latch-grey', 'latch-red', 'sign-anyone', 'sign-office', 'sign-riverside', 'lock', 'lock-turned', 'mira',
+    'badge', 'keyring', 'pad', 'tin', 'param', 'safe', 'safe-turning', 'note', 'waiter', 'shredding', 'keybox-red', 'env', 'parcel', 'env-sealed',
+    'parcel-sealed', 'env-riverside', 'env-lookup', 'env-hood', 'env-thief', 'env-denied'];
+  if (OFFICE_PAINTED && qs.get('claim') === 'locked') { // only claim 7 fetches the office's pictures
+    Object.assign(SRC, { 'office-wide': 'assets/img/rush/office-wide.webp', 'office-tall': 'assets/img/rush/office-tall.webp' });
+    for (const k of OFFICE_SPRITES) SRC['of-' + k] = `assets/img/rush/of-${k}.webp`;
+  }
+  // A sprite's key when the room is painted and the sprite loaded; otherwise null, and the code drawing is used.
+  const ofSprite = k => (L.painted && IMG['of-' + k] ? 'of-' + k : null);
+  // True when the painting itself loaded (the code backdrop is a canvas), so the fixtures in it aren't drawn again.
+  const roomPainted = () => !!(L.painted && IMG[L.bg] && IMG[L.bg].naturalWidth);
+  // Positions: points [x, y], boxes [x0, y0, w, h], floor line fl. desk/seats in the shared shape (x, floor y, h).
+  const OFFICE_WIDE = {
+    W: 1344, H: 768, bg: 'office-wide', art: 'office', office: true, painted: OFFICE_PAINTED, fl: 640, hs: 1,
+    // Measured off office-wide.webp: a point (x, y) of the render is at (242 + 0.64x, 216 + 0.64y).
+    door: [252, 282, 158, 358], slot: [332, 490], intray: [328, 532], latch: [429, 446], shredder: [454, 646, 63, 76],
+    window: [465, 280, 96, 212], alibi: [513, 400], keybox: [611, 432, 69, 81], wall: [520, 600],
+    desk: { x: 716, y: 663, h: 140, w: 313 }, deskTop: 526, mira: [712, 440], badge: [742, 498],
+    seats: { xs: [606, 718, 830], y: 676, h: 89 }, wait: [522, 646], pad: [818, 530], tin: [856, 527], nail: [838, 390],
+    work: [[616, 538], [666, 538], [764, 538]], cabLabel: [908, 541],
+    hatch: [727, 371, 90, 95], cab: [860, 402, 96, 252], sign: [903, 350, 76, 112],
+    strong: [959, 328, 143, 314], dial: [1038, 485, 29], note: [1068, 425], secret: [1180, 604], clock: null, portrait: null,
+    lever: { x: 714, y: 552, r: 44, label: [714, 612] }, asks: { x: 600, y: 500, dx: 50, max: 3, label: null, intern: [1222, 330] },
+    tank: { x: 121, y: 330, h: 130 }, inset: { r: [1052, 16, 280, 160], src: [0, 0, 1344, 768] },
+    puddle: { x: 121, y: 690 }, foot: [328, 532], hatchPt: [513, 400], tray: [522, 600], rack: { x: 522, y: 646, h: 60 },
+    stools: { xs: [606, 718, 830], y: 676, h: 89 }, bin: { x: 454, y: 646, h: 76 },
+    belt: { h: 100, slot: 116 }, title: [36, 26], handled: [985, 46], say: { x: 360, y: 36, w: 580 }, fs: 1
+  };
+  const OFFICE_TALL = {
+    W: 768, H: 1344, bg: 'office-tall', art: 'office', office: true, painted: OFFICE_PAINTED, fl: 1090, hs: 0.75,
+    // Measured off office-tall.webp: a point (x, y) of the render is at (103 + 0.73x, 274 + 0.73y). The floor is at 1090,
+    // not lower, so the stools stand clear of the phone's belt.
+    door: [107, 820, 131, 270], slot: [176, 981], intray: [176, 1016], latch: [262, 930], shredder: [260, 1099, 52, 82],
+    window: [216, 577, 122, 193], alibi: [277, 700], keybox: [389, 716, 64, 87], wall: [400, 540],
+    desk: { x: 378, y: 1106, h: 110, w: 189 }, deskTop: 996, mira: [378, 925], badge: [400, 970],
+    seats: { xs: [310, 378, 446], y: 1121, h: 64 }, wait: [196, 1158], pad: [446, 998], tin: [474, 996], nail: [318, 833],
+    work: [[298, 1006], [338, 1006], [414, 1006]], cabLabel: [520, 1040],
+    hatch: [545, 654, 107, 105], cab: [459, 900, 69, 197], sign: [491, 846, 64, 96],
+    strong: [523, 831, 141, 259], dial: [597, 960, 26], note: [714, 880], secret: [716, 1052], clock: [470, 606], portrait: [159, 662],
+    lever: { x: 378, y: 1033, r: 40, label: [378, 1150] }, asks: { x: 318, y: 976, dx: 46, max: 2, label: null, intern: [716, 820] },
+    tank: { x: 52, y: 700, h: 120 }, inset: { r: [520, 384, 236, 176], src: INSET_TALL.src },
+    puddle: { x: 52, y: 1140 }, foot: [176, 1016], hatchPt: [277, 700], tray: [196, 1120], rack: { x: 196, y: 1158, h: 50 },
+    stools: { xs: [310, 378, 446], y: 1121, h: 64 }, bin: { x: 260, y: 1099, h: 76 },
+    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
+  };
+  // Where each office buy goes when it's dragged in (anywhere near it will do).
+  const box2 = (c, w, h) => [c[0] - w / 2, c[1] - h / 2, w, h];
+  const OFFICE_SPOT = {
+    badge: () => box2([L.mira[0], L.mira[1] + 20 * L.hs], 120 * L.hs, 140 * L.hs),
+    pad: () => box2([(L.pad[0] + L.tin[0]) / 2, L.deskTop - 10], 140 * L.hs, 70 * L.hs),
+    cache: () => box2([(L.pad[0] + L.tin[0]) / 2, L.deskTop - 10], 140 * L.hs, 70 * L.hs),
+    param: () => box2(L.secret, 110 * L.hs, 90 * L.hs), safe: () => box2(L.secret, 110 * L.hs, 90 * L.hs),
+    waiter: () => { const h = L.hatch; return [h[0] - 8, h[1] - 8, h[2] + 16, h[3] + 16]; }
+  };
+  Object.assign(TOOL_IMG, { badge: 'badge', pad: 'pad', cache: 'cache', param: 'param', safe: 'safe', waiter: 'waiter' });
+  Object.assign(TOOL_LABEL, { badge: 'Badge', pad: 'Data-key pad', cache: 'Key tin', param: 'Drawer', safe: 'Safe', waiter: 'Dumbwaiter' });
+  // On the tall belt the long names would shrink below 11 CSS px on a phone.
+  const OFFICE_SHORT = { pad: 'Key pad', waiter: 'Lift' };
+  // The office buys' belt icons, drawn in code like the other extra buys (150 x 150).
+  Object.assign(ICONS, {
+    badge: g => { // a brass badge on a blue lanyard, six stamp slots
+      g.strokeStyle = '#2f5fb0'; g.lineWidth = 10; g.beginPath(); g.moveTo(40, 4); g.lineTo(66, 46); g.moveTo(110, 4); g.lineTo(84, 46); g.stroke();
+      g.strokeStyle = '#1e0f08'; g.lineWidth = 5; const br = g.createLinearGradient(30, 0, 120, 0); br.addColorStop(0, '#8a6726'); br.addColorStop(.45, '#e8c46a'); br.addColorStop(1, '#6b4e1c');
+      g.fillStyle = br; g.beginPath(); g.ellipse(75, 96, 46, 52, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = '#f7f0dc'; g.lineWidth = 3; for (let i = 0; i < 6; i++) { const x = 51 + (i % 3) * 24, y = 80 + Math.floor(i / 3) * 28; g.fillRect(x - 9, y - 9, 18, 18); g.strokeRect(x - 9, y - 9, 18, 18); }
+    },
+    pad: g => { // a pad of tear-off slips with key marks and a red rule
+      g.fillStyle = '#d9c9a0'; g.fillRect(24, 38, 108, 92); g.strokeRect(24, 38, 108, 92);
+      g.fillStyle = '#f7f0dc'; g.fillRect(16, 28, 108, 92); g.strokeRect(16, 28, 108, 92);
+      g.fillStyle = '#c8473b'; g.fillRect(16, 28, 108, 14);
+      g.strokeStyle = '#6b4e24'; g.lineWidth = 6; g.beginPath(); g.arc(50, 80, 12, 0, Math.PI * 2); g.moveTo(62, 80); g.lineTo(104, 80); g.moveTo(94, 80); g.lineTo(94, 94); g.moveTo(84, 80); g.lineTo(84, 92); g.stroke();
+    },
+    cache: g => { // a round brass tin, lid open, key slips inside
+      const br = g.createLinearGradient(20, 0, 130, 0); br.addColorStop(0, '#8a6726'); br.addColorStop(.45, '#e2bd62'); br.addColorStop(1, '#6b4e1c');
+      g.fillStyle = br; g.fillRect(22, 70, 106, 58); g.strokeRect(22, 70, 106, 58);
+      g.fillStyle = '#3a2a14'; g.beginPath(); g.ellipse(75, 70, 53, 14, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      for (let i = 0; i < 4; i++) { g.fillStyle = '#f7f0dc'; g.save(); g.translate(44 + i * 20, 60); g.rotate(-.2 + i * .12); g.fillRect(-7, -26, 14, 30); g.strokeRect(-7, -26, 14, 30); g.restore(); }
+      g.fillStyle = br; g.save(); g.translate(75, 26); g.rotate(-.35); g.beginPath(); g.ellipse(0, 0, 53, 14, 0, 0, Math.PI * 2); g.fill(); g.stroke(); g.restore();
+    },
+    param: g => { // a locked wooden index-card drawer
+      g.fillStyle = '#7a4a22'; g.fillRect(16, 34, 118, 92); g.strokeRect(16, 34, 118, 92);
+      g.fillStyle = '#9a6a3a'; g.fillRect(28, 50, 94, 62); g.strokeRect(28, 50, 94, 62);
+      g.fillStyle = '#e2bd62'; g.fillRect(50, 58, 50, 18); g.strokeRect(50, 58, 50, 18);
+      g.fillStyle = '#1e0f08'; g.beginPath(); g.arc(75, 94, 6, 0, Math.PI * 2); g.fill(); g.fillRect(72, 94, 6, 12);
+    },
+    safe: g => { // a green-grey wall safe with a silver dial
+      g.fillStyle = '#5b6b62'; g.fillRect(14, 18, 122, 118); g.strokeRect(14, 18, 122, 118);
+      g.fillStyle = '#6f8076'; g.fillRect(26, 30, 98, 94); g.strokeRect(26, 30, 98, 94);
+      g.fillStyle = '#c9ced2'; g.beginPath(); g.arc(75, 77, 28, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.lineWidth = 3; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; g.beginPath(); g.moveTo(75 + Math.cos(a) * 20, 77 + Math.sin(a) * 20); g.lineTo(75 + Math.cos(a) * 26, 77 + Math.sin(a) * 26); g.stroke(); }
+      g.lineWidth = 5; g.beginPath(); g.moveTo(75, 77); g.lineTo(75, 56); g.stroke();
+    },
+    waiter: g => { // a dumbwaiter hatch, open, a letter on its tray, a rope
+      g.fillStyle = '#6b3d1e'; g.fillRect(18, 20, 100, 110); g.strokeRect(18, 20, 100, 110);
+      g.fillStyle = '#1a120c'; g.fillRect(30, 32, 76, 74);
+      g.fillStyle = '#9a6a3a'; g.fillRect(30, 92, 76, 12); g.strokeRect(30, 92, 76, 12);
+      g.fillStyle = '#9fc4ef'; g.fillRect(44, 70, 48, 24); g.strokeRect(44, 70, 48, 24);
+      g.strokeStyle = '#c9a23a'; g.lineWidth = 5; g.beginPath(); g.moveTo(130, 6); g.lineTo(130, 140); g.stroke();
+    }
+  });
+
+  // ---- Dutch, upstairs (keys are prefixed of- in said{} so they can't clash with other claims') ----
+  const OLINES = {
+    intro: 'The postmaster\'s office. Tickets drop through the slot, and the latch checks each one before Mira will touch it.',
+    intro2: 'Set Mira\'s stamps, the cabinet sign and where the combination lives. Then turn the key in the desk.',
+    twoRooms: 'And the cellar\'s open too, same tank. That little window is the other room. Tap it, or press Tab, to go and look.',
+    works: 'Works, doesn\'t it. That\'s the trouble.',
+    badge: 'A badge. That\'s a role: Lambda lends Mira short-lived keys from it on every call. It comes with the star, mind. Tap Mira to set its stamps.',
+    star: 'That badge has the star on it. It means everything, and that includes everything she wants.',
+    starKeyring: 'Mira\'s keyring has the star on it. Everything, for anyone holding a copy.',
+    latchGreen: 'Green: something allowed it. Mira gets to work.',
+    latchGrey: 'Grey: nothing allowed it. No allow means no, by default.',
+    latchRed: 'Red: an explicit deny. It beats every allow there is.',
+    pickpocket: 'Window\'s open. She\'s copied whatever Mira had on her.',
+    copyExpired: 'Her copy of the badge just ran out. Temporary means temporary.',
+    keyringCopy: 'Those are long-term keys. Her copy works until you rotate them or shred them. Tap the keyring.',
+    keyringStill: 'Mira\'s wearing the badge, but those old keys still open the latch. Shred them.',
+    shredNoBadge: 'Shred the only keys Mira has? Then she can\'t work at all. Badge first.',
+    shredded: 'Keys shredded. A deleted access key doesn\'t come back, and nor do copies of it.',
+    rotateKeys: 'New keys. Mira\'s off a seat while she swaps them in, and the old ones work until she\'s done.',
+    tooBig: 'Won\'t fit the slot. The key box seals 4 KB at most. Ask it for a data key and seal it yourself.',
+    pad: 'A data-key pad. One call, one key, twice: plain to seal with, sealed to keep. The plain one gets torn up.',
+    cache: 'A key tin. One data key does four tickets, so a quarter of the calls. A cached key sits in Mira\'s pocket, though.',
+    tinPicked: 'She had the cached key off Mira too. Everything sealed with it is out. Reuse widens a leak.',
+    cacheLeak: 'That forged one ran inside Mira\'s function, and the cached key was in her pocket. Everything sealed with it is out.',
+    boxThrottle: 'The key box answers two calls a second. Over that it throttles, and Mira waits and tries again.',
+    streetIn: 'Someone off the street just walked in on the sign. It says Anyone. They read.',
+    riversideRefused: 'Riverside\'s got their own stamp, but our sign has to say so too. Both sides.',
+    signOffice: 'This office only. Changes nothing for Mira: in one account, her own allow is enough.',
+    signRiverside: 'This office and Riverside. Their badge says they may, and now our sign agrees.',
+    signAnyone: 'Anyone may take. That\'s Principal star. Anyone means anyone.',
+    signScrewed: 'The sign\'s screwed down tonight. Riverside signs the book instead.',
+    lookupNeedsRead: 'A lookup wants Read, and Mira\'s not stamped for it. Jobs change. Stamps follow.',
+    readSoon: 'Lookups start next wave. Mira will need Read on the cabinet. Tap her, now, between waves.',
+    noteRead: 'The combination was on a sticky note. On the strongroom door. I\'ve no further questions.',
+    comboThief: 'Straight to the strongroom. A stolen password doesn\'t care what the latch says.',
+    comboAged: 'That combination\'s been in use too long. She\'s got it now. Change it.',
+    param: 'A parameter drawer. Hidden and encrypted, and free. It never changes by itself, though. Tap it to rotate.',
+    paramSoon: 'That combination\'s getting old. Tap the drawer to change it.',
+    safe: 'A safe. It changes the combination on a schedule, with a little function of its own. That costs upkeep.',
+    rotate: 'New combination. Whatever she had is useless now.',
+    noteLeft: 'The combination\'s on a sticky note on the strongroom door. Drawer or safe, please.',
+    noteTap: 'A sticky note with the combination on it. Put it in the drawer or the safe.',
+    upkeepMissed: 'Couldn\'t pay for the {t}. It\'s stopped until the next bill\'s paid.',
+    denied: 'Explicit deny on emptying. Even Mira\'s chores bounce off it.',
+    book: 'Riverside signs the book. A visitor badge for a while: they work as us, not as Riverside.',
+    desk: 'A letter on the desk, with a bit of code in it. Tap it and find the line that\'s wrong.',
+    waiter: 'A dumbwaiter. The intern\'s answers ride up for checking, and it can take the desk\'s letters too.',
+    noWaiter: 'No dumbwaiter. The cellar\'s answers stay in the cellar.',
+    scopeTopics: 'Wider scope: the intern answers anything in a topic you\'ve solved one of. More answers, more wrong. Same rule as Mira\'s badge.',
+    scopeSolved: 'Back to only what you\'ve solved. Fewer answers, fewer mistakes.',
+    midwave: 'Mid-wave, that\'s a deploy. It goes live in a few seconds, and the old stamps work till then.',
+    alarmOffice: 'The office has visitors. Back you go.',
+    forged: 'A forged ticket, and Mira\'s stamps let it through. She did exactly what it asked.',
+    thief: 'That was the Alibi\'s copy. It did whatever Mira\'s stamps allow.',
+    internDesk: 'The intern sent its answer up the dumbwaiter. Check it.'
+  };
+  const osay = (k, mood, extra) => say('of-' + k, mood, OLINES[k].replace('{t}', extra || ''));
+  Object.assign(ORDER, {
+    visitors: { name: 'Visitors\' book', tag: 'Visitors', aws: 'STS AssumeRole',
+      rule: 'The cabinet sign is screwed to This office only. Riverside signs the visitors\' book for a badge that lasts 10 seconds, and each signing is an extra stop.',
+      up: 'The street can never get in through the sign, and a coin.',
+      dutch: 'Riverside signs the book now. Their name\'s on the role\'s trust policy, so they\'re allowed to borrow it, and for a while they work as us, not as Riverside. That\'s AssumeRole: a key, a secret and a session token, and all three expire. Fifteen minutes at the least, an hour unless you ask, twelve at most. Ours are quicker. Times are hard.' },
+    deny: { name: 'Deny notice', tag: 'Deny', aws: 'Explicit deny',
+      rule: 'NOBODY EMPTIES DRAWERS. Any Empty request is refused, even with the star, and so are Mira\'s own clear-out chores, one a wave from wave 2.',
+      up: 'A forged Empty can\'t hurt you, whatever your stamps, and a coin.',
+      dutch: 'An explicit deny. It beats every allow there is, the star included, and that\'s the point. It doesn\'t care who you are. Even Mira\'s chores bounce off it. Write your denies narrow.' }
+  });
+  // The office's orders are only offered before claim 7, and batching and FIFO never are (there's no rack upstairs).
+  function officeOrderOk(o, claim) { return claim === 'locked' ? o !== 'batch' && o !== 'fifo' : !(OF && OF.OFFICE_ORDERS.includes(o)); }
+
+  // ---- The letters: a, b, c as before, and s, spot the line (a short snippet of code or config; tap the wrong line,
+  // or with ask: 'fix', pick the fix for the marked line). Written for this game from the AWS docs cited in
+  // js/rush-office.js; bad is the index of the wrong line (or a list, if either of two is fair). ----
+  const LOCKED_LETTERS = {
+    a: [
+      { f: 'a', q: 'A function seals customer files of up to 5 MB with a KMS key. Small files work, but every large file fails at the Encrypt call. The team must keep using the same KMS key. What should the function do?',
+        opts: ['Call GenerateDataKey, encrypt the file locally with the plaintext key, then store the encrypted data key next to the file', 'Ask AWS Support to raise the Encrypt size limit', 'Switch to an asymmetric KMS key', 'Call Encrypt twice, once for each half of the file'],
+        why: 'Encrypt takes at most 4 KB. GenerateDataKey hands back a data key in two forms: plain, to encrypt with and then erase, and encrypted under the KMS key, to store with the file. To read it back, Decrypt the stored data key. The size limit isn\'t a quota you can raise, and asymmetric keys take even less.' },
+      { f: 'a', q: 'A partner account must upload files into your S3 bucket. Their role\'s own policy allows s3:PutObject on your bucket, but every upload is denied. What fixes it with the least access granted?',
+        opts: ['Add a statement to your bucket policy that allows that role s3:PutObject on the bucket', 'Add Principal "*" to the bucket policy', 'Create an IAM user in your account and send them its access keys', 'Turn off Block Public Access'],
+        why: 'Across accounts, both sides must allow it: their identity policy and your resource-based policy. Naming just their role grants exactly that. Principal "*" opens the bucket to everyone, and handing out long-term keys is what roles exist to avoid.' },
+      { f: 'a', q: 'A Lambda function reads from an S3 bucket using an IAM user\'s access keys stored in its environment variables. What is the most secure change?',
+        opts: ['Attach an execution role with s3:GetObject on that bucket, and delete the access keys', 'Move the keys into Parameter Store', 'Rotate the keys every 90 days', 'Encrypt the environment variables with a customer managed key'],
+        why: 'Lambda gives the function the role\'s temporary credentials on every invoke. The other three still leave long-term keys in use.' }
+    ],
+    b: [
+      { f: 'b', tools: ['badge', 'pad', 'safe', 'cache'], q: 'The Alibi copied Mira\'s keys through the window, and her copies are still opening the latch ten minutes later. Which piece makes a copied key stop working on its own?',
+        why: 'The badge is Mira\'s execution role. Lambda gets her short-lived credentials from it on every invoke, so a copy expires by itself. Keys on a keyring are an IAM user\'s long-term access keys. Those work until someone deletes them, so shred the keyring too.' },
+      { f: 'b', tools: ['safe', 'param', 'badge', 'pad'], q: 'The strongroom\'s combination must change every so often without anyone remembering to do it. Which piece does that?',
+        why: 'The safe is Secrets Manager with rotation turned on: a rotation function changes the secret on a schedule. The parameter drawer (a Parameter Store SecureString) hides the combination, but never changes it by itself.' }
+    ],
+    c: [
+      { f: 'c', q: 'Three of these are true of storing a database password for a Lambda function. Which one is false?',
+        opts: ['A Parameter Store SecureString can rotate the password automatically on a schedule', 'Secrets Manager can rotate a secret on a schedule using a Lambda rotation function', 'Secrets Manager charges per secret per month', 'Standard Parameter Store parameters have no additional charge'],
+        why: 'Parameter Store encrypts a SecureString with KMS but has no credential rotation. You\'d have to build it yourself. Automatic rotation is what Secrets Manager adds, and you pay for it per secret.' },
+      { f: 'c', q: 'Three of these are true of IAM policy evaluation. Which one is false?',
+        opts: ['An Allow in another statement overrides an explicit Deny', 'A request with no matching Allow is denied', 'Within one account, an Allow in either the identity policy or the bucket policy is enough for S3', 'Across accounts, both the caller\'s policy and the resource policy must allow the request'],
+        why: 'An explicit Deny in any policy beats every Allow. With no Deny, the request still needs an Allow from somewhere, or it\'s implicitly denied.' }
+    ],
+    s: [
+      { f: 's', file: 'template.yaml · Mira\'s function', q: 'Mira\'s function needs the strongroom password. Tap the line that shouldn\'t be here.',
+        lines: ['Environment:', '  Variables:', '    CABINET: parcel-cabinet', '    DB_HOST: strongroom.internal', '    DB_PASSWORD: 4-1-7-tuesday'], bad: 4, fix: '    DB_SECRET_ID: office/strongroom',
+        why: 'A password in an environment variable is a sticky note on the door: anyone who can read the function\'s settings has it, and it never changes. Keep it in Secrets Manager, pass the secret\'s name, and read it with GetSecretValue.' },
+      { f: 's', file: 'index.mjs', q: 'Tap the line that puts long-term keys where a role should be.',
+        lines: ['const s3 = new S3Client({', '  region: \'eu-west-2\',', '  credentials: {', '    accessKeyId: \'AKIA…EXAMPLE\',', '    secretAccessKey: \'…EXAMPLEKEY\' }', '});'], bad: [2, 3, 4], fix: '  // no credentials: the SDK finds the role\'s own',
+        why: 'Lambda hands the function its execution role\'s temporary credentials, and the SDK picks them up by itself. Access keys in code work until someone deletes them, and so do copies of them.' },
+      { f: 's', file: 'seal.mjs', q: 'Parcels are up to 2 MB. Which line fails for every parcel?',
+        lines: ['const parcel = await readFile(path);', 'const out = await kms.send(', '  new EncryptCommand({', '    KeyId: \'alias/office-key\',', '    Plaintext: parcel }));'], bad: [2, 4], fix: '  new GenerateDataKeyCommand({ KeyId: \'alias/office-key\', KeySpec: \'AES_256\' })',
+        why: 'Encrypt takes at most 4,096 bytes. For anything bigger, call GenerateDataKey, seal the parcel locally with the plain key, erase it, and keep the encrypted key with the parcel.' },
+      { f: 's', file: 'seal.mjs', q: 'Envelope encryption, nearly. Which line gives the game away?',
+        lines: ['const { Plaintext, CiphertextBlob } = await kms.send(', '  new GenerateDataKeyCommand({ KeyId: key, KeySpec: \'AES_256\' }));', 'const sealed = sealLocally(parcel, Plaintext);', 'await save(sealed, { dataKey: Plaintext });'], bad: 3, fix: 'await save(sealed, { dataKey: CiphertextBlob }); // erase Plaintext',
+        why: 'Store the encrypted copy of the data key with the data and throw the plain one away. Saved next to the parcel, the plain key opens it for anyone. To read it back, Decrypt the stored key.' },
+      { f: 's', file: 'parcel-cabinet · bucket policy, one statement', q: 'Riverside (account 444455556666) must drop parcels in. Which line lets in far more than Riverside?',
+        lines: ['{', '  "Effect": "Allow",', '  "Principal": "*",', '  "Action": "s3:PutObject",', '  "Resource": "arn:aws:s3:::parcel-cabinet/*"', '}'], bad: 2, fix: '  "Principal": { "AWS": "arn:aws:iam::444455556666:root" },',
+        why: 'Principal "*" is anyone at all, the street included. Name Riverside\'s account, or one role in it. Across accounts, their own policy has to allow it too.' },
+      { f: 's', file: 'Mira\'s role · permissions policy, one statement', q: 'Lookups fail with AccessDenied. Which line is wrong?',
+        lines: ['{', '  "Effect": "Allow",', '  "Action": "s3:GetObject",', '  "Resource": "arn:aws:s3:::parcel-cabinet"', '}'], bad: 3, fix: '  "Resource": "arn:aws:s3:::parcel-cabinet/*"',
+        why: 'GetObject acts on objects, so the resource is the objects\' ARN, with /* after the bucket name. The bare bucket ARN is for bucket actions such as ListBucket.' },
+      { f: 's', file: 'Mira\'s role · trust policy, one statement', q: 'Lambda can\'t use Mira\'s badge. Which line is wrong?',
+        lines: ['{', '  "Effect": "Allow",', '  "Principal": { "Service": "ec2.amazonaws.com" },', '  "Action": "sts:AssumeRole"', '}'], bad: 2, fix: '  "Principal": { "Service": "lambda.amazonaws.com" },',
+        why: 'A trust policy says who may assume the role. For an execution role that\'s the Lambda service. Lambda assumes it for the function; your code never calls AssumeRole for it.' },
+      { f: 's', file: 'combo.mjs', q: 'The function gets gibberish instead of the combination. Which line is wrong?',
+        lines: ['const res = await ssm.send(new GetParameterCommand({', '  Name: \'/office/strongroom/combination\',', '  WithDecryption: false', '}));', 'const combo = res.Parameter.Value;'], bad: 2, fix: '  WithDecryption: true',
+        why: 'A SecureString is stored encrypted with KMS. GetParameter returns it still encrypted unless WithDecryption is true, and the caller needs kms:Decrypt on the key too.' },
+      { f: 's', file: 'combo.mjs', q: 'The secret is stored as JSON text. Which line comes back empty?',
+        lines: ['const res = await sm.send(new GetSecretValueCommand({', '  SecretId: \'office/strongroom\' }));', 'const { password } = JSON.parse(res.SecretBinary);'], bad: 2, fix: 'const { password } = JSON.parse(res.SecretString);',
+        why: 'A text secret, like a JSON password, comes back in SecretString. SecretBinary is only there for binary secrets.' },
+      { f: 's', ask: 'fix', file: 'The deny notice · one policy statement', q: 'This statement should stop anyone emptying drawers. Pick the fix for the marked line.',
+        lines: ['{', '  "Effect": "Allow",', '  "Action": "s3:DeleteObject",', '  "Resource": "*"', '}'], bad: 1,
+        opts: ['"Effect": "Deny",', '"Effect": "Allow", with a Condition', '"Principal": "*",', 'Leave it: no Allow means no anyway'],
+        why: 'Only an explicit Deny beats an Allow. An Allow statement can only add permissions, never take them away, and an implicit deny loses to any Allow elsewhere, the star included.' }
+    ]
+  };
+  LETTERS.locked = LOCKED_LETTERS;
+  ['a', 'b', 'c', 's'].forEach(f => LOCKED_LETTERS[f].forEach((Lt, i) => { Lt.id = `locked.${f}${i}`; Lt.claim = 'locked'; LETTER_BY_ID[Lt.id] = Lt; }));
+  QS.locked = LOCKED_LETTERS.a[0];
+  const badLines = Lt => [].concat(Lt.bad);
+  // esc() is shared with claim 9 (defined above).
+
+  // ---- Spot the line: a reusable card. spotCard(Lt, o) returns its HTML; wireSpot() hooks it up. o.head: the kind
+  // line; o.clock: show a clock bar; o.pick: a line the intern picked (check mode, its answer stamped on). Lines are
+  // buttons in .lt-opts, so number keys pick them; data-i 0 is the answer (the wrong line), like the other letters. ----
+  function spotCard(Lt, o) {
+    const bad = badLines(Lt), fixMode = Lt.ask === 'fix';
+    const lines = Lt.lines.map((t, n) => `<button type="button" data-n="${n}" data-i="${bad.includes(n) ? 0 : n + 1}"${fixMode ? ' disabled' : ''} class="${fixMode && bad.includes(n) ? 'flag' : ''}${o.pick === n ? ' pick' : ''}"><kbd>${n + 1}</kbd><code>${esc(t) || ' '}</code>${o.pick === n ? '<em class="lt-intern">INTERN</em>' : ''}</button>`).join('');
+    const fixes = fixMode ? `<div class="lt-opts sp-fixes">${shuffle(Lt.opts.map((t, i) => ({ t, i })), Math.random).map((x, n) => `<button type="button" data-i="${x.i}"${o.check ? ' disabled' : ''}${o.pick === -1 - x.i ? ' class="pick"' : ''}><kbd>${n + 1}</kbd><code>${esc(x.t)}</code>${o.pick === -1 - x.i ? '<em class="lt-intern">INTERN</em>' : ''}</button>`).join('')}</div>` : '';
+    return `<div class="lt-card sp-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">${o.head}</p>${o.clock ? '<div class="lt-clock" aria-hidden="true"><i></i></div>' : ''}
+      <p class="lt-text" id="q-h">${Lt.q}</p><p class="sp-file">${esc(Lt.file || '')}</p>
+      <div class="${fixMode ? '' : 'lt-opts '}sp-code">${lines}</div>${fixes}
+      ${Lt.fix ? `<div class="sp-fix"><b>The fix</b><code>${esc(Lt.fix)}</code></div>` : ''}
+      ${o.check ? '<div class="lt-verdict"><button type="button" data-v="ok">Looks right</button><button type="button" data-v="wrong">It\'s wrong</button></div>' : ''}
+      <p class="lt-why"></p><button type="button" class="lt-go">${o.back || 'Back to the desk'}</button></div>`;
+  }
+  // Show which line was wrong (and the fix). picked: the button the player tapped, if any.
+  function revealSpot(picked) {
+    qEl.querySelectorAll('.sp-code button, .sp-fixes button').forEach(x => { x.disabled = true; if (x.dataset.i === '0') x.classList.add('right'); });
+    if (picked && picked.dataset.i !== '0') picked.classList.add('wrong');
+    const f = qEl.querySelector('.sp-fix'); if (f) f.classList.add('on');
+  }
+  const spotButtons = () => [...qEl.querySelectorAll('.lt-opts button')];
+  // A spot-the-line letter (the letters Night Order): right pays a coin, wrong tears the next letter, as the others do.
+  function openSpotLetter(Lt) {
+    letterOpen = true; drag = null;
+    qEl.className = 'on letter fmt-s';
+    qEl.innerHTML = spotCard(Lt, { head: 'Spot the line', clock: S.orders.has('timeout'), back: 'Back to the floor' });
+    const why = qEl.querySelector('.lt-why'), goBtn = qEl.querySelector('.lt-go');
+    function settle(b) {
+      const right = !!b && b.dataset.i === '0';
+      revealSpot(b); if (letterClock) letterClock.done = true;
+      why.innerHTML = `<b>${right ? 'Right. Here\'s a coin.' : (b ? 'Not that one.' : 'Time\'s up.') + ' The next letter will arrive torn.'}</b> ${Lt.why}`; why.classList.add('on');
+      goBtn.classList.add('on'); goBtn.focus(); sfx(right ? 'right' : 'wrong');
+      R.answer(S, Lt.id, right, 'player');
+      if (right) { S.coins += 1; coinPulse = 1.5; S.lettersRight = (S.lettersRight || 0) + 1; } else { carry.torn = true; S.lettersWrong = (S.lettersWrong || 0) + 1; }
+    }
+    spotButtons().forEach(b => b.addEventListener('click', () => { if (!b.disabled) settle(b); }));
+    letterClock = S.orders.has('timeout') ? { left: LETTER_SECS, done: false, timeUp: () => settle(null) } : null;
+    goBtn.addEventListener('click', closeLetter);
+    const first = spotButtons().find(b => !b.disabled); if (first) first.focus();
+  }
+  // A spot-the-line card on a review question (the desk's letters, or a cellar one): answer it, or check the intern's.
+  function openSpotReview(k, mode, S2, Lt) {
+    drag = null;
+    if (mode === 'check' && k.pick == null) {
+      const bad = badLines(Lt), others = Lt.ask === 'fix' ? [1, 2, 3] : Lt.lines.map((_, n) => n).filter(n => !bad.includes(n) && Lt.lines[n].trim().length > 1);
+      k.pick = Lt.ask === 'fix' ? (k.internRight ? -1 : -1 - others[Math.floor(Math.random() * others.length)]) : k.internRight ? bad[0] : others[Math.floor(Math.random() * others.length)];
+    }
+    qEl.className = 'on letter review fmt-s';
+    qEl.innerHTML = spotCard(Lt, { head: mode === 'ask' ? (S2 === M ? 'On the desk · spot the line' : 'Review · spot the line') : 'Check the intern\'s line', clock: true, check: mode === 'check', pick: mode === 'check' ? k.pick : null, back: S2 === M ? 'Back to the desk' : 'Back to the floor' });
+    if (mode === 'check') spotButtons().forEach(b => { b.disabled = true; });
+    reviewOpen = { k, mode, S2 };
+    const why = qEl.querySelector('.lt-why'), goBtn = qEl.querySelector('.lt-go');
+    const finish = (head, body) => { why.innerHTML = `<b>${head}</b> ${body || ''}`; why.classList.add('on'); goBtn.classList.add('on'); goBtn.focus(); reviewOpen.done = true; };
+    if (mode === 'ask') spotButtons().forEach(b => b.addEventListener('click', () => {
+      if (b.disabled || reviewOpen.done) return;
+      const right = b.dataset.i === '0';
+      if (!R.reply(S2, k.id, right)) { revealSpot(null); finish('Too late.', 'That one ran out before you answered.'); return; }
+      revealSpot(b); sfx(right ? 'right' : 'wrong');
+      finish(right ? 'That\'s the one. Filed.' : 'Not that line. That\'s a lost request.', Lt.why);
+    }));
+    qEl.querySelectorAll('.lt-verdict button').forEach(b => b.addEventListener('click', () => {
+      if (reviewOpen.done) return;
+      const res = R.check(S2, k.id, b.dataset.v);
+      qEl.querySelectorAll('.lt-verdict button').forEach(x => { x.disabled = true; });
+      revealSpot(qEl.querySelector('button.pick'));
+      if (res === 'caught') finish('Caught it. The intern picked the wrong line.', Lt.why);
+      else if (res === 'right') finish(b.dataset.v === 'ok' ? 'It was right. Filed.' : 'It was right, actually. Filed anyway.', '');
+      else if (res === 'missed') { sfx('wrong'); finish('It was wrong. Now it\'s in the files, leaking.', 'Tap it again to catch it.'); }
+      else finish('Already sorted.', '');
+    }));
+    goBtn.addEventListener('click', closeReview);
+    const first = qEl.querySelector(mode === 'ask' ? '.lt-opts button:not(:disabled)' : '.lt-verdict button'); if (first) first.focus();
+  }
+
+  // ---- The office's own cards: Mira's badge (or keyring) and its stamps, and the keyring's two choices ----
+  const STAMP_INFO = {
+    seal: ['Seal with the office key', 'kms:Encrypt, kms:GenerateDataKey · office key'],
+    file: ['File in the parcel cabinet', 's3:PutObject · parcel-cabinet/*'],
+    read: ['Read the parcel cabinet', 's3:GetObject · parcel-cabinet/*'],
+    payroll: ['Read the payroll drawer', 's3:GetObject · payroll-drawer/*'],
+    empty: ['Empty any drawer', 's3:DeleteObject · *'],
+    star: ['Everything (*)', '"Action": "*", "Resource": "*"']
+  };
+  const STAMP_ACT = { seal: ['kms:Encrypt', 'kms:GenerateDataKey'], file: ['s3:PutObject'], read: ['s3:GetObject'], payroll: ['s3:GetObject (payroll)'], empty: ['s3:DeleteObject'] };
+  function policyText() {
+    const st = OF.stampsView(M);
+    if (st.has('star')) return '{ "Effect": "Allow",\n  "Action": "*",\n  "Resource": "*" }';
+    const acts = [...st].flatMap(s => STAMP_ACT[s] || []);
+    if (!acts.length) return '(no statements: everything is implicitly denied)';
+    return '{ "Effect": "Allow",\n  "Action": [\n' + acts.map(a => `    "${a}"`).join(',\n') + ' ] }';
+  }
+  function openBadge() {
+    drag = null;
+    const edit = OF.canEdit(M), kind = M.badge ? 'Mira\'s badge · execution role' : 'Mira\'s keyring · an IAM user\'s keys';
+    qEl.className = 'on letter review office-card';
+    qEl.innerHTML = `<div class="lt-card of-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">${kind}</p><p class="lt-text" id="q-h">Stamp only what the job needs.</p>
+      <p class="of-need">Tonight: every ticket needs <b>Seal</b> and <b>File</b>. Lookups (from wave 3) need <b>Read</b>.</p>
+      <div class="of-stamps">${OF.STAMPS.map(s => `<button type="button" class="of-stamp${OF.stampsView(M).has(s) ? ' on' : ''}" data-s="${s}"${M.over ? ' disabled' : ''}><i aria-hidden="true"></i><span>${STAMP_INFO[s][0]}<small>${STAMP_INFO[s][1]}</small></span></button>`).join('')}</div>
+      ${edit ? '' : `<p class="of-note">Mid-wave: a change deploys in ${OF.T.deploy} s. The old stamps work till then.</p>`}
+      <pre class="of-policy">${esc(policyText())}</pre>
+      <button type="button" class="lt-go on">Done</button></div>`;
+    qEl.querySelectorAll('.of-stamp').forEach(b => b.addEventListener('click', () => {
+      const s = b.dataset.s, on = !OF.stampsView(M).has(s), r = OF.setStamp(M, s, on);
+      if (r && r !== 'deploy') return;
+      if (r === 'deploy') osay('midwave', 'tired');
+      b.classList.toggle('on', on); qEl.querySelector('.of-policy').textContent = policyText(); sfx('rStamp');
+      // The star's gone: drop Dutch's queued warning about it.
+      if (s === 'star' && !on) { const w = [OLINES.star, OLINES.starKeyring].join(' '); sayQ = sayQ.filter(q => !w.includes(q.text)); if (saying && w.includes(saying.text)) saying = null; }
+    }));
+    qEl.querySelector('.lt-go').addEventListener('click', closeReview);
+    reviewOpen = { k: null, mode: 'office', done: true };
+  }
+  function openKeyring() {
+    drag = null;
+    qEl.className = 'on letter review office-card';
+    qEl.innerHTML = `<div class="lt-card of-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">Mira's keyring · access keys</p><p class="lt-text" id="q-h">Long-term keys. A copy works until they change or go.</p>
+      <div class="of-btns"><button type="button" data-k="rotate">Rotate the keys<small>New keys in, old ones out. A seat for ${OF.T.rotateKeys} s.</small></button>
+      <button type="button" data-k="shred"${M.badge ? '' : ' disabled'}>Shred them<small>${M.badge ? 'Delete the access key. Mira works on her badge.' : 'Needs the badge first, or Mira can\'t work.'}</small></button>
+      ${M.badge ? '' : '<button type="button" data-k="stamps">Set the keyring\'s stamps<small>What these keys may do</small></button>'}</div>
+      <button type="button" class="lt-go on">Back to the desk</button></div>`;
+    qEl.querySelectorAll('.of-btns button').forEach(b => b.addEventListener('click', () => {
+      const a = b.dataset.k;
+      if (a === 'stamps') { openBadge(); return; }
+      const r = a === 'rotate' ? OF.rotateKeys(M) : OF.shred(M);
+      if (r === 'nocred') osay('shredNoBadge', 'tired');
+      closeReview();
+    }));
+    qEl.querySelector('.lt-go').addEventListener('click', closeReview);
+    reviewOpen = { k: null, mode: 'office', done: true };
+  }
+  function openScope() {
+    drag = null;
+    qEl.className = 'on letter review office-card';
+    const cur = M.internScope;
+    qEl.innerHTML = `<div class="lt-card of-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">The intern's scope</p><p class="lt-text" id="q-h">Least privilege, for the helper too.</p>
+      <div class="of-btns"><button type="button" data-v="solved" class="${cur === 'solved' ? 'on' : ''}">Solved only<small>Questions you've got right. Wrong about 1 in 4.</small></button>
+      <button type="button" data-v="topics" class="${cur === 'topics' ? 'on' : ''}">Solved topics<small>Also unsolved ones from a topic you've solved. Wrong about 1 in 2 on those.</small></button></div>
+      <button type="button" class="lt-go on">Back to the floor</button></div>`;
+    qEl.querySelectorAll('.of-btns button').forEach(b => b.addEventListener('click', () => {
+      OF.setInternScope(M, b.dataset.v); osay(b.dataset.v === 'topics' ? 'scopeTopics' : 'scopeSolved', b.dataset.v === 'topics' ? 'surprised' : 'smile'); closeReview();
+    }));
+    qEl.querySelector('.lt-go').addEventListener('click', closeReview);
+    reviewOpen = { k: null, mode: 'office', done: true };
+  }
+
+  // ---- Setting up a night upstairs ----
+  let ofx = {};
+  function officeReset() {
+    ofx = { latch: null, box: 0, boxRed: 0, alibi: 0, shred: 0, sign: 0, rot: 0, pops: 0 };
+    // The desk's letters are claim 7's own spot-the-line cards; the cellar's review comes from claims 1 to 6, mostly
+    // ones you've solved, with a few unsolved from the same topics (the intern's scope decides whether it takes those).
+    M.qpool = shuffle(LOCKED_LETTERS.s.map(Lt => Lt.id), Math.random);
+    if (M.review) {
+      const old = Object.keys(LETTER_BY_ID).filter(id => LETTER_BY_ID[id].claim !== 'locked');
+      // A direct link (?claim=locked) plays as if you'd come up through claims 1 to 6: two of each claim's letters solved.
+      if (run.intern === undefined && !R.solved(M).length) {
+        const by = {}; old.forEach(id => (by[LETTER_BY_ID[id].claim] = by[LETTER_BY_ID[id].claim] || []).push(id));
+        Object.values(by).forEach(ids => shuffle(ids, Math.random).slice(0, 2).forEach(id => run.book.set(id, { id, solved: true, right: 1, wrong: 0, by: { player: { right: 1, wrong: 0 } }, last: null })));
+      }
+      const done = new Set(R.solved(M).filter(id => LETTER_BY_ID[id] && LETTER_BY_ID[id].claim !== 'locked'));
+      const topics = new Set([...done].map(id => id.split('.')[0]));
+      const near = shuffle(old.filter(id => !done.has(id) && topics.has(id.split('.')[0])), Math.random);
+      const pool = shuffle([...done], Math.random).slice(0, 8).concat(near.slice(0, 4));
+      M.review.qpool = shuffle(pool.length >= 6 ? pool : pool.concat(shuffle(old.filter(id => !pool.includes(id)), Math.random)).slice(0, 12), Math.random);
+      // The intern carries over from claim 6 (and comes along on a direct link, ?claim=locked).
+      if (run.intern !== false && !M.review.intern) { M.review.intern = true; M.review.placed.push('intern'); M.review.internAt = 0; }
+    }
+    // With letters pinned, one of tonight's three is a spot-the-line letter.
+    if (letters.length) { const i = letters.findIndex(l => l.f !== 'a'); letters[i < 0 ? 0 : i] = LOCKED_LETTERS.s[Math.floor(Math.random() * LOCKED_LETTERS.s.length)]; }
+    osay('intro', 'neutral'); osay('intro2', 'neutral'); osay('twoRooms', 'neutral');
+    if (M.visitors) osay('signScrewed', 'neutral');
+  }
+  function officeBits() {
+    const b = [`latch: ${M.greens} green, ${M.grey} grey, ${M.red} red`];
+    if (M.thieves) b.push(`${M.thieves} thieves`); if (M.forgedDone) b.push(`${M.forgedDone} forged done`); if (M.streetIn) b.push(`${M.streetIn} off the street`);
+    if (M.tooBig) b.push(`${M.tooBig} too big`); if (M.boxThrottles) b.push(`${M.boxThrottles} key box throttles`); if (M.comboThefts) b.push(`${M.comboThefts} combination thefts`);
+    if (M.rotations + M.safeRotations) b.push(`${M.rotations + M.safeRotations} new combinations`);
+    return b;
+  }
+  // Code-drawn backdrops and ticket tints.
+  function officeLoad() {
+    const e = IMG.env;
+    if (e) [['envGreen', 'rgba(70, 170, 100, .55)'], ['envHood', 'rgba(90, 30, 120, .78)']].forEach(([k, col]) => {
+      const c = document.createElement('canvas'); c.width = e.width; c.height = e.height; const g = c.getContext('2d');
+      g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); IMG[k] = c;
+    });
+    if (!IMG['office-wide']) IMG['office-wide'] = officeBackdrop(OFFICE_WIDE);
+    if (!IMG['office-tall']) IMG['office-tall'] = officeBackdrop(OFFICE_TALL);
+  }
+  // The room, drawn in code: green striped wallpaper over dark wainscoting, a plank floor, and the fixtures that
+  // don't move (door, window frame, key box, desk, cabinet, strongroom door, dumbwaiter hatch).
+  function officeBackdrop(Lo) {
+    const c = document.createElement('canvas'); c.width = Lo.W; c.height = Lo.H; const g = c.getContext('2d'), hs = Lo.hs, fl = Lo.fl, m = 176 * hs;
+    g.lineJoin = 'round';
+    g.fillStyle = '#21352a'; g.fillRect(0, 0, Lo.W, fl);
+    for (let x = 0; x < Lo.W; x += 30 * hs) { g.fillStyle = 'rgba(70,110,80,.22)'; g.fillRect(x, 0, 12 * hs, fl); g.fillStyle = 'rgba(200,170,90,.08)'; g.fillRect(x + 14 * hs, 0, 2, fl); }
+    // Wainscoting to 0.9 m, a picture rail at 2.4 m.
+    const wy = fl - 0.9 * m;
+    g.fillStyle = '#3a2416'; g.fillRect(0, wy, Lo.W, fl - wy); g.fillStyle = '#5a3a22'; g.fillRect(0, wy - 6 * hs, Lo.W, 8 * hs);
+    for (let x = 10; x < Lo.W; x += 120 * hs) { g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 3; g.strokeRect(x, wy + 14 * hs, 100 * hs, fl - wy - 28 * hs); }
+    g.fillStyle = '#4a2e1c'; g.fillRect(0, fl - 2.4 * m, Lo.W, 6 * hs);
+    // The floor.
+    const fg = g.createLinearGradient(0, fl, 0, Lo.H); fg.addColorStop(0, '#5a3820'); fg.addColorStop(1, '#2a180c'); g.fillStyle = fg; g.fillRect(0, fl, Lo.W, Lo.H - fl);
+    g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 2; for (let y = fl + 14; y < Lo.H; y += 16 + (y - fl) * .25) { g.beginPath(); g.moveTo(0, y); g.lineTo(Lo.W, y); g.stroke(); }
+    g.fillStyle = '#1a0f08'; g.fillRect(0, fl - 4, Lo.W, 8);
+    // Warm lamplight over the desk, cool moonlight by the window.
+    const lg = g.createRadialGradient(Lo.desk.x + Lo.desk.w * .35, Lo.deskTop - 60 * hs, 10, Lo.desk.x, Lo.deskTop, 420 * hs); lg.addColorStop(0, 'rgba(255,200,110,.32)'); lg.addColorStop(1, 'rgba(255,200,110,0)');
+    g.fillStyle = lg; g.fillRect(0, 0, Lo.W, Lo.H);
+    const [wx, wy0, ww, wh] = Lo.window;
+    const mg = g.createRadialGradient(wx + ww / 2, wy0 + wh, 10, wx + ww / 2, wy0 + wh, 260 * hs); mg.addColorStop(0, 'rgba(140,170,230,.18)'); mg.addColorStop(1, 'rgba(140,170,230,0)'); g.fillStyle = mg; g.fillRect(0, 0, Lo.W, Lo.H);
+    g.strokeStyle = '#140a05'; g.lineWidth = 4;
+    // The door: wood, a frosted glass upper panel, a brass letter slot at chest height, and the wire in-tray under it.
+    { const [x, y, w, h] = Lo.door;
+      g.fillStyle = '#2a170c'; g.fillRect(x - 10 * hs, y - 12 * hs, w + 20 * hs, h + 12 * hs);
+      const dg = g.createLinearGradient(x, 0, x + w, 0); dg.addColorStop(0, '#6a3e22'); dg.addColorStop(1, '#4a2a16'); g.fillStyle = dg; g.fillRect(x, y, w, h); g.strokeRect(x, y, w, h);
+      g.fillStyle = 'rgba(205,220,212,.75)'; g.fillRect(x + w * .14, y + h * .07, w * .72, h * .3); g.strokeRect(x + w * .14, y + h * .07, w * .72, h * .3);
+      g.strokeStyle = 'rgba(0,0,0,.35)'; g.strokeRect(x + w * .14, y + h * .62, w * .72, h * .3); g.strokeStyle = '#140a05';
+      g.fillStyle = '#d8b25a'; g.beginPath(); g.arc(x + w * .86, y + h * .52, 7 * hs, 0, Math.PI * 2); g.fill(); g.stroke();
+      const [sx, sy] = Lo.slot; g.fillStyle = '#c9a23a'; g.fillRect(sx - 32 * hs, sy - 8 * hs, 64 * hs, 16 * hs); g.strokeRect(sx - 32 * hs, sy - 8 * hs, 64 * hs, 16 * hs); g.fillStyle = '#140a05'; g.fillRect(sx - 26 * hs, sy - 2 * hs, 52 * hs, 4 * hs);
+      const [tx, ty] = Lo.intray; g.strokeStyle = '#8a8f96'; g.lineWidth = 3; g.beginPath(); g.moveTo(tx - 36 * hs, ty - 10 * hs); g.lineTo(tx - 28 * hs, ty + 12 * hs); g.lineTo(tx + 28 * hs, ty + 12 * hs); g.lineTo(tx + 36 * hs, ty - 10 * hs); g.stroke();
+      for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(tx + i * 12 * hs, ty - 6 * hs); g.lineTo(tx + i * 10 * hs, ty + 12 * hs); g.stroke(); }
+      g.strokeStyle = '#140a05'; g.lineWidth = 4; }
+    // The night window: moon and rooftops.
+    { g.fillStyle = '#2a170c'; g.fillRect(wx - 10 * hs, wy0 - 10 * hs, ww + 20 * hs, wh + 20 * hs);
+      const sk = g.createLinearGradient(0, wy0, 0, wy0 + wh); sk.addColorStop(0, '#0d1630'); sk.addColorStop(1, '#283a66'); g.fillStyle = sk; g.fillRect(wx, wy0, ww, wh);
+      g.fillStyle = '#f2ecd0'; g.beginPath(); g.arc(wx + ww * .68, wy0 + wh * .26, 15 * hs, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#0a0f1e'; g.beginPath(); g.moveTo(wx, wy0 + wh); for (let i = 0; i <= 6; i++) g.lineTo(wx + i * ww / 6, wy0 + wh * (.72 + (i % 2) * .1)); g.lineTo(wx + ww, wy0 + wh); g.fill();
+      g.strokeStyle = '#2a170c'; g.lineWidth = 6 * hs; g.beginPath(); g.moveTo(wx + ww / 2, wy0); g.lineTo(wx + ww / 2, wy0 + wh); g.moveTo(wx, wy0 + wh / 2); g.lineTo(wx + ww, wy0 + wh / 2); g.stroke(); g.strokeStyle = '#140a05'; g.lineWidth = 4; }
+    // The key box: a brass wall box with a slot and a dial.
+    { const [x, y, w, h] = Lo.keybox, br = g.createLinearGradient(x - w / 2, 0, x + w / 2, 0); br.addColorStop(0, '#7a5a22'); br.addColorStop(.45, '#d8b25a'); br.addColorStop(1, '#5a3f14');
+      g.fillStyle = br; g.fillRect(x - w / 2, y - h / 2, w, h); g.strokeRect(x - w / 2, y - h / 2, w, h);
+      g.fillStyle = '#140a05'; g.fillRect(x - w * .32, y - h * .32, w * .64, 6 * hs);
+      g.fillStyle = '#e9d9a8'; g.beginPath(); g.arc(x, y + h * .14, w * .22, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    // The partners desk: top slab, three drawers, a green banker's lamp.
+    { const d = Lo.desk, x0 = d.x - d.w / 2, top = Lo.deskTop;
+      g.fillStyle = '#4a1e12'; g.fillRect(x0, top + 10 * hs, d.w, fl - top - 10 * hs); g.strokeRect(x0, top + 10 * hs, d.w, fl - top - 10 * hs);
+      g.fillStyle = '#6a2e1a'; g.fillRect(x0 - 10 * hs, top, d.w + 20 * hs, 14 * hs); g.strokeRect(x0 - 10 * hs, top, d.w + 20 * hs, 14 * hs);
+      for (let i = 0; i < 3; i++) { const dx = x0 + 10 * hs + i * (d.w - 20 * hs) / 3, dw = (d.w - 20 * hs) / 3 - 8 * hs; g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3; g.strokeRect(dx, top + 22 * hs, dw, 30 * hs); g.fillStyle = '#c9a23a'; g.fillRect(dx + dw / 2 - 10 * hs, top + 34 * hs, 20 * hs, 5 * hs); }
+      g.strokeStyle = '#140a05'; g.lineWidth = 4;
+      const lx = x0 + d.w - 30 * hs; g.fillStyle = '#c9a23a'; g.fillRect(lx - 3 * hs, top - 40 * hs, 6 * hs, 40 * hs); g.fillRect(lx - 14 * hs, top - 6 * hs, 28 * hs, 6 * hs);
+      g.fillStyle = '#1f6a3a'; g.beginPath(); g.moveTo(lx - 30 * hs, top - 34 * hs); g.lineTo(lx + 22 * hs, top - 34 * hs); g.lineTo(lx + 12 * hs, top - 52 * hs); g.lineTo(lx - 20 * hs, top - 52 * hs); g.closePath(); g.fill(); g.stroke(); }
+    // The waiting basket by the latch.
+    { const [x, y] = Lo.wait; g.strokeStyle = '#8a8f96'; g.lineWidth = 3; g.fillStyle = 'rgba(40,30,20,.6)'; g.fillRect(x - 34 * hs, y - 30 * hs, 68 * hs, 30 * hs); g.strokeRect(x - 34 * hs, y - 30 * hs, 68 * hs, 30 * hs); for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(x - 34 * hs + i * 11 * hs, y - 30 * hs); g.lineTo(x - 34 * hs + i * 11 * hs, y); g.stroke(); } g.strokeStyle = '#140a05'; g.lineWidth = 4; }
+    // The parcel cabinet: dark green steel, four drawers.
+    { const [x, y, w, h] = Lo.cab, cg = g.createLinearGradient(x, 0, x + w, 0); cg.addColorStop(0, '#1d3a2c'); cg.addColorStop(.5, '#2e5a44'); cg.addColorStop(1, '#183126');
+      g.fillStyle = cg; g.fillRect(x, y, w, h); g.strokeRect(x, y, w, h);
+      for (let i = 0; i < 4; i++) { const dy = y + 8 * hs + i * (h - 16 * hs) / 4; g.strokeStyle = 'rgba(160,200,170,.3)'; g.lineWidth = 2; g.strokeRect(x + 8 * hs, dy, w - 16 * hs, (h - 16 * hs) / 4 - 6 * hs); g.fillStyle = '#c9a23a'; g.fillRect(x + w / 2 - 14 * hs, dy + 12 * hs, 28 * hs, 6 * hs); }
+      g.strokeStyle = '#140a05'; g.lineWidth = 4; }
+    // The strongroom door: riveted steel with rounded corners.
+    { const [x, y, w, h] = Lo.strong; g.fillStyle = '#2a2d33'; g.fillRect(x - 8 * hs, y - 8 * hs, w + 16 * hs, h + 8 * hs);
+      const sg = g.createLinearGradient(x, 0, x + w, 0); sg.addColorStop(0, '#5a6068'); sg.addColorStop(.5, '#7c838c'); sg.addColorStop(1, '#4a5058'); g.fillStyle = sg;
+      g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 18 * hs) : g.rect(x, y, w, h); g.fill(); g.stroke();
+      g.fillStyle = '#2a2d33'; for (let i = 0; i < 8; i++) for (const rx of [x + 10 * hs, x + w - 10 * hs]) { g.beginPath(); g.arc(rx, y + 20 * hs + i * (h - 40 * hs) / 7, 3.5 * hs, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = '#9aa0a8'; g.fillRect(x + w * .2, y + h * .62, w * .6, 10 * hs); g.strokeRect(x + w * .2, y + h * .62, w * .6, 10 * hs); }
+    // The dumbwaiter hatch, closed.
+    { const [x, y, w, h] = Lo.hatch; g.fillStyle = '#2a170c'; g.fillRect(x - 6 * hs, y - 6 * hs, w + 12 * hs, h + 12 * hs); g.fillStyle = '#6b3d1e'; g.fillRect(x, y, w, h); g.strokeRect(x, y, w, h);
+      g.strokeStyle = 'rgba(0,0,0,.35)'; g.strokeRect(x + 8 * hs, y + 8 * hs, w - 16 * hs, h - 16 * hs); g.strokeStyle = '#140a05';
+      g.strokeStyle = '#c9a23a'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + w + 14 * hs, y - 30 * hs); g.lineTo(x + w + 14 * hs, y + h + 20 * hs); g.stroke(); g.strokeStyle = '#140a05'; g.lineWidth = 4; }
+    // The tall room's spare wall: the postmaster's portrait and a clock.
+    if (Lo.portrait) { const [x, y] = Lo.portrait; g.fillStyle = '#8a6726'; g.fillRect(x - 60, y - 76, 120, 152); g.strokeRect(x - 60, y - 76, 120, 152); g.fillStyle = '#2a2218'; g.fillRect(x - 48, y - 64, 96, 128);
+      g.fillStyle = '#5a4a3a'; g.beginPath(); g.arc(x, y - 14, 22, 0, Math.PI * 2); g.fill(); g.fillRect(x - 34, y + 14, 68, 50); }
+    if (Lo.clock) { const [x, y] = Lo.clock; g.fillStyle = '#6b3d1e'; g.beginPath(); g.arc(x, y, 44, 0, Math.PI * 2); g.fill(); g.stroke(); g.fillStyle = '#f2e8cc'; g.beginPath(); g.arc(x, y, 34, 0, Math.PI * 2); g.fill();
+      g.lineWidth = 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 24); g.moveTo(x, y); g.lineTo(x + 16, y + 6); g.stroke(); }
+    // A little dust in the air.
+    g.fillStyle = 'rgba(255,230,180,.12)'; for (let i = 0; i < 60; i++) { const x = (i * 97) % Lo.W, y = (i * 211) % fl; g.fillRect(x, y, 2, 2); }
+    return c;
+  }
+
+  // ---- Drawing the office ----
+  const LAMP = { allow: '#5fe08a', implicit: '#d8d8d0', explicit: '#ff5040' };
+  // Where Mira works a letter: lying on the desk in front of her (painted rooms), or on its stool.
+  function seatTop(i) { if (L.work) return L.work[i] || L.work[0]; const st = L.seats; return [st.xs[i], st.y - st.h - 8 * L.hs]; }
+  function officeTicketDraw(k) {
+    const u = k.dur ? Math.min(1, k.t / k.dur) : 0, hs = L.hs, cabIn = [L.cab[0] + L.cab[2] / 2, L.cab[1] + 30 * hs], latchAt = [L.latch[0] + 4, L.latch[1] + 40 * hs];
+    const wait = i => [L.wait[0] + ((i % 3) - 1) * 14 * hs, L.wait[1] - (L.work ? 20 : 24) * hs - Math.min(2, Math.floor(i / 3)) * 7 * hs];
+    switch (k.phase) {
+      case 'slide': return { p: [L.slot[0], lerp(L.slot[1], L.intray[1] - 6, ease(u))], a: Math.min(1, u * 3) };
+      case 'latch': return { p: arc(L.intray, latchAt, 20, ease(u)) };
+      case 'tray': { const i = S.tickets.filter(x => x.phase === 'tray').indexOf(k); return { p: wait(Math.max(0, i)), s: .9, rot: L.work ? ((i % 3) - 1) * .12 : 0 }; }
+      case 'walk': { const i = k.seatI != null ? k.seatI : 0; k.lastSeat = i; return { p: arc(L.wait, seatTop(i), 50, ease(u)) }; }
+      case 'work': case 'retry': case 'tooBig': return { p: seatTop(k.seatI != null ? k.seatI : k.lastSeat || 0), ring: k.phase === 'work' ? u : null, wait: k.phase === 'retry' ? u : null, shake: k.phase === 'tooBig' };
+      case 'done': return { p: arc(seatTop(k.lastSeat || 0), cabIn, 110, ease(u)), s: lerp(1, .6, u), sealed: true };
+      case 'shred': { if (k.gone) return null; const from = k.lost ? seatTop(k.lastSeat || 0) : latchAt; return { p: arc(from, [L.shredder[0], L.shredder[1] - L.shredder[3]], 60, ease(u)), torn: true, rot: u * 3 }; }
+      case 'direct': return { p: arc(latchAt, cabIn, 140, ease(u)) };
+      case 'combo': return { p: arc(L.alibi, [L.dial[0], L.dial[1]], 80, ease(u)), ghost: true };
+    }
+    return null;
+  }
+  function drawEnvelope(k, d) {
+    const w = (k.big ? 48 : 40) * L.hs * (d.s || 1);
+    if (d.ghost) { ghostKey(d.p[0], d.p[1], 22 * L.hs, 1); return; }
+    let key = d.torn ? 'env429' : d.sealed ? 'envDone' : k.kind === 'clerk' ? 'envGreen' : ['forged', 'street', 'thief'].includes(k.kind) ? 'envHood' : 'env';
+    // Painted: each kind of letter has its own sprite (a parcel for a big one, wax seals once done).
+    const sp = ofSprite(d.torn ? 'env-denied' : d.sealed ? (k.big ? 'parcel-sealed' : 'env-sealed') : k.kind === 'clerk' ? 'env-riverside' : k.kind === 'lookup' ? 'env-lookup'
+      : k.kind === 'thief' ? 'env-thief' : k.kind === 'forged' || k.kind === 'street' ? 'env-hood' : k.big ? 'parcel' : 'env');
+    if (sp) key = sp;
+    let p = d.p; if (d.shake) p = [p[0] + Math.sin(performance.now() / 30) * 4, p[1]];
+    if (L.work && (d.ring != null || d.wait != null || d.shake)) shadow(p[0], p[1] + w * .3, w * 1.1); // lying on the desk
+    img(key, p[0], p[1], 0, 'mm', d.a, d.rot || 0, w);
+    if (k.big && !d.torn && !sp) { ribbon(p, w, d.rot || 0, d.a, '#8a5a2a'); ribbon(p, w * .7, (d.rot || 0) + Math.PI / 2, d.a, '#8a5a2a'); }
+    if (k.kind === 'lookup' && !d.torn && !sp) { cx.save(); cx.strokeStyle = '#c9a23a'; cx.lineWidth = 3; cx.beginPath(); cx.arc(p[0] + w * .3, p[1] - w * .2, w * .16, 0, Math.PI * 2); cx.moveTo(p[0] + w * .4, p[1] - w * .1); cx.lineTo(p[0] + w * .52, p[1] + w * .04); cx.stroke(); cx.restore(); }
+    if (k.kind === 'thief') ghostKey(p[0] + w * .45, p[1] - w * .25, 14 * L.hs, d.a == null ? 1 : d.a);
+    if (d.sealed && k.big && !sp) { cx.save(); cx.fillStyle = '#d8b25a'; cx.fillRect(p[0] + w * .3, p[1] - w * .3, 8 * L.hs, 6 * L.hs); cx.restore(); }
+    if (d.ring != null) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = k.kind === 'forged' ? '#d59cff' : '#8fe68f'; cx.beginPath(); cx.arc(p[0], p[1], (L.work ? 22 : 28) * L.hs, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * d.ring); cx.stroke(); cx.restore(); }
+    if (d.wait != null) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = '#ffb04a'; cx.setLineDash([6, 5]); cx.beginPath(); cx.arc(p[0], p[1], (L.work ? 22 : 28) * L.hs, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - d.wait)); cx.stroke(); cx.restore(); }
+  }
+  function ghostKey(x, y, s, a) {
+    cx.save(); cx.globalAlpha = .85 * a; cx.shadowColor = 'rgba(140,220,255,.9)'; cx.shadowBlur = 10; cx.strokeStyle = '#a8e4ff'; cx.lineWidth = Math.max(2, s * .22);
+    cx.beginPath(); cx.arc(x - s * .4, y, s * .3, 0, Math.PI * 2); cx.moveTo(x - s * .1, y); cx.lineTo(x + s * .6, y); cx.moveTo(x + s * .45, y); cx.lineTo(x + s * .45, y + s * .25); cx.moveTo(x + s * .25, y); cx.lineTo(x + s * .25, y + s * .2); cx.stroke(); cx.restore();
+  }
+  function drawMira() {
+    const [x, y] = L.mira, s = L.hs, ms = ofSprite('mira');
+    // Painted: Ladi's Mira in her chair, cut off where the desk top hides her (her sprite's own desk edge is at 93%).
+    if (ms) { const h = 145 * s; cx.save(); cx.beginPath(); cx.rect(x - h, 0, h * 2, L.deskTop + 2); cx.clip(); img(ms, x, L.deskTop + h * .07, h, 'mb'); cx.restore(); }
+    else {
+    cx.save(); cx.lineJoin = 'round'; cx.strokeStyle = '#140a05'; cx.lineWidth = 3;
+    // Shoulders in a dark uniform, silver hair, a pale face. Seated: the desk hides her from the waist down.
+    cx.fillStyle = '#2a3348'; cx.beginPath(); cx.moveTo(x - 46 * s, L.deskTop); cx.quadraticCurveTo(x - 44 * s, y + 34 * s, x, y + 30 * s); cx.quadraticCurveTo(x + 44 * s, y + 34 * s, x + 46 * s, L.deskTop); cx.closePath(); cx.fill(); cx.stroke();
+    cx.fillStyle = '#d8dde6'; cx.beginPath(); cx.ellipse(x, y + 4 * s, 26 * s, 34 * s, 0, 0, Math.PI * 2); cx.fill(); cx.stroke();
+    cx.fillStyle = '#f2dccb'; cx.beginPath(); cx.ellipse(x, y + 6 * s, 15 * s, 19 * s, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#d8dde6'; cx.beginPath(); cx.ellipse(x, y - 12 * s, 18 * s, 8 * s, 0, Math.PI, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#2a2230'; cx.fillRect(x - 8 * s, y + 4 * s, 4 * s, 3 * s); cx.fillRect(x + 4 * s, y + 4 * s, 4 * s, 3 * s);
+    cx.restore(); }
+    // What she holds: the badge on its lanyard (with a ring that refills: Lambda's fresh credentials), or nothing.
+    if (S.badge) {
+      const [bx, by] = L.badge; cx.save(); cx.strokeStyle = '#2f5fb0'; cx.lineWidth = 3 * s; cx.beginPath(); cx.moveTo(x - 10 * s, y + 30 * s); cx.lineTo(bx, by - 12 * s); cx.stroke();
+      img(ofSprite('badge') || 'badge', bx, by, 0, 'mm', 1, 0, 30 * s);
+      const u = (S.time % OF.T.session) / OF.T.session; cx.lineWidth = 3; cx.strokeStyle = '#9fe0ff'; cx.beginPath(); cx.arc(bx, by, 19 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - u)); cx.stroke(); cx.restore();
+      if (S.stamps.has('star')) text('*', bx + 16 * s, by - 14 * s, 22, '#ffb04a');
+    }
+  }
+  function drawStoolO(i) {
+    const st = L.seats, x = st.xs[i], y = st.y, h = st.h, s = L.hs, held = S.seat[i] && S.time < S.seat[i].until;
+    if (!roomPainted()) { // painted stools are in the backdrop
+      shadow(x, y + 2, h * .9);
+      cx.save(); cx.strokeStyle = '#140a05'; cx.lineWidth = 3; cx.fillStyle = '#3a2214';
+      for (const dx of [-.32, .32]) cx.fillRect(x + dx * h - 3 * s, y - h * .8, 6 * s, h * .8);
+      cx.fillStyle = '#8a2a22'; cx.beginPath(); cx.ellipse(x, y - h * .82, h * .5, h * .14, 0, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      cx.fillStyle = '#d8b25a'; for (let j = -2; j <= 2; j++) { cx.beginPath(); cx.arc(x + j * h * .18, y - h * .72, 2 * s, 0, Math.PI * 2); cx.fill(); }
+      cx.restore();
+    }
+    if (held) { const sh = S.seat[i]; text(sh.why === 'safe' ? 'safe' : sh.why === 'keys' ? 'new keys' : 'new combo', x, y - h - 26 * s, 13, '#ffd08a'); cx.save(); cx.strokeStyle = '#ffd08a'; cx.lineWidth = 4; cx.beginPath(); cx.arc(x, y - h - 8 * s, 16 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, (sh.until - S.time) / 2)); cx.stroke(); cx.restore(); }
+  }
+  function drawOffice(dragging, mini) {
+    const bg = IMG[L.bg], s = L.hs, now = performance.now(), painted = roomPainted();
+    labelLog = mini ? null : [];
+    if (bg && !mini) cx.drawImage(bg, 0, 0, L.W, L.H);
+    drawTank();
+    // The painting has no waiting basket: a wire one on the floor by the latch, its back here and its front after the
+    // letters, so they sit inside it.
+    if (painted) { const [x, y] = L.wait; shadow(x, y + 2, 70 * s); cx.save(); cx.fillStyle = 'rgba(28,20,14,.85)'; cx.fillRect(x - 34 * s, y - 30 * s, 68 * s, 30 * s); cx.restore(); }
+    // The Alibi at the window: a hooded shape with yellow eyes, while she's busy.
+    const busyAlibi = ofx.alibi > 0 || S.tickets.some(k => k.phase === 'combo');
+    if (busyAlibi) { const [x, y] = L.alibi, a = Math.min(1, Math.max(ofx.alibi, .6)); cx.save(); cx.globalAlpha = a; cx.fillStyle = '#0a0612'; cx.beginPath(); cx.ellipse(x, y + 10 * s, 34 * s, 46 * s, 0, 0, Math.PI * 2); cx.fill(); cx.beginPath(); cx.arc(x, y - 30 * s, 24 * s, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = '#ffd84a'; cx.fillRect(x - 10 * s, y - 32 * s, 6 * s, 4 * s); cx.fillRect(x + 4 * s, y - 32 * s, 6 * s, 4 * s); cx.restore(); if (ofx.alibi > 0) ghostKey(x + 34 * s, y - 6 * s, 26 * s, a); }
+    // The key box: gold while it answers, a red light when it throttles.
+    { const [x, y, w, h] = L.keybox; if (ofx.box > 0) { cx.save(); cx.globalAlpha = ofx.box; cx.fillStyle = '#ffe08a'; cx.fillRect(x - w * .32, y - h * .34, w * .64, 9 * s); cx.restore(); }
+      if (painted) { if (ofx.boxRed > 0 && ofSprite('keybox-red')) img('of-keybox-red', x, y + h / 2 + 2 * s, h * 1.24, 'mb', Math.min(1, ofx.boxRed * 3)); }
+      else { cx.save(); cx.beginPath(); cx.arc(x + w * .36, y - h * .5 - 6 * s, 6 * s, 0, Math.PI * 2); cx.fillStyle = ofx.boxRed > 0 ? '#ff4030' : '#4a1a14'; cx.fill(); cx.restore(); }
+      if (!mini) plaque('Key box · KMS', x, y + h / 2 + 16 * L.fs); }
+    // The latch: a brass plate, its lamp (green allowed, grey no allow, red an explicit deny).
+    { const [x, y] = L.latch, r = ofx.latch && ofx.latch.t > 0 ? ofx.latch.res : null, ls = ofSprite({ allow: 'latch-green', implicit: 'latch-grey', explicit: 'latch-red' }[r] || 'latch-grey');
+      if (ls) { const h = 66 * s; if (r) { cx.save(); const g = cx.createRadialGradient(x, y - h * .38, 2, x, y - h * .38, 34 * s); g.addColorStop(0, LAMP[r]); g.addColorStop(1, 'rgba(0,0,0,0)'); cx.globalAlpha = .7; cx.fillStyle = g; cx.fillRect(x - 40 * s, y - h * .38 - 40 * s, 80 * s, 80 * s); cx.restore(); }
+        img(ls, x, y, h, 'mm'); }
+      else { cx.save(); cx.fillStyle = '#b08a3a'; cx.strokeStyle = '#140a05'; cx.lineWidth = 3; rrect(x - 18 * s, y - 34 * s, 36 * s, 70 * s, 6 * s); cx.fill(); cx.stroke();
+        cx.beginPath(); cx.arc(x, y - 14 * s, 12 * s, 0, Math.PI * 2); cx.fillStyle = r ? LAMP[r] : '#3a3428'; if (r) { cx.shadowColor = LAMP[r]; cx.shadowBlur = 22; } cx.fill(); cx.shadowBlur = 0; cx.stroke();
+        cx.fillStyle = '#140a05'; cx.fillRect(x - 3 * s, y + 6 * s, 6 * s, 20 * s); cx.restore(); }
+      if (!mini && L.W > L.H) plaque('Latch', x, y - 52 * s); }
+    // The shredder: painted as a grate bin; Ladi's shredder sprite while it works.
+    { const [x, y, w, h] = L.shredder;
+      if (painted) { if (ofx.shred > 0 && ofSprite('shredding')) img('of-shredding', x + Math.sin(now / 40) * 1.5, y + 2, h * 1.12, 'mb'); }
+      else { cx.save(); cx.fillStyle = '#34363c'; cx.strokeStyle = '#140a05'; cx.lineWidth = 3; rrect(x - w / 2, y - h, w, h * .45, 6); cx.fill(); cx.stroke();
+        cx.strokeStyle = '#8a8f96'; cx.lineWidth = 2; cx.strokeRect(x - w * .42, y - h * .55, w * .84, h * .55);
+        if (ofx.shred > 0) { cx.strokeStyle = '#efe6d0'; cx.lineWidth = 2; for (let i = 0; i < 6; i++) { const xx = x - w * .3 + i * w * .12; cx.beginPath(); cx.moveTo(xx, y - h * .55); cx.lineTo(xx + Math.sin(now / 60 + i) * 3, y - h * .55 + h * .4 * ofx.shred); cx.stroke(); } }
+        cx.fillStyle = '#140a05'; cx.fillRect(x - w * .35, y - h * .9, w * .7, 4); cx.restore(); }
+      if (!mini && S.shredded) text(String(S.shredded), x + w * .62, y - h * .7, 18, '#e8dcc4'); }
+    // The cabinet's sign: the bucket policy. Painted: Ladi's hanging sign for each setting, its words on a tag below.
+    const signSp = ofSprite('sign-' + S.sign);
+    if (signSp) { const [x, y, w, h] = L.sign, pulse = ofx.sign > 0 ? 1 + .08 * Math.sin(ofx.sign * 20) : 1, tall = L.W < L.H;
+      cx.save(); cx.translate(x, y); cx.scale(pulse, pulse); img(signSp, 0, 0, h, 'mm'); cx.restore();
+      const words = { anyone: ['ANYONE', 'may take'], office: ['THIS', 'OFFICE'], riverside: ['OFFICE +', 'RIVERSIDE'] }[S.sign], fz = tall ? 22 : 13;
+      cx.save(); cx.font = `800 ${fz}px Nunito, "Segoe UI", sans-serif`; const lines = words; // two short lines, so the tag stays clear of the keyring
+      const tw = Math.max(...lines.map(t => cx.measureText(t).width)) + 14, th = lines.length * fz * 1.15 + 8, ty = y + h / 2 - 4 * s;
+      if (labelLog) labelLog.push({ kind: 'label', t: lines.join(' '), r: [x - tw / 2, ty, tw, th] });
+      rrect(x - tw / 2, ty, tw, th, 5); cx.fillStyle = { anyone: '#e06a3a', office: '#efe6d0', riverside: '#bfe3c4' }[S.sign]; cx.fill(); cx.strokeStyle = '#140a05'; cx.lineWidth = 2.5; cx.stroke();
+      cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; lines.forEach((t, i) => cx.fillText(t, x, ty + 4 + fz * .6 + i * fz * 1.15)); cx.restore();
+      if (!mini) plaque('Cabinet · S3', ...(L.cabLabel || [L.cab[0] + L.cab[2] / 2, L.cab[1] + L.cab[3] * .55])); }
+    else { const [x, y, w, h] = L.sign, col = { anyone: '#e06a3a', office: '#efe6d0', riverside: '#bfe3c4' }[S.sign], word2 = { anyone: 'ANYONE may take', office: 'THIS OFFICE', riverside: 'OFFICE + RIVERSIDE' }[S.sign], two = { anyone: ['ANYONE', 'may take'], office: ['THIS', 'OFFICE'], riverside: ['OFFICE +', 'RIVERSIDE'] }[S.sign];
+      cx.save(); cx.strokeStyle = '#8a8f96'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x - w * .3, y - h / 2); cx.lineTo(x, y - h / 2 - 16 * s); cx.lineTo(x + w * .3, y - h / 2); cx.stroke();
+      const pulse = ofx.sign > 0 ? 1 + .08 * Math.sin(ofx.sign * 20) : 1; cx.translate(x, y); cx.scale(pulse, pulse);
+      rrect(-w / 2, -h / 2, w, h, 6); cx.fillStyle = col; cx.fill(); cx.strokeStyle = '#140a05'; cx.lineWidth = 3; cx.stroke();
+      cx.fillStyle = '#2a1d10'; cx.font = `800 ${L.W > L.H ? 12 : 22}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      if (cx.measureText(word2).width > w - 10) { cx.fillText(two[0], 0, -h * .22); cx.fillText(two[1], 0, h * .25); } else cx.fillText(word2, 0, 1);
+      cx.restore();
+      if (!mini) plaque('Cabinet · S3', ...(L.cabLabel || [L.cab[0] + L.cab[2] / 2, L.cab[1] + L.cab[3] * .55])); }
+    // The strongroom: its dial, the sticky note, and where the combination lives (drawer or safe) with its age ring.
+    { const [x, y, r] = L.dial, spin = S.secret === 'safe' && S.time - S.comboAt < .8 ? (S.time - S.comboAt) * 8 : 0;
+      if (painted) { // the painted dial turns: a round cut of the backdrop, rotated, still facing us
+        if (spin && !mini) { cx.save(); cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.clip(); cx.translate(x, y); cx.rotate(spin); cx.drawImage(bg, -x, -y, L.W, L.H); cx.restore(); } }
+      else { cx.save(); cx.translate(x, y); cx.rotate(spin); cx.fillStyle = '#c9ced2'; cx.strokeStyle = '#140a05'; cx.lineWidth = 3; cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill(); cx.stroke();
+        for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; cx.beginPath(); cx.moveTo(Math.cos(a) * r * .7, Math.sin(a) * r * .7); cx.lineTo(Math.cos(a) * r * .9, Math.sin(a) * r * .9); cx.stroke(); }
+        cx.lineWidth = 4; cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(0, -r * .6); cx.stroke(); cx.restore(); }
+      if (S.comboLeaked) { cx.save(); cx.strokeStyle = `rgba(255,80,60,${.5 + .5 * Math.sin(now / 120)})`; cx.lineWidth = 5; cx.beginPath(); cx.arc(x, y, r + 8 * s, 0, Math.PI * 2); cx.stroke(); cx.restore(); }
+      if (S.secret === 'note' && ofSprite('note')) img('of-note', L.note[0], L.note[1], 0, 'mm', 1, .12, 40 * s);
+      else if (S.secret === 'note') { const [nx, ny] = L.note; cx.save(); cx.translate(nx, ny); cx.rotate(.12); cx.fillStyle = '#f7e05a'; cx.fillRect(-18 * s, -18 * s, 36 * s, 36 * s); cx.strokeStyle = '#3a2a14'; cx.lineWidth = 2; for (let i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(-12 * s, -8 * s + i * 8 * s); cx.lineTo(10 * s, -10 * s + i * 8 * s); cx.stroke(); } cx.restore(); }
+      const [sx, sy] = L.secret, held = S.secret === 'safe' ? 'safe' : S.secret === 'param' ? 'param' : null;
+      if (held) {
+        const hs2 = ofSprite(held === 'safe' && S.time - S.comboAt < .8 ? 'safe-turning' : held);
+        if (hs2) { shadow(sx, sy + 32 * s, 70 * s); img(hs2, sx, sy, 0, 'mm', 1, 0, 74 * s); } else img(held, sx, sy, 0, 'mm', 1, 0, 70 * s);
+        const age = OF.comboAge(S), lim = held === 'safe' && !S.safeLapsed ? OF.T.safeEvery : OF.T.comboLeak, f = Math.min(1, age / lim);
+        cx.save(); cx.lineWidth = 6 * s; cx.strokeStyle = held === 'safe' && !S.safeLapsed ? '#8fe68f' : f > .7 ? '#ff6a4f' : f > .45 ? '#f2c14a' : '#8fe68f'; cx.beginPath(); cx.arc(sx, sy, 46 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f); cx.stroke(); cx.restore();
+        if (!mini && (held === 'param' || S.safeLapsed) && S.started && f > .55) text('tap: new combo', sx, sy + 58 * s, 14, '#ffd08a');
+        if (!mini && S.safeLapsed) text('unpaid', sx, sy - 54 * s, 14, '#ff9a8a');
+      } else if (dragging === 'param' || dragging === 'safe') glowSpot(OFFICE_SPOT.param(), true);
+      if (!mini && L.W > L.H) plaque('Strongroom · database', L.strong[0] + L.strong[2] / 2, L.strong[1] - 18); }
+    // The dumbwaiter: open, and the intern's tray, once bought.
+    { const [x, y, w, h] = L.hatch;
+      if (S.waiter) {
+        const ws = ofSprite('waiter'), wi = ws && IMG[ws];
+        if (ws) img(ws, x + w / 2, y - 6 * s + w * 1.08 * wi.height / wi.width, 0, 'mb', 1, 0, w * 1.08); // its frame over the painted hatch, the rope hanging below
+        else { cx.save(); cx.fillStyle = '#120a06'; cx.fillRect(x + 6 * s, y + 6 * s, w - 12 * s, h - 12 * s); cx.fillStyle = '#9a6a3a'; cx.fillRect(x + 6 * s, y + h - 22 * s, w - 12 * s, 10 * s); cx.restore(); }
+        const up = M.review ? M.review.tickets.filter(k => k.quiz && (k.phase === 'stamped' || k.phase === 'leak')).length : 0;
+        if (up && !S.waiterLapsed) { img('env', x + w / 2, y + h - 34 * s, 0, 'mm', 1, 0, 40 * s); text(String(up), x + w - 6 * s, y + 10 * s, 18, '#ffd08a'); }
+        if (!mini && S.waiterLapsed) text('unpaid', x + w / 2, y - 14 * s, 14, '#ff9a8a');
+      } else if (dragging === 'waiter') glowSpot(OFFICE_SPOT.waiter(), true); }
+    // The keyring on its nail (gone once shredded), and the ghost copy while one works.
+    { const [x, y] = L.nail; cx.save(); cx.fillStyle = '#6a6a6a'; cx.beginPath(); cx.arc(x, y, 3 * s, 0, Math.PI * 2); cx.fill(); cx.restore();
+      if (S.keyringLive) {
+        if (ofSprite('keyring')) img('of-keyring', x, y - 4 * s + 29 * s, 58 * s, 'mm'); // hung from the nail by its ring
+        else { cx.save(); cx.strokeStyle = '#3a3a3e'; cx.lineWidth = 4 * s; cx.beginPath(); cx.arc(x, y + 16 * s, 14 * s, 0, Math.PI * 2); cx.stroke();
+          cx.strokeStyle = '#55555c'; cx.lineWidth = 5 * s; for (const a of [-.5, 0, .5]) { cx.beginPath(); cx.moveTo(x + Math.sin(a) * 14 * s, y + 30 * s); cx.lineTo(x + Math.sin(a) * 26 * s, y + 52 * s); cx.stroke(); } cx.restore(); }
+        if (S.keyRotateAt) text('...', x, y - 12 * s, 16, '#ffd08a');
+        if (S.stamps.has('star') && !S.badge) text('*', x + 18 * s, y + 4 * s, 20, '#ffb04a'); }
+      if (S.copies.some(c => OF.copyLive(S, c))) ghostKey(x - 26 * s, y + 30 * s, 22 * s, .6 + .4 * Math.sin(now / 150)); }
+    // Mira, the desk lock and the pad and tin on the desk.
+    drawMira();
+    if (!S.badge && (dragging === 'badge')) glowSpot(OFFICE_SPOT.badge(), true);
+    const lockSp = ofSprite(S.started ? 'lock-turned' : 'lock');
+    if (lockSp) img(lockSp, L.lever.x, L.lever.y, 46 * s, 'mm'); // the brass escutcheon, its key upright until the night starts
+    else { const [x, y] = [L.lever.x, L.lever.y], turned = S.started ? Math.PI / 2 * Math.min(1, (1 - leverT) * 1.6) : 0;
+      cx.save(); cx.fillStyle = '#c9a23a'; cx.strokeStyle = '#140a05'; cx.lineWidth = 3; cx.beginPath(); cx.ellipse(x, y, 12 * s, 16 * s, 0, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      cx.translate(x, y); cx.rotate(S.started ? Math.PI / 2 : turned); cx.fillStyle = '#e2bd62'; cx.fillRect(-3 * s, -22 * s, 6 * s, 24 * s); cx.beginPath(); cx.arc(0, -24 * s, 7 * s, 0, Math.PI * 2); cx.fill(); cx.stroke(); cx.restore(); }
+    if (S.pad) img(ofSprite('pad') || 'pad', L.pad[0], L.pad[1] - 6 * s, 0, 'mm', 1, -.08, (ofSprite('pad') ? 46 : 40) * s);
+    if (S.cache) { img(ofSprite('tin') || 'cache', L.tin[0], L.tin[1] - 6 * s, 0, 'mm', 1, 0, (ofSprite('tin') ? 42 : 36) * s); if (S.tinLeft > 0) text(String(S.tinLeft), L.tin[0] + 16 * s, L.tin[1] - 24 * s, 14, '#ffe08a'); }
+    if ((dragging === 'pad' && !S.pad) || (dragging === 'cache' && !S.cache)) glowSpot(OFFICE_SPOT.pad(), true);
+    // Mira's three seats.
+    for (let i = 0; i < S.seat.length; i++) drawStoolO(i);
+    if (!mini && S.started) plaque(`Mira · ${S.seat.length} seats`, L.desk.x, L.fl - (L.W > L.H ? 20 : 4) * L.fs);
+    // Tickets.
+    for (const k of S.tickets) { if (k.quiz) { if (k.phase === 'slide') { const u = k.dur ? Math.min(1, k.t / k.dur) : 0; img('env', ...arc(L.slot, [L.asks.x, L.asks.y], 120, ease(u)), 0, 'mm', 1, 0, 40 * s); } continue; } const d = officeTicketDraw(k); if (d) drawEnvelope(k, d); }
+    if (painted) { const [x, y] = L.wait; cx.save(); cx.strokeStyle = '#9a9fa6'; cx.lineWidth = 3; cx.fillStyle = 'rgba(28,20,14,.55)'; cx.fillRect(x - 34 * s, y - 16 * s, 68 * s, 16 * s);
+      cx.strokeRect(x - 34 * s, y - 30 * s, 68 * s, 30 * s); cx.lineWidth = 2; for (let i = 1; i < 6; i++) { cx.beginPath(); cx.moveTo(x - 34 * s + i * 11 * s, y - 30 * s); cx.lineTo(x - 34 * s + i * 11 * s, y); cx.stroke(); }
+      cx.beginPath(); cx.moveTo(x - 34 * s, y - 15 * s); cx.lineTo(x + 34 * s, y - 15 * s); cx.stroke(); cx.restore(); } // the basket's front, over its letters
+    if (L.asks) drawAsks(dragging);
+    cx.save(); cx.fillStyle = 'rgba(120,180,255,.85)'; fx.forEach(f => { cx.beginPath(); cx.arc(f.x, f.y, 5 * (1 - f.t), 0, Math.PI * 2); cx.fill(); }); cx.restore();
+    const keep = labelLog; labelLog = null; // pop-ups float away: not checked
+    pops.forEach(p => { cx.save(); cx.globalAlpha = Math.min(1, 2.4 - p.t * 2); text(p.text, p.x, p.y - p.t * 50, p.size, p.col); cx.restore(); });
+    labelLog = keep;
+    if (mini) return;
+    // Before the night: the key glows until it's turned.
+    if (!S.started) {
+      const p = .5 + .5 * Math.sin(now / 260); cx.save(); const g = cx.createRadialGradient(L.lever.x, L.lever.y, 6, L.lever.x, L.lever.y, L.lever.r);
+      g.addColorStop(0, `rgba(255,214,102,${.4 + p * .2})`); g.addColorStop(1, 'rgba(255,214,102,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(L.lever.x, L.lever.y, L.lever.r, 0, Math.PI * 2); cx.fill(); cx.restore();
+      text('TURN THE KEY', L.lever.label[0], L.lever.label[1], 22, '#ffe08a');
+    }
+    lastLabels = labelLog; labelLog = null;
+    if (flashT) { cx.save(); cx.fillStyle = `rgba(255,80,60,${flashT * .35})`; cx.fillRect(0, 0, L.W, L.H); cx.restore(); }
+    if (letterAnim && S === M) { const u = Math.min(1, letterAnim.t / 1.1), p = [L.slot[0], lerp(L.slot[1], L.intray[1] - 30, ease(u))];
+      cx.save(); cx.shadowColor = 'rgba(255,214,102,.9)'; cx.shadowBlur = 24; img('env', p[0], p[1], 0, 'mm', 1, 0, 70 * s); cx.restore(); text('A letter!', p[0] + 40, p[1] - 44 * s, 24, '#ffe08a'); }
+  }
+
+  // ---- The office's events ----
+  function officeEvent(e, away, k) {
+    const s = L.hs, cabTop = [L.cab[0] + L.cab[2] / 2, L.cab[1] - 30 * s];
+    const alarm = () => { RC.main.alarm = 2.5; if (away && M.started) say('alarmMain', 'surprised', OLINES.alarmOffice); };
+    switch (e.type) {
+      case 'latch': {
+        ofx.latch = { res: e.res, t: 1.1 }; sfx(e.res === 'allow' ? 'rTick' : 'rThud');
+        if (e.res === 'allow' && (e.kind === 'post' || e.kind === 'clerk')) osay('latchGreen', 'neutral');
+        if (e.res === 'implicit') {
+          if (e.kind === 'clerk') osay('riversideRefused', 'tired'); else if (e.kind === 'lookup') osay('lookupNeedsRead', 'tired');
+          else if (e.kind === 'post' || e.kind === 'chore') osay('latchGrey', 'tired'); else if (M.started) osay('latchGrey', 'neutral');
+          popAt([L.latch[0] + 40, L.latch[1] - 60 * s], e.kind === 'clerk' ? 'refused' : 'no allow', '#d8d8d0', 22);
+        }
+        if (e.res === 'explicit') { osay(e.kind === 'chore' ? 'denied' : 'latchRed', 'surprised'); popAt([L.latch[0] + 40, L.latch[1] - 60 * s], 'denied', '#ff8070', 24); }
+        if (e.res !== 'allow') ofx.shred = 1;
+        return true;
+      }
+      case 'pickpocket': sfx('wrong'); ofx.alibi = 2.6; alarm(); osay('pickpocket', 'surprised'); if (e.cred === 'keyring') osay(M.badge ? 'keyringStill' : 'keyringCopy', 'angry'); return true;
+      case 'copyDead': if (e.cred === 'badge') { osay('copyExpired', 'smile'); popAt([L.badge[0], L.badge[1] - 40 * s], 'copy expired', '#9fe0ff', 22); } return true;
+      case 'thiefDone': popAt(cabTop, `stolen -${e.n}`, '#d59cff', 26); alarm(); osay('thief', 'angry'); if (M.stamps.has('star')) osay(M.badge ? 'star' : 'starKeyring', 'angry'); return true;
+      case 'forgedDone': popAt(cabTop, e.want === 'empty' ? 'drawer emptied' : 'payroll read', '#d59cff', 24); alarm(); osay('forged', 'angry'); if (M.stamps.has('star')) osay('star', 'angry'); if (e.warm) { osay('cacheLeak', 'angry'); popAt([L.tin[0], L.tin[1] - 40 * s], 'cached key taken', '#ff8a7a', 22); } return true;
+      case 'streetIn': popAt(cabTop, 'walked in', '#ffb27a', 26); alarm(); osay('streetIn', 'angry'); return true;
+      case 'tooBigTry': return true;
+      case 'tooBig': popAt([seatTop(k ? k.lastSeat || 0 : 0)[0], seatTop(0)[1] - 40 * s], 'too big (4 KB)', '#ff9a8a', 22); osay('tooBig', 'tired'); return true;
+      case 'box': ofx.box = .6; if (e.kind === 'datakey') osay('pad', 'smile'); return true;
+      case 'tin': ofx.box = .3; return true;
+      case 'boxThrottle': sfx('rThud'); ofx.boxRed = .8; popAt([L.keybox[0], L.keybox[1] - L.keybox[3] / 2 - 26 * s], 'throttled', '#ff8a7a', 22); osay('boxThrottle', 'tired'); return true;
+      case 'comboLeak': sfx('wrong'); alarm(); if (e.why === 'note') { ofx.alibi = 2.6; osay('noteRead', 'tired'); } else osay('comboAged', 'angry'); return true;
+      case 'comboThief': ofx.alibi = Math.max(ofx.alibi, 1.2); return true;
+      case 'comboDone': popAt([L.dial[0], L.dial[1] - 50 * s], 'strongroom robbed', '#ff8a7a', 22); alarm(); osay('comboThief', 'angry'); return true;
+      case 'rotate': sfx('rLock'); popAt([L.secret[0], L.secret[1] - 60 * s], 'new combination', '#9be59b', 22); if (e.by === 'hand') osay('rotate', 'smile'); return true;
+      case 'rotRetry': return true;
+      case 'hold': return true;
+      case 'shredKeys': sfx('rClank'); ofx.shred = 1.4; popAt([L.shredder[0], L.shredder[1] - L.shredder[3] - 30 * s], 'keys shredded', '#9be59b', 24); osay('shredded', 'smile'); return true;
+      case 'rotateKeys': sfx('rLock'); osay('rotateKeys', 'neutral'); return true;
+      case 'keysRotated': popAt([L.nail[0], L.nail[1] - 30 * s], 'new keys', '#9be59b', 22); return true;
+      case 'badgeOn': osay('star', 'tired'); return true;
+      case 'deployed': popAt([L.mira[0], L.mira[1] - 70 * s], 'stamps deployed', '#9be59b', 22); return true;
+      case 'tinPicked': popAt([L.tin[0], L.tin[1] - 40 * s], 'cached key taken', '#ff8a7a', 22); alarm(); osay('tinPicked', 'angry'); return true;
+      case 'stamp': case 'sign': case 'scope': return true;
+      case 'book': popAt([L.door[0] + L.door[2] / 2, L.door[1] - 20 * s], 'signs the book', '#bfe3c4', 22); osay('book', 'neutral'); return true;
+      case 'upkeepMissed': popAt([L.W / 2, L.H * .4], R.TOOLS[e.tool].name + ' unpaid', '#ff9a8a', 26); osay('upkeepMissed', 'angry', R.TOOLS[e.tool].name.toLowerCase()); return true;
+      case 'ask': sfx('rPage'); osay('desk', 'neutral'); return true;
+      case 'internAnswer': sfx('rStamp'); osay('internDesk', 'smile'); return true;
+      case 'wave':
+        // Wave 1: Dutch names what's already wrong, so there's time to fix it before the Alibi turns up.
+        if (e.wave === 1) {
+          if (M.stamps.has('star')) { osay('works', 'neutral'); osay(M.badge ? 'star' : 'starKeyring', 'tired'); }
+          if (M.secret === 'note') osay('noteLeft', 'tired');
+          if (M.sign === 'anyone' && !M.visitors) osay('signAnyone', 'tired');
+        }
+        return false;
+    }
+    return false;
+  }
+  // A frame's worth of the office's own animations, and Dutch's nudges.
+  function officeTick(dt) {
+    if (!M || !M.office) return;
+    for (const k of ['box', 'boxRed', 'alibi', 'shred', 'sign']) ofx[k] = Math.max(0, (ofx[k] || 0) - dt);
+    if (ofx.latch) ofx.latch.t -= dt;
+    if (M.started && !M.over && M.wave === 2 && OF.canEdit(M) && !M.stamps.has('read') && !M.stamps.has('star')) osay('readSoon', 'neutral');
+    if (M.started && M.secret === 'param' && OF.comboAge(M) > OF.T.comboLeak - 5 && !M.comboLeaked) osay('paramSoon', 'neutral');
+  }
+
+  // ---- The office's hands ----
+  const nearPt = (p, q, r) => Math.hypot(p[0] - q[0], p[1] - q[1]) < r;
+  function officeTap(p, lettersOnly) {
+    const s = L.hs;
+    if (lettersOnly) {
+      const hit = askList().slice(0, L.asks.max).find(k => nearPt(p, askPos(k), 44 * Math.max(s, .9)));
+      if (hit) { openReview(hit, hit.phase === 'ask' ? 'ask' : 'check', M); return true; }
+      return false;
+    }
+    const h = L.hatch;
+    if (inRect(p, [h[0], h[1], h[2], h[3]], 14)) {
+      if (!M.waiter) { osay('noWaiter', 'neutral'); said['of-noWaiter'] = 0; return true; }
+      if (M.waiterLapsed) { osay('upkeepMissed', 'angry', 'dumbwaiter'); return true; }
+      const k = M.review && M.review.tickets.filter(x => x.quiz && (x.phase === 'stamped' || x.phase === 'leak')).sort((a, b) => a.stampAt - b.stampAt)[0];
+      if (k) openReview(k, 'check', M.review); else popAt([h[0] + h[2] / 2, h[1] - 10], 'nothing to check', '#e8dcc4', 22);
+      return true;
+    }
+    const sg = L.sign;
+    if (inRect(p, [sg[0] - sg[2] / 2, sg[1] - sg[3] / 2, sg[2], sg[3]], 12)) {
+      if (M.visitors) { osay('signScrewed', 'neutral'); return true; }
+      const next = { anyone: 'office', office: 'riverside', riverside: 'anyone' }[M.sign];
+      OF.setSign(M, next); ofx.sign = .5; sfx('rClank');
+      osay(next === 'office' ? 'signOffice' : next === 'riverside' ? 'signRiverside' : 'signAnyone', 'neutral');
+      return true;
+    }
+    if (M.keyringLive && nearPt(p, [L.nail[0], L.nail[1] + 26 * s], 42 * Math.max(s, .9))) { openKeyring(); return true; }
+    if (nearPt(p, L.secret, 52 * Math.max(s, .9)) && (M.secret === 'param' || M.secret === 'safe')) {
+      const r = OF.rotate(M); if (r === 'auto') popAt([L.secret[0], L.secret[1] - 60 * s], 'rotates by itself', '#9be59b', 22);
+      return true;
+    }
+    if (M.secret === 'note' && nearPt(p, L.note, 36)) { osay('noteTap', 'tired'); said['of-noteTap'] = 0; return true; }
+    if (inRect(p, [L.mira[0] - 56 * s, L.mira[1] - 46 * s, 112 * s, L.deskTop - L.mira[1] + 46 * s])) { openBadge(); return true; }
+    return false;
+  }
+  // In claim 7's cellar, tap the intern to set its scope.
+  function officeCellarTap(p) {
+    if (!S.intern || !L.asks) return false;
+    if (nearPt(p, [L.asks.intern[0], L.asks.intern[1] - 37], 50)) { openScope(); return true; }
+    return false;
+  }
+  // Placing an office buy: Dutch's line for it.
+  function officePlaced(tool) { if (OLINES[tool === 'waiter' ? 'waiter' : tool]) osay(tool, 'neutral'); }
+  // For tools/rush_check_office.js: where things are on screen, in CSS pixels.
+  function officeHooks(toClient) {
+    const c = p => toClient(p), Lm = () => (view === 'main' ? L : LM);
+    return {
+      lock: () => c([LM.lever.x, LM.lever.y]), mira: () => c([LM.mira[0], LM.mira[1]]), keyring: () => c([LM.nail[0], LM.nail[1] + 26 * LM.hs]),
+      sign: () => c([LM.sign[0], LM.sign[1]]), secret: () => c(LM.secret), hatch: () => c([LM.hatch[0] + LM.hatch[2] / 2, LM.hatch[1] + LM.hatch[3] / 2]),
+      intern: () => c([LR.asks.intern[0], LR.asks.intern[1] - 37]), deskAsk: id => { let q = null; withRoom('main', () => { const k = M.tickets.find(x => x.id === id); q = k && toClient(askPos(k)); }); return q; },
+      layout: () => Lm(),
+      // The main room's labels (plaques, the sign's tag), counters and prompts as last drawn, as CSS-pixel boxes.
+      labels: () => (view === 'main' && lastSay ? [{ kind: 'bubble', t: 'Dutch', r: lastSay }] : []).concat(view === 'main' ? lastLabels : []).map(l => { const a = toClient([l.r[0], l.r[1]]), b = toClient([l.r[0] + l.r[2], l.r[1] + l.r[3]]); return { kind: l.kind, t: l.t, r: [a[0], a[1], b[0] - a[0], b[1] - a[1]] }; })
+    };
+  }
 
   // ---- Hands ----
   function toStage(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / scale, (e.clientY - r.top - oy) / scale]; }
   function tryPlace(tool, where) {
+    if (V().yard && yardPlace(tool, where)) return; // claim 9: blueprint changes and switches
     // A placed tool with a use: the retry dial turns, the crate replays a refund for a coin.
     if (V()[tool] && USE_LABEL[tool]) {
       const u = R.turn(V(), tool), at = where || [L.W / 2, beltRect()[1] - 20];
@@ -1600,22 +4289,28 @@
     if (why) return;
     R.place(V(), tool);
     sfx(tool === 'reserve' || tool === 'ondemand' ? 'rLock' : tool === 'bell' ? 'rBell' : tool === 'shard' ? 'rStamp' : 'rClank');
-    say(tool, 'neutral', LINES[tool]);
+    if (LINES[tool]) say(tool, 'neutral', LINES[tool]);
+    if (S.office) officePlaced(tool); // Claim 7: the Locked Desk
     if (tool === 'bin' && !V().rack) say('binNoRack', 'neutral', LINES.binNoRack);
   }
   cv.addEventListener('pointerdown', e => {
     if (qEl.classList.contains('on')) return;
+    if (M.audit) { AUD.down(toStage(e)); return; } // claim 8: tap to arm, tap to place, tap to read
     const p = toStage(e);
     if (M.review && inRect(p, L.inset.r)) { switchRoom(); return; }
     // In the cellar: tap a review question to answer it, or one of the intern's to check it.
     if (view === 'review' && M.review) {
       let hit = null; withRoom('review', () => { hit = askList().slice(0, L.asks.max).find(k => Math.hypot(p[0] - askPos(k)[0], p[1] - askPos(k)[1]) < 40); });
       if (hit) { openReview(hit, hit.phase === 'ask' ? 'ask' : 'check'); return; }
+      if (M.office && officeCellarTap(p)) return; // claim 7: the intern's scope
     }
+    if (view === 'main' && L.yard && yardDown(p, e)) return; // claim 9: the yard's levers, dial, board and crates
+    if (view === 'main' && M.office && officeTap(p, true)) return; // claim 7: letters on the desk
     for (let i = 0; i < TOOLS.length; i++) if (inRect(p, slotRect(i))) {
       drag = { tool: tool(i), x: p[0], y: p[1], sx: p[0], sy: p[1], moved: false };
       cv.setPointerCapture(e.pointerId); return;
     }
+    if (view === 'main' && M.office && officeTap(p, false)) return; // claim 7: the office's hotspots
     if (Math.hypot(p[0] - L.lever.x, p[1] - L.lever.y) < L.lever.r) { R.start(S); return; }
   });
   cv.addEventListener('pointermove', e => {
@@ -1630,8 +4325,10 @@
   });
   cv.addEventListener('pointercancel', () => { drag = null; });
   addEventListener('keydown', e => {
+    if (SD.rushHall && SD.rushHall.up()) return; // the hall, debrief or parts cart is in front (js/rush-hall.js)
     // M (or V, as in the main game) mutes and unmutes everything.
     if ((e.key === 'm' || e.key === 'v') && AU) { AU.toggleMute(); return; }
+    if (M.audit && !qEl.classList.contains('on')) { AUD.key(e); return; } // claim 8
     if ((e.key === 'Tab' || e.key === 'q' || e.key === 'Q') && M.review && !qEl.classList.contains('on')) { e.preventDefault(); switchRoom(); return; }
     if (letterOpen || reviewOpen) { const n = +e.key, b = qEl.querySelectorAll(reviewOpen && reviewOpen.mode === 'check' ? '.lt-verdict button' : '.lt-opts button')[n - 1]; if (b) b.click(); return; }
     if (qEl.classList.contains('orders')) { const b = qEl.querySelectorAll('.no-card')[+e.key - 1]; if (b) b.click(); return; }
@@ -1646,8 +4343,10 @@
     const w = innerWidth, h = innerHeight;
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     const tall = qs.has('tall') || w < h * 0.85, dock = S && DOCK.has(S.claim), vault = S && VAULT.has(S.claim);
-    LM = dock ? (tall ? DOCK_TALL : DOCK_WIDE) : vault ? (tall ? VAULT_TALL : VAULT_WIDE) : (tall ? TALL : WIDE);
+    LM = S && YARD.has(S.claim) ? (tall ? YARD_TALL : YARD_WIDE) : dock ? (tall ? DOCK_TALL : DOCK_WIDE) : vault ? (tall ? VAULT_TALL : VAULT_WIDE) : (tall ? TALL : WIDE);
+    if (S && S.office) LM = tall ? OFFICE_TALL : OFFICE_WIDE; // claim 7
     LR = tall ? REVIEW_TALL : REVIEW_WIDE;
+    if (S && S.audit) LM = tall ? WATCH_TALL : WATCH_WIDE; // claim 8
     if (M) home(); else L = LM;
     scale = Math.min(w / L.W, h / L.H); ox = (w - L.W * scale) / 2; oy = (h - L.H * scale) / 2;
   }
@@ -1657,13 +4356,23 @@
   const first = qs.get('claim') || 'rush';
   if (qs.get('orders')) run.orders = qs.get('orders').split(',').filter(o => ORDER[o]);
   reset(SEED, first);
-  if (!qs.get('orders')) showPick(first);
+  // With no ?claim or ?orders, the night starts in the claims hall (js/rush-hall.js): a door opens a claim's pick.
+  if (!qs.get('orders') && !qs.get('claim') && SD.rushHall) SD.rushHall.open(c => showPick(c));
+  else if (!qs.get('orders')) showPick(first);
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {
-    get S() { return M; }, get run() { return run; }, get view() { return view; }, switchRoom, reset, showPick, place: tryPlace, start: () => R.start(M), turn: t => R.turn(M, t),
+    get S() { return M; }, get run() { return run; }, letters: LETTERS, toolSrc, get view() { return view; }, switchRoom, reset, showPick, place: tryPlace, start: () => R.start(M), turn: t => R.turn(M, t),
     at: { slot: i => { const r = slotRect(i); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, spot: t => { const r = spot(t); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, lever: () => toClient([L.lever.x, L.lever.y]), inset: () => { const r = L.inset.r; return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
       ask: id => { let q = null; withRoom('review', () => { const k = M.review.tickets.find(x => x.id === id); q = k && toClient(askPos(k)); }); return q; } }
   };
+  // ==== Claim 9: for tools/rush_check_yard.js, where the yard's handles are (CSS pixels) ====
+  SD_RUSH.yard = { get ui() { return yUI; }, open: card => openInspection(card),
+    at: { rlever: () => toClient([L.rlever.x, L.rlever.y - L.rlever.h * .55]), dial: () => toClient(L.points.dial), board: () => toClient([L.board.x, L.board.y]),
+      mast: () => toClient([L.mast.x, L.mast.y - L.mast.h / 2]), office: () => toClient([L.office.x, L.office.y - L.office.h / 2]),
+      siding: () => toClient([(L.siding.x0 + L.siding.x1) / 2, L.siding.y - 20]), hotfix: () => { const p = hotfixCratePos(); return p && toClient(p); } } };
+  // ==== end claim 9 ====
+  window.SD_RUSH.audit = AUD.api; // claim 8, for tools/rush_check_audit.js
+  window.SD_RUSH.office = officeHooks(toClient); // claim 7, for tools/rush_check_office.js
   load().then(() => requestAnimationFrame(frame));
 })();

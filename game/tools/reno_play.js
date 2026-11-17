@@ -5,6 +5,9 @@
 // that should play do. It plays each job with its best plan (R.par), after one failing plan on the first job of each
 // night, and answers every permit question right except one a night.
 // Run from game/:  node tools/reno_play.js [phone|desktop]     SHOTS=dir saves a screenshot of every screen.
+// Later nights: NIGHTS=4-6 starts on night 4 (the save seeded as if nights 1 to 3 were played) and plays to night 6;
+// MISSES=rush,grandBridge seeds the jobs missed before the first of them; GIVE=n4j2,n4j5 takes those jobs to the permit
+// on a failing plan, so they're missed, and checks they come back first (a Grand Opening as the next Grand Opening).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -22,6 +25,10 @@ const server = http.createServer((req, res) => {
 const fails = [];
 const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok   ' : 'FAIL ') + what); };
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const [N0, N1] = (process.env.NIGHTS || '1-3').split('-').map(Number).concat([]).map((x, i, a) => x || a[0]);
+const NIGHTS = []; for (let n = N0; n <= (N1 || N0); n++) NIGHTS.push(n);
+const MISSES = (process.env.MISSES || '').split(',').filter(Boolean);
+const GIVE = new Set((process.env.GIVE || '').split(',').filter(Boolean));
 
 (async () => {
   await new Promise(r => server.listen(0, r));
@@ -140,7 +147,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await click('#rn-go', tag + '-to-plan');
     const info = await par();
     // The first job of a night: a plan that fails (or, where every plan that builds passes, one the client refuses).
-    const plans = o.fail ? [(await failing()) || { refuse: true }, info.plan] : [info.plan];
+    const give = GIVE.has(tag) ? await failing() : null;
+    if (GIVE.has(tag)) check(!!give, `${TAG} ${tag}: a failing plan exists to take to the permit`);
+    const plans = give ? [give] : o.fail ? [(await failing()) || { refuse: true }, info.plan] : [info.plan];
     for (let i = 0; i < plans.length; i++) {
       if (plans[i].refuse) {
         await runPlan(); await wait(600);
@@ -166,8 +175,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       if (i < plans.length - 1 && !plans[i + 1].refuse) { check(!!(await page.$('#rn-again')), `${TAG} ${tag}: a failed plan offers another`); await click('#rn-again', `${tag}-again`); }
     }
     console.log('     sounds through the runs: ' + (await sounds()).join(', '));
-    check(!!(await page.$('#rn-deb')), `${TAG} ${tag}: the plan passes and the permit follows`);
-    await click('#rn-deb', tag + '-to-permit');
+    if (give) {
+      const g = (await page.$('#rn-give')) ? '#rn-give' : '#rn-deb';
+      check(!!(await page.$(g)), `${TAG} ${tag}: a failed plan can go to the permit as it is`);
+      await click(g, tag + '-give');
+    } else {
+      check(!!(await page.$('#rn-deb')), `${TAG} ${tag}: the plan passes and the permit follows`);
+      await click('#rn-deb', tag + '-to-permit');
+    }
     // Seymour's what-if (the second and fourth job of a night): chalk every line, run it, then on to the permit.
     if (await page.$('#rn-wi-run')) {
       await audit(tag + ' what-if'); await shot(tag + '-whatif');
@@ -198,21 +213,38 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     return info;
   };
 
-  for (const night of [1, 2, 3]) {
+  if (N0 > 1) await page.evaluate(([n, misses]) => { SD.state.save.renoKeep = { night: n - 1, taught: {}, carry: [], misses, last: {} }; delete SD.state.save.reno; SD.state.persist(); }, [N0, MISSES]);
+  for (const night of NIGHTS) {
+    const before = await page.evaluate(() => JSON.parse(JSON.stringify(SD.state.save.renoKeep || { misses: [] })));
     await page.evaluate(() => SD.modes.open()); await wait(400);
     await page.click('[data-mode="draft"]'); await wait(900);
     const s = await st();
     check(s.night === night, `${TAG}: night ${night} opens`);
+    const ids = s.jobs.map(j => j.id);
+    console.log(`     night ${night}'s jobs: ${ids.join(', ')} (missed before: ${(before.misses || []).join(', ') || 'none'})`);
+    if (night > 3) {
+      const T = await page.evaluate(() => Object.fromEntries(Object.entries(SD.reno.T).map(([k, v]) => [k, { d: v.d, grand: !!v.grand }])));
+      const miss = before.misses || [], back = miss.filter(id => !T[id].grand), gm = miss.find(id => T[id].grand);
+      const per = {}; ids.slice(0, -1).forEach(id => { per[T[id].d] = (per[T[id].d] | 0) + 1; });
+      const want = back.filter((id, i) => back.slice(0, i).filter(x => T[x].d === T[id].d).length < 2).slice(0, ids.length - 1);
+      check(want.every((id, i) => ids[i] === id), `${TAG} night ${night}: the jobs missed before come back first (${want.join(', ') || 'none'})`);
+      check(!gm || ids[ids.length - 1] === gm, `${TAG} night ${night}: a missed Grand Opening comes back as tonight's (${gm || 'none'})`);
+      check(['eb', 'lam', 'cfn'].every(d => per[d]), `${TAG} night ${night}: the jobs before the Grand Opening mix all three districts (${JSON.stringify(per)})`);
+      check(Object.values(per).every(x => x <= 2), `${TAG} night ${night}: no more than two jobs from one district before the Grand Opening`);
+      check(new Set(ids).size === ids.length, `${TAG} night ${night}: no job twice in a night`);
+    }
     console.log(`     sounds entering night ${night}: ` + (await sounds()).join(', '));
     for (let k = 0; k < s.jobs.length; k++) await job(night, k, { fail: k === 0, right: k !== 1 });
     // The Grand Opening: the market square, the ribbon cut a beat after the screen opens.
-    check((await st()).phase === 'end', `${TAG} night ${night}: the night ends on the Grand Opening`);
+    const endS = await st(), cut = endS.jobs[endS.jobs.length - 1].pass;
+    check(endS.phase === 'end', `${TAG} night ${night}: the night ends on the Grand Opening`);
     await shot(`n${night}-end-0s`);
     await wait(1400);
     await audit(`night ${night} Grand Opening`); await shot(`n${night}-end`);
     const snd = await sounds();
     console.log(`     sounds at the Grand Opening: ` + snd.join(', '));
-    check(snd.some(x => /ribbon|draft-win/.test(x)), `${TAG} night ${night}: the ribbon sting plays when the ribbon is cut, in the square`);
+    if (cut) check(snd.some(x => /ribbon|draft-win/.test(x)), `${TAG} night ${night}: the ribbon sting plays when the ribbon is cut, in the square`);
+    else check(!snd.some(x => /ribbon|draft-win/.test(x)), `${TAG} night ${night}: no ribbon sting when the ribbon stays uncut`);
     await page.click('#rn-done'); await wait(900);
     console.log(`     sounds leaving: ` + (await sounds()).join(', '));
     await shot(`n${night}-home`);

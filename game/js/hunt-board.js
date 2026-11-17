@@ -65,6 +65,7 @@
     if (tile === 'door' && cfg.door) {
       const v = f ? f.door : SD.awsSim.iamEval(cfg.door).why;
       const seal = { allow: ['ok', 'ALLOW', 'Allow'], deny: ['red', 'DENY', 'Explicit deny'], implicit: ['grey', 'NO ALLOW', 'No allow'], trust: ['grey', 'NOT YOU', 'Trust policy: not you'] }[v] || ['grey', '?', 'Unknown'];
+      sign = { allow: 'Allow', deny: 'explicit Deny', implicit: 'implicit deny: no Allow', trust: 'sts:AssumeRole: trust policy says no' }[v] || '';
       live = `<span class="hb-seal hb-${seal[0]}" role="img" aria-label="Door seal: ${seal[2]}"><span aria-hidden="true">${seal[1]}</span></span>${nOf('leak') ? '<span class="hb-stamp">DELETED!</span>' : ''}`;
     }
     if (tile === 'queue' && cfg.queue) {
@@ -76,12 +77,17 @@
       const tag = b.mons.includes('poison') && (inQ || recv) ? `<span class="hb-tag${inQ ? '' : ' gone'}" role="img" aria-label="Bad order: received ${plural(recv, 'time')}"><span aria-hidden="true">☠</span><b class="hb-chalk" aria-hidden="true">${'|'.repeat(recv) || '·'}</b></span>` : '';
       const dlqOn = st.placed.includes('dlq') || st.placed.includes('dlqfifo');
       live = `<span class="hb-crates" role="img" aria-label="${plural(n, 'message')} in the queue${out ? `, ${out} out being handled` : ''}">${pile}</span><b class="hb-n" aria-hidden="true">${n}${out ? ` · ${out} out` : ''}</b>${tag}${dlqOn ? `<span class="hb-jar${jar ? ' full' : ''}" role="img" aria-label="Dead-letter jar: ${plural(jar, 'message')}"><b class="hb-lid" aria-hidden="true"></b>${rep(Math.min(jar, 3), () => crate('bad'))}${nOf('dlq') ? crate('bad hb-fly') : ''}<b class="hb-jn" aria-hidden="true">${jar}</b></span>` : ''}`;
-      sign = cfg.queue.fifo ? 'FIFO' : 'Standard';
+      // The real settings beside the picture (Ladi, Nov 17): the visibility timeout as it stands with your cards, and
+      // the bad crate's receive count against the redrive policy's maxReceiveCount once a DLQ is placed.
+      const effQ = JSON.parse(JSON.stringify(cfg));
+      st.placed.forEach(id => { if (C[id].tile === 'queue' && !(C[id].refuse && C[id].refuse(cfg))) C[id].apply(effQ); });
+      sign = `${cfg.queue.fifo ? 'FIFO' : 'Standard'} · VisibilityTimeout ${effQ.queue.vis * 15} s`;
+      if (b.mons.includes('poison') && (inQ || recv)) live += `<small class="hb-real">ApproximateReceiveCount ${recv}${dlqOn ? ` · maxReceiveCount ${effQ.queue.maxReceive}` : ''}</small>`;
     }
     if (tile === 'fn') {
       const busy = f ? f.busy : 0, stools = f ? f.stools : cfg.fn.stools, shown = Math.min(stools, 20);
       live = `<span class="hb-stools${shown > 10 ? ' two' : ''}" role="img" aria-label="Function: ${f ? `${busy} of ${stools} stools busy` : `${stools} stools, so ${stools} at once`}">${rep(shown, k => `<i class="${k < busy ? 'busy' : ''}"></i>`)}</span>${stools > 20 ? `<b class="hb-n">+${stools - 20}</b>` : ''}${nOf('dupe') ? '<span class="hb-stamp">TWICE!</span>' : ''}${nOf('fail') ? '<span class="hb-stamp">FAILED</span>' : ''}`;
-      sign = `${f ? `${busy} of ${stools} busy` : `${stools} at once`}${cfg.fn.work > 1 ? ` · ${cfg.fn.work * 15} s each` : ''}`;
+      sign = `${f ? `ConcurrentExecutions ${busy} of ${stools}` : `${stools} at once`}${cfg.fn.reserved ? ` · ReservedConcurrentExecutions ${stools}` : ''}${cfg.fn.work > 1 ? ` · ${cfg.fn.work * 15} s each` : ''}`;
       // The Phantom's function: its timeout and memory (with the cards you placed), and a stamp for each kind of error.
       if (cfg.fn.timeoutS != null) {
         const eff = JSON.parse(JSON.stringify(cfg));
@@ -238,6 +244,7 @@
     .hb-tn { grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; padding: 7px 6px 0 0; font-size: 12px; line-height: 1.25; }
     .hb-tn > b { font: 800 11px/1.2 var(--f-head); letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border: 1px solid #c9a24a; border-radius: 3px; background: #3a2c14; color: #ffe2a0; box-shadow: 0 2px 0 #120c06; }
     .hb-sign { color: #c9bca4; font-size: 12px; }
+    .hb-real { display: block; font: 600 10.5px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #f2ead6; text-shadow: 0 1px 0 rgba(0, 0, 0, .8); overflow-wrap: anywhere; }
     .hb-monb { flex-basis: 100%; color: #ff9a7a; font-weight: 800; font-size: 12px; }
     .hb-live { grid-column: 2; align-self: end; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 8px; padding: 4px 6px 6px 0; min-height: 30px; }
     .hb-n { font: 800 12px/1 var(--f-body); color: #ffe2a0; padding: 2px 5px; border-radius: 4px; background: rgba(0, 0, 0, .55); }
@@ -332,8 +339,8 @@
   // already has a stamp on the place). drop: oil lost.
   const POP = {
     throttled: ['gate', null], gaveUp: ['callers', n => `${n} gave up`], fail: ['queue', null], dlq: ['queue', () => 'into the jar', 'good'],
-    dupe: ['fn', n => `twice ×${n}`], dupeBlocked: ['fn', () => 'no change', 'good'], lost: ['queue', n => `${n} purged`], denied: ['door', n => `403 ×${n}`],
-    leak: ['door', () => 'deleted!'], blocked: ['door', () => 'blocked', 'good'], wthrottle: ['table', n => `throttled ×${n}`], wgaveUp: ['table', n => `${n} gave up`]
+    dupe: ['fn', n => `twice ×${n}`], dupeBlocked: ['fn', () => 'no change', 'good'], lost: ['queue', n => `${n} purged`], denied: ['door', n => `403 AccessDenied ×${n}`],
+    leak: ['door', () => 'deleted!'], blocked: ['door', () => 'blocked', 'good'], wthrottle: ['table', n => `ThrottlingException ×${n}`], wgaveUp: ['table', n => `${n} gave up`]
   };
   function runFx(b, f, prev, arrived, oil0) {
     const k = {};

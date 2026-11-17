@@ -177,13 +177,13 @@
   const DIALS = {
     authttl: { at: 'gate', needs: 'auth', label: 'Authorizer cache', icon: 'hourglass', ids: ['ttl0', 'ttl300', 'ttl3600'] },
     gcachettl: { at: 'gate', needs: 'gcache', label: 'Stage cache TTL', icon: 'hourglass', ids: ['gttl0', 'gttl300', 'gttl3600'] },
-    retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
+    retry: { at: 'gate', label: 'Callers\' SDK: retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
     shift: { at: 'fn', needs: 'release', label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
     sec: { at: 'fn', needs: 'secret', label: 'The ledger password', icon: 'key', ids: ['secinit', 'secttl', 'seccall'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
-    key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    key: { at: 'store', label: 'Table and its partition key (set at creation)', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
     cstrat: { at: 'store', needs: 'cache', label: 'Caching strategy', icon: 'card-random', ids: ['cachelazy', 'cachewt'] },
     cttl: { at: 'store', needs: 'cache', label: 'Cache TTL', icon: 'hourglass', ids: ['cttl0', 'cttl10', 'cttl60', 'cttl3600'] },
     uexp: { at: 'fn', needs: 'upload', label: 'URL ExpiresIn', icon: 'stopwatch', ids: ['exp60', 'exp900', 'exp7d', 'exp30d'] },
@@ -209,13 +209,52 @@
     lifecycle: 'Abort unfinished uploads, 1 day', publicput: 'Anyone may PutObject',
     snsattr: 'order_type as an attribute', scopebody: 'Filter reads the body', nofilter: 'Remove the filter', subdlq: 'Redrive → shipping-dlq', rawon: 'Raw message delivery',
     rnone: 'Off', rtrans: 'Lambda ×3', rall: 'States.ALL', catchnone: 'Off', catchno: 'On', catchrp: 'On + $.error', catchfirst: 'States.ALL first',
-    kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
+    kstatus: 'status', korder: 'v2: orderId', kshard: 'v2: status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
     ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
     refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox',
     snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open',
     keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', gflush: 'broom', maxage: 'anticlockwise-rotation' };
+  // The real setting each control writes (Ladi, Nov 17: the AWS term sits beside the action and its result). A dial
+  // shows the line for the value it's on, rewritten as you turn it; a switch or a look carries its own line. These are
+  // the names in the CloudFormation / SAM templates, the API or the SDK config, so the words on the desk are the
+  // words in the docs and on the exam.
+  const REAL = {
+    backoff: 'retry_mode = standard  # backoff + jitter', immediate: '# retry loop, no backoff', plan: 'UsagePlan Throttle: RateLimit 2',
+    burst: 'Account throttle burst (set by AWS)', gtrace: 'TracingEnabled: true',
+    ttl0: 'AuthorizerResultTtlInSeconds: 0', ttl300: 'AuthorizerResultTtlInSeconds: 300', ttl3600: 'AuthorizerResultTtlInSeconds: 3600',
+    authwild: 'Resource: arn:aws:execute-api:…/prod/*/*', snsattr: 'MessageAttributes: order_type', keysplit: 'UsagePlanKey: partner-key',
+    quotaup: 'Quota: { Limit: 100, Period: DAY }', stagerate: 'MethodSettings: ThrottlingRateLimit ↑',
+    gttl0: 'CacheTtlInSeconds: 0', gttl300: 'CacheTtlInSeconds: 300', gttl3600: 'CacheTtlInSeconds: 3600',
+    ckey: 'CacheKeyParameters: [method.request.querystring.customerId]', gflush: 'aws apigateway flush-stage-cache', maxage: 'Cache-Control: max-age=0',
+    vis30: 'VisibilityTimeout: 30', vis60: 'VisibilityTimeout: 60', vis120: 'VisibilityTimeout: 120', vis360: 'VisibilityTimeout: 360',
+    dlq: 'RedrivePolicy: { deadLetterTargetArn: orders-dlq, maxReceiveCount: 3 }', dlqfifo: 'RedrivePolicy: { deadLetterTargetArn: orders-dlq.fifo, maxReceiveCount: 3 }',
+    groups: 'MessageGroupId=customerId', purge: 'aws sqs purge-queue', bisect: 'BisectBatchOnFunctionError: true', retry2: 'MaximumRetryAttempts: 2',
+    onfail: 'DestinationConfig: OnFailure: orders-failed', scopebody: 'FilterPolicyScope: MessageBody', nofilter: 'FilterPolicy: (removed)',
+    subdlq: 'RedrivePolicy: { deadLetterTargetArn: shipping-dlq }', rawon: 'RawMessageDelivery: true',
+    rnone: 'Retry: (none)', rtrans: 'Retry: ErrorEquals [Lambda.TooManyRequestsException, Lambda.ServiceException], BackoffRate 2', rall: 'Retry: ErrorEquals [States.ALL]',
+    catchnone: 'Catch: (none)', catchno: 'Catch: ErrorEquals [CardDeclined] → ReleaseStock', catchrp: 'Catch: [CardDeclined] → ReleaseStock, ResultPath: $.error',
+    catchfirst: 'Catch: [States.ALL] first, then [CardDeclined]',
+    to30: 'Timeout: 30', to60: 'Timeout: 60', to120: 'Timeout: 120', b1: 'BatchSize: 1', b3: 'BatchSize: 3',
+    partial: 'FunctionResponseTypes: [ReportBatchItemFailures]', reserved: 'ReservedConcurrentExecutions: 20',
+    prov: 'ProvisionedConcurrentExecutions: 6  # alias live', provlatest: 'ProvisionedConcurrentExecutions: 6  # $LATEST',
+    rolekms: 'Allow kms:Decrypt on the table\'s key', admin: 'arn:aws:iam::aws:policy/AdministratorAccess',
+    cond: 'ConditionExpression: attribute_not_exists(orderId)', fninvoke: 'Allow execute-api:Invoke',
+    ddbput: 'Allow dynamodb:PutItem on table/orders', ddbstar: 'Allow dynamodb:* on *',
+    secinit: 'GetSecretValue in init code', secttl: 'SECRETS_MANAGER_TTL=300', seccall: 'GetSecretValue on every invoke', refetch: 'On login failure: GetSecretValue again',
+    allatonce: 'DeploymentPreference.Type: AllAtOnce', canary: 'DeploymentPreference.Type: Canary10Percent5Minutes', linear: 'DeploymentPreference.Type: Linear10PercentEvery1Minute',
+    alarm: 'DeploymentPreference.Alarms: [ErrorsAlarm]', hook: 'DeploymentPreference.Hooks: PreTraffic',
+    exp60: 'ExpiresIn=60', exp900: 'ExpiresIn=900', exp7d: 'ExpiresIn=604800', exp30d: 'ExpiresIn=2592000',
+    demand: 'presign UploadPart per part, when asked', userkey: 'AWS_ACCESS_KEY_ID in env vars', single: 'presigned PutObject, one PUT', ftrace: 'Tracing: Active',
+    kstatus: 'orders  KeySchema: status (HASH)', korder: 'orders-v2  KeySchema: orderId (HASH)', kshard: 'orders-v2  KeySchema: status#1-9 (HASH)',
+    wcu: 'WriteCapacityUnits × 2', kprole: 'Key policy: Principal role/orders-fn', kpiam: 'Key policy: Principal arn:aws:iam::<account>:root',
+    consread: 'ConsistentRead: true', daxnode: 'DAX ReplicationFactor: 3', gsiread: 'IndexName: byCustomer, ConsistentRead: true',
+    rotsingle: 'RotationType: PostgreSQLSingleUser', rotalt: 'RotationType: PostgreSQLMultiUser', rotoff: 'RotationSchedule: (removed)',
+    cachelazy: 'read miss → SET key', cachewt: 'every write → SET key', cttl0: 'SET key value  # no EX', cttl10: 'SET key value EX 10', cttl60: 'SET key value EX 60', cttl3600: 'SET key value EX 3600',
+    replica: 'ReplicasPerNodeGroup: 1', flush: 'FLUSHALL', lifecycle: 'AbortIncompleteMultipartUpload: DaysAfterInitiation 1',
+    publicput: 'Principal: "*", Action: s3:PutObject', insights: 'ContributorInsightsSpecification: Enabled', trail: 'lookup-events EventName=Decrypt'
+  };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -226,7 +265,7 @@
   const BAD = { '4XXError': 1, '5XXError': 1, Errors: 1, WriteThrottleEvents: 1 };
   function control(f, id, opts) {
     const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id), placed = f.changes.includes(id);
-    return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text)}">
+    return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text + (REAL[id] ? ' · ' + REAL[id] : ''))}">
       ${opts.icon ? icon(opts.icon) : ''}<span>${esc(SHORT[id] || c.name)}</span>${opts.sw ? `<i class="dr-sw" aria-hidden="true"></i>` : ''}</button>`;
   }
   // talk: { lines, notes } — in the room, what this station's lead says, shown as their speech bubble at their desk.
@@ -239,18 +278,22 @@
     const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
     const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
     const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
-      const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
+      const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '', onId = g.ids.find(id => C[id].on(f.cfg));
+      const line = onId && REAL[onId] ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(REAL[onId])}</code>` : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
-        <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
+        <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span>${line}</div>`;
     }).join('');
     const sws = hand.filter(id => !inDial(id) && !C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-tog' + (C[id].once ? ' once' : ''), icon: SW_ICON[id], sw: !C[id].once })).join('');
+    // The switches that are on, written out as the template would have them, one line each, rewritten as you flip them.
+    const onCfg = hand.filter(id => !inDial(id) && !C[id].obs && C[id].on(f.cfg) && REAL[id]).map(id => `<code class="dr-cfg">${esc(REAL[id])}</code>`).join('');
+    const cfgBox = onCfg ? `<div class="dr-cfgs" aria-live="polite" title="The settings that are on, as AWS spells them">${onCfg}</div>` : '';
     const looks = hand.filter(id => C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-look obs', icon: 'all-seeing-eye' })).join('');
     return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
       ${talk ? said(k, st.who, talk, e.m) : ''}
       <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n).replace(/([a-z])([A-Z-])/g, '$1<wbr>$2')}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
-      ${file ? codeHtml(s, f, k, file) + (dials || sws ? `<details class="dr-more"><summary>Other settings</summary>${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}</details>` : '')
-        : `${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}`}
+      ${file ? codeHtml(s, f, k, file) + (dials || sws ? `<details class="dr-more"><summary>Other settings</summary>${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>${cfgBox}` : ''}</details>` : '')
+        : `${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>${cfgBox}` : ''}`}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
   }
@@ -615,6 +658,8 @@
     .dr-spark { display: block; width: 100%; height: 22px; margin-top: 2px; } .dr-spark polyline { fill: none; stroke: #3f5f80; stroke-width: 2; vector-effect: non-scaling-stroke; }
     .dr-spark.bad polyline { stroke: #b23a2f; }
     .dr-dial { display: flex; flex-direction: column; gap: 3px; }
+    .dr-cfg { display: block; font: 600 11.5px/1.35 ui-monospace, Menlo, Consolas, monospace; color: #2a2333; overflow-wrap: anywhere; padding: 1px 2px; }
+    .dr-cfgs { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
     .dr-dl { display: inline-flex; gap: 5px; align-items: center; font-weight: 800; font-size: 13px; color: #2a2333; }
     .dr-seg { display: flex; gap: 0; border: 3px solid #17131f; border-radius: 10px; overflow: hidden; background: #fffaf0; }
     .dr-seg > * + * { border-left: 2px solid #17131f !important; }
@@ -700,6 +745,7 @@
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick { border-radius: 4px; background: rgba(255, 244, 210, .35); color: #2a1a08; min-height: 36px; }
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on { background: #3b2413; color: #ffe7a0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, .7); }
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-cur { background: transparent; color: #4a2e10; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-cfg { color: #f3e6c4; text-shadow: 0 1px 0 rgba(0, 0, 0, .7); }
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog { border: 2px solid #5a3b10; border-radius: 6px; background: linear-gradient(#e6c879, #b48a38); color: #2a1a08;
       box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .45); }
     :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on { background: linear-gradient(#f5dc8e, #c99a3c); border-color: #2a1a08; color: #2a1a08; box-shadow: 0 0 0 2px #ffe7a0, 0 2px 0 rgba(0, 0, 0, .5); }

@@ -28,7 +28,8 @@
 //     stream independently; the partition key decides the shard, and records in a shard carry sequence numbers.
 //     https://docs.aws.amazon.com/streams/latest/dev/kinesis-extended-retention.html  https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html
 //   Keyring. KMS Encrypt takes up to 4,096 bytes of plaintext; data keys (GenerateDataKey) are for large data and are
-//     stored encrypted beside it; automatic rotation of a KMS key's material is yearly by default.
+//     stored encrypted beside it; automatic rotation of a customer managed key's material is off until enabled, then
+//     every 365 days by default (90 to 2,560 days can be set), and RotateKeyOnDemand rotates it now.
 //     https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html  https://docs.aws.amazon.com/kms/latest/developerguide/data-keys.html
 //     https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html
 //   Secrets Manager rotates secrets automatically (managed rotation or a Lambda function) and replicates them to other
@@ -74,41 +75,42 @@
   };
   T.RIVALS = ['dq', 'kr', 'sc', 'tw'];
 
-  // ---- Pins. back: the real rule, on the pin's back. q: the bank pattern its bill question is picked by. ----
+  // ---- Pins. term: the real API, setting or name, shown under the test's stamp (Ladi, Nov 17: the AWS term beside
+  // the result). back: the real rule, on the pin's back. q: the bank pattern its bill question is picked by. ----
   T.PINS = {
-    sqs: { set: 'dq', name: 'SQS standard queue', back: 'Pulled by one consumer, hidden while it works, deleted when done. At-least-once, best-effort order. Kept 4 days by default, up to 14.', q: /\bSQS\b(?![^.]*FIFO)|standard queue/i },
-    fifo: { set: 'dq', name: 'SQS FIFO queue', back: 'Order kept within a message group. A duplicate is dropped inside the 5-minute deduplication interval.', q: /FIFO|message group|deduplication/i },
-    sns: { set: 'dq', name: 'SNS topic', back: 'Pushes every message to every subscriber. A filter policy narrows what a subscriber gets. Archive and replay: FIFO topics only.', q: /\bSNS\b|fan-?out|filter polic/i },
-    eb: { set: 'dq', name: 'EventBridge rule', back: 'An event pattern matches the event\'s source or detail and sends it to up to 5 targets. An archive can replay events.', q: /EventBridge|event bus|event pattern/i },
-    kds: { set: 'dq', name: 'Kinesis Data Stream', back: 'Records stay 24 hours by default, up to 365 days. Each consumer app reads the stream on its own. The partition key picks the shard.', q: /Kinesis|shard|partition key/i },
+    sqs: { set: 'dq', name: 'SQS standard queue', term: 'ReceiveMessage → DeleteMessage · VisibilityTimeout', back: 'Pulled by one consumer, hidden while it works, deleted when done. At-least-once, best-effort order. Kept 4 days by default, up to 14.', q: /\bSQS\b(?![^.]*FIFO)|standard queue/i },
+    fifo: { set: 'dq', name: 'SQS FIFO queue', term: 'MessageGroupId · MessageDeduplicationId', back: 'Order kept within a message group. A duplicate is dropped inside the 5-minute deduplication interval.', q: /FIFO|message group|deduplication/i },
+    sns: { set: 'dq', name: 'SNS topic', term: 'Publish → every subscription · FilterPolicy', back: 'Pushes every message to every subscriber. A filter policy narrows what a subscriber gets. Archive and replay: FIFO topics only.', q: /\bSNS\b|fan-?out|filter polic/i },
+    eb: { set: 'dq', name: 'EventBridge rule', term: 'EventPattern → Targets (up to 5) · archive and replay', back: 'An event pattern matches the event\'s source or detail and sends it to up to 5 targets. An archive can replay events.', q: /EventBridge|event bus|event pattern/i },
+    kds: { set: 'dq', name: 'Kinesis Data Stream', term: 'PartitionKey → shard · retention 24 h to 365 days', back: 'Records stay 24 hours by default, up to 365 days. Each consumer app reads the stream on its own. The partition key picks the shard.', q: /Kinesis|shard|partition key/i },
 
-    enc: { set: 'kr', name: 'KMS Encrypt', back: 'Encrypts up to 4,096 bytes directly under a KMS key.', q: /\bKMS\b|\bEncrypt\b|key polic/i },
-    dkey: { set: 'kr', name: 'KMS data key', back: 'GenerateDataKey gives a key for large data. You keep its encrypted copy beside the data (envelope encryption).', q: /data key|envelope|GenerateDataKey/i },
-    sm: { set: 'kr', name: 'Secrets Manager', back: 'Rotates secrets automatically and replicates them to other Regions. Charged per secret.', q: /Secrets Manager|rotat/i },
-    pss: { set: 'kr', name: 'Parameter Store (standard)', back: 'No additional charge, up to 10,000 parameters a Region, 4 KB each. No policies, no rotation.', q: /Parameter Store|SecureString|\bSSM\b/i },
-    psa: { set: 'kr', name: 'Parameter Store (advanced)', back: '8 KB values, charged. Parameter policies: Expiration, ExpirationNotification, NoChangeNotification. Still no rotation.', q: /Parameter Store|advanced parameter|parameter polic/i },
+    enc: { set: 'kr', name: 'KMS Encrypt', term: 'kms:Encrypt, up to 4,096 bytes', back: 'Encrypts up to 4,096 bytes directly under a KMS key.', q: /\bKMS\b|\bEncrypt\b|key polic/i },
+    dkey: { set: 'kr', name: 'KMS data key', term: 'kms:GenerateDataKey → Plaintext + CiphertextBlob', back: 'GenerateDataKey gives a key for large data. You keep its encrypted copy beside the data (envelope encryption).', q: /data key|envelope|GenerateDataKey/i },
+    sm: { set: 'kr', name: 'Secrets Manager', term: 'Secrets Manager rotation · ReplicaRegions', back: 'Rotates secrets automatically and replicates them to other Regions. Charged per secret.', q: /Secrets Manager|rotat/i },
+    pss: { set: 'kr', name: 'Parameter Store (standard)', term: 'Parameter Store Tier: Standard (4 KB, no charge)', back: 'No additional charge, up to 10,000 parameters a Region, 4 KB each. No policies, no rotation.', q: /Parameter Store|SecureString|\bSSM\b/i },
+    psa: { set: 'kr', name: 'Parameter Store (advanced)', term: 'Parameter Store Tier: Advanced (8 KB) · Policies', back: '8 KB values, charged. Parameter policies: Expiration, ExpirationNotification, NoChangeNotification. Still no rotation.', q: /Parameter Store|advanced parameter|parameter polic/i },
 
-    canary: { set: 'sc', name: 'LambdaCanary10Percent5Minutes', back: 'CodeDeploy for Lambda: 10% of traffic first, the other 90% five minutes later.', q: /canary/i },
-    linear: { set: 'sc', name: 'LambdaLinear10PercentEvery1Minute', back: 'CodeDeploy for Lambda: another 10% every minute until all traffic has moved.', q: /linear/i },
-    allat: { set: 'sc', name: 'LambdaAllAtOnce', back: 'CodeDeploy for Lambda: all traffic moves at once.', q: /all[- ]at[- ]once|AllAtOnce/i },
-    ebAll: { set: 'sc', name: 'Beanstalk: All at once', back: 'Every instance gets the new version at once. Fastest, with a short outage.', q: /all[- ]at[- ]once/i },
-    rolling: { set: 'sc', name: 'Beanstalk: Rolling', back: 'A batch at a time. Capacity drops by a batch while it\'s out. No new instances.', q: /\brolling\b/i },
-    rollb: { set: 'sc', name: 'Beanstalk: Rolling with additional batch', back: 'Launches an extra batch first, so capacity stays full. The old instances are then updated in place.', q: /additional batch|rolling with/i },
-    immut: { set: 'sc', name: 'Beanstalk: Immutable', back: 'A fresh group of new instances in a separate Auto Scaling group. Roll back by dropping them.', q: /immutable/i },
-    split: { set: 'sc', name: 'Beanstalk: Traffic splitting', back: 'New instances take a set percentage of traffic for an evaluation time (canary testing), then all or none.', q: /traffic splitting|traffic-splitting/i },
+    canary: { set: 'sc', name: 'LambdaCanary10Percent5Minutes', term: 'CodeDeployDefault.LambdaCanary10Percent5Minutes', back: 'CodeDeploy for Lambda: 10% of traffic first, the other 90% five minutes later.', q: /canary/i },
+    linear: { set: 'sc', name: 'LambdaLinear10PercentEvery1Minute', term: 'CodeDeployDefault.LambdaLinear10PercentEvery1Minute', back: 'CodeDeploy for Lambda: another 10% every minute until all traffic has moved.', q: /linear/i },
+    allat: { set: 'sc', name: 'LambdaAllAtOnce', term: 'CodeDeployDefault.LambdaAllAtOnce', back: 'CodeDeploy for Lambda: all traffic moves at once.', q: /all[- ]at[- ]once|AllAtOnce/i },
+    ebAll: { set: 'sc', name: 'Beanstalk: All at once', term: 'DeploymentPolicy: AllAtOnce', back: 'Every instance gets the new version at once. Fastest, with a short outage.', q: /all[- ]at[- ]once/i },
+    rolling: { set: 'sc', name: 'Beanstalk: Rolling', term: 'DeploymentPolicy: Rolling · BatchSize', back: 'A batch at a time. Capacity drops by a batch while it\'s out. No new instances.', q: /\brolling\b/i },
+    rollb: { set: 'sc', name: 'Beanstalk: Rolling with additional batch', term: 'DeploymentPolicy: RollingWithAdditionalBatch', back: 'Launches an extra batch first, so capacity stays full. The old instances are then updated in place.', q: /additional batch|rolling with/i },
+    immut: { set: 'sc', name: 'Beanstalk: Immutable', term: 'DeploymentPolicy: Immutable', back: 'A fresh group of new instances in a separate Auto Scaling group. Roll back by dropping them.', q: /immutable/i },
+    split: { set: 'sc', name: 'Beanstalk: Traffic splitting', term: 'DeploymentPolicy: TrafficSplitting', back: 'New instances take a set percentage of traffic for an evaluation time (canary testing), then all or none.', q: /traffic splitting|traffic-splitting/i },
 
-    trail: { set: 'tw', name: 'CloudTrail event history', back: 'The last 90 days of management events: who called which API, and when. Data events are off by default.', q: /CloudTrail/i },
-    trailD: { set: 'tw', name: 'CloudTrail data events', back: 'A trail set to log data events, such as S3 object reads, as well as management events.', q: /CloudTrail|data event/i },
-    alarm: { set: 'tw', name: 'CloudWatch alarm', back: 'Watches one metric and acts (for example, notifies) when it crosses a threshold.', q: /CloudWatch alarm|\balarm\b/i },
-    logs: { set: 'tw', name: 'CloudWatch Logs Insights', back: 'Queries your log lines: filter, count, group by time.', q: /Logs Insights|log group|CloudWatch Logs/i },
-    xann: { set: 'tw', name: 'X-Ray annotation', back: 'A key-value on a trace segment, indexed: filter expressions can search by it.', q: /X-Ray|annotation|trace/i },
-    xmeta: { set: 'tw', name: 'X-Ray metadata', back: 'A key-value of any type on a segment, kept with the trace but not indexed: you can\'t search by it.', q: /X-Ray|metadata|trace/i },
+    trail: { set: 'tw', name: 'CloudTrail event history', term: 'CloudTrail LookupEvents: 90 days of management events', back: 'The last 90 days of management events: who called which API, and when. Data events are off by default.', q: /CloudTrail/i },
+    trailD: { set: 'tw', name: 'CloudTrail data events', term: 'Trail event selectors: data events (AWS::S3::Object)', back: 'A trail set to log data events, such as S3 object reads, as well as management events.', q: /CloudTrail|data event/i },
+    alarm: { set: 'tw', name: 'CloudWatch alarm', term: 'CloudWatch alarm: metric · Threshold · AlarmActions', back: 'Watches one metric and acts (for example, notifies) when it crosses a threshold.', q: /CloudWatch alarm|\balarm\b/i },
+    logs: { set: 'tw', name: 'CloudWatch Logs Insights', term: 'Logs Insights: filter … | stats count(*) by bin(1h)', back: 'Queries your log lines: filter, count, group by time.', q: /Logs Insights|log group|CloudWatch Logs/i },
+    xann: { set: 'tw', name: 'X-Ray annotation', term: 'X-Ray annotation (indexed): annotation.order_id = "1234"', back: 'A key-value on a trace segment, indexed: filter expressions can search by it.', q: /X-Ray|annotation|trace/i },
+    xmeta: { set: 'tw', name: 'X-Ray metadata', term: 'X-Ray metadata (not indexed)', back: 'A key-value of any type on a segment, kept with the trace but not indexed: you can\'t search by it.', q: /X-Ray|metadata|trace/i },
 
-    resv: { set: 'kk', name: 'Reserved concurrency', back: 'A floor and a ceiling for one function, carved from the account pool. No extra charge. Doesn\'t warm anything.', q: /reserved concurrency/i },
-    prov: { set: 'kk', name: 'Provisioned concurrency', back: 'Execution environments initialised ahead of time, so no cold-start wait. Charged.', q: /provisioned concurrency|cold start/i },
-    walias: { set: 'kk', name: 'Weighted alias', back: 'An alias pointing at two published versions, splitting traffic by weight.', q: /\balias(es)?\b|weighted/i },
-    ver: { set: 'kk', name: 'Published version', back: 'A snapshot of code and settings that can\'t change once published.', q: /\bversion(s)?\b|\$LATEST/i },
-    latest: { set: 'kk', name: '$LATEST', back: 'The unpublished, editable code. Changes with every edit.', q: /\$LATEST|\bversion(s)?\b/i }
+    resv: { set: 'kk', name: 'Reserved concurrency', term: 'ReservedConcurrentExecutions', back: 'A floor and a ceiling for one function, carved from the account pool. No extra charge. Doesn\'t warm anything.', q: /reserved concurrency/i },
+    prov: { set: 'kk', name: 'Provisioned concurrency', term: 'ProvisionedConcurrentExecutions, on a version or alias', back: 'Execution environments initialised ahead of time, so no cold-start wait. Charged.', q: /provisioned concurrency|cold start/i },
+    walias: { set: 'kk', name: 'Weighted alias', term: 'Alias RoutingConfig: AdditionalVersionWeights', back: 'An alias pointing at two published versions, splitting traffic by weight.', q: /\balias(es)?\b|weighted/i },
+    ver: { set: 'kk', name: 'Published version', term: 'PublishVersion → my-fn:3', back: 'A snapshot of code and settings that can\'t change once published.', q: /\bversion(s)?\b|\$LATEST/i },
+    latest: { set: 'kk', name: '$LATEST', term: '$LATEST (the unqualified function ARN)', back: 'The unpublished, editable code. Changes with every edit.', q: /\$LATEST|\bversion(s)?\b/i }
   };
   T.pinsOf = set => Object.keys(T.PINS).filter(id => T.PINS[id].set === set);
 
@@ -269,8 +271,8 @@
     'The master key used for encryption must rotate yearly with no code change.',
     'Auditors want the key behind our encryption renewed each year, automatically.'
   ], ['enc', 'dkey'], ['sm', 'psa'], {
-    enc: 'Automatic rotation renews the KMS key\'s material yearly. Old data still decrypts.',
-    dkey: 'The data keys come from a KMS key, and automatic rotation renews its material yearly.',
+    enc: 'Turn on automatic rotation (EnableKeyRotation) and the KMS key\'s material renews every 365 days by default. Old data still decrypts.',
+    dkey: 'The data keys come from a KMS key. With automatic rotation on, its material renews every 365 days by default.',
     sm: 'Secrets Manager rotates secrets, not a KMS key\'s material.',
     pss: 'Parameter Store has no rotation of any kind.',
     psa: 'Policies don\'t rotate anything, and a parameter isn\'t a KMS key.'

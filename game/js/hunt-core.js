@@ -259,8 +259,9 @@
         c.door = { assume: true, trust: false, idAllow: false };
         return { cfg: c, arrive: t => (t > 12 ? [] : tickets(t, 2)) };
       } },
-    // The Phantom: the same symptom on every board, a different clue. Calls are synchronous, so the caller retries an
-    // error at once and gives up after 3 attempts (the SDK's standard mode).
+    // The Phantom: the same symptom on every board, a different clue. Calls are synchronous, and the checkout app's own
+    // client retries a failed call at once, giving up after 3 attempts. (The AWS SDK wouldn't: a function error comes
+    // back as a 200 with X-Amz-Function-Error, which it doesn't retry, and it backs off with jitter on throttles.)
     { id: 'x-teach', fix: [['tmo15']], tier: 'teach', mons: ['phantom'], tiles: ['callers', 'fn'], budget: 1, lamp: 8,
       hand: ['tmo15', 'mem1g', 'rcup', 'provconc'],
       title: 'Checkout hangs', line: 'Checkout calls fail. Read the trace before you pick.',
