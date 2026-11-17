@@ -36,7 +36,7 @@
   // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
   // backdrop and portrait. Only the centred card plays. Reduced motion and Save-Data keep the still. The vector build
   // plays them too: the published page serves the clips as files beside it (tools/artifact_page.py packs only assets/img).
-  const LOOPS = ['story', 'duel', 'draft', 'pop', 'hunt', 'ic', 'sprint', 'mp', 'drill'];
+  const LOOPS = ['story', 'duel', 'draft', 'pop', 'hunt', 'ic', 'sprint', 'mp', 'drill', 'terms'];
   const VID = id => 'assets/video/cards/' + id;
   const hasLoop = id => LOOPS.includes(id) || found[id] === true;
   // Cards whose loop is still being made (Terms I own: terms.mp4 and terms.webp, 960x548 like the rest). Until the files

@@ -39,7 +39,7 @@
   T.off = !!window.SD_NO_TYPING;   // a headless check of something else sets this before load
   const U = SD.ui, S = SD.state;
   const esc = s => U.esc(String(s == null ? '' : s));
-  const store = () => (S.save.typed = S.save.typed || {});
+  const store = () => (S.save.typed && typeof S.save.typed === 'object' ? S.save.typed : (S.save.typed = {}));
   const key = s => String(s || '').trim().toLowerCase();
   // Product and language names are terms, but not the syntax worth typing.
   const STOP = /^(CloudWatch|CloudTrail|DynamoDB|CloudFormation|EventBridge|ElastiCache|CodeDeploy|CodePipeline|CodeBuild|CodeCommit|CodeArtifact|CodeGuru|AppSync|AppConfig|OpenSearch|GuardDuty|SageMaker|JavaScript|TypeScript|GitHub|PostgreSQL|MySQL|NoSQL|JSON|YAML|HTTPS?|IPv\d|FastAPI|NodeJS)$/;

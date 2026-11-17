@@ -19,7 +19,7 @@
   const DAY = 864e5;
   const sv = () => S.save || {};
   const key = s => String(s || '').trim().toLowerCase();
-  const obj = o => (o && typeof o === 'object' ? o : {});   // S.save.typed is false when Explain questions is off
+  const obj = o => (o && typeof o === 'object' ? o : {});   // older saves stored the Explain questions setting here as a boolean
 
   // Every typed term's key, with any original spelling an older record kept.
   function keys() {
@@ -91,7 +91,7 @@
       const sl = obj(sv().typedDue)[k] || {};
       const at = +obj(sv().typed)[k] || 0;
       const due = +sl.due || now;
-      out.push({ key: k, spell, at, n: sl.n | 0, due, isDue, days: isDue ? 0 : Math.max(1, Math.ceil((due - now) / DAY)),
+      out.push({ key: k, spell, at, n: sl.n | 0, due, isDue, days: isDue ? 0 : Math.max(1, Math.round((due - now) / DAY)),
         task: m.task, line: m.line && m.line.toLowerCase().includes(k) ? m.line : '' });
     });
     return out;

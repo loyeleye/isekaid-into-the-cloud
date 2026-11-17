@@ -6,7 +6,7 @@
 //     older record's case, or the bank), groups by exam task with Other for an unmapped term, due terms first.
 //   - Recalling a due term from the page (SD.typeOnce.ask) reschedules it through T.mark, and the page redraws.
 //   - T.mark records the spelling it was passed (S.save.typedAs) without changing the schedule.
-//   - The card picks up assets/video/cards/terms.webp and .mp4 once they exist (served here by a route).
+//   - The card plays its loop (assets/video/cards/terms.mp4, poster terms.webp) like the other cards.
 //   - No horizontal scroll at 375px and 1280px; due terms are buttons a keyboard reaches.
 // Run from game/:  node tools/terms_check.js     SHOTS=dir saves screenshots (deviceScaleFactor 2).
 const { chromium } = require('playwright');
@@ -63,7 +63,7 @@ const DAY = 864e5;
   const mp = games.indexOf('mp');
   check(mp < 0 || games.indexOf('terms') === mp - 1, 'it sits after the modes, just before Multiplayer');
   check(/Terms I own/.test(await page.textContent('.tg-card[data-game="terms"] .tg-name')) && /Every AWS term/.test(await page.textContent('.tg-card[data-game="terms"] .tg-meta')), 'the card has its name and a line for a fresh save');
-  check(!!(await page.$('.tg-card[data-game="terms"] .tg-poster')), 'with no terms.webp yet, the card draws its own poster');
+  check(!!(await page.$('.tg-card[data-game="terms"] .tg-art')), 'the card has its picture');
   // Scroll the carousel itself (scrollIntoView would also nudge the title sideways).
   await page.$eval('.tg-card[data-game="terms"]', c => { const t = c.closest('.tg-track'); t.scrollLeft = c.offsetLeft - t.querySelector('.tg-card').offsetLeft; });
   await page.waitForTimeout(400);
@@ -200,16 +200,14 @@ const DAY = 864e5;
   check(!page.errs.length, 'no errors ' + page.errs.join(' | '));
   await page.close();
 
-  // ---- The card's loop, once the files are in (served by a route here) ----
-  page = await open({ width: 375, height: 740 }, async p => {
-    await p.route(/assets\/video\/cards\/terms\.(webp|mp4)$/, r => r.fulfill({ path: path.join(ROOT, 'assets/video/cards/story' + path.extname(r.request().url())) }));
-  });
+  // ---- The card's loop (assets/video/cards/terms.mp4 and terms.webp) ----
+  page = await open({ width: 375, height: 740 });
   await page.evaluate(() => { SD.state.save.lastGame = 'terms'; SD.state.persist(); });
   await page.click('#t-start');
   await page.waitForSelector('.tg-card[data-game="terms"]', { timeout: 5000 }).catch(() => {});
   await page.waitForSelector('.tg-card[data-game="terms"] .tg-vid', { timeout: 3000 }).catch(() => {});
   const vid = await page.$eval('.tg-card[data-game="terms"] .tg-art', a => ({ poster: a.classList.contains('tg-poster'), v: a.querySelector('video') && a.querySelector('video').getAttribute('poster') })).catch(() => ({}));
-  check(!vid.poster && vid.v === 'assets/video/cards/terms.webp', 'once terms.webp is there, the card switches to the loop like the others: ' + JSON.stringify(vid));
+  check(!vid.poster && vid.v === 'assets/video/cards/terms.webp', 'the card plays its loop like the others: ' + JSON.stringify(vid));
   check(!page.errs.length, 'no errors with the loop ' + page.errs.join(' | '));
   await page.close();
 

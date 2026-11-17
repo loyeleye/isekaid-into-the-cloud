@@ -75,7 +75,7 @@
       <button class="opt" id="m-say">Say it in my head first: <b>${{ boss: 'Boss questions', all: 'Every question', off: 'Off' }[SD.quiz.sayMode()]}</b></button>
       <p class="q-ctx m-group">After the answer</p>
       <button class="opt" id="m-whynot">Why not this one: <b>${SD.quiz.whyNot() ? 'On' : 'Off'}</b></button>
-      <button class="opt" id="m-typed">Explain questions: <b>${S.save && S.save.typed === false ? 'Off' : 'On'}</b></button>
+      <button class="opt" id="m-typed">Explain questions: <b>${S.save && S.save.explainOff ? 'Off' : 'On'}</b></button>
       ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
       ${S.cloud && S.cloud.where === 'code' ? '<button class="opt" id="m-code">Play on another device: your save code</button>' : ''}
@@ -120,7 +120,7 @@
     // Why not this one (js/quiz.js): a folded card after a right answer about the closest wrong option.
     b.querySelector('#m-whynot').onclick = () => { if (!S.save) return; S.save.whyNot = !SD.quiz.whyNot(); S.persist(); menu(); };
     // Typed answers (js/explain-data.js, checked on-device by js/embed.js): sometimes explain a concept instead of picking.
-    b.querySelector('#m-typed').onclick = () => { if (!S.save) return; S.save.typed = S.save.typed === false; S.persist(); menu(); };
+    b.querySelector('#m-typed').onclick = () => { if (!S.save) return; S.save.explainOff = !S.save.explainOff; S.persist(); menu(); };
     // Testing only (js/debug.js), shown once the debug code is in (js/debug-gate.js): a separate save that starts on any
     // chapter or rank.
     const md = b.querySelector('#m-debug');
