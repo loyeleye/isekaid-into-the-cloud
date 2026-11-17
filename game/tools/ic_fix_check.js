@@ -17,7 +17,8 @@ check(new Set(F.FIXES.map(f => f.id)).size === F.FIXES.length, 'fix ids are uniq
 const mc = (right, wrong) => ({ type: 'mc', opts: [right, wrong], a: 0 });
 check(F.fixOf(mc('Raise the visibility timeout.', 'Add a dead-letter queue.'), 'sqs').id === 'vis', 'only the right answer counts');
 check(!F.fixOf(mc('Raise the timeout.', 'x'), 'sqs') && F.fixOf(mc('Raise the timeout.', 'x'), 'lambda').id === 'lambdatimeout', 'an "only" fix stays on its own service');
-check(F.typed(F.FIXES.find(f => f.id === 'dlq'), '"maxReceiveCount":5') && !F.typed(F.FIXES.find(f => f.id === 'dlq'), '"MaxReceiveCount": 5'), 'typing ignores spaces, not case');
+check(F.FIXES.filter(f => f.type !== false).every(f => { const t = F.termOf(f); return t && f.line.includes(t); }), 'every typed fix has a key token that is in its line');
+check(F.fallback.match(' MaxReceiveCount', 'maxReceiveCount') && !F.fallback.match('maxReceive', 'maxReceiveCount'), 'the stand-in matcher follows the shared rule: case and spaces ignored');
 const qs = SD.bank.filter(q => NODE[norm(q.topic)] && /^[14]/.test(String(q.dva || '')));
 const by = {};
 qs.forEach(q => { const f = F.fixOf(q, NODE[norm(q.topic)]); if (f) (by[f.id] = by[f.id] || []).push(q.id); });

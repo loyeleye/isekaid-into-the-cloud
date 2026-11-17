@@ -86,7 +86,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     if (!await page.$('#ic-fixgo')) return;
     fixes++;
     const inp = await page.$('#ic-type');
-    if (inp) { typedFix++; const line = await page.$eval('.ic-line', e => e.textContent); await inp.fill(line.replace(/ /g, '')); }
+    if (inp) { typedFix++; const term = await page.evaluate(() => { const id = document.querySelector('.ic-fix').dataset.fix; return SD.icFix.termOf(SD.icFix.FIXES.find(f => f.id === id)); }); await inp.fill(term.toLowerCase()); }
     await page.click('#ic-fixgo'); await page.waitForTimeout(20);
   };
   const next = async () => { await page.click('#q-next'); await page.waitForTimeout(30); await pastFix(); };
@@ -455,10 +455,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const fx = await page.evaluate(() => {
     const F = SD.icFix, q = SD.exam.find('dva-1-104'), f = F.fixOf(q, 'sqs');
     const twinFree = SD.icFix.FIXES.every(x => x.line && x.does && x.name && x.pic);
-    return { id: f && f.id, typed: F.typed(f, '"maxReceiveCount":5'), loose: F.typed(f, '"maxreceivecount": 5'), diff: F.firstDiff(f, '"maxRe'), wrong: F.fixOf({ type: 'mc', opts: ['Raise the visibility timeout', 'Add a dead-letter queue'], a: 0 }, 'sqs').id, twinFree };
+    const T = F.once(), term = F.termOf(f), before = T.need(term);
+    return { id: f && f.id, term, typed: T.match(' MaxReceiveCount ', term), wrongTerm: T.match('maxReceive', term), learned: before && !T.need(term) || before, wrong: F.fixOf({ type: 'mc', opts: ['Raise the visibility timeout', 'Add a dead-letter queue'], a: 0 }, 'sqs').id, twinFree, shared: !!SD.typeOnce || F.once() === F.fallback };
   });
-  check(fx.id === 'dlq' && fx.typed && !fx.loose && fx.diff === -1 && fx.wrong === 'vis' && fx.twinFree, 'a fix comes from the right answer only, typing ignores spaces but not case, and every fix has a picture, a line and what it does');
-  await page.evaluate(() => { SD.state.save.icTyped = {}; SD.state.persist(); });
+  check(fx.id === 'dlq' && fx.term === 'maxReceiveCount' && fx.typed && !fx.wrongTerm && fx.wrong === 'vis' && fx.twinFree && fx.shared, 'a fix comes from the right answer only, its key token is what you type (case and spaces ignored, the shared rule), and every fix has a picture, a line and what it does');
+  check(await page.evaluate(() => Object.keys(SD.state.save.typed || {}).length > 0), 'typed tokens land in the shared store (S.save.typed), so they count in every mode');
   const fixShot = await page.evaluate(async () => {
     const s = SD.state.save.ic, q = SD.exam.find('dva-1-104');
     const inc = { q: q.id, at: 'sqs', fmt: 0 };
