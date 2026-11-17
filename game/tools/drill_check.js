@@ -206,13 +206,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- The Locked Vault and The Stampede Stream ----
   await open('vault');
-  check(!!await page.$('[data-card="refetch"]') && !await page.$('[data-card="canary"]') && /password authentication failed/.test(await txt('.dr-tray .dr-said')), 'The Locked Vault: Kai reports the failed logins, and the secret settings show at his desk');
+  check(/app\.py/.test(await txt('.dr-code')) && /get_secret_value/.test(await txt('.dr-code')) && !await page.$('[data-card="canary"]') && /password authentication failed/.test(await txt('.dr-tray .dr-said')), 'The Locked Vault: Kai reports the failed logins, and his desk shows the function\'s code');
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('vault');
-  await place('rotalt'); await deploy();
+  await place('rotalt');
+  check(/PostgreSQLMultiUser/.test(await txt('.dr-code')), 'Dutch\'s desk shows the rotation schedule, now alternating users');
+  await deploy();
   check((await st()).drill.state === 'contained', 'alternating-users rotation contains The Locked Vault');
   await open('stampede');
   await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
-  check(/The Stream/.test(await txt('.dr-station')) && /Kinesis/.test(await txt('.dr-station')) && !!await page.$('[data-card="bisect"]') && !await page.$('[data-card="vis30"]') && /IteratorAge/.test(await txt('.dr-tray')), 'The Stampede Stream: Mira\'s desk is the stream, with the trigger\'s error settings and no SQS ones');
+  check(/The Stream/.test(await txt('.dr-station')) && /Kinesis/.test(await txt('.dr-station')) && /Type: Kinesis/.test(await txt('.dr-code')) && !await page.$('[data-card="vis30"]') && /IteratorAge/.test(await txt('.dr-tray')), 'The Stampede Stream: Mira\'s desk is the stream, with the trigger\'s settings and no SQS ones');
   await shot('stream');
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('stream');
   await place('bisect'); await place('retry2'); await place('onfail'); await deploy();

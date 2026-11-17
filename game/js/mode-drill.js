@@ -515,6 +515,7 @@
     .dr-dl-ctx { color: #6b6378; display: inline-block; width: 100%; }
     .dr-edit.new { box-shadow: 0 0 0 2px #ffd257; }
     .dr-edit.no { opacity: .7; }
+    @media (max-width: 420px) { .dr-code .dr-blk pre, .dr-code .dr-diff { font-size: 11px; } }
     .dr-more { margin: 6px 0; color: #e8d6b0; } .dr-more summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }

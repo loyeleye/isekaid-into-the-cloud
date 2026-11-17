@@ -4,7 +4,8 @@
 // the edits that block can take, each shown as the lines it would change (- old, + new). Picking one is the same change
 // as placing the setting's card (js/drill-core.js), so the rules, costs and refusals don't change. A block nothing can
 // change says so. Settings a desk's file doesn't hold stay under "Other settings".
-// Prototype: The Dropped Catch, The Wrong Badge and The Quiet Subscriber (PROTO). Pure strings, no DOM.
+// On five drills only, for variety (Ladi, Nov 17): The Dropped Catch, The Wrong Badge, The Quiet Subscriber, The
+// Locked Vault and The Stampede Stream (PROTO). The rest keep their dials. Pure strings, no DOM.
 (function (root) {
   const D = root.SD && root.SD.drill;
   if (!D) return;
@@ -63,8 +64,36 @@
         edits: ['snsattr'] }
     ] })
   };
+  // Kai, on The Locked Vault: the function's own code (Python), where the ledger password comes from.
+  FILES['fn:secret'] = () => ({ file: 'app.py', lang: 'python', blocks: [
+    { code: () => 'import json, os, urllib.request\nimport boto3, psycopg\n\nsm = boto3.client("secretsmanager")\nSECRET_ID = "ledger/orders_app"\n\ndef fetch_password():\n    s = sm.get_secret_value(SecretId=SECRET_ID)\n    return json.loads(s["SecretString"])["password"]\n\ndef connect(pw):\n    return psycopg.connect(host=os.environ["DB_HOST"],\n                           user="orders_app", password=pw)', edits: [] },
+    { code: c => ({
+      init: 'PASSWORD = fetch_password()\n\ndef get_password():\n    return PASSWORD',
+      call: 'def get_password():\n    return fetch_password()',
+      ttl: '# Parameters and Secrets extension, TTL 300 s\nURL = "http://localhost:2773/secretsmanager/get"\n\ndef get_password():\n    req = urllib.request.Request(\n        URL + "?secretId=" + SECRET_ID,\n        headers={"X-Aws-Parameters-Secrets-Token":\n                 os.environ["AWS_SESSION_TOKEN"]})\n    body = json.load(urllib.request.urlopen(req))\n    return json.loads(body["SecretString"])["password"]'
+    }[c.fn.sec]), edits: ['secinit', 'secttl', 'seccall'] },
+    { code: c => 'def handler(event, context):\n' + (c.fn.refetch
+      ? '    try:\n        conn = connect(get_password())\n    except psycopg.OperationalError:\n        conn = connect(fetch_password())'
+      : '    conn = connect(get_password())')
+      + '\n    with conn:\n        conn.execute(\n            "INSERT INTO ledger VALUES (%s, %s)",\n            (event["orderId"], event["total"]))', edits: ['refetch'] }
+  ] });
+  // Dutch, on The Locked Vault: the secret's rotation schedule.
+  FILES['store:secret'] = () => ({ file: 'template.yaml', lang: 'yaml', blocks: [
+    { code: () => 'LedgerSecret:\n  Type: AWS::SecretsManager::Secret\n  Properties:\n    Name: ledger/orders_app\n    GenerateSecretString:\n      SecretStringTemplate: \'{"username": "orders_app"}\'\n      GenerateStringKey: password', edits: [] },
+    { code: c => (c.store.rot === 'off' ? '# no RotationSchedule' : 'LedgerRotation:\n  Type: AWS::SecretsManager::RotationSchedule\n  Properties:\n    SecretId: !Ref LedgerSecret\n    HostedRotationLambda:\n      RotationType: '
+        + (c.store.rot === 'alt' ? 'PostgreSQLMultiUser\n      MasterSecretArn: !Ref LedgerAdminSecret' : 'PostgreSQLSingleUser') + '\n    RotationRules:\n      AutomaticallyAfterDays: 30'),
+      edits: ['rotsingle', 'rotalt', 'rotoff'] }
+  ] });
+  // Mira, on The Stampede Stream: the function's Kinesis trigger (its event source mapping, in SAM).
+  FILES['queue:stream'] = () => ({ file: 'template.yaml', lang: 'yaml', blocks: [
+    { code: c => `OrdersFn:\n  Type: AWS::Serverless::Function\n  Properties:\n    Events:\n      Orders:\n        Type: Kinesis\n        Properties:\n          Stream: !GetAtt OrdersStream.Arn\n          StartingPosition: TRIM_HORIZON\n          BatchSize: ${c.fn.batch}`, edits: [] },
+    { code: c => (c.stream.bisect ? '          BisectBatchOnFunctionError: true\n' : '') + (c.stream.retries != null ? `          MaximumRetryAttempts: ${c.stream.retries}\n` : '') + '          ParallelizationFactor: 1',
+      edits: ['bisect', 'retry2'] },
+    { code: c => (c.stream.onfail ? '          DestinationConfig:\n            OnFailure:\n              Type: SQS\n              Destination: !GetAtt OrdersFailed.Arn' : '          # no DestinationConfig'), edits: ['onfail'] }
+  ] });
   // Which desks show code in which drills (the prototype).
-  const PROTO = { catch: { queue: 'queue:sfn', fn: 'fn' }, badge: { fn: 'fn' }, quiet: { queue: 'queue:sns', gate: 'gate:sns', fn: 'fn' } };
+  const PROTO = { catch: { queue: 'queue:sfn', fn: 'fn' }, badge: { fn: 'fn' }, quiet: { queue: 'queue:sns', gate: 'gate:sns', fn: 'fn' },
+    vault: { fn: 'fn:secret', store: 'store:secret' }, stampede: { queue: 'queue:stream' } };
 
   // The file for this drill's desk, with its blocks' edits narrowed to what the drill shows, or null.
   X.file = (drill, at) => {
