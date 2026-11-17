@@ -42,7 +42,7 @@
         <span class="db-crowd">${[0, 1, 2].map(i => img(env('env'), 'db-env c' + i)).join('')}</span>
         <b class="db-name">Callers</b><span class="db-g db-g-callers">${gaugeCallers(e.m)}</span></div>`;
     }
-    const s = D.STATIONS[k], st = e.nodes[k] || 'dark';
+    const s = D.station(f.drill, k), st = e.nodes[k] || 'dark';
     return `<button class="db-st st-${st}${k === at ? ' at' : ''}" data-at="${k}" data-st="${k}" aria-pressed="${k === at}" aria-label="${esc(s.name)}, ${esc(s.svc)}: ${esc(STATUS[st] || '')}">
       <span class="db-fx"></span>
       <span class="db-fig">${img(`assets/img/lead/${LEAD[s.who]}.webp`, 'db-lead', D.NAMES[s.who])}${img(`assets/img/ic-live/${PROP[k]}.webp`, 'db-prop')}</span>
@@ -117,7 +117,7 @@
     if (d.iamDenied) out.push(['store', `${d.iamDenied} × 400 denied`, 'error']);
     if (d.dupes) out.push(['store', `${d.dupes} twice`, 'ok']);
     if (d.condBlocked) out.push(['store', `${d.condBlocked} blocked`, 'error']);
-    if (d.parked) out.push(['queue', `${d.parked} to DLQ`, 'ok']);
+    if (d.parked) out.push(['queue', `${d.parked} to ${D.DRILLS[f.drill].stream ? 'orders-failed' : 'DLQ'}`, 'ok']);
     if (d.purged) out.push(['queue', `Purged ${d.purged}`, 'ok']);
     return out;
   }
