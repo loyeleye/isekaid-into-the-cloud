@@ -159,8 +159,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(fl.fly && fl.talk && fl.inn === 1 && fl.out === 0 && fl.cloud === 0 && fl.clip === 'none', `on the way down she flies at the camera, whole, and the cloud is empty (${JSON.stringify(fl)})`);
   await page.waitForFunction(() => !document.querySelector('.dr-cut .rm.fly'), null, { timeout: 3000 });
   await shot('cutscene');
+  // (transitions run at 1ms here, so measure as soon as she takes off: the flight itself only lasts R.FLY_MS)
   for (let i = 0; i < 6 && !await page.$('.dr-cut .rm.fly:not(.talk)'); i++) { if (await page.$('#dr-cut-next:not([disabled])')) await page.click('#dr-cut-next:not([disabled])'); await page.waitForTimeout(60); }
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(30);
   fl = await flight();
   check(fl.fly && !fl.talk && fl.out === 1 && fl.inn === 0 && fl.cloud === 0, `on the way back up she backs away facing the camera, and the cloud stays empty until she lands (${JSON.stringify(fl)})`);
   await cut();
