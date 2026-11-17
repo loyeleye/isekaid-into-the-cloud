@@ -945,35 +945,56 @@
       return Object.assign({}, x, { keys: ks.length ? ks : x.keys, fix: ks.length && fixed ? fixed : x.fix });
     }).filter(x => x.keys.length);
     if (!bl.length) return '';
-    // A setting that broke the slate by being left out (no alarm, no hook) has no line to circle: the line it needed
-    // is shown where it would go, marked missing (the job is settled, so this is the lesson, not a hint).
-    const card = (plan, cls, keys, note) => {
-      const t = tplLines(job, plan), shown = new Set();
-      t.lines.forEach(l => (l[2] || []).forEach(k => shown.add(k)));
-      const rows = t.lines.map(([ind, text, ks]) => {
-        const hit = ks && ks.some(k => keys.includes(k));
-        return `<span class="${hit ? 'hit' : 'dim'}">${'  '.repeat(ind)}${esc(text.replace(/\s+#.*$/, ''))}</span>${hit && note ? `<i>${esc(note(ks))}</i>` : ''}`;
-      });
-      if (note) bl.forEach(x => {
-        const gone = x.keys.filter(k => !shown.has(k));
-        if (!gone.length || !x.fix) return;
-        const has = text => rows.some(r => r.includes(esc(text)));
-        let parents = [];   // a missing line's parent keys (Hooks:) come with it
-        tplLines(job, x.fix).lines.forEach(([ind, text, ks]) => {
-          if (!ks || !ks.length) { if (!has(text)) parents.push(`<span class="hit miss">${'  '.repeat(ind)}${esc(text)}</span>`); else parents = []; return; }
-          if (!ks.some(k => gone.includes(k)) || has(text)) { parents = []; return; }
-          ks.forEach(k => shown.add(k));
-          rows.push(...parents); parents = [];
-          rows.push(`<span class="hit miss">${'  '.repeat(ind)}${esc(text.replace(/\s+#.*$/, ''))}</span><i>missing · ${esc(note(ks))}</i>`);
-        });
-      });
-      return `<pre class="rn-rep ${cls}">${rows.join('')}</pre>`;
-    };
     const keysAll = [...new Set([].concat(...bl.map(x => x.keys)))];
-    const why = ks => '✗ ' + bl.filter(x => x.keys.some(k => ks.includes(k))).map(x => x.line.text).join('; ');
-    return `<div class="rn-report"><p class="rn-tplh">Seymour's report · ${esc(tplLines(job, failed.plan).file)}</p>
-      <div class="rn-repcols"><div><p class="small">Plan ${ps.indexOf(failed) + 1}, the line that broke the slate:</p>${card(failed.plan, 'bad', keysAll, why)}</div>
-      ${fixed ? `<div><p class="small">Plan ${ps.length}, the line that held:</p>${card(fixed, 'good', keysAll, null)}</div>` : ''}</div></div>`;
+    const broke = ks => bl.filter(x => x.keys.some(k => ks.includes(k))).map(x => x.line.text);
+    const clean = t => t.replace(/\s+#.*$/, '');
+    // A plan's template, cut down to the lines that matter: the culprit lines and the keys above them, the rest folded
+    // into ⋯. A setting that broke the slate by being left out (no alarm, no hook) is drawn where it would go, dashed
+    // and marked missing (the job is settled, so this is the lesson, not a hint).
+    const sheet = (plan, bad) => {
+      const t = tplLines(job, plan).lines.map(([ind, text, ks]) => ({ ind, text: clean(text), ks: ks || [], hit: !!ks && ks.some(k => keysAll.includes(k)) }));
+      if (bad) {
+        const shown = new Set(); t.forEach(r => r.ks.forEach(k => shown.add(k)));
+        bl.forEach(x => {
+          const gone = x.keys.filter(k => !shown.has(k));
+          if (!gone.length || !x.fix) return;
+          const src = tplLines(job, x.fix).lines.map(([ind, text, ks]) => ({ ind, text: clean(text), ks: ks || [] }));
+          src.forEach((r, n) => {
+            if (!r.ks.some(k => gone.includes(k)) || t.some(q => q.text === r.text)) return;
+            r.ks.forEach(k => shown.add(k));
+            // Its parents from the fixed plan (Hooks:) where this plan has none, then the line, after the last line above it.
+            const add = [];
+            for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (src[m].ind < ind) { ind = src[m].ind; if (!t.some(q => q.text === src[m].text)) add.unshift(Object.assign({}, src[m], { hit: true, miss: true })); else break; }
+            add.push(Object.assign({}, r, { hit: true, miss: true }));
+            let at = t.length;
+            const prev = n > 0 ? src.slice(0, n).reverse().find(p => t.some(q => q.text === p.text)) : null;
+            if (prev) { at = t.findIndex(q => q.text === prev.text) + 1; while (at < t.length && t[at].ind > prev.ind) at++; }
+            t.splice(at, 0, ...add);
+          });
+        });
+      }
+      const keep = new Set();
+      t.forEach((r, n) => { if (!r.hit) return; keep.add(n); for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (t[m].ind < ind) { keep.add(m); ind = t[m].ind; } });
+      let out = '', gap = false;
+      t.forEach((r, n) => {
+        if (!keep.has(n)) { gap = true; return; }
+        if (gap) { out += `<span class="rn-r-gap">${'  '.repeat(r.ind)}⋯</span>`; gap = false; }
+        const code = `${'  '.repeat(r.ind)}<b>${esc(r.text)}</b>`;
+        out += `<span class="${r.hit ? (bad ? 'rn-r-bad' : 'rn-r-good') : 'rn-r-ctx'}${r.miss ? ' rn-r-miss' : ''}">${code}</span>`;
+        if (bad && r.hit && r.ks.length) out += `<span class="rn-r-note">${r.miss ? 'missing: ' : ''}${broke(r.ks).map(x => '✗ ' + esc(x)).join('<br>')}</span>`;
+      });
+      if (gap) out += '<span class="rn-r-gap">⋯</span>';
+      return `<pre class="rn-r-code">${out}</pre>`;
+    };
+    const file = tplLines(job, failed.plan).file;
+    return `<section class="rn-report" aria-label="Seymour's inspection report">
+      <header class="rn-r-head">${head('seymour')}<div><p class="rn-r-title">Inspection report</p><p class="rn-r-sub">${esc(job.title)} · <code>${esc(file)}</code></p></div></header>
+      <div class="rn-r-cols${fixed ? '' : ' one'}">
+        <div class="rn-r-panel bad"><p class="rn-r-lab">Plan ${ps.indexOf(failed) + 1} · broke the slate</p>${sheet(failed.plan, true)}</div>
+        ${fixed ? `<div class="rn-r-panel good"><p class="rn-r-lab">Plan ${ps.length} · held twice</p>${sheet(fixed, false)}<span class="rn-r-stamp" aria-hidden="true">HELD</span></div>` : ''}
+      </div>
+      <p class="rn-r-sign">Inspected and filed. Sir S. Backups</p>
+    </section>`;
   }
   // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
   const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
@@ -1634,19 +1655,34 @@
     .rn-tplh { margin: 0 0 4px; font: 700 12px/1.2 var(--f-mono, ui-monospace, monospace); color: #7a5a30; letter-spacing: .02em; }
     .rn-tpl pre { margin: 0; font: 600 13.5px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
     .rn-tpl pre span { display: inline; border-radius: 3px; }
-    /* Seymour's report: the line that broke the slate, circled in red; the line that held, in green. */
-    .rn-report { margin: 10px 0 4px; padding: 8px 12px 10px; border-radius: 6px; background: #fbf4e2; color: #241a10; border: 2px solid #8a6a3a; box-shadow: 0 3px 0 #5a4020; }
-    .rn-report > .small { margin: 6px 0 2px; color: #5a3a18; }
-    .rn-rep { margin: 0; font: 600 13px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
-    .rn-rep span { display: block; width: fit-content; }
-    .rn-rep span.dim { opacity: .45; }
-    .rn-repcols { display: grid; gap: 4px 18px; }
-    .rn-repcols p.small { margin: 6px 0 2px; color: #5a3a18; }
-    @media (min-width: 700px) { .rn-repcols { grid-template-columns: 1fr 1fr; } }
-    .rn-rep.bad span.hit { color: #8f1d1d; border: 2px solid #c0392b; border-radius: 12px; padding: 0 6px; margin-left: -8px; }
-    .rn-rep.good span.hit { color: #1d6b3a; background: #e3f6e8; border-radius: 4px; padding: 0 4px; }
-    .rn-rep.bad span.miss { color: #8f1d1d; border-style: dashed; opacity: .9; }
-    .rn-rep i { display: block; font: italic 600 12px/1.3 var(--f-body, sans-serif); color: #8f1d1d; margin: 2px 0 2px 2ch; white-space: normal; }
+    /* Seymour's inspection report: a parchment sheet with two code slabs, the culprit in red pencil, the fix stamped. */
+    .rn-report { position: relative; margin: 12px 0 6px; padding: 12px 14px 10px; border-radius: 4px; color: #2a1c10;
+      background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 40%), repeating-linear-gradient(0deg, transparent 0 27px, rgba(120,90,50,.08) 27px 28px), #f6ecd2;
+      border: 1px solid #b8955a; box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px rgba(20,10,4,.35), 0 2px 0 #8a6a3a; }
+    .rn-report::before { content: ''; position: absolute; left: 50%; top: -9px; width: 64px; height: 18px; transform: translateX(-50%) rotate(-2deg); background: rgba(235,220,170,.75); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .rn-r-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid #b8955a; }
+    .rn-r-head img, .rn-r-head .rn-head { width: 40px; height: 40px; flex: none; }
+    .rn-r-title { margin: 0; font: 800 18px/1.1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: #5a2a14; }
+    .rn-r-sub { margin: 2px 0 0; font-size: 13px; color: #6a4a26; }
+    .rn-r-sub code { font: 600 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(120,90,50,.12); padding: 1px 5px; border-radius: 4px; }
+    .rn-r-cols { display: grid; gap: 12px; }
+    @media (min-width: 700px) { .rn-r-cols:not(.one) { grid-template-columns: 1fr 1fr; } }
+    .rn-r-panel { position: relative; min-width: 0; }
+    .rn-r-lab { margin: 0 0 5px; font: 700 12px/1 var(--f-head); letter-spacing: .1em; text-transform: uppercase; }
+    .rn-r-panel.bad .rn-r-lab { color: #a3261b; } .rn-r-panel.good .rn-r-lab { color: #24734a; }
+    .rn-r-code { margin: 0; padding: 10px 12px; border-radius: 8px; background: #1f1b27; color: #e9e1cf; font: 600 13px/1.65 ui-monospace, Menlo, Consolas, monospace;
+      white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 3px 0 rgba(0,0,0,.25); }
+    .rn-r-code > span { display: block; }
+    .rn-r-ctx { color: #8f88a0; }
+    .rn-r-gap { color: #6b6480; font-size: 11px; line-height: 1; height: 10px; overflow: hidden; }
+    .rn-r-bad b, .rn-r-good b { font-weight: 800; }
+    .rn-r-bad b { color: #ffd2c8; display: inline-block; padding: 0 8px; margin: 1px -8px; border: 2px solid #ff6b57; border-radius: 48% 52% 46% 54% / 60% 50% 50% 40%; transform: rotate(-1.2deg); }
+    .rn-r-miss b { border-style: dashed; color: #ffb3a6; }
+    .rn-r-good b { color: #b9f5cf; background: rgba(80,200,130,.2); border-radius: 4px; padding: 0 5px; margin: 0 -5px; }
+    .rn-r-note { display: block; margin: 3px 0 4px 2ch; font: 400 15px/1.2 'Patrick Hand', 'Comic Sans MS', cursive; color: #ff9a8a; white-space: normal; }
+    .rn-r-stamp { position: absolute; right: 4px; top: -8px; padding: 2px 8px; border: 3px double #2f9a5e; border-radius: 7px; color: #2f9a5e; font: 900 14px/1 var(--f-head); letter-spacing: .14em;
+      transform: rotate(-9deg); background: rgba(246,236,210,.92); opacity: .95; pointer-events: none; }
+    .rn-r-sign { margin: 10px 2px 0; text-align: right; font: 400 17px/1 'Patrick Hand', 'Comic Sans MS', cursive; color: #5a3a18; }
     .rn-tpl pre span.hi { background: #ffe08a; box-shadow: 0 0 0 2px #ffe08a; animation: rn-tplhi 1.6s ease-out; }
     @keyframes rn-tplhi { from { background: #ffc531; box-shadow: 0 0 0 4px #ffc531; } }
     .rn-blank { font: inherit; color: #1f4e8c; background: #fff; border: 0; border-bottom: 2px dashed #1f4e8c; padding: 0 2px; width: auto; min-width: 6ch; max-width: 100%; border-radius: 3px 3px 0 0; }
