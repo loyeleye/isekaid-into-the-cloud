@@ -221,9 +221,12 @@
     "kai|The hinges are always fine.": 'kai-mg-reno-hinges',
     "kai|He's not joking. He keeps a ledger.": 'kai-mg-reno-ledger',
     "kai|He will.": 'kai-mg-reno-frame',
-    "seymour|HALT! ...I have checked it. And checked it again. It stands.": 'seymour-mg-draft-clean',
-    "seymour|The scaffolding stays up. I don't sign for what I haven't seen hold on two different days.": 'seymour-mg-draft-scaf',
-    "seymour|A second blueprint on the same rule? Bring it here. I'll inspect it. Thoroughly.": 'seymour-mg-draft-retry',
+    // Sir Seymour's Architect's Draft quiz lines (js/draft.js SEYMOUR), heard on many questions, so read soft and
+    // encouraging (recorded by tools/reno_vo.py with its SOFT_STYLE)
+    "seymour|Checked it twice. It stands. Good, careful work. I've noted that. In ink.": 'seymour-mg-draft-clean',
+    "seymour|The scaffolding stays up for now. No harm done. Show me it holds on two different days, and I'll sign. Gladly.": 'seymour-mg-draft-scaf',
+    "seymour|A twin blueprint on the same rule. Bring it here and I'll inspect it with you. I expect good things. Professionally.": 'seymour-mg-draft-retry',
+    "seymour|One signature on the permit today. The other comes on another day. You're halfway there. I've written that down.": 'seymour-mg-draft-half',
     "mira|Good. Clean lines. Nothing I'll have to stitch later.": 'mira-mg-draft-client-right',
     "mira|Hold still. That one's wrong, and I'm going to show you where.": 'mira-mg-draft-client-wrong',
     "mira|You were sure. I hear that a lot from people on my table. Look again.": 'mira-mg-draft-client-sure',
