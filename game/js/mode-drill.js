@@ -382,11 +382,12 @@
   function debriefScreen(s) {
     const f = s.drill, d = D.DRILLS[f.drill], ok = f.state === 'contained';
     const lead = d.lead;
-    const b = panel(`<p class="dr-claim">${esc(d.name)}: ${ok ? (D.clean(f) ? 'a clean fix' : 'contained') : 'escalated'}</p>
+    // On the war room's chalkboard (Sogni art, CREDITS.md): the verdict in chalk, the cause on an index card pinned up.
+    const b = panel(`<div class="dr-board dr-boardx"><p class="dr-night dr-claim">${esc(d.name)}: ${ok ? (D.clean(f) ? 'a clean fix' : 'contained') : 'escalated'}</p>
       ${budgetJar(s)}
       ${say(lead, ok ? 'smile' : 'tired', ok ? 'Held. Write it up before you forget why.' : 'We didn\'t find it in time. Now we know where to look.')}
-      <div class="dr-reveal ms-lt">${icon('scroll-unfurled')}<span><b>The cause:</b> ${esc(d.hidden)}<br><span class="small">${esc(d.fix[0].map(id => C[id].back).join(' '))}</span></span></div>
-      ${RM() ? '' : say('uptima', 'neutral', SAY.pm)}
+      <div class="dr-cause"><b>The cause</b><p>${esc(d.hidden)}</p><p class="small">${esc(d.fix[0].map(id => C[id].back).join(' '))}</p></div>
+      ${RM() ? '' : say('uptima', 'neutral', SAY.pm)}</div>
       <div class="dr-dock"><button class="primary" id="dr-ask">Answer the postmortem</button></div>`);
     b.querySelector('#dr-ask').onclick = () => RM() ? cutScreen([['smug', SAY.pm]], ask) : ask();
     const ask = async () => {
@@ -421,14 +422,18 @@
     }
     const clean = s.done.filter(x => x.clean).length, held = s.done.filter(x => x.state === 'contained').length;
     const proofs = s.debriefs.filter(x => x.ok).length;
-    const b = panel(`<p class="dr-night">Night ${s.night}: ${zero ? 'budget spent' : 'all drills closed'}</p>
+    // The night's report, pinned to the war room's chalkboard (Sogni art, CREDITS.md): the night in chalk, the tally
+    // inked on a sealed parchment sheet, Pip's question on an index card under it.
+    const row = (n, of, label, good) => `<li class="${good ? 'good' : ''}"><b>${n}${of != null ? `<small> of ${of}</small>` : ''}</b><span>${label}</span></li>`;
+    const b = panel(`<div class="dr-board dr-boardx"><p class="dr-night">Night ${s.night}: ${zero ? 'budget spent' : 'all drills closed'}</p>
       ${RM() ? '' : say('uptima', zero ? 'tired' : 'smile', zero ? SAY.zero : SAY.won)}
       ${budgetJar(s)}
-      <p>Drills contained <b>${held} of ${s.done.length}</b> · Clean fixes <b>${clean}</b> · Postmortems right <b>${proofs} of ${s.debriefs.length}</b></p>
-      ${s.tally ? M.calibHtml(s.tally, 'How sure you were in the postmortems') : ''}
-      ${s.paid && s.paid.trim() ? `<p class="small">${esc(s.paid)}</p>` : ''}
-      ${M.pipHtml()}
-      <p class="small muted">That's the night. Stop here.</p>
+      <div class="dr-report"><p class="dr-rh">Night report</p>
+        <ul class="dr-tally">${row(held, s.done.length, 'drills contained', held && held === s.done.length)}${row(clean, null, plural(clean, 'clean fix', 'clean fixes').replace(/^\d+ /, ''), clean > 0)}${row(proofs, s.debriefs.length, 'postmortems right', proofs && proofs === s.debriefs.length)}</ul>
+        ${s.tally ? M.calibHtml(s.tally, 'How sure you were in the postmortems') : ''}
+        ${s.paid && s.paid.trim() ? `<p class="dr-paid">${esc(s.paid)}</p>` : ''}</div>
+      <div class="dr-pipcard">${M.pipHtml()}</div>
+      <p class="dr-chalk">That's the night. Stop here.</p></div>
       <div class="dr-dock"><button class="primary" id="dr-done">Done</button></div>`);
     M.pipWire(b, 'The Fire Drill');
     b.querySelector('#dr-done').onclick = () => { s.phase = 'done'; save(s); U.closePanel(); stopNow(); };
@@ -689,6 +694,95 @@
     @keyframes drmore { 50% { transform: translateY(3px); } }
     @media (min-width: 900px) { .dr-cut-box { margin-left: max(16px, calc(50% - 160px)); width: min(760px, 52%); } }
     @media (max-width: 600px) { .dr-cut-box { font-size: 16px; } }
+    /* ---- The painted desk (Sogni art, CREDITS.md; tools/drill_desk_art.py). Ladi, Nov 17: no text-and-box UI in the
+       drill either. The console is the lead's own oak desk seen from above: the station's name on a brass plate, the
+       changes left as brass bell coins, the metrics on pinned notepaper, each dial a brass lever rail with a knob on the
+       chosen setting, each switch a paper tag with a brass toggle (lever down off, up on) and a lamp that lights, each
+       look an index card. ---- */
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station { background: #4a2e17 url(assets/img/drill/desk-tall.webp) center / cover no-repeat; box-shadow: inset 0 8px 14px rgba(0, 0, 0, .55), inset 0 0 60px rgba(0, 0, 0, .35); }
+    @media (min-aspect-ratio: 1 / 1) { :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station { background-image: url(assets/img/drill/desk-wide.webp); } }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sh b { background: none; border: solid transparent; border-width: 4px 16px; border-image: url(assets/img/drill/desk-plate.webp) 30 60 fill / 4px 16px stretch;
+      box-shadow: none; padding: 2px 6px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left { gap: 4px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i, :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i.on { width: 20px; height: 20px; border: 0; border-radius: 50%;
+      background: url(assets/img/drill/desk-coin.webp) center / contain no-repeat; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .6)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i:not(.on) { filter: grayscale(1) brightness(.45); opacity: .55; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt { background: url(assets/img/drill/desk-note.webp) center / 100% 100% no-repeat; box-shadow: none; padding: 16px 10px 8px;
+      filter: drop-shadow(1px 3px 3px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt::before { content: none; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-seg { min-height: 44px; padding: 0; gap: 0; background: none; box-shadow: none; border: solid transparent; border-width: 6px 26px;
+      border-image: url(assets/img/drill/desk-rail.webp) 22 70 fill / 6px 26px stretch; border-radius: 0; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .55)); overflow: visible; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick { position: relative; flex-direction: row; background: none; color: #e9d6a6; min-height: 32px; border-radius: 0; text-shadow: 0 1px 2px #000; font-weight: 700; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick:hover { color: #fff3cc; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on { background: none; color: #ffe7a0; box-shadow: none; font-weight: 900; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on::before { content: ''; flex: 0 0 auto; width: 18px; height: 34px; margin: -12px 6px -2px 0;
+      background: url(assets/img/drill/desk-knob.webp) center / contain no-repeat; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .7)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-cur { color: #e9d6a6; font-style: italic; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog { position: relative; min-height: 52px; padding: 6px 54px 6px 8px; background: none; box-shadow: none; color: #2a1a08;
+      border: solid transparent; border-width: 6px 6px 6px 30px; border-image: url(assets/img/drill/desk-tag.webp) 14 14 14 120 fill / 6px 6px 6px 30px stretch; border-radius: 0;
+      filter: drop-shadow(1px 3px 3px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on { background: none; border-color: transparent; box-shadow: none;
+      filter: drop-shadow(0 0 6px rgba(255, 231, 160, .55)) drop-shadow(1px 3px 3px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.no { background: none; opacity: .72; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.once { border-color: transparent; padding-right: 10px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.once > span { color: #7a1f1a; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog > .dr-gi { color: #5a3b10; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sw, :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw { position: absolute; right: 2px; top: 50%; width: 44px; height: 32px; margin-top: -16px;
+      border: 0; border-radius: 0; background: url(assets/img/drill/desk-toggle.webp) center / contain no-repeat; transform: scaleY(-1); transition: transform .15s; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw { transform: none; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sw::after { content: ''; position: absolute; left: auto; right: -2px; top: auto; bottom: -7px; width: 13px; height: 16px; border-radius: 0;
+      background: url(assets/img/drill/desk-lamp.webp) center / contain no-repeat; transform: scaleY(-1); filter: brightness(.6); transition: filter .2s; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw::after { left: auto; bottom: auto; top: -7px; transform: none; filter: hue-rotate(110deg) saturate(1.6) brightness(1.5) drop-shadow(0 0 4px #7dff8a); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-look { position: relative; min-height: 50px; background: none; box-shadow: none; border: solid transparent; border-width: 10px 30px 6px 22px;
+      border-image: url(assets/img/drill/desk-card.webp) 34 90 18 80 fill / 10px 30px 6px 22px stretch; border-radius: 0; padding: 4px 6px; filter: drop-shadow(1px 3px 3px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-look.on { filter: drop-shadow(0 0 6px rgba(255, 231, 160, .6)) drop-shadow(1px 3px 3px rgba(0, 0, 0, .55)); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.new { outline: 0; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.new::after { content: ''; position: absolute; right: -8px; top: -10px; width: 26px; height: 26px; pointer-events: none;
+      background: url(assets/img/drill/map-chalk-tick.webp) center / contain no-repeat; filter: none; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.new::after { right: 2px; top: -16px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-tip { color: #f3e3b5; text-shadow: 0 1px 3px #000; }
+    /* The dock is the front of the war room's counter: dark oak under a brass rail. */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr:not(:has(> .dr-board)) > .dr-dock { background: #2b1a0e url(assets/img/drill/desk-dock.webp) center top / max(100%, 1200px) auto no-repeat;
+      border-top: 0; padding-top: 18px; box-shadow: 0 -6px 14px rgba(0, 0, 0, .45); }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-dock .ghost { background: rgba(28, 16, 8, .72); color: #f3e3b5; border-color: #c99a3c; }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr > .dr-dock .dr-hint { color: #f3e3b5; text-shadow: 0 1px 2px #000; }
+    /* The debrief and the end of the night, on the chalkboard: the cause on an index card, the night on a sealed report. */
+    .dr-boardx { gap: 12px; padding-bottom: 12px; }
+    .dr-boardx .dr-night { font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-head); font-weight: 400; font-size: 28px; }
+    .dr-chalk { color: #f4f1e6; opacity: .8; font: 20px/1.3 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); text-align: center; margin-top: 4px; }
+    .dr-cause, .dr-pipcard { position: relative; align-self: center; width: min(100%, 560px); color: #2a2018; transform: rotate(-.8deg);
+      border: solid transparent; border-width: 26px 46px 12px 22px; border-image: url(assets/img/drill/desk-card.webp) 50 110 24 40 fill / 26px 46px 12px 22px stretch;
+      padding: 6px 4px 8px 8px; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .6)); font-size: 15px; line-height: 1.4; }
+    .dr-cause b { font-family: var(--f-head, serif); font-size: 17px; color: #8f1d14; }
+    .dr-cause .small { color: #5a4a38; margin-top: 4px; }
+    .dr-pipcard { transform: rotate(.9deg); }
+    .dr-pipcard .md-pip { border: 0; background: none; padding: 0; margin: 0; color: #2a2018; box-shadow: none; }
+    .dr-pipcard .md-pip .ghost { background: rgba(255, 250, 235, .6); color: #2a2018; border: 2px solid #7a6a52; }
+    .dr-pipcard .md-pip input { background: rgba(255, 255, 255, .55); border-color: #7a6a52; }
+    .dr-report { position: relative; align-self: center; width: min(100%, 620px); color: #2a2018; transform: rotate(.5deg);
+      border: solid transparent; border-width: 44px 66px 52px 18px; border-image: url(assets/img/drill/desk-sheet.webp) 130 200 160 54 fill / 44px 66px 52px 18px stretch;
+      padding: 0 0 0 12px; filter: drop-shadow(0 8px 8px rgba(0, 0, 0, .6)); display: flex; flex-direction: column; gap: 10px; }
+    .dr-report::before { content: ''; position: absolute; top: -50px; left: calc(50% - 14px); width: 28px; height: 28px; background: url(assets/img/drill/map-tack.webp) center / contain no-repeat;
+      filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, .5)); }
+    .dr-rh { font: 800 13px/1 var(--f-head, serif); letter-spacing: .14em; text-transform: uppercase; color: #8f1d14; }
+    .dr-tally { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .dr-tally li { display: flex; flex-direction: column; align-items: flex-start; }
+    .dr-tally b { font: 700 30px/1 var(--f-head, serif); color: #2a2018; } .dr-tally b small { font-size: 14px; font-weight: 700; color: #6a5a48; }
+    .dr-tally span { font-size: 13px; color: #5a4a38; }
+    .dr-tally li.good b { color: #2f6b3f; }
+    .dr-report .md-cal .td-head { font-weight: 800; color: #2a2018; margin: 0 0 4px; }
+    .dr-report .md-calt { width: 100%; border-collapse: collapse; background: none; font-size: 13px; }
+    .dr-report .md-calt :is(th, td) { border: 0; border-bottom: 1px solid rgba(90, 74, 56, .35); padding: 4px 6px 4px 0; color: #2a2018; background: none; text-align: left; }
+    .dr-report .muted, .dr-paid { color: #5a4a38; font-size: 12.5px; }
+    .dr-paid { font-weight: 800; color: #6b3a1a; }
+    @media (max-width: 600px) {
+      :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog { padding-right: 38px; font-size: 12.5px; border-left-width: 24px; }
+      :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog > span { overflow-wrap: break-word; }
+      :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sw, :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw { width: 34px; height: 26px; margin-top: -13px; right: 0; }
+      .dr-tally b { font-size: 24px; } .dr-tally span { font-size: 12px; }
+      .dr-report { border-right-width: 44px; border-left-width: 12px; }
+      .dr-boardx .dr-night { font-size: 23px; }
+    }
     /* The postmortem on the war room's chalkboard: the question in chalk, the answers as cards on the counter. */
     body.dr-pm.in-mode #panel .win.quiz { background: #24382c; border: 12px solid #6b4a2a; border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .7), inset 0 0 40px rgba(0, 0, 0, .45); }
     body.dr-pm.in-mode #panel .win.quiz .win-b { background: transparent; color: #f2f2e6; }

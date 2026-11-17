@@ -308,7 +308,8 @@
       display: flex; flex-direction: column; align-items: center; gap: .5cqi; pointer-events: none; transition: opacity .3s; }
     .rm-col[data-col="gate"] { left: max(var(--x), 11%); } .rm-col[data-col="store"] { left: min(var(--x), 88%); }
     .rm-plq { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .6cqi; padding: .3cqi 1cqi; border-radius: .6cqi;
-      background: linear-gradient(#d9b45a, #a77d2c); color: #2a1a08; border: .2cqi solid #5a3b10; box-shadow: 0 .3cqi 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .4);
+      background: none; color: #2a1a08; box-shadow: none; filter: drop-shadow(0 .3cqi .2cqi rgba(0, 0, 0, .6));
+      border: solid transparent; border-width: .5cqi 1.6cqi; border-image: url(assets/img/drill/desk-plate.webp) 30 60 fill / .5cqi 1.6cqi stretch;   /* a painted brass plate (Sogni, CREDITS.md) */
       font-size: max(10px, 1.15cqi); line-height: 1.15; text-align: center; }
     .rm-plq b { font-family: var(--f-head, serif); font-size: max(11px, 1.35cqi); }
     .rm-plq i { font-style: normal; font-weight: 800; width: 100%; }
