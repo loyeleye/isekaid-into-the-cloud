@@ -1,7 +1,8 @@
 // The Rush (prototype): draws js/rush-core.js on a canvas over Ladi's Sogni room, and takes the player's hands.
 // The room is the screen: tickets slide down the painted chute, sit on Mira's stools, bounce back up on a 429,
 // splat into the puddle, and the tank on the wall fills. You drag tools off the toolbelt into the room while it runs.
-// Only the question after the claim is a plain screen (#q).
+// Before each claim the player pins one of two Night Orders, twists that stack for the rest of the run. One of them
+// is letters: questions sent as mail between waves. The pick and the letters are plain screens (#q).
 (function () {
   const R = SD.rushCore;
   const cv = document.getElementById('rush'), cx = cv.getContext('2d'), qEl = document.getElementById('q');
@@ -12,7 +13,7 @@
     bin: 'assets/img/rush/bin.webp', bell: 'assets/img/rush/bell.webp', puddle: 'assets/img/rush/puddle.webp',
     env: 'assets/img/rush/envelope.webp', env429: 'assets/img/rush/envelope-bounced.webp', envDone: 'assets/img/rush/envelope-done.webp',
     'dutch-neutral': 'assets/img/portraits/dutch-neutral.webp', 'dutch-smile': 'assets/img/portraits/dutch-smile.webp',
-    'dutch-tired': 'assets/img/portraits/dutch-tired.webp', 'dutch-surprised': 'assets/img/portraits/dutch-surprised.webp'
+    'dutch-tired': 'assets/img/portraits/dutch-tired.webp', 'dutch-surprised': 'assets/img/portraits/dutch-surprised.webp', 'dutch-angry': 'assets/img/portraits/dutch-angry.webp'
   };
   const qs = new URLSearchParams(location.search);
   const SEED = +qs.get('seed') || (Date.now() % 100000) + 1;
@@ -36,17 +37,23 @@
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
     desk: { x: 660, y: 1024, h: 160 }, tank: { x: 640, y: 560, h: 220 }, bin: { x: 104, y: 1222, h: 92 },
     bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
-    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 150, w: 736 }, fs: 1.7
+    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
   // ---- State ----
-  let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT;
+  let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT, letters, letterAnim, letterOpen, letterClock;
+  // Carried across claims: a wrong answer tears an option off the next letter, wherever it arrives.
+  const carry = { torn: false };
+  // The run: the Night Orders pinned so far. The pick before the Rush takes them all down.
+  // bank: coins left over at the end of a won claim, carried into the next one.
+  const run = { orders: [], bank: 0 };
   function reset(seed, claim) {
-    S = R.create(seed, claim || 'rush'); ringT = 0; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
+    S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
     flashT = 0; leverT = 0; coinPulse = 0;
-    qEl.classList.remove('on'); qEl.innerHTML = '';
-    if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
+    qEl.className = ''; qEl.innerHTML = '';
+    if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
+    else if (S.claim === 'bell') say('intro', 'neutral', 'Tonight the Night Clerk does Reports. Ribboned tickets need Mira and Reports both. The bell\'s yours now.', 9);
     else say('intro', 'neutral', 'Tickets slide down the chute. Mira handles them at her stools. Build what you like, then pull the lever.', 9);
   }
 
@@ -64,6 +71,9 @@
     bell: 'A bell. Ring it once and everyone who signed up gets their own copy. Mira stops copying them out for Reports.',
     ribbon: 'Ribboned ones go to Reports too. Mira copies each one out by hand, so her stool\'s tied up twice as long.',
     tray: 'Reports\' copies wait in its tray until one of its stools is free. Nobody bounces.',
+    resend: 'That\'s a resend. Same ticket, sent again because they didn\'t hear back fast enough.',
+    twice: 'Paid that one twice. Same ticket, done twice. That\'s coming out of the tank.',
+    ledger: 'A ledger. Mira writes each ticket\'s number first, and only if it isn\'t there yet. A repeat fails the write and goes straight out.',
     close: 'Shutters down. Whatever\'s still in the room is lost.',
     throttle: 'Bounced. Two free stools, more people than that. Do the sums.',
     splat: 'Third bounce and they give up. That\'s a lost request, and it goes in the tank.',
@@ -71,8 +81,70 @@
     poisonRack: 'That one\'s poison. It fails every time, and off the rack it just comes back for another go.',
     twin: 'Same ticket twice. A standard queue delivers at least once. Make the job safe to do twice.',
     clog: 'Those will never clear. Nothing takes a bad ticket off the rack.',
-    coin: 'Halfway. Have another coin.'
+    coin: 'Halfway. Have another coin.',
+    cold: 'Cold stool. Mira had to warm it up before she could start. A busy stool stays warm.',
+    herd: 'There they all go at once. And they\'ve brought a friend. A queue would let them wait instead.',
+    expired: 'That one sat on the rack too long and went off. Lost.'
   };
+
+  // ---- Night Orders: one of two pinned before each claim from claim 2 on. Dutch explains each when it goes up ----
+  const ORDER = {
+    letters: { name: 'Letters', tag: 'Letters', aws: 'Exam-style questions',
+      rule: 'Between waves the Post Office sends a question, and the room waits while you read. Wrong: the next letter arrives torn, one option missing.', up: 'A coin for every right answer.',
+      dutch: 'The Post Office wants proof we know what we\'re doing, so they\'ll be writing in. They write like the exam does: a situation, then the best fix. Get one wrong and the next arrives torn. Could be the bit with the answer on it. Very dramatic people, the Post Office.' },
+    cold: { name: 'Cold stools', tag: 'Cold stools', aws: 'Lambda cold starts',
+      rule: 'A stool nobody has sat on for 2 seconds goes cold. The next ticket there takes three times as long.',
+      up: 'A coin at the start of every wave from wave 2.',
+      dutch: 'Cold stools. Leave one empty for a bit and Mira has to warm it up again: lamp on, coat off, find the good pen. That\'s a Lambda cold start. A new execution environment boots and runs your setup code before the handler sees the event. The good news: Lambda only bills while it runs, so an empty stool costs nothing. You keep the savings, a coin a wave. I checked. It\'s not a trick.' },
+    herd: { name: 'The stampede', tag: 'Stampede', aws: 'Retries and jitter',
+      rule: 'Bounced callers all come back at the same moment. Every four that land together bring a new caller with them.',
+      up: 'Callers try 4 times before giving up, not 3.',
+      dutch: 'The callers have started talking to each other. Bounce them and they agree to come back at the same moment, so they all bounce again, together. That\'s a thundering herd. And a crowd draws a crowd: every four that land together bring a new caller. That\'s a retry storm, more load on top of the load. Real clients add jitter, a random bit of extra wait on each retry, so they spread out. Ours haven\'t read the docs. On the bright side, a herd is stubborn: four tries before they give up, not three. The AWS SDKs let you set the number of attempts too.' },
+    shelf: { name: 'Shelf life', tag: 'Shelf life', aws: 'SQS message retention',
+      rule: 'A ticket that has waited on the rack for 20 seconds expires, and that\'s a lost request.',
+      up: 'The rack is free.',
+      dutch: 'Tickets on the rack go off now, like milk. Twenty seconds and it\'s gone. SQS does the same: a queue keeps a message for its retention period, four days unless you change it and fourteen at most, then deletes it, read or not. Ours is stricter. To make up for it, the rack is free. SQS gives you your first million requests a month for nothing, and I\'m passing that on.' },
+    stakes: { name: 'High stakes', tag: 'Stakes', aws: 'Exam tip: never leave a blank',
+      needs: 'letters', rule: 'Bet up to 2 coins on each letter. A wrong answer loses the bet.', up: 'A right answer pays the bet back double.',
+      dutch: 'You can bet on the letters now. Sure of yourself? Put coins down. Not sure? Put nothing down, and still answer. The real exam works like that: a blank scores the same as a wrong answer, so never leave one. In here a wrong answer costs you. I\'ll mind the coins.' },
+    timeout: { name: 'Timeout', tag: 'Timeout', aws: 'Lambda and API Gateway timeouts',
+      needs: 'letters', rule: 'Each letter has 20 seconds on the clock. Run out and it counts as wrong.', up: 'Answer right in under 10 seconds for an extra coin.',
+      dutch: 'The Post Office has put a clock on its letters. Twenty seconds, then it gives up on you. Lambda does that to every function: 3 seconds unless you set it, 15 minutes at most, and then the invocation fails. Put API Gateway in front and you get about 29 seconds. Be quick, though, and there\'s an extra coin in it. Lambda bills by the millisecond, so fast is cheap.' }
+  };
+  const LETTER_SECS = 20;
+  // Two notices from the orders not pinned yet, so one you pass on can come back before a later claim. The first pick
+  // of a run always offers letters. Stakes and the timeout only come up once letters are pinned.
+  function offer(claim) {
+    const pool = shuffle(R.ORDERS.filter(o => !run.orders.includes(o) && (!ORDER[o].needs || run.orders.includes(ORDER[o].needs))), Math.random);
+    if (claim === 'rush' && pool.includes('letters')) return ['letters', pool.find(o => o !== 'letters')].filter(Boolean);
+    return pool.slice(0, 2);
+  }
+  function showPick(claim, opts) {
+    if (claim === 'rush') { run.orders = []; run.bank = 0; }
+    const two = opts || offer(claim), title = R.CLAIMS[claim].title;
+    if (!two.length) { reset(SEED + Math.floor(Math.random() * 1000), claim); return; }
+    qEl.className = 'on orders';
+    const have = run.orders.length ? `<p class="no-have">Already pinned: ${run.orders.map(o => ORDER[o].name).join(', ')}</p>` : '';
+    qEl.innerHTML = `<div class="no-board"><p class="no-kind">Night Orders · before ${title}</p>
+      <h2 id="q-h">Pin one up. It stays for the rest of the night.</h2>
+      <div class="no-cards">${two.map((o, n) => `<button type="button" class="no-card" data-o="${o}"><kbd>${n + 1}</kbd><b>${ORDER[o].name}</b><span>${ORDER[o].rule}</span><span class="no-up">Upside: ${ORDER[o].up}</span><small>${ORDER[o].aws}</small></button>`).join('')}</div>${have}</div>`;
+    qEl.querySelectorAll('.no-card').forEach(b => b.addEventListener('click', () => explainOrder(claim, b.dataset.o, two)));
+    qEl.querySelector('.no-card').focus();
+  }
+  // Dutch explains the order, with the AWS idea behind it, before it goes up.
+  function explainOrder(claim, o, two) {
+    const other = two.find(x => x !== o);
+    qEl.className = 'on orders';
+    qEl.innerHTML = `<div class="no-board"><p class="no-kind">Night Orders · ${ORDER[o].aws}</p>
+      <h2 id="q-h">${ORDER[o].name}</h2>
+      <div class="no-dutch"><img src="${SRC['dutch-' + (o === 'herd' ? 'surprised' : o === 'stakes' ? 'smile' : 'tired')]}" alt="Dutch"><p>${ORDER[o].dutch}</p></div>
+      <p class="no-rule">${ORDER[o].rule}<br><span class="no-up">Upside: ${ORDER[o].up}</span></p>
+      <button type="button" class="no-go">Pin it up</button>${other ? `<button type="button" class="no-back">I'll take ${ORDER[other].name.replace(/^The /, 'the ')} instead</button>` : ''}</div>`;
+    const go = qEl.querySelector('.no-go');
+    go.addEventListener('click', () => { run.orders.push(o); reset(SEED + Math.floor(Math.random() * 1000), claim); });
+    const back = qEl.querySelector('.no-back'); if (back) back.addEventListener('click', () => explainOrder(claim, other, two));
+    go.focus();
+  }
 
   // ---- Images ----
   function load() {
@@ -84,7 +156,28 @@
       const c = document.createElement('canvas'); c.width = e.width; c.height = e.height;
       const g = c.getContext('2d'); g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop';
       g.fillStyle = 'rgba(120, 40, 170, .62)'; g.fillRect(0, 0, c.width, c.height); IMG.envPoison = c;
+      IMG.ledger = IMG.ledger || drawLedger();
     });
+  }
+
+  // The ledger, drawn in code until its Sogni prop arrives: an open book with ruled pages and a quill.
+  function drawLedger() {
+    const c = document.createElement('canvas'); c.width = 220; c.height = 150; const g = c.getContext('2d');
+    g.lineJoin = 'round';
+    g.fillStyle = '#5a2e1c'; g.strokeStyle = '#1e0f08'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(8, 40); g.quadraticCurveTo(110, 18, 212, 40); g.lineTo(212, 132); g.quadraticCurveTo(110, 112, 8, 132); g.closePath(); g.fill(); g.stroke();
+    for (const side of [-1, 1]) {
+      g.fillStyle = '#f4e8c8'; g.beginPath();
+      g.moveTo(110, 30); g.quadraticCurveTo(110 + side * 50, 14, 110 + side * 96, 30); g.lineTo(110 + side * 96, 118); g.quadraticCurveTo(110 + side * 50, 102, 110, 120); g.closePath(); g.fill();
+      g.lineWidth = 3; g.stroke();
+      g.strokeStyle = 'rgba(90,60,30,.45)'; g.lineWidth = 2;
+      for (let y = 44; y < 108; y += 12) { g.beginPath(); g.moveTo(110 + side * 12, y); g.lineTo(110 + side * 84, y - 6); g.stroke(); }
+      g.strokeStyle = '#1e0f08';
+    }
+    g.strokeStyle = '#2a7a3e'; g.lineWidth = 4;
+    for (let y = 46; y < 100; y += 12) { g.beginPath(); g.moveTo(26, y); g.lineTo(32, y + 5); g.lineTo(42, y - 5); g.stroke(); }
+    g.strokeStyle = '#e8e2d4'; g.lineWidth = 6; g.beginPath(); g.moveTo(150, 92); g.quadraticCurveTo(178, 40, 206, 6); g.stroke();
+    return c;
   }
 
   // ---- Geometry ----
@@ -111,13 +204,16 @@
   function spot(tool) {
     if (tool === 'rack') { const r = L.rack, w = r.h * 0.72; return [r.x - w / 2, r.y - r.h - 6, w, r.h + 12]; }
     if (tool === 'bin') { const b = L.bin, w = b.h * 0.95; return [b.x - w / 2, b.y - b.h - 6, w, b.h + 12]; }
+    if (tool === 'ledger') { const d = L.desk; return [d.x - d.h * .62, d.y - d.h * 1.02, d.h * 1.1, d.h * .62]; }
     if (tool === 'bell') { const b = L.bell, w = b.h * 1.5; return [b.x - w / 2, b.y - b.h - 8, w, b.h + 16]; }
     if (tool === 'reserve') { const xs = L.stools.xs.slice(0, 4), h = L.stools.h; return [Math.min(...xs) - 34, L.stools.y - h - 30, Math.max(...xs) - Math.min(...xs) + 68, h + 42]; }
     return null;
   }
-  const TOOLS = ['rack', 'reserve', 'bin', 'bell'];
-  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell' };
-  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell' };
+  // The belt's four slots change with the claim (the Double-claimer swaps the bell for the ledger).
+  const TOOLS = { get length() { return S.belt.length; }, forEach: f => S.belt.forEach(f) };
+  const tool = i => S.belt[i];
+  const TOOL_IMG = { rack: 'rack', reserve: 'bolted', bin: 'bin', bell: 'bell', ledger: 'ledger' };
+  const TOOL_LABEL = { rack: 'Rack', reserve: 'Bolt 4', bin: 'Bin', bell: 'Bell', ledger: 'Ledger' };
   function beltRect() {
     const n = TOOLS.length, s = L.belt.slot, w = n * s + 24, h = L.belt.h;
     return [(L.W - w) / 2, L.H - h - 12, w, h];
@@ -135,6 +231,7 @@
       case 'shelf': return qi < RACK_SLOTS ? { p: rackSlot(Math.max(0, qi)), s: 0.42 } : null;
       case 'hidden': return { p: [L.rack.x + L.rack.h * 0.32, L.rack.y - L.rack.h * 0.95], s: 0.42, a: 0.35 };
       case 'tray': return null;
+      case 'drop': return { p: stoolPos(k.seat || 0), a: Math.max(0, 1 - u), s: lerp(.5, .2, u) };
       case 'walk': { const src = k.from === 'rack' ? fromRack() : k.from === 'tray' ? L.tray : L.foot; return { p: arc(src, stoolPos(k.stool), 60, ease(u)), s: lerp(k.from === 'rack' ? .42 : .5, .5, u) }; }
       case 'work': return { p: stoolPos(k.stool), ring: u };
       case 'done': return { p: arc(stoolPos(k.seat || 0), k.desk === 'reports' ? L.reports : L.handled, 120, ease(u)), s: lerp(.5, .3, u), img: 'envDone' };
@@ -149,30 +246,37 @@
   // ---- The loop ----
   function frame(now) {
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0); last = now;
-    if (S.started && !S.over) R.step(S, dt);
+    if (S.started && !S.over && !letterOpen) R.step(S, dt);
     for (const e of R.drain(S)) onEvent(e);
     tick(dt);
     draw();
     requestAnimationFrame(frame);
   }
-  function popAt(p, text, col, size) { pops.push({ x: p[0], y: p[1], text, col, size: size || 34, t: 0 }); }
+  function popAt(p, text, col, size) { pops.push({ x: Math.max(130, Math.min(L.W - 130, p[0])), y: p[1], text, col, size: size || 34, t: 0 }); }
   function onEvent(e) {
     const k = S.tickets.find(x => x.id === e.id);
     switch (e.type) {
       case 'lever': leverT = 1; if (saying && said.intro && sayQ.indexOf(saying) < 0 && /pull the lever/.test(saying.text)) saying = null; break;
-      case 'wave': popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); break;
+      case 'wave': popAt([L.W / 2, L.H * 0.36], 'Wave ' + e.wave, '#ffe6a8', 56); if (e.wave >= 2 && letters.length) letterAnim = { t: 0, L: letters.shift() }; break;
       case 'coin': coinPulse = 1.5; say('coin', 'smile', LINES.coin); break;
+      case 'saved': coinPulse = 1.5; popAt([L.W / 2, L.H * 0.36 + 60], '+1 coin, idle stools saved', '#ffdc78', 30); break;
       case 'throttle': popAt([L.foot[0] + 20 + (Math.random() - .5) * 60, L.foot[1] - 70 - Math.random() * 40], '429', '#ff8a7a', 40); flashT = .25; say('throttle', 'tired', LINES.throttle); break;
       case 'spill':
         popAt([L.puddle.x, L.puddle.y - 60], '-1', '#9cc8ff', 36);
         popAt([L.tank.x - 70, L.tank.y - L.tank.h * .2], '+1', '#9cc8ff', 28);
         for (let i = 0; i < 8; i++) fx.push({ x: L.puddle.x, y: L.puddle.y - 4, vx: (Math.random() - .5) * 220, vy: -120 - Math.random() * 160, t: 0 });
         if (e.why === 'throttled') say('splat', 'tired', LINES.splat);
+        if (e.why === 'twice') { popAt([L.desk.x - 60, L.desk.y - L.desk.h - 40], 'paid twice', '#ffd666', 30); say('twice', 'angry', LINES.twice); }
         break;
       case 'poisonFail': if (k && k.stool == null) popAt(k.from === 'rack' ? rackSlot(4) : L.foot, 'fail', '#d59cff', 30); say('poison', 'surprised', S.rack && !S.bin ? LINES.poisonRack : LINES.poison); break;
       case 'twin': popAt(rackSlot(0), 'x2', '#ffb27a', 38); say('twin', 'neutral', LINES.twin); break;
       case 'binned': popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'binned', '#d59cff', 28); break;
       case 'clog': say('clog', 'tired', LINES.clog); break;
+      case 'resend': popAt([L.hatch[0] + 120, L.hatch[1] + 40], 'Sending again!', '#ffb27a', 26); say('resend', 'surprised', LINES.resend); break;
+      case 'dropped': if (k) popAt([stoolPos(k.seat || 0)[0], stoolPos(k.seat || 0)[1] - 40], 'already done', '#9be59b', 24); break;
+      case 'cold': { const p = stoolPos(e.stool); popAt([p[0], p[1] - 40], 'cold start', '#9fd8ff', 24); say('cold', 'tired', LINES.cold); break; }
+      case 'herd': popAt([L.hatch[0] + 130, L.hatch[1] + 70], 'Stampede! x' + e.n, '#ff9a8a', 34); if (e.n >= 4) popAt([L.hatch[0] + 130, L.hatch[1] + 115], '+' + Math.floor(e.n / 4) + ' new caller', '#ffb27a', 26); say('herd', 'surprised', LINES.herd); break;
+      case 'expired': popAt(rackSlot(1), 'expired', '#e2c48a', 28); say('expired', 'tired', LINES.expired); break;
       case 'ring': ringT = 1; if (S.tray.length > 1) say('tray', 'neutral', LINES.tray); break;
       case 'close': if (e.n) { popAt([L.W / 2, L.H * .3], 'Shutters down', '#ffb27a', 46); say('close', 'tired', LINES.close); } break;
       case 'win': stamp = { text: 'CLOSED', col: '#3c9a58', t: 0 }; endAt = 1.8; break;
@@ -189,7 +293,12 @@
     if (!saying && sayQ.length) saying = Object.assign(sayQ.shift(), { t: 0 });
     if (saying) { saying.t += dt; if (saying.t > saying.secs) saying = null; }
     if (stamp) stamp.t += dt;
-    if (endAt) { endAt -= dt; if (endAt <= 0) { endAt = 0; showQuestion(); } }
+    if (letterAnim && !letterOpen && !S.over) { letterAnim.t += dt; if (letterAnim.t >= 1.4) { const l = letterAnim.L; letterAnim = null; openLetter(l); } }
+    if (letterOpen && letterClock && !letterClock.done) {
+      letterClock.left -= dt; const bar = qEl.querySelector('.lt-clock i'); if (bar) bar.style.width = Math.max(0, 100 * letterClock.left / LETTER_SECS) + '%';
+      if (letterClock.left <= 0) { letterClock.done = true; letterClock.timeUp(); }
+    }
+    if (endAt) { endAt -= dt; if (endAt <= 0) { endAt = 0; showEnd(); } }
   }
 
   // ---- Drawing ----
@@ -209,7 +318,7 @@
     cx.lineJoin = 'round'; cx.lineWidth = Math.max(3, size / 6); cx.strokeStyle = 'rgba(0,0,0,.9)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.restore();
   }
   function plaque(t, x, y) {
-    const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16;
+    const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; x = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x));
     rrect(x - w / 2, y - f * .75, w, f * 1.5, 8); cx.fillStyle = 'rgba(32,24,18,.82)'; cx.fill(); cx.strokeStyle = 'rgba(214,178,84,.9)'; cx.lineWidth = 1.5; cx.stroke();
     cx.fillStyle = '#f6e7c4'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(t, x, y + 1); cx.restore();
   }
@@ -263,6 +372,10 @@
     // Mira's desk and the six stools.
     shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb');
     plaque('Mira', L.desk.x, L.desk.y - L.desk.h - 4);
+    if (S.ledger) {
+      const d = L.desk; img('ledger', d.x - d.h * .1, d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
+      plaque('Ledger · DynamoDB', d.x, d.y - d.h - 30 * L.fs);
+    } else if (dragging === 'ledger' || (!drag && !S.started && S.belt.includes('ledger') && !S.placed.length)) glowSpot(spot('ledger'), dragging === 'ledger');
     drawStools(dragging === 'reserve');
     // The bell, or its glowing spot, and the Reports tray.
     if (S.bell) {
@@ -285,9 +398,11 @@
     for (const k of S.tickets) {
       const d = ticketDraw(k); if (!d) continue;
       const key = d.img || (k.poison ? 'envPoison' : 'env'), ew = 110 * (d.s || .5);
-      img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, ew);
+      // Shelf life: a ticket about to expire blinks on the rack.
+      const old = k.phase === 'shelf' && S.orders.has('shelf') && S.time - k.queuedAt > R.T.retain - 6;
+      img(key, d.p[0], d.p[1], 0, 'mm', old ? .3 + .7 * Math.abs(Math.sin(performance.now() / 110)) : d.a, d.rot || 0, ew);
       if ((k.ribbon || k.desk === 'reports') && !d.img) ribbon(d.p, ew, d.rot || 0, d.a);
-      if (k.twin && (k.phase === 'work' || k.phase === 'walk')) text('x2', d.p[0] + 26, d.p[1] - 20, 18, '#ffb27a');
+      if (k.twin && k.phase !== 'done' && k.phase !== 'drop') text('x2', d.p[0] + 26, d.p[1] - 20, 18, '#ffb27a');
       if (d.ring != null) {
         cx.save(); cx.lineWidth = 6; cx.strokeStyle = k.poison ? '#d59cff' : '#8fe68f'; cx.beginPath();
         cx.arc(d.p[0], d.p[1], 32, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * d.ring); cx.stroke(); cx.restore();
@@ -299,8 +414,15 @@
     fx.forEach(f => { cx.beginPath(); cx.arc(f.x, f.y, 5 * (1 - f.t), 0, Math.PI * 2); cx.fill(); }); cx.restore();
     pops.forEach(p => { cx.save(); cx.globalAlpha = Math.min(1, 2.4 - p.t * 2); text(p.text, p.x, p.y - p.t * 50, p.size, p.col); cx.restore(); });
     if (flashT) { cx.save(); cx.fillStyle = `rgba(255,80,60,${flashT * .35})`; cx.fillRect(0, 0, L.W, L.H); cx.restore(); }
+    if (letterAnim) {
+      const u = Math.min(1, letterAnim.t / 1.1), p = chutePos(ease(u)), bob = u >= 1 ? Math.sin(performance.now() / 120) * 4 : 0;
+      cx.save(); cx.shadowColor = 'rgba(255,214,102,.9)'; cx.shadowBlur = 24;
+      img('env', p[0], p[1] - 10 + bob, 0, 'mm', 1, u < .8 ? chuteAngle() : 0, 92); cx.restore();
+      cx.save(); cx.beginPath(); cx.arc(p[0], p[1] - 10 + bob, 13, 0, Math.PI * 2); cx.fillStyle = '#d6a73a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#5a3c0a'; cx.stroke(); cx.restore();
+      text('A letter!', p[0], p[1] - 62 + bob, 26, '#ffe08a');
+    }
     drawHud(); drawBelt(); drawSay();
-    if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85);
+    if (drag && drag.moved) img(TOOL_IMG[drag.tool], drag.x, drag.y, drag.tool === 'rack' ? L.rack.h * .9 : 110, 'mm', .85, 0, drag.tool === 'ledger' ? 150 : 0);
     if (stamp) drawStamp();
   }
   // A ribbon across an envelope: this one goes to Reports too.
@@ -327,18 +449,45 @@
       const x = st.xs[i];
       shadow(x, st.y + 2, st.h * .8);
       img(S.reserve && own[i] === 'mira' ? 'bolted' : 'stool', x, st.y + 6, st.h, 'mb', own[i] === 'clerk' ? .9 : 1);
-      if (own[i] === 'clerk' && S.claim === 'rush') {
+      // Cold stools: frost on any stool that's been empty too long.
+      if (S.orders.has('cold') && !(own[i] === 'clerk' && S.clerk === 'papers') && s.ticket == null && S.time - S.lastFree[i] > R.T.coldAfter) frost(x, st.y - st.h * .62, st.h * .26);
+      if (own[i] === 'clerk' && S.clerk === 'papers') {
         // The Night Clerk's papers hold this stool.
         cx.save(); for (let j = 0; j < 3; j++) { cx.fillStyle = j % 2 ? '#e8dcc0' : '#f7efdc'; cx.strokeStyle = '#6b5a3a'; cx.lineWidth = 1.5; rrect(x - 18 + j * 2, st.y - st.h - 4 - j * 5, 36, 10, 2); cx.fill(); cx.stroke(); }
         cx.fillStyle = '#5a7fc0'; cx.fillRect(x - 3, st.y - st.h - 18, 6, 16); cx.restore();
       }
     });
     const mira = own.filter(o => o === 'mira').length;
-    const other = S.claim === 'bell' ? 'Reports' : 'Night Clerk';
+    const other = S.clerk === 'reports' ? 'Reports' : 'Night Clerk';
     plaque(S.reserve ? `Mira ${mira} reserved · ${other} ${6 - mira}` : `${other} ${6 - mira} · Mira ${mira}`, (st.xs[0] + st.xs[st.xs.length - 1]) / 2, st.y - st.h - 44 - 10 * L.fs);
   }
+  function frost(x, y, r) {
+    cx.save(); cx.fillStyle = 'rgba(170,220,255,.28)'; cx.beginPath(); cx.arc(x, y, r * 1.25, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = 'rgba(223,243,255,.85)'; cx.lineWidth = 2.5; cx.lineCap = 'round';
+    for (let a = 0; a < 3; a++) { const t = a * Math.PI / 3, dx = Math.cos(t) * r, dy = Math.sin(t) * r; cx.beginPath(); cx.moveTo(x - dx, y - dy); cx.lineTo(x + dx, y + dy); cx.stroke(); }
+    cx.restore();
+  }
+  // The pinned Night Orders, as small notices under the title.
+  function drawOrders() {
+    if (!run.orders.length) return;
+    const f = 13 * L.fs; cx.save(); cx.font = `800 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; cx.textBaseline = 'middle';
+    // Their own row under the wave dots (on the phone, between those and Dutch's box).
+    let x = L.title[0]; const y = L.title[1] + (L.coinsAt ? 90 : 92) * L.fs;
+    for (const t of run.orders.map(o => ORDER[o].tag)) {
+      const w = cx.measureText(t).width + 18, x0 = x;
+      rrect(x0, y - f * .8, w, f * 1.6, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#6b4e24'; cx.stroke();
+      cx.fillStyle = '#b23a2f'; cx.beginPath(); cx.arc(x0 + w / 2, y - f * .8, 4 * L.fs, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.fillText(t, x0 + w / 2, y + 1);
+      x = x0 + w + 8;
+    }
+    cx.restore();
+  }
   function drawHud() {
-    text(S.name, L.title[0], L.title[1] + 16 * L.fs, 32, '#fff0d2', 'left');
+    drawOrders();
+    const maxW = (L.coinsAt ? L.coinsAt[0] - 30 : L.say.x - 10) - L.title[0];
+    cx.font = `700 ${32 * L.fs}px Fredoka, "Trebuchet MS", system-ui, sans-serif`;
+    const tw = cx.measureText(S.name).width, tsz = tw > maxW ? 32 * maxW / tw : 32;
+    text(S.name, L.title[0], L.title[1] + 16 * L.fs, tsz, '#fff0d2', 'left');
     for (let i = 0; i < 4; i++) {
       const x = L.title[0] + 12 * L.fs + i * 28 * L.fs, y = L.title[1] + 56 * L.fs;
       cx.save(); cx.beginPath(); cx.arc(x, y, 10 * L.fs, 0, Math.PI * 2); cx.fillStyle = i < S.wave ? '#ffd666' : 'rgba(50,44,60,.9)'; cx.fill();
@@ -356,7 +505,7 @@
     const [bx, by, bw, bh] = beltRect();
     cx.save(); rrect(bx, by, bw, bh, 22); cx.fillStyle = 'rgba(24,20,30,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
     TOOLS.forEach((t, i) => {
-      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), poor = !used && !locked && S.coins < 1;
+      const r = slotRect(i), used = S[t], locked = S.locked.includes(t), cost = R.costOf(S, t), poor = !used && !locked && S.coins < cost;
       const hot = drag && drag.tool === t;
       cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = used ? 'rgba(30,26,34,1)' : 'rgba(58,48,62,1)'; cx.fill();
       cx.lineWidth = hot ? 4 : 2; cx.strokeStyle = hot ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
@@ -365,7 +514,7 @@
       cx.fillText(used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t], r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
       if (!used && !locked) {
         cx.save(); cx.beginPath(); cx.arc(r[0] + r[2] - 10, r[1] + 10, 13 * L.fs, 0, Math.PI * 2); cx.fillStyle = '#d6b254'; cx.fill(); cx.lineWidth = 2.5; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
-        text('1', r[0] + r[2] - 10, r[1] + 11, 15, '#2b1a08');
+        text(String(cost), r[0] + r[2] - 10, r[1] + 11, 15, '#2b1a08');
       }
       if (!used && !locked) text(String(i + 1), r[0] + 12, r[1] + 12, 14, '#9d90a8');
     });
@@ -395,7 +544,7 @@
     cx.restore();
   }
 
-  // ---- The question after the claim (the only plain screen) ----
+  // ---- Scenario questions (they were the end-of-claim popup; now they're among the letters) ----
   const QS = {
     rack: {
       q: 'A checkout API calls a Lambda function synchronously. During flash sales, callers get 429 errors, and some orders are lost once their retries run out. Orders can be processed a few seconds late. What is the best fix?',
@@ -406,6 +555,11 @@
       q: 'Two Lambda functions share one account. A nightly batch function sometimes takes most of the account\'s concurrency, and the checkout function gets throttled. What guarantees checkout always has capacity?',
       opts: ['Set reserved concurrency on the checkout function', 'Turn on provisioned concurrency for the batch function', 'Increase the checkout function\'s memory', 'Turn on X-Ray tracing for the checkout function'],
       why: 'Reserved concurrency sets aside that many concurrent executions for one function, and no other function can use them. It is also that function\'s ceiling. Provisioned concurrency keeps environments initialised to cut cold starts; it doesn\'t stop one function from using capacity another needs.'
+    },
+    double: {
+      q: 'A payment function behind API Gateway sometimes charges a customer twice, because the client retries when a response is slow even though the first request went through. What stops the double charges?',
+      opts: ['Have the client send an idempotency key, and record it in DynamoDB with a conditional write before charging, skipping any key that already exists', 'Put an SQS standard queue in front of the function', 'Set the function\'s reserved concurrency to 1', 'Raise the function\'s timeout'],
+      why: 'A conditional write (attribute_not_exists on the key) succeeds only the first time, so a retried request finds its key already recorded and skips the charge. An SQS standard queue delivers at least once, so it can add duplicates rather than remove them. Running one at a time or waiting longer still lets the second request charge again.'
     },
     bell: {
       q: 'Every time an order is placed, an order function must tell a billing function and an analytics function. Today it calls both itself, one after the other, so orders slow down and fail whenever analytics is down. Which change decouples them with the least code?',
@@ -418,37 +572,130 @@
       why: 'A redrive policy on the source queue moves a message to the dead-letter queue once it has been received maxReceiveCount times without being deleted. A shorter visibility timeout only brings it back sooner, and long polling and batch size don\'t change what happens to a message that keeps failing.'
     }
   };
-  function pickQ() {
-    if (S.claim === 'bell') return 'bell';
-    if (S.bin && S.rack && S.binned) return 'bin';
-    if (S.rack && !S.bin && S.lost) return 'bin';
-    if (S.rack) return 'rack';
-    if (S.reserve) return 'reserve';
-    return 'rack';
-  }
+  // ---- Letters: the questions arrive as mail between waves (Ladi, Nov 16: not the same popup every claim) ----
+  // Three formats, one of each per claim (waves 2 to 4), in a random order: a letter (pick the answer), "which piece
+  // fixes it?" (answer with a belt tool) and "find the false one". The room waits while you read. Right: a coin.
+  // Wrong: the next letter, even in the next claim, arrives torn, with one option missing at random. If the torn
+  // strip held the answer, "None of these" (or "They're all true") is right.
   function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-  function showQuestion() {
-    const key = pickQ(), Q = QS[key], order = shuffle([0, 1, 2, 3], Math.random);
+  function pickLetters(claim) {
+    const pool = LETTERS[claim] || LETTERS.rush, pick = a => a[Math.floor(Math.random() * a.length)];
+    return shuffle([pick(pool.a), pick(pool.b), pick(pool.c)], Math.random);
+  }
+  function openLetter(Lt) {
+    letterOpen = true; drag = null;
+    const fmt = Lt.f;
+    const base = fmt === 'b'
+      ? Lt.tools.map(t => ({ html: `<img src="${SRC[TOOL_IMG[t]] || ''}" alt=""><b>${TOOL_LABEL[t]}</b><small>${R.TOOLS[t].aws}</small>` }))
+      : Lt.opts.map(o => ({ html: o }));
+    let opts = base.map((o, i) => Object.assign({ i }, o)), answer = 0, torn = null;
+    if (carry.torn) {
+      carry.torn = false;
+      const k = Math.floor(Math.random() * opts.length); torn = opts[k]; opts = opts.filter((_, x) => x !== k);
+      if (torn.i === answer) answer = -1;
+      opts.push({ i: -1, none: true, html: fmt === 'c' ? 'They\'re all true' : 'None of these' });
+    }
+    const shown = shuffle(opts.filter(o => !o.none), Math.random).concat(opts.filter(o => o.none));
+    const head = { a: 'A letter for the floor', b: 'Which piece fixes it?', c: 'Find the false one' }[fmt];
+    const stakes = S.orders.has('stakes'), maxBet = Math.min(2, S.coins); let bet = 0;
+    qEl.className = 'on letter fmt-' + fmt;
+    qEl.innerHTML = `<div class="lt-card"><div class="lt-seal" aria-hidden="true"></div>
+      <p class="lt-kind">${head}${torn ? ' <span class="lt-torn-tag">torn</span>' : ''}</p>
+      ${S.orders.has('timeout') ? '<div class="lt-clock" aria-label="20 seconds to answer"><i></i></div>' : ''}
+      ${stakes ? `<div class="lt-bet"><span>Your bet</span>${[0, 1, 2].map(n => `<button type="button" data-bet="${n}"${n === 0 ? ' class="on"' : ''}${n > maxBet ? ' disabled' : ''}>${n}</button>`).join('')}<small>${maxBet ? 'Right pays it back double.' : 'No coins to bet.'}</small></div>` : ''}
+      <p class="lt-text" id="q-h">${Lt.q}</p>
+      <div class="lt-opts">${shown.map((o, n) => `<button type="button" data-i="${o.i}"${o.none ? ' class="none"' : ''}><kbd>${n + 1}</kbd><span>${o.html}</span></button>`).join('')}</div>
+      ${torn ? '<p class="lt-rip">A strip of this letter is torn off. One option is missing.</p>' : ''}
+      <p class="lt-why"></p><button type="button" class="lt-go">Back to the floor</button></div>`;
+    const why = qEl.querySelector('.lt-why'), goBtn = qEl.querySelector('.lt-go');
+    qEl.querySelectorAll('.lt-bet button').forEach(b => b.addEventListener('click', () => {
+      if (b.disabled) return; bet = +b.dataset.bet; qEl.querySelectorAll('.lt-bet button').forEach(x => x.classList.toggle('on', x === b));
+    }));
+    // b: the button picked, or null when the clock ran out.
+    function settle(b) {
+      const right = !!b && +b.dataset.i === answer;
+      qEl.querySelectorAll('.lt-opts button, .lt-bet button').forEach(x => { x.disabled = true; if (x.dataset.i != null && +x.dataset.i === answer) x.classList.add('right'); });
+      if (b && !right) b.classList.add('wrong');
+      if (letterClock) letterClock.done = true;
+      const tornNote = torn && answer === -1 ? ' The answer was on the strip that got torn off.' : '';
+      const s = n => n + (n > 1 ? ' coins' : ' coin');
+      const quick = right && letterClock && letterClock.left >= LETTER_SECS / 2 ? 1 : 0;
+      const head = right ? (bet ? `Right. A coin, and your ${s(bet)} back double.` : 'Right. Here\'s a coin.') + (quick ? ' Quick, too: one more.' : '')
+        : (b ? 'Not quite.' : 'Time\'s up.') + (bet ? ` That's ${s(bet)} gone.` : '') + ' The next letter will arrive torn.';
+      why.innerHTML = `<b>${head}</b> ${Lt.why}${tornNote}`; why.classList.add('on');
+      goBtn.classList.add('on'); goBtn.focus();
+      if (right) { S.coins += 1 + bet + quick; coinPulse = 1.5; S.lettersRight = (S.lettersRight || 0) + 1; } else { S.coins -= bet; carry.torn = true; S.lettersWrong = (S.lettersWrong || 0) + 1; }
+    }
+    qEl.querySelectorAll('.lt-opts button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) settle(b); }));
+    letterClock = S.orders.has('timeout') ? { left: LETTER_SECS, done: false, timeUp: () => settle(null) } : null;
+    goBtn.addEventListener('click', closeLetter);
+    const first = qEl.querySelector('.lt-opts button'); if (first) first.focus();
+  }
+  function closeLetter() { letterOpen = false; letterClock = null; qEl.className = ''; qEl.innerHTML = ''; last = 0; }
+  // The end of a claim: the stamp stays on the room, with a small strip along the bottom.
+  function showEnd() {
     const won = S.over === 'win';
+    // Coins left over from a win carry into the next claim. Losing keeps what you started this claim with.
+    if (won) run.bank = S.next ? S.coins : 0;
     // Won with a claim after it: on to that one. Lost: this claim again. Won the last: back to the start.
     const nextClaim = won ? (S.next || 'rush') : S.claim;
     const againLabel = won && S.next ? 'Next claim: ' + R.CLAIMS[S.next].title : won && S.claim !== 'rush' ? 'Play again from the Rush' : 'Try ' + R.CLAIMS[S.claim].title + ' again';
-    const sum = `${S.handled} handled${S.claim === 'bell' ? ` · ${S.reports} reports` : ''} · ${S.lost} lost · ${S.throttles} bounces${S.twins ? ` · ${S.twins} twins` : ''}${S.binned ? ` · ${S.binned} binned` : ''}`;
-    qEl.innerHTML = `<div class="q-card"><h2 id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</h2><p class="q-sum">${sum}</p>
-      <p class="q-ask">Exam question</p><p class="q-text">${Q.q}</p>
-      <div class="q-opts">${order.map(i => `<button type="button" data-i="${i}">${Q.opts[i]}</button>`).join('')}</div>
-      <p class="q-why"></p><button type="button" class="q-again">${againLabel}</button></div>`;
-    qEl.classList.add('on');
-    const why = qEl.querySelector('.q-why'), again = qEl.querySelector('.q-again');
-    qEl.querySelectorAll('.q-opts button').forEach(b => b.addEventListener('click', () => {
-      const i = +b.dataset.i;
-      qEl.querySelectorAll('.q-opts button').forEach(x => { x.disabled = true; if (+x.dataset.i === 0) x.classList.add('right'); });
-      if (i !== 0) b.classList.add('wrong');
-      why.innerHTML = `<b>${i === 0 ? 'Right.' : 'Not quite.'}</b> ${Q.why}`; why.classList.add('on'); again.classList.add('on'); again.focus();
-    }));
-    again.addEventListener('click', () => reset(SEED + Math.floor(Math.random() * 1000), nextClaim));
-    const first = qEl.querySelector('.q-opts button'); if (first) first.focus();
+    const bits = [`${S.handled} handled`];
+    if (S.claim === 'bell') bits.push(`${S.reports} reports`);
+    if (S.claim === 'double') bits.push(`${S.paidTwice} paid twice`, `${S.dropped} repeats stopped`);
+    const nl = (S.lettersRight || 0) + (S.lettersWrong || 0);
+    bits.push(`${S.lost} lost`); if (nl) bits.push(`letters ${S.lettersRight || 0} of ${nl}`);
+    if (won && S.next && S.coins) bits.push(`${S.coins} coin${S.coins > 1 ? 's' : ''} carried over`);
+    if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
+    qEl.className = 'on end';
+    qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
   }
+  // The letters. Written for this game from the AWS docs, none copied from practice exams. The first option (or
+  // first tool) is the answer; the order is shuffled when the letter opens.
+  const LETTERS = {
+    rush: {
+      a: [
+        { f: 'a', q: 'Every concurrent execution of a Lambda function is busy, and another synchronous request arrives. What does the caller get back?', opts: ['A 429 throttling error (TooManyRequestsException)', 'Nothing yet: the request waits in Lambda\'s internal queue for up to 6 hours', 'A 504 gateway timeout', 'A new execution beyond the concurrency limit'], why: 'A synchronous call that finds no free concurrency is throttled with a 429, and the caller decides whether to retry. Lambda\'s internal queue is for asynchronous invocations.' },
+        { f: 'a', q: 'A function has reserved concurrency of 4, and a fifth synchronous request arrives while four are running. What happens?', opts: ['It\'s throttled', 'It borrows a slot from the account\'s unreserved pool', 'It waits until one of the four finishes', 'It runs on provisioned concurrency'], why: 'Reserved concurrency is a guarantee and a ceiling. Past it, requests are throttled, even if the account has spare concurrency.' },
+        Object.assign({ f: 'a' }, QS.rack), Object.assign({ f: 'a' }, QS.reserve), Object.assign({ f: 'a' }, QS.bin)
+      ],
+      b: [
+        { f: 'b', tools: ['rack', 'reserve', 'bin', 'bell'], q: 'Tickets arrive faster than Mira can sit, but the callers don\'t mind waiting a few seconds. Which piece lets them wait instead of bouncing?', why: 'The rack is an SQS queue. Tickets wait on it, and Lambda takes them as stools free up.' },
+        { f: 'b', tools: ['reserve', 'rack', 'bin', 'bell'], q: 'Another function keeps taking the stools Mira needs. Which piece guarantees her some?', why: 'Bolted stools are reserved concurrency: set aside for one function, and nobody else can use them.' },
+        { f: 'b', tools: ['bin', 'rack', 'reserve', 'bell'], q: 'One ticket fails every time and keeps coming back off the rack. Which piece takes it out of the loop?', why: 'The bin is a dead-letter queue. After maxReceiveCount failed receives, the redrive policy moves the message there.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of an SQS standard queue. Which one is false?', opts: ['A message is deleted as soon as a consumer receives it', 'The same message can be delivered more than once', 'Messages can arrive out of order', 'A received message stays hidden for the visibility timeout'], why: 'Receiving a message only hides it for the visibility timeout. The consumer has to delete it, or it comes back.' },
+        { f: 'c', q: 'Three of these are true of Lambda concurrency. Which one is false?', opts: ['Provisioned concurrency raises the account\'s concurrency limit', 'Reserved concurrency guarantees capacity for one function', 'Reserved concurrency also caps that function', 'Functions without a reservation share what\'s left of the account\'s pool'], why: 'Provisioned concurrency keeps environments initialised to cut cold starts. It comes out of the account\'s concurrency; it doesn\'t add to it.' }
+      ]
+    },
+    bell: {
+      a: [
+        { f: 'a', q: 'An SNS topic has a Lambda function subscribed. How does SNS invoke the function?', opts: ['Asynchronously', 'Synchronously, waiting for the function\'s response', 'By putting the message on an SQS queue it creates for you', 'The function polls the topic for new messages'], why: 'SNS invokes subscribed Lambda functions asynchronously, so the events wait in Lambda\'s own queue and failed ones are retried.' },
+        Object.assign({ f: 'a' }, QS.bell)
+      ],
+      b: [
+        { f: 'b', tools: ['bell', 'rack', 'reserve', 'bin'], q: 'Two desks each need their own copy of every order, and the order desk shouldn\'t wait on either. Which piece does that?', why: 'The bell is an SNS topic. One publish, and every subscriber gets its own copy.' },
+        { f: 'b', tools: ['rack', 'bell', 'reserve', 'bin'], q: 'Reports gets its copies in bursts it can\'t keep up with, and it\'s fine to file them a little late. Which piece would you put in front of Reports?', why: 'An SQS queue subscribed to the topic holds the burst until Reports can take it. That SNS-to-SQS fan-out is a common pattern.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true of SNS. Which one is false?', opts: ['A message waits in the topic until a subscriber polls for it', 'One publish reaches every subscriber', 'A filter policy can limit which messages a subscriber gets', 'An SQS queue can subscribe to a topic'], why: 'SNS pushes to its subscribers; nothing polls a topic. For messages that wait, subscribe an SQS queue to the topic.' }
+      ]
+    },
+    double: {
+      a: [
+        { f: 'a', q: 'What delivery does an SQS standard queue promise?', opts: ['At least once, and not always in order', 'Exactly once, in order', 'Exactly once, in any order', 'At most once'], why: 'Standard queues deliver at least once and make a best effort at order. FIFO queues add exactly-once processing and order within a message group.' },
+        Object.assign({ f: 'a' }, QS.double)
+      ],
+      b: [
+        { f: 'b', tools: ['ledger', 'rack', 'reserve', 'bin'], q: 'Callers resend when they\'re nervous, and doing one ticket twice pays out twice. Which piece stops the double payouts?', why: 'The ledger is an idempotency record: a conditional write of the ticket\'s key that only succeeds the first time.' }
+      ],
+      c: [
+        { f: 'c', q: 'Three of these are true about making a handler idempotent. Which one is false?', opts: ['An SQS standard queue removes duplicate messages for you', 'A conditional write fails if its condition isn\'t met', 'attribute_not_exists on the key lets only the first write succeed', 'Doing an idempotent operation twice has the same effect as doing it once'], why: 'Standard queues can deliver duplicates. Deduplication is a FIFO queue feature, and even then the handler should be safe to repeat.' }
+      ]
+    }
+  };
 
   // ---- Hands ----
   function toStage(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / scale, (e.clientY - r.top - oy) / scale]; }
@@ -465,7 +712,7 @@
     if (qEl.classList.contains('on')) return;
     const p = toStage(e);
     for (let i = 0; i < TOOLS.length; i++) if (inRect(p, slotRect(i))) {
-      drag = { tool: TOOLS[i], x: p[0], y: p[1], sx: p[0], sy: p[1], moved: false };
+      drag = { tool: tool(i), x: p[0], y: p[1], sx: p[0], sy: p[1], moved: false };
       cv.setPointerCapture(e.pointerId); return;
     }
     if (Math.hypot(p[0] - L.lever.x, p[1] - L.lever.y) < L.lever.r) { R.start(S); return; }
@@ -482,9 +729,11 @@
   });
   cv.addEventListener('pointercancel', () => { drag = null; });
   addEventListener('keydown', e => {
+    if (letterOpen) { const n = +e.key, b = qEl.querySelectorAll('.lt-opts button')[n - 1]; if (b) b.click(); return; }
+    if (qEl.classList.contains('orders')) { const b = qEl.querySelectorAll('.no-card')[+e.key - 1]; if (b) b.click(); return; }
     if (qEl.classList.contains('on')) return;
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); R.start(S); }
-    const n = +e.key; if (n >= 1 && n <= 4) tryPlace(TOOLS[n - 1]);
+    const n = +e.key; if (n >= 1 && n <= S.belt.length) tryPlace(tool(n - 1));
   });
 
   // ---- Size: the stage fits the screen; the backdrop fills the rest ----
@@ -496,11 +745,16 @@
     scale = Math.min(w / L.W, h / L.H); ox = (w - L.W * scale) / 2; oy = (h - L.H * scale) / 2;
   }
   addEventListener('resize', resize);
-  resize(); reset(SEED, qs.get('claim') || 'rush');
+  // Every claim opens on its pick. ?claim=bell starts on claim 2; ?orders=cold,shelf pins those and skips the pick.
+  resize();
+  const first = qs.get('claim') || 'rush';
+  if (qs.get('orders')) run.orders = qs.get('orders').split(',').filter(o => ORDER[o]);
+  reset(SEED, first);
+  if (!qs.get('orders')) showPick(first);
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {
-    get S() { return S; }, reset, place: tryPlace, start: () => R.start(S),
+    get S() { return S; }, get run() { return run; }, reset, showPick, place: tryPlace, start: () => R.start(S),
     at: { slot: i => { const r = slotRect(i); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, spot: t => { const r = spot(t); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, lever: () => toClient([L.lever.x, L.lever.y]) }
   };
   load().then(() => requestAnimationFrame(frame));

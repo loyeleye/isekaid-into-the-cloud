@@ -1,6 +1,9 @@
-// Headless check and screenshots of the Rush prototype (rush.html). Serves game/, plays a claim at desktop and phone
-// size with the rack and the bolted stools placed, checks for page errors, no horizontal scroll and a finished
-// claim with its question, and saves screenshots. node tools/rush_check.js [outDir]
+// Headless check and screenshots of the Rush prototype (rush.html). Serves game/ and plays all three claims in a row
+// at desktop and phone size: the drag and the lever, the end-of-claim strip and its "Next claim" button, the Night
+// Orders pick before every claim (Dutch's explanation, stacking, no repeats), the letters once pinned (all
+// three formats, a wrong answer tearing an option off the next one, a bet, a letter whose clock runs out), each claim's
+// own piece (the bell, the ledger), and the room's orders (cold stools, the stampede, shelf life). Checks for page errors and horizontal scroll, and saves screenshots.
+// node tools/rush_check.js [outDir]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), OUT = process.argv[2] || '/tmp/rush-shots';
@@ -11,61 +14,190 @@ const srv = http.createServer((q, r) => {
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'application/octet-stream' }); fs.createReadStream(p).pipe(r);
 });
+let fail = 0;
+const bad = (...a) => { fail++; console.log('FAIL', ...a); };
+const letterOpen = pg => pg.evaluate(() => document.getElementById('q').classList.contains('letter'));
+const endShown = pg => pg.evaluate(() => document.getElementById('q').classList.contains('end'));
+// Answer the open letter: 'right' clicks the answer, 'wrong' a wrong option. Returns what the letter looked like.
+async function answer(pg, how) {
+  const info = await pg.evaluate(how => {
+    const q = document.getElementById('q'), btns = [...q.querySelectorAll('.lt-opts button')];
+    const fmt = (q.className.match(/fmt-(\w)/) || [])[1], torn = !!q.querySelector('.lt-torn-tag');
+    // The answer is data-i 0, or "none of these" (-1) when the torn strip held it.
+    const ans = btns.find(b => b.dataset.i === '0') || btns.find(b => b.dataset.i === '-1');
+    const pick = how === 'right' ? ans : btns.find(b => b !== ans);
+    pick.click();
+    const ok = how === 'right' ? !!q.querySelector('button.right') && !q.querySelector('button.wrong') : !!q.querySelector('button.wrong');
+    return { fmt, torn, n: btns.length, hasNone: btns.some(b => b.dataset.i === '-1'), ok };
+  }, how);
+  return info;
+}
+async function closeLetter(pg) { await pg.click('.lt-go'); }
+// Play until the end strip shows, answering every letter with the given policy (a function of the letter's index).
+async function playOut(pg, policy, seen) {
+  const t0 = Date.now(); let n = 0;
+  while (Date.now() - t0 < 160000) {
+    if (await endShown(pg)) return true;
+    if (await letterOpen(pg)) { const info = await answer(pg, policy(n)); seen.push(info); n++; await closeLetter(pg); }
+    await pg.waitForTimeout(200);
+  }
+  return false;
+}
 (async () => {
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const port = srv.address().port, browser = await chromium.launch();
-  let fail = 0;
   for (const [name, vp] of [['desktop', { width: 1366, height: 768 }], ['phone', { width: 390, height: 844 }]]) {
     const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 2 });
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errs.push(m.text()); });
     await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7`);
     await pg.waitForTimeout(700);
+    // The pick before claim 1 always offers letters, and never stakes or the timeout (they need letters). Pin letters.
+    const off1 = await pg.evaluate(() => [...document.querySelectorAll('.no-card')].map(b => b.dataset.o));
+    if (off1.length !== 2 || !off1.includes('letters') || off1.some(o => o === 'stakes' || o === 'timeout')) bad(name, 'claim 1 offer', off1);
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-0a-pick.png` });
+    await pg.click('.no-card[data-o="letters"]');
+    if (!/Post Office/.test(await pg.textContent('.no-dutch'))) bad(name, 'no Dutch explanation for letters');
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-0b-explain.png` });
+    await pg.click('.no-go');
+    if ((await pg.evaluate(() => SD_RUSH.run.orders.join() + ':' + document.getElementById('q').className)) !== 'letters:') bad(name, 'pinning letters did not start the Rush');
+    await pg.waitForTimeout(300);
     await pg.screenshot({ path: `${OUT}/${name}-1-build.png` });
     // Hands: dragging the bin onto its spot places it, the bell stays locked, and clicking the lever starts the claim.
     const [sx, sy] = await pg.evaluate(() => SD_RUSH.at.slot(2)), [tx, ty] = await pg.evaluate(() => SD_RUSH.at.spot('bin'));
     await pg.mouse.move(sx, sy); await pg.mouse.down(); await pg.mouse.move((sx + tx) / 2, (sy + ty) / 2, { steps: 5 }); await pg.mouse.move(tx, ty, { steps: 5 }); await pg.screenshot({ path: `${OUT}/${name}-0-drag.png` }); await pg.mouse.up();
     const [bx, by] = await pg.evaluate(() => SD_RUSH.at.slot(3)); await pg.mouse.click(bx, by);
     const hands = await pg.evaluate(() => ({ bin: SD_RUSH.S.bin, bell: !!SD_RUSH.S.bell, coins: SD_RUSH.S.coins }));
-    if (!hands.bin || hands.bell || hands.coins !== 1) { fail++; console.log(name, 'drag/lock failed', JSON.stringify(hands)); }
+    if (!hands.bin || hands.bell || hands.coins !== 1) bad(name, 'drag/lock', JSON.stringify(hands));
     await pg.evaluate(() => SD_RUSH.reset(7));
-    // Wave 1 with nothing placed: bounces. Started by clicking the lever.
+    // Claim 1: wave 1 with nothing placed (bounces), then the rack and the bolted stools.
     const [lx, ly] = await pg.evaluate(() => SD_RUSH.at.lever()); await pg.mouse.click(lx, ly);
-    if (!(await pg.evaluate(() => SD_RUSH.S.started))) { fail++; console.log(name, 'lever click did not start'); }
+    if (!(await pg.evaluate(() => SD_RUSH.S.started))) bad(name, 'lever click did not start');
     await pg.waitForTimeout(5200);
     await pg.screenshot({ path: `${OUT}/${name}-2-bounces.png` });
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.place('reserve'); });
-    await pg.waitForTimeout(9000);
-    await pg.screenshot({ path: `${OUT}/${name}-3-rack.png` });
-    await pg.waitForFunction(() => SD_RUSH.S.over, null, { timeout: 120000 }).catch(() => {}); await pg.waitForTimeout(600);
-    await pg.screenshot({ path: `${OUT}/${name}-4-stamp.png` });
-    const done = await pg.waitForFunction(() => document.getElementById('q').classList.contains('on'), null, { timeout: 120000 }).then(() => true, () => false);
-    await pg.screenshot({ path: `${OUT}/${name}-5-question.png` });
-    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth }));
-    // Claim 1 won: the end screen offers claim 2, and taking it starts the Bell.
-    const nextTxt = await pg.evaluate(() => { document.querySelector('.q-opts button').click(); return document.querySelector('.q-again').textContent; });
-    if (!/Next claim: the Bell/.test(nextTxt)) { fail++; console.log(name, 'no next-claim button:', nextTxt); }
-    await pg.click('.q-again');
-    if ((await pg.evaluate(() => SD_RUSH.S.claim)) !== 'bell') { fail++; console.log(name, 'next claim did not start the Bell'); }
-    // Claim 2, the Bell: a few seconds without the bell (Mira copies ribboned tickets by hand), then the bell and the rack.
+    // The first letter comes down at wave 2, and the room waits while it's open. Answer it wrong: the next one is torn.
+    const seen = [];
+    await pg.waitForFunction(() => document.getElementById('q').classList.contains('letter'), null, { timeout: 30000 }).catch(() => bad(name, 'no letter at wave 2'));
+    const tA = await pg.evaluate(() => SD_RUSH.S.time); await pg.waitForTimeout(800);
+    if ((await pg.evaluate(() => SD_RUSH.S.time)) !== tA) bad(name, 'the room kept running under a letter');
+    if (await pg.$('.lt-bet')) bad(name, 'no bets without the stakes order');
+    await pg.screenshot({ path: `${OUT}/${name}-3-letter.png` });
+    seen.push(await answer(pg, 'wrong'));
+    await pg.screenshot({ path: `${OUT}/${name}-3b-letter-wrong.png` });
+    await closeLetter(pg);
+    await pg.waitForFunction(() => document.getElementById('q').classList.contains('letter'), null, { timeout: 30000 }).catch(() => bad(name, 'no second letter'));
+    await pg.screenshot({ path: `${OUT}/${name}-3c-letter-torn.png` });
+    const c1 = await pg.evaluate(() => SD_RUSH.S.coins);
+    const t1 = await answer(pg, 'right'); seen.push(t1);
+    if (!t1.torn || !t1.hasNone || t1.n !== 4) bad(name, 'second letter not torn', JSON.stringify(t1));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== c1 + 1) bad(name, 'right answer paid no coin');
+    await closeLetter(pg);
+    if (!(await playOut(pg, () => 'right', seen))) bad(name, 'claim 1 never ended');
+    await pg.screenshot({ path: `${OUT}/${name}-4-end.png` });
+    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth, next: document.querySelector('.end-go').textContent }));
+    console.log(name, 'rush', JSON.stringify(st));
+    if (st.sw > st.w) bad(name, 'horizontal scroll');
+    if (!/Next claim: the Bell/.test(st.next)) bad(name, 'no next-claim button:', st.next);
+    // The pick before claim 2: two notices, never letters again. Read one, switch to the other, pin it.
+    const left1 = await pg.evaluate(() => SD_RUSH.S.coins);
+    await pg.click('.end-go');
+    const offered = await pg.evaluate(() => [...document.querySelectorAll('.no-card')].map(b => b.dataset.o));
+    if (offered.length !== 2 || offered[0] === offered[1] || offered.includes('letters')) bad(name, 'claim 2 offer:', offered);
+    await pg.evaluate(() => SD_RUSH.showPick('bell', ['cold', 'stakes']));
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-5-pick.png` });
+    await pg.click('.no-card[data-o="cold"]');
+    if (!/cold start/.test(await pg.textContent('.no-dutch'))) bad(name, 'no Dutch explanation for cold stools');
+    await pg.click('.no-back');
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-5b-explain.png` });
+    await pg.click('.no-go');
+    const r2 = await pg.evaluate(() => ({ claim: SD_RUSH.S.claim, orders: SD_RUSH.run.orders.slice(), q: document.getElementById('q').className }));
+    if (r2.claim !== 'bell' || r2.orders.join() !== 'letters,stakes' || r2.q) bad(name, 'pinning did not start the Bell with stakes', JSON.stringify(r2));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== 2 + left1) bad(name, 'leftover coins should carry into the Bell', left1);
+    // Claim 2, the Bell.
     await pg.evaluate(() => SD_RUSH.reset(7, 'bell'));
     await pg.waitForTimeout(400);
     await pg.screenshot({ path: `${OUT}/${name}-6-bell-build.png` });
     const [b1x, b1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [b2x, b2y] = await pg.evaluate(() => SD_RUSH.at.spot('bell'));
     await pg.mouse.move(b1x, b1y); await pg.mouse.down(); await pg.mouse.move(b2x, b2y, { steps: 8 }); await pg.mouse.up();
-    if (!(await pg.evaluate(() => SD_RUSH.S.bell))) { fail++; console.log(name, 'bell drag failed'); }
+    if (!(await pg.evaluate(() => SD_RUSH.S.bell))) bad(name, 'bell drag failed');
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
-    await pg.waitForTimeout(11000);
+    await pg.waitForTimeout(6000);
     await pg.screenshot({ path: `${OUT}/${name}-7-bell.png` });
-    const bellDone = await pg.waitForFunction(() => document.getElementById('q').classList.contains('on'), null, { timeout: 120000 }).then(() => true, () => false);
-    await pg.screenshot({ path: `${OUT}/${name}-8-bell-question.png` });
-    const bs = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, rings: SD_RUSH.S.rings, q: document.querySelector('.q-text').textContent.slice(0, 40) }));
+    // High stakes: bet 1 and get it wrong (the coin goes), then bet 1 and get it right (a coin plus the bet).
+    await pg.waitForFunction(() => document.getElementById('q').classList.contains('letter'), null, { timeout: 40000 }).catch(() => bad(name, 'no letter in the Bell'));
+    await pg.evaluate(() => { SD_RUSH.S.coins = 2; document.querySelectorAll('.lt-bet button').forEach(b => { b.disabled = false; }); document.querySelector('.lt-bet small').textContent = 'Right pays it back double.'; });
+    if (!(await pg.$('.lt-bet'))) bad(name, 'stakes should add a bet row');
+    await pg.click('.lt-bet button[data-bet="1"]');
+    await pg.screenshot({ path: `${OUT}/${name}-8-bet.png` });
+    seen.push(await answer(pg, 'wrong'));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== 1) bad(name, 'a lost bet should cost the coin');
+    await closeLetter(pg);
+    await pg.waitForFunction(() => document.getElementById('q').classList.contains('letter'), null, { timeout: 40000 }).catch(() => bad(name, 'no second letter in the Bell'));
+    const coins0 = await pg.evaluate(() => SD_RUSH.S.coins);
+    if (coins0 >= 1) await pg.click('.lt-bet button[data-bet="1"]');
+    const t2 = await answer(pg, 'right'); seen.push(t2);
+    if (!t2.torn) bad(name, 'a wrong answer should tear the next letter', JSON.stringify(t2));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== coins0 + 1 + (coins0 >= 1 ? 1 : 0)) bad(name, 'a right answer should pay a coin and the bet');
+    await closeLetter(pg);
+    if (!(await playOut(pg, () => 'right', seen))) bad(name, 'the Bell never ended');
+    const bs = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, rings: SD_RUSH.S.rings, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'bell', JSON.stringify(bs));
-    if (!bellDone || bs.over !== 'win' || !bs.rings || !/order is placed/.test(bs.q)) { fail++; console.log(name, 'bell claim did not play through'); }
-    if (errs.length) { fail++; console.log(name, 'errors:', errs); }
-    if (!done) { fail++; console.log(name, 'claim never finished'); }
-    if (st.sw > st.w) { fail++; console.log(name, 'horizontal scroll'); }
-    console.log(name, JSON.stringify(st));
+    if (bs.over !== 'win' || !bs.rings) bad(name, 'the Bell did not play through');
+    if (!/Next claim: the Double-claimer/.test(bs.next)) bad(name, 'no claim 3 button:', bs.next);
+    // The pick before claim 3 never offers what's already pinned. Pin the timeout.
+    await pg.click('.end-go');
+    const off3 = await pg.evaluate(() => [...document.querySelectorAll('.no-card')].map(b => b.dataset.o));
+    if (off3.includes('stakes') || off3.includes('letters') || off3.length !== 2) bad(name, 'claim 3 offer', off3);
+    await pg.evaluate(() => SD_RUSH.showPick('double', ['timeout', 'shelf']));
+    await pg.keyboard.press('1'); await pg.click('.no-go');
+    if ((await pg.evaluate(() => SD_RUSH.run.orders.join())) !== 'letters,stakes,timeout') bad(name, 'orders should stack');
+    // Claim 3, the Double-claimer.
+    await pg.evaluate(() => SD_RUSH.reset(7, 'double'));
+    await pg.waitForTimeout(400);
+    const [l1x, l1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [l2x, l2y] = await pg.evaluate(() => SD_RUSH.at.spot('ledger'));
+    await pg.mouse.move(l1x, l1y); await pg.mouse.down(); await pg.mouse.move(l2x, l2y, { steps: 8 }); await pg.mouse.up();
+    if (!(await pg.evaluate(() => SD_RUSH.S.ledger))) bad(name, 'ledger drag failed');
+    await pg.evaluate(() => { SD_RUSH.place('reserve'); SD_RUSH.start(); });
+    await pg.waitForTimeout(6000);
+    await pg.screenshot({ path: `${OUT}/${name}-10-double.png` });
+    // Let the first letter's clock run out: it counts as wrong.
+    await pg.waitForFunction(() => document.getElementById('q').classList.contains('letter'), null, { timeout: 40000 }).catch(() => bad(name, 'no letter in claim 3'));
+    await pg.waitForTimeout(9000); await pg.screenshot({ path: `${OUT}/${name}-10b-clock.png` });
+    await pg.waitForFunction(() => /Time's up/.test(document.querySelector('.lt-why').textContent), null, { timeout: 15000 }).catch(() => bad(name, 'the letter clock never ran out'));
+    seen.push({ fmt: await pg.evaluate(() => (document.getElementById('q').className.match(/fmt-(\w)/) || [])[1]), ok: true });
+    await closeLetter(pg);
+    if (!(await playOut(pg, () => 'right', seen))) bad(name, 'the Double-claimer never ended');
+    await pg.screenshot({ path: `${OUT}/${name}-11-double-end.png` });
+    const ds = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, dropped: SD_RUSH.S.dropped, twice: SD_RUSH.S.paidTwice, next: document.querySelector('.end-go').textContent }));
+    console.log(name, 'double', JSON.stringify(ds));
+    if (ds.over !== 'win' || !ds.dropped || ds.twice) bad(name, 'the Double-claimer did not play through');
+    if (!/Play again from the Rush/.test(ds.next)) bad(name, 'last claim should offer the Rush again:', ds.next);
+    await pg.click('.end-go');
+    const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
+    if (again.orders || !/orders/.test(again.q) || !again.offer.includes('letters')) bad(name, 'starting over should take the orders down and open the pick', JSON.stringify(again));
+    // Every claim sent three letters, and all three formats showed up.
+    const fmts = new Set(seen.map(x => x.fmt));
+    console.log(name, 'letters', seen.length, [...fmts].join(''));
+    if (seen.length !== 9 || fmts.size !== 3 || seen.some(x => !x.ok)) bad(name, 'letters', JSON.stringify(seen));
+    // The room's three orders together: frost on idle stools, the stampede and shelf life.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=bell&orders=cold,herd,shelf`);
+    await pg.waitForTimeout(600);
+    if (await pg.evaluate(() => document.getElementById('q').className)) bad(name, '?orders should skip the pick');
+    // Shelf life makes the rack free; cold stools pay a coin a wave from wave 2; the stampede allows 4 tries.
+    await pg.evaluate(() => SD_RUSH.place('rack'));
+    if ((await pg.evaluate(() => SD_RUSH.S.coins + ':' + SD_RUSH.S.maxThrottles)) !== '2:4') bad(name, 'shelf life should make the rack free, and the stampede allow 4 tries');
+    await pg.evaluate(() => SD_RUSH.start());
+    await pg.waitForTimeout(9000);
+    await pg.screenshot({ path: `${OUT}/${name}-12-orders.png` });
+    const os = await pg.evaluate(() => ({ colds: SD_RUSH.S.colds, saved: SD_RUSH.S.saved, herds: SD_RUSH.S.herds, orders: [...SD_RUSH.S.orders].join() }));
+    console.log(name, 'orders', JSON.stringify(os));
+    if (!os.colds || !os.saved || os.orders !== 'cold,herd,shelf') bad(name, 'room orders', JSON.stringify(os));
+    if (errs.length) bad(name, 'errors:', errs);
     await pg.close();
   }
   await browser.close(); srv.close();
