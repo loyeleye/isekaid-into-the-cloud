@@ -54,7 +54,7 @@
         <button class="dr-cut-box" id="dr-cut-next" data-vo="${esc('uptima|' + text)}"><b>Uptima</b><span>${esc(text)}</span><i aria-hidden="true">▼</i></button></div>`);
       const rm = b.querySelector('.rm'), fig = b.querySelector('.rm-up .up-fig');
       // She glides down from her cloud to the desk as the scene opens, and floats back up when it closes.
-      if (first) setTimeout(() => RM().flyIn(rm), 250);
+      const tIn = first ? setTimeout(() => RM().flyIn(rm), 250) : 0;
       if (fig) fig.classList.add('talking');
       // Fuss lines only on lines that shout, and never two beats running.
       const sq = b.querySelector('.rm-sq');
@@ -66,7 +66,7 @@
       const t2 = setTimeout(() => fig && fig.classList.remove('talking'), talkMs);
       const next = b.querySelector('#dr-cut-next');
       next.onclick = () => {
-        clearTimeout(t1); clearTimeout(t2); i++;
+        clearTimeout(t1); clearTimeout(t2); clearTimeout(tIn); i++;   // a quick tap can beat her flight down
         if (i < beats.length) return show();
         RM().listen(false);
         if (calm) return done();

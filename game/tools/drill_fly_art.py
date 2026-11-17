@@ -15,9 +15,12 @@ KEEP = ('The same anime girl as the first image: black and white long maid dress
         'white frilled headband, very long straight peach-blonde hair, same face, same line art and flat anime coloring, '
         'whole body visible from head to shoes, on the same flat pure green background, nothing else in the frame.')
 FRAMES = {
-    'in': 'She is flying through the air toward the camera, body tilted forward and slightly foreshortened, arms stretched '
-          'out in front of her, a happy smug grin, her long hair and skirt streaming backward behind her from the wind, '
-          'feet trailing behind, a few small motion lines. ',
+    # Head-on, so the glide down reads as coming at you, not off to the left (Ladi, Nov 17: "levitating forward").
+    'in': 'Symmetrical front view, perfectly head-on: she is flying straight toward the camera, centered in the frame, not '
+          'turned or tilted to either side. Her body leans straight forward toward the viewer with strong forward '
+          'foreshortening, both arms reaching straight out at the viewer, hands open, a happy smug grin, her long hair and '
+          'skirt streaming straight back behind her on both sides evenly, legs trailing straight behind her and partly '
+          'hidden by the skirt. ',
     'out': 'She is flying backward away from the camera while still facing the camera, her body leaning back as if pulled '
            'away, arms swept forward toward the viewer, a lazy smug smile, her long hair and skirt blown forward toward the '
            'camera by the wind, feet leading away, a few small motion lines. ',
@@ -29,7 +32,7 @@ def render(work):
     g = Image.new('RGBA', (W, H), (0, 255, 0, 255)); g.alpha_composite(im.resize((302, 976), Image.LANCZOS), (169, 16))
     ref = os.path.join(work, 'ref.png'); g.convert('RGB').save(ref)
     for n, p in FRAMES.items():
-        subprocess.run(['sogni-agent-claude-code', '--billing-mode', 'subscription', '--json', '-m', 'flux3_image_klein_sd_int8_convrot',
+        subprocess.run(['sogni-agent-claude-code'] + (['--seed', '16838'] if n == 'in' else []) + ['--billing-mode', 'subscription', '--json', '-m', 'flux3_image_klein_sd_int8_convrot',
                         '-c', ref, '-w', str(W), '-h', str(H), '-o', os.path.join(work, n + '.png'), p + KEEP],
                        env=dict(os.environ, NODE_USE_ENV_PROXY='1'), stdout=subprocess.DEVNULL)
 
