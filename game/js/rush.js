@@ -1257,6 +1257,7 @@
     const fz = 20 * Math.min(L.fs, 1.45), lh = fz * 1.35; cx.font = `700 ${fz}px Nunito, "Segoe UI", system-ui, sans-serif`;
     const pw = 76 * Math.min(L.fs, 1.4), lines = wrap(saying.text, s.w - pw - 40), h = Math.max(pw + 12, 24 + lines.length * lh);
     rrect(s.x, s.y, s.w, h, 16); cx.fillStyle = 'rgba(255,250,238,.96)'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#111'; cx.stroke();
+    if (S && S.audit) audBox('say', 'bubble', s.x, s.y, s.w, h); // claim 8's overlap check
     const face = IMG['dutch-' + saying.mood] || IMG['dutch-neutral'];
     if (face) { cx.save(); rrect(s.x + 8, s.y + 6, pw, pw, 10); cx.clip(); cx.fillStyle = '#efe2c4'; cx.fillRect(s.x + 8, s.y + 6, pw, pw); cx.drawImage(face, s.x + 8, s.y + 6, pw, pw); cx.restore(); }
     cx.fillStyle = '#1e160f'; cx.textBaseline = 'top';
@@ -1612,10 +1613,10 @@
     title: [24, 22], say: { x: 300, y: 12, w: 640 }, belt: { h: 100, slot: 116 },
     // The stations, in tube order: centres, cabinet size and bottom (the floor line is 556).
     st: { counter: [380, 556], desk: [600, 556], drawer: [820, 556], engine: [1040, 556] }, cab: [168, 210], floor: 556,
-    tube: 445, ret: 372, intake: [230, 0], cup: [230, 445], outX: 1196, basket: [1200, 548, 112, 74],
-    dialY: 300, dialR: 24, dialDx: 78,
+    tube: 445, ret: 349, intake: [230, 0], cup: [230, 445], outX: 1196, basket: [1200, 548, 112, 74],
+    dialY: 292, dialR: 24, dialDx: 78,
     // The painted clock's face (centre, radius), its keyhole, and the ink column's glass; the Engine's porthole (for the shutter).
-    clock: [95, 238, 110, 230], face: [83, 185, 27], key: [64, 282], ink: [1292, 172, 44, 232], port: [-37, -101, 120], jobs: [980, 116, 290, 130], board: [600, 124, 340, 120],
+    clock: [95, 238, 110, 230], clockTipAt: [126, 104], face: [83, 185, 27], key: [64, 282], ink: [1292, 172, 44, 232], port: [-37, -101, 120], jobs: [980, 116, 290, 130], board: [600, 124, 340, 120],
     logs: { counter: [478, 292, 52, 64], desk: [700, 292, 52, 64] }, bench: [178, 655], porterH: 300,
     door: [0, 476, 44, 150], bellAt: [960, 186],
     // The cellar below (the claim-6 cellar backdrop, dimmed): the question pile, the mail slot, the intern's tray.
@@ -1623,14 +1624,16 @@
   };
   const WATCH_TALL = {
     W: 768, H: 1504, bg: 'watch-tall', painted: true, fs: 1.6, watch: true,
-    title: [20, 20], say: { x: 16, y: 150, w: 736 }, belt: { h: 150, slot: 162 }, coinsAt: [470, 50],
+    title: [20, 20], say: { x: 16, y: 150, w: 736 }, sayBefore: 520, belt: { h: 150, slot: 162 }, coinsAt: [470, 50],
     // Two rows: the Counter and Mira up top, the Engine and the Drawer (the calls she makes) below. The board and the
     // porter's list sit above them at phone-readable size (22 px on this stage is 11 CSS px on a 390 px phone).
     st: { counter: [210, 906], desk: [512, 906], drawer: [512, 1255], engine: [208, 1255] }, cab: [176, 200], floor: 1255,
     tube: 805, ret: 805, intake: [44, 480], cup: [44, 805], outX: 700, basket: [700, 1315, 90, 60],
     dialY: null, dialR: 30, dialDx: 100,
     clock: [88, 380, 96, 200], face: [78, 325, 23], key: [62, 420], ink: [712, 335, 50, 240], port: [-23, -85, 120], jobs: [212, 350, 470, 176], board: [212, 150, 470, 190],
-    logs: { counter: [44, 830, 64, 76], desk: [360, 830, 64, 76] }, bench: [360, 1310], porterH: 224,
+    logs: { counter: [44, 862, 64, 76], desk: [360, 862, 64, 76] }, bench: [367, 1318], porterH: 224,
+    // The lower row's nameplates sit off-centre, outward, so the porter's bench between them stays clear.
+    plaqueDx: { engine: -30, drawer: 40 }, clockTip: 'Wind the clock', clockTipAt: [90, 262],
     door: [0, 1180, 44, 120], bellAt: [700, 250],
     down: { pile: [384, 700, 300, 150], mail: [600, 470, 130, 70], tray: [384, 940, 240, 100], lamp: [384, 300], up: [0, 1180, 44, 120] }
   };
@@ -1815,7 +1818,7 @@
     const p = at || [L.W / 2, beltRect()[1] - 30];
     if (why === 'coins') popAt(p, 'No coins', '#ffdc78', 28);
     else if (why === 'placed') popAt(p, 'Already there', '#e8dcc4', 24);
-    else if (why === 'hiresBuiltin') { say('hiresBuiltin', 'neutral', AUD_LINES.hiresBuiltin); said.hiresBuiltin = 0; popAt(p, 'built-in: standard only', '#ffdc78', 22); }
+    else if (why === 'hiresBuiltin') { say('hiresBuiltin', 'neutral', AUD_LINES.hiresBuiltin); said.hiresBuiltin = 0; }
     else if (why === 'ruleDesk') { say('ruleDesk', 'neutral', AUD_LINES.ruleDesk); said.ruleDesk = 0; popAt(p, 'not here: the root decides', '#ffdc78', 22); }
     else if (why === 'stampWhere') { say('stampWhere', 'neutral', AUD_LINES.stampWhere); said.stampWhere = 0; }
     else if (why === 'needs') { say('needs', 'neutral', AUD_LINES.needs); said.needs = 0; popAt(p, 'Needs the tracer', '#ffdc78', 24); }
@@ -1895,11 +1898,22 @@
   // ---- Drawing ----
   // Plain small print (no outline), for badges and price tags.
   function ptext(t, x, y, size, col) { cx.save(); cx.font = `800 ${Math.max(size * L.fs, audMinPx())}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(t, x, y); cx.restore(); }
+  // What the frame drew where (stage px), for the overlap check in tools/rush_check_audit.js.
+  function audBox(kind, name, x, y, w, h) { (AU8.boxes = AU8.boxes || []).push({ kind, name, r: [x, y, w, h] }); }
+  function audTextBox(kind, name, t, x, y, size) {
+    const f = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `700 ${f}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; const w = cx.measureText(t).width; cx.restore();
+    audBox(kind, name, x - w / 2, y - f * .55, w, f * 1.1);
+  }
+  function audPlaque(t, x, y, name) {
+    const f = 15 * L.fs; cx.save(); cx.font = `700 ${f}px Nunito, "Segoe UI", system-ui, sans-serif`; const w = cx.measureText(t).width + 16; cx.restore();
+    const px = Math.max(w / 2 + 4, Math.min(L.W - w / 2 - 4, x)); plaque(t, px, y); audBox('label', name, px - w / 2, y - f * .75, w, f * 1.5);
+  }
   // A Watch Room sprite (assets/img/rush/watch/), fitted in a w x h box: anchored at its bottom centre ('mb') or centre.
   function wimg(n, x, y, w, h, anchor, flip) {
     const im = IMG['w-' + n]; if (!im) return false;
     const s = Math.min(w / im.width, h / im.height), ww = im.width * s, hh = im.height * s;
-    cx.save(); cx.translate(x, y); if (flip) cx.scale(-1, 1); cx.drawImage(im, -ww / 2, anchor === 'mb' ? -hh : -hh / 2, ww, hh); cx.restore(); return true;
+    cx.save(); cx.translate(x, y); if (flip) cx.scale(-1, 1); cx.drawImage(im, -ww / 2, anchor === 'mb' ? -hh : -hh / 2, ww, hh); cx.restore();
+    return [x - ww / 2, anchor === 'mb' ? y - hh : y - hh / 2, ww, hh];
   }
   function audBg() {
     const bg = IMG[L.bg];
@@ -1941,7 +1955,7 @@
     cx.restore();
     // The nameplate: the station and its AWS service.
     const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
-    plaque(`${A8.NAME[st]} · ${aws}`, x, y + 18 * L.fs);
+    audPlaque(`${A8.NAME[st]} · ${aws}`, x + ((L.plaqueDx || {})[st] || 0), y + 18 * L.fs, 'plaque:' + st);
     if (a.tallies.includes(st)) { cx.fillStyle = a.dark.has('tally:' + st) ? '#555' : '#d6b254'; rrect(sx + w - 30, sy + h - 40, 22, 28, 4); cx.fill(); ptext('#', sx + w - 19, sy + h - 26, 14, '#2b1a08'); }
     if (st === 'desk' && a.stamp) { cx.fillStyle = a.dark.has('stamp') ? '#555' : '#c8473b'; const bw = audMinPx() ? 58 : 26, bh = audMinPx() ? 32 : 28; rrect(sx + 8, sy + h - 12 - bh, bw, bh, 4); cx.fill(); ptext('EMF', sx + 8 + bw / 2, sy + h - 12 - bh / 2, 9, '#fff'); }
     if (st === 'counter' && a.rule) { cx.fillStyle = '#f1e2b8'; rrect(sx + 8, sy + h - 40, 34, 24, 3); cx.fill(); ptext('100%', sx + 25, sy + h - 28, 9, '#2b1a08'); }
@@ -1953,7 +1967,7 @@
     for (let i = 0; i < n; i++) { cx.beginPath(); cx.arc(x - (n - 1) * 9 + i * 18, sy + h - 14, 6, 0, 7); cx.fillStyle = i < busy ? '#ffd666' : '#3a3026'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#140c06'; cx.stroke(); }
     if (st === 'engine' && !a.seenStation.engine) { const [dx, dy, ph] = L.port; wimg('shutter', x + dx, y + dy, ph, ph, 'mm'); }
     const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
-    plaque(`${A8.NAME[st]} · ${aws}`, x, y + 18 * L.fs);
+    audPlaque(`${A8.NAME[st]} · ${aws}`, x + ((L.plaqueDx || {})[st] || 0), y + 18 * L.fs, 'plaque:' + st);
     const b = h * .3;
     if (a.tallies.includes(st)) { cx.save(); if (a.dark.has('tally:' + st)) cx.globalAlpha = .45; wimg('tally', sx + w - b * .4, y - 6, b, b, 'mb'); cx.restore(); }
     if (st === 'desk' && a.stamp) { cx.save(); if (a.dark.has('stamp')) cx.globalAlpha = .45; wimg('stamp', sx + b * .4, y - 6, b, b, 'mb'); cx.restore(); }
@@ -1968,7 +1982,7 @@
     cx.save();
     if (spr) { // the painted gauge: its face (an ellipse at these fractions of the sprite) under the code's needle
       const F = hi ? [.407, .507, .306, .379] : [.438, .52, .333, .39], sw = r / F[2], sh = sw * spr.height / spr.width;
-      cx.drawImage(spr, x - F[0] * sw, y - F[1] * sh, sw, sh);
+      cx.drawImage(spr, x - F[0] * sw, y - F[1] * sh, sw, sh); audBox('gauge', 'gauge:' + g.id, x - F[0] * sw, y - F[1] * sh, sw, sh);
       cx.beginPath(); cx.ellipse(x, y, r * 1.02, F[3] * sh * 1.02, 0, 0, 7); cx.fillStyle = dark ? '#6a6a6a' : '#f4ead2'; cx.fill();
     } else {
       cx.beginPath(); cx.arc(x, y, r + 5, 0, 7); cx.fillStyle = hi ? '#2a5ab8' : '#8a6a2a'; cx.fill();
@@ -1982,7 +1996,7 @@
     cx.save(); cx.translate(x, y); cx.rotate(ang(g.needle)); cx.fillStyle = v == null ? '#999' : '#1a1410'; cx.fillRect(0, -1.5, r - 6, 3); cx.restore();
     cx.beginPath(); cx.arc(x, y, 3, 0, 7); cx.fillStyle = '#1a1410'; cx.fill(); cx.restore();
     const lab = g.src === 'builtin' ? m.key.replace('SuccessfulRequestLatency', 'Latency') : g.src === 'stamp' ? 'EMF ms' : 'Tally';
-    text(lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12, '#f2e6cc');
+    text(lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12, '#f2e6cc'); audTextBox('label', 'gaugeLabel:' + g.id, lab, x, y + r + (IMG['w-gauge'] ? 20 : 14), 12);
     // Its klaxons: a lamp each over the dial, grey for no data, green OK, red ALARM.
     const als = a.alarms.filter(al => al.gauge === g.id);
     als.forEach((al, i) => {
@@ -2022,7 +2036,8 @@
     shadow(x, y, 90 * s);
     if (IMG['w-porter']) { // the painted porter: standing (oil can and wrench in hand), or his walking frame, facing his way
       const to = p.phase === 'walk' && p.job ? at(p.job.station)[0] - at(p.from || 'bench')[0] : p.phase === 'back' ? L.bench[0] - at(p.at)[0] : 0;
-      cx.save(); cx.translate(0, bob - (walking ? Math.abs(step) * 4 : 0)); wimg(walking ? 'porter-walk' : 'porter', x, y + 4, H * 2, H, 'mb', walking ? to > 0 : false); cx.restore();
+      cx.save(); cx.translate(0, bob - (walking ? Math.abs(step) * 4 : 0)); const pr = wimg(walking ? 'porter-walk' : 'porter', x, y + 4, H * 2, H, 'mb', walking ? to > 0 : false); cx.restore();
+      if (pr) audBox('porter', 'porter', pr[0] + pr[2] * .15, pr[1], pr[2] * .7, pr[3]); // his body, not the oil can held out
       if (p.phase === 'work' && p.job) text(p.job.job === 'oil' ? 'oiling' : 'patching', x, y - H - 16, 18, '#ffe6a8');
       return;
     }
@@ -2060,7 +2075,8 @@
     if (painted && IMG['w-key']) { cx.save(); cx.translate(L.key[0], L.key[1]); cx.rotate(AU8.keyT * 6 - .6); wimg('key', 0, 0, 44, 44, 'mm'); cx.restore(); }
     const ky = y + h * .22; if (!painted || !IMG['w-key']) { cx.save(); cx.translate(x, ky); cx.rotate(AU8.keyT * 6); cx.fillStyle = '#d6b254'; cx.fillRect(-4, -26, 8, 40); cx.beginPath(); cx.arc(0, -30, 12, 0, 7); cx.fill(); cx.stroke(); cx.restore(); }
     cx.restore();
-    if (!M.started) { glowSpot([x - w / 2 - 6, y - h / 2 - 6, w + 12, h + 12], true); plaque('Wind the clock to start', x + 40, y + h / 2 + 22); }
+    if (!M.started) { glowSpot([x - w / 2 - 6, y - h / 2 - 6, w + 12, h + 12], true); audPlaque(L.clockTip || 'Wind the clock to start', L.clockTipAt ? L.clockTipAt[0] : L.clockTip ? x : x + 40, L.clockTipAt ? L.clockTipAt[1] : y + h / 2 + 22, 'clockTip'); }
+    audBox('clock', 'clock', x - w / 2, y - h / 2, w, h);
   }
   function audInk() {
     const [x, y, w, h] = L.ink, f = Math.min(1, M.spill / M.cap), glass = !(L.painted && IMG[L.bg] && AU8.room === 'up');
@@ -2108,11 +2124,12 @@
       }
       if (fresh) { cx.beginPath(); cx.arc(x + w / 2 - 6, y - h / 2 + 6, 6, 0, 7); cx.fillStyle = '#ffe6a8'; cx.fill(); }
       text(src === 'desk' ? 'Mira' : 'Counter', x, y + 8, 11, '#f2e6cc'); text('LOG', x, y + 24, 11, '#f2e6cc');
+      audBox('log', 'log:' + src, x - w / 2, y - h / 2, w, h); audTextBox('label', 'logLabel:' + src, src === 'desk' ? 'Mira' : 'Counter', x, y + 8, 11);
     }
   }
   function audBasket() {
     const [x, y, w, h] = L.basket;
-    if (L.painted && IMG[L.bg]) { text(String(M.handled), x, L.W < L.H ? y - h / 2 - 16 : y + h / 2 + 16, 18, '#bff5b4'); return; }
+    if (L.painted && IMG[L.bg]) { text(String(M.handled), x, L.W < L.H ? y + 4 : y + h / 2 + 16, 18, '#bff5b4'); return; }
     cx.save(); cx.beginPath(); cx.moveTo(x - w / 2, y - h / 2); cx.lineTo(x + w / 2, y - h / 2); cx.lineTo(x + w / 2 - 12, y + h / 2); cx.lineTo(x - w / 2 + 12, y + h / 2); cx.closePath();
     cx.fillStyle = '#8a6a3a'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2a1a08'; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(x - w / 2 + 6, y - h / 2 + i * h / 4); cx.lineTo(x + w / 2 - 6, y - h / 2 + i * h / 4); cx.stroke(); } cx.restore();
     text(String(M.handled), x, y + h / 2 + 16, 18, '#bff5b4');
@@ -2121,9 +2138,11 @@
     const pts = tubePath();
     cx.save(); cx.lineCap = 'round'; cx.lineJoin = 'round';
     for (const [wd, col] of [[22, '#2a1a08'], [16, '#b8924a'], [6, 'rgba(255,240,200,.35)']]) { cx.lineWidth = wd; cx.strokeStyle = col; cx.beginPath(); cx.moveTo(L.intake[0], L.intake[1]); pts.forEach(p => cx.lineTo(p[0], p[1])); cx.stroke(); }
-    // The call pipe: Mira's calls to the Drawer and the Engine come back to her.
+    const all = [L.intake].concat(pts); for (let i = 1; i < all.length; i++) { const [a, b] = [all[i - 1], all[i]]; audBox('pipe', 'tube' + i, Math.min(a[0], b[0]) - 11, Math.min(a[1], b[1]) - 11, Math.abs(a[0] - b[0]) + 22, Math.abs(a[1] - b[1]) + 22); }
+    // The call pipe: Mira's calls to the Drawer and the Engine come back to her (painted wide room: along the cabinet tops).
     cx.lineWidth = 8; cx.strokeStyle = '#6a6a6a'; cx.beginPath();
-    if (L.W > L.H) { cx.moveTo(L.st.desk[0], L.tube); cx.lineTo(L.st.desk[0], L.ret); cx.lineTo(L.st.engine[0], L.ret); cx.lineTo(L.st.engine[0], L.tube - 30); cx.moveTo(L.st.drawer[0], L.ret); cx.lineTo(L.st.drawer[0], L.tube - 30); }
+    if (L.W > L.H && L.painted && IMG[L.bg]) { cx.moveTo(L.st.desk[0], L.ret); cx.lineTo(L.st.engine[0], L.ret); }
+    else if (L.W > L.H) { cx.moveTo(L.st.desk[0], L.tube); cx.lineTo(L.st.desk[0], L.ret); cx.lineTo(L.st.engine[0], L.ret); cx.lineTo(L.st.engine[0], L.tube - 30); cx.moveTo(L.st.drawer[0], L.ret); cx.lineTo(L.st.drawer[0], L.tube - 30); }
     else { const d = L.st.desk, gy = L.st.drawer[1] - L.cab[1]; cx.moveTo(d[0], d[1]); cx.lineTo(d[0], gy); cx.moveTo(d[0] - 60, d[1]); cx.lineTo(d[0] - 60, gy - 14); cx.lineTo(L.st.engine[0], gy - 14); cx.lineTo(L.st.engine[0], gy); }
     cx.stroke(); cx.restore();
     // The brass cup the intake drops into.
@@ -2131,7 +2150,7 @@
   }
   function audDoor() {
     const r = AU8.room === 'down' ? L.down.up : L.door, a = M.audit, ringing = AU8.room === 'down' && a.alarms.some(al => al.state === 'ALARM');
-    cx.save(); rrect(r[0], r[1], r[2], r[3], 8); cx.fillStyle = ringing ? 'rgba(200,60,50,.9)' : 'rgba(40,30,20,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
+    audBox('door', 'door', r[0], r[1], r[2], r[3]); cx.save(); rrect(r[0], r[1], r[2], r[3], 8); cx.fillStyle = ringing ? 'rgba(200,60,50,.9)' : 'rgba(40,30,20,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
     cx.save(); cx.translate(r[0] + r[2] / 2, r[1] + r[3] / 2); cx.rotate(-Math.PI / 2); cx.font = `700 ${Math.max(16 * Math.min(L.fs, 1.2), audMinPx())}px Fredoka, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffe6a8';
     cx.fillText(AU8.room === 'down' ? 'Up ▲' : 'Cellar ▼', 0, 0); cx.restore();
   }
@@ -2444,6 +2463,8 @@
     cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch);
     cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
     cx.save(); cx.beginPath(); cx.rect(0, 0, L.W, L.H); cx.clip();
+    AU8.boxes = [];
+    if (L.sayBefore) L.say.y = M.started ? 150 : L.sayBefore; // the phone: Dutch's intro talks below the clock, so its prompt stays readable
     if (AU8.room === 'down') audCellar();
     else {
       audBg(); audClock(); audTube();
@@ -2484,6 +2505,7 @@
       log: src => toClient([L.logs[src][0], L.logs[src][1]]), door: () => { const r = AU8.room === 'down' ? L.down.up : L.door; return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
       pile: () => toClient([L.down.pile[0], L.down.pile[1]]), jobs: () => toClient([L.jobs[0] + L.jobs[2] / 2, L.jobs[1] + L.jobs[3] / 2]),
       belt: () => { const r = audBeltRect(); return { x: toClient([r[0], r[1]]), w: r[2] * scale, right: toClient([r[0] + r[2], r[1]])[0] }; }, switchRoom: audSwitch,
+      boxes: () => (AU8.boxes || []).map(b => ({ kind: b.kind, name: b.name, r: b.r.map(v => Math.round(v)) })),
       skipSay: () => { sayQ.length = 0; saying = null; said.intro = said.intro2 = true; }
     }
   };

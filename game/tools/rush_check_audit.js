@@ -77,6 +77,25 @@ async function legible(pg, what) {
   ok(!r.dom.length, what, 'card text under ' + MIN_PX + 'px', JSON.stringify(r.dom));
   ok(!r.taps.length, what, 'card rows under ' + MIN_TAP + 'px tall', JSON.stringify(r.taps));
 }
+// Overlaps in the room, from the boxes the frame drew (SD_RUSH.audit.boxes): labels against labels, gauges and the
+// porter; logbooks against gauges and pipes; Dutch's bubble against the clock and its prompt.
+const CLASH = [['label', 'label'], ['label', 'gauge'], ['label', 'porter'], ['log', 'gauge'], ['log', 'pipe'], ['log', 'label'], ['label', 'pipe'], ['label', 'door'], ['porter', 'door'], ['say', 'clock'], ['say', 'label']];
+async function overlaps(pg, what, porter) {
+  await wait(120);
+  const bs = await api(pg, 'boxes'), hits = [];
+  const cut = (a, b) => Math.min(a.r[0] + a.r[2], b.r[0] + b.r[2]) - Math.max(a.r[0], b.r[0]) > 2 && Math.min(a.r[1] + a.r[3], b.r[1] + b.r[3]) - Math.max(a.r[1], b.r[1]) > 2;
+  const own = (a, b) => a.name.split(':')[1] === b.name.split(':')[1] && /^(gaugeLabel|gauge|log|logLabel)$/.test(a.name.split(':')[0]) && /^(gaugeLabel|gauge|log|logLabel)$/.test(b.name.split(':')[0]);
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+    const a = bs[i], b = bs[j];
+    if (!CLASH.some(([x, y]) => (a.kind === x && b.kind === y) || (a.kind === y && b.kind === x))) continue;
+    if (!porter && (a.kind === 'porter' || b.kind === 'porter')) continue;
+    if (a.kind === 'say' && b.kind === 'label' && b.name !== 'clockTip') continue;
+    if (a.kind === 'label' && b.kind === 'say' && a.name !== 'clockTip') continue;
+    if (own(a, b)) continue;
+    if (cut(a, b)) hits.push(a.name + ' x ' + b.name);
+  }
+  ok(!hits.length, what, 'overlaps', JSON.stringify(hits.slice(0, 10)));
+}
 async function shot(pg, name) { if (!/-(gauge-card|build)$/.test(name)) await api(pg, 'skipSay'); await wait(250); await pg.screenshot({ path: path.join(OUT, name + '.png') }); console.log('  shot', name); }
 async function fits(pg, what) {
   if (/^phone/.test(what)) await legible(pg, what);
@@ -128,7 +147,8 @@ async function run(browser, tag, vp) {
     await tapSlot(pg, 'rule'); ok(await card(pg) === 'rule', tag, 'rule card'); await clickCard(pg, '[data-act="rule:refund"]');
     ok(await pg.evaluate(() => SD_RUSH.S.audit.rule === 'refund'), tag, 'rule');
   } else ok(await slotOf(pg, 'rule') < 0, tag, 'rule card should be off the belt under Default sampling');
-  await shot(pg, `${tag}-build`); await fits(pg, tag + ' build');
+  await overlaps(pg, tag + ' before the clock', true);
+  await shot(pg, `${tag}-build`); await fits(pg, tag + ' build'); await overlaps(pg, tag + ' build', true);
   // Wind the clock.
   await tap(pg, 'clock'); ok(await pg.evaluate(() => SD_RUSH.S.started), tag, 'clock did not start the night');
   // Dutch's intro has had its say: clear his queue so the later screenshots show the room, not his bubble.
@@ -140,7 +160,7 @@ async function run(browser, tag, vp) {
   await tapSlot(pg, 'lens'); ok(await card(pg) === 'lens', tag, 'lens card'); await clickCard(pg, '[data-act="q:errors"]');
   ok(await pg.evaluate(() => SD_RUSH.S.audit.queries === 1), tag, 'query');
   await clickCard(pg, '.x');
-  await shot(pg, `${tag}-midnight-overlap`); await fits(pg, tag + ' mid-night');
+  await shot(pg, `${tag}-midnight-overlap`); await fits(pg, tag + ' mid-night'); await overlaps(pg, tag + ' mid-night', false);
   // Evidence: Mira's log, a line tapped; then a trace and one of its segments.
   await tap(pg, 'log', 'desk'); ok(await card(pg) === 'log', tag, 'log card');
   const line = (await pg.$('#aud .ln.err')) || (await pg.$('#aud .ln')); if (line) { await line.click(); await wait(150); }
