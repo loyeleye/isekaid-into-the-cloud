@@ -76,6 +76,9 @@
       back: 'Flushing empties the cache. The next response is cached under the same key as before.', set: c => { c.gate.flush = true; }, on: c => c.gate.flush, once: true },
     maxage: { at: 'gate', needs: 'cache', name: 'Clients send Cache-Control: max-age=0', text: 'The shop\'s app asks for a fresh answer on every request.',
       back: 'Only a caller allowed execute-api:InvalidateCache can invalidate an entry. This stage requires that, and ignores the header from anyone else, with a warning.', set: c => { c.gate.maxage = true; }, on: c => c.gate.maxage },
+    // The Gate publishing to an SNS topic (only in a drill with one): the integration request's mapping.
+    snsattr: { at: 'gate', needs: 'sns', name: 'Integration: send order_type as a message attribute', text: 'The Publish call carries order_type in MessageAttributes, not only in the order\'s JSON.',
+      back: 'A filter policy reads message attributes by default. An attribute the publisher never sets can\'t match anything.', set: c => { c.gate.snsattr = true; }, on: c => c.gate.snsattr },
     gtrace: { at: 'gate', name: 'X-Ray tracing on the stage', obs: true, text: 'The Gate shows on the trace map in its real colour.',
       back: 'API Gateway tracing is turned on per stage.', set: c => { c.gate.trace = true; }, on: c => c.gate.trace },
     // Mira: the Queue
@@ -101,6 +104,31 @@
       back: 'The default is -1: retry until the record expires (24 hours on a DynamoDB stream, the retention period on Kinesis).', set: c => { c.stream.retries = 2; }, on: c => c.stream.retries === 2 },
     onfail: { at: 'queue', needs: 'stream', name: 'On-failure destination → orders-failed', text: 'When Lambda gives up on a batch, it sends a note about it to the SQS queue orders-failed.',
       back: 'The note says which records failed (shard and sequence numbers), not the records themselves. Without one, discarded records are just gone.', set: c => { c.stream.onfail = true; }, on: c => c.stream.onfail },
+    // Mira, on a topic: the shipping subscription (an SNS topic with a Lambda subscriber).
+    scopebody: { at: 'queue', needs: 'sns', name: 'FilterPolicyScope: MessageBody', text: 'The shipping subscription\'s filter policy reads the order\'s JSON body instead of its attributes.',
+      back: 'The default scope is MessageAttributes. MessageBody needs a well-formed JSON message. A policy change can take up to 15 minutes to fully take effect.', set: c => { c.topic.scope = 'body'; }, on: c => c.topic.scope === 'body' },
+    nofilter: { at: 'queue', needs: 'sns', name: 'Remove the shipping filter policy', text: 'The shipping subscription gets every order published to the topic.',
+      back: 'With no filter policy, a subscriber receives every message published to its topic.', set: c => { c.topic.filter = false; }, on: c => !c.topic.filter },
+    subdlq: { at: 'queue', needs: 'sns', name: 'Subscription redrive policy → shipping-dlq', text: 'Messages SNS can\'t deliver to the shipping function go to the SQS queue shipping-dlq.',
+      back: 'A subscription\'s dead-letter queue keeps messages that failed delivery. A message a filter policy rejects isn\'t a failure: it was never meant to be delivered.', set: c => { c.topic.dlq = true; }, on: c => c.topic.dlq },
+    rawon: { at: 'queue', needs: 'sns', name: 'Raw message delivery', text: 'Deliver the order to the shipping function without the SNS envelope.',
+      back: 'Raw message delivery is for SQS, HTTP/S and Firehose subscriptions. Filtering doesn\'t need it.',
+      why: () => 'Refused: raw message delivery isn\'t available for a Lambda subscription.', set: () => {}, on: () => false },
+    // Mira, on a state machine: the Charge task's error handling (Step Functions Retry and Catch).
+    rtrans: { at: 'queue', dial: 'sfnretry', needs: 'sfn', name: 'Retry Lambda.TooManyRequestsException, Lambda.ServiceException: MaxAttempts 3, BackoffRate 2', text: 'Charge retries only Lambda\'s passing errors, up to 3 times, waiting longer each time.',
+      back: 'Retry errors that might clear. MaxAttempts defaults to 3, IntervalSeconds to 1, BackoffRate to 2.0.', set: c => { c.flow.retry = 'trans'; }, on: c => c.flow.retry === 'trans' },
+    rall: { at: 'queue', dial: 'sfnretry', needs: 'sfn', name: 'Retry States.ALL: MaxAttempts 3', text: 'Charge retries any error at all, up to 3 times.',
+      back: 'States.ALL matches every error, including ones that will fail the same way every time.', set: c => { c.flow.retry = 'all'; }, on: c => c.flow.retry === 'all' },
+    rnone: { at: 'queue', dial: 'sfnretry', needs: 'sfn', name: 'No retrier', text: 'Any error fails the Charge state the first time.',
+      back: 'With no Retry field, a state doesn\'t retry.', set: c => { c.flow.retry = 'none'; }, on: c => c.flow.retry === 'none' },
+    catchrp: { at: 'queue', dial: 'sfncatch', needs: 'sfn', name: 'Catch CardDeclined → ReleaseStock, ResultPath $.error', text: 'A declined card goes to ReleaseStock, with the error added to the order under error.',
+      back: 'ResultPath $.error keeps the state\'s input and adds the error output to it.', set: c => { c.flow.catch = 'rp'; }, on: c => c.flow.catch === 'rp' },
+    catchno: { at: 'queue', dial: 'sfncatch', needs: 'sfn', name: 'Catch CardDeclined → ReleaseStock', text: 'A declined card goes to ReleaseStock.',
+      back: 'Without ResultPath a catcher\'s ResultPath is $: the error output replaces the whole input.', set: c => { c.flow.catch = 'norp'; }, on: c => c.flow.catch === 'norp' },
+    catchnone: { at: 'queue', dial: 'sfncatch', needs: 'sfn', name: 'No catcher', text: 'An error Charge can\'t retry fails the whole execution.',
+      back: 'An error no retrier or catcher handles fails the entire execution.', set: c => { c.flow.catch = 'none'; }, on: c => c.flow.catch === 'none' },
+    catchfirst: { at: 'queue', needs: 'sfn', name: 'Catch States.ALL first, then CardDeclined', text: 'A catch-all catcher at the top of the Catch list, the declined-card one after it.',
+      back: 'States.ALL must be alone in its ErrorEquals and in the last catcher.', why: () => 'Refused: States.ALL must appear alone, in the last catcher.', set: () => {}, on: () => false },
     // Kai: the Function
     to30: { at: 'fn', dial: 'timeout', name: 'Function timeout 30 s', text: 'The function stops after 30 seconds.', back: 'A function that runs past its timeout is stopped: "Task timed out".', set: c => { c.fn.timeout = 30; }, on: c => c.fn.timeout === 30 },
     to60: { at: 'fn', dial: 'timeout', name: 'Function timeout 60 s', text: 'The function stops after 60 seconds.', back: 'A function that runs past its timeout is stopped: "Task timed out".', set: c => { c.fn.timeout = 60; }, on: c => c.fn.timeout === 60 },
@@ -179,8 +207,9 @@
   };
   const C = D.CARDS;
   D.HANDS = {
-    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'keysplit', 'quotaup', 'stagerate', 'cttl0', 'cttl300', 'cttl3600', 'ckey', 'flush', 'maxage', 'gtrace'],
-    queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail'],
+    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'snsattr', 'keysplit', 'quotaup', 'stagerate', 'cttl0', 'cttl300', 'cttl3600', 'ckey', 'flush', 'maxage', 'gtrace'],
+    queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail', 'scopebody', 'nofilter', 'subdlq', 'rawon',
+      'rnone', 'rtrans', 'rall', 'catchnone', 'catchno', 'catchrp', 'catchfirst'],
     fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
     store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'insights', 'trail']
   };
@@ -188,12 +217,14 @@
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
   function baseCfg() {
     return {
-      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, split: false, quota: 50, stage: false, cttl: 300, ckey: false, flush: false, maxage: false },
+      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, snsattr: false, split: false, quota: 50, stage: false, cttl: 300, ckey: false, flush: false, maxage: false },
       queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
       fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
       store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false, rot: 'single', consistent: false, dax: 2 },
-      stream: { bisect: false, retries: null, onfail: false }
+      stream: { bisect: false, retries: null, onfail: false },
+      topic: { scope: 'attrs', filter: true, dlq: false },
+      flow: { retry: 'none', catch: 'none' }
     };
   }
   const clone = o => JSON.parse(JSON.stringify(o));
@@ -324,6 +355,24 @@
       fix: [['bisect', 'retry2', 'onfail']], lazy: [['retry2', 'onfail'], ['bisect', 'retry2'], ['bisect'], ['partial', 'retry2', 'onfail'], ['b1', 'retry2', 'onfail'], ['reserved']],
       hidden: 'One record always failed. A stream keeps its order, so Lambda retried that batch forever and nothing behind it moved.',
       q: /Kinesis|DynamoDB Streams?|BisectBatchOnFunctionError|MaximumRetryAttempts|on-failure destination|IteratorAge|shard/i },
+    quiet: { name: 'The Quiet Subscriber', cause: 'queue', lead: 'mira', path: 'sync', hub: 'sns', sns: true,
+      stations: { queue: { name: 'The Topic', svc: 'SNS' } },
+      says: 'Every order went out. Shipping says nothing came in.',
+      setup: v => ({ bucket: [40, 40], arrivals: t => (t < D.TICKS ? Array.from({ length: 4 }, (_, i) => R(`s${t}-${i}`, { cust: 'c' + ((t * 4 + i) % 6), kind: (t * 4 + i + v.k) % 3 === 0 ? 'pickup' : 'ship' })) : []) }),
+      break: () => {},
+      ok: m => m.filtered === 0 && m.misrouted === 0, fix: [['snsattr'], ['scopebody']], lazy: [['nofilter'], ['subdlq'], ['reserved'], ['to120']],
+      hidden: 'The shipping subscription\'s filter policy read message attributes, the default, but the Gate put order_type only in the message body, so no order matched.',
+      q: /filter polic|FilterPolicyScope|message attribute|SNS.*(fan[- ]?out|subscri)|NumberOfNotificationsFilteredOut/i },
+    catch: { name: 'The Dropped Catch', cause: 'queue', lead: 'kai', path: 'sync', hub: 'sfn', sfn: true,
+      stations: { queue: { name: 'The Workflow', svc: 'Step Functions' } },
+      says: 'Half the failures should have retried. The other half should never have.',
+      setup: v => ({ bucket: [40, 40], arrivals: t => (t < D.TICKS ? Array.from({ length: 4 }, (_, i) => { const n = t * 4 + i;
+        return R(`w${t}-${i}`, { cust: 'c' + (n % 6), flaky: (n + v.k) % 5 === 1, declined: (n + v.k) % 7 === 3 }); }) : []) }),
+      break: () => {},
+      ok: m => m.lost === 0 && m.stuck === 0 && m.recharged === 0, fix: [['rtrans', 'catchrp']],
+      lazy: [['rall', 'catchrp'], ['rtrans'], ['catchrp'], ['rtrans', 'catchno'], ['rall'], ['reserved'], ['to120']],
+      hidden: 'The Charge task had no retrier, so Lambda\'s passing throttles failed good orders, and no catcher, so a declined card failed the execution with the stock still held.',
+      q: /Step Functions|state machine|States\.ALL|ErrorEquals|ResultPath|Retry.*Catch|Catch.*Retry|MaxAttempts|BackoffRate/i },
     midnight: { name: 'The Midnight Batch', boss: true, cause: 'queue+fn', lead: 'mira', path: 'async',
       says: 'One line, and one bad order at the front of it.',
       setup: v => ({ arrivals: t => steady(2, { work: 20 })(t).concat(t === 1 + (v.k % 2) ? [R('bad', { poison: true, cust: 'c1' })] : []) }),
@@ -336,7 +385,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'receipt'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single'], ['poison', 'stampede'], ['midnight']];
+  D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'receipt'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single', 'quiet'], ['poison', 'stampede', 'catch'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -350,7 +399,10 @@
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
       poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
+      published: 0, delivered: 0, filteredOut: 0, noAttr: 0, filtered: 0, misrouted: 0,
+      started: 0, succeeded: 0, execFailed: 0, fnThrottled: 0, retried: 0, declines: 0, recharged: 0, stuck: 0, released: 0, releaseFailed: 0,
       limit429: 0, shopLimited: 0, quotaAt: 0, quotaRaised: !!(set.keys && cfg.gate.quota > 50), hits: 0, misses: 0, leaked: 0, cacheWarn: 0, cacheOff: !!(set.cache && cfg.gate.cttl === 0) };
+
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
     const q = { items: [], dlq: [] };               // { r, vis (tick visible from), recv, sentAt, inflight }
     for (let i = 0; i < (cfg.fn.prov | 0); i++) envs.push({ busy: -1, last: -1, prov: true });
@@ -408,6 +460,19 @@
     const sync = (r, t) => {
       if (set.cache) return cached(r, t);
       if (set.auth && !authorize(r, t)) return;
+      // The topic (The Quiet Subscriber): the Gate publishes each order, and the caller gets the Publish's 200 at once.
+      // The shipping subscription's filter policy, { "order_type": ["ship"] }, decides what reaches the function.
+      if (d.hub === 'sns') {
+        m.published++; m.ok++;
+        let go;
+        if (!cfg.topic.filter) go = true;
+        else if (cfg.topic.scope === 'body' || cfg.gate.snsattr) go = r.kind === 'ship';
+        else { go = false; m.noAttr++; }
+        if (!go) { m.filteredOut++; if (r.kind === 'ship') m.filtered++; return; }
+        m.delivered++; if (r.kind !== 'ship') m.misrouted++;
+      }
+      // The state machine (The Dropped Catch): StartExecution answers at once; the Charge task invokes the function.
+      if (d.hub === 'sfn') { m.started++; m.ok++; }
       // A warm environment if one is free (provisioned ones never go cold), else a new one: a cold start.
       let e = envs.find(x => x.busy !== t && (x.prov || (x.last >= 0 && t - x.last <= REAP)));
       let cold = false;
@@ -434,7 +499,25 @@
           else { m.authFail++; m.errors++; m.fault5xx++; return; }
         }
       }
+      // Charge's errors and how the state machine handles them. A flaky order's first invocation is throttled
+      // (Lambda.TooManyRequestsException); a declined card throws CardDeclined every time.
+      if (d.hub === 'sfn') {
+        const retr = cfg.flow.retry;
+        if (r.flaky) {
+          m.fnThrottled++;
+          if (retr === 'none') { m.execFailed++; m.lost++; return; }
+          m.retried++; m.invocations++;
+        }
+        if (r.declined) {
+          m.declines++; m.errors++;
+          if (retr === 'all') { m.recharged++; m.retried += 3; m.invocations += 3; m.errors += 3; }
+          if (cfg.flow.catch === 'rp') { m.released++; m.succeeded++; return; }
+          if (cfg.flow.catch === 'norp') m.releaseFailed++;
+          m.execFailed++; m.stuck++; return;
+        }
+      }
       const w = write(r);
+      if (d.hub === 'sfn' && w === 'ok') m.succeeded++;
       if (w !== 'ok' && w !== 'blocked') { m.errors++; m.fault5xx++; return; }
       // Reading the order straight back (The Stale Shelf). Through DAX, eventually consistent: a read this soon after
       // the write misses it about one time in three (the game's number). ConsistentRead goes to the table and sees it.
@@ -594,13 +677,15 @@
   };
 
   // Per-tick series for each station's metrics (the console's small charts). Small: 20 numbers each.
-  D.sparks = function (frames, stream, cache) {
+  D.sparks = function (frames, stream, hub, cache) {
     const by = f => frames.map(fr => f(fr.d, fr) | 0);
     return {
       gate: Object.assign({ Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : d.misses ? 600 : d.hits ? 40 : 120)) },
         cache ? { CacheHitCount: by(d => d.hits), CacheMissCount: by(d => d.misses) } : {}),
-      queue: stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
-      fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy) },
+      queue: hub === 'sns' ? { NumberOfMessagesPublished: by(d => d.published), NumberOfNotificationsDelivered: by(d => d.delivered), NumberOfNotificationsFilteredOut: by(d => d.filteredOut), '…FilteredOut-NoMessageAttributes': by(d => d.noAttr) }
+        : hub === 'sfn' ? { ExecutionsStarted: by(d => d.started), ExecutionsSucceeded: by(d => d.succeeded), ExecutionsFailed: by(d => d.execFailed) }
+        : stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
+      fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy), Throttles: by(d => d.fnThrottled) },
       store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
     };
   };
@@ -608,7 +693,7 @@
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
-      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0);
+      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -616,16 +701,16 @@
   // A node shows its colour only when it's traced: the Gate with stage tracing, the Function and what it calls with
   // active tracing. Untraced nodes stay grey ('dark').
   function nodes(d, cfg, m) {
-    const traced = { gate: cfg.gate.trace, queue: cfg.fn.trace && d.path === 'async', fn: cfg.fn.trace, store: cfg.fn.trace };
+    const traced = { gate: cfg.gate.trace, queue: cfg.fn.trace && (d.path === 'async' || !!d.hub), fn: cfg.fn.trace, store: cfg.fn.trace };
     const st = {
       gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0, error: m.forbidden + m.unauth + m.stale > 0 }),
-      queue: 'ok',
+      queue: d.hub === 'sfn' ? AS.xrayStatus({ fault: m.execFailed > 0 }) : 'ok',
       fn: AS.xrayStatus({ fault: m.errors > 0 }),
       store: AS.xrayStatus({ throttle: m.hot + m.over > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 })
     };
     const out = {};
     D.ORDER.forEach(k => { out[k] = traced[k] ? st[k] : 'dark'; });
-    if (d.path !== 'async') out.queue = 'off';
+    if (d.path !== 'async' && !d.hub) out.queue = 'off';
     return out;
   }
   D.metrics = function (drill, cfg, m) {
@@ -633,8 +718,10 @@
     return {
       gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']]
         .concat(d.cache ? [['CacheHitCount', m.hits], ['CacheMissCount', m.misses]] : []),
-      queue: d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
-      fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]],
+      queue: d.hub === 'sns' ? [['NumberOfMessagesPublished', m.published], ['NumberOfNotificationsDelivered', m.delivered], ['NumberOfNotificationsFilteredOut', m.filteredOut]].concat(m.noAttr ? [['…FilteredOut-NoMessageAttributes', m.noAttr]] : [])
+        : d.hub === 'sfn' ? [['ExecutionsStarted', m.started], ['ExecutionsSucceeded', m.succeeded], ['ExecutionsFailed', m.execFailed]]
+        : d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
+      fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]].concat(m.fnThrottled ? [['Throttles', m.fnThrottled]] : []),
       store: [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
     };
   };
@@ -651,8 +738,22 @@
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
     else if (m.leaked) L.push(['seoyeon', `Every response was 200 OK, fast, and CacheHitCount is ${m.hits}. But ${m.leaked} of those answers showed a customer someone else's orders.`]);
     else if (m.unauth) L.push(['seoyeon', `Every caller with a token got through. ${n(m.unauth, 'request')} got 401 Unauthorized: the scraper bot, with no token at all.`]);
+    else if (d.hub === 'sns') L.push(['seoyeon', `Every Publish to the orders topic got 200 OK and a MessageId.${cfg.gate.snsattr ? ' Each one carries order_type as a message attribute now.' : ''}`]);
+    else if (d.hub === 'sfn') L.push(['seoyeon', 'Every StartExecution got 200 OK and an executionArn. What happens after that isn\'t the Gate\'s to see.']);
     else L.push(['seoyeon', 'Gate\'s quiet. Every caller got an answer.']);
-    if (d.stream) {
+    if (d.hub === 'sns') {
+      if (m.noAttr) L.push(['mira', `${m.published} published, ${m.delivered} delivered to shipping. NumberOfNotificationsFilteredOut-NoMessageAttributes: ${m.noAttr}. The messages carry no attributes at all.`]);
+      else if (!cfg.topic.filter) L.push(['mira', `No filter on shipping: all ${n(m.delivered, 'order')} delivered${m.misrouted ? `, ${m.misrouted} of them pickups` : ''}.`]);
+      else L.push(['mira', `${m.published} published, ${m.delivered} delivered to shipping, ${m.filteredOut} filtered out${m.filtered ? '' : ': the pickups'}.`]);
+      if (cfg.topic.dlq) L.push(['mira', 'shipping-dlq is empty. SNS delivered everything the policy let through.']);
+    } else if (d.hub === 'sfn') {
+      L.push(['mira', `${n(m.started, 'execution')} started, ${m.succeeded} succeeded, ${m.execFailed} failed.`]);
+      if (m.lost) L.push(['mira', `${n(m.lost, 'execution')} failed in Charge on Lambda.TooManyRequestsException. No retrier matched.`]);
+      if (m.stuck && !m.releaseFailed) L.push(['mira', `${n(m.stuck, 'execution')} failed in Charge on CardDeclined. No catcher matched, so nothing after Charge ran.`]);
+      if (m.releaseFailed) L.push(['mira', `CardDeclined was caught ${n(m.releaseFailed, 'time')}, then ReleaseStock failed: its input had only Error and Cause, no orderId.`]);
+      if (m.recharged) L.push(['mira', `Charge was retried on CardDeclined ${n(m.retried - (m.fnThrottled && cfg.flow.retry !== 'none' ? m.fnThrottled : 0), 'time')}. The card was declined every time.`]);
+      if (m.released && !m.releaseFailed) L.push(['mira', `${n(m.released, 'declined card')} went to ReleaseStock, and the stock went back on the shelf.`]);
+    } else if (d.stream) {
       if (m.maxAge > 30) L.push(['mira', `IteratorAge reached ${m.maxAge} seconds: the shard is stuck behind one record.${m.left + m.poisonLoose ? ` ${n(m.left + m.poisonLoose, 'record')} still waiting.` : ''}`]);
       else L.push(['mira', `${n(m.sent, 'record')} in, every one read.`]);
       if (m.splits) L.push(['mira', `Failing batches were split in two ${n(m.splits, 'time')}.`]);
@@ -667,6 +768,14 @@
     if (m.cacheWarn) L.push(['seoyeon', `${n(m.cacheWarn, 'response')} carried a warning header: the app's Cache-Control: max-age=0 was ignored.`]);
     if (d.cache) L.push(['kai', m.cacheOff ? `Every request reached me: ${n(m.invocations, 'invocation')}, about 600 ms each.` : `Only ${n(m.invocations, 'request')} reached me all night. The Gate answered the other ${m.hits} from its cache.`]);
     if (m.limit429) L.push(['kai', `Nothing reached me for those ${m.limit429}. The Gate turned them away before the function ran.`]);
+    if (d.hub === 'sns') {
+      if (!m.invocations) L.push(['kai', 'Not one invocation. Nothing reached the shipping function.']);
+      else if (m.misrouted) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors. ${m.misrouted} of them printed shipping labels for pickup orders.`]);
+    }
+    if (d.hub === 'sfn') {
+      if (m.fnThrottled) L.push(['kai', `Lambda throttled ${n(m.fnThrottled, 'invocation')} from Charge: TooManyRequestsException.${cfg.flow.retry !== 'none' ? ' Each one went through on its retry.' : ''}`]);
+      if (m.declines) L.push(['kai', `${n(m.declines, 'order')} threw CardDeclined: the payment provider said no.`]);
+    }
     if (m.timeouts) L.push(['kai', `Task timed out after ${cfg.fn.timeout}.00 seconds, ${n(m.timeouts, 'time')}.`]);
     if (m.forbidden) L.push(['kai', `Nothing reached me for those ${m.forbidden}. The Gate turned them away before the function ran.`]);
     if (m.stale) L.push(['kai', `${n(m.stale, 'order')} came back "not found" when I read them right after writing them.`]);
@@ -682,7 +791,7 @@
     else if (m.shifted && cfg.fn.shift !== 'all') L.push(['kai', `CodeDeploy is still shifting: version 2 has ${cfg.fn.shift === 'canary' ? '10%' : 'a growing share'} of live, and nothing is watching it.`]);
     if (m.hot) L.push(['kai', `ThrottlingException on ${n(m.hot, 'write')}.`]);
     if (m.over) L.push(['kai', `ProvisionedThroughputExceededException on ${n(m.over, 'write')}.`]);
-    if (m.errors && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.authFail && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
+    if (m.errors && !d.hub && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.authFail && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
     if (m.condBlocked) L.push(['kai', `ConditionalCheckFailedException ${n(m.condBlocked, 'time')}: the order was already written.`]);
     if (!L.some(x => x[0] === 'kai')) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors${m.maxConc ? `, at most ${m.maxConc} at once` : ''}.`]);
     if (m.dupes) L.push(['dutch', `${n(m.dupes, 'order')} written twice.`]);
@@ -694,6 +803,9 @@
     else if (cfg.store.consistent && m.rcu) L.push(['dutch', `Strongly consistent reads: ${m.rcu} read units, twice what eventually consistent costs. DAX passed them all through.`]);
     if (m.rotated) L.push(['dutch', `Secrets Manager rotated ledger/orders_app at ${m.rotated} seconds. ${cfg.store.rot === 'alt' ? 'Alternating users: the previous password still works.' : 'Single user: the old password stopped working.'}`]);
     if (m.rotOff) L.push(['dutch', 'Rotation is off. The ledger password hasn\'t changed since the day it was made.']);
+    if (d.hub === 'sns' && m.filtered) L.push(['dutch', `${n(m.filtered, 'order')} to ship and no shipping label for any of them. The shop says they were all placed.`]);
+    if (d.hub === 'sns' && m.misrouted) L.push(['dutch', `${n(m.misrouted, 'shipping label')} for orders the customer is picking up in store.`]);
+    if (m.stuck) L.push(['dutch', `${n(m.stuck, 'order')} still hold stock in the inventory table, for payments that never went through.`]);
     if (m.iamDenied) L.push(['dutch', `The table turned away ${n(m.iamDenied, 'write')} with a 400. It never got as far as capacity.`]);
     if (!L.some(x => x[0] === 'dutch')) L.push(['dutch', m.denied ? 'Nothing reached the table.' : 'Table\'s fine from here.']);
     return L;
@@ -708,7 +820,7 @@
     const f = { drill, cfg, v, deploys: 0, changes: [], log: [], state: 'read' };
     // The warm-up run: the fault in place, free.
     const r = D.run(drill, cfg, v);
-    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream, DR[drill].cache) });
+    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream, DR[drill].hub, DR[drill].cache) });
     D.lastFrames = r.frames;
     return f;
   };
@@ -716,15 +828,17 @@
   D.why = function (f, id) {
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
-    if (c.at === 'queue' && d.path !== 'async') return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', keys: 'This API has no API keys or usage plan.', cache: 'This stage has no cache.' }[c.needs];
-    if (c.sqs && d.stream) return 'That\'s an SQS setting, and this is a stream.';
+    if (c.at === 'queue' && d.path !== 'async' && !d.hub) return 'There\'s no queue on this path.';
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', keys: 'This API has no API keys or usage plan.', cache: 'This stage has no cache.' }[c.needs];
+    if (c.sqs && (d.stream || d.hub)) return `That's an SQS setting, and this is ${d.hub === 'sns' ? 'an SNS topic' : d.hub === 'sfn' ? 'a state machine' : 'a stream'}.`;
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
     return c.why ? c.why(f.cfg, d) : '';
   };
   // Whether a setting belongs on this drill's desks at all (not just whether it can be placed now).
-  D.shown = (drill, id) => { const c = C[id], d = DR[drill]; return !(c.needs && !d[c.needs]) && !(c.sqs && d.stream); };
+  D.shown = (drill, id) => { const c = C[id], d = DR[drill]; return !(c.needs && !d[c.needs]) && !(c.sqs && (d.stream || d.hub)); };
+  // Whether the Queue's station is on this drill's path (a queue, a stream, a topic or a state machine).
+  D.hasQueue = drill => DR[drill].path === 'async' || !!DR[drill].hub;
   D.place = function (f, id) {
     const w = D.why(f, id);
     if (w) return w;
@@ -738,7 +852,7 @@
     const r = D.run(f.drill, f.cfg, f.v);
     const ok = d.ok(r.m);
     const e = { m: r.m, lines: r.lines, nodes: r.nodes, cost: D.cost(f.drill, r.m), ok, changes: f.changes.slice() };
-    e.spark = D.sparks(r.frames, d.stream, d.cache);
+    e.spark = D.sparks(r.frames, d.stream, d.hub, d.cache);
     D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
     f.cfg.queue.purge = false; f.cfg.gate.flush = false;
@@ -765,6 +879,8 @@
     iam: ['dutch', 'A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.'],
     quota: ['seoyeon', 'A usage plan counts each API key on its own. Share a key and you share its quota, and once it\'s spent, everyone on that key gets 429.'],
     cache: ['seoyeon', 'The stage cache tells requests apart only by the cache keys you give it. Leave out who\'s asking, and everyone gets the first answer.'],
+    fanout: ['mira', 'A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn\'t call that an error.'],
+    flow: ['kai', 'Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.'],
     canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
   };
   // Which teach line a run earns first.
@@ -781,6 +897,8 @@
     if (m.stale) keys.push('reads');
     if (DR[f.drill].stream && m.maxAge > 30) keys.push('stream');
     if (m.v2Fail) keys.push('canary');
+    if (m.filtered) keys.push('fanout');
+    if (DR[f.drill].hub === 'sfn' && (m.lost || m.stuck || m.recharged)) keys.push('flow');
     if (m.slow) keys.push('cold');
     if (m.dupes && DR[f.drill].path === 'async' && !DR[f.drill].stream) keys.push('vis');
     if (f.cfg.queue.fifo && m.maxAge > 30) keys.push('fifo');

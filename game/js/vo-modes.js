@@ -62,6 +62,8 @@
     "dutch|Reads are eventually consistent unless you ask. Right after a write, ask: ConsistentRead.": 'dutch-mg-drill-teach-reads',
     "seoyeon|A usage plan counts each API key on its own. Share a key and you share its quota, and once it's spent, everyone on that key gets 429.": 'seoyeon-mg-drill-teach-quota',
     "seoyeon|The stage cache tells requests apart only by the cache keys you give it. Leave out who's asking, and everyone gets the first answer.": 'seoyeon-mg-drill-teach-cache',
+    "mira|A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn't call that an error.": 'mira-mg-drill-teach-fanout',
+    "kai|Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.": 'kai-mg-drill-teach-flow',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
