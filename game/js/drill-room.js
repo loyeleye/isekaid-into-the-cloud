@@ -49,7 +49,7 @@
   R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
-        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()"></span><span class="rm-emote"></span></div>
+        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()">${['bite', 'chew', 'smug'].map(n => `<img class="up-e up-${n}" src="assets/img/drill/uptima-cloud-${n}.webp" alt="" draggable="false" onerror="this.remove()">`).join('')}</span><span class="rm-emote"></span></div>
         <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}${SQUIG}</div>
         <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
@@ -336,6 +336,13 @@
       animation: rmcloud 7s ease-in-out infinite; }
     .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
     .rm-cloud .up-fig img { object-position: center; }
+    /* She eats the cookie (Ladi, Nov 17: "A still would look a little weird"): every 11 s, two bites, a chew, a smug
+       look with a crumb on her cheek, then back to nibbling. The eating frames sit over the blink frame. */
+    .rm-cloud .up-e { opacity: 0; animation: 11s steps(1, end) infinite; }
+    .rm-cloud .up-bite { animation-name: upbite; } .rm-cloud .up-chew { animation-name: upchew; } .rm-cloud .up-smug { animation-name: upsmug; }
+    @keyframes upbite { 0%, 34% { opacity: 0; } 35%, 38% { opacity: 1; } 39%, 44% { opacity: 0; } 45%, 48% { opacity: 1; } 49%, 100% { opacity: 0; } }
+    @keyframes upchew { 0%, 38% { opacity: 0; } 39%, 44% { opacity: 1; } 45%, 48% { opacity: 0; } 49%, 60% { opacity: 1; } 61%, 100% { opacity: 0; } }
+    @keyframes upsmug { 0%, 60% { opacity: 0; } 61%, 82% { opacity: 1; } 83%, 100% { opacity: 0; } }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
     /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
     .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
@@ -410,6 +417,6 @@
         background: linear-gradient(180deg, #5a3b10 0, #5a3b10 4px, #3a2414 4px, #2b1a0e 40%, #1d120a 100%); }
       .rm-plq span { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud, .rm-pip { animation: none !important; } .rm-sq { display: none; } }`;
+    @media (prefers-reduced-motion: reduce) { .rm-cloud .up-e { animation: none; opacity: 0; } .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud, .rm-pip { animation: none !important; } .rm-sq { display: none; } }`;
   document.head.appendChild(css);
 })();
