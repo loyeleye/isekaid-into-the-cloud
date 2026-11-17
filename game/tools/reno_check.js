@@ -75,8 +75,21 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     if (await page.$('#rn-skip')) await page.click('#rn-skip');
     await page.waitForSelector('.rn-after:not([hidden])', { timeout: 5000 }).catch(() => {});
   };
-  const permit = async (right, conf) => {
+  // Seymour's what-if (jobs 2 and 4): marks[i] true chalks ✓ (one tap), false ✗ (two taps); left out, every line ✓.
+  const whatIf = async marks => {
+    if (!(await page.$('#rn-wi-run'))) return null;
+    if (marks === 'right') marks = await page.evaluate(() => { const s = SD.state.save.reno, j = s.jobs[s.at]; return SD.reno.inspect(SD.reno.job(j.id, j.seed), j.wiq).lines.map(l => l.ok); });
+    const n = (await page.$$('[data-wi]')).length, locked = await page.$eval('#rn-wi-run', x => x.disabled);
+    for (let i = 0; i < n; i++) { await page.click(`[data-wi="${i}"]`); if (marks && marks[i] === false) await page.click(`[data-wi="${i}"]`); }
+    await page.click('#rn-wi-run');
+    const out = await page.evaluate(() => { const s = SD.state.save.reno; return Object.assign({ text: document.querySelector('#panel').innerText }, s.jobs[s.at].wi); });
+    out.locked = locked;
+    await page.click('#rn-wi-on');
+    return out;
+  };
+  const permit = async (right, conf, marks) => {
     await page.click('#rn-deb');
+    permit.wi = await whatIf(marks);
     await page.click('#rn-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'), null, { timeout: 5000 });
     const plain = await page.evaluate(() => !document.querySelector('#panel .rn-street, #panel .rn-bridge'));
@@ -119,7 +132,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   if (await page.$('#rn-skip')) await page.click('#rn-skip');
   t = await txt('#panel');
   check(/✗ Nobody turned away/.test(t) && /turned away/.test(t) && !!(await page.$('#rn-again')), 'all at once fails the slate, with the gate\'s marks, and offers another plan');
-  check(/red mark on the gate/.test(t), 'the first turned-away resident is taught by one line');
+  check(/Red mark on the gate/.test(t), 'the first turned-away resident is taught by one line');
   await noHScroll('inspect'); await shot('inspect-fail');
   await page.click('#rn-again');
   await setPlan({ policy: 'rollingBatch', batch: 1 });
@@ -147,7 +160,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await setPlan({ policy: 'rolling', batch: 2, ignoreHC: 'false' });
   await renovate();
   check(!!(await page.$('#rn-deb')), 'rolling in batches of 2 passes the quiet ward');
-  const p2 = await permit(false, 1);
+  const p2 = await permit(false, 1, 'right');
+  check(permit.wi && permit.wi.locked && /What if/i.test(permit.wi.text), 'the second job: Seymour\'s what-if changes your plan and waits for every line to be chalked');
+  check(permit.wi && permit.wi.ok === true && /READ RIGHT/.test(permit.wi.text), 'chalking the what-if the way it really goes reads right');
   check(/SCAFFOLDING/.test(await txt('#panel')) && await page.evaluate(id => SD.draft.save().town[id].scaf && SD.draft.posterUp(id), p2.qid), 'a wrong permit answer: scaffolding, and the question on the Wall');
   await nextJob();
   // ---- Jobs 3 to 5 ----

@@ -196,7 +196,7 @@
   CLAIMS.slow.next = 'picky';
   // Claim 6: the Records Vault. One caller sends most of the tickets, and their cabinet throttles. See the header.
   CLAIMS.hot = {
-    name: 'THE HOT SHELF', title: 'the Hot Shelf', locked: [], next: null, close: 56, clerk: 'papers',
+    name: 'THE HOT SHELF', title: 'the Hot Shelf', locked: [], next: 'locked', close: 56, clerk: 'papers',
     belt: ['shard', 'ondemand', 'rack'], vault: true, mira: 3, coins: 1,
     // hot: the share of each wave's tickets from the one busy caller.
     waves: [
@@ -224,7 +224,7 @@
   // One continuous night, 22:00 to 06:00, no waves: faults overlap at four stations, and the buys change what you can
   // see. Not chained yet (claim 7 comes before it); play it with rush.html?claim=audit.
   CLAIMS.audit = {
-    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: null, close: 144, clerk: 'papers', cap: 26,
+    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: 'sorter', close: 144, clerk: 'papers', cap: 26,
     belt: ['tracer', 'pins', 'alarm', 'stamp', 'tally', 'hires'], extras: ['rule', 'lens'],
     night: { start: 22, hours: 8, hourSecs: 18, rate: [0.32, 0.36, 0.4, 0.44, 0.48, 0.52, 0.56, 0.6], maxLive: [1, 1, 2, 3, 3, 3, 3, 3],
       gap: [[0, 0], [0, 0], [12, 16], [11, 15], [10, 14], [9, 13], [9, 13], [9, 12]], transientP: 0.35, refund: 0.3 }
@@ -319,11 +319,15 @@
       }
       // Review questions, spread through the wave (no dice, so the room's other rolls are untouched).
       for (let j = 0; j < (w.ask || 0); j++) S.spawns.push({ t: t + (j + 0.5) / w.ask * w.secs + 0.2, wave: wi + 1, poison: false, quiz: true, key: 'q' + j, qn: S.quizN++ });
-      t += w.secs + T.gap;
+      t += w.secs + (C.gap || T.gap);
     });
     S.spawns.sort((a, b) => a.t - b.t);
     // A second room running alongside (its own seed, so this room's rolls are untouched). It shares the coins and the tank.
     if (C.review) { S.review = create(((seed >>> 0) ^ 0x5bd1e995) >>> 0, C.review, orders, 0, S.book); S.review.parent = S; S.review.close = S.close; }
+    // Claim 9 (the freight yard): its own rules live in js/rush-yard.js.
+    if (C.yard && SD.rushYard) SD.rushYard.init(S, C);
+    // Claim 7 (the Locked Desk): its rules live in js/rush-office.js.
+    if (C.office && SD.rushOffice) SD.rushOffice.init(S, C);
     return S;
   }
   // Which stools are whose. Index 0 is next to Mira's desk.
@@ -369,6 +373,8 @@
     if (tool === 'jitter') S.maxThrottles = MAX_THROTTLES;
     if (tool === 'retries') S.retryN = 1;
     if (tool === 'intern') placeIntern(S);
+    // Claim 7: its buys set up their own state (js/rush-office.js).
+    if (S.office && SD.rushOffice) SD.rushOffice.placed(S, tool);
     // Tickets already waiting their turn to retry walk onto the new rack.
     ev(S, 'place', { tool });
     return '';
@@ -381,6 +387,7 @@
     const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, stuck: !!sp.stuck, heavy: !!sp.heavy, refund: !!sp.refund, fail: sp.fail || '', hot: !!sp.hot, cab: sp.cab || 0, group: sp.group, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
     go(k, 'slide', T.slide);
     S.tickets.push(k);
+    if (S.yard) SD.rushYard.onSpawn(S, k, sp);
   }
   // Onto the rack. Retention counts from when the ticket was first sent, not each time it comes back.
   function enqueue(S, k) { go(k, 'shelf', 0); if (k.queuedAt == null) k.queuedAt = S.time; S.queue.push(k.id); }
@@ -407,6 +414,8 @@
         ev(S, 'ring', { id: k.id, copy: c.id, want: c.want });
       } else { S.filtered++; ev(S, 'filtered', { id: k.id }); }
     }
+    // Claim 9: new-form refunds come over the counter (a synchronous call), so they skip the platform.
+    if (S.yard && k.sync) { SD.rushYard.counter(S, k); return; }
     if (S.rack) {
       // FIFO: the rack drops a ticket it has already been sent (deduplication).
       if (S.orders.has('fifo') && k.key) {
@@ -505,7 +514,8 @@
     // Reports opened a copy it didn't want: thrown away, a whole invocation for nothing.
     if (k.desk === 'reports' && S.picky && !k.want) { go(k, 'drop', T.drop); S.tossed++; ev(S, 'tossed', { id: k.id }); return; }
     if (k.desk === 'reports') { go(k, 'done', T.done); return; }
-    if (!k.poison) {
+    // Claim 9: a waybill can also fail on the version it went to.
+    if (!k.poison && !(S.yard && SD.rushYard.fails(S, k))) {
       go(k, 'done', T.done);
       // At-least-once delivery: now and then the rack hands the same ticket over again.
       if (viaRack && !k.twin && !S.orders.has('fifo') && S.rand() < TWIN_P) {
@@ -516,7 +526,7 @@
       return;
     }
     // Poison fails every time.
-    ev(S, 'poisonFail', { id: k.id, receives: k.receives });
+    if (k.poison) ev(S, 'poisonFail', { id: k.id, receives: k.receives });
     if (!viaRack) { go(k, 'splat', T.splat); return; }
     failBack(S, k);
   }
@@ -554,6 +564,8 @@
     if (M.spill >= M.cap && !M.over) { M.over = 'lose'; ev(M, 'lose'); if (M !== S) S.over = 'lose'; }
   }
   function step(S, dt) {
+    // Claim 7 (the Locked Desk): the office's main room has its own step (js/rush-office.js).
+    if (S.office && SD.rushOffice) return SD.rushOffice.step(S, dt);
     if (!S.started || S.over) return;
     if (S.audit) { root.SD.rushAudit.step(S, dt); return; } // claim 8: the Watch Room's own step
     // The second room runs first, on the same clock. If it floods the shared tank, the night is over.
@@ -571,6 +583,8 @@
       spawn(S, sp);
     }
     if (!S.spawns.length) S.allSpawned = true;
+    // Claim 9: the yard's deployment clock, crates, hotfix and upkeep.
+    if (S.yard) { SD.rushYard.tick(S, dt); if (S.over || purse(S).over) return; }
     // The Hot Shelf: each cabinet gets its filings back a second at a time, and its heat (recent writes) cools.
     if (S.vault) { const r = cabRate(S); for (const c of S.cabs) { c.tok = Math.min(T.cabBurst, c.tok + r * dt); c.heat *= Math.exp(-dt / 1.5); } }
     // Advance every ticket.
@@ -606,6 +620,8 @@
             if (!warm && S.orders.has('cold') && S.time - S.lastFree[k.stool] > T.coldAfter && !busySince(S, k.stool)) { w *= T.coldX; S.colds++; ev(S, 'cold', { id: k.id, stool: k.stool }); }
             // The stopwatch cuts off any job longer than the function's timeout.
             if (S.stopwatch && w > T.fnTimeout) { k.cutOff = true; w = T.fnTimeout; }
+            // Claim 9: the LIVE points pick the version, and the version sets the pace.
+            if (S.yard && !k.quiz) w = SD.rushYard.route(S, k, w);
             go(k, 'work', w);
           }
           break;
@@ -635,8 +651,8 @@
           else go(k, 'wait', T.backoff[k.throttles - 1] || 1);
           break;
         case 'wait': go(k, 'slide', T.slide); break;
-        case 'splat': remove(S, k); lose1(S, k, k.poison ? 'error' : 'throttled'); break;
-        case 'tobin': remove(S, k); S.binned++; ev(S, 'binned', { id: k.id }); break;
+        case 'splat': remove(S, k); lose1(S, k, k.poison || k.err ? 'error' : 'throttled'); break;
+        case 'tobin': remove(S, k); S.binned++; ev(S, 'binned', { id: k.id }); if (S.yard) lose1(S, k, 'returned'); break;
         case 'back': go(k, 'hidden', T.hidden); break;
         case 'hidden': enqueue(S, k); break;
         case 'rwait': go(k, 'tray', 0); S.tray.unshift(k.id); break;
@@ -757,8 +773,10 @@
       if (!k.quiz) continue;
       if (k.phase === 'ask') {
         // The intern takes questions the player has solved, one moment after it's free to (it was hired, or it landed).
-        if (S.intern && isSolved(S, k.q) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
-          const right = S.rand() >= T.internWrong;
+        // Claim 7's intern scope: on 'topics' it also takes unsolved questions from a topic you've solved, and guesses more.
+        const wide = !isSolved(S, k.q) && !!SD.rushOffice && SD.rushOffice.wide(S, k.q);
+        if (S.intern && (isSolved(S, k.q) || wide) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
+          const right = S.rand() >= (wide ? SD.rushOffice.T.internWrongWide : T.internWrong);
           unask(S, k); k.internRight = right; k.stampAt = S.time; go(k, 'stamped', 0); S.byIntern++;
           answer(S, k.q, right, 'intern'); ev(S, 'internAnswer', { id: k.id, right });
         } else if (S.time - k.askAt > T.askWait) { unask(S, k); S.unanswered++; ev(S, 'unanswered', { id: k.id }); remove(S, k); lose1(S, k, 'unanswered'); if (purse(S).over) return; }
@@ -810,5 +828,9 @@
   function solved(S) { return [...purse(S).book.values()].filter(r => r.solved).map(r => r.id); }
   const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'fifo', 'eventual', 'stakes', 'timeout'];
   SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, CABS, HOT_CAB, cabOf, cabRate, answer, solved, reply, check, create, step, start, place, canPlace, costOf, seats, owners, drain, upkeep, turn };
+  // Internals for js/rush-yard.js (claim 9).
+  SD.rushCore.lib = { ev, go, remove, lose1, enqueue, purse };
+  // For js/rush-office.js (claim 7): the helpers its own step needs.
+  SD.rushCore.internal = { ev, lose1, purse, go, remove, reviewStep, isSolved };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
