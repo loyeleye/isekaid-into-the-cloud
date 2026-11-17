@@ -63,6 +63,41 @@ const CANVAS_WATCH = () => {
     };
   }
 };
+// Label overlaps: every word the yard draws on the stage canvas in the last whole frame, as a box in CSS pixels. Two
+// labels that cover each other count as a failure; a passing pop over a label is printed as a note (it moves and fades).
+// The departure board's flaps (monospace), Dutch's words and the cellar thumbnail are left out.
+const LABEL_WATCH = () => {
+  window.__lab = []; window.__labLast = [];
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = f => raf(t => { window.__lab = []; f(t); window.__labLast = window.__lab; });
+  const orig = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...a) {
+    const m = this.getTransform(), dpr = devicePixelRatio || 1;
+    if (this.canvas && this.canvas.id === 'rush' && String(t).trim() && !m.b && !m.c && m.a / dpr > 0.3 && !/monospace/.test(this.font) && this.fillStyle !== '#1e160f') {
+      const px = parseFloat((this.font.match(/([\d.]+)px/) || [])[1]), w = this.measureText(t).width;
+      const x0 = this.textAlign === 'center' ? x - w / 2 : this.textAlign === 'right' || this.textAlign === 'end' ? x - w : x;
+      const y0 = this.textBaseline === 'middle' ? y - px * .45 : this.textBaseline === 'top' ? y : y - px * .8;
+      const ui = window.SD_RUSH && SD_RUSH.yard && SD_RUSH.yard.ui;
+      window.__lab.push({ t: String(t), pop: !!(ui && ui.popping), r: [(m.e + x0 * m.a) / dpr, (m.f + y0 * m.d) / dpr, w * m.a / dpr, px * .9 * m.d / dpr] });
+    }
+    return orig.call(this, t, x, y, ...a);
+  };
+};
+async function labels(pg, name, shot) {
+  const r = await pg.evaluate(() => {
+    if (SD_RUSH.view === 'review') return [];
+    // (While a crate is being dragged, its tag passing over a label is a note too.)
+    const L = window.__labLast, out = [], moving = !!SD_RUSH.yard.ui.drag;
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      const [a, b] = [L[i].r, L[j].r], ix = Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]), iy = Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]);
+      if (ix <= 0 || iy <= 0 || (L[i].t === L[j].t && Math.abs(a[0] - b[0]) < 2)) continue;
+      if (ix * iy > .15 * Math.min(a[2] * a[3], b[2] * b[3])) out.push({ a: L[i].t, b: L[j].t, pop: moving || L[i].pop || L[j].pop });
+    }
+    return out;
+  });
+  for (const o of r) (o.pop ? (...m) => console.log('note', ...m) : bad)(name, shot, 'labels overlap:', JSON.stringify(o.a), JSON.stringify(o.b));
+  if (!r.some(o => !o.pop)) ok(name, shot, 'no labels overlap');
+}
 async function fits(pg, name, what) {
   const r = await pg.evaluate(() => {
     const c = document.getElementById('rush'), y = document.getElementById('ycard'), b = y && y.getBoundingClientRect();
@@ -83,6 +118,7 @@ async function fits(pg, name, what) {
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_FAILED/.test(m.text())) errs.push(m.text()); });
     await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
     await pg.addInitScript(CANVAS_WATCH);
+    await pg.addInitScript(LABEL_WATCH);
     // The depot on the wide run, express mode on the phone. Crates: cracked then a snag, so a rollback and a stack
     // rollback both happen.
     const orders = name === 'wide' ? 'depot' : 'express';
@@ -99,13 +135,13 @@ async function fits(pg, name, what) {
     const yaml = await pg.evaluate(() => document.querySelector('.bp-yaml').textContent);
     if (!/AutoPublishAlias: live/.test(yaml) || !/DeploymentPreference/.test(yaml) || !/Hooks/.test(yaml)) bad(name, 'template.yaml preview', yaml.slice(0, 200));
     await legible(pg, name, 'blueprint');
-    await pg.screenshot({ path: `${OUT}/${name}-1-blueprint.png` });
+    await labels(pg, name, '1-blueprint'); await pg.screenshot({ path: `${OUT}/${name}-1-blueprint.png` });
     await pg.click('.bp-go');
     await pg.waitForTimeout(500);
     const built = await pg.evaluate(() => ['rack', 'bin', 'board', 'wire', 'tests'].every(t => SD_RUSH.S[t]) && !SD_RUSH.S.manifest);
     built ? ok(name, 'blueprint built') : bad(name, 'blueprint pieces missing');
     await fits(pg, name, 'build');
-    await pg.screenshot({ path: `${OUT}/${name}-2-build.png` });
+    await labels(pg, name, '2-build'); await pg.screenshot({ path: `${OUT}/${name}-2-build.png` });
     // Flip each switch in the yard: the timetable, what the wire watches, the test track. Then set them back.
     const before = await pg.evaluate(() => [SD_RUSH.S.cfg, SD_RUSH.S.watch, SD_RUSH.S.testsOn]);
     await tap(pg, await pg.evaluate(() => SD_RUSH.yard.at.board()));
@@ -139,7 +175,7 @@ async function fits(pg, name, what) {
       if (st.insp) {
         // Spot the line: the card's right line.
         await legible(pg, name, 'inspection card');
-        await pg.screenshot({ path: `${OUT}/${name}-6-config-card.png` });
+        await labels(pg, name, '6-config-card'); await pg.screenshot({ path: `${OUT}/${name}-6-config-card.png` });
         const r = await pg.evaluate(() => {
           const btn = [...document.querySelectorAll('#q .yc-line[data-i], #q .lt-opts button[data-i]')];
           const id = SD_RUSH.yard.ui.cards[SD_RUSH.yard.ui.cardN - 1] || null; return { n: btn.length, id: id && id.id };
@@ -150,16 +186,16 @@ async function fits(pg, name, what) {
         const right = await pg.evaluate(() => !!document.querySelector('#q .right') && !document.querySelector('#q .wrong'));
         right ? ok(name, 'inspection card answered', r.id) : bad(name, 'inspection card', r.id);
         await legible(pg, name, 'inspection answer');
-        await pg.screenshot({ path: `${OUT}/${name}-6b-config-card-answer.png` });
+        await labels(pg, name, '6b-config-card-answer'); await pg.screenshot({ path: `${OUT}/${name}-6b-config-card-answer.png` });
         await pg.click('.lt-go'); seen.card = true; continue;
       }
       if (st.go) { await pg.click('.lt-go'); continue; }
       if (st.ycard.includes('slip')) {
-        if (!seen.slip) { await pg.waitForTimeout(400); await fits(pg, name, 'slip'); await legible(pg, name, 'slip'); await pg.screenshot({ path: `${OUT}/${name}-4-change-set.png` }); seen.slip = true; }
+        if (!seen.slip) { await pg.waitForTimeout(400); await fits(pg, name, 'slip'); await legible(pg, name, 'slip'); await labels(pg, name, '4-change-set'); await pg.screenshot({ path: `${OUT}/${name}-4-change-set.png` }); seen.slip = true; }
         await pg.click('#ycard button[data-x="now"]').catch(() => {});
       }
       if (st.ycard.includes('express')) {
-        seen.express = true; await pg.waitForTimeout(400); await fits(pg, name, 'express'); await legible(pg, name, 'express'); await pg.screenshot({ path: `${OUT}/${name}-4b-update-failed.png` });
+        seen.express = true; await pg.waitForTimeout(400); await fits(pg, name, 'express'); await legible(pg, name, 'express'); await labels(pg, name, '4b-update-failed'); await pg.screenshot({ path: `${OUT}/${name}-4b-update-failed.png` });
         await pg.click('#ycard button[data-f="rollback"]').catch(() => {});
       }
       if (st.hf === 'card' && !seen.hotfix) {
@@ -168,7 +204,7 @@ async function fits(pg, name, what) {
         if (from) {
           const [taps, busyNow] = await pg.evaluate(() => [SD_RUSH.S.busyTaps, SD.rushYard.groupBusy(SD_RUSH.S)]);
           await pg.mouse.move(from[0], from[1]); await pg.mouse.down(); await pg.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 });
-          await pg.screenshot({ path: `${OUT}/${name}-5-hotfix-drag.png` });
+          await labels(pg, name, '5-hotfix-drag'); await pg.screenshot({ path: `${OUT}/${name}-5-hotfix-drag.png` });
           await pg.mouse.move(to[0], to[1], { steps: 4 }); await pg.mouse.up();
           const r = await pg.evaluate(() => [SD_RUSH.S.busyTaps, SD_RUSH.S.y.hf.state]);
           // The group can come free during the drag (the alarm rolls back): then the drop sends it (the card's "wait").
@@ -177,19 +213,19 @@ async function fits(pg, name, what) {
         }
         if (await pg.evaluate(() => SD_RUSH.S.y.hf.state === 'card')) {
           await fits(pg, name, 'hotfix card'); await legible(pg, name, 'hotfix card');
-          await pg.screenshot({ path: `${OUT}/${name}-5b-hotfix-card.png` });
+          await labels(pg, name, '5b-hotfix-card'); await pg.screenshot({ path: `${OUT}/${name}-5b-hotfix-card.png` });
           await pg.click('#ycard button[data-c="stop"]').catch(() => pg.click('#ycard button[data-c]'));
         }
         seen.hotfix = await pg.evaluate(() => SD_RUSH.S.y.hf.state !== 'card') || seen.hotfix;
         ok(name, 'hotfix choice', await pg.evaluate(() => SD_RUSH.S.hotfixChoice));
         continue;
       }
-      if (st.phase === 'shift' && st.next && st.w > 0 && !seen.mid) { seen.mid = true; await pg.screenshot({ path: `${OUT}/${name}-3-mid-deployment.png` }); }
+      if (st.phase === 'shift' && st.next && st.w > 0 && !seen.mid) { seen.mid = true; await labels(pg, name, '3-mid-deployment'); await pg.screenshot({ path: `${OUT}/${name}-3-mid-deployment.png` }); }
       // A rollback on the reverse lever: once the second deployment is shifting.
       if (seen.mid && !seen.rollback && st.phase === 'shift' && st.next && st.w > 0) {
         await tap(pg, await pg.evaluate(() => SD_RUSH.yard.at.rlever()));
         await pg.waitForTimeout(250);
-        if (await pg.evaluate(rb => SD_RUSH.S.rollbacks > rb, st.rb)) { seen.rollback = true; ok(name, 'reverse lever rolled back'); await pg.screenshot({ path: `${OUT}/${name}-3b-rollback.png` }); }
+        if (await pg.evaluate(rb => SD_RUSH.S.rollbacks > rb, st.rb)) { seen.rollback = true; ok(name, 'reverse lever rolled back'); await labels(pg, name, '3b-rollback'); await pg.screenshot({ path: `${OUT}/${name}-3b-rollback.png` }); }
       }
       if (st.snags) seen.stackRb = true;
       if (st.broken && !st.ycard.includes('express') && !seen.brokenNoCard) { seen.brokenNoCard = true; bad(name, 'the yard is half-built with no express card', JSON.stringify(st)); }
@@ -197,7 +233,7 @@ async function fits(pg, name, what) {
       if (!seen.review && st.time > 20 && !st.ycard.includes('on')) {
         await tap(pg, await pg.evaluate(() => SD_RUSH.at.inset()));
         await pg.waitForTimeout(500);
-        if (await pg.evaluate(() => SD_RUSH.view) === 'review') { seen.review = true; ok(name, 'review room'); await pg.screenshot({ path: `${OUT}/${name}-7-review-room.png` }); }
+        if (await pg.evaluate(() => SD_RUSH.view) === 'review') { seen.review = true; ok(name, 'review room'); await labels(pg, name, '7-review-room'); await pg.screenshot({ path: `${OUT}/${name}-7-review-room.png` }); }
         else bad(name, 'inset did not switch to the review room');
         await pg.evaluate(() => SD_RUSH.switchRoom('main'));
       }
@@ -207,7 +243,7 @@ async function fits(pg, name, what) {
     end ? ok(name, 'end strip') : bad(name, 'no end strip');
     await pg.waitForTimeout(600);
     await fits(pg, name, 'end');
-    await pg.screenshot({ path: `${OUT}/${name}-8-end.png` });
+    await labels(pg, name, '8-end'); await pg.screenshot({ path: `${OUT}/${name}-8-end.png` });
     const sum = await pg.evaluate(() => { const S = SD_RUSH.S; return { over: S.over, spill: S.spill, shipped: S.shipped, rollbacks: S.rollbacks, snags: S.snags, hotfix: S.hotfixChoice, strip: (document.querySelector('.end-strip') || {}).textContent }; });
     console.log(name, JSON.stringify(sum));
     for (const k of ['mid', 'rollback', 'slip', 'card', 'review', 'hotfix']) if (!seen[k]) bad(name, 'never saw', k);

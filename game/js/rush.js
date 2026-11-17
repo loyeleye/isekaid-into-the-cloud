@@ -107,9 +107,9 @@
     conveyor: { x0: 0, x1: 250, y: 575 }, gate: { x: 18, y: 640, h: 170 },
     whistle: { x: 107, y: 632, h: 250 }, lever: { x: 118, y: 500, r: 80, label: [112, 352] },
     points: { x: 358, y: 634, h: 250, dial: [356, 476], r: 46 }, rlever: { x: 240, y: 646, h: 130 },
-    rack: { x: 486, y: 560, h: 80, w: 170 }, sorters: [{ x: 646, y: 560, h: 180 }, { x: 806, y: 560, h: 180 }],
-    stools: { xs: [585, 682, 782, 882], y: 652, h: 116, w: 92, lamp: [15, -118] }, bin: { x: 1218, y: 650, h: 96, w: 150 },
-    tank: { x: 1262, y: 456, h: 280, gauge: [1216, 196, 14, 84] }, mast: { x: 1140, y: 455, h: 300, lamp: [1122, 205, 13], plate: [1140, 330] },
+    rack: { x: 486, y: 560, h: 80, w: 170 }, sorters: [{ x: 646, y: 508, h: 160 }, { x: 806, y: 508, h: 160 }],
+    stools: { xs: [585, 682, 782, 882], y: 652, h: 90, w: 92, lamp: [15, -118] }, bin: { x: 1218, y: 650, h: 96, w: 150 },
+    tank: { x: 1262, y: 456, h: 280, gauge: [1216, 196, 14, 84] }, mast: { x: 1140, y: 455, h: 300, lamp: [1122, 205, 13], plate: [1140, 308] },
     office: { x: 1003, y: 455, h: 150 },
     siding: { x0: 20, x1: 200, y: 440 }, train: { y: 470, stop: 900 }, board: { x: 950, y: 92, w: 300, h: 96 },
     counter: { x: 236, y: 390, w: 92, h: 66 }, ledger: { x: 966, y: 646, h: 52 }, depot: { x: 560, y: 170 },
@@ -123,12 +123,13 @@
     points: { x: 336, y: 1105, h: 190, dial: [336, 984], r: 40 }, rlever: { x: 150, y: 1162, h: 100 },
     rack: { x: 156, y: 880, h: 62, w: 132 }, sorters: [{ x: 336, y: 868, h: 140 }, { x: 488, y: 868, h: 140 }],
     stools: { xs: [428, 512, 596, 680], y: 1112, h: 90, w: 76, lamp: [20, -92] }, bin: { x: 668, y: 884, h: 80, w: 118 },
-    tank: { x: 700, y: 600, h: 210, gauge: [654, 430, 10, 52] }, mast: { x: 605, y: 603, h: 190, lamp: [598, 447, 9], plate: [606, 528] },
+    tank: { x: 700, y: 600, h: 210, gauge: [654, 430, 10, 52] }, mast: { x: 605, y: 603, h: 190, lamp: [598, 447, 9], plate: [601, 515] },
     office: { x: 487, y: 600, h: 125 },
-    siding: { x0: 20, x1: 190, y: 605 }, train: { y: 616, stop: 336 }, board: { x: 384, y: 392, w: 360, h: 92 },
+    siding: { x0: 20, x1: 190, y: 605 }, train: { y: 616, stop: 336 }, board: { x: 384, y: 408, w: 360, h: 92, hang: 300 },
     counter: { x: 330, y: 560, w: 84, h: 60 }, ledger: { x: 86, y: 1172, h: 40 }, depot: { x: 655, y: 646 },
     inset: { r: [12, 642, 150, 125], src: INSET_TALL.src }, hatch: [16, 930], foot: [196, 966],
-    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
+    belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 214, w: 736 }, fs: 1.7,
+    ext: 'yard-tall-ext'
   };
   const YARD = new Set(['sorter']);
   // ==== end claim 9 layouts ====
@@ -824,6 +825,9 @@
       const cs = Math.max(cw / bg.width, ch / bg.height);
       cx.drawImage(bg, (cw - bg.width * cs) / 2, (ch - bg.height * cs) / 2, bg.width * cs, bg.height * cs);
       cx.fillStyle = 'rgba(10,8,14,.55)'; cx.fillRect(0, 0, cw, ch);
+      // A painting can carry its own continuation for the bands above and below the stage (the phone's yard).
+      const e = L.ext && IMG[L.ext];
+      if (e) { const E = e.height / 2, k = scale * dpr; cx.drawImage(e, 0, 0, e.width, E, ox * dpr, (oy - E * scale) * dpr + 2, L.W * k, E * k); cx.drawImage(e, 0, E, e.width, E, ox * dpr, (oy + L.H * scale) * dpr - 2, L.W * k, E * k); }
     } else { cx.fillStyle = '#120e16'; cx.fillRect(0, 0, cw, ch); }
     cx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
     withRoom(view, () => (L.yard ? drawYard : drawRoom)(drag && drag.moved ? drag.tool : null, false));
@@ -1686,7 +1690,7 @@
   });
   // The painted yard (tools/rush_yard_art.py): the backdrops with the fixed props painted in, and the pieces that move
   // or are bought. Anything missing falls back to the code-drawn placeholder (yardArt() fills only empty keys).
-  Object.assign(SRC, { 'yard-wide': 'assets/img/rush/yard-wide.webp', 'yard-tall': 'assets/img/rush/yard-tall.webp' });
+  Object.assign(SRC, { 'yard-wide': 'assets/img/rush/yard-wide.webp', 'yard-tall': 'assets/img/rush/yard-tall.webp', 'yard-tall-ext': 'assets/img/rush/yard-tall-ext.webp' });
   for (const [k, f] of [['y-platform', 'platform'], ['y-returns', 'returns'], ['y-sorter-old', 'sorter-old'], ['y-sorter-new', 'sorter-new'],
     ['y-seal', 'seal'], ['y-crate', 'crate'], ['y-engine', 'engine'], ['y-flat', 'flat'], ['y-trolley', 'trolley'], ['y-lever', 'lever'],
     ['y-waybill', 'waybill'], ['y-waybill-gold', 'waybill-gold'], ['y-waybill-error', 'waybill-error'], ['y-waybill-done', 'waybill-done'],
@@ -1891,7 +1895,7 @@
       case 'stack': yUI.boardMsg = e.hotfix ? 'HOTFIX · STACK UPDATE' : 'STACK UPDATE'; yUI.boardFlash = 0; return true;
       case 'publish': sfx('rStamp'); { const p = sorterPos(1); popAt([p[0], p[1] - L.sorters[1].h - 30], vName(e.v) + ' sealed', '#ffd0a0', 30); } say('sealed', 'neutral', YLINES.sealed); return true;
       case 'hook': yUI.trolley = { stage: e.stage, t: 0 }; return true;
-      case 'hookResult': popAt([L.W > L.H ? (L.siding.x0 + L.siding.x1) / 2 + 40 : L.W / 2, L.siding.y - 70], (e.stage === 'pre' ? 'Pre-traffic: ' : 'Post-traffic: ') + (e.ok ? 'Succeeded' : 'Failed'), e.ok ? '#9be59b' : '#ff8a7a', 24);
+      case 'hookResult': popAt([L.W > L.H ? (L.siding.x0 + L.siding.x1) / 2 + 40 : 300, L.siding.y - 70], (e.stage === 'pre' ? 'Pre-traffic: ' : 'Post-traffic: ') + (e.ok ? 'Succeeded' : 'Failed'), e.ok ? '#9be59b' : '#ff8a7a', 24);
         if (e.ok) say('hookOk', 'neutral', YLINES.hookOk); else say('hook', 'smile', YLINES.hook); return true;
       case 'shift':
         if (e.cfg === 'canary') { say('scale', 'neutral', YLINES.scale); say('split', 'neutral', YLINES.split); }
@@ -1902,7 +1906,7 @@
       case 'noWindow': say('noWindow', 'tired', e.hotfix ? YLINES.forced : YLINES.noWindow); return true;
       case 'rollback':
         sfx('wrong'); yUI.boardMsg = `STOPPED · ROLLED BACK · ${e.dep}`; yUI.boardFlash = 2.5;
-        popAt([L.points.dial[0], L.points.dial[1] - L.points.r - 30], 'rolled back to ' + vName(S.alias.cur), '#ffb27a', 28);
+        popAt(L.W > L.H ? [L.points.dial[0], L.points.dial[1] - L.points.r - 30] : [L.W / 2, L.sorters[0].y - L.sorters[0].h * .5], 'rolled back to ' + vName(S.alias.cur), '#ffb27a', 28);
         if (e.why === 'alarm') { say('alarm', 'surprised', YLINES.alarm); if (e.good && e.poison && S.watch === 'live') say('alarmLive', 'tired', YLINES.alarmLive); else if (e.good && e.form2) say('innocent', 'tired', YLINES.innocent); }
         else if (e.why === 'lever') say('rollback', 'neutral', YLINES.rollback);
         return true;
@@ -1943,7 +1947,7 @@
         if (e.why === 'error') popAt([L.counter.x, L.counter.y - L.counter.h], 'error', '#ff8a7a', 22);
         return true;
       case 'binned': sfx('rClank'); popAt([L.bin.x, L.bin.y - L.bin.h - 20], 'returned', '#d59cff', 24); return true;
-      case 'depot': yUI.depotFlash = 2; popAt([L.depot.x, L.depot.y + 50], e.lost ? `depot: ${e.lost} parcel${e.lost > 1 ? 's' : ''} lost` : 'depot: ' + e.policy, e.lost ? '#ff9a8a' : '#cfe0ff', 22); say('depot', 'neutral', YLINES.depot); return true;
+      case 'depot': yUI.depotFlash = 2; if (e.lost) popAt([L.depot.x, L.depot.y + (L.W < L.H ? 150 : 100)], `depot: ${e.lost} parcel${e.lost > 1 ? 's' : ''} lost`, '#ff9a8a', 22); say('depot', 'neutral', YLINES.depot); return true;
       case 'depotCoin': sfx('coin'); coinPulse = 1; popAt([L.depot.x, L.depot.y + 80], '+1 depot', '#ffdc78', 24); return true;
       case 'depotPoor': return true;
       case 'yardGap': {
@@ -2100,7 +2104,7 @@
     // The goods train with the crate (or the red-tagged hotfix).
     if (trainHere() || yUI.drag) drawTrain();
     // The weighbridge office (the manifest).
-    { const o = L.office; if (!L.painted) img('y-office', o.x, o.y, o.h, 'mb', S.manifest ? 1 : .55); if (S.manifest) { if (Y2.held) glowSpot([o.x - o.h * .5, o.y - o.h - 6, o.h, o.h + 12], true); if (!mini && L.W > L.H) plaque('Office · change set', o.x, o.y + 16 * L.fs); } }
+    { const o = L.office; if (!L.painted) img('y-office', o.x, o.y, o.h, 'mb', S.manifest ? 1 : .55); if (S.manifest) { if (Y2.held) glowSpot([o.x - o.h * .5, o.y - o.h - 6, o.h, o.h + 12], true); if (!mini && L.W > L.H) plaque('Office · change set', o.x - (L.painted ? 14 : 0), o.y + 16 * L.fs); } }
     // The water tower is the error budget.
     drawTower();
     drawMast();
@@ -2112,7 +2116,7 @@
     // The waiting platform (rack), or its glowing spot.
     if (S.rack) {
       const r = L.rack; shadow(r.x, r.y + 2, r.w); img('y-platform', r.x, r.y + 4, r.h, 'mb');
-      const n = S.queue.length; if (n > 9) text('+' + (n - 9), r.x + r.w * .5, r.y - r.h * .9, 24, '#ffe6a8');
+      const n = S.queue.length; if (n > 9) text('+' + (n - 9), r.x + r.w * .5, r.y - r.h * .9 - 30 * Math.min(L.fs, 1.2), 24, '#ffe6a8');
       if (!mini) plaque(L.W > L.H ? 'Platform · SQS queue' : 'Platform · SQS', r.x, r.y + 16 * L.fs);
     } else if (dragging === 'rack') glowSpot([L.rack.x - L.rack.w / 2, L.rack.y - L.rack.h, L.rack.w, L.rack.h], true);
     if (Y2.amends.some(a => a.tool === 'rack')) glowSpot([L.rack.x - L.rack.w / 2, L.rack.y - L.rack.h, L.rack.w, L.rack.h], false);
@@ -2136,7 +2140,7 @@
       const key = d.img || (k.poison ? 'y-waybill-poison' : k.refund ? 'y-waybill-gold' : 'y-waybill'), w = (L.painted ? 54 : 42) * (d.s || 1) * (L.W > L.H ? 1 : 1.05);
       img(key, d.p[0], d.p[1], 0, 'mm', d.a, d.rot || 0, w);
       if (k.form2 && !d.img) { cx.save(); cx.globalAlpha = d.a == null ? 1 : d.a; cx.translate(d.p[0], d.p[1]); cx.rotate(d.rot || 0); cx.fillStyle = '#2f6fe0'; cx.beginPath(); cx.moveTo(w * .5, -w * .34); cx.lineTo(w * .5, w * .02); cx.lineTo(w * .14, -w * .34); cx.closePath(); cx.fill(); cx.restore(); }
-      if (k.twin && !['done', 'drop'].includes(k.phase)) text('x2', d.p[0] + 22, d.p[1] - 16, 16, '#ffb27a');
+      if (k.twin && ['shelf', 'work', 'counter'].includes(k.phase)) text('x2', d.p[0] + (d.ring != null ? 38 : 22), d.p[1] - (d.ring != null ? 28 : 16), 16, '#ffb27a');
       if (d.ring != null) { cx.save(); cx.lineWidth = 5; cx.strokeStyle = k.ver ? verCol(k.ver) : '#8fe68f'; cx.beginPath(); cx.arc(d.p[0], d.p[1], 28, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * d.ring); cx.stroke(); cx.restore(); }
     }
     if (waitN) text('↺ ' + waitN, L.hatch[0] + 40, L.hatch[1] - 30, 24, '#ff9a8a');
@@ -2145,7 +2149,7 @@
     if (S.y.depot) drawDepot();
     // Glows on the belt's targets before the claim starts are on the blueprint instead. Floating numbers.
     cx.save(); cx.fillStyle = 'rgba(120,180,255,.85)'; fx.forEach(f => { cx.beginPath(); cx.arc(f.x, f.y, 5 * (1 - f.t), 0, Math.PI * 2); cx.fill(); }); cx.restore();
-    pops.forEach(p => { cx.save(); cx.globalAlpha = Math.min(1, 2.4 - p.t * 2); text(p.text, p.x, p.y - p.t * 50, p.size, p.col); cx.restore(); });
+    yUI.popping = true; pops.forEach(p => { cx.save(); cx.globalAlpha = Math.min(1, 2.4 - p.t * 2); text(p.text, p.x, p.y - p.t * 50, p.size, p.col); cx.restore(); }); yUI.popping = false;
     if (mini) return;
     if (flashT) { cx.save(); cx.fillStyle = `rgba(255,80,60,${flashT * .35})`; cx.fillRect(0, 0, L.W, L.H); cx.restore(); }
     if (letterAnim && S === M) { const p = [L.W / 2, L.H * .4 + Math.sin(now / 120) * 4]; img('y-waybill-gold', p[0], p[1], 0, 'mm', 1, 0, 90); text('A letter!', p[0], p[1] - 56, 26, '#ffe08a'); }
@@ -2156,7 +2160,7 @@
   function drawBoard() {
     const b = L.board, Y2 = S.y, d = Y2.dep, x0 = b.x - b.w / 2, y0 = b.y - b.h / 2;
     // Two chains up to the roof, the frame, then two rows of flaps.
-    cx.save(); cx.strokeStyle = '#3a3026'; cx.lineWidth = 3; for (const dx of [-b.w * .36, b.w * .36]) { cx.beginPath(); cx.moveTo(b.x + dx, 0); cx.lineTo(b.x + dx, y0); cx.stroke(); }
+    cx.save(); cx.strokeStyle = '#3a3026'; cx.lineWidth = 3; for (const dx of [-b.w * .36, b.w * .36]) { cx.beginPath(); cx.moveTo(b.x + dx, b.hang || 0); cx.lineTo(b.x + dx, y0); cx.stroke(); }
     rrect(x0, y0, b.w, b.h, 8); cx.fillStyle = '#2a2622'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = S.board ? '#c9a24e' : '#6b5d4a'; cx.stroke(); cx.restore();
     const flaps = (str, y, h, col, minF) => {
       const n = Math.max(14, str.length), cw = (b.w - 20) / n;
@@ -2213,7 +2217,8 @@
     cx.restore();
     for (const d of drops) { const yy = lerp(ty0 - 40, ty0 + th * .5, d.t / .7); cx.save(); cx.fillStyle = 'rgba(120,180,255,.95)'; cx.beginPath(); cx.arc(gx + gw / 2, yy, 6, 0, Math.PI * 2); cx.fill(); cx.restore(); }
     void tx0;
-    plaque(`Error budget ${M.spill}/${M.cap}`, t.x, t.y + 14 * L.fs);
+    // (On the painted wide yard it sits a step lower, clear of the signal's plaque.)
+    plaque(`Error budget ${M.spill}/${M.cap}`, t.x, t.y + 14 * L.fs + (L.painted && L.W > L.H ? 30 : 0));
   }
   function drawMast() {
     const m = L.mast, red = S.y.mastRed > 0, wired = S.wire && S.wireOn;
@@ -2226,9 +2231,9 @@
     if (red) { const p = .5 + .5 * Math.sin(performance.now() / 90); cx.save(); cx.strokeStyle = `rgba(255,80,60,${.5 + p * .5})`; cx.lineWidth = 4; cx.beginPath(); cx.arc(lx, ly, r * 1.9, 0, Math.PI * 2); cx.stroke(); cx.restore(); text('ALARM', lx, ly - r * 2.4, 24, '#ff7a6a'); }
     if (S.wire) {
       // The switch plate: what the alarm watches.
-      const py = m.plate ? m.plate[1] : m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
-      cx.save(); rrect(m.x - w / 2, py - h / 2, w, h, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4026'; cx.stroke();
-      cx.font = `800 ${13 * yk()}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', m.x, py + 1); cx.restore();
+      const px = m.plate ? m.plate[0] : m.x, py = m.plate ? m.plate[1] : m.y - m.h * .3, w = 70 * yk(), h = 26 * yk();
+      cx.save(); rrect(px - w / 2, py - h / 2, w, h, 6); cx.fillStyle = '#f1e2bd'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4026'; cx.stroke();
+      cx.font = `800 ${13 * yk()}px Nunito, sans-serif`; cx.fillStyle = S.watch === 'new' ? '#c4561c' : '#2c5aa8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(S.wireOn ? (S.watch === 'new' ? 'NEW' : 'LIVE') : 'DARK', px, py + 1); cx.restore();
     }
     if (L.W > L.H) plaque(S.wire ? 'Signal · alarm' : 'Signal · not wired', m.x, m.y + 14 * L.fs);
   }
@@ -2237,7 +2242,7 @@
     const sorter = (i, n, key, label, alpha) => {
       const s = sp[i]; shadow(s.x, s.y + 2, s.h * .7); img(key, s.x, s.y + 4, s.h, 'mb', alpha);
       // The engraved plate, and the wax seal (published, immutable).
-      const pw = s.h * .36, py = s.y - s.h * .32;
+      const pw = s.h * .36, py = s.y - s.h * (L.painted ? .5 : .32);
       const pk = Math.min(yk(), 1.4); cx.save(); rrect(s.x - pw / 2, py - 13 * pk, pw, 26 * pk, 4); cx.fillStyle = '#e8cf86'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#5a4016'; cx.stroke();
       cx.font = `800 ${18 * pk}px Fredoka, sans-serif`; cx.fillStyle = '#2a1d10'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('v' + n, s.x, py + 1); cx.restore();
       img('y-seal', s.x + pw / 2 + 12, py, 26, 'mm');
@@ -2274,7 +2279,8 @@
       cx.save(); cx.beginPath(); cx.arc(lx, ly, 8 * Math.min(L.fs, 1.2), 0, Math.PI * 2); cx.fillStyle = col || '#3a332a'; cx.fill(); if (col) { cx.shadowColor = col; cx.shadowBlur = 14; cx.fill(); } cx.lineWidth = 2; cx.strokeStyle = '#1a140e'; cx.stroke(); cx.restore();
       if (S.orders.has('cold') && !k && S.time - S.lastFree[i] > R.T.coldAfter) frost(x, st.y - st.h * .6, st.h * .22);
     }
-    plaque('Bays · 4 · concurrency', (st.xs[0] + st.xs[3]) / 2, st.y + 16 * L.fs);
+    // (On the painted wide yard the belt covers the ground in front of the bays, so the plaque sits on their fronts.)
+    plaque('Bays · 4 · concurrency', (st.xs[0] + st.xs[3]) / 2, L.painted && L.W > L.H ? st.y - 22 : st.y + 16 * L.fs);
   }
   function drawWhistle(mini) {
     const w = L.whistle, lv = L.lever;

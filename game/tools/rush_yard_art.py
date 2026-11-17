@@ -6,6 +6,7 @@ paintings and sprites written as WebP under assets/img/rush/.
   python3 tools/rush_yard_art.py collage wide <src_dir> <out.png>    backdrop + fixed props, for the repaint
   python3 tools/rush_yard_art.py collage tall <src_dir> <out.png>    the wide backdrop cropped onto a tall canvas + props
   python3 tools/rush_yard_art.py finish wide|tall <painting.png>     -> assets/img/rush/yard-wide.webp / yard-tall.webp
+  python3 tools/rush_yard_art.py extend                              the phone's bands above and below the tall stage
 
 src_dir holds the Sogni renders (prop-*.png on light grey, yard-wide-1.png). The repaint between collage and finish
 is a separate image edit (see CREDITS.md); this script makes no network calls.
@@ -111,6 +112,28 @@ def finish(kind, path):
     print('wrote', dst)
 
 
+def extend(e=240):
+    """The phone's bands above and below the tall stage: the painting's own sky and cobbles mirrored out from the edge
+    (seamless where they meet the stage) and darkened away from it. One file, the top strip over the bottom one."""
+    im = Image.open(os.path.join(OUT, 'yard-tall.webp')).convert('RGB')
+    w, h = im.size
+    top = im.crop((0, 0, w, e)).transpose(Image.FLIP_TOP_BOTTOM).filter(ImageFilter.GaussianBlur(1.5))
+    bot = im.crop((0, h - e, w, h)).transpose(Image.FLIP_TOP_BOTTOM).filter(ImageFilter.GaussianBlur(1.5))
+    def shade(strip, far_top):
+        g = Image.new('L', (1, e))
+        for y in range(e):
+            d = (e - 1 - y) if far_top else y
+            g.putpixel((0, y), round(150 * (d / (e - 1)) ** 1.3))
+        dark = Image.new('RGB', strip.size, (16, 12, 20))
+        return Image.composite(dark, strip, g.resize(strip.size))
+    out = Image.new('RGB', (w, e * 2))
+    out.paste(shade(top, True), (0, 0))
+    out.paste(shade(bot, False), (0, e))
+    dst = os.path.join(OUT, 'yard-tall-ext.webp')
+    out.save(dst, 'WEBP', quality=80, method=6)
+    print('wrote', dst)
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1]
     if cmd == 'cut':
@@ -119,3 +142,5 @@ if __name__ == '__main__':
         collage(sys.argv[2], sys.argv[3], sys.argv[4])
     elif cmd == 'finish':
         finish(sys.argv[2], sys.argv[3])
+    elif cmd == 'extend':
+        extend()
