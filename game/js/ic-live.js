@@ -414,6 +414,19 @@
       dupeBlocked: { from: first, to: last, how: 'back', img: 'env-twice' }
     };
   }
+  // What she says as the minute plays, the first time each thing happens (text only, no voice): worried when it goes
+  // wrong, smug when it goes right.
+  const QUIP = {
+    throttled: ['429. That\'s AWS for "no". It says it very politely.', 'worried'],
+    gaveUp: ['That caller gave up. Honestly, same.', 'stern'],
+    fail: ['Same message, failing again. It\'s me on a Monday.', 'worried'],
+    unanswered: ['They got a message ID. Not an order. A number. Lovely.', 'stern'],
+    dupe: ['Charged twice! Somewhere a customer is typing a very long email.', 'worried'],
+    dlq: ['Into the bin. Rest well, little message.', 'happy'],
+    dupeBlocked: ['Second charge blocked. Nobody pays twice on my watch.', 'happy'],
+    done: ['Orders going through. Don\'t jinx it. I said don\'t.', 'happy']
+  };
+  const QUIP_ORDER = ['throttled', 'fail', 'dupe', 'gaveUp', 'unanswered', 'dlq', 'dupeBlocked', 'done'];
   const GLYPH = { done: '✓', throttled: '⛔', gaveUp: '✗', unanswered: '✉', fail: '⚠', dlq: '🪦', dupe: '×2', dupeBlocked: '🛡' };
   // The minute plays on the board itself: the same parts, stools and plaques as the fix screen, with each envelope
   // flying from one part's picture to another's. Positions are read off the board once it is laid out.
@@ -423,7 +436,7 @@
     const turns = sum.turns.map((t, i) => ({ t, i })).filter(o => Object.keys(o.t).some(k => GLYPH[k]));
     const b = panel(cols(`${hud(s)}
       <div class="icl-clock"><b id="icl-t">0:00</b><span id="icl-tally" class="icl-tally"></span></div>
-      <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div>`,
+      <div class="icl-lamp" id="icl-lamp" aria-live="polite"></div><p class="icl-quip" id="icl-quip" aria-live="polite"></p>`,
       `<div class="icl-play" role="img" aria-label="The minute playing out on the request path">${machine(sk, x, null, null)}<div class="icl-envs" aria-hidden="true"></div></div>`,
       `<div class="row"><button class="ghost" id="icl-skip">Skip</button></div>`));
     const play = b.querySelector('.icl-play'), box = b.querySelector('.icl-envs'), clock = b.querySelector('#icl-t'), tally = b.querySelector('#icl-tally'), lamp = b.querySelector('#icl-lamp');
@@ -463,8 +476,13 @@
       const hit = t.throttled || t.fail ? (x.id === 'launch' ? 'orders' : 'worker') : t.dupe && x.parts.includes('table') ? 'table' : t.gaveUp ? 'apigw' : null;
       const he = hit && play.querySelector(`[data-part="${hit}"]`);
       if (he) he.parentNode.classList.add('hot');
+      // One new line at most every other turn, so each one can be read.
+      const q = QUIP_ORDER.find(ty => t[ty] && !said[ty]);
+      if (q && k - lastQuip >= 2) { said[q] = 1; lastQuip = k; speak(QUIP[q][0], QUIP[q][1]); const qe = b.querySelector('#icl-quip'); if (qe) qe.textContent = QUIP[q][0]; }
       timer = setTimeout(step, PLAY_MS);
     };
+    const said = {};
+    let lastQuip = -9;
     b.querySelector('#icl-skip').onclick = () => { clearTimeout(timer); k = turns.length; box.innerHTML = ''; finish(); };
     if (still()) finish(); else requestAnimationFrame(step);
   }
@@ -663,6 +681,11 @@
       .icl-upt { right: -14vw; height: 74vh; opacity: .5; }
       .icl-bubble { display: none; }
     }
+    /* On a phone her lines during the minute go in a small talk box under the clock; on a wide screen, her bubble. */
+    .icl-quip:empty { display: none; }
+    .icl-quip { margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; background: #fbf5e3; color: #2a2018; font-size: 14px; text-shadow: none; }
+    .icl-quip::before { content: 'Uptima: '; font-weight: 800; color: #8a5608; }
+    @media (min-width: 900px) { .icl-quip { display: none; } }
     /* A beat: the interface pulls down out of the way, she steps forward and talks. */
     body.icl-on #panel { transition: transform .45s ease, opacity .3s; }
     body.icl-beat #panel { transform: translateY(104%); opacity: 0; pointer-events: none; }
@@ -680,6 +703,10 @@
     @media (min-width: 900px) {
       body.in-mode .icl-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: 'm a' 'm b'; gap: 0 28px; align-items: start; }
       body.in-mode .icl-a { grid-area: a; } body.in-mode .icl-m { grid-area: m; } body.in-mode .icl-b { grid-area: b; }
+      /* The lever stays in view while a tag is open: it is pinned to the bottom-left corner, and the page leaves room
+         under the last line for it. */
+      body.icl-on.in-mode:not(.icl-wall) .icl-b > .row:has(#icl-run) { position: fixed; left: max(16px, 3vw); bottom: 14px; z-index: 5; margin: 0; padding: 8px 10px; border-radius: 12px; background: rgba(14, 9, 5, .82); box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+      body.icl-on.in-mode:not(.icl-wall) .icl-cols:has(#icl-run) { padding-bottom: 96px; }
       body.in-mode .icl-m .icl-machine { margin-top: 0; }
     }
     .icl-page { margin: 6px 0; overflow-wrap: anywhere; }

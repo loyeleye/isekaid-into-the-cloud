@@ -190,6 +190,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   check(await page.$$eval('.icl-play .icl-fly', f => f.every(e => { const v = parseFloat(e.style.getPropertyValue('--b')); return v > 0; })), 'each envelope heads for a part on the board');
   await page.waitForSelector('#icl-lamp.green', { timeout: 20000 });
   check(/SLO met/.test(await txt('#icl-lamp')), 'at the end of the minute the SLO lamp lights green');
+  check(/going through/.test(await page.$eval('#icl-quip', e => e.textContent)), 'Uptima reacts as the minute plays (orders going through)');
   await page.waitForFunction(() => SD.state.save.icLive.phase === 'result', null, { timeout: 5000 });
   s = await st();
   check(s.last.slo && s.last.stamps.small && s.last.stamps.rule, 'reserving 4 meets the SLO with all three stamps');
