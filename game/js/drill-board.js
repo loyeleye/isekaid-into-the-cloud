@@ -23,7 +23,7 @@
   const cap = (n, k) => Math.min(n, k);
 
   // Which stations are on this drill's path, left to right.
-  B.path = drill => ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || D.DRILLS[drill].path === 'async'));
+  B.path = drill => ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || D.hasQueue(drill)));
 
   // The board, static: totals from the run's metrics. `at` is the station being worked on.
   B.html = function (f, e, at, notes) {
@@ -63,6 +63,17 @@
       return `<span class="db-pips" title="Token bucket">${Array.from({ length: show }, (_, i) => `<i class="${i < full ? 'on' : ''}"></i>`).join('')}</span>
         <span class="db-cap">Bucket ${tokens} of ${burst}</span>${(fr ? fr.d.throttles429 : m.throttles429) ? `<span class="db-bad">${fr ? fr.d.throttles429 : m.throttles429} × 429</span>` : ''}`;
     }
+    if (k === 'queue' && D.DRILLS[f.drill].hub) {
+      const hub = D.DRILLS[f.drill].hub, tot = (n, x) => (fr ? fr.d[n] | 0 : m[x || n] | 0);
+      if (hub === 'sns') {
+        const out = tot('delivered'), skip = tot('filteredOut');
+        return `<span class="db-stack">${Array.from({ length: cap(out, 8) }, () => img(env('env'), 'db-env')).join('')}</span>
+          <span class="db-cap">${out} delivered · ${skip} filtered</span>`;
+      }
+      const okN = tot('succeeded'), bad = tot('execFailed');
+      return `<span class="db-stack">${Array.from({ length: cap(okN, 8) }, () => img(env('env-done'), 'db-env')).join('')}</span>
+        <span class="db-cap">${okN} succeeded</span>${bad ? `<span class="db-bad">${bad} failed</span>` : ''}`;
+    }
     if (k === 'queue') {
       const wait = fr ? fr.qv + fr.qh : m.left + m.poisonLoose, dlq = fr ? fr.dlq : m.parked;
       return `<span class="db-stack">${Array.from({ length: cap(wait, 8) }, () => img(env('env'), 'db-env')).join('')}</span>
@@ -87,9 +98,9 @@
   // Each lead's face reacts to what their station saw: a problem there, or not.
   const TROUBLE = {
     seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.cstale,
-    mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost,
+    mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost || m.filtered || m.misrouted || m.execFailed,
     kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked || m.upFail || m.misses * 2 > m.reads,
-    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.cstale || m.evictions || m.upFail || m.userKey || m.pubPut
+    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.filtered || m.misrouted || m.stuck || m.cstale || m.evictions || m.upFail || m.userKey || m.pubPut
   };
   B.bubbles = function (lines, m) {
     const by = {};
@@ -128,6 +139,12 @@
     if (d.condBlocked) out.push(['store', `${d.condBlocked} blocked`, 'error']);
     if (d.parked) out.push(['queue', `${d.parked} to ${D.DRILLS[f.drill].stream ? 'orders-failed' : 'DLQ'}`, 'ok']);
     if (d.purged) out.push(['queue', `Purged ${d.purged}`, 'ok']);
+    if (d.noAttr) out.push(['queue', `${d.noAttr} filtered: no attributes`, 'error']);
+    else if (d.filtered) out.push(['queue', `${d.filtered} filtered out`, 'error']);
+    if (d.misrouted) out.push(['fn', `${d.misrouted} pickup${d.misrouted > 1 ? 's' : ''} labelled`, 'error']);
+    if (d.fnThrottled) out.push(['fn', `${d.fnThrottled} throttled${D.DRILLS[f.drill].hub === 'sfn' && f.cfg.flow.retry !== 'none' ? ', retried' : ''}`, 'throttle']);
+    if (d.execFailed) out.push(['queue', `${d.execFailed} execution${d.execFailed > 1 ? 's' : ''} failed`, 'fault']);
+    if (d.released) out.push(['queue', `${d.released} to ReleaseStock`, 'ok']);
     return out;
   }
   // Envelopes along the wires this tick: [from, to, count, kind].
@@ -136,7 +153,11 @@
     const into = (d.req | 0) + (d.throttles429 | 0) - (d.gaveUp | 0);
     o.push(['callers', 'gate', Math.max(d.req | 0, Math.min(into, 8)), 'env']);
     if (d.throttles429) o.push(['gate', 'callers', d.throttles429, 'env-429']);
-    if (async) {
+    const hub = D.DRILLS[f.drill].hub;
+    if (hub) {
+      if (d.published || d.started) o.push(['gate', 'queue', (d.published | 0) + (d.started | 0), 'env']);
+      if (d.invocations) o.push(['queue', 'fn', d.invocations, 'env']);
+    } else if (async) {
       if (d.sent) o.push(['gate', 'queue', d.sent, 'env']);
       if (d.received) o.push(['queue', 'fn', d.received, 'env']);
     } else if (d.invocations) o.push(['gate', 'fn', d.invocations, 'env']);

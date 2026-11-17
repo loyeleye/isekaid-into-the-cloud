@@ -115,7 +115,7 @@
         const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id;
         const how = done ? (s.done[i].clean ? ' · clean fix' : s.done[i].state === 'contained' ? ' · contained' : ' · escalated') : '';
         return `<button class="dr-door${d.boss ? ' boss' : ''}${here ? ' reach' : ''}${done ? ' done' : ''}" data-drill="${id}" ${here ? '' : 'disabled'}>
-          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.stream ? 'With a stream' : d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
+          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.stream ? 'With a stream' : d.hub === 'sns' ? 'With a topic' : d.hub === 'sfn' ? 'With a state machine' : d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
       }).join('')}</div>`;
     }).reverse().join('');
     const first = s.fresh && s.night === 1 && !s.done.length;
@@ -145,7 +145,7 @@
   // ---- The drill ----
   function traceMap(f, e) {
     const d = D.DRILLS[f.drill];
-    const order = ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || d.path === 'async'));
+    const order = ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || D.hasQueue(f.drill)));
     return `<div class="dr-trace" role="list" aria-label="Trace map">${order.map((k, i) => {
       const st = k === 'callers' ? 'ok' : e.nodes[k];
       const name = k === 'callers' ? 'Callers' : D.station(f.drill, k).svc;
@@ -171,6 +171,8 @@
     cstrat: { at: 'store', needs: 'cache', label: 'Caching strategy', icon: 'card-random', ids: ['cachelazy', 'cachewt'] },
     cttl: { at: 'store', needs: 'cache', label: 'Cache TTL', icon: 'hourglass', ids: ['cttl0', 'cttl10', 'cttl60', 'cttl3600'] },
     uexp: { at: 'fn', needs: 'upload', label: 'URL ExpiresIn', icon: 'stopwatch', ids: ['exp60', 'exp900', 'exp7d', 'exp30d'] },
+    sfnretry: { at: 'queue', needs: 'sfn', label: 'Charge: Retry, 3 attempts', icon: 'anticlockwise-rotation', ids: ['rnone', 'rtrans', 'rall'] },
+    sfncatch: { at: 'queue', needs: 'sfn', label: 'Catch CardDeclined → ReleaseStock', icon: 'return-arrow', ids: ['catchnone', 'catchno', 'catchrp'] },
     rot: { at: 'store', needs: 'secret', label: 'Secret rotation', icon: 'anticlockwise-rotation', ids: ['rotsingle', 'rotalt', 'rotoff'] },
     kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
   };
@@ -187,11 +189,14 @@
     cachelazy: 'Lazy loading', cachewt: 'Write-through', cttl0: 'None', cttl10: '10 s', cttl60: '60 s', cttl3600: '1 hour', replica: 'Add a read replica', flush: 'FLUSHALL',
     exp60: '60 s', exp900: '15 min', exp7d: '7 days', exp30d: '30 days', demand: 'Sign each part as it\'s sent', userkey: 'Sign with a user\'s key', single: 'One PUT, no parts',
     lifecycle: 'Abort unfinished uploads, 1 day', publicput: 'Anyone may PutObject',
+    snsattr: 'order_type as an attribute', scopebody: 'Filter reads the body', nofilter: 'Remove the filter', subdlq: 'Redrive → shipping-dlq', rawon: 'Raw message delivery',
+    rnone: 'Off', rtrans: 'Lambda ×3', rall: 'States.ALL', catchnone: 'Off', catchno: 'On', catchrp: 'On + $.error', catchfirst: 'States.ALL first',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
     ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
-    refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open', retry2: 'anticlockwise-rotation', onfail: 'mailbox' };
+    refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox',
+    snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -208,7 +213,7 @@
   // talk: { lines, notes } — in the room, what this station's lead says, shown as their speech bubble at their desk.
   function stationHtml(s, f, e, talk) {
     const k = s.at, st = D.station(f.drill, k), d = D.DRILLS[f.drill];
-    if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
+    if (k === 'queue' && !D.hasQueue(f.drill)) return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
@@ -223,7 +228,7 @@
     return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
       ${talk ? said(k, st.who, talk, e.m) : ''}
-      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
+      <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n).replace(/([a-z])([A-Z-])/g, '$1<wbr>$2')}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
       ${dials}
       ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
@@ -237,7 +242,7 @@
     return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', cache: 'store', churn: 'store', presign: 'fn', token: 'store' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', fanout: 'queue', flow: 'queue', cache: 'store', churn: 'store', presign: 'fn', token: 'store' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {
@@ -476,6 +481,7 @@
     .dr-said .dr-say:first-child::before { content: ''; position: absolute; top: -9px; left: 12px; border: 8px solid transparent; border-bottom-color: #17131f; border-top: 0; }
     .dr-say.bad { background: #fbe4dc; border-color: #9e3a34; } .dr-said .dr-say.bad:first-child::before { border-bottom-color: #9e3a34; }
     .dr-say.teach { background: #fff3c4; }
+    .dr-said .dr-say { display: block; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }
     .dr-mt code { font-size: 10.5px; overflow-wrap: anywhere; color: #3a3346; background: none; padding: 0; }

@@ -183,7 +183,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   await page.click('[data-mode="drill"]');
   await cut();
-  check(/Night 2/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.some(x => x.querySelectorAll('.dr-door').length === 2)), 'night 2 opens with forks');
+  check(/Night 2/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.some(x => x.querySelectorAll('.dr-door').length >= 2)), 'night 2 opens with forks');
 
   // ---- Every drill has a verified bank question on its cause, for its postmortem ----
   const noQ = await page.evaluate(() => Object.keys(SD.drill.DRILLS).filter(id => { const d = SD.drill.DRILLS[id]; return !SD.modes.pick({ match: q => d.q.test([q.q].concat(q.opts || []).join(' ')), n: 1, verifiedOnly: true, mix: 0 }).items.length; }));
@@ -252,6 +252,28 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check((await st()).drill.state !== 'contained' && /ExpiredToken/.test(await txt('#panel')), 'a longer ExpiresIn still dies with the role\'s credentials');
   await place('demand'); await deploy();
   check((await st()).drill.state === 'contained', 'presigning each part as it\'s sent contains The Half Upload');
+
+  // ---- The Quiet Subscriber and The Dropped Catch ----
+  await open('quiet');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
+  check(/The Topic/.test(await txt('.dr-station')) && /SNS/.test(await txt('.dr-station')) && !!await page.$('[data-card="scopebody"]') && !await page.$('[data-card="vis30"]') && /NoMessageAttributes/.test(await txt('.dr-tray')), 'The Quiet Subscriber: Mira\'s desk is the topic, with the filter settings, no SQS ones, and the NoMessageAttributes count');
+  await shot('quiet');
+  await place('rawon');
+  check((await st()).drill.changes.length === 0, 'raw message delivery on a Lambda subscription is refused');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('quiet');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; s.zoom = true; SD.drillUi.draw(); });
+  await place('snsattr'); await deploy();
+  check((await st()).drill.state === 'contained', 'sending order_type as a message attribute contains The Quiet Subscriber');
+  await open('catch');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
+  check(/The Workflow/.test(await txt('.dr-station')) && !!await page.$('[data-card="rtrans"]') && !!await page.$('[data-card="catchrp"]') && /TooManyRequestsException/.test(await txt('.dr-tray')), 'The Dropped Catch: Mira\'s desk is the state machine, with Retry and Catch dials');
+  await shot('catch');
+  await place('catchfirst');
+  check((await st()).drill.changes.length === 0, 'a States.ALL catcher ahead of others is refused');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('catch');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); });
+  await place('rtrans'); await place('catchrp'); await deploy();
+  check((await st()).drill.state === 'contained' && /ReleaseStock/.test(await txt('#panel')), 'retrying Lambda errors and catching CardDeclined with a ResultPath contains The Dropped Catch');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();

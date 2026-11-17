@@ -64,6 +64,8 @@
     "kai|Cache everything you write and most of it is never read. A TTL clears that out. Too short, though, and nothing stays long enough to hit.": 'kai-mg-drill-teach-churn',
     "kai|S3 checks a presigned URL when each request starts. Sign every part up front and the last ones arrive too late.": 'kai-mg-drill-teach-presign',
     "dutch|A URL can't outlive the credentials that signed it. Signed by a role, it dies with the role's session, whatever ExpiresIn says.": 'dutch-mg-drill-teach-token',
+    "mira|A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn't call that an error.": 'mira-mg-drill-teach-fanout',
+    "kai|Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.": 'kai-mg-drill-teach-flow',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
