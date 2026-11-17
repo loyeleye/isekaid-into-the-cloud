@@ -60,6 +60,8 @@
     "mira|A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.": 'mira-mg-drill-teach-stream',
     "seoyeon|401 means no pass at all. 403 means a pass that says no. And the Gate remembers what a pass said.": 'seoyeon-mg-drill-teach-auth',
     "dutch|Reads are eventually consistent unless you ask. Right after a write, ask: ConsistentRead.": 'dutch-mg-drill-teach-reads',
+    "mira|A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn't call that an error.": 'mira-mg-drill-teach-fanout',
+    "kai|Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.": 'kai-mg-drill-teach-flow',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
