@@ -62,10 +62,62 @@
     return events.filter(e => TEACH[e] && !k.taught[e]).slice(0, 2).map(e => { k.taught[e] = 1; const [who, line, kai] = TEACH[e]; return say(who, line) + (kai ? say('kai', kai) : ''); }).join('');
   }
 
+  // ---- The opening (Ladi, Nov 17: "needs an opening scene or something to give context of what the game is about and
+  // the goal") ----
+  // Seymour and Kai on the Quarter's own paintings, one line a beat: who they are, why the Quarter is lived in, what a
+  // job, a renovation and the permit are, and how a night is won (its Grand Opening). It plays once, before the first
+  // new night a save starts (a night in progress isn't interrupted), Skip ends it at any beat, and the board's
+  // "The opening" button replays it. Like Fire Drill's cutscenes, the interface drops away and a tap moves it on.
+  // Each beat: [who, line, backdrop, Seymour's pose, Kai's face]. Recorded by tools/reno_vo.py (*-mg-reno-open-*).
+  const OPEN = [
+    ['seymour', 'Halt. Name, business, two forms of identification. ...Ah. The new architect. Sir Seymour Backups. I inspect Pingsby\'s Quarter. Twice.', 'street', 'proud', 'neutral'],
+    ['kai', 'I\'m Kai. I\'m a cook. He made me your assistant. There was a form.', 'street', 'proud', 'neutral'],
+    ['seymour', 'Freya deleted this whole Quarter. Luckily, I insisted on versioning. We brought every house back from under her delete markers.', 'quarter-map', 'inspect', 'neutral'],
+    ['kai', 'So people live here again. Which means nobody moves out while you fix the place.', 'quarter-map', 'inspect', 'worried'],
+    ['seymour', 'Each job is a renovation: a new version of someone\'s building. You choose how to ship it, while the residents keep coming home.', 'street', 'proud', 'neutral'],
+    ['seymour', 'The client\'s rules are chalked on the slate. Then I run your plan twice. Once sound. Once with a cracked beam.', 'street', 'inspect', 'neutral'],
+    ['kai', 'He cracks the beam on purpose. Every time. He calls it procedure.', 'street', 'inspect', 'neutral'],
+    ['seymour', 'Then the permit: one question about what you just did. If the plan held and your answer is right, I sign. The building stands.', 'permit-office', 'stamp', 'happy'],
+    ['kai', 'Anything less, and it stays under scaffolding. You get another go later.', 'permit-office', 'disapprove', 'worried'],
+    ['seymour', 'Five jobs a night. The last is the Grand Opening. If its plan holds, we cut the ribbon, and the night is yours.', 'square', 'approve', 'happy'],
+    ['kai', 'The first Grand Opening is my kitchen. So. No pressure.', 'square', 'approve', 'happy'],
+    ['seymour', 'Three plans per job. Read the whole scroll. I\'ll be right here. Watching. Supportively.', 'street', 'proud', 'neutral']
+  ];
+  // Where a narrow screen centres each painting: the gate end of the street, the map's middle, the permit desk, the arch.
+  const OPEN_X = { street: 760, 'quarter-map': 960, 'permit-office': 1120 };
+  function opening(done) {
+    const RS = SD.renoStreet;
+    if (!RS) { done(); return; }
+    let i = 0, over = false;
+    const end = () => { if (over) return; over = true; done(); };
+    const show = () => {
+      const [who, line, bg, pose, face] = OPEN[i];
+      const ui = `<div class="rs-row"><span class="rs-chip">${i + 1} / ${OPEN.length}</span><button class="ghost rn-oskip" id="rn-oskip" type="button">Skip</button></div><div class="rs-row rn-oline ${who}">${bubble(who, line)}</div>`;
+      // The square is the Grand Opening's own scene (the ribbon arch, a crowd waiting); the rest are plain paintings.
+      const where = bg === 'square' ? { plaza: true, cut: false, folk: 8 } : { bg, focus: OPEN_X[bg] };
+      const b = panel(`<div class="rn-bleed rn-open">${RS.scene(Object.assign(where, { shot: 'close', close: pose, kai: face, ui,
+        label: `The opening, ${i + 1} of ${OPEN.length}: ${who === 'kai' ? 'Kai' : 'Sir Seymour Backups'} speaking` }))}</div>
+        <div class="rn-dock"><button class="primary" id="rn-onext">${i + 1 < OPEN.length ? 'Next ▸' : 'To tonight\'s jobs'}</button></div>`);
+      const el = b.querySelector('.rs');
+      if (el) el.dataset.talk = 'done';        // Kai's mouth moves on his own lines only
+      RS.mount(b);
+      const k = el && el.querySelector('.rs-kai');
+      if (who === 'kai' && k && k.rsTalk) k.rsTalk(Math.min(6000, 700 + line.length * 55));
+      const next = () => { if (over) return; if (++i < OPEN.length) show(); else end(); };
+      b.querySelector('#rn-onext').onclick = next;
+      if (el) el.onclick = e => { if (!e.target.closest('button')) next(); };
+      b.querySelector('#rn-oskip').onclick = end;
+      b.querySelector('#rn-onext').focus({ preventScroll: true });
+    };
+    show();
+  }
+  DR.renoOpening = OPEN;
+
   // ---- Start, resume ----
   function start() {
     let s = cur();
-    if (!s || s.v !== 1 || s.phase === 'done') {
+    const fresh = !s || s.v !== 1 || s.phase === 'done';
+    if (fresh) {
       const k = keep();
       s = R.newNight({ night: k.night + 1, misses: k.misses, lastGrand: k.lastGrand });
       s.back = s.jobs.map(j => j.id).filter(id => (k.misses || []).includes(id));
@@ -73,6 +125,7 @@
       s.carry = (k.carry || []).slice();
     }
     save(s);
+    if (fresh && !keep().opened) { keep().opened = 1; save(s); return opening(() => draw(cur())); }
     draw(s);
   }
   function draw(s) {
@@ -124,7 +177,8 @@
     const b = panel(`<p class="rn-night">Night ${s.night}${newD ? `: ${esc(newD.name)} opens` : ''}</p>
       ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : mixIntro(s)) : ''}
       <div class="rn-boardgrid">${mapHtml(s)}<ol class="rn-jobs">${rows}</ol></div>
-      <div class="rn-dock"><button class="primary" id="rn-go">${s.jobs[s.at].plans.length ? 'Back to the job' : 'Take the job'}</button><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
+      <div class="rn-dock"><button class="primary" id="rn-go">${s.jobs[s.at].plans.length ? 'Back to the job' : 'Take the job'}</button><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="ghost" id="rn-open">The opening</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
+    b.querySelector('#rn-open').onclick = () => opening(() => draw(cur()));
     b.querySelector('#rn-go').onclick = () => { s.phase = 'plan'; save(s); draw(s); };
     b.querySelector('#rn-q').onclick = () => DR.quarter(() => draw(cur()));
     b.querySelector('#rn-stop').onclick = () => { save(s); U.closePanel(); stopNow(); };
@@ -1457,6 +1511,12 @@
     .rn-knob { display: flex; flex-direction: column; gap: 3px; }
     .rn-seg { display: flex; flex-wrap: wrap; gap: 4px; }
     .rn-dock { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    /* The opening: the speaker's bubble low on their own side, over their coat, the faces clear. */
+    .rn-open .rs { cursor: pointer; }
+    .rn-open .rn-oline { justify-content: flex-end; }
+    .rn-open .rn-oline.kai { justify-content: flex-start; }
+    .rn-open .rn-oline .rs-say { margin: 0; max-width: min(520px, 94%); font-size: 16px; box-shadow: 0 6px 14px rgba(0,0,0,.4); }
+    .rn-open .rn-oskip { padding: 4px 14px; min-height: 0; border-radius: 10px; background: rgba(23,19,31,.82); color: #fff; border: 1px solid rgba(255,255,255,.4); font-weight: 700; }
     .rn-lab { flex: 0 0 100%; font-weight: 700; }
     .rn-sp { image-rendering: pixelated; display: block; }
     .rn-h.rented { background: rgba(224,160,48,.35); box-shadow: inset 0 -3px 0 #e0a030; }
