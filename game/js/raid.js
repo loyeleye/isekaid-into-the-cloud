@@ -288,7 +288,7 @@
     const learned = Object.keys(cs).filter(met), tiers = [own.filter(met), champ.filter(met), learned];
     const w = obj(A.pool), wc = +w.card || 0.7, wh = +w.champion || 0.2, r = Math.random() * (wc + wh + (+w.learned || 0.1));
     const first = r < wc ? 0 : r < wc + wh ? 1 : 2, order = [first, (first + 1) % 3, (first + 2) % 3];
-    const kind = A.type === 'explain' && S.save.typed !== false ? 'explain' : ['mc', 'num'].includes(A.type) ? A.type : 'any';
+    const kind = A.type === 'explain' && !S.save.explainOff ? 'explain' : ['mc', 'num'].includes(A.type) ? A.type : 'any';
     const fits = k => q => q && q.id && (k === 'explain' ? q.type === 'explain' : q.type !== 'explain' && (k === 'any' || q.type === k));
     // ask.lp asks only least-privilege questions (lp: true, js/ch1-trek.js); any other card never asks one.
     const bank = c => (SD.questions || []).filter(q => q.c === c && !!q.lp === !!A.lp).concat(A.lp ? [] : (SD.explain || []).filter(q => q.c === c));

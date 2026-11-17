@@ -20,6 +20,27 @@ const server = http.createServer((req, res) => {
 const fails = [];
 const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok   ' : 'FAIL ') + what); };
 
+// ---- The sim, in Node: every SQS drill starts with a visibility timeout of at least 6x its function timeout (AWS's
+// rule for a queue feeding a Lambda event source mapping), except a drill whose fault is that window
+// (D.SIX_X_EXCEPT: Short Fuse). And on a Kinesis stream a failure returned in batchItemFailures isn't a Lambda Error. ----
+{
+  const D = require(path.join(ROOT, 'js/drill-core.js'));
+  const sqs = Object.keys(D.DRILLS).filter(id => D.DRILLS[id].path === 'async' && !D.DRILLS[id].stream && !D.DRILLS[id].hub);
+  check(sqs.length >= 4 && ['fuse', 'poison', 'single', 'midnight'].every(id => sqs.includes(id)), `the SQS drills: ${sqs.join(', ')}`);
+  sqs.forEach(id => {
+    const starts = [0, 1, 2, 3, 4, 5].map(k => D.start(id, k).cfg), c = starts[0];
+    const six = starts.every(x => x.queue.vis >= 6 * x.fn.timeout);
+    if (D.SIX_X_EXCEPT[id]) check(!six && D.DRILLS[id].visLine, `${D.DRILLS[id].name} starts under 6x on purpose (VisibilityTimeout ${c.queue.vis}, Timeout ${c.fn.timeout}): ${D.SIX_X_EXCEPT[id]}`);
+    else check(six, `${D.DRILLS[id].name} starts at VisibilityTimeout ${c.queue.vis}, at least 6x its ${c.fn.timeout} s function timeout`);
+  });
+  const sRun = (plan, k) => { const f = D.start('stampede', k); plan.forEach(id => D.place(f, id)); return D.deploy(f).m; };
+  const thrown = sRun([], 0), reported = sRun(['partial', 'retry2', 'onfail'], 0), bisected = sRun(['bisect', 'retry2', 'onfail'], 0);
+  check(thrown.errors > 0 && thrown.reported === 0, `The Stampede Stream: a handler that throws on the bad record is a function error (Errors ${thrown.errors})`);
+  check(reported.errors === 0 && reported.reported > 0 && D.metrics('stampede', D.start('stampede', 0).cfg, reported).fn.some(([n, v]) => n === 'Errors' && v === 0),
+    `with ReportBatchItemFailures the failed record's sequence number is returned: ${reported.reported} invocations reported it and Errors reads 0`);
+  check(bisected.errors > 0 && bisected.splits > 0, `BisectBatchOnFunctionError splits on function errors (Errors ${bisected.errors}, ${bisected.splits} splits)`);
+}
+
 (async () => {
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;

@@ -299,7 +299,7 @@
         const n = cands[Math.floor(Math.random() * cands.length)], c = P[n.p].concept;
         await U.dialog([{ s: prob.asker || 'pip', t: prob.defendLine ? prob.defendLine.replace('{part}', label(n)) : `The interviewer taps your ${label(n)}. "Why is this here? Talk me through it."` }]);
         const typed = (SD.explain || []).filter(q => q.c === c);
-        const q = typed.length && S.save.typed !== false ? typed[Math.floor(Math.random() * typed.length)] : S.pickQuestion(c);
+        const q = typed.length && !S.save.explainOff ? typed[Math.floor(Math.random() * typed.length)] : S.pickQuestion(c);
         if (!q) return null;
         const r = await SD.quiz.ask(q, { title: (opts.title || 'DESIGN BOARD') + ' · DEFEND', context: `Your ${label(n)}`, think: true });
         return r.ok;

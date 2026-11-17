@@ -7,6 +7,7 @@
 //     mode id, so a new mode adds one line; a mode without an entry gets the plain card and its icon).
 //   - The story card and Multiplayer keep the title's own buttons (#ds-go, #t-go, #ds-new, #t-new, #t-mp), moved into
 //     their cards, so js/quicksave.js (Resume quick save) and the chapters' title patches keep working.
+//   - Terms I own (js/terms.js) has its card after the modes, before Multiplayer: every term typed, and how many are due.
 //   - Opens on the last card played (S.save.lastGame), with the next card peeking in. CSS scroll-snap; dots under the
 //     row; chevrons only with a mouse; Tab walks the cards. Reduced motion: no smooth scroll, no scale.
 // This is the outermost title patch: it loads after js/quicksave.js and boots one tick after it.
@@ -35,9 +36,20 @@
   // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
   // backdrop and portrait. Only the centred card plays. Reduced motion and Save-Data keep the still. The vector build
   // plays them too: the published page serves the clips as files beside it (tools/artifact_page.py packs only assets/img).
-  const LOOPS = ['story', 'duel', 'draft', 'pop', 'hunt', 'ic', 'sprint', 'mp', 'drill'];
+  const LOOPS = ['story', 'duel', 'draft', 'pop', 'hunt', 'ic', 'sprint', 'mp', 'drill', 'terms'];
   const VID = id => 'assets/video/cards/' + id;
-  const hasLoop = id => LOOPS.includes(id);
+  const hasLoop = id => LOOPS.includes(id) || found[id] === true;
+  // Cards whose loop is still being made (Terms I own: terms.mp4 and terms.webp, 960x548 like the rest). Until the files
+  // are in, the card draws a poster of its own (POSTER below). The first time the card is centred, the still is asked
+  // for once; if it's there, the card switches to the loop like every other card, with no code change. (Adding the id
+  // to LOOPS once the files are in skips that one request.)
+  const SOON = ['terms'];
+  const found = {};   // id: true once its still loaded, false once it didn't
+  const POSTER = {
+    terms: () => `<div class="tg-art tg-hasvid tg-poster tg-p-terms" data-soon="terms" aria-hidden="true">
+      <code style="--x:8%;--y:14%">kms:Decrypt</code><code style="--x:20%;--y:40%">VisibilityTimeout</code>
+      <code style="--x:8%;--y:66%">--memory-size</code><span class="tg-p-ok">✓</span></div>`
+  };
   const still = () => reduced() || !!(navigator.connection && navigator.connection.saveData);
   const CONTINUE = '#ds-go, #t-go, #dbg-go, [id^="t-c"][id$="go"]';
   let hidden = null;
@@ -49,16 +61,31 @@
   const storyLine = () => { const c = latest(); return c ? `Chapter ${c.n === '2b' ? '2, part 2' : c.n}: ${c.name}` : 'Pick up where you left off'; };
   const leadFace = () => { const l = S.save && S.save.c1 && S.save.c1.lead; return l || 'you'; };
   const faceHtml = w => w ? `<img class="tg-face${w === 'freya' ? ' tg-sil' : ''}" src="${FACE(w)}" alt="" draggable="false" onerror="this.remove()">` : '';
-  const band = (n, face, id) => hasLoop(id)
+  const band = (n, face, id) => !hasLoop(id) && SOON.includes(id) && POSTER[id] ? POSTER[id]() : hasLoop(id)
     ? `<div class="tg-art tg-hasvid" style="background-image:url(${VID(id)}.webp)" aria-hidden="true"><video class="tg-vid" muted loop playsinline preload="none" poster="${VID(id)}.webp" data-src="${VID(id)}.mp4" disablepictureinpicture></video></div>`
     : `<div class="tg-art" style="background-image:url(${BG(n)})" aria-hidden="true">${faceHtml(face)}</div>`;
   // Play the centred card's loop and pause the rest. The source is set on first play, so unseen cards fetch nothing.
   function playOnly(on) {
+    const soon = on && on.querySelector('.tg-art[data-soon]');
+    if (soon) probe(soon);
     document.querySelectorAll('#title-actions .tg-vid').forEach(v => {
       const go = v.closest('.tg-card') === on && !still() && !$('#screen-title').hidden && !document.hidden;
       if (go) { if (!v.src) v.src = v.dataset.src; const p = v.play(); if (p && p.catch) p.catch(() => { /* autoplay refused: the still stays */ }); }
       else if (!v.paused) v.pause();
     });
+  }
+  // A card still waiting for its loop: look for the still once; if it's in, swap the poster for the usual video band.
+  function probe(art) {
+    const id = art.dataset.soon;
+    if (found[id] === false) return;
+    const swap = () => { if (!art.isConnected) return; art.outerHTML = band(0, null, id); playOnly($('#title-actions .tg-card.on')); };
+    if (found[id] === true) return swap();
+    if (found[id] === 'asking') return;
+    found[id] = 'asking';
+    const im = new Image();
+    im.onload = () => { found[id] = true; swap(); };
+    im.onerror = () => { found[id] = false; };
+    im.src = VID(id) + '.webp';
   }
   document.addEventListener('visibilitychange', () => playOnly($('#title-actions .tg-card.on')));
 
@@ -106,6 +133,15 @@
       li.querySelector('.tg-go').onclick = () => { remember(m.id); U.closePanel(); m.start({}); };
       list.appendChild(li);
     });
+    // Terms I own: every term typed in the modes, and when each comes back (js/terms.js).
+    if (SD.terms) {
+      let sm = { typed: 0, due: 0 }; try { sm = SD.terms.summary(); } catch (e) { /* the line falls back */ }
+      const li = card('terms', `${band(0, null, 'terms')}<div class="tg-body"><p class="tg-name">Terms I own</p>
+        <p class="tg-meta">${sm.typed ? `${sm.due ? '<span class="tg-tag">' + sm.due + ' due</span> ' : ''}${sm.typed} term${sm.typed === 1 ? '' : 's'} typed, and when each comes back` : 'Every AWS term you type in the games, and when it comes back'}</p>
+        <button class="ghost tg-go" type="button">Open<span class="sr"> Terms I own</span></button></div>`);
+      li.querySelector('.tg-go').onclick = () => { remember('terms'); U.closePanel(); SD.terms.open(); };
+      list.appendChild(li);
+    }
     // Multiplayer.
     if (mp) {
       const li = card('mp', `${band(ART.mp.bg, null, 'mp')}<div class="tg-body"><p class="tg-name">Multiplayer</p><p class="tg-meta">Expedition raids, solo, with bots or friends</p></div>`);
@@ -198,6 +234,13 @@
     .tg-art.tg-hasvid { height: auto; aspect-ratio: 16 / 9; max-height: clamp(84px, 19vh, 140px); image-rendering: auto; }
     .tg-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     .tg-plain { display: grid; place-items: center; }
+    .tg-poster { overflow: hidden; background: radial-gradient(120% 120% at 80% 10%, #4a3f63, #1c1a24 60%, #14121b); image-rendering: auto; }
+    .tg-poster code { position: absolute; left: var(--x); top: var(--y); padding: 2px 8px; border-radius: 6px; background: rgba(28, 26, 36, .85);
+      border: 1px solid rgba(255, 229, 138, .35); color: #ffe58a; font: 600 clamp(11px, 3.4vw, 14px)/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+    .tg-poster code:nth-child(2) { color: #f3ead6; border-color: rgba(243, 234, 214, .3); }
+    .tg-poster code:nth-child(3) { opacity: .7; }
+    .tg-p-ok { position: absolute; right: 8%; top: 12%; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
+      background: #d6b254; color: #1d1a26; font: 900 20px/1 Nunito, system-ui, sans-serif; box-shadow: 0 3px 0 #0c0a10; }
     .tg-icon { position: relative; z-index: 1; font-size: 40px; }
     .tg-face { position: absolute; z-index: 1; right: 8px; bottom: -4px; width: 54px; height: auto; image-rendering: pixelated; }
     .tg-sil { filter: brightness(0) drop-shadow(0 0 3px rgba(214, 178, 84, .85)); }

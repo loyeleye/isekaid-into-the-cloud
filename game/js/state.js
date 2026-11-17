@@ -23,6 +23,9 @@
   function revive(json) {
     const d = JSON.parse(json);
     if ((d.econ || 1) < 2) { d.shards = (d.shards || 0) * 20; d.econ = 2; }
+    // "Explain questions" used to live in d.typed (false = off), the same key as the typed-terms store
+    // (js/type-once.js), so turning it back on wiped typed terms. It has its own key now.
+    if (typeof d.typed === 'boolean') { d.explainOff = d.typed === false; d.typed = {}; }
     return Object.assign(fresh(), d);
   }
 
@@ -318,7 +321,7 @@
     if (E && E.on() && bank.some(q => !E.offTrack(q))) bank = bank.filter(q => !E.offTrack(q));
     if (!SD.concepts[id] || SD.concepts[id].zone !== 98 || !SD.quests) return bank;
     const asks = SD.quests.list.flatMap(q => q.steps.flatMap(s => s.do)).map(a => a.ask)
-      .filter(q => q && q.c === id && q.id && (q.type !== 'explain' || S.save.typed !== false));
+      .filter(q => q && q.c === id && q.id && (q.type !== 'explain' || !S.save.explainOff));
     return bank.concat(asks.filter(q => !bank.some(b => b.id === q.id)));
   };
   // Concepts the town's reviews can ask: every chapter reached so far, and side quests' concepts (zone 98) once
@@ -340,7 +343,7 @@
     // explain it in your own words instead of picking an option. Menu > Typed answers turns them off.
     const typed = (SD.explain || []).filter(q => q.c === conceptId && !(avoid || []).includes(q.id));
     const c = S.save.concepts[conceptId];
-    if (typed.length && S.save.typed !== false && c && c.hist.some(h => h.ok) && Math.random() < 1 / 3) {
+    if (typed.length && !S.save.explainOff && c && c.hist.some(h => h.ok) && Math.random() < 1 / 3) {
       return typed[Math.floor(Math.random() * typed.length)];
     }
     const all = S.questionsFor(conceptId), qs = all.filter(q => !(avoid || []).includes(q.id));

@@ -257,7 +257,7 @@
   function baseCfg() {
     return {
       gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, snsattr: false, split: false, quota: 50, stage: false, gttl: 300, ckey: false, gflush: false, maxage: false },
-      queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
+      queue: { on: false, fifo: false, vis: 180, dlq: null, groups: 'one', purge: false },
       fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
       store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false, rot: 'single', consistent: false, dax: 2 },
@@ -391,6 +391,8 @@
     // visLine: the Queue's visibility timeout is a timeline you drag (js/mode-drill.js), and the drill holds you to
     // AWS's rule: at least 6x the function's timeout (m.visShort). A window that only clears tonight's work stops
     // the duplicates but isn't signed off: the margin is for a batch Lambda retries after a throttle.
+    // Every SQS drill starts at or above that 6x (D.SIX_X_EXCEPT, checked by tools/drill_check.js) except this one, whose
+    // fault is the short window itself: VisibilityTimeout 30 against a 60 s function timeout.
     fuse: { name: 'Short Fuse', cause: 'queue+fn', lead: 'mira', path: 'async', visLine: true,
       says: 'Some orders are going through twice.',
       work: v => 40 + 10 * (v.k % 2),
@@ -400,17 +402,19 @@
       hidden: 'The queue\'s visibility timeout was shorter than the work, so messages came back while still being worked.',
       q: /visibility timeout|received (more than once|twice)|duplicate|six times|6x/i },
     // itemFailures: at the Function, ReportBatchItemFailures is a batch you tap the failing message in (js/drill-batch.js).
+    // Orders take a second each and the function times out at 5 s, so the default 30 s visibility timeout is 6x it
+    // and a returned batch is back in the queue within the run.
     poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async', itemFailures: true,
       says: 'One order in there will never go through.',
-      setup: v => ({ arrivals: t => steady(2)(t).concat(t === 1 + (v.k % 3) ? [R('bad', { poison: true })] : []) }),
-      break: c => { c.queue.on = true; c.queue.vis = 30; c.fn.timeout = 30; c.fn.batch = 3; },
+      setup: v => ({ arrivals: t => steady(2, { work: 1 })(t).concat(t === 1 + (v.k % 3) ? [R('bad', { poison: true, work: 1 })] : []) }),
+      break: c => { c.queue.on = true; c.queue.vis = 30; c.fn.timeout = 5; c.fn.batch = 3; },
       ok: m => m.dupes === 0 && m.goodParked === 0 && m.poisonLoose === 0 && m.lost === 0, fix: [['partial', 'dlq']], lazy: [['dlq'], ['partial'], ['purge'], ['vis360']],
       hidden: 'One message always failed. With no partial batch response its batch came back whole, and with no DLQ it never stopped.',
       q: /ReportBatchItemFailures|partial batch|dead-letter|\bDLQ\b|maxReceiveCount|poison/i },
     single: { name: 'Single File', cause: 'queue', lead: 'mira', path: 'async',
       says: 'Orders keep their order. All of them. In one line.',
       setup: v => ({ arrivals: steady(3 + (v.k % 2), { work: 10 }) }),
-      break: c => { c.queue.on = true; c.queue.fifo = true; c.queue.groups = 'one'; c.queue.vis = 120; },
+      break: c => { c.queue.on = true; c.queue.fifo = true; c.queue.groups = 'one'; c.queue.vis = 180; },
       ok: m => m.maxAge <= 30 && m.left === 0, fix: [['groups']], lazy: [['reserved'], ['b3'], ['vis360']],
       hidden: 'Every message had the same group ID, so the function could only ever work one batch at a time.',
       q: /FIFO|message group|MessageGroupId|ApproximateAgeOfOldestMessage/i },
@@ -441,16 +445,21 @@
       lazy: [['rall', 'catchrp'], ['rtrans'], ['catchrp'], ['rtrans', 'catchno'], ['rall'], ['reserved'], ['to120']],
       hidden: 'The Charge task had no retrier, so Lambda\'s passing throttles failed good orders, and no catcher, so a declined card failed the execution with the stock still held.',
       q: /Step Functions|state machine|States\.ALL|ErrorEquals|ResultPath|Retry.*Catch|Catch.*Retry|MaxAttempts|BackoffRate/i },
+    // Like The Poison Batch, a 5 s function timeout under the default 30 s visibility timeout (6x), so the bad message
+    // comes back often enough to reach maxReceiveCount during the run.
     midnight: { name: 'The Midnight Batch', boss: true, cause: 'queue+fn', lead: 'mira', path: 'async',
       says: 'One line, and one bad order at the front of it.',
-      setup: v => ({ arrivals: t => steady(2, { work: 20 })(t).concat(t === 1 + (v.k % 2) ? [R('bad', { poison: true, cust: 'c1' })] : []) }),
-      break: c => { c.queue.on = true; c.queue.fifo = true; c.queue.groups = 'one'; c.queue.vis = 30; c.fn.timeout = 30; c.fn.batch = 1; },
+      setup: v => ({ arrivals: t => steady(2, { work: 4 })(t).concat(t === 1 + (v.k % 2) ? [R('bad', { poison: true, cust: 'c1', work: 4 })] : []) }),
+      break: c => { c.queue.on = true; c.queue.fifo = true; c.queue.groups = 'one'; c.queue.vis = 30; c.fn.timeout = 5; c.fn.batch = 1; },
       ok: m => m.dupes === 0 && m.poisonLoose === 0 && m.goodParked === 0 && m.lost === 0 && m.left === 0,
       fix: [['groups', 'dlqfifo']], lazy: [['groups'], ['dlqfifo'], ['reserved', 'vis360']],
       hidden: 'Every message shared one group, so the function worked one at a time, and the poison message blocked the group behind it.',
       q: /FIFO|message group|MessageGroupId|dead-letter|\bDLQ\b/i }
   };
   const DR = D.DRILLS;
+  // The SQS drills' starting visibility timeout against AWS's 6x rule (a queue feeding a Lambda event source mapping
+  // wants at least 6x the function's timeout). Short Fuse starts short on purpose: that's its fault.
+  D.SIX_X_EXCEPT = { fuse: 'The fault is the short window: VisibilityTimeout 30 against a 60 s function timeout.' };
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
   D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet', 'receipt'], ['poison', 'stampede', 'catch'], ['midnight']];
@@ -466,7 +475,7 @@
       poisonLoose: 0, lost: 0, purged: 0, wcuUsed: 0, latency: 0, adminUsed: !!cfg.fn.admin, iamDenied: 0, wideUsed: !!cfg.fn.wide,
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
-      poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
+      poisonParked: 0, poisonDropped: 0, reported: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
       limit429: 0, shopLimited: 0, quotaAt: 0, quotaRaised: !!(set.keys && cfg.gate.quota > 50), ghits: 0, gmisses: 0, leaked: 0, cacheWarn: 0, cacheOff: !!(set.gcache && cfg.gate.gttl === 0),
       reads: 0, hits: 0, misses: 0, cstale: 0, evictions: 0, cacheMax: 0, flushed: 0,
       uploads: 0, upDone: 0, upFail: 0, up403: 0, upToken: 0, parts: 0, signed: 0, orphans: 0, userKey: !!(set.upload && cfg.up.userKey), pubPut: !!(set.upload && cfg.up.pub),
@@ -669,10 +678,12 @@
       let failAt = -1;
       for (let i = 0; i < cur.length; i++) { if (cur[i].r.poison) { failAt = i; break; } write(cur[i].r); }
       if (failAt < 0) { cur.forEach(x => { drop(x); m.deleted++; }); sh.pending.shift(); sh.attempts = 0; return; }
-      m.errors++;
       let rest = cur;
-      // ReportBatchItemFailures: the records before the failed one are checkpointed; the retry starts at it.
-      if (cfg.fn.partial) { cur.slice(0, failAt).forEach(x => { drop(x); m.deleted++; }); rest = cur.slice(failAt); }
+      // ReportBatchItemFailures: the function returns the failed record's sequence number as its itemIdentifier, so
+      // the invocation succeeded and Errors doesn't count it (as on the SQS path). The records before it are
+      // checkpointed and the retry starts at it. Without it the handler throws: a function error, counted in Errors.
+      if (cfg.fn.partial) { m.reported++; cur.slice(0, failAt).forEach(x => { drop(x); m.deleted++; }); rest = cur.slice(failAt); }
+      else m.errors++;
       if (cfg.stream.bisect && rest.length > 1) { const h = Math.ceil(rest.length / 2); sh.pending.splice(0, 1, rest.slice(0, h), rest.slice(h)); m.splits++; sh.attempts = 0; return; }
       sh.pending[0] = rest;
       sh.attempts++;
@@ -928,6 +939,7 @@
     if (m.hot) L.push(['kai', `ThrottlingException on ${n(m.hot, 'write')}.`]);
     if (m.over) L.push(['kai', `ProvisionedThroughputExceededException on ${n(m.over, 'write')}.`]);
     if (m.errors && !d.hub && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.authFail && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
+    if (d.stream && m.reported) L.push(['kai', `${n(m.reported, 'invocation')} returned batchItemFailures with the sequence number of the record that failed. Each returned normally, so Errors doesn't count ${m.reported === 1 ? 'it' : 'them'}.`]);
     if (m.condBlocked) L.push(['kai', `ConditionalCheckFailedException ${n(m.condBlocked, 'time')}: the order was already written.`]);
     if (!L.some(x => x[0] === 'kai')) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors${m.maxConc ? `, at most ${m.maxConc} at once` : ''}.`]);
     if (m.dupes) L.push(['dutch', `${n(m.dupes, 'order')} written twice.`]);
