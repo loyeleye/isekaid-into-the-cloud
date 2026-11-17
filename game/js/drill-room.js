@@ -91,7 +91,7 @@
     const notes = {};
     (o.notes || []).forEach(n => { (notes[n[0]] = notes[n[0]] || []).push(n); });
     const sts = D.ORDER.map(k => {
-      const s = D.STATIONS[k], on = path.includes(k), st = on ? (e.nodes[k] || 'dark') : 'off';
+      const s = D.station(f.drill, k), on = path.includes(k), st = on ? (e.nodes[k] || 'dark') : 'off';
       const [a, b] = HIT[k];
       const bad = o.m && BD.TROUBLE[s.who] && BD.TROUBLE[s.who](o.m);
       const say = by[s.who] ? `<p class="rm-say${bad ? ' bad' : ''}" data-vo="${esc(s.who + '|' + by[s.who][0])}"><b>${esc(D.NAMES[s.who])}</b> ${by[s.who].map(esc).join(' ')}</p>` : '';
@@ -116,7 +116,7 @@
   // One stage element lives across re-renders (mount() moves it into each new room, so a clip keeps playing).
   // Idle takes play back to back in random order; alarm / clear / slump fade in over them, hold their last
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
-  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
+  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b', 'idle-c', 'idle-d', 'idle-e', 'idle-f', 'idle-g', 'idle-h', 'idle-false-alarm'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
   const LISTEN_HOLD = 2.0;
   let listening = false, alarmed = false, stage = null, lastKey = null, moodT = 0, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
