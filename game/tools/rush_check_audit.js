@@ -109,7 +109,7 @@ async function fits(pg, what) {
 }
 async function run(browser, tag, vp) {
   console.log(tag, vp.width + 'x' + vp.height);
-  const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 1 });
+  const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 1 }); await pg.addInitScript(() => { window.SD_SHEET_KNOWN = true; }); // every template-card blank already typed (js/rush-sheet.js)
   if (tag === 'phone') await pg.addInitScript(TEXT_PROBE);
   const errs = []; pg.on('pageerror', e => errs.push(String(e))); pg.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(m.text()); });
   await pg.goto(`http://localhost:${srv.address().port}/rush.html?claim=audit&seed=11${tag === 'phone' ? '&tall' : ''}`);
