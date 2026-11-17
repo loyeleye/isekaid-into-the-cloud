@@ -3,7 +3,7 @@
 usage: [VO_VOICE=Achernar] [VO_PITCH=1.029302] ic_live_vo.py [KEY ...]     record the lines (all, or the keys named) with Gemini TTS (needs GEMINI_API_KEY)
 
 Her story voice (Achernar on gemini-3.8-flash-tts), in her prequel manner: grand, vain, a little flustered. The text
-is read from js/ic-live.js (SAY) and js/ic-live-core.js (the pages), so the recording always matches the screen.
+is read from js/ic-live.js (SAY and QUIP) and js/ic-live-core.js (the pages), so the recording always matches the screen.
 """
 import base64, io, json, os, re, subprocess, sys, tempfile, urllib.request, wave
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +19,10 @@ def lines():
     out = {}
     for k, v in re.findall(r"\n\s*(\w+): '((?:[^'\\]|\\.)*)'", block):
         out[k] = (v.replace("\\'", "'"), DIRECTION)
+    # Her reactions while the minute plays (QUIP): key q-<thing>.
+    qb = src[src.index('const QUIP = {'):src.index('};', src.index('const QUIP = {'))]
+    for k, v in re.findall(r"\n\s*(\w+): \['((?:[^'\\]|\\.)*)'", qb):
+        out['q-' + k] = (v.replace("\\'", "'"), DIRECTION)
     core = open(os.path.join(GAME, 'js/ic-live-core.js')).read()
     for iid, page in re.findall(r"id: '(\w+)', name: [^\n]*\n\s*page: '((?:[^'\\]|\\.)*)'", core):
         out['page-' + iid] = (page.replace("\\'", "'"), PAGE_DIRECTION)
