@@ -17,7 +17,7 @@
     // The Records Vault's own props: Ladi's Sogni renders, packed by tools/rush_vault_pack.py (tools/rush_vault_art.js drew the first placeholders).
     'v-folder': 'assets/img/rush/vault/folder.webp', 'v-folder-done': 'assets/img/rush/vault/folder-done.webp', 'v-folder-bounced': 'assets/img/rush/vault/folder-bounced.webp',
     'v-drawer': 'assets/img/rush/vault/drawer.webp', 'v-cart': 'assets/img/rush/vault/cart.webp', 'v-cart-bolted': 'assets/img/rush/vault/cart-bolted.webp',
-    'v-desk': 'assets/img/rush/vault/desk.webp', 'v-cabinet': 'assets/img/rush/vault/cabinet.webp', 'v-tube': 'assets/img/rush/vault/tube.webp', 'v-wheel': 'assets/img/rush/vault/wheel.webp',
+    'v-desk': 'assets/img/rush/vault/desk.webp',
     'dutch-neutral': 'assets/img/portraits/dutch-neutral.webp', 'dutch-smile': 'assets/img/portraits/dutch-smile.webp',
     'dutch-tired': 'assets/img/portraits/dutch-tired.webp', 'dutch-surprised': 'assets/img/portraits/dutch-surprised.webp', 'dutch-angry': 'assets/img/portraits/dutch-angry.webp'
   };
@@ -59,26 +59,28 @@
   // wheeled step stools by her records desk. The night starts with a turn of the vault-door wheel (lever, wheel: true).
   // Four cabinets on the back wall are the table's partitions (cabs: each one's centre and floor line), and the
   // on-demand dial sits by them.
+  // The vault's door, wheel, cabinets, tube, basket and desk are painted into the backdrop (painted: true), so they sit
+  // in the room; the positions below are measured off the painting. Only the pieces that move or get bought are sprites.
   const VAULT_WIDE = {
-    W: 1344, H: 768, bg: 'vault-wide', art: 'vault',
-    chute: [[1186, 130], [1186, 470]], foot: [1176, 622], hatch: [1186, 170],
-    lever: { x: 150, y: 250, r: 100, wheel: true, label: [150, 390] },
-    clerk: { x: 1040, y: 642, h: 170 }, puddle: { x: 640, y: 712 },
-    rack: { x: 900, y: 640, h: 190 }, stools: { xs: [784, 726, 668, 610, 552, 494], y: 644, h: 70 },
-    desk: { x: 360, y: 644, h: 170 }, tank: { x: 1292, y: 330, h: 200, feed: 0 }, bin: { x: 790, y: 750, h: 96 },
-    bell: { x: 970, y: 744, h: 64 }, tray: [1090, 716], reports: [1040, 110],
-    cabs: { at: [[735, 400], [845, 400], [955, 400], [1065, 400]], w: 94, h: 170 }, dial: [650, 300], inset: INSET_WIDE,
+    W: 1344, H: 768, bg: 'vault-wide', art: 'vault', painted: true,
+    chute: [[1153, 250], [1153, 470]], foot: [1153, 596], hatch: [1153, 440],
+    lever: { x: 176, y: 370, r: 62, wheel: true, label: [176, 545] },
+    clerk: { x: 1010, y: 655, h: 150 }, puddle: { x: 330, y: 715 },
+    rack: { x: 880, y: 656, h: 170 }, stools: { xs: [760, 702, 644, 586, 528, 470], y: 652, h: 56 },
+    desk: { x: 329, y: 660, h: 165 }, tank: { x: 440, y: 330, h: 190 }, bin: { x: 1262, y: 745, h: 90 },
+    bell: { x: 1150, y: 744, h: 64 }, tray: [1090, 716], reports: [1040, 110],
+    cabs: { at: [[547, 603], [672, 603], [796, 603], [920, 603]], w: 117, h: 285 }, dial: [735, 268], inset: INSET_WIDE,
     belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 400, y: 36, w: 600 }, fs: 1
   };
   const VAULT_TALL = {
-    W: 768, H: 1344, bg: 'vault-tall', art: 'vault',
-    chute: [[470, 330], [470, 800]], foot: [470, 992], hatch: [470, 370],
-    lever: { x: 124, y: 560, r: 106, wheel: true, label: [124, 700] },
-    clerk: { x: 104, y: 1180, h: 118 }, puddle: { x: 540, y: 1076 },
-    rack: { x: 320, y: 1012, h: 170 }, stools: { xs: [600, 545, 490, 435, 380, 325], y: 1180, h: 64 },
-    desk: { x: 672, y: 1034, h: 150 }, tank: { x: 290, y: 640, h: 150, feed: 330 }, bin: { x: 236, y: 1180, h: 78 },
-    bell: { x: 560, y: 1104, h: 60 }, tray: [200, 1100], filterLabel: [320, 820], reports: [690, 120],
-    cabs: { at: [[606, 548], [712, 548], [606, 728], [712, 728]], w: 90, h: 150 }, dial: [664, 800], inset: INSET_TALL,
+    W: 768, H: 1344, bg: 'vault-tall', art: 'vault', painted: true,
+    chute: [[697, 500], [697, 760]], foot: [697, 858], hatch: [697, 740],
+    lever: { x: 160, y: 400, r: 62, wheel: true, label: [160, 585] },
+    clerk: { x: 330, y: 1162, h: 110 }, puddle: { x: 400, y: 1120 },
+    rack: { x: 100, y: 1150, h: 140 }, stools: { xs: [480, 428, 376, 324, 272, 220], y: 1010, h: 50 },
+    desk: { x: 115, y: 928, h: 160 }, tank: { x: 470, y: 395, h: 160 }, bin: { x: 470, y: 1165, h: 70 },
+    bell: { x: 560, y: 1104, h: 60 }, tray: [560, 960], filterLabel: [320, 820], reports: [690, 120],
+    cabs: { at: [[211, 879], [328, 879], [443, 879], [559, 879]], w: 108, h: 273 }, dial: [470, 560], inset: { r: [528, 985, 228, 190], src: INSET_TALL.src },
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   // Each room's props by the name the cellar uses for them. A missing file falls back to the cellar's.
@@ -691,8 +693,10 @@
       cx.save(); cx.globalAlpha = leverT; cx.strokeStyle = '#ffe066'; cx.lineWidth = 7; cx.beginPath(); cx.arc(px, py, Rr, -1.3, 0.45); cx.stroke(); cx.restore();
     }
     // The vault's wheel turns half a turn when the night starts. The tube is its entry.
-    if (L.lever.wheel) img('v-wheel', L.lever.x, L.lever.y, L.lever.r * 1.7, 'mm', 1, S.started ? (1 - leverT) * Math.PI : 0);
-    if (L.art === 'vault') { const [a, b] = L.chute, h = b[1] - a[1] + 40; img('v-tube', a[0], b[1] + 40, h, 'mb'); }
+    if (L.lever.wheel && bg && !mini && S.started && leverT > 0) { // the painted wheel turns: a round cut of the backdrop, rotated
+      const { x, y, r } = L.lever; cx.save(); cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.clip(); cx.translate(x, y); cx.rotate((1 - leverT) * Math.PI);
+      cx.drawImage(bg, -x, -y, L.W, L.H); cx.restore();
+    }
     // The Night Clerk, with his four stools' worth of papers.
     shadow(L.clerk.x, L.clerk.y + 2, L.clerk.h * .9); img('clerk', L.clerk.x, L.clerk.y + 6, L.clerk.h, 'mb');
     // The puddle grows with every lost request.
@@ -708,7 +712,7 @@
       plaque(word('rack', 'Rack') + ' · SQS queue', L.rack.x, L.rack.y - L.rack.h - 16 * L.fs);
     } else if (dragging === 'rack' || (!drag && !S.started && !S.placed.length)) glowSpot(spot('rack'), dragging === 'rack');
     // Mira's desk and the six stools.
-    shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb');
+    if (!L.painted) { shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb'); }
     plaque('Mira', L.desk.x, L.desk.y - L.desk.h - 4);
     if (S.ledger) {
       const d = L.desk; img('ledger', d.x - d.h * .1, d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
@@ -813,12 +817,12 @@
     c.at.forEach((a, i) => {
       const cab = S.cabs[i], x0 = a[0] - c.w / 2, y0 = a[1] - c.h, load = Math.min(1.5, cab.heat / (rate * 1.5)), hot = load > 1;
       cx.save();
-      shadow(a[0], a[1] + 2, c.w * 1.1);
+      if (!L.painted) shadow(a[0], a[1] + 2, c.w * 1.1);
       const g = cx.createLinearGradient(x0, 0, x0 + c.w, 0); g.addColorStop(0, '#1f3a30'); g.addColorStop(.5, '#2f5646'); g.addColorStop(1, '#1a3128');
-      if (IMG['v-cabinet']) { cx.drawImage(IMG['v-cabinet'], x0, y0, c.w, c.h); if (hot) { rrect(x0, y0, c.w, c.h, 6); cx.lineWidth = 4; cx.strokeStyle = '#e0644f'; cx.stroke(); } }
+      if (L.painted) { if (hot) { rrect(x0, y0, c.w, c.h, 6); cx.lineWidth = 4; cx.strokeStyle = '#e0644f'; cx.stroke(); } }
       else rrect(x0, y0, c.w, c.h, 6), cx.fillStyle = g, cx.fill(), cx.lineWidth = 4, cx.strokeStyle = hot ? '#e0644f' : '#0d1a14', cx.stroke();
       // Without the sprite: three drawers with brass pulls.
-      for (let j = 0; !IMG['v-cabinet'] && j < 3; j++) {
+      for (let j = 0; !L.painted && j < 3; j++) {
         const dy = y0 + 8 + j * (c.h - 16) / 3, dh = (c.h - 16) / 3 - 6;
         rrect(x0 + 7, dy, c.w - 14, dh, 4); cx.fillStyle = 'rgba(10,22,16,.45)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = 'rgba(160,200,170,.25)'; cx.stroke();
         cx.fillStyle = '#c9a23a'; rrect(a[0] - 14, dy + dh * .62, 28, 6, 3); cx.fill();
@@ -1042,7 +1046,7 @@
       cx.save(); cx.beginPath(); cx.arc(x, y, 10 * L.fs, 0, Math.PI * 2); cx.fillStyle = i < S.wave ? '#ffd666' : 'rgba(50,44,60,.9)'; cx.fill();
       cx.lineWidth = 3; cx.strokeStyle = '#000'; cx.stroke(); cx.restore();
     }
-    img('envDone', L.handled[0] - 30 - 16 * L.fs, L.handled[1], 0, 'mm', 1, 0, 52 * L.fs);
+    img('envDone', L.handled[0] - 30 - 16 * L.fs, L.handled[1], 0, 'mm', 1, 0, (L.art === 'vault' ? 40 : 52) * L.fs);
     text(String(S.handled), L.handled[0], L.handled[1], 34, '#bff5b4', 'left');
     if (S.claim === 'bell' || S.claim === 'picky') { plaque('Reports ' + S.reports, L.reports[0] - 10, L.reports[1]); }
     if (S.started && S.close) {

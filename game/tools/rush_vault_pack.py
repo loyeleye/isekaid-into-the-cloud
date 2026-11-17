@@ -11,13 +11,12 @@ from PIL import Image, ImageFilter
 
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(GAME, 'assets/img/rush')
-BACK = {'vault-wide-1.png': ('vault-wide.webp', (1344, 768)), 'vault-tall-1.png': ('vault-tall.webp', (768, 1344))}
+BACK = {}  # the backdrops are now painted with their fixtures (see CREDITS.md), not packed here
 PROPS = {  # take: (file, box w, box h)
     'vault-folder-2.png': ('folder', 220, 166), 'vault-folder-done-1.png': ('folder-done', 220, 166),
     'vault-folder-bounced-2.png': ('folder-bounced', 220, 166), 'vault-drawer-2.png': ('drawer', 216, 320),
-    'vault-cabinet-1.png': ('cabinet', 188, 340), 'vault-cart-1.png': ('cart', 116, 130),
-    'vault-cart-bolted-2.png': ('cart-bolted', 116, 130), 'vault-desk-1.png': ('desk', 302, 300),
-    'vault-tube-2.png': ('tube', 120, 560), 'vault-wheel-1.png': ('wheel', 260, 260)}
+    'vault-cart-1.png': ('cart', 116, 130),
+    'vault-cart-bolted-2.png': ('cart-bolted', 116, 130), 'vault-desk-1.png': ('desk', 302, 300),}
 
 
 def cutout(im, tol=34):
