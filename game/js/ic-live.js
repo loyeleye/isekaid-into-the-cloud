@@ -230,6 +230,7 @@
     if (mood) UP.mood = mood;
     paintFace();
     const bub = document.getElementById('icl-bubble');
+    if (bub) bub.removeAttribute('data-vo');
     if (bub && line && line !== UP.line) { bub.hidden = false; bub.textContent = line; talk(line); }
     else if (bub && !line) bub.hidden = true;
     UP.line = line || '';
@@ -417,7 +418,7 @@
   // What she says as the minute plays, the first time each thing happens (text only, no voice): worried when it goes
   // wrong, smug when it goes right.
   const QUIP = {
-    throttled: ['429. That\'s AWS for "no". It says it very politely.', 'worried'],
+    throttled: ['Four-two-nine. That\'s AWS for "no". It says it very politely.', 'worried'],
     gaveUp: ['That caller gave up. Honestly, same.', 'stern'],
     fail: ['Same message, failing again. It\'s me on a Monday.', 'worried'],
     unanswered: ['They got a message ID. Not an order. A number. Lovely.', 'stern'],
@@ -478,7 +479,11 @@
       if (he) he.parentNode.classList.add('hot');
       // One new line at most every other turn, so each one can be read.
       const q = QUIP_ORDER.find(ty => t[ty] && !said[ty]);
-      if (q && k - lastQuip >= 2) { said[q] = 1; lastQuip = k; speak(QUIP[q][0], QUIP[q][1]); const qe = b.querySelector('#icl-quip'); if (qe) qe.textContent = QUIP[q][0]; }
+      if (q && k - lastQuip >= 2) { said[q] = 1; lastQuip = k; speak(QUIP[q][0], QUIP[q][1]);
+        // Voiced: whichever of her bubble (wide) or the talk box (phone) is showing carries the line for the voice player.
+        const vo = 'uptima|' + QUIP[q][0], qe = b.querySelector('#icl-quip'), bub = document.getElementById('icl-bubble');
+        if (qe) { qe.textContent = QUIP[q][0]; qe.setAttribute('data-vo', vo); }
+        if (bub) bub.setAttribute('data-vo', vo); }
       timer = setTimeout(step, PLAY_MS);
     };
     const said = {};
