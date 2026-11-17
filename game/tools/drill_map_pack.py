@@ -50,6 +50,10 @@ def main(raw):
     save(card, 'map-card.webp', 360); save(notice, 'map-notice.webp', 640); save(tack, 'map-tack.webp', 64); save(seal, 'map-seal.webp', 96)
     for im, n in zip(pieces(key_green(Image.open(os.path.join(raw, 'icons.png'))), 4), ('gate', 'queue', 'stream', 'bell')):
         save(im, 'map-ic-' + n + '.webp', 128)
+    k2 = key_green(Image.open(os.path.join(raw, 'icons2.png')))   # loose pieces (the pigeons): cut in halves, not by blobs
+    for i, n in enumerate(('topic', 'flow')):
+        half = k2.crop((i * k2.width // 2, 0, (i + 1) * k2.width // 2, k2.height))
+        save(half.crop(half.getchannel('A').point(lambda v: 255 if v > 128 else 0).getbbox()), 'map-ic-' + n + '.webp', 128)
     c = np.asarray(Image.open(os.path.join(raw, 'chalk.png')).convert('RGB')).astype(np.float32)
     lum = c.max(axis=2)
     alpha = np.clip((lum - 30) / 160, 0, 1)

@@ -35,6 +35,13 @@ JOBS = {
               'left: a small stream of blue water flowing in a wooden channel with ripples. Bottom right: a brass fire '
               'alarm bell with a little flame. Each about the same size, bold readable shapes with dark ink outlines. '
               + STYLE, '1:1'),
+    'icons2': ('room-empty', 'Paint a sheet of two small painted emblems side by side with a wide gap, not touching, '
+               'front view, on a perfectly flat pure green (#00FF00) background with no shadows on the background. Left: a '
+               'brass town crier\'s horn on a short wooden post with three white message pigeons flying out of it in '
+               'different directions (one message fanned out to many listeners). Right: a wooden signpost on a little '
+               'stone base with three painted arrow boards pointing different ways and a small hanging lantern (a '
+               'workflow choosing its next step). Same size as each other, bold readable shapes with dark ink outlines. '
+               + STYLE, '16:9'),
     'chalk': ('room-empty', 'Draw a sheet of hand-drawn chalk marks, like chalk on a blackboard, on a perfectly flat '
               'pure black (#000000) background, laid out in a 3 by 2 grid with wide gaps, not touching. Top row: a '
               'short upward chalk arrow in white, a rough hand-drawn chalk oval loop in warm yellow chalk (like circling '
