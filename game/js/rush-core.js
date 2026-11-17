@@ -301,6 +301,8 @@
     S.spawns.sort((a, b) => a.t - b.t);
     // A second room running alongside (its own seed, so this room's rolls are untouched). It shares the coins and the tank.
     if (C.review) { S.review = create(((seed >>> 0) ^ 0x5bd1e995) >>> 0, C.review, orders, 0, S.book); S.review.parent = S; S.review.close = S.close; }
+    // Claim 7 (the Locked Desk): its rules live in js/rush-office.js.
+    if (C.office && SD.rushOffice) SD.rushOffice.init(S, C);
     return S;
   }
   // Which stools are whose. Index 0 is next to Mira's desk.
@@ -344,6 +346,8 @@
     if (tool === 'jitter') S.maxThrottles = MAX_THROTTLES;
     if (tool === 'retries') S.retryN = 1;
     if (tool === 'intern') placeIntern(S);
+    // Claim 7: its buys set up their own state (js/rush-office.js).
+    if (S.office && SD.rushOffice) SD.rushOffice.placed(S, tool);
     // Tickets already waiting their turn to retry walk onto the new rack.
     ev(S, 'place', { tool });
     return '';
@@ -529,6 +533,8 @@
     if (M.spill >= M.cap && !M.over) { M.over = 'lose'; ev(M, 'lose'); if (M !== S) S.over = 'lose'; }
   }
   function step(S, dt) {
+    // Claim 7 (the Locked Desk): the office's main room has its own step (js/rush-office.js).
+    if (S.office && SD.rushOffice) return SD.rushOffice.step(S, dt);
     if (!S.started || S.over) return;
     // The second room runs first, on the same clock. If it floods the shared tank, the night is over.
     if (S.review) { step(S.review, dt); if (S.over) return; }
@@ -731,8 +737,10 @@
       if (!k.quiz) continue;
       if (k.phase === 'ask') {
         // The intern takes questions the player has solved, one moment after it's free to (it was hired, or it landed).
-        if (S.intern && isSolved(S, k.q) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
-          const right = S.rand() >= T.internWrong;
+        // Claim 7's intern scope: on 'topics' it also takes unsolved questions from a topic you've solved, and guesses more.
+        const wide = !isSolved(S, k.q) && !!SD.rushOffice && SD.rushOffice.wide(S, k.q);
+        if (S.intern && (isSolved(S, k.q) || wide) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
+          const right = S.rand() >= (wide ? SD.rushOffice.T.internWrongWide : T.internWrong);
           unask(S, k); k.internRight = right; k.stampAt = S.time; go(k, 'stamped', 0); S.byIntern++;
           answer(S, k.q, right, 'intern'); ev(S, 'internAnswer', { id: k.id, right });
         } else if (S.time - k.askAt > T.askWait) { unask(S, k); S.unanswered++; ev(S, 'unanswered', { id: k.id }); remove(S, k); lose1(S, k, 'unanswered'); if (purse(S).over) return; }
@@ -784,5 +792,7 @@
   function solved(S) { return [...purse(S).book.values()].filter(r => r.solved).map(r => r.id); }
   const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'fifo', 'eventual', 'stakes', 'timeout'];
   SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, CABS, HOT_CAB, cabOf, cabRate, answer, solved, reply, check, create, step, start, place, canPlace, costOf, seats, owners, drain, upkeep, turn };
+  // For js/rush-office.js (claim 7): the helpers its own step needs.
+  SD.rushCore.internal = { ev, lose1, purse, go, remove, reviewStep, isSolved };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
