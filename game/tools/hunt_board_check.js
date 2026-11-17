@@ -83,7 +83,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await shot('posters');
   await page.evaluate(() => { SD.hunt.start(); });
   for (let k = 0; k < 6 && !(await page.$('[data-mon]')); k++) { const nx = await page.$('#md-next, #hn-wnext'); if (nx) await nx.click(); await page.waitForTimeout(60); }
-  await page.waitForSelector('[data-mon]'); await page.click('[data-mon]');
+  await page.waitForSelector('[data-mon]'); await page.click('[data-mon]'); await page.waitForFunction(() => !document.querySelector('.hm-walk'));
   await page.waitForSelector('#hb-deploy');
   const plan = await text();
   check(/One bad order/.test(plan) && /Poison Pill/.test(plan) && /Your hand/.test(plan) && /Deploy 1 of 3/.test(plan), 'the plan screen: the scenario, the monster on its tile, the hand, deploy 1 of 3');
@@ -196,7 +196,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('Bru\'s notes');
   await shot('debrief-notes');
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(50);
+  await page.waitForFunction(() => document.activeElement && document.activeElement.classList.contains('hd-nbk'), null, { timeout: 1000 }).catch(() => {});
   const esc = await page.evaluate(() => ({ open: !!document.querySelector('#panel .hd-win.hd-notes-open'), focus: document.activeElement && (document.activeElement.className || document.activeElement.tagName) }));
   check(!esc.open && esc.focus === 'hd-nbk', 'Escape closes the notes and puts focus back on the notebook ' + JSON.stringify(esc));
   await page.click('#q-next');
