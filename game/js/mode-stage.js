@@ -40,7 +40,9 @@
   // (project files game-modes/multiplayer-real/art-and-music.md).
   const PLATES = ['floor', 'drill'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
-  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street' };
+  // Incident Commander's live incident loop starts on its menu (Ladi, Nov 17: "the music should start playing on this
+  // screen"), and plays through both shifts; js/ic-live.js keeps it going rather than starting it over.
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live' };
   // Mode id: { win, lose } jingle files in assets/audio/.
   const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);

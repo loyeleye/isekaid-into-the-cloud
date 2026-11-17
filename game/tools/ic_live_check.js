@@ -155,7 +155,7 @@ check(run(L.get('twice'), { vis: 60 }).slo && !run(L.get('twice'), { vis: 60 }).
   // The art: each part is a thing in the camp beside its name; the pool is ten stools; the loop is playing.
   check(await page.$$eval('.icl-art', i => i.length) === 3 && await page.$$eval('.icl-part b', b => b.every(x => x.textContent.trim())), 'three parts have their camp art, and every part keeps its name');
   check(await page.$$eval('.icl-stool', i => i.length) === 10 && await page.$$eval('.icl-stool[src*="stool-reports"]', i => i.length) === 8, 'the pool is ten stools, eight taken by reports-job');
-  check(await page.evaluate(() => SD.audio.loopName) === 'iclive', 'the live incident loop plays');
+  check(['iclive', 'stage-ic'].includes(await page.evaluate(() => SD.audio.loopName)), 'the live incident loop plays (as the stage\'s loop when opened from the title)');
 
   // Predict wrong, Sure: the stake shows, then the minute runs and the machine says what happened.
   await predict(false, 2);
