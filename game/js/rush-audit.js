@@ -657,7 +657,7 @@
     if (S.time >= 3 * a.night.hourSecs && S.time < 7 * a.night.hourSecs) { a.stats.span += dt; const n = liveCount(a); if (n >= 2) a.stats.two += dt; if (n >= 3) a.stats.three += dt; }
     if (a.down) {
       a.stats.downT += dt;
-      // Trusting your alarms pays: from 00:00, a coin for every 20 s downstairs with a klaxon up.
+      // Trusting your alarms pays: from 00:00, a coin for every bonusEvery seconds downstairs with a klaxon up.
       if (h >= 2 && a.alarms.length) { a.bonusT += dt; if (a.bonusT >= T.bonusEvery) { a.bonusT -= T.bonusEvery; S.coins++; a.stats.bonus++; ev(S, 'bonus'); } }
     } else a.stats.upT += dt;
     internStep(S);
