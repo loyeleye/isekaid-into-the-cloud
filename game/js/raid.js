@@ -426,6 +426,9 @@
 .ps-req { display: grid; gap: 4px; background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 6px 8px; font-size: 14px; }
 .ps-req.ok { border-color: var(--good, #2fbf7f); } .ps-req.bad { border-color: var(--bad, #d63a3a); }
 .ps-req small { color: var(--muted); }
+.ps-by { display: block; font: 600 12px/1.45 ui-monospace, Menlo, Consolas, monospace; background: #1c1a24; color: #f3ead6; border-radius: 6px; padding: 4px 6px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.ps-by.none { color: #c9c2d8; font-style: italic; font-weight: 400; }
+.q-ev mark.ps-lit { background: rgba(255, 229, 138, .28); color: inherit; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255, 229, 138, .55); }
 .ps-tg { display: flex; gap: 6px; }
 .ps-tg button { flex: 1; min-height: 36px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; font: inherit; }
 .ps-tg button.on { background: var(--sun, #ffd23f); font-weight: 700; }
@@ -2281,9 +2284,13 @@
       });
       const right = reqs.filter((x, i) => !!pick[i] === !!x.ok).length, through = reqs.filter(x => x.ok).length;
       reqs.forEach((x, i) => { if (!!pick[i] !== !!x.ok && o.onMiss) o.onMiss({ c: P.c }); });
-      await panelHere(`<div class="verdict ${right === reqs.length ? 'ok' : right >= reqs.length - 1 ? 'ok' : 'bad'}">${right} OF ${reqs.length} RIGHT</div>
+      // The verdict lights up the statement that decided each request, the way IAM matches it (audit, Nov 17): the policy
+      // with those lines marked, and each request's own line under its reason. '' is no statement: an implicit deny.
+      const lit = [...new Set(reqs.map(x => x.by).filter(Boolean))].reduce((h, b) => h.replace(esc(b), `<mark class="ps-lit">${esc(b)}</mark>`), esc(P.ev || ''));
+      const byOf = x => x.by ? `<code class="ps-by">${esc(x.by)}</code>` : x.by === '' ? '<code class="ps-by none">No statement allows it: implicit deny</code>' : '';
+      await panelHere(`${P.ev ? `<pre class="q-ev">${lit}</pre>` : ''}<div class="verdict ${right === reqs.length ? 'ok' : right >= reqs.length - 1 ? 'ok' : 'bad'}">${right} OF ${reqs.length} RIGHT</div>
         <p>${guess === through ? `You predicted ${through} would get through, and ${through} did. Good call.` : `You predicted ${guess}; ${through} got through.`}</p>
-        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req ${!!pick[i] === !!x.ok ? 'ok' : 'bad'}"><span><b>${esc(x.ok ? YES : NO)}.</b> ${esc(x.t)}</span><small>${esc(x.why)}</small></div>`).join('')}</div>
+        <div class="ps-list">${reqs.map((x, i) => `<div class="ps-req ${!!pick[i] === !!x.ok ? 'ok' : 'bad'}"><span><b>${esc(x.ok ? YES : NO)}.</b> ${esc(x.t)}</span><small>${esc(x.why)}</small>${byOf(x)}</div>`).join('')}</div>
         <div class="row"><button class="primary" type="button" id="ps-done">Continue</button></div>`, 'POLICY SORT', (el, done) => { el.querySelector('#ps-done').onclick = () => done(true); });
       const ms = Date.now() - t0, ok = right >= reqs.length - 1;
       send({ k: 'ans', ok, band: right === reqs.length && guess === through ? 'fast' : right === reqs.length ? 'steady' : bandOf(Math.max(ms, 46000)) });

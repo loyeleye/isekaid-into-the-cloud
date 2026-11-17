@@ -47,7 +47,7 @@ const server = http.createServer((req, res) => {
     if (/^story:|^node:|^play:|^mines:node:|^mines:play:/.test(what)) seen.add(what);
     // Screenshots of the main moments, once each.
     // (Typing runs on a timer, so each shot waits for the line to finish and the portraits to load.)
-    const key = { 'lead-wait': 'lead-select', 'climb:cart': 'coldstart', 'climb:locker': 'locker', 'climb:ledge': 'ledge', 'climb:lift': 'lift', 'climb:summit': 'summit', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
+    const key = { 'sort-verdict': 'policy-sort-verdict', 'lead-wait': 'lead-select', 'climb:cart': 'coldstart', 'climb:locker': 'locker', 'climb:ledge': 'ledge', 'climb:lift': 'lift', 'climb:summit': 'summit', 'story:cart': 'camp', 'story:kyu': 'road', 'story:wren': 'brookfall', 'story:gate': 'temple' }[what]
       || (/^scene:/.test(what) && what.replace(':', '-'));
     if (key && !shotsTaken.has(key)) { shotsTaken.add(key); await page.waitForTimeout(1500); await shot(key); }
     if (/^play:(lockeddoor|uptimaboss|kyu)$/.test(what) && !shotsTaken.has(what)) { shotsTaken.add(what); await page.waitForTimeout(600); await shot(what.replace(':', '-')); }
@@ -55,8 +55,11 @@ const server = http.createServer((req, res) => {
     await page.waitForTimeout(/wait$/.test(what) ? 120 : 30);
   }
   const sv = await page.evaluate(() => ({ lead: SD.state.save.c1 && SD.state.save.c1.lead, flags: SD.state.save.c1 && SD.state.save.c1.f, level: SD.state.save.level, deck: SD.state.save.c1 && SD.state.save.c1.deck.length }));
+  const psv = await page.evaluate(() => window.__psv || null);
   await browser.close(); server.close();
   console.log('steps', steps, JSON.stringify(sv));
+  console.log('policy sort verdict', JSON.stringify(psv));
+  if (!psv || !psv.lit || psv.by !== psv.reqs) errors.push('the Policy Sort verdict should light the deciding lines in the policy and put one under each request: ' + JSON.stringify(psv));
   console.log('saw', [...seen].sort().join(' '));
   if (steps >= 30000) errors.push('the demo never finished; last actions: ' + last.join(' '));
   const need = ['m_board', 'm_locker', 'm_toll', 'm_ledge', 'm_mines', 'm_lift', 'm_op', 'm_log', 'm_rest1', 'm_rest2', 'm_rest3', 'summit', 'intro', 'cart', 'brief', 'board', 'tavern', 'kyu', 'shrine', 'guilty', 'gate', 'done'];

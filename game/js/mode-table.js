@@ -272,6 +272,7 @@
   }
 
   // ---- The bill: "why did that one crack?" ----
+  const rightOf = q => (q.type === 'mc' || Array.isArray(q.opts) ? [].concat(q.a).map(i => (q.opts || [])[i] || '') : (q.items || []).filter(i => i.ok).map(i => i.t)).join(' ');
   const qtext = q => [q.q].concat(q.opts || [], (q.items || []).map(i => i.t)).join(' ');
   function billQuestion(s, item, used) {
     const k = keep();
@@ -280,9 +281,10 @@
       const id = k.carryQ.shift(), q = E().find(id);
       if (q && E().allowed(q) && !used.has(q.id)) return q;
     }
-    const re = T.PINS[item.pin].q;
-    const r = M.pick({ match: q => re.test(qtext(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
-    const it = r.items[0];
+    // The pin's pattern in the stem or the right answer, so the question is about this look-alike and not one a wrong
+    // option happens to name (audit, Nov 17). Every question that mentions it is the fallback for the rarer pins.
+    const re = T.PINS[item.pin].q, pick = f => M.pick({ match: f, n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) }).items[0];
+    const it = pick(q => re.test(q.q + ' ' + rightOf(q))) || pick(q => re.test(qtext(q)));
     return it ? E().find(it.q) : null;
   }
   const twinOf = (q, used) => ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).filter(x => x && E().allowed(x) && D().isVerified(x) && !used.has(x.id))[0] || null;
