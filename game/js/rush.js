@@ -171,9 +171,23 @@
   }
 
   // ---- Dutch: one line per lesson, once per claim ----
+  // A long line goes out as a few short bubbles, a sentence or two each, so nobody has to read a wall of text mid-wave.
+  const BUBBLE = 120;
+  function bubbles(text) {
+    const out = [];
+    for (const s of text.split(/(?<=[.!?])\s+(?=[A-Z0-9"'])/)) {
+      if (out.length && out[out.length - 1].length + 1 + s.length <= BUBBLE) out[out.length - 1] += ' ' + s; else out.push(s);
+    }
+    // A scrap like "Worth it." joins its shorter neighbour rather than getting a bubble of its own.
+    for (let i = 0; i < out.length && out.length > 1; i++) if (out[i].length < 40) {
+      const j = i === 0 ? 1 : i === out.length - 1 ? i - 1 : out[i - 1].length <= out[i + 1].length ? i - 1 : i + 1;
+      out.splice(Math.min(i, j), 2, j < i ? out[j] + ' ' + out[i] : out[i] + ' ' + out[j]); i = -1;
+    }
+    return out;
+  }
   function say(key, mood, text, secs) {
     if (said[key]) return; said[key] = 1;
-    sayQ.push({ mood, text, secs: secs || Math.max(4.5, text.length / 16) });
+    for (const p of bubbles(text)) sayQ.push({ mood, text: p, secs: Math.max(4, p.length / 16, secs ? secs * p.length / text.length : 0) });
   }
   const LINES = {
     rack: 'A queue. Tickets wait on the rack for a free stool instead of bouncing. It may hand you the same one twice.',
