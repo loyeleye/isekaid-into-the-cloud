@@ -59,9 +59,11 @@
     const im = rm.querySelector('.rm-plate');
     if (!matte.complete || !matte.naturalWidth || !im || !im.complete || !im.naturalWidth) return;
     const vids = [...rm.querySelectorAll('.rm-vid video.on')].filter(v => v.readyState >= 2 && v.videoWidth);
-    const v = vids.find(x => x.classList.contains('rm-v-mood')) || vids[0];
-    if (!v && c.dataset.drawn === 'plate') return;
+    const walkIn = rm.classList.contains('arriving');   // only the walk-in clip knows where the leads are
+    const v = vids.find(x => x.classList.contains('rm-v-mood')) || (walkIn ? null : vids[0]);
     const g = c.getContext('2d'), w = c.width, h = c.height;
+    if (!v && walkIn) { g.clearRect(0, 0, w, h); c.dataset.drawn = ''; return; }
+    if (!v && c.dataset.drawn === 'plate') return;
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, w, h);
     g.drawImage(im, 0, 0, w, h);
@@ -117,7 +119,7 @@
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
   const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
   const LISTEN_HOLD = 2.0;
-  let listening = false, stage = null, lastKey = null, moodT = 0, arriving = false, arriveT = 0;
+  let listening = false, alarmed = false, stage = null, lastKey = null, moodT = 0, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
     (navigator.connection && navigator.connection.saveData);
   function vEl(cls) {
@@ -146,7 +148,7 @@
       if (mood.dataset.clip === 'intro') arrived();
       if (mood.dataset.then) return R.mood(mood.dataset.then);
       clearTimeout(moodT);
-      moodT = setTimeout(() => { mood.classList.remove('on'); }, HOLD[mood.dataset.clip] || 1500);
+      moodT = setTimeout(() => { mood.classList.remove('on'); setAlarmed(false); }, HOLD[mood.dataset.clip] || 1500);
     });
     st.append(idle, mood);
     nextIdle(idle);
@@ -162,7 +164,7 @@
     const idle = stage.querySelector('.rm-v-idle');
     if (idle.paused) idle.play().catch(() => {});
     const rm = stage.closest('.rm');
-    if (rm) rm.classList.toggle('arriving', arriving);
+    if (rm) { rm.classList.toggle('arriving', arriving); rm.classList.toggle('alarmed', alarmed); }
     // On the very first night the room opens empty and the leads walk in (Ladi's intro clip), then the alarm; every
     // other drill, every night, opens straight on the alarm.
     if (intro === 'intro') {
@@ -172,6 +174,13 @@
       R.mood('intro', 'alarm');
     } else if (key != null && key !== lastKey) { lastKey = key; R.mood('alarm'); }
   };
+  // How long the walk-in still has to run (0 once the leads are in, or when the clips are off).
+  R.introMs = () => arriving ? 5600 : 0;
+  // While the alarm clip turns the leads around, Uptima ducks off her cloud (the matte can't follow them).
+  function setAlarmed(on) {
+    alarmed = on;
+    document.querySelectorAll('.rm').forEach(r => r.classList.toggle('alarmed', on && !!r.querySelector('.rm-vid')));
+  }
   function arrived() {
     arriving = false; clearTimeout(arriveT);
     document.querySelectorAll('.rm.arriving').forEach(r => r.classList.remove('arriving'));
@@ -184,6 +193,7 @@
     clearTimeout(moodT);
     mood.classList.remove('on');
     mood.dataset.clip = clip; mood.src = VID + clip + '.mp4';
+    setAlarmed(clip === 'alarm');
     mood.play().catch(() => {});
   };
 
@@ -278,7 +288,8 @@
     .rm-vid video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: 0; transition: opacity .7s ease; }
     .rm-vid video.on { opacity: 1; }
     .rm-vid .rm-v-mood { transition-duration: .35s; }
-    .rm.arriving .rm-plate, .rm.arriving .rm-v-idle, .rm.arriving .rm-over { visibility: hidden; }
+    .rm.arriving .rm-plate, .rm.arriving .rm-v-idle { visibility: hidden; }
+    .rm.arriving .rm-cloud, .rm.alarmed .rm-cloud { opacity: 0; }   /* the matte only knows where the leads end up: she drifts in once they have */
     .rm-st { position: absolute; top: 4%; height: ${COUNTER - 2}%; padding: 0; margin: 0; border: 0; border-radius: 40% 40% 8px 8px; background: transparent;
       cursor: pointer; box-shadow: none; z-index: 3; }
     .rm-st:hover, .rm-st:focus-visible { background: radial-gradient(60% 55% at 50% 45%, rgba(255, 236, 170, .16), transparent 70%); outline: none; }

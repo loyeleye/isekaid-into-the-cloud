@@ -249,7 +249,7 @@
       <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
       <div class="dr-dock">${dock}</div>`);
     // The walk-in intro plays once, on the first night only (Ladi: "otherwise it would get a little annoying").
-    const intro = RO && !play && s.night === 1 && !s.introSeen;
+    const intro = RO && s.night === 1 && !s.introSeen;
     if (intro) { s.introSeen = true; save(s); }
     if (RO) RO.mount(b, s.night + ':' + s.row + ':' + f.drill, intro ? 'intro' : null);
     if (play) {
@@ -258,7 +258,9 @@
       const wb = b.closest('.win-b') || b; wb.scrollTop = 0;   // the run plays on the board: start at the top
       const traced = {}; D.ORDER.forEach(k => { traced[k] = e.nodes[k] && e.nodes[k] !== 'dark' && e.nodes[k] !== 'off'; });
       let spill = 0;
-      (RO || BD).play(b, f, play.frames, {
+      // On the walk-in night the run waits for the leads to reach their bells.
+      const wait = intro && RO.introMs ? RO.introMs() : 0;
+      (wait ? new Promise(r => setTimeout(r, wait)) : Promise.resolve()).then(() => document.body.contains(b) && (RO || BD).play(b, f, play.frames, {
         traced, skipBtn: b.querySelector('#dr-skip'), gone: () => !document.body.contains(b),
         onTick: fr => {
           const x = fr.d;
@@ -266,7 +268,7 @@
           const left = Math.max(0, play.budget0 - Math.min(play.cost, spill));
           const jar = b.querySelector('.dr-jar'); if (jar) { jar.querySelector('i').style.width = left + '%'; jar.querySelector('b').textContent = left + '%'; }
         }
-      }).then(() => {
+      })).then(() => {
         if (playing !== play || !document.body.contains(b)) return;
         playing = null;
         draw(s);
