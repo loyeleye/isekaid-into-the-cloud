@@ -460,7 +460,7 @@
       tally.innerHTML = Object.keys(GLYPH).filter(ty => seen[ty]).map(ty => `<span>${GLYPH[ty]} ${seen[ty]}</span>`).join('');
       // The part the envelopes are bouncing off glows while it happens.
       play.querySelectorAll('.icl-part').forEach(el => el.classList.remove('hot'));
-      const hit = t.throttled || t.fail ? (x.id === 'launch' ? 'orders' : 'worker') : t.gaveUp ? 'apigw' : null;
+      const hit = t.throttled || t.fail ? (x.id === 'launch' ? 'orders' : 'worker') : t.dupe && x.parts.includes('table') ? 'table' : t.gaveUp ? 'apigw' : null;
       const he = hit && play.querySelector(`[data-part="${hit}"]`);
       if (he) he.parentNode.classList.add('hot');
       timer = setTimeout(step, PLAY_MS);
