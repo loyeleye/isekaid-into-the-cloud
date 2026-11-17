@@ -119,7 +119,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   if (await page.$('#rn-skip')) await page.click('#rn-skip');
   t = await txt('#panel');
   check(/✗ Nobody turned away/.test(t) && /turned away/.test(t) && !!(await page.$('#rn-again')), 'all at once fails the slate, with the gate\'s marks, and offers another plan');
-  check(/red mark on the gate/.test(t), 'the first turned-away resident is taught by one line');
+  check(/Red mark on the gate/.test(t), 'the first turned-away resident is taught by one line');
   await noHScroll('inspect'); await shot('inspect-fail');
   await page.click('#rn-again');
   await setPlan({ policy: 'rollingBatch', batch: 1 });

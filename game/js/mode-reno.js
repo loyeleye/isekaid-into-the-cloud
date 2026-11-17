@@ -34,7 +34,9 @@
   // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
   const bubble = (who, line) => `<p class="rs-say" data-vo="${esc(who + '|' + line)}"><b>${esc(who === 'seymour' ? 'Seymour' : NAMES[who] || who)}:</b> ${esc(line)}</p>`;
   // Seymour's line between the Shrine Bridge's two runs, by the kind of crack in the second (a job's crack: test, crowd).
-  const AGAIN = { test: 'Again. This time the new shrine has a crack a test can find.', load: 'Again. This time the new shrine has a crack only a crowd finds.', none: 'Again. I check everything twice.' };
+  const AGAIN = { test: 'Again! This time the new shrine has a crack. The kind a test can catch, if anyone bothers to test.', load: 'Again! This time the new shrine has a crack only a crowd finds. I have looked. For hours.', none: 'Again! I check everything twice. Three times on Tuesdays. ...Twice. The rule is twice.' };
+  // Seymour is the Quarter's hall monitor: strict to a fault, and now and then he hears himself and reins it in.
+  const SEY = { clean: 'HALT! Clipboard. Both runs held. Every door, every lamp, every... fine. It stands. Signed.', scaf: 'The scaffolding stays up. I sign for nothing I have not seen hold. Twice. In ink.', notyet: 'Stop right there! That is not what the slate says. Read the slate. Slowly. Out loud, if you must.', nosign: 'Three plans. Zero signatures. The scaffolding goes up anyway, and you still owe me the permit question. No exceptions.' };
   const say = (who, line) => `<p class="rn-say" data-vo="${esc(who + '|' + line)}">${head(who)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   // A screen with the living street (js/reno-street.js) puts the street behind everything, filling the screen, and the
   // text floats over it in boxes (Ladi, Nov 16: boxes around the scene take away the real-world feel).
@@ -44,15 +46,15 @@
 
   // ---- One line the first time each thing happens (L9) ----
   const TEACH = {
-    turned: ['seymour', 'A red mark on the gate. Someone came home and every door was shut. I counted them. Twice.'],
-    soot: ['seymour', 'Soot. That resident walked into the cracked beam. In my second run, the beam is always cracked. Plan for it.'],
-    straggler: ['seymour', 'Some residents still had the old map. Directions take a while to reach everybody, so keep the old street up until they do.'],
-    rented: ['seymour', 'Rented lots cost lumber. The slate says how much you may spend.'],
-    mixed: ['seymour', 'For a while, some residents were in old rooms and some in new ones. Both at once.'],
-    alarm: ['seymour', 'The bell rang and the signpost swung back by itself. That is what an alarm on a deployment is for.'],
-    pre: ['seymour', 'The test walker crossed first, found the crack, and nobody else set foot on it.'],
-    stuck: ['seymour', 'Nobody was watching for errors, so the signpost kept pointing at the crack.'],
-    refused: ['seymour', 'That plan can\'t be built at all. The reason is on the scroll in red. It costs you nothing.']
+    turned: ['seymour', 'Red mark on the gate. A resident came home to shut doors. I counted every door. Twice. Then the hinges. ...The hinges were fine. Focus, Seymour.'],
+    soot: ['seymour', 'Soot! That resident walked straight into the cracked beam. On my second run, the beam is always cracked. Always. Plan for it.'],
+    straggler: ['seymour', 'Some residents still had the old map. Directions take a while to reach everybody, so the old street stays up until they do. I will be timing it.'],
+    rented: ['seymour', 'Rented lots cost lumber. The slate says how much you may spend. Not one plank over. I have counted the planks. Recreationally.'],
+    mixed: ['seymour', 'For a while, some residents were in old rooms and some in new ones. Both at once. Highly irregular! ...No. Completely expected. Carry on.'],
+    alarm: ['seymour', 'The bell rang and the signpost swung back on its own. That is what an alarm on a deployment is for. Glorious. ...Ahem. Noted.'],
+    pre: ['seymour', 'The test walker crossed first, found the crack, and nobody else set foot on it. Textbook. I may frame this. ...I won\'t. But I may.'],
+    stuck: ['seymour', 'Nobody was watching for errors, so the signpost kept pointing at the crack. Who was on watch? ...Nobody. That is the problem.'],
+    refused: ['seymour', 'Denied at the door! The reason is on the scroll, in red. It costs you nothing. I simply enjoy saying denied.']
   };
   function teachLines(s, events) {
     const k = keep(); k.taught = k.taught || {};
@@ -300,7 +302,7 @@
   // A cutscene's next beat: after ms, and then not while a line is still being spoken (up to 6 seconds more), so Kai's
   // and Seymour's voiced lines aren't cut off by the next one. With the sound off, the beats keep their own pace.
   const later = (fn, ms) => setTimeout(function hold(waited) {
-    if (SD.audio && SD.audio.speaking && SD.audio.speaking() && (waited || 0) < 6000) return setTimeout(hold, 150, (waited || 0) + 150);
+    if (SD.audio && SD.audio.speaking && SD.audio.speaking() && (waited || 0) < 12000) return setTimeout(hold, 150, (waited || 0) + 150);
     fn();
   }, ms, 0);
 
@@ -342,7 +344,7 @@
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
         ${teachLines(s, ev)}
-        ${pass ? say('seymour', DR.SEYMOUR.clean) : last ? say('seymour', 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.') : say(job.client, CL(job.client).wrong || 'Not like that.')}
+        ${pass ? say('seymour', SEY.clean) : last ? say('seymour', SEY.nosign) : say(job.client, CL(job.client).wrong || 'Not like that.')}
         <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
       </div>
       <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">Skip to the end of the runs</button></div>`, 'SEYMOUR\'S INSPECTION');
@@ -398,7 +400,7 @@
     const planNow = j.plans[j.plans.length - 1].plan;
     const ev = events(job, res, planNow);
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
       <div class="rn-bleed rn-cut">${RS.scene({ tick: res.good.ticks[0], seymour: 'proud', kai: 'neutral', shot: 'wide', label: 'Seymour\'s first run, a sound release, playing out on the street',
@@ -485,7 +487,7 @@
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody turned away';
           ui('.rs-tk').textContent = `tick ${res.bad.ticks[0].t}`;
           ui('.rs-ticks').innerHTML = res.bad.ticks.map((x, k) => `<i class="${k ? '' : 'on'}"></i>`).join('');
-          ui('.rs-mid').innerHTML = bubble('seymour', 'Again. This time the beam is cracked.');
+          ui('.rs-mid').innerHTML = bubble('seymour', 'Again! Same street, same plan. Only this time the beam is cracked. Do not look at me like that. Procedure.');
           said = {};
           timer = later(step, 1700);
         }, 900);
@@ -504,7 +506,7 @@
     const RS = SD.renoStreet, j = s.jobs[s.at], left = R.PLANS - j.plans.length;
     const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan, g = res.good;
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
       <div class="rn-bleed rn-cut">${RS.scene({ stack: job.stack, plan: planNow, res: g.res, upto: 0, seymour: 'inspect', kai: 'neutral', shot: 'wide', label: 'The teardown playing out in the Office yard',
         ui: `<div class="rs-row"><span class="rs-chip">The teardown</span><span class="rs-chip rs-lumber">0 lumber a night afterwards</span></div><div class="rs-row rs-mid"></div><div></div>` })}</div>
@@ -559,7 +561,7 @@
     const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan;
     const ev = events(job, res, planNow);
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const crackName = !job.crack ? 'the same sound release' : job.crack === 'test' ? 'a crack a test can find' : 'a crack only a crowd finds';
     const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
     const base = { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!planNow.alarm, pre: !!planNow.pre, post: !!planNow.post };
@@ -710,7 +712,7 @@
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
   const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'permit-office', focus: PERMIT_X, close: pose, kai: face, ui,
     label: 'The permit office: Sir Seymour Backups at his desk, Kai waiting for the verdict' });
-  const PERMIT_ASK = 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.';
+  const PERMIT_ASK = 'Before I sign anything: one question on what you just did. Say how sure you are. I will know. I always know. ...I will check.';
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
@@ -823,7 +825,7 @@
     const line = stands ? c.right : d && !d.ok && d.conf === 2 ? c.sure : c.wrong;
     // Still in the permit office the question was asked in: Seymour stamps it or waves it off, and says so (playtest,
     // Nov 17: a plain blueprint page here dropped the world between the permit and the next job).
-    const sey = stands ? DR.SEYMOUR.clean : DR.SEYMOUR.scaf;
+    const sey = stands ? SEY.clean : SEY.scaf;
     const office = SD.renoStreet ? `<div class="rn-bleed">${permitScene(stands ? 'stamp' : 'disapprove', stands ? 'happy' : 'worried',
       `<div class="rs-row"><span></span>${bubble('seymour', sey)}</div><div></div>`)}</div>` : '';
     const b = panel(`${office}<div class="verdict-row"><div class="verdict ${stands ? 'ok' : 'bad'}">${stands ? '🏛 IT STANDS' : '🚧 SCAFFOLDING'}</div>${d ? `<span class="chip">${esc(M.CONF[d.conf])}</span><span class="chip">${M.sgn(d.pts)} points</span>` : ''}</div>

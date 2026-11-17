@@ -3,13 +3,17 @@
 usage: reno_vo.py [KEY ...]     record the lines (all, or the keys named, e.g. seymour-mg-reno-permit) with Gemini TTS (needs GEMINI_API_KEY)
 
 The text is read from js/vo-modes.js (every line mapped to a *-mg-reno-* file), so the recording always matches the
-screen. Each speaker keeps the voice he has everywhere else in the game: Sir Seymour (Orus on
+screen. Each speaker keeps the voice he has everywhere else in the game (Seymour read as a strict hall monitor, see STYLE): Sir Seymour (Orus on
 gemini-2.5-flash-preview-tts) and Kai (Alnilam on gemini-2.5-pro-preview-tts). Each take is transcribed with Gemini and
 retaken if it says more than the line, then trimmed and loudness-matched like tools/ic_live_vo.py.
 """
 import base64, io, json, os, re, subprocess, sys, tempfile, urllib.request, wave
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VOICES = {'seymour': ('gemini-2.5-flash-preview-tts', 'Orus'), 'kai': ('gemini-2.5-pro-preview-tts', 'Alnilam')}
+# How each speaker delivers his lines (the TTS models take a spoken-style direction ahead of the text).
+STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-the-book night security guard: clipped, stern and officious, '
+                    'barking the exclamations. Where the line trails off with an ellipsis, pause, then say the rest more quietly, '
+                    'a little embarrassed, reining himself in. Say only these words: '}
 API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'
 
 
@@ -42,10 +46,11 @@ def heard(pcm, text):
 
 def say(who, text, dst):
     model, voice = VOICES[who]
-    body = {'contents': [{'parts': [{'text': text}]}],
+    body = {'contents': [{'parts': [{'text': STYLE.get(who, '') + text}]}],
             'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': voice}}}}}
     for tries in range(4):
-        pcm = base64.b64decode(post(model, body)['candidates'][0]['content']['parts'][0]['inlineData']['data'])
+        try: pcm = base64.b64decode(post(model, body)['candidates'][0]['content']['parts'][0]['inlineData']['data'])
+        except (KeyError, IndexError): print('  retake: no audio came back', flush=True); continue
         ok, got = heard(pcm, text)
         if ok: break
         print('  retake: heard ' + got[:160], flush=True)
