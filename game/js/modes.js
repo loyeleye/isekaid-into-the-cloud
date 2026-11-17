@@ -65,6 +65,13 @@
     if (SD.today && SD.today.render) SD.today.render();
   };
   M.list = () => modes.slice();
+  // Which DVA-C02 domains a game mostly asks about (Ladi, Nov 17: shown under each game's title): a list of domain
+  // numbers, or 0 for all four. '' on another exam, whose domains differ. Measured from each mode's question picks.
+  const DOM_SHORT = ['Development', 'Security', 'Deployment', 'Troubleshooting'];
+  M.domainLine = list => {
+    if (!SD.exam || SD.exam.track() !== 'DVA') return '';
+    return !list ? 'All 4 exam domains' : list.map(n => DOM_SHORT[n - 1]).join(' · ');
+  };
   M.get = id => modes.find(m => m.id === id) || null;
   const store = () => (sv().modes = sv().modes || { seen: {}, cal: M.newTally() });
 
