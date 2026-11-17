@@ -291,18 +291,20 @@
     out += shadow(BR.sign.x, BR.sign.y, sW * 0.5) + `<span class="rs-sign${swing}" style="left:${px(sx)};top:${px(sy)};width:${px(sW)};height:${px(sH)}">`
       + `<img class="rs-sp" src="${IMG('bridge-signpost')}" alt="the signpost: the live alias, ${100 - pct}% to the old shrine and ${pct}% to the new" draggable="false" style="left:0;top:0;width:100%;height:100%">`
       + `<b class="rs-arm l${o.first ? ' off' : ''}" style="left:0;top:26%;width:46%;height:9%">${o.first ? '' : (100 - pct) + '%'}</b>`
-      + `<b class="rs-arm r${pct ? ' on' : ''}" style="left:54%;top:38.5%;width:45%;height:10.5%">${pct}%</b></span>`;
+      + `<b class="rs-arm r${pct ? ' on' : ''}${o.tap && o.ghost && pct === 100 ? ' rs-armbig' : ''}" style="left:54%;top:38.5%;width:45%;height:10.5%">${pct}%</b></span>`;
     // The alarm bell: set up or not (a pale blueprint while planning, to tap), and ringing on a rollback.
-    const bH = bph(BR.bell.y) * 1.5;
+    const bH = bph(BR.bell.y) * 1.5, planning = !!(o.tap && o.ghost);
     if (o.alarm || o.tap) out += shadow(BR.bell.x, BR.bell.y, bH * 0.3) + bstand('bridge-bell', bH, BR.bell.x, BR.bell.y,
       { cls: (o.alarm ? '' : 'rs-ghost rs-off') + (o.rang ? ' rs-ring' : ''), alt: o.alarm ? (o.rang ? 'the alarm bell, ringing' : 'the alarm bell (a CloudWatch alarm)') : 'no alarm bell yet' });
-    if (o.tap) out += `<button class="rs-hb" data-flip="alarm" aria-pressed="${!!o.alarm}" aria-label="The alarm bell: ${o.alarm ? 'take it down' : 'put it up'}" style="left:${px(BR.bell.x - bH * 0.3)};top:${px(BR.bell.y - bH)};width:${px(bH * 0.6)};height:${px(bH)}"></button>`;
+    if (o.tap) out += `<button class="rs-hb" data-flip="alarm"${planning ? ' data-drop="bell"' : ''} aria-pressed="${!!o.alarm}" aria-label="${planning ? (o.alarm ? 'The alarm bell (Alarms: ErrorsAlarm): take it down' : 'The bell post: drop the alarm bell here (Alarms), or tap to hang it') : 'The alarm bell: ' + (o.alarm ? 'take it down' : 'put it up')}" style="left:${px(BR.bell.x - bH * 0.3)};top:${px(BR.bell.y - bH)};width:${px(bH * 0.6)};height:${px(bH)}"></button>`;
     // The clockwork test walker: waits by the signpost while planning (a hook), walks to the new shrine on its turn.
     const tH = bph(BR.sign.y) * 0.55;
     const hook = o.pre || o.post;
     if (o.note === 'pre' || o.note === 'post') {
       const t = { x: (BR.sign.x + BR.nw.x) / 2 + 40, y: (BR.sign.y + BR.nw.y) / 2 };
       out += bstand('bridge-tester', bph(t.y) * 0.55, t.x, t.y, { cls: 'rs-tester', alt: o.note === 'pre' ? 'the test walker crossing first (the pre-traffic hook)' : 'the test walker checking (the post-traffic hook)', style: 'transform:scaleX(-1);' });
+    } else if (planning) {
+      out += bridgePlan(o, { sW, sH, bH, tH });
     } else if (o.ghost && (hook || o.tap)) {
       out += bstand('bridge-tester', tH, BR.sign.x - sW * 0.75, BR.sign.y + 6, { cls: hook ? '' : 'rs-ghost rs-off', alt: hook ? 'the test walker, waiting (a traffic hook)' : 'no test walker yet' });
       if (o.tap) out += `<button class="rs-hb" data-flip="pre" aria-pressed="${!!o.pre}" aria-label="The test walker: ${o.pre ? 'no pre-traffic test' : 'test before any traffic (pre-traffic hook)'}" style="left:${px(BR.sign.x - sW * 0.75 - tH * 0.4)};top:${px(BR.sign.y + 6 - tH)};width:${px(tH * 0.8)};height:${px(tH)}"></button>`;
@@ -334,7 +336,76 @@
     }
     // Seymour watches from the far bank, beside the path.
     if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups' }); }
+    if (planning) out += bridgeTracks(o);
     return { html: out, width: W, kind: 'bridge', stops: [BR.sign.x, BR.old.x, BR.nw.x, BR.bell.x - 80] };
+  }
+  // ---- Planning the bridge by hand (Ladi, Nov 17: each gesture mirrors how CodeDeploy does it) ----
+  // Places on the far bank for the tray's pieces (js/reno-drag.js): the test walker before the signpost is the
+  // PreTraffic hook (it runs while 0% has shifted), the one past it by the new shrine is PostTraffic (it runs once 100%
+  // has shifted); the version seal on the new shrine is AutoPublishAlias (without it the alias stays on $LATEST); the
+  // bell on its post is the CloudWatch alarm. Each place is a button too: a tap takes a placed piece off (or puts it up).
+  // Every plaque names the SAM property the piece writes.
+  // A phone's camera shows only about 370 world px around the signpost (x 815..1185) above the boxes, so the near places
+  // and the dial fit there; a wide screen shows the whole bank and draws the plaques and the dial larger (CSS).
+  const BRP = { pre: BR.sign.x - 120, post: BR.sign.x + 120, feet: BR.sign.y + 6, plq: 346, seal: { x: BR.nw.x, y: 226, h: 100 } };
+  const brPlq = (x, y, w, title, sub, on, cls) => `<span class="rs-brplq${on ? ' on' : ''}${cls ? ' ' + cls : ''}" style="left:${px(x - w / 2)};top:${px(y)};width:${px(w)}"><b>${esc(title)}</b><i>${esc(sub)}</i></span>`;
+  function bridgePlan(o, m) {
+    const pl = o.plan || {};
+    let out = '';
+    [['pre', BRP.pre, 'PreTraffic', 'before any shift', 'tests the new shrine before a single walker is sent to it'],
+      ['post', BRP.post, 'PostTraffic', 'after 100% shifted', 'tests the new shrine once every walker goes there']].forEach(([k, x, title, sub, says]) => {
+      const on = !!o[k], h = m.tH;
+      out += bstand('bridge-tester', h, x, BRP.feet, { cls: on ? 'rs-brpiece' : 'rs-ghost rs-off', alt: on ? `the test walker, ${title} hook: it ${says}` : `no ${title} test walker yet`, style: 'transform:scaleX(-1);' });
+      out += brPlq(x, BRP.plq, 124, title, sub, on, 'rs-brhook');
+      out += `<button class="rs-hb rs-brdrop" data-flip="${k}" data-drop="${k}" aria-pressed="${on}" aria-label="${on ? `The ${title} test walker (it ${says}): take it off` : `${title}: drop the test walker here (it ${says}), or tap`}" style="left:${px(x - 62)};top:${px(BRP.plq)};width:124px;height:${px(BRP.feet - BRP.plq + 4)}"></button>`;
+    });
+    // The version seal on the new shrine: AutoPublishAlias publishes a version and moves the live alias onto it.
+    const sl = BRP.seal, sw = sl.h * 176 / 240, pub = !!pl.publish;
+    out += `<img class="rs-sp ${pub ? 'rs-brpiece rs-seal' : 'rs-ghost rs-off'}" src="${IMG('yard-seal')}" alt="${pub ? 'the version seal on the new shrine: AutoPublishAlias publishes it as a version for the live alias' : 'no version seal: the alias stays on $LATEST'}" draggable="false" style="left:${px(sl.x - sw / 2)};top:${px(sl.y)};width:${px(sw)};height:${px(sl.h)}">`;
+    out += brPlq(sl.x, sl.y - 54, 190, 'AutoPublishAlias', pub ? `live → v${o.first ? 1 : 2}` : 'none: $LATEST', pub);
+    out += `<button class="rs-hb rs-brdrop" data-flip="publish" data-drop="shrine" aria-pressed="${pub}" aria-label="${pub ? 'The version seal on the new shrine (AutoPublishAlias: live): take it off' : 'The new shrine: drop the version seal here (AutoPublishAlias: publish a version for the live alias), or tap'}" style="left:${px(sl.x - 110)};top:${px(sl.y - 58)};width:220px;height:${px(BR.nw.y - sl.y + 50)}"></button>`;
+    out += brPlq(BR.bell.x - 70, BR.bell.y + 8, 150, 'Alarms', o.alarm ? 'ErrorsAlarm' : 'none yet', !!o.alarm);
+    return out;
+  }
+  // The dial under the signpost: two tracks. The first sets its first swing: all at once (100%), canary (10%, then the
+  // rest after a wait), linear (10% more each step); its handle moves the arms' weights as it slides. The second, an
+  // hourglass, is the minutes: canary's wait or linear's interval, only the predefined ones. Hidden for all at once.
+  // On a small phone Kai's frame sits at the dial's lower left, so the minutes run from the middle and the hourglass is on the right.
+  const DIAL = { x: BR.sign.x - 180, y: BR.sign.y + 2, w: 360, cfg: { x0: 60, step: 120, y: 22, h: 46, cell: 116 }, min: { x0: 100, step: 64, y: 74, h: 34, cell: 60 } };
+  const CFG_STOPS = [['all', 'All at once', '100% in one go'], ['canary', 'Canary', '10%, wait, 90%'], ['linear', 'Linear', '+10% a step']];
+  function bridgeTracks(o) {
+    const pl = o.plan || {}, cfg = pl.cfg || 'all', t = DIAL.cfg;
+    const cell = (i, n, cw, inner, on) => `<span class="rs-brstop${on ? ' on' : ''}" data-stop="${i}" style="left:calc(${n > 1 ? i / (n - 1) * 100 : 50}% - ${cw / 2}px);width:${cw}px">${inner}</span>`;
+    let out = `<div class="rs-brdial" style="left:${px(DIAL.x)};top:${px(DIAL.y)};width:${px(DIAL.w)};height:${px(DIAL.min.y + DIAL.min.h)}">`;
+    out += `<span class="rs-brcap" style="left:0;top:0;width:100%">The signpost's first swing</span>`;
+    out += `<div class="rd-slide rs-brtrack" data-slide="cfg" data-stops="${CFG_STOPS.map(c => c[0]).join(',')}" data-val="${cfg}" data-say="${CFG_STOPS.map(c => c[1] + ': ' + c[2]).join('|')}" style="left:${px(t.x0)};top:${px(t.y)};width:${px(t.step * 2)};height:${px(t.h)}">`
+      + `<i class="rs-brrail" style="left:${px(-t.cell / 2 - 2)};right:${px(-t.cell / 2 - 2)}"></i>`
+      + `<span class="rd-knob rs-brknob" aria-label="The signpost's first swing (deployment type)" style="width:${px(t.cell)}"></span>`
+      + CFG_STOPS.map(([id, name, sub], i) => cell(i, 3, t.cell, `<b>${esc(name)}</b><i>${esc(sub)}</i>`, id === cfg)).join('') + '</div>';
+    if (cfg === 'canary' || cfg === 'linear') {
+      const m = DIAL.min, key = cfg === 'canary' ? 'wait' : 'every', AD = SD.awsDeploy || {}, stops = (cfg === 'canary' ? AD.CANARY : AD.LINEAR) || (cfg === 'canary' ? [5, 10, 15, 30] : [1, 2, 3, 10]);
+      const val = stops.includes(+pl[key]) ? +pl[key] : stops[0], n = stops.length;
+      out += `<span class="rs-brglass" aria-hidden="true" style="left:${px(m.x0 + m.step * (n - 1) + m.cell / 2 + 4)};top:${px(m.y)};right:0;height:${px(m.h)}"><i></i><b>${cfg === 'canary' ? 'wait' : 'every'}</b></span>`;
+      out += `<div class="rd-slide rs-brtrack rs-brmin" data-slide="${key}" data-stops="${stops.join(',')}" data-val="${val}" data-say="${stops.map(v => (cfg === 'canary' ? `wait ${v} minutes, then the other 90%` : `10% more every ${v} minute${v === 1 ? '' : 's'}`)).join('|')}" style="left:${px(m.x0)};top:${px(m.y)};width:${px(m.step * (n - 1))};height:${px(m.h)}">`
+        + `<i class="rs-brrail" style="left:${px(-m.cell / 2 - 2)};right:${px(-m.cell / 2 - 2)}"></i>`
+        + `<span class="rd-knob rs-brknob" aria-label="${cfg === 'canary' ? 'The hourglass: minutes before the other 90%' : 'The hourglass: minutes between steps'}" style="width:${px(m.cell)}"></span>`
+        + stops.map((v, i) => cell(i, n, m.cell, `<b>${v} min</b>`, v === val)).join('') + '</div>';
+    }
+    return out + '</div>';
+  }
+  // While the swing's handle slides, the signpost's arms show the weights it would set: 100% in one go, or 10% first.
+  function armLive(el) {
+    const tr = el.querySelector('[data-slide="cfg"]'), knob = tr && tr.querySelector('.rd-knob');
+    if (!knob || knob.rsArm) return;
+    knob.rsArm = true;
+    const r = el.querySelector('.rs-arm.r'), l = el.querySelector('.rs-arm.l'), stops = tr.dataset.stops.split(',');
+    const show = () => {
+      const f = parseFloat(knob.style.left) / 100; if (isNaN(f)) return;
+      const pct = stops[Math.round(f * (stops.length - 1))] === 'all' ? 100 : 10;
+      if (r) { r.textContent = pct + '%'; r.classList.toggle('rs-armbig', pct === 100); }
+      if (l && !l.classList.contains('off')) l.textContent = (100 - pct) + '%';
+    };
+    new MutationObserver(show).observe(knob, { attributes: true, attributeFilter: ['style'] });
   }
 
   // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
@@ -513,7 +584,7 @@
 
   function mount(root) {
     root.querySelectorAll('.rs').forEach(el => {
-      frame(el); kaiLife(el);
+      frame(el); kaiLife(el); if (el.dataset.kind === 'bridge') armLive(el);
       if (window.ResizeObserver && !el.rsRO) { el.rsRO = new ResizeObserver(() => frame(el)); el.rsRO.observe(el); }
       const k = el.querySelector('.rs-kai'); if (k && k.rsTalk && el.dataset.talk !== 'done' && el.querySelector('.rs-say')) { el.dataset.talk = 'done'; k.rsTalk(2000); }
     });
@@ -663,6 +734,38 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
+    /* The Shrine Bridge, planned by hand: plaques naming each SAM property, the swing's track and the hourglass.
+       World px: a phone's camera draws them about 1:1, a wide screen at about 0.7, so there they're drawn larger. */
+    .rs-brplq { position: absolute; display: flex; flex-direction: column; align-items: center; padding: 3px 4px; border-radius: 9px; text-align: center; pointer-events: none; z-index: 1;
+      background: rgba(31,78,140,.82); border: 2px dashed #bfe0ff; color: #e6f2ff; transform-origin: 50% 0; }
+    .rs-brplq b { font: 800 19px/1.1 var(--f-head, sans-serif); white-space: nowrap; } .rs-brplq i { font: 700 13px/1.15 sans-serif; font-style: normal; white-space: nowrap; }
+    .rs-brplq.on { background: linear-gradient(#ffe58a, #e0a030); border: 2px solid #5a3a12; color: #3a2a12; }
+    .rs-wide .rs-brplq { transform: scale(1.3); }
+    .rs-wide .rs-brplq.rs-brhook { transform: scale(1.2); }
+    .rs-brpiece { filter: drop-shadow(0 0 10px rgba(255,212,90,.95)); }
+    .rs-brdrop { z-index: 1; }
+    .rs-brdrop:hover { background: rgba(255,212,90,.12); }
+    .rs-brdial { position: absolute; z-index: 2; transform-origin: 50% 0; user-select: none; -webkit-user-select: none; }
+    .rs-wide .rs-brdial { transform: scale(1.5); }
+    .rs-brdial .rs-brtrack { position: absolute; }
+    @media (max-height: 720px) { .rs:not(.rs-wide) .rs-brdial { transform: translateY(-14px) scale(.88); } }   /* a small phone: clear of Kai's frame and the tray */
+    .rs-brcap { position: absolute; text-align: center; font: 800 19px/1 var(--f-head, sans-serif); color: #ffe9b8; text-shadow: 0 2px 0 #2a160a, 0 0 6px #2a160a, 0 0 10px #2a160a; pointer-events: none; }
+    .rs-brrail { position: absolute; top: 0; bottom: 0; border-radius: 14px; background: linear-gradient(#6b4423, #4a2c14); border: 3px solid #2a160a; box-shadow: 0 5px 10px rgba(0,0,0,.45); }
+    .rs-brknob { top: -4px; bottom: -4px; transform: translateX(-50%); border-radius: 13px; background: linear-gradient(#fff3c8, #ffd45a); border: 3px solid #8a5a12; box-shadow: 0 0 14px rgba(255,212,90,.85); }
+    .rs-brstop { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ffe9b8; z-index: 1; text-align: center; text-shadow: 0 2px 0 #2a160a; }
+    .rs-brstop b { font: 800 18px/1.05 var(--f-head, sans-serif); white-space: nowrap; } .rs-brstop i { font: 700 13px/1.1 sans-serif; font-style: normal; white-space: nowrap; }
+    .rs-brmin .rs-brstop b { font-size: 17px; }
+    .rs-brstop.on { color: #3a2410; text-shadow: none; }
+    .rs-brtrack.rd-live .rs-brstop.on { color: #ffe9b8; text-shadow: 0 2px 0 #2a160a; }
+    .rs-brknob:focus-visible { outline: 4px solid #fff; outline-offset: 2px; }
+    .rs-brglass { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 10px; background: rgba(42,22,10,.88); border: 2px solid #2a160a; color: #ffe9b8; pointer-events: none; }
+    .rs-brglass i { width: 14px; height: 17px; background: #ffd45a; clip-path: polygon(0 0, 100% 0, 56% 50%, 100% 100%, 0 100%, 44% 50%); }
+    .rs-brglass b { font: 800 11px/1 var(--f-head, sans-serif); }
+    .rs-arm.rs-armbig { font-size: 38px; color: #fff3a8; }
+    .rs:not(.rs-wide) .rs-brrow { padding-left: 98px; }   /* clear of Kai's frame even when a written line floats in after it */
+    .rs:not(.rs-wide) .rs-brrow .rd-tray { flex-wrap: nowrap; gap: 6px; }
+    .rs:not(.rs-wide) .rs-brrow .rd-tok { flex-direction: column; gap: 1px; min-height: 0; padding: 3px 6px 4px; font-size: 11px; }
+    .rs:not(.rs-wide) .rs-brrow .rd-tok img { width: 30px; height: 30px; }
     .rs-sey.rs-beat { animation: rs-beat .32s ease-out; transform-origin: 50% 100%; }
     @keyframes rs-beat { 0% { transform: translateY(6px) scaleY(.98); } 60% { transform: translateY(-4px); } 100% { transform: none; } }
     /* The Wall: parchment posters pinned on the plaster, the game's words inked on the top band. */

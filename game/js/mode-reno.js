@@ -170,7 +170,7 @@
       L.push(p.publish ? [2, 'AutoPublishAlias: live', ['publish'], 'AutoPublishAlias'] : [2, '# no AutoPublishAlias: the alias stays on $LATEST', ['publish']]);
       L.push([2, 'DeploymentPreference:'], [3, `Type: ${AD.cfgName(p)}`, ['cfg', 'wait', 'every'], AD.cfgName(p)]);
       if (p.alarm) L.push([3, 'Alarms: [ErrorsAlarm]', ['alarm']]);
-      if (p.pre || p.post) L.push([3, 'Hooks:', ['pre', 'post']]);
+      if (p.pre || p.post) L.push([3, 'Hooks:']);   // no keys: a hook placed floats its own line, not this one
       if (p.pre) L.push([4, 'PreTraffic: PreTrafficTest', ['pre']]);
       if (p.post) L.push([4, 'PostTraffic: PostTrafficTest', ['post']]);
       return { file: 'template.yaml (SAM)', lines: L };
@@ -243,6 +243,14 @@
   const CFN_TAGS = [['Delete', 'yard-rubble', 'Delete: the resource and its data go'], ['Retain', 'yard-seal', 'Retain: it stays, running, outside the stack'], ['Snapshot', 'yard-jar', 'Snapshot: a final snapshot is kept, then it goes']];
   // Pieces dropped on a district's scene other than the yard's tags: (plan, piece, place, redraw) per district.
   const DROP = {};
+  // The bridge's pieces: each sets the plan key whose SAM line it writes, and only on its own place.
+  const LAM_TOKS = [['bell', 'bridge-bell', 'Alarm bell', 'A CloudWatch alarm (Alarms): hang it on the bell post'],
+    ['tester', 'bridge-tester', 'Test walker', 'A test function (Hooks): before the signpost is PreTraffic, by the new shrine is PostTraffic'],
+    ['seal', 'yard-seal', 'Version seal', 'AutoPublishAlias: put it on the new shrine to publish a version for the live alias']];
+  DROP.lam = (p, tok, at, redraw) => {
+    const k = { 'bell:bell': 'alarm', 'tester:pre': 'pre', 'tester:post': 'post', 'seal:shrine': 'publish' }[tok + ':' + at];
+    if (k) { p[k] = true; redraw(k); }
+  };
   function planScreen(s, fresh) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], p = planOf(s, job);
     const left = R.PLANS - j.plans.length;
@@ -268,12 +276,14 @@
     } else if (job.d === 'lam') {
       const w0 = p.cfg === 'all' ? 1 : 0.1;
       const info = `${plural(job.fn.demand, 'walker')} a minute cross the bridge${job.fn.first ? ' · this function has never shipped a version' : ' · the live alias points at the current version'}`;
-      scene = SD.renoStreet ? SD.renoStreet.scene({ bridge: true, w: w0, demand: job.fn.demand, first: job.fn.first, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post, ghost: true, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
+      scene = SD.renoStreet ? SD.renoStreet.scene({ bridge: true, w: w0, demand: job.fn.demand, first: job.fn.first, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post, plan: p, ghost: true, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
         label: `The Shrine Bridge: ${info}. The signpost's first swing sends ${Math.round(w0 * 100)}% to the new shrine`,
         ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip rs-hidephone">${esc(info)}</span><span class="rs-chip plan">Blueprint: ${esc(AD.cfgName(p))}</span></span>${slateHtml(job)}</div>
-          <div class="rs-row"><span></span><span class="rs-chip">Tap the bell or the test walker to set them up</span></div>` })
+          <div class="rs-row rd-row rs-brrow"><span class="rs-chip rs-hidephone">Slide the signpost's swing · drag a piece onto the far bank · tap a placed piece to take it off</span><span class="rd-tray" aria-label="Pieces: drag one onto the far bank, or tap one and then its place">${LAM_TOKS.map(([v, img, name, say]) => `<button class="rd-tok" data-tok="${v}" title="${esc(say)}">${streetImg(img, '')}${name}</button>`).join('')}</span></div>` })
         : `<div class="rn-street rn-river"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">${esc(info)}</p>${bridgeRow(w0, 0, { alarm: p.alarm, ghost: true })}</div>`;
       cards = ['all', 'canary', 'linear'].map(id => bp('data-cfg', id, p.cfg === id, id === 'all' ? 'All at once' : id[0].toUpperCase() + id.slice(1), LAM_TEXT[id])).join('');
+      // On the scene the signpost's track is the blueprint; the cards join the plaques as the same choices in buttons.
+      if (SD.renoStreet) { knobs = `<div class="rn-cards">${cards}</div>`; cards = ''; }
       if (p.cfg === 'canary') knobs += seg('wait', AD.CANARY.map(m => [m, m + ' min']), p.wait, 'Wait before the other 90%');
       if (p.cfg === 'linear') knobs += seg('every', AD.LINEAR.map(m => [m, 'every ' + m]), p.every, 'Minutes between steps');
       knobs += `<p class="small rn-cfg">Deployment configuration: <b>${esc(AD.cfgName(p))}</b></p>`;
@@ -299,7 +309,7 @@
       ${slateBelow}
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
-      ${knobs ? (SD.renoStreet && (job.d === 'cfn' || job.d === 'eb')
+      ${knobs ? (SD.renoStreet
         ? `<details class="rn-plaques"${j.plaquesOpen ? ' open' : ''}><summary class="q-ctx">The same plaques as buttons</summary><div class="rn-knobs">${knobs}</div></details>`
         : `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>`) : ''}
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
