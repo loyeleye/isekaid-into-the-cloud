@@ -905,8 +905,9 @@
     }
     const match = q => RE[d].test(qText(q));
     const avoid = Array.from(used);
-    let r = M.pick({ match, n: 1, verifiedOnly: true, mix: 0, avoid, filter: isMulti });
-    if (!r.items.length) r = M.pick({ match, n: 1, verifiedOnly: true, mix: 0, avoid });
+    // Deployment questions only (Ladi, Nov 17: one game per exam domain), multiple-response first.
+    let r = M.pickDomain(3, { match, n: 1, verifiedOnly: true, mix: 0, avoid, filter: isMulti });
+    if (!r.items.length) r = M.pickDomain(3, { match, n: 1, verifiedOnly: true, mix: 0, avoid });
     return r.items[0] ? E().find(r.items[0].q) : null;
   }
   function verifiedTwin(q, avoid) {

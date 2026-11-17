@@ -333,7 +333,7 @@
     }
     const re = C[cardId] && C[cardId].q;
     const text = q => [q.q].concat(q.opts || []).join(' ');
-    const r = M.pick({ match: q => !!re && re.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    const r = M.pickDomain(1, { match: q => !!re && re.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
     const it = r.items[0];
     return it ? { q: E().find(it.q), why: 'card' } : null;
   }
