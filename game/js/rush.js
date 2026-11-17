@@ -1,4 +1,4 @@
-// The Rush (prototype), four claims: draws js/rush-core.js on a canvas over Ladi's Sogni room, and takes the player's hands.
+// The Rush (prototype), four claims: draws js/rush-core.js on a canvas over Ladi's Sogni cellar (the Slow Courier plays in a loading dock), and takes the player's hands.
 // The room is the screen: tickets slide down the painted chute, sit on Mira's stools, bounce back up on a 429,
 // splat into the puddle, and the tank on the wall fills. You drag tools off the toolbelt into the room while it runs.
 // Before each claim the player pins one of two Night Orders, twists that stack for the rest of the run. One of them
@@ -8,6 +8,7 @@
   const cv = document.getElementById('rush'), cx = cv.getContext('2d'), qEl = document.getElementById('q');
   const IMG = {}, SRC = {
     'room-wide': 'assets/img/rush/room-wide.webp', 'room-tall': 'assets/img/rush/room-tall.webp',
+    'dock-wide': 'assets/img/rush/dock-wide.webp', 'dock-tall': 'assets/img/rush/dock-tall.webp',
     desk: 'assets/img/rush/desk.webp', stool: 'assets/img/rush/stool.webp', bolted: 'assets/img/rush/stool-bolted.webp',
     rack: 'assets/img/rush/rack.webp', clerk: 'assets/img/rush/nightclerk.webp', tank: 'assets/img/rush/tank.webp',
     bin: 'assets/img/rush/bin.webp', bell: 'assets/img/rush/bell.webp', puddle: 'assets/img/rush/puddle.webp',
@@ -25,7 +26,7 @@
     lever: { x: 100, y: 430, r: 125, pivot: [95, 450], label: [118, 585] },
     clerk: { x: 360, y: 628, h: 190 }, puddle: { x: 520, y: 652 },
     rack: { x: 720, y: 630, h: 200 }, stools: { xs: [1080, 1030, 980, 930, 880, 830], y: 636, h: 72 },
-    desk: { x: 1215, y: 632, h: 180 }, tank: { x: 1190, y: 245, h: 230 }, bin: { x: 1272, y: 742, h: 104 },
+    desk: { x: 1215, y: 632, h: 180 }, tank: { x: 1190, y: 290, h: 230, feed: 140 }, bin: { x: 1272, y: 742, h: 104 },
     bell: { x: 606, y: 652, h: 64 }, tray: [462, 606], reports: [1250, 96],
     belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 400, y: 36, w: 600 }, fs: 1
   };
@@ -35,14 +36,18 @@
     lever: { x: 118, y: 660, r: 140, pivot: [120, 750], label: [118, 470] },
     clerk: { x: 108, y: 1048, h: 170 }, puddle: { x: 300, y: 1020 },
     rack: { x: 470, y: 1016, h: 176 }, stools: { xs: [706, 648, 590, 532, 474, 416], y: 1176, h: 66 },
-    desk: { x: 660, y: 1024, h: 160 }, tank: { x: 640, y: 560, h: 220 }, bin: { x: 104, y: 1222, h: 92 },
+    desk: { x: 660, y: 1024, h: 160 }, tank: { x: 700, y: 600, h: 170, side: 768 }, bin: { x: 104, y: 1222, h: 92 },
     bell: { x: 268, y: 1104, h: 60 }, tray: [206, 1168], reports: [690, 120],
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
+  // The loading dock (claim 4 on): the same floor, chute and lever, a new back wall with the alley behind the shutter.
+  const DOCK_WIDE = Object.assign({}, WIDE, { bg: 'dock-wide', tank: { x: 1150, y: 196, h: 190, feed: 0 } });
+  const DOCK_TALL = Object.assign({}, TALL, { bg: 'dock-tall', chute: [[660, 250], [525, 455]], foot: [400, 990], tank: { x: 330, y: 478, h: 150, feed: 214 } });
+  const DOCK = new Set(['slow']);
   let L = WIDE, scale = 1, ox = 0, oy = 0, dpr = 1;
 
   // ---- State ----
-  let S, fx, pops, drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT, letters, letterAnim, letterOpen, letterClock;
+  let S, fx, pops, drops = [], drag, sayQ, said, saying, stamp, endAt, last, flashT, leverT, coinPulse, ringT, letters, letterAnim, letterOpen, letterClock;
   // Carried across claims: a wrong answer tears an option off the next letter, wherever it arrives.
   const carry = { torn: false };
   // The run: the Night Orders pinned so far. The pick before the Rush takes them all down.
@@ -50,7 +55,7 @@
   const run = { orders: [], bank: 0 };
   function reset(seed, claim) {
     S = R.create(seed, claim || 'rush', run.orders, run.bank); ringT = 0; letters = run.orders.includes('letters') ? pickLetters(S.claim) : []; letterAnim = null; letterOpen = false; fx = []; pops = []; drag = null; sayQ = []; said = {}; saying = null; stamp = null; endAt = 0;
-    flashT = 0; leverT = 0; coinPulse = 0;
+    flashT = 0; leverT = 0; coinPulse = 0; resize();
     qEl.className = ''; qEl.innerHTML = '';
     if (S.claim === 'slow') say('intro', 'neutral', 'The Slow Courier. Heavy parcels take a while, and some never finish. The rack only hides a ticket for 3 seconds. Take longer and it\'s back up for someone else.', 9);
     else if (S.claim === 'double') say('intro', 'neutral', 'Nervous lot tonight. They send the same ticket twice. Do one twice and we pay out twice, and that comes out of the tank.', 9);
@@ -158,6 +163,13 @@
   }
 
   // ---- Images ----
+  function shade(im) {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop';
+    const gr = g.createLinearGradient(0, c.height * .45, 0, c.height);
+    gr.addColorStop(0, 'rgba(20,10,4,0)'); gr.addColorStop(1, 'rgba(20,10,4,.5)');
+    g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height); return c;
+  }
   function load() {
     return Promise.all(Object.keys(SRC).map(k => new Promise(res => {
       const im = new Image(); im.onload = () => { IMG[k] = im; res(); }; im.onerror = () => res(); im.src = SRC[k];
@@ -167,6 +179,8 @@
       const c = document.createElement('canvas'); c.width = e.width; c.height = e.height;
       const g = c.getContext('2d'); g.drawImage(e, 0, 0); g.globalCompositeOperation = 'source-atop';
       g.fillStyle = 'rgba(120, 40, 170, .62)'; g.fillRect(0, 0, c.width, c.height); IMG.envPoison = c;
+      // Floor props: the lantern light falls off toward the floor, so their feet sit in shade like the boards.
+      ['desk', 'rack', 'stool', 'bolted', 'bin', 'bell', 'clerk'].forEach(k => { if (IMG[k]) IMG[k] = shade(IMG[k]); });
       IMG.ledger = IMG.ledger || drawLedger();
       IMG.hourglass = IMG.hourglass || drawHourglass();
       IMG.stopwatch = IMG.stopwatch || drawStopwatch();
@@ -305,6 +319,7 @@
       case 'spill':
         popAt([L.puddle.x, L.puddle.y - 60], '-1', '#9cc8ff', 36);
         popAt([L.tank.x - 70, L.tank.y - L.tank.h * .2], '+1', '#9cc8ff', 28);
+        drops.push({ t: 0 });
         for (let i = 0; i < 8; i++) fx.push({ x: L.puddle.x, y: L.puddle.y - 4, vx: (Math.random() - .5) * 220, vy: -120 - Math.random() * 160, t: 0 });
         if (e.why === 'throttled') say('splat', 'tired', LINES.splat);
         if (e.why === 'twice') { popAt([L.desk.x - 60, L.desk.y - L.desk.h - 40], 'paid twice', '#ffd666', 30); say('twice', 'angry', LINES.twice); }
@@ -330,6 +345,7 @@
   }
   function tick(dt) {
     pops.forEach(p => p.t += dt); pops = pops.filter(p => p.t < 1.2);
+    drops.forEach(d => d.t += dt); drops = drops.filter(d => d.t < .7);
     fx.forEach(f => { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 600 * dt; }); fx = fx.filter(f => f.t < .8);
     flashT = Math.max(0, flashT - dt); coinPulse = Math.max(0, coinPulse - dt);
     if (leverT) leverT = Math.max(0, leverT - dt * 0.7);
@@ -355,8 +371,12 @@
     const ax = anchor === 'mb' ? -ww / 2 : -ww / 2, ay = anchor === 'mb' ? -hh : -hh / 2;
     cx.drawImage(im, ax, ay, ww, hh); cx.restore();
   }
+  // A soft pool under a prop with a darker core where its feet meet the floor, so it stands on the boards.
   function shadow(x, y, w) {
-    cx.save(); cx.fillStyle = 'rgba(0,0,0,.35)'; cx.beginPath(); cx.ellipse(x, y, w / 2, w * .09, 0, 0, Math.PI * 2); cx.fill(); cx.restore();
+    cx.save(); cx.translate(x, y); cx.scale(1, .16);
+    const g = cx.createRadialGradient(0, 0, 0, 0, 0, w * .62);
+    g.addColorStop(0, 'rgba(8,4,2,.62)'); g.addColorStop(.55, 'rgba(8,4,2,.4)'); g.addColorStop(1, 'rgba(8,4,2,0)');
+    cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, w * .62, 0, Math.PI * 2); cx.fill(); cx.restore();
   }
   function rrect(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); }
   function text(t, x, y, size, col, align, weight) {
@@ -499,7 +519,29 @@
   function drawTank() {
     const t = L.tank, im = IMG.tank; if (!im) return;
     const w = im.width * t.h / im.height, x0 = t.x - w / 2, y0 = t.y - t.h / 2;
+    // Its feed pipe: up from the cap into the room's pipe (or the ceiling), so the gauge is plumbed in.
+    if (t.feed != null) {
+      const px = x0 + w * .41, top = y0 + t.h * .03;
+      cx.save(); const pg = cx.createLinearGradient(px - 6, 0, px + 6, 0);
+      pg.addColorStop(0, '#6b4e1c'); pg.addColorStop(.45, '#d8b25a'); pg.addColorStop(1, '#5a3f14');
+      cx.fillStyle = pg; cx.fillRect(px - 6, t.feed, 12, top - t.feed + 4);
+      cx.fillStyle = '#8a6726'; [t.feed + 4, (t.feed + top) / 2].forEach(yy => { rrect(px - 9, yy - 4, 18, 8, 3); cx.fill(); });
+      cx.restore();
+    }
+    // Or out through the wall plate to the side wall.
+    if (t.side != null) {
+      const py = y0 + t.h * .8, px0 = x0 + w * .9;
+      cx.save(); const pg = cx.createLinearGradient(0, py - 6, 0, py + 6);
+      pg.addColorStop(0, '#6b4e1c'); pg.addColorStop(.45, '#d8b25a'); pg.addColorStop(1, '#5a3f14');
+      cx.fillStyle = pg; cx.fillRect(px0, py - 6, t.side - px0, 12);
+      cx.fillStyle = '#8a6726'; rrect(t.side - 20, py - 9, 8, 18, 3); cx.fill(); cx.restore();
+    }
     img('tank', t.x, t.y, t.h, 'mm');
+    // Lost requests running in: a drop rides the pipe down into the glass.
+    for (const d of drops) {
+      const px = x0 + w * .41, yy = lerp(Math.max(0, t.feed == null ? y0 - 40 : t.feed), y0 + t.h * .3, d.t / .7);
+      cx.save(); cx.fillStyle = 'rgba(120,180,255,.95)'; cx.beginPath(); cx.arc(px, yy, 7, 0, Math.PI * 2); cx.fill(); cx.restore();
+    }
     const lvl = Math.min(1, S.spill / S.cap);
     if (lvl) {
       const gx0 = x0 + w * .2, gx1 = x0 + w * .62, gy0 = y0 + t.h * .2, gy1 = y0 + t.h * .74, top = gy1 - (gy1 - gy0) * lvl;
@@ -826,7 +868,8 @@
     dpr = Math.min(2, devicePixelRatio || 1);
     const w = innerWidth, h = innerHeight;
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    L = qs.has('tall') || w < h * 0.85 ? TALL : WIDE;
+    const tall = qs.has('tall') || w < h * 0.85, dock = S && DOCK.has(S.claim);
+    L = dock ? (tall ? DOCK_TALL : DOCK_WIDE) : (tall ? TALL : WIDE);
     scale = Math.min(w / L.W, h / L.H); ox = (w - L.W * scale) / 2; oy = (h - L.H * scale) / 2;
   }
   addEventListener('resize', resize);
