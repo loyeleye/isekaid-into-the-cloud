@@ -140,7 +140,13 @@
     const bp = (attr, id, on, name, text) => `<button class="rn-card${on ? ' on' : ''}" ${attr}="${id}" aria-pressed="${on}">${on ? sprite('pin', 'rn-tack', '') : ''}${sprite('blueprint', 'rn-bpsp', '')}<b>${esc(name)}</b><span class="small">${esc(text)}</span></button>`;
     if (job.d === 'eb') {
       const st = job.street, g = ghostOf(job, p);
-      scene = streetRow(job, { houses: g.houses }, { ghost: g, slate: slateHtml(job), info: `${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}`, folk: st.demand ? residents({ served: Math.min(st.demand, 8) }) : '' });
+      const info = `${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}`;
+      const tap = p.policy === 'rolling' || p.policy === 'rollingBatch';
+      scene = SD.renoStreet ? SD.renoStreet.scene({ ghost: g, tap, seymour: 'proud', folk: st.demand, kai: 'neutral', shot: 'wide',
+        label: `Beanstalk Row: ${info}`,
+        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip rs-hidephone">${esc(info)}</span>${g.tag ? `<span class="rs-chip plan">Blueprint: ${esc(g.tag)}</span>` : ''}</span>${slateHtml(job)}</div>
+          <div class="rs-row"><span></span>${tap ? '<span class="rs-chip">Tap a house: that many per batch</span>' : ''}</div>` })
+        : streetRow(job, { houses: g.houses }, { ghost: g, slate: slateHtml(job), info, folk: st.demand ? residents({ served: Math.min(st.demand, 8) }) : '' });
       cards = job.hand.map(id => bp('data-pol', id, p.policy === id, AD.EB_NAME[id], POLICY_TEXT[id])).join('');
       if (p.policy === 'rolling' || p.policy === 'rollingBatch') knobs = seg('batch', [[1, '1 house'], [2, '2 houses'], [3, '3 houses']], p.batch, 'Batch size (fixed)') + seg('ignoreHC', [['false', 'Off'], ['true', 'On']], String(!!p.ignoreHC), 'Ignore health check');
       if (p.policy === 'split') knobs = seg('split', [[10, '10%'], [25, '25%'], [50, '50%']], p.split, 'Traffic split') + seg('evalT', [[2, '2 ticks'], [3, '3 ticks'], [4, '4 ticks']], p.evalT, 'Evaluation time');
@@ -161,15 +167,18 @@
       scene = `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
       knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
     }
+    const slateBelow = job.d === 'eb' && SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
     const refused = j.refused ? `<div class="rn-refused">${say(job.client, j.refused)}${j.teachRef || ''}</div>` : '';
     const b = panel(`<div class="rn-top">${head(job.client)}<div><p class="rn-title">${esc(job.title)}</p><p class="small">${esc(NAMES[job.client])} · ${esc(R.DISTRICTS[job.d].name)}</p></div></div>
       <p class="rn-scroll">“${esc(job.scroll)}”</p>
       <div class="rn-bleed">${scene}</div>
+      ${slateBelow}
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
       ${knobs ? `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
+    if (SD.renoStreet) SD.renoStreet.mount(b);
     const redraw = () => { j.refused = null; j.teachRef = ''; save(s); planScreen(s); };
     b.querySelectorAll('[data-pol]').forEach(el => el.onclick = () => { p.policy = el.dataset.pol; redraw(); });
     b.querySelectorAll('[data-cfg]').forEach(el => el.onclick = () => { p.cfg = el.dataset.cfg; redraw(); });
@@ -204,8 +213,8 @@
       g.tag = `batches of ${plural(bsz, 'house')}${g.extra ? ', one extra batch rented first' : ''}`;
     }
     if (p.policy === 'immutable') { g.lane = n; g.tag = 'a new set beside the old: one house first, then the rest'; }
-    if (p.policy === 'split') { g.lane = n; g.tag = `a new set takes ${p.split}% of residents for ${plural(p.evalT, 'tick')}`; }
-    if (p.policy === 'blueGreen') { g.lane = n; g.tag = 'a whole new street on its own address'; }
+    if (p.policy === 'split') { g.lane = n; g.bLane = true; g.tag = `a new set takes ${p.split}% of residents for ${plural(p.evalT, 'tick')}`; }
+    if (p.policy === 'blueGreen') { g.lane = n; g.bLane = true; g.tag = 'a whole new street on its own address'; }
     return g;
   }
   const ghostHouse = i => `<span class="rn-h rn-ghost">${sprite('house-new', '', 'planned new house')}${i ? `<i class="rn-bn">+</i>` : ''}</span>`;
@@ -267,6 +276,7 @@
     return ev;
   }
   function showRun(s, job, res) {
+    if (job.d === 'eb' && SD.renoStreet) return showStreetRun(s, job, res);
     const j = s.jobs[s.at], left = R.PLANS - j.plans.length;
     const pass = res.pass, last = left <= 0;
     const ev = events(job, res, j.plans[j.plans.length - 1].plan);
@@ -327,6 +337,109 @@
     timer = setInterval(() => { t++; if (t >= n) return finish(); frame(t); }, job.d === 'lam' ? 260 : 520);
     s.phase = 'plan'; save(s);
   }
+  // Beanstalk Row's runs as a cutscene (storyboard 1, Nov 16): letterboxed and hands-off, run 1 (the sound release),
+  // Seymour's "Again", run 2 (the cracked beam), the camera cutting in on whatever is changing; then the verdict as a
+  // close-up of Kai and Seymour. Both runs' summaries sit under the scene, and fast-forward skips to the verdict.
+  function showStreetRun(s, job, res) {
+    const RS = SD.renoStreet, j = s.jobs[s.at], left = R.PLANS - j.plans.length;
+    const pass = res.pass, last = left <= 0;
+    const planNow = j.plans[j.plans.length - 1].plan;
+    const ev = events(job, res, planNow);
+    const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
+    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
+    const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
+      <div class="rn-bleed rn-cut">${RS.scene({ tick: res.good.ticks[0], seymour: 'proud', kai: 'neutral', shot: 'wide', label: 'Seymour\'s first run, a sound release, playing out on the street',
+        ui: `<div class="rs-row"><span class="rs-chip rs-runlab">Run 1: a sound release</span><span class="rs-chip rs-gate ok">Nobody turned away</span></div><div class="rs-row rs-mid"></div><div class="rs-bar"><b class="rs-tk">tick 1</b><span class="rs-ticks"></span></div>` })}</div>
+      <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: the cracked beam', 'b')}</div>
+      <div class="rn-after" hidden>
+        <div class="rn-bleed">${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', tick: res.good.ticks[res.good.ticks.length - 1],
+          label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
+          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+        <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
+        ${slateHtml(job, res)}
+        ${teachLines(s, ev)}
+        ${pass ? '' : last ? '' : say(job.client, CL(job.client).wrong || 'Not like that.')}
+        <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
+      </div>
+      <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">▶▶ Skip to the verdict</button></div>`, 'SEYMOUR\'S INSPECTION');
+    const el = b.querySelector('.rn-cut .rs');
+    el.classList.add('rs-run');
+    RS.mount(b);
+    const kai = () => el.querySelector('.rs-kai');
+    const ui = sel => el.querySelector(sel);
+    const runs = [['g', res.good], ['b', res.bad]];
+    let said = {};
+    const kaiSays = (key, line, face) => {
+      if (said[key]) return; said[key] = 1;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
+    };
+    // The camera: in on the first house being worked on or breaking, else the wide street.
+    const focusOf = tick => {
+      const h = tick.houses.find(x => x.st === 'dark') || tick.houses.find(x => x.st === 'scaf') || tick.houses.find(x => x.rented);
+      return h ? RS.slotOf(h) : null;
+    };
+    const show = (which, r, i) => {
+      const tick = r.ticks[Math.min(i, r.ticks.length - 1)], upto = r.ticks.slice(0, i + 1);
+      const turned = upto.reduce((a, x) => a + (x.turned || 0), 0), soot = upto.reduce((a, x) => a + (x.soot || 0), 0);
+      RS.update(el, { tick, bad: which === 'b', seymour: which === 'b' ? 'inspect' : 'proud', turned });
+      const f = focusOf(tick);
+      RS.cut(el, f == null ? 'wide' : 'push', f);
+      ui('.rs-tk').textContent = `tick ${tick.t}`;
+      ui('.rs-ticks').innerHTML = r.ticks.map((x, k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('');
+      const g = ui('.rs-gate');
+      g.className = 'rs-chip rs-gate ' + (turned ? 'bad' : 'ok');
+      g.textContent = (turned ? `✗ ${turned} turned away` : 'Nobody turned away') + (soot ? ` · ${soot} soot` : '');
+      if (turned) kaiSays('turned', 'Someone got turned away at the gate!', 'worried');
+      if (soot) kaiSays('soot', 'That new one is cracked!', 'worried');
+      const row = b.querySelector(`[data-run="${which}"]`);
+      row.querySelector('.rn-tick').textContent = `tick ${tick.t}`;
+      if (i >= r.ticks.length - 1) row.querySelector('.rn-sum').textContent = runSummary(job, r, which);
+    };
+    let timer = null, phase = 0, t = 0, ended = false;
+    const finish = () => {
+      if (ended) return; ended = true;
+      if (timer) clearTimeout(timer); timer = null;
+      runs.forEach(([w, r]) => { const row = b.querySelector(`[data-run="${w}"]`); row.querySelector('.rn-tick').textContent = `tick ${r.ticks[r.ticks.length - 1].t}`; row.querySelector('.rn-sum').textContent = runSummary(job, r, w); });
+      show('b', res.bad, res.bad.ticks.length - 1);
+      const a = b.querySelector('.rn-after'); if (a) a.hidden = false;
+      const cutBox = b.querySelector('.rn-cut'); if (cutBox) cutBox.hidden = true;
+      const sk = b.querySelector('.rn-skipd'); if (sk) sk.remove();
+      RS.mount(a);
+      if (pass && U.burst) { const v = b.querySelector('.verdict'); if (v) U.burst(v); }
+      if (pass && job.grand && SD.modeStage && SD.modeStage.sting) SD.modeStage.sting('draft', 'win');
+      const deb = b.querySelector('#rn-deb'), again = b.querySelector('#rn-again'), give = b.querySelector('#rn-give');
+      if (deb) deb.onclick = () => { s.phase = 'debrief'; j.done = true; save(s); draw(s); };
+      if (again) again.onclick = () => { s.phase = 'plan'; save(s); draw(s); };
+      if (give) give.onclick = () => { s.phase = 'debrief'; j.done = true; j.pass = false; save(s); draw(s); };
+    };
+    const step = () => {
+      if (ended) return;
+      const [which, r] = runs[phase];
+      show(which, r, t);
+      t++;
+      if (t < r.ticks.length) { timer = setTimeout(step, 620); return; }
+      if (phase === 0) {
+        // Seymour's line between the runs: the same plan again, with a bad release.
+        phase = 1; t = 0;
+        timer = setTimeout(() => {
+          if (ended) return;
+          RS.update(el, { tick: res.bad.ticks[0], seymour: 'inspect' }); RS.cut(el, 'wide');
+          ui('.rs-runlab').textContent = 'Run 2: the cracked beam';
+          ui('.rs-mid').innerHTML = '<p class="rs-say"><b>Seymour:</b> Again. This time the beam is cracked.</p>';
+          said = {};
+          timer = setTimeout(step, 1700);
+        }, 900);
+        return;
+      }
+      timer = setTimeout(finish, 900);
+    };
+    b.querySelector('#rn-skip').onclick = finish;
+    s.phase = 'plan'; save(s);
+    if (reduced()) return finish();
+    step();
+  }
   const nameIn = (job, id) => { const r = job.stack.find(x => x.id === id); return r ? r.name : id; };
   function planName(job, p) {
     if (job.d === 'eb') return AD.EB_NAME[p.policy] + (p.policy === 'rolling' || p.policy === 'rollingBatch' ? `, batch ${p.batch}${p.ignoreHC ? ', ignoring health checks' : ''}` : p.policy === 'split' ? `, ${p.split}% for ${p.evalT} ticks` : p.policy === 'blueGreen' ? (p.wait ? ', old street kept 2 ticks' : ', old street torn down at once') : '');
@@ -372,8 +485,9 @@
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at];
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
-      ${say('seymour', 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.')}
+      ${job.d === 'eb' && SD.renoStreet ? `<div class="rn-bleed">${SD.renoStreet.scene({ shot: 'close', kai: 'neutral', close: 'stamp', tick: { houses: Array.from({ length: job.street.houses }, (_, i) => ({ id: i, env: 'a', v: j.pass ? 'new' : 'old', st: j.pass ? 'up' : 'scaf' })), served: 0 }, label: 'Seymour holds up his stamp over the permit', ui: '<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.</p></div><div></div>' })}</div>` : say('seymour', 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.')}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
+    if (SD.renoStreet) SD.renoStreet.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
       const q = debriefQuestion(s, job.d);
       if (!q) { settle(s, job, null, null); return; }
@@ -662,6 +776,13 @@
       .rn-pin b { min-width: 24px; height: 24px; font-size: 14px; }
     }
     @media (prefers-reduced-motion: reduce) { .rn-walk, .rn-turn, .rn-pin.on .rn-pinsp { animation: none; } }
+  `;
+  css.textContent += `
+    .rn-slatebelow { display: block; }
+    @media (min-width: 700px) { .rn-slatebelow { display: none; } }
+    .rn-cut .rs { height: min(66vh, 480px); } @media (min-width: 700px) { .rn-cut .rs { height: auto; } }
+    .rn-runrows { display: flex; flex-direction: column; gap: 6px; }
+    .rn-runrows .rn-run { padding: 4px 8px; }
   `;
   document.head.appendChild(css);
 })();

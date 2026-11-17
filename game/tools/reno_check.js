@@ -39,6 +39,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
       document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => {
+        if (el.closest('.rs-cam')) return;   // the street is a camera onto a wider world: it scrolls inside its own box
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });
@@ -107,7 +108,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- Job 1: the lunch rush (D = N). All at once turns people away; rolling with additional batch passes. ----
   await page.click('#rn-go');
   let t = await txt('#panel');
-  check(/The slate/.test(t) && /Nobody turned away/.test(t) && await page.$$eval('.rn-h img', x => x.length) >= 4, 'the job shows the scroll, the slate and the street of houses');
+  check(/The slate/.test(t) && /Nobody turned away/.test(t) && await page.$$eval('.rs-house, .rn-h img', x => x.length) >= 4, 'the job shows the scroll, the slate and the street of houses');
   check(await page.$$eval('[data-pol]', x => x.length) === 3, 'the first job offers three policies (start narrow)');
   check(!/helps|correct|right choice/i.test(await txt('.rn-cards')), 'policy cards say what they set, never whether they help');
   await noHScroll('plan'); await shot('plan');
