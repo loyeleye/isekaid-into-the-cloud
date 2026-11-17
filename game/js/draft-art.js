@@ -159,6 +159,31 @@
     for (let i = 0; i < 4; i++) g.poly(x0 + w / 2 - 8 + i * 4.5, -3, x0 + w / 2 - 6 + i * 4.5, -3, x0 + w / 2 - 3 + i * 4.5, -8, x0 + w / 2 - 5 + i * 4.5, -8).fill(INK, false);
   }
 
+  // A lifecycle build order's elevation (SD.draft.storeys): a blueprint of the building, one storey per lifecycle
+  // event from the ground up, each with its event's name on it. With land, the storeys drop in one at a time (CSS in
+  // js/draft.js; none under prefers-reduced-motion). An event you can't script is a hatched storey with a dashed edge
+  // and says who runs it, so it reads without colour. Returns HTML; the list is in run order for screen readers.
+  //   SD.draftArt.elevation({ life, storeys: [{ hook, step, by }] }, { land })
+  const escH = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  A.elevation = function (L, o) {
+    if (!L || !L.storeys || !L.storeys.length) return '';
+    o = o || {};
+    const n = L.storeys.length;
+    const rows = L.storeys.map((s, i) => {
+      const sub = s.step && s.step !== s.hook ? s.step : '';
+      const tag = s.by ? `run by ${s.by}${s.step == null ? ', not in the order' : ''}` : '';
+      return `<li class="dr-st${s.by ? ' auto' : ''}" style="--i:${i}" data-hook="${escH(s.hook)}" aria-label="Storey ${i + 1}: ${escH(s.hook)}${sub ? ', ' + escH(sub) : ''}${tag ? ', ' + escH(tag) : ''}">
+        <span class="dr-st-n" aria-hidden="true">${i + 1}</span><span class="dr-st-t"><b class="dr-st-h">${escH(s.hook)}</b>${sub ? `<span class="dr-st-s">${escH(sub)}</span>` : ''}${tag ? `<span class="dr-st-by" aria-hidden="true">${escH(tag)}</span>` : ''}</span></li>`;
+    }).join('');
+    return `<figure class="dr-elev${o.land ? ' land' : ''}" style="--n:${n}" data-life="${escH(L.life)}">
+      <figcaption class="dr-elev-cap"><span>Elevation</span> ${escH(L.life)}</figcaption>
+      <svg class="dr-elev-roof" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true"><path d="M2 15 L50 1 L98 15 Z"/><path d="M50 1 V15" class="th"/></svg>
+      <ol class="dr-elev-st">${rows}</ol>
+      <div class="dr-elev-gnd" aria-hidden="true"><span>ground floor: the first event</span></div>
+      ${L.storeys.some(s => s.by) ? `<p class="dr-elev-key">Hatched storeys can't be scripted: ${L.storeys.some(s => s.by === 'the agent') ? 'CodeDeploy or its agent runs them' : 'CodeDeploy runs them'}.</p>` : ''}
+    </figure>`;
+  };
+
   // Landmarks, one per district, unlocked at five standing buildings. Purely cosmetic.
   A.LANDMARKS = {
     1: 'The Sorting Fountain', 2: 'The Keystone Arch', 3: 'The Clock Tower', 4: 'The Lantern Tower'

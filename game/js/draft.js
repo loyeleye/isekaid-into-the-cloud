@@ -181,6 +181,44 @@
   DR.seqDom = i => Math.min(4, Math.max(1, parseInt(String((i && i.task && i.task.dva) || '3'), 10) || 3));
   const seqLog = () => { const d = sv(); if (!d.seq || typeof d.seq !== 'object') d.seq = {}; return d.seq; };
   DR.seqLog = seqLog;
+  // Lifecycle build orders (Ladi's gesture audit, Nov 17): where a build order really is a lifecycle, the inspection
+  // shows its elevation, one storey per event from the ground up, each labelled with the event's AWS name as it lands,
+  // so the building's height is the lifecycle. Only these items are lifecycles; every other build order (a pipeline,
+  // a KMS envelope, a policy check) gets no labels. Names and order are from the CodeDeploy AppSpec 'hooks' reference
+  // and the Lambda execution environment lifecycle page (checked Nov 17, 2026). HOOK_NAMES is every real event of a
+  // lifecycle, in run order; HOOK_BY marks the ones you can't script and who runs them. In LIFE, a name per step, in
+  // the step's order; a '+' name is an event the build order leaves out (it can't be scripted), drawn as its own storey.
+  DR.HOOK_NAMES = {
+    'CodeDeploy · EC2/On-Premises': ['Start', 'BeforeBlockTraffic', 'BlockTraffic', 'AfterBlockTraffic', 'ApplicationStop', 'DownloadBundle', 'BeforeInstall', 'Install', 'AfterInstall', 'ApplicationStart', 'ValidateService', 'BeforeAllowTraffic', 'AllowTraffic', 'AfterAllowTraffic', 'End'],
+    'CodeDeploy · Amazon ECS': ['Start', 'BeforeInstall', 'Install', 'AfterInstall', 'AllowTestTraffic', 'AfterAllowTestTraffic', 'BeforeAllowTraffic', 'AllowTraffic', 'AfterAllowTraffic', 'End'],
+    'CodeDeploy · AWS Lambda': ['Start', 'BeforeAllowTraffic', 'AllowTraffic', 'AfterAllowTraffic', 'End'],
+    'Lambda execution environment': ['Init', 'Restore', 'Invoke', 'Shutdown']
+  };
+  DR.HOOK_BY = {
+    'CodeDeploy · EC2/On-Premises': { Start: 'CodeDeploy', BlockTraffic: 'the agent', DownloadBundle: 'the agent', Install: 'the agent', AllowTraffic: 'the agent', End: 'CodeDeploy' },
+    'CodeDeploy · Amazon ECS': { Start: 'CodeDeploy', Install: 'CodeDeploy', AllowTestTraffic: 'CodeDeploy', AllowTraffic: 'CodeDeploy', End: 'CodeDeploy' },
+    'CodeDeploy · AWS Lambda': { Start: 'CodeDeploy', AllowTraffic: 'CodeDeploy', End: 'CodeDeploy' },
+    'Lambda execution environment': {}
+  };
+  DR.LIFE = {
+    'fmt-seq-01': { life: 'CodeDeploy · EC2/On-Premises', hooks: ['ApplicationStop', 'DownloadBundle', 'BeforeInstall', 'Install', 'AfterInstall', 'ApplicationStart', 'ValidateService'] },
+    'fmt-seq-02': { life: 'CodeDeploy · Amazon ECS', hooks: ['BeforeInstall', '+Install', 'AfterInstall', '+AllowTestTraffic', 'AfterAllowTestTraffic', 'BeforeAllowTraffic', '+AllowTraffic', 'AfterAllowTraffic'] },
+    'fmt-seq-03': { life: 'CodeDeploy · AWS Lambda', hooks: ['Start', 'BeforeAllowTraffic', 'AllowTraffic', 'AfterAllowTraffic', 'End'] },
+    'fmt-seq-14': { life: 'Lambda execution environment', hooks: ['Init', 'Init', 'Init', 'Invoke', 'Shutdown'] }
+  };
+  // The storeys of a lifecycle build order, ground floor first: { hook, step (the step's text, or null for an event
+  // the order leaves out), by (who runs an event you can't script, else null) }. Null for any other build order.
+  DR.storeys = function (x) {
+    const L = x && DR.LIFE[x.id];
+    if (!L || !Array.isArray(x.steps)) return null;
+    const by = DR.HOOK_BY[L.life] || {};
+    let k = 0;
+    const out = L.hooks.map(h => {
+      const extra = h[0] === '+', hook = extra ? h.slice(1) : h, t = extra ? null : x.steps[k++];
+      return { hook, step: t == null ? null : String(typeof t === 'string' ? t : t.t || ''), by: by[hook] || null };
+    });
+    return k === x.steps.length ? { life: L.life, storeys: out } : null;
+  };
   const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   // A preset's build orders: those on its topics or its domain, else every one.
   function seqForPreset(preset) {
@@ -492,13 +530,14 @@
     const c = cl(it.client), ok = !!it.ok, n = x.steps.length;
     const inPlace = it.partial != null ? Math.round(it.partial * n) : ok ? n : 0;
     const line = ok ? c.right : conf === 2 ? c.sure : c.wrong;
-    const sey = ok ? SEYMOUR.clean : SEYMOUR.scaf;
+    const sey = ok ? SEYMOUR.clean : SEYMOUR.scaf, life = SD.draftArt && SD.draftArt.elevation ? DR.storeys(x) : null;
     const h = `<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? '🏛 IT HOLDS' : '🚧 SCAFFOLDING'}</div><span class="chip">${CONF[conf]}</span><span class="chip">${sgn(delta)} floors</span></div>
       <div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p class="small"><b>${esc(bldName(bld.client))}</b>: ${plural(bld.floors, 'floor')}${bld.scaf ? ', under scaffolding' : ', standing'}.</p>
       <p class="small" data-vo="${esc(it.client + '|' + line)}"><b>${esc(c.name)}:</b> "${esc(line)}"</p>
       <div class="dr-who">${portrait('seymour', 36)}<p class="small" data-vo="${esc('seymour|' + sey)}"><b>Seymour:</b> "${esc(sey)}"</p></div></div></div>
       <p class="small muted">A build order scores as a whole: ${ok ? 'every step in place' : `${inPlace} of ${n} steps in place, and with any step out of place it doesn't count`}${!ok && conf === 2 ? ', and a Sure miss cracks the wall' : ''}.</p>
+      ${life ? `<div class="q-ctx">${ok ? 'The lifecycle it follows, storey by storey' : 'How it should stand, storey by storey'}</div>${SD.draftArt.elevation(life, { land: true })}` : ''}
       ${!ok ? `<p class="small dr-wallnote">📐 ${bld.scaf ? 'This build order comes back first on a later night. Get it right then and the scaffolding comes off.' : 'The building already stood, so it keeps standing. The build order comes back on a later night.'}</p>` : ''}
       <button class="primary" id="dr-next">${bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
@@ -945,6 +984,28 @@
 .dr-lk { font-size: 18px; line-height: 40px; }
 .dr-plot.tonight { border: 3px solid #e0a030; box-shadow: 0 0 0 2px #fff1c9; }
 .dr-plaque { border: 2px solid var(--ink); border-radius: 10px; padding: 8px 10px; background: #f6ecd2; margin: 8px 0; }
+.dr-elev { --bpl: rgba(255, 255, 255, .9); margin: 4px auto 10px; max-width: 300px; padding: 8px 12px 6px; box-sizing: border-box; border: 2px solid var(--ink); border-radius: 10px; color: #fff;
+  background-color: #1f5596; background-image: repeating-linear-gradient(0deg, transparent 0 15px, rgba(255, 255, 255, .08) 15px 16px), repeating-linear-gradient(90deg, transparent 0 15px, rgba(255, 255, 255, .08) 15px 16px); }
+.dr-elev-cap { font-size: 12px; font-weight: 700; margin: 0 0 4px; overflow-wrap: anywhere; }
+.dr-elev-cap span { text-transform: uppercase; letter-spacing: .08em; opacity: .75; margin-right: 4px; }
+.dr-elev-roof { display: block; width: calc(100% - 12px); height: 18px; margin: 0 6px -2px; }
+.dr-elev-roof path { fill: rgba(255, 255, 255, .1); stroke: var(--bpl); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.dr-elev-roof .th { fill: none; stroke-dasharray: 2 2; opacity: .6; }
+.dr-elev-st { list-style: none; margin: 0 12px; padding: 0; display: flex; flex-direction: column-reverse; border-left: 2px solid var(--bpl); border-right: 2px solid var(--bpl); }
+.dr-st { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 3px 8px; border-top: 1.5px solid var(--bpl); box-sizing: border-box; }
+.dr-st-n { flex: none; width: 20px; height: 20px; border: 1.5px solid var(--bpl); border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.dr-st-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.dr-st-h { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
+.dr-st-s { font-size: 11px; opacity: .8; overflow-wrap: anywhere; }
+.dr-st-by { align-self: flex-start; margin-top: 2px; font-size: 10px; font-weight: 700; letter-spacing: .03em; padding: 0 5px; border: 1px dashed var(--bpl); border-radius: 6px; }
+.dr-st.auto { border-top-style: dashed; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .14) 0 4px, transparent 4px 9px); }
+.dr-st.auto .dr-st-h { font-weight: 600; opacity: .85; }
+.dr-elev-gnd { margin: 0 -4px; border-top: 3px solid var(--bpl); padding-top: 2px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; opacity: .75; }
+.dr-elev-key { font-size: 11px; margin: 6px 0 0; opacity: .85; }
+.dr-elev.land .dr-st { animation: dr-land .32s cubic-bezier(.2, .9, .3, 1.2) both; animation-delay: calc(var(--i) * 260ms); }
+.dr-elev.land .dr-elev-roof { animation: dr-land .32s ease-out both; animation-delay: calc(var(--n) * 260ms); }
+@keyframes dr-land { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dr-elev.land .dr-st, .dr-elev.land .dr-elev-roof { animation: none; } }
 `;
   const st = document.createElement('style'); st.id = 'draft-css'; st.textContent = css; document.head.appendChild(st);
 })();
