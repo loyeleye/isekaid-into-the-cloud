@@ -32,7 +32,9 @@
     try { return SD.art && SD.art.portrait ? `<span class="rn-head">${SD.art.portrait(who, 34, 'neutral')}</span>` : ''; } catch (e) { return ''; }
   };
   const say = (who, line) => `<p class="rn-say" data-vo="${esc(who + '|' + line)}">${head(who)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
-  const panel = (html, title) => U.panel(`<div class="rn">${html}</div>`, { title: title || TITLE, onClose: stopNow, cls: 'rn-win' });
+  // A screen with the living street (js/reno-street.js) puts the street behind everything, filling the screen, and the
+  // text floats over it in boxes (Ladi, Nov 16: boxes around the scene take away the real-world feel).
+  const panel = (html, title) => U.panel(`<div class="rn${html.includes('class="rs ') ? ' rn-world' : ''}">${html}</div>`, { title: title || TITLE, onClose: stopNow, cls: 'rn-win' });
   function stopNow() { const s = cur(); if (s) save(s); if (SD.today && SD.today.render) SD.today.render(); }
   const foreman = () => DR.foremanId();
 
@@ -188,6 +190,7 @@
       else p[k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v;
       redraw();
     });
+    b.querySelectorAll('[data-house]').forEach(el => el.onclick = () => { p.batch = +el.dataset.house; redraw(); });   // tap a house on the street
     b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(); });
     b.querySelector('#rn-run').onclick = () => run(s, job);
     b.querySelector('#rn-board').onclick = () => { s.phase = 'board'; save(s); draw(s); };
@@ -352,10 +355,10 @@
       <div class="rn-bleed rn-cut">${RS.scene({ tick: res.good.ticks[0], seymour: 'proud', kai: 'neutral', shot: 'wide', label: 'Seymour\'s first run, a sound release, playing out on the street',
         ui: `<div class="rs-row"><span class="rs-chip rs-runlab">Run 1: a sound release</span><span class="rs-chip rs-gate ok">Nobody turned away</span></div><div class="rs-row rs-mid"></div><div class="rs-bar"><b class="rs-tk">tick 1</b><span class="rs-ticks"></span></div>` })}</div>
       <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: the cracked beam', 'b')}</div>
-      <div class="rn-after" hidden>
-        <div class="rn-bleed">${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', tick: res.good.ticks[res.good.ticks.length - 1],
+      <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', tick: res.good.ticks[res.good.ticks.length - 1],
           label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
           ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+      <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
         ${teachLines(s, ev)}
@@ -365,6 +368,7 @@
       <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">▶▶ Skip to the verdict</button></div>`, 'SEYMOUR\'S INSPECTION');
     const el = b.querySelector('.rn-cut .rs');
     el.classList.add('rs-run');
+    const rnBox = b.querySelector('.rn'); if (rnBox) rnBox.classList.add('rn-playing');
     RS.mount(b);
     const kai = () => el.querySelector('.rs-kai');
     const ui = sel => el.querySelector(sel);
@@ -404,9 +408,11 @@
       runs.forEach(([w, r]) => { const row = b.querySelector(`[data-run="${w}"]`); row.querySelector('.rn-tick').textContent = `tick ${r.ticks[r.ticks.length - 1].t}`; row.querySelector('.rn-sum').textContent = runSummary(job, r, w); });
       show('b', res.bad, res.bad.ticks.length - 1);
       const a = b.querySelector('.rn-after'); if (a) a.hidden = false;
+      const vd = b.querySelector('.rn-verdict'); if (vd) vd.hidden = false;
+      if (rnBox) rnBox.classList.remove('rn-playing');
       const cutBox = b.querySelector('.rn-cut'); if (cutBox) cutBox.hidden = true;
       const sk = b.querySelector('.rn-skipd'); if (sk) sk.remove();
-      RS.mount(a);
+      RS.mount(vd);
       if (pass && U.burst) { const v = b.querySelector('.verdict'); if (v) U.burst(v); }
       if (pass && job.grand && SD.modeStage && SD.modeStage.sting) SD.modeStage.sting('draft', 'win');
       const deb = b.querySelector('#rn-deb'), again = b.querySelector('#rn-again'), give = b.querySelector('#rn-give');
@@ -778,6 +784,24 @@
     @media (prefers-reduced-motion: reduce) { .rn-walk, .rn-turn, .rn-pin.on .rn-pinsp { animation: none; } }
   `;
   css.textContent += `
+    /* The living street fills the stage: fixed behind the screen's boxes, which scroll up over it from below. */
+    ${FULL}:has(.rn-world) :is(.win, .win.wide), ${FULL}:has(.rn-world) .win-b { background: transparent; }
+    ${FULL}:has(.rn-world) .win-h { position: relative; z-index: 2; }
+    ${FULL} .rn.rn-world > .rn-bleed:not([hidden]) { position: fixed; left: 0; right: 0; top: calc(56px + env(safe-area-inset-top, 0px)); bottom: 0; z-index: 0; margin: 0; width: auto; max-width: none; }
+    ${FULL} .rn.rn-world .rs { height: 100% !important; max-height: none; aspect-ratio: auto; }
+    ${FULL} .rn.rn-world::before { content: ''; flex: none; height: calc(100vh - 56px - 170px); min-height: 60vh; }
+    /* While Seymour's runs play, nothing covers the street but the fast-forward button. */
+    ${FULL} .rn.rn-world.rn-playing > :not(.rn-bleed):not(.rn-skipd) { display: none; }
+    ${FULL} .rn.rn-world.rn-playing > .rn-skipd { position: fixed; z-index: 3; left: auto; right: 12px; bottom: calc(5% + 62px); width: auto; background: none; box-shadow: none; padding: 0; }
+    ${FULL} .rn.rn-world.rn-playing::before { height: 0; min-height: 0; }
+    ${FULL} .rn.rn-world > :not(.rn-bleed) { position: relative; z-index: 1; width: calc(100% - 24px); max-width: 1148px; }
+    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+    ${FULL} .rn.rn-world > .rn-scroll { background: #f3e7c8; }
+    ${FULL} .rn.rn-world > .rn-after { display: flex; flex-direction: column; gap: 8px; }
+    ${FULL} .rn.rn-world > .rn-after > :is(.verdict-row, .rn-say, .rn-dock) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; }
+    ${FULL} .rn.rn-world > .rn-after > .rn-say { color: #fff; }
+    ${FULL} .rn.rn-world > .rn-q-ctx, ${FULL} .rn.rn-world > .q-ctx { background: rgba(23, 33, 58, .85); border-radius: 8px; padding: 4px 10px; align-self: flex-start; width: auto; margin-left: 12px; }
+    ${FULL} .rn.rn-world > :last-child { margin-bottom: 16px; }
     .rn-slatebelow { display: block; }
     @media (min-width: 700px) { .rn-slatebelow { display: none; } }
     .rn-cut .rs { height: min(66vh, 480px); } @media (min-width: 700px) { .rn-cut .rs { height: auto; } }

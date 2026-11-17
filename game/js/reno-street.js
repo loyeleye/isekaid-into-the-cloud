@@ -86,7 +86,7 @@
     });
     // While planning: tap a house to wrap it and the ones before it in scaffolding (the first batch).
     if (o.tap) houses.slice(0, 3).forEach((x, i) => {
-      out += `<button class="rs-hb" data-k="batch" data-v="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
+      out += `<button class="rs-hb" data-house="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
     });
     // Seymour, by the gate.
     if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups', z: 3 }); }
@@ -139,7 +139,7 @@
     if (shot === 'push') { h = H / (wide ? 2.4 : 2.0); y0 = FEET - HOUSE * 0.5 - h / 2 + 30; cx = el.dataset.focus !== '' ? centreX(+el.dataset.focus) : (X0 + W) / 2; }
     else if (shot === 'close') { h = H; y0 = 0; cx = W / 2; }
     else if (wide) { h = H; y0 = 0; cx = W / 2; }
-    else { h = 700; y0 = 250; cx = centreX(0); }          // a phone: the street and the plaza, not the sky
+    else { h = 900; y0 = 172; cx = centreX(0); }          // a phone: the street and the plaza, little sky
     // Fit the shot's height, but always cover the box: a wide box shows less sky rather than a dark edge.
     const s = Math.max(CH / h, CW / ww), vh = CH / s;
     if (vh < h) y0 = shot === 'push' ? y0 + (h - vh) / 2 : y0 + (h - vh);   // a push stays centred; the others keep the plaza
@@ -228,7 +228,7 @@
     .rs-close .rs-cam { filter: brightness(.62) saturate(.8); }
     .rs.rs-close .rs-kai, .rs:not(.rs-wide).rs-close .rs-kai { left: 2%; bottom: -6%; height: 78%; width: auto; top: auto; aspect-ratio: auto; border: 0; background: none; border-radius: 0; object-fit: fill; animation: rs-breathe 3.6s ease-in-out infinite alternate; }
     .rs-sey { position: absolute; right: 3%; bottom: -6%; height: calc(78% * 1.3 * var(--sh, 1)); width: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
-    .rs:not(.rs-wide).rs-close .rs-kai { height: 62%; left: -4%; width: auto; }
+    .rs:not(.rs-wide).rs-close .rs-kai { height: 62%; left: 0; width: auto; }
     .rs:not(.rs-wide) .rs-hidephone { display: none; }
     .rs:not(.rs-wide) .rs-sey { height: calc(62% * 1.3 * var(--sh, 1)); right: 0; max-width: 58%; object-fit: contain; object-position: right bottom; }
     .rs-ui { position: absolute; inset: 0; pointer-events: none; z-index: 3; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; gap: 8px; }
