@@ -62,7 +62,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return q.id;
   }, [right, conf]);
 
-  const place = async id => { await page.evaluate(id => { const s = SD.state.save.drill; s.at = SD.drill.CARDS[id].at; s.zoom = true; SD.state.persist(); SD.drillUi.draw(); }, id); await page.click(`[data-card="${id}"]`); };
+  // On a code desk (js/drill-code.js) a setting is an edit inside a block: open its block first.
+  const place = async id => { await page.evaluate(id => { const s = SD.state.save.drill, at = SD.drill.CARDS[id].at; s.at = at; s.zoom = true;
+    const i = SD.drillCode ? SD.drillCode.blockOf(s.drill.drill, at, id) : -1; s.blk = i >= 0 ? { k: at, d: s.drill.drill, i } : null;
+    if (i < 0) { const m = document.querySelector('.dr-more'); if (m) m.open = true; }
+    SD.state.persist(); SD.drillUi.draw(); const m2 = document.querySelector('.dr-more'); if (m2 && i < 0) m2.open = true; }, id); await page.click(`[data-card="${id}"]`); };
   // A run plays out on the board (js/drill-board.js); the checks run it fast and wait for the result.
   const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing, #panel .rm.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
   // Uptima's cutscenes (her lines): one tap each.
@@ -192,7 +196,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- The release's settings show only where a release goes out (The Bad Canary) ----
   const open = async id => { await page.evaluate(id => { const s = SD.state.save.drill; SD.drill.startDrill(s, id, 7); s.at = 'fn'; s.zoom = true; s.cutAt = null; SD.state.persist(); SD.drillUi.draw(); }, id); await cut(); await settle(); await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'fn'; s.zoom = true; SD.drillUi.draw(); }); };
   await open('badge');
-  check(!await page.$('[data-card="canary"]') && !!await page.$('[data-card="ddbput"]') && /AccessDeniedException/.test(await txt('.dr-tray .dr-said')), 'The Wrong Badge: AccessDenied in the pager, the role\'s settings at the Function, no release settings');
+  check(!await page.$('[data-card="canary"]') && /dynamodb:Scan/.test(await txt('.dr-code')) && /AccessDeniedException/.test(await txt('.dr-tray .dr-said')), 'The Wrong Badge: AccessDenied in the pager, the role\'s settings at the Function, no release settings');
   await shot('badge'); await page.click('#dr-back'); await noHScroll('badge');
   await open('canary');
   check(!!await page.$('[data-card="canary"]') && !!await page.$('[data-card="hook"]') && /version 2/.test(await txt('#panel')), 'The Bad Canary: the deployment settings show at the Function, and Kai names version 2');
@@ -202,13 +206,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- The Locked Vault and The Stampede Stream ----
   await open('vault');
-  check(!!await page.$('[data-card="refetch"]') && !await page.$('[data-card="canary"]') && /password authentication failed/.test(await txt('.dr-tray .dr-said')), 'The Locked Vault: Kai reports the failed logins, and the secret settings show at his desk');
+  check(/app\.py/.test(await txt('.dr-code')) && /get_secret_value/.test(await txt('.dr-code')) && !await page.$('[data-card="canary"]') && /password authentication failed/.test(await txt('.dr-tray .dr-said')), 'The Locked Vault: Kai reports the failed logins, and his desk shows the function\'s code');
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('vault');
-  await place('rotalt'); await deploy();
+  await place('rotalt');
+  check(/PostgreSQLMultiUser/.test(await txt('.dr-code')), 'Dutch\'s desk shows the rotation schedule, now alternating users');
+  await deploy();
   check((await st()).drill.state === 'contained', 'alternating-users rotation contains The Locked Vault');
   await open('stampede');
   await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
-  check(/The Stream/.test(await txt('.dr-station')) && /Kinesis/.test(await txt('.dr-station')) && !!await page.$('[data-card="bisect"]') && !await page.$('[data-card="vis30"]') && /IteratorAge/.test(await txt('.dr-tray')), 'The Stampede Stream: Mira\'s desk is the stream, with the trigger\'s error settings and no SQS ones');
+  check(/The Stream/.test(await txt('.dr-station')) && /Kinesis/.test(await txt('.dr-station')) && /Type: Kinesis/.test(await txt('.dr-code')) && !await page.$('[data-card="vis30"]') && /IteratorAge/.test(await txt('.dr-tray')), 'The Stampede Stream: Mira\'s desk is the stream, with the trigger\'s settings and no SQS ones');
   await shot('stream');
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('stream');
   await place('bisect'); await place('retry2'); await place('onfail'); await deploy();
@@ -230,10 +236,33 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await place('consread'); await deploy();
   check((await st()).drill.state === 'contained', 'ConsistentRead contains The Stale Shelf');
 
+  // ---- The Old Price (ElastiCache) and The Half Upload (S3 presigned URLs) ----
+  await open('cache');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'store'; SD.drillUi.draw(); });
+  check(/ElastiCache/.test(await txt('.dr-station')) && !!await page.$('[data-card="cachewt"]') && !!await page.$('[data-card="cttl60"]') && /CacheHits/.test(await txt('.dr-station')) && /old price/i.test(await txt('#panel')), 'The Old Price: Dutch\'s desk is the cache, with its strategy, TTL and CacheHits, and callers got old prices');
+  await shot('cache');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('cache');
+  await place('cachewt'); await deploy();
+  check((await st()).drill.state !== 'contained' && /Evictions/.test(await txt('#panel')), 'write-through with no TTL churns the cache: evictions, not contained');
+  await place('cttl60'); await deploy();
+  check((await st()).drill.state === 'contained', 'write-through with a 60 s TTL contains The Old Price');
+  await open('upload');
+  check(/The Bucket/.test(await txt('#panel')) && !!await page.$('[data-card="demand"]') && /ExpiredToken/.test(await txt('#panel')) && /Request has expired/.test(await txt('#panel')), 'The Half Upload: both clocks show (URL expired, ExpiredToken), and the signing settings are at Kai\'s desk');
+  await place('exp30d');
+  check((await st()).drill.changes.length === 0, 'a 30-day presigned URL is refused (7 days is the most)');
+  await place('single');
+  check((await st()).drill.changes.length === 0, 'one PUT for an 8 GB video is refused (5 GB is the most)');
+  await shot('upload');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('upload');
+  await place('exp900'); await deploy();
+  check((await st()).drill.state !== 'contained' && /ExpiredToken/.test(await txt('#panel')), 'a longer ExpiresIn still dies with the role\'s credentials');
+  await place('demand'); await deploy();
+  check((await st()).drill.state === 'contained', 'presigning each part as it\'s sent contains The Half Upload');
+
   // ---- The Quiet Subscriber and The Dropped Catch ----
   await open('quiet');
   await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
-  check(/The Topic/.test(await txt('.dr-station')) && /SNS/.test(await txt('.dr-station')) && !!await page.$('[data-card="scopebody"]') && !await page.$('[data-card="vis30"]') && /NoMessageAttributes/.test(await txt('.dr-tray')), 'The Quiet Subscriber: Mira\'s desk is the topic, with the filter settings, no SQS ones, and the NoMessageAttributes count');
+  check(/The Topic/.test(await txt('.dr-station')) && /SNS/.test(await txt('.dr-station')) && /FilterPolicyScope: MessageAttributes/.test(await txt('.dr-code')) && !await page.$('[data-card="vis30"]') && /NoMessageAttributes/.test(await txt('.dr-tray')), 'The Quiet Subscriber: Mira\'s desk is the topic, with the filter settings, no SQS ones, and the NoMessageAttributes count');
   await shot('quiet');
   await place('rawon');
   check((await st()).drill.changes.length === 0, 'raw message delivery on a Lambda subscription is refused');
@@ -243,14 +272,38 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check((await st()).drill.state === 'contained', 'sending order_type as a message attribute contains The Quiet Subscriber');
   await open('catch');
   await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
-  check(/The Workflow/.test(await txt('.dr-station')) && !!await page.$('[data-card="rtrans"]') && !!await page.$('[data-card="catchrp"]') && /TooManyRequestsException/.test(await txt('.dr-tray')), 'The Dropped Catch: Mira\'s desk is the state machine, with Retry and Catch dials');
+  check(/The Workflow/.test(await txt('.dr-station')) && /"Charge"/.test(await txt('.dr-code')) && /TooManyRequestsException/.test(await txt('.dr-tray')), 'The Dropped Catch: Mira\'s desk is the state machine, with its definition');
   await shot('catch');
   await place('catchfirst');
   check((await st()).drill.changes.length === 0, 'a States.ALL catcher ahead of others is refused');
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('catch');
   await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); });
-  await place('rtrans'); await place('catchrp'); await deploy();
+  check(!!await page.$('.dr-code [data-blk]') && /orders\.asl\.json/.test(await txt('.dr-code')) && /"ReleaseStock"/.test(await txt('.dr-code')), 'The Dropped Catch: Mira\'s desk shows the state machine\'s definition');
+  await page.click('.dr-code [data-blk="0"]');
+  check(/Nothing to change/.test(await txt('.dr-code')), 'a block with no edits says so');
+  await page.click('.dr-code [data-blk="1"]');
+  check(!!await page.$('.dr-edit[data-card="catchrp"] .dr-dl-add') && /"ResultPath": "\$\.error"/.test(await txt('.dr-edit[data-card="catchrp"]')), 'opening Charge shows its edits as diffs, ResultPath included');
+  await shot('code-catch');
+  await place('rtrans'); await place('catchrp');
+  check(/"Lambda\.TooManyRequestsException"/.test(await txt('.dr-code')) && /"ResultPath"/.test(await txt('.dr-code')), 'the edits show in the file');
+  await deploy();
   check((await st()).drill.state === 'contained' && /ReleaseStock/.test(await txt('#panel')), 'retrying Lambda errors and catching CardDeclined with a ResultPath contains The Dropped Catch');
+
+  // ---- The Shared Key and The Wrong Receipt ----
+  await open('quota');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; SD.drillUi.draw(); });
+  check(!!await page.$('[data-card="keysplit"]') && !await page.$('[data-card="ckey"]') && /QUOTA_EXCEEDED/.test(await txt('.dr-tray .dr-said')) && /app-key/.test(await txt('.dr-tray .dr-said')), 'The Shared Key: Seo-yeon reads QUOTA_EXCEEDED on one shared key, and the usage plan settings are at her desk');
+  await shot('quota');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('quota');
+  await place('keysplit'); await deploy();
+  check((await st()).drill.state === 'contained', 'a key of its own for the partner contains The Shared Key');
+  await open('receipt');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; SD.drillUi.draw(); });
+  check(!!await page.$('[data-card="ckey"]') && !!await page.$('[data-card="gttl0"]') && !await page.$('[data-card="cachewt"]') && /someone else's orders/.test(await txt('.dr-tray .dr-said')) && /CacheHitCount/.test(await txt('.dr-tray')), 'The Wrong Receipt: Seo-yeon reports the wrong orders, her desk shows CacheHitCount and the stage cache settings (not ElastiCache\'s)');
+  await shot('receipt');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('receipt');
+  await place('ckey'); await deploy();
+  check((await st()).drill.state === 'contained', 'customerId in the cache key contains The Wrong Receipt');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();

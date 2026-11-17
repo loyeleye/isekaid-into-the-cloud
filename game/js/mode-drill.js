@@ -107,27 +107,39 @@
     return `<div class="dr-jar" role="img" aria-label="Error budget ${b}%"><span class="dr-jar-l">${icon('checked-shield')}Error budget</span><span class="dr-jar-b"><i style="width:${b}%"></i></span><b>${b}%</b></div>`;
   }
 
-  // ---- The map: one row per drill, bosses marked. Night 1 is one path; later nights fork (L7). ----
+  // ---- The map: the war room's chalkboard, one row of incident cards per drill, bosses as alarm notices (Ladi,
+  // Nov 17: a painted scene edge to edge, not tan boxes). Night 1 is one path; later nights fork (L7). Each card shows
+  // its path as a painted emblem (gate, mail rack, stream); the reachable row is circled in chalk, a fixed card gets a
+  // chalk tick and its verdict, the cards you passed over are crossed out, and the rows ahead wait in the dark. ----
+  const MAP_IMG = n => `assets/img/drill/map-${n}.webp`;
+  const KIND = d => d.stream ? ['stream', 'With a stream'] : d.hub === 'sns' ? ['topic', 'With a topic'] : d.hub === 'sfn' ? ['flow', 'With a state machine']
+    : d.path === 'async' ? ['queue', 'With a queue'] : ['gate', 'Straight through'];
+  const TILT = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0; return ((Math.abs(h) % 7) - 3) * 0.7; };
   function mapScreen(s) {
     const rows = D.ROWS.map((r, i) => {
       const ch = D.choices(s.night, i);
-      return `<div class="dr-row">${ch.map(id => {
-        const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id;
-        const how = done ? (s.done[i].clean ? ' · clean fix' : s.done[i].state === 'contained' ? ' · contained' : ' · escalated') : '';
-        return `<button class="dr-door${d.boss ? ' boss' : ''}${here ? ' reach' : ''}${done ? ' done' : ''}" data-drill="${id}" ${here ? '' : 'disabled'}>
-          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.stream ? 'With a stream' : d.hub === 'sns' ? 'With a topic' : d.hub === 'sfn' ? 'With a state machine' : d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
+      return `<div class="dr-row${i < s.row ? ' past' : i > s.row ? ' ahead' : ' now'}" data-n="${ch.length}">${ch.map(id => {
+        const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id, skip = i < s.row && !done;
+        const [k, kt] = KIND(d), kind = kt + (d.boss ? ' · two faults' : '');
+        const how = done ? (s.done[i].clean ? ['good', 'Clean fix'] : s.done[i].state === 'contained' ? ['warm', 'Contained'] : ['bad', 'Escalated']) : null;
+        const st = here ? 'reach' : done ? 'done' : skip ? 'skip' : 'ahead';
+        return `<button class="dr-door ${st}${d.boss ? ' boss' : ''}" style="--r:${TILT(id)}deg" data-drill="${id}" ${here ? '' : 'disabled'}
+          aria-label="${esc(d.name)}: ${esc(kind)}${how ? ', ' + how[1] : skip ? ', not taken' : ''}">
+          <img class="dr-ic" src="${MAP_IMG(d.boss ? 'ic-bell' : 'ic-' + k)}" alt="" draggable="false">
+          <span class="dr-dn">${esc(d.name)}</span><span class="dr-dt">${esc(kind)}</span>
+          ${how ? `${how[0] === 'bad' ? '' : '<span class="dr-mk tick" aria-hidden="true"></span>'}<span class="dr-dv ${how[0]}" aria-hidden="true">${how[1]}</span>` : skip ? '<span class="dr-mk cross" aria-hidden="true"></span>' : ''}</button>`;
       }).join('')}</div>`;
-    }).reverse().join('');
+    }).reverse().join('<i class="dr-up" aria-hidden="true"></i>');
     const first = s.fresh && s.night === 1 && !s.done.length;
     const cutKey = s.night + ':' + s.row;
     if (RM() && s.cutAt !== cutKey) {
       const beat = first ? ['bluffing>caught@4300', SAY.arrive] : s.done.length ? ['bluffing>caught@2400', SAY.next] : ['snack', SAY.again];
       return cutScreen([beat], () => { s.cutAt = cutKey; save(s); draw(s); });
     }
-    const b = panel(`<p class="dr-night">Night ${s.night}</p>
+    const b = panel(`<div class="dr-board"><p class="dr-night">Night ${s.night}</p>
       ${RM() ? '' : say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? SAY.next : SAY.again)}
       ${budgetJar(s)}
-      <div class="dr-map">${rows}</div>
+      <div class="dr-wall">${rows}</div></div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
     b.querySelectorAll('[data-drill]').forEach(el => el.onclick = () => {
       if (el.disabled) return;
@@ -140,6 +152,9 @@
       draw(s);
     });
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
+    // The night climbs the board from the bottom: bring the row you're on into view.
+    const at = b.querySelector('.dr-door.reach');
+    if (at && at.scrollIntoView) requestAnimationFrame(() => at.scrollIntoView({ block: 'center', inline: 'nearest' }));
   }
 
   // ---- The drill ----
@@ -161,6 +176,7 @@
   // shows in the line under the controls when it's hovered, focused or tapped.
   const DIALS = {
     authttl: { at: 'gate', needs: 'auth', label: 'Authorizer cache', icon: 'hourglass', ids: ['ttl0', 'ttl300', 'ttl3600'] },
+    gcachettl: { at: 'gate', needs: 'gcache', label: 'Stage cache TTL', icon: 'hourglass', ids: ['gttl0', 'gttl300', 'gttl3600'] },
     retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
@@ -168,6 +184,9 @@
     sec: { at: 'fn', needs: 'secret', label: 'The ledger password', icon: 'key', ids: ['secinit', 'secttl', 'seccall'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
     key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    cstrat: { at: 'store', needs: 'cache', label: 'Caching strategy', icon: 'card-random', ids: ['cachelazy', 'cachewt'] },
+    cttl: { at: 'store', needs: 'cache', label: 'Cache TTL', icon: 'hourglass', ids: ['cttl0', 'cttl10', 'cttl60', 'cttl3600'] },
+    uexp: { at: 'fn', needs: 'upload', label: 'URL ExpiresIn', icon: 'stopwatch', ids: ['exp60', 'exp900', 'exp7d', 'exp30d'] },
     sfnretry: { at: 'queue', needs: 'sfn', label: 'Charge: Retry, 3 attempts', icon: 'anticlockwise-rotation', ids: ['rnone', 'rtrans', 'rall'] },
     sfncatch: { at: 'queue', needs: 'sfn', label: 'Catch CardDeclined → ReleaseStock', icon: 'return-arrow', ids: ['catchnone', 'catchno', 'catchrp'] },
     rot: { at: 'store', needs: 'secret', label: 'Secret rotation', icon: 'anticlockwise-rotation', ids: ['rotsingle', 'rotalt', 'rotoff'] },
@@ -181,8 +200,13 @@
     alarm: 'Roll back on Errors alarm', hook: 'PreTraffic test',
     secinit: 'Once, at start-up', secttl: 'Extension, 5 min', seccall: 'Every call', refetch: 'Login fails? Read it again',
     ttl0: 'Off', ttl300: '5 min', ttl3600: '1 hour', authwild: 'Policy covers the whole API', fninvoke: 'Allow execute-api:Invoke',
+    keysplit: 'Partner gets its own key', quotaup: 'Quota 100 a day', stagerate: 'Raise stage throttle',
+    gttl0: 'Off', gttl300: '5 min', gttl3600: '1 hour', ckey: 'Cache key + customerId', gflush: 'Flush the stage cache', maxage: 'Clients send max-age=0',
     consread: 'ConsistentRead', daxnode: 'Add a DAX node', gsiread: 'Consistent read on the index',
     rotsingle: 'Single user', rotalt: 'Alternating', rotoff: 'Off', bisect: 'Bisect on error', retry2: 'Max retries 2', onfail: 'On failure → orders-failed',
+    cachelazy: 'Lazy loading', cachewt: 'Write-through', cttl0: 'None', cttl10: '10 s', cttl60: '60 s', cttl3600: '1 hour', replica: 'Add a read replica', flush: 'FLUSHALL',
+    exp60: '60 s', exp900: '15 min', exp7d: '7 days', exp30d: '30 days', demand: 'Sign each part as it\'s sent', userkey: 'Sign with a user\'s key', single: 'One PUT, no parts',
+    lifecycle: 'Abort unfinished uploads, 1 day', publicput: 'Anyone may PutObject',
     snsattr: 'order_type as an attribute', scopebody: 'Filter reads the body', nofilter: 'Remove the filter', subdlq: 'Redrive → shipping-dlq', rawon: 'Raw message delivery',
     rnone: 'Off', rtrans: 'Lambda ×3', rall: 'States.ALL', catchnone: 'Off', catchno: 'On', catchrp: 'On + $.error', catchfirst: 'States.ALL first',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
@@ -190,7 +214,8 @@
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
     ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
     refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox',
-    snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random' };
+    snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open',
+    keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', gflush: 'broom', maxage: 'anticlockwise-rotation' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -211,8 +236,9 @@
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
-    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id));
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id))).map(n => {
+    const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
+    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
@@ -223,10 +249,26 @@
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
       ${talk ? said(k, st.who, talk, e.m) : ''}
       <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n).replace(/([a-z])([A-Z-])/g, '$1<wbr>$2')}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
-      ${dials}
-      ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
+      ${file ? codeHtml(s, f, k, file) + (dials || sws ? `<details class="dr-more"><summary>Other settings</summary>${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}</details>` : '')
+        : `${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}`}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
+  }
+  // The code desk (js/drill-code.js): the station's file in blocks. The open block lists its edits as diffs.
+  function codeHtml(s, f, k, file) {
+    const open = s.blk && s.blk.k === k && s.blk.d === f.drill ? s.blk.i : -1;
+    const blocks = file.blocks.map((b, i) => {
+      const code = esc(b.code(f.cfg));
+      const edits = i === open ? (b.edits.some(id => !C[id].on(f.cfg)) ? `<div class="dr-edits" role="group" aria-label="Edits for this block">${b.edits.filter(id => !C[id].on(f.cfg)).map(id => {
+        const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id), placed = f.changes.includes(id);
+        const dl = on ? [] : SD.drillCode.diff(b, f.cfg, id), cut = Math.min(...dl.map(([, l]) => l.match(/^ */)[0].length));
+        const diff = dl.map(([m, l]) => [m, l.slice(cut)]).map(([m, l]) => `<span class="dr-dl-${m === '+' ? 'add' : m === '-' ? 'del' : 'ctx'}">${m} ${esc(l)}</span>`).join('\n');
+        return `<button class="dr-edit${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" data-tip="${esc(c.text)}" title="${esc(c.name)}">
+          ${on ? `<span class="dr-en">${icon('checked-shield')}As it is now</span>` : ''}${diff ? `<pre class="dr-diff">${diff}</pre>` : ''}</button>`;
+      }).join('')}</div>` : '<p class="dr-edits none small">Nothing to change in this block.</p>') : '';
+      return `<button class="dr-blk${i === open ? ' open' : ''}" data-blk="${i}" aria-expanded="${i === open}"><pre>${code}</pre></button>${edits}`;
+    }).join('');
+    return `<div class="dr-code"><p class="dr-file">${icon('scroll-quill')}<code>${esc(file.file)}</code><span>Tap the part you'd change.</span></p>${blocks}</div>`;
   }
   function said(k, who, talk, m) {
     const ls = (talk.lines || []).filter(x => x[0] === who).map(x => x[1]);
@@ -236,7 +278,7 @@
     return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', fanout: 'queue', flow: 'queue' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', fanout: 'queue', flow: 'queue', cache: 'store', churn: 'store', presign: 'fn', token: 'store' , quota: 'gate', gcache: 'gate' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {
@@ -307,6 +349,11 @@
       return;
     }
     b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; if (RO && !over) s.zoom = true; save(s); draw(s); });
+    b.querySelectorAll('[data-blk]').forEach(el => el.onclick = () => {
+      const i = +el.dataset.blk, o = s.blk;
+      s.blk = o && o.k === s.at && o.d === f.drill && o.i === i ? null : { k: s.at, d: f.drill, i };
+      save(s); draw(s);
+    });
     const back = b.querySelector('#dr-back');
     if (back) back.onclick = () => { s.zoom = false; save(s); draw(s); };
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
@@ -435,16 +482,57 @@
     .dr-jar-l { display: inline-flex; gap: 4px; align-items: center; font-weight: 700; }
     .dr-jar-b { flex: 1; height: 12px; border: 2px solid var(--ink, #17131f); border-radius: 6px; overflow: hidden; background: var(--bone, #e2dbcb); }
     .dr-jar-b i { display: block; height: 100%; background: var(--blue, #3f5f80); }
-    .dr-map { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 12px; border: 3px solid var(--ink, #17131f); background: #23283a; }
-    .dr-row { display: flex; gap: 6px; justify-content: center; }
-    .dr-door { flex: 1 1 0; max-width: 170px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 3px solid var(--ink, #17131f); border-radius: 10px; background: #c9c2b2; color: var(--ink, #17131f); font-size: 13px; }
-    .dr-door:disabled { opacity: 1; }
-    .dr-door.reach { background: var(--bone, #e2dbcb); box-shadow: 0 0 0 3px #e0823a; font-weight: 700; }
-    .dr-door.done { background: #9fb09a; }
-    .dr-door.boss { max-width: none; background: #5a2f2f; color: #fff; }
-    .dr-door.boss.reach { background: #9e3a34; }
-    .dr-door.boss.done { background: #4f6b52; }
-    .dr-dn { font-weight: 800; display: inline-flex; gap: 4px; align-items: center; } .dr-dt { font-size: 11px; }
+    /* The night map: the war room's chalkboard edge to edge, the night's incidents pinned to it (art: CREDITS.md). */
+    .dr-board { --chalk: #f4f1e6; display: flex; flex-direction: column; gap: 10px; }
+    .dr-board .dr-night { font-size: 26px; color: var(--chalk); letter-spacing: .04em; text-shadow: 0 0 1px #fff, 0 0 6px rgba(255, 255, 255, .25); opacity: .92; }
+    .dr-board .dr-jar { color: var(--chalk); }
+    .dr-board .dr-jar-b { border: 2px solid rgba(244, 241, 230, .8); border-radius: 3px; background: rgba(255, 255, 255, .05); box-shadow: 0 0 4px rgba(255, 255, 255, .15); }
+    .dr-board .dr-jar-b i { background: repeating-linear-gradient(100deg, #f1cf63 0 5px, #e3bd4c 5px 8px); opacity: .9; }
+    .dr-wall { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 4px 0 18px; }
+    .dr-row { display: flex; gap: 8px; justify-content: center; align-items: stretch; }
+    .dr-up { display: block; height: 30px; margin: 2px auto; aspect-ratio: 1 / 2; background: url(assets/img/drill/map-chalk-arrow.webp) center / contain no-repeat; opacity: .55; }
+    .dr-door { position: relative; flex: 1 1 0; min-width: 0; max-width: 150px; min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+      padding: 16px 6px 10px; border: 0; border-radius: 0; background: url(assets/img/drill/map-card.webp) center / 100% 100% no-repeat; color: #2a2118;
+      font-size: 12.5px; line-height: 1.15; text-align: center; transform: rotate(var(--r, 0deg)); filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55)); box-shadow: none; }
+    .dr-door::before { content: ''; position: absolute; top: -7px; left: 50%; width: 18px; height: 18px; margin-left: -9px; background: url(assets/img/drill/map-tack.webp) center / contain no-repeat; filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, .5)); }
+    .dr-door:disabled { opacity: 1; cursor: default; }
+    .dr-ic { width: 34px; height: 30px; object-fit: contain; flex: 0 0 auto; margin-bottom: 1px; }
+    .dr-dn { font-family: var(--f-head, serif); font-weight: 800; font-size: 13px; overflow-wrap: break-word; hyphens: manual; }
+    .dr-row[data-n="4"] .dr-dn { font-size: 12px; } .dr-row[data-n="5"] .dr-dn { font-size: 11px; letter-spacing: -.01em; }
+    .dr-row[data-n="5"] .dr-door { padding-left: 3px; padding-right: 3px; }
+    .dr-dt { display: none; font-size: 11px; color: #5a4a38; font-style: italic; }
+    .dr-door.boss { flex: 0 1 380px; max-width: 380px; min-height: 96px; padding: 14px 18px 12px; justify-content: center; background-image: url(assets/img/drill/map-notice.webp); color: #4a1612; }
+    .dr-door.boss::before { top: -12px; width: 34px; height: 34px; margin-left: -17px; background-image: url(assets/img/drill/map-seal.webp); }
+    .dr-door.boss .dr-dn { font-size: 16px; } .dr-door.boss .dr-dt { display: block; color: #7a2a22; }
+    .dr-door.boss .dr-ic { width: 36px; height: 34px; }
+    /* Reachable: circled in chalk, lit by the lamp, gently lifted off the board. */
+    .dr-door.reach { cursor: pointer; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .55)) drop-shadow(0 6px 6px rgba(0, 0, 0, .6)); }
+    .dr-door.reach::after { content: ''; position: absolute; inset: -8px -7px; opacity: .75; background: url(assets/img/drill/map-chalk-ring.webp) center / 100% 100% no-repeat; pointer-events: none; animation: drring 2.4s ease-in-out infinite; }
+    .dr-door.reach:focus-visible { outline: 3px dashed rgba(244, 241, 230, .9); outline-offset: 8px; }
+    @keyframes drring { 0%, 100% { opacity: .75; } 50% { opacity: .4; } }   /* the ring pulses; the card itself holds still so it's easy to tap */
+    /* Done: a chalk tick and the verdict; passed over: crossed out; ahead: still in the dark. */
+    .dr-door.done { filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5)) saturate(.75); }
+    .dr-mk { position: absolute; pointer-events: none; background: center / contain no-repeat; }
+    .dr-mk.tick { right: -10px; top: -4px; width: 38px; height: 38px; background-image: url(assets/img/drill/map-chalk-tick.webp); }
+    .dr-mk.cross { inset: 14% 10%; background-image: url(assets/img/drill/map-chalk-cross.webp); opacity: .55; }
+    .dr-dv { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%) rotate(-4deg); white-space: nowrap; padding: 1px 6px; border: 2px solid currentColor; border-radius: 4px;
+      font: 800 10.5px/1.2 var(--f-head, serif); letter-spacing: .06em; text-transform: uppercase; background: rgba(250, 244, 228, .9); }
+    .dr-dv.good { color: #2f6b3f; } .dr-dv.warm { color: #9a6a12; } .dr-dv.bad { color: #9e3a34; }
+    .dr-door.skip { filter: brightness(.55) saturate(.5) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+    .dr-door.ahead { filter: brightness(.72) saturate(.8) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+    .dr-row.past + .dr-up, .dr-row.now + .dr-up { opacity: .3; }
+    @media (prefers-reduced-motion: reduce) { .dr-door.reach::after { animation: none; } }
+    @media (min-width: 600px) {
+      .dr-door { max-width: 180px; min-height: 140px; padding: 20px 10px 14px; font-size: 13.5px; }
+      .dr-dn, .dr-row[data-n] .dr-dn { font-size: 15px; letter-spacing: 0; } .dr-dt { display: block; } .dr-ic { width: 46px; height: 40px; }
+      .dr-door.boss { flex-basis: 460px; max-width: 460px; min-height: 120px; } .dr-door.boss .dr-dn { font-size: 19px; } .dr-door.boss .dr-ic { width: 46px; height: 42px; }
+      .dr-row { gap: 16px; } .dr-up { height: 38px; } .dr-board .dr-night { font-size: 32px; }
+    }
+    /* The board fills the screen behind the map (tall on portrait screens, wide on landscape); the dock goes clear. */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background: #1c2420 url(assets/img/drill/map-board-tall.webp) center / cover no-repeat; }
+    @media (min-aspect-ratio: 1 / 1) { body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background-image: url(assets/img/drill/map-board-wide.webp); } }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr:has(> .dr-board) > .dr-dock { background: rgba(12, 14, 13, .82); border-top: 1px solid rgba(244, 241, 230, .15); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .dr:has(> .dr-board) { background: none; }
     .dr-trace { display: flex; align-items: stretch; gap: 0; padding: 8px 6px; border-radius: 10px; border: 3px solid var(--ink, #17131f); background: #1d2130; }
     .dr-edge { flex: 0 1 8px; min-width: 2px; align-self: center; height: 3px; background: #8d93a8; }
     .dr-node { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 10px; border: 3px solid #8d93a8; background: #2c3248; color: #fff; font-size: 11px; line-height: 1.1; text-align: center; }
@@ -476,6 +564,25 @@
     .dr-say.bad { background: #fbe4dc; border-color: #9e3a34; } .dr-said .dr-say.bad:first-child::before { border-bottom-color: #9e3a34; }
     .dr-say.teach { background: #fff3c4; }
     .dr-said .dr-say { display: block; }
+    .dr-code { margin: 8px 0; border-radius: 10px; background: #1c1a24; border: 2px solid #17131f; box-shadow: inset 0 0 0 1px rgba(214, 178, 84, .35), 0 3px 6px rgba(0, 0, 0, .45); overflow: hidden; }
+    .dr-file { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; padding: 6px 10px; background: #2b2735; color: #e8d6b0; font-size: 12px; }
+    .dr-file code { color: #ffd98a; } .dr-file span { margin-left: auto; font-style: italic; opacity: .8; }
+    .dr-blk { display: block; width: 100%; margin: 0; padding: 2px 8px; border: 0; border-left: 3px solid transparent; background: none; text-align: left; cursor: pointer; color: #e9e4f2; }
+    .dr-blk:hover, .dr-blk:focus-visible { background: rgba(255, 255, 255, .05); }
+    .dr-blk.open { border-left-color: #ffd257; background: rgba(255, 210, 87, .08); }
+    .dr-blk pre, .dr-diff { margin: 0; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .dr-edits { display: grid; gap: 6px; padding: 6px 8px 8px 14px; background: rgba(255, 210, 87, .06); }
+    .dr-edits.none { margin: 0; color: #c9bfae; font-style: italic; }
+    .dr-edit { display: block; width: 100%; text-align: left; padding: 6px 8px; border-radius: 8px; border: 2px solid #8a6a2a; background: #f6ecd2; color: #17131f; cursor: pointer; }
+    .dr-edit .dr-en { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    .dr-edit .dr-gi { width: 16px; height: 16px; }
+    .dr-edit .dr-diff { background: #fffaf0; border-radius: 4px; padding: 3px 5px; color: #17131f; }
+    .dr-dl-add { color: #1f6b33; background: #dcf3dc; display: inline-block; width: 100%; } .dr-dl-del { color: #8a2a24; background: #f8dcd8; display: inline-block; width: 100%; text-decoration: line-through; text-decoration-color: rgba(138, 42, 36, .5); }
+    .dr-dl-ctx { color: #6b6378; display: inline-block; width: 100%; }
+    .dr-edit.new { box-shadow: 0 0 0 2px #ffd257; }
+    .dr-edit.no { opacity: .7; }
+    @media (max-width: 420px) { .dr-code .dr-blk pre, .dr-code .dr-diff { font-size: 11px; } }
+    .dr-more { margin: 6px 0; color: #e8d6b0; } .dr-more summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }
     .dr-mt code { font-size: 10.5px; overflow-wrap: anywhere; color: #3a3346; background: none; padding: 0; }
@@ -550,8 +657,6 @@
       body.in-mode .dr-cols > .dr-r { position: sticky; top: 0; }
       body.in-mode .dr-cols > .dr-r:empty { display: none; }
       body.in-mode .dr-cols:has(> .dr-r:empty) { grid-template-columns: minmax(0, 760px); justify-content: center; }
-      body.in-mode .dr-win .dr-door { max-width: 260px; min-height: 64px; font-size: 14px; }
-      body.in-mode .dr-win .dr-map { padding: 14px; gap: 12px; }
       body.in-mode .dr-win .dr-node { font-size: 13px; padding: 8px 4px; } body.in-mode .dr-win .dr-node b { font-size: 13px; } body.in-mode .dr-win .dr-node .dr-gi { width: 30px; height: 30px; }
       body.in-mode .dr-win .dr-edge { flex-basis: 18px; }
       body.in-mode .dr-win .dr-hand { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
