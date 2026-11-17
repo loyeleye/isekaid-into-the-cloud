@@ -2,7 +2,7 @@
 
 Usage: python3 tools/portrait_busts.py RAW_DIR
 RAW_DIR holds the Sogni renders (1024x1024, parchment ground) named below.
-Kai and Seymour are cut from their existing painted street art instead.
+Sir Seymour is cut from his painted street art instead (visor down).
 Writes assets/img/portraits-painted/<who>.webp at 170x200 (the 34:40 head box).
 """
 import os, sys
@@ -20,7 +20,7 @@ CUTS = {
     'ayo':     ('raw:ayo-1', 176, 20, 240),
     'marrow':  ('raw:marrow-1', 168, 20, 240),
     'pip':     ('raw:pip-1', 205, 25, 300),
-    'kai':     ('street:kai-neutral', 175, 5, 200),
+    'kai':     ('raw:kai-3', 216, 15, 240),
     'seymour': ('street:sey-proud', 195, 60, 220),  # visor down, as always
 }
 
