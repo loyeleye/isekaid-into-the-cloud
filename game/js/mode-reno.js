@@ -667,16 +667,24 @@
   function verifiedTwin(q, avoid) {
     return ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).find(x => x && E().allowed(x) && D() && D().isVerified(x) && !avoid.has(x.id)) || null;
   }
+  // The permit office (Ladi's Sogni painting, Nov 17): one close-up for every district. Seymour stands at his desk with
+  // his magnifier while you answer; a right answer gets his stamp, a wrong one his disapproval. Kai waits on the left.
+  const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
+  const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'permit-office', focus: PERMIT_X, close: pose, kai: face, ui,
+    label: 'The permit office: Sir Seymour Backups at his desk, Kai waiting for the verdict' });
+  const PERMIT_ASK = 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.';
   function debriefScreen(s) {
-    const job = jobOf(s, s.at), j = s.jobs[s.at];
+    const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
-      ${job.d === 'eb' && SD.renoStreet ? `<div class="rn-bleed">${SD.renoStreet.scene({ shot: 'close', kai: 'neutral', close: 'stamp', tick: { houses: Array.from({ length: job.street.houses }, (_, i) => ({ id: i, env: 'a', v: j.pass ? 'new' : 'old', st: j.pass ? 'up' : 'scaf' })), served: 0 }, label: 'Seymour holds up his stamp over the permit', ui: '<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.</p></div><div></div>' })}</div>` : say('seymour', 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.')}
+      ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(PERMIT_ASK)}</p></div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
-    if (SD.renoStreet) SD.renoStreet.mount(b);
+    if (RS) RS.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
       const q = debriefQuestion(s, job.d);
       if (!q) { settle(s, job, null, null); return; }
-      const r = await M.ask(q, { tally: s.tally, title: 'THE PERMIT' });
+      const off = permitStage();
+      let r;
+      try { r = await M.ask(q, { tally: s.tally, title: 'THE PERMIT' }); } finally { off(); }
       if (r.closed || r.stopped || r.skipped) { save(s); draw(s); return; }
       if (!r.ok && r.conf < 2) M.sureMiss(q.id);       // every miss goes up, as the Draft always did
       s.debriefs.push({ q: q.id, ok: !!r.ok, conf: r.conf, pts: r.pts || 0, job: job.id, d: job.d });
@@ -686,6 +694,68 @@
       }
       settle(s, job, q, r);
     };
+  }
+  // The question itself is js/quiz.js's exam screen, untouched (through SD.modes.ask): while it's up, the permit office
+  // stands behind its window, which floats over the scene like the plan's boxes. Once the verdict shows, Seymour
+  // stamps (right) or disapproves (wrong), and Kai is happy or worried. Nothing here knows the answer before the verdict.
+  function permitStage() {
+    const RS = SD.renoStreet, p = document.querySelector('#panel');
+    if (!RS || !RS.pose || !p || !window.MutationObserver) return () => {};
+    const box = document.createElement('div');
+    box.className = 'rn-pq';
+    box.innerHTML = permitScene('inspect', 'neutral', '');
+    const el = box.firstElementChild;
+    let beat = '', live = true;
+    const put = () => {
+      if (!live) return;
+      const win = p.hidden ? null : p.querySelector(':scope > .win.quiz');
+      if (!win) return;
+      if (box.parentNode !== win) { win.classList.add('rn-pqwin'); win.prepend(box); RS.mount(box); RS.frame(el); }
+      const v = win.querySelector(':scope > .win-b > .verdict-row > .verdict');
+      const now = v ? (v.classList.contains('ok') ? 'ok' : 'bad') : 'q';
+      if (now !== beat) { beat = now; RS.pose(el, now === 'ok' ? 'stamp' : now === 'bad' ? 'disapprove' : 'inspect', now === 'ok' ? 'happy' : now === 'bad' ? 'worried' : 'neutral'); }
+    };
+    const obs = new MutationObserver(put);
+    obs.observe(p, { childList: true, subtree: true });
+    put();
+    return () => { live = false; obs.disconnect(); box.remove(); };
+  }
+  // The permit question's window over the office: no frame, the scene fills the stage under the top bar, and the
+  // question, options and feedback are blueprint boxes floating in a column between Kai and Seymour (on a phone, under
+  // the scene's top, scrolling up over it).
+  {
+    const PQ = 'body.in-mode #panel:has(> .win.rn-pqwin)', WIN = 'body.in-mode #panel > .win.quiz.rn-pqwin';
+    const pqCss = document.createElement('style');
+    pqCss.id = 'reno-permit-css';
+    pqCss.textContent = `
+      ${PQ} { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+      ${WIN} { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch; padding: 0; border: 0; border-radius: 0;
+        -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: transparent; animation: none; }
+      .rn-pq { position: fixed; left: 0; right: 0; top: calc(56px + env(safe-area-inset-top, 0px)); bottom: 0; z-index: 0; }
+      .rn-pq .rs { height: 100%; max-height: none; aspect-ratio: auto; }
+      ${WIN} .win-h { position: relative; z-index: 2; width: 100%; max-width: 1180px; margin: 0 auto; padding: 10px 16px 6px; border: 0; background: none; color: #cfe6ff; letter-spacing: .12em; text-shadow: 0 1px 3px #000; }
+      ${WIN} .win-h > span:first-child { visibility: hidden; }
+      ${WIN} .win-b { position: relative; z-index: 1; background: none; box-shadow: none; border-radius: 0; padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
+      ${WIN} .win-b::before { content: ''; flex: none; height: max(150px, calc(52vh - 120px)); }
+      ${WIN} .win-b > * { flex: none; margin: 0; background: rgba(29, 61, 107, .94); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+      ${WIN} .win-b > :is(.q-ctx, .verdict-row) { align-self: flex-start; max-width: 100%; }
+      ${WIN} .win-b > .q-ctx { background: rgba(23, 33, 58, .9); padding: 4px 10px; }
+      ${WIN} .q-recap .qr-peek { color: #b9cce4; }
+      /* A phone: Kai and Seymour stand in the band above the boxes, so the verdict's stamp or wave-off stays in view. */
+      @media (max-width: 899px) {
+        .rn-pq .rs-fg { bottom: auto; height: calc(max(150px, 52vh - 120px) + 74px); }
+        .rn-pq .rs:not(.rs-wide).rs-close .rs-kai { height: 80%; }
+        .rn-pq .rs:not(.rs-wide) .rs-sey { height: calc(80% * 1.3 * var(--sh, 1)); }
+      }
+      @media (min-width: 900px) {
+        ${WIN} .win-b::before { height: 2vh; }
+        ${WIN} .win-b { padding-left: max(16px, 17vw); padding-right: max(16px, 33vw); }
+        ${WIN} .win-h { padding-left: max(16px, 17vw); }
+        .rn-pq .rs-close .rs-kai { height: 66%; }
+        .rn-pq .rs-sey { height: calc(66% * 1.3 * var(--sh, 1)); }
+      }
+    `;
+    document.head.appendChild(pqCss);
   }
   // The building: it stands when the plan held and the permit question was right; otherwise scaffolding, which comes
   // down with the question's Wall poster (js/draft.js).
