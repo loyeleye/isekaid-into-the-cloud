@@ -3,7 +3,10 @@
 // Orders pick before every claim (Dutch's explanation, stacking, no repeats), the letters once pinned (all
 // three formats, a wrong answer tearing an option off the next one, a bet, a letter whose clock runs out), each claim's
 // own piece (the bell, the ledger, the Slow Courier's hourglass and stopwatch, the Picky Bell's filter card), batching, and the room's orders (cold
-// stools, the stampede, shelf life). Checks for page errors and horizontal scroll, and saves screenshots.
+// stools, the stampede, shelf life). The extra buys too: one dragged in per claim (memory, the hand-off, TTL, the ledger
+// at the dock, the failure crate and the retry dial), upkeep and its debt, and short runs for the warm stools and the
+// jitter dial, the hand-off and the crate's replay. Checks for page errors and horizontal scroll, and
+// that the belt fits on screen, and saves screenshots.
 // node tools/rush_check.js [outDir]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -34,6 +37,13 @@ async function answer(pg, how) {
   return info;
 }
 async function closeLetter(pg) { await pg.click('.lt-go'); }
+// Drag a tool from its belt slot onto its spot in the room.
+async function dragTo(pg, tool) {
+  const i = await pg.evaluate(t => SD_RUSH.S.belt.indexOf(t), tool);
+  const [ax, ay] = await pg.evaluate(i => SD_RUSH.at.slot(i), i), [bx, by] = await pg.evaluate(t => SD_RUSH.at.spot(t), tool);
+  await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx, by, { steps: 8 }); await pg.mouse.up();
+  return pg.evaluate(t => !!SD_RUSH.S[t], tool);
+}
 // Play until the end strip shows, answering every letter with the given policy (a function of the letter's index).
 async function playOut(pg, policy, seen) {
   const t0 = Date.now(); let n = 0;
@@ -73,6 +83,11 @@ async function playOut(pg, policy, seen) {
     const hands = await pg.evaluate(() => ({ bin: SD_RUSH.S.bin, bell: !!SD_RUSH.S.bell, coins: SD_RUSH.S.coins }));
     if (!hands.bin || hands.bell || hands.coins !== 1) bad(name, 'drag/lock', JSON.stringify(hands));
     await pg.evaluate(() => SD_RUSH.reset(7));
+    // An extra buy: memory on Mira's desk (2 coins at the Rush). It bills a coin a wave from wave 2, and the belt says so.
+    await pg.evaluate(() => { SD_RUSH.S.coins += 2; });
+    if (!(await dragTo(pg, 'memory')) || (await pg.evaluate(() => SD_RUSH.S.coins)) !== 2) bad(name, 'memory did not place');
+    await pg.waitForTimeout(300);
+    await pg.screenshot({ path: `${OUT}/${name}-1b-memory.png` });
     // Claim 1: wave 1 with nothing placed (bounces), then the rack and the bolted stools.
     const [lx, ly] = await pg.evaluate(() => SD_RUSH.at.lever()); await pg.mouse.click(lx, ly);
     if (!(await pg.evaluate(() => SD_RUSH.S.started))) bad(name, 'lever click did not start');
@@ -98,8 +113,9 @@ async function playOut(pg, policy, seen) {
     await closeLetter(pg);
     if (!(await playOut(pg, () => 'right', seen))) bad(name, 'claim 1 never ended');
     await pg.screenshot({ path: `${OUT}/${name}-4-end.png` });
-    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, sw: document.documentElement.scrollWidth, w: innerWidth, next: document.querySelector('.end-go').textContent }));
+    const st = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, handled: SD_RUSH.S.handled, upkeep: SD_RUSH.S.upkeepPaid, sw: document.documentElement.scrollWidth, w: innerWidth, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'rush', JSON.stringify(st));
+    if (st.upkeep < 3) bad(name, 'memory should bill a coin at each of waves 2 to 4', st.upkeep);
     if (st.sw > st.w) bad(name, 'horizontal scroll');
     if (!/Next claim: the Bell/.test(st.next)) bad(name, 'no next-claim button:', st.next);
     // The pick before claim 2: two notices, never letters again. Read one, switch to the other, pin it.
@@ -118,7 +134,8 @@ async function playOut(pg, policy, seen) {
     await pg.click('.no-go');
     const r2 = await pg.evaluate(() => ({ claim: SD_RUSH.S.claim, orders: SD_RUSH.run.orders.slice(), q: document.getElementById('q').className }));
     if (r2.claim !== 'bell' || r2.orders.join() !== 'letters,stakes' || r2.q) bad(name, 'pinning did not start the Bell with stakes', JSON.stringify(r2));
-    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== 2 + left1) bad(name, 'leftover coins should carry into the Bell', left1);
+    // Leftovers carry; a debt from upkeep is written off.
+    if ((await pg.evaluate(() => SD_RUSH.S.coins)) !== 2 + Math.max(0, left1)) bad(name, 'leftover coins should carry into the Bell', left1);
     // Claim 2, the Bell.
     await pg.evaluate(() => SD_RUSH.reset(7, 'bell'));
     await pg.waitForTimeout(400);
@@ -126,6 +143,8 @@ async function playOut(pg, policy, seen) {
     const [b1x, b1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [b2x, b2y] = await pg.evaluate(() => SD_RUSH.at.spot('bell'));
     await pg.mouse.move(b1x, b1y); await pg.mouse.down(); await pg.mouse.move(b2x, b2y, { steps: 8 }); await pg.mouse.up();
     if (!(await pg.evaluate(() => SD_RUSH.S.bell))) bad(name, 'bell drag failed');
+    await pg.evaluate(() => { SD_RUSH.S.coins = Math.max(SD_RUSH.S.coins, 2); });
+    if (!(await dragTo(pg, 'handoff'))) bad(name, 'the hand-off did not place');
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
     await pg.waitForTimeout(6000);
     await pg.screenshot({ path: `${OUT}/${name}-7-bell.png` });
@@ -163,6 +182,8 @@ async function playOut(pg, policy, seen) {
     const [l1x, l1y] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [l2x, l2y] = await pg.evaluate(() => SD_RUSH.at.spot('ledger'));
     await pg.mouse.move(l1x, l1y); await pg.mouse.down(); await pg.mouse.move(l2x, l2y, { steps: 8 }); await pg.mouse.up();
     if (!(await pg.evaluate(() => SD_RUSH.S.ledger))) bad(name, 'ledger drag failed');
+    await pg.evaluate(() => { SD_RUSH.S.coins = Math.max(SD_RUSH.S.coins, 2); });
+    if (!(await dragTo(pg, 'ttl'))) bad(name, 'TTL did not place');
     await pg.evaluate(() => { SD_RUSH.place('reserve'); SD_RUSH.start(); });
     await pg.waitForTimeout(6000);
     await pg.screenshot({ path: `${OUT}/${name}-10-double.png` });
@@ -174,9 +195,10 @@ async function playOut(pg, policy, seen) {
     await closeLetter(pg);
     if (!(await playOut(pg, () => 'right', seen))) bad(name, 'the Double-claimer never ended');
     await pg.screenshot({ path: `${OUT}/${name}-11-double-end.png` });
-    const ds = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, dropped: SD_RUSH.S.dropped, twice: SD_RUSH.S.paidTwice, next: document.querySelector('.end-go').textContent }));
+    const ds = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, dropped: SD_RUSH.S.dropped, twice: SD_RUSH.S.paidTwice, ttlGone: SD_RUSH.S.ttlGone, upkeep: SD_RUSH.S.upkeepPaid, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'double', JSON.stringify(ds));
-    if (ds.over !== 'win' || !ds.dropped || ds.twice) bad(name, 'the Double-claimer did not play through');
+    // With TTL the ledger clears old keys (and never bills); a repeat after its key expired may still pay twice.
+    if (ds.over !== 'win' || !ds.dropped || !ds.ttlGone || ds.upkeep) bad(name, 'the Double-claimer did not play through');
     if (!/Next claim: the Slow Courier/.test(ds.next)) bad(name, 'no claim 4 button:', ds.next);
     // The pick before claim 4: Batching.
     await pg.click('.end-go');
@@ -193,6 +215,8 @@ async function playOut(pg, policy, seen) {
       await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx2, by2, { steps: 8 }); await pg.mouse.up();
     }
     if (!(await pg.evaluate(() => SD_RUSH.S.rack && SD_RUSH.S.hourglass && SD_RUSH.S.stopwatch))) bad(name, 'slow courier pieces did not place');
+    await pg.evaluate(() => { SD_RUSH.S.coins = 3; });
+    if (!(await dragTo(pg, 'ledger')) || (await pg.evaluate(() => SD_RUSH.S.coins)) !== 1) bad(name, 'the ledger should cost 2 at the dock');
     await pg.evaluate(() => { SD_RUSH.place('bin'); SD_RUSH.start(); });
     await pg.waitForTimeout(12000);
     await pg.screenshot({ path: `${OUT}/${name}-14-slow.png` });
@@ -201,6 +225,7 @@ async function playOut(pg, policy, seen) {
     const ss = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, re: SD_RUSH.S.reappeared, cut: SD_RUSH.S.timedOut, batches: SD_RUSH.S.batches, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'slow', JSON.stringify(ss));
     if (ss.over !== 'win' || !ss.cut || !ss.batches) bad(name, 'the Slow Courier did not play through');
+    if (await pg.evaluate(() => SD_RUSH.S.paidTwice)) bad(name, 'the ledger should stop the dock paying twice');
     if (!/Next claim: the Picky Bell/.test(ss.next)) bad(name, 'no claim 5 button:', ss.next);
     // The pick before claim 5: First in, first out.
     await pg.click('.end-go');
@@ -217,6 +242,14 @@ async function playOut(pg, policy, seen) {
       await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx2, by2, { steps: 8 }); await pg.mouse.up();
     }
     if (!(await pg.evaluate(() => SD_RUSH.S.bell && SD_RUSH.S.filter))) bad(name, 'filter card did not place');
+    await pg.evaluate(() => { SD_RUSH.S.coins = Math.max(SD_RUSH.S.coins, 3); });
+    if (!(await dragTo(pg, 'dest')) || !(await dragTo(pg, 'retries'))) bad(name, 'the crate or the retry dial did not place');
+    // Tapping the placed dial turns it: 1, then 0.
+    { const i = await pg.evaluate(() => SD_RUSH.S.belt.indexOf('retries')), [ax, ay] = await pg.evaluate(i => SD_RUSH.at.slot(i), i); await pg.mouse.click(ax, ay); }
+    const pk = await pg.evaluate(() => ({ n: SD_RUSH.S.retryN, belt: SD_RUSH.S.belt.join(), last: SD_RUSH.at.slot(SD_RUSH.S.belt.length - 1)[0], first: SD_RUSH.at.slot(0)[0], w: innerWidth }));
+    if (pk.n !== 0) bad(name, 'tapping the retry dial should turn it to 0', JSON.stringify(pk));
+    if (!/partial/.test(pk.belt)) bad(name, 'partial batch should be on the belt with batching pinned', pk.belt);
+    if (pk.first < 0 || pk.last > pk.w) bad(name, 'the belt runs off the screen', JSON.stringify(pk));
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
     await pg.waitForTimeout(12000);
     await pg.screenshot({ path: `${OUT}/${name}-18-picky.png` });
@@ -225,6 +258,7 @@ async function playOut(pg, policy, seen) {
     const ps = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, filtered: SD_RUSH.S.filtered, tossed: SD_RUSH.S.tossed, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'picky', JSON.stringify(ps));
     if (ps.over !== 'win' || !ps.reports || !ps.filtered || ps.tossed) bad(name, 'the Picky Bell did not play through');
+    await pg.screenshot({ path: `${OUT}/${name}-19b-picky-extras.png` });
     if (!/Play again from the Rush/.test(ps.next)) bad(name, 'last claim should offer the Rush again:', ps.next);
     await pg.click('.end-go');
     const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
@@ -245,6 +279,41 @@ async function playOut(pg, policy, seen) {
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
     await pg.waitForFunction(() => SD_RUSH.S.tossed >= 3, null, { timeout: 30000 }).catch(() => bad(name, 'Reports never threw a copy away without the filter'));
     await pg.screenshot({ path: `${OUT}/${name}-20-picky-nofilter.png` });
+    // Without the bell, the hand-off passes ribboned copies to Reports' tray.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=bell&orders=cold`);
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => { SD_RUSH.S.coins = 3; SD_RUSH.place('rack'); SD_RUSH.place('reserve'); });
+    if (!(await dragTo(pg, 'handoff'))) bad(name, 'the hand-off did not place without the bell');
+    await pg.evaluate(() => SD_RUSH.start());
+    await pg.waitForFunction(() => SD_RUSH.S.handed >= 3, null, { timeout: 30000 }).catch(() => bad(name, 'nothing was handed off'));
+    await pg.screenshot({ path: `${OUT}/${name}-21-handoff.png` });
+    // Without the filter, refunds age out of Reports' tray into the crate; a tap on the crate replays one for a coin.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=picky&orders=cold`);
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.place('dest'); SD_RUSH.start(); });
+    await pg.waitForFunction(() => SD_RUSH.S.crate.length > 0, null, { timeout: 40000 }).catch(() => bad(name, 'nothing went into the crate'));
+    await pg.evaluate(() => { SD_RUSH.S.coins = 1; SD_RUSH.place('dest'); });
+    const rp = await pg.evaluate(() => ({ replayed: SD_RUSH.S.replayed, coins: SD_RUSH.S.coins }));
+    if (rp.replayed !== 1 || rp.coins !== 0) bad(name, 'the crate should replay a refund for a coin', JSON.stringify(rp));
+    await pg.screenshot({ path: `${OUT}/${name}-23-crate.png` });
+    // Cold stools and the stampede bring the warm stools and the jitter dial onto the Rush's belt.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=rush&orders=cold,herd`);
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => { SD_RUSH.S.coins = 4; SD_RUSH.place('reserve'); });
+    if (!(await dragTo(pg, 'warm')) || !(await dragTo(pg, 'jitter'))) bad(name, 'warm stools or the jitter dial did not place');
+    if ((await pg.evaluate(() => SD_RUSH.S.maxThrottles + ':' + SD_RUSH.S.coins)) !== '3:0') bad(name, 'the jitter dial should cost 2 and take back the 4th try');
+    await pg.evaluate(() => SD_RUSH.start());
+    await pg.waitForTimeout(9000);
+    await pg.screenshot({ path: `${OUT}/${name}-24-warm-jitter.png` });
+    const wj = await pg.evaluate(() => ({ herds: SD_RUSH.S.herds, storm: SD_RUSH.S.storm, upkeep: SD_RUSH.S.upkeepPaid, wave: SD_RUSH.S.wave }));
+    console.log(name, 'warm+jitter', JSON.stringify(wj));
+    if (wj.wave >= 2 && !wj.upkeep) bad(name, 'the warm stools should bill each wave', JSON.stringify(wj));
+    // Jitter thins the herd out (it doesn't end it): over 40 seeds of bolted stools, far fewer storm callers than without.
+    const jst = await pg.evaluate(() => { const R = SD.rushCore, n = [0, 0];
+      for (const j of [0, 1]) for (let s = 1; s <= 40; s++) { const S = R.create(s, 'rush', ['herd'], 2); R.place(S, 'reserve'); if (j) R.place(S, 'jitter'); R.start(S);
+        while (!S.over && S.time < 300) { R.step(S, 1 / 30); R.drain(S); } n[j] += S.storm; }
+      return n; });
+    if (!(jst[1] < jst[0] / 3)) bad(name, "jitter should cut the retry storms", JSON.stringify(jst));
     // The room's three orders together: frost on idle stools, the stampede and shelf life.
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=bell&orders=cold,herd,shelf`);
     await pg.waitForTimeout(600);
