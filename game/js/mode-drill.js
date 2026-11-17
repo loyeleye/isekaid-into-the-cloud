@@ -115,7 +115,7 @@
         const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id;
         const how = done ? (s.done[i].clean ? ' · clean fix' : s.done[i].state === 'contained' ? ' · contained' : ' · escalated') : '';
         return `<button class="dr-door${d.boss ? ' boss' : ''}${here ? ' reach' : ''}${done ? ' done' : ''}" data-drill="${id}" ${here ? '' : 'disabled'}>
-          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
+          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.stream ? 'With a stream' : d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
       }).join('')}</div>`;
     }).reverse().join('');
     const first = s.fresh && s.night === 1 && !s.done.length;
@@ -148,7 +148,7 @@
     const order = ['callers'].concat(D.ORDER.filter(k => k !== 'queue' || d.path === 'async'));
     return `<div class="dr-trace" role="list" aria-label="Trace map">${order.map((k, i) => {
       const st = k === 'callers' ? 'ok' : e.nodes[k];
-      const name = k === 'callers' ? 'Callers' : D.STATIONS[k].svc;
+      const name = k === 'callers' ? 'Callers' : D.station(f.drill, k).svc;
       const btn = k !== 'callers';
       const tag = btn ? 'button' : 'span';
       return `${i ? '<span class="dr-edge" aria-hidden="true"></span>' : ''}<${tag} role="listitem" class="dr-node st-${st}${btn && k === cur().at ? ' at' : ''}" ${btn ? `data-at="${k}"` : ''} aria-label="${esc(name)}: ${esc(STATUS[st])}">
@@ -160,12 +160,15 @@
   // switches are on or off, looks (observing) are their own row. Each control's full description is its title and
   // shows in the line under the controls when it's hovered, focused or tapped.
   const DIALS = {
+    authttl: { at: 'gate', needs: 'auth', label: 'Authorizer cache', icon: 'hourglass', ids: ['ttl0', 'ttl300', 'ttl3600'] },
     retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
-    shift: { at: 'fn', rel: true, label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
+    shift: { at: 'fn', needs: 'release', label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
+    sec: { at: 'fn', needs: 'secret', label: 'The ledger password', icon: 'key', ids: ['secinit', 'secttl', 'seccall'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
     key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    rot: { at: 'store', needs: 'secret', label: 'Secret rotation', icon: 'anticlockwise-rotation', ids: ['rotsingle', 'rotalt', 'rotoff'] },
     kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
   };
   const SHORT = { backoff: 'Backoff + jitter', immediate: 'Right away', plan: 'Usage plan: batch client', burst: 'Bigger account burst', gtrace: 'X-Ray on the stage',
@@ -174,10 +177,15 @@
     provlatest: 'Provisioned 6 on $LATEST', rolekms: 'Role allows kms:Decrypt', admin: 'AdministratorAccess', cond: 'Conditional write', ftrace: 'X-Ray active tracing',
     ddbput: 'Allow PutItem on orders', ddbstar: 'Allow dynamodb:* on *', allatonce: 'All at once', canary: 'Canary 10%', linear: 'Linear 10%/min',
     alarm: 'Roll back on Errors alarm', hook: 'PreTraffic test',
+    secinit: 'Once, at start-up', secttl: 'Extension, 5 min', seccall: 'Every call', refetch: 'Login fails? Read it again',
+    ttl0: 'Off', ttl300: '5 min', ttl3600: '1 hour', authwild: 'Policy covers the whole API', fninvoke: 'Allow execute-api:Invoke',
+    consread: 'ConsistentRead', daxnode: 'Add a DAX node', gsiread: 'Consistent read on the index',
+    rotsingle: 'Single user', rotalt: 'Alternating', rotoff: 'Off', bisect: 'Bisect on error', retry2: 'Max retries 2', onfail: 'On failure → orders-failed',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
-    ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield' };
+    ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
+    refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -193,13 +201,13 @@
   }
   // talk: { lines, notes } — in the room, what this station's lead says, shown as their speech bubble at their desk.
   function stationHtml(s, f, e, talk) {
-    const k = s.at, st = D.STATIONS[k], d = D.DRILLS[f.drill];
+    const k = s.at, st = D.station(f.drill, k), d = D.DRILLS[f.drill];
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
-    const hand = D.HANDS[k].filter(id => !C[id].rel || d.release);
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && (!DIALS[n].rel || d.release)).map(n => {
+    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id));
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id))).map(n => {
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
@@ -223,7 +231,7 @@
     return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {

@@ -200,6 +200,36 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await place('canary'); await place('alarm'); await deploy();
   check((await st()).drill.state === 'contained' && /rolled live back/.test(await txt('#panel')), 'a canary with an Errors alarm rolls back and contains it');
 
+  // ---- The Locked Vault and The Stampede Stream ----
+  await open('vault');
+  check(!!await page.$('[data-card="refetch"]') && !await page.$('[data-card="canary"]') && /password authentication failed/.test(await txt('.dr-tray .dr-said')), 'The Locked Vault: Kai reports the failed logins, and the secret settings show at his desk');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('vault');
+  await place('rotalt'); await deploy();
+  check((await st()).drill.state === 'contained', 'alternating-users rotation contains The Locked Vault');
+  await open('stampede');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; SD.drillUi.draw(); });
+  check(/The Stream/.test(await txt('.dr-station')) && /Kinesis/.test(await txt('.dr-station')) && !!await page.$('[data-card="bisect"]') && !await page.$('[data-card="vis30"]') && /IteratorAge/.test(await txt('.dr-tray')), 'The Stampede Stream: Mira\'s desk is the stream, with the trigger\'s error settings and no SQS ones');
+  await shot('stream');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('stream');
+  await place('bisect'); await place('retry2'); await place('onfail'); await deploy();
+  check((await st()).drill.state === 'contained' && /orders-failed/.test(await txt('#panel')), 'bisect, 2 retries and an on-failure destination contain it, with the bad record in orders-failed');
+
+  // ---- The Forged Pass and The Stale Shelf ----
+  await open('pass');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; SD.drillUi.draw(); });
+  check(!!await page.$('[data-card="authwild"]') && /403 Forbidden/.test(await txt('.dr-tray .dr-said')) && /401 Unauthorized/.test(await txt('.dr-tray .dr-said')), 'The Forged Pass: Seo-yeon tells 403s from 401s, and the authorizer settings are at her desk');
+  await shot('pass');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('pass');
+  await place('authwild'); await deploy();
+  check((await st()).drill.state === 'contained', 'a whole-API authorizer policy contains The Forged Pass');
+  await open('shelf');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'store'; SD.drillUi.draw(); });
+  await place('gsiread');
+  check((await st()).drill.changes.length === 0, 'a strongly consistent read on a global secondary index is refused');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('shelf');
+  await place('consread'); await deploy();
+  check((await st()).drill.state === 'contained', 'ConsistentRead contains The Stale Shelf');
+
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nAll Fire Drill checks pass.');

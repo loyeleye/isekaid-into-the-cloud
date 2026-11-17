@@ -161,6 +161,8 @@ body:has(#dialog:not([hidden])) .hub-hint { display: none; }
 .q-ctx { font-family: var(--f-head); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--blue-d); margin-bottom: 6px; }
 .q-q { font-size: 17px; font-weight: 700; text-wrap: balance; }
 .opts { display: grid; gap: 8px; margin: 12px 0; }
+/* A long identifier (CodeDeployDefault.ECSCanary10Percent5Minutes) wraps instead of pushing its option, and the grid, past a phone's edge. */
+.win.quiz .win-b { overflow-wrap: anywhere; }
 .opt { text-align: left; padding: 11px 13px; background: #fff; border: 2px solid var(--ink); border-radius: 12px; line-height: 1.4; box-shadow: 0 3px 0 rgba(43,35,64,.85); transition: transform .08s; }
 .opt:hover:not(:disabled) { background: #f1f7ff; transform: translateY(-1px); }
 .opt.on { background: #dcebff; box-shadow: 0 3px 0 var(--blue-d); border-color: var(--blue-d); }

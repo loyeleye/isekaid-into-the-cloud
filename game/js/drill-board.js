@@ -42,7 +42,7 @@
         <span class="db-crowd">${[0, 1, 2].map(i => img(env('env'), 'db-env c' + i)).join('')}</span>
         <b class="db-name">Callers</b><span class="db-g db-g-callers">${gaugeCallers(e.m)}</span></div>`;
     }
-    const s = D.STATIONS[k], st = e.nodes[k] || 'dark';
+    const s = D.station(f.drill, k), st = e.nodes[k] || 'dark';
     return `<button class="db-st st-${st}${k === at ? ' at' : ''}" data-at="${k}" data-st="${k}" aria-pressed="${k === at}" aria-label="${esc(s.name)}, ${esc(s.svc)}: ${esc(STATUS[st] || '')}">
       <span class="db-fx"></span>
       <span class="db-fig">${img(`assets/img/lead/${LEAD[s.who]}.webp`, 'db-lead', D.NAMES[s.who])}${img(`assets/img/ic-live/${PROP[k]}.webp`, 'db-prop')}</span>
@@ -86,10 +86,10 @@
   // The lead's lines after a run, as speech bubbles under the board.
   // Each lead's face reacts to what their station saw: a problem there, or not.
   const TROUBLE = {
-    seoyeon: m => m.throttles429 || m.fault5xx || m.slow,
+    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost,
     kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked,
-    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied
+    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale
   };
   B.bubbles = function (lines, m) {
     const by = {};
@@ -114,10 +114,13 @@
     if (d.hot) out.push(['store', `${d.hot} throttled`, 'throttle']);
     if (d.over) out.push(['store', `${d.over} over WCU`, 'throttle']);
     if (d.denied) out.push(['store', `${d.denied} denied`, 'error']);
+    if (d.forbidden) out.push(['gate', `${d.forbidden} × 403`, 'error']);
+    if (d.unauth) out.push(['gate', `${d.unauth} × 401`, 'error']);
+    if (d.stale) out.push(['store', `${d.stale} not found yet`, 'error']);
     if (d.iamDenied) out.push(['store', `${d.iamDenied} × 400 denied`, 'error']);
     if (d.dupes) out.push(['store', `${d.dupes} twice`, 'ok']);
     if (d.condBlocked) out.push(['store', `${d.condBlocked} blocked`, 'error']);
-    if (d.parked) out.push(['queue', `${d.parked} to DLQ`, 'ok']);
+    if (d.parked) out.push(['queue', `${d.parked} to ${D.DRILLS[f.drill].stream ? 'orders-failed' : 'DLQ'}`, 'ok']);
     if (d.purged) out.push(['queue', `Purged ${d.purged}`, 'ok']);
     return out;
   }
