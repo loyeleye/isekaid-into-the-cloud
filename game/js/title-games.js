@@ -32,6 +32,11 @@
     mp: { bg: 9 }
   };
   const SPARE = [6, 4, 5];
+  // The exam domains each card mostly tests, under its name (Ladi, Nov 17), from what each mode's questions are drawn
+  // on: Incident Commander takes domains 1 and 4 (IC.match); the Fire Drill's debriefs (its drills' question patterns)
+  // and Multiplayer's card questions (the story's concepts) lean on the ones listed; the rest draw on all four.
+  const TESTS = { story: 0, ic: [1, 4], pop: 0, drill: [1, 2, 4], sprint: 0, hunt: 0, draft: 0, duel: 0, terms: 0, mp: [1, 2] };
+  const domLine = id => { const t = SD.modes && SD.modes.domainLine ? SD.modes.domainLine(TESTS[id]) : ''; return t ? `<p class="tg-dom">${esc(t)}</p>` : ''; };
   // Looping card videos (Ladi, Nov 16; prompts in project files title-loop/story-craft.md): a card id listed here plays
   // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
   // backdrop and portrait. Only the centred card plays. Reduced motion and Save-Data keep the still. The vector build
@@ -116,7 +121,7 @@
     list.className = 'tg-list';
     // Story.
     const ch = go ? chapterOf() : 1, used = [ch];
-    const story = card('story', `${band(ch, go ? leadFace() : 'freya', 'story')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>
+    const story = card('story', `${band(ch, go ? leadFace() : 'freya', 'story')}<div class="tg-body"><p class="tg-name">${go ? 'The story' : 'Keys to the Cloud'}</p>${domLine('story')}
       <p class="tg-meta">${go ? esc(storyLine()) : 'The story, from the opening'}</p></div>`);
     list.appendChild(story);
     if (go) { if (!go.classList.contains('qs-resume')) go.textContent = 'Continue'; adopt(story, go, false); }
@@ -129,7 +134,7 @@
       let st = ''; try { st = m.status ? m.status() || '' : ''; } catch (e) { st = ''; }
       const face = typeof a.face === 'function' ? a.face() : a.face;
       const li = card(m.id, `${bg || hasLoop(m.id) ? band(bg, face, m.id) : `<div class="tg-art tg-plain" aria-hidden="true"><span class="tg-icon">${esc(m.icon || '🎴')}</span></div>`}
-        <div class="tg-body"><p class="tg-name">${esc(m.name)}</p>
+        <div class="tg-body"><p class="tg-name">${esc(m.name)}</p>${domLine(m.id)}
         <p class="tg-meta">${st ? `<span class="tg-tag">In progress</span> ${esc(st)}` : esc([mins(m), host(m.host) && 'with ' + host(m.host)].filter(Boolean).join(' · '))}</p>
         <button class="ghost tg-go" type="button">${st ? 'Resume' : 'Play'}<span class="sr"> ${esc(m.name)}</span></button></div>`);
       li.querySelector('.tg-go').onclick = () => { remember(m.id); U.closePanel(); m.start({}); };
@@ -138,7 +143,7 @@
     // Terms I own: every term typed in the modes, and when each comes back (js/terms.js).
     if (SD.terms) {
       let sm = { typed: 0, due: 0 }; try { sm = SD.terms.summary(); } catch (e) { /* the line falls back */ }
-      const li = card('terms', `${band(0, null, 'terms')}<div class="tg-body"><p class="tg-name">Terms I own</p>
+      const li = card('terms', `${band(0, null, 'terms')}<div class="tg-body"><p class="tg-name">Terms I own</p>${domLine('terms')}
         <p class="tg-meta">${sm.typed ? `${sm.due ? '<span class="tg-tag">' + sm.due + ' due</span> ' : ''}${sm.typed} term${sm.typed === 1 ? '' : 's'} typed, and when each comes back` : 'Every AWS term you type in the games, and when it comes back'}</p>
         <button class="ghost tg-go" type="button">Open<span class="sr"> Terms I own</span></button></div>`);
       li.querySelector('.tg-go').onclick = () => { remember('terms'); U.closePanel(); SD.terms.open(); };
@@ -146,7 +151,7 @@
     }
     // Multiplayer.
     if (mp) {
-      const li = card('mp', `${band(ART.mp.bg, null, 'mp')}<div class="tg-body"><p class="tg-name">Multiplayer</p><p class="tg-meta">Expedition raids, solo, with bots or friends</p></div>`);
+      const li = card('mp', `${band(ART.mp.bg, null, 'mp')}<div class="tg-body"><p class="tg-name">Multiplayer</p>${domLine('mp')}<p class="tg-meta">Expedition raids, solo, with bots or friends</p></div>`);
       mp.textContent = 'Join';
       adopt(li, mp, false);
       list.appendChild(li);
@@ -249,6 +254,7 @@
     .tg-body { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 10px; flex: 1; }
     .tg-name { margin: 0; color: var(--bone, #efe6d2); font-family: Cinzel, serif; font-weight: 700; font-size: 17px; line-height: 1.2; }
     .tg-meta { margin: 0 0 8px; flex: 1; color: #cfc6b4; font: 600 13px/1.35 Nunito, system-ui, sans-serif; }
+    .tg-dom { margin: 0; color: #e9c56d; font: 700 11.5px/1.3 Nunito, system-ui, sans-serif; letter-spacing: .02em; }
     .tg-tag { display: inline-block; padding: 0 6px; border-radius: 6px; background: #d6b254; color: #1d1a26; font-weight: 800; font-size: 11px; }
     #title-actions .tg-go { width: 100%; min-height: 44px; margin: 0; font-size: 16px; }
     #title-actions .tg-go small { display: block; font-size: 11px; }
@@ -276,7 +282,7 @@
       .tg-art, .tg-art.tg-hasvid { height: 56px; aspect-ratio: auto; }
       .tg-face { width: 38px; }
       .tg-name { font-size: 14px; }
-      .tg-meta { font-size: 11.5px; }
+      .tg-meta { font-size: 11.5px; } .tg-dom { font-size: 10.5px; }
       #screen-title.has-today #title-actions .tg-go { min-height: 36px; font-size: 14px; white-space: normal; padding-inline: 8px; }
       .tg-dots, .tg-arrow { display: none; }
     }
