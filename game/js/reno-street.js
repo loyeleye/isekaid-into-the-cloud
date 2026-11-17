@@ -89,7 +89,7 @@
       out += `<button class="rs-hb" data-house="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
     });
     // Seymour, by the gate.
-    if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups', z: 3 }); }
+    if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups' }); }
     // Residents: one in front of each house that served someone this tick, soot on the ones who met the crack, and
     // the turned-away ones in a line at the gate.
     if (o.tick) out += folk(o.tick, houses, gx, gW);
@@ -230,7 +230,7 @@
       }
     }
     // Seymour watches from the far bank, beside the path.
-    if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups', z: 3 }); }
+    if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups' }); }
     return { html: out, width: W, kind: 'bridge' };
   }
 
@@ -250,17 +250,19 @@
     // The crowd: behind the arch first (smaller, further back), then in front. Cheering once the ribbon is cut.
     const n = Math.min(o.folk || 0, 12), soot = Math.min(o.soot || 0, n);
     const spots = [[640, 650], [1280, 655], [520, 680], [1420, 685], [740, 720], [1180, 725], [400, 740], [1540, 745], [600, 785], [1360, 790], [760, 800], [1160, 805]];
-    let back = '', front = '';
+    // Everyone in the square is drawn back to front by where their feet are, so whoever stands nearer covers whoever
+    // stands behind: the residents, the arch and Seymour alike.
+    const items = [];
     spots.slice(0, n).forEach(([x, y], i) => {
       const h = pph(y) * 0.72, s = i < soot, flip = x > AX ? 'transform:scaleX(-1);' : '';
       const sp = o.cut && !s ? pstand('res-cheer', h * 1.04, x, y, { cls: 'rs-cheer', alt: 'a resident, cheering', style: `${flip}animation-delay:${-(i * 0.23).toFixed(2)}s;` })
         : s ? pstand('res-soot', h * 1.08, x, y, { alt: 'a resident with soot', style: flip })
         : pstand('res-a', h, x, y, { alt: 'a resident, waiting', style: flip });
-      if (y < AY) back += shadow(x, y, h * 0.5) + sp; else front += shadow(x, y, h * 0.5) + sp;
+      items.push([y, shadow(x, y, h * 0.5) + sp]);
     });
-    out += back + shadow(AX, AY, aH * 0.75) + pstand(o.cut ? 'arch-cut' : 'arch', aH, AX, AY, { cls: o.cut ? 'rs-pop' : '', alt: o.cut ? 'the ribbon arch, the ribbon cut' : 'the ribbon arch, the ribbon still whole' });
-    if (o.seymour) { const sy = 735, h = pph(sy) * 1.30; out += shadow(1300, sy, h * 0.25) + stand('sey-' + o.seymour, h * SEY_SRC[o.seymour] / 1000, 1300, sy, { alt: 'Sir Seymour Backups', z: 3 }); }
-    out += front;
+    items.push([AY, shadow(AX, AY, aH * 0.75) + pstand(o.cut ? 'arch-cut' : 'arch', aH, AX, AY, { cls: o.cut ? 'rs-pop' : '', alt: o.cut ? 'the ribbon arch, the ribbon cut' : 'the ribbon arch, the ribbon still whole' })]);
+    if (o.seymour) { const sy = 735, h = pph(sy) * 1.30; items.push([sy, shadow(1300, sy, h * 0.25) + stand('sey-' + o.seymour, h * SEY_SRC[o.seymour] / 1000, 1300, sy, { alt: 'Sir Seymour Backups' })]); }
+    items.sort((a, b) => a[0] - b[0]).forEach(([, html]) => { out += html; });
     return { html: out, width: W, kind: 'plaza' };
   }
 
