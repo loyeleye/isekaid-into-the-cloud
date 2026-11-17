@@ -27,6 +27,10 @@
   // steps move along it instead of out over the water.
   const SHIFT = { track: 18, fight: 50, retry: 62, pin: 82 }, GROUND = { docks: { track: 0, fight: 6, retry: 10, pin: 14 } };
   M.shift = (step, key) => ((GROUND[key] || SHIFT)[step] ?? SHIFT[step] ?? 50);
+  // How far up the scene her feet stand on a wide screen (% of its height): at the docks the pier's planks are above
+  // the water line at the bottom of the picture, so she stands up on them, feet showing.
+  const LIFT = { docks: 15 };
+  M.lift = key => LIFT[key] || 0;
   // Warm the map so it's there the moment the hunting grounds open.
   M.warm = () => { const i = new Image(); i.src = M.MAP; };
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -97,6 +101,8 @@
     .hm-walk.still .hm-wbg, .hm-walk.still .hm-wbru, .hm-walk.still .hm-wname { animation: none; }
     .hm-walk.still .hm-wbru { left: 30%; }
     /* The battle's backdrop: a lair, panned to where this step stands. */
+    .hd-scene.hd-lair .hs-bru { bottom: var(--hm-lift, 0px); }
+    .hd-scene.hd-lair.hm-up .hs-bru::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: -3%; height: 5%; border-radius: 50%; background: radial-gradient(rgba(0, 0, 0, .65), transparent 70%); z-index: -1; }
     .hd-scene.hd-lair .hs-street { inset: 0; left: 0; width: 100%; height: 100%; aspect-ratio: auto; transform: none; }
     .hd-scene.hd-lair .hs-bg { object-fit: cover; object-position: var(--hm-x, 50%) 60%; transition: object-position .9s ease-in-out; }
     @media (max-width: 700px) {

@@ -325,7 +325,10 @@
     const satTop = sat && !sat.classList.contains('empty') && sat.offsetHeight ? bt + sat.offsetTop : H;
     const cl = (a, x, z) => Math.max(a, Math.min(z, x));
     let bh, bl;
-    if (wide) { bh = Math.min(H * .78, 620); bl = Math.max(4, Math.round(innerWidth * .02)); }
+    // In a lair whose ground is up in the picture (the docks' pier), she stands up on it, a little smaller.
+    const lift = wide && sc.dataset.lair && SD.huntMap ? H * SD.huntMap.lift(sc.dataset.lair) / 100 : 0;
+    sc.style.setProperty('--hm-lift', Math.round(lift) + 'px'); sc.classList.toggle('hm-up', lift > 0);
+    if (wide) { bh = Math.min(H * .78, 620, H - lift - 70); bl = Math.max(4, Math.round(innerWidth * .02)); }
     else { bh = cl(H * .3, (H - cb) / .95, H * .72); bl = 0; }
     const bw = bh * 475 / 900, gapH = satTop - cb;
     const js = wide ? cl(80, bh * .2, 128) : cl(48, (gapH - 22) / 1.1, 92);
