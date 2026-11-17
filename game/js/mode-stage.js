@@ -214,7 +214,7 @@
 
   // Paper surfaces: dark ink on a light sheet.
   const LIGHT = 'body.in-mode #panel :is(' + ['sprint'].map(id => `body[data-stage="${id}"] .win-b`)
-    .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)']).join(', ') + ')';
+    .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)', 'body[data-stage="ic"] .icl-pred']).join(', ') + ')';
   const FRAME = id => `body.in-mode[data-stage="${id}"] #panel`;
   const css = document.createElement('style');
   css.textContent = `
@@ -270,8 +270,15 @@
     body.in-mode #panel .win :is(.pop-dock, .sp-tray, .conf) { border-top-color: rgba(236, 228, 212, .14); }
     /* A pale box a mode painted itself: the old palette back inside it. */
     body.in-mode #panel .win .ms-lt { --cream: #d6cdb9; --paper: #c7bca4; --bone: #e2dbcb; --ink: #17131f; --muted: #554c5e; --line: #9a8f78;
-      --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e; }
+      --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e;
+      --qf-ink: #17131f; --qf-blue: #3f5f80; --qf-blue-d: #2a4360; --qf-sun: #e2c26a; }   /* the question formats' ink, set once on .qf from the glass palette */
     body.in-mode #panel .win .ms-lt-c { color: #17131f; }
+    body.in-mode #panel .win .qf.ms-lt { --qf-ink: #17131f; }
+    body.in-mode #panel .win .ms-lt a { color: #2a4360; }
+    body.in-mode #panel .win .warn { color: #e8a94a; }
+    /* The stakes are read before an answer is picked, so the confidence row stays legible while it waits. */
+    body.in-mode #panel .win .conf-b button:disabled { opacity: .82; }
+    body.in-mode #panel .win .ms-lt .warn, ${LIGHT} .warn { color: #7f4c00; }   /* the glass's pale link blue is unreadable on paper */
     /* ---- Incident Commander: the camp's pager board ---- */
     /* No window box (Ladi, Nov 16: every mode gets its own edge-to-edge layout, like Monster Hunt): the shift fills the
        stage under the bar, Uptima's watch room behind a darker wash, and only the notes, cards and reports are paper.
@@ -426,7 +433,7 @@
     ${FRAME('pop')} .pop-card:not(.on) { background: #fffaf0; }
     ${FRAME('pop')} .pop-li.blank { color: #c9bfae; border-color: #c9bfae; }
     ${FRAME('pop')} .win :is(.opt, .conf-b button):not(.primary):not(:disabled):hover { background: #fffaf0; }
-    ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"] { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
+    ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"], ${FRAME('pop')} .win .pop-quick button.on:not(.primary) { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
     @media (max-width: 600px) {
       ${FRAME('draft')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }
