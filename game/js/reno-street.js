@@ -20,7 +20,7 @@
   const SEY_H = ph(SEY_FEET) * 1.30;                       // Seymour with his plume, from seymour-proud (1000px tall)
   const SEY_SRC = { proud: 1000, inspect: 980, approve: 1004, disapprove: 989, stamp: 997 };   // same pixel scale
   const AR = { 'house-old': 398 / 600, 'house-new': 410 / 600, 'house-scaf': 453 / 600, 'house-dark': 319 / 600, gate: 473 / 520, lot: 469 / 200,
-    'res-a': 134 / 240, 'res-b': 146 / 240, 'res-soot': 165 / 260, 'sey-proud': 391 / 1000, 'sey-inspect': 621 / 980, 'sey-approve': 397 / 1004, 'sey-disapprove': 568 / 989, 'sey-stamp': 461 / 997 };
+    'res-a': 134 / 240, 'res-b': 146 / 240, 'res-pa': 142 / 245, 'res-pb': 141 / 245, 'res-soot': 165 / 260, 'sey-proud': 391 / 1000, 'sey-inspect': 621 / 980, 'sey-approve': 397 / 1004, 'sey-disapprove': 568 / 989, 'sey-stamp': 461 / 997 };
   const HOUSE_SP = { up: { old: 'house-old', new: 'house-new' }, scaf: { old: 'house-scaf', new: 'house-scaf' }, dark: { old: 'house-dark', new: 'house-dark' } };
   const HOUSE_SAYS = { up: { old: 'old version, open', new: 'new version, open' }, scaf: { old: 'under scaffolding', new: 'under scaffolding' }, dark: { old: 'dark: failed its health check', new: 'dark: failed its health check' } };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -89,13 +89,38 @@
       out += `<button class="rs-hb" data-house="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
     });
     // Seymour, by the gate.
-    if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups', z: 3 }); }
+    if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups' }); }
     // Residents: one in front of each house that served someone this tick, soot on the ones who met the crack, and
     // the turned-away ones in a line at the gate.
-    if (o.tick) out += folk(o.tick, houses, gx, gW);
+    if (o.tick) out += folk(Object.assign({ live: true }, o.tick), houses, gx, gW);
     else if (o.folk) out += folk({ served: o.folk, soot: 0, turned: 0 }, houses, gx, gW);
     return { html: out, width: worldW, houses };
   }
+  // ---- Walking: a resident who travels along a path, stepping through the walk frames, growing as they come nearer ----
+  // The path is resampled to equal steps so the pace is even, and the frames step every quarter second while they walk.
+  // A walker who arrives stops on the first frame (standing). WALK lists the frames in cycle order.
+  const WALK = ['res-a', 'res-pa', 'res-b', 'res-pb'];   // stride, passing, the other stride, passing
+  function traveler(frames, hAt, pts, o) {
+    o = o || {};
+    const [x0, y0] = pts[0], h0 = hAt(y0);
+    // Resample the path to three equal steps.
+    const seg = []; let L = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); L += d; }
+    const at = t => { if (!L) return pts[0]; let r = t * L; for (let i = 0; i < seg.length; i++) { if (r <= seg[i] || i === seg.length - 1) { const k = seg[i] ? Math.min(1, r / seg[i]) : 1; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k]; } r -= seg[i]; } return pts[pts.length - 1]; };
+    const moving = L > 0 && !reduced();
+    let vars = `transform-origin:${px(x0)} ${px(y0)};`;
+    [1, 2, 3].forEach(i => { const [x, y] = at(i / 3); vars += `--x${i}:${px(x - x0)};--y${i}:${px(y - y0)};--s${i}:${(hAt(y) / h0).toFixed(3)};`; });
+    const dur = o.dur || 1.2, loop = !!o.loop, n = frames.length;
+    const anim = moving ? `animation:rs-path ${dur}s linear ${(o.delay || 0).toFixed(2)}s ${loop ? 'infinite' : 1} both;` : '';
+    const flip = o.flip ? 'transform:scaleX(-1);' : '';
+    const steps = loop ? 'infinite' : Math.max(1, Math.round(dur / 0.5));
+    const imgs = frames.map((f, i) => {
+      const st = n > 1 && moving ? `animation:rs-f${n}-${i} .5s linear ${(-(o.phase || 0)).toFixed(2)}s ${steps} both;` : (i ? 'opacity:0;' : '');
+      return stand(f, h0 * ((o.scale && o.scale[f]) || 1), x0, y0, { alt: i ? '' : (o.alt || ''), style: flip + st });
+    }).join('');
+    return `<span class="rs-trav${o.cls ? ' ' + o.cls : ''}" style="${vars}${anim}">${imgs}</span>`;
+  }
+
   function folk(t, houses, gx, gW) {
     const rh = ph(RES_FEET) * 0.72, sh = ph(RES_FEET) * 0.78;
     const up = houses.filter(x => x.h.st === 'up' || x.h.st === 'dark');
@@ -105,13 +130,19 @@
     newOnes.slice(0, soot).forEach(x => spots.push([x, 1]));
     oldOnes.concat(newOnes.slice(soot).filter(x => x.h.st === 'up')).slice(0, ok).forEach(x => spots.push([x, 0]));
     let out = '';
+    // Each tick, the residents walk the last stretch home from the direction of the gate; the sooty ones walk back out.
+    // While planning (no tick) they stand at their doors.
+    const live = !!t.live, hAt = y => ph(y) * 0.72;
     spots.forEach(([x, s], i) => {
       const cx = centreX(x.slot) + (i % 2 ? 26 : -26);
-      out += `<span class="rs-walk${s ? ' soot' : ''}" style="animation-delay:${-(i * 0.17).toFixed(2)}s">${s
-        ? stand('res-soot', sh, cx, RES_FEET + 4, { alt: 'a resident with soot' })
-        : stand('res-a', rh, cx, RES_FEET, { cls: 'a', alt: 'a resident' }) + stand('res-b', rh, cx, RES_FEET, { cls: 'b', alt: '' })}</span>`;
+      out += s
+        ? traveler(['res-soot'], y => ph(y) * 0.78, live ? [[cx, RES_FEET + 4], [cx - 150, RES_FEET + 8]] : [[cx, RES_FEET + 4]], { alt: 'a resident with soot', dur: 0.6, delay: i * 0.04 })
+        : traveler(WALK, hAt, live ? [[cx - 170, RES_FEET + 6], [cx, RES_FEET]] : [[cx, RES_FEET]], { alt: 'a resident', flip: true, dur: 0.55, delay: i * 0.04, phase: i * 0.13 });
     });
-    for (let i = 0; i < Math.min(t.turned || 0, 6); i++) out += stand('res-a', rh, gx - gW * 0.3 - i * 46, RES_FEET + 8, { cls: 'rs-turned', alt: 'a resident turned away', style: 'transform:scaleX(-1);' });
+    for (let i = 0; i < Math.min(t.turned || 0, 6); i++) {
+      const x = gx - gW * 0.3 - i * 46;
+      out += traveler(WALK, hAt, live ? [[x + 90, RES_FEET + 8], [x, RES_FEET + 8]] : [[x, RES_FEET + 8]], { cls: 'rs-turned', alt: 'a resident turned away', dur: 0.55, phase: i * 0.11 });
+    }
     return out;
   }
 
@@ -127,7 +158,7 @@
   const YARD_ART = {
     bg: 'office-yard',
     ec2: ['yard-hut', 708 / 653, 2.2], rds: ['yard-well', 761 / 953, 2.0], ddb: ['yard-ledger', 734 / 995, 1.6], s3: ['yard-board', 711 / 989, 1.8],
-    jar: ['yard-jar', 658 / 981, 0.9], rubble: ['yard-rubble', 750 / 402, 0.85], seal: null
+    jar: ['yard-jar', 658 / 981, 0.9], rubble: ['yard-rubble', 750 / 402, 0.85], seal: ['yard-seal', 176 / 240, 0.6]
   };
   const yardSp = (k, cx, feet, o) => {
     const a = YARD_ART[k]; if (!a) return '';
@@ -145,7 +176,7 @@
       const cx = yx(i), res = o.res && i < (o.upto == null ? n : o.upto) ? o.res.find(x => x.id === r.id) : null;
       const pol = res ? res.policy : (o.plan && o.plan[r.id]) || 'Delete';
       if (!res) out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}: ${YARD_SAYS[r.type]}, marked ${pol}` });
-      else if (res.kept === 'running') out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}, kept running (Retain)`, cls: 'rs-kept' }) + `<b class="rs-seal" style="left:${px(cx + 60)};top:${px(YF - YA * 1.2)}">⚙</b>`;
+      else if (res.kept === 'running') out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}, kept running (Retain)`, cls: 'rs-kept' }) + `<img class="rs-sp rs-seal" src="${IMG('yard-seal')}" alt="a wax-sealed Retain tag" draggable="false" style="left:${px(cx + 40)};top:${px(YF - YA * 1.25)};width:${px(YA * 0.6 * 176 / 240)};height:${px(YA * 0.6)}">`;
       else if (res.kept === 'snapshot') out += yardSp('rubble', cx, YF + 10, { alt: '' }) + yardSp('jar', cx, YF + 6, { alt: `${r.name}: a snapshot in a jar, then deleted`, cls: 'rs-jar' });
       else out += yardSp('rubble', cx, YF + 10, { alt: `${r.name}: deleted, and its data with it`, cls: 'rs-gone' });
       // The plaque hangs just above whatever stands there, so the cards along the bottom never cover it.
@@ -156,14 +187,172 @@
     return { html: out, width: worldW, kind: 'yard' };
   }
 
+  // ---- Night 2, the Shrine Bridge: a Lambda function behind its live alias, traffic shifted by CodeDeploy ----
+  // The walkers (the residents) cross the old stone bridge; on the far bank a signpost (the live alias) splits the
+  // path between two shrines, the old version on the left and the new one on the right. Its arms carry the weights.
+  // A cracked release is the new shrine gone dark and smoking: walkers who reach it come back with soot. The alarm bell
+  // rings when soot passes its line and the signpost swings back on its own. The clockwork test walker is a hook.
+  // Perspective, measured from the far cottage's door and the fence on the right: an adult whose feet are at y stands
+  // BSL * (y - BHZ) tall (the horizon is at the far bank's tree line).
+  const BHZ = 311, BSL = 1.07, bph = y => BSL * (y - BHZ);
+  const BR = {
+    old: { x: 640, y: 432 }, nw: { x: 1400, y: 442 }, sign: { x: 1000, y: 486 }, bell: { x: 1820, y: 478 }, sey: { x: 1590, y: 600 },
+    // The walk: up onto the bridge from the near bank, over its crown, down to the far bank and the signpost.
+    path: [[60, 640], [260, 540], [470, 478], [700, 488], [860, 512]]
+  };
+  const BAR = { 'shrine-old': 446 / 601, 'shrine-new': 445 / 600, 'shrine-cracked': 445 / 627, 'bridge-signpost': 382 / 560, 'bridge-bell': 251 / 440, 'bridge-tester': 213 / 300 };
+  const bstand = (name, h, cx, feet, o) => {
+    o = o || {};
+    const w = h * (BAR[name] || AR[name] || 0.6);
+    return `<img class="rs-sp ${o.cls || ''}" src="${IMG(name)}" alt="${esc(o.alt || '')}" draggable="false" style="left:${px(cx - w / 2)};top:${px(feet - h)};width:${px(w)};height:${px(h)};${o.style || ''}">`;
+  };
+  const BRIDGE_FOCUS = { old: BR.old.x, new: BR.nw.x, sign: BR.sign.x, bell: BR.bell.x };
+  // o: { w: weight on the new version (0..1), demand: walkers a minute, soot: walkers who met the crack this minute,
+  //      cracked: the new shrine shows its crack, first: no old version yet, note: the tick's note (pre, post, rollback,
+  //      stuck), alarm: the bell is set up, rang: it's ringing, pre/post: the hooks are set up, ghost: planning,
+  //      tap: make the bell and the test walker buttons, seymour: pose }
+  function bridge(o) {
+    let out = `<img class="rs-bg" src="${IMG('bridge')}" alt="" draggable="false" style="left:0">`;
+    const w = Math.max(0, Math.min(1, o.w || 0)), pct = Math.round(w * 100);
+    // The shrines: the old version (unless this function has never shipped one) and the new one.
+    const shH = a => bph(a.y) * 2.3;
+    if (!o.first) out += shadow(BR.old.x, BR.old.y, shH(BR.old) * 0.7) + bstand('shrine-old', shH(BR.old), BR.old.x, BR.old.y, { alt: 'the old shrine: the version the alias pointed at' });
+    const cracked = !!o.cracked, nn = cracked ? 'shrine-cracked' : 'shrine-new';
+    out += shadow(BR.nw.x, BR.nw.y, shH(BR.nw) * 0.7) + bstand(nn, shH(BR.nw) * (cracked ? 627 / 600 : 1), BR.nw.x, BR.nw.y,
+      { cls: o.ghost ? 'rs-ghost' : (cracked ? 'rs-crack' : ''), alt: o.ghost ? 'the new shrine, planned' : cracked ? 'the new shrine, cracked and smoking' : 'the new shrine: the new version' });
+    // The signpost (the live alias) with the weights on its arms.
+    const sH = bph(BR.sign.y) * 1.45, sW = sH * BAR['bridge-signpost'], sx = BR.sign.x - sW / 2, sy = BR.sign.y - sH;
+    const swing = o.note === 'rollback' ? ' rs-swing' : '';
+    out += shadow(BR.sign.x, BR.sign.y, sW * 0.5) + `<span class="rs-sign${swing}" style="left:${px(sx)};top:${px(sy)};width:${px(sW)};height:${px(sH)}">`
+      + `<img class="rs-sp" src="${IMG('bridge-signpost')}" alt="the signpost: the live alias, ${100 - pct}% to the old shrine and ${pct}% to the new" draggable="false" style="left:0;top:0;width:100%;height:100%">`
+      + `<b class="rs-arm l${o.first ? ' off' : ''}" style="left:0;top:26%;width:46%;height:9%">${o.first ? '' : (100 - pct) + '%'}</b>`
+      + `<b class="rs-arm r${pct ? ' on' : ''}" style="left:54%;top:38.5%;width:45%;height:10.5%">${pct}%</b></span>`;
+    // The alarm bell: set up or not (a pale blueprint while planning, to tap), and ringing on a rollback.
+    const bH = bph(BR.bell.y) * 1.5;
+    if (o.alarm || o.tap) out += shadow(BR.bell.x, BR.bell.y, bH * 0.3) + bstand('bridge-bell', bH, BR.bell.x, BR.bell.y,
+      { cls: (o.alarm ? '' : 'rs-ghost rs-off') + (o.rang ? ' rs-ring' : ''), alt: o.alarm ? (o.rang ? 'the alarm bell, ringing' : 'the alarm bell (a CloudWatch alarm)') : 'no alarm bell yet' });
+    if (o.tap) out += `<button class="rs-hb" data-flip="alarm" aria-pressed="${!!o.alarm}" aria-label="The alarm bell: ${o.alarm ? 'take it down' : 'put it up'}" style="left:${px(BR.bell.x - bH * 0.3)};top:${px(BR.bell.y - bH)};width:${px(bH * 0.6)};height:${px(bH)}"></button>`;
+    // The clockwork test walker: waits by the signpost while planning (a hook), walks to the new shrine on its turn.
+    const tH = bph(BR.sign.y) * 0.55;
+    const hook = o.pre || o.post;
+    if (o.note === 'pre' || o.note === 'post') {
+      const t = { x: (BR.sign.x + BR.nw.x) / 2 + 40, y: (BR.sign.y + BR.nw.y) / 2 };
+      out += bstand('bridge-tester', bph(t.y) * 0.55, t.x, t.y, { cls: 'rs-tester', alt: o.note === 'pre' ? 'the test walker crossing first (the pre-traffic hook)' : 'the test walker checking (the post-traffic hook)', style: 'transform:scaleX(-1);' });
+    } else if (o.ghost && (hook || o.tap)) {
+      out += bstand('bridge-tester', tH, BR.sign.x - sW * 0.75, BR.sign.y + 6, { cls: hook ? '' : 'rs-ghost rs-off', alt: hook ? 'the test walker, waiting (a traffic hook)' : 'no test walker yet' });
+      if (o.tap) out += `<button class="rs-hb" data-flip="pre" aria-pressed="${!!o.pre}" aria-label="The test walker: ${o.pre ? 'no pre-traffic test' : 'test before any traffic (pre-traffic hook)'}" style="left:${px(BR.sign.x - sW * 0.75 - tH * 0.4)};top:${px(BR.sign.y + 6 - tH)};width:${px(tH * 0.8)};height:${px(tH)}"></button>`;
+    }
+    // The walkers: two always on the bridge, and at each shrine a share of the crowd by the signpost's weights. Those
+    // who met the crack carry soot and walk back toward the bridge.
+    const d = o.demand || 0;
+    if (d && o.note !== 'pre') {
+      const rh = y => bph(y) * 0.72, live = o.note != null && !o.ghost;
+      // Two walkers always crossing the bridge, on a loop: up from the near bank, over the crown, down to the signpost.
+      const cross = BR.path.concat([[BR.sign.x - 40, BR.sign.y + 10]]);
+      [0, 1].forEach(k => { out += traveler(WALK, rh, cross, { alt: 'a walker crossing the bridge', flip: true, loop: true, dur: 7, delay: -k * 3.5, phase: k * 0.2 }); });
+      // At the shrines, a share of the crowd by the signpost's weights; on a run, each tick's arrivals walk there from
+      // the signpost. Those who met the crack walk back out with soot.
+      const nNew = w ? Math.max(1, Math.round(6 * w)) : 0, nOld = o.first ? 0 : 6 - nNew;
+      const soot = Math.min(nNew, o.soot ? Math.max(1, Math.round(6 * Math.min(1, o.soot / d))) : 0);
+      const from = [BR.sign.x, BR.sign.y + 14];
+      let i = 0;
+      for (let k = 0; k < nOld; k++) {
+        const x = BR.old.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0), y = BR.old.y + 22 + (k > 2 ? 28 : 0);
+        out += traveler(WALK, rh, live ? [from, [x, y]] : [[x, y]], { alt: 'a walker at the old shrine', dur: 0.9, delay: k * 0.05, phase: (i++) * 0.13 });
+      }
+      for (let k = 0; k < nNew; k++) {
+        const s = k < soot, x = BR.nw.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0), y = BR.nw.y + 22 + (k > 2 ? 28 : 0);
+        out += s
+          ? traveler(['res-soot'], y2 => rh(y2) * 1.08, live ? [[x, y], [x - 140, y + 26]] : [[x - 120, y + 26]], { alt: 'a walker with soot', dur: 0.9, delay: k * 0.05 })
+          : traveler(WALK, rh, live ? [from, [x, y]] : [[x, y]], { alt: 'a walker at the new shrine', flip: true, dur: 0.9, delay: k * 0.05, phase: (i++) * 0.13 });
+      }
+    }
+    // Seymour watches from the far bank, beside the path.
+    if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups' }); }
+    return { html: out, width: W, kind: 'bridge' };
+  }
+
+  // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
+  // Perspective from the clock tower's door and the stall counters: an adult whose feet are at y stands PSL * (y - PHZ).
+  const PHZ = 489, PSL = 1.075, pph = y => PSL * (y - PHZ);
+  const PAR = { arch: 493 / 640, 'arch-cut': 491 / 640, 'res-cheer': 164 / 260, 'res-cheer2': 164 / 256 };
+  const pstand = (name, h, cx, feet, o) => {
+    o = o || {};
+    const w = h * (PAR[name] || AR[name] || 0.6);
+    return `<img class="rs-sp ${o.cls || ''}" src="${IMG(name)}" alt="${esc(o.alt || '')}" draggable="false" style="left:${px(cx - w / 2)};top:${px(feet - h)};width:${px(w)};height:${px(h)};${o.style || ''}">`;
+  };
+  // o: { cut: the ribbon is cut, folk: how many residents came, soot: how many of them carry soot, seymour: pose }
+  function plaza(o) {
+    let out = `<img class="rs-bg" src="${IMG('square')}" alt="" draggable="false" style="left:0">`;
+    const AX = 960, AY = 700, aH = pph(AY) * 1.75;
+    // The crowd: behind the arch first (smaller, further back), then in front. Cheering once the ribbon is cut.
+    const n = Math.min(o.folk || 0, 12), soot = Math.min(o.soot || 0, n);
+    const spots = [[640, 650], [1280, 655], [520, 680], [1420, 685], [740, 720], [1180, 725], [400, 740], [1540, 745], [600, 785], [1360, 790], [760, 800], [1160, 805]];
+    // Everyone in the square is drawn back to front by where their feet are, so whoever stands nearer covers whoever
+    // stands behind: the residents, the arch and Seymour alike.
+    const items = [];
+    spots.slice(0, n).forEach(([x, y], i) => {
+      const h = pph(y) * 0.72, s = i < soot, flip = x > AX ? 'transform:scaleX(-1);' : '';
+      const ph0 = (-(i * 0.23)).toFixed(2), cheer = reduced() ? '' : 'animation:rs-f2-0 .7s linear ' + ph0 + 's infinite both;', jump = reduced() ? 'opacity:0;' : 'animation:rs-f2-1 .7s linear ' + ph0 + 's infinite both;';
+      // Cheering: two frames, standing with both arms up, then mid-jump.
+      const sp = o.cut && !s ? `<span class="rs-trav">${pstand('res-cheer', h * 1.04, x, y, { alt: 'a resident, cheering', style: flip + cheer })}${pstand('res-cheer2', h * 1.03, x, y - h * 0.08, { alt: '', style: flip + jump })}</span>`
+        : s ? pstand('res-soot', h * 1.08, x, y, { alt: 'a resident with soot', style: flip })
+        : pstand('res-a', h, x, y, { alt: 'a resident, waiting', style: flip });
+      items.push([y, shadow(x, y, h * 0.5) + sp]);
+    });
+    items.push([AY, shadow(AX, AY, aH * 0.75) + pstand(o.cut ? 'arch-cut' : 'arch', aH, AX, AY, { cls: o.cut ? 'rs-pop' : '', alt: o.cut ? 'the ribbon arch, the ribbon cut' : 'the ribbon arch, the ribbon still whole' })]);
+    if (o.seymour) { const sy = 735, h = pph(sy) * 1.30; items.push([sy, shadow(1300, sy, h * 0.25) + stand('sey-' + o.seymour, h * SEY_SRC[o.seymour] / 1000, 1300, sy, { alt: 'Sir Seymour Backups' })]); }
+    items.sort((a, b) => a[0] - b[0]).forEach(([, html]) => { out += html; });
+    return { html: out, width: W, kind: 'plaza' };
+  }
+  // ---- The Wall: tonight's and carried posters, pinned on the town wall under its tiled overhang ----
+  // Each poster is Ladi's blank parchment notice (poster.webp, 306 x 420) with the game's text for it written on the top
+  // band, tilted a little. One coming down plays the torn-loose frame (poster-down.webp) and falls away. The wall's
+  // bare middle is x 280..1660, y 230..730 (wall.webp, 1920 x 1072): four posters across, then the wall repeats.
+  const PW = { top: 290, h: 420, x0: 450, step: 340, per: 4, max: 16 };
+  const posterX = i => Math.floor(i / PW.per) * W + PW.x0 + (i % PW.per) * PW.step;
+  const TILT = [-3, 2.2, -1.4, 3, -2.4];
+  // The top band holds about 240 world px of heading text: one line when it fits big enough to read on a phone, else
+  // two smaller ones, broken at the name's " · " (topic, then exam task) when it has one.
+  const fitFont = (n, max) => Math.min(max, Math.floor(240 / (Math.max(1, n) * 0.62)));
+  function bandText(t) {
+    t = String(t || '');
+    if (fitFont(t.length, 34) >= 28) return { fs: fitFont(t.length, 34), html: esc(t) };
+    const parts = t.split(' · ');
+    if (parts.length === 2) return { fs: Math.max(16, fitFont(Math.max(parts[0].length, parts[1].length), 24)), html: parts.map(esc).join('<br>') };
+    return { fs: Math.max(16, fitFont(Math.ceil(t.length / 2), 24)), html: esc(t) };
+  }
+  // o.wall: [{ name, foot?: bottom band text, fresh?: just went up, down?: coming down }]
+  function wallWorld(o) {
+    const ps = o.wall.slice(0, PW.max), n = ps.length;
+    const worldW = Math.max(1, Math.ceil(n / PW.per)) * W;   // whole walls, so the last one ends at its timber post
+    let out = '';
+    for (let i = 0; i * W < worldW; i++) out += `<img class="rs-bg${i % 2 ? ' flip' : ''}" src="${IMG('wall')}" alt="" draggable="false" style="left:${i * W}px">`;
+    ps.forEach((p, i) => {
+      const cx = posterX(i), h = PW.h, w = h * (p.down ? 314 : 306) / 420, band = bandText(p.name);
+      out += `<div class="rs-poster${p.down ? ' down' : ''}${p.fresh ? ' fresh' : ''}" role="img" aria-label="${esc((p.down ? 'Coming down: ' : 'Poster: ') + (p.name || 'an idea'))}" style="left:${px(cx - w / 2)};top:${px(PW.top)};width:${px(w)};height:${px(h)};--tilt:${TILT[i % TILT.length]}deg;animation-delay:${(i * 0.05).toFixed(2)}s">`
+        + `<img src="${IMG(p.down ? 'poster-down' : 'poster')}" alt="" draggable="false">`
+        + (p.down ? '' : `<b class="rs-pt" style="font-size:${band.fs}px">${band.html}</b><span class="rs-pw">WANTED</span>${p.foot ? `<span class="rs-pf">${esc(p.foot)}</span>` : ''}`)
+        + '</div>';
+    });
+    if (o.wall.length > PW.max) out += `<b class="rs-more" style="left:${px(posterX(PW.max - 1) + 170)};top:${px(PW.top + PW.h - 60)}">+${o.wall.length - PW.max}</b>`;
+    const fall = ps.findIndex(p => p.down);
+    return { html: out, width: worldW, kind: 'wall', focus: fall >= 0 ? fall : null };
+  }
+  // A close-up away from the job's world (o.close with o.bg): just the painting, such as the permit office.
+  const backdrop = o => ({ html: `<img class="rs-bg" src="${IMG(o.bg)}" alt="" draggable="false" style="left:0">`, width: W, kind: 'bg' });
+  const build = o => o.close && o.bg ? backdrop(o) : o.wall ? wallWorld(o) : o.plaza ? plaza(o) : o.bridge ? bridge(o) : o.stack ? yard(o) : world(o);
+
   // ---- The scene: the world inside a camera, plus the foreground (Kai, and Seymour for close-ups) and the UI layer ----
-  // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on, kai: face, close: Seymour's pose,
-  //      ui: html laid over the scene, label }
+  // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on (with bg: the world x to centre on
+  //      when the box is narrow), kai: face, close: Seymour's pose, bg: a backdrop for the close-up instead of the job's
+  //      world (a file in assets/img/reno/street, e.g. 'permit-office'), wall: posters (see wallWorld; the camera frames one coming down), ui: html laid
+  //      over the scene, label }
   function scene(o) {
-    const w = o.stack ? yard(o) : world(o);
+    const w = build(o), focus = o.focus != null ? o.focus : w.focus;   // the Wall frames a poster coming down
     const kai = o.kai ? `<img class="rs-kai" src="${IMG('kai-' + o.kai)}" alt="Kai" draggable="false" data-face="${esc(o.kai)}">` : '';
-    const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
-    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${o.focus == null ? '' : o.focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
+    const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" data-pose="${esc(o.close)}" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
+    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}${o.cls ? ' ' + o.cls : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${focus == null ? '' : focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
       <div class="rs-cam"><div class="rs-sizer"><div class="rs-world" style="width:${Math.round(w.width)}px">${w.html}</div></div></div>
       <div class="rs-fg">${kai}${sey}</div><div class="rs-ui">${o.ui || ''}</div></div>`;
   }
@@ -177,15 +366,20 @@
     el.classList.toggle('rs-wide', wide);
     const ww = +el.dataset.ww || W, shot = el.dataset.shot;
     let y0, h, cx;
-    const isYard = el.dataset.kind === 'yard';
-    if (shot === 'push' && isYard) { h = H / (wide ? 1.7 : 1.4); y0 = YF - YA * 1.1 - h / 2 + 40; cx = el.dataset.focus !== '' ? yx(+el.dataset.focus) : W / 2; }
+    const isYard = el.dataset.kind === 'yard', isBridge = el.dataset.kind === 'bridge', isWall = el.dataset.kind === 'wall', isPlaza = el.dataset.kind === 'plaza';
+    if (isWall) { h = CW >= 600 ? 600 : 440; y0 = CW >= 600 ? 200 : 280; }   // the posters under the overhang (tighter on a phone); across, see below
+    else if (shot === 'push' && isBridge) { h = H / (wide ? 2.0 : 1.6); y0 = 400 - h / 2; cx = BRIDGE_FOCUS[el.dataset.focus] || W / 2; }
+    else if (shot === 'push' && isYard) { h = H / (wide ? 1.7 : 1.4); y0 = YF - YA * 1.1 - h / 2 + 40; cx = el.dataset.focus !== '' ? yx(+el.dataset.focus) : W / 2; }
     else if (shot === 'push') { h = H / (wide ? 2.4 : 2.0); y0 = FEET - HOUSE * 0.5 - h / 2 + 30; cx = el.dataset.focus !== '' ? centreX(+el.dataset.focus) : (X0 + W) / 2; }
-    else if (shot === 'close') { h = H; y0 = 0; cx = W / 2; }
+    else if (shot === 'close') { h = H; y0 = 0; cx = el.dataset.kind === 'bg' && el.dataset.focus !== '' ? +el.dataset.focus : W / 2; }
     else if (wide) { h = H; y0 = 0; cx = W / 2; }
+    else if (isBridge) { h = 760; y0 = 120; cx = BR.sign.x; }
+    else if (isPlaza) { h = 1000; y0 = 40; cx = 1090; }   // a phone: the arch, Seymour and some of the crowd   // a phone: the far bank, the signpost between the shrines
     else { h = 900; y0 = 172; cx = isYard ? yx(0) : centreX(0); }          // a phone: the street and the plaza, little sky
     // Fit the shot's height, but always cover the box: a wide box shows less sky rather than a dark edge.
     const s = Math.max(CH / h, CW / ww), vh = CH / s;
-    if (vh < h) y0 = shot === 'push' ? y0 + (h - vh) / 2 : y0 + (h - vh);   // a push stays centred; the others keep the plaza
+    if (isWall) cx = el.dataset.focus !== '' ? posterX(+el.dataset.focus) : CW / s >= W - 40 ? W / 2 : posterX(0) - 200 + CW / s / 2;
+    if (vh < h) y0 = shot === 'push' || isWall ? y0 + (h - vh) / 2 : y0 + (h - vh);   // a push stays centred; the others keep the plaza
     // Never show past the painting's bottom edge or the world's ends.
     y0 = Math.max(0, Math.min(y0, H - vh));
     sizer.style.width = Math.round(ww * s) + 'px'; sizer.style.height = CH + 'px';
@@ -226,9 +420,19 @@
   }
   // A new tick: redraw the world only, so the camera box, Kai and the UI stay put.
   function update(el, o) {
-    const w = o.stack ? yard(o) : world(o), wd = el.querySelector('.rs-world');
+    const w = build(o), wd = el.querySelector('.rs-world');
     wd.innerHTML = w.html; wd.style.width = Math.round(w.width) + 'px'; el.dataset.ww = Math.round(w.width);
     frame(el); return w;
+  }
+  // A close-up's new beat without rebuilding it: Seymour's pose (one of SEY_SRC's five) and Kai's face.
+  function pose(el, p, face) {
+    const sey = el.querySelector('.rs-sey');
+    if (sey && SEY_SRC[p] && sey.dataset.pose !== p) {
+      sey.src = IMG('sey-' + p); sey.dataset.pose = p; sey.style.setProperty('--sh', SEY_SRC[p] / 1000);
+      sey.classList.remove('rs-beat'); void sey.offsetWidth; sey.classList.add('rs-beat');
+    }
+    const k = el.querySelector('.rs-kai');
+    if (k && face) { if (k.rsFace) k.rsFace(face); else k.src = IMG('kai-' + face); k.dataset.face = face; }
   }
   // Change the shot (a cut) without rebuilding the scene.
   function cut(el, shot, focus) { el.dataset.shot = shot; el.dataset.focus = focus == null ? '' : focus; el.className = el.className.replace(/shot-\w+/, 'shot-' + shot); frame(el); }
@@ -256,8 +460,15 @@
     .rs-hb:focus-visible { outline: 6px solid #ffd45a; }
     .rs-marks { position: absolute; color: #ff5a4a; font: 900 44px/1 sans-serif; letter-spacing: -6px; text-shadow: 0 2px 0 #000; white-space: nowrap; z-index: 2; }
     .rs-post { position: absolute; font: 800 28px/1 var(--f-head, sans-serif); padding: 8px 14px; border-radius: 8px; background: #6b4423; border: 3px solid #3b2410; color: #ffe9b8; white-space: nowrap; }
-    .rs-walk { position: absolute; left: 0; top: 0; animation: rs-in .55s ease-out both; }
-    .rs-walk .b { animation: rs-step .5s steps(1) infinite; } .rs-walk .a { animation: rs-step .5s steps(1) infinite reverse; }
+    .rs-trav { position: absolute; left: 0; top: 0; pointer-events: none; }
+    @keyframes rs-path { 0% { transform: none; } 33.333% { transform: translate(var(--x1), var(--y1)) scale(var(--s1)); } 66.667% { transform: translate(var(--x2), var(--y2)) scale(var(--s2)); } 100% { transform: translate(var(--x3), var(--y3)) scale(var(--s3)); } }
+    /* Walk frames: frame 0 shows last, so a walker who stops stands on it. Two frames, or four with the passing poses. */
+    @keyframes rs-f2-0 { 0%, 49.9% { opacity: 0; } 50%, 100% { opacity: 1; } }
+    @keyframes rs-f2-1 { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes rs-f4-0 { 0%, 74.9% { opacity: 0; } 75%, 100% { opacity: 1; } }
+    @keyframes rs-f4-1 { 0%, 24.9% { opacity: 1; } 25%, 100% { opacity: 0; } }
+    @keyframes rs-f4-2 { 0%, 24.9% { opacity: 0; } 25%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes rs-f4-3 { 0%, 49.9% { opacity: 0; } 50%, 74.9% { opacity: 1; } 75%, 100% { opacity: 0; } }
     @keyframes rs-step { 0% { opacity: 0; } 50% { opacity: 1; } }
     @keyframes rs-in { from { transform: translateX(70px); } to { transform: none; } }
     .rs-turned { opacity: .85; filter: saturate(.6); }
@@ -265,8 +476,21 @@
     .rs-gone { opacity: .9; } .rs-kept { filter: drop-shadow(0 0 12px rgba(255,212,90,.85)); }
     .rs-jar { filter: drop-shadow(0 0 16px rgba(190,230,255,.9)); animation: rs-pop .5s ease-out both; }
     @keyframes rs-pop { from { transform: translateY(-60px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
-    .rs-seal { position: absolute; font: 900 54px/1 sans-serif; color: #fff; background: #b23b3b; border: 4px solid #6e1c1c; border-radius: 50%; width: 72px; height: 72px; display: grid; place-items: center; }
+    .rs-seal { filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); transform: rotate(-8deg); }
     .rs-plq { position: absolute; width: 180px; text-align: center; font: 800 30px/1.2 var(--f-head, sans-serif); color: #3a2a12; background: linear-gradient(#ffe58a, #e0a030); border: 3px solid #5a3a12; border-radius: 10px; padding: 4px 0; }
+    .rs-sign { position: absolute; transform-origin: 50% 100%; }
+    .rs-sign.rs-swing { animation: rs-swing .9s ease-in-out both; }
+    @keyframes rs-swing { 0% { transform: rotate(0); } 30% { transform: rotate(-6deg); } 60% { transform: rotate(4deg); } 100% { transform: rotate(0); } }
+    .rs-arm { position: absolute; display: grid; place-items: center; font: 900 30px/1 var(--f-head, sans-serif); color: #ffe9b8; text-shadow: 0 2px 0 #2a160a, 0 0 6px #2a160a; pointer-events: none; }
+    .rs-arm.r.on { color: #fff3a8; }
+    .rs-off { opacity: .32; }
+    .rs-crack { filter: drop-shadow(0 0 14px rgba(40,30,30,.8)); }
+    .rs-ring { animation: rs-ring .25s ease-in-out infinite alternate; transform-origin: 50% 0; }
+    @keyframes rs-ring { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+    .rs-tester { animation: rs-in .55s ease-out both; }
+    .rs-cheer { animation: rs-hop .6s ease-in-out infinite alternate; }
+    @keyframes rs-hop { from { translate: 0 0; } to { translate: 0 -14px; } }
+    .rs-pop { animation: rs-pop .5s ease-out both; }
     .rs-plq.done { background: linear-gradient(#e6d3a3, #b99b5e); }
     .rs-fg { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
     .rs-kai { position: absolute; left: 0; bottom: -8%; height: 96%; width: auto; transform-origin: 50% 100%; animation: rs-breathe 3.6s ease-in-out infinite alternate; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
@@ -279,7 +503,7 @@
     .rs.rs-close .rs-kai, .rs:not(.rs-wide).rs-close .rs-kai { left: 2%; bottom: -6%; height: 78%; width: auto; top: auto; aspect-ratio: auto; border: 0; background: none; border-radius: 0; object-fit: fill; animation: rs-breathe 3.6s ease-in-out infinite alternate; }
     .rs-sey { position: absolute; right: 3%; bottom: -6%; height: calc(78% * 1.3 * var(--sh, 1)); width: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
     .rs:not(.rs-wide).rs-close .rs-kai { height: 62%; left: 0; width: auto; }
-    .rs:not(.rs-wide) .rs-hidephone { display: none; }
+    .rs:not(.rs-wide) .rs-hidephone, .rs.rs-nokp:not(.rs-wide) .rs-kai { display: none; }
     .rs:not(.rs-wide) .rs-sey { height: calc(62% * 1.3 * var(--sh, 1)); right: 0; max-width: 58%; object-fit: contain; object-position: right bottom; }
     .rs-ui { position: absolute; inset: 0; pointer-events: none; z-index: 3; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; gap: 8px; }
     .rs-ui > * { pointer-events: auto; }
@@ -301,9 +525,23 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
-    @media (prefers-reduced-motion: reduce) { .rs-kai, .rs-walk, .rs-walk .a, .rs-walk .b { animation: none !important; } .rs-walk .b { opacity: 0; } }
+    .rs-sey.rs-beat { animation: rs-beat .32s ease-out; transform-origin: 50% 100%; }
+    @keyframes rs-beat { 0% { transform: translateY(6px) scaleY(.98); } 60% { transform: translateY(-4px); } 100% { transform: none; } }
+    /* The Wall: parchment posters pinned on the plaster, the game's words inked on the top band. */
+    .rs-poster { position: absolute; transform: rotate(var(--tilt, 0deg)); transform-origin: 50% 4%; filter: drop-shadow(0 8px 8px rgba(30,16,6,.45)); color: #3a2410; text-align: center; font-family: var(--f-head, sans-serif); }
+    .rs-poster img { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .rs-poster .rs-pt { position: absolute; left: 10%; right: 10%; top: 10.6%; height: 12.4%; display: flex; align-items: center; justify-content: center; font-weight: 800; line-height: 1.02; letter-spacing: .01em; overflow: hidden; overflow-wrap: anywhere; }
+    .rs-poster .rs-pw { position: absolute; left: 20%; right: 20%; top: 27%; height: 44%; display: grid; place-items: center; font: 900 40px/1 var(--f-head, sans-serif); letter-spacing: .08em; color: rgba(110,40,20,.55); transform: rotate(-8deg); }
+    .rs-poster .rs-pf { position: absolute; left: 11%; right: 11%; top: 77.5%; height: 14%; display: flex; align-items: center; justify-content: center; font: 700 22px/1.05 var(--f-head, sans-serif); color: #5a3a18; }
+    .rs-poster.fresh { animation: rs-pinup .5s ease-out both; }
+    @keyframes rs-pinup { from { transform: translateY(-60px) rotate(calc(var(--tilt) * -2)); opacity: 0; } to { transform: rotate(var(--tilt)); opacity: 1; } }
+    .rs-poster.down { animation: rs-down 2.4s ease-in both; }
+    @keyframes rs-down { 0%, 45% { transform: rotate(var(--tilt)); opacity: 1; } 100% { transform: translate(40px, 520px) rotate(28deg); opacity: 0; } }
+    .rs-more { position: absolute; font: 900 40px/1 var(--f-head, sans-serif); color: #ffe9b8; background: rgba(42,22,10,.85); border-radius: 30px; padding: 10px 18px; }
+    @media (prefers-reduced-motion: reduce) { .rs-poster.fresh, .rs-sey.rs-beat { animation: none; } .rs-poster.down { animation: none; opacity: .45; } }
+    @media (prefers-reduced-motion: reduce) { .rs-cheer, .rs-pop, .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-trav, .rs-trav img { animation: none !important; } }
   `;
   document.head.appendChild(css);
 
-  SD.renoStreet = { scene, mount, cut, update, frame, world, yard, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
+  SD.renoStreet = { scene, mount, cut, update, frame, pose, world, yard, bridge, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
 })();

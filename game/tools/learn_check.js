@@ -40,6 +40,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       const t = document.querySelector('#screen-title'), ox = getComputedStyle(t).overflowX;
       if (!t.hidden && t.scrollWidth > t.clientWidth && ox !== 'hidden' && ox !== 'clip') bad.push('title ' + t.scrollWidth);
       document.querySelectorAll('#today-card *, #panel:not([hidden]) .win *').forEach(el => {
+        if (el.parentElement && el.parentElement.closest('.rs-cam')) return;   // the Wall's scene: a camera box that scrolls inside itself
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });

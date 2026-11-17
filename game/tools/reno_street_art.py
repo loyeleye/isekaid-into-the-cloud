@@ -13,7 +13,11 @@ os.makedirs(OUT, exist_ok=True)
 # name -> (source file relative to SRC, height in px)
 JOBS = {
     'street': ('street-wide.png', 1072),
-    'office-yard': ('office-yard.png', 1072), 'bridge': ('bridge-wide.png', 1072),
+    'office-yard': ('office-yard.png', 1072), 'bridge': ('bridge-wide.png', 1072), 'square': ('square-wide.png', 1072),
+    'quarter-map': ('quarter-map.png', 1072), 'permit-office': ('permit-office.png', 1072), 'wall': ('wall-close.png', 1072),
+    'poster': ('cut/poster-blank.png', 420), 'pin': ('cut/pin.png', 160), 'arch': ('cut/ribbon-arch.png', 640), 'arch-cut': ('cut/ribbon-cut.png', 640),
+    'poster-down': ('cut/poster-down.png', 420), 'res-cheer': ('cut/resident-cheer.png', 260), 'res-cheer2': ('cut/resident-cheer2.png', 256),
+    'res-pa': ('cut/resident-pass-a.png', 245), 'res-pb': ('cut/resident-pass-b.png', 245),
     'gate': ('cut/gate.png', 520),
     'house-old': ('cut/house-old.png', 600), 'house-new': ('cut/house-new.png', 600),
     'house-scaf': ('cut/house-scaf.png', 600), 'house-dark': ('cut/house-dark.png', 600),
@@ -26,6 +30,7 @@ JOBS = {
     'yard-hut': ('cut/rooms-hut.png', 560), 'yard-well': ('cut/well.png', 600), 'yard-ledger': ('cut/ledger.png', 560),
     'yard-board': ('cut/notice-board.png', 560), 'yard-jar': ('cut/snapshot-jar.png', 300), 'yard-rubble': ('cut/rubble.png', 220),
     'bridge-signpost': ('cut/signpost.png', 560), 'bridge-bell': ('cut/alarm-bell.png', 440), 'bridge-tester': ('cut/test-walker.png', 300),
+    'yard-seal': ('cut/retain-seal.png', 240),
     'shrine-old': ('cut/shrine-old.png', 601), 'shrine-new': ('cut/shrine-new.png', 600), 'shrine-cracked': ('cut/shrine-cracked.png', 627),
     'tool-scaffold': ('cut/tool-scaffold.png', 200), 'tool-lot': ('cut/tool-lot-sign.png', 200), 'tool-hc': ('cut/tool-lever-hc.png', 200),
 }
