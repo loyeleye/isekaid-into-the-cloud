@@ -1,0 +1,64 @@
+"""The Renovation's spoken lines during and after Seymour's runs (see CREDITS.md): assets/audio/vo/<who>-mg-reno-<key>.mp3.
+
+usage: reno_vo.py [KEY ...]     record the lines (all, or the keys named, e.g. seymour-mg-reno-permit) with Gemini TTS (needs GEMINI_API_KEY)
+
+The text is read from js/vo-modes.js (every line mapped to a *-mg-reno-* file), so the recording always matches the
+screen. Each speaker keeps the voice he has everywhere else in the game: Sir Seymour (Orus on
+gemini-2.5-flash-preview-tts) and Kai (Alnilam on gemini-2.5-pro-preview-tts). Each take is transcribed with Gemini and
+retaken if it says more than the line, then trimmed and loudness-matched like tools/ic_live_vo.py.
+"""
+import base64, io, json, os, re, subprocess, sys, tempfile, urllib.request, wave
+GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VOICES = {'seymour': ('gemini-2.5-flash-preview-tts', 'Orus'), 'kai': ('gemini-2.5-pro-preview-tts', 'Alnilam')}
+API = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'
+
+
+def lines():
+    src = open(os.path.join(GAME, 'js/vo-modes.js')).read()
+    out = {}
+    for who, text, f in re.findall(r'\n\s*"(\w+)\|((?:[^"\\]|\\.)*)": \'(\w+-mg-reno-[\w-]+)\'', src):
+        out[f] = (who, text.replace('\\"', '"'))
+    return out
+
+
+def post(model, body):
+    r = urllib.request.Request(API % model, data=json.dumps(body).encode(), headers={'x-goog-api-key': os.environ['GEMINI_API_KEY'], 'Content-Type': 'application/json'})
+    return json.load(urllib.request.urlopen(r, timeout=300))
+
+
+def words(t): return re.findall(r"[a-z]+", t.lower())
+
+
+def heard(pcm, text):
+    """Transcribe the take and check it says the line and nothing more (allowing two stray words)."""
+    wav = io.BytesIO()
+    with wave.open(wav, 'wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(pcm)
+    got = post('gemini-3.8-flash', {'contents': [{'parts': [{'inline_data': {'mime_type': 'audio/wav', 'data': base64.b64encode(wav.getvalue()).decode()}},
+        {'text': 'Transcribe every word spoken in this audio, from the very first word to the last, including any instructions read aloud. Reply with the words only.'}]}]})['candidates'][0]['content']['parts'][0]['text']
+    extra = [w for w in words(got) if w not in set(words(text))]
+    missing = [w for w in set(words(text)) if w not in set(words(got))]
+    return len(extra) <= 2 and len(missing) <= 2, got
+
+
+def say(who, text, dst):
+    model, voice = VOICES[who]
+    body = {'contents': [{'parts': [{'text': text}]}],
+            'generationConfig': {'responseModalities': ['AUDIO'], 'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': voice}}}}}
+    for tries in range(4):
+        pcm = base64.b64decode(post(model, body)['candidates'][0]['content']['parts'][0]['inlineData']['data'])
+        ok, got = heard(pcm, text)
+        if ok: break
+        print('  retake: heard ' + got[:160], flush=True)
+    else: sys.exit('could not get a clean take of: ' + text)
+    with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as f: f.write(pcm)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', f.name,
+                    '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-18:TP=-1.5',
+                    '-ar', '24000', '-ac', '1', '-b:a', '40k', dst], check=True)
+    os.unlink(f.name)
+
+
+if __name__ == '__main__':
+    want = sys.argv[1:]
+    for f, (who, text) in lines().items():
+        if want and f not in want: continue
+        say(who, text, os.path.join(GAME, 'assets/audio/vo/%s.mp3' % f)); print(f, '|', text, flush=True)

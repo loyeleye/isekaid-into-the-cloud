@@ -31,6 +31,10 @@
     if (FACES.includes(who) && !window.SD_VECTOR) return `<span class="rn-head"><img src="assets/img/portraits/${who}-neutral.webp" alt="" draggable="false"></span>`;
     try { return SD.art && SD.art.portrait ? `<span class="rn-head">${SD.art.portrait(who, 34, 'neutral')}</span>` : ''; } catch (e) { return ''; }
   };
+  // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
+  const bubble = (who, line) => `<p class="rs-say" data-vo="${esc(who + '|' + line)}"><b>${esc(who === 'seymour' ? 'Seymour' : NAMES[who] || who)}:</b> ${esc(line)}</p>`;
+  // Seymour's line between the Shrine Bridge's two runs, by the kind of crack in the second (a job's crack: test, crowd).
+  const AGAIN = { test: 'Again. This time the new shrine has a crack a test can find.', load: 'Again. This time the new shrine has a crack only a crowd finds.', none: 'Again. I check everything twice.' };
   const say = (who, line) => `<p class="rn-say" data-vo="${esc(who + '|' + line)}">${head(who)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   // A screen with the living street (js/reno-street.js) puts the street behind everything, filling the screen, and the
   // text floats over it in boxes (Ladi, Nov 16: boxes around the scene take away the real-world feel).
@@ -198,6 +202,7 @@
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     if (SD.renoStreet) SD.renoStreet.mount(b);
+    keepCamera(s, b);
     // A refused plan redraws the screen: bring the client's reason into view, or it sits below the fold on a phone.
     if (j.refused) { const rf = b.querySelector('.rn-refused'); if (rf && rf.scrollIntoView) rf.scrollIntoView({ block: 'center' }); }
     const redraw = () => { j.refused = null; j.teachRef = ''; save(s); planScreen(s); };
@@ -218,6 +223,20 @@
     b.querySelector('#rn-run').onclick = () => run(s, job);
     b.querySelector('#rn-board').onclick = () => { s.phase = 'board'; save(s); draw(s); };
     b.querySelector('#rn-stop').onclick = () => { save(s); U.closePanel(); stopNow(); };
+  }
+
+  // The plan's camera across redraws: a knob redraws the whole screen, so the player's place on the street is kept.
+  // A job's plan screen tours its scene once when it opens, and again when the plan builds past the view (a new street,
+  // rented lots), so a phone sees the whole job (playtest, Nov 17: the shrines, the bell and a new street were off it).
+  let camKeep = null;
+  function keepCamera(s, b) {
+    const RS = SD.renoStreet, sc = b.querySelector('.rn-bleed .rs'), cam = sc && sc.querySelector('.rs-cam');
+    if (!RS || !cam) return;
+    const key = s.night + ':' + s.at, ww = +sc.dataset.ww || 0, same = camKeep && camKeep.key === key;
+    if (same) cam.scrollLeft = camKeep.left;
+    if (!same || ww > camKeep.ww + 20) RS.tour(sc);
+    const k = camKeep = { key, ww, left: cam.scrollLeft };
+    cam.addEventListener('scroll', () => { k.left = cam.scrollLeft; }, { passive: true });
   }
 
   // ---- The street, drawn from a tick's houses (PixelLab sprites in assets/img/reno, credited in CREDITS.md) ----
@@ -277,6 +296,13 @@
   function stackRow(job) {
     return `<div class="rn-stack">${job.stack.map(r => `<span class="rn-res1">${sprite(RES_SP[r.type], '', r.name)}<span class="small">${esc(r.name)}</span></span>`).join('')}</div>`;
   }
+
+  // A cutscene's next beat: after ms, and then not while a line is still being spoken (up to 6 seconds more), so Kai's
+  // and Seymour's voiced lines aren't cut off by the next one. With the sound off, the beats keep their own pace.
+  const later = (fn, ms) => setTimeout(function hold(waited) {
+    if (SD.audio && SD.audio.speaking && SD.audio.speaking() && (waited || 0) < 6000) return setTimeout(hold, 150, (waited || 0) + 150);
+    fn();
+  }, ms, 0);
 
   // ---- Running a plan: Seymour's two runs, side by side, playing out on their own ----
   function run(s, job) {
@@ -380,7 +406,7 @@
       <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: the cracked beam', 'b')}</div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', tick: res.good.ticks[res.good.ticks.length - 1],
           label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+          ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` })}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -399,7 +425,7 @@
     let said = {};
     const kaiSays = (key, line, face) => {
       if (said[key]) return; said[key] = 1;
-      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = bubble('kai', line);
       const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
     };
     // The camera: in on the first house being worked on or breaking, else the wide street.
@@ -447,11 +473,11 @@
       const [which, r] = runs[phase];
       show(which, r, t);
       t++;
-      if (t < r.ticks.length) { timer = setTimeout(step, 620); return; }
+      if (t < r.ticks.length) { timer = later(step, 620); return; }
       if (phase === 0) {
         // Seymour's line between the runs: the same plan again, with a bad release.
         phase = 1; t = 0;
-        timer = setTimeout(() => {
+        timer = later(() => {
           if (ended) return;
           RS.update(el, { tick: res.bad.ticks[0], seymour: 'inspect' }); RS.cut(el, 'wide');
           ui('.rs-runlab').textContent = 'Run 2: the cracked beam';
@@ -459,13 +485,13 @@
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody turned away';
           ui('.rs-tk').textContent = `tick ${res.bad.ticks[0].t}`;
           ui('.rs-ticks').innerHTML = res.bad.ticks.map((x, k) => `<i class="${k ? '' : 'on'}"></i>`).join('');
-          ui('.rs-mid').innerHTML = '<p class="rs-say"><b>Seymour:</b> Again. This time the beam is cracked.</p>';
+          ui('.rs-mid').innerHTML = bubble('seymour', 'Again. This time the beam is cracked.');
           said = {};
-          timer = setTimeout(step, 1700);
+          timer = later(step, 1700);
         }, 900);
         return;
       }
-      timer = setTimeout(finish, 900);
+      timer = later(finish, 900);
     };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
@@ -485,7 +511,7 @@
       <div class="rn-runs rn-runrows"><div class="rn-run" data-run="g"><p class="rn-runh"><b>The teardown</b></p><p class="small rn-sum"></p></div></div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', stack: job.stack, plan: planNow, res: g.res,
         label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-        ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+        ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` })}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -519,11 +545,11 @@
       if (again) again.onclick = () => { s.phase = 'plan'; save(s); draw(s); };
       if (give) give.onclick = () => { s.phase = 'debrief'; j.done = true; j.pass = false; save(s); draw(s); };
     };
-    const step = () => { if (ended) return; i++; show(i); timer = setTimeout(i < job.stack.length ? step : finish, i < job.stack.length ? 1300 : 1600); };
+    const step = () => { if (ended) return; i++; show(i); timer = later(i < job.stack.length ? step : finish, i < job.stack.length ? 1300 : 1600); };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
     if (reduced()) return finish();
-    timer = setTimeout(step, 900);
+    timer = later(step, 900);
   }
   // The Shrine Bridge's runs as a cutscene, like Beanstalk Row's: run 1 (a sound release), Seymour's "Again", run 2 (the
   // cracked one). The camera cuts in on the new shrine when walkers meet the crack, on the bell when it rings, and on
@@ -552,7 +578,7 @@
       <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: ' + crackName, 'b')}</div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene(Object.assign({}, base, { w: endW, shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove',
           label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` }))}</div>
+          ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` }))}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -569,7 +595,7 @@
     let said = {};
     const kaiSays = (key, line, face) => {
       if (said[key]) return; said[key] = 1;
-      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = bubble('kai', line);
       const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
     };
     const show = (which, r, i) => {
@@ -614,23 +640,23 @@
       t++;
       // Hold on the moments that teach: the test walker, the first soot, the bell.
       const was = r.ticks[t - 1], hold = was && (was.soot || was.note === 'pre' || was.note === 'post' || was.note === 'rollback') ? 1700 : 950;
-      if (t < r.ticks.length) { timer = setTimeout(step, hold); return; }
+      if (t < r.ticks.length) { timer = later(step, hold); return; }
       if (phase === 0) {
         phase = 1; t = 0;
-        timer = setTimeout(() => {
+        timer = later(() => {
           if (ended) return;
           RS.update(el, Object.assign({}, base, { w: 0, seymour: 'inspect' })); RS.cut(el, 'wide');
           ui('.rs-runlab').textContent = 'Run 2: ' + crackName;
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody has soot · new 0%';
           ui('.rs-tk').textContent = 'minute 0';
           ui('.rs-ticks').innerHTML = res.bad.ticks.map(() => '<i></i>').join('');
-          ui('.rs-mid').innerHTML = `<p class="rs-say"><b>Seymour:</b> ${job.crack ? `Again. This time the new shrine has ${esc(crackName)}.` : 'Again. I check everything twice.'}</p>`;
+          ui('.rs-mid').innerHTML = bubble('seymour', AGAIN[!job.crack ? 'none' : job.crack === 'test' ? 'test' : 'load']);
           said = {};
-          timer = setTimeout(step, 1700);
+          timer = later(step, 1700);
         }, 900);
         return;
       }
-      timer = setTimeout(finish, 1900);
+      timer = later(finish, 1900);
     };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
@@ -688,7 +714,7 @@
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
-      ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(PERMIT_ASK)}</p></div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
+      ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
     if (RS) RS.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
@@ -799,7 +825,7 @@
     // Nov 17: a plain blueprint page here dropped the world between the permit and the next job).
     const sey = stands ? DR.SEYMOUR.clean : DR.SEYMOUR.scaf;
     const office = SD.renoStreet ? `<div class="rn-bleed">${permitScene(stands ? 'stamp' : 'disapprove', stands ? 'happy' : 'worried',
-      `<div class="rs-row"><span></span><p class="rs-say" data-vo="${esc('seymour|' + sey)}"><b>Seymour:</b> ${esc(sey)}</p></div><div></div>`)}</div>` : '';
+      `<div class="rs-row"><span></span>${bubble('seymour', sey)}</div><div></div>`)}</div>` : '';
     const b = panel(`${office}<div class="verdict-row"><div class="verdict ${stands ? 'ok' : 'bad'}">${stands ? '🏛 IT STANDS' : '🚧 SCAFFOLDING'}</div>${d ? `<span class="chip">${esc(M.CONF[d.conf])}</span><span class="chip">${M.sgn(d.pts)} points</span>` : ''}</div>
       <div class="rn-result"><canvas class="rn-bcv" width="96" height="96" aria-hidden="true"></canvas><div>
         ${bld ? `<p class="small"><b>${esc(DR.buildingName(job.client))}</b>: ${plural(bld.floors, 'floor')}, ${stands ? 'standing' : 'under scaffolding'}${bld.plot != null && DR.rules ? ` on ${esc(DR.rules.name(bld.plot))}` : ''}.</p>` : ''}
@@ -1105,6 +1131,11 @@
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs-ui { padding-bottom: calc(min(170px, 40vh - 56px) + 10px); }
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs:not(.rs-wide):not(.rs-close) .rs-kai { bottom: calc(min(170px, 40vh - 56px) + 10px); }
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs:not(.rs-wide):not(.rs-close):has(.rs-kai) .rs-ui > .rs-row:last-child { padding-left: 98px; }
+    /* Renovate stays in reach (playtest, Nov 17: it sat 300 to 1,200px down, under the cards and knobs): pinned to the
+       bottom of the screen while the plan scrolls under it. Likewise the verdict's next step after Seymour's runs. */
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run) { flex-wrap: nowrap; }
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run) > .small { flex: 1; min-width: 0; }
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run), ${FULL} .rn.rn-world > .rn-after > .rn-dock { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; background: #17213a; box-shadow: 0 -2px 0 rgba(255,212,90,.25), 0 6px 22px rgba(0,0,0,.55); }
     /* The night's tally over the market square: one box, so its lines never sit bare on the painting. */
     ${FULL} .rn.rn-world > .rn-endbox { display: flex; flex-direction: column; gap: 8px; color: #fff; }
     ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
