@@ -148,7 +148,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => { SD.typeOnce.off = false; });
   const pm = await postmortem(true, 2, async () => {
     await page.waitForSelector('#panel .to-win .to-in', { timeout: 5000 });
-    check(/THE RUNBOOK/.test(await txt('#panel .win-h')) && /^ = standard/.test(await txt('#panel .to-line')) && !/retry_mode/.test(await txt('#panel .to-line')), 'after the postmortem the lead has you type the fix\'s setting into the runbook, blanked in its line');
+    check(/THE RUNBOOK/.test(await txt('#panel .win-h')) && (await txt('#panel .to-line')).startsWith(' = standard# backoff') && await page.$eval('#panel .to-cmt', e => getComputedStyle(e).display === 'block' && e.getBoundingClientRect().top > document.querySelector('#panel .to-in').getBoundingClientRect().bottom - 1) && !/retry_mode/.test(await txt('#panel .to-line')), 'after the postmortem the lead has you type the fix\'s setting into the runbook, blanked in its line, its comment on its own row under it');
     await noHScroll('runbook'); await shot('runbook');
     for (const w of ['retry', 'retrymode']) { await page.fill('#panel .to-in', w); await page.click('#panel .to-card [type="submit"]'); }
     check(await page.getAttribute('#panel .to-in', 'placeholder') === 'retry_mode', 'two misses show it faintly to copy');

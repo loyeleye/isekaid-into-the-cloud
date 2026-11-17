@@ -73,7 +73,12 @@
 
   T.ask = function (o) {
     const ans = o.ans, line = String(o.line || ans);
-    const at = line.indexOf(ans), pre = at >= 0 ? line.slice(0, at) : '', post = at >= 0 ? line.slice(at + ans.length) : '';
+    const at = line.indexOf(ans), pre = at >= 0 ? line.slice(0, at) : '';
+    // A trailing comment (# … or // …) goes on its own row under the code, so it never wraps under the blank.
+    let post = at >= 0 ? line.slice(at + ans.length) : '', cmt = '';
+    const cm = post.match(/\s+(#|\/\/)\s.*$/);
+    if (cm) { cmt = cm[0].trim(); post = post.slice(0, cm.index); }
+    const cmtHtml = cmt ? `<span class="to-cmt">${esc(cmt)}</span>` : '';
     let misses = 0;
     // Whatever the panel held (a fight, a map, a drill) is kept aside and put back after, so the typing step can sit on
     // top of any screen and leave it as it was.
@@ -82,7 +87,7 @@
       const b = U.panel(`<div class="to-w">
           ${o.who ? `<p class="to-say"><b>${esc(o.who)}:</b> ${esc(o.say || 'First time this one\'s come up. Write it in yourself.')}</p>` : `<p class="to-say">${esc(o.say || 'First time this one\'s come up. Type the missing part yourself.')}</p>`}
           <form class="to-card" autocomplete="off">
-            <code class="to-line"><span>${esc(pre)}</span>${o.choices ? '<b class="to-gap">____</b>' : `<input class="to-in" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Type the missing part" size="${Math.max(6, Math.min(32, ans.length + 1))}">`}<span>${esc(post)}</span></code>
+            <code class="to-line"><span>${esc(pre)}</span>${o.choices ? '<b class="to-gap">____</b>' : `<input class="to-in" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Type the missing part" size="${Math.max(6, Math.min(32, ans.length + 1))}">`}<span>${esc(post)}</span>${cmtHtml}</code>
             ${o.choices ? `<div class="to-ch">${o.choices.map(c => `<button type="button" class="ghost" data-ch="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
             <p class="small to-note" aria-live="polite">${o.why ? esc(o.why) : 'Type it once, the way AWS spells it. Two misses and it shows faintly to copy.'}</p>
             <div class="row"><button class="primary" type="submit">Check</button><button class="ghost" type="button" data-skip>Not now</button></div>
@@ -103,7 +108,7 @@
         if (T.match(inp.value, ans)) {
           T.mark(ans);
           if (SD.audio && SD.audio.sfx) try { SD.audio.sfx('good'); } catch (er) { /* sound is optional */ }
-          b.querySelector('.to-card').innerHTML = `<code class="to-line done">${esc(pre)}<b>${esc(ans)}</b>${esc(post)}</code>
+          b.querySelector('.to-card').innerHTML = `<code class="to-line done">${esc(pre)}<b>${esc(ans)}</b>${esc(post)}${cmtHtml}</code>
             <p class="small to-note">✓ Typed. ${misses ? 'It\'s yours now.' : 'First try.'}</p><div class="row"><button class="primary" type="button" data-go>Continue</button></div>`;
           b.querySelector('[data-go]').onclick = () => finish({ typed: true, misses, skipped: false });
           b.querySelector('[data-go]').focus();
@@ -146,7 +151,8 @@
     .to-card { display: flex; flex-direction: column; gap: 8px; }
     .to-line { display: block; padding: 10px; border-radius: 8px; background: #1c1a24; color: #f3ead6; font: 600 13px/1.6 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
     .to-line b { color: #ffe58a; }
-    .to-in { font: inherit; color: #ffe58a; background: #2c2838; border: 0; border-bottom: 2px solid #ffe58a; border-radius: 3px; padding: 0 4px; min-width: 6ch; max-width: 100%; }
+    .to-cmt { display: block; margin-top: 8px; color: #9a93ad; font-weight: 400; }
+    .to-in { font: inherit; color: #ffe58a; background: #2c2838; border: 0; border-bottom: 2px solid #ffe58a; border-radius: 3px; padding: 0 4px; margin: 0 .6ch; min-width: 6ch; max-width: calc(100% - 1.2ch); }
     .to-in.faint::placeholder { color: rgba(255, 229, 138, .38); }
     .to-gap { color: #ffe58a; } .to-ch { display: flex; flex-wrap: wrap; gap: 6px; } .to-ch button { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
     .to-in.miss { animation: tomiss .35s; }
