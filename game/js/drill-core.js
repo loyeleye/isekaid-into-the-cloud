@@ -781,7 +781,9 @@
           const w = write(x.r);
           if (w === 'ok' || w === 'blocked' || w === 'dupe') done.push(x); else failed = true;
         }
-        if (timedOut) { m.timeouts++; m.errors++; el = cfg.fn.timeout; } else if (failed) m.errors++;
+        // A failure reported in batchItemFailures is a successful invocation (the function returned), so Errors
+        // doesn't count it; without ReportBatchItemFailures the handler's error is a failed invocation.
+        if (timedOut) { m.timeouts++; m.errors++; el = cfg.fn.timeout; } else if (failed && !cfg.fn.partial) m.errors++;
         m.maxDur = Math.max(m.maxDur, el);
         // Without ReportBatchItemFailures, any failure returns the whole batch: nothing is deleted.
         const del = timedOut || (failed && !cfg.fn.partial) ? [] : done;

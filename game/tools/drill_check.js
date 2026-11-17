@@ -461,6 +461,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await deploy();
   s = await st(); pbm = s.drill.log[s.drill.log.length - 1].m;
   check(s.drill.state === 'contained' && pbm.dupes === 0 && pbm.goodParked === 0 && pbm.poisonParked + pbm.parked >= 1, 'only the bad message goes back (and on to the DLQ): The Poison Batch is contained');
+  check(pbm.errors === 0 && await page.evaluate(() => { const f = SD.state.save.drill.drill, e = f.log[f.log.length - 1]; return SD.drill.metrics(f.drill, f.cfg, e.m).fn.some(([n, v]) => n === 'Errors' && v === 0); }),
+    'a failure reported in batchItemFailures is a successful invocation: the Function\'s Errors metric reads 0');
   check(!!await page.$('#dr-next'), 'the drill moves on to its debrief as before');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
