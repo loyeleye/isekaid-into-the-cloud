@@ -23,6 +23,10 @@ JOBS = {
     'kai-happy': ('cut/kai-happy.png', 971), 'kai-worried': ('cut/kai-worried.png', 971),
     'sey-proud': ('cut/seymour-proud.png', 1000), 'sey-inspect': ('cut/seymour-inspect.png', 980), 'sey-approve': ('cut/seymour-approve.png', 1004),
     'sey-disapprove': ('cut/seymour-disapprove.png', 989), 'sey-stamp': ('cut/seymour-stamp.png', 997),
+    'yard-hut': ('cut/rooms-hut.png', 560), 'yard-well': ('cut/well.png', 600), 'yard-ledger': ('cut/ledger.png', 560),
+    'yard-board': ('cut/notice-board.png', 560), 'yard-jar': ('cut/snapshot-jar.png', 300), 'yard-rubble': ('cut/rubble.png', 220),
+    'bridge-signpost': ('cut/signpost.png', 560), 'bridge-bell': ('cut/alarm-bell.png', 440), 'bridge-tester': ('cut/test-walker.png', 300),
+    'shrine-old': ('cut/shrine-old.png', 601), 'shrine-new': ('cut/shrine-new.png', 600), 'shrine-cracked': ('cut/shrine-cracked.png', 627),
     'tool-scaffold': ('cut/tool-scaffold.png', 200), 'tool-lot': ('cut/tool-lot-sign.png', 200), 'tool-hc': ('cut/tool-lever-hc.png', 200),
 }
 for name, (src, h) in JOBS.items():
