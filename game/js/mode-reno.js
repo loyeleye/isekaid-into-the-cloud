@@ -710,7 +710,8 @@
   }
   // ---- Seymour's what-if (Ladi, Nov 17: fewer multiple-choice screens) ----
   // On the second and fourth job of a night, before the permit, Seymour changes one thing about your plan and asks how
-  // the slate would go. You chalk a tick or a cross on each line, then he runs it (the same rules as his inspection,
+  // the slate would go (usually a change that flips a line, sometimes one that flips none). You chalk a tick or a
+  // cross on each line, then he runs it (the same rules as his inspection,
   // R.inspect) and the slate fills in. Reading every line right adds a floor to the job's building. Nothing here is a
   // bank question: the permit question still follows.
   const WI_ASK = 'One what-if before I sign. Same job, one change. Chalk how each line on the slate would go.';
@@ -733,22 +734,31 @@
     const base = R.inspect(job, mine);
     if (base.refused) return null;
     const all = R.plans(job).map(p => job.d === 'eb' ? Object.assign({}, p) : p);
+    // About one what-if in three changes nothing on the slate (Ladi, Nov 17: if it always flipped a line, you could
+    // skip checking the ones that can't flip). `seed` is the job's own roll (j.wiR), made fresh the first time the
+    // what-if comes up, so each playthrough gets a different change; a reload keeps the same one.
+    const same = (seed >>> 0) % 3 === 0;
     for (const want of [1, 2]) {
       const c = all.filter(p => planDiff(job, p, mine) === want && planName(job, p) !== planName(job, mine)).map(p => ({ plan: p, res: R.inspect(job, p) }))
-        .filter(x => !x.res.refused && x.res.lines.some((l, i) => l.ok !== base.lines[i].ok));
-      if (c.length) return c[(seed >>> 0) % c.length];
+        .filter(x => !x.res.refused);
+      const flip = c.filter(x => x.res.lines.some((l, i) => l.ok !== base.lines[i].ok)), keepAll = c.filter(x => !flip.includes(x));
+      const pool = same && keepAll.length ? keepAll : flip.length ? flip : keepAll;
+      if (pool.length) return pool[((seed >>> 0) >> 2) % pool.length];
     }
     return null;
   }
+  // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
+  const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
   function whatIfDue(s, job, j) {
     if (j.wi || !(s.at === 1 || s.at === 3) || !j.plans.length) return false;
-    const w = whatIf(job, j.plans[j.plans.length - 1].plan, j.seed);
+    const w = whatIf(job, j.plans[j.plans.length - 1].plan, wiRoll(s, j));
     if (!w) { j.wi = { skip: true }; return false; }
     return true;
   }
   function whatIfScreen(s, job, j) {
-    const RS = SD.renoStreet, mine = j.plans[j.plans.length - 1].plan, w = whatIf(job, mine, j.seed);
+    const RS = SD.renoStreet, mine = j.plans[j.plans.length - 1].plan, w = whatIf(job, mine, wiRoll(s, j));
     const marks = job.lines.map(() => null);
+    j.wiq = w.plan;   // for the checks (tools/reno_check.js works out the right marks from it)
     const office = (pose, face, line) => RS ? `<div class="rn-bleed">${permitScene(pose, face, `<div class="rs-row"><span></span>${bubble('seymour', line)}</div><div></div>`)}</div>` : say('seymour', line);
     const plans = `<div class="rn-wiplans"><p class="small"><span class="rn-wik">Your plan</span> ${esc(planName(job, mine))}</p><p><span class="rn-wik">What if</span> <b>${esc(planName(job, w.plan))}</b></p></div>`;
     const board = () => `<div class="rn-chalk rn-wi"><p class="rn-chalkh">The slate, if it went like this</p><ul class="rn-slate">${job.lines.map((t, i) =>

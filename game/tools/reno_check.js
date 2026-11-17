@@ -78,6 +78,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // Seymour's what-if (jobs 2 and 4): marks[i] true chalks ✓ (one tap), false ✗ (two taps); left out, every line ✓.
   const whatIf = async marks => {
     if (!(await page.$('#rn-wi-run'))) return null;
+    if (marks === 'right') marks = await page.evaluate(() => { const s = SD.state.save.reno, j = s.jobs[s.at]; return SD.reno.inspect(SD.reno.job(j.id, j.seed), j.wiq).lines.map(l => l.ok); });
     const n = (await page.$$('[data-wi]')).length, locked = await page.$eval('#rn-wi-run', x => x.disabled);
     for (let i = 0; i < n; i++) { await page.click(`[data-wi="${i}"]`); if (marks && marks[i] === false) await page.click(`[data-wi="${i}"]`); }
     await page.click('#rn-wi-run');
@@ -159,10 +160,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await setPlan({ policy: 'rolling', batch: 2, ignoreHC: 'false' });
   await renovate();
   check(!!(await page.$('#rn-deb')), 'rolling in batches of 2 passes the quiet ward');
-  const p2 = await permit(false, 1, [true, false, true]);
-  check(permit.wi && permit.wi.locked && /What if/i.test(permit.wi.text) && /Rolling with additional batch, batch 2/.test(permit.wi.text),
-    'the second job: Seymour\'s what-if changes one knob (Rolling with additional batch) and waits for every line to be chalked');
-  check(permit.wi && permit.wi.ok === true && /READ RIGHT/.test(permit.wi.text), 'chalking the what-if right (no lumber breaks, the rest hold) reads right');
+  const p2 = await permit(false, 1, 'right');
+  check(permit.wi && permit.wi.locked && /What if/i.test(permit.wi.text), 'the second job: Seymour\'s what-if changes your plan and waits for every line to be chalked');
+  check(permit.wi && permit.wi.ok === true && /READ RIGHT/.test(permit.wi.text), 'chalking the what-if the way it really goes reads right');
   check(/SCAFFOLDING/.test(await txt('#panel')) && await page.evaluate(id => SD.draft.save().town[id].scaf && SD.draft.posterUp(id), p2.qid), 'a wrong permit answer: scaffolding, and the question on the Wall');
   await nextJob();
   // ---- Jobs 3 to 5 ----
