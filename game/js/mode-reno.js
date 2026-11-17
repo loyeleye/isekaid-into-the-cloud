@@ -121,7 +121,7 @@
     const btn = o => `<button data-k="${name}" data-v="${esc(o[0])}" class="${String(o[0]) === String(val) ? 'on' : ''}" aria-pressed="${String(o[0]) === String(val)}">${esc(o[1])}</button>`;
     if (TOGGLE.includes(name)) {
       const on = String(val) === 'true';
-      return `<div class="rn-knob rn-lk"><span class="small">${esc(label)}</span><div class="rn-seg rn-lever">${btn(opts[0])}<button class="rn-lv${on ? ' up' : ''}" data-flip="${name}" aria-label="${esc(label)}: pull the lever">${sprite('lever-off', '', '')}</button>${btn(opts[1])}</div></div>`;
+      return `<div class="rn-knob rn-lk"><span class="small">${esc(label)}</span><div class="rn-seg rn-lever">${btn(opts[0])}<button class="rn-lv${on ? ' up' : ''}" data-flip="${name}" aria-label="${esc(label)}: pull the lever">${streetImg('lever', 'rn-lvsp')}</button>${btn(opts[1])}</div></div>`;
     }
     return `<div class="rn-knob"><span class="small">${esc(label)}</span><div class="rn-seg">${opts.map(btn).join('')}</div></div>`;
   }
@@ -141,7 +141,7 @@
     const job = jobOf(s, s.at), j = s.jobs[s.at], p = planOf(s, job);
     const left = R.PLANS - j.plans.length;
     let cards = '', knobs = '', scene = '';
-    const bp = (attr, id, on, name, text) => `<button class="rn-card${on ? ' on' : ''}" ${attr}="${id}" aria-pressed="${on}">${on ? sprite('pin', 'rn-tack', '') : ''}${sprite('blueprint', 'rn-bpsp', '')}<b>${esc(name)}</b><span class="small">${esc(text)}</span></button>`;
+    const bp = (attr, id, on, name, text) => `<button class="rn-card${on ? ' on' : ''}" ${attr}="${id}" aria-pressed="${on}">${on ? streetImg('pin', 'rn-tack') : ''}${streetImg('blueprint', 'rn-bpsp')}<b>${esc(name)}</b><span class="small">${esc(text)}</span></button>`;
     if (job.d === 'eb') {
       const st = job.street, g = ghostOf(job, p);
       const info = `${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}`;
@@ -246,7 +246,7 @@
     return `<div class="rn-street${o.slate ? ' rn-plan' : ''}">
       ${o.slate ? `<div class="rn-gatepost">${o.slate}</div>` : ''}
       ${o.info ? `<p class="rn-street-info small">${esc(o.info)}</p>` : ''}
-      ${gh && gh.tag ? `<p class="rn-planpin small">${sprite('blueprint', 'rn-mini', '')} Blueprint: ${esc(gh.tag)}</p>` : ''}
+      ${gh && gh.tag ? `<p class="rn-planpin small">${streetImg('blueprint', 'rn-bpmini')} Blueprint: ${esc(gh.tag)}</p>` : ''}
       <div class="rn-lanes">${bb ? `<div class="rn-lane b${gh && !row('b') ? ' ghosted' : ''}"><span class="rn-lab small">New street</span>${bb}</div>` : ''}
         <div class="rn-lane">${sprite('gate', 'rn-gatesp', 'the gate: the load balancer')}${a || sprite('lot-rented', '', 'an empty lot')}</div></div>
       <div class="rn-road">${o.folk || ''}</div></div>`;
@@ -262,7 +262,7 @@
     o = o || {};
     const pct = Math.round(w * 100);
     return `<div class="rn-bridgebox">${sprite('bridge', 'rn-bridgesp', 'the bridge to the shrine, its signpost with two arms')}${o.alarm ? sprite('bell', 'rn-bell' + (o.rang ? ' rang' : ''), o.rang ? 'the alarm bell, ringing' : 'the alarm bell') : ''}</div>
-      ${o.ghost ? `<p class="rn-planpin small">${sprite('blueprint', 'rn-mini', '')} Blueprint: the first swing of the signpost</p>` : ''}
+      ${o.ghost ? `<p class="rn-planpin small">${streetImg('blueprint', 'rn-bpmini')} Blueprint: the first swing of the signpost</p>` : ''}
       <div class="rn-bridge${o.ghost ? ' rn-ghost' : ''}" aria-label="${pct}% of walkers on the new version"><span class="rn-arm old" style="flex:${100 - pct || 0.001}">old ${100 - pct}%</span><span class="rn-arm new" style="flex:${pct || 0.001}">${pct ? 'new ' + pct + '%' : ''}</span></div>${soot ? `<p class="small rn-sootline">${Array.from({ length: Math.min(soot, 10) }, () => sprite('resident-soot', 'rn-mini')).join('')} ${plural(soot, 'walker')} hit the crack</p>` : ''}`;
   }
   const RES_SP = { ec2: 'house-old', rds: 'well', ddb: 'ledger', s3: 'board' };
@@ -895,6 +895,7 @@
     .rn-bell { width: 30px; height: auto; position: absolute; right: 8px; top: 0; }
     .rn-bell.rang { animation: rn-ring .25s ease-in-out 4 alternate; }
     @keyframes rn-ring { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+    .rn-bpmini { width: 24px; height: auto; display: inline-block; vertical-align: -4px; }
     .rn-mini { width: 16px; height: auto; display: inline-block; vertical-align: -4px; }
     .rn-mini2 { width: 36px; height: auto; flex: none; }
     .rn-gone { opacity: .35; filter: grayscale(1); }
@@ -999,10 +1000,10 @@
     /* Policies are blueprints you pin onto the street. */
     .rn-card { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid #9cc7f2; border-radius: 6px; color: #fff; overflow-wrap: anywhere;
       background: linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px) 0 0 / 14px 14px, #1f4e8c; box-shadow: 0 3px 0 #10284a; }
-    .rn-card b { font-family: var(--f-head); } .rn-card .rn-bpsp { grid-row: span 2; width: 40px; height: auto; }
+    .rn-card b { font-family: var(--f-head); } .rn-card .rn-bpsp { grid-row: span 2; width: 48px; height: auto; }
     .rn-card .small { color: #dbeaff; }
     .rn-card.on { transform: rotate(-1deg); border: 3px solid #ffd45a; box-shadow: 0 0 0 3px rgba(255,212,90,.35), 0 4px 0 #10284a; }
-    .rn-tack { position: absolute; top: -10px; right: 12px; width: 14px; height: auto; }
+    .rn-tack { position: absolute; top: -12px; right: 12px; width: 18px; height: auto; }
     /* The scaffolding: brass plaques and levers on wooden planks. */
     .rn-knobs { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 6px; border: 3px solid #4a2f18; color: #fff4dc;
       background: repeating-linear-gradient(0deg, #8a5a32 0 22px, #7a4e2b 22px 24px, #95653a 24px 46px, #6e4526 46px 48px); }
@@ -1014,7 +1015,7 @@
     .rn-lever { flex-wrap: nowrap; }
     .rn-lever button[data-k] { flex: 1 1 0; }
     .rn .rn-seg .rn-lv { flex: 0 0 56px; min-height: 48px; padding: 0; border: 0; background: none; box-shadow: none; }
-    .rn-lv img { width: 48px; height: auto; image-rendering: pixelated; transition: transform .15s; }
+    .rn-lv img { height: 54px; width: auto; transition: transform .15s; }
     .rn-lv.up img { transform: scaleX(-1); filter: drop-shadow(0 0 4px #6dff8e); }
     .rn-knobs .rn-cfg { color: #17131f; }
     /* The board: tonight's jobs pinned on the map of the Quarter. */
