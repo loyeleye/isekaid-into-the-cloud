@@ -143,7 +143,7 @@ ROOMS = {
                         bands=[(30, 491, (270, 60, 345, 330), (0, 60, 12, 420)),
                                (491, 640, (395, 428, 488, 662), (0, 440, 12, 640)),
                                (640, 768, (30, 668, 240, 768), None)],
-                        baskets=[(522, 646, 68, 30)]),
+                        baskets=[]),  # the door's in-tray is already painted; the waiting basket is a sprite
     # Tall: the door (y 748-1118, 370 px) becomes 270 px, so scale 0.73; door foot on y 1090 (high enough that the
     # stools clear the phone's belt, and less bare wall above the room).
     # Game coords of a render point (x, y): (103 + 0.73x, 274 + 0.73y).
@@ -154,8 +154,8 @@ ROOMS = {
                                (800, 1090, (240, 725, 330, 870), (755, 700, 768, 760)),
                                (1090, 1194, (10, 1122, 170, 1258), None),
                                (1194, 1344, (10, 1262, 170, 1344), None)],
-                        # wire baskets sketched in for the repaint: the waiting basket, and an in-tray under the slot
-                        baskets=[(196, 1158, 68, 30), (176, 1022, 56, 22)]),
+                        # a wire in-tray sketched under the slot for the repaint (the waiting basket is a sprite)
+                        baskets=[(176, 1022, 56, 22)]),
 }
 
 # ---- Sprites: (source, out name, longest side in px at 2x the on-screen size) ----

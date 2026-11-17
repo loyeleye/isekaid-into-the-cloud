@@ -4,6 +4,6 @@ This is a game backdrop and the game draws on top of it, so every object must st
 
 Fix only the joins: the plain striped wallpaper at the top and at the left and right edges was stretched and tiled out from the middle, so blend it into the same wallpaper with natural stripes, soft lamplight falloff and gentle wear, with no visible seams, repeats, smears or vertical banding. Continue the dado rail, the wood wainscot panels and the wooden floorboards across the whole width as one continuous room, and let the room grow a little darker towards the outer edges.
 
-The rough grey grid shapes are wire baskets: paint each one, in the same place and at the same size, as a real woven wire letter basket, empty. The one on the floor is a waiting basket standing on the floorboards; the one on the door hangs under the letter slot.
+Under the door's brass letter slot there is a wire in-tray (in some versions only a rough grey grid shape): paint it, in the same place and at the same size, as a real woven wire letter basket hanging on the door, empty. Keep the floor in front of the door clear: nothing standing on the floorboards there.
 
 No people, no letters or envelopes, no text, no writing on the plate, no new objects.
