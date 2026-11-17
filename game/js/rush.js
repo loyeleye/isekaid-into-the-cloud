@@ -915,7 +915,8 @@
     } else if (dragging === 'rack' || (!drag && !S.started && !S.placed.length)) glowSpot(spot('rack'), dragging === 'rack');
     // Mira's desk and the six stools.
     if (!L.painted) { shadow(L.desk.x, L.desk.y + 2, L.desk.h * 1.05); img('desk', L.desk.x, L.desk.y + 8, L.desk.h, 'mb'); }
-    plaque('Mira', L.desk.x, L.desk.y - L.desk.h - 4);
+    // On a phone the Memory buy shares Mira's plaque: under the desk it sat on the stools' label.
+    plaque(S.memory && L.W < L.H ? 'Mira · Memory, more CPU' : 'Mira', L.desk.x, L.desk.y - L.desk.h - 4);
     if (S.ledger) {
       const d = L.desk; img('ledger', d.x - d.h * (S.stopwatch ? -.18 : .1), d.y - d.h * .78, 0, 'mm', 1, -0.05, d.h * .62);
       plaque('Ledger · DynamoDB', d.x, d.y - d.h - 30 * L.fs);
@@ -939,7 +940,7 @@
       const b = L.bell, wob = ringT ? Math.sin(ringT * 40) * .25 * ringT : 0;
       shadow(b.x, b.y + 2, b.h); img('bell', b.x, b.y + 4, b.h, 'mb', 1, wob);
       if (ringT) text('ding', b.x + b.h * 1.1, b.y - b.h * .7 - (1 - ringT) * 20, 22, '#ffe08a');
-      plaque('Bell · SNS topic', b.x, b.y - b.h - 16 * L.fs);
+      plaque('Bell · SNS topic', b.x, b.y - b.h - (S.handoff && L.W < L.H ? 40 : 16) * L.fs); // on a phone, clear of the hand-off's plaque
     } else if (dragging === 'bell' || (!drag && !S.started && S.claim === 'bell' && !S.placed.length)) glowSpot(spot('bell'), dragging === 'bell');
     const trayN = S.tray.length;
     if (S.claim === 'picky') {
@@ -1169,7 +1170,7 @@
     for (const t of S.belt) {
       if (!R.TOOLS[t].upkeep && !R.TOOLS[t].order && !['handoff', 'ttl', 'dest', 'retries'].includes(t)) continue;
       if (!S[t]) { if (dragging === t && spot(t)) glowSpot(spot(t), true); continue; }
-      if (t === 'memory') { img('memory', d.x - d.h * .05, d.y - d.h * .58, 0, 'mm', 1, -0.1, d.h * .38); plaque('Memory · more CPU', d.x, d.y + 22 * L.fs); }
+      if (t === 'memory') { img('memory', d.x - d.h * .05, d.y - d.h * .58, 0, 'mm', 1, -0.1, d.h * .38); if (L.W > L.H) plaque('Memory · more CPU', d.x, d.y + 22 * L.fs); }
       if (t === 'warm') {
         for (const i of [0]) { const g = cx.createRadialGradient(st.xs[i], st.y - st.h * .6, 4, st.xs[i], st.y - st.h * .6, st.h * .9); g.addColorStop(0, 'rgba(255,180,70,.45)'); g.addColorStop(1, 'rgba(255,180,70,0)'); cx.fillStyle = g; cx.fillRect(st.xs[i] - st.h, st.y - st.h * 1.6, st.h * 2, st.h * 2); }
         if (PAINTED_IMG.has('warm')) img('warm', st.xs[0] + st.h * .12, st.y + 2, st.h * 2.1, 'mb'); // the painted warm stool, its lamp lit, over the first stool
@@ -4053,7 +4054,8 @@
     { const [x, y, w, h] = L.keybox; if (ofx.box > 0) { cx.save(); cx.globalAlpha = ofx.box; cx.fillStyle = '#ffe08a'; cx.fillRect(x - w * .32, y - h * .34, w * .64, 9 * s); cx.restore(); }
       if (painted) { if (ofx.boxRed > 0 && ofSprite('keybox-red')) img('of-keybox-red', x, y + h / 2 + 2 * s, h * 1.24, 'mb', Math.min(1, ofx.boxRed * 3)); }
       else { cx.save(); cx.beginPath(); cx.arc(x + w * .36, y - h * .5 - 6 * s, 6 * s, 0, Math.PI * 2); cx.fillStyle = ofx.boxRed > 0 ? '#ff4030' : '#4a1a14'; cx.fill(); cx.restore(); }
-      if (!mini) plaque('Key box · KMS', x, y + h / 2 + 16 * L.fs); }
+      // Wide: above the box, since the review questions wait on the desk just under it.
+      if (!mini) plaque('Key box · KMS', x, L.W > L.H ? y - h / 2 - 16 * L.fs : y + h / 2 + 16 * L.fs); }
     // The latch: a brass plate, its lamp (green allowed, grey no allow, red an explicit deny).
     { const [x, y] = L.latch, r = ofx.latch && ofx.latch.t > 0 ? ofx.latch.res : null, ls = ofSprite({ allow: 'latch-green', implicit: 'latch-grey', explicit: 'latch-red' }[r] || 'latch-grey');
       if (ls) { const h = 66 * s; if (r) { cx.save(); const g = cx.createRadialGradient(x, y - h * .38, 2, x, y - h * .38, 34 * s); g.addColorStop(0, LAMP[r]); g.addColorStop(1, 'rgba(0,0,0,0)'); cx.globalAlpha = .7; cx.fillStyle = g; cx.fillRect(x - 40 * s, y - h * .38 - 40 * s, 80 * s, 80 * s); cx.restore(); }
