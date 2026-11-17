@@ -162,6 +162,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/Renovate Pingsby/.test(await txt('[data-mode="draft"]')), 'Architect\'s Draft in the picker is now the Renovation');
   await page.click('[data-mode="draft"]');
+  // ---- The opening: Seymour and Kai set up the premise once, before the first new night ----
+  check(!!(await page.$('.rn-open .rs-close')) && /Sir Seymour Backups/.test(await txt('.rn-open .rs-say')) && /1 \/ 12/.test(await txt('.rn-open')), 'the first night opens on the opening scene: Seymour introduces himself');
+  await noHScroll('opening'); await shot('opening-01');
+  const beats = [];
+  for (let i = 0; i < 11; i++) { beats.push(await txt('.rn-open .rs-say')); if (i === 7 || i === 9) await shot('opening-' + String(i + 1).padStart(2, '0')); await page.click(i % 2 ? '#rn-onext' : '.rn-open .rs-cam'); }
+  beats.push(await txt('.rn-open .rs-say'));
+  const all = beats.join(' ');
+  check(/Kai/.test(beats[1]) && /delete markers/.test(all) && /renovation/.test(all) && /cracked beam/.test(all) && /permit/.test(all) && /Grand Opening/.test(all) && /night is yours/.test(all), 'the opening says who Seymour and Kai are, why the Quarter is lived in, what a job, a renovation and the permit are, and how a night is won');
+  check(/To tonight/.test(await txt('#rn-onext')), 'its last beat leads to the night\'s jobs');
+  await shot('opening-12');
+  await page.click('#rn-onext');
+  check(!!(await page.$('#rn-go')) && !(await page.$('.rn-open')), 'after the last beat, the night\'s board');
+  check(await page.evaluate(() => !!SD.state.save.renoKeep.opened), 'the opening is marked seen for this save');
+  await page.click('#rn-open');
+  check(!!(await page.$('.rn-open')) && /1 \/ 12/.test(await txt('.rn-open')), 'the board\'s "The opening" button replays it');
+  await page.click('#rn-onext'); await page.click('#rn-oskip');
+  check(!!(await page.$('#rn-go')) && !(await page.$('.rn-open')), 'Skip ends it at any beat, back on the board');
   check(!/Step 1 of/.test(await txt('#panel')), 'no walkthrough screens: it opens on the night\'s jobs');
   check(await page.$$eval('.rn-job', x => x.length) === 5 && /Grand Opening/.test(await txt('.rn-jobs')), 'night 1: five jobs, the Grand Opening in view');
   const edge = () => page.evaluate(() => { const w = document.querySelector('#panel .win').getBoundingClientRect(); return Math.round(w.left) === 0 && Math.round(w.width) === innerWidth; });

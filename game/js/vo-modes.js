@@ -225,6 +225,19 @@
     "kai|The hinges are always fine.": 'kai-mg-reno-hinges',
     "kai|He's not joking. He keeps a ledger.": 'kai-mg-reno-ledger',
     "kai|He will.": 'kai-mg-reno-frame',
+    // The Renovation's opening (js/mode-reno.js OPEN), recorded by tools/reno_vo.py
+    "seymour|Halt. Name, business, two forms of identification. ...Ah. The new architect. Sir Seymour Backups. I inspect Pingsby's Quarter. Twice.": 'seymour-mg-reno-open-01',
+    "kai|I'm Kai. I'm a cook. He made me your assistant. There was a form.": 'kai-mg-reno-open-02',
+    "seymour|Freya deleted this whole Quarter. Luckily, I insisted on versioning. We brought every house back from under her delete markers.": 'seymour-mg-reno-open-03',
+    "kai|So people live here again. Which means nobody moves out while you fix the place.": 'kai-mg-reno-open-04',
+    "seymour|Each job is a renovation: a new version of someone's building. You choose how to ship it, while the residents keep coming home.": 'seymour-mg-reno-open-05',
+    "seymour|The client's rules are chalked on the slate. Then I run your plan twice. Once sound. Once with a cracked beam.": 'seymour-mg-reno-open-06',
+    "kai|He cracks the beam on purpose. Every time. He calls it procedure.": 'kai-mg-reno-open-07',
+    "seymour|Then the permit: one question about what you just did. If the plan held and your answer is right, I sign. The building stands.": 'seymour-mg-reno-open-08',
+    "kai|Anything less, and it stays under scaffolding. You get another go later.": 'kai-mg-reno-open-09',
+    "seymour|Five jobs a night. The last is the Grand Opening. If its plan holds, we cut the ribbon, and the night is yours.": 'seymour-mg-reno-open-10',
+    "kai|The first Grand Opening is my kitchen. So. No pressure.": 'kai-mg-reno-open-11',
+    "seymour|Three plans per job. Read the whole scroll. I'll be right here. Watching. Supportively.": 'seymour-mg-reno-open-12',
     // Sir Seymour's Architect's Draft quiz lines (js/draft.js SEYMOUR), heard on many questions, so read soft and
     // encouraging (recorded by tools/reno_vo.py with its SOFT_STYLE)
     "seymour|Checked it twice. It stands. Good, careful work. I've noted that. In ink.": 'seymour-mg-draft-clean',

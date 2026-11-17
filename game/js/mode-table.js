@@ -331,6 +331,8 @@
   const twinOf = (q, used) => ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).filter(x => x && E().allowed(x) && D().isVerified(x) && !used.has(x.id))[0] || null;
   const WHY = { call: 'you called it a fake, and it held', place: 'it cracked on your square', stood: 'you let his fake stand', held: 'it held for you: prove you know why', carry: 'last night\'s Rack', clasp: 'you called it, but missed the clasp' };
   function billScreen(s) {
+    // The table music plays on under the bill and its questions (it used to drop back to the town's song here).
+    tune('duel');
     const L = s.bill;
     s.billUsed = s.billUsed || [];
     if (!L.items.length && keep().carryPins.length) L.items.push(Object.assign({ why: 'carry' }, keep().carryPins.shift()));
@@ -352,7 +354,6 @@
       const used = new Set(s.billUsed);
       const q = billQuestion(s, it, used);
       if (!q) { T.paid(s, { ok: true, conf: 0 }); save(s); return billScreen(s); }
-      untune();
       const r = await M.ask(q, { tally: s.tally, title: 'HIS BILL', context: `${pinName(it.pin)} · ${WHY[it.why]}` });
       if (r.closed || r.skipped) { save(s); return billScreen(s); }
       s.billUsed.push(q.id); used.add(q.id);
@@ -543,6 +544,8 @@
 
   // ---- Start and resume ----
   function draw(s, msg) {
+    // A night resumed at the counter or the pick still sits at his table, so the table music plays there too.
+    if (s.phase === 'pick' || s.phase === 'counter') tune('duel');
     if (s.phase === 'pick') return pickScreen(s);
     if (s.phase === 'board') return tableScreen(s, msg || (s.b.edge && !s.b.turns ? SAY.edge : SAY.resume));
     if (s.phase === 'bill') return billScreen(s);
