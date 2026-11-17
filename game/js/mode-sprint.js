@@ -973,6 +973,9 @@
     const r = await M.ask(q, { noWall: false });
     const f = SP.famById(x.fam), st = store();
     if (r.closed || r.skipped || r.stopped) return rematchList();
+    // Type it once (js/type-once.js): Rematches are untimed, so the first time this save meets the right answer's
+    // term (an API, a setting, a condition key), you type it. Never on the road itself.
+    if (SD.typeOnce) for (const line of rightText(rq.q)) { if (await SD.typeOnce.maybe(line, { who: 'Lexi', say: 'Before it goes in the jar: write the part that caught it.', title: 'THE REMATCH' })) break; }
     if (r.ok) {
       x.won = Date.now();
       const fr = st.fam[f.id] = st.fam[f.id] || { caught: 0, gold: 0, slipped: 0 };

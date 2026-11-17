@@ -35,6 +35,7 @@ const DOORS = { lift1: [20, 20, 'ArrowRight'], lift2: [29, 20, 'ArrowLeft'], kit
   // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
   page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext|ERR_/.test(m.text())) errors.push('console: ' + m.text()); });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
   await page.goto(url);
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   const foot = await page.evaluate(() => (document.querySelector('.t-foot') || {}).textContent || '');

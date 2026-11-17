@@ -8,11 +8,14 @@
 // API:
 //   SD.typeOnce.token(text, prefer)    the key token in a line of AWS text: prefer (if it's in the text), else the first
 //                                      condition key or action (kms:Decrypt), CamelCase setting (VisibilityTimeout),
-//                                      CONSTANT (AFTER_SEQUENCE_NUMBER), function (attribute_not_exists) or --flag
+//                                      CONSTANT (AFTER_SEQUENCE_NUMBER), function (attribute_not_exists), --flag or
+//                                      snake_case setting (retry_mode)
 //   SD.typeOnce.need(token)            true when this save hasn't typed it yet
 //   SD.typeOnce.ask({ line, ans, title, who, say, why })   one typing panel: line is the whole line, ans the token
 //                                      blanked in it. Resolves { typed, misses, skipped }.
 //   SD.typeOnce.maybe(line, opts)      token + need + ask in one: resolves null when there's nothing new to type
+//   SD.typeOnce.off = true             maybe() asks nothing (for headless checks of other things; window.SD_NO_TYPING = 1
+//                                      before load sets it)
 //   SD.typeOnce.match(typed, ans)      the matcher: case, whitespace and surrounding quotes ignored
 //   SD.typeOnce.learned(term)          true once this save has typed it (also reads the Renovation's renoKeep.typed and
 //                                      the Incident Commander's icTyped, so older saves keep their progress)
@@ -24,6 +27,7 @@
 // Stored in the save: S.save.typed[term in lower case] = time typed.
 (function () {
   const T = SD.typeOnce = {};
+  T.off = !!window.SD_NO_TYPING;   // a headless check of something else sets this before load
   const U = SD.ui, S = SD.state;
   const esc = s => U.esc(String(s == null ? '' : s));
   const store = () => (S.save.typed = S.save.typed || {});
@@ -36,7 +40,8 @@
     /\b[A-Z][A-Z0-9]*_[A-Z0-9_]{2,}\b/,
     /\b(?:attribute|begins|size)_[a-z_]+\b/,
     /\$LATEST|\$\.[A-Za-z]+/,
-    /\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b/g
+    /\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b/g,
+    /\b[a-z]{3,}_[a-z][a-z_]{2,}\b/
   ];
   T.token = function (text, prefer) {
     const t = String(text || '');
@@ -70,6 +75,9 @@
     const ans = o.ans, line = String(o.line || ans);
     const at = line.indexOf(ans), pre = at >= 0 ? line.slice(0, at) : '', post = at >= 0 ? line.slice(at + ans.length) : '';
     let misses = 0;
+    // Whatever the panel held (a fight, a map, a drill) is kept aside and put back after, so the typing step can sit on
+    // top of any screen and leave it as it was.
+    const P = document.getElementById('panel'), keep = P ? [...P.childNodes] : [], hid = P ? P.hidden : true;
     return new Promise(done => {
       const b = U.panel(`<div class="to-w">
           ${o.who ? `<p class="to-say"><b>${esc(o.who)}:</b> ${esc(o.say || 'First time this one\'s come up. Write it in yourself.')}</p>` : `<p class="to-say">${esc(o.say || 'First time this one\'s come up. Type the missing part yourself.')}</p>`}
@@ -85,7 +93,10 @@
         b.querySelectorAll('[data-ch]').forEach(el => el.onclick = () => { inp.value = el.dataset.ch; if (!T.match(inp.value, ans)) el.disabled = true; f.onsubmit({ preventDefault() {} }); });
       }
       setTimeout(() => { try { inp.focus(); } catch (e) { /* no focus on some phones */ } }, 60);
-      const finish = r => { U.closePanel(); done(r); };
+      const finish = r => {
+        if (P && keep.length) { P.innerHTML = ''; keep.forEach(n => P.appendChild(n)); P.hidden = hid; } else U.closePanel();
+        done(r);
+      };
       b.querySelector('[data-skip]').onclick = () => finish({ typed: false, misses, skipped: true });
       f.onsubmit = e => {
         e.preventDefault();
@@ -123,6 +134,7 @@
   };
   T.maybe = function (line, o) {
     o = o || {};
+    if (T.off) return Promise.resolve(null);   // headless checks that aren't about typing turn it off
     const ans = o.ans || T.token(line, o.prefer);
     if (!ans || !T.need(ans) || !String(line).includes(ans)) return Promise.resolve(null);
     return T.ask(Object.assign({}, o, { line, ans }));

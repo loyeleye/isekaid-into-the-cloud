@@ -60,6 +60,7 @@ const server = http.createServer((req, res) => {
     const A = window.Audio; window.__vo = [];
     window.Audio = function (src) { const e = new A(src); if (/\/vo\//.test(src)) window.__vo.push(e); return e; };
   });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
   await page.goto(base);
   await page.waitForFunction(() => window.SD && SD.main && SD.voModes && document.querySelector('#t-start'), null, { timeout: 30000 });
   await page.evaluate(() => { const s = SD.state.save; s.flags.prologue = true; s.c1 = s.c1 || {}; s.c1.lead = s.c1.lead || 'kai'; s.todaySkip = true; SD.state.persist(); SD.audio.set('sfx', true); });

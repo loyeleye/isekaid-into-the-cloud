@@ -62,6 +62,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const afterSeal = async () => { await tick(1900); };
 
   await page.clock.install({ time: new Date('2026-11-24T19:00:00') });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
   await page.goto(url);
   await page.click('#t-start');

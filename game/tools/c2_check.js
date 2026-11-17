@@ -215,6 +215,7 @@ async function openPage(browser, name, errors) {
   const tabs = [];
   const start = async (name, mode, lead) => {
     const page = await openPage(browser, name, errors);
+    await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
     await page.goto(url);
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
     if (mode === 'world') { await page.click('#t-start'); await page.click('#t-c2new'); }

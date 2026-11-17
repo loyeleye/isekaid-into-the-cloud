@@ -40,6 +40,7 @@ const server = http.createServer((req, res) => {
 
   for (const vector of [false, true]) {
     const mode = vector ? 'vector' : 'pixel';
+    await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
     await page.goto(url + (vector ? '?vector' : ''));
     await page.waitForFunction(() => window.SD && SD.main && SD.wear);
     const r = await page.evaluate(async () => {

@@ -75,7 +75,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.waitForFunction(() => !document.querySelector('#dr-cut-next[disabled]'), null, { timeout: 5000 });
   };
   const deploy = async () => { await page.click('#dr-deploy'); await settle(); };
-  const postmortem = async (right, conf) => {
+  const postmortem = async (right, conf, typing) => {
     await page.click('#dr-next');
     await page.click('#dr-ask');
     check(!!await page.$('#dr-cut-next .dr-cut-box, #dr-cut-next') && /Postmortem time/.test(await txt('#panel')), 'Uptima calls the postmortem in a cutscene');
@@ -85,12 +85,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const qid = await answer(right, conf);
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
+    if (typing) await typing();
     await page.waitForFunction(() => ['map', 'end'].includes(SD.state.save.drill.phase));
     await cut();
     return { qid, plain };
   };
 
   await page.clock.install({ time: new Date('2026-11-17T20:00:00') });
+  await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('keep')) localStorage.clear(); } catch (e) { /* ignore */ } });
   await boot();
   await page.evaluate(() => { SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });
@@ -141,7 +143,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   s = await st();
   check(s.drill.state === 'contained' && /Contained/.test(await txt('.dr-stamp')), 'backoff and jitter contains it, and the board is stamped Contained');
   await noHScroll('contained'); await shot('contained');
-  const pm = await postmortem(true, 2);
+  // Type it once (js/type-once.js), switched on for this one postmortem: the lead has you write the fix into the
+  // runbook, its key setting blanked, two misses show it faintly, and it's asked only the first time.
+  await page.evaluate(() => { SD.typeOnce.off = false; });
+  const pm = await postmortem(true, 2, async () => {
+    await page.waitForSelector('#panel .to-win .to-in', { timeout: 5000 });
+    check(/THE RUNBOOK/.test(await txt('#panel .win-h')) && /^ = standard/.test(await txt('#panel .to-line')) && !/retry_mode/.test(await txt('#panel .to-line')), 'after the postmortem the lead has you type the fix\'s setting into the runbook, blanked in its line');
+    await noHScroll('runbook'); await shot('runbook');
+    for (const w of ['retry', 'retrymode']) { await page.fill('#panel .to-in', w); await page.click('#panel .to-card [type="submit"]'); }
+    check(await page.getAttribute('#panel .to-in', 'placeholder') === 'retry_mode', 'two misses show it faintly to copy');
+    await shot('runbook-faint');
+    await page.fill('#panel .to-in', 'RETRY_MODE'); await page.click('#panel .to-card [type="submit"]');
+    check(/Typed/.test(await txt('#panel .to-note')) && await page.evaluate(() => SD.typeOnce.learned('retry_mode')), 'typed (case ignored), it\'s marked in the save');
+    await page.click('#panel [data-go]');
+  });
+  check(await page.evaluate(() => !!SD.typeOnce.learned('retry_mode') && !document.querySelector('#panel .to-win')), 'the night goes on after the runbook');
+  await page.evaluate(() => { SD.typeOnce.off = true; });
   check(pm.plain, 'the postmortem is a plain exam screen: no map, pager or station while the stem is open');
   const okq = await page.evaluate(id => { const q = SD.exam.find(id); return SD.drill.DRILLS.storm.q.test([q.q].concat(q.opts || []).join(' ')); }, pm.qid);
   check(okq, 'the postmortem question is on the drill\'s cause');

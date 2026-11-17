@@ -579,7 +579,12 @@
     h += '</div>' + sourceBlock(q) + (twin ? `<div class="dr-retry"><p class="small"><b data-vo="${esc('seymour|' + SEYMOUR.retry)}">Seymour:</b> "${esc(SEYMOUR.retry)}" Its twin is a different scenario on the same rule, free.</p><div class="row"><button class="primary" id="dr-twin">Retry its twin now</button><button class="ghost" id="dr-next">${nextLabel}</button></div></div>` : `<button class="primary" id="dr-next">${nextLabel}</button>`);
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
     const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, id: bld.client, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
-    b.querySelector('#dr-next').onclick = next;
+    // Type it once (js/type-once.js): Seymour's permit. The first time this save meets the right card's API, setting,
+    // flag or condition key, you write it on the permit before the building goes up.
+    b.querySelector('#dr-next').onclick = async () => {
+      if (SD.typeOnce) for (const i of right) { if (await SD.typeOnce.maybe(cards[i], { who: 'Seymour', say: 'The permit wants it in AWS\'s own spelling. Write it in, please.', title: 'THE PERMIT' })) break; }
+      next();
+    };
     const tw = b.querySelector('#dr-twin'); if (tw) tw.onclick = () => { it.retryNow = 1; next(); };
   }
   const lower = s => String(s).replace(/^[A-Z](?=[a-z ])/, ch => ch.toLowerCase());

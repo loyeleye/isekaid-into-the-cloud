@@ -79,6 +79,7 @@ function step(lead) {
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(name + ' pageerror: ' + e.message));
     page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push(name + ' console: ' + m.text()); });
+    await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check
     await page.addInitScript(() => { window.SD_TEST = 1; });
     await page.goto(url);
     await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
