@@ -73,18 +73,20 @@
   const jobOf = (s, i) => R.job(s.jobs[i].id, s.jobs[i].seed);
 
   // ---- The night's board: the jobs pinned on a map of Pingsby's Quarter, the Grand Opening's ribbon in the square (L7) ----
-  // Pin spots are fractions of assets/img/reno/quarter-map.webp: Beanstalk Row's houses top left, the Shrine Bridge
-  // over the river, the Blueprint Office in the middle, and the market square (where every Grand Opening is held).
-  const SPOTS = { eb: [[15, 22], [27, 24], [33, 36], [8, 38]], lam: [[47, 62], [57, 64], [44, 76], [60, 78]], cfn: [[52, 36], [62, 38], [48, 48], [64, 50]], grand: [[82, 57]] };
+  // Pin spots are percentages of the painted map, assets/img/reno/street/quarter-map.webp (16:9), where each pin's point
+  // lands: Beanstalk Row's gatehouse and cottages by the crane top left, the walled Blueprint Office in the middle, the
+  // Shrine Bridge's arch and two shrines over the river, and the market square's fountain (every Grand Opening's spot).
+  const SPOTS = { eb: [[15, 43], [23, 27], [31, 18], [39, 11]], lam: [[44, 73], [54, 63], [66, 77], [77, 79]], cfn: [[44, 37], [51, 43], [59, 33], [42, 52]], grand: [[83, 52]] };
+  const streetImg = (n, cls) => `<img class="${cls}" src="assets/img/reno/street/${n}.webp" alt="" draggable="false">`;
   function mapHtml(s) {
     const used = {};
     const pins = s.jobs.map((j, i) => {
       const job = jobOf(s, i), k = job.grand ? 'grand' : job.d, n = used[k] = (used[k] || 0) + 1;
       const [x, y] = SPOTS[k][(n - 1) % SPOTS[k].length];
       const st = j.done ? (j.pass ? 'ok' : 'bad') : i === s.at ? 'on' : '';
-      return `<span class="rn-pin ${st}${job.grand ? ' grand' : ''}" style="left:${x}%;top:${y}%">${job.grand ? sprite('ribbon', 'rn-ribbon', 'the Grand Opening ribbon') : ''}${sprite('pin', 'rn-pinsp', '')}<b>${j.done ? (j.pass ? '✓' : '✗') : i + 1}</b></span>`;
+      return `<span class="rn-pin ${st}${job.grand ? ' grand' : ''}" style="left:${x}%;top:${y}%">${job.grand ? sprite('ribbon', 'rn-ribbon', 'the Grand Opening ribbon') : ''}${streetImg('pin', 'rn-pinsp')}<b>${j.done ? (j.pass ? '✓' : '✗') : i + 1}</b></span>`;
     }).join('');
-    return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${sprite('quarter-map', 'rn-mapsp', '')}${pins}</div>`;
+    return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${streetImg('quarter-map', 'rn-mapsp')}${pins}</div>`;
   }
   function boardScreen(s) {
     const F = DR.foreman(), first = s.at === 0 && !s.jobs[0].plans.length;
@@ -856,6 +858,9 @@
       ${FULL} .rn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
       ${FULL} .rn-knobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
       ${FULL} .rn-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+    }
+    @media (max-width: 899px) {
+      ${FULL} .rn-boardgrid .rn-map { width: auto; max-width: none; margin: 0 -16px; border-width: 3px 0; border-radius: 0; }
     }`;
   // The scene (Ladi, Nov 16: "I don't want it to be another basic text game"): the street fills the screen, the slate is
   // chalk on the gate, policies are blueprints, knobs are brass plaques and levers on the scaffolding, the board is a map.
@@ -929,15 +934,19 @@
     .rn-knobs .rn-cfg { color: #17131f; }
     /* The board: tonight's jobs pinned on the map of the Quarter. */
     .rn-boardgrid { display: flex; flex-direction: column; gap: 10px; }
-    .rn-map { position: relative; width: 100%; max-width: 720px; margin: 0 auto; filter: drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
-    .rn-mapsp { width: 100%; height: auto; }
-    .rn-pin { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
-    .rn-pinsp { width: clamp(22px, 6vw, 34px); height: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.5)); }
-    .rn-pin b { position: absolute; bottom: 58%; left: 58%; font-size: 13px; background: #fff3d6; color: #17131f; border: 2px solid #17131f; border-radius: 50%; min-width: 20px; height: 20px; display: grid; place-items: center; text-shadow: none; font-size: 12px; color: #fff; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
-    .rn-pin.on .rn-pinsp { animation: rn-bob .7s ease-in-out infinite alternate; filter: drop-shadow(0 0 4px #ffd45a); }
-    .rn-pin.ok b { background: #9be3b0; } .rn-pin.bad b { background: #bbb; } .rn-pin.on b { background: #ffd45a; }
+    .rn-map { position: relative; width: 100%; max-width: 760px; margin: 0 auto; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px;
+      border: 3px solid #4a2f18; background: #6e8f5a; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,236,190,.25); }
+    .rn-mapsp { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+    /* The painted pin: a red head on a brass point. The point's tip sits on the spot; the badge sits on the head. */
+    .rn-pin { --pw: clamp(24px, 6.4vw, 36px); position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .rn-pinsp { display: block; width: var(--pw); height: auto; image-rendering: auto; filter: drop-shadow(1px 3px 2px rgba(0,0,0,.45)); }
+    .rn-pin b { position: absolute; left: 50%; bottom: calc(var(--pw) * 1.616 * .69); transform: translate(-50%, 50%); width: calc(var(--pw) * .66); height: calc(var(--pw) * .66);
+      display: grid; place-items: center; border-radius: 50%; background: #fff3d6; color: #17131f; border: 1.5px solid #5a1410; font-size: calc(var(--pw) * .46); font-weight: 800; line-height: 1; text-shadow: none; }
+    .rn-pin.on { animation: rn-pinbob .7s ease-in-out infinite alternate; }
+    .rn-pin.on .rn-pinsp { filter: drop-shadow(0 0 5px #ffd45a) drop-shadow(1px 3px 2px rgba(0,0,0,.45)); }
+    .rn-pin.ok b { background: #9be3b0; } .rn-pin.bad b { background: #cfc8bc; } .rn-pin.on b { background: #ffd45a; }
+    @keyframes rn-pinbob { from { translate: 0 0; } to { translate: 0 -5px; } }
     .rn-ribbon { width: clamp(40px, 11vw, 84px); height: auto; margin-bottom: -4px; }
-    @keyframes rn-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
     .rn-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #b23b3b; color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
     .rn-job.grand { box-shadow: inset 0 -4px 0 #b23b3b; }
     .rn-river { background: linear-gradient(#8fc6e8, #cfe8d0 55%, #4d8fb0 56%, #2f6d8f); color: #17131f; padding-bottom: 8px; }
@@ -956,9 +965,8 @@
       .rn-plan .rn-road { margin-left: -380px; padding-left: 380px; }
       .rn-boardgrid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); align-items: start; }
       ${FULL} .rn-boardgrid .rn-jobs { display: flex; }
-      .rn-pin b { min-width: 24px; height: 24px; font-size: 14px; }
     }
-    @media (prefers-reduced-motion: reduce) { .rn-walk, .rn-turn, .rn-pin.on .rn-pinsp { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .rn-walk, .rn-turn, .rn-pin.on { animation: none; } }
   `;
   css.textContent += `
     /* The living street fills the stage: fixed behind the screen's boxes, which scroll up over it from below. */
