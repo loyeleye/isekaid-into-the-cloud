@@ -2,7 +2,7 @@
 // at desktop and phone size: the drag and the lever, the end-of-claim strip and its "Next claim" button, the Night
 // Orders pick before every claim (Dutch's explanation, stacking, no repeats), the letters once pinned (all
 // three formats, a wrong answer tearing an option off the next one, a bet, a letter whose clock runs out), each claim's
-// own piece (the bell, the ledger, the Slow Courier's hourglass and stopwatch), batching, and the room's orders (cold
+// own piece (the bell, the ledger, the Slow Courier's hourglass and stopwatch, the Picky Bell's filter card), batching, and the room's orders (cold
 // stools, the stampede, shelf life). Checks for page errors and horizontal scroll, and saves screenshots.
 // node tools/rush_check.js [outDir]
 const { chromium } = require('playwright');
@@ -201,20 +201,50 @@ async function playOut(pg, policy, seen) {
     const ss = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, re: SD_RUSH.S.reappeared, cut: SD_RUSH.S.timedOut, batches: SD_RUSH.S.batches, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'slow', JSON.stringify(ss));
     if (ss.over !== 'win' || !ss.cut || !ss.batches) bad(name, 'the Slow Courier did not play through');
-    if (!/Play again from the Rush/.test(ss.next)) bad(name, 'last claim should offer the Rush again:', ss.next);
+    if (!/Next claim: the Picky Bell/.test(ss.next)) bad(name, 'no claim 5 button:', ss.next);
+    // The pick before claim 5: First in, first out.
+    await pg.click('.end-go');
+    await pg.evaluate(() => SD_RUSH.showPick('picky', ['fifo', 'shelf']));
+    await pg.click('.no-card[data-o="fifo"]');
+    if (!/FIFO/.test(await pg.textContent('.no-dutch'))) bad(name, 'no Dutch explanation for FIFO');
+    await pg.click('.no-go');
+    // Claim 5, the Picky Bell: the bell is already up. Drag the filter card onto Reports' tray, and put the rack up.
+    await pg.evaluate(() => { SD_RUSH.reset(7, 'picky'); SD_RUSH.S.coins = Math.max(SD_RUSH.S.coins, 3); });
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-17-picky-build.png` });
+    {
+      const [ax, ay] = await pg.evaluate(() => SD_RUSH.at.slot(3)), [bx2, by2] = await pg.evaluate(() => SD_RUSH.at.spot('filter'));
+      await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx2, by2, { steps: 8 }); await pg.mouse.up();
+    }
+    if (!(await pg.evaluate(() => SD_RUSH.S.bell && SD_RUSH.S.filter))) bad(name, 'filter card did not place');
+    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
+    await pg.waitForTimeout(12000);
+    await pg.screenshot({ path: `${OUT}/${name}-18-picky.png` });
+    if (!(await playOut(pg, () => 'right', seen))) bad(name, 'the Picky Bell never ended');
+    await pg.screenshot({ path: `${OUT}/${name}-19-picky-end.png` });
+    const ps = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, filtered: SD_RUSH.S.filtered, tossed: SD_RUSH.S.tossed, next: document.querySelector('.end-go').textContent }));
+    console.log(name, 'picky', JSON.stringify(ps));
+    if (ps.over !== 'win' || !ps.reports || !ps.filtered || ps.tossed) bad(name, 'the Picky Bell did not play through');
+    if (!/Play again from the Rush/.test(ps.next)) bad(name, 'last claim should offer the Rush again:', ps.next);
     await pg.click('.end-go');
     const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
     if (again.orders || !/orders/.test(again.q) || !again.offer.includes('letters')) bad(name, 'starting over should take the orders down and open the pick', JSON.stringify(again));
     // Every claim sent three letters, and all three formats showed up.
     const fmts = new Set(seen.map(x => x.fmt));
     console.log(name, 'letters', seen.length, [...fmts].join(''));
-    if (seen.length !== 12 || fmts.size !== 3 || seen.some(x => !x.ok)) bad(name, 'letters', JSON.stringify(seen));
+    if (seen.length !== 15 || fmts.size !== 3 || seen.some(x => !x.ok)) bad(name, 'letters', JSON.stringify(seen));
     // Without the hourglass, a heavy parcel reappears on the rack mid-job.
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=slow&orders=cold`);
     await pg.waitForTimeout(400);
     await pg.evaluate(() => SD_RUSH.start());
     await pg.waitForFunction(() => SD_RUSH.S.reappeared > 0, null, { timeout: 30000 }).catch(() => bad(name, 'nothing reappeared without the hourglass'));
     await pg.screenshot({ path: `${OUT}/${name}-16-reappear.png` });
+    // Without the filter card, Reports opens every copy and throws most away.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=picky&orders=cold`);
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
+    await pg.waitForFunction(() => SD_RUSH.S.tossed >= 3, null, { timeout: 30000 }).catch(() => bad(name, 'Reports never threw a copy away without the filter'));
+    await pg.screenshot({ path: `${OUT}/${name}-20-picky-nofilter.png` });
     // The room's three orders together: frost on idle stools, the stampede and shelf life.
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=bell&orders=cold,herd,shelf`);
     await pg.waitForTimeout(600);

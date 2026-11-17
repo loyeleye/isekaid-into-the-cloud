@@ -21,6 +21,11 @@
 //     the rack's at-least-once twins are back. Doing the same ticket twice pays out twice, and that's a lost request
 //     in the tank. The ledger is an idempotency record in DynamoDB: before the work, Mira writes the ticket's key
 //     with a conditional write (attribute_not_exists). A repeat fails the condition and is dropped at once.
+//   - Claim 5, the Picky Bell: the bell is up and rings for every ticket. Mira's function and the Reports function
+//     are both subscribed, but Reports only wants refunds (gold envelopes). Without a filter, Reports is invoked for every
+//     copy and has to open each one to throw most of them away, so its tray (Lambda's async event queue) backs up;
+//     a copy that waits longer than the maximum event age is discarded, and a refund lost that way is a lost request.
+//     The filter card is a subscription filter policy on Reports' subscription: SNS only sends it the refunds.
 //   - Night Orders (one of two picked before each claim, and they stack): optional twists on these rules.
 //     Each has a catch and an upside.
 //       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes three times as long.
@@ -33,6 +38,9 @@
 //       batch:  each stool takes two tickets off the rack per trip and does them in a bit more than the time of one
 //               (Lambda's batch size on an SQS trigger). Catch: if either fails, both go back (a batch fails as a
 //               whole unless the function reports partial batch failures).
+//       fifo:   the rack is a FIFO queue: each caller's tickets go out one at a time, in order (a message group has
+//               one message in flight at a time). Upside: the rack drops a ticket it has already been sent (FIFO
+//               deduplication), and never hands out a twin.
 //       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
 //               (1 minute to 14 days in SQS; seconds here). Upside: the rack is free (SQS's free tier).
 //     Letters (questions between waves), stakes and the timeout are Night Orders too, but they're about the
@@ -44,7 +52,9 @@
     backoff: [0.6, 1.4], gap: 3, clog: 6, drop: 0.45, coldAfter: 2, coldX: 3, herd: 2.5, retain: 20,
     // The Slow Courier: heavy parcels take longer; the rack hides a taken ticket for vis seconds (visHourglass with
     // the hourglass); the stopwatch cuts any job off at fnTimeout. Batching does two tickets in batchX of the time.
-    heavy: 4, vis: 3, visHourglass: 9, fnTimeout: 6, stuckSay: 7, batchX: 1.5
+    heavy: 4, vis: 3, visHourglass: 9, fnTimeout: 6, stuckSay: 7, batchX: 1.5,
+    // The Picky Bell: a copy waiting in Reports' tray longer than maxAge is discarded (maximum event age).
+    maxAge: 5, report: 2.6
   };
   const STOOLS = 6, CLERK_MAX = 4, RESERVE = 4, CAP = 12, MAX_THROTTLES = 3, MAX_RECEIVES = 3, TWIN_P = 0.1;
   // Each wave: how many tickets, over how many seconds, and how many of them are poison.
@@ -93,6 +103,18 @@
     ]
   };
   CLAIMS.double.next = 'slow';
+  // Claim 5: the bell is up and rings for every ticket; Reports only wants the refunds. See the header.
+  CLAIMS.picky = {
+    name: 'THE PICKY BELL', title: 'the Picky Bell', locked: [], next: null, close: 80, clerk: 'reports',
+    belt: ['rack', 'reserve', 'bin', 'filter'], bellUp: true, picky: true,
+    waves: [
+      { n: 12, secs: 5, poison: 0, refund: 0.5 },
+      { n: 16, secs: 5, poison: 0, refund: 0.5 },
+      { n: 16, secs: 5, poison: 1, refund: 0.5 },
+      { n: 20, secs: 6, poison: 1, refund: 0.5 }
+    ]
+  };
+  CLAIMS.slow.next = 'picky';
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
@@ -100,7 +122,8 @@
     bell: { name: 'Bell', aws: 'SNS topic (fan-out)', cost: 1 },
     ledger: { name: 'Ledger', aws: 'DynamoDB conditional write (idempotency)', cost: 1 },
     hourglass: { name: 'Hourglass', aws: 'Visibility timeout', cost: 1 },
-    stopwatch: { name: 'Stopwatch', aws: 'Function timeout', cost: 1 }
+    stopwatch: { name: 'Stopwatch', aws: 'Function timeout', cost: 1 },
+    filter: { name: 'Filter card', aws: 'SNS subscription filter policy', cost: 1 }
   };
   function rng(seed) {
     let a = seed >>> 0;
@@ -115,7 +138,7 @@
       clerk: C.clerk, twiceCosts: !!C.twiceCosts, belt: (C.belt || ['rack', 'reserve', 'bin', 'bell']).slice(), ledger: false, keys: new Set(), paidTwice: 0, dropped: 0, resends: 0,
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
-      rack: !!C.rackUp, reserve: false, bin: false, hourglass: false, stopwatch: false, visibility: !!C.visibility, reappeared: 0, timedOut: 0, batches: 0, batchFails: 0,
+      rack: !!C.rackUp, reserve: false, bin: false, hourglass: false, stopwatch: false, visibility: !!C.visibility, bell: !!C.bellUp, picky: !!C.picky, filter: false, filtered: 0, tossed: 0, aged: 0, deduped: 0, sent: new Set(), reappeared: 0, timedOut: 0, batches: 0, batchFails: 0,
       coins: 2 + (coins || 0), bonusGiven: false,
       spill: 0, cap: CAP, handled: 0, binned: 0, twins: 0, throttles: 0, lost: 0,
       placed: [], events: [], clogT: 0, allSpawned: false
@@ -128,9 +151,9 @@
       for (let i = 0; i < w.n; i++) {
         const poison = poisonAt.has(i);
         const at = t + (i / w.n) * w.secs + S.rand() * 0.25, key = 'k' + S.spawns.length;
-        S.spawns.push({ t: at, wave: wi + 1, poison, stuck: poison && !!C.visibility, ribbon: !poison && S.rand() < (w.ribbon || 0), heavy: !poison && !!w.heavy && S.rand() < w.heavy, key });
+        S.spawns.push({ t: at, wave: wi + 1, poison, stuck: poison && !!C.visibility, ribbon: !poison && S.rand() < (w.ribbon || 0), heavy: !poison && !!w.heavy && S.rand() < w.heavy, refund: !poison && !!w.refund && S.rand() < w.refund, group: i % 3, key });
         // A nervous caller sends the same ticket again a moment later.
-        if (!poison && C.resend && S.rand() < C.resend) S.spawns.push({ t: at + 0.8 + S.rand() * 1.6, wave: wi + 1, poison: false, ribbon: false, key, resend: true });
+        if (!poison && C.resend && S.rand() < C.resend) S.spawns.push({ t: at + 0.8 + S.rand() * 1.6, wave: wi + 1, poison: false, ribbon: false, group: i % 3, key, resend: true });
       }
       t += w.secs + T.gap;
     });
@@ -179,7 +202,7 @@
   function go(k, phase, dur) { k.phase = phase; k.t = 0; k.dur = dur; }
   function spawn(S, sp) {
     if (sp.resend) { S.resends++; ev(S, 'resend', { key: sp.key }); }
-    const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, stuck: !!sp.stuck, heavy: !!sp.heavy, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
+    const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, stuck: !!sp.stuck, heavy: !!sp.heavy, refund: !!sp.refund, group: sp.group, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
     go(k, 'slide', T.slide);
     S.tickets.push(k);
   }
@@ -196,7 +219,24 @@
       go(c, 'tray', 0); S.tickets.push(c); S.tray.push(c.id);
       ev(S, 'ring', { id: k.id, copy: c.id });
     }
-    if (S.rack) { enqueue(S, k); return; }
+    // The Picky Bell rings once for every ticket. Reports gets a copy unless its filter policy rules it out.
+    if (S.picky && S.bell && !k.rung && k.desk === 'mira') {
+      k.rung = true;
+      if (k.refund || !S.filter) {
+        S.rings++;
+        const c = { id: S.nextId++, wave: k.wave, poison: false, ribbon: false, desk: 'reports', want: !!k.refund, read: true, twin: false, throttles: 0, receives: 0, stool: null, from: 'tray', phase: '', t: 0, dur: 0, trayAt: S.time };
+        go(c, 'tray', 0); S.tickets.push(c); S.tray.push(c.id);
+        ev(S, 'ring', { id: k.id, copy: c.id, want: c.want });
+      } else { S.filtered++; ev(S, 'filtered', { id: k.id }); }
+    }
+    if (S.rack) {
+      // FIFO: the rack drops a ticket it has already been sent (deduplication).
+      if (S.orders.has('fifo') && k.key) {
+        if (S.sent.has(k.key)) { remove(S, k); S.deduped++; ev(S, 'dedup', { id: k.id }); return; }
+        S.sent.add(k.key);
+      }
+      enqueue(S, k); return;
+    }
     const i = freeStool(S);
     if (i >= 0) { k.stool = k.seat = i; k.from = 'chute'; go(k, 'walk', T.walk); return; }
     k.throttles++; S.throttles++;
@@ -204,7 +244,7 @@
     if (k.throttles >= S.maxThrottles) { go(k, 'splat', T.splat); return; }
     go(k, 'bounce', T.bounce);
   }
-  function workOf(k) { return k.stuck ? Infinity : k.heavy ? T.heavy : k.ribbon ? T.work * 2 : T.work; }
+  function workOf(k) { return k.read ? T.report : k.stuck ? Infinity : k.heavy ? T.heavy : k.ribbon ? T.work * 2 : T.work; }
   // Batching: the tickets riding along with this one.
   function riders(S, k) { return (k.riders || []).map(id => S.tickets.find(x => x.id === id)).filter(Boolean); }
   // A failed ticket off the rack goes back (and with the bin, into it after MAX_RECEIVES).
@@ -229,11 +269,13 @@
       for (const r of rs) go(r, 'done', T.done);
     }
     if (k.cutOff && !k.poison) { failBack(S, k); return; }
+    // Reports opened a copy it didn't want: thrown away, a whole invocation for nothing.
+    if (k.desk === 'reports' && S.picky && !k.want) { go(k, 'drop', T.drop); S.tossed++; ev(S, 'tossed', { id: k.id }); return; }
     if (k.desk === 'reports') { go(k, 'done', T.done); return; }
     if (!k.poison) {
       go(k, 'done', T.done);
       // At-least-once delivery: now and then the rack hands the same ticket over again.
-      if (viaRack && !k.twin && S.rand() < TWIN_P) {
+      if (viaRack && !k.twin && !S.orders.has('fifo') && S.rand() < TWIN_P) {
         const tw = { id: S.nextId++, key: k.key, wave: k.wave, poison: false, twin: true, throttles: 0, receives: 0, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
         S.tickets.push(tw); enqueue(S, tw); S.twins++;
         ev(S, 'twin', { id: tw.id, of: k.id });
@@ -329,14 +371,23 @@
     // Lambda polls the rack: each free stool of Mira's takes the oldest ticket.
     if (S.rack) {
       let i;
+      // FIFO: a caller with a ticket out (or failed and waiting to come back) has to wait for it.
+      const fifo = S.orders.has('fifo'), out = ['walk', 'work', 'ride', 'back', 'hidden'];
+      const nextQ = () => {
+        if (!fifo) return 0;
+        const busy = new Set(S.tickets.filter(x => x.from === 'rack' && x.group != null && out.includes(x.phase)).map(x => x.group));
+        return S.queue.findIndex(id => { const x = S.tickets.find(t => t.id === id); return !x || !busy.has(x.group); });
+      };
       while (S.queue.length && (i = freeStool(S)) >= 0) {
-        const id = S.queue.shift(), k = S.tickets.find(x => x.id === id);
+        const qi = nextQ(); if (qi < 0) break;
+        const id = S.queue.splice(qi, 1)[0], k = S.tickets.find(x => x.id === id);
         if (!k) continue;
         k.receives++; k.stool = k.seat = i; k.from = 'rack'; k.takenAt = S.time; go(k, 'walk', T.walk);
         // Batching: the stool takes a second ticket off the rack in the same trip.
-        if (S.orders.has('batch') && S.queue.length) {
-          const r = S.tickets.find(x => x.id === S.queue[0]);
-          if (r) { S.queue.shift(); r.receives++; r.seat = i; r.from = 'rack'; r.takenAt = S.time; r.host = k.id; go(r, 'ride', 0); k.riders = [r.id]; S.batches++; }
+        const ri = S.orders.has('batch') && S.queue.length ? nextQ() : -1;
+        if (ri >= 0) {
+          const r = S.tickets.find(x => x.id === S.queue[ri]);
+          if (r) { S.queue.splice(ri, 1); r.receives++; r.seat = i; r.from = 'rack'; r.takenAt = S.time; r.host = k.id; go(r, 'ride', 0); k.riders = [r.id]; S.batches++; }
         }
       }
     }
@@ -347,9 +398,19 @@
       for (const k of S.tickets.slice()) {
         if (k.takenAt == null || k.reappearedAt === k.takenAt || !['walk', 'work', 'ride'].includes(k.phase) || S.time - k.takenAt <= vis) continue;
         k.reappearedAt = k.takenAt;
-        const c = { id: S.nextId++, key: k.key, wave: k.wave, poison: k.poison, stuck: k.stuck, heavy: k.heavy, twin: true, throttles: 0, receives: k.receives, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
+        const c = { id: S.nextId++, key: k.key, wave: k.wave, poison: k.poison, stuck: k.stuck, heavy: k.heavy, group: k.group, twin: true, throttles: 0, receives: k.receives, stool: null, from: 'rack', phase: '', t: 0, dur: 0 };
         S.tickets.push(c); enqueue(S, c); S.reappeared++;
         ev(S, 'reappear', { id: c.id, of: k.id });
+      }
+    }
+    // Maximum event age: a copy that has waited in the tray too long is discarded. A refund lost that way counts.
+    if (S.picky) {
+      for (const id of S.tray.slice()) {
+        const k = S.tickets.find(x => x.id === id);
+        if (k && S.time - k.trayAt > T.maxAge) {
+          S.tray = S.tray.filter(x => x !== id); remove(S, k); ev(S, 'aged', { id, want: k.want });
+          if (k.want) { S.aged++; lose1(S, k, 'aged'); if (S.over) return; }
+        }
       }
     }
     // Reports takes copies from its tray at its own stools.
@@ -382,7 +443,7 @@
     }
   }
   function drain(S) { const e = S.events; S.events = []; return e; }
-  const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'stakes', 'timeout'];
+  const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'fifo', 'stakes', 'timeout'];
   SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, costOf, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);
