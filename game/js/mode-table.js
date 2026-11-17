@@ -29,7 +29,7 @@
   };
   const minutes = s => ((s.el || 0) + (document.hidden ? 0 : Date.now() - (s.tick || Date.now()))) / 60000;
 
-  // ---- Music: the table under the board, the tenser loop for the Rack, the sting when the Cup is won ----
+  // ---- Music: the table under the board, its quieter take for the bill, the tenser loop for the Rack, the sting when the Cup is won ----
   const AU = () => (SD.audio && SD.audio.music ? SD.audio : null);
   let before = null;
   const tune = name => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && !/^duel/.test(a.loopName) ? a.loopName : ''; a.music(name); };
@@ -331,8 +331,9 @@
   const twinOf = (q, used) => ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).filter(x => x && E().allowed(x) && D().isVerified(x) && !used.has(x.id))[0] || null;
   const WHY = { call: 'you called it a fake, and it held', place: 'it cracked on your square', stood: 'you let his fake stand', held: 'it held for you: prove you know why', carry: 'last night\'s Rack', clasp: 'you called it, but missed the clasp' };
   function billScreen(s) {
-    // The table music plays on under the bill and its questions (it used to drop back to the town's song here).
-    tune('duel');
+    // The bill has its own take on the table music (Mureka, Ladi's account, Nov 17), and it plays on under the
+    // bill's questions too (it used to drop back to the town's song here).
+    tune('duelbill');
     const L = s.bill;
     s.billUsed = s.billUsed || [];
     if (!L.items.length && keep().carryPins.length) L.items.push(Object.assign({ why: 'carry' }, keep().carryPins.shift()));
@@ -393,6 +394,7 @@
       <span class="small ct-trayrec">Your bill: ${rec && rec[3] ? `${rec[2]} of ${rec[3]} right` : 'nothing owed yet'}</span></span></button>`;
   }
   function pickScreen(s) {
+    tune('duel');
     s.offers = s.offers || T.offers(s);
     const first = s.n === 1;
     const body = panel(world({
@@ -407,6 +409,7 @@
     wireStop(body); alive(body);
   }
   function counterScreen(s) {
+    tune('duel'); // back from the bill's music to the table's
     const c = s.counter;
     if (c.who === 'him') {
       const body = panel(world({
@@ -544,8 +547,6 @@
 
   // ---- Start and resume ----
   function draw(s, msg) {
-    // A night resumed at the counter or the pick still sits at his table, so the table music plays there too.
-    if (s.phase === 'pick' || s.phase === 'counter') tune('duel');
     if (s.phase === 'pick') return pickScreen(s);
     if (s.phase === 'board') return tableScreen(s, msg || (s.b.edge && !s.b.turns ? SAY.edge : SAY.resume));
     if (s.phase === 'bill') return billScreen(s);

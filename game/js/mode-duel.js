@@ -59,7 +59,7 @@
   // when the Cup is won. Whatever was
   // playing before the night comes back when you stand up.
   const AU = () => (SD.audio && SD.audio.music ? SD.audio : null);
-  if (AU() && SD.audio.add) SD.audio.add({ songs: { duel: 'm-duel-table', duellast: 'm-duel-last' }, jingles: { duelcup: 'j-duel-cup' } });
+  if (AU() && SD.audio.add) SD.audio.add({ songs: { duel: 'm-duel-table', duelbill: 'm-duel-bill', duellast: 'm-duel-last' }, jingles: { duelcup: 'j-duel-cup' } });
   let before = null;
   const tune = name => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && !/^duel/.test(a.loopName) ? a.loopName : ''; a.music(name); };
   const untune = () => { const a = AU(); if (!a || before === null) return; a.music(before || null); before = null; };

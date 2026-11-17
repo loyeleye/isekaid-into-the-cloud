@@ -231,12 +231,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Resume · night 1/.test(await txt('[data-mode="duel"]')), 'after a reload the picker offers Resume');
   await page.click('[data-mode="duel"]');
   check(/HIS BILL/.test(await txt('#panel')) && !!(await page.$('#ct-pay')), 'resume reopens the bill');
-  check(await page.evaluate(() => SD.audio.loopName) === 'duel', 'the resumed bill plays the table music');
+  check(await page.evaluate(() => SD.audio.loopName) === 'duelbill', 'the resumed bill plays the bill\'s music');
   await noHScroll('bill'); await fills('bill'); await shot('bill');
   await page.click('#ct-pay');
   await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c], #panel #q-said, #panel #tf-idk'));
   check(!(await page.$('#panel .ct-felt')), 'the bill question is the plain exam screen');
-  { const m = await page.evaluate(() => SD.audio.loopName); check(m === 'duel', `the table music keeps playing through the bill question (${m})`); }
+  { const m = await page.evaluate(() => SD.audio.loopName); check(m === 'duelbill', `the bill\'s music keeps playing through the bill question (${m})`); }
   await answer(true, 1);
   await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
   if (await page.$('#q-next')) await page.click('#q-next');
@@ -267,6 +267,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await playBoard(); await payBill(true);
   // Board 2: force a 1–1 so the Rack opens.
   if ((await st()).phase === 'counter') {
+    { const m = await page.evaluate(() => SD.audio.loopName); check(m === 'duel', `after the bill, the counter is back on the table music (${m})`); }
     if (await page.$('#ct-go')) await page.click('#ct-go'); else await page.click('[data-rival]');
     await page.evaluate(() => { const s = SD.state.save.table.night; s.score = [0, 0]; s.boards[0].res = 'me'; s.score[0] = 1; SD.state.persist(); });
     await playBoard();
