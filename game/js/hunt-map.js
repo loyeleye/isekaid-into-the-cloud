@@ -23,7 +23,10 @@
   M.lairOf = topic => Object.keys(M.LAIRS).find(k => M.LAIRS[k].topics.includes(String(topic || ''))) || 'outskirts';
   M.bg = key => DIR + (M.LAIRS[key] ? key : 'outskirts') + (innerWidth > 700 || innerWidth > innerHeight ? '-wide' : '-tall') + '.webp';
   // Each step of a battle stands somewhere else in the same place.
-  M.shift = step => ({ track: 18, fight: 50, retry: 62, pin: 82 }[step] ?? 50);
+  // Where a place's ground is, per lair: at the docks only the pier on the left of the picture holds Bru up, so the
+  // steps move along it instead of out over the water.
+  const SHIFT = { track: 18, fight: 50, retry: 62, pin: 82 }, GROUND = { docks: { track: 0, fight: 6, retry: 10, pin: 14 } };
+  M.shift = (step, key) => ((GROUND[key] || SHIFT)[step] ?? SHIFT[step] ?? 50);
   // Warm the map so it's there the moment the hunting grounds open.
   M.warm = () => { const i = new Image(); i.src = M.MAP; };
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;

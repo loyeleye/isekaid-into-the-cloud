@@ -60,7 +60,7 @@
         <button type="button" class="hd-nbk" aria-controls="hd-notes" aria-expanded="false" hidden><img src="assets/img/hunt/notebook.webp" alt="" decoding="async"><span>Bru's notes</span></button></div>
       <p class="hs-say hd-say" aria-live="polite" hidden></p>`;
     st = { m, scene, ms, caught, bt, bru: null, mode: null, cTop: 0, sTop: 0, dead: false, reacted: false };
-    if (lair) { scene.classList.add('hd-lair'); scene.dataset.lair = lair; scene.style.setProperty('--hm-x', HM.shift(bt) + '%'); }
+    if (lair) { scene.classList.add('hd-lair'); scene.dataset.lair = lair; scene.style.setProperty('--hm-x', HM.shift(bt, lair) + '%'); }
     if (bt) { scene.classList.add('hd-battle', 'hd-st-' + bt); const g = stage(); if (g && g.open) g.open({ scene, st }); }
     st.obs = new MutationObserver(wrap);
     st.obs.observe(document.querySelector('#panel'), { childList: true, subtree: true });
@@ -502,6 +502,14 @@
     .hd-sat .conf-b button:disabled .up { color: #8fd6a0; } .hd-sat .conf-b button:disabled .dn { color: #f09a8a; }
     .hd-sat .stake-help { margin: 4px 0 0; color: #c9bca4; }
     .hd-sat :is(.type-first, .say-first, .num, .order-done) { color: #efe6d2; }
+    /* Type it first, in the scene: dark wood like the rest of the satchel, the hint readable, the box wide enough for its words. */
+    #panel .win.hd-win .hd-sat .type-first { background: rgba(18, 13, 8, .9); border: 2px dashed rgba(240, 214, 138, .55); border-radius: 10px; padding: 10px 12px; color: #efe6d2; }
+    #panel .win.hd-win .hd-sat .type-first p { color: #e6d8b8; opacity: 1; margin: 0 0 8px; }
+    #panel .win.hd-win .hd-sat .type-first p b { color: #f0d68a; }
+    #panel .win.hd-win .hd-sat .tf-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    #panel .win.hd-win .hd-sat .tf-row input { flex: 1 1 260px; min-width: 0; }
+    #panel .win.hd-win .hd-sat .tf-row button { flex: 1 0 auto; }
+    #panel .win.hd-win .hd-sat .type-first :is(a, .linkish, button.link, #tf-idk) { color: #f0d68a; }
     .hd-sat .q-foot { position: static; margin: 0 -12px 0 calc(-1 * max(12px, var(--hd-sl, 0px))); padding: 8px 12px 12px max(12px, var(--hd-sl, 0px)); background: rgba(20, 13, 6, .96); border-top: 1px solid rgba(255, 210, 130, .25); }
     .hd-sat .q-foot .cred-more { color: #e6d3a6; }
     .hd-sat > #q-confirm { margin: 0 0 12px; width: 100%; }
