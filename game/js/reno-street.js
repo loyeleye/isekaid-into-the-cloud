@@ -20,7 +20,7 @@
   const SEY_H = ph(SEY_FEET) * 1.30;                       // Seymour with his plume, from seymour-proud (1000px tall)
   const SEY_SRC = { proud: 1000, inspect: 980, approve: 1004, disapprove: 989, stamp: 997 };   // same pixel scale
   const AR = { 'house-old': 398 / 600, 'house-new': 410 / 600, 'house-scaf': 453 / 600, 'house-dark': 319 / 600, gate: 473 / 520, lot: 469 / 200,
-    'res-a': 134 / 240, 'res-b': 146 / 240, 'res-soot': 165 / 260, 'sey-proud': 391 / 1000, 'sey-inspect': 621 / 980, 'sey-approve': 397 / 1004, 'sey-disapprove': 568 / 989, 'sey-stamp': 461 / 997 };
+    'res-a': 134 / 240, 'res-b': 146 / 240, 'res-pa': 142 / 245, 'res-pb': 141 / 245, 'res-soot': 165 / 260, 'sey-proud': 391 / 1000, 'sey-inspect': 621 / 980, 'sey-approve': 397 / 1004, 'sey-disapprove': 568 / 989, 'sey-stamp': 461 / 997 };
   const HOUSE_SP = { up: { old: 'house-old', new: 'house-new' }, scaf: { old: 'house-scaf', new: 'house-scaf' }, dark: { old: 'house-dark', new: 'house-dark' } };
   const HOUSE_SAYS = { up: { old: 'old version, open', new: 'new version, open' }, scaf: { old: 'under scaffolding', new: 'under scaffolding' }, dark: { old: 'dark: failed its health check', new: 'dark: failed its health check' } };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -92,10 +92,35 @@
     if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups' }); }
     // Residents: one in front of each house that served someone this tick, soot on the ones who met the crack, and
     // the turned-away ones in a line at the gate.
-    if (o.tick) out += folk(o.tick, houses, gx, gW);
+    if (o.tick) out += folk(Object.assign({ live: true }, o.tick), houses, gx, gW);
     else if (o.folk) out += folk({ served: o.folk, soot: 0, turned: 0 }, houses, gx, gW);
     return { html: out, width: worldW, houses };
   }
+  // ---- Walking: a resident who travels along a path, stepping through the walk frames, growing as they come nearer ----
+  // The path is resampled to equal steps so the pace is even, and the frames step every quarter second while they walk.
+  // A walker who arrives stops on the first frame (standing). WALK lists the frames in cycle order.
+  const WALK = ['res-a', 'res-pa', 'res-b', 'res-pb'];   // stride, passing, the other stride, passing
+  function traveler(frames, hAt, pts, o) {
+    o = o || {};
+    const [x0, y0] = pts[0], h0 = hAt(y0);
+    // Resample the path to three equal steps.
+    const seg = []; let L = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); L += d; }
+    const at = t => { if (!L) return pts[0]; let r = t * L; for (let i = 0; i < seg.length; i++) { if (r <= seg[i] || i === seg.length - 1) { const k = seg[i] ? Math.min(1, r / seg[i]) : 1; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k]; } r -= seg[i]; } return pts[pts.length - 1]; };
+    const moving = L > 0 && !reduced();
+    let vars = `transform-origin:${px(x0)} ${px(y0)};`;
+    [1, 2, 3].forEach(i => { const [x, y] = at(i / 3); vars += `--x${i}:${px(x - x0)};--y${i}:${px(y - y0)};--s${i}:${(hAt(y) / h0).toFixed(3)};`; });
+    const dur = o.dur || 1.2, loop = !!o.loop, n = frames.length;
+    const anim = moving ? `animation:rs-path ${dur}s linear ${(o.delay || 0).toFixed(2)}s ${loop ? 'infinite' : 1} both;` : '';
+    const flip = o.flip ? 'transform:scaleX(-1);' : '';
+    const steps = loop ? 'infinite' : Math.max(1, Math.round(dur / 0.5));
+    const imgs = frames.map((f, i) => {
+      const st = n > 1 && moving ? `animation:rs-f${n}-${i} .5s linear ${(-(o.phase || 0)).toFixed(2)}s ${steps} both;` : (i ? 'opacity:0;' : '');
+      return stand(f, h0 * ((o.scale && o.scale[f]) || 1), x0, y0, { alt: i ? '' : (o.alt || ''), style: flip + st });
+    }).join('');
+    return `<span class="rs-trav${o.cls ? ' ' + o.cls : ''}" style="${vars}${anim}">${imgs}</span>`;
+  }
+
   function folk(t, houses, gx, gW) {
     const rh = ph(RES_FEET) * 0.72, sh = ph(RES_FEET) * 0.78;
     const up = houses.filter(x => x.h.st === 'up' || x.h.st === 'dark');
@@ -105,13 +130,19 @@
     newOnes.slice(0, soot).forEach(x => spots.push([x, 1]));
     oldOnes.concat(newOnes.slice(soot).filter(x => x.h.st === 'up')).slice(0, ok).forEach(x => spots.push([x, 0]));
     let out = '';
+    // Each tick, the residents walk the last stretch home from the direction of the gate; the sooty ones walk back out.
+    // While planning (no tick) they stand at their doors.
+    const live = !!t.live, hAt = y => ph(y) * 0.72;
     spots.forEach(([x, s], i) => {
       const cx = centreX(x.slot) + (i % 2 ? 26 : -26);
-      out += `<span class="rs-walk${s ? ' soot' : ''}" style="animation-delay:${-(i * 0.17).toFixed(2)}s">${s
-        ? stand('res-soot', sh, cx, RES_FEET + 4, { alt: 'a resident with soot' })
-        : stand('res-a', rh, cx, RES_FEET, { cls: 'a', alt: 'a resident' }) + stand('res-b', rh, cx, RES_FEET, { cls: 'b', alt: '' })}</span>`;
+      out += s
+        ? traveler(['res-soot'], y => ph(y) * 0.78, live ? [[cx, RES_FEET + 4], [cx - 150, RES_FEET + 8]] : [[cx, RES_FEET + 4]], { alt: 'a resident with soot', dur: 0.6, delay: i * 0.04 })
+        : traveler(WALK, hAt, live ? [[cx - 170, RES_FEET + 6], [cx, RES_FEET]] : [[cx, RES_FEET]], { alt: 'a resident', flip: true, dur: 0.55, delay: i * 0.04, phase: i * 0.13 });
     });
-    for (let i = 0; i < Math.min(t.turned || 0, 6); i++) out += stand('res-a', rh, gx - gW * 0.3 - i * 46, RES_FEET + 8, { cls: 'rs-turned', alt: 'a resident turned away', style: 'transform:scaleX(-1);' });
+    for (let i = 0; i < Math.min(t.turned || 0, 6); i++) {
+      const x = gx - gW * 0.3 - i * 46;
+      out += traveler(WALK, hAt, live ? [[x + 90, RES_FEET + 8], [x, RES_FEET + 8]] : [[x, RES_FEET + 8]], { cls: 'rs-turned', alt: 'a resident turned away', dur: 0.55, phase: i * 0.11 });
+    }
     return out;
   }
 
@@ -215,18 +246,25 @@
     // who met the crack carry soot and walk back toward the bridge.
     const d = o.demand || 0;
     if (d && o.note !== 'pre') {
-      const rh = y => bph(y) * 0.72;
-      const walker = (x, y, i, soot, back) => `<span class="rs-walk${soot ? ' soot' : ''}" style="animation-delay:${-(i * 0.17).toFixed(2)}s">${soot
-        ? bstand('res-soot', rh(y) * 1.08, x, y, { alt: 'a walker with soot', style: back ? '' : 'transform:scaleX(-1);' })
-        : bstand('res-a', rh(y), x, y, { cls: 'a', alt: 'a walker', style: back ? 'transform:scaleX(-1);' : '' }) + bstand('res-b', rh(y), x, y, { cls: 'b', alt: '', style: back ? 'transform:scaleX(-1);' : '' })}</span>`;
-      let i = 0;
-      [[BR.path[1][0], BR.path[1][1]], [BR.path[3][0], BR.path[3][1]]].forEach(([x, y]) => { out += walker(x, y, i++, false, true); });
+      const rh = y => bph(y) * 0.72, live = o.note != null && !o.ghost;
+      // Two walkers always crossing the bridge, on a loop: up from the near bank, over the crown, down to the signpost.
+      const cross = BR.path.concat([[BR.sign.x - 40, BR.sign.y + 10]]);
+      [0, 1].forEach(k => { out += traveler(WALK, rh, cross, { alt: 'a walker crossing the bridge', flip: true, loop: true, dur: 7, delay: -k * 3.5, phase: k * 0.2 }); });
+      // At the shrines, a share of the crowd by the signpost's weights; on a run, each tick's arrivals walk there from
+      // the signpost. Those who met the crack walk back out with soot.
       const nNew = w ? Math.max(1, Math.round(6 * w)) : 0, nOld = o.first ? 0 : 6 - nNew;
       const soot = Math.min(nNew, o.soot ? Math.max(1, Math.round(6 * Math.min(1, o.soot / d))) : 0);
-      for (let k = 0; k < nOld; k++) out += walker(BR.old.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0), BR.old.y + 22 + (k > 2 ? 28 : 0), i++, false, false);
+      const from = [BR.sign.x, BR.sign.y + 14];
+      let i = 0;
+      for (let k = 0; k < nOld; k++) {
+        const x = BR.old.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0), y = BR.old.y + 22 + (k > 2 ? 28 : 0);
+        out += traveler(WALK, rh, live ? [from, [x, y]] : [[x, y]], { alt: 'a walker at the old shrine', dur: 0.9, delay: k * 0.05, phase: (i++) * 0.13 });
+      }
       for (let k = 0; k < nNew; k++) {
-        const s = k < soot;
-        out += walker(BR.nw.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0) - (s ? 120 : 0), BR.nw.y + 22 + (k > 2 ? 28 : 0) + (s ? 26 : 0), i++, s, s);
+        const s = k < soot, x = BR.nw.x - 150 + (k % 3) * 100 + (k > 2 ? 50 : 0), y = BR.nw.y + 22 + (k > 2 ? 28 : 0);
+        out += s
+          ? traveler(['res-soot'], y2 => rh(y2) * 1.08, live ? [[x, y], [x - 140, y + 26]] : [[x - 120, y + 26]], { alt: 'a walker with soot', dur: 0.9, delay: k * 0.05 })
+          : traveler(WALK, rh, live ? [from, [x, y]] : [[x, y]], { alt: 'a walker at the new shrine', flip: true, dur: 0.9, delay: k * 0.05, phase: (i++) * 0.13 });
       }
     }
     // Seymour watches from the far bank, beside the path.
@@ -237,7 +275,7 @@
   // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
   // Perspective from the clock tower's door and the stall counters: an adult whose feet are at y stands PSL * (y - PHZ).
   const PHZ = 489, PSL = 1.075, pph = y => PSL * (y - PHZ);
-  const PAR = { arch: 493 / 640, 'arch-cut': 491 / 640, 'res-cheer': 164 / 260 };
+  const PAR = { arch: 493 / 640, 'arch-cut': 491 / 640, 'res-cheer': 164 / 260, 'res-cheer2': 164 / 256 };
   const pstand = (name, h, cx, feet, o) => {
     o = o || {};
     const w = h * (PAR[name] || AR[name] || 0.6);
@@ -255,7 +293,9 @@
     const items = [];
     spots.slice(0, n).forEach(([x, y], i) => {
       const h = pph(y) * 0.72, s = i < soot, flip = x > AX ? 'transform:scaleX(-1);' : '';
-      const sp = o.cut && !s ? pstand('res-cheer', h * 1.04, x, y, { cls: 'rs-cheer', alt: 'a resident, cheering', style: `${flip}animation-delay:${-(i * 0.23).toFixed(2)}s;` })
+      const ph0 = (-(i * 0.23)).toFixed(2), cheer = reduced() ? '' : 'animation:rs-f2-0 .7s linear ' + ph0 + 's infinite both;', jump = reduced() ? 'opacity:0;' : 'animation:rs-f2-1 .7s linear ' + ph0 + 's infinite both;';
+      // Cheering: two frames, standing with both arms up, then mid-jump.
+      const sp = o.cut && !s ? `<span class="rs-trav">${pstand('res-cheer', h * 1.04, x, y, { alt: 'a resident, cheering', style: flip + cheer })}${pstand('res-cheer2', h * 1.03, x, y - h * 0.08, { alt: '', style: flip + jump })}</span>`
         : s ? pstand('res-soot', h * 1.08, x, y, { alt: 'a resident with soot', style: flip })
         : pstand('res-a', h, x, y, { alt: 'a resident, waiting', style: flip });
       items.push([y, shadow(x, y, h * 0.5) + sp]);
@@ -369,8 +409,15 @@
     .rs-hb:focus-visible { outline: 6px solid #ffd45a; }
     .rs-marks { position: absolute; color: #ff5a4a; font: 900 44px/1 sans-serif; letter-spacing: -6px; text-shadow: 0 2px 0 #000; white-space: nowrap; z-index: 2; }
     .rs-post { position: absolute; font: 800 28px/1 var(--f-head, sans-serif); padding: 8px 14px; border-radius: 8px; background: #6b4423; border: 3px solid #3b2410; color: #ffe9b8; white-space: nowrap; }
-    .rs-walk { position: absolute; left: 0; top: 0; animation: rs-in .55s ease-out both; }
-    .rs-walk .b { animation: rs-step .5s steps(1) infinite; } .rs-walk .a { animation: rs-step .5s steps(1) infinite reverse; }
+    .rs-trav { position: absolute; left: 0; top: 0; pointer-events: none; }
+    @keyframes rs-path { 0% { transform: none; } 33.333% { transform: translate(var(--x1), var(--y1)) scale(var(--s1)); } 66.667% { transform: translate(var(--x2), var(--y2)) scale(var(--s2)); } 100% { transform: translate(var(--x3), var(--y3)) scale(var(--s3)); } }
+    /* Walk frames: frame 0 shows last, so a walker who stops stands on it. Two frames, or four with the passing poses. */
+    @keyframes rs-f2-0 { 0%, 49.9% { opacity: 0; } 50%, 100% { opacity: 1; } }
+    @keyframes rs-f2-1 { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes rs-f4-0 { 0%, 74.9% { opacity: 0; } 75%, 100% { opacity: 1; } }
+    @keyframes rs-f4-1 { 0%, 24.9% { opacity: 1; } 25%, 100% { opacity: 0; } }
+    @keyframes rs-f4-2 { 0%, 24.9% { opacity: 0; } 25%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes rs-f4-3 { 0%, 49.9% { opacity: 0; } 50%, 74.9% { opacity: 1; } 75%, 100% { opacity: 0; } }
     @keyframes rs-step { 0% { opacity: 0; } 50% { opacity: 1; } }
     @keyframes rs-in { from { transform: translateX(70px); } to { transform: none; } }
     .rs-turned { opacity: .85; filter: saturate(.6); }
@@ -427,7 +474,7 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
-    @media (prefers-reduced-motion: reduce) { .rs-cheer, .rs-pop, .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-walk, .rs-walk .a, .rs-walk .b { animation: none !important; } .rs-walk .b { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .rs-cheer, .rs-pop, .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-trav, .rs-trav img { animation: none !important; } }
   `;
   document.head.appendChild(css);
 
