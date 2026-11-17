@@ -500,7 +500,7 @@
       ${!ok ? `<p class="small dr-wallnote">📐 ${bld.scaf ? 'This build order comes back first on a later night. Get it right then and the scaffolding comes off.' : 'The building already stood, so it keeps standing. The build order comes back on a later night.'}</p>` : ''}
       <button class="primary" id="dr-next">${bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
-    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
+    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, id: bld.client, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
     b.querySelector('#dr-next').onclick = next;
   }
 
@@ -576,7 +576,7 @@
     const nextLabel = it.retry ? (it.back === 'place' ? 'Place the building' : 'Continue') : bld.plot == null ? 'Place the building' : 'Continue';
     h += '</div>' + sourceBlock(q) + (twin ? `<div class="dr-retry"><p class="small"><b data-vo="${esc('seymour|' + SEYMOUR.retry)}">Seymour:</b> "${esc(SEYMOUR.retry)}" Its twin is a different scenario on the same rule, free.</p><div class="row"><button class="primary" id="dr-twin">Retry its twin now</button><button class="ghost" id="dr-next">${nextLabel}</button></div></div>` : `<button class="primary" id="dr-next">${nextLabel}</button>`);
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
-    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
+    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, id: bld.client, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
     b.querySelector('#dr-next').onclick = next;
     const tw = b.querySelector('#dr-twin'); if (tw) tw.onclick = () => { it.retryNow = 1; next(); };
   }
@@ -678,9 +678,10 @@
   // domain's shape and number, and a word for scaffolding; empty ones are ghost buildings under delete markers.
   function mapHtml(g, o) {
     o = o || {};
-    let h = '<div class="dr-map" role="grid" aria-label="Pingsby\'s Quarter">';
+    const P = SD.draftArt ? SD.draftArt.PAINTED : new Set();
+    let h = `<div class="dr-map${P.has('lot') ? ' painted' : ''}" role="grid" aria-label="Pingsby's Quarter"${P.has('lot') ? ` style="--lot:url(${SD.draftArt.URL('lot')})"` : ''}>`;
     for (let y = 0; y < ROWS; y++) {
-      if (y === RIVER[0] + 1) h += '<div class="dr-river" aria-hidden="true">〰 the river 〰</div>';
+      if (y === RIVER[0] + 1) h += P.has('river') ? `<div class="dr-river painted" aria-hidden="true" style="background-image:url(${SD.draftArt.URL('river')})"><span>the river</span></div>` : '<div class="dr-river" aria-hidden="true">〰 the river 〰</div>';
       h += '<div class="dr-mrow" role="row">';
       for (let x = 0; x < COLS; x++) {
         const p = y * COLS + x, b = g[p], name = R.name(p), riv = R.riverside(p);
@@ -697,7 +698,7 @@
     b.querySelectorAll('.dr-pcv').forEach(cv => {
       if (cv.dataset.ghost) return SD.draftArt.ghost(cv);
       const bl = sv().town[cv.dataset.q]; if (!bl) return;
-      SD.draftArt.building(cv, { client: cl(bl.client), floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+      SD.draftArt.building(cv, { client: cl(bl.client), id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     });
   }
 
@@ -732,6 +733,16 @@
   }
 
   // ---- Pingsby's Quarter: the map or its list, every building's plaque ----
+  // Each domain's landmark rises once five of its buildings stand on the map (painted art; the code drawing otherwise).
+  const LM_AT = 5, LM_ART = { 1: 'fountain', 2: 'arch', 3: 'clock', 4: 'lantern' };
+  function landmarksHtml(g) {
+    const A = SD.draftArt; if (!A || !A.LANDMARKS) return '';
+    const by = {}; Object.values(g).forEach(b => { if (!b.scaf) by[b.d] = (by[b.d] || 0) + 1; });
+    return `<div class="q-ctx">Landmarks</div><ul class="dr-lms">${[1, 2, 3, 4].map(d => {
+      const n = by[d] || 0, up = n >= LM_AT, art = 'landmark-' + LM_ART[d];
+      return `<li class="${up ? 'up' : ''}">${A.PAINTED.has(art) ? `<img src="${A.URL(art)}" alt="" draggable="false">` : `<canvas class="dr-lmcv" data-lm="${d}" aria-hidden="true"></canvas>`}<span class="small"><b>${esc(A.LANDMARKS[d])}</b><br>${esc(DR.SHAPE[d])}${d} · ${up ? 'standing' : `${Math.min(n, LM_AT)} of ${LM_AT} buildings`}</span></li>`;
+    }).join('')}</ul>`;
+  }
   DR.quarter = function (back, note) {
     refresh();
     const d = sv(), g = grid(), town = Object.values(d.town), st = town.filter(b => !b.scaf).length, list = !!d.qList;
@@ -745,9 +756,11 @@
       <div class="row dr-view"><button class="ghost${list ? '' : ' on'}" id="dr-vmap" aria-pressed="${!list}">Map</button><button class="ghost${list ? ' on' : ''}" id="dr-vlist" aria-pressed="${list}">Map as list</button></div>
       ${list ? listH : mapHtml(g, { view: true, interactive: true, open: R.open(DR.level()) })}
       <p class="small muted">Tap a building for its plaque.</p>
+      ${landmarksHtml(g)}
       <div class="row">${typeof back === 'function' ? '<button class="ghost" id="dr-qb">Back to the board</button>' : ''}${DR.run() ? '' : '<button class="primary" id="dr-new">Take on clients</button>'}</div>`;
     const b = U.panel(h, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
     drawMap(b, g);
+    b.querySelectorAll('.dr-lmcv').forEach(cv => SD.draftArt.landmark(cv, +cv.dataset.lm));
     b.querySelectorAll('[data-p]').forEach(el => { el.disabled = true; });
     b.querySelectorAll('[data-bq]').forEach(el => el.onclick = () => plaque(el.dataset.bq, back));
     b.querySelector('#dr-vmap').onclick = () => { d.qList = 0; persist(); DR.quarter(back); };
@@ -767,7 +780,7 @@
       <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       ${retryLine}
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
-    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
     const rt = b.querySelector('#dr-rt'); if (rt) rt.onclick = () => DR.retry(qid, back);
   }
@@ -779,7 +792,7 @@
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its build order comes back first on a later night: get it right then to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its build order held.' : '🏛 Standing.'}</p></div></div>
       <div class="dr-plaque"><div class="q-ctx">Plaque · build order</div><p class="small"><b>${esc(x.title || bl.idea)}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
-    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
   }
 
@@ -891,6 +904,21 @@
 .dr-plot:disabled { opacity: .55; }
 .dr-plot.built.scaf { background: #fbe3c0; }
 .dr-pcv { width: 100%; height: 44px; display: block; }
+.dr-map.painted .dr-plot { background: var(--lot) center / cover; }
+.dr-map.painted .dr-pcv { height: 54px; }
+.dr-map.painted .dr-plot.ghost { background: var(--lot) center / cover; }
+.dr-map.painted .dr-plot.ghost.on { box-shadow: inset 0 0 0 999px rgba(255, 225, 140, .35); }
+.dr-map.painted .dr-plot.built.scaf { background: var(--lot) center / cover; }
+.dr-map.painted .dr-plot.lockd { background: var(--lot) center / cover; filter: grayscale(.7) brightness(.8); }
+.dr-map.painted .dr-ptag { background: rgba(255, 248, 224, .9); border-radius: 6px; padding: 0 4px; }
+.dr-river.painted { background: #5bb2e6 center / cover; min-height: 26px; display: flex; align-items: center; justify-content: center; }
+.dr-river.painted span { background: rgba(43, 35, 64, .55); border-radius: 6px; padding: 0 6px; }
+.dr-lms { list-style: none; padding: 0; margin: 4px 0 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.dr-lms li { display: flex; gap: 6px; align-items: center; min-width: 0; padding: 4px; border: 2px dashed var(--ink); border-radius: 8px; background: #f4ecd4; }
+.dr-lms li.up { border-style: solid; background: #fff1c9; }
+.dr-lms li img, .dr-lmcv { width: 40px; height: 56px; object-fit: contain; flex: none; }
+.dr-lms li:not(.up) img, .dr-lms li:not(.up) .dr-lmcv { filter: grayscale(1) brightness(.6); opacity: .45; }
+.dr-lms li span { overflow-wrap: anywhere; }
 .dr-ptag { font-size: 11px; font-weight: 700; line-height: 1.1; }
 .dr-preview { margin: 6px 0; }
 .dr-plist { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
