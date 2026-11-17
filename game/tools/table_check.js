@@ -2,7 +2,9 @@
 // phone width (375px): the picker opens it, night 1 is Dupli-Queue only with no walkthrough, the felt shows nine jobs,
 // his open pin and your four pins; placing and calling run a test with its lines; the board ends in his ledger and
 // the bill on the plain exam screen; stopping and resuming after a reload; and night 3's two boards and the
-// Counterfeit Rack, through to the end screen.
+// Counterfeit Rack, through to the end screen. "Check the clasp": every pin and job that can be called has a deciding
+// property and two beside-the-point ones (data, before the browser); calling turns his pin over to three chips, a
+// wrong pick shows the one that decided it and a right one says so, and the test runs after either.
 // Run from game/:  node tools/table_check.js     SHOTS=dir saves screenshots.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -19,11 +21,39 @@ const server = http.createServer((req, res) => {
 const fails = [];
 const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok   ' : 'FAIL ') + what); };
 
+// ---- The clasp's data: every pin his stock can put on a job (genuine or fake, as T.stockFor deals them) ----
+{
+  const T = require('../js/duel-core.js'), bad = [], props = [];
+  let n = 0;
+  Object.keys(T.PINS).forEach(p => {
+    const P = T.PINS[p];
+    if (!P.props || P.props.length < 3 || P.props.length > 5) props.push(p + ' has ' + (P.props ? P.props.length : 0) + ' properties');
+    (P.props || []).forEach(x => { if (!x.t || x.t.length > 56) props.push(x.id + ' text'); x.d.forEach(nd => { if (!T.NEEDS[nd]) props.push(x.id + ' names ' + nd); }); });
+  });
+  Object.keys(T.SETS).forEach(set => {
+    T.needsOf(set).map(x => [x]).concat(T.pairs(set)).forEach(needs => {
+      const job = { set, needs }, h = T.holders(job);
+      let l = needs.length > 1 ? T.pinsOf(set).filter(p => !h.includes(p) && needs.some(x => T.holds(p, x))) : T.NEEDS[needs[0]].lure.filter(p => !h.includes(p));
+      if (!l.length) l = T.pinsOf(set).filter(p => !h.includes(p));
+      h.concat(l).forEach(p => [0, 1, 2].forEach(salt => {
+        n++;
+        const c = T.clasp(p, job, salt), test = T.test(p, job);
+        const want = test.ok ? needs[0] : test.lines.find(x => !x.ok).need;
+        const ok = c && c.chips.length === 3 && new Set(c.chips).size === 3 && c.chips.includes(c.decide) && c.need === want && T.prop(c.decide).d.includes(want) &&
+          c.chips.filter(id => id !== c.decide).every(id => T.prop(id).d.every(x => !needs.includes(x)));
+        if (!ok) bad.push(p + ' on ' + needs.join('+'));
+      }));
+    });
+  });
+  check(!props.length, `every pin has 3 to 5 clasp properties with short chip text${props.length ? ': ' + props.slice(0, 5).join(', ') : ''}`);
+  check(!bad.length, `every pin and job that can be called (${n / 3} pairings) has a deciding chip and two beside the point${bad.length ? ': ' + [...new Set(bad)].slice(0, 6).join('; ') : ''}`);
+}
+
 (async () => {
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: SHOTS ? 2 : 1 });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -77,8 +107,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       for (const i of [4, 0, 2, 6, 8, 1, 3, 5, 7]) if (!b.cells[i]) { const p = b.hand.find(x => T.test(x, b.jobs[i]).ok); if (p) return { pin: p, sq: i }; }
       return b.open >= 0 ? { call: 1 } : { stand: 1 };
     });
-    if (m.call) await page.click('#ct-call');
-    else if (m.stand) await page.click('#ct-stand');
+    if (m.call) {
+      await page.click('#ct-call');
+      // The clasp: tap the property that decides it (the rules know which).
+      const id = await page.evaluate(() => { const b = SD.state.save.table.night.b, el = document.querySelector('[data-chip]'); return el ? SD.table.clasp(b.pins[b.open], b.jobs[b.open], b.turns + ':' + b.open).decide : null; });
+      if (id) await page.click(`[data-chip="${id}"]`);
+    } else if (m.stand) await page.click('#ct-stand');
     else { await page.click(`[data-pin="${m.pin}"]`); await page.click(`[data-sq="${m.sq}"]`); await page.click('#ct-place'); }
     if (await page.$('#ct-next')) await page.click('#ct-next');
     return m;
@@ -141,6 +175,49 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await noHScroll('test'); await fills('test'); await shot('test');
     await page.click('#ct-next');
   } else check(false, 'a pin in hand holds somewhere');
+  // ---- Check the clasp: call his pin, it turns over to three chips; a wrong pick, then (next call) a right one ----
+  const claspAt = () => page.evaluate(() => { const b = SD.state.save.table.night.b; return b.open >= 0 ? SD.table.clasp(b.pins[b.open], b.jobs[b.open], b.turns + ':' + b.open) : null; });
+  const callWith = async (right, keys) => {
+    const c = await claspAt();
+    if (!c) return null;
+    await page.click('#ct-call');
+    const shown = await page.$$eval('[data-chip]', els => els.map(e => e.dataset.chip));
+    const pick = right ? c.decide : c.chips.find(id => id !== c.decide);
+    return { c, shown, pick, focus: await page.evaluate(() => document.activeElement && document.activeElement.dataset.chip || ''), flip: !!(await page.$('.ct-flipin .ct-front img')) && !!(await page.$('.ct-back')), keys };
+  };
+  let cl = (await st()).phase === 'board' ? await callWith(false) : null;
+  if (cl) {
+    check(cl.flip && cl.shown.length === 3 && cl.shown.includes(cl.c.decide) && /decides/.test(await txt('.ct-clq')), `calling turns his pin over to three property chips, one of them the deciding one (${cl.shown.join(', ')})`);
+    check(cl.focus === cl.shown[0], 'the first chip has keyboard focus');
+    check(!(await page.$('.ct-bench')) && !(await page.$('#ct-next')), 'the hammer waits for the clasp (no test yet)');
+    check(/Before my hammer/.test(await txt('#panel')), 'the clasp\'s first use teaches one line');
+    await noHScroll('clasp'); await fills('clasp'); await shot('clasp');
+    // "Don't call it" goes back to the table, and the call is still there.
+    await page.click('#ct-unclasp');
+    check(!!(await page.$('#ct-call')) && (await st()).b.open >= 0, '"Don\'t call it" goes back to the table with his pin still open');
+    await page.click('#ct-call');
+    await page.click(`[data-chip="${cl.pick}"]`);
+    t = await txt('#panel');
+    check(/The test/.test(t) && !!(await page.$('.ct-bench')) && !!(await page.$('.ct-clres.wrong .ct-chip.decide')) && !!(await page.$('.ct-clres.wrong .ct-chip.pick:not(.decide)')),
+      'a wrong pick shows the chip that decided it, and the test still runs');
+    check(await page.$eval('.ct-clres .ct-chip.decide', (el, d) => el.textContent.includes(d), (await page.evaluate(id => SD.table.prop(id).t, cl.c.decide))), 'the deciding chip is the one the rules give');
+    check(!!(await page.$('.ct-term code')), 'the real AWS term sits under the verdict');
+    await page.waitForSelector('.ct-bench.done', { timeout: 8000 }).catch(() => {});
+    check(!!(await page.$('.ct-bench.done')), 'the bench still ends on its stamp after the clasp');
+    const lg = (await st()).log.slice(-1)[0];
+    check(lg.kind === 'call' && lg.clasp === 0, 'the missed clasp is logged');
+    await noHScroll('clasp wrong'); await shot('clasp-wrong');
+    await page.click('#ct-next');
+  } else check(false, 'his pin is open to call after your first move');
+  cl = (await st()).phase === 'board' ? await callWith(true, true) : null;
+  if (cl) {
+    await page.focus(`[data-chip="${cl.pick}"]`); await page.keyboard.press('Enter');
+    check(!!(await page.$('.ct-clres.right .ct-chip.decide.pick')) && /You found the clasp/.test(await txt('#panel')) && !!(await page.$('.ct-bench')),
+      'a right pick (by keyboard) says you found the clasp, and the test runs');
+    await page.waitForSelector('.ct-bench.done', { timeout: 8000 }).catch(() => {});
+    await shot('clasp-right');
+    await page.click('#ct-next');
+  }
   await playBoard();
   s = await st();
   check(s.phase === 'bill' && /His ledger/.test(await txt('#panel')), 'the board ends in his ledger');
@@ -235,6 +312,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     return { side: d.left >= f.right - 1 && d.top < f.bottom, sq: Math.round(q.width) };
   });
   check(lay.side && lay.sq >= 110, `at 1280px the felt and the hand sit side by side with big squares (${JSON.stringify(lay)})`);
+  if (await page.$('#ct-call')) {
+    await page.click('#ct-call');
+    check((await page.$$('[data-chip]')).length === 3 && await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'at 1280px the clasp shows three chips, no horizontal scroll');
+    await shot('desktop-clasp');
+    await page.click('#ct-unclasp');
+  }
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal scroll at 1280px');
   await shot('desktop');
 

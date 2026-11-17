@@ -115,6 +115,100 @@
   };
   T.pinsOf = set => Object.keys(T.PINS).filter(id => T.PINS[id].set === set);
 
+  // ---- The clasp (Ladi's gesture audit, Nov 17: "Check the clasp"). When you call his pin, it flips to show three
+  // of its real properties; you tap the one that decides this job, then the hammer comes down. Each pin has 3 to 5
+  // true properties: [chip text, the needs it decides]. Which needs a property decides is written once per property,
+  // not per pin and job: the chip for a pin on a job is the pin's first property that decides the job's deciding
+  // need (the need it fails, or its first need when it holds; that comes from the `ok` lists above), and the other
+  // two chips are properties that decide none of the job's needs. tools/table_check.js checks every pin and job
+  // that can be called has one. Same AWS docs as the header; numbers here are the real ones. ----
+  const CLASP = {
+    sqs: [['One consumer takes each message', 'fan one'], ['Waits to be pulled, then deleted (kept 4 to 14 days)', 'wait replay'],
+      ['Best-effort order', 'order'], ['No routing: hands out whatever arrives', 'route'], ['At-least-once: a copy can arrive twice', 'dedup']],
+    fifo: [['One consumer takes each message', 'fan one'], ['Waits to be pulled, then deleted', 'wait replay'],
+      ['In order within a message group', 'order'], ['Drops a duplicate within 5 minutes', 'dedup'], ['No routing: hands out whatever arrives', 'route']],
+    sns: [['Every subscriber gets its own copy', 'fan one'], ['Pushes at once: nothing waits to be pulled', 'wait'],
+      ['Standard topic: keeps nothing once pushed', 'replay'], ['A filter policy narrows what each subscriber gets', 'route'], ['Standard topic: best-effort order', 'order']],
+    eb: [['Sends to every target (up to 5 a rule)', 'fan one'], ['An archive can replay past events', 'replay'],
+      ['Its event pattern matches the event\'s fields', 'route'], ['Pushes to targets as events arrive', 'wait'], ['No order promise', 'order']],
+    kds: [['Every consumer app reads every record', 'fan one route'], ['Keeps records 24 h by default, up to 365 days', 'replay'],
+      ['In order within a shard (by partition key)', 'order'], ['Consumers read at their own pace', 'wait'], ['No deduplication: a resent record is stored twice', 'dedup']],
+
+    enc: [['Takes up to 4,096 bytes, in one call', 'big small'], ['Its KMS key\'s material rotates (yearly, once enabled)', 'rotate keyrot'],
+      ['The key itself never leaves KMS', ''], ['Only the same KMS key can decrypt it', ''],
+      ['Stores nothing: it returns ciphertext', 'region free warn']],
+    dkey: [['Encrypts large data outside KMS', 'big'], ['Leaves an encrypted key to keep beside the data', 'small'],
+      ['Made under a KMS key that can rotate yearly', 'keyrot rotate'], ['Erase the plaintext copy after use', ''],
+      ['Stores nothing: you keep the copies', 'region free warn']],
+    sm: [['Rotates secrets on a schedule', 'rotate keyrot'], ['Replicates secrets to other Regions', 'region'], ['Charged per secret', 'free'],
+      ['No expiration-warning policy', 'warn'], ['Stores secrets; doesn\'t encrypt your files', 'big small']],
+    pss: [['Values up to 4 KB', 'big small'], ['Lives in one Region', 'region'], ['No additional charge', 'free'], ['Takes no parameter policies', 'warn'],
+      ['No automatic rotation', 'rotate keyrot']],
+    psa: [['Values up to 8 KB', 'big small'], ['Charged per parameter', 'free'], ['Takes Expiration and notification policies', 'warn'],
+      ['No automatic rotation', 'rotate keyrot'], ['Lives in one Region', 'region']],
+
+    canary: [['10% first, the other 90% five minutes later', 'lcan llin lall'], ['CodeDeploy for Lambda, not a Beanstalk policy', 'full fast noNew drop ebcan'],
+      ['Can roll back on a CloudWatch alarm', ''], ['Runs hook functions before and after the shift', '']],
+    linear: [['Another 10% every minute', 'lcan llin lall'], ['CodeDeploy for Lambda, not a Beanstalk policy', 'full fast noNew drop ebcan'],
+      ['Can roll back on a CloudWatch alarm', ''], ['Runs hook functions before and after the shift', '']],
+    allat: [['All traffic moves in one step', 'lcan llin lall'], ['CodeDeploy for Lambda, not a Beanstalk policy', 'full fast noNew drop ebcan'],
+      ['Can roll back on a CloudWatch alarm', ''], ['Runs hook functions before and after the shift', '']],
+    ebAll: [['Every instance at once: fastest, short outage', 'fast full ebcan'], ['Updates the instances you have, launches none', 'noNew drop'],
+      ['A Beanstalk policy, not CodeDeploy for Lambda', 'lcan llin lall'], ['Set as the environment\'s DeploymentPolicy', '']],
+    rolling: [['Batch by batch: capacity dips by a batch', 'full fast ebcan'], ['Updates the instances you have, launches none', 'noNew drop full'],
+      ['A Beanstalk policy, not CodeDeploy for Lambda', 'lcan llin lall'], ['Batch size is a count or a percentage', ''], ['Set as the environment\'s DeploymentPolicy', '']],
+    rollb: [['Launches an extra batch first: full capacity', 'full noNew fast'], ['The old instances are then updated in place', 'drop'],
+      ['Moves batch by batch, with no traffic split', 'ebcan'], ['A Beanstalk policy, not CodeDeploy for Lambda', 'lcan llin lall'], ['Set as the environment\'s DeploymentPolicy', '']],
+    immut: [['A fresh group in a separate Auto Scaling group', 'full noNew fast'], ['The old instances never change', 'drop'],
+      ['No traffic percentage to evaluate', 'ebcan'], ['A Beanstalk policy, not CodeDeploy for Lambda', 'lcan llin lall'], ['Set as the environment\'s DeploymentPolicy', '']],
+    split: [['New instances come up beside the old ones', 'full noNew fast'], ['A share of traffic for an evaluation time', 'ebcan'],
+      ['Rolls back by sending traffic to the old ones', 'drop'], ['A Beanstalk policy, not CodeDeploy for Lambda', 'lcan llin lall'], ['Set as the environment\'s DeploymentPolicy', '']],
+
+    trail: [['Records each AWS API call: who, what, when', 'who page slow query find'], ['Data events (like S3 reads) are off by default', 'read'],
+      ['Event history keeps the last 90 days', 'who'], ['Viewing event history costs nothing', ''],
+      ['Event history shows one Region at a time', '']],
+    trailD: [['Logs S3 object reads (data events)', 'read'], ['Logs management calls too: who, what, when', 'who page slow query find'],
+      ['Data events are charged', ''], ['Delivers its log files to an S3 bucket', '']],
+    alarm: [['Watches one metric against a threshold', 'page who read slow query find'], ['Can notify through an SNS topic', 'page'],
+      ['States: OK, ALARM, INSUFFICIENT_DATA', ''], ['Can trigger Auto Scaling or EC2 actions', '']],
+    xann: [['Indexed: filter expressions can search it', 'find'], ['Part of a trace through your services', 'slow who read page query'],
+      ['A string, number or Boolean value', ''], ['Up to 50 indexed per trace', '']],
+    xmeta: [['Not indexed: filters can\'t search it', 'find'], ['Part of a trace through your services', 'slow who read page query'],
+      ['Any type, objects and arrays too', ''], ['Kept under a namespace', '']],
+    logs: [['Queries your app\'s log lines', 'query read find who'], ['Each service\'s log group sits apart', 'slow'],
+      ['Answers when you run it, not on its own', 'page'], ['Charged per GB of logs scanned', '']],
+
+    prov: [['Initialised ahead: no cold-start wait', 'cold'], ['Charged while it\'s configured', 'nofee'], ['Can still scale past it on demand', 'cap'],
+      ['Set on a version or alias, not $LATEST', ''], ['Concurrency: how many, not which code', 'pct fixed edit']],
+    resv: [['A floor and a ceiling for one function', 'cap'], ['No extra charge', 'nofee'], ['Warms nothing: each one still starts cold', 'cold'],
+      ['Set it to 0 and every call is throttled', ''], ['Concurrency: how many, not which code', 'pct fixed edit']],
+    walias: [['Splits traffic between two versions by weight', 'pct'], ['Points at published versions only', 'fixed edit'],
+      ['Has its own ARN to call', ''], ['Repointed without changing its callers', ''], ['Warms and fences nothing', 'cold cap nofee']],
+    ver: [['Can\'t change once published', 'fixed edit'], ['One version takes every call made to it', 'pct'],
+      ['Numbered in order: my-fn:1, :2, :3', ''], ['Has its own qualified ARN', ''], ['Warms and fences nothing', 'cold cap nofee']],
+    latest: [['Changes with every edit', 'fixed edit'], ['Takes every call made to it', 'pct'],
+      ['Called by the unqualified function ARN', ''], ['Can\'t take provisioned concurrency', ''], ['Warms and fences nothing', 'cold cap nofee']]
+  };
+  Object.keys(CLASP).forEach(id => {
+    T.PINS[id].props = CLASP[id].map(([t, d], k) => ({ id: id + '.' + k, t, d: d ? d.split(' ') : [] }));
+  });
+  const hash = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+  // The clasp for his pin on a job: { need, decide, chips (3 prop ids in shown order), holds }. salt fixes which two
+  // of the other properties show and the order (no draw from the night's seed). null if the data has no answer.
+  T.clasp = function (pin, job, salt) {
+    const P = T.PINS[pin], test = T.test(pin, job);
+    if (!P || !P.props) return null;
+    const need = test.ok ? job.needs[0] : test.lines.find(l => !l.ok).need;
+    const dec = P.props.find(p => p.d.includes(need));
+    const other = P.props.filter(p => !job.needs.some(n => p.d.includes(n)));
+    if (!dec || other.length < 2) return null;
+    const key = pin + '|' + job.needs.join('+') + '|' + (salt == null ? '' : salt);
+    const two = other.slice().sort((a, z) => hash(key + a.id) - hash(key + z.id)).slice(0, 2);
+    const chips = [dec].concat(two).sort((a, z) => hash(key + '/' + a.id) - hash(key + '/' + z.id)).map(p => p.id);
+    return { need, decide: dec.id, chips, holds: test.ok };
+  };
+  T.prop = id => { const p = T.PINS[id.split('.')[0]]; return p && p.props ? p.props.find(x => x.id === id) || null : null; };
+
   // ---- Needs. t: the short name on the felt. w: three wordings (one is picked a board, so a phrase can't be
   // memorised to a service). ok: the pins that do it. lure: the look-alikes Kagemaru reaches for. why[pin]: what the
   // test shows for that pin (every pin in the set has a line). The first line of each `why` is the scene. ----
@@ -663,7 +757,8 @@
     b.cells[sq] = 'him'; b.pins[sq] = b.stock[sq].pin; b.state[sq] = 'open'; b.open = sq; b.next = -1;
     return sq;
   };
-  // Your move. act: { call: true } or { pin, sq }. Returns { kind, sq, pin, ok, test, real }.
+  // Your move. act: { call: true, clasp, chips, salt } or { pin, sq }. clasp: the property id you tapped on his
+  // flipped pin (T.clasp). Returns { kind, sq, pin, ok, test, real, clasp }.
   T.act = function (s, act) {
     const b = s.b, R = T.rng(s);
     let out;
@@ -678,6 +773,13 @@
       if (!test.ok) { b.cells[sq] = 'me'; b.state[sq] = 'cracked'; }
       else b.state[sq] = 'held';
       out = { kind: 'call', sq, pin, ok: !test.ok, test, real: test.ok };
+      // The clasp you picked before the hammer. A wrong pick on a fake puts the pin on the bill (last in line); a
+      // wrong call is on it already.
+      const cl = act.clasp ? T.clasp(pin, b.jobs[sq], act.salt) : null;
+      if (cl) {
+        out.clasp = { pick: act.clasp, decide: cl.decide, chips: act.chips || cl.chips, need: cl.need, right: act.clasp === cl.decide };
+        if (!out.clasp.right && !test.ok) s.owed.push({ pin, job: b.jobs[sq], why: 'clasp' });
+      }
       if (test.ok) {
         s.owed.push({ pin, job: b.jobs[sq], why: 'call' });
         // Calling an honest pin costs you: he helps himself to his next square as well (its pin stands, untested).
@@ -700,7 +802,8 @@
     }
     b.open = -1; b.turns++;
     b.tests.push({ kind: out.kind, sq: out.sq, pin: out.pin, ok: out.ok, needs: b.jobs[out.sq].needs });
-    s.log.push({ bi: s.boards.length, kind: out.kind, pin: out.pin, needs: b.jobs[out.sq].needs, ok: out.ok, set: b.jobs[out.sq].set });
+    s.log.push(Object.assign({ bi: s.boards.length, kind: out.kind, pin: out.pin, needs: b.jobs[out.sq].needs, ok: out.ok, set: b.jobs[out.sq].set },
+      out.clasp ? { clasp: out.clasp.right ? 1 : 0 } : {}));
     return out;
   };
   // A line of his counts only once you've answered his last pin (you may still call it and break the line).
@@ -737,11 +840,11 @@
     s.bill = T.billFor(s);
     return who;
   };
-  // The bill: up to 3 things owed (a wrong call first, then a failed pin, then a fake you let stand), and if fewer than
+  // The bill: up to 3 things owed (a wrong call first, then a failed pin, then a fake you let stand, then a missed clasp), and if fewer than
   // two are owed, one on a pin that held. Each becomes one bank question (picked by the pin's pattern).
   T.BILL = 3;
   T.billFor = function (s) {
-    const bi = s.boards.length - 1, rank = { call: 0, place: 1, stood: 2 };
+    const bi = s.boards.length - 1, rank = { call: 0, place: 1, stood: 2, clasp: 3 };
     const owed = s.owed.splice(0).sort((a, z) => rank[a.why] - rank[z.why]);
     const items = [];
     const seen = new Set();
@@ -817,7 +920,8 @@
     callReal: 'It held. Genuine stock. Calling an honest man costs you: I\'ll take another square for the insult.',
     stood: 'You let one of my fakes stand. It stays mine. My ledger will show you which.',
     chalk: 'The chalked squares carry two needs. Your pin must do both, and they count double at the end.',
-    line: 'Three of mine in a line. Unless you think one of them is a fake.'
+    line: 'Three of mine in a line. Unless you think one of them is a fake.',
+    clasp: 'Before my hammer, show me the clasp: the one thing about this pin that decides the job. The other two are true, and beside the point.'
   };
   T.teach = function (s, key) {
     if (s.taught[key]) return '';

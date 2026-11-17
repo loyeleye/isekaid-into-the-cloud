@@ -56,13 +56,14 @@
     won: 'Won, have you. I\'ll have to start pricing you properly.',
     lost: 'Come back tomorrow. The stock rotates. Your mistakes don\'t. Ah ha ha.',
     edge: 'You won the Cup last time, so the house opens on the centre. Genuine, before you ask.',
-    resume: 'Oh, you\'re back. I kept your seat, and the pins exactly where they were.'
+    resume: 'Oh, you\'re back. I kept your seat, and the pins exactly where they were.',
+    clasp: 'Calling me a cheat? Turn it over, then. Show me the clasp.'
   };
   // His pose at the table (assets/img/table/kage-<pose>.webp, CREDITS.md), by line. Freya's ring stays under
   // his glove until chapter 6's reveal, so after it he's the plain unmasked portrait, as js/vec-cast.js does.
   const POSE = { walkup: 'lay', sit: 'lay', lay: 'lay', edge: 'lay', line: 'hover', held: 'pay', boardMe: 'caught', callFake: 'caught', won: 'pay',
     failed: 'smug', callReal: 'smug', boardHim: 'smug', lost: 'smug', hisPick: 'ledger', myPick: 'hover', bill: 'ledger', billNone: 'ledger',
-    rack: 'hover', sudden: 'hover', resume: 'lay' };
+    rack: 'hover', sudden: 'hover', resume: 'lay', clasp: 'hover' };
   const revealed = () => { const c6 = sv() && sv().c6; return !!(c6 && c6.w && c6.w.x && c6.w.x.reveal); };
   // Painted poses (Ladi's Sogni renders) as they arrive; until a pose is painted he holds the painted 'lay' pose, so
   // the big figure never switches between pixel and painted art mid-scene. The reactions are animation on top.
@@ -169,7 +170,7 @@
     body.querySelectorAll('[data-sq]').forEach(el => el.onclick = () => { const i = +el.dataset.sq; selSq = selSq === i ? null : i; tableScreen(s, msg); });
     const pl = body.querySelector('#ct-place'), ca = body.querySelector('#ct-call'), stn = body.querySelector('#ct-stand');
     if (pl) pl.onclick = () => move(s, { pin: selPin, sq: selSq });
-    if (ca) ca.onclick = () => move(s, { call: true });
+    if (ca) ca.onclick = () => claspScreen(s);
     if (stn) stn.onclick = () => move(s, { stand: true });
     body.querySelector('#ct-rule').onclick = () => { ruleOpen = !ruleOpen; tableScreen(s, msg); };
     wireStop(body); alive(body);
@@ -183,6 +184,46 @@
     if (r.kind === 'stand') { const who = T.after(s); save(s); return who ? boardOver(s) : tableScreen(s, SAY.lay, '', true); }
     save(s);
     testScreen(s, r);
+  }
+
+  // ---- Check the clasp (Ladi's gesture audit, Nov 17): calling his pin turns it over. Its back shows three true
+  // properties (SD.table.clasp): one decides this job, two are beside the point. Tap one and the hammer comes down;
+  // the test screen then shows which one decided it. One tap, no timer. Calling a genuine pin works the same way (the
+  // flip mustn't give a fake away): the property that decides it is then the one that makes it hold. ----
+  function claspScreen(s) {
+    const b = s.b, sq = b.open;
+    if (sq < 0) return tableScreen(s);
+    const pin = b.pins[sq], j = b.jobs[sq], salt = b.turns + ':' + sq, c = T.clasp(pin, j, salt);
+    if (!c) return move(s, { call: true });
+    selPin = null; selSq = null; ruleOpen = false;
+    const body = panel(world({
+      cls: 'table clasp', say: SAY.clasp, teach: teachLine(s, 'clasp'),
+      hud: `${hud(s)}<span class="w-hudb">${stopBtn}</span>`,
+      down: `<div class="ct-clasp" style="--sc:${SETC[j.set]}"><div class="ct-flip"><div class="ct-flipin${still() ? '' : ' go'}">
+          <div class="ct-face ct-front" aria-hidden="true"><img src="assets/img/table/pin-${pin}.webp" alt="" width="96" height="96"></div>
+          <div class="ct-face ct-back">
+            <p class="ct-clh"><img src="assets/img/table/pin-${pin}.webp" alt="" width="48" height="48"><span>His <b>${esc(pinName(pin))}</b>, turned over</span></p>
+            <p class="ct-clq" id="ct-clq">Which of these decides <q>${esc(jobTitle(j))}</q>?</p>
+            ${jobWords(j).map(w => `<p class="ct-clw">${esc(w)}</p>`).join('')}
+            <div class="ct-chips" role="group" aria-labelledby="ct-clq">${c.chips.map(id => `<button class="ct-chip" data-chip="${id}">${esc(T.prop(id).t)}</button>`).join('')}</div>
+          </div></div></div>
+        <div class="row ct-clrow"><button class="ghost" id="ct-unclasp">Don't call it</button></div></div>`
+    }));
+    body.querySelectorAll('[data-chip]').forEach(el => el.onclick = () => move(s, { call: true, clasp: el.dataset.chip, chips: c.chips, salt }));
+    body.querySelector('#ct-unclasp').onclick = () => tableScreen(s);
+    const first = body.querySelector('[data-chip]'); if (first) first.focus({ preventScroll: true });
+    wireStop(body); alive(body);
+  }
+  // On the test screen: the three chips again, your pick and the one that decided it.
+  function claspHtml(r) {
+    const c = r.clasp;
+    if (!c) return '';
+    const d = T.prop(c.decide), how = r.real ? 'what lets it do the job' : 'where it breaks';
+    const line = c.right ? `You found the clasp. That's ${how}.` : `True of it, but beside the point. This is ${how}: <b>${esc(d.t)}</b>.`;
+    return `<div class="ct-clres ${c.right ? 'right' : 'wrong'}"><ul class="ct-chips sm" aria-label="The clasp">${c.chips.map(id => {
+      const p = T.prop(id), dec = id === c.decide, mine = id === c.pick;
+      return `<li class="ct-chip${dec ? ' decide' : ''}${mine ? ' pick' : ''}">${dec ? '<b aria-hidden="true">✓</b> ' : mine ? '<b aria-hidden="true">✕</b> ' : ''}${esc(p.t)}${mine ? '<span class="w-sr"> (your pick)</span>' : ''}${dec ? '<span class="w-sr"> (decides it)</span>' : ''}</li>`;
+    }).join('')}</ul><p class="small ct-clline">${line}</p></div>`;
   }
 
   // ---- The test: a cutaway. He lifts the pin to the lamp; the screen cuts to the job running in town. The job's slip
@@ -232,7 +273,7 @@
       teach: `${teachLine(s, tk)}${j.needs.length > 1 ? teachLine(s, 'chalk') : ''}`,
       hud: `<span class="du-hud"><span><b>The test</b> · ${esc(T.SQ[r.sq])} · ${esc(T.SETS[j.set].name)} · ${esc(pinName(r.pin))}</span></span>`,
       back: benchHtml(r.pin, j.set, { call: r.kind === 'call', held }),
-      down: `<div class="ct-test ${held ? 'held' : 'cracked'}"><p class="ct-cap" aria-live="polite"></p><p class="ct-verdict"><b>${esc(verdict)}</b></p>${termHtml(r.pin)}${extra}</div>
+      down: `<div class="ct-test ${held ? 'held' : 'cracked'}"><p class="ct-cap" aria-live="polite"></p>${claspHtml(r)}<p class="ct-verdict"><b>${esc(verdict)}</b></p>${termHtml(r.pin)}${extra}</div>
         <div class="row"><button class="primary" id="ct-next">Back to the table</button></div>`
     }));
     const bench = body.querySelector('.ct-bench');
@@ -288,7 +329,7 @@
     return it ? E().find(it.q) : null;
   }
   const twinOf = (q, used) => ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).filter(x => x && E().allowed(x) && D().isVerified(x) && !used.has(x.id))[0] || null;
-  const WHY = { call: 'you called it a fake, and it held', place: 'it cracked on your square', stood: 'you let his fake stand', held: 'it held for you: prove you know why', carry: 'last night\'s Rack' };
+  const WHY = { call: 'you called it a fake, and it held', place: 'it cracked on your square', stood: 'you let his fake stand', held: 'it held for you: prove you know why', carry: 'last night\'s Rack', clasp: 'you called it, but missed the clasp' };
   function billScreen(s) {
     const L = s.bill;
     s.billUsed = s.billUsed || [];
@@ -475,6 +516,7 @@
     const won = T.cupWon(s);
     const tests = s.log.length, held = s.log.filter(l => l.ok).length;
     const calls = s.log.filter(l => l.kind === 'call'), right = calls.filter(l => l.ok).length;
+    const clasps = calls.filter(l => l.clasp != null), found = clasps.filter(l => l.clasp).length;
     const rack = s.rackRes ? `<div class="ct-rackres">${s.rackRes.lines.map((x, i) => `<div class="ct-rr ${x.ok === x.mark ? 'ok' : 'bad'}"><img src="assets/img/table/pin-${s.rack.stock[i].pin}.webp" alt="" width="48" height="48"><b>${x.ok === x.mark ? '✓' : '✕'} ${x.ok ? 'Genuine' : 'Fake'}</b></div>`).join('')}</div>
       <ul class="ct-lines">${s.rackRes.lines.map((x, i) => `<li class="${x.ok === x.mark ? 'ok' : 'bad'}"><b>${esc(pinName(s.rack.stock[i].pin))}</b>: ${esc(x.line)}${x.ok === x.mark ? '' : ` (you marked it ${x.mark ? 'genuine' : 'fake'})`}</li>`).join('')}</ul>` : '';
     const mins = Math.max(1, Math.round(minutes(s)));
@@ -486,6 +528,7 @@
         <div class="ct-page"><p class="ct-pageh">His ledger</p>
           <p><span>Pins tested</span><b>${tests}</b></p><p><span>Held</span><b>${held}</b></p>
           <p><span>Calls</span><b>${calls.length}</b></p><p><span>Fakes caught</span><b>${right}</b></p>
+          ${clasps.length ? `<p><span>Clasps found</span><b>${found} of ${clasps.length}</b></p>` : ''}
           <p><span>The bill</span><b>${M.sgn(s.billPts | 0)}</b></p><p><span>Time at the table</span><b>${mins} ${mins === 1 ? 'min' : 'mins'}</b></p></div>
         ${s.paid ? `<p class="small"><b>${esc(s.paid)}</b></p>` : ''}
         <p class="small w-note">Tomorrow the stock rotates. Anything still owed opens the first bill.</p>
@@ -649,6 +692,36 @@
     .ct-verdict { margin: 4px 0; }
     .ct-term { margin: 2px 0 6px; font-size: 12px; line-height: 1.35; } .ct-term span { font-weight: 800; }
     .ct-term code { display: inline-block; font: 600 11.5px/1.35 ui-monospace, Menlo, Consolas, monospace; background: rgba(23, 19, 31, .08); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+    /* The clasp: his pin turned over on the felt, three chalked properties on its back */
+    .ct-clasp { max-width: 520px; margin: 0 auto; }
+    .ct-flip { perspective: 900px; }
+    .ct-flipin { display: grid; transform-style: preserve-3d; }
+    .ct-flipin.go { animation: ct-flip .7s cubic-bezier(.3, 1.2, .5, 1) both; }
+    @keyframes ct-flip { from { transform: rotateY(180deg) translateY(-12px); } to { transform: none; } }
+    .ct-face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 10px; border: 7px solid #6b4426; border-top: 7px solid var(--sc, #6b4426);
+      background: radial-gradient(120% 90% at 50% 0%, #3a6a4b, #2f5a3f 60%, #264a34); box-shadow: 0 14px 24px rgba(0, 0, 0, .6), inset 0 0 26px rgba(0, 0, 0, .35); }
+    .ct-front { display: flex; align-items: center; justify-content: center; transform: rotateY(180deg); }
+    .ct-front img { width: 96px; height: 96px; filter: drop-shadow(0 6px 4px #000a); }
+    .ct-back { padding: 8px 10px 10px; }
+    .ct-clh { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font: 600 13px/1.25 var(--f-body, sans-serif); color: #f4ecd8; }
+    .ct-clh img { width: 36px; height: 36px; flex: none; filter: drop-shadow(0 3px 2px #000a) grayscale(.2); transform: scaleX(-1); }
+    .ct-clq { margin: 0 0 6px; font: 700 14px/1.3 Georgia, 'Times New Roman', serif; color: #fff6dc !important; }
+    .ct-clq q { font-style: italic; }
+    .ct-clw { margin: 0 0 6px; font: 500 12.5px/1.3 var(--f-body, sans-serif); color: #e3dcc6 !important; padding-left: 8px; border-left: 3px solid var(--sc, #6b4426); }
+    .ct-chips { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .ct-chip { display: block; width: 100%; min-height: 44px; margin: 0; padding: 8px 12px !important; text-align: left; border-radius: 8px !important; border: 2px dashed rgba(244, 236, 216, .75) !important;
+      background: rgba(255, 255, 255, .05) !important; color: #fbf4e2 !important; box-shadow: none !important; font: 600 14px/1.25 var(--f-body, sans-serif) !important; text-shadow: 0 0 1px rgba(255, 255, 255, .4); letter-spacing: .01em; }
+    button.ct-chip { cursor: pointer; }
+    button.ct-chip:hover, button.ct-chip:focus-visible { border-style: solid !important; border-color: #ffd27a !important; background: rgba(255, 210, 122, .12) !important; outline: none; }
+    button.ct-chip:focus-visible { box-shadow: 0 0 0 3px rgba(255, 210, 122, .55) !important; }
+    .ct-clrow { justify-content: center; margin-top: 6px; }
+    .ct-clres { margin: 4px 0 6px; }
+    .ct-chips.sm { gap: 4px; }
+    .ct-chips.sm .ct-chip { min-height: 0; padding: 4px 8px !important; font-size: 12px !important; opacity: .6; border-width: 1px !important; }
+    .ct-chips.sm .ct-chip.decide { opacity: 1; border: 2px solid #7fdc8c !important; color: #d8f5dc !important; background: rgba(127, 220, 140, .12) !important; }
+    .ct-chips.sm .ct-chip.pick:not(.decide) { opacity: .9; border: 2px solid #f0a29b !important; color: #f6d2cd !important; }
+    .ct-chips.sm .ct-chip b { font-weight: 900; }
+    .ct-clline { margin: 4px 0 0; }
     .ct-rule { display: block; font-size: 11px; line-height: 1.3; margin-top: 2px; opacity: .85; }
     .ct-lines { list-style: none; padding: 0; margin: 6px 0; }
     .ct-lines li { padding: 4px 0 4px 8px; border-left: 4px solid #4caf62; margin: 4px 0; }
@@ -776,7 +849,7 @@
       .ct-zones { max-width: 900px; margin: 0 auto 6px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .w-kage img, .w-kage, .ct-bench, .ct-run *, .w-cup, .ct-rkpin, .w-shutter, .ct-book, .w-banner, .ct-rackwall { animation: none !important; transition: none !important; }
+      .w-kage img, .w-kage, .ct-bench, .ct-run *, .w-cup, .ct-rkpin, .w-shutter, .ct-book, .w-banner, .ct-rackwall, .ct-flipin { animation: none !important; transition: none !important; }
     }`;
   document.head.appendChild(css);
 })();
