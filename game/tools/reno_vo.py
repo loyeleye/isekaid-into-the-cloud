@@ -21,7 +21,7 @@ STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-th
 # The stern delivery sometimes leaves seconds of dead air mid-line: shorten any pause to 0.6s.
 PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_silence=0.6:stop_threshold=-40dB'
 # The lines heard on every job are read gently and encouragingly, in his own way: still proper, never nagging.
-SOFT = {'seymour-mg-reno-' + k for k in ('again-beam', 'again-test', 'again-crowd', 'again-twice', 'notyet', 'nosign', 'permit', 'clean', 'scaf', 'whatif', 'whatif-right', 'whatif-wrong')}
+SOFT = {'seymour-mg-reno-' + k for k in ('again-beam', 'again-test', 'again-crowd', 'again-twice', 'notyet', 'nosign', 'permit', 'clean', 'scaf', 'whatif', 'whatif-right', 'whatif-wrong', 'writing')}
 # Seymour's Architect's Draft quiz lines repeat across many questions, so they are read the same soft way.
 SOFT |= {'seymour-mg-draft-' + k for k in ('clean', 'scaf', 'retry', 'half')}
 SOFT_STYLE = ('Read this aloud as a kind, slightly formal inspector who is encouraging in his own stiff, by-the-book way: calm and warm, '

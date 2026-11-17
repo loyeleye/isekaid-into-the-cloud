@@ -24,7 +24,14 @@
 //                                      mid-line in a template card): Enter or blur checks it; onOk(misses) after it's
 //                                      marked, onMiss(misses) after each miss (the faint placeholder is set at two)
 //   ask/maybe opts.choices: [strings]  3 or 4 buttons instead of the text box (the Rush on a phone); a right pick marks it
+//   SD.typeOnce.due(term)              true when a typed term is due again (spaced recall, below)
 // Stored in the save: S.save.typed[term in lower case] = time typed.
+// Spaced recall (Ladi, Nov 17: "exponential spaced recall starting with 24 hours, then 2 days, etc."): once typed, a term
+// comes back, from memory, 1 day later, then 2, 4, 8, 16 days; a recall with any miss starts it over at 1 day. need()
+// is true for a due term too, so every mode's typing step does recall without changes. Three days before the exam
+// (the date set on the main page, S.save.examDate, so a retake's date moves it), every term typed before then comes
+// due again for one full pass (Ladi: "reset the typing 3 days before the exam"); the doubling carries on after it.
+// S.save.typedDue[term] = { n, due }.
 (function () {
   const T = SD.typeOnce = {};
   T.off = !!window.SD_NO_TYPING;   // a headless check of something else sets this before load
@@ -66,8 +73,32 @@
     if (old.some(t => key(t) === k)) { store()[k] = Date.now(); return true; }
     return false;
   };
-  T.mark = tok => { if (tok) { store()[key(tok)] = Date.now(); S.persist(); } };
-  T.need = tok => !!tok && !T.learned(tok);
+  const DAY = 864e5;
+  const sched = () => (S.save.typedDue = S.save.typedDue || {});
+  // Three days before the exam, from local midnight: every term typed before then is due again.
+  const resetAt = () => { const d = S.save && S.save.examDate && new Date(S.save.examDate + 'T00:00:00'); return d && !isNaN(d) ? d.getTime() - 3 * DAY : 0; };
+  const nextDue = (from, n) => from + DAY * Math.pow(2, n);
+  // A term's place in the schedule; an older save's typed terms start from the time they were typed.
+  const slot = tok => {
+    const k = key(tok), sc = sched();
+    if (!sc[k] && T.learned(tok)) { const t = +store()[k] || Date.now(); sc[k] = { n: 0, due: nextDue(t, 0) }; }
+    return sc[k];
+  };
+  T.due = tok => {
+    if (!tok || !T.learned(tok)) return false;
+    const now = Date.now(), r = resetAt();
+    return now >= slot(tok).due || (!!r && now >= r && (+store()[key(tok)] || 0) < r);
+  };
+  // Typed (the first time, or a recall): the next recall doubles after a clean recall, and starts over after a miss.
+  T.mark = (tok, misses) => {
+    if (!tok) return;
+    const k = key(tok), now = Date.now(), was = sched()[k], wasDue = was && T.due(tok);
+    const n = !was ? 0 : !wasDue ? was.n : misses ? 0 : was.n + 1;
+    store()[k] = now; sched()[k] = { n, due: nextDue(now, n) };
+    S.persist();
+  };
+  T.inDays = tok => { const d = Math.max(1, Math.round(((sched()[key(tok)] || {}).due - Date.now()) / DAY) || 1); return d === 1 ? 'a day' : d + ' days'; };
+  T.need = tok => !!tok && (!T.learned(tok) || T.due(tok));
   const norm = s => String(s || '').trim().replace(/^[`'"]+|[`'",]+$/g, '').replace(/\s+/g, '').toLowerCase();
   T.match = (typed, ans) => !!norm(typed) && norm(typed) === norm(ans);
 
@@ -80,18 +111,19 @@
     if (cm) { cmt = cm[0].trim(); post = post.slice(0, cm.index); }
     const cmtHtml = cmt ? `<span class="to-cmt">${esc(cmt)}</span>` : '';
     let misses = 0;
+    const recall = T.learned(ans);   // a spaced recall rather than the first time
     // Whatever the panel held (a fight, a map, a drill) is kept aside and put back after, so the typing step can sit on
     // top of any screen and leave it as it was.
     const P = document.getElementById('panel'), keep = P ? [...P.childNodes] : [], hid = P ? P.hidden : true;
     return new Promise(done => {
       const b = U.panel(`<div class="to-w">
-          ${o.who ? `<p class="to-say"><b>${esc(o.who)}:</b> ${esc(o.say || 'First time this one\'s come up. Write it in yourself.')}</p>` : `<p class="to-say">${esc(o.say || 'First time this one\'s come up. Type the missing part yourself.')}</p>`}
+          ${o.who ? `<p class="to-say"><b>${esc(o.who)}:</b> ${esc(recall ? 'This one again, from memory this time.' : o.say || 'First time this one\'s come up. Write it in yourself.')}</p>` : `<p class="to-say">${esc(recall ? 'You\'ve typed this before. From memory this time.' : o.say || 'First time this one\'s come up. Type the missing part yourself.')}</p>`}
           <form class="to-card" autocomplete="off">
             <code class="to-line"><span>${esc(pre)}</span>${o.choices ? '<b class="to-gap">____</b>' : `<input class="to-in" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Type the missing part" size="${Math.max(6, Math.min(32, ans.length + 1))}">`}<span>${esc(post)}</span>${cmtHtml}</code>
             ${o.choices ? `<div class="to-ch">${o.choices.map(c => `<button type="button" class="ghost" data-ch="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
             <p class="small to-note" aria-live="polite">${o.why ? esc(o.why) : 'Type it once, the way AWS spells it. Two misses and it shows faintly to copy.'}</p>
             <div class="row"><button class="primary" type="submit">Check</button><button class="ghost" type="button" data-skip>Not now</button></div>
-          </form></div>`, { title: o.title || 'TYPE IT ONCE', cls: 'to-win', noClose: true });
+          </form></div>`, { title: recall ? 'FROM MEMORY' : o.title || 'TYPE IT ONCE', cls: 'to-win', noClose: true });
       const f = b.querySelector('form'), inp = b.querySelector('.to-in') || { value: '', classList: { add() {}, remove() {} }, focus() {} }, note = b.querySelector('.to-note');
       if (o.choices) {
         f.querySelector('[type="submit"]').hidden = true;
@@ -106,10 +138,10 @@
       f.onsubmit = e => {
         e.preventDefault();
         if (T.match(inp.value, ans)) {
-          T.mark(ans);
+          T.mark(ans, misses);
           if (SD.audio && SD.audio.sfx) try { SD.audio.sfx('good'); } catch (er) { /* sound is optional */ }
           b.querySelector('.to-card').innerHTML = `<code class="to-line done">${esc(pre)}<b>${esc(ans)}</b>${esc(post)}${cmtHtml}</code>
-            <p class="small to-note">✓ Typed. ${misses ? 'It\'s yours now.' : 'First try.'}</p><div class="row"><button class="primary" type="button" data-go>Continue</button></div>`;
+            <p class="small to-note">✓ Typed. ${recall ? (misses ? 'It comes back tomorrow.' : `Remembered. It comes back in ${T.inDays(ans)}.`) : misses ? 'It\'s yours now.' : 'First try.'}</p><div class="row"><button class="primary" type="button" data-go>Continue</button></div>`;
           b.querySelector('[data-go]').onclick = () => finish({ typed: true, misses, skipped: false });
           b.querySelector('[data-go]').focus();
           return;
@@ -125,10 +157,10 @@
   };
   T.bind = function (inp, ans, o) {
     o = o || {};
-    let misses = 0, done = T.learned(ans);
+    let misses = 0, done = !T.need(ans);
     const check = () => {
       if (done || !inp.value.trim()) return;
-      if (T.match(inp.value, ans)) { done = true; T.mark(ans); inp.classList.add('ok'); if (o.onOk) o.onOk(misses); return; }
+      if (T.match(inp.value, ans)) { done = true; T.mark(ans, misses); inp.classList.add('ok'); if (o.onOk) o.onOk(misses); return; }
       misses++;
       if (misses >= 2) { inp.value = ''; inp.placeholder = ans; inp.classList.add('faint'); }
       if (o.onMiss) o.onMiss(misses);

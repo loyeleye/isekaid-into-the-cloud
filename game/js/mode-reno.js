@@ -201,20 +201,24 @@
   // reads this mode's own record (renoKeep.typed), which is kept up too.
   const typedSet = () => { const k = keep(); return (k.typed = k.typed || {}); };
   const learned = t => !!typedSet()[t] || !!(SD.typeOnce && SD.typeOnce.learned && SD.typeOnce.learned(t));
-  const learn = t => { typedSet()[t] = true; if (SD.typeOnce && SD.typeOnce.mark) SD.typeOnce.mark(t); };
-  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && !learned(t)).filter((t, i, a) => a.indexOf(t) === i);
+  const learn = (t, misses) => { typedSet()[t] = true; if (SD.typeOnce && SD.typeOnce.mark) SD.typeOnce.mark(t, misses); };
+  // A typed term comes back as a blank when it's due again (spaced recall, js/type-once.js).
+  const due = t => !!(SD.typeOnce && SD.typeOnce.due && SD.typeOnce.due(t));
+  const fresh = t => !learned(t) || due(t);
+  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && fresh(t)).filter((t, i, a) => a.indexOf(t) === i);
   function tplHtml(job, p, hi) {
     const t = tplLines(job, p), seen = {};
     return `<div class="rn-tpl" aria-label="Your plan as AWS writes it: ${esc(t.file)}"><p class="rn-tplh">${esc(t.file)}</p><pre>${t.lines.map(([ind, text, keys, term]) => {
       let body = esc(text);
-      if (term && !learned(term) && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
-      else if (term && !learned(term)) {
+      if (term && fresh(term) && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
+      else if (term && fresh(term)) {
         seen[term] = 1;
         const at = text.indexOf(term);
         body = esc(text.slice(0, at)) + `<input class="rn-blank" data-term="${esc(term)}" size="${term.length}" maxlength="${term.length + 4}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Write out ${esc(term.length)} letters: the setting for this line" placeholder="${'_'.repeat(Math.min(term.length, 28))}">` + esc(text.slice(at + term.length));
       }
       return `<span class="${keys && hi && keys.includes(hi) ? 'hi' : ''}">${'  '.repeat(ind)}${body}</span>`;
-    }).join('\n')}</pre>${blanksOf(job, p).length ? '<p class="small rn-tplnote">New on your card: write it out in full, once. Seymour likes things in writing.</p>' : ''}</div>`;
+    }).join('\n')}</pre>${(() => { const bl = blanksOf(job, p); if (!bl.length) return ''; const back = bl.filter(learned).length;
+      return `<p class="small rn-tplnote">${back === bl.length ? 'Back on your card from a few days ago: write it from memory. Seymour checks.' : back ? 'On your card: some new, some from a few days ago. Write them out in full.' : 'New on your card: write it out in full, once. Seymour likes things in writing.'}</p>`; })()}</div>`;
   }
   const norm = v => String(v).replace(/\s+/g, '').toLowerCase();
   function bindBlanks(b, onDone) {
@@ -224,7 +228,7 @@
       const check = final => {
         if (inp.readOnly) return;   // already written (a blur after the last letter fires change again)
         if (norm(inp.value) === norm(term)) {
-          learn(term); SD.state.persist();
+          learn(term, misses); SD.state.persist();
           inp.classList.add('ok'); inp.value = term; inp.readOnly = true;
           if (SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
           setTimeout(() => { if (inp.isConnected) onDone(); }, 420); return;
@@ -893,6 +897,129 @@
     }
     return null;
   }
+  // ---- Blame the line: once a job is settled, the template line behind each broken slate line, circled ----
+  // (Ladi, Nov 17.) Only on the permit screen, after the plan passed or the plans ran out, so it never hints at a fix
+  // while one can still be tried. The culprit is found by the rules, not by hand: the setting whose change alone (or,
+  // failing that, with one other) would have kept that slate line. Its template line is circled in red with the slate
+  // line it broke beside it; if a later plan held, that plan's same line is shown underneath in green.
+  const knobKeys = (job, a, b) => {
+    if (job.d === 'cfn') return job.stack.filter(r => (a[r.id] || AD.cfnDefault(r.type)) !== (b[r.id] || AD.cfnDefault(r.type))).map(r => r.id);
+    a = knobsOf(job, a); b = knobsOf(job, b);
+    return [...new Set(Object.keys(a).concat(Object.keys(b)))].filter(k => (a[k] === undefined ? null : a[k]) !== (b[k] === undefined ? null : b[k]));
+  };
+  // A different policy (or traffic-shifting config) counts as one change, whatever settings come with it.
+  const headKey = job => (job.d === 'eb' ? 'policy' : job.d === 'lam' ? 'cfg' : null);
+  const blameKeys = (job, a, b) => { const h = headKey(job); return h && a[h] !== b[h] ? [h] : knobKeys(job, a, b); };
+  function blame(job, plan) {
+    const res = R.inspect(job, plan);
+    if (res.refused) return [];
+    const all = R.plans(job).map(p => ({ plan: p, res: null }));
+    const out = [];
+    res.lines.forEach((l, i) => {
+      if (l.ok) return;
+      for (const want of [1, 2]) {
+        const keys = new Set();
+        let fix = null;
+        all.forEach(x => {
+          const ks = blameKeys(job, x.plan, plan);
+          if (ks.length !== want) return;
+          x.res = x.res || R.inspect(job, x.plan);
+          if (!x.res.refused && x.res.lines[i].ok) { ks.forEach(k => keys.add(k)); fix = fix || x.plan; }
+        });
+        if (keys.size) { out.push({ line: l, keys: [...keys], fix }); return; }
+      }
+      out.push({ line: l, keys: [] });
+    });
+    return out;
+  }
+  function reportHtml(job, j) {
+    const ps = j.plans || [];
+    const failed = ps.filter(x => !x.pass).pop(), last = ps[ps.length - 1];
+    if (!failed) return '';
+    const fixed = last && last.pass ? last.plan : null;
+    // With a plan that held, blame only what that plan actually changed (another fix that would also have worked isn't
+    // the lesson of this job); with none, everything that would have kept the line.
+    const changed = fixed ? blameKeys(job, fixed, failed.plan) : null;
+    const bl = blame(job, failed.plan).map(x => {
+      const ks = changed ? x.keys.filter(k => changed.includes(k)) : x.keys;
+      return Object.assign({}, x, { keys: ks.length ? ks : x.keys, fix: ks.length && fixed ? fixed : x.fix });
+    }).filter(x => x.keys.length);
+    if (!bl.length) return '';
+    const keysAll = [...new Set([].concat(...bl.map(x => x.keys)))];
+    const broke = ks => bl.filter(x => x.keys.some(k => ks.includes(k))).map(x => x.line.text);
+    const clean = t => t.replace(/\s+#.*$/, '');
+    // A plan's template, cut down to the lines that matter: the culprit lines and the keys above them, the rest folded
+    // into ⋯. A setting that broke the slate by being left out (no alarm, no hook) is drawn where it would go, dashed
+    // and marked missing (the job is settled, so this is the lesson, not a hint).
+    const sheet = (plan, bad) => {
+      const t = tplLines(job, plan).lines.map(([ind, text, ks]) => ({ ind, text: clean(text), ks: ks || [], hit: !!ks && ks.some(k => keysAll.includes(k)) }));
+      if (bad) {
+        const shown = new Set(); t.forEach(r => r.ks.forEach(k => shown.add(k)));
+        bl.forEach(x => {
+          const gone = x.keys.filter(k => !shown.has(k));
+          if (!gone.length || !x.fix) return;
+          // No plan held, and a missed job comes back: point at the gap without naming what goes in it.
+          const anon = !fixed;
+          const src = tplLines(job, x.fix).lines.map(([ind, text, ks]) => ({ ind, text: clean(text), ks: ks || [] }));
+          src.forEach((r, n) => {
+            if (!r.ks.some(k => gone.includes(k)) || t.some(q => q.text === r.text)) return;
+            r.ks.forEach(k => shown.add(k));
+            // Its parents from the fixed plan (Hooks:) where this plan has none, then the line, after the last line above it.
+            const add = [];
+            let pind = r.ind;
+            for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (src[m].ind < ind) { ind = src[m].ind; if (!t.some(q => q.text === src[m].text)) { pind = src[m].ind; add.unshift(Object.assign({}, src[m], { hit: true, miss: true })); } else break; }
+            if (anon) { if (t.some(q => q.anon)) return; add.length = 0; add.push({ ind: pind, text: '?', ks: r.ks, hit: true, miss: true, anon: true }); }
+            else add.push(Object.assign({}, r, { hit: true, miss: true }));
+            let at = t.length;
+            const prev = n > 0 ? src.slice(0, n).reverse().find(p => t.some(q => q.text === p.text)) : null;
+            if (prev) { at = t.findIndex(q => q.text === prev.text) + 1; while (at < t.length && t[at].ind > prev.ind) at++; }
+            t.splice(at, 0, ...add);
+          });
+        });
+      }
+      const keep = new Set();
+      t.forEach((r, n) => { if (!r.hit) return; keep.add(n); for (let m = n - 1, ind = r.ind; m >= 0 && ind > 0; m--) if (t[m].ind < ind) { keep.add(m); ind = t[m].ind; } });
+      let out = '', gap = false;
+      t.forEach((r, n) => {
+        if (!keep.has(n)) { gap = true; return; }
+        if (gap) { out += `<span class="rn-r-gap">${'  '.repeat(r.ind)}⋯</span>`; gap = false; }
+        const code = `${'  '.repeat(r.ind)}<b>${esc(r.text)}</b>`;
+        out += `<span class="${r.hit ? (bad ? 'rn-r-bad' : 'rn-r-good') : 'rn-r-ctx'}${r.miss ? ' rn-r-miss' : ''}">${code}</span>`;
+        if (bad && r.hit && r.ks.length) out += `<span class="rn-r-note">${r.anon ? 'something\'s missing here: ' : r.miss ? 'missing: ' : ''}${broke(r.ks).map(x => '✗ ' + esc(x)).join('<br>')}</span>`;
+      });
+      if (gap) out += '<span class="rn-r-gap">⋯</span>';
+      return `<pre class="rn-r-code">${out}</pre>`;
+    };
+    const file = tplLines(job, failed.plan).file;
+    return `<section class="rn-report" aria-label="Seymour's inspection report">
+      <header class="rn-r-head">${head('seymour')}<div><p class="rn-r-title">Inspection report</p><p class="rn-r-sub">${esc(job.title)} · <code>${esc(file)}</code></p></div></header>
+      ${fixed ? `<div class="rn-r-flip" role="tablist" aria-label="Which plan"><button role="tab" class="on" aria-selected="true" data-rp="0">Plan ${ps.indexOf(failed) + 1} · broke</button><button role="tab" aria-selected="false" data-rp="1">Plan ${ps.length} · held</button></div>` : ''}
+      <div class="rn-r-cols${fixed ? '' : ' one'}" data-show="0">
+        <div class="rn-r-panel bad"><p class="rn-r-lab">Plan ${ps.indexOf(failed) + 1} · broke the slate</p>${sheet(failed.plan, true)}</div>
+        ${fixed ? `<div class="rn-r-panel good"><p class="rn-r-lab">Plan ${ps.length} · held twice</p>${sheet(fixed, false)}<span class="rn-r-stamp" aria-hidden="true">HELD</span></div>` : ''}
+      </div>
+      <p class="rn-r-sign">Inspected and filed. Sir S. Backups</p>
+    </section>`;
+  }
+  // On a phone the two plans share one slab: the toggle (or a sideways swipe on it) flips between them, and the line
+  // that changed lights up as it flips. A wide screen shows them side by side and hides the toggle.
+  function bindReport(b) {
+    const rep = b.querySelector('.rn-report'), cols = rep && rep.querySelector('.rn-r-cols'), tabs = rep ? [...rep.querySelectorAll('[data-rp]')] : [];
+    if (!tabs.length) return;
+    const show = k => {
+      if (cols.dataset.show === String(k)) return;
+      cols.dataset.show = k; tabs.forEach(t => { const on = t.dataset.rp === String(k); t.classList.toggle('on', on); t.setAttribute('aria-selected', on); });
+      const p = cols.children[k]; p.classList.remove('rn-r-in'); void p.offsetWidth; p.classList.add('rn-r-in');
+    };
+    tabs.forEach(t => t.onclick = () => show(+t.dataset.rp));
+    let x0 = null, y0 = 0;
+    cols.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; });
+    cols.addEventListener('pointerup', e => {
+      if (x0 == null) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) show(dx < 0 ? 1 : 0);
+    });
+  }
   // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
   const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
   function whatIfDue(s, job, j) {
@@ -1219,9 +1346,11 @@
         ${line ? say(job.client, line) : ''}
         ${office ? '' : say('seymour', sey)}
       </div></div>
+      ${reportHtml(job, j)}
       ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : (job.grand ? 'The plan didn\'t hold. This Grand Opening comes back as a later night\'s.' : 'The plan didn\'t hold. This job comes back first on a later night.')}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-next">${s.at + 1 < s.jobs.length ? 'Next job' : 'End the night'}</button></div>`);
     if (office) SD.renoStreet.mount(b);
+    bindReport(b);
     const cv = b.querySelector('.rn-bcv');
     if (cv && bld && SD.draftArt) { try { SD.draftArt.building(cv, { client: Object.assign({}, c, { roof: NEW_ROOF }), floors: Math.max(1, Math.min(6, bld.floors)), scaf: !!bld.scaf, cracks: bld.cracks }); } catch (e) { /* optional */ } }
     b.querySelector('#rn-next').onclick = () => {
@@ -1551,6 +1680,48 @@
     .rn-tplh { margin: 0 0 4px; font: 700 12px/1.2 var(--f-mono, ui-monospace, monospace); color: #7a5a30; letter-spacing: .02em; }
     .rn-tpl pre { margin: 0; font: 600 13.5px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
     .rn-tpl pre span { display: inline; border-radius: 3px; }
+    /* Seymour's inspection report: a parchment sheet with two code slabs, the culprit in red pencil, the fix stamped. */
+    .rn-report { position: relative; margin: 12px 0 6px; padding: 12px 14px 10px; border-radius: 4px; color: #2a1c10;
+      background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 40%), repeating-linear-gradient(0deg, transparent 0 27px, rgba(120,90,50,.08) 27px 28px), #f6ecd2;
+      border: 1px solid #b8955a; box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px rgba(20,10,4,.35), 0 2px 0 #8a6a3a; }
+    .rn-report::before { content: ''; position: absolute; left: 50%; top: -9px; width: 64px; height: 18px; transform: translateX(-50%) rotate(-2deg); background: rgba(235,220,170,.75); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .rn-r-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid #b8955a; }
+    .rn-r-head img, .rn-r-head .rn-head { width: 40px; height: 40px; flex: none; }
+    .rn-r-title { margin: 0; font: 800 18px/1.1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: #5a2a14; }
+    .rn-r-sub { margin: 2px 0 0; font-size: 13px; color: #6a4a26; }
+    .rn-r-sub code { font: 600 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(120,90,50,.12); padding: 1px 5px; border-radius: 4px; }
+    .rn-r-cols { display: grid; gap: 12px; }
+    .rn-r-flip { display: flex; gap: 0; margin: 0 0 10px; border: 2px solid #b8955a; border-radius: 999px; overflow: hidden; width: fit-content; }
+    .rn-r-flip button { min-height: 36px; padding: 4px 14px; border: 0; background: transparent; color: #6a4a26; font: 700 12px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+    .rn-r-flip button.on[data-rp="0"] { background: #a3261b; color: #fff4e8; } .rn-r-flip button.on[data-rp="1"] { background: #24734a; color: #effff4; }
+    @media (max-width: 699px) {
+      .rn-r-cols:not(.one) { touch-action: pan-y; }
+      .rn-r-cols:not(.one)[data-show="0"] > .rn-r-panel.good, .rn-r-cols:not(.one)[data-show="1"] > .rn-r-panel.bad { display: none; }
+      .rn-r-cols:not(.one) .rn-r-lab { display: none; }
+      .rn-r-cols:not(.one) .rn-r-stamp { top: -12px; }
+      .rn-r-panel.rn-r-in { animation: rn-r-in .32s ease-out; }
+      .rn-r-panel.rn-r-in .rn-r-bad b, .rn-r-panel.rn-r-in .rn-r-good b { animation: rn-r-pop .9s ease-out; }
+    }
+    @media (min-width: 700px) { .rn-r-cols:not(.one) { grid-template-columns: 1fr 1fr; } .rn-r-flip { display: none; } }
+    @keyframes rn-r-in { from { opacity: 0; transform: perspective(600px) rotateY(-12deg); } }
+    @keyframes rn-r-pop { 0%, 30% { box-shadow: 0 0 0 6px rgba(255,212,90,.55); } 100% { box-shadow: 0 0 0 0 rgba(255,212,90,0); } }
+    @media (prefers-reduced-motion: reduce) { .rn-r-panel.rn-r-in, .rn-r-panel.rn-r-in b { animation: none !important; } }
+    .rn-r-panel { position: relative; min-width: 0; }
+    .rn-r-lab { margin: 0 0 5px; font: 700 12px/1 var(--f-head); letter-spacing: .1em; text-transform: uppercase; }
+    .rn-r-panel.bad .rn-r-lab { color: #a3261b; } .rn-r-panel.good .rn-r-lab { color: #24734a; }
+    .rn-r-code { margin: 0; padding: 10px 12px; border-radius: 8px; background: #1f1b27; color: #e9e1cf; font: 600 13px/1.65 ui-monospace, Menlo, Consolas, monospace;
+      white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 3px 0 rgba(0,0,0,.25); }
+    .rn-r-code > span { display: block; }
+    .rn-r-ctx { color: #8f88a0; }
+    .rn-r-gap { color: #6b6480; font-size: 11px; line-height: 1; height: 10px; overflow: hidden; }
+    .rn-r-bad b, .rn-r-good b { font-weight: 800; }
+    .rn-r-bad b { color: #ffd2c8; display: inline-block; padding: 0 8px; margin: 1px -8px; border: 2px solid #ff6b57; border-radius: 48% 52% 46% 54% / 60% 50% 50% 40%; transform: rotate(-1.2deg); }
+    .rn-r-miss b { border-style: dashed; color: #ffb3a6; }
+    .rn-r-good b { color: #b9f5cf; background: rgba(80,200,130,.2); border-radius: 4px; padding: 0 5px; margin: 0 -5px; }
+    .rn-r-note { display: block; margin: 3px 0 4px 2ch; font: 400 15px/1.2 'Patrick Hand', 'Comic Sans MS', cursive; color: #ff9a8a; white-space: normal; }
+    .rn-r-stamp { position: absolute; right: 4px; top: -8px; padding: 2px 8px; border: 3px double #2f9a5e; border-radius: 7px; color: #2f9a5e; font: 900 14px/1 var(--f-head); letter-spacing: .14em;
+      transform: rotate(-9deg); background: rgba(246,236,210,.92); opacity: .95; pointer-events: none; }
+    .rn-r-sign { margin: 10px 2px 0; text-align: right; font: 400 17px/1 'Patrick Hand', 'Comic Sans MS', cursive; color: #5a3a18; }
     .rn-tpl pre span.hi { background: #ffe08a; box-shadow: 0 0 0 2px #ffe08a; animation: rn-tplhi 1.6s ease-out; }
     @keyframes rn-tplhi { from { background: #ffc531; box-shadow: 0 0 0 4px #ffc531; } }
     .rn-blank { font: inherit; color: #1f4e8c; background: #fff; border: 0; border-bottom: 2px dashed #1f4e8c; padding: 0 2px; width: auto; min-width: 6ch; max-width: 100%; border-radius: 3px 3px 0 0; }

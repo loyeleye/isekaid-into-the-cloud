@@ -221,6 +221,7 @@
     "seymour|One what-if before I sign. Same job, one change. Chalk how each line on the slate would go.": 'seymour-mg-reno-whatif',
     "seymour|Exactly right. I would have chalked it the same way.": 'seymour-mg-reno-whatif-right',
     "seymour|Not quite. That is what a what-if is for. Better here than on the street.": 'seymour-mg-reno-whatif-wrong',
+    "seymour|In writing first, please. The whole word. I'll wait.": 'seymour-mg-reno-writing',
     "kai|The hinges are always fine.": 'kai-mg-reno-hinges',
     "kai|He's not joking. He keeps a ledger.": 'kai-mg-reno-ledger',
     "kai|He will.": 'kai-mg-reno-frame',

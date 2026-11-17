@@ -120,6 +120,52 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   });
   check(bd.log.join() === 'miss1,miss2,ok2' && bd.ph === 'FunctionResponseTypes' && bd.done && bd.learned, 'bind(): the same two-miss rule on a mode\'s own blank');
 
+  // ---- Spaced recall: 1, 2, 4, 8 days; a miss starts over; pulled in to the day before the exam ----
+  const sr = await page.evaluate(() => {
+    const T = SD.typeOnce, DAY = 864e5, real = Date.now; let now = new Date('2026-11-01T09:00:00').getTime();
+    Date.now = () => now; SD.state.save.examDate = '2026-11-30';
+    const k = 'eventsourcemapping', t = 'EventSourceMapping', out = {};
+    T.mark(t); out.first = SD.state.save.typedDue[k].n === 0 && !T.need(t);
+    now += DAY - 60e3; out.notYet = !T.need(t);
+    now += 120e3; out.dayOne = T.due(t) && T.need(t);
+    T.mark(t, 0); out.two = (SD.state.save.typedDue[k].due - now) / DAY;
+    now = SD.state.save.typedDue[k].due + 1; T.mark(t, 0); out.four = (SD.state.save.typedDue[k].due - now) / DAY;
+    now = SD.state.save.typedDue[k].due + 1; T.mark(t, 1); out.missed = (SD.state.save.typedDue[k].due - now) / DAY;
+    T.mark(t, 0); out.early = SD.state.save.typedDue[k].n === 0;   // typed again before it's due: no step up
+    // Three days before the exam (Nov 27), every term typed before then is due again, once.
+    now = new Date('2026-11-20T09:00:00').getTime(); SD.state.save.typedDue[k] = { n: 3, due: now - 1 }; T.mark(t, 0);   // next: Dec 6
+    now = new Date('2026-11-26T20:00:00').getTime(); out.before = !T.due(t);
+    now = new Date('2026-11-27T08:00:00').getTime(); out.reset = T.due(t);
+    T.mark(t, 0); out.once = !T.due(t);
+    // A retake: the exam date set on the main page moves the reset with it.
+    SD.state.save.examDate = '2027-01-10';
+    SD.state.save.typedDue[k].due = new Date('2027-02-01').getTime();   // a long gap by then
+    now = new Date('2027-01-06T20:00:00').getTime(); const pre = !T.due(t);
+    now = new Date('2027-01-07T08:00:00').getTime(); out.retake = pre && T.due(t);
+    SD.state.save.examDate = '2026-11-30';
+    // After the exam, the doubling carries on.
+    now = new Date('2026-12-02T09:00:00').getTime(); SD.state.save.typedDue[k] = { n: 3, due: now - 1 }; T.mark(t, 0);
+    out.after = Math.round((SD.state.save.typedDue[k].due - now) / DAY);
+    // An older save's term (typed, no schedule yet) is due a day after it was typed.
+    SD.state.save.typed.olderterm = now - 2 * DAY; out.older = T.due('OlderTerm');
+    Date.now = real;
+    return out;
+  });
+  check(sr.first && sr.notYet && sr.dayOne, 'a typed term is due again a day later, not before');
+  check(Math.round(sr.two) === 2 && Math.round(sr.four) === 4, 'clean recalls double the gap: 2 days, then 4');
+  check(Math.round(sr.missed) === 1 && sr.early, 'a recall with a miss starts over at 1 day; typing early doesn\'t step it up');
+  check(sr.before && sr.reset && sr.once, 'three days before the exam every typed term is due again, once');
+  check(sr.retake, 'a retake date set on the main page moves that reset with it');
+  check(sr.after === 16 && sr.older, 'after the exam the doubling carries on (a retake); an older save\'s terms join the schedule');
+  const rc = await page.evaluate(async () => {
+    SD.state.save.typed.bisectbatchonfunctionerror = 1; SD.state.save.typedDue = SD.state.save.typedDue || {}; SD.state.save.typedDue.bisectbatchonfunctionerror = { n: 1, due: Date.now() - 1 };
+    const p = SD.typeOnce.maybe('BisectBatchOnFunctionError: true', { title: 'X' });
+    await new Promise(r => setTimeout(r, 50));
+    const t = document.querySelector('#panel .to-say').textContent + '|' + document.querySelector('.win-t, #panel h2, #panel .win-title') ? (document.querySelector('#panel').textContent) : '';
+    document.querySelector('#panel [data-skip]').click(); await p;
+    return t;
+  });
+  check(/from memory/i.test(rc) && /FROM MEMORY/.test(rc), 'a due term comes back through maybe(), from memory');
   // ---- Monster Hunt's Track on code options: the key token, typed before the options show (js/quiz.js) ----
   const tq = await page.evaluate(() => {
     const all = SD.modes.pick({ match: q => q.type === 'mc' && SD.recall.codey(q.opts), n: 9999, verifiedOnly: true, mix: 0 }).items.map(i => SD.exam.find(i.q));
