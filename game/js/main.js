@@ -322,6 +322,21 @@
     const ts = $('#screen-title');
     ts.addEventListener('pointermove', e => ts.style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(2)));
     storm();
+    // The painted storm loop behind the title (index.html .t-bd): fetched on first play, and paused while the title is
+    // hidden or a game covers it, so it costs nothing elsewhere.
+    const sv = $('.t-bd video');
+    if (sv) {
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches || !!(navigator.connection && navigator.connection.saveData);
+      const sync = () => {
+        if (still || ts.hidden || document.body.classList.contains('in-mode')) { sv.pause(); return; }
+        if (!sv.src) sv.src = sv.dataset.src;
+        const p = sv.play(); if (p && p.catch) p.catch(() => { /* autoplay refused: the still stays */ });
+      };
+      const mo = new MutationObserver(sync);
+      mo.observe(ts, { attributes: true, attributeFilter: ['hidden'] });
+      mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      sync();
+    }
     M.title();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
