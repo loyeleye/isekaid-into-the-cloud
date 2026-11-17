@@ -812,8 +812,8 @@
     const why = obj(e.blockBy)[tag] || BLOCK_BY[tag];
     // The ARN is on the intent already; the log names the action.
     if (G.sev <= 0) return `Blocked: ${c[0]} never runs, denied by ${why} `;
-    if (G.skip || G.dl) return `Narrowed: ${c[0]} is held back this turn, but isn't gone. Denied for good by ${why} `;
-    return `Narrowed: ${c[0]} still lands this turn (${intentText(G, { parts: true }).load}). Denied for good by ${why} `;
+    if (G.skip || G.dl) return `Narrowed: ${c[0]} is held back this turn, but isn't gone. What denies it: ${why} `;
+    return `Narrowed: ${c[0]} still lands this turn (${intentText(G, { parts: true }).load}). What denies it: ${why} `;
   }
   const living = G => G.foes.map((f, i) => i).filter(i => G.foes[i].sev > 0);
   const front = G => (living(G)[0] == null ? -1 : living(G)[0]);

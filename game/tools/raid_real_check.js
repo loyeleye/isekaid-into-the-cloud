@@ -128,7 +128,7 @@ const SHOTS = process.env.SHOTS || '';
     if (r.log.length > 370) fails.push(`${cardId} on ${id}: the log runs to ${r.log.length} characters: ${r.log}`);
     return r;
   };
-  const nar = await block('wildslime', 'leastpriv', /denied for good by the scoped role, with no statement allowing it \(an implicit deny\)/i);
+  const nar = await block('wildslime', 'leastpriv', /What denies it: the scoped role, with no statement allowing it \(an implicit deny\)/i);
   // The narrowed call really does land: with no shields up, the foes' turn costs the team SLA and the move is made.
   if (nar.sev > 0) {
     const land = await page.evaluate(() => {
@@ -140,11 +140,11 @@ const SHOTS = process.env.SHOTS || '';
     if (!land.moved || !(land.took > 0)) fails.push('a Narrowed call didn\'t land on the foes\' turn: ' + JSON.stringify(land));
   }
   await block('wildslime', 'leastpriv', /denied by the scoped role/, null, { sev: 1 });
-  await block('boundarywall', 'finddeny', /by the permissions boundary, which leaves it out \(an implicit deny, not a Deny\)/, /explicit "Effect": "Deny"/);
-  await block('boundarywall', 'readbound', /by the permissions boundary, which leaves it out/);
-  await block('asterisk', 'finddeny', /by the SCP's explicit Deny, which beats every Allow/);
-  await block('keykeeper', 'finddeny', /by the key policy, which doesn't let IAM policies count \(an implicit deny, not a Deny\)/);
-  await block('mimic', 'finddeny', /by an explicit "Effect": "Deny", which beats every Allow/);
+  await block('boundarywall', 'finddeny', /(?:by|What denies it:) the permissions boundary, which leaves it out \(an implicit deny, not a Deny\)/, /explicit "Effect": "Deny"/);
+  await block('boundarywall', 'readbound', /(?:by|What denies it:) the permissions boundary, which leaves it out/);
+  await block('asterisk', 'finddeny', /(?:by|What denies it:) the SCP's explicit Deny, which beats every Allow/);
+  await block('keykeeper', 'finddeny', /(?:by|What denies it:) the key policy, which doesn't let IAM policies count \(an implicit deny, not a Deny\)/);
+  await block('mimic', 'finddeny', /(?:by|What denies it:) an explicit "Effect": "Deny", which beats every Allow/);
   // A resisted card blocks nothing (the Deny Bat has no Deny to find), and a refusal still gives the foe's own reason.
   await fight(['denybat'], ['finddeny']);
   const res = await play(0, 0);
