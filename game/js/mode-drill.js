@@ -163,6 +163,7 @@
     retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
+    shift: { at: 'fn', rel: true, label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
     key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
     kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
@@ -171,9 +172,12 @@
     vis30: '30 s', vis60: '60 s', vis120: '2 min', vis360: '6 min', dlq: 'Redrive → orders-dlq', dlqfifo: 'Redrive → orders-dlq.fifo', groups: 'MessageGroupId = customerId', purge: 'Purge the queue',
     to30: '30 s', to60: '60 s', to120: '2 min', b1: '1', b3: '3', partial: 'ReportBatchItemFailures', reserved: 'Reserved concurrency 20', prov: 'Provisioned 6 on alias live',
     provlatest: 'Provisioned 6 on $LATEST', rolekms: 'Role allows kms:Decrypt', admin: 'AdministratorAccess', cond: 'Conditional write', ftrace: 'X-Ray active tracing',
+    ddbput: 'Allow PutItem on orders', ddbstar: 'Allow dynamodb:* on *', allatonce: 'All at once', canary: 'Canary 10%', linear: 'Linear 10%/min',
+    alarm: 'Roll back on Errors alarm', hook: 'PreTraffic test',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
-    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart' };
+    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
+    ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -192,8 +196,9 @@
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
-    const hand = D.HANDS[k];
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k).map(n => {
+    // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
+    const hand = D.HANDS[k].filter(id => !C[id].rel || d.release);
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && (!DIALS[n].rel || d.release)).map(n => {
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
@@ -209,7 +214,7 @@
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {

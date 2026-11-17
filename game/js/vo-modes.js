@@ -54,6 +54,8 @@
     "kai|Without ReportBatchItemFailures, one bad message sends the whole batch back.": 'kai-mg-drill-teach-poison',
     "dutch|AWS won't take that one. Read the refusal: it's the lesson.": 'dutch-mg-drill-teach-refused',
     "seoyeon|Grey on the map means nobody traced it. You can't see what you didn't instrument.": 'seoyeon-mg-drill-teach-grey',
+    "dutch|A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.": 'dutch-mg-drill-teach-iam',
+    "kai|A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.": 'kai-mg-drill-teach-canary',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
