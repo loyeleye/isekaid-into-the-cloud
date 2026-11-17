@@ -32,6 +32,8 @@
 // (the date set on the main page, S.save.examDate, so a retake's date moves it), every term typed before then comes
 // due again for one full pass (Ladi: "reset the typing 3 days before the exam"); the doubling carries on after it.
 // S.save.typedDue[term] = { n, due }.
+// Spelling: mark() also keeps the term as it was passed (AWS's own case, VisibilityTimeout) in S.save.typedAs[term in
+// lower case], for the Terms I own page (js/terms.js). SD.typeOnce.spelling(term) reads it back (else null).
 (function () {
   const T = SD.typeOnce = {};
   T.off = !!window.SD_NO_TYPING;   // a headless check of something else sets this before load
@@ -95,8 +97,11 @@
     const k = key(tok), now = Date.now(), was = sched()[k], wasDue = was && T.due(tok);
     const n = !was ? 0 : !wasDue ? was.n : misses ? 0 : was.n + 1;
     store()[k] = now; sched()[k] = { n, due: nextDue(now, n) };
+    const as = String(tok).trim();
+    if (as !== k || !(S.save.typedAs || {})[k]) (S.save.typedAs = S.save.typedAs || {})[k] = as;
     S.persist();
   };
+  T.spelling = tok => ((S.save && S.save.typedAs) || {})[key(tok)] || null;
   T.inDays = tok => { const d = Math.max(1, Math.round(((sched()[key(tok)] || {}).due - Date.now()) / DAY) || 1); return d === 1 ? 'a day' : d + ' days'; };
   T.need = tok => !!tok && (!T.learned(tok) || T.due(tok));
   const norm = s => String(s || '').trim().replace(/^[`'"]+|[`'",]+$/g, '').replace(/\s+/g, '').toLowerCase();

@@ -149,7 +149,7 @@
   const fallback = {
     token: (line, prefer) => (prefer && String(line).includes(prefer) ? prefer : ((String(line).match(/\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b/) || [''])[0])),
     learned: t => { const sv = (root.SD.state && root.SD.state.save) || {}; const k = String(t).toLowerCase(); return !!((sv.typed || {})[k] || Object.keys(sv.icTyped || {}).some(x => x.toLowerCase() === k)); },
-    mark: t => { const S = root.SD.state; if (!S || !S.save) return; (S.save.typed = S.save.typed || {})[String(t).toLowerCase()] = Date.now(); if (S.persist) S.persist(); },
+    mark: t => { const S = root.SD.state; if (!S || !S.save) return; (S.save.typed = S.save.typed || {})[String(t).toLowerCase()] = Date.now(); (S.save.typedAs = S.save.typedAs || {})[String(t).toLowerCase()] = String(t).trim(); if (S.persist) S.persist(); },
     match: (a, b) => { const n = x => String(x || '').trim().replace(/^[`'"]+|[`'",]+$/g, '').replace(/\s+/g, '').toLowerCase(); return !!n(a) && n(a) === n(b); }
   };
   fallback.need = t => !!t && !fallback.learned(t);
