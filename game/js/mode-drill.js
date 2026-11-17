@@ -107,27 +107,38 @@
     return `<div class="dr-jar" role="img" aria-label="Error budget ${b}%"><span class="dr-jar-l">${icon('checked-shield')}Error budget</span><span class="dr-jar-b"><i style="width:${b}%"></i></span><b>${b}%</b></div>`;
   }
 
-  // ---- The map: one row per drill, bosses marked. Night 1 is one path; later nights fork (L7). ----
+  // ---- The map: the war room's chalkboard, one row of incident cards per drill, bosses as alarm notices (Ladi,
+  // Nov 17: a painted scene edge to edge, not tan boxes). Night 1 is one path; later nights fork (L7). Each card shows
+  // its path as a painted emblem (gate, mail rack, stream); the reachable row is circled in chalk, a fixed card gets a
+  // chalk tick and its verdict, the cards you passed over are crossed out, and the rows ahead wait in the dark. ----
+  const MAP_IMG = n => `assets/img/drill/map-${n}.webp`;
+  const KIND = d => d.stream ? ['stream', 'With a stream'] : d.path === 'async' ? ['queue', 'With a queue'] : ['gate', 'Straight through'];
+  const TILT = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0; return ((Math.abs(h) % 7) - 3) * 0.7; };
   function mapScreen(s) {
     const rows = D.ROWS.map((r, i) => {
       const ch = D.choices(s.night, i);
-      return `<div class="dr-row">${ch.map(id => {
-        const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id;
-        const how = done ? (s.done[i].clean ? ' · clean fix' : s.done[i].state === 'contained' ? ' · contained' : ' · escalated') : '';
-        return `<button class="dr-door${d.boss ? ' boss' : ''}${here ? ' reach' : ''}${done ? ' done' : ''}" data-drill="${id}" ${here ? '' : 'disabled'}>
-          <span class="dr-dn">${d.boss ? icon('siren') : ''}${esc(d.name)}</span><span class="dr-dt">${d.stream ? 'With a stream' : d.path === 'async' ? 'With a queue' : 'Straight through'}${d.boss ? ' · two faults' : ''}${how}</span></button>`;
+      return `<div class="dr-row${i < s.row ? ' past' : i > s.row ? ' ahead' : ' now'}" data-n="${ch.length}">${ch.map(id => {
+        const d = D.DRILLS[id], here = i === s.row, done = s.done[i] && s.done[i].drill === id, skip = i < s.row && !done;
+        const [k, kt] = KIND(d), kind = kt + (d.boss ? ' · two faults' : '');
+        const how = done ? (s.done[i].clean ? ['good', 'Clean fix'] : s.done[i].state === 'contained' ? ['warm', 'Contained'] : ['bad', 'Escalated']) : null;
+        const st = here ? 'reach' : done ? 'done' : skip ? 'skip' : 'ahead';
+        return `<button class="dr-door ${st}${d.boss ? ' boss' : ''}" style="--r:${TILT(id)}deg" data-drill="${id}" ${here ? '' : 'disabled'}
+          aria-label="${esc(d.name)}: ${esc(kind)}${how ? ', ' + how[1] : skip ? ', not taken' : ''}">
+          <img class="dr-ic" src="${MAP_IMG(d.boss ? 'ic-bell' : 'ic-' + k)}" alt="" draggable="false">
+          <span class="dr-dn">${esc(d.name)}</span><span class="dr-dt">${esc(kind)}</span>
+          ${how ? `${how[0] === 'bad' ? '' : '<span class="dr-mk tick" aria-hidden="true"></span>'}<span class="dr-dv ${how[0]}" aria-hidden="true">${how[1]}</span>` : skip ? '<span class="dr-mk cross" aria-hidden="true"></span>' : ''}</button>`;
       }).join('')}</div>`;
-    }).reverse().join('');
+    }).reverse().join('<i class="dr-up" aria-hidden="true"></i>');
     const first = s.fresh && s.night === 1 && !s.done.length;
     const cutKey = s.night + ':' + s.row;
     if (RM() && s.cutAt !== cutKey) {
       const beat = first ? ['bluffing>caught@4300', SAY.arrive] : s.done.length ? ['bluffing>caught@2400', SAY.next] : ['snack', SAY.again];
       return cutScreen([beat], () => { s.cutAt = cutKey; save(s); draw(s); });
     }
-    const b = panel(`<p class="dr-night">Night ${s.night}</p>
+    const b = panel(`<div class="dr-board"><p class="dr-night">Night ${s.night}</p>
       ${RM() ? '' : say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? SAY.next : SAY.again)}
       ${budgetJar(s)}
-      <div class="dr-map">${rows}</div>
+      <div class="dr-wall">${rows}</div></div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
     b.querySelectorAll('[data-drill]').forEach(el => el.onclick = () => {
       if (el.disabled) return;
@@ -140,6 +151,9 @@
       draw(s);
     });
     b.querySelector('#dr-stop').onclick = () => { U.closePanel(); stopNow(); };
+    // The night climbs the board from the bottom: bring the row you're on into view.
+    const at = b.querySelector('.dr-door.reach');
+    if (at && at.scrollIntoView) requestAnimationFrame(() => at.scrollIntoView({ block: 'center', inline: 'nearest' }));
   }
 
   // ---- The drill ----
@@ -430,16 +444,57 @@
     .dr-jar-l { display: inline-flex; gap: 4px; align-items: center; font-weight: 700; }
     .dr-jar-b { flex: 1; height: 12px; border: 2px solid var(--ink, #17131f); border-radius: 6px; overflow: hidden; background: var(--bone, #e2dbcb); }
     .dr-jar-b i { display: block; height: 100%; background: var(--blue, #3f5f80); }
-    .dr-map { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 12px; border: 3px solid var(--ink, #17131f); background: #23283a; }
-    .dr-row { display: flex; gap: 6px; justify-content: center; }
-    .dr-door { flex: 1 1 0; max-width: 170px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 3px solid var(--ink, #17131f); border-radius: 10px; background: #c9c2b2; color: var(--ink, #17131f); font-size: 13px; }
-    .dr-door:disabled { opacity: 1; }
-    .dr-door.reach { background: var(--bone, #e2dbcb); box-shadow: 0 0 0 3px #e0823a; font-weight: 700; }
-    .dr-door.done { background: #9fb09a; }
-    .dr-door.boss { max-width: none; background: #5a2f2f; color: #fff; }
-    .dr-door.boss.reach { background: #9e3a34; }
-    .dr-door.boss.done { background: #4f6b52; }
-    .dr-dn { font-weight: 800; display: inline-flex; gap: 4px; align-items: center; } .dr-dt { font-size: 11px; }
+    /* The night map: the war room's chalkboard edge to edge, the night's incidents pinned to it (art: CREDITS.md). */
+    .dr-board { --chalk: #f4f1e6; display: flex; flex-direction: column; gap: 10px; }
+    .dr-board .dr-night { font-size: 26px; color: var(--chalk); letter-spacing: .04em; text-shadow: 0 0 1px #fff, 0 0 6px rgba(255, 255, 255, .25); opacity: .92; }
+    .dr-board .dr-jar { color: var(--chalk); }
+    .dr-board .dr-jar-b { border: 2px solid rgba(244, 241, 230, .8); border-radius: 3px; background: rgba(255, 255, 255, .05); box-shadow: 0 0 4px rgba(255, 255, 255, .15); }
+    .dr-board .dr-jar-b i { background: repeating-linear-gradient(100deg, #f1cf63 0 5px, #e3bd4c 5px 8px); opacity: .9; }
+    .dr-wall { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 4px 0 18px; }
+    .dr-row { display: flex; gap: 8px; justify-content: center; align-items: stretch; }
+    .dr-up { display: block; height: 30px; margin: 2px auto; aspect-ratio: 1 / 2; background: url(assets/img/drill/map-chalk-arrow.webp) center / contain no-repeat; opacity: .55; }
+    .dr-door { position: relative; flex: 1 1 0; min-width: 0; max-width: 150px; min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+      padding: 16px 6px 10px; border: 0; border-radius: 0; background: url(assets/img/drill/map-card.webp) center / 100% 100% no-repeat; color: #2a2118;
+      font-size: 12.5px; line-height: 1.15; text-align: center; transform: rotate(var(--r, 0deg)); filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55)); box-shadow: none; }
+    .dr-door::before { content: ''; position: absolute; top: -7px; left: 50%; width: 18px; height: 18px; margin-left: -9px; background: url(assets/img/drill/map-tack.webp) center / contain no-repeat; filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, .5)); }
+    .dr-door:disabled { opacity: 1; cursor: default; }
+    .dr-ic { width: 34px; height: 30px; object-fit: contain; flex: 0 0 auto; margin-bottom: 1px; }
+    .dr-dn { font-family: var(--f-head, serif); font-weight: 800; font-size: 13px; overflow-wrap: break-word; hyphens: manual; }
+    .dr-row[data-n="4"] .dr-dn { font-size: 12px; } .dr-row[data-n="5"] .dr-dn { font-size: 11px; letter-spacing: -.01em; }
+    .dr-row[data-n="5"] .dr-door { padding-left: 3px; padding-right: 3px; }
+    .dr-dt { display: none; font-size: 11px; color: #5a4a38; font-style: italic; }
+    .dr-door.boss { flex: 0 1 380px; max-width: 380px; min-height: 96px; padding: 14px 18px 12px; justify-content: center; background-image: url(assets/img/drill/map-notice.webp); color: #4a1612; }
+    .dr-door.boss::before { top: -12px; width: 34px; height: 34px; margin-left: -17px; background-image: url(assets/img/drill/map-seal.webp); }
+    .dr-door.boss .dr-dn { font-size: 16px; } .dr-door.boss .dr-dt { display: block; color: #7a2a22; }
+    .dr-door.boss .dr-ic { width: 36px; height: 34px; }
+    /* Reachable: circled in chalk, lit by the lamp, gently lifted off the board. */
+    .dr-door.reach { cursor: pointer; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .55)) drop-shadow(0 6px 6px rgba(0, 0, 0, .6)); animation: drlift 2.6s ease-in-out infinite; }
+    .dr-door.reach::after { content: ''; position: absolute; inset: -8px -7px; opacity: .75; background: url(assets/img/drill/map-chalk-ring.webp) center / 100% 100% no-repeat; pointer-events: none; }
+    .dr-door.reach:focus-visible { outline: 3px dashed rgba(244, 241, 230, .9); outline-offset: 8px; }
+    @keyframes drlift { 0%, 100% { transform: rotate(var(--r, 0deg)) translateY(0); } 50% { transform: rotate(var(--r, 0deg)) translateY(-3px); } }
+    /* Done: a chalk tick and the verdict; passed over: crossed out; ahead: still in the dark. */
+    .dr-door.done { filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5)) saturate(.75); }
+    .dr-mk { position: absolute; pointer-events: none; background: center / contain no-repeat; }
+    .dr-mk.tick { right: -10px; top: -4px; width: 38px; height: 38px; background-image: url(assets/img/drill/map-chalk-tick.webp); }
+    .dr-mk.cross { inset: 14% 10%; background-image: url(assets/img/drill/map-chalk-cross.webp); opacity: .55; }
+    .dr-dv { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%) rotate(-4deg); white-space: nowrap; padding: 1px 6px; border: 2px solid currentColor; border-radius: 4px;
+      font: 800 10.5px/1.2 var(--f-head, serif); letter-spacing: .06em; text-transform: uppercase; background: rgba(250, 244, 228, .9); }
+    .dr-dv.good { color: #2f6b3f; } .dr-dv.warm { color: #9a6a12; } .dr-dv.bad { color: #9e3a34; }
+    .dr-door.skip { filter: brightness(.55) saturate(.5) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+    .dr-door.ahead { filter: brightness(.72) saturate(.8) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+    .dr-row.past + .dr-up, .dr-row.now + .dr-up { opacity: .3; }
+    @media (prefers-reduced-motion: reduce) { .dr-door.reach { animation: none; } }
+    @media (min-width: 600px) {
+      .dr-door { max-width: 180px; min-height: 140px; padding: 20px 10px 14px; font-size: 13.5px; }
+      .dr-dn, .dr-row[data-n] .dr-dn { font-size: 15px; letter-spacing: 0; } .dr-dt { display: block; } .dr-ic { width: 46px; height: 40px; }
+      .dr-door.boss { flex-basis: 460px; max-width: 460px; min-height: 120px; } .dr-door.boss .dr-dn { font-size: 19px; } .dr-door.boss .dr-ic { width: 46px; height: 42px; }
+      .dr-row { gap: 16px; } .dr-up { height: 38px; } .dr-board .dr-night { font-size: 32px; }
+    }
+    /* The board fills the screen behind the map (tall on portrait screens, wide on landscape); the dock goes clear. */
+    body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background: #1c2420 url(assets/img/drill/map-board-tall.webp) center / cover no-repeat; }
+    @media (min-aspect-ratio: 1 / 1) { body.in-mode[data-stage="drill"] #panel .win.dr-win:has(.dr-board) { background-image: url(assets/img/drill/map-board-wide.webp); } }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .dr:has(> .dr-board) > .dr-dock { background: rgba(12, 14, 13, .82); border-top: 1px solid rgba(244, 241, 230, .15); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .dr:has(> .dr-board) { background: none; }
     .dr-trace { display: flex; align-items: stretch; gap: 0; padding: 8px 6px; border-radius: 10px; border: 3px solid var(--ink, #17131f); background: #1d2130; }
     .dr-edge { flex: 0 1 8px; min-width: 2px; align-self: center; height: 3px; background: #8d93a8; }
     .dr-node { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 10px; border: 3px solid #8d93a8; background: #2c3248; color: #fff; font-size: 11px; line-height: 1.1; text-align: center; }
@@ -544,8 +599,6 @@
       body.in-mode .dr-cols > .dr-r { position: sticky; top: 0; }
       body.in-mode .dr-cols > .dr-r:empty { display: none; }
       body.in-mode .dr-cols:has(> .dr-r:empty) { grid-template-columns: minmax(0, 760px); justify-content: center; }
-      body.in-mode .dr-win .dr-door { max-width: 260px; min-height: 64px; font-size: 14px; }
-      body.in-mode .dr-win .dr-map { padding: 14px; gap: 12px; }
       body.in-mode .dr-win .dr-node { font-size: 13px; padding: 8px 4px; } body.in-mode .dr-win .dr-node b { font-size: 13px; } body.in-mode .dr-win .dr-node .dr-gi { width: 30px; height: 30px; }
       body.in-mode .dr-win .dr-edge { flex-basis: 18px; }
       body.in-mode .dr-win .dr-hand { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
