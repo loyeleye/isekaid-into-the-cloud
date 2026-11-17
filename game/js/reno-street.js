@@ -234,14 +234,44 @@
     return { html: out, width: W, kind: 'bridge' };
   }
 
+  // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
+  // Perspective from the clock tower's door and the stall counters: an adult whose feet are at y stands PSL * (y - PHZ).
+  const PHZ = 489, PSL = 1.075, pph = y => PSL * (y - PHZ);
+  const PAR = { arch: 493 / 640, 'arch-cut': 491 / 640, 'res-cheer': 164 / 260 };
+  const pstand = (name, h, cx, feet, o) => {
+    o = o || {};
+    const w = h * (PAR[name] || AR[name] || 0.6);
+    return `<img class="rs-sp ${o.cls || ''}" src="${IMG(name)}" alt="${esc(o.alt || '')}" draggable="false" style="left:${px(cx - w / 2)};top:${px(feet - h)};width:${px(w)};height:${px(h)};${o.style || ''}">`;
+  };
+  // o: { cut: the ribbon is cut, folk: how many residents came, soot: how many of them carry soot, seymour: pose }
+  function plaza(o) {
+    let out = `<img class="rs-bg" src="${IMG('square')}" alt="" draggable="false" style="left:0">`;
+    const AX = 960, AY = 700, aH = pph(AY) * 1.75;
+    // The crowd: behind the arch first (smaller, further back), then in front. Cheering once the ribbon is cut.
+    const n = Math.min(o.folk || 0, 12), soot = Math.min(o.soot || 0, n);
+    const spots = [[640, 650], [1280, 655], [520, 680], [1420, 685], [740, 720], [1180, 725], [400, 740], [1540, 745], [600, 785], [1360, 790], [760, 800], [1160, 805]];
+    let back = '', front = '';
+    spots.slice(0, n).forEach(([x, y], i) => {
+      const h = pph(y) * 0.72, s = i < soot, flip = x > AX ? 'transform:scaleX(-1);' : '';
+      const sp = o.cut && !s ? pstand('res-cheer', h * 1.04, x, y, { cls: 'rs-cheer', alt: 'a resident, cheering', style: `${flip}animation-delay:${-(i * 0.23).toFixed(2)}s;` })
+        : s ? pstand('res-soot', h * 1.08, x, y, { alt: 'a resident with soot', style: flip })
+        : pstand('res-a', h, x, y, { alt: 'a resident, waiting', style: flip });
+      if (y < AY) back += shadow(x, y, h * 0.5) + sp; else front += shadow(x, y, h * 0.5) + sp;
+    });
+    out += back + shadow(AX, AY, aH * 0.75) + pstand(o.cut ? 'arch-cut' : 'arch', aH, AX, AY, { cls: o.cut ? 'rs-pop' : '', alt: o.cut ? 'the ribbon arch, the ribbon cut' : 'the ribbon arch, the ribbon still whole' });
+    if (o.seymour) { const sy = 735, h = pph(sy) * 1.30; out += shadow(1300, sy, h * 0.25) + stand('sey-' + o.seymour, h * SEY_SRC[o.seymour] / 1000, 1300, sy, { alt: 'Sir Seymour Backups', z: 3 }); }
+    out += front;
+    return { html: out, width: W, kind: 'plaza' };
+  }
+
   // ---- The scene: the world inside a camera, plus the foreground (Kai, and Seymour for close-ups) and the UI layer ----
   // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on, kai: face, close: Seymour's pose,
   //      ui: html laid over the scene, label }
   function scene(o) {
-    const w = o.bridge ? bridge(o) : o.stack ? yard(o) : world(o);
+    const w = o.plaza ? plaza(o) : o.bridge ? bridge(o) : o.stack ? yard(o) : world(o);
     const kai = o.kai ? `<img class="rs-kai" src="${IMG('kai-' + o.kai)}" alt="Kai" draggable="false" data-face="${esc(o.kai)}">` : '';
     const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
-    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${o.focus == null ? '' : o.focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
+    return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}${o.cls ? ' ' + o.cls : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${o.focus == null ? '' : o.focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
       <div class="rs-cam"><div class="rs-sizer"><div class="rs-world" style="width:${Math.round(w.width)}px">${w.html}</div></div></div>
       <div class="rs-fg">${kai}${sey}</div><div class="rs-ui">${o.ui || ''}</div></div>`;
   }
@@ -255,13 +285,14 @@
     el.classList.toggle('rs-wide', wide);
     const ww = +el.dataset.ww || W, shot = el.dataset.shot;
     let y0, h, cx;
-    const isYard = el.dataset.kind === 'yard', isBridge = el.dataset.kind === 'bridge';
+    const isYard = el.dataset.kind === 'yard', isBridge = el.dataset.kind === 'bridge', isPlaza = el.dataset.kind === 'plaza';
     if (shot === 'push' && isBridge) { h = H / (wide ? 2.0 : 1.6); y0 = 400 - h / 2; cx = BRIDGE_FOCUS[el.dataset.focus] || W / 2; }
     else if (shot === 'push' && isYard) { h = H / (wide ? 1.7 : 1.4); y0 = YF - YA * 1.1 - h / 2 + 40; cx = el.dataset.focus !== '' ? yx(+el.dataset.focus) : W / 2; }
     else if (shot === 'push') { h = H / (wide ? 2.4 : 2.0); y0 = FEET - HOUSE * 0.5 - h / 2 + 30; cx = el.dataset.focus !== '' ? centreX(+el.dataset.focus) : (X0 + W) / 2; }
     else if (shot === 'close') { h = H; y0 = 0; cx = W / 2; }
     else if (wide) { h = H; y0 = 0; cx = W / 2; }
-    else if (isBridge) { h = 760; y0 = 120; cx = BR.sign.x; }   // a phone: the far bank, the signpost between the shrines
+    else if (isBridge) { h = 760; y0 = 120; cx = BR.sign.x; }
+    else if (isPlaza) { h = 1000; y0 = 40; cx = 1090; }   // a phone: the arch, Seymour and some of the crowd   // a phone: the far bank, the signpost between the shrines
     else { h = 900; y0 = 172; cx = isYard ? yx(0) : centreX(0); }          // a phone: the street and the plaza, little sky
     // Fit the shot's height, but always cover the box: a wide box shows less sky rather than a dark edge.
     const s = Math.max(CH / h, CW / ww), vh = CH / s;
@@ -306,7 +337,7 @@
   }
   // A new tick: redraw the world only, so the camera box, Kai and the UI stay put.
   function update(el, o) {
-    const w = o.bridge ? bridge(o) : o.stack ? yard(o) : world(o), wd = el.querySelector('.rs-world');
+    const w = o.plaza ? plaza(o) : o.bridge ? bridge(o) : o.stack ? yard(o) : world(o), wd = el.querySelector('.rs-world');
     wd.innerHTML = w.html; wd.style.width = Math.round(w.width) + 'px'; el.dataset.ww = Math.round(w.width);
     frame(el); return w;
   }
@@ -357,6 +388,9 @@
     .rs-ring { animation: rs-ring .25s ease-in-out infinite alternate; transform-origin: 50% 0; }
     @keyframes rs-ring { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
     .rs-tester { animation: rs-in .55s ease-out both; }
+    .rs-cheer { animation: rs-hop .6s ease-in-out infinite alternate; }
+    @keyframes rs-hop { from { translate: 0 0; } to { translate: 0 -14px; } }
+    .rs-pop { animation: rs-pop .5s ease-out both; }
     .rs-plq.done { background: linear-gradient(#e6d3a3, #b99b5e); }
     .rs-fg { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
     .rs-kai { position: absolute; left: 0; bottom: -8%; height: 96%; width: auto; transform-origin: 50% 100%; animation: rs-breathe 3.6s ease-in-out infinite alternate; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
@@ -369,7 +403,7 @@
     .rs.rs-close .rs-kai, .rs:not(.rs-wide).rs-close .rs-kai { left: 2%; bottom: -6%; height: 78%; width: auto; top: auto; aspect-ratio: auto; border: 0; background: none; border-radius: 0; object-fit: fill; animation: rs-breathe 3.6s ease-in-out infinite alternate; }
     .rs-sey { position: absolute; right: 3%; bottom: -6%; height: calc(78% * 1.3 * var(--sh, 1)); width: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
     .rs:not(.rs-wide).rs-close .rs-kai { height: 62%; left: 0; width: auto; }
-    .rs:not(.rs-wide) .rs-hidephone { display: none; }
+    .rs:not(.rs-wide) .rs-hidephone, .rs.rs-nokp:not(.rs-wide) .rs-kai { display: none; }
     .rs:not(.rs-wide) .rs-sey { height: calc(62% * 1.3 * var(--sh, 1)); right: 0; max-width: 58%; object-fit: contain; object-position: right bottom; }
     .rs-ui { position: absolute; inset: 0; pointer-events: none; z-index: 3; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; gap: 8px; }
     .rs-ui > * { pointer-events: auto; }
@@ -391,7 +425,7 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
-    @media (prefers-reduced-motion: reduce) { .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-walk, .rs-walk .a, .rs-walk .b { animation: none !important; } .rs-walk .b { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .rs-cheer, .rs-pop, .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-walk, .rs-walk .a, .rs-walk .b { animation: none !important; } .rs-walk .b { opacity: 0; } }
   `;
   document.head.appendChild(css);
 

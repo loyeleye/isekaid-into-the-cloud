@@ -84,7 +84,7 @@
       const job = jobOf(s, i), k = job.grand ? 'grand' : job.d, n = used[k] = (used[k] || 0) + 1;
       const [x, y] = SPOTS[k][(n - 1) % SPOTS[k].length];
       const st = j.done ? (j.pass ? 'ok' : 'bad') : i === s.at ? 'on' : '';
-      return `<span class="rn-pin ${st}${job.grand ? ' grand' : ''}" style="left:${x}%;top:${y}%">${job.grand ? sprite('ribbon', 'rn-ribbon', 'the Grand Opening ribbon') : ''}${streetImg('pin', 'rn-pinsp')}<b>${j.done ? (j.pass ? '✓' : '✗') : i + 1}</b></span>`;
+      return `<span class="rn-pin ${st}${job.grand ? ' grand' : ''}" style="left:${x}%;top:${y}%">${job.grand ? streetImg('arch', 'rn-ribbon') : ''}${streetImg('pin', 'rn-pinsp')}<b>${j.done ? (j.pass ? '✓' : '✗') : i + 1}</b></span>`;
     }).join('');
     return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${streetImg('quarter-map', 'rn-mapsp')}${pins}</div>`;
   }
@@ -739,7 +739,14 @@
     const F = DR.foreman();
     const lastWin = s.jobs.map((j, i) => [j, i]).filter(([j]) => j.pass).pop();
     const top = lastWin ? planName(jobOf(s, lastWin[1]), lastWin[0].plans[lastWin[0].plans.length - 1].plan) : '';
+    // The market square (Sogni, CREDITS.md): the ribbon arch in front of the fountain. A pass cuts the ribbon a beat after
+    // the screen opens and the residents cheer; a miss leaves the ribbon whole and the square nearly empty.
+    const folk = g.pass ? 10 : 2, soot = s.jobs.reduce((a, j) => a + (j.pass ? 0 : 1), 0);
+    const sq = SD.renoStreet ? `<div class="rn-bleed">${SD.renoStreet.scene({ plaza: true, cls: 'rs-nokp', cut: false, folk, soot: g.pass ? Math.min(soot, 2) : 0, seymour: g.pass ? 'proud' : 'disapprove', kai: g.pass ? 'happy' : 'worried', shot: 'wide',
+      label: g.pass ? 'The market square: the residents gather at the ribbon arch' : 'The market square: the ribbon stays uncut',
+      ui: `<div class="rs-row"><span class="rs-chip ${g.pass ? 'ok' : 'bad'}">${g.pass ? 'The Grand Opening' : 'The ribbon stays uncut'}</span><span></span></div><div></div>` })}</div>` : '';
     const b = panel(`<p class="rn-night">Night ${s.night}: ${g.pass ? `${esc(gj.title.replace(/^Grand Opening: /, ''))} opens` : 'the ribbon stays uncut'}</p>
+      ${sq}
       ${say(foreman(), g.pass ? (top ? `${top}. That's what carried you tonight. ${F.end}` : F.end) : 'Not tonight. The Grand Opening comes back, and so does everything Seymour wrote down.')}
       <p>Jobs signed <b>${signed} of ${s.jobs.length}</b> · Permit questions right <b>${proofs} of ${s.debriefs.length}</b></p>
       ${s.tally ? M.calibHtml(s.tally) : ''}
@@ -748,6 +755,14 @@
       <p class="small muted">That's the night. Stop here: the next one opens tomorrow.</p>
       <div class="rn-dock"><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="primary" id="rn-done">Done</button></div>`);
     if (M.pipWire) M.pipWire(b, gj.title);
+    if (SD.renoStreet && sq) {
+      SD.renoStreet.mount(b);
+      const el = b.querySelector('.rs');
+      if (g.pass && el) {
+        const cut = () => { if (!el.isConnected) return; SD.renoStreet.update(el, { plaza: true, cut: true, folk, soot: Math.min(soot, 2), seymour: 'approve' }); if (U.burst) U.burst(el); };
+        if (reduced()) cut(); else setTimeout(cut, 1100);
+      }
+    }
     b.querySelector('#rn-q').onclick = () => DR.quarter(() => draw(cur()));
     b.querySelector('#rn-done').onclick = () => { s.phase = 'done'; save(s); U.closePanel(); stopNow(); };
   }
@@ -946,7 +961,7 @@
     .rn-pin.on .rn-pinsp { filter: drop-shadow(0 0 5px #ffd45a) drop-shadow(1px 3px 2px rgba(0,0,0,.45)); }
     .rn-pin.ok b { background: #9be3b0; } .rn-pin.bad b { background: #cfc8bc; } .rn-pin.on b { background: #ffd45a; }
     @keyframes rn-pinbob { from { translate: 0 0; } to { translate: 0 -5px; } }
-    .rn-ribbon { width: clamp(40px, 11vw, 84px); height: auto; margin-bottom: -4px; }
+    .rn-ribbon { width: clamp(30px, 6vw, 52px); height: auto; margin-bottom: -2px; }
     .rn-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #b23b3b; color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
     .rn-job.grand { box-shadow: inset 0 -4px 0 #b23b3b; }
     .rn-river { background: linear-gradient(#8fc6e8, #cfe8d0 55%, #4d8fb0 56%, #2f6d8f); color: #17131f; padding-bottom: 8px; }
