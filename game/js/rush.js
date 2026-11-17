@@ -198,6 +198,7 @@
     qEl.className = ''; qEl.innerHTML = '';
     // The cellar's review questions: letters from the earlier claims, the ones you've solved first.
     if (S.review) S.review.qpool = reviewPool();
+    if (SD.rushHall) SD.rushHall.afterReset(); // a piece from Dutch's parts cart starts placed (js/rush-hall.js)
     if (S.audit) { AUD.reset(); return; } // claim 8: the Night Audit's own intro
     if (S.office) officeReset(); // claim 7 (the office block below)
     else if (S.claim === 'sorter') yardReset();
@@ -1538,7 +1539,7 @@
     if (S.colds) bits.push(`${S.colds} cold starts`); if (S.expired) bits.push(`${S.expired} expired`);
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Claim closed.' : 'The floor flooded.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${againLabel}</button></div>`;
-    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => won && SD.rushHall ? SD.rushHall.won({ claim: S.claim, next: S.next || null, go: () => showPick(nextClaim) }) : won ? showPick(nextClaim) : reset(SEED + Math.floor(Math.random() * 1000), nextClaim)); b.focus();
   }
   // The letters. Written for this game from the AWS docs, none copied from practice exams. The first option (or
   // first tool) is the answer; the order is shuffled when the letter opens.
@@ -2072,7 +2073,7 @@
     }
   });
   addEventListener('keydown', e => {
-    if (!M || !M.yard || qEl.classList.contains('on') || view !== 'main') return;
+    if (!M || !M.yard || qEl.classList.contains('on') || view !== 'main' || (SD.rushHall && SD.rushHall.up())) return;
     if (e.key === 'r' || e.key === 'R') { if (!YD.lever(M)) { sfx('rLever'); yUI.leverT = 1; } }
     if (e.key === 'd' || e.key === 'D') { const d = M.y.dep; if (d && d.cfg === 'hand') YD.dial(M, M.alias.w + 0.1); }
     if (yUI.choice && ['w', 's', 'f'].includes(e.key)) YD.choose(M, { w: 'wait', s: 'stop', f: 'force' }[e.key]);
@@ -3399,7 +3400,7 @@
     qEl.className = 'on end';
     qEl.innerHTML = `<div class="end-strip"><div><b id="q-h">${won ? 'Dawn. The night is audited.' : 'The ink column filled.'}</b><span>${bits.join(' · ')}</span></div><button type="button" class="end-go">${won && M.next ? 'Next claim: ' + R.CLAIMS[M.next].title : won ? 'Play the Night Audit again' : 'Try the Night Audit again'}</button></div>`;
     // Won: on to the next claim (the New Sorter), coins carried. Lost: the Night Audit again.
-    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => { if (won) run.bank = Math.max(0, M.coins); showPick(won && M.next ? M.next : 'audit'); }); b.focus();
+    const b = qEl.querySelector('.end-go'); b.addEventListener('click', () => { if (won) run.bank = Math.max(0, M.coins); const go = () => showPick(won && M.next ? M.next : 'audit'); if (won && SD.rushHall) SD.rushHall.won({ claim: 'audit', next: M.next || null, go }); else go(); }); b.focus();
   }
   function audReset() {
     AU8.room = 'up'; AU8.armed = null; AU8.splash = []; AU8.shake = {}; cardClose();
@@ -4324,6 +4325,7 @@
   });
   cv.addEventListener('pointercancel', () => { drag = null; });
   addEventListener('keydown', e => {
+    if (SD.rushHall && SD.rushHall.up()) return; // the hall, debrief or parts cart is in front (js/rush-hall.js)
     // M (or V, as in the main game) mutes and unmutes everything.
     if ((e.key === 'm' || e.key === 'v') && AU) { AU.toggleMute(); return; }
     if (M.audit && !qEl.classList.contains('on')) { AUD.key(e); return; } // claim 8
@@ -4354,11 +4356,13 @@
   const first = qs.get('claim') || 'rush';
   if (qs.get('orders')) run.orders = qs.get('orders').split(',').filter(o => ORDER[o]);
   reset(SEED, first);
-  if (!qs.get('orders')) showPick(first);
+  // With no ?claim or ?orders, the night starts in the claims hall (js/rush-hall.js): a door opens a claim's pick.
+  if (!qs.get('orders') && !qs.get('claim') && SD.rushHall) SD.rushHall.open(c => showPick(c));
+  else if (!qs.get('orders')) showPick(first);
   // For tools/rush_check.js: where things are on screen, in CSS pixels.
   const toClient = p => [ox + p[0] * scale, oy + p[1] * scale];
   window.SD_RUSH = {
-    get S() { return M; }, get run() { return run; }, get view() { return view; }, switchRoom, reset, showPick, place: tryPlace, start: () => R.start(M), turn: t => R.turn(M, t),
+    get S() { return M; }, get run() { return run; }, letters: LETTERS, toolSrc, get view() { return view; }, switchRoom, reset, showPick, place: tryPlace, start: () => R.start(M), turn: t => R.turn(M, t),
     at: { slot: i => { const r = slotRect(i); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, spot: t => { const r = spot(t); return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); }, lever: () => toClient([L.lever.x, L.lever.y]), inset: () => { const r = L.inset.r; return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
       ask: id => { let q = null; withRoom('review', () => { const k = M.review.tickets.find(x => x.id === id); q = k && toClient(askPos(k)); }); return q; } }
   };
