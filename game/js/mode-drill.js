@@ -161,7 +161,7 @@
   // shows in the line under the controls when it's hovered, focused or tapped.
   const DIALS = {
     authttl: { at: 'gate', needs: 'auth', label: 'Authorizer cache', icon: 'hourglass', ids: ['ttl0', 'ttl300', 'ttl3600'] },
-    cachettl: { at: 'gate', needs: 'cache', label: 'Stage cache TTL', icon: 'hourglass', ids: ['cttl0', 'cttl300', 'cttl3600'] },
+    gcachettl: { at: 'gate', needs: 'gcache', label: 'Stage cache TTL', icon: 'hourglass', ids: ['gttl0', 'gttl300', 'gttl3600'] },
     retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
@@ -169,6 +169,9 @@
     sec: { at: 'fn', needs: 'secret', label: 'The ledger password', icon: 'key', ids: ['secinit', 'secttl', 'seccall'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
     key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
+    cstrat: { at: 'store', needs: 'cache', label: 'Caching strategy', icon: 'card-random', ids: ['cachelazy', 'cachewt'] },
+    cttl: { at: 'store', needs: 'cache', label: 'Cache TTL', icon: 'hourglass', ids: ['cttl0', 'cttl10', 'cttl60', 'cttl3600'] },
+    uexp: { at: 'fn', needs: 'upload', label: 'URL ExpiresIn', icon: 'stopwatch', ids: ['exp60', 'exp900', 'exp7d', 'exp30d'] },
     sfnretry: { at: 'queue', needs: 'sfn', label: 'Charge: Retry, 3 attempts', icon: 'anticlockwise-rotation', ids: ['rnone', 'rtrans', 'rall'] },
     sfncatch: { at: 'queue', needs: 'sfn', label: 'Catch CardDeclined → ReleaseStock', icon: 'return-arrow', ids: ['catchnone', 'catchno', 'catchrp'] },
     rot: { at: 'store', needs: 'secret', label: 'Secret rotation', icon: 'anticlockwise-rotation', ids: ['rotsingle', 'rotalt', 'rotoff'] },
@@ -183,17 +186,21 @@
     secinit: 'Once, at start-up', secttl: 'Extension, 5 min', seccall: 'Every call', refetch: 'Login fails? Read it again',
     ttl0: 'Off', ttl300: '5 min', ttl3600: '1 hour', authwild: 'Policy covers the whole API', fninvoke: 'Allow execute-api:Invoke',
     keysplit: 'Partner gets its own key', quotaup: 'Quota 100 a day', stagerate: 'Raise stage throttle',
-    cttl0: 'Off', cttl300: '5 min', cttl3600: '1 hour', ckey: 'Cache key + customerId', flush: 'Flush the cache', maxage: 'Clients send max-age=0',
+    gttl0: 'Off', gttl300: '5 min', gttl3600: '1 hour', ckey: 'Cache key + customerId', gflush: 'Flush the stage cache', maxage: 'Clients send max-age=0',
     consread: 'ConsistentRead', daxnode: 'Add a DAX node', gsiread: 'Consistent read on the index',
     rotsingle: 'Single user', rotalt: 'Alternating', rotoff: 'Off', bisect: 'Bisect on error', retry2: 'Max retries 2', onfail: 'On failure → orders-failed',
+    cachelazy: 'Lazy loading', cachewt: 'Write-through', cttl0: 'None', cttl10: '10 s', cttl60: '60 s', cttl3600: '1 hour', replica: 'Add a read replica', flush: 'FLUSHALL',
+    exp60: '60 s', exp900: '15 min', exp7d: '7 days', exp30d: '30 days', demand: 'Sign each part as it\'s sent', userkey: 'Sign with a user\'s key', single: 'One PUT, no parts',
+    lifecycle: 'Abort unfinished uploads, 1 day', publicput: 'Anyone may PutObject',
     snsattr: 'order_type as an attribute', scopebody: 'Filter reads the body', nofilter: 'Remove the filter', subdlq: 'Redrive → shipping-dlq', rawon: 'Raw message delivery',
     rnone: 'Off', rtrans: 'Lambda ×3', rall: 'States.ALL', catchnone: 'Off', catchno: 'On', catchrp: 'On + $.error', catchfirst: 'States.ALL first',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
     prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
     ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield',
-    refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox', keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', flush: 'broom', maxage: 'anticlockwise-rotation',
-    snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random' };
+    refetch: 'anticlockwise-rotation', authwild: 'ticket', fninvoke: 'key', consread: 'checked-shield', daxnode: 'pie-chart', gsiread: 'card-random', bisect: 'split-arrows', retry2: 'anticlockwise-rotation', onfail: 'mailbox',
+    snsattr: 'ticket', scopebody: 'scroll-quill', nofilter: 'broom', subdlq: 'return-arrow', rawon: 'mailbox', catchfirst: 'card-random', replica: 'pie-chart', flush: 'broom', demand: 'stopwatch', userkey: 'key', single: 'card-random', lifecycle: 'broom', publicput: 'padlock-open',
+    keysplit: 'key', quotaup: 'pie-chart', stagerate: 'medieval-gate', ckey: 'key', gflush: 'broom', maxage: 'anticlockwise-rotation' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -239,7 +246,7 @@
     return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
   }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', fanout: 'queue', flow: 'queue', quota: 'gate', cache: 'gate' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn', secret: 'store', stream: 'queue', auth: 'gate', reads: 'store', fanout: 'queue', flow: 'queue', cache: 'store', churn: 'store', presign: 'fn', token: 'store' , quota: 'gate', gcache: 'gate' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {
