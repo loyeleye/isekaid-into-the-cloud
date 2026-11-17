@@ -399,7 +399,8 @@
       ok: m => m.dupes === 0 && m.condBlocked === 0 && m.timeouts === 0 && m.left === 0 && !m.visShort, fix: [['vis360']], lazy: [['vis60'], ['vis120'], ['to120'], ['to30'], ['cond'], ['to120', 'vis360']],
       hidden: 'The queue\'s visibility timeout was shorter than the work, so messages came back while still being worked.',
       q: /visibility timeout|received (more than once|twice)|duplicate|six times|6x/i },
-    poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async',
+    // itemFailures: at the Function, ReportBatchItemFailures is a batch you tap the failing message in (js/drill-batch.js).
+    poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async', itemFailures: true,
       says: 'One order in there will never go through.',
       setup: v => ({ arrivals: t => steady(2)(t).concat(t === 1 + (v.k % 3) ? [R('bad', { poison: true })] : []) }),
       break: c => { c.queue.on = true; c.queue.vis = 30; c.fn.timeout = 30; c.fn.batch = 3; },
@@ -780,7 +781,9 @@
           const w = write(x.r);
           if (w === 'ok' || w === 'blocked' || w === 'dupe') done.push(x); else failed = true;
         }
-        if (timedOut) { m.timeouts++; m.errors++; el = cfg.fn.timeout; } else if (failed) m.errors++;
+        // A failure reported in batchItemFailures is a successful invocation (the function returned), so Errors
+        // doesn't count it; without ReportBatchItemFailures the handler's error is a failed invocation.
+        if (timedOut) { m.timeouts++; m.errors++; el = cfg.fn.timeout; } else if (failed && !cfg.fn.partial) m.errors++;
         m.maxDur = Math.max(m.maxDur, el);
         // Without ReportBatchItemFailures, any failure returns the whole batch: nothing is deleted.
         const del = timedOut || (failed && !cfg.fn.partial) ? [] : done;

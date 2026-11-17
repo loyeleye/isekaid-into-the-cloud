@@ -10,7 +10,9 @@
 // open on later nights (materials and the twin retry, reputation and the second tier of clients), plus the foreman.
 // Build orders (Nov 16 formats plan): two of the six clients bring a Sequence item from js/qformats.js, worked and
 // practice the first two times, then scored with the same stakes; a miss scaffolds without going on the Wall.
-// Run from game/:  node tools/draft_check.js     SHOTS=dir saves screenshots.
+// Lifecycle build orders (Nov 17): a build order that is a real lifecycle (CodeDeploy hooks, the Lambda execution
+// environment) shows its elevation in the inspection, each storey labelled with its event in run order; others none.
+// Run from game/:  node tools/draft_check.js     SHOTS=dir saves screenshots (at deviceScaleFactor 2).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -31,7 +33,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: SHOTS ? 2 : 1 });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -452,6 +454,88 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.draft.quarter()); await wait(20);
   await page.click(`#panel [data-bq="${sq}"]`); await wait(10);
   check(/Plaque · build order/.test(await txt()) && /scaffolding came off when its build order held/.test(await txt()), 'its plaque says it is a build order and how it was finished');
+
+  // ---- Lifecycle build orders: each storey labelled with its event, in order (gesture audit, Nov 17) ----
+  // Data first: every label is a real event of its lifecycle, in run order, one per step; extras are events the order
+  // leaves out and can't be scripted; any build order made only of one lifecycle's event names is labelled.
+  const life = await page.evaluate(() => {
+    const D = SD.draft, bad = [], ids = Object.keys(D.LIFE);
+    ids.forEach(id => {
+      const x = D.seqFind(id), L = D.LIFE[id], names = D.HOOK_NAMES[L.life], by = D.HOOK_BY[L.life];
+      if (!x) return bad.push(id + ': no such build order');
+      if (!names || !by) return bad.push(id + ': unknown lifecycle ' + L.life);
+      const S = D.storeys(x);
+      if (!S) return bad.push(id + ': storeys don\'t match its steps');
+      let last = -1;
+      S.storeys.forEach((s, i) => {
+        const k = names.indexOf(s.hook);
+        if (k < 0) bad.push(`${id}: ${s.hook} is not a ${L.life} event`);
+        if (k < last) bad.push(`${id}: ${s.hook} is out of run order`);
+        last = Math.max(last, k);
+        if (s.step == null && !s.by) bad.push(`${id}: ${s.hook} is left out of the order but can be scripted`);
+        if (/^CodeDeploy/.test(L.life) && s.step != null && s.step !== s.hook) bad.push(`${id}: step ${i + 1} "${s.step}" labelled ${s.hook}`);
+      });
+      Object.keys(by).forEach(h => { if (!names.includes(h)) bad.push(`${L.life}: HOOK_BY names ${h}`); });
+    });
+    const allNames = Object.values(D.HOOK_NAMES);
+    const missing = D.seqItems().filter(x => !D.LIFE[x.id] && allNames.some(ns => x.steps.every(t => ns.includes(t)))).map(x => x.id);
+    const s01 = D.storeys(D.seqFind('fmt-seq-01'));
+    return { bad, missing, n: ids.length, nonLife: D.seqItems().filter(x => !D.LIFE[x.id]).every(x => D.storeys(x) === null),
+      agent: s01 && s01.storeys.filter(s => s.by === 'the agent').map(s => s.hook).join(',') };
+  });
+  check(!life.bad.length, `every storey label is a real event of its lifecycle, in run order (${life.n} build orders)${life.bad.length ? ': ' + life.bad.slice(0, 4).join('; ') : ''}`);
+  check(!life.missing.length, `every build order made of lifecycle events is labelled${life.missing.length ? ': ' + life.missing.join(', ') : ''}`);
+  check(life.nonLife, 'other build orders have no storey labels');
+  check(life.agent === 'DownloadBundle,Install', `the EC2 in-place order marks DownloadBundle and Install as run by the agent (${life.agent})`);
+  // Then on screen: a scored lifecycle build order's inspection, and a non-lifecycle one's.
+  // These plays are set apart: the save as it was comes back afterwards, so the checks below see the night they had.
+  const kept = await page.evaluate(() => JSON.stringify(SD.draft.save()));
+  const playOne = async (id, right) => {
+    await page.evaluate(qid => {
+      const d = SD.draft.save(); d.retry = null; d.placing = null;
+      d.run = { preset: null, items: [{ q: qid, seq: 1, client: 'mira' }], tally: SD.modes.newTally(), floors: 0, misses: 0, sure: 0, mat: 0, rep: 0, t0: Date.now(), qMs: 0, mapMs: 0, open: 0, since: '', level: SD.draft.level() };
+      SD.state.persist(); SD.draft.open();
+    }, id);
+    await wait(20);
+    await playSeq(right, 1);
+    return title();
+  };
+  const storeyHooks = () => page.$$eval('#panel .dr-elev .dr-st', els => els.map(e => e.dataset.hook));
+  check(await playOne('fmt-seq-01', true) === 'INSPECTION', 'a lifecycle build order (EC2 in-place) reaches the inspection');
+  const want01 = await page.evaluate(() => SD.draft.seqFind('fmt-seq-01').steps.join(','));
+  check((await storeyHooks()).join(',') === want01, `each storey is labelled with its hook, ground floor first (${(await storeyHooks()).join(' → ')})`);
+  const geo = await page.evaluate(() => {
+    const st = [...document.querySelectorAll('#panel .dr-elev .dr-st')].map(e => e.getBoundingClientRect());
+    return { up: st.every((b, i) => !i || b.bottom <= st[i - 1].top + 1), auto: [...document.querySelectorAll('#panel .dr-st.auto')].map(e => e.dataset.hook).join(','),
+      anim: getComputedStyle(document.querySelector('#panel .dr-st')).animationName, tag: document.querySelector('#panel .dr-st.auto .dr-st-by').textContent };
+  });
+  check(geo.up, 'the storeys stack upward in run order, so the height is the lifecycle');
+  check(geo.auto === 'DownloadBundle,Install' && /agent/i.test(geo.tag), `the agent's storeys are hatched and tagged (${geo.auto}, "${geo.tag}")`);
+  check(geo.anim === 'dr-land', 'each storey lands in turn');
+  await noHScroll('lifecycle elevation');
+  // Screenshots wait for every storey to land (the delays aren't cut by the 1ms animation style above).
+  const landed = () => (SHOTS ? page.waitForTimeout(2800) : null);
+  await page.evaluate(() => document.querySelector('#panel .dr-elev').scrollIntoView({ block: 'center' }));
+  await landed(); await shot('hooks-ec2');
+  if (SHOTS) await page.locator('#panel .dr-elev').screenshot({ path: path.join(SHOTS, 'draft-hooks-ec2-elevation.png') });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  check(await page.evaluate(() => getComputedStyle(document.querySelector('#panel .dr-st')).animationName) === 'none', 'with reduced motion the storeys stand without the drop');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // ECS scriptable hooks: the events CodeDeploy runs stand between them as their own storeys.
+  await playOne('fmt-seq-02', false);
+  const h02 = await storeyHooks();
+  check(h02.join(',') === 'BeforeInstall,Install,AfterInstall,AllowTestTraffic,AfterAllowTestTraffic,BeforeAllowTraffic,AllowTraffic,AfterAllowTraffic', `ECS: the whole lifecycle stands, with CodeDeploy's own events between the hooks (${h02.join(' → ')})`);
+  check(/How it should stand/.test(await txt()), 'a missed lifecycle build order shows how it should stand');
+  await noHScroll('ECS elevation');
+  await page.evaluate(() => document.querySelector('#panel .dr-elev').scrollIntoView({ block: 'center' }));
+  await landed(); await shot('hooks-ecs-miss');
+  if (SHOTS) await page.locator('#panel .dr-elev').screenshot({ path: path.join(SHOTS, 'draft-hooks-ecs-elevation.png') });
+  await playOne('fmt-seq-14', true);
+  check((await storeyHooks()).join(',') === 'Init,Init,Init,Invoke,Shutdown' && /Extension init/.test(await txt()), 'the Lambda execution environment order is labelled with its phases, each step under its phase');
+  await landed(); if (SHOTS) await page.locator('#panel .dr-elev').screenshot({ path: path.join(SHOTS, 'draft-hooks-lambda-env-elevation.png') });
+  await playOne('fmt-seq-06', true);
+  check(await title() === 'INSPECTION' && !await page.$('#panel .dr-elev'), 'a non-lifecycle build order (a pipeline) has no labelled storeys');
+  await page.evaluate(k => { SD.state.save.draft = JSON.parse(k); SD.state.persist(); SD.ui.closePanel(); }, kept);
 
   // ---- Night 3: reputation, the second tier, and Ayo ----
   check(await page.evaluate(() => { const d = SD.draft.save(); d.nights = ['a', 'b', 'c']; d.rep = 0; const a = SD.draft.clientsOpen().length; d.rep = 3; const b = SD.draft.clientsOpen(); return a === 4 && b.includes('marrow') && b.includes('pip') && !b.includes('coo'); }), 'reputation brings a second tier of clients (Coo stays foreman)');

@@ -2,7 +2,8 @@
 // (375px): the picker, no walkthrough, the map with two bosses, the warm-up run, the trace map and its grey nodes, a
 // station's metrics and settings, a refused setting, observing, a look-alike, the fix, the postmortem on a plain exam
 // screen, resume after a reload, an escalation, a whole night and night 2's forks.
-// Short Fuse's visibility timeline is dragged by mouse, by touch and by the keyboard.
+// Short Fuse's visibility timeline is dragged by mouse, by touch and by the keyboard. The Poison Batch's failing message
+// is tapped into batchItemFailures (js/drill-batch.js).
 // Run from game/:  node tools/drill_check.js     SHOTS=dir saves screenshots (DSF=2 at twice the pixels).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -424,6 +425,45 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await noHScroll('short fuse past 6x', '#panel .dr-tray *'); await shot('fuse-after');
   await deploy();
   check((await st()).drill.state === 'contained', 'past 6x the function timeout contains Short Fuse');
+
+  // ---- The Poison Batch: tap the failing message to return it in batchItemFailures (js/drill-batch.js). With no
+  // failures reported the function errors and the whole batch goes back; listing the bad message sends only it back,
+  // the rest are deleted, and with the DLQ that contains it. ----
+  await open('poison');
+  const pb = () => page.evaluate(() => { const t = document.querySelector('.dr-tray .pb'); if (!t) return null;
+    return { recs: t.querySelectorAll('.pb-rec').length, bad: t.querySelectorAll('.pb-rec.bad[data-card="partial"]').length, on: !!t.querySelector('.pb-rec.on'),
+      resp: t.querySelector('.pb-resp').textContent, esm: t.querySelector('.pb-esm').textContent, back: [...t.querySelectorAll('.pb-slip.back')].map(e => e.querySelector('b').textContent),
+      gone: t.querySelectorAll('.pb-slip.gone').length, sw: !!document.querySelector('.dr-tray .dr-tog[data-card="partial"]'),
+      badId: SD.drillBatch.batch(SD.state.save.drill.drill).find(r => r.bad).id, badOrd: SD.drillBatch.batch(SD.state.save.drill.drill).find(r => r.bad).ord }; });
+  let p = await pb();
+  check(!!p && p.recs === 3 && p.bad === 1 && !p.on && !p.sw && /no batchItemFailures/.test(p.resp) && /not set/.test(p.esm) && p.back.length === 3 && !p.gone,
+    'The Poison Batch: the Function shows one batch of 3 (event.Records) with the bad message, no ReportBatchItemFailures switch; the handler raises, so all 3 go back');
+  await hkScroll('poison batch: whole batch back');
+  if (SHOTS) { await page.$eval('.dr-tray .pb', e => e.scrollIntoView({ block: 'start' })); await shot('poison-before'); await page.$eval('.dr-tray .pb-chalk', e => e.scrollIntoView({ block: 'end' })); await shot('poison-before-slate'); }
+  // A good message isn't a change, by keyboard or by tap.
+  await page.focus('.dr-tray [data-pb-ok]'); await page.keyboard.press('Enter');
+  check((await st()).drill.changes.length === 0 && /went through/.test(await page.evaluate(() => [...document.querySelectorAll('.floatnum')].map(e => e.textContent).join(' '))), 'Enter on a good message says it went through, and changes nothing');
+  // Deploy with nothing reported (the DLQ alone): the whole batch keeps coming back and good orders end up parked.
+  await place('dlq'); await deploy();
+  s = await st();
+  let pbm = s.drill.log[s.drill.log.length - 1].m;
+  check(s.drill.state !== 'contained' && (pbm.goodParked > 0 || pbm.dupes > 0), `no batchItemFailures: whole batches go back (${pbm.dupes} written twice, ${pbm.goodParked} good orders in the DLQ), not contained`);
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'fn'; s.zoom = true; SD.state.persist(); SD.drillUi.draw(); });
+  await page.click('.dr-tray .pb-rec.bad');
+  p = await pb();
+  let body = null; try { body = JSON.parse(p.resp.replace(/^\s*return\s*/, '')); } catch (x) { /* not JSON */ }
+  check(p.on && body && Array.isArray(body.batchItemFailures) && body.batchItemFailures.length === 1 && body.batchItemFailures[0].itemIdentifier === p.badId
+    && p.esm === 'FunctionResponseTypes: [ReportBatchItemFailures]' && (await st()).drill.changes.join() === 'partial',
+  'tapping the bad message returns { "batchItemFailures": [ { "itemIdentifier": its messageId } ] }, the trigger shows FunctionResponseTypes: [ReportBatchItemFailures], one change');
+  check(p.back.join() === p.badOrd && p.gone === 2, `only ${p.badOrd} goes back to the queue; the other 2 are deleted`);
+  await hkScroll('poison batch: only it goes back');
+  if (SHOTS) { await page.$eval('.dr-tray .pb', e => e.scrollIntoView({ block: 'start' })); await shot('poison-after'); await page.$eval('.dr-tray .pb-chalk', e => e.scrollIntoView({ block: 'end' })); await shot('poison-after-slate'); }
+  await deploy();
+  s = await st(); pbm = s.drill.log[s.drill.log.length - 1].m;
+  check(s.drill.state === 'contained' && pbm.dupes === 0 && pbm.goodParked === 0 && pbm.poisonParked + pbm.parked >= 1, 'only the bad message goes back (and on to the DLQ): The Poison Batch is contained');
+  check(pbm.errors === 0 && await page.evaluate(() => { const f = SD.state.save.drill.drill, e = f.log[f.log.length - 1]; return SD.drill.metrics(f.drill, f.cfg, e.m).fn.some(([n, v]) => n === 'Errors' && v === 0); }),
+    'a failure reported in batchItemFailures is a successful invocation: the Function\'s Errors metric reads 0');
+  check(!!await page.$('#dr-next'), 'the drill moves on to its debrief as before');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();

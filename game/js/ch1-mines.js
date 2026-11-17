@@ -77,7 +77,8 @@
       ['triage', { name: 'Field Triage', cost: 1, kind: 'action', abs: { any: 6 }, draw: 1, art: 'pulse', text: 'Absorb {any} load. Draw 1. "Worst first. You, sit. You, breathe."' }],
       ['splint', { name: 'Splint and Carry On', cost: 2, kind: 'action', mit: 12, art: 'pulse', text: 'Mitigate {mit}. She has splinted a dragon. It said thank you.' }]]],
     ['kai', 'Kai', 'Undoes what props it up', 84, 138, 'unmaking', [
-      ['revoke', { name: 'Revoke Older Sessions', real: 'AWSRevokeOlderSessions: Deny if aws:TokenIssueTime < now', cost: 1, kind: 'action', pow: 8, tags: ['revoke'], art: 'eraser', text: 'Deny everything for sessions issued before now. Old keys stop working; fresh ones don\'t.' }],
+      // revokeOld (js/raid.js): strips what the target gained on earlier turns, in place of its hit; with nothing to strip, it hits.
+      ['revoke', { name: 'Revoke Older Sessions', real: '"DateLessThan": { "aws:TokenIssueTime": "<cutoff>" }', cost: 1, kind: 'action', pow: 8, revokeOld: true, tags: ['revoke'], art: 'eraser', text: 'Deny every session issued before now: the enemy loses what it gained on earlier turns, and keeps this turn\'s. Nothing to strip? It hits instead.' }],
       ['unpick', { name: 'Unpick the Grant', cost: 0, kind: 'action', vuln: 1, selfDmg: 1, exhaust: true, art: 'eraser', text: 'This turn the enemy takes 50% more mitigation. The team loses 1 SLA. Exhaust. He pulls one thread.' }]]],
     ['seoyeon', 'Seo-yeon', 'Hits hardest', 107, 145, 'peakstyle', [
       ['summit', { name: 'Summit Strike', cost: 1, kind: 'action', mit: 8, art: 'bolt2', text: 'Mitigate {mit}. From the top of the mountain, down.' }],
@@ -133,6 +134,9 @@
 
   // ---------- Enemies ----------
   // raid: only the mines fight them. denies: cards this enemy refuses (js/raid.js); denyWhy: why, when it isn't an explicit Deny.
+  // Each pattern step's call is the real request it makes, [action, resource ARN], shown as its intent. blockBy: what
+  // stops that call when a Deny or Boundary card lands on it, where js/raid.js's default line would be wrong (a
+  // boundary or a key policy is an implicit deny; only the Asterisk's SCP is an explicit Deny).
   const F = (o) => Object.assign({ ch: 1, raid: true, resist: {} }, o);
   Object.assign(SD.enemies, {
     // Floor 1, the Galleries
@@ -141,25 +145,25 @@
       symptom: 'Every call returns AccessDenied, and no policy anywhere mentions the action.',
       weak: { allow: 'An Allow for exactly this action on exactly this resource lifts the implicit deny.', leastpriv: 'A scoped role that allows just this call is all it takes.' },
       resist: { deny: 'There is no Deny to find. Nothing allows it, which is a different problem.' },
-      pattern: [{ t: 'read', n: 5 }, { t: 'read', n: 6 }, { t: 'burst', n: 7 }] }),
+      pattern: [{ t: 'read', n: 5, call: ['s3:GetObject', 'arn:aws:s3:::ore-maps/north.png'] }, { t: 'read', n: 6, call: ['dynamodb:GetItem', 'arn:aws:dynamodb:us-east-1:111122223333:table/MineShifts'] }, { t: 'burst', n: 7, call: ['sqs:SendMessage', 'arn:aws:sqs:us-east-1:111122223333:cart-orders'] }] }),
     wildslime: F({ name: 'Wildcard Slime', short: 'Slime', cause: 'Action "*" grants far more than the job needs', sev: 30, concept: 'polanatomy', tier: 1, sprite: 'm1slime',
       flavor: 'It fits into every action. That\'s the problem.',
       symptom: 'A policy for a log reader says "Action": "*". The reader just deleted a table.',
       weak: { arn: 'Name the actions and resources the job uses. The star has nowhere to grow.', leastpriv: 'Least privilege: exactly the actions the code calls, nothing else.' },
       resist: { allow: 'Another Allow on top of "*" changes nothing. It is already allowed everything.' },
-      pattern: [{ t: 'write', n: 6 }, { t: 'read', n: 7 }, { t: 'escalate' }, { t: 'write', n: 8 }] }),
+      pattern: [{ t: 'write', n: 6, call: ['s3:DeleteObject', 'arn:aws:s3:::ore-maps/*'] }, { t: 'read', n: 7, call: ['s3:ListBucket', 'arn:aws:s3:::ore-maps'] }, { t: 'escalate', call: ['iam:AttachRolePolicy', 'arn:aws:iam::111122223333:role/log-reader'] }, { t: 'write', n: 8, call: ['dynamodb:DeleteTable', 'arn:aws:dynamodb:us-east-1:111122223333:table/MineShifts'] }] }),
     mimic: F({ name: 'Bucket Mimic', short: 'Mimic', cause: 's3:ListBucket is granted on bucket/* instead of the bucket', sev: 30, concept: 's3arn', tier: 1, sprite: 'm1mimic',
       flavor: 'It looks like the bucket. It\'s the things in it.',
       symptom: 'Downloads work, but listing the bucket returns AccessDenied. The policy grants s3:ListBucket on arn:aws:s3:::ore-carts/*.',
       weak: { arn: 'ListBucket acts on the bucket ARN, arn:aws:s3:::ore-carts, not on its objects.', resource: 'Fix the resource the action points at, and it lists.' },
       resist: { allow: 'An Allow on the wrong ARN never matches, however many you add.' },
-      pattern: [{ t: 'read', n: 7 }, { t: 'burst', n: 8 }, { t: 'read', n: 7 }] }),
+      pattern: [{ t: 'read', n: 7, call: ['s3:ListBucket', 'arn:aws:s3:::ore-carts'] }, { t: 'burst', n: 8, call: ['s3:PutObject', 'arn:aws:s3:::ore-carts/*'] }, { t: 'read', n: 7, call: ['s3:GetObject', 'arn:aws:s3:::ore-carts/*'] }] }),
     keygoblin: F({ name: 'Leaky Key Goblin', short: 'Key Goblin', cause: 'Old access keys in the environment win over the role', sev: 28, concept: 'credchain', tier: 1, sprite: 'm1goblin',
       flavor: 'It found your keys in a shell script from 2019.',
       symptom: 'The instance role allows the call, but the error names an old IAM user. AWS_ACCESS_KEY_ID is set in the startup script.',
       weak: { chain: 'The SDK checks environment variables before the instance profile. Remove the old keys and the chain reaches the role.', fresh: 'Short-lived credentials from a role, instead of keys that never expire.', assume: 'Work as a role: its keys expire on their own.' },
       resist: { allow: 'The role already allows it. The SDK just isn\'t using the role.' },
-      pattern: [{ t: 'read', n: 6 }, { t: 'write', n: 7 }, { t: 'burst', n: 8 }] }),
+      pattern: [{ t: 'read', n: 6, call: ['s3:GetObject', 'arn:aws:s3:::ore-maps/*'] }, { t: 'write', n: 7, call: ['s3:PutObject', 'arn:aws:s3:::ore-maps/*'] }, { t: 'burst', n: 8, call: ['ec2:RunInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }] }),
     boundarywall: F({ name: 'The Boundary Wall', short: 'Boundary Wall', cause: 'A permissions boundary caps the role below what its policy allows', sev: 46, concept: 'guardrails', tier: 2, elite: true, sprite: 'm1wall',
       flavor: 'You have AdministratorAccess. The wall has the final say.',
       symptom: 'The role has AdministratorAccess, but its permissions boundary allows only s3:GetObject. Everything else is denied.',
@@ -167,7 +171,8 @@
       resist: { allow: 'More Allows don\'t lift a boundary. It caps them.', admin: 'AdministratorAccess is capped like everything else.' },
       denyWhy: 'Its permissions boundary caps the role at s3:GetObject. A boundary isn\'t a Deny: it never grants, so anything outside it is simply not allowed (an implicit deny), however much the role\'s own policy allows.',
       denies: ['adminaccess'],
-      pattern: [{ t: 'read', n: 9 }, { t: 'write', n: 10 }, { t: 'escalate' }, { t: 'burst', n: 11 }] }),
+      blockBy: { deny: 'the permissions boundary, which leaves it out (an implicit deny, not a Deny).', boundary: 'the permissions boundary, which leaves it out (an implicit deny, not a Deny).' },
+      pattern: [{ t: 'read', n: 9, call: ['s3:ListBucket', 'arn:aws:s3:::ore-maps'] }, { t: 'write', n: 10, call: ['s3:PutObject', 'arn:aws:s3:::ore-maps/*'] }, { t: 'escalate', call: ['iam:DeleteRolePermissionsBoundary', 'arn:aws:iam::111122223333:role/gallery-admin'] }, { t: 'burst', n: 11, call: ['s3:DeleteObject', 'arn:aws:s3:::ore-maps/*'] }] }),
     asterisk: F({ name: 'The Great Asterisk', short: 'Asterisk', cause: 'Allow * on *, everywhere, for everyone', sev: 78, concept: 'guardrails', tier: 3, boss: true, sprite: 'm1asterisk',
       flavor: 'It was a temporary policy. In 2017.',
       symptom: 'Every role in the galleries has Allow * on *. An SCP denies the dangerous actions, and nobody knows which ones are which any more.',
@@ -175,38 +180,40 @@
       resist: { allow: 'Allowing more doesn\'t help against Allow *.', admin: 'AdministratorAccess is the Asterisk\'s own policy. It only feeds it.' },
       denyWhy: 'The SCP over these galleries carries an explicit Deny for the dangerous actions, and an explicit Deny beats every Allow, even AdministratorAccess.',
       denies: ['adminaccess'],
-      pattern: [{ t: 'write', n: 10 }, { t: 'read', n: 11 }, { t: 'burst', n: 13 }, { t: 'escalate', up: 3 }, { t: 'write', n: 12 }] }),
+      blockBy: { deny: 'the SCP\'s explicit Deny, which beats every Allow, even * on *.' },
+      pattern: [{ t: 'write', n: 10, call: ['iam:CreateUser', 'arn:aws:iam::111122223333:user/*'] }, { t: 'read', n: 11, call: ['secretsmanager:GetSecretValue', 'arn:aws:secretsmanager:us-east-1:111122223333:secret:*'] }, { t: 'burst', n: 13, call: ['ec2:TerminateInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'escalate', up: 3, call: ['iam:CreatePolicyVersion', 'arn:aws:iam::111122223333:policy/AllowStar'] }, { t: 'write', n: 12, call: ['s3:DeleteBucket', 'arn:aws:s3:::ore-maps'] }] }),
     // Floor 2, the Trust Vaults
     untrusted: F({ name: 'The Untrusted', short: 'Untrusted', cause: 'The role\'s trust policy doesn\'t name the caller', sev: 32, concept: 'roles', tier: 1, sprite: 'm2untrusted',
       flavor: 'It isn\'t on the list. Neither are you.',
       symptom: 'sts:AssumeRole fails with AccessDenied. The role\'s trust policy names a different account.',
       weak: { trust: 'Name the caller in the trust policy: it decides who may assume the role.', resource: 'A trust policy is the role\'s resource policy. Across accounts, it must name you.' },
       resist: { assume: 'Calling AssumeRole again gets the same answer.' },
-      pattern: [{ t: 'read', n: 7 }, { t: 'burst', n: 8 }, { t: 'read', n: 8 }] }),
+      pattern: [{ t: 'read', n: 7, call: ['sts:AssumeRole', 'arn:aws:iam::111122223333:role/vault-reader'] }, { t: 'burst', n: 8, call: ['sts:AssumeRole', 'arn:aws:iam::111122223333:role/vault-writer'] }, { t: 'read', n: 8, call: ['sts:AssumeRole', 'arn:aws:iam::111122223333:role/vault-auditor'] }] }),
     sessionwraith: F({ name: 'Session Wraith', short: 'Wraith', cause: 'A leaked session is still valid until it expires', sev: 32, concept: 'roles', tier: 1, sprite: 'm2wraith',
       flavor: 'It was issued at 08:30. It plans to stay until 20:30.',
       symptom: 'Someone copied a role session\'s credentials. They work for hours, until the session expires.',
       weak: { revoke: 'Revoke older sessions: a Deny on every session issued before now.', fresh: 'New sessions are issued after the revoke, so they still work.', expiry: 'Shorter sessions leave less time for a leaked one.' },
       resist: { allow: 'The leaked session already has every Allow it needs.' },
-      pattern: [{ t: 'read', n: 7 }, { t: 'write', n: 8 }, { t: 'burst', n: 8 }] }),
+      pattern: [{ t: 'read', n: 7, call: ['s3:GetObject', 'arn:aws:s3:::ore-vault/*'] }, { t: 'write', n: 8, call: ['s3:PutObject', 'arn:aws:s3:::ore-vault/*'] }, { t: 'burst', n: 8, call: ['dynamodb:BatchWriteItem', 'arn:aws:dynamodb:us-east-1:111122223333:table/VaultLedger'] }] }),
     chainserpent: F({ name: 'Chain Serpent', short: 'Serpent', cause: 'The SDK found keys in a file before it reached the task role', sev: 30, concept: 'credchain', tier: 1, sprite: 'm2serpent',
       flavor: 'It bites whoever comes first in the chain.',
       symptom: 'A container baked with an old ~/.aws/credentials file calls S3 as a long-deleted user instead of its task role.',
       weak: { chain: 'Shared credential files come before container credentials. Take the file out of the image.', assume: 'Let the task role hand out short-lived keys.' },
       resist: { trust: 'The task role\'s trust policy is fine. The SDK never asks for it.' },
-      pattern: [{ t: 'write', n: 7 }, { t: 'read', n: 7 }, { t: 'escalate' }] }),
+      pattern: [{ t: 'write', n: 7, call: ['s3:PutObject', 'arn:aws:s3:::cart-manifests/*'] }, { t: 'read', n: 7, call: ['s3:GetObject', 'arn:aws:s3:::cart-manifests/*'] }, { t: 'escalate', call: ['iam:CreateAccessKey', 'arn:aws:iam::111122223333:user/old-deployer'] }] }),
     twokeytroll: F({ name: 'Two-Key Troll', short: 'Troll', cause: 'Across accounts, only one side allows the call', sev: 34, concept: 'respolicy', tier: 1, sprite: 'm2troll',
       flavor: 'It has two locks. You brought one key.',
       symptom: 'A role in account B can read a bucket in account A according to its own policy, but the bucket policy in A names nobody from B.',
       weak: { resource: 'The bucket\'s policy in account A must allow the role too.', assume: 'Assume a role in account A instead, and A\'s own policies decide.' },
       resist: { allow: 'Your side already allows it. The other side has to say yes as well.' },
-      pattern: [{ t: 'read', n: 8 }, { t: 'write', n: 8 }, { t: 'burst', n: 9 }] }),
+      pattern: [{ t: 'read', n: 8, call: ['s3:GetObject', 'arn:aws:s3:::vault-a-ledgers/*'] }, { t: 'write', n: 8, call: ['s3:PutObject', 'arn:aws:s3:::vault-a-ledgers/*'] }, { t: 'burst', n: 9, call: ['s3:DeleteObject', 'arn:aws:s3:::vault-a-ledgers/*'] }] }),
     errorsprite: F({ name: 'Encoded Error Sprite', short: 'Error Sprite', cause: 'The denial\'s reason is hidden in an encoded message', sev: 28, concept: 'authdebug', tier: 1, sprite: 'm2sprite',
       flavor: 'It knows exactly why. It just won\'t say it in plain text.',
       symptom: 'RunInstances fails with UnauthorizedOperation and a long encoded authorization message.',
       weak: { deny: 'Decode it with sts:DecodeAuthorizationMessage and find the policy that said no.', arn: 'The decoded message names the exact action and resource. Match them.' },
       resist: { allow: 'Guessing at Allows before reading the reason rarely lands.' },
-      pattern: [{ t: 'burst', n: 7 }, { t: 'read', n: 7 }, { t: 'write', n: 8 }] }),
+      blockBy: { deny: 'the explicit Deny the decoded message names, which beats every Allow.' },
+      pattern: [{ t: 'burst', n: 7, call: ['ec2:RunInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'read', n: 7, call: ['ec2:GetConsoleOutput', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'write', n: 8, call: ['ec2:StartInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }] }),
     keykeeper: F({ name: 'The Key Keeper', short: 'Key Keeper', cause: 'The KMS key policy doesn\'t let IAM policies count', sev: 48, concept: 'authdebug', tier: 2, elite: true, sprite: 'm2keeper',
       flavor: 'Your IAM policy says yes. The key never asked IAM.',
       symptom: 'The role\'s policy allows kms:Decrypt, but the key policy lists only its administrators. Decrypt fails with AccessDeniedException.',
@@ -214,13 +221,14 @@
       resist: { allow: 'An IAM Allow doesn\'t count until the key policy lets it.', admin: 'Even AdministratorAccess can\'t use a key whose policy doesn\'t trust the account.' },
       denyWhy: 'Its key policy names only the key\'s admins and doesn\'t let the account\'s IAM policies count. That isn\'t a Deny: an IAM Allow, even AdministratorAccess, just never gets a say (an implicit deny).',
       denies: ['adminaccess'],
-      pattern: [{ t: 'read', n: 10 }, { t: 'write', n: 10 }, { t: 'escalate' }, { t: 'burst', n: 12 }] }),
+      blockBy: { deny: 'the key policy, which doesn\'t let IAM policies count (an implicit deny, not a Deny).' },
+      pattern: [{ t: 'read', n: 10, call: ['kms:Decrypt', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'write', n: 10, call: ['kms:Encrypt', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'escalate', call: ['kms:PutKeyPolicy', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'burst', n: 12, call: ['kms:GenerateDataKey', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }] }),
     deputy: F({ name: 'The Confused Deputy', short: 'Deputy', cause: 'A vendor\'s role can be used for the wrong customer, with no ExternalId', sev: 84, concept: 'xacct', tier: 3, boss: true, sprite: 'm2deputy',
       flavor: 'He has keys to every vault, and he does whatever the last person asked.',
       symptom: 'A vendor assumes roles in its customers\' accounts. Any customer can give it the ARN of your role, and it will happily assume it for them.',
       weak: { externalid: 'Require a unique ExternalId in the trust policy. The deputy only gets in when he says your customer\'s ID.', trust: 'A trust policy that names exactly who may assume the role, and on what condition.' },
       resist: { assume: 'He can already assume the role. That\'s the trouble.', admin: 'More power for a confused deputy is the worst idea in the mine.' },
-      pattern: [{ t: 'read', n: 11 }, { t: 'write', n: 12 }, { t: 'burst', n: 13 }, { t: 'escalate', up: 3 }, { t: 'write', n: 13 }] })
+      pattern: [{ t: 'read', n: 11, call: ['sts:AssumeRole', 'arn:aws:iam::111122223333:role/VendorAccess'] }, { t: 'write', n: 12, call: ['s3:PutObject', 'arn:aws:s3:::customer-exports/*'] }, { t: 'burst', n: 13, call: ['s3:DeleteObject', 'arn:aws:s3:::customer-exports/*'] }, { t: 'escalate', up: 3, call: ['iam:UpdateAssumeRolePolicy', 'arn:aws:iam::111122223333:role/VendorAccess'] }, { t: 'write', n: 13, call: ['s3:PutBucketPolicy', 'arn:aws:s3:::customer-exports'] }] })
   });
 
   // ---------- Field Notes and Policy Sorts ----------
