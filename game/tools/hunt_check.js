@@ -218,8 +218,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(pinOk, 'Pin comes from the Track question: the right reason is that wrong option\'s own "why not" line, and every reason is existing bank text');
   await noHScroll('pin it down');
   await shot('pin');
-  const pv = await pin(true, 2);
-  check(/PINNED IT!/.test(pv) && /\+3 pts/.test(pv), 'Pin verdict: one line, with the stake (+3 for a right Sure)');
+  check(await page.evaluate(() => [...document.querySelectorAll('#panel [data-pc]')].map(b => b.firstChild.textContent).join('|')) === 'Guess|Think so', 'Pin offers Guess and Think so, not Sure');
+  const tally0 = await page.evaluate(() => JSON.stringify(SD.state.save.hunt.tally));
+  const pv = await pin(true, 1);
+  check(/PINNED IT!/.test(pv) && /\+2 pts/.test(pv), 'Pin verdict: one line, with the stake (+2 for a right Think so)');
+  check(await page.evaluate(t => JSON.stringify(SD.state.save.hunt.tally) === t, tally0), 'Pin stays out of the calibration tally');
   check(await page.evaluate(id => !SD.state.save.wall.some(w => w.id === id), posters[0]), 'captured: the poster comes down');
   check(await page.evaluate(() => SD.state.save.bestiary.length === 1 && !!SD.state.save.bestiary[0].lesson), 'and it goes into the bestiary with its lesson');
   check(await page.evaluate(() => SD.state.save.hunt.mons[0].out === 'captured'), 'outcome: captured');
@@ -265,7 +268,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.waitForSelector('.hn-results');
   const res = await page.textContent('#panel');
   check(/✓\s*.*Captured/.test(res) && /Escaped · back next hunt/.test(res) && /Wounded · back tomorrow/.test(res), 'results: each outcome as a word and a shape');
-  check(/How sure you were/.test(res) && /Sure\s*:?\s*2 of 2 right/.test(res), 'results: the calibration readout');
+  check(/How sure you were/.test(res) && /Sure\s*:?\s*1 of 1 right/.test(res), 'results: the calibration readout (Pin isn\'t in it)');
   check(!/stamina/.test(res), 'results: no stamina points');
   check(/\+20 XP · \+5 shards/.test(res) && await page.evaluate(() => SD.state.save.modes.paid.hunt === new Date().toDateString()), 'results: pays XP and shards once a day, marked where the shared shell marks it');
   check(/Pip: "Sorry to be a bother\. Why did that work\?"/.test(res), 'Pip gets the last word');
