@@ -862,6 +862,7 @@
     }
     /* The living war room (js/drill-room.js): the room is the screen; the station's desk slides up over it. */
     .dr-roomw { position: relative; }
+    .dr-top, .dr-jar { position: relative; z-index: 3; }   /* her cloud (.rm-perch, z-index 2) hangs behind these */
     .dr-hint { flex: 1 1 auto; align-self: center; font-weight: 700; font-size: 14px; opacity: .85; }
     .dr-roomw.zoomed .dr-stamp { display: none; }   /* the verdict stamp stays with the room view, off the lead you pushed in on */
     .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
