@@ -25,10 +25,10 @@
   const plural = (n, a, b) => `${n} ${n === 1 ? a : (b || a + 's')}`;
   const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const NAMES = { mira: 'Mira', seoyeon: 'Seo-yeon', dutch: 'Dutch', kai: 'Kai', marrow: 'Goodwife Marrow', pip: 'Pip', coo: 'Postmaster Coo', ayo: 'Ayo', seymour: 'Sir Seymour Backups' };
-  // The cast's PixelLab portraits straight from the files, as js/draft.js draws them; the shared art as a fallback.
+  // The cast's painted busts (tools/portrait_busts.py), in either art style, since the street behind them is painted too.
   const FACES = ['mira', 'seoyeon', 'dutch', 'kai', 'marrow', 'pip', 'coo', 'ayo', 'seymour'];
   const head = who => {
-    if (FACES.includes(who) && !window.SD_VECTOR) return `<span class="rn-head"><img src="assets/img/portraits/${who}-neutral.webp" alt="" draggable="false"></span>`;
+    if (FACES.includes(who)) return `<span class="rn-head"><img src="assets/img/portraits-painted/${who}.webp" alt="" draggable="false"></span>`;
     try { return SD.art && SD.art.portrait ? `<span class="rn-head">${SD.art.portrait(who, 34, 'neutral')}</span>` : ''; } catch (e) { return ''; }
   };
   // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
