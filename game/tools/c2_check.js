@@ -201,7 +201,8 @@ async function openPage(browser, name, errors) {
   const page = await CTX.newPage();
   page.on('pageerror', e => errors.push(name + ' pageerror: ' + e.message));
   // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push(name + ' raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  // The title carousel's card stills (assets/video/cards/, js/title-games.js) are photos the vector build shows on purpose.
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png|\/assets\/video\/cards\//.test(r.url())) errors.push(name + ' raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push(name + ' console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   return page;

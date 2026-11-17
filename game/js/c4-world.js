@@ -611,6 +611,11 @@
     if (W.debug.onAfter && W.debug.onAfter(xp, won)) return;
     // An expedition starts from a raid gate's scene (inside act), or from the end card (outside one).
     const run = fn => (busy ? fn() : act(fn));
+    // The Last Letter starts only from the end card, so a lost one goes back there: the floors have no way into it.
+    if (!won && xp === 'k4letter') {
+      U.system('THE LAST LETTER', 'The party wakes by the camp fire, bruised. The Letter waits for you on the end card: try it again when you\'re ready.');
+      return endCard();
+    }
     if (!won) {
       w().pos = [10, 26]; S.persist();
       sc = null; W.enter();

@@ -228,7 +228,8 @@ function step([WIN, LEAD]) {
   const errors = [];
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('pageerror', e.stack); });
   // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  // The title carousel's card stills (assets/video/cards/, js/title-games.js) are photos the vector build shows on purpose.
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png|\/assets\/video\/cards\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); if (m.type() === 'warning' && /qpick: no question/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(d => { window.SD_TEST = 1; window.__drawFirst = d; }, DRAW);
   await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)

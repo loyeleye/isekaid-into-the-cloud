@@ -99,9 +99,13 @@ function step([WIN, LEAD, CHOICE]) {
       window.__boss = window.__boss || {};
       if (rd.querySelector('.combat.bossfight') && G && !window.__boss[G.fl + ':' + G.k]) { window.__boss[G.fl + ':' + G.k] = 1; return 'boss:floor' + (G.fl + 1); }
       if (WIN && T.hosting()) { T.win(); return 'raid:win'; }
+      // A card that names a teammate asks who first (js/raid.js's chooser).
+      if ((x = rd.querySelector('[data-mate]'))) return click(x) && 'raid:mate';
       const c = [...rd.querySelectorAll('.hand .card')].find(c => !c.classList.contains('dim'));
       if (c) return click(c) && 'raid:card';
-      if ((x = rd.querySelector('#end-turn, [data-send*="end"]'))) return click(x) && 'raid:end-turn';
+      // The raid's end of turn is Ready (#rd-ready); once ready it reads "Not ready yet", which mustn't be pressed.
+      const mine = G && G.players[me];
+      if ((x = rd.querySelector('#rd-ready:not([disabled])')) && mine && !mine.ready) return click(x) && 'raid:ready';
       return 'fight-wait';
     }
     if (ph === 'map') {
@@ -153,7 +157,8 @@ function step([WIN, LEAD, CHOICE]) {
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   // The app icon (assets/app/) is linked above @page-start, so only the dev page loads it; the published page never does.
-  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png/.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
+  // The title carousel's card stills (assets/video/cards/, js/title-games.js) are photos the vector build shows on purpose.
+  page.on('request', r => { if (/\.(webp|png|jpe?g|gif)(\?|$)/i.test(r.url()) && !/\/assets\/img\/(opening|portraits|vn|cut|lead)\/|\/assets\/app\/icon-[\w-]+\.png|\/assets\/video\/cards\//.test(r.url())) errors.push('raster image requested: ' + r.url().replace(/^.*?\/assets\//, 'assets/')); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { window.SD_TEST = 1; });
   await page.addInitScript(() => { window.SD_NO_TYPING = 1; });   // the typing step has its own check (tools/type_once_check.js)
