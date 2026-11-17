@@ -211,8 +211,9 @@
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
     // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
-    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id));
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id))).map(n => {
+    const CD = SD.drillCode, file = CD && CD.file(f.drill, k), held = file ? CD.held(f.drill, k) : [];
+    const hand = D.HANDS[k].filter(id => D.shown(f.drill, id) && !held.includes(id));
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
@@ -223,10 +224,26 @@
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
       ${talk ? said(k, st.who, talk, e.m) : ''}
       <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n).replace(/([a-z])([A-Z-])/g, '$1<wbr>$2')}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
-      ${dials}
-      ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
+      ${file ? codeHtml(s, f, k, file) + (dials || sws ? `<details class="dr-more"><summary>Other settings</summary>${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}</details>` : '')
+        : `${dials}${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}`}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
+  }
+  // The code desk (js/drill-code.js): the station's file in blocks. The open block lists its edits as diffs.
+  function codeHtml(s, f, k, file) {
+    const open = s.blk && s.blk.k === k && s.blk.d === f.drill ? s.blk.i : -1;
+    const blocks = file.blocks.map((b, i) => {
+      const code = esc(b.code(f.cfg));
+      const edits = i === open ? (b.edits.some(id => !C[id].on(f.cfg)) ? `<div class="dr-edits" role="group" aria-label="Edits for this block">${b.edits.filter(id => !C[id].on(f.cfg)).map(id => {
+        const c = C[id], on = c.on(f.cfg), why = on ? '' : D.why(f, id), placed = f.changes.includes(id);
+        const dl = on ? [] : SD.drillCode.diff(b, f.cfg, id), cut = Math.min(...dl.map(([, l]) => l.match(/^ */)[0].length));
+        const diff = dl.map(([m, l]) => [m, l.slice(cut)]).map(([m, l]) => `<span class="dr-dl-${m === '+' ? 'add' : m === '-' ? 'del' : 'ctx'}">${m} ${esc(l)}</span>`).join('\n');
+        return `<button class="dr-edit${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" data-tip="${esc(c.text)}" title="${esc(c.name)}">
+          ${on ? `<span class="dr-en">${icon('checked-shield')}As it is now</span>` : ''}${diff ? `<pre class="dr-diff">${diff}</pre>` : ''}</button>`;
+      }).join('')}</div>` : '<p class="dr-edits none small">Nothing to change in this block.</p>') : '';
+      return `<button class="dr-blk${i === open ? ' open' : ''}" data-blk="${i}" aria-expanded="${i === open}"><pre>${code}</pre></button>${edits}`;
+    }).join('');
+    return `<div class="dr-code"><p class="dr-file">${icon('scroll-quill')}<code>${esc(file.file)}</code><span>Tap the part you'd change.</span></p>${blocks}</div>`;
   }
   function said(k, who, talk, m) {
     const ls = (talk.lines || []).filter(x => x[0] === who).map(x => x[1]);
@@ -307,6 +324,11 @@
       return;
     }
     b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; if (RO && !over) s.zoom = true; save(s); draw(s); });
+    b.querySelectorAll('[data-blk]').forEach(el => el.onclick = () => {
+      const i = +el.dataset.blk, o = s.blk;
+      s.blk = o && o.k === s.at && o.d === f.drill && o.i === i ? null : { k: s.at, d: f.drill, i };
+      save(s); draw(s);
+    });
     const back = b.querySelector('#dr-back');
     if (back) back.onclick = () => { s.zoom = false; save(s); draw(s); };
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
@@ -476,6 +498,24 @@
     .dr-say.bad { background: #fbe4dc; border-color: #9e3a34; } .dr-said .dr-say.bad:first-child::before { border-bottom-color: #9e3a34; }
     .dr-say.teach { background: #fff3c4; }
     .dr-said .dr-say { display: block; }
+    .dr-code { margin: 8px 0; border-radius: 10px; background: #1c1a24; border: 2px solid #17131f; box-shadow: inset 0 0 0 1px rgba(214, 178, 84, .35), 0 3px 6px rgba(0, 0, 0, .45); overflow: hidden; }
+    .dr-file { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; padding: 6px 10px; background: #2b2735; color: #e8d6b0; font-size: 12px; }
+    .dr-file code { color: #ffd98a; } .dr-file span { margin-left: auto; font-style: italic; opacity: .8; }
+    .dr-blk { display: block; width: 100%; margin: 0; padding: 2px 8px; border: 0; border-left: 3px solid transparent; background: none; text-align: left; cursor: pointer; color: #e9e4f2; }
+    .dr-blk:hover, .dr-blk:focus-visible { background: rgba(255, 255, 255, .05); }
+    .dr-blk.open { border-left-color: #ffd257; background: rgba(255, 210, 87, .08); }
+    .dr-blk pre, .dr-diff { margin: 0; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .dr-edits { display: grid; gap: 6px; padding: 6px 8px 8px 14px; background: rgba(255, 210, 87, .06); }
+    .dr-edits.none { margin: 0; color: #c9bfae; font-style: italic; }
+    .dr-edit { display: block; width: 100%; text-align: left; padding: 6px 8px; border-radius: 8px; border: 2px solid #8a6a2a; background: #f6ecd2; color: #17131f; cursor: pointer; }
+    .dr-edit .dr-en { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    .dr-edit .dr-gi { width: 16px; height: 16px; }
+    .dr-edit .dr-diff { background: #fffaf0; border-radius: 4px; padding: 3px 5px; color: #17131f; }
+    .dr-dl-add { color: #1f6b33; background: #dcf3dc; display: inline-block; width: 100%; } .dr-dl-del { color: #8a2a24; background: #f8dcd8; display: inline-block; width: 100%; text-decoration: line-through; text-decoration-color: rgba(138, 42, 36, .5); }
+    .dr-dl-ctx { color: #6b6378; display: inline-block; width: 100%; }
+    .dr-edit.new { box-shadow: 0 0 0 2px #ffd257; }
+    .dr-edit.no { opacity: .7; }
+    .dr-more { margin: 6px 0; color: #e8d6b0; } .dr-more summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }
     .dr-mt code { font-size: 10.5px; overflow-wrap: anywhere; color: #3a3346; background: none; padding: 0; }
