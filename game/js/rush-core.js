@@ -26,6 +26,34 @@
 //     copy and has to open each one to throw most of them away, so its tray (Lambda's async event queue) backs up;
 //     a copy that waits longer than the maximum event age is discarded, and a refund lost that way is a lost request.
 //     The filter card is a subscription filter policy on Reports' subscription: SNS only sends it the refunds.
+//   - Claim 6, the Hot Shelf (the Records Vault): after Mira does a ticket she files it in one of four cabinets, a
+//     DynamoDB table's partitions. The cabinet comes from a hash of the caller (the partition key), so all of one
+//     caller's tickets go to the same cabinet. Each cabinet files at most so many tickets a second (a partition's
+//     ceiling: 1,000 write units a second), and tonight one caller sends most of the tickets, so their cabinet
+//     throttles while the other three sit idle. A throttled write isn't the end: the SDK retries it with exponential
+//     backoff, and Mira's stool stays taken while it waits. After three throttles the SDK gives up and the ticket is
+//     lost (off the rack it goes back on the rack instead, like any failed message). The suffix stamp is write
+//     sharding: a suffix calculated from the ticket number is added to the busy caller's key, so their tickets
+//     spread across all four cabinets. The on-demand dial is on-demand capacity mode: each cabinet can go up to the
+//     per-partition ceiling instead of its share of the table's provisioned capacity, which helps a little, but
+//     the hot caller wants more than one cabinet's ceiling. (Adaptive capacity is on anyway and has the same cap.)
+//     Two rooms: while the vault runs, the cellar from the first claims is open too, with lighter waves, as review
+//     (CLAIMS.review, a second state in S.review, stepped with the first). Its tickets need the old fixes (the rack,
+//     the bin, the bolted stools). The two rooms share the coins and the tank (the error budget), and the night only
+//     ends when both are done.
+//   - Review questions and the intern (the cellar in claim 6): some tickets are review questions, the letters of
+//     earlier claims (ids in S.qpool, set by js/rush.js). They wait on Mira's desk until someone answers; a right
+//     answer files them, a wrong one or one left too long is a lost request. The intern (a coin buy) takes any question
+//     the player has already solved (the answer book) and answers it after a moment, wrong about one time in five.
+//     Its answers wait, stamped, for the player to check: a wrong one caught is saved, and a wrong one nobody checks
+//     in time goes into the files and leaks into the tank every few seconds until someone catches it. Checking is a
+//     glance; answering is reading the whole question, so the intern pays when it's watched. (No AWS idea here:
+//     this is the review.)
+//   - The answer book (S.book): one record per question (the letters, by id), whoever answered it. js/rush.js
+//     records the player's answers with answer(S, id, right, 'player'); a record is solved once the player has
+//     got it right. The book is passed into create() and carried through the run, and a second room writes to its
+//     first room's book. It's there so another answerer (by: anything but 'player') can be hooked in later and
+//     its answers told apart from the player's: see answer() and solved().
 //   - Night Orders (one of two picked before each claim, and they stack): optional twists on these rules.
 //     Each has a catch and an upside.
 //       cold:   a stool nobody has used for a few seconds is cold, and its next ticket takes three times as long.
@@ -43,6 +71,10 @@
 //               deduplication), and never hands out a twin.
 //       shelf:  a ticket left on the rack too long expires and is lost. That's the queue's message retention period
 //               (1 minute to 14 days in SQS; seconds here). Upside: the rack is free (SQS's free tier).
+//       eventual: before closing a ticket Mira looks it up, and now and then the read comes back stale (it doesn't
+//               show a write that only just finished), so she reads again and her stool stays taken a bit longer.
+//               That's DynamoDB's default, the eventually consistent read; asking again shortly returns the new item.
+//               Upside: eventually consistent reads cost half as much, so a coin at the start of every claim.
 //     Letters (questions between waves), stakes and the timeout are Night Orders too, but they're about the
 //     questions, so they live in js/rush.js.
 (function (root) {
@@ -54,8 +86,16 @@
     // the hourglass); the stopwatch cuts any job off at fnTimeout. Batching does two tickets in batchX of the time.
     heavy: 4, vis: 3, visHourglass: 9, fnTimeout: 6, stuckSay: 7, batchX: 1.5,
     // The Picky Bell: a copy waiting in Reports' tray longer than maxAge is discarded (maximum event age).
-    maxAge: 5, report: 2.6
+    maxAge: 5, report: 2.6,
+    // The Hot Shelf: Mira's quick job before filing; each cabinet's filing rate a second (its share of the table) and
+    // with the on-demand dial (the per-partition ceiling); how many unused filings a cabinet can bank (burst).
+    // Eventually consistent: how often a read comes back stale, and how long the second look takes.
+    vaultWork: 0.25, cabRate: 0.8, cabMax: 1.0, cabBurst: 2.5, staleP: 0.12, stale: 0.8,
+    // Review questions: how long one waits for an answer; the intern's thinking time and how often it's wrong; how
+    // long its answer waits to be checked; how often a wrong one nobody caught leaks into the tank.
+    askWait: 14, internThink: 1.5, internWrong: 0.25, checkWindow: 8, leak: 3
   };
+  const CABS = 4, HOT_CAB = 2;
   const STOOLS = 6, CLERK_MAX = 4, RESERVE = 4, CAP = 12, MAX_THROTTLES = 3, MAX_RECEIVES = 3, TWIN_P = 0.1;
   // Each wave: how many tickets, over how many seconds, and how many of them are poison.
   const WAVES = [
@@ -115,6 +155,32 @@
     ]
   };
   CLAIMS.slow.next = 'picky';
+  // Claim 6: the Records Vault. One caller sends most of the tickets, and their cabinet throttles. See the header.
+  CLAIMS.hot = {
+    name: 'THE HOT SHELF', title: 'the Hot Shelf', locked: [], next: null, close: 56, clerk: 'papers',
+    belt: ['shard', 'ondemand', 'rack'], vault: true, mira: 3, coins: 1,
+    // hot: the share of each wave's tickets from the one busy caller.
+    waves: [
+      { n: 12, secs: 5, poison: 0, hot: 0.8 },
+      { n: 16, secs: 5, poison: 0, hot: 0.8 },
+      { n: 18, secs: 5, poison: 0, hot: 0.8 },
+      { n: 24, secs: 6, poison: 0, hot: 0.8 }
+    ]
+  };
+  CLAIMS.picky.next = 'hot';
+  // The review room for claim 6: the cellar of claims 1 to 3, lighter, with poison from wave 3. Never played alone.
+  CLAIMS.review = {
+    name: 'THE CELLAR', title: 'the cellar', locked: [], next: null, close: 56, clerk: 'papers',
+    // ask: how many review questions come down in the wave, between the tickets.
+    belt: ['rack', 'reserve', 'bin', 'intern'],
+    waves: [
+      { n: 8, secs: 4, poison: 0, ask: 2 },
+      { n: 10, secs: 4, poison: 0, ask: 3 },
+      { n: 10, secs: 5, poison: 2, ask: 3 },
+      { n: 14, secs: 6, poison: 2, ask: 4 }
+    ]
+  };
+  CLAIMS.hot.review = 'review';
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
@@ -123,14 +189,17 @@
     ledger: { name: 'Ledger', aws: 'DynamoDB conditional write (idempotency)', cost: 1 },
     hourglass: { name: 'Hourglass', aws: 'Visibility timeout', cost: 1 },
     stopwatch: { name: 'Stopwatch', aws: 'Function timeout', cost: 1 },
-    filter: { name: 'Filter card', aws: 'SNS subscription filter policy', cost: 1 }
+    filter: { name: 'Filter card', aws: 'SNS subscription filter policy', cost: 1 },
+    shard: { name: 'Suffix stamp', aws: 'Write sharding (partition key suffix)', cost: 1 },
+    ondemand: { name: 'On-demand dial', aws: 'On-demand capacity mode', cost: 1 },
+    intern: { name: 'Intern', aws: 'Review helper (answers what you\'ve solved)', cost: 1 }
   };
   function rng(seed) {
     let a = seed >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
-  // coins: what's left over from the last claim, on top of the usual 2.
-  function create(seed, claim, orders, coins) {
+  // coins: what's left over from the last claim, on top of the usual 2. book: the run's answer book (a Map), if any.
+  function create(seed, claim, orders, coins, book) {
     const C = CLAIMS[claim] || CLAIMS.rush;
     const S = {
       claim: CLAIMS[claim] ? claim : 'rush', name: C.name, locked: C.locked.slice(), next: C.next, close: C.close,
@@ -139,7 +208,11 @@
       seed: seed >>> 0, rand: rng(seed || 1), time: 0, started: false, over: null, tray: [], reports: 0, rings: 0,
       wave: 0, spawns: [], nextId: 1, tickets: [], queue: [],
       rack: !!C.rackUp, reserve: false, bin: false, hourglass: false, stopwatch: false, visibility: !!C.visibility, bell: !!C.bellUp, picky: !!C.picky, filter: false, filtered: 0, tossed: 0, aged: 0, deduped: 0, sent: new Set(), reappeared: 0, timedOut: 0, batches: 0, batchFails: 0,
-      coins: 2 + (coins || 0), bonusGiven: false,
+      book: book || new Map(), qpool: [], asks: [], quizN: 0, intern: false, asked: 0, reviewed: 0, byYou: 0, byIntern: 0, caught: 0, missed: 0, leaked: 0, unanswered: 0, wrongYou: 0,
+      // Two rooms (claim 6) start with a coin more.
+      coins: 2 + (C.coins || 0) + (coins || 0) + ((orders || []).includes('eventual') ? 1 : 0), bonusGiven: false, stale: 0,
+      vault: !!C.vault, miraStools: C.mira || 0, shard: false, ondemand: false, hotThrottles: 0, writeLost: 0,
+      cabs: Array.from({ length: CABS }, () => ({ tok: T.cabBurst, filed: 0, throttled: 0, heat: 0 })),
       spill: 0, cap: CAP, handled: 0, binned: 0, twins: 0, throttles: 0, lost: 0,
       placed: [], events: [], clogT: 0, allSpawned: false
     };
@@ -151,18 +224,22 @@
       for (let i = 0; i < w.n; i++) {
         const poison = poisonAt.has(i);
         const at = t + (i / w.n) * w.secs + S.rand() * 0.25, key = 'k' + S.spawns.length;
-        S.spawns.push({ t: at, wave: wi + 1, poison, stuck: poison && !!C.visibility, ribbon: !poison && S.rand() < (w.ribbon || 0), heavy: !poison && !!w.heavy && S.rand() < w.heavy, refund: !poison && !!w.refund && S.rand() < w.refund, group: i % 3, key });
+        S.spawns.push({ t: at, wave: wi + 1, poison, stuck: poison && !!C.visibility, ribbon: !poison && S.rand() < (w.ribbon || 0), heavy: !poison && !!w.heavy && S.rand() < w.heavy, refund: !poison && !!w.refund && S.rand() < w.refund, hot: !poison && !!w.hot && S.rand() < w.hot, cab: w.hot ? Math.floor(S.rand() * CABS) : 0, group: i % 3, key });
         // A nervous caller sends the same ticket again a moment later.
         if (!poison && C.resend && S.rand() < C.resend) S.spawns.push({ t: at + 0.8 + S.rand() * 1.6, wave: wi + 1, poison: false, ribbon: false, group: i % 3, key, resend: true });
       }
+      // Review questions, spread through the wave (no dice, so the room's other rolls are untouched).
+      for (let j = 0; j < (w.ask || 0); j++) S.spawns.push({ t: t + (j + 0.5) / w.ask * w.secs + 0.2, wave: wi + 1, poison: false, quiz: true, key: 'q' + j, qn: S.quizN++ });
       t += w.secs + T.gap;
     });
     S.spawns.sort((a, b) => a.t - b.t);
+    // A second room running alongside (its own seed, so this room's rolls are untouched). It shares the coins and the tank.
+    if (C.review) { S.review = create(((seed >>> 0) ^ 0x5bd1e995) >>> 0, C.review, orders, 0, S.book); S.review.parent = S; S.review.close = S.close; }
     return S;
   }
   // Which stools are whose. Index 0 is next to Mira's desk.
   function owners(S) {
-    const mira = S.reserve ? RESERVE : STOOLS - CLERK_MAX;
+    const mira = S.reserve ? RESERVE : S.miraStools || STOOLS - CLERK_MAX;
     return Array.from({ length: STOOLS }, (_, i) => (i < mira ? 'mira' : 'clerk'));
   }
   function seats(S) {
@@ -179,6 +256,8 @@
     return -1;
   }
   const ev = (S, type, data) => S.events.push(Object.assign({ type, t: S.time }, data || {}));
+  // The coins: a second room spends from the first room's purse.
+  const purse = S => S.parent || S;
   // Shelf life's upside: the rack is free.
   function costOf(S, tool) { return tool === 'rack' && S.orders.has('shelf') ? 0 : TOOLS[tool].cost; }
   function canPlace(S, tool) {
@@ -186,23 +265,25 @@
     if (!d) return 'unknown';
     if (S.locked.includes(tool) || !S.belt.includes(tool)) return 'locked';
     if (S[tool]) return 'placed';
-    if (S.coins < costOf(S, tool)) return 'coins';
-    if (S.over) return 'over';
+    if (purse(S).coins < costOf(S, tool)) return 'coins';
+    if (S.over || purse(S).over) return 'over';
     return '';
   }
   function place(S, tool) {
     const why = canPlace(S, tool);
     if (why) return why;
-    S[tool] = true; S.coins -= costOf(S, tool); S.placed.push(tool);
+    S[tool] = true; purse(S).coins -= costOf(S, tool); S.placed.push(tool);
+    if (tool === 'intern') placeIntern(S);
     // Tickets already waiting their turn to retry walk onto the new rack.
     ev(S, 'place', { tool });
     return '';
   }
-  function start(S) { if (!S.started && !S.over) { S.started = true; ev(S, 'lever'); } }
+  function start(S) { const M = purse(S); if (!M.started && !M.over) { M.started = true; ev(M, 'lever'); if (M.review) M.review.started = true; } }
   function go(k, phase, dur) { k.phase = phase; k.t = 0; k.dur = dur; }
   function spawn(S, sp) {
     if (sp.resend) { S.resends++; ev(S, 'resend', { key: sp.key }); }
-    const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, stuck: !!sp.stuck, heavy: !!sp.heavy, refund: !!sp.refund, group: sp.group, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
+    if (sp.quiz) { const q = { id: S.nextId++, key: sp.key, wave: sp.wave, quiz: true, qn: sp.qn, poison: false, desk: 'mira', throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 }; go(q, 'slide', T.slide); S.tickets.push(q); return; }
+    const k = { id: S.nextId++, key: sp.key, wave: sp.wave, poison: sp.poison, stuck: !!sp.stuck, heavy: !!sp.heavy, refund: !!sp.refund, hot: !!sp.hot, cab: sp.cab || 0, group: sp.group, ribbon: sp.ribbon, desk: 'mira', twin: !!sp.resend, throttles: 0, receives: 0, stool: null, from: 'chute', phase: '', t: 0, dur: 0 };
     go(k, 'slide', T.slide);
     S.tickets.push(k);
   }
@@ -212,6 +293,8 @@
   function remove(S, k) { S.tickets = S.tickets.filter(x => x !== k); }
   // The ticket reaches the bottom of the chute.
   function arrive(S, k) {
+    // A review question lands on Mira's desk and waits for an answer.
+    if (k.quiz) { k.q = S.qpool.length ? S.qpool[k.qn % S.qpool.length] : null; k.askAt = S.time; go(k, 'ask', 0); S.asks.push(k.id); S.asked++; ev(S, 'ask', { id: k.id, q: k.q }); return; }
     // The bell rings once and Reports gets its own copy, which waits in the tray.
     if (k.ribbon && S.bell) {
       k.ribbon = false; S.rings++;
@@ -244,7 +327,33 @@
     if (k.throttles >= S.maxThrottles) { go(k, 'splat', T.splat); return; }
     go(k, 'bounce', T.bounce);
   }
-  function workOf(k) { return k.read ? T.report : k.stuck ? Infinity : k.heavy ? T.heavy : k.ribbon ? T.work * 2 : T.work; }
+  function workOf(k, S) { return k.read ? T.report : k.stuck ? Infinity : k.heavy ? T.heavy : k.ribbon ? T.work * 2 : S && S.vault ? T.vaultWork : T.work; }
+  // The Hot Shelf: which cabinet a ticket files into. The busy caller's key always hashes to the same one, unless the
+  // suffix stamp adds a number calculated from the ticket (write sharding), which spreads them over all four.
+  function cabOf(S, k) { return k.hot ? (S.shard ? (parseInt(String(k.key).slice(1), 10) || k.id) % CABS : HOT_CAB) : k.cab; }
+  function cabRate(S) { return S.ondemand ? T.cabMax : T.cabRate; }
+  // File the ticket: the cabinet takes it if it has room this second. If not, the write is throttled, and the SDK
+  // retries it with backoff while the ticket keeps Mira's stool. After the last try the write fails.
+  function tryFile(S, k) {
+    const c = cabOf(S, k), cab = S.cabs[c];
+    cab.heat += 1;
+    if (cab.tok >= 1) { cab.tok -= 1; cab.filed++; k.cabAt = c; free(S, k); go(k, 'done', T.done); return; }
+    k.wthrottles = (k.wthrottles || 0) + 1; S.throttles++; S.hotThrottles++; cab.throttled++;
+    ev(S, 'hotThrottle', { id: k.id, cab: c, n: k.wthrottles, hot: k.hot });
+    if (k.wthrottles >= S.maxThrottles) {
+      free(S, k); S.writeLost++; ev(S, 'writeFail', { id: k.id, cab: c });
+      if (k.from === 'rack') failBack(S, k); else go(k, 'splat', T.splat);
+      return;
+    }
+    go(k, 'retry', T.backoff[k.wthrottles - 1] || 1);
+  }
+  // Eventually consistent: Mira's look-up before she closes a ticket comes back stale now and then, so she looks again.
+  function staleRead(S, k) {
+    if (!S.orders.has('eventual') || k.reread || k.desk !== 'mira' || k.poison || k.cutOff || (k.riders && k.riders.length)) return false;
+    if (S.rand() >= T.staleP) return false;
+    k.reread = true; S.stale++; ev(S, 'stale', { id: k.id, stool: k.stool }); go(k, 'work', T.stale);
+    return true;
+  }
   // Batching: the tickets riding along with this one.
   function riders(S, k) { return (k.riders || []).map(id => S.tickets.find(x => x.id === id)).filter(Boolean); }
   // A failed ticket off the rack goes back (and with the bin, into it after MAX_RECEIVES).
@@ -253,7 +362,19 @@
     go(k, 'back', T.back);
   }
   function finishWork(S, k) {
+    if (staleRead(S, k)) return;
     const viaRack = k.from === 'rack', rs = riders(S, k);
+    // The Hot Shelf: done, now file it (and any batch riders, each its own write; a throttled rider goes back).
+    if (S.vault && k.desk === 'mira' && !k.poison && !k.cutOff) {
+      for (const r of rs) {
+        r.seat = k.seat; r.host = null;
+        const c = cabOf(S, r), cab = S.cabs[c]; cab.heat += 1;
+        if (cab.tok >= 1) { cab.tok -= 1; cab.filed++; r.cabAt = c; go(r, 'done', T.done); }
+        else { S.throttles++; S.hotThrottles++; cab.throttled++; ev(S, 'hotThrottle', { id: r.id, cab: c, n: 1, hot: r.hot }); failBack(S, r); }
+      }
+      k.riders = null;
+      tryFile(S, k); return;
+    }
     free(S, k);
     if (k.cutOff) { S.timedOut++; ev(S, 'timedOut', { id: k.id }); }
     // A batch succeeds or fails together: one bad ticket sends the whole batch back.
@@ -287,23 +408,30 @@
     if (!viaRack) { go(k, 'splat', T.splat); return; }
     failBack(S, k);
   }
+  // A lost request goes in the tank. Both rooms share one: the second room's spill fills the first room's tank.
   function lose1(S, k, why) {
-    S.spill++; S.lost++; ev(S, 'spill', { id: k.id, why });
-    if (S.spill >= S.cap && !S.over) { S.over = 'lose'; ev(S, 'lose'); }
+    const M = purse(S);
+    S.spill++; S.lost++; if (M !== S) M.spill++;
+    ev(S, 'spill', { id: k.id, why });
+    if (M.spill >= M.cap && !M.over) { M.over = 'lose'; ev(M, 'lose'); if (M !== S) S.over = 'lose'; }
   }
   function step(S, dt) {
     if (!S.started || S.over) return;
+    // The second room runs first, on the same clock. If it floods the shared tank, the night is over.
+    if (S.review) { step(S.review, dt); if (S.over) return; }
     S.time += dt;
     const tt = S.time;
     // Waves and the bonus coin after wave 2.
     while (S.spawns.length && S.spawns[0].t <= tt) {
       const sp = S.spawns.shift();
-      if (sp.wave !== S.wave) { S.wave = sp.wave; ev(S, 'wave', { wave: sp.wave }); if (sp.wave === 3 && !S.bonusGiven) { S.bonusGiven = true; S.coins++; ev(S, 'coin'); }
+      if (sp.wave !== S.wave) { S.wave = sp.wave; ev(S, 'wave', { wave: sp.wave }); if (sp.wave === 3 && !S.bonusGiven && !S.parent) { S.bonusGiven = true; S.coins++; ev(S, 'coin'); }
         // Cold stools' upside: idle stools cost nothing, and the savings come back as a coin each wave.
-        if (sp.wave >= 2 && S.orders.has('cold')) { S.coins++; S.saved++; ev(S, 'saved'); } }
+        if (sp.wave >= 2 && S.orders.has('cold') && !S.parent) { S.coins++; S.saved++; ev(S, 'saved'); } }
       spawn(S, sp);
     }
     if (!S.spawns.length) S.allSpawned = true;
+    // The Hot Shelf: each cabinet gets its filings back a second at a time, and its heat (recent writes) cools.
+    if (S.vault) { const r = cabRate(S); for (const c of S.cabs) { c.tok = Math.min(T.cabBurst, c.tok + r * dt); c.heat *= Math.exp(-dt / 1.5); } }
     // Advance every ticket.
     for (const k of S.tickets.slice()) {
       k.t += dt;
@@ -322,9 +450,9 @@
             S.keys.add(k.key);
           }
           {
-            let w = workOf(k);
+            let w = workOf(k, S);
             // Batching: two tickets in one trip, done in a bit more than the time of the longer one.
-            for (const r of riders(S, k)) w = Math.max(w, workOf(r)) * T.batchX;
+            for (const r of riders(S, k)) w = Math.max(w, workOf(r, S)) * T.batchX;
             // Cold start: this stool hasn't been used for a while.
             if (S.orders.has('cold') && S.time - S.lastFree[k.stool] > T.coldAfter && !busySince(S, k.stool)) { w *= T.coldX; S.colds++; ev(S, 'cold', { id: k.id, stool: k.stool }); }
             // The stopwatch cuts off any job longer than the function's timeout.
@@ -334,8 +462,10 @@
           break;
         case 'drop': free(S, k); remove(S, k); break;
         case 'work': finishWork(S, k); break;
+        case 'retry': tryFile(S, k); break;
         case 'done':
           if (k.desk === 'reports') S.reports++;
+          else if (k.quiz) S.reviewed++;
           else {
             S.handled++; if (k.ribbon) S.reports++;
             // Without the ledger, a key done before means this one paid out twice.
@@ -372,7 +502,7 @@
     if (S.rack) {
       let i;
       // FIFO: a caller with a ticket out (or failed and waiting to come back) has to wait for it.
-      const fifo = S.orders.has('fifo'), out = ['walk', 'work', 'ride', 'back', 'hidden'];
+      const fifo = S.orders.has('fifo'), out = ['walk', 'work', 'ride', 'back', 'hidden', 'retry'];
       const nextQ = () => {
         if (!fifo) return 0;
         const busy = new Set(S.tickets.filter(x => x.from === 'rack' && x.group != null && out.includes(x.phase)).map(x => x.group));
@@ -382,7 +512,7 @@
         const qi = nextQ(); if (qi < 0) break;
         const id = S.queue.splice(qi, 1)[0], k = S.tickets.find(x => x.id === id);
         if (!k) continue;
-        k.receives++; k.stool = k.seat = i; k.from = 'rack'; k.takenAt = S.time; go(k, 'walk', T.walk);
+        k.receives++; k.stool = k.seat = i; k.from = 'rack'; k.takenAt = S.time; k.wthrottles = 0; go(k, 'walk', T.walk);
         // Batching: the stool takes a second ticket off the rack in the same trip.
         const ri = S.orders.has('batch') && S.queue.length ? nextQ() : -1;
         if (ri >= 0) {
@@ -413,6 +543,9 @@
         }
       }
     }
+    // Review questions: the intern answers what it can, unanswered ones run out, unchecked wrong answers leak.
+    if (S.asked || S.tickets.some(k => k.quiz)) reviewStep(S);
+    if (purse(S).over) return;
     // Reports takes copies from its tray at its own stools.
     let j;
     while (S.tray.length && (j = freeStool(S, 'clerk')) >= 0) {
@@ -431,7 +564,8 @@
     // night calls it, and each one counts as two lost requests (it held up a stool every lap).
     if (S.allSpawned) {
       const left = S.tickets;
-      if (!left.length) { S.over = 'win'; ev(S, 'win'); return; }
+      // With a second room, the night ends when both are done.
+      if (!left.length) { if (!S.review || S.review.over) { S.over = 'win'; ev(S, 'win'); } return; }
       if (!S.bin && left.every(k => k.poison && k.from === 'rack')) {
         S.clogT += dt;
         if (S.clogT >= T.clog) {
@@ -442,8 +576,66 @@
       } else S.clogT = 0;
     }
   }
+  // ---- Review questions and the intern ----
+  const isSolved = (S, q) => { const r = q != null && purse(S).book.get(q); return !!(r && r.solved); };
+  function unask(S, k) { S.asks = S.asks.filter(x => x !== k.id); }
+  function reviewStep(S) {
+    for (const k of S.tickets.slice()) {
+      if (!k.quiz) continue;
+      if (k.phase === 'ask') {
+        // The intern takes questions the player has solved, one moment after it's free to (it was hired, or it landed).
+        if (S.intern && isSolved(S, k.q) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
+          const right = S.rand() >= T.internWrong;
+          unask(S, k); k.internRight = right; k.stampAt = S.time; go(k, 'stamped', 0); S.byIntern++;
+          answer(S, k.q, right, 'intern'); ev(S, 'internAnswer', { id: k.id, right });
+        } else if (S.time - k.askAt > T.askWait) { unask(S, k); S.unanswered++; ev(S, 'unanswered', { id: k.id }); remove(S, k); lose1(S, k, 'unanswered'); if (purse(S).over) return; }
+      } else if (k.phase === 'stamped' && S.time - k.stampAt > T.checkWindow) {
+        // Nobody checked. A right answer is filed as it is; a wrong one goes in the files and starts leaking.
+        if (k.internRight) go(k, 'done', T.done);
+        else { miss(S, k); if (purse(S).over) return; }
+      } else if (k.phase === 'leak' && S.time - k.leakAt >= T.leak) {
+        k.leakAt = S.time; S.leaked++; lose1(S, k, 'intern'); if (purse(S).over) return;
+      }
+    }
+  }
+  // A wrong answer goes into the files: it costs a lost request now, and another every few seconds until it's caught.
+  function miss(S, k) { S.missed++; k.leakAt = S.time; go(k, 'leak', 0); ev(S, 'internMiss', { id: k.id }); S.leaked++; lose1(S, k, 'intern'); }
+  function placeIntern(S) { S.internAt = S.time; }
+  // The player answers a question waiting on the desk (right: they picked the answer).
+  function reply(S, id, right) {
+    const k = S.tickets.find(x => x.id === id);
+    if (!k || k.phase !== 'ask' || S.over || purse(S).over) return false;
+    unask(S, k); answer(S, k.q, right, 'player');
+    if (right) { S.byYou++; go(k, 'done', T.done); ev(S, 'replied', { id, right: true }); }
+    else { S.wrongYou++; ev(S, 'replied', { id, right: false }); remove(S, k); lose1(S, k, 'wrongAnswer'); }
+    return true;
+  }
+  // The player checks one of the intern's answers. verdict: 'wrong' (it's wrong) or 'ok' (looks right). Catching a
+  // wrong one saves the ticket (and stops a leak); waving a wrong one through sends it into the files to leak.
+  function check(S, id, verdict) {
+    const k = S.tickets.find(x => x.id === id);
+    if (!k || (k.phase !== 'stamped' && k.phase !== 'leak') || S.over || purse(S).over) return '';
+    if (k.internRight) { go(k, 'done', T.done); ev(S, 'checked', { id, was: 'right' }); return 'right'; }
+    if (verdict === 'wrong') { S.caught++; go(k, 'done', T.done); ev(S, 'caught', { id, leaking: k.phase === 'leak' }); return 'caught'; }
+    if (k.phase === 'stamped') miss(S, k);
+    return 'missed';
+  }
   function drain(S) { const e = S.events; S.events = []; return e; }
-  const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'fifo', 'stakes', 'timeout'];
-  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, create, step, start, place, canPlace, costOf, seats, owners, drain };
+  // The answer book. by says who answered: 'player', or a helper's name. Only the player's right answers make a
+  // question solved; every answer is counted under its answerer, and the last one is kept (with its time).
+  function answer(S, id, right, by) {
+    const M = purse(S), who = by || 'player';
+    const r = M.book.get(id) || { id, solved: false, right: 0, wrong: 0, by: {}, last: null };
+    if (right) r.right++; else r.wrong++;
+    r.by[who] = r.by[who] || { right: 0, wrong: 0 }; r.by[who][right ? 'right' : 'wrong']++;
+    if (right && who === 'player') r.solved = true;
+    r.last = { right: !!right, by: who, t: M.time, claim: M.claim };
+    M.book.set(id, r); ev(M, 'answer', { qid: id, right: !!right, by: who });
+    return r;
+  }
+  // The questions the player has solved (what a helper would be allowed to answer).
+  function solved(S) { return [...purse(S).book.values()].filter(r => r.solved).map(r => r.id); }
+  const ORDERS = ['letters', 'cold', 'herd', 'shelf', 'batch', 'fifo', 'eventual', 'stakes', 'timeout'];
+  SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, CABS, HOT_CAB, cabOf, cabRate, answer, solved, reply, check, create, step, start, place, canPlace, costOf, seats, owners, drain };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);

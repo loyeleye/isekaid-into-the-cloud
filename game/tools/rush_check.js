@@ -1,9 +1,12 @@
-// Headless check and screenshots of the Rush prototype (rush.html). Serves game/ and plays all four claims in a row
+// Headless check and screenshots of the Rush prototype (rush.html). Serves game/ and plays all six claims in a row
 // at desktop and phone size: the drag and the lever, the end-of-claim strip and its "Next claim" button, the Night
 // Orders pick before every claim (Dutch's explanation, stacking, no repeats), the letters once pinned (all
 // three formats, a wrong answer tearing an option off the next one, a bet, a letter whose clock runs out), each claim's
-// own piece (the bell, the ledger, the Slow Courier's hourglass and stopwatch, the Picky Bell's filter card), batching, and the room's orders (cold
-// stools, the stampede, shelf life). Checks for page errors and horizontal scroll, and saves screenshots.
+// own piece (the bell, the ledger, the Slow Courier's hourglass and stopwatch, the Picky Bell's filter card, the Hot Shelf's
+// suffix stamp), batching, and the room's orders (cold stools, the stampede, shelf life). Claim 6 runs two rooms: it
+// switches between them (the inset, Tab), places pieces in each, and checks the intern's answers on review cards; on
+// their own, a hot cabinet throttles without the stamp, and an intern left alone leaks while a checked one doesn't.
+// Checks for page errors and horizontal scroll, and saves screenshots.
 // node tools/rush_check.js [outDir]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -17,7 +20,14 @@ const srv = http.createServer((q, r) => {
 });
 let fail = 0;
 const bad = (...a) => { fail++; console.log('FAIL', ...a); };
-const letterOpen = pg => pg.evaluate(() => document.getElementById('q').classList.contains('letter'));
+// A review card (claim 6's cellar) wears the letter's look too, but isn't one.
+const letterOpen = pg => pg.evaluate(() => { const c = document.getElementById('q').classList; return c.contains('letter') && !c.contains('review'); });
+// The player in the cellar: checks every answer the intern stamps (rightly), and answers what's left on the wall.
+const tendCellar = pg => pg.evaluate(() => {
+  const R = SD.rushCore, V = SD_RUSH.S.review; if (!V) return;
+  V.tickets.filter(k => k.quiz && (k.phase === 'stamped' || k.phase === 'leak')).forEach(k => R.check(V, k.id, k.internRight ? 'ok' : 'wrong'));
+  V.tickets.filter(k => k.quiz && k.phase === 'ask' && V.time - k.askAt > 3).forEach(k => R.reply(V, k.id, true));
+});
 const endShown = pg => pg.evaluate(() => document.getElementById('q').classList.contains('end'));
 // Answer the open letter: 'right' clicks the answer, 'wrong' a wrong option. Returns what the letter looked like.
 async function answer(pg, how) {
@@ -35,10 +45,11 @@ async function answer(pg, how) {
 }
 async function closeLetter(pg) { await pg.click('.lt-go'); }
 // Play until the end strip shows, answering every letter with the given policy (a function of the letter's index).
-async function playOut(pg, policy, seen) {
+async function playOut(pg, policy, seen, each) {
   const t0 = Date.now(); let n = 0;
   while (Date.now() - t0 < 160000) {
     if (await endShown(pg)) return true;
+    if (each) await each(pg);
     if (await letterOpen(pg)) { const info = await answer(pg, policy(n)); seen.push(info); n++; await closeLetter(pg); }
     await pg.waitForTimeout(200);
   }
@@ -225,14 +236,81 @@ async function playOut(pg, policy, seen) {
     const ps = await pg.evaluate(() => ({ over: SD_RUSH.S.over, spill: SD_RUSH.S.spill, reports: SD_RUSH.S.reports, filtered: SD_RUSH.S.filtered, tossed: SD_RUSH.S.tossed, next: document.querySelector('.end-go').textContent }));
     console.log(name, 'picky', JSON.stringify(ps));
     if (ps.over !== 'win' || !ps.reports || !ps.filtered || ps.tossed) bad(name, 'the Picky Bell did not play through');
-    if (!/Play again from the Rush/.test(ps.next)) bad(name, 'last claim should offer the Rush again:', ps.next);
+    if (!/Next claim: the Hot Shelf/.test(ps.next)) bad(name, 'no claim 6 button:', ps.next);
+    // The pick before claim 6: Eventually consistent.
+    await pg.click('.end-go');
+    await pg.evaluate(() => SD_RUSH.showPick('hot', ['eventual', 'shelf']));
+    await pg.click('.no-card[data-o="eventual"]');
+    if (!/consistent/.test(await pg.textContent('.no-dutch'))) bad(name, 'no Dutch explanation for eventual consistency');
+    await pg.click('.no-go');
+    // Claim 6, the Hot Shelf: two rooms. The letters answered so far are in the run's answer book, so the intern has
+    // questions it can take. Drag the suffix stamp onto Mira's desk in the vault.
+    await pg.evaluate(() => { SD_RUSH.reset(7, 'hot'); SD_RUSH.S.coins = Math.max(SD_RUSH.S.coins, 6); });
+    await pg.waitForTimeout(400);
+    await pg.screenshot({ path: `${OUT}/${name}-21-hot-build.png` });
+    const book = await pg.evaluate(() => ({ solved: SD.rushCore.solved(SD_RUSH.S).length, pool: SD_RUSH.S.review.qpool.length, eventual: SD_RUSH.S.orders.has('eventual') }));
+    if (!book.solved || !book.pool || !book.eventual) bad(name, 'the answer book or the eventual order did not carry into claim 6', JSON.stringify(book));
+    {
+      const [ax, ay] = await pg.evaluate(() => SD_RUSH.at.slot(0)), [bx2, by2] = await pg.evaluate(() => SD_RUSH.at.spot('shard'));
+      await pg.mouse.move(ax, ay); await pg.mouse.down(); await pg.mouse.move(bx2, by2, { steps: 8 }); await pg.mouse.up();
+    }
+    if (!(await pg.evaluate(() => SD_RUSH.S.shard && !SD_RUSH.S.review.shard))) bad(name, 'the suffix stamp did not place in the vault');
+    // Tap the window to go down to the cellar; the cellar's pieces go in the cellar.
+    { const [ix, iy] = await pg.evaluate(() => SD_RUSH.at.inset()); await pg.mouse.click(ix, iy); }
+    if ((await pg.evaluate(() => SD_RUSH.view)) !== 'review') bad(name, 'tapping the window did not switch to the cellar');
+    await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.place('intern'); SD_RUSH.place('bin'); });
+    const placed = await pg.evaluate(() => ({ v: [!!SD_RUSH.S.review.rack, !!SD_RUSH.S.review.intern, !!SD_RUSH.S.review.bin], m: !!SD_RUSH.S.rack }));
+    if (placed.v.some(x => !x) || placed.m) bad(name, 'cellar pieces went to the wrong room', JSON.stringify(placed));
+    await pg.waitForTimeout(300);
+    await pg.screenshot({ path: `${OUT}/${name}-22-cellar-build.png` });
+    { const [lx2, ly2] = await pg.evaluate(() => SD_RUSH.at.lever()); await pg.mouse.click(lx2, ly2); }
+    if (!(await pg.evaluate(() => SD_RUSH.S.started && SD_RUSH.S.review.started))) bad(name, 'the lever did not start both rooms');
+    // The intern stamps an answer; tap it on the wall and judge it on the card.
+    // (A letter can come down meanwhile: answer it, the rooms wait for it.)
+    for (const t0 = Date.now(); ;) {
+      if (await letterOpen(pg)) { seen.push(await answer(pg, 'right')); await closeLetter(pg); }
+      if (await pg.evaluate(() => SD_RUSH.S.review.tickets.some(k => k.quiz && k.phase === 'stamped'))) break;
+      if (Date.now() - t0 > 30000) { bad(name, 'the intern never answered'); break; }
+      await pg.waitForTimeout(150);
+    }
+    {
+      const k = await pg.evaluate(() => { const k = SD_RUSH.S.review.tickets.find(x => x.quiz && x.phase === 'stamped'); return k && { id: k.id, right: k.internRight }; });
+      const at = k && await pg.evaluate(id => SD_RUSH.at.ask(id), k.id);
+      if (at) {
+        await pg.mouse.click(at[0], at[1]);
+        const card = await pg.evaluate(() => { const q = document.getElementById('q'); return { review: q.classList.contains('review'), pick: !!q.querySelector('.lt-opts button.pick .lt-intern'), verdict: q.querySelectorAll('.lt-verdict button').length }; });
+        if (!card.review || !card.pick || card.verdict !== 2) bad(name, 'the check card', JSON.stringify(card));
+        await pg.waitForTimeout(200);
+        await pg.screenshot({ path: `${OUT}/${name}-23-check.png` });
+        if (card.verdict) {
+          await pg.click(`.lt-verdict button[data-v="${k.right ? 'ok' : 'wrong'}"]`);
+          if (!/Filed|Caught/.test(await pg.textContent('.lt-why'))) bad(name, 'checking the intern', await pg.textContent('.lt-why'));
+          await pg.click('.lt-go');
+        }
+      } else bad(name, 'no stamped answer on the wall to tap');
+    }
+    await pg.waitForTimeout(4000);
+    await tendCellar(pg);
+    await pg.screenshot({ path: `${OUT}/${name}-24-cellar-run.png` });
+    // Tab goes back up to the vault.
+    if (await letterOpen(pg)) { seen.push(await answer(pg, 'right')); await closeLetter(pg); }
+    await pg.keyboard.press('Tab');
+    if ((await pg.evaluate(() => SD_RUSH.view)) !== 'main') bad(name, 'Tab did not switch back to the vault');
+    await pg.waitForTimeout(3000);
+    await pg.screenshot({ path: `${OUT}/${name}-25-vault-run.png` });
+    if (!(await playOut(pg, () => 'right', seen, tendCellar))) bad(name, 'the Hot Shelf never ended');
+    await pg.screenshot({ path: `${OUT}/${name}-26-hot-end.png` });
+    const hs = await pg.evaluate(() => { const S = SD_RUSH.S, V = S.review; return { over: S.over, spill: S.spill, filed: S.cabs.map(c => c.filed), hotThrottles: S.hotThrottles, stale: S.stale, asked: V.asked, byYou: V.byYou, byIntern: V.byIntern, caught: V.caught, missed: V.missed, next: document.querySelector('.end-go').textContent }; });
+    console.log(name, 'hot', JSON.stringify(hs));
+    if (hs.over !== 'win' || hs.filed.some(n => !n) || !hs.stale || !hs.asked || !hs.byIntern || hs.missed) bad(name, 'the Hot Shelf did not play through');
+    if (!/Play again from the Rush/.test(hs.next)) bad(name, 'last claim should offer the Rush again:', hs.next);
     await pg.click('.end-go');
     const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
     if (again.orders || !/orders/.test(again.q) || !again.offer.includes('letters')) bad(name, 'starting over should take the orders down and open the pick', JSON.stringify(again));
     // Every claim sent three letters, and all three formats showed up.
     const fmts = new Set(seen.map(x => x.fmt));
     console.log(name, 'letters', seen.length, [...fmts].join(''));
-    if (seen.length !== 15 || fmts.size !== 3 || seen.some(x => !x.ok)) bad(name, 'letters', JSON.stringify(seen));
+    if (seen.length !== 18 || fmts.size !== 3 || seen.some(x => !x.ok)) bad(name, 'letters', JSON.stringify(seen));
     // Without the hourglass, a heavy parcel reappears on the rack mid-job.
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=slow&orders=cold`);
     await pg.waitForTimeout(400);
@@ -245,6 +323,28 @@ async function playOut(pg, policy, seen) {
     await pg.evaluate(() => { SD_RUSH.place('rack'); SD_RUSH.start(); });
     await pg.waitForFunction(() => SD_RUSH.S.tossed >= 3, null, { timeout: 30000 }).catch(() => bad(name, 'Reports never threw a copy away without the filter'));
     await pg.screenshot({ path: `${OUT}/${name}-20-picky-nofilter.png` });
+    // Without the suffix stamp, the hot caller's tickets all go to cabinet C, and it throttles.
+    await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=3&claim=hot&orders=cold`);
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => SD_RUSH.start());
+    await pg.waitForFunction(() => SD_RUSH.S.hotThrottles >= 3, null, { timeout: 30000 }).catch(() => bad(name, 'the hot cabinet never throttled without the stamp'));
+    await pg.screenshot({ path: `${OUT}/${name}-27-hot-throttle.png` });
+    const ht = await pg.evaluate(() => SD_RUSH.S.cabs.map(c => c.throttled)), hotCab = await pg.evaluate(() => SD.rushCore.HOT_CAB);
+    console.log(name, 'hot throttles by cabinet', JSON.stringify(ht));
+    if (ht.indexOf(Math.max(...ht)) !== hotCab) bad(name, 'the hot cabinet should throttle most', JSON.stringify(ht));
+    // The intern: left alone, its wrong answers go into the files and leak; checked, they're caught.
+    for (const tend of [false, true]) {
+      await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=5&claim=hot&orders=cold`);
+      await pg.waitForTimeout(400);
+      await pg.evaluate(() => { const S = SD_RUSH.S; S.review.qpool.forEach(id => SD.rushCore.answer(S, id, true, 'player')); S.coins = 6; SD_RUSH.place('shard'); SD_RUSH.switchRoom(); SD_RUSH.place('rack'); SD_RUSH.place('intern'); SD_RUSH.place('bin'); SD_RUSH.start(); });
+      const t0 = Date.now();
+      while (Date.now() - t0 < 30000) { if (tend) await tendCellar(pg); else if (await pg.evaluate(() => SD_RUSH.S.review.leaked > 0)) break; await pg.waitForTimeout(200); }
+      await pg.screenshot({ path: `${OUT}/${name}-28-intern-${tend ? 'checked' : 'alone'}.png` });
+      const iv = await pg.evaluate(() => { const S = SD_RUSH.S, V = S.review; return { byIntern: V.byIntern, caught: V.caught, missed: V.missed, leaked: V.leaked, spill: S.spill, over: S.over }; });
+      console.log(name, 'intern', tend ? 'checked' : 'alone', JSON.stringify(iv));
+      if (!iv.byIntern) bad(name, 'the intern answered nothing');
+      if (tend ? iv.missed || iv.leaked : !iv.missed || !iv.leaked || !iv.spill) bad(name, 'intern', tend ? 'checked' : 'alone', JSON.stringify(iv));
+    }
     // The room's three orders together: frost on idle stools, the stampede and shelf life.
     await pg.goto(`http://127.0.0.1:${port}/rush.html?seed=7&claim=bell&orders=cold,herd,shelf`);
     await pg.waitForTimeout(600);
