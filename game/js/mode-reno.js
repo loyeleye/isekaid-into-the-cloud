@@ -185,14 +185,18 @@
   // The first time a term shows up in a template (per save), its place is a blank the player writes out in full:
   // Ladi, Nov 17, "have us type out the policy ourselves the first time we see it". After two misses the word shows
   // faintly in the blank to copy. Seymour won't run a plan with a blank in it.
+  // Learned terms are shared with the other modes through SD.typeOnce (js/type-once.js) where it's loaded; it also
+  // reads this mode's own record (renoKeep.typed), which is kept up too.
   const typedSet = () => { const k = keep(); return (k.typed = k.typed || {}); };
-  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && !typedSet()[t]).filter((t, i, a) => a.indexOf(t) === i);
+  const learned = t => !!typedSet()[t] || !!(SD.typeOnce && SD.typeOnce.learned && SD.typeOnce.learned(t));
+  const learn = t => { typedSet()[t] = true; if (SD.typeOnce && SD.typeOnce.mark) SD.typeOnce.mark(t); };
+  const blanksOf = (job, p) => tplLines(job, p).lines.map(l => l[3]).filter(t => t && !learned(t)).filter((t, i, a) => a.indexOf(t) === i);
   function tplHtml(job, p, hi) {
-    const t = tplLines(job, p), typed = typedSet(), seen = {};
+    const t = tplLines(job, p), seen = {};
     return `<div class="rn-tpl" aria-label="Your plan as AWS writes it: ${esc(t.file)}"><p class="rn-tplh">${esc(t.file)}</p><pre>${t.lines.map(([ind, text, keys, term]) => {
       let body = esc(text);
-      if (term && !typed[term] && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
-      else if (term && !typed[term]) {
+      if (term && !learned(term) && seen[term]) { const at = text.indexOf(term); body = esc(text.slice(0, at)) + '<span class="rn-blank2" aria-label="(the same word)">' + '_'.repeat(Math.min(term.length, 28)) + '</span>' + esc(text.slice(at + term.length)); }
+      else if (term && !learned(term)) {
         seen[term] = 1;
         const at = text.indexOf(term);
         body = esc(text.slice(0, at)) + `<input class="rn-blank" data-term="${esc(term)}" size="${term.length}" maxlength="${term.length + 4}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Write out ${esc(term.length)} letters: the setting for this line" placeholder="${'_'.repeat(Math.min(term.length, 28))}">` + esc(text.slice(at + term.length));
@@ -208,7 +212,7 @@
       const check = final => {
         if (inp.readOnly) return;   // already written (a blur after the last letter fires change again)
         if (norm(inp.value) === norm(term)) {
-          typedSet()[term] = true; SD.state.persist();
+          learn(term); SD.state.persist();
           inp.classList.add('ok'); inp.value = term; inp.readOnly = true;
           if (SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
           setTimeout(() => { if (inp.isConnected) onDone(); }, 420); return;
