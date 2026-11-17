@@ -38,11 +38,12 @@
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
   // The Sorting Floor's sorting room (Gemini, Nov 16). The Fire Drill's war room is a Gemini image too
   // (project files game-modes/multiplayer-real/art-and-music.md).
-  const PLATES = ['floor', 'drill'];
+  const PLATES = ['floor', 'drill', 'lf'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
   // Incident Commander's live incident loop starts on its menu (Ladi, Nov 17: "the music should start playing on this
   // screen"), and plays through both shifts; js/ic-live.js keeps it going rather than starting it over.
-  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms' };
+  // 'lf' is the Lost and Found's chooser (js/lf-hub.js): the Sorting Floor's song, which carries on through either door.
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor' };
   // Mode id: { win, lose } jingle files in assets/audio/.
   const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
@@ -108,19 +109,23 @@
   };
 
   // The stage's loop, and what to bring back after. Only while that loop is still the one playing.
-  let before = null, mine = null;
+  // One stage can hand over to another without leaving (the Lost and Found's chooser to the Sorting Floor): the song
+  // already playing carries on when it's the same file, and Home still brings back what played before the first one.
+  let before = null, mine = null, mineFile = null;
   function tune(id) {
     if (!AU || !AU.music || !MUSIC[id]) return;
-    mine = 'stage-' + id;
+    if (mine && mineFile === MUSIC[id] && AU.loopName === mine) return;
+    const was = AU.loopName || null;
+    if (!mine || was !== mine) before = was;
+    mine = 'stage-' + id; mineFile = MUSIC[id];
     AU.add({ songs: { [mine]: MUSIC[id] } });
-    before = AU.loopName || null;
     AU.music(mine);
   }
   function untune() {
     if (!mine) return;
     // A mode may swap in a track of its own named after the stage's (the Fire Drill's bosses: stage-drill-boss).
     if (AU.loopName === mine || String(AU.loopName || '').startsWith(mine + '-')) { if (before) AU.music(before); else AU.stop(); }
-    mine = before = null;
+    mine = before = mineFile = null;
   }
   ST.sting = function (id, kind) {
     const f = STINGS[id] && STINGS[id][kind];

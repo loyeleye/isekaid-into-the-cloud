@@ -122,7 +122,7 @@
     if (go) { if (!go.classList.contains('qs-resume')) go.textContent = 'Continue'; adopt(story, go, false); }
     else if (neu) adopt(story, neu, true);
     // Modes.
-    (SD.modes ? SD.modes.list() : []).forEach(m => {
+    (SD.modes ? SD.modes.list() : []).filter(m => !m.folded).forEach(m => {
       const a = ART[m.id] || {}; let bg = a.bg;
       if (bg && used.includes(bg)) bg = SPARE.find(n => !used.includes(n));
       if (bg) used.push(bg);

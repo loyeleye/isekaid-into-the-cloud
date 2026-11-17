@@ -69,7 +69,7 @@
   const store = () => (sv().modes = sv().modes || { seen: {}, cal: M.newTally() });
 
   M.open = function () {
-    const rows = modes.map(m => {
+    const rows = modes.filter(m => !m.folded).map(m => {
       let st = '';
       try { st = m.status ? m.status() || '' : ''; } catch (e) { st = ''; }
       return `<button class="opt md-mode" data-mode="${esc(m.id)}"><span class="md-n">${esc(m.name)}</span>
