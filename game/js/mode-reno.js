@@ -708,6 +708,87 @@
   function verifiedTwin(q, avoid) {
     return ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).find(x => x && E().allowed(x) && D() && D().isVerified(x) && !avoid.has(x.id)) || null;
   }
+  // ---- Seymour's what-if (Ladi, Nov 17: fewer multiple-choice screens) ----
+  // On the second and fourth job of a night, before the permit, Seymour changes one thing about your plan and asks how
+  // the slate would go. You chalk a tick or a cross on each line, then he runs it (the same rules as his inspection,
+  // R.inspect) and the slate fills in. Reading every line right adds a floor to the job's building. Nothing here is a
+  // bank question: the permit question still follows.
+  const WI_ASK = 'One what-if before I sign. Same job, one change. Chalk how each line on the slate would go.';
+  const WI_RIGHT = 'Exactly right. I would have chalked it the same way.';
+  const WI_WRONG = 'Not quite. That is what a what-if is for. Better here than on the street.';
+  // Only the knobs a plan actually uses (a rolling batch size means nothing on Immutable).
+  const knobsOf = (job, p) => {
+    if (job.d === 'eb') return Object.assign({ policy: p.policy }, p.policy === 'rolling' || p.policy === 'rollingBatch' ? { batch: p.batch, ignoreHC: !!p.ignoreHC } : p.policy === 'split' ? { split: p.split, evalT: p.evalT } : p.policy === 'blueGreen' ? { wait: p.wait } : {});
+    if (job.d === 'lam') return Object.assign({ cfg: p.cfg, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post }, p.cfg === 'canary' ? { wait: p.wait } : p.cfg === 'linear' ? { every: p.every } : {});
+    return p;
+  };
+  const planDiff = (job, a, b) => {
+    if (job.d === 'cfn') return job.stack.filter(r => a[r.id] !== b[r.id]).length;
+    a = knobsOf(job, a); b = knobsOf(job, b);
+    const ks = new Set(Object.keys(a).concat(Object.keys(b)));
+    let n = 0; ks.forEach(k => { if ((a[k] === undefined ? null : a[k]) !== (b[k] === undefined ? null : b[k])) n++; });
+    return n;
+  };
+  function whatIf(job, mine, seed) {
+    const base = R.inspect(job, mine);
+    if (base.refused) return null;
+    const all = R.plans(job).map(p => job.d === 'eb' ? Object.assign({}, p) : p);
+    for (const want of [1, 2]) {
+      const c = all.filter(p => planDiff(job, p, mine) === want && planName(job, p) !== planName(job, mine)).map(p => ({ plan: p, res: R.inspect(job, p) }))
+        .filter(x => !x.res.refused && x.res.lines.some((l, i) => l.ok !== base.lines[i].ok));
+      if (c.length) return c[(seed >>> 0) % c.length];
+    }
+    return null;
+  }
+  function whatIfDue(s, job, j) {
+    if (j.wi || !(s.at === 1 || s.at === 3) || !j.plans.length) return false;
+    const w = whatIf(job, j.plans[j.plans.length - 1].plan, j.seed);
+    if (!w) { j.wi = { skip: true }; return false; }
+    return true;
+  }
+  function whatIfScreen(s, job, j) {
+    const RS = SD.renoStreet, mine = j.plans[j.plans.length - 1].plan, w = whatIf(job, mine, j.seed);
+    const marks = job.lines.map(() => null);
+    const office = (pose, face, line) => RS ? `<div class="rn-bleed">${permitScene(pose, face, `<div class="rs-row"><span></span>${bubble('seymour', line)}</div><div></div>`)}</div>` : say('seymour', line);
+    const plans = `<div class="rn-wiplans"><p class="small"><span class="rn-wik">Your plan</span> ${esc(planName(job, mine))}</p><p><span class="rn-wik">What if</span> <b>${esc(planName(job, w.plan))}</b></p></div>`;
+    const board = () => `<div class="rn-chalk rn-wi"><p class="rn-chalkh">The slate, if it went like this</p><ul class="rn-slate">${job.lines.map((t, i) =>
+      `<li><button class="rn-wil${marks[i] === true ? ' ok' : marks[i] === false ? ' bad' : ''}" data-wi="${i}" aria-label="${esc(t)}: ${marks[i] === true ? 'holds' : marks[i] === false ? 'breaks' : 'not marked'}"><span class="rn-wim">${marks[i] === true ? '✓' : marks[i] === false ? '✗' : '▢'}</span>${esc(t)}</button></li>`).join('')}</ul>
+      <p class="small rn-wihint">Tap a line: ✓ it holds, tap again: ✗ it breaks.</p></div>`;
+    const ask = () => {
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${office('inspect', 'neutral', WI_ASK)}${plans}${board()}
+        <div class="rn-dock"><button class="primary" id="rn-wi-run" ${marks.every(m => m !== null) ? '' : 'disabled'}>Run the what-if</button></div>`, 'THE PERMIT');
+      if (RS) RS.mount(b);
+      b.querySelector('#rn-wi-run').onclick = () => reveal();
+      rewire(b);
+    };
+    function rewire(b) {
+      b.querySelectorAll('[data-wi]').forEach(el => el.onclick = () => {
+        const i = +el.dataset.wi; marks[i] = marks[i] === null ? true : marks[i] === true ? false : null;
+        if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+        b.querySelector('.rn-wi').outerHTML = board(); rewire(b);
+      });
+      b.querySelector('#rn-wi-run').disabled = !marks.every(m => m !== null);
+    }
+    function reveal() {
+      const right = w.res.lines.map((l, i) => l.ok === marks[i]), ok = right.every(Boolean);
+      j.wi = { ok, plan: w.plan };
+      save(s);
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx(ok ? 'right' : 'wrong');
+      const lines = `<div class="rn-chalk rn-wi"><p class="rn-chalkh">How it would have gone</p><ul class="rn-slate">${w.res.lines.map((l, i) =>
+        `<li class="${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✗'} ${esc(l.text)} <span class="small">(${esc(l.got)})</span> <span class="rn-wiyou ${right[i] ? 'ok' : 'bad'}">${right[i] ? 'you read it right' : `you chalked ${marks[i] ? '✓' : '✗'}`}</span></li>`).join('')}</ul>
+        <p class="small rn-wihint">${esc(runSummary(job, job.d === 'cfn' ? w.res.good : w.res.bad, job.d === 'cfn' ? 'g' : 'b'))}</p></div>`;
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${office(ok ? 'stamp' : 'disapprove', ok ? 'happy' : 'worried', ok ? WI_RIGHT : WI_WRONG)}
+        <div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'READ RIGHT' : 'NOT QUITE'}</div><span class="chip">${ok ? '+1 floor on this building' : 'no floor this time'}</span></div>
+        ${plans}${lines}
+        <div class="rn-dock"><button class="primary" id="rn-wi-on">On to the permit question</button></div>`, 'THE PERMIT');
+      if (RS) RS.mount(b);
+      const wb = b.closest('.win-b') || document.querySelector('#panel > .win > .win-b'); if (wb) wb.scrollTop = 0;   // the result opens at its top
+      b.querySelector('#rn-wi-on').onclick = () => draw(s);
+    }
+    ask();
+  }
   // The permit office (Ladi's Sogni painting, Nov 17): one close-up for every district. Seymour stands at his desk with
   // his magnifier while you answer; a right answer gets his stamp, a wrong one his disapproval. Kai waits on the left.
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
@@ -716,6 +797,7 @@
   const PERMIT_ASK = 'Before I sign, one question about what you just did. Tell me how sure you are. Take your time. Within reason.';
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
+    if (whatIfDue(s, job, j)) return whatIfScreen(s, job, j);
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
       ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
@@ -919,7 +1001,7 @@
       const stands = j.pass && j.ok;
       const free = DR.freePlots ? DR.freePlots() : [];
       town[q.id] = Object.assign({}, prev || {}, { q: q.id, d: prev ? prev.d : (E().domainOf(q) || 3), client: prev ? prev.client : job.client,
-        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
+        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0) + (j.wi && j.wi.ok ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
         scaf: !stands, t: prev ? prev.t : Date.now(), last: Date.now(), idea: prev && prev.idea ? prev.idea : job.title, plot: prev && prev.plot != null ? prev.plot : (free.length ? free[0] : null) });
       j.bld = q.id;
     }
@@ -1167,6 +1249,15 @@
     .rn-chalkh { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; opacity: .85; border-bottom: 1px dashed rgba(244,241,230,.4); margin-bottom: 3px !important; }
     .rn-slate { list-style: none; margin: 0; padding: 0; font-size: 16px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; text-shadow: 0 0 1px rgba(255,255,255,.5); }
     .rn-slate .small { opacity: .8; }
+    /* Seymour's what-if: your plan against his, and a slate you chalk yourself. */
+    .rn-wiplans p { margin: 2px 0; } .rn-wik { display: inline-block; min-width: 64px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd45a; }
+    .rn-wi { max-width: 640px; } .rn-wi .rn-wihint { margin: 6px 0 0; opacity: .85; }
+    .rn-wil { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px dashed rgba(244,241,230,.25); color: inherit; font: inherit; padding: 6px 2px; cursor: pointer; }
+    .rn-wil:hover { background: rgba(255,255,255,.06); }
+    .rn-wim { flex: none; width: 1.4em; font-size: 20px; line-height: 1; text-align: center; font-family: 'Segoe Print', 'Comic Sans MS', cursive; }
+    .rn-wil.ok .rn-wim { color: #9be3b0; } .rn-wil.bad .rn-wim { color: #ffb1a1; }
+    .rn-wiyou { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; font-size: 12px; background: rgba(255,255,255,.12); }
+    .rn-wiyou.ok { color: #9be3b0; } .rn-wiyou.bad { color: #ffb1a1; }
     .rn-after .rn-chalk { max-width: 640px; }
     /* Policies are blueprints you pin onto the street. */
     .rn-card { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid #9cc7f2; border-radius: 6px; color: #fff; overflow-wrap: anywhere;
@@ -1251,7 +1342,7 @@
     ${FULL} .rn.rn-world > .rn-dock:has(#rn-run), ${FULL} .rn.rn-world > .rn-after > .rn-dock { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; background: #17213a; box-shadow: 0 -2px 0 rgba(255,212,90,.25), 0 6px 22px rgba(0,0,0,.55); }
     /* The night's tally over the market square: one box, so its lines never sit bare on the painting. */
     ${FULL} .rn.rn-world > .rn-endbox { display: flex; flex-direction: column; gap: 8px; color: #fff; }
-    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night, .rn-wiplans) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
     ${FULL} .rn.rn-world > .rn-scroll { background: #f3e7c8; }
     ${FULL} .rn.rn-world > .rn-after { display: flex; flex-direction: column; gap: 8px; }
     ${FULL} .rn.rn-world > .rn-after > :is(.verdict-row, .rn-say, .rn-dock) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; }
