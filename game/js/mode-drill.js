@@ -288,7 +288,7 @@
     const b = RO ? panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
-      <div class="dr-bw dr-roomw${zoom ? ' zoomed' : ''}">${RO.html(f, e, { at: s.at, zoom, notes: play ? [] : notes, lines: play ? [] : e.lines, m: e.m, play: !!play })}${stamp}
+      <div class="dr-bw dr-roomw${zoom ? ' zoomed' + (s.at === 'fn' || s.at === 'store' ? ' tray-l' : ' tray-r') : ''}">${RO.html(f, e, { at: s.at, zoom, notes: play ? [] : notes, lines: play ? [] : e.lines, m: e.m, play: !!play })}${stamp}
         ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e, { lines: e.lines, notes })}</div>` : ''}</div>
       ${reveal}
       <div class="dr-dock">${dock}</div>`) : panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
@@ -629,6 +629,7 @@
     /* The living war room (js/drill-room.js): the room is the screen; the station's desk slides up over it. */
     .dr-roomw { position: relative; }
     .dr-hint { flex: 1 1 auto; align-self: center; font-weight: 700; font-size: 14px; opacity: .85; }
+    .dr-roomw.zoomed .dr-stamp { display: none; }   /* the verdict stamp stays with the room view, off the lead you pushed in on */
     .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
     @keyframes drtray { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
     .dr-tray .dr-station { box-shadow: 0 -6px 24px rgba(0, 0, 0, .55); border-radius: 14px; }
@@ -674,6 +675,11 @@
         transform: translateX(-50%); animation: drtrayw .45s cubic-bezier(.2, .8, .2, 1) both; }
       .dr-roomw.zoomed .dr-tray .dr-station { border-radius: 14px 14px 0 0; border-bottom: 0; }
       @keyframes drtrayw { from { transform: translate(-50%, 60%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+      /* The desk slides up beside the lead you pushed in on, never over their face (Ladi, Nov 17). */
+      .dr-roomw.zoomed:is(.tray-l, .tray-r) .dr-tray { width: min(660px, 56%); max-height: 92%; transform: none; animation-name: drtrays; }
+      .dr-roomw.zoomed.tray-r .dr-tray { left: auto; right: 1.5%; } .dr-roomw.zoomed.tray-l .dr-tray { left: 1.5%; }
+      .dr-roomw.zoomed:is(.tray-l, .tray-r) .dr-tray .dr-station { border-radius: 14px 14px 0 0; }
+      @keyframes drtrays { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
     }
     body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: 1240px; margin: 0 auto; }
     @media (max-height: 820px) and (min-width: 900px) {
@@ -757,7 +763,7 @@
     .dr-cause .small { color: #5a4a38; margin-top: 4px; }
     .dr-pipcard { transform: rotate(.9deg); }
     .dr-pipcard .md-pip { border: 0; background: none; padding: 0; margin: 0; color: #2a2018; box-shadow: none; }
-    .dr-pipcard .md-pip .ghost { background: rgba(255, 250, 235, .6); color: #2a2018; border: 2px solid #7a6a52; }
+    :is(body.in-mode #panel .win, #panel) .dr-pipcard .md-pip .tf-row button.ghost { background: #3b2413; color: #ffe7a0; border: 2px solid #2a1a08; box-shadow: 0 2px 0 rgba(0, 0, 0, .45); font-weight: 800; }   /* ink-dark, so Save reads on the pale card */
     .dr-pipcard .md-pip input { background: rgba(255, 255, 255, .55); border-color: #7a6a52; }
     .dr-report { position: relative; align-self: center; width: min(100%, 620px); color: #2a2018; transform: rotate(.5deg);
       border: solid transparent; border-width: 44px 66px 52px 18px; border-image: url(assets/img/drill/desk-sheet.webp) 130 200 160 54 fill / 44px 66px 52px 18px stretch;

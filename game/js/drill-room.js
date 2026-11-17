@@ -279,7 +279,7 @@
   css.textContent = `
     .rm { position: relative; width: 100%; aspect-ratio: 1920 / 1072; overflow: hidden; border-radius: 12px; background: #120e0a;
       box-shadow: 0 10px 30px rgba(0, 0, 0, .55); container-type: inline-size; }
-    .rm-cam { position: absolute; inset: 0; transform-origin: var(--zx) 34%; transition: transform .55s cubic-bezier(.3, .1, .2, 1); }
+    .rm-cam { position: absolute; inset: 0; transform-origin: var(--zx) 10%;   /* high, so the push-in keeps the leads' heads in frame (Ladi, Nov 17) */ transition: transform .55s cubic-bezier(.3, .1, .2, 1); }
     .rm.zoom .rm-cam { transform: scale(1.75); }
     .rm-plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; }
     .rm-vid { position: absolute; top: 0; bottom: 0; left: 1.0417%; width: 97.9167%; pointer-events: none;
@@ -332,13 +332,13 @@
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
     /* Between lines she lazes on a cloud far back, up by the window, small and off to the side so the leads keep the
        stage (Ladi, Nov 16). The leads are redrawn over her. While she talks she stands behind the desk instead. */
-    .rm-cloud { position: absolute; left: 67%; top: 1.5%; width: 27%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
+    .rm-cloud { position: absolute; left: 37%; top: 1%; width: 20%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
       animation: rmcloud 7s ease-in-out infinite; }
     .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
     .rm-cloud .up-fig img { object-position: center; }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
     /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
-    .rm-up { opacity: 0; transform: translate(99%, -40%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
     .rm.talk .rm-up { opacity: 1; transform: none; }
     .rm-cloud { transition: opacity .45s ease; }
     .rm.talk .rm-cloud { opacity: 0; }
