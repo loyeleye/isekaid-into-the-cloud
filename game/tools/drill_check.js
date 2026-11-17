@@ -2,7 +2,8 @@
 // (375px): the picker, no walkthrough, the map with two bosses, the warm-up run, the trace map and its grey nodes, a
 // station's metrics and settings, a refused setting, observing, a look-alike, the fix, the postmortem on a plain exam
 // screen, resume after a reload, an escalation, a whole night and night 2's forks.
-// Run from game/:  node tools/drill_check.js     SHOTS=dir saves screenshots.
+// Short Fuse's visibility timeline is dragged by mouse, by touch and by the keyboard.
+// Run from game/:  node tools/drill_check.js     SHOTS=dir saves screenshots (DSF=2 at twice the pixels).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 
@@ -22,7 +23,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: +process.env.DSF || 1 });   // DSF=2 for sharp screenshots
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -34,16 +35,17 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await page.waitForSelector('#today-card:not([hidden])');
     await page.evaluate(() => { if (SD.drillBoard) SD.drillBoard.STEP_MS = 5; if (SD.drillRoom) SD.drillRoom.STEP_MS = 5; });
   };
-  const noHScroll = async where => {
-    const r = await page.evaluate(() => {
+  // sel: the elements to measure (the zoomed room's camera pans past the edges on purpose, inside a clipped frame).
+  const noHScroll = async (where, sel) => {
+    const r = await page.evaluate(sel => {
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
-      document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => {
+      document.querySelectorAll(sel || '#panel:not([hidden]) .win *').forEach(el => {
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right));
       });
       return bad.slice(0, 5);
-    });
+    }, sel);
     check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
   const st = () => page.evaluate(() => JSON.parse(JSON.stringify(SD.state.save.drill)));
@@ -67,6 +69,29 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const i = SD.drillCode ? SD.drillCode.blockOf(s.drill.drill, at, id) : -1; s.blk = i >= 0 ? { k: at, d: s.drill.drill, i } : null;
     if (i < 0) { const m = document.querySelector('.dr-more'); if (m) m.open = true; }
     SD.state.persist(); SD.drillUi.draw(); const m2 = document.querySelector('.dr-more'); if (m2 && i < 0) m2.open = true; }, id); await page.click(`[data-card="${id}"]`); };
+  // The Short Fuse's timeline: drag the window's edge to sec seconds, by mouse or (touch) by touch through CDP.
+  // mid() runs while it's still held.
+  let cdp = null;
+  const dragVis = async (sec, mid, touch) => {
+    await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); document.querySelector('.dr-vl-board').scrollIntoView({ block: 'center' }); });
+    const g = await page.evaluate(() => { const ln = document.querySelector('.dr-vl-lanes').getBoundingClientRect(), h = document.querySelector('.dr-vl-h').getBoundingClientRect();
+      return { l: ln.left, w: ln.width, y: ln.top + ln.height / 2, hx: h.left + h.width / 2, max: SD.drill.visLine(SD.state.save.drill.drill).max }; });
+    const x = g.l + g.w * sec / g.max, steps = 8;
+    if (touch) {
+      cdp = cdp || await page.context().newCDPSession(page);
+      const tp = (type, px) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: px, y: g.y }] });
+      await tp('touchStart', g.hx);
+      for (let i = 1; i <= steps; i++) await tp('touchMove', g.hx + (x - g.hx) * i / steps);
+      if (mid) await mid();
+      await tp('touchEnd');
+    } else {
+      await page.mouse.move(g.hx, g.y); await page.mouse.down();
+      await page.mouse.move(x, g.y, { steps });
+      if (mid) await mid();
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(40);
+  };
   // A run plays out on the board (js/drill-board.js); the checks run it fast and wait for the result.
   const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing, #panel .rm.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
   // Uptima's cutscenes (her lines): one tap each.
@@ -188,7 +213,8 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     if (s.phase === 'end' || s.phase === 'zero') break;
     await page.click('.dr-door.reach'); await settle();
     const id = (await st()).drill.drill;
-    for (const c of await page.evaluate(id => SD.drill.DRILLS[id].fix[0], id)) await place(c);
+    if (id === 'fuse') await dragVis(await page.evaluate(() => SD.drill.visLine(SD.state.save.drill.drill).six));   // its timeline, not a card
+    else for (const c of await page.evaluate(id => SD.drill.DRILLS[id].fix[0], id)) await place(c);
     if (id === 'midnight') await shot('boss');
     await deploy();
     check((await st()).drill.state === 'contained', `${id}: the intended fix contains it on the first deploy`);
@@ -321,6 +347,83 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('receipt');
   await place('ckey'); await deploy();
   check((await st()).drill.state === 'contained', 'customerId in the cache key contains The Wrong Receipt');
+
+  // ---- The Hot Key: create orders-v2 by tapping its partition key on a sample item (js/drill-hotkey.js) ----
+  const atStore = () => page.evaluate(() => { const s = SD.state.save.drill; s.at = 'store'; s.zoom = true; SD.state.persist(); SD.drillUi.draw(); });
+  const hk = () => page.evaluate(() => ({ cfg: document.querySelector('.dr-tray .hk-cfg').textContent, hot: document.querySelectorAll('.dr-tray .hk-bin.hot').length,
+    bad: document.querySelectorAll('.dr-tray .hk-slip.bad').length, thr: /ThrottlingException/.test(document.querySelector('.dr-tray .hk-chalk').textContent),
+    bins: document.querySelectorAll('.dr-tray .hk-bin').length, on: [...document.querySelectorAll('.dr-tray .hk-at.on')].map(e => e.dataset.card), dial: !!document.querySelector('.dr-tray [data-card="kstatus"].dr-pick') }));
+  await open('hot'); await atStore();
+  let h = await hk();
+  check(h.bins === 3 && !h.dial && h.on.join() === 'kstatus' && !!await page.$('.dr-tray .hk-item [data-card="korder"]') && !!await page.$('.dr-tray .hk-item [data-card="kshard"]'), 'The Hot Key: the Store shows a sample order item whose attributes are the key choices (no key dial), status is the key now');
+  check(h.hot === 1 && h.bad === 3 && h.thr && /AttributeName: status, KeyType: HASH/.test(h.cfg), 'keyed by status, one partition overflows and throws ThrottlingException, KeySchema says status');
+  // The zoomed room pans wider than the phone on purpose (the other checks step back first): here, the desk and the page.
+  const hkScroll = async where => {
+    const r = await page.evaluate(() => { const w = innerWidth, bad = [];
+      if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
+      document.querySelectorAll('.dr-tray *').forEach(el => { const b = el.getBoundingClientRect(); if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right)); });
+      return bad.slice(0, 5); });
+    check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
+  };
+  await hkScroll('hot key: status');
+  if (SHOTS) { await page.$eval('.dr-tray .hk', e => e.scrollIntoView({ block: 'start' })); await shot('hotkey-item'); await page.locator('.dr-tray .hk').screenshot({ path: path.join(SHOTS, 'drill-hotkey-status.png') }); }
+  await page.click('.dr-tray [data-card="korder"]');
+  h = await hk();
+  check(h.on.join() === 'korder' && !h.hot && !h.bad && /TableName: orders-v2/.test(h.cfg) && /AttributeName: orderId, KeyType: HASH/.test(h.cfg), 'tapping orderId creates orders-v2 keyed by orderId: KeySchema rewrites, the writes spread');
+  await page.focus('.dr-tray [data-card="kstatus"]'); await page.keyboard.press('Enter');
+  h = await hk();
+  check(h.on.join() === 'kstatus' && h.hot === 1 && (await st()).drill.changes.length === 2, 'by keyboard, back to status: the hot partition overflows again (each choice is a change)');
+  await deploy();
+  s = await st();
+  check(s.drill.state !== 'contained' && s.drill.log[s.drill.log.length - 1].m.hot > 0, 'deploying keyed by status throttles writes and isn\'t contained');
+  await atStore();
+  await page.click('.dr-tray [data-card="korder"]');
+  h = await hk();
+  check(h.on.join() === 'korder' && !h.hot, 'orderId again: spread across the partitions');
+  await hkScroll('hot key: orderId');
+  if (SHOTS) await page.locator('.dr-tray .hk').screenshot({ path: path.join(SHOTS, 'drill-hotkey-orderid.png') });
+  await deploy();
+  check((await st()).drill.state === 'contained', 'orders-v2 keyed by orderId contains The Hot Key');
+
+  // ---- Short Fuse: the visibility window is a timeline at the Queue (audit, Nov 17). Drag it short and the
+  // messages pop back and the run isn't contained; past the work but short of 6x it still isn't (AWS's rule); past
+  // 6x it holds. By mouse, by touch, and by the keyboard. ----
+  await open('fuse');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); });
+  const L0 = await page.evaluate(() => SD.drill.visLine(SD.state.save.drill.drill));
+  check(!!await page.$('.dr-vl .dr-vl-h[role="slider"]') && !await page.$('[data-card="vis30"]') && /^VisibilityTimeout: 30$/.test(await txt('.dr-vl .dr-cfg'))
+    && await page.$$eval('.dr-vl-lane', x => x.length) === 3 && await page.$$eval('.dr-vl-lane.pop', x => x.length) === 3 && !!await page.$('.dr-vl-six'),
+  'Short Fuse: the Queue shows the window over the Duration bars with a 6x mark, not the dial; at 30 s every message pops back');
+  await noHScroll('short fuse timeline', '#panel .dr-tray *');
+  await page.$eval('.dr-vl-board', e => e.scrollIntoView({ block: 'center' })); await shot('fuse-before');
+  await dragVis(L0.work - 10, async () => {
+    check(/^VisibilityTimeout: \d+$/.test(await txt('.dr-vl .dr-cfg')) && await page.$$eval('.dr-vl-lane.pop .dr-vl-pop', x => x.length === 3 && x.every(e => getComputedStyle(e).display !== 'none'))
+      && (await st()).drill.changes.length === 0, 'mid-drag the setting rewrites live and each message pops back, before anything is saved');
+    await shot('fuse-mid');
+  });
+  let fs1 = await st();
+  check(fs1.drill.cfg.queue.vis === L0.work - 10 && fs1.drill.changes.join() === 'visline' && (await txt('.dr-vl .dr-cfg')) === `VisibilityTimeout: ${L0.work - 10}`, `letting go sets VisibilityTimeout ${L0.work - 10}, one change`);
+  await deploy();
+  fs1 = await st();
+  check(fs1.drill.state === 'read' && fs1.drill.log[1].m.dupes > 0, `a window shorter than the ${L0.work} s work: messages come back and are written twice, not contained`);
+  // Past the bars but short of 6x: nothing pops back, and it still isn't signed off.
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); });
+  await dragVis(100);
+  await dragVis(120);
+  check((await st()).drill.changes.length === 1 && !await page.$('.dr-vl-lane.pop') && /short of 6x/.test(await txt('.dr-vl-say')), 'dragging twice in one deploy is still one change; past the bars nothing pops back, and the slate says it is short of 6x');
+  await page.focus('.dr-vl-h'); await page.keyboard.press('ArrowRight');
+  check((await st()).drill.cfg.queue.vis === 130 && /VisibilityTimeout: 130/.test(await txt('.dr-vl .dr-cfg')), 'the arrow keys move the window 10 s');
+  await page.keyboard.press('ArrowLeft');
+  await deploy();
+  fs1 = await st();
+  check(fs1.drill.state === 'read' && fs1.drill.log[2].m.dupes === 0 && /under 6x/.test(await txt('#panel')), 'VisibilityTimeout 120 stops the duplicates but is under 6x the 60 s timeout: not contained, and Mira says why');
+  // Past 6x, by touch.
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'queue'; s.zoom = true; SD.drillUi.draw(); });
+  await dragVis(L0.six + 40, null, true);
+  check((await st()).drill.cfg.queue.vis === L0.six + 40 && !await page.$('.dr-vl-lane.pop') && /At least 6x/.test(await txt('.dr-vl-say')), `a touch drag past the 6x mark sets VisibilityTimeout ${L0.six + 40}`);
+  await noHScroll('short fuse past 6x', '#panel .dr-tray *'); await shot('fuse-after');
+  await deploy();
+  check((await st()).drill.state === 'contained', 'past 6x the function timeout contains Short Fuse');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();

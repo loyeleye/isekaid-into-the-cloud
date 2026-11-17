@@ -86,6 +86,11 @@
     vis60: { at: 'queue', sqs: true, dial: 'vis', name: 'Visibility timeout 60 s', text: 'A received message hides for 60 seconds.', back: 'An undeleted message is received again when its timeout runs out.', set: c => { c.queue.vis = 60; }, on: c => c.queue.vis === 60 },
     vis120: { at: 'queue', sqs: true, dial: 'vis', name: 'Visibility timeout 120 s', text: 'A received message hides for 2 minutes.', back: 'An undeleted message is received again when its timeout runs out.', set: c => { c.queue.vis = 120; }, on: c => c.queue.vis === 120 },
     vis360: { at: 'queue', sqs: true, dial: 'vis', name: 'Visibility timeout 360 s', text: 'A received message hides for 6 minutes.', back: 'For a Lambda consumer AWS advises at least 6x the function timeout, plus the batching window.', set: c => { c.queue.vis = 360; }, on: c => c.queue.vis === 360 },
+    // The Short Fuse's timeline (audit, Nov 17: the gesture mirrors the concept): you drag the visibility window
+    // along the function's Duration bars instead of turning the dial. Any value in seconds, set by D.setVis; dragging
+    // it again in the same deploy costs nothing more. Never placed as a card, so on() is false.
+    visline: { at: 'queue', sqs: true, needs: 'visLine', name: 'Visibility timeout (the window)', text: 'How long a received message stays hidden.',
+      back: 'An undeleted message turns visible again when its window ends. For a Lambda consumer AWS advises at least 6x the function timeout.', set: () => {}, on: () => false },
     dlq: { at: 'queue', sqs: true, name: 'Redrive policy → orders-dlq', text: 'After 3 receives, a message moves to orders-dlq.',
       back: 'maxReceiveCount moves a message to the dead-letter queue. The DLQ must be the same type as its queue.',
       why: c => (AS.dlqTypeOk(c.queue.fifo, false) ? '' : 'Refused: a FIFO queue needs a FIFO dead-letter queue.'), set: c => { c.queue.dlq = 'std'; }, on: c => c.queue.dlq === 'std' },
@@ -383,11 +388,15 @@
       ok: m => m.slow === 0, fix: [['prov']], lazy: [['reserved'], ['to120'], ['provlatest']],
       hidden: 'Every burst found its environments reclaimed, so each request waited for a cold start.',
       q: /cold start|provisioned concurrency|init(ialization)? (duration|latency)|SnapStart/i },
-    fuse: { name: 'Short Fuse', cause: 'queue+fn', lead: 'mira', path: 'async',
+    // visLine: the Queue's visibility timeout is a timeline you drag (js/mode-drill.js), and the drill holds you to
+    // AWS's rule: at least 6x the function's timeout (m.visShort). A window that only clears tonight's work stops
+    // the duplicates but isn't signed off: the margin is for a batch Lambda retries after a throttle.
+    fuse: { name: 'Short Fuse', cause: 'queue+fn', lead: 'mira', path: 'async', visLine: true,
       says: 'Some orders are going through twice.',
-      setup: v => ({ arrivals: steady(2, { work: 40 + 10 * (v.k % 2) }) }),
+      work: v => 40 + 10 * (v.k % 2),
+      setup: v => ({ arrivals: steady(2, { work: DR.fuse.work(v) }) }),
       break: c => { c.queue.on = true; c.queue.vis = 30; c.fn.timeout = 60; },
-      ok: m => m.dupes === 0 && m.condBlocked === 0 && m.timeouts === 0 && m.left === 0, fix: [['vis360'], ['vis120']], lazy: [['to120'], ['to30'], ['cond']],
+      ok: m => m.dupes === 0 && m.condBlocked === 0 && m.timeouts === 0 && m.left === 0 && !m.visShort, fix: [['vis360']], lazy: [['vis60'], ['vis120'], ['to120'], ['to30'], ['cond'], ['to120', 'vis360']],
       hidden: 'The queue\'s visibility timeout was shorter than the work, so messages came back while still being worked.',
       q: /visibility timeout|received (more than once|twice)|duplicate|six times|6x/i },
     poison: { name: 'The Poison Batch', cause: 'queue+fn', lead: 'kai', path: 'async',
@@ -460,6 +469,7 @@
       limit429: 0, shopLimited: 0, quotaAt: 0, quotaRaised: !!(set.keys && cfg.gate.quota > 50), ghits: 0, gmisses: 0, leaked: 0, cacheWarn: 0, cacheOff: !!(set.gcache && cfg.gate.gttl === 0),
       reads: 0, hits: 0, misses: 0, cstale: 0, evictions: 0, cacheMax: 0, flushed: 0,
       uploads: 0, upDone: 0, upFail: 0, up403: 0, upToken: 0, parts: 0, signed: 0, orphans: 0, userKey: !!(set.upload && cfg.up.userKey), pubPut: !!(set.upload && cfg.up.pub),
+      visShort: !!(d.visLine && cfg.queue.vis < 6 * cfg.fn.timeout),
       published: 0, delivered: 0, filteredOut: 0, noAttr: 0, filtered: 0, misrouted: 0,
       started: 0, succeeded: 0, execFailed: 0, fnThrottled: 0, retried: 0, declines: 0, recharged: 0, stuck: 0, released: 0, releaseFailed: 0 };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
@@ -808,7 +818,7 @@
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
       + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged
       + m.cstale + Math.ceil(m.evictions / 3) + (m.misses * 2 > m.reads ? Math.ceil((m.misses - m.reads / 2) / 3) : 0)
-      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0) + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0);
+      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0) + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0) + (m.visShort ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -880,6 +890,7 @@
       if (m.parked) L.push(['mira', `${n(m.parked, 'record')} went to orders-failed${m.goodParked ? `, and ${m.goodParked} of them were good orders` : ''}.`]);
       if (m.lost + m.poisonDropped) L.push(['mira', `Lambda gave up on ${n(m.lost + m.poisonDropped, 'record')} and dropped ${m.lost + m.poisonDropped === 1 ? 'it' : 'them'}: nothing was set up to catch ${m.lost + m.poisonDropped === 1 ? 'it' : 'them'}.${m.lost ? ` ${n(m.lost, 'good order')} gone.` : ''}`]);
     } else if (d.path === 'async') {
+      if (m.visShort && !m.dupes) L.push(['mira', `Nothing came back twice this run. But VisibilityTimeout ${cfg.queue.vis} is under 6x the function's Timeout ${cfg.fn.timeout}, which is ${6 * cfg.fn.timeout}. If Lambda is throttled and retries a batch, its messages turn visible mid-retry.`]);
       if (m.received > m.sent) L.push(['mira', `NumberOfMessagesReceived is ${m.received}, but only ${m.sent} were sent.${m.parked ? ` ${n(m.parked, 'message')} moved to the DLQ.` : ''}`]);
       else L.push(['mira', `${m.sent} sent, ${m.deleted} deleted.${m.parked ? ` ${n(m.parked, 'message')} in the DLQ.` : ''}`]);
       if (m.maxAge > 30) L.push(['mira', `ApproximateAgeOfOldestMessage reached ${m.maxAge} seconds.${m.left + m.poisonLoose ? ` ${n(m.left + m.poisonLoose, 'message')} still waiting.` : ''}`]);
@@ -967,7 +978,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async' && !d.hub) return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', keys: 'This API has no API keys or usage plan.', gcache: 'This stage has no cache.', upload: 'Nothing uploads to S3 in this drill.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', keys: 'This API has no API keys or usage plan.', gcache: 'This stage has no cache.', upload: 'Nothing uploads to S3 in this drill.', visLine: 'This queue\'s timeout is set on its dial.' }[c.needs];
     if (c.sqs && (d.stream || d.hub)) return `That's an SQS setting, and this is ${d.hub === 'sns' ? 'an SNS topic' : d.hub === 'sfn' ? 'a state machine' : 'a stream'}.`;
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -983,6 +994,27 @@
     C[id].set(f.cfg);
     f.changes.push(id);
     return '';
+  };
+  // The Short Fuse's timeline: set the visibility timeout to sec (snapped to 10 s, 0 to 12 hours). The first drag of
+  // a deploy is one change; more drags in the same deploy move it for free, and dragging it back to where the deploy
+  // started takes the change back. Returns '' or why it can't move.
+  D.VIS_MAX = 43200;
+  D.setVis = function (f, sec) {
+    const v = Math.max(0, Math.min(D.VIS_MAX, Math.round((+sec || 0) / 10) * 10));
+    if (!f.changes.includes('visline')) {
+      if (v === f.cfg.queue.vis) return '';
+      const w = D.why(f, 'visline');
+      if (w) return w;
+      f.visFrom = f.cfg.queue.vis;
+      f.changes.push('visline');
+    } else if (v === f.visFrom) f.changes.splice(f.changes.indexOf('visline'), 1);
+    f.cfg.queue.vis = v;
+    return '';
+  };
+  // What the timeline draws: the work each message takes, the function's timeout, the 6x mark and the ruler's end.
+  D.visLine = function (f) {
+    const d = DR[f.drill], work = d.work ? d.work(f.v) : 10, timeout = f.cfg.fn.timeout, six = 6 * timeout;
+    return { work, timeout, six, vis: f.cfg.queue.vis, max: Math.max(480, Math.ceil(six * 1.25 / 60) * 60) };
   };
   // Deploy: run with the current settings. Returns the log entry.
   D.deploy = function (f) {
@@ -1046,7 +1078,7 @@
     if (m.filtered) keys.push('fanout');
     if (DR[f.drill].hub === 'sfn' && (m.lost || m.stuck || m.recharged)) keys.push('flow');
     if (m.slow) keys.push('cold');
-    if (m.dupes && DR[f.drill].path === 'async' && !DR[f.drill].stream) keys.push('vis');
+    if ((m.dupes || m.visShort) && DR[f.drill].path === 'async' && !DR[f.drill].stream) keys.push('vis');
     if (f.cfg.queue.fifo && m.maxAge > 30) keys.push('fifo');
     if (!DR[f.drill].stream && (m.goodParked || (m.errors && m.dupes))) keys.push('poison');
     if (Object.values(e.nodes).includes('dark')) keys.push('grey');
