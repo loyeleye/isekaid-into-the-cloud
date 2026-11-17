@@ -22,7 +22,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await new Promise(r => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: +process.env.DSF || 1 });   // DSF=2 for sharp screenshots
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|AudioContext/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -321,6 +321,43 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('receipt');
   await place('ckey'); await deploy();
   check((await st()).drill.state === 'contained', 'customerId in the cache key contains The Wrong Receipt');
+
+  // ---- The Hot Key: create orders-v2 by tapping its partition key on a sample item (js/drill-hotkey.js) ----
+  const atStore = () => page.evaluate(() => { const s = SD.state.save.drill; s.at = 'store'; s.zoom = true; SD.state.persist(); SD.drillUi.draw(); });
+  const hk = () => page.evaluate(() => ({ cfg: document.querySelector('.dr-tray .hk-cfg').textContent, hot: document.querySelectorAll('.dr-tray .hk-bin.hot').length,
+    bad: document.querySelectorAll('.dr-tray .hk-slip.bad').length, thr: /ThrottlingException/.test(document.querySelector('.dr-tray .hk-chalk').textContent),
+    bins: document.querySelectorAll('.dr-tray .hk-bin').length, on: [...document.querySelectorAll('.dr-tray .hk-at.on')].map(e => e.dataset.card), dial: !!document.querySelector('.dr-tray [data-card="kstatus"].dr-pick') }));
+  await open('hot'); await atStore();
+  let h = await hk();
+  check(h.bins === 3 && !h.dial && h.on.join() === 'kstatus' && !!await page.$('.dr-tray .hk-item [data-card="korder"]') && !!await page.$('.dr-tray .hk-item [data-card="kshard"]'), 'The Hot Key: the Store shows a sample order item whose attributes are the key choices (no key dial), status is the key now');
+  check(h.hot === 1 && h.bad === 3 && h.thr && /AttributeName: status, KeyType: HASH/.test(h.cfg), 'keyed by status, one partition overflows and throws ThrottlingException, KeySchema says status');
+  // The zoomed room pans wider than the phone on purpose (the other checks step back first): here, the desk and the page.
+  const hkScroll = async where => {
+    const r = await page.evaluate(() => { const w = innerWidth, bad = [];
+      if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
+      document.querySelectorAll('.dr-tray *').forEach(el => { const b = el.getBoundingClientRect(); if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right)); });
+      return bad.slice(0, 5); });
+    check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
+  };
+  await hkScroll('hot key: status');
+  if (SHOTS) { await page.$eval('.dr-tray .hk', e => e.scrollIntoView({ block: 'start' })); await shot('hotkey-item'); await page.locator('.dr-tray .hk').screenshot({ path: path.join(SHOTS, 'drill-hotkey-status.png') }); }
+  await page.click('.dr-tray [data-card="korder"]');
+  h = await hk();
+  check(h.on.join() === 'korder' && !h.hot && !h.bad && /TableName: orders-v2/.test(h.cfg) && /AttributeName: orderId, KeyType: HASH/.test(h.cfg), 'tapping orderId creates orders-v2 keyed by orderId: KeySchema rewrites, the writes spread');
+  await page.focus('.dr-tray [data-card="kstatus"]'); await page.keyboard.press('Enter');
+  h = await hk();
+  check(h.on.join() === 'kstatus' && h.hot === 1 && (await st()).drill.changes.length === 2, 'by keyboard, back to status: the hot partition overflows again (each choice is a change)');
+  await deploy();
+  s = await st();
+  check(s.drill.state !== 'contained' && s.drill.log[s.drill.log.length - 1].m.hot > 0, 'deploying keyed by status throttles writes and isn\'t contained');
+  await atStore();
+  await page.click('.dr-tray [data-card="korder"]');
+  h = await hk();
+  check(h.on.join() === 'korder' && !h.hot, 'orderId again: spread across the partitions');
+  await hkScroll('hot key: orderId');
+  if (SHOTS) await page.locator('.dr-tray .hk').screenshot({ path: path.join(SHOTS, 'drill-hotkey-orderid.png') });
+  await deploy();
+  check((await st()).drill.state === 'contained', 'orders-v2 keyed by orderId contains The Hot Key');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
