@@ -18,6 +18,14 @@
 //     next waypoint. o.label: the mode's name on screen.
 //   - An enemy's `denies` lists cards it refuses outright: the card is spent and does nothing. The log gives the foe's
 //     own reason (denyWhy, else its resist line for the card's tag), since a boundary or a key policy is not a Deny.
+//   - Real calls (Ladi, 2026-11-17): a pattern step's `call` ([action, resource ARN]) is the request behind the move,
+//     and the intent reads "Calls s3:DeleteObject on arn:aws:s3:::ore-maps/*", its load after it (two fronts name the
+//     foe's first read and write calls). A Deny, Boundary or least-privilege card that lands on it names that call and
+//     what stops it (blockLine: the foe's blockBy, else BLOCK_BY): "Blocked" only when the foe is resolved and the call
+//     never runs, else "Narrowed" with the load that still lands. Labels only: the numbers are as they were.
+//   - Revoke Older Sessions (a card's revokeOld): every session issued before the cutoff (aws:TokenIssueTime) is
+//     denied, so the target loses the escalation it gained on earlier turns (rn and rt keep this turn's apart) and keeps
+//     this turn's. With nothing older to strip, it hits as before.
 //   - A rare's ask.lp draws one of chapter 1's least-privilege questions (q.lp) on concepts this player has met.
 //   - Exam Twists (chapter 2, 2026-10-21): a boss with SD.twists[id], as in js/run.js, asks every player one twist the
 //     first time it falls to half Severity: its incident again with one thing changed, answered on each player's own
@@ -376,6 +384,11 @@
 .rd-mate b { font-family: var(--f-head); } .rd-mate.ready { background: #e7fbef; border-color: #1f8a57; }
 .rd-mate .rd-played { color: var(--muted); }
 .rd-front .lbl { background: var(--violet, #8b6cff) !important; }
+.rd .intent.rd-real { line-height: 1.35; overflow-wrap: anywhere; }
+.rd .intent .rd-call, .rd .intent .rd-arn { font: 700 .92em/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #f1ecdf; border: 1px solid rgba(43,35,64,.25); border-radius: 5px; padding: 0 4px; overflow-wrap: anywhere; }
+.rd .intent .rd-arn { font-weight: 600; }
+.rd .intent .rd-load { display: inline-block; font-size: .86em; font-weight: 600; color: var(--muted, #6b6478); white-space: nowrap; }
+.rd .intent .rd-load::before { content: '· '; }
 .rd-wait { font-size: 13px; color: var(--muted); }
 .rd-end { text-align: center; }
 .rd-stage .rd-party { position: absolute; left: 4%; bottom: 5%; display: flex; gap: 3%; align-items: flex-end; width: 56%; }
@@ -468,7 +481,11 @@
   // The foe's move this turn (G holds it, withFoe). Every third turn the frontmost enemy attacks on two fronts at once.
   function intentOf(G) {
     const e = SD.enemies[G.boss];
-    if (G.turn % 3 === 0 && G.lead) { const n = 8 + 2 * Math.floor(G.turn / 3); return { t: 'mixed', read: n, write: n, front: true }; }
+    if (G.turn % 3 === 0 && G.lead) {
+      const n = 8 + 2 * Math.floor(G.turn / 3), first = L => (e.pattern.find(s => s.call && L.includes(s.t)) || {}).call;
+      const calls = [first(READS), first(WRITES)].filter(Boolean);
+      return Object.assign({ t: 'mixed', read: n, write: n, front: true }, calls.length ? { calls } : {});
+    }
     const s = e.pattern[G.ii % e.pattern.length];
     return s.t === 'give' ? giveStep(G, e, s) : s;
   }
@@ -486,21 +503,28 @@
     return { t: 'give', card: ADD[(s.card === 'page' ? 'pager' : 'techdebt') + (lvl > 1 ? lvl : '')], to, name: s.name || '' };
   }
   if (SD.intentText && !SD.intentText.hit) SD.intentText.hit = i => `Hit ${i.n}`;
+  if (SD.intentText && !SD.intentText.mixed) SD.intentText.mixed = i => `Read load ${i.read} + write load ${i.write}`;
+  // The real requests behind a move (a pattern step's `call`, [action, resource ARN]; two fronts carry two).
+  const callsOf = it => (it.calls || (it.call ? [it.call] : [])).filter(c => Array.isArray(c) && c.length === 2);
   const TO_TEXT = { least: 'whoever absorbs least', random: 'one of you', two: 'two of you', all: 'everyone' };
   // A floor boss's one move that also debuffs the team (the floor's `debuff`, js/expeditions.js), on that pattern step.
   function debuffNow(G) {
     const db = G.db, it = G.boss && intentOf(G);
     return db && it && !it.front && G.ii % SD.enemies[G.boss].pattern.length === db.move ? db : null;
   }
-  function intentText(G) {
-    const it = intentOf(G), shown = Object.assign({}, it);
+  // With a real call it reads "Calls s3:DeleteObject on arn:aws:s3:::ore-maps/* · write load 7": the request first,
+  // its load after (o.parts: { calls, load, then } for the HTML, which sets them apart).
+  function intentText(G, o) {
+    const it = intentOf(G), shown = Object.assign({}, it), calls = callsOf(it);
     ['n', 'read', 'write'].forEach(k => { if (shown[k] != null) shown[k] = load(G, shown[k]); });
     if (it.t === 'audit') shown.per = 3;
     if (it.t === 'escalate') shown.up = 3;
     const f = SD.intentText[it.t];
     const t = it.t === 'give' ? `${it.name ? it.name + ': ' : ''}${card(it.card).name} to ${TO_TEXT[it.to]}, in hand next turn (no damage)` : f ? f(shown) : 'Something strange.';
-    const db = debuffNow(G);
-    return (it.front ? 'Two fronts: ' : '') + t + (db ? ` Then ${db.kind === 'techdebt' || db.kind === 'pager' ? `a ${STATUS_ADD[db.kind]} card in every deck` : `${STATUS[db.kind][0]} ${db.n} on everyone`}.` : '');
+    const db = debuffNow(G), then = db ? ` Then ${db.kind === 'techdebt' || db.kind === 'pager' ? `a ${STATUS_ADD[db.kind]} card in every deck` : `${STATUS[db.kind][0]} ${db.n} on everyone`}.` : '';
+    if (o && o.parts) return { calls, load: calls.length ? t.charAt(0).toLowerCase() + t.slice(1) : t, then };
+    if (calls.length) return (it.front ? 'Two fronts: ' : '') + 'Calls ' + calls.map(c => `${c[0]} on ${c[1]}`).join(' and ') + ' · ' + t.charAt(0).toLowerCase() + t.slice(1) + then;
+    return (it.front ? 'Two fronts: ' : '') + t + then;
   }
   // The statuses (Ladi, 2026-10-20), all card fields, each working like the ops idea it's named for.
   // On the incident:
@@ -649,7 +673,7 @@
       case 'collide':
         if (hi('idgen') || hi('fence')) { note = 'Every claim was unique. '; break; }
         dmg = absorb(G, sc(it.n), [['any', 1]]); note = 'Two of them claimed the same thing at once. '; break;
-      case 'escalate': G.rage += 3 - (hi('observe') ? 1 : 0); note = `The incident escalates. All load +${3 - (hi('observe') ? 1 : 0)}. `; break;
+      case 'escalate': n = 3 - (hi('observe') ? 1 : 0); G.rage += n; gained(G, n); note = `${it.call ? `${it.call[0]} on ${it.call[1]} went through. ` : ''}The incident escalates. All load +${n}. `; break;
       case 'flood':
         n = sc(it.n);
         if (hi('ratelimit')) { n *= 0.4; note = 'Token buckets ran dry: the flood got 429s. '; }
@@ -764,8 +788,33 @@
   // every third turn the first living one strikes on two fronts. The fight is won when every enemy is down.
   // ease: Backpressure, which lightens the next hit of the enemy whose hit got through.
   // dl: Delayed (Lord Latency), its next move waits a turn.
-  const FOE = ['boss', 'sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'db', 'known', 'pw', 'ease', 'dl'];
-  const newFoe = (id, sev, pw) => ({ boss: id, sev, max: sev, ii: 0, rage: 0, vuln: 0, leak: 0, leakM: 0, skip: 0, degrade: 0, deesc: 0, db: null, known: [], pw, ease: 0, dl: 0 });
+  // rn, rt: how much of its escalation (rage) it gained on turn rt, the latest turn it gained any; the rest it gained
+  // on earlier turns, which is what Revoke Older Sessions strips (revokeOld, fxApply).
+  const FOE = ['boss', 'sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'db', 'known', 'pw', 'ease', 'dl', 'rn', 'rt'];
+  const newFoe = (id, sev, pw) => ({ boss: id, sev, max: sev, ii: 0, rage: 0, vuln: 0, leak: 0, leakM: 0, skip: 0, degrade: 0, deesc: 0, db: null, known: [], pw, ease: 0, dl: 0, rn: 0, rt: 0 });
+  // The enemy (G holds it, withFoe) gains n escalation this turn; what it gained before is older.
+  function gained(G, n) { if (G.rt !== G.turn) { G.rn = 0; G.rt = G.turn; } G.rn += n; }
+  // What it gained before this turn: the sessions issued before the cutoff.
+  const olderGain = G => Math.max(0, G.rage - (G.rt === G.turn ? G.rn : 0));
+  // A Deny, Boundary or least-privilege card that lands on an enemy whose next move is a real call (js/ch1-mines.js):
+  // what stops that call, worded by what the numbers do. The card takes Severity; it never lightens the move itself.
+  // So only when the enemy is resolved does the call never run ("Blocked"); otherwise it still lands this turn at its
+  // shown load ("Narrowed"). The enemy's blockBy names the reason where these defaults would be wrong (a boundary or a
+  // key policy that doesn't trust IAM is an implicit deny, not a Deny statement).
+  const BLOCK_BY = {
+    deny: 'an explicit "Effect": "Deny", which beats every Allow.',
+    boundary: 'the permissions boundary, which leaves it out (an implicit deny: a boundary never grants).',
+    leastpriv: 'the scoped role, with no statement allowing it (an implicit deny).'
+  };
+  function blockLine(G, e, tags) {
+    const tag = ['deny', 'boundary', 'leastpriv'].find(x => tags.includes(x)), c = tag && callsOf(intentOf(G))[0];
+    if (!c) return '';
+    const why = obj(e.blockBy)[tag] || BLOCK_BY[tag];
+    // The ARN is on the intent already; the log names the action.
+    if (G.sev <= 0) return `Blocked: ${c[0]} never runs, denied by ${why} `;
+    if (G.skip || G.dl) return `Narrowed: ${c[0]} is held back this turn, but isn't gone. Denied for good by ${why} `;
+    return `Narrowed: ${c[0]} still lands this turn (${intentText(G, { parts: true }).load}). Denied for good by ${why} `;
+  }
   const living = G => G.foes.map((f, i) => i).filter(i => G.foes[i].sev > 0);
   const front = G => (living(G)[0] == null ? -1 : living(G)[0]);
   // In an Elite or boss room the company leaves when the elite or boss falls: no mop-up.
@@ -876,17 +925,27 @@
         if (d.rca) mt(stale0 * 4);
         if (d.mit) log += `${who}Mitigated ${mt(M(d.mit + 3 * L))}. `;
         if (d.vuln) G.vuln = o.vadd ? G.vuln + d.vuln : Math.max(G.vuln, d.vuln);
-        if (d.pow) {
+        // Revoke Older Sessions (revokeOld): an explicit Deny on every session issued before now (aws:TokenIssueTime
+        // before the cutoff). What the target gained on earlier turns goes; what it gained this turn stays. With nothing
+        // older to strip, the card hits as usual.
+        const real = d.real ? String(d.real).replace('<cutoff>', new Date().toISOString().replace(/\.\d+Z$/, 'Z')) : '';
+        const old = d.revokeOld && aimed ? olderGain(G) : 0;
+        if (old) {
+          G.rage -= old;
+          log += `${who}[${real}] Every session issued before the cutoff is denied: ${foeName(G, G.fi)} loses the +${old} load it gained on earlier turns.${G.rage > 0 ? ` Its +${G.rage} from this turn stays.` : ''} `;
+        } else if (d.revokeOld && aimed) log += `${who}[${real}] Nothing gained before the cutoff to strip, so it hits. `;
+        if (d.pow && !old) {
           const tags = d.tags || [], pw = d.pow + (o.tp ? 3 : 0);
           const rs = tags.find(x => e.resist[x]), wk = d.wild ? Object.keys(e.weak)[0] : tags.find(x => e.weak[x]);
           if (wk) {
             // The log says what the hit did against the card's ⚔: the full number, half, or none.
-            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${d.real ? `[${d.real}] ` : ''}${e.weak[wk]} `; G.known.push('w:' + wk);
+            log += `${who}EFFECTIVE! ${mt(M(pw))} of ⚔${pw}. ${real && !d.revokeOld ? `[${real}] ` : ''}${e.weak[wk]} `; G.known.push('w:' + wk);
             // A Tag Team: the second player to land an effective card this turn.
             if (!G.eff.includes(peer)) { G.eff.push(peer); if (G.eff.length === 2) log += `TAG TEAM! Mitigated ${mitigate(G, TAG_TEAM)} more. `; }
           } else if (rs) { log += `${who}RESISTED: 0 of ⚔${pw}. ${e.resist[rs]} `; G.known.push('r:' + rs); }
           // No tag of it is a weakness or a resistance here, so the badges can show half from now on ('n:').
           else { log += `${who}Partial: ${mt(Math.floor(M(pw) / 2))} of ⚔${pw}, half. `; tags.forEach(x => G.known.push('n:' + x)); }
+          if (!rs && aimed) log += blockLine(G, e, tags);
         }
         // Statuses on the incident (the target). They stack.
         if (d.leak && aimed) G.leak += d.leak;
@@ -2023,7 +2082,7 @@
       const num = (v, hi) => Math.max(0, Math.min(hi, Number(v) || 0));
       S.foes = (Array.isArray(d.foes) ? d.foes : []).slice(0, 3).filter(a => Array.isArray(a) && SD.enemies[a[0]]).map(a => {
         const f = {}; FOE.forEach((k, i) => { f[k] = a[i]; });
-        ['sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'ease', 'dl'].forEach(k => { f[k] = Math.round(num(f[k], 99999)); });
+        ['sev', 'max', 'ii', 'rage', 'vuln', 'leak', 'leakM', 'skip', 'degrade', 'deesc', 'ease', 'dl', 'rn', 'rt'].forEach(k => { f[k] = Math.round(num(f[k], 99999)); });
         f.max = Math.max(1, f.max); f.pw = Math.max(0.1, Math.min(2.5, Number(f.pw) || 1));
         f.known = Array.isArray(f.known) ? f.known.filter(x => typeof x === 'string').slice(0, 80) : [];
         const db = obj(f.db);
@@ -2499,7 +2558,10 @@
     function intentHtml(i) {
       const it = intentOf(G), gv = it.t === 'give', pc = gv ? it.card : painCard(G);
       const tip = gv ? `Its whole move: no damage, a ${card(pc).name} into ${TO_TEXT[it.to]}'s hand next turn.` : pc ? `If any SLA gets through, whoever absorbed least this turn gets a ${card(pc).name}.` : '';
-      return `<div class="intent${it.front ? ' rd-front' : ''}"${tip ? ` title="${esc(tip)}"` : ''}><span class="lbl">${it.front ? 'TWO FRONTS' : 'NEXT'}</span> ${esc(intentText(G))}${pc && !gv ? ` <span class="chip rd-st stale" title="${esc(tip)}">${esc(card(pc).name)}</span>` : ''}</div>`;
+      // A real call: the request in code, the load after it, smaller.
+      const pt = intentText(G, { parts: true });
+      const body = pt.calls.length ? `<span class="rd-calls">Calls ${pt.calls.map(c => `<code class="rd-call">${esc(c[0])}</code> on <code class="rd-arn">${esc(c[1])}</code>`).join(' and ')}</span> <span class="rd-load">${esc(pt.load)}</span>${pt.then ? esc(pt.then) : ''}` : esc(intentText(G));
+      return `<div class="intent${it.front ? ' rd-front' : ''}${pt.calls.length ? ' rd-real' : ''}"${tip ? ` title="${esc(tip)}"` : ''}><span class="lbl">${it.front ? 'TWO FRONTS' : 'NEXT'}</span> ${body}${pc && !gv ? ` <span class="chip rd-st stale" title="${esc(tip)}">${esc(card(pc).name)}</span>` : ''}</div>`;
     }
     function fightView(mine) {
       cue();
