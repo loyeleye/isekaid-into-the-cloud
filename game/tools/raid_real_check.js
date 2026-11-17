@@ -1,8 +1,9 @@
 // Headless check of the Deny Mines' real calls (js/ch1-mines.js on js/raid.js): every IAM foe's move names a real
 // action and resource and its intent shows it; Revoke Older Sessions strips what a foe gained on earlier turns and
 // keeps this turn's (and hits when there's nothing older); a Deny, Boundary or least-privilege card that lands logs the
-// call it blocked and what stopped it, with an implicit deny for a boundary or a key policy and an explicit Deny only
-// for the Asterisk's SCP. Fails on any page error or console error.
+// call and what denies it, worded by what the numbers do ("Narrowed" while the foe is up and the call still lands at
+// its shown load, "Blocked" only when the foe is resolved), with an implicit deny for a boundary or a key policy and an
+// explicit Deny only for the Asterisk's SCP. Fails on any page error or console error.
 // Run from game/:  node tools/raid_real_check.js     (SHOTS=dir also saves 375px screenshots at 2x there)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -108,31 +109,51 @@ const SHOTS = process.env.SHOTS || '';
   if (pack.n !== 2 || pack.wide) fails.push('a pair\'s intents don\'t both show their calls at 375px: ' + JSON.stringify(pack));
   if (SHOTS) { await page.evaluate(() => document.querySelector('.rd .foe-info').scrollIntoView({ block: 'center' })); await page.screenshot({ path: path.join(SHOTS, 'raid-real-pack.png') }); }
 
-  // 5. Blocked calls name the call and what stopped it.
-  const block = async (id, cardId, want, not) => {
+  // 5. A Deny, Boundary or least-privilege card names the call and what stops it, worded by what the numbers do: the
+  // card takes Severity and never lightens the move, so the call is "Narrowed" (it still lands this turn, at the load
+  // the intent shows) unless the foe is resolved, when it's "Blocked" (it never runs).
+  const block = async (id, cardId, want, not, o) => {
+    o = o || {};
     await fight([id], [cardId]);
-    const r = await play(0, 0); if (process.env.V) console.log(r.log);
+    if (o.sev) await page.evaluate(n => { SD.test.raid.G().foes[0].sev = n; }, o.sev);
     const c = await page.evaluate(id => { const G = SD.test.raid.G(); return SD.enemies[id].pattern[G.foes[0].ii % SD.enemies[id].pattern.length].call; }, id);
-    if (!r.log.includes(`Blocked: ${c[0]} on ${c[1]}.`) || !want.test(r.log) || (not && not.test(r.log))) fails.push(`${cardId} on ${id} didn't log the block and its reason: ${r.log}`);
+    const r = await play(0, 0); if (process.env.V) console.log(r.log);
+    const shownLoad = await page.evaluate(() => { const el = document.querySelector('.rd .intent .rd-load'); return el ? el.textContent : null; });
+    const call = c[0];
+    if (!want.test(r.log) || (not && not.test(r.log))) fails.push(`${cardId} on ${id}: wrong reason: ${r.log}`);
+    if (r.sev > 0) {
+      if (/Blocked:/.test(r.log) || !r.log.includes(`Narrowed: ${call} still lands this turn (${shownLoad}).`)) fails.push(`${cardId} on ${id}: the foe is still up, so the log must say Narrowed with the load it still lands (${shownLoad}): ${r.log}`);
+    } else if (/Narrowed:/.test(r.log) || !r.log.includes(`Blocked: ${call} never runs, denied by `)) fails.push(`${cardId} on ${id}: the foe is resolved, so the log must say Blocked: ${r.log}`);
     // A guest's page keeps 400 characters of the log; leave room for a longer player name and a pack's foe name.
     if (r.log.length > 370) fails.push(`${cardId} on ${id}: the log runs to ${r.log.length} characters: ${r.log}`);
-    return r.log;
+    return r;
   };
-  await block('wildslime', 'leastpriv', /No statement in the scoped role allows it, so the implicit deny stands/);
-  await block('boundarywall', 'finddeny', /permissions boundary stopped it, not a Deny: .*implicit deny/, /explicit "Effect": "Deny"/);
-  await block('boundarywall', 'readbound', /permissions boundary stopped it, not a Deny/);
-  await block('asterisk', 'finddeny', /SCP's explicit Deny stopped it/);
-  await block('keykeeper', 'finddeny', /key policy stopped it: .*implicit deny, not a Deny/);
-  await block('mimic', 'finddeny', /explicit "Effect": "Deny" matched it/);
+  const nar = await block('wildslime', 'leastpriv', /denied for good by the scoped role, with no statement allowing it \(an implicit deny\)/i);
+  // The narrowed call really does land: with no shields up, the foes' turn costs the team SLA and the move is made.
+  if (nar.sev > 0) {
+    const land = await page.evaluate(() => {
+      const T = SD.test.raid, G = T.G(), ii = G.foes[0].ii, taken = G.taken;
+      Object.keys(G.sh).forEach(k => { G.sh[k] = 0; }); G.infra = [];
+      Object.keys(G.players).forEach(k => { if (!G.players[k].ready) T.act(k, { k: 'ready' }); });
+      return { moved: G.foes[0].ii === ii + 1, took: G.taken - taken };
+    });
+    if (!land.moved || !(land.took > 0)) fails.push('a Narrowed call didn\'t land on the foes\' turn: ' + JSON.stringify(land));
+  }
+  await block('wildslime', 'leastpriv', /denied by the scoped role/, null, { sev: 1 });
+  await block('boundarywall', 'finddeny', /by the permissions boundary, which leaves it out \(an implicit deny, not a Deny\)/, /explicit "Effect": "Deny"/);
+  await block('boundarywall', 'readbound', /by the permissions boundary, which leaves it out/);
+  await block('asterisk', 'finddeny', /by the SCP's explicit Deny, which beats every Allow/);
+  await block('keykeeper', 'finddeny', /by the key policy, which doesn't let IAM policies count \(an implicit deny, not a Deny\)/);
+  await block('mimic', 'finddeny', /by an explicit "Effect": "Deny", which beats every Allow/);
   // A resisted card blocks nothing (the Deny Bat has no Deny to find), and a refusal still gives the foe's own reason.
   await fight(['denybat'], ['finddeny']);
   const res = await play(0, 0);
-  if (!/RESISTED/.test(res.log) || /Blocked:/.test(res.log)) fails.push('a resisted Deny still logged a block: ' + res.log);
+  if (!/RESISTED/.test(res.log) || /Blocked:|Narrowed:/.test(res.log)) fails.push('a resisted Deny still logged a block: ' + res.log);
   await fight(['boundarywall'], ['adminaccess']);
   const den = await play(0, 0);
   if (!/refuses it\. Its permissions boundary caps the role/.test(den.log) || /explicit Deny beats/.test(den.log)) fails.push('the Boundary Wall\'s refusal lost its implicit-deny reason: ' + den.log);
 
   await browser.close(); server.close();
   if (errors.length || fails.length) { console.error(errors.concat(fails).join('\n')); process.exit(1); }
-  console.log('OK: every Deny Mines move names a real call, Revoke strips only earlier turns\' gains, and blocked calls say what stopped them.');
+  console.log('OK: every Deny Mines move names a real call, Revoke strips only earlier turns\' gains, and Deny cards say Narrowed or Blocked as the numbers do, and what denies the call.');
 })().catch(e => { console.error(e); process.exit(1); });

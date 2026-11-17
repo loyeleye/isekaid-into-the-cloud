@@ -20,8 +20,9 @@
 //     own reason (denyWhy, else its resist line for the card's tag), since a boundary or a key policy is not a Deny.
 //   - Real calls (Ladi, 2026-11-17): a pattern step's `call` ([action, resource ARN]) is the request behind the move,
 //     and the intent reads "Calls s3:DeleteObject on arn:aws:s3:::ore-maps/*", its load after it (two fronts name the
-//     foe's first read and write calls). A Deny, Boundary or least-privilege card that lands on it says which call it
-//     blocked and what stopped it (blockLine: the foe's blockBy, else BLOCK_BY). Labels only: the numbers are as they were.
+//     foe's first read and write calls). A Deny, Boundary or least-privilege card that lands on it names that call and
+//     what stops it (blockLine: the foe's blockBy, else BLOCK_BY): "Blocked" only when the foe is resolved and the call
+//     never runs, else "Narrowed" with the load that still lands. Labels only: the numbers are as they were.
 //   - Revoke Older Sessions (a card's revokeOld): every session issued before the cutoff (aws:TokenIssueTime) is
 //     denied, so the target loses the escalation it gained on earlier turns (rn and rt keep this turn's apart) and keeps
 //     this turn's. With nothing older to strip, it hits as before.
@@ -796,17 +797,23 @@
   // What it gained before this turn: the sessions issued before the cutoff.
   const olderGain = G => Math.max(0, G.rage - (G.rt === G.turn ? G.rn : 0));
   // A Deny, Boundary or least-privilege card that lands on an enemy whose next move is a real call (js/ch1-mines.js):
-  // which call it stops, and what stopped it. The enemy's blockBy names it where these would be wrong (a boundary or a
+  // what stops that call, worded by what the numbers do. The card takes Severity; it never lightens the move itself.
+  // So only when the enemy is resolved does the call never run ("Blocked"); otherwise it still lands this turn at its
+  // shown load ("Narrowed"). The enemy's blockBy names the reason where these defaults would be wrong (a boundary or a
   // key policy that doesn't trust IAM is an implicit deny, not a Deny statement).
   const BLOCK_BY = {
-    deny: 'An explicit "Effect": "Deny" matched it, and an explicit Deny beats every Allow.',
-    boundary: 'It\'s outside the permissions boundary: an implicit deny, since a boundary never grants.',
-    leastpriv: 'No statement in the scoped role allows it, so the implicit deny stands.'
+    deny: 'an explicit "Effect": "Deny", which beats every Allow.',
+    boundary: 'the permissions boundary, which leaves it out (an implicit deny: a boundary never grants).',
+    leastpriv: 'the scoped role, with no statement allowing it (an implicit deny).'
   };
   function blockLine(G, e, tags) {
     const tag = ['deny', 'boundary', 'leastpriv'].find(x => tags.includes(x)), c = tag && callsOf(intentOf(G))[0];
     if (!c) return '';
-    return `Blocked: ${c[0]} on ${c[1]}. ${obj(e.blockBy)[tag] || BLOCK_BY[tag]} `;
+    const why = obj(e.blockBy)[tag] || BLOCK_BY[tag];
+    // The ARN is on the intent already; the log names the action.
+    if (G.sev <= 0) return `Blocked: ${c[0]} never runs, denied by ${why} `;
+    if (G.skip || G.dl) return `Narrowed: ${c[0]} is held back this turn, but isn't gone. Denied for good by ${why} `;
+    return `Narrowed: ${c[0]} still lands this turn (${intentText(G, { parts: true }).load}). Denied for good by ${why} `;
   }
   const living = G => G.foes.map((f, i) => i).filter(i => G.foes[i].sev > 0);
   const front = G => (living(G)[0] == null ? -1 : living(G)[0]);

@@ -135,7 +135,7 @@
   // ---------- Enemies ----------
   // raid: only the mines fight them. denies: cards this enemy refuses (js/raid.js); denyWhy: why, when it isn't an explicit Deny.
   // Each pattern step's call is the real request it makes, [action, resource ARN], shown as its intent. blockBy: what
-  // stopped that call when a Deny or Boundary card lands on it, where js/raid.js's default line would be wrong (a
+  // stops that call when a Deny or Boundary card lands on it, where js/raid.js's default line would be wrong (a
   // boundary or a key policy is an implicit deny; only the Asterisk's SCP is an explicit Deny).
   const F = (o) => Object.assign({ ch: 1, raid: true, resist: {} }, o);
   Object.assign(SD.enemies, {
@@ -171,7 +171,7 @@
       resist: { allow: 'More Allows don\'t lift a boundary. It caps them.', admin: 'AdministratorAccess is capped like everything else.' },
       denyWhy: 'Its permissions boundary caps the role at s3:GetObject. A boundary isn\'t a Deny: it never grants, so anything outside it is simply not allowed (an implicit deny), however much the role\'s own policy allows.',
       denies: ['adminaccess'],
-      blockBy: { deny: 'The permissions boundary stopped it, not a Deny: anything outside the boundary is an implicit deny.', boundary: 'The permissions boundary stopped it, not a Deny: anything outside the boundary is an implicit deny.' },
+      blockBy: { deny: 'the permissions boundary, which leaves it out (an implicit deny, not a Deny).', boundary: 'the permissions boundary, which leaves it out (an implicit deny, not a Deny).' },
       pattern: [{ t: 'read', n: 9, call: ['s3:ListBucket', 'arn:aws:s3:::ore-maps'] }, { t: 'write', n: 10, call: ['s3:PutObject', 'arn:aws:s3:::ore-maps/*'] }, { t: 'escalate', call: ['iam:DeleteRolePermissionsBoundary', 'arn:aws:iam::111122223333:role/gallery-admin'] }, { t: 'burst', n: 11, call: ['s3:DeleteObject', 'arn:aws:s3:::ore-maps/*'] }] }),
     asterisk: F({ name: 'The Great Asterisk', short: 'Asterisk', cause: 'Allow * on *, everywhere, for everyone', sev: 78, concept: 'guardrails', tier: 3, boss: true, sprite: 'm1asterisk',
       flavor: 'It was a temporary policy. In 2017.',
@@ -180,7 +180,7 @@
       resist: { allow: 'Allowing more doesn\'t help against Allow *.', admin: 'AdministratorAccess is the Asterisk\'s own policy. It only feeds it.' },
       denyWhy: 'The SCP over these galleries carries an explicit Deny for the dangerous actions, and an explicit Deny beats every Allow, even AdministratorAccess.',
       denies: ['adminaccess'],
-      blockBy: { deny: 'The SCP\'s explicit Deny stopped it. An explicit Deny beats every Allow, even * on *.' },
+      blockBy: { deny: 'the SCP\'s explicit Deny, which beats every Allow, even * on *.' },
       pattern: [{ t: 'write', n: 10, call: ['iam:CreateUser', 'arn:aws:iam::111122223333:user/*'] }, { t: 'read', n: 11, call: ['secretsmanager:GetSecretValue', 'arn:aws:secretsmanager:us-east-1:111122223333:secret:*'] }, { t: 'burst', n: 13, call: ['ec2:TerminateInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'escalate', up: 3, call: ['iam:CreatePolicyVersion', 'arn:aws:iam::111122223333:policy/AllowStar'] }, { t: 'write', n: 12, call: ['s3:DeleteBucket', 'arn:aws:s3:::ore-maps'] }] }),
     // Floor 2, the Trust Vaults
     untrusted: F({ name: 'The Untrusted', short: 'Untrusted', cause: 'The role\'s trust policy doesn\'t name the caller', sev: 32, concept: 'roles', tier: 1, sprite: 'm2untrusted',
@@ -212,7 +212,7 @@
       symptom: 'RunInstances fails with UnauthorizedOperation and a long encoded authorization message.',
       weak: { deny: 'Decode it with sts:DecodeAuthorizationMessage and find the policy that said no.', arn: 'The decoded message names the exact action and resource. Match them.' },
       resist: { allow: 'Guessing at Allows before reading the reason rarely lands.' },
-      blockBy: { deny: 'The decoded message names the explicit Deny that matched it, and an explicit Deny beats every Allow.' },
+      blockBy: { deny: 'the explicit Deny the decoded message names, which beats every Allow.' },
       pattern: [{ t: 'burst', n: 7, call: ['ec2:RunInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'read', n: 7, call: ['ec2:GetConsoleOutput', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }, { t: 'write', n: 8, call: ['ec2:StartInstances', 'arn:aws:ec2:us-east-1:111122223333:instance/*'] }] }),
     keykeeper: F({ name: 'The Key Keeper', short: 'Key Keeper', cause: 'The KMS key policy doesn\'t let IAM policies count', sev: 48, concept: 'authdebug', tier: 2, elite: true, sprite: 'm2keeper',
       flavor: 'Your IAM policy says yes. The key never asked IAM.',
@@ -221,7 +221,7 @@
       resist: { allow: 'An IAM Allow doesn\'t count until the key policy lets it.', admin: 'Even AdministratorAccess can\'t use a key whose policy doesn\'t trust the account.' },
       denyWhy: 'Its key policy names only the key\'s admins and doesn\'t let the account\'s IAM policies count. That isn\'t a Deny: an IAM Allow, even AdministratorAccess, just never gets a say (an implicit deny).',
       denies: ['adminaccess'],
-      blockBy: { deny: 'The key policy stopped it: it doesn\'t let IAM policies count (an implicit deny, not a Deny).' },
+      blockBy: { deny: 'the key policy, which doesn\'t let IAM policies count (an implicit deny, not a Deny).' },
       pattern: [{ t: 'read', n: 10, call: ['kms:Decrypt', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'write', n: 10, call: ['kms:Encrypt', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'escalate', call: ['kms:PutKeyPolicy', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }, { t: 'burst', n: 12, call: ['kms:GenerateDataKey', 'arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'] }] }),
     deputy: F({ name: 'The Confused Deputy', short: 'Deputy', cause: 'A vendor\'s role can be used for the wrong customer, with no ExternalId', sev: 84, concept: 'xacct', tier: 3, boss: true, sprite: 'm2deputy',
       flavor: 'He has keys to every vault, and he does whatever the last person asked.',
