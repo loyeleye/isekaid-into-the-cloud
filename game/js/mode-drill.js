@@ -32,8 +32,51 @@
     arrive: 'Behold, mortals! Thy goddess hath devised a trial most... okay, I copied the order system and broke something. On purpose! Mostly. Find it before the error budget runs out. I\'ll be supervising. From the snack table.',
     again: 'Another drill! Same system, brand new break. I\'d tell you what I broke, but I didn\'t write it down.',
     won: 'Every drill closed! Praise Uptima. Thank Uptima. Credit... okay, fine. Credit them a little.',
+    next: 'Next one! This one\'s definitely fine. Probably. Don\'t quote me.',
+    pm: 'Postmortem time! One answer, and tell me how sure you are. If you\'re right, I\'m taking the credit.',
     zero: 'The budget\'s gone. In a real outage, this is where everyone gets paged. Including me. Please don\'t page me. We\'ll try again tomorrow.'
   };
+
+  const RM = () => SD.drillRoom;
+  // Uptima's cutscenes (storyboard panels 2 and 10): the interface drops away and she stands full size over the
+  // blurred war room, blinking, her mouth moving while she talks. A pose 'a>b@ms' switches pose mid-line (the grand
+  // opening collapsing at "...okay"). One tap per beat; then done().
+  function cutScreen(beats, done) {
+    let i = 0;
+    const fuss = []; beats.forEach(([, t], k) => { fuss[k] = /!/.test(t) && !fuss[k - 1]; });
+    const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const show = () => {
+      const [pose, text] = beats[i];
+      const m = /^([\w-]+)(?:>([\w-]+)@(\d+))?$/.exec(pose) || [0, pose];
+      const first = i === 0 && !calm;
+      const b = panel(`<div class="dr-cut">
+        <div class="dr-cut-room">${RM().scene(m[1], !first)}</div>
+        <button class="dr-cut-box" id="dr-cut-next" data-vo="${esc('uptima|' + text)}"><b>Uptima</b><span>${esc(text)}</span><i aria-hidden="true">▼</i></button></div>`);
+      const rm = b.querySelector('.rm'), fig = b.querySelector('.rm-up .up-fig');
+      // She glides down from her cloud to the desk as the scene opens, and floats back up when it closes.
+      if (first) setTimeout(() => rm.classList.add('talk'), 250);
+      if (fig) fig.classList.add('talking');
+      // Fuss lines only on lines that shout, and never two beats running.
+      const sq = b.querySelector('.rm-sq');
+      if (sq && fuss[i]) setTimeout(() => sq.classList.add('fuss'), first ? 900 : 120);
+      RM().mount(b.querySelector('.dr-cut-room'));
+      if (i === 0) RM().listen(true);   // the leads turn toward her
+      const talkMs = Math.min(11000, 800 + text.length * 62);
+      const t1 = m[2] ? setTimeout(() => RM().setPose(fig, m[2]), +m[3]) : 0;
+      const t2 = setTimeout(() => fig && fig.classList.remove('talking'), talkMs);
+      const next = b.querySelector('#dr-cut-next');
+      next.onclick = () => {
+        clearTimeout(t1); clearTimeout(t2); i++;
+        if (i < beats.length) return show();
+        RM().listen(false);
+        if (calm) return done();
+        next.disabled = true; rm.classList.remove('talk');
+        setTimeout(done, 750);
+      };
+      next.focus({ preventScroll: true });
+    };
+    show();
+  }
 
   function start() {
     let s = cur();
@@ -76,8 +119,13 @@
       }).join('')}</div>`;
     }).reverse().join('');
     const first = s.fresh && s.night === 1 && !s.done.length;
+    const cutKey = s.night + ':' + s.row;
+    if (RM() && s.cutAt !== cutKey) {
+      const beat = first ? ['bluffing>caught@4300', SAY.arrive] : s.done.length ? ['bluffing>caught@2400', SAY.next] : ['snack', SAY.again];
+      return cutScreen([beat], () => { s.cutAt = cutKey; save(s); draw(s); });
+    }
     const b = panel(`<p class="dr-night">Night ${s.night}</p>
-      ${say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? 'Next one! This one\'s definitely fine. Probably. Don\'t quote me.' : SAY.again)}
+      ${RM() ? '' : say('uptima', 'neutral', first ? SAY.arrive : s.done.length ? SAY.next : SAY.again)}
       ${budgetJar(s)}
       <div class="dr-map">${rows}</div>
       <div class="dr-dock"><button class="ghost" id="dr-stop">☰ Stop for now</button></div>`);
@@ -86,6 +134,7 @@
       s.fresh = false;
       D.startDrill(s, el.dataset.drill, s.night * 7919 + s.row * 31);
       s.at = D.DRILLS[el.dataset.drill].path === 'async' ? 'queue' : 'gate';
+      s.zoom = false;
       save(s);
       if (SD.drillBoard && D.lastFrames) playing = { frames: D.lastFrames, budget0: s.budget, cost: 0 };
       draw(s);
@@ -180,24 +229,36 @@
     const lines = play ? '' : BD ? BD.bubbles(e.lines, e.m)
       : `<div class="dr-pager" aria-live="polite"><p class="dr-ph">${icon('walkie-talkie')}<b>The pager</b></p>${e.lines.map(([w, t]) => `<p class="dr-pl" data-vo="${esc(w + '|' + t)}"><b>${esc(NAMES[w])}:</b> ${esc(t)}</p>`).join('')}</div>`;
     const jarS = play ? Object.assign({}, s, { budget: play.budget0 }) : s;
+    const RO = RM(), zoom = !!(RO && s.zoom && !play && !over);
     const dock = play ? '<button class="ghost" id="dr-skip">Skip to the end</button>'
-      : `<button class="ghost" id="dr-stop">☰ Stop</button>${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}`;
-    const b = panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
+      : `<button class="ghost" id="dr-stop">☰ Stop</button>${RO ? (zoom ? '<button class="ghost" id="dr-back">‹ Back to the room</button>' : over ? '' : '<span class="dr-hint">Tap a lead to work their station.</span>') : ''}${over ? '<button class="primary" id="dr-next">Debrief</button>' : `<button class="primary" id="dr-deploy">${icon('cloud-upload')}Deploy${f.changes.length ? ` (${plural(f.changes.length, 'change')})` : ''}</button>`}`;
+    const notes = teach.map(t => [TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate', D.TEACH[t][0], D.TEACH[t][1]]);
+    const b = RO ? panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
-      <div class="dr-bw">${BD ? BD.html(f, e, s.at, teach.map(t => [TEACH_AT[t] === 'here' ? s.at : TEACH_AT[t] || 'gate', D.TEACH[t][0], D.TEACH[t][1]])) : traceMap(f, e)}${stamp}</div>
+      <div class="dr-bw dr-roomw${zoom ? ' zoomed' : ''}">${RO.html(f, e, { at: s.at, zoom, notes: play ? [] : notes, lines: play ? [] : e.lines, m: e.m, play: !!play })}${stamp}
+        ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e)}</div>` : ''}</div>
+      ${reveal}
+      <div class="dr-dock">${dock}</div>`) : panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
+        <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
+      ${budgetJar(jarS)}
+      <div class="dr-bw">${BD ? BD.html(f, e, s.at, notes) : traceMap(f, e)}${stamp}</div>
       <div class="dr-cols"><div class="dr dr-l">${BD ? '' : verdict}${reveal}
       ${lines}
       ${BD ? '' : teach.map(t => say(...D.TEACH[t].slice(0, 1), 'neutral', D.TEACH[t][1])).join('')}</div>
       <div class="dr dr-r">${over || play ? '' : stationHtml(s, f, e)}</div></div>
       <div class="dr-dock">${dock}</div>`);
+    // The walk-in intro plays once, on the first night only (Ladi: "otherwise it would get a little annoying").
+    const intro = RO && !play && s.night === 1 && !s.introSeen;
+    if (intro) { s.introSeen = true; save(s); }
+    if (RO) RO.mount(b, s.night + ':' + s.row + ':' + f.drill, intro ? 'intro' : null);
     if (play) {
       if (play.started) return;
       play.started = true;
       const wb = b.closest('.win-b') || b; wb.scrollTop = 0;   // the run plays on the board: start at the top
       const traced = {}; D.ORDER.forEach(k => { traced[k] = e.nodes[k] && e.nodes[k] !== 'dark' && e.nodes[k] !== 'off'; });
       let spill = 0;
-      BD.play(b, f, play.frames, {
+      (RO || BD).play(b, f, play.frames, {
         traced, skipBtn: b.querySelector('#dr-skip'), gone: () => !document.body.contains(b),
         onTick: fr => {
           const x = fr.d;
@@ -211,10 +272,14 @@
         draw(s);
         const res = document.querySelector('.dr-stamp.good, .dr-res.good');
         if (res && U.burst) U.burst(res, D.clean(f));
+        if (RO) RO.emote(document.querySelector('.rm'), res ? 'good' : 'wow');
+        if (RO && (f.state === 'contained' || f.state === 'escalated')) RO.mood(f.state === 'contained' ? 'clear' : 'slump');
       });
       return;
     }
-    b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; save(s); draw(s); });
+    b.querySelectorAll('[data-at]').forEach(el => el.onclick = () => { s.at = el.dataset.at; if (RO && !over) s.zoom = true; save(s); draw(s); });
+    const back = b.querySelector('#dr-back');
+    if (back) back.onclick = () => { s.zoom = false; save(s); draw(s); };
     b.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
       const id = el.dataset.card, why = D.place(f, id);
       if (why) {
@@ -231,6 +296,7 @@
     const dep = b.querySelector('#dr-deploy');
     if (dep) dep.onclick = () => {
       const budget0 = s.budget;
+      s.zoom = false;   // pull back to the room to watch the run
       const r = D.deploy(f);
       r.teach = D.teachFor(f, r, s.taught);
       r.teach.forEach(t => { s.taught[t] = 1; });
@@ -266,12 +332,15 @@
       ${budgetJar(s)}
       ${say(lead, ok ? 'smile' : 'tired', ok ? 'Held. Write it up before you forget why.' : 'We didn\'t find it in time. Now we know where to look.')}
       <div class="dr-reveal ms-lt">${icon('scroll-unfurled')}<span><b>The cause:</b> ${esc(d.hidden)}<br><span class="small">${esc(d.fix[0].map(id => C[id].back).join(' '))}</span></span></div>
-      ${say('uptima', 'neutral', 'Postmortem time! One answer, and tell me how sure you are. If you\'re right, I\'m taking the credit.')}
+      ${RM() ? '' : say('uptima', 'neutral', SAY.pm)}
       <div class="dr-dock"><button class="primary" id="dr-ask">Answer the postmortem</button></div>`);
-    b.querySelector('#dr-ask').onclick = async () => {
+    b.querySelector('#dr-ask').onclick = () => RM() ? cutScreen([['smug', SAY.pm]], ask) : ask();
+    const ask = async () => {
       const q = debriefQuestion(s);
       if (!q) { D.settle(s, false); save(s); draw(s); return; }
-      const r = await M.ask(q, { tally: s.tally, title: 'THE POSTMORTEM' });
+      document.body.classList.add('dr-pm');   // the question on the war room's chalkboard (CSS below)
+      let r;
+      try { r = await M.ask(q, { tally: s.tally, title: 'THE POSTMORTEM' }); } finally { document.body.classList.remove('dr-pm'); }
       if (r.closed || r.skipped) { save(s); draw(s); return; }
       s.debriefs.push({ q: q.id, ok: !!r.ok, conf: r.conf, pts: r.pts, drill: f.drill });
       if (!r.ok) {
@@ -287,6 +356,9 @@
   // ---- The end: the last boss, win or lose (L1), then one line and Pip ----
   function endScreen(s) {
     const k = keep(), zero = s.phase === 'zero';
+    if (RM() && !s.cutEnd) {
+      return cutScreen([zero ? ['derpy>hiding@3200', SAY.zero] : ['applauding>entitled@2600', SAY.won]], () => { s.cutEnd = 1; save(s); draw(s); });
+    }
     if (!s.paid) {
       s.paid = M.pay(ID) || ' ';
       if (SD.modeStage && SD.modeStage.sting) SD.modeStage.sting(ID, zero ? 'lose' : 'win');
@@ -296,7 +368,7 @@
     const clean = s.done.filter(x => x.clean).length, held = s.done.filter(x => x.state === 'contained').length;
     const proofs = s.debriefs.filter(x => x.ok).length;
     const b = panel(`<p class="dr-night">Night ${s.night}: ${zero ? 'budget spent' : 'all drills closed'}</p>
-      ${say('uptima', zero ? 'tired' : 'smile', zero ? SAY.zero : SAY.won)}
+      ${RM() ? '' : say('uptima', zero ? 'tired' : 'smile', zero ? SAY.zero : SAY.won)}
       ${budgetJar(s)}
       <p>Drills contained <b>${held} of ${s.done.length}</b> · Clean fixes <b>${clean}</b> · Postmortems right <b>${proofs} of ${s.debriefs.length}</b></p>
       ${s.tally ? M.calibHtml(s.tally, 'How sure you were in the postmortems') : ''}
@@ -448,6 +520,43 @@
       body.in-mode .dr-win .dr-edge { flex-basis: 18px; }
       body.in-mode .dr-win .dr-hand { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
       body.in-mode .dr-win .dr-metrics { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-    }`;
+    }
+    /* The living war room (js/drill-room.js): the room is the screen; the station's desk slides up over it. */
+    .dr-roomw { position: relative; }
+    .dr-hint { flex: 1 1 auto; align-self: center; font-weight: 700; font-size: 14px; opacity: .85; }
+    .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes drtray { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .dr-tray .dr-station { box-shadow: 0 -6px 24px rgba(0, 0, 0, .55); border-radius: 14px; }
+    @media (min-width: 900px) {
+      .dr-roomw.zoomed .dr-tray { position: absolute; left: 50%; bottom: 0; width: min(780px, 92%); max-height: 74%; overflow-y: auto; margin: 0;
+        transform: translateX(-50%); animation: drtrayw .45s cubic-bezier(.2, .8, .2, 1) both; }
+      .dr-roomw.zoomed .dr-tray .dr-station { border-radius: 14px 14px 0 0; border-bottom: 0; }
+      @keyframes drtrayw { from { transform: translate(-50%, 60%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+    }
+    body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: 1240px; margin: 0 auto; }
+    @media (max-height: 820px) and (min-width: 900px) {
+      body.in-mode[data-stage="drill"] #panel .win.dr-win .win-b > .dr:has(.dr-roomw) { max-width: min(1240px, calc((100vh - 230px) * 1.79)); }
+    }
+    /* Uptima's cutscenes: the interface drops away, she stands full size over the blurred room. */
+    .dr:has(> .dr-cut) { min-height: 100%; }
+    .dr-cut { position: relative; flex: 1; min-height: min(78vh, 760px); display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+      margin: -14px calc(50% - 50vw) 0; }
+    .dr-cut-room { position: absolute; inset: 0; container-type: size; overflow: hidden; background: #120e0a; }
+    .dr-cut-room .rm { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: max(100cqw, 179.1cqh); border-radius: 0; }
+    @keyframes drcutin { from { transform: translateY(8%); opacity: 0; } to { transform: none; opacity: 1; } }
+    body.in-mode #panel .win .dr-cut-box, .dr-cut-box { position: relative; z-index: 2; width: min(980px, calc(100% - 32px)); margin: 0 auto calc(22px + env(safe-area-inset-bottom, 0px));
+      display: block; text-align: left; padding: 18px 24px 22px; border-radius: 16px; background: rgba(22, 19, 30, .93); color: #efe6d2;
+      border: 2px solid rgba(214, 178, 84, .6); font: inherit; font-size: 19px; line-height: 1.45; cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); min-height: 0; }
+    .dr-cut-box b { display: block; font-family: var(--f-head, serif); color: #e9c56d; font-size: 19px; margin-bottom: 4px; }
+    .dr-cut-box i { font-style: normal; color: #d6b254; margin-left: 6px; display: inline-block; animation: drmore 1s ease-in-out infinite; }
+    @keyframes drmore { 50% { transform: translateY(3px); } }
+    @media (min-width: 900px) { .dr-cut-box { margin-left: max(16px, calc(50% - 160px)); width: min(760px, 52%); } }
+    @media (max-width: 600px) { .dr-cut-box { font-size: 16px; } }
+    /* The postmortem on the war room's chalkboard: the question in chalk, the answers as cards on the counter. */
+    body.dr-pm.in-mode #panel .win.quiz { background: #24382c; border: 12px solid #6b4a2a; border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .7), inset 0 0 40px rgba(0, 0, 0, .45); }
+    body.dr-pm.in-mode #panel .win.quiz .win-b { background: transparent; color: #f2f2e6; }
+    body.dr-pm.in-mode #panel .win.quiz .win-h { background: transparent; color: #f2f2e6; border-bottom: 2px dashed rgba(242, 242, 230, .35); }
+    body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
+    body.dr-pm.in-mode #panel .win.quiz button:not(.primary):not(.ghost) { background: #f6efdc; color: #17131f; border: 3px solid #17131f; border-radius: 10px; box-shadow: 0 4px 0 #0c0a10; }`;
   document.head.appendChild(css);
 })();

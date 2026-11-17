@@ -194,6 +194,9 @@
     setTimeout(() => e.remove(), 900);
   }
 
+  // The living war room (js/drill-room.js) draws the same gauges, events and flights over its painted room.
+  Object.assign(B, { gauge, gaugeCallers, events, flights, TROUBLE });
+
   const css = document.createElement('style');
   css.textContent = `
     .db { position: relative; border-radius: 14px; padding: 10px 8px 8px; overflow: hidden;
