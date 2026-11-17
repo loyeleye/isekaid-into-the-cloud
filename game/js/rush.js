@@ -61,26 +61,28 @@
   // on-demand dial sits by them.
   // The vault's door, wheel, cabinets, tube, basket and desk are painted into the backdrop (painted: true), so they sit
   // in the room; the positions below are measured off the painting. Only the pieces that move or get bought are sprites.
+  // Drawn to one scale: a standing person is about 300 px tall in the wide room (about 224 in the tall one), so a
+  // three-drawer cabinet comes to chest height and the Night Clerk, slumped on his stools, to about two thirds of that.
   const VAULT_WIDE = {
     W: 1344, H: 768, bg: 'vault-wide', art: 'vault', painted: true,
-    chute: [[1153, 250], [1153, 470]], foot: [1153, 596], hatch: [1153, 440],
-    lever: { x: 176, y: 370, r: 62, wheel: true, label: [176, 545] },
-    clerk: { x: 1010, y: 655, h: 150 }, puddle: { x: 330, y: 715 },
-    rack: { x: 880, y: 656, h: 170 }, stools: { xs: [760, 702, 644, 586, 528, 470], y: 652, h: 56 },
-    desk: { x: 329, y: 660, h: 165 }, tank: { x: 440, y: 330, h: 190 }, bin: { x: 1262, y: 745, h: 90 },
+    chute: [[1150, 250], [1150, 455]], foot: [1150, 560], hatch: [1150, 430],
+    lever: { x: 195, y: 445, r: 42, wheel: true, label: [195, 545] },
+    clerk: { x: 1250, y: 662, h: 210 }, puddle: { x: 360, y: 712 },
+    rack: { x: 900, y: 656, h: 160 }, stools: { xs: [800, 728, 656, 584, 512, 440], y: 652, h: 66 },
+    desk: { x: 329, y: 645, h: 115 }, tank: { x: 470, y: 330, h: 150 }, bin: { x: 1100, y: 745, h: 90 },
     bell: { x: 1150, y: 744, h: 64 }, tray: [1090, 716], reports: [1040, 110],
-    cabs: { at: [[547, 603], [672, 603], [796, 603], [920, 603]], w: 117, h: 285 }, dial: [735, 268], inset: INSET_WIDE,
+    cabs: { at: [[610, 598], [711, 598], [813, 598], [914, 598]], w: 84, h: 184 }, dial: [762, 368], inset: INSET_WIDE,
     belt: { h: 100, slot: 116 }, title: [36, 26], handled: [1250, 46], say: { x: 400, y: 36, w: 600 }, fs: 1
   };
   const VAULT_TALL = {
     W: 768, H: 1344, bg: 'vault-tall', art: 'vault', painted: true,
-    chute: [[697, 500], [697, 760]], foot: [697, 858], hatch: [697, 740],
-    lever: { x: 160, y: 400, r: 62, wheel: true, label: [160, 585] },
-    clerk: { x: 330, y: 1162, h: 110 }, puddle: { x: 400, y: 1120 },
-    rack: { x: 100, y: 1150, h: 140 }, stools: { xs: [480, 428, 376, 324, 272, 220], y: 1010, h: 50 },
-    desk: { x: 115, y: 928, h: 160 }, tank: { x: 470, y: 395, h: 160 }, bin: { x: 470, y: 1165, h: 70 },
+    chute: [[712, 420], [712, 645]], foot: [712, 800], hatch: [712, 620],
+    lever: { x: 255, y: 620, r: 46, wheel: true, label: [255, 712] },
+    clerk: { x: 300, y: 1172, h: 150 }, puddle: { x: 130, y: 1120 },
+    rack: { x: 460, y: 1172, h: 110 }, stools: { xs: [420, 368, 316, 264, 212, 160], y: 1010, h: 48 },
+    desk: { x: 197, y: 918, h: 150 }, tank: { x: 548, y: 470, h: 150 }, bin: { x: 470, y: 1165, h: 70 },
     bell: { x: 560, y: 1104, h: 60 }, tray: [560, 960], filterLabel: [320, 820], reports: [690, 120],
-    cabs: { at: [[211, 879], [328, 879], [443, 879], [559, 879]], w: 108, h: 273 }, dial: [470, 560], inset: { r: [528, 985, 228, 190], src: INSET_TALL.src },
+    cabs: { at: [[370, 857], [447, 857], [524, 857], [601, 857]], w: 74, h: 161 }, dial: [548, 600], inset: { r: [528, 985, 228, 190], src: INSET_TALL.src },
     belt: { h: 150, slot: 162 }, coinsAt: [470, 50], title: [24, 24], handled: [690, 50], say: { x: 16, y: 196, w: 736 }, fs: 1.7
   };
   // Each room's props by the name the cellar uses for them. A missing file falls back to the cellar's.
@@ -833,8 +835,9 @@
       rrect(bx, by, bw, 8, 3); cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fill();
       if (load > .02) { rrect(bx, by, bw * Math.min(1, load / 1.5), 8, 3); cx.fillStyle = hot ? '#ff6a4f' : load > .7 ? '#f2c14a' : '#6fd38a'; cx.fill(); }
       cx.restore();
-      text('ABCD'[i], a[0], y0 + 22 * L.fs, 24, hot ? '#ffb0a0' : '#f6e7c4');
-      text(String(cab.filed), a[0], y0 + c.h * .55, 22, '#bff5b4');
+      const tz = L.W < L.H ? .6 : 1; // the phone's cabinets are small: smaller marks, so the painted drawers still show
+      text('ABCD'[i], a[0], y0 + 22 * L.fs * tz, 24 * tz, hot ? '#ffb0a0' : '#f6e7c4');
+      text(String(cab.filed), a[0], y0 + c.h * .55, 22 * tz, '#bff5b4');
     });
     const xs = c.at.map(a => a[0]), top = Math.min(...c.at.map(a => a[1])) - c.h;
     plaque(S.ondemand ? 'Cabinets · partitions · on-demand' : 'Cabinets · DynamoDB partitions', (Math.min(...xs) + Math.max(...xs)) / 2, top - 16 * L.fs);
