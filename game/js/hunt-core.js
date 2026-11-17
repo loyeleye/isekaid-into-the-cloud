@@ -16,16 +16,21 @@
   const HC = {};
   HC.TICKS = 12; HC.DRAIN = 4; HC.DEPLOYS = 3;
   HC.COST = { gaveUp: 1, fail: 1, dupe: 1, lost: 2, denied: 1, leak: 3, wgaveUp: 1, left: 1 };
+  // A timeout or an out-of-memory error costs nothing by itself: the caller retries it, and what burns oil is the
+  // caller giving up (gaveUp).
 
   // ---- The monsters ----
   HC.MONSTERS = {
     poison: { name: 'The Poison Pill', topic: 'sqs', tile: 'queue', what: 'A message your function can never process.' },
     gate: { name: 'The Throttle Gate', topic: 'apigateway', tile: 'gate', what: 'Takes only so many requests per turn.' },
     hydra: { name: 'The Hot Key Hydra', topic: 'dynamodb', tile: 'table', what: 'Every write lands on one head.' },
-    warden: { name: 'The Deny Warden', topic: 'iam', tile: 'door', what: 'Nothing gets through the door it doesn\'t allow.' }
+    warden: { name: 'The Deny Warden', topic: 'iam', tile: 'door', what: 'Nothing gets through the door it doesn\'t allow.' },
+    // Troubleshooting (Domain 4, Ladi, Nov 16): every Phantom board has the same symptom, errors at the function, and a
+    // different cause. A clue (an X-Ray trace, a log line or CloudWatch metrics) shows which one, and only its fix holds.
+    phantom: { name: 'The Phantom Error', topic: 'lambda', tile: 'fn', what: 'Calls fail at the function. Read the clue to find out why.' }
   };
   // Bank topics that call each monster (js/hunt.js picks the board from the poster's topic).
-  HC.TOPICS = { sqs: 'poison', apigateway: 'gate', dynamodb: 'hydra', iam: 'warden', sts: 'warden' };
+  HC.TOPICS = { sqs: 'poison', apigateway: 'gate', dynamodb: 'hydra', iam: 'warden', sts: 'warden', lambda: 'phantom', cloudwatch: 'phantom', xray: 'phantom', observability: 'phantom' };
 
   // ---- Cards. tile: where it goes. refuse(cfg): the reason AWS won't take it on this board, or null. apply(cfg)
   // changes the board's settings. back: what it really does, shown after a deploy (never "right" or "wrong").
@@ -110,6 +115,24 @@
     stsallow: { name: 'Allow sts:AssumeRole', tile: 'door', cost: 1, text: 'App role policy: Allow sts:AssumeRole on reports-reader.',
       apply: c => { c.door.idAllow = true; },
       back: 'Your side now allows the call, but the role\'s trust policy still doesn\'t name you, so AssumeRole is refused.' },
+    // The Phantom's cards (Lambda, checked on docs.aws.amazon.com Nov 16, 2026): timeout default 3 s, max 900 s
+    // (configuration-timeout.html); memory 128 MB to 10,240 MB with CPU in proportion (configuration-memory.html);
+    // reserved concurrency is both a floor and a ceiling, and over it Lambda throttles (lambda-concurrency.html);
+    // provisioned concurrency keeps environments initialized and can't exceed reserved concurrency
+    // (provisioned-concurrency.html).
+    tmo15: { name: 'Longer timeout', tile: 'fn', cost: 1, text: 'Function timeout 3 s → 15 s.',
+      apply: c => { c.fn.timeoutS = 15; },
+      back: 'The function may now run for up to 15 seconds, so it can wait for a slow answer. Whatever else is wrong still fails, just later.' },
+    mem1g: { name: 'More memory', tile: 'fn', cost: 1, text: 'Function memory 128 MB → 1,024 MB.',
+      apply: c => { c.fn.memMB = 1024; },
+      back: 'More memory, and CPU in proportion to it. It ends out-of-memory errors and speeds up the function\'s own work, but it can\'t make another service answer faster.' },
+    rcup: { name: 'Raise reserved concurrency', tile: 'fn', cost: 1, text: 'Reserved concurrency 2 → 20.',
+      apply: c => { c.fn.stools = 20; c.fn.reserved = 20; },
+      back: 'Up to 20 copies may run at once, so a rush isn\'t throttled. Each copy still has the same timeout and memory.' },
+    provconc: { name: 'Provisioned concurrency', tile: 'fn', cost: 2, text: 'Provisioned concurrency 5 on the live alias.',
+      refuse: c => (c.fn.reserved != null && c.fn.reserved < 5 ? 'Provisioned concurrency can\'t be more than the function\'s reserved concurrency.' : null),
+      apply: () => {},
+      back: 'Five environments stay initialized, so those calls skip the cold start. The timeout, the memory and how many copies may run don\'t change.' },
     roleadmin: { name: 'AdministratorAccess on the role', tile: 'door', cost: 0, text: 'Attach AdministratorAccess to reports-reader.',
       apply: c => { c.door.roleAdmin = true; },
       back: 'That changes what the role can do once assumed. It doesn\'t change who may assume it.' }
@@ -126,7 +149,9 @@
     denied: 'Access denied. Nothing allowed it, or something denied it.',
     leak: '¡Ay! That script just deleted things nobody should delete.',
     lost: 'Purged. The good messages too.',
-    refused: 'AWS won\'t take that setting here.'
+    refused: 'AWS won\'t take that setting here.',
+    timeout: 'Timed out. It was still waiting when the clock ran out.',
+    oom: 'Out of memory. It used every megabyte it had.'
   };
 
   // ---- A small seeded random, so a board's numbers shift per play but replay the same ----
@@ -234,6 +259,44 @@
         c.door = { assume: true, trust: false, idAllow: false };
         return { cfg: c, arrive: t => (t > 12 ? [] : tickets(t, 2)) };
       } },
+    // The Phantom: the same symptom on every board, a different clue. Calls are synchronous, so the caller retries an
+    // error at once and gives up after 3 attempts (the SDK's standard mode).
+    { id: 'x-teach', fix: [['tmo15']], tier: 'teach', mons: ['phantom'], tiles: ['callers', 'fn'], budget: 1, lamp: 8,
+      hand: ['tmo15', 'mem1g', 'rcup', 'provconc'],
+      title: 'Checkout hangs', line: 'Checkout calls fail. Read the trace before you pick.',
+      clue: { tool: 'X-Ray trace · POST /checkout', lines: ['checkout (Lambda)  3.0 s  ⚠ error', '  Invocation  3.0 s', '    payments-api (HTTP)  3.0 s, no answer yet', 'Function timeout: 3 s (the default) · Memory: 128 MB', 'The payments team: "Our API takes about 8 s to answer this week."'] },
+      make(seed) {
+        const r = rng(seed), c = base(), off = Math.floor(r() * 2);
+        c.fn = { stools: 6, work: 1, batch: 1, timeout: 4, idem: false, timeoutS: 3, callS: 8, memMB: 128, needMB: 100 };
+        return { cfg: c, arrive: t => tickets(t, t <= 12 && (t + off) % 2 === 0 ? 1 : 0) };
+      } },
+    { id: 'x-oom', fix: [['mem1g']], tier: 'tight', mons: ['phantom'], tiles: ['callers', 'fn'], budget: 1, lamp: 6,
+      hand: ['mem1g', 'tmo15', 'rcup', 'provconc'],
+      title: 'Big photos', line: 'The thumbnail function fails on every upload since the app started sending full-size phone photos.',
+      clue: { tool: 'CloudWatch Logs · /aws/lambda/thumbnailer', lines: ['REPORT  Duration: 2104 ms  Billed Duration: 2105 ms  Memory Size: 128 MB  Max Memory Used: 128 MB', 'REPORT  Duration: 1987 ms  Billed Duration: 1988 ms  Memory Size: 128 MB  Max Memory Used: 128 MB', 'Errors: every invocation · Timeout: 30 s'] },
+      make(seed) {
+        const r = rng(seed), c = base(), n = 1 + (r() < 0.5 ? 0 : 1);
+        c.fn = { stools: 6, work: 1, batch: 1, timeout: 4, idem: false, timeoutS: 30, callS: 2, memMB: 128, needMB: 300 };
+        return { cfg: c, arrive: t => tickets(t, t <= 12 ? n : 0) };
+      } },
+    { id: 'x-throttle', fix: [['rcup']], tier: 'tight', mons: ['phantom'], tiles: ['callers', 'fn'], budget: 1, lamp: 6,
+      hand: ['rcup', 'tmo15', 'mem1g', 'provconc'],
+      title: 'Flash sale', line: 'The sale started and callers get errors. The function itself looks healthy.',
+      clue: { tool: 'CloudWatch metrics · sale-api', lines: ['Throttles: climbing every minute', 'ConcurrentExecutions: flat at 2', 'Errors: 0 · Duration p99: 0.9 s', 'Reserved concurrency: 2 (set during last month\'s incident)'] },
+      make(seed) {
+        const r = rng(seed), c = base(), n = 4 + (r() < 0.5 ? 0 : 1);
+        c.fn = { stools: 2, reserved: 2, work: 1, batch: 1, timeout: 4, idem: false, timeoutS: 10, callS: 1, memMB: 512, needMB: 100 };
+        return { cfg: c, arrive: t => tickets(t, t <= 12 ? n : 0) };
+      } },
+    { id: 'x-two', fix: [['tmo15'], ['rcup']], tier: 'combo', mons: ['phantom'], tiles: ['callers', 'fn'], budget: 2, lamp: 7,
+      hand: ['tmo15', 'rcup', 'mem1g', 'provconc'],
+      title: 'Two clues', line: 'Launch day. Calls fail two different ways. Each clue points at one of them.',
+      clue: { tool: 'CloudWatch metrics and an X-Ray trace · launch-api', lines: ['Throttles: climbing · ConcurrentExecutions: flat at 2', 'Reserved concurrency: 2', 'Trace: launch (Lambda)  3.0 s  ⚠ error', '  inventory-api (HTTP)  3.0 s, no answer yet (it usually takes about 6 s)', 'Function timeout: 3 s · Memory: 128 MB'] },
+      make(seed) {
+        const r = rng(seed), c = base(), n = 3 + (r() < 0.5 ? 0 : 1);
+        c.fn = { stools: 2, reserved: 2, work: 1, batch: 1, timeout: 4, idem: false, timeoutS: 3, callS: 6, memMB: 128, needMB: 100 };
+        return { cfg: c, arrive: t => tickets(t, t <= 12 ? n : 0) };
+      } },
     { id: 'c-gate-hydra', fix: [['backoff'], ['shard']], tier: 'combo', mons: ['gate', 'hydra'], tiles: ['callers', 'gate', 'fn', 'table'], budget: 2, lamp: 7,
       hand: ['backoff', 'shard', 'lambdaconc', 'ondemand', 'burstup', 'dax'],
       title: 'Rush hour, hot key', line: 'Bursts bounce at the gate and retry at once. Whatever gets through writes status = ACTIVE.',
@@ -294,6 +357,7 @@
     if (cfg.queue) { const q = AS.addQueue(w, cfg.queue.fifo); q.vis = cfg.queue.vis; q.dlq = !!cfg.queue.dlq; q.maxReceive = cfg.queue.maxReceive; }
     const bucket = cfg.gate ? AS.bucket(cfg.gate.rate, cfg.gate.burst) : null;
     let pending = [], writes = [], burned = 0, served = 0;
+    const whyOf = {};
     const frames = [], all = [], firstAt = {};
     const counts = {};
     const note = (t, type, id, extra) => { const e = Object.assign({ t, type, id }, extra || {}); all.push(e); counts[type] = (counts[type] | 0) + 1; if (firstAt[type] == null) firstAt[type] = t; if (HC.COST[type]) burned += HC.COST[type]; return e; };
@@ -333,6 +397,12 @@
         });
         tokens = bucket.tokens;
       }
+      // The Phantom's function: an invocation that needs more memory than it has, or waits longer than its timeout,
+      // errors. Either way the call fails, and the caller retries it.
+      if (cfg.fn.timeoutS != null) incoming.forEach(tk => {
+        const why = cfg.fn.needMB > cfg.fn.memMB ? 'oom' : cfg.fn.callS > cfg.fn.timeoutS ? 'timeout' : null;
+        if (why) { tk.poison = true; whyOf[tk.id] = why; }
+      });
       // The function, behind the queue or called directly.
       const fnEv = AS.tick(w, incoming.map(tk => (tk.noisy ? Object.assign({}, tk) : tk)));
       const done = [];
@@ -340,7 +410,8 @@
         const noisy = /^j/.test(String(e.id));
         if (e.type === 'done') { if (!noisy) done.push({ id: e.id }); return; }
         if (noisy) return;
-        if (['fail', 'dupe', 'dupeBlocked', 'dlq', 'gaveUp', 'throttled'].includes(e.type)) push(e.type, e.id);
+        if (e.type === 'fail' && whyOf[e.id]) push(whyOf[e.id], e.id);
+        else if (['fail', 'dupe', 'dupeBlocked', 'dlq', 'gaveUp', 'throttled'].includes(e.type)) push(e.type, e.id);
       });
       // Purge: every message in the queue is deleted.
       if (cfg.queue && cfg.queue.purgeAt === t) {
@@ -389,6 +460,8 @@
       if (m === 'gate') contained.gate = !late('gaveUp');
       if (m === 'hydra') contained.hydra = !late('wgaveUp') && !writes.length;
       if (m === 'warden') contained.warden = !late('denied') && !counts.leak;
+      // The Phantom's fixes work from the first call, so any error at all means it wasn't contained.
+      if (m === 'phantom') contained.phantom = !counts.gaveUp && !counts.timeout && !counts.oom && !counts.throttled;
     });
     const won = !out && Object.values(contained).every(Boolean);
     const coins = HC.costOf(placed.filter(id => !(C[id] && C[id].refuse && C[id].refuse(spec.cfg))));

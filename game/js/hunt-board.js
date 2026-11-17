@@ -23,12 +23,12 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const TILE = { callers: 'Callers', door: 'IAM door', gate: 'API gate', queue: 'Queue', fn: 'Function', table: 'Table' };
   const TILE_IC = { callers: '👥', door: '🚪', gate: '⛩️', queue: '📬', fn: 'λ', table: '🗄️' };
-  const MON_IC = { poison: '☠️', gate: '🗿', hydra: '🐉', warden: '🛡️' };
+  const MON_IC = { poison: '☠️', gate: '🗿', hydra: '🐉', warden: '🛡️', phantom: '👻' };
   B.STEP_MS = 420;
   // The monsters' sprites (PixelLab, night-horror style to match the hunt card's mimic video: tools/hunt_art.py), and
   // the events that are each one acting, so its sprite lunges on the turn it does harm.
   const SPRITE = m => `assets/img/hunt/${m}.webp`;
-  const ACTS = { poison: ['fail', 'dupe', 'lost'], gate: ['throttled', 'gaveUp'], hydra: ['wthrottle', 'wgaveUp'], warden: ['denied', 'leak'] };
+  const ACTS = { poison: ['fail', 'dupe', 'lost'], gate: ['throttled', 'gaveUp'], hydra: ['wthrottle', 'wgaveUp'], warden: ['denied', 'leak'], phantom: ['timeout', 'oom', 'throttled', 'gaveUp'] };
   const sprite = (m, cls) => `<img class="hb-spr${cls ? ' ' + cls : ''}" src="${SPRITE(m)}" alt="" aria-hidden="true" width="56" height="56" decoding="async">`;
 
   // A card's drawn icon (tools/hunt_art.py card-<id>), over its tile's emoji: the emoji shows until the icon loads,
@@ -82,6 +82,13 @@
       const busy = f ? f.busy : 0, stools = f ? f.stools : cfg.fn.stools, shown = Math.min(stools, 20);
       live = `<span class="hb-stools${shown > 10 ? ' two' : ''}" role="img" aria-label="Function: ${f ? `${busy} of ${stools} stools busy` : `${stools} stools, so ${stools} at once`}">${rep(shown, k => `<i class="${k < busy ? 'busy' : ''}"></i>`)}</span>${stools > 20 ? `<b class="hb-n">+${stools - 20}</b>` : ''}${nOf('dupe') ? '<span class="hb-stamp">TWICE!</span>' : ''}${nOf('fail') ? '<span class="hb-stamp">FAILED</span>' : ''}`;
       sign = `${f ? `${busy} of ${stools} busy` : `${stools} at once`}${cfg.fn.work > 1 ? ` · ${cfg.fn.work * 15} s each` : ''}`;
+      // The Phantom's function: its timeout and memory (with the cards you placed), and a stamp for each kind of error.
+      if (cfg.fn.timeoutS != null) {
+        const eff = JSON.parse(JSON.stringify(cfg));
+        st.placed.forEach(id => { if (!(C[id].refuse && C[id].refuse(cfg))) C[id].apply(eff); });
+        sign += ` · ${eff.fn.timeoutS} s timeout · ${eff.fn.memMB.toLocaleString('en-US')} MB`;
+        live += `${nOf('timeout') ? `<span class="hb-stamp">TIMED OUT × ${nOf('timeout')}</span>` : ''}${nOf('oom') ? `<span class="hb-stamp">OUT OF MEMORY × ${nOf('oom')}</span>` : ''}${nOf('throttled') && !b.tiles.includes('gate') ? `<span class="hb-stamp">429 × ${nOf('throttled')}</span>` : ''}`;
+      }
     }
     if (tile === 'table' && cfg.table) {
       const load = f && f.load ? f.load : Array.from({ length: cfg.table.parts }, () => 0), cap = cfg.table.cap;
@@ -347,7 +354,7 @@
     Object.keys(k).forEach(type => {
       const p = POP[type];
       if (!p) return;
-      const tile = p[0] === 'queue' && !b.tiles.includes('queue') ? 'fn' : p[0];
+      const tile = (p[0] === 'queue' || p[0] === 'gate') && !b.tiles.includes(p[0]) ? 'fn' : p[0];
       pops[tile] = pops[tile] || [];
       if (p[1]) pops[tile].push([p[1](k[type]), p[2] || 'bad']);
     });
@@ -384,7 +391,17 @@
           <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')}</span><b class="hb-title">${esc(b.title)}</b></span>
           <span class="hs-coins"><b>🪙 ${left}</b> of ${b.budget} left · Deploy ${st.deploy} of ${HC.deploysOf(b)}</span>`;
         sc.layer.innerHTML = boardHtml(b, st, null, spec);
-        sc.sat.innerHTML = `<p class="td-head hs-sh">Your hand <span class="small muted">· tap an item to place it at its spot</span></p><button class="primary hb-go" id="hb-deploy">Deploy</button><div class="hb-hand">${hand}</div>`;
+        // The Phantom's boards carry a clue (a trace, a log line, metrics): a sheet over the street, open the first time,
+        // and a button by the hand to read it again.
+        if (b.clue && st.clueOpen == null) st.clueOpen = true;
+        const clue = b.clue && st.clueOpen ? `<div class="hb-clue" role="region" aria-label="The clue"><p class="hb-clue-h"><span>🔎 The clue · ${esc(b.clue.tool)}</span><button class="hb-clue-x" data-clue="0" aria-label="Close the clue">✕</button></p><pre>${b.clue.lines.map(esc).join('\n')}</pre></div>` : '';
+        sc.root.querySelectorAll(':scope > .hb-clue').forEach(e => e.remove());
+        if (clue) {
+          sc.view.insertAdjacentHTML('afterend', clue);
+          const cl = sc.root.querySelector(':scope > .hb-clue');
+          cl.style.top = (sc.view.offsetTop + 8) + 'px'; cl.style.maxHeight = Math.max(120, sc.view.clientHeight - 16) + 'px';
+        }
+        sc.sat.innerHTML = `<p class="td-head hs-sh">Your hand <span class="small muted">· tap an item to place it at its spot</span>${b.clue ? ` <button class="ghost hb-cluebtn" data-clue="${st.clueOpen ? 0 : 1}" aria-expanded="${!!st.clueOpen}">🔎 ${st.clueOpen ? 'Hide' : 'Read'} the clue</button>` : ''}</p><button class="primary hb-go" id="hb-deploy">Deploy</button><div class="hb-hand">${hand}</div>`;
         sc.bru.say(note || `<b>Bru:</b> ${esc(b.line)}${st.deploy === 1 && !st.placed.length ? ' Pick your items, then Deploy. The run plays out on its own.' : ''}`);
         if (mood) { sc.bru.react(mood[0], mood[1]); mood = null; }
         body.querySelectorAll('[data-card]').forEach(el => el.onclick = () => {
@@ -399,6 +416,7 @@
           if (c.cost > b.budget - HC.costOf(st.placed)) { note = '<b>Bru:</b> Not enough coins for that one. Take something back first.'; mood = ['frown', 1600]; return save(); }
           st.placed = st.placed.concat(id); note = `<b>Bru:</b> ${esc(C[id].name)}, on the ${TILE[C[id].tile].toLowerCase()}.`; mood = ['smile', 1500]; sfx('card'); save();
         });
+        body.querySelectorAll('[data-clue]').forEach(el => el.onclick = e => { e.stopPropagation(); st.clueOpen = el.dataset.clue === '1'; note = ''; save(); });
         body.querySelectorAll('[data-un]').forEach(el => el.onclick = () => { st.placed = st.placed.filter(x => x !== el.dataset.un); note = ''; save(); });
         body.querySelector('#hb-deploy').onclick = () => { st.note = ''; if (opts.onSave) opts.onSave(st); done(); };
       };
@@ -426,7 +444,8 @@
     throttled: n => `${n} bounced with 429`, gaveUp: n => `${n} gave up`, fail: () => 'The bad order failed again', dlq: () => 'Moved to the dead-letter queue',
     dupe: n => `${n} handled twice`, dupeBlocked: n => `${n} duplicate${n === 1 ? '' : 's'} changed nothing`, wthrottle: n => `${n} write${n === 1 ? '' : 's'} throttled`,
     wgaveUp: n => `${n} write${n === 1 ? '' : 's'} gave up`, denied: n => `${n} denied`, leak: () => 'The cleanup script deleted a bucket', blocked: () => 'The cleanup script was blocked',
-    lost: n => `Purged: ${n} good order${n === 1 ? '' : 's'} lost`, left: n => `${n} never answered`
+    lost: n => `Purged: ${n} good order${n === 1 ? '' : 's'} lost`, left: n => `${n} never answered`,
+    timeout: n => `${n} timed out`, oom: n => `${n} ran out of memory`
   };
   // Bru says one line under the lamp: the newest thing he teaches (held a few turns so it can be read), else what
   // happened this turn. The rest is on the board.
@@ -459,6 +478,7 @@
         sc.hud.innerHTML = `<span class="hs-lamp">${lampHtml(f.oil, b.lamp, fx.drop)}</span>
           <span class="hs-title"><span class="hb-ctx">${esc(opts.ctx || '')} · Deploy ${st.deploy}</span><b class="hb-title">${esc(b.title)}</b></span>
           <span class="hs-coins"><b>Turn ${f.t}</b> of ${HC.TICKS + HC.DRAIN}${f.t > HC.TICKS ? ' · draining' : ''}</span>`;
+        sc.root.querySelectorAll(':scope > .hb-clue').forEach(e => e.remove());
         sc.layer.innerHTML = boardHtml(b, st, f, spec, fx);
         if (!sc.sat.querySelector('#hb-skip')) sc.sat.innerHTML = '<button class="ghost" id="hb-skip">Skip to the end</button>';
         sc.bru.say(say);
@@ -481,7 +501,8 @@
           poison: ok ? (c.dlq ? 'Into the dead-letter jar after its 3rd failed receive.' : c.dupeBlocked ? 'Duplicates arrived, but changed nothing.' : 'No duplicates, nothing lost.') : c.lost ? 'Purged, with good orders lost too.' : c.dupe ? `${c.dupe} orders handled twice.` : 'Still in the queue, failing every time it came back.',
           gate: ok ? 'Callers got through as the bucket refilled.' : `${c.gaveUp | 0} callers gave up on an empty bucket.`,
           hydra: ok ? 'Writes spread out. No head stayed over its cap.' : `${c.wgaveUp | 0} writes gave up on the hot head.`,
-          warden: ok ? 'Reads got through, and nothing else did.' : c.leak ? 'Reads got through, and so did the cleanup script.' : `${c.denied | 0} reads were denied.`
+          warden: ok ? 'Reads got through, and nothing else did.' : c.leak ? 'Reads got through, and so did the cleanup script.' : `${c.denied | 0} reads were denied.`,
+          phantom: ok ? 'Every call was answered. The clue pointed the right way.' : [c.timeout && `${c.timeout} timed out`, c.oom && `${c.oom} ran out of memory`, c.throttled && `${c.throttled} were throttled`].filter(Boolean).join(', ') + `, and ${c.gaveUp | 0} callers gave up.`
         }[m];
         // Caught: the sprite sits in a glass jar, greyed. Escaped: it's mid-lunge, with claw marks.
         return `<li class="hb-res ${ok ? 'ok' : 'bad'}"><span class="${ok ? 'hb-jarf' : 'hb-escf'}" aria-hidden="true">${sprite(m)}</span>
@@ -702,6 +723,13 @@
       background: linear-gradient(rgba(20, 13, 6, 0), rgba(20, 13, 6, .9) 30%), repeating-linear-gradient(0deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 6px); }
     .hs-sat:empty { display: none; }
     .hs-sat .hb-hand { grid-column: 1 / -1; }
+    .hb-clue { position: absolute; z-index: 6; top: 8px; right: 8px; width: min(560px, calc(100% - 16px)); overflow: auto;
+      background: rgba(10, 14, 20, .94); border: 1px solid rgba(140, 200, 255, .45); border-radius: 6px; color: #d8e6f2; box-shadow: 0 6px 20px rgba(0, 0, 0, .6); }
+    .hb-clue-h { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 4px 2px 10px; font: 700 13px/1.3 var(--f-head, Georgia, serif); color: #a9d4ff; }
+    .hb-clue-h > span { flex: 1; }
+    .hb-clue-x { flex: none; min-width: 44px; min-height: 44px; margin: -6px 0; border: 0; background: transparent; color: #d8e6f2; font-size: 18px; cursor: pointer; }
+    .hb-cluebtn { margin-left: 8px; padding: 6px 12px; min-height: 36px; font-size: 13px; }
+    .hb-clue > pre { margin: 0; padding: 4px 10px 8px; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: #e8f0f7; }
     .hs-sat .hs-sh { margin: 0; color: #e6d3a6; font-size: 13px; text-shadow: 0 1px 2px #000; }
     .hs-sat .hs-sh .muted { color: #b7a98f; }
     .hs-sat .hb-hand { display: flex !important; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; scroll-snap-type: x proximity; grid-template-columns: none !important; }
