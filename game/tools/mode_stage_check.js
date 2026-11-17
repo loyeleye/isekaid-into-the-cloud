@@ -39,7 +39,9 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       const s = await page.evaluate(() => {
         const st = document.querySelector('#mode-stage'), bar = document.querySelector('#mode-bar'), win = document.querySelector('#panel:not([hidden]) .win');
         const wr = win && win.getBoundingClientRect(), br = bar.getBoundingClientRect();
-        const wide = [...document.querySelectorAll('#panel .win *, #mode-bar *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1); }).length;
+        // An element clipped by an overflow-hidden ancestor inside the window (a cropped scene) can't scroll the page.
+        const clipped = e => { for (let a = e.parentElement; a && !a.matches('#panel'); a = a.parentElement) { const o = getComputedStyle(a); if (/hidden|clip/.test(o.overflowX + o.overflow)) { const r = a.getBoundingClientRect(); if (r.left >= -1 && r.right <= innerWidth + 1) return true; } } return false; };
+        const wide = [...document.querySelectorAll('#panel .win *, #mode-bar *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1) && !clipped(e); }).length;
         const top = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
         return { active: SD.modeStage.active(), stage: !st.hidden, name: bar.querySelector('#ms-name').textContent,
           setting: getComputedStyle(st.querySelector('.ms-bg')).backgroundImage + ' ' + ((st.querySelector('.ms-bg img') || {}).currentSrc || ''), underBar: wr ? wr.top >= br.bottom - 1 : false,

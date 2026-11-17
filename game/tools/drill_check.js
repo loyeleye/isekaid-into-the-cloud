@@ -110,14 +110,14 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   let s = await st();
   check(s.phase === 'drill' && s.drill.drill === 'storm' && s.drill.log.length === 1, 'the first door opens Retry Storm with its warm-up run');
   let t = await txt('#panel');
-  check(/Warm-up run/.test(t) && /429 Too Many Requests/.test(await txt('.rm-chat')), 'the warm-up run plays out, then Seo-yeon reports 429s in her bubble');
+  check(/Warm-up run/.test(t) && !await page.$('.rm-chat') && !!await page.$('.rm-col[data-col="gate"] .rm-pip.bad'), 'the warm-up run plays out, then a "!" bubble over Seo-yeon, with no text boxes under the room');
   check(await page.$$eval('.rm-st', x => x.length) === 4 && await page.$$eval('.rm-st.st-dark', x => x.length) === 3 && await page.$$eval('.rm-st.st-off', x => x.length) === 1, 'the room: Gate, Function and Store untraced (grey), the Queue off this path');
   check(!!await page.$('.rm-plate') && !!await page.$('.rm-up .up-fig') && await page.$$eval('.rm-g .db-pips i', x => x.length) > 0, 'the leads stand in the painted room, Uptima sits on the counter, and the Gate shows its token bucket');
   check(/bucket only refills/.test(t), 'the 429 is taught by its first use, in one line');
   await page.click('.rm-st[data-at="gate"]');
-  check(await page.$$eval('.rm.zoom', x => x.length) === 1 && /4XXError/.test(await txt('.dr-tray')) && /Count/.test(await txt('.dr-tray')), 'tapping Seo-yeon pushes in on her and her desk shows the Gate\'s real CloudWatch metrics');
+  check(await page.$$eval('.rm.zoom', x => x.length) === 1 && /4XXError/.test(await txt('.dr-tray')) && /Count/.test(await txt('.dr-tray')) && /429 Too Many Requests/.test(await txt('.dr-tray .dr-said')), 'tapping Seo-yeon pushes in on her: she tells you about the 429s, and her desk shows the Gate\'s real CloudWatch metrics');
   await shot('pushin');
-  await page.click('#dr-back');
+  await page.click('#dr-back'); await page.waitForTimeout(700);
   await noHScroll('warm-up'); await shot('warmup');
   await page.click('.rm-st[data-at="fn"]');
   check(/The Function/.test(await txt('.dr-station')) && /ConcurrentExecutions/.test(await txt('.dr-station')), 'tapping a node opens that station\'s metrics and settings');
@@ -184,6 +184,21 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('[data-mode="drill"]');
   await cut();
   check(/Night 2/.test(await txt('#panel')) && await page.$$eval('.dr-row', r => r.some(x => x.querySelectorAll('.dr-door').length === 2)), 'night 2 opens with forks');
+
+  // ---- Every drill has a verified bank question on its cause, for its postmortem ----
+  const noQ = await page.evaluate(() => Object.keys(SD.drill.DRILLS).filter(id => { const d = SD.drill.DRILLS[id]; return !SD.modes.pick({ match: q => d.q.test([q.q].concat(q.opts || []).join(' ')), n: 1, verifiedOnly: true, mix: 0 }).items.length; }));
+  check(!noQ.length, 'every drill has a verified postmortem question on its cause' + (noQ.length ? ': ' + noQ.join(', ') : ''));
+
+  // ---- The release's settings show only where a release goes out (The Bad Canary) ----
+  const open = async id => { await page.evaluate(id => { const s = SD.state.save.drill; SD.drill.startDrill(s, id, 7); s.at = 'fn'; s.zoom = true; s.cutAt = null; SD.state.persist(); SD.drillUi.draw(); }, id); await cut(); await settle(); await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'fn'; s.zoom = true; SD.drillUi.draw(); }); };
+  await open('badge');
+  check(!await page.$('[data-card="canary"]') && !!await page.$('[data-card="ddbput"]') && /AccessDeniedException/.test(await txt('.dr-tray .dr-said')), 'The Wrong Badge: AccessDenied in the pager, the role\'s settings at the Function, no release settings');
+  await shot('badge'); await page.click('#dr-back'); await noHScroll('badge');
+  await open('canary');
+  check(!!await page.$('[data-card="canary"]') && !!await page.$('[data-card="hook"]') && /version 2/.test(await txt('#panel')), 'The Bad Canary: the deployment settings show at the Function, and Kai names version 2');
+  await shot('canary'); await page.click('#dr-back'); await noHScroll('canary');
+  await place('canary'); await place('alarm'); await deploy();
+  check((await st()).drill.state === 'contained' && /rolled live back/.test(await txt('#panel')), 'a canary with an Errors alarm rolls back and contains it');
 
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();

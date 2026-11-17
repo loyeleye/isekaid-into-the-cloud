@@ -88,8 +88,8 @@
   const TROUBLE = {
     seoyeon: m => m.throttles429 || m.fault5xx || m.slow,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost,
-    kai: m => m.timeouts || m.denied || m.hot || m.over || m.errors || m.condBlocked,
-    dutch: m => m.dupes || m.hot + m.over || m.denied
+    kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked,
+    dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied
   };
   B.bubbles = function (lines, m) {
     const by = {};
@@ -103,13 +103,18 @@
   function events(f, fr) {
     const d = fr.d, out = [], async = D.DRILLS[f.drill].path === 'async';
     if (d.throttles429) out.push(['gate', `${d.throttles429} × 429`, 'throttle']);
-    if (d.fault5xx && !async && !d.hot && !d.denied && !d.over) out.push(['gate', `${d.fault5xx} × 5xx`, 'fault']);
+    if (d.fault5xx && !async && !d.hot && !d.denied && !d.over) out.push(['gate', `${d.fault5xx} × ${d.iamDenied || d.v2Fail ? '502' : '5xx'}`, 'fault']);
+    if (d.v2Fail) out.push(['fn', `${d.v2Fail} failed on v2`, 'fault']);
+    if (d.hookFailed) out.push(['fn', 'Test failed: no shift', 'ok']);
+    else if (d.stopped) out.push(['fn', 'Rolled back to v1', 'ok']);
+    else if (d.shifted) out.push(['fn', 'v2 gets traffic', 'ok']);
     if (d.slow) out.push(['fn', `${d.slow} cold start${d.slow > 1 ? 's' : ''}`, 'fault']);
     if (d.timeouts) out.push(['fn', 'Timed out', 'fault']);
-    if (d.errors && !d.timeouts && !d.hot && !d.denied && !d.over) out.push(['fn', `${d.errors} failed`, 'fault']);
+    if (d.errors && !d.timeouts && !d.hot && !d.denied && !d.iamDenied && !d.v2Fail && !d.over) out.push(['fn', `${d.errors} failed`, 'fault']);
     if (d.hot) out.push(['store', `${d.hot} throttled`, 'throttle']);
     if (d.over) out.push(['store', `${d.over} over WCU`, 'throttle']);
     if (d.denied) out.push(['store', `${d.denied} denied`, 'error']);
+    if (d.iamDenied) out.push(['store', `${d.iamDenied} × 400 denied`, 'error']);
     if (d.dupes) out.push(['store', `${d.dupes} twice`, 'ok']);
     if (d.condBlocked) out.push(['store', `${d.condBlocked} blocked`, 'error']);
     if (d.parked) out.push(['queue', `${d.parked} to DLQ`, 'ok']);
@@ -126,7 +131,7 @@
       if (d.sent) o.push(['gate', 'queue', d.sent, 'env']);
       if (d.received) o.push(['queue', 'fn', d.received, 'env']);
     } else if (d.invocations) o.push(['gate', 'fn', d.invocations, 'env']);
-    const writes = (d.wcuUsed | 0) + (d.hot | 0) + (d.over | 0) + (d.denied | 0);
+    const writes = (d.wcuUsed | 0) + (d.hot | 0) + (d.over | 0) + (d.denied | 0) + (d.iamDenied | 0);
     if (writes) o.push(['fn', 'store', writes, d.dupes ? 'env-twice' : 'env']);
     return o;
   }

@@ -101,7 +101,7 @@
         <div class="rm-col st-${st}${k === o.at ? ' at' : ''}" data-col="${k}" style="--x:${X[k]}%">
           <span class="rm-plq"><b>${esc(s.name)}</b><span>${esc(s.svc)}</span><i>${esc(STATUS[st])}</i></span>
           ${on ? `<span class="rm-g db-g-${k}">${BD.gauge(f, k, null, e.m)}</span>` : ''}
-          ${note}${say}</div>`;
+          ${note}${say}${say || note ? `<span class="rm-pip${bad ? ' bad' : ''}${note ? ' teach' : ''}" aria-hidden="true">${bad ? '!' : note ? '?' : '…'}</span>` : ''}</div>`;
     }).join('');
     return `<div class="rm${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
       <div class="rm-cam">
@@ -110,8 +110,7 @@
         <div class="rm-fly" aria-hidden="true"></div>
       </div>
       <div class="rm-callers"><span class="db-g-callers">${BD.gaugeCallers(e.m)}</span></div>
-      <div class="rm-clock" aria-hidden="true"><span class="rm-tick"></span></div></div>
-      ${Object.keys(by).length || (o.notes || []).length ? `<div class="rm-chat" aria-live="polite">${(o.notes || []).map(([, who, text]) => `<p class="rm-note" data-vo="${esc(who + '|' + text)}"><b>${esc(D.NAMES[who] || who)}</b> ${esc(text)}</p>`).join('')}${Object.keys(by).map(w => `<p class="rm-say${o.m && BD.TROUBLE[w] && BD.TROUBLE[w](o.m) ? ' bad' : ''}" data-vo="${esc(w + '|' + by[w][0])}"><b>${esc(D.NAMES[w] || w)}</b> ${by[w].map(esc).join(' ')}</p>`).join('')}</div>` : ''}`;
+      <div class="rm-clock" aria-hidden="true"><span class="rm-tick"></span></div></div>`;
   };
   // ---- The living plate: Sogni clips over the painted room ----
   // One stage element lives across re-renders (mount() moves it into each new room, so a clip keeps playing).
@@ -386,17 +385,30 @@
     .rm.zoom .rm-col:not(.at), .rm.zoom .rm-callers, .rm.zoom .rm-cloud { opacity: 0; pointer-events: none; }
     .rm.zoom .rm-col.at { opacity: 0; }
     .rm.playing .rm-st { cursor: default; }
-    .rm-chat { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-    .rm .rm-note, .rm-chat .rm-say { display: none; }   /* longer notes read below the room; short lines stay in bubbles */
-    .rm-chat .rm-say, .rm-chat .rm-note { font-size: 14px; padding: 6px 10px; border-width: 2px; border-radius: 10px; }
-    .rm-chat .rm-say::before, .rm-chat .rm-note::before { display: none; }
+    /* No text boxes under the room (Ladi, Nov 16): what the leads say stays in the room, as speech bubbles over their
+       desks. On a phone there's no room for the words, so each lead with something to say shows a small bubble
+       ("!" trouble, "?" a new rule, "…" news), and tapping them walks up to their desk, where they say it in full. */
+    /* One bubble per lead in the room: a new rule first, else their news. Both read in full at their desk. */
+    .rm-col .rm-note ~ .rm-note, .rm-col .rm-note ~ .rm-say { display: none; }
+    .rm-pip { display: none; position: absolute; left: 50%; top: max(-30px, -3.6cqi); transform: translateX(-50%); min-width: 22px; height: 22px; padding: 0 6px;
+      align-items: center; justify-content: center; border-radius: 11px; background: #f6efdc; color: #17131f; border: 2px solid #17131f; font-weight: 900; font-size: 14px; line-height: 1;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .5); animation: rmpip 1.8s ease-in-out infinite; pointer-events: none; }
+    .rm-pip::after { content: ''; position: absolute; bottom: -7px; left: calc(50% - 5px); border: 5px solid transparent; border-top-color: #17131f; border-bottom: 0; }
+    .rm-pip.bad { background: #fbe4dc; color: #9e3a34; border-color: #9e3a34; } .rm-pip.bad::after { border-top-color: #9e3a34; }
+    .rm-pip.teach { background: #fff3c4; }
+    @keyframes rmpip { 50% { transform: translate(-50%, -3px); } }
     @media (max-width: 700px) {
       .rm { border-radius: 0; }
       .rm-col { width: 24%; max-width: 24%; }
-      .rm .rm-say { display: none; }
-      .rm-chat .rm-say { display: block; }
+      .rm .rm-say, .rm .rm-note { display: none; }
+      .rm-pip { display: flex; }
+      /* The room grows downward on a phone: below the painted counter, its wooden front holds the nameplates and
+         gauges, so nothing is cut off and no text box is needed to fill the screen. */
+      .dr-roomw .rm { overflow: visible; clip-path: inset(0 0 -64px 0); margin-bottom: 64px; }
+      .dr-roomw .rm::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 64px; z-index: 0;
+        background: linear-gradient(180deg, #5a3b10 0, #5a3b10 4px, #3a2414 4px, #2b1a0e 40%, #1d120a 100%); }
       .rm-plq span { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud { animation: none !important; } .rm-sq { display: none; } }`;
+    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud, .rm-pip { animation: none !important; } .rm-sq { display: none; } }`;
   document.head.appendChild(css);
 })();
