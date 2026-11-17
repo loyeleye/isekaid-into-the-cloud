@@ -115,8 +115,8 @@
   // One stage element lives across re-renders (mount() moves it into each new room, so a clip keeps playing).
   // Idle takes play back to back in random order; alarm / clear / slump fade in over them, hold their last
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
-  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };
-  let stage = null, lastKey = null, moodT = 0;
+  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
+  let stage = null, lastKey = null, moodT = 0, lastNight = null, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
     (navigator.connection && navigator.connection.saveData);
   function vEl(cls) {
@@ -137,6 +137,8 @@
     const idle = vEl('rm-v-idle'), mood = vEl('rm-v-mood');
     idle.addEventListener('ended', () => nextIdle(idle));
     mood.addEventListener('ended', () => {
+      if (mood.dataset.clip === 'intro') arrived();
+      if (mood.dataset.then) return R.mood(mood.dataset.then);
       clearTimeout(moodT);
       moodT = setTimeout(() => { mood.classList.remove('on'); }, HOLD[mood.dataset.clip] || 1500);
     });
@@ -145,7 +147,7 @@
     return st;
   }
   // Put the living plate into a freshly drawn room. key: changes when a new drill starts (plays the alarm).
-  R.mount = function (root, key) {
+  R.mount = function (root, key, night) {
     const slot = root && root.querySelector('.rm-vslot');
     R.kickOver();
     if (!slot || still()) return;
@@ -153,12 +155,25 @@
     slot.replaceWith(stage);
     const idle = stage.querySelector('.rm-v-idle');
     if (idle.paused) idle.play().catch(() => {});
-    if (key != null && key !== lastKey) { lastKey = key; R.mood('alarm'); }
+    const rm = stage.closest('.rm');
+    if (rm) rm.classList.toggle('arriving', arriving);
+    // The first room of a night opens empty and the leads walk in (Ladi's intro clip), then the alarm.
+    if (night != null && night !== lastNight) {
+      lastNight = night; lastKey = key;
+      arriving = true; if (rm) rm.classList.add('arriving');
+      clearTimeout(arriveT); arriveT = setTimeout(arrived, 9000);   // never leave the counter empty
+      R.mood('intro', 'alarm');
+    } else if (key != null && key !== lastKey) { lastKey = key; R.mood('alarm'); }
   };
+  function arrived() {
+    arriving = false; clearTimeout(arriveT);
+    document.querySelectorAll('.rm.arriving').forEach(r => r.classList.remove('arriving'));
+  }
   // Play a one-shot clip over idle: 'alarm' | 'clear' | 'slump'.
-  R.mood = function (clip) {
+  R.mood = function (clip, then) {
     if (!stage || !document.body.contains(stage)) return;
     const mood = stage.querySelector('.rm-v-mood');
+    mood.dataset.then = then || '';
     clearTimeout(moodT);
     mood.classList.remove('on');
     mood.dataset.clip = clip; mood.src = VID + clip + '.mp4';
@@ -248,6 +263,7 @@
     .rm-vid video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: 0; transition: opacity .7s ease; }
     .rm-vid video.on { opacity: 1; }
     .rm-vid .rm-v-mood { transition-duration: .35s; }
+    .rm.arriving .rm-plate, .rm.arriving .rm-v-idle, .rm.arriving .rm-over { visibility: hidden; }
     .rm-st { position: absolute; top: 4%; height: ${COUNTER - 2}%; padding: 0; margin: 0; border: 0; border-radius: 40% 40% 8px 8px; background: transparent;
       cursor: pointer; box-shadow: none; z-index: 3; }
     .rm-st:hover, .rm-st:focus-visible { background: radial-gradient(60% 55% at 50% 45%, rgba(255, 236, 170, .16), transparent 70%); outline: none; }
@@ -304,7 +320,8 @@
     /* While she talks: the room behind the leads (room-empty.webp, the plate with the leads painted out and
        softened), then her, then the leads alone (the room cut through room-leads-matte.png), see-through and
        out of focus. She stays behind the counter. */
-    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; user-select: none; pointer-events: none; filter: brightness(.8); }
+    .rm-back { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; user-select: none; pointer-events: none; }
+    .rm.talk .rm-back { filter: brightness(.8); }
     .rm.talk .rm-front { z-index: 3; opacity: .5; filter: blur(.25cqi);
       -webkit-mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; mask: url(assets/img/drill/room-leads-matte.png) 0 0 / 100% 100%; }
     .rm.talk .rm-over { opacity: 0; }
