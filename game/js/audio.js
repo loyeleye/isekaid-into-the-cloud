@@ -75,6 +75,8 @@
     el.play().catch(() => end('error'));
     return true;
   };
+  // Whether a voice line is playing now (a cutscene holds its next beat until it ends, js/mode-reno.js).
+  A.speaking = () => !!(voEl && !voEl.paused && !voEl.ended);
   A.toggleAll = function () { const on = A.muted(); A.set('music', on); A.set('sfx', on); return on; };
 
   // ---------- Voices ----------

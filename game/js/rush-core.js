@@ -196,7 +196,7 @@
   CLAIMS.slow.next = 'picky';
   // Claim 6: the Records Vault. One caller sends most of the tickets, and their cabinet throttles. See the header.
   CLAIMS.hot = {
-    name: 'THE HOT SHELF', title: 'the Hot Shelf', locked: [], next: null, close: 56, clerk: 'papers',
+    name: 'THE HOT SHELF', title: 'the Hot Shelf', locked: [], next: 'locked', close: 56, clerk: 'papers',
     belt: ['shard', 'ondemand', 'rack'], vault: true, mira: 3, coins: 1,
     // hot: the share of each wave's tickets from the one busy caller.
     waves: [
@@ -220,6 +220,16 @@
     ]
   };
   CLAIMS.hot.review = 'review';
+  // ---- Claim 8, the Night Audit (rules in js/rush-audit.js, SD.rushAudit) ----
+  // One continuous night, 22:00 to 06:00, no waves: faults overlap at four stations, and the buys change what you can
+  // see. Not chained yet (claim 7 comes before it); play it with rush.html?claim=audit.
+  CLAIMS.audit = {
+    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: 'sorter', close: 144, clerk: 'papers', cap: 26,
+    belt: ['tracer', 'pins', 'alarm', 'stamp', 'tally', 'hires'], extras: ['rule', 'lens'],
+    night: { start: 22, hours: 8, hourSecs: 18, rate: [0.32, 0.36, 0.4, 0.44, 0.48, 0.52, 0.56, 0.6], maxLive: [1, 1, 2, 3, 3, 3, 3, 3],
+      gap: [[0, 0], [0, 0], [12, 16], [11, 15], [10, 14], [9, 13], [9, 13], [9, 12]], transientP: 0.35, refund: 0.3 }
+  };
+  // ---- end claim 8 ----
   const TOOLS = {
     rack: { name: 'Rack', aws: 'SQS standard queue', cost: 1 },
     reserve: { name: 'Bolted stools', aws: 'Reserved concurrency', cost: 1 },
@@ -244,6 +254,17 @@
     partial: { name: 'Partial batch', aws: 'ReportBatchItemFailures', cost: 1, order: 'batch' },
     dest: { name: 'Failure crate', aws: 'On-failure destination (async)', cost: 1 },
     retries: { name: 'Retry dial', aws: 'Async retry attempts (0 to 2)', cost: 1 }
+  });
+  // Claim 8's buys (the Night Audit). hourly: coins billed on the clock's hour. where: what it's placed on.
+  Object.assign(TOOLS, {
+    tracer: { name: 'Tracer', aws: 'X-Ray active tracing', cost: 2, hourly: 1, where: 'room' },
+    pins: { name: 'Pins', aws: 'X-Ray annotations (searchable)', cost: 1, where: 'room' },
+    rule: { name: 'Rule card', aws: 'X-Ray sampling rule (at the root)', cost: 1, where: 'counter' },
+    alarm: { name: 'Klaxon', aws: 'CloudWatch alarm (SNS action)', cost: 1, where: 'gauge' },
+    stamp: { name: 'EMF stamp', aws: 'Embedded metric format', cost: 1, where: 'desk' },
+    tally: { name: 'Tally', aws: 'Custom metric (PutMetricData)', cost: 1, where: 'station' },
+    hires: { name: '1s dial', aws: 'High-resolution metric and alarm', cost: 1, hourly: 1, where: 'gauge' },
+    lens: { name: 'Lens', aws: 'CloudWatch Logs Insights query', cost: 1, where: 'room' }
   });
   CLAIMS.rush.extra = ['memory', 'warm', 'jitter'];
   CLAIMS.bell.extra = ['handoff', 'memory', 'partial'];
@@ -281,6 +302,8 @@
     // The extra buys: on the belt after the claim's own tools, an order's buy only while that order is pinned.
     for (const t of C.extra || []) if (!TOOLS[t].order || S.orders.has(TOOLS[t].order)) S.belt.push(t);
     Object.assign(S, { costs: C.costs || null, handed: 0, upkeepPaid: 0, bills: 0, retryN: 2, landed: [], crate: [], crated: 0, replayed: 0, failedOut: 0, jams: 0, ttlGone: 0, paidKeys: new Set(), keyAt: new Map(), partials: 0 });
+    // Claim 8: the Watch Room has its own engine (js/rush-audit.js), with no waves.
+    if (C.engine === 'audit') return root.SD.rushAudit.init(S, C);
     // Spawn times: each wave spreads its tickets over its seconds, with a little jitter, poison mixed in.
     let t = 0.4;
     C.waves.forEach((w, wi) => {
@@ -303,6 +326,8 @@
     if (C.review) { S.review = create(((seed >>> 0) ^ 0x5bd1e995) >>> 0, C.review, orders, 0, S.book); S.review.parent = S; S.review.close = S.close; }
     // Claim 9 (the freight yard): its own rules live in js/rush-yard.js.
     if (C.yard && SD.rushYard) SD.rushYard.init(S, C);
+    // Claim 7 (the Locked Desk): its rules live in js/rush-office.js.
+    if (C.office && SD.rushOffice) SD.rushOffice.init(S, C);
     return S;
   }
   // Which stools are whose. Index 0 is next to Mira's desk.
@@ -328,7 +353,8 @@
   const purse = S => S.parent || S;
   // Shelf life's upside: the rack is free.
   function costOf(S, tool) { return tool === 'rack' && S.orders.has('shelf') ? 0 : S.costs && S.costs[tool] != null ? S.costs[tool] : TOOLS[tool].cost; }
-  function canPlace(S, tool) {
+  function canPlace(S, tool, target, opts) {
+    if (S.audit) return root.SD.rushAudit.canPlace(S, tool, target, opts); // claim 8
     const d = TOOLS[tool];
     if (!d) return 'unknown';
     if (S.locked.includes(tool) || !S.belt.includes(tool)) return 'locked';
@@ -338,7 +364,8 @@
     if (S.over || purse(S).over) return 'over';
     return '';
   }
-  function place(S, tool) {
+  function place(S, tool, target, opts) {
+    if (S.audit) return root.SD.rushAudit.place(S, tool, target, opts); // claim 8
     const why = canPlace(S, tool);
     if (why) return why;
     S[tool] = true; purse(S).coins -= costOf(S, tool); S.placed.push(tool);
@@ -346,6 +373,8 @@
     if (tool === 'jitter') S.maxThrottles = MAX_THROTTLES;
     if (tool === 'retries') S.retryN = 1;
     if (tool === 'intern') placeIntern(S);
+    // Claim 7: its buys set up their own state (js/rush-office.js).
+    if (S.office && SD.rushOffice) SD.rushOffice.placed(S, tool);
     // Tickets already waiting their turn to retry walk onto the new rack.
     ev(S, 'place', { tool });
     return '';
@@ -535,7 +564,10 @@
     if (M.spill >= M.cap && !M.over) { M.over = 'lose'; ev(M, 'lose'); if (M !== S) S.over = 'lose'; }
   }
   function step(S, dt) {
+    // Claim 7 (the Locked Desk): the office's main room has its own step (js/rush-office.js).
+    if (S.office && SD.rushOffice) return SD.rushOffice.step(S, dt);
     if (!S.started || S.over) return;
+    if (S.audit) { root.SD.rushAudit.step(S, dt); return; } // claim 8: the Watch Room's own step
     // The second room runs first, on the same clock. If it floods the shared tank, the night is over.
     if (S.review) { step(S.review, dt); if (S.over) return; }
     S.time += dt;
@@ -741,8 +773,10 @@
       if (!k.quiz) continue;
       if (k.phase === 'ask') {
         // The intern takes questions the player has solved, one moment after it's free to (it was hired, or it landed).
-        if (S.intern && isSolved(S, k.q) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
-          const right = S.rand() >= T.internWrong;
+        // Claim 7's intern scope: on 'topics' it also takes unsolved questions from a topic you've solved, and guesses more.
+        const wide = !isSolved(S, k.q) && !!SD.rushOffice && SD.rushOffice.wide(S, k.q);
+        if (S.intern && (isSolved(S, k.q) || wide) && S.time - Math.max(k.askAt, S.internAt || 0) >= T.internThink) {
+          const right = S.rand() >= (wide ? SD.rushOffice.T.internWrongWide : T.internWrong);
           unask(S, k); k.internRight = right; k.stampAt = S.time; go(k, 'stamped', 0); S.byIntern++;
           answer(S, k.q, right, 'intern'); ev(S, 'internAnswer', { id: k.id, right });
         } else if (S.time - k.askAt > T.askWait) { unask(S, k); S.unanswered++; ev(S, 'unanswered', { id: k.id }); remove(S, k); lose1(S, k, 'unanswered'); if (purse(S).over) return; }
@@ -796,5 +830,7 @@
   SD.rushCore = { T, WAVES, CLAIMS, TOOLS, ORDERS, STOOLS, CAP, MAX_THROTTLES, MAX_RECEIVES, CABS, HOT_CAB, cabOf, cabRate, answer, solved, reply, check, create, step, start, place, canPlace, costOf, seats, owners, drain, upkeep, turn };
   // Internals for js/rush-yard.js (claim 9).
   SD.rushCore.lib = { ev, go, remove, lose1, enqueue, purse };
+  // For js/rush-office.js (claim 7): the helpers its own step needs.
+  SD.rushCore.internal = { ev, lose1, purse, go, remove, reviewStep, isSolved };
   if (typeof module !== 'undefined') module.exports = SD.rushCore;
 })(typeof window !== 'undefined' ? window : globalThis);

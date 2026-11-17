@@ -49,7 +49,7 @@
   R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
-        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()"></span><span class="rm-emote"></span></div>
+        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()">${['bite', 'chew', 'smug'].map(n => `<img class="up-e up-${n}" src="assets/img/drill/uptima-cloud-${n}.webp" alt="" draggable="false" onerror="this.remove()">`).join('')}</span><span class="rm-emote"></span></div>
         <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}${SQUIG}</div>
         <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
@@ -279,7 +279,7 @@
   css.textContent = `
     .rm { position: relative; width: 100%; aspect-ratio: 1920 / 1072; overflow: hidden; border-radius: 12px; background: #120e0a;
       box-shadow: 0 10px 30px rgba(0, 0, 0, .55); container-type: inline-size; }
-    .rm-cam { position: absolute; inset: 0; transform-origin: var(--zx) 34%; transition: transform .55s cubic-bezier(.3, .1, .2, 1); }
+    .rm-cam { position: absolute; inset: 0; transform-origin: var(--zx) 10%;   /* high, so the push-in keeps the leads' heads in frame (Ladi, Nov 17) */ transition: transform .55s cubic-bezier(.3, .1, .2, 1); }
     .rm.zoom .rm-cam { transform: scale(1.75); }
     .rm-plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; }
     .rm-vid { position: absolute; top: 0; bottom: 0; left: 1.0417%; width: 97.9167%; pointer-events: none;
@@ -308,7 +308,8 @@
       display: flex; flex-direction: column; align-items: center; gap: .5cqi; pointer-events: none; transition: opacity .3s; }
     .rm-col[data-col="gate"] { left: max(var(--x), 11%); } .rm-col[data-col="store"] { left: min(var(--x), 88%); }
     .rm-plq { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .6cqi; padding: .3cqi 1cqi; border-radius: .6cqi;
-      background: linear-gradient(#d9b45a, #a77d2c); color: #2a1a08; border: .2cqi solid #5a3b10; box-shadow: 0 .3cqi 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .4);
+      background: none; color: #2a1a08; box-shadow: none; filter: drop-shadow(0 .3cqi .2cqi rgba(0, 0, 0, .6));
+      border: solid transparent; border-width: .5cqi 1.6cqi; border-image: url(assets/img/drill/desk-plate.webp) 30 60 fill / .5cqi 1.6cqi stretch;   /* a painted brass plate (Sogni, CREDITS.md) */
       font-size: max(10px, 1.15cqi); line-height: 1.15; text-align: center; }
     .rm-plq b { font-family: var(--f-head, serif); font-size: max(11px, 1.35cqi); }
     .rm-plq i { font-style: normal; font-weight: 800; width: 100%; }
@@ -331,13 +332,20 @@
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
     /* Between lines she lazes on a cloud far back, up by the window, small and off to the side so the leads keep the
        stage (Ladi, Nov 16). The leads are redrawn over her. While she talks she stands behind the desk instead. */
-    .rm-cloud { position: absolute; left: 67%; top: 1.5%; width: 27%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
+    .rm-cloud { position: absolute; left: 37%; top: 1%; width: 20%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
       animation: rmcloud 7s ease-in-out infinite; }
     .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
     .rm-cloud .up-fig img { object-position: center; }
+    /* She eats the cookie (Ladi, Nov 17: "A still would look a little weird"): every 11 s, two bites, a chew, a smug
+       look with a crumb on her cheek, then back to nibbling. The eating frames sit over the blink frame. */
+    .rm-cloud .up-e { opacity: 0; animation: 11s steps(1, end) infinite; }
+    .rm-cloud .up-bite { animation-name: upbite; } .rm-cloud .up-chew { animation-name: upchew; } .rm-cloud .up-smug { animation-name: upsmug; }
+    @keyframes upbite { 0%, 34% { opacity: 0; } 35%, 38% { opacity: 1; } 39%, 44% { opacity: 0; } 45%, 48% { opacity: 1; } 49%, 100% { opacity: 0; } }
+    @keyframes upchew { 0%, 38% { opacity: 0; } 39%, 44% { opacity: 1; } 45%, 48% { opacity: 0; } 49%, 60% { opacity: 1; } 61%, 100% { opacity: 0; } }
+    @keyframes upsmug { 0%, 60% { opacity: 0; } 61%, 82% { opacity: 1; } 83%, 100% { opacity: 0; } }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
     /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
-    .rm-up { opacity: 0; transform: translate(99%, -40%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .6s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
     .rm.talk .rm-up { opacity: 1; transform: none; }
     .rm-cloud { transition: opacity .45s ease; }
     .rm.talk .rm-cloud { opacity: 0; }
@@ -409,6 +417,6 @@
         background: linear-gradient(180deg, #5a3b10 0, #5a3b10 4px, #3a2414 4px, #2b1a0e 40%, #1d120a 100%); }
       .rm-plq span { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) { .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud, .rm-pip { animation: none !important; } .rm-sq { display: none; } }`;
+    @media (prefers-reduced-motion: reduce) { .rm-cloud .up-e { animation: none; opacity: 0; } .rm-cam { transition: none; } .up-fig, .rm-up .up-fig, .rm-cloud, .rm-pip { animation: none !important; } .rm-sq { display: none; } }`;
   document.head.appendChild(css);
 })();

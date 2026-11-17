@@ -337,10 +337,12 @@ async function playOut(pg, policy, seen, each) {
     const hs = await pg.evaluate(() => { const S = SD_RUSH.S, V = S.review; return { over: S.over, spill: S.spill, filed: S.cabs.map(c => c.filed), hotThrottles: S.hotThrottles, stale: S.stale, asked: V.asked, byYou: V.byYou, byIntern: V.byIntern, caught: V.caught, missed: V.missed, next: document.querySelector('.end-go').textContent }; });
     console.log(name, 'hot', JSON.stringify(hs));
     if (hs.over !== 'win' || hs.filed.some(n => !n) || !hs.stale || !hs.asked || !hs.byIntern || hs.missed) bad(name, 'the Hot Shelf did not play through');
-    if (!/Play again from the Rush/.test(hs.next)) bad(name, 'last claim should offer the Rush again:', hs.next);
+    // The Hot Shelf leads on to claim 7 (the Locked Desk), whose pick keeps the night's orders pinned.
+    if (!/Next claim: the Locked Desk/.test(hs.next)) bad(name, 'the Hot Shelf should lead on to the Locked Desk:', hs.next);
     await pg.click('.end-go');
-    const again = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
-    if (again.orders || !/orders/.test(again.q) || !again.offer.includes('letters')) bad(name, 'starting over should take the orders down and open the pick', JSON.stringify(again));
+    const on = await pg.evaluate(() => ({ orders: SD_RUSH.run.orders.length, q: document.getElementById('q').className, offer: [...document.querySelectorAll('.no-card')].map(b => b.dataset.o) }));
+    if (!on.orders || !/orders/.test(on.q) || !on.offer.length) bad(name, 'going on to claim 7 should keep the orders and open its pick', JSON.stringify(on));
+    // The last claim (the New Sorter) offering the Rush again is checked in tools/rush_check_yard.js.
     // Every claim sent three letters, and all three formats showed up.
     const fmts = new Set(seen.map(x => x.fmt));
     console.log(name, 'letters', seen.length, [...fmts].join(''));

@@ -25,12 +25,19 @@
   const plural = (n, a, b) => `${n} ${n === 1 ? a : (b || a + 's')}`;
   const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const NAMES = { mira: 'Mira', seoyeon: 'Seo-yeon', dutch: 'Dutch', kai: 'Kai', marrow: 'Goodwife Marrow', pip: 'Pip', coo: 'Postmaster Coo', ayo: 'Ayo', seymour: 'Sir Seymour Backups' };
-  // The cast's PixelLab portraits straight from the files, as js/draft.js draws them; the shared art as a fallback.
+  // The cast's painted busts (tools/portrait_busts.py), in either art style, since the street behind them is painted too.
   const FACES = ['mira', 'seoyeon', 'dutch', 'kai', 'marrow', 'pip', 'coo', 'ayo', 'seymour'];
   const head = who => {
-    if (FACES.includes(who) && !window.SD_VECTOR) return `<span class="rn-head"><img src="assets/img/portraits/${who}-neutral.webp" alt="" draggable="false"></span>`;
+    if (FACES.includes(who)) return `<span class="rn-head"><img src="assets/img/portraits-painted/${who}.webp" alt="" draggable="false"></span>`;
     try { return SD.art && SD.art.portrait ? `<span class="rn-head">${SD.art.portrait(who, 34, 'neutral')}</span>` : ''; } catch (e) { return ''; }
   };
+  // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
+  const bubble = (who, line) => `<p class="rs-say" data-vo="${esc(who + '|' + line)}"><b>${esc(who === 'seymour' ? 'Seymour' : NAMES[who] || who)}:</b> ${esc(line)}</p>`;
+  // Seymour's line between the Shrine Bridge's two runs, by the kind of crack in the second (a job's crack: test, crowd).
+  const AGAIN = { test: 'Once more. This time the new shrine has a crack a test can find. Good luck. Officially.', load: 'Once more. This time the new shrine has a crack only a crowd finds. You\'re doing fine. Noted.', none: 'Once more. I always check twice. It\'s nothing personal. It\'s procedure.' };
+  // Seymour is the Quarter's hall monitor. Lines heard on every job stay short and kind (Ladi, Nov 17: strictness on repeat wears on a player); the jokes live in the
+  // once-per-save teach lines, where Kai plays the straight man.
+  const SEY = { clean: 'Both runs held. It stands. Well done. I mean that. It\'s going in the report.', scaf: 'The scaffolding stays up for now. Show me it holds twice, and I\'ll sign. I\'d like to sign.', notyet: 'Not quite. Have another look at the slate. You\'re close. I\'d put that in writing.', nosign: 'Three plans, none signed. That\'s all right. Good builders have nights like this. I have the records. On to the permit question.' };
   const say = (who, line) => `<p class="rn-say" data-vo="${esc(who + '|' + line)}">${head(who)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   // A screen with the living street (js/reno-street.js) puts the street behind everything, filling the screen, and the
   // text floats over it in boxes (Ladi, Nov 16: boxes around the scene take away the real-world feel).
@@ -40,19 +47,19 @@
 
   // ---- One line the first time each thing happens (L9) ----
   const TEACH = {
-    turned: ['seymour', 'A red mark on the gate. Someone came home and every door was shut. I counted them. Twice.'],
+    turned: ['seymour', 'Red mark on the gate. A resident came home to shut doors. I counted every door. Twice. Then the hinges. ...The hinges were fine.', 'The hinges are always fine.'],
     soot: ['seymour', 'Soot. That resident walked into the cracked beam. In my second run, the beam is always cracked. Plan for it.'],
     straggler: ['seymour', 'Some residents still had the old map. Directions take a while to reach everybody, so keep the old street up until they do.'],
-    rented: ['seymour', 'Rented lots cost lumber. The slate says how much you may spend.'],
-    mixed: ['seymour', 'For a while, some residents were in old rooms and some in new ones. Both at once.'],
+    rented: ['seymour', 'Rented lots cost lumber. The slate says how much you may spend. Not one plank over. I have counted the planks.', 'He\'s not joking. He keeps a ledger.'],
+    mixed: ['seymour', 'For a while, some residents were in old rooms and some in new ones. Both at once. That is normal while a release rolls out. I checked.'],
     alarm: ['seymour', 'The bell rang and the signpost swung back by itself. That is what an alarm on a deployment is for.'],
-    pre: ['seymour', 'The test walker crossed first, found the crack, and nobody else set foot on it.'],
-    stuck: ['seymour', 'Nobody was watching for errors, so the signpost kept pointing at the crack.'],
-    refused: ['seymour', 'That plan can\'t be built at all. The reason is on the scroll in red. It costs you nothing.']
+    pre: ['seymour', 'The test walker crossed first, found the crack, and nobody else set foot on it. Textbook. I may frame this. ...I won\'t.', 'He will.'],
+    stuck: ['seymour', 'Nobody was watching for errors, so the signpost kept pointing at the crack. Unacceptable.'],
+    refused: ['seymour', 'Denied! That plan can\'t be built at all. The reason is on the scroll, in red. It costs you nothing.']
   };
   function teachLines(s, events) {
     const k = keep(); k.taught = k.taught || {};
-    return events.filter(e => TEACH[e] && !k.taught[e]).slice(0, 2).map(e => { k.taught[e] = 1; return say(...TEACH[e]); }).join('');
+    return events.filter(e => TEACH[e] && !k.taught[e]).slice(0, 2).map(e => { k.taught[e] = 1; const [who, line, kai] = TEACH[e]; return say(who, line) + (kai ? say('kai', kai) : ''); }).join('');
   }
 
   // ---- Start, resume ----
@@ -60,7 +67,8 @@
     let s = cur();
     if (!s || s.v !== 1 || s.phase === 'done') {
       const k = keep();
-      s = R.newNight({ night: k.night + 1, misses: k.misses });
+      s = R.newNight({ night: k.night + 1, misses: k.misses, lastGrand: k.lastGrand });
+      s.back = s.jobs.map(j => j.id).filter(id => (k.misses || []).includes(id));
       s.tally = M.newTally();
       s.carry = (k.carry || []).slice();
     }
@@ -94,16 +102,27 @@
     }).join('');
     return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${streetImg('quarter-map', 'rn-mapsp')}${pins}</div>`;
   }
+  // From night 4 the board mixes all three districts and brings back what wasn't signed (playtest, Nov 17: these nights
+  // opened on the old Draft's "under delete markers" line, which says nothing about either and contradicts night 1).
+  function mixIntro(s) {
+    const coo = foreman() === 'coo', pre = coo ? 'Coo. ' : '', back = (s.back || []).length;
+    const gb = (s.back || []).some(id => R.T[id] && R.T[id].grand);
+    const line = s.night === 4 ? 'From tonight the jobs come from all three districts, mixed on one board. Anything Seymour doesn\'t sign comes back first on a later night.'
+      : back ? `${back === 1 ? (gb ? 'The Grand Opening that stayed shut is back' : 'One job is back from before, first on the board') : `${['', 'One', 'Two', 'Three', 'Four', 'Five'][back] || back} jobs are back from before${gb ? ', the Grand Opening among them' : ', first on the board'}`}. The rest come from all three districts.`
+      : 'All three districts on tonight\'s board, and nothing owed from before.';
+    return pre + line + (coo ? ' Read the whole scroll. Build what it says.' : ' Read the whole scroll. HA!');
+  }
   function boardScreen(s) {
-    const F = DR.foreman(), first = s.at === 0 && !s.jobs[0].plans.length;
+    const first = s.at === 0 && !s.jobs[0].plans.length;
     const rows = s.jobs.map((j, i) => {
       const job = jobOf(s, i), dd = R.DISTRICTS[job.d];
       const st = j.done ? (j.pass ? '✓ signed' : '✗ scaffolding') : i === s.at ? '▶ next' : '';
-      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}"><span class="rn-num">${i + 1}</span>${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(job.grand ? 'the market square' : dd.name)}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
+      const back = (s.back || []).includes(job.id) ? ' · back from before' : '';
+      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}"><span class="rn-num">${i + 1}</span>${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(job.grand ? 'the market square' : dd.name)}${back}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
     }).join('');
     const newD = s.night <= 3 ? R.DISTRICTS[Object.keys(R.DISTRICTS).find(d => R.DISTRICTS[d].night === s.night)] : null;
     const b = panel(`<p class="rn-night">Night ${s.night}${newD ? `: ${esc(newD.name)} opens` : ''}</p>
-      ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : F.intro) : ''}
+      ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : mixIntro(s)) : ''}
       <div class="rn-boardgrid">${mapHtml(s)}<ol class="rn-jobs">${rows}</ol></div>
       <div class="rn-dock"><button class="primary" id="rn-go">${s.jobs[s.at].plans.length ? 'Back to the job' : 'Take the job'}</button><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     b.querySelector('#rn-go').onclick = () => { s.phase = 'plan'; save(s); draw(s); };
@@ -195,9 +214,10 @@
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
       ${knobs ? `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>` : ''}
-      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
+      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · ${job.d === 'cfn' ? 'Seymour watches the teardown' : 'Seymour runs it twice'}</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     if (SD.renoStreet) SD.renoStreet.mount(b);
+    keepCamera(s, b);
     // A refused plan redraws the screen: bring the client's reason into view, or it sits below the fold on a phone.
     if (j.refused) { const rf = b.querySelector('.rn-refused'); if (rf && rf.scrollIntoView) rf.scrollIntoView({ block: 'center' }); }
     const redraw = () => { j.refused = null; j.teachRef = ''; save(s); planScreen(s); };
@@ -218,6 +238,20 @@
     b.querySelector('#rn-run').onclick = () => run(s, job);
     b.querySelector('#rn-board').onclick = () => { s.phase = 'board'; save(s); draw(s); };
     b.querySelector('#rn-stop').onclick = () => { save(s); U.closePanel(); stopNow(); };
+  }
+
+  // The plan's camera across redraws: a knob redraws the whole screen, so the player's place on the street is kept.
+  // A job's plan screen tours its scene once when it opens, and again when the plan builds past the view (a new street,
+  // rented lots), so a phone sees the whole job (playtest, Nov 17: the shrines, the bell and a new street were off it).
+  let camKeep = null;
+  function keepCamera(s, b) {
+    const RS = SD.renoStreet, sc = b.querySelector('.rn-bleed .rs'), cam = sc && sc.querySelector('.rs-cam');
+    if (!RS || !cam) return;
+    const key = s.night + ':' + s.at, ww = +sc.dataset.ww || 0, same = camKeep && camKeep.key === key;
+    if (same) cam.scrollLeft = camKeep.left;
+    if (!same || ww > camKeep.ww + 20) RS.tour(sc);
+    const k = camKeep = { key, ww, left: cam.scrollLeft };
+    cam.addEventListener('scroll', () => { k.left = cam.scrollLeft; }, { passive: true });
   }
 
   // ---- The street, drawn from a tick's houses (PixelLab sprites in assets/img/reno, credited in CREDITS.md) ----
@@ -278,6 +312,13 @@
     return `<div class="rn-stack">${job.stack.map(r => `<span class="rn-res1">${sprite(RES_SP[r.type], '', r.name)}<span class="small">${esc(r.name)}</span></span>`).join('')}</div>`;
   }
 
+  // A cutscene's next beat: after ms, and then not while a line is still being spoken (up to 6 seconds more), so Kai's
+  // and Seymour's voiced lines aren't cut off by the next one. With the sound off, the beats keep their own pace.
+  const later = (fn, ms) => setTimeout(function hold(waited) {
+    if (SD.audio && SD.audio.speaking && SD.audio.speaking() && (waited || 0) < 12000) return setTimeout(hold, 150, (waited || 0) + 150);
+    fn();
+  }, ms, 0);
+
   // ---- Running a plan: Seymour's two runs, side by side, playing out on their own ----
   function run(s, job) {
     const j = s.jobs[s.at], p = Object.assign({}, planOf(s, job));
@@ -316,7 +357,7 @@
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
         ${teachLines(s, ev)}
-        ${pass ? say('seymour', DR.SEYMOUR.clean) : last ? say('seymour', 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.') : say(job.client, CL(job.client).wrong || 'Not like that.')}
+        ${pass ? say('seymour', SEY.clean) : last ? say('seymour', SEY.nosign) : say(job.client, CL(job.client).wrong || 'Not like that.')}
         <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
       </div>
       <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">Skip to the end of the runs</button></div>`, 'SEYMOUR\'S INSPECTION');
@@ -372,7 +413,7 @@
     const planNow = j.plans[j.plans.length - 1].plan;
     const ev = events(job, res, planNow);
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
       <div class="rn-bleed rn-cut">${RS.scene({ tick: res.good.ticks[0], seymour: 'proud', kai: 'neutral', shot: 'wide', label: 'Seymour\'s first run, a sound release, playing out on the street',
@@ -380,7 +421,7 @@
       <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: the cracked beam', 'b')}</div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', tick: res.good.ticks[res.good.ticks.length - 1],
           label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+          ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` })}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -399,7 +440,7 @@
     let said = {};
     const kaiSays = (key, line, face) => {
       if (said[key]) return; said[key] = 1;
-      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = bubble('kai', line);
       const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
     };
     // The camera: in on the first house being worked on or breaking, else the wide street.
@@ -447,11 +488,11 @@
       const [which, r] = runs[phase];
       show(which, r, t);
       t++;
-      if (t < r.ticks.length) { timer = setTimeout(step, 620); return; }
+      if (t < r.ticks.length) { timer = later(step, 620); return; }
       if (phase === 0) {
         // Seymour's line between the runs: the same plan again, with a bad release.
         phase = 1; t = 0;
-        timer = setTimeout(() => {
+        timer = later(() => {
           if (ended) return;
           RS.update(el, { tick: res.bad.ticks[0], seymour: 'inspect' }); RS.cut(el, 'wide');
           ui('.rs-runlab').textContent = 'Run 2: the cracked beam';
@@ -459,13 +500,13 @@
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody turned away';
           ui('.rs-tk').textContent = `tick ${res.bad.ticks[0].t}`;
           ui('.rs-ticks').innerHTML = res.bad.ticks.map((x, k) => `<i class="${k ? '' : 'on'}"></i>`).join('');
-          ui('.rs-mid').innerHTML = '<p class="rs-say"><b>Seymour:</b> Again. This time the beam is cracked.</p>';
+          ui('.rs-mid').innerHTML = bubble('seymour', 'Once more. This time the beam is cracked. I have every confidence in you. Within tolerances.');
           said = {};
-          timer = setTimeout(step, 1700);
+          timer = later(step, 1700);
         }, 900);
         return;
       }
-      timer = setTimeout(finish, 900);
+      timer = later(finish, 900);
     };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
@@ -478,14 +519,14 @@
     const RS = SD.renoStreet, j = s.jobs[s.at], left = R.PLANS - j.plans.length;
     const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan, g = res.good;
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
       <div class="rn-bleed rn-cut">${RS.scene({ stack: job.stack, plan: planNow, res: g.res, upto: 0, seymour: 'inspect', kai: 'neutral', shot: 'wide', label: 'The teardown playing out in the Office yard',
         ui: `<div class="rs-row"><span class="rs-chip">The teardown</span><span class="rs-chip rs-lumber">0 lumber a night afterwards</span></div><div class="rs-row rs-mid"></div><div></div>` })}</div>
       <div class="rn-runs rn-runrows"><div class="rn-run" data-run="g"><p class="rn-runh"><b>The teardown</b></p><p class="small rn-sum"></p></div></div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', stack: job.stack, plan: planNow, res: g.res,
         label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-        ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+        ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` })}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -519,11 +560,11 @@
       if (again) again.onclick = () => { s.phase = 'plan'; save(s); draw(s); };
       if (give) give.onclick = () => { s.phase = 'debrief'; j.done = true; j.pass = false; save(s); draw(s); };
     };
-    const step = () => { if (ended) return; i++; show(i); timer = setTimeout(i < job.stack.length ? step : finish, i < job.stack.length ? 1300 : 1600); };
+    const step = () => { if (ended) return; i++; show(i); timer = later(i < job.stack.length ? step : finish, i < job.stack.length ? 1300 : 1600); };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
     if (reduced()) return finish();
-    timer = setTimeout(step, 900);
+    timer = later(step, 900);
   }
   // The Shrine Bridge's runs as a cutscene, like Beanstalk Row's: run 1 (a sound release), Seymour's "Again", run 2 (the
   // cracked one). The camera cuts in on the new shrine when walkers meet the crack, on the bell when it rings, and on
@@ -533,7 +574,7 @@
     const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan;
     const ev = events(job, res, planNow);
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
-    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const crackName = !job.crack ? 'the same sound release' : job.crack === 'test' ? 'a crack a test can find' : 'a crack only a crowd finds';
     const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
     const base = { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!planNow.alarm, pre: !!planNow.pre, post: !!planNow.post };
@@ -552,7 +593,7 @@
       <div class="rn-runs rn-runrows">${runRow('Run 1: a sound release', 'g')}${runRow('Run 2: ' + crackName, 'b')}</div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene(Object.assign({}, base, { w: endW, shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove',
           label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
-          ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` }))}</div>
+          ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` }))}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
@@ -569,7 +610,7 @@
     let said = {};
     const kaiSays = (key, line, face) => {
       if (said[key]) return; said[key] = 1;
-      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = `<p class="rs-say"><b>Kai:</b> ${esc(line)}</p>`;
+      const mid = ui('.rs-mid'); if (mid) mid.innerHTML = bubble('kai', line);
       const k = kai(); if (k && k.rsFace) { if (face) k.rsFace(face); if (k.rsTalk) k.rsTalk(1600); }
     };
     const show = (which, r, i) => {
@@ -614,23 +655,23 @@
       t++;
       // Hold on the moments that teach: the test walker, the first soot, the bell.
       const was = r.ticks[t - 1], hold = was && (was.soot || was.note === 'pre' || was.note === 'post' || was.note === 'rollback') ? 1700 : 950;
-      if (t < r.ticks.length) { timer = setTimeout(step, hold); return; }
+      if (t < r.ticks.length) { timer = later(step, hold); return; }
       if (phase === 0) {
         phase = 1; t = 0;
-        timer = setTimeout(() => {
+        timer = later(() => {
           if (ended) return;
           RS.update(el, Object.assign({}, base, { w: 0, seymour: 'inspect' })); RS.cut(el, 'wide');
           ui('.rs-runlab').textContent = 'Run 2: ' + crackName;
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody has soot · new 0%';
           ui('.rs-tk').textContent = 'minute 0';
           ui('.rs-ticks').innerHTML = res.bad.ticks.map(() => '<i></i>').join('');
-          ui('.rs-mid').innerHTML = `<p class="rs-say"><b>Seymour:</b> ${job.crack ? `Again. This time the new shrine has ${esc(crackName)}.` : 'Again. I check everything twice.'}</p>`;
+          ui('.rs-mid').innerHTML = bubble('seymour', AGAIN[!job.crack ? 'none' : job.crack === 'test' ? 'test' : 'load']);
           said = {};
-          timer = setTimeout(step, 1700);
+          timer = later(step, 1700);
         }, 900);
         return;
       }
-      timer = setTimeout(finish, 1900);
+      timer = later(finish, 1900);
     };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
@@ -679,16 +720,144 @@
   function verifiedTwin(q, avoid) {
     return ((SD.twins && SD.twins[q.id]) || []).map(id => E().find(id)).find(x => x && E().allowed(x) && D() && D().isVerified(x) && !avoid.has(x.id)) || null;
   }
+  // ---- Seymour's what-if (Ladi, Nov 17: fewer multiple-choice screens) ----
+  // On the second and fourth job of a night, before the permit, Seymour changes one thing about your plan and asks how
+  // the slate would go (usually a change that flips a line, sometimes one that flips none). You chalk a tick or a
+  // cross on each line, then he runs it (the same rules as his inspection,
+  // R.inspect) and the slate fills in. Reading every line right adds a floor to the job's building. Nothing here is a
+  // bank question: the permit question still follows.
+  const WI_ASK = 'One what-if before I sign. Same job, one change. Chalk how each line on the slate would go.';
+  const WI_RIGHT = 'Exactly right. I would have chalked it the same way.';
+  const WI_WRONG = 'Not quite. That is what a what-if is for. Better here than on the street.';
+  // Only the knobs a plan actually uses (a rolling batch size means nothing on Immutable).
+  const knobsOf = (job, p) => {
+    if (job.d === 'eb') return Object.assign({ policy: p.policy }, p.policy === 'rolling' || p.policy === 'rollingBatch' ? { batch: p.batch, ignoreHC: !!p.ignoreHC } : p.policy === 'split' ? { split: p.split, evalT: p.evalT } : p.policy === 'blueGreen' ? { wait: p.wait } : {});
+    if (job.d === 'lam') return Object.assign({ cfg: p.cfg, alarm: !!p.alarm, pre: !!p.pre, post: !!p.post }, p.cfg === 'canary' ? { wait: p.wait } : p.cfg === 'linear' ? { every: p.every } : {});
+    return p;
+  };
+  const planDiff = (job, a, b) => {
+    if (job.d === 'cfn') return job.stack.filter(r => a[r.id] !== b[r.id]).length;
+    a = knobsOf(job, a); b = knobsOf(job, b);
+    const ks = new Set(Object.keys(a).concat(Object.keys(b)));
+    let n = 0; ks.forEach(k => { if ((a[k] === undefined ? null : a[k]) !== (b[k] === undefined ? null : b[k])) n++; });
+    return n;
+  };
+  function whatIf(job, mine, seed) {
+    const base = R.inspect(job, mine);
+    if (base.refused) return null;
+    const all = R.plans(job).map(p => job.d === 'eb' ? Object.assign({}, p) : p);
+    // About one what-if in three changes nothing on the slate (Ladi, Nov 17: if it always flipped a line, you could
+    // skip checking the ones that can't flip). `seed` is the job's own roll (j.wiR), made fresh the first time the
+    // what-if comes up, so each playthrough gets a different change; a reload keeps the same one.
+    const same = (seed >>> 0) % 3 === 0;
+    for (const want of [1, 2]) {
+      const c = all.filter(p => planDiff(job, p, mine) === want && planName(job, p) !== planName(job, mine)).map(p => ({ plan: p, res: R.inspect(job, p) }))
+        .filter(x => !x.res.refused);
+      const flip = c.filter(x => x.res.lines.some((l, i) => l.ok !== base.lines[i].ok)), keepAll = c.filter(x => !flip.includes(x));
+      const pool = same && keepAll.length ? keepAll : flip.length ? flip : keepAll;
+      if (pool.length) return pool[((seed >>> 0) >> 2) % pool.length];
+    }
+    return null;
+  }
+  // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
+  const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
+  function whatIfDue(s, job, j) {
+    if (j.wi || !(s.at === 1 || s.at === 3) || !j.plans.length) return false;
+    const w = whatIf(job, j.plans[j.plans.length - 1].plan, wiRoll(s, j));
+    if (!w) { j.wi = { skip: true }; return false; }
+    return true;
+  }
+  function whatIfScreen(s, job, j) {
+    const RS = SD.renoStreet, mine = j.plans[j.plans.length - 1].plan, w = whatIf(job, mine, wiRoll(s, j));
+    const marks = job.lines.map(() => null);
+    j.wiq = w.plan;   // for the checks (tools/reno_check.js works out the right marks from it)
+    const office = (pose, face, line) => RS ? `<div class="rn-bleed">${permitScene(pose, face, `<div class="rs-row"><span></span>${bubble('seymour', line)}</div><div></div>`)}</div>` : say('seymour', line);
+    const plans = `<div class="rn-wiplans"><p class="small"><span class="rn-wik">Your plan</span> ${esc(planName(job, mine))}</p><p><span class="rn-wik">What if</span> <b>${esc(planName(job, w.plan))}</b></p></div>`;
+    const board = () => `<div class="rn-chalk rn-wi"><p class="rn-chalkh">The slate, if it went like this</p><ul class="rn-slate">${job.lines.map((t, i) =>
+      `<li><button class="rn-wil${marks[i] === true ? ' ok' : marks[i] === false ? ' bad' : ''}" data-wi="${i}" aria-label="${esc(t)}: ${marks[i] === true ? 'holds' : marks[i] === false ? 'breaks' : 'not marked'}"><span class="rn-wim">${marks[i] === true ? '✓' : marks[i] === false ? '✗' : '▢'}</span>${esc(t)}</button></li>`).join('')}</ul>
+      <p class="small rn-wihint">Tap a line: ✓ it holds, tap again: ✗ it breaks.</p></div>`;
+    const ask = () => {
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${office('inspect', 'neutral', WI_ASK)}${plans}${board()}
+        <div class="rn-dock"><button class="primary" id="rn-wi-run" ${marks.every(m => m !== null) ? '' : 'disabled'}>Run the what-if</button></div>`, 'THE PERMIT');
+      if (RS) RS.mount(b);
+      b.querySelector('#rn-wi-run').onclick = () => reveal();
+      rewire(b);
+    };
+    function rewire(b) {
+      b.querySelectorAll('[data-wi]').forEach(el => el.onclick = () => {
+        const i = +el.dataset.wi; marks[i] = marks[i] === null ? true : marks[i] === true ? false : null;
+        if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+        b.querySelector('.rn-wi').outerHTML = board(); rewire(b);
+      });
+      b.querySelector('#rn-wi-run').disabled = !marks.every(m => m !== null);
+    }
+    // The what-if plays out where the job is (Ladi, Nov 17): the street, the bridge or the yard runs Seymour's changed
+    // plan for a few seconds, the same frames his inspection shows, then he gives his verdict in the scene. The run
+    // shown is the one that tells: the sound run when the change slows it past sundown or turns people away on its
+    // own, otherwise the cracked one. Reduced motion shows the last frame at once.
+    const sound = job.d === 'cfn' || w.res.lines.some(l => l.k === 'sundown' && !l.ok) || (w.res.good.turned || 0) > (w.res.bad.turned || 0);
+    const run = sound ? w.res.good : w.res.bad, frames = job.d === 'cfn' ? (run.res || []).length + 1 : run.ticks.length;
+    const lamBase = job.d === 'lam' ? { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!w.plan.alarm, pre: !!w.plan.pre, post: !!w.plan.post } : null;
+    const frame = i => {
+      if (job.d === 'cfn') return { stack: job.stack, plan: w.plan, res: run.res, upto: i, seymour: 'inspect' };
+      const tick = run.ticks[Math.min(i, run.ticks.length - 1)], upto = run.ticks.slice(0, i + 1);
+      const soot = upto.reduce((a, x) => a + (x.soot || 0), 0), turned = upto.reduce((a, x) => a + (x.turned || 0), 0);
+      if (job.d === 'lam') return Object.assign({}, lamBase, { w: tick.w, soot: tick.soot, note: tick.note, rang: tick.note === 'rollback', cracked: !sound && soot > 0, seymour: 'inspect' });
+      return { tick, bad: !sound, seymour: 'inspect', turned };
+    };
+    const unit = job.d === 'lam' ? 'minute' : job.d === 'cfn' ? 'step' : 'tick';
+    function replayScene() {
+      return RS.scene(Object.assign(frame(0), { kai: 'neutral', shot: 'wide', label: `Seymour's what-if playing out: ${planName(job, w.plan)}`,
+        ui: `<div class="rs-row"><span class="rs-chip rs-runlab">What if: ${esc(planName(job, w.plan))}${job.d === 'cfn' ? '' : sound ? ' · a sound release' : ' · the cracked one'}</span><span></span></div><div class="rs-row rs-mid"></div><div class="rs-bar"><b class="rs-tk">${unit} 1</b></div>` }));
+    }
+    function replay(b, ok) {
+      const el = b.querySelector('.rn-wiscene .rs');
+      if (!el) return;
+      const tk = () => el.querySelector('.rs-tk'), done = () => {
+        if (!el.isConnected) return;
+        const mid = el.querySelector('.rs-mid'); if (mid) mid.innerHTML = bubble('seymour', ok ? WI_RIGHT : WI_WRONG);
+        RS.update(el, Object.assign(frame(frames - 1), { seymour: ok ? 'approve' : 'disapprove', kai: ok ? 'happy' : 'worried' }));
+      };
+      if (reduced() || frames <= 1) { RS.update(el, frame(frames - 1)); if (tk()) tk().textContent = `${unit} ${frames}`; return done(); }
+      let i = 0;
+      const step = () => {
+        if (!el.isConnected) return;
+        RS.update(el, frame(i)); if (tk()) tk().textContent = `${unit} ${i + 1}`;
+        if (++i < frames) setTimeout(step, 700); else setTimeout(done, 500);
+      };
+      setTimeout(step, 400);
+    }
+    function reveal() {
+      const right = w.res.lines.map((l, i) => l.ok === marks[i]), ok = right.every(Boolean);
+      j.wi = { ok, plan: w.plan };
+      save(s);
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx(ok ? 'right' : 'wrong');
+      const lines = `<div class="rn-chalk rn-wi"><p class="rn-chalkh">How it would have gone</p><ul class="rn-slate">${w.res.lines.map((l, i) =>
+        `<li class="${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✗'} ${esc(l.text)} <span class="small">(${esc(l.got)})</span> <span class="rn-wiyou ${right[i] ? 'ok' : 'bad'}">${right[i] ? 'you read it right' : `you chalked ${marks[i] ? '✓' : '✗'}`}</span></li>`).join('')}</ul>
+        <p class="small rn-wihint">${esc(runSummary(job, job.d === 'cfn' ? w.res.good : w.res.bad, job.d === 'cfn' ? 'g' : 'b'))}</p></div>`;
+      const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">Seymour's what-if</p><p class="small">${esc(job.title)}</p></div></div>
+        ${RS ? `<div class="rn-bleed rn-wiscene">${replayScene()}</div>` : say('seymour', ok ? WI_RIGHT : WI_WRONG)}
+        <div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'READ RIGHT' : 'NOT QUITE'}</div><span class="chip">${ok ? '+1 floor on this building' : 'no floor this time'}</span></div>
+        ${plans}${lines}
+        <div class="rn-dock"><button class="primary" id="rn-wi-on">On to the permit question</button></div>`, 'THE PERMIT');
+      if (RS) { RS.mount(b); replay(b, ok); }
+      const wb = b.closest('.win-b') || document.querySelector('#panel > .win > .win-b'); if (wb) wb.scrollTop = 0;   // the result opens at its top
+      b.querySelector('#rn-wi-on').onclick = () => draw(s);
+    }
+    ask();
+  }
   // The permit office (Ladi's Sogni painting, Nov 17): one close-up for every district. Seymour stands at his desk with
   // his magnifier while you answer; a right answer gets his stamp, a wrong one his disapproval. Kai waits on the left.
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
   const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'permit-office', focus: PERMIT_X, close: pose, kai: face, ui,
     label: 'The permit office: Sir Seymour Backups at his desk, Kai waiting for the verdict' });
-  const PERMIT_ASK = 'Before I sign anything: one question on what you just did. Say how sure you are. I will be checking.';
+  const PERMIT_ASK = 'Before I sign, one question about what you just did. Tell me how sure you are. Take your time. Within reason.';
   function debriefScreen(s) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], RS = SD.renoStreet;
+    if (whatIfDue(s, job, j)) return whatIfScreen(s, job, j);
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">The permit</p><p class="small">${esc(job.title)} · ${j.pass ? 'the plan held twice' : 'the plan didn\'t hold'}</p></div></div>
-      ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(PERMIT_ASK)}</p></div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
+      ${RS ? `<div class="rn-bleed">${permitScene('inspect', 'neutral', `<div class="rs-row"><span></span>${bubble('seymour', PERMIT_ASK)}</div><div></div>`)}</div>` : say('seymour', PERMIT_ASK)}
       <div class="rn-dock"><button class="primary" id="rn-ask">Answer the permit question</button></div>`, 'THE PERMIT');
     if (RS) RS.mount(b);
     b.querySelector('#rn-ask').onclick = async () => {
@@ -726,11 +895,89 @@
       const v = win.querySelector(':scope > .win-b > .verdict-row > .verdict');
       const now = v ? (v.classList.contains('ok') ? 'ok' : 'bad') : 'q';
       if (now !== beat) { beat = now; RS.pose(el, now === 'ok' ? 'stamp' : now === 'bad' ? 'disapprove' : 'inspect', now === 'ok' ? 'happy' : now === 'bad' ? 'worried' : 'neutral'); }
+      if (now === 'q') skin(win);
     };
     const obs = new MutationObserver(put);
     obs.observe(p, { childList: true, subtree: true });
     put();
     return () => { live = false; obs.disconnect(); box.remove(); };
+  }
+  // Hands-on permit (Ladi, Nov 17: fewer multiple-choice screens). The quiz underneath is unchanged and still
+  // judges and records the answer; this only changes how you give it. The options are plans laid on Seymour's desk:
+  // drag his stamp onto the one that answers him (or tap it), and an APPROVED mark lands on it. Then you set his
+  // confidence gauge: the needle swings to Guess, Think so or Sure, and that commits the answer. Idempotent: the quiz
+  // redraws its window on every tap, so this runs again after each one.
+  function skin(win) {
+    const body = win.querySelector(':scope > .win-b');
+    const opts = body && body.querySelector(':scope > .opts');
+    if (!opts || opts.dataset.rnSk) return;
+    opts.dataset.rnSk = '1';
+    opts.classList.add('rn-sheets');
+    const multi = !!opts.querySelector('[data-m]'), order = !!opts.querySelector('[data-ord]');
+    opts.querySelectorAll('.opt').forEach((o, i) => { o.style.setProperty('--tilt', ((i * 37) % 5 - 2) * 0.45 + 'deg'); });
+    if (!order) {
+      const pad = document.createElement('div');
+      pad.className = 'rn-stampbar';
+      pad.innerHTML = `<span class="rn-stamp" role="img" aria-label="Seymour's stamp">APPROVED</span><span>${multi ? 'Stamp every plan that answers him. Drag the stamp, or tap a plan.' : 'Stamp the plan that answers him. Drag the stamp, or tap a plan.'}</span>`;
+      opts.before(pad);
+      const st = pad.querySelector('.rn-stamp');
+      st.onpointerdown = e => {
+        e.preventDefault();
+        const ghost = st.cloneNode(true);
+        ghost.classList.add('rn-ghost');
+        document.body.appendChild(ghost);
+        const at = ev => { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; };
+        at(e);
+        // Near the top or bottom edge, the column scrolls under the stamp, so a plan below the fold can be reached.
+        const sc = (() => { for (let e = opts.parentElement; e; e = e.parentElement) { const c = getComputedStyle(e).overflowY; if ((c === 'auto' || c === 'scroll') && e.scrollHeight > e.clientHeight) return e; } return document.scrollingElement; })();
+        let y = e.clientY, raf = 0;
+        const edge = () => { const d = y > innerHeight - 70 ? 14 : y < 150 ? -14 : 0; if (d) sc.scrollTop += d; raf = requestAnimationFrame(edge); };
+        raf = requestAnimationFrame(edge);
+        const move = ev => { y = ev.clientY; at(ev); };
+        const up = ev => {
+          cancelAnimationFrame(raf);
+          window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+          ghost.remove();
+          const hit = ev.type === 'pointerup' && document.elementFromPoint(ev.clientX, ev.clientY);
+          const o = hit && hit.closest && hit.closest('.rn-sheets .opt');
+          if (o && !o.disabled) o.click();
+        };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+      };
+    }
+    // A stamp lands with a thunk (the quiz's redraw makes the new .on sheet; mark it as freshly stamped).
+    const qk = (body.querySelector('.q-q') || {}).textContent || '', now = new Set();
+    if (skin.q !== qk) { skin.q = qk; skin.on = new Set(); }
+    let fresh = false;
+    opts.querySelectorAll('.opt.on').forEach(o => { const k = o.dataset.o || o.dataset.m; now.add(k); if (!skin.on.has(k)) { o.classList.add('rn-fresh'); fresh = true; } });
+    skin.on = now;
+    if (fresh && SD.audio && SD.audio.sfx) SD.audio.sfx('punch');
+    const conf = body.querySelector(':scope > .conf'), cb = conf && conf.querySelector('.conf-b');
+    if (!cb || cb.dataset.rnSk) return;
+    cb.dataset.rnSk = '1';
+    conf.classList.add('rn-gauge');
+    const lab = conf.querySelector(':scope > span');
+    if (lab) lab.textContent = 'How sure are you? Set his gauge to sign it.';
+    const dial = document.createElement('div');
+    dial.className = 'rn-dial';
+    dial.setAttribute('aria-hidden', 'true');
+    dial.innerHTML = `<svg viewBox="0 0 200 112"><path d="M14 100 A86 86 0 0 1 57 25.5" class="z0"/><path d="M57 25.5 A86 86 0 0 1 143 25.5" class="z1"/><path d="M143 25.5 A86 86 0 0 1 186 100" class="z2"/>
+      <g class="rn-needle"><line x1="100" y1="100" x2="100" y2="26"/><circle cx="100" cy="100" r="9"/></g></svg>`;
+    cb.before(dial);
+    const needle = dial.querySelector('.rn-needle');
+    const aim = c => needle.style.transform = `rotate(${[-60, 0, 60][c]}deg)`;
+    cb.addEventListener('pointerover', e => { const b = e.target.closest('[data-c]'); if (b && !b.disabled) aim(+b.dataset.c); });
+    cb.addEventListener('focusin', e => { const b = e.target.closest('[data-c]'); if (b) aim(+b.dataset.c); });
+    // The needle swings first, then the quiz's own button commits the answer.
+    cb.addEventListener('click', e => {
+      const b = e.target.closest('[data-c]');
+      if (!b || b.disabled || b.dataset.go) return;
+      e.stopPropagation(); e.preventDefault();
+      aim(+b.dataset.c); cb.classList.add('set'); b.classList.add('rn-pick');
+      if (SD.audio && SD.audio.sfx) SD.audio.sfx('blip');
+      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setTimeout(() => { b.dataset.go = '1'; b.click(); }, reduce ? 0 : 520);
+    }, true);
   }
   // The permit question's window over the office: no frame, the scene fills the stage under the top bar, and the
   // question, options and feedback are blueprint boxes floating in a column between Kai and Seymour (on a phone, under
@@ -753,6 +1000,38 @@
       ${WIN} .win-b > :is(.q-ctx, .verdict-row) { align-self: flex-start; max-width: 100%; }
       ${WIN} .win-b > .q-ctx { background: rgba(23, 33, 58, .9); padding: 4px 10px; }
       ${WIN} .q-recap .qr-peek { color: #b9cce4; }
+      /* Hands-on permit: plans on the desk, Seymour's stamp, his gauge. */
+      ${WIN} .win-b > .rn-stampbar { position: sticky; top: 6px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; display: flex; align-items: center; gap: 10px; background: rgba(23, 33, 58, .92); }
+      ${WIN} .win-b > .rn-stampbar > span:last-child { color: #e9f1ff; font-size: .92rem; }
+      .rn-stamp { flex: none; display: inline-grid; place-items: center; padding: 6px 10px; border: 3px double #c8323a; border-radius: 8px; color: #c8323a;
+        background: #f6ead0; font: 800 .8rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-6deg); cursor: grab; touch-action: none; user-select: none;
+        box-shadow: 0 3px 0 #7a5b2c, 0 6px 14px rgba(0,0,0,.35); }
+      .rn-stamp.rn-ghost { position: fixed; z-index: 1000; pointer-events: none; transform: translate(-50%, -60%) rotate(-12deg) scale(1.15); cursor: grabbing; opacity: .92; }
+      ${WIN} .win-b > .opts.rn-sheets { background: none; box-shadow: none; padding: 4px 2px; gap: 12px; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt) { position: relative; background: #f3ead2 linear-gradient(transparent 23px, rgba(70,110,170,.18) 24px) 0 0 / 100% 24px; color: #2b2340;
+        border: 1px solid #b89c62; border-radius: 4px; box-shadow: 0 6px 14px rgba(0,0,0,.4); transform: rotate(var(--tilt, 0deg)); padding: 14px 14px 12px 18px; font-size: .95rem; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt)::before { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #c8323a; box-shadow: 0 2px 2px rgba(0,0,0,.5); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt):hover:not(:disabled) { background-color: #fbf4df; transform: rotate(0deg) translateY(-2px); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on { background-color: #fff7e2; border-color: #c8323a; box-shadow: 0 0 0 2px rgba(200,50,58,.35), 0 6px 14px rgba(0,0,0,.4); }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on::after { content: 'APPROVED'; position: absolute; right: 8px; bottom: 6px; padding: 3px 8px; border: 3px double rgba(200,50,58,.85); border-radius: 6px;
+        color: #c8323a; background: rgba(255,248,232,.7); font: 800 .78rem/1 Georgia, serif; letter-spacing: .12em; transform: rotate(-9deg); pointer-events: none; }
+      ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: rn-thunk .28s cubic-bezier(.3,1.6,.5,1) both; }
+      @keyframes rn-thunk { from { transform: rotate(-9deg) scale(2.2); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: 1; } }
+      ${WIN} .win-b > .conf.rn-gauge { border: 0; text-align: center; background: rgba(23, 33, 58, .94); }
+      .rn-gauge > span { color: #e9f1ff; }
+      .rn-dial { width: min(240px, 70%); margin: 6px auto 0; }
+      .rn-dial svg { display: block; width: 100%; overflow: visible; }
+      .rn-dial path { fill: none; stroke-width: 16; }
+      .rn-dial .z0 { stroke: #6f8fb8; } .rn-dial .z1 { stroke: #d9a93a; } .rn-dial .z2 { stroke: #c8323a; }
+      .rn-needle { transform-origin: 100px 100px; transform: rotate(-90deg); transition: transform .5s cubic-bezier(.4,1.7,.5,1); }
+      .rn-needle line { stroke: #f6ead0; stroke-width: 4; stroke-linecap: round; } .rn-needle circle { fill: #b89c62; stroke: #2b2340; stroke-width: 2; }
+      ${WIN} .rn-gauge .conf-b { justify-content: center; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt) { flex: 1 1 0; max-width: 140px; background: #e8d9b0; border: 2px solid #7a5b2c; color: #2b2340; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):hover:not(:disabled) { background: #f3e6c2; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt):disabled { opacity: .55; }
+      ${WIN} .rn-gauge .stake .up { color: #1f6b33; } ${WIN} .rn-gauge .stake .dn { color: #9b1f26; }
+      ${WIN} .conf.rn-gauge .conf-b button:not(.primary):not(.ms-lt).rn-pick { background: #f6ead0; box-shadow: 0 0 0 3px #d9a93a; }
+      @media (prefers-reduced-motion: reduce) { .rn-needle { transition: none; } ${WIN} .opts.rn-sheets .opt:not(.primary):not(.ms-lt).on.rn-fresh::after { animation: none; } }
       /* A phone: Kai and Seymour stand in the band above the boxes, so the verdict's stamp or wave-off stays in view. */
       @media (max-width: 899px) {
         .rn-pq .rs-fg { bottom: auto; height: calc(max(150px, 52vh - 120px) + 74px); }
@@ -780,7 +1059,7 @@
       const stands = j.pass && j.ok;
       const free = DR.freePlots ? DR.freePlots() : [];
       town[q.id] = Object.assign({}, prev || {}, { q: q.id, d: prev ? prev.d : (E().domainOf(q) || 3), client: prev ? prev.client : job.client,
-        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
+        floors: Math.max(0, (prev ? prev.floors : 0) + (r.pts || 0) + (j.pass ? 1 : 0) + (j.wi && j.wi.ok ? 1 : 0)), cracks: (prev ? prev.cracks | 0 : 0) + (!r.ok && r.conf === 2 ? 1 : 0),
         scaf: !stands, t: prev ? prev.t : Date.now(), last: Date.now(), idea: prev && prev.idea ? prev.idea : job.title, plot: prev && prev.plot != null ? prev.plot : (free.length ? free[0] : null) });
       j.bld = q.id;
     }
@@ -797,16 +1076,16 @@
     const line = stands ? c.right : d && !d.ok && d.conf === 2 ? c.sure : c.wrong;
     // Still in the permit office the question was asked in: Seymour stamps it or waves it off, and says so (playtest,
     // Nov 17: a plain blueprint page here dropped the world between the permit and the next job).
-    const sey = stands ? DR.SEYMOUR.clean : DR.SEYMOUR.scaf;
+    const sey = stands ? SEY.clean : SEY.scaf;
     const office = SD.renoStreet ? `<div class="rn-bleed">${permitScene(stands ? 'stamp' : 'disapprove', stands ? 'happy' : 'worried',
-      `<div class="rs-row"><span></span><p class="rs-say" data-vo="${esc('seymour|' + sey)}"><b>Seymour:</b> ${esc(sey)}</p></div><div></div>`)}</div>` : '';
+      `<div class="rs-row"><span></span>${bubble('seymour', sey)}</div><div></div>`)}</div>` : '';
     const b = panel(`${office}<div class="verdict-row"><div class="verdict ${stands ? 'ok' : 'bad'}">${stands ? '🏛 IT STANDS' : '🚧 SCAFFOLDING'}</div>${d ? `<span class="chip">${esc(M.CONF[d.conf])}</span><span class="chip">${M.sgn(d.pts)} points</span>` : ''}</div>
       <div class="rn-result"><canvas class="rn-bcv" width="96" height="96" aria-hidden="true"></canvas><div>
         ${bld ? `<p class="small"><b>${esc(DR.buildingName(job.client))}</b>: ${plural(bld.floors, 'floor')}, ${stands ? 'standing' : 'under scaffolding'}${bld.plot != null && DR.rules ? ` on ${esc(DR.rules.name(bld.plot))}` : ''}.</p>` : ''}
         ${line ? say(job.client, line) : ''}
         ${office ? '' : say('seymour', sey)}
       </div></div>
-      ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : 'The plan didn\'t hold. This job comes back first on a later night.'}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
+      ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : (job.grand ? 'The plan didn\'t hold. This Grand Opening comes back as a later night\'s.' : 'The plan didn\'t hold. This job comes back first on a later night.')}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-next">${s.at + 1 < s.jobs.length ? 'Next job' : 'End the night'}</button></div>`);
     if (office) SD.renoStreet.mount(b);
     const cv = b.querySelector('.rn-bcv');
@@ -821,7 +1100,7 @@
   // ---- The end: the Grand Opening, win or lose (L1), then one line and Pip ----
   function endScreen(s) {
     const k = keep();
-    if (!s.paid) { s.paid = M.pay('draft') || ' '; k.night = s.night; save(s); }
+    if (!s.paid) { s.paid = M.pay('draft') || ' '; k.night = s.night; k.lastGrand = s.jobs[s.jobs.length - 1].pass ? s.jobs[s.jobs.length - 1].id : null; save(s); }
     const signed = s.jobs.filter(j => j.pass).length, proofs = s.debriefs.filter(d => d.ok).length;
     const g = s.jobs[s.jobs.length - 1], gj = jobOf(s, s.jobs.length - 1);
     const F = DR.foreman();
@@ -1028,6 +1307,15 @@
     .rn-chalkh { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; opacity: .85; border-bottom: 1px dashed rgba(244,241,230,.4); margin-bottom: 3px !important; }
     .rn-slate { list-style: none; margin: 0; padding: 0; font-size: 16px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; text-shadow: 0 0 1px rgba(255,255,255,.5); }
     .rn-slate .small { opacity: .8; }
+    /* Seymour's what-if: your plan against his, and a slate you chalk yourself. */
+    .rn-wiplans p { margin: 2px 0; } .rn-wik { display: inline-block; min-width: 64px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd45a; }
+    .rn-wi { max-width: 640px; } .rn-wi .rn-wihint { margin: 6px 0 0; opacity: .85; }
+    .rn-wil { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px dashed rgba(244,241,230,.25); color: inherit; font: inherit; padding: 6px 2px; cursor: pointer; }
+    .rn-wil:hover { background: rgba(255,255,255,.06); }
+    .rn-wim { flex: none; width: 1.4em; font-size: 20px; line-height: 1; text-align: center; font-family: 'Segoe Print', 'Comic Sans MS', cursive; }
+    .rn-wil.ok .rn-wim { color: #9be3b0; } .rn-wil.bad .rn-wim { color: #ffb1a1; }
+    .rn-wiyou { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; font-size: 12px; background: rgba(255,255,255,.12); }
+    .rn-wiyou.ok { color: #9be3b0; } .rn-wiyou.bad { color: #ffb1a1; }
     .rn-after .rn-chalk { max-width: 640px; }
     /* Policies are blueprints you pin onto the street. */
     .rn-card { position: relative; display: grid; grid-template-columns: 44px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid #9cc7f2; border-radius: 6px; color: #fff; overflow-wrap: anywhere;
@@ -1105,9 +1393,14 @@
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs-ui { padding-bottom: calc(min(170px, 40vh - 56px) + 10px); }
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs:not(.rs-wide):not(.rs-close) .rs-kai { bottom: calc(min(170px, 40vh - 56px) + 10px); }
     ${FULL} .rn.rn-world:not(.rn-playing) > .rn-bleed .rs:not(.rs-wide):not(.rs-close):has(.rs-kai) .rs-ui > .rs-row:last-child { padding-left: 98px; }
+    /* Renovate stays in reach (playtest, Nov 17: it sat 300 to 1,200px down, under the cards and knobs): pinned to the
+       bottom of the screen while the plan scrolls under it. Likewise the verdict's next step after Seymour's runs. */
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run) { flex-wrap: nowrap; }
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run) > .small { flex: 1; min-width: 0; }
+    ${FULL} .rn.rn-world > .rn-dock:has(#rn-run), ${FULL} .rn.rn-world > .rn-after > .rn-dock { position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 3; background: #17213a; box-shadow: 0 -2px 0 rgba(255,212,90,.25), 0 6px 22px rgba(0,0,0,.55); }
     /* The night's tally over the market square: one box, so its lines never sit bare on the painting. */
     ${FULL} .rn.rn-world > .rn-endbox { display: flex; flex-direction: column; gap: 8px; color: #fff; }
-    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+    ${FULL} .rn.rn-world > :is(.rn-top, .rn-scroll, .rn-dock, .verdict-row, .rn-say, .rn-slatebelow, .rn-refused, .rn-result, .rn-endbox, .rn-night, .rn-wiplans) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
     ${FULL} .rn.rn-world > .rn-scroll { background: #f3e7c8; }
     ${FULL} .rn.rn-world > .rn-after { display: flex; flex-direction: column; gap: 8px; }
     ${FULL} .rn.rn-world > .rn-after > :is(.verdict-row, .rn-say, .rn-dock) { background: rgba(23, 33, 58, .9); border-radius: 12px; padding: 8px 12px; }

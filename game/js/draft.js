@@ -64,12 +64,14 @@
   };
   DR.foremanId = () => (S.save && S.save.flags && S.save.flags.ch5 ? 'ayo' : 'coo');
   DR.foreman = () => FOREMEN[DR.foremanId()];
+  // Seymour's quiz lines repeat across many questions, so they stay soft and encouraging in his stiff, by-the-book way
+  // (the Renovation's voice; recorded by tools/reno_vo.py).
   const SEYMOUR = {
     name: 'Sir Seymour Backups',
-    clean: 'HALT! ...I have checked it. And checked it again. It stands.',
-    scaf: 'The scaffolding stays up. I don\'t sign for what I haven\'t seen hold on two different days.',
-    retry: 'A second blueprint on the same rule? Bring it here. I\'ll inspect it. Thoroughly.',
-    half: 'One signature on the permit. The other comes on another day. Those are the rules. I wrote them down. Twice.'
+    clean: 'Checked it twice. It stands. Good, careful work. I\'ve noted that. In ink.',
+    scaf: 'The scaffolding stays up for now. No harm done. Show me it holds on two different days, and I\'ll sign. Gladly.',
+    retry: 'A twin blueprint on the same rule. Bring it here and I\'ll inspect it with you. I expect good things. Professionally.',
+    half: 'One signature on the permit today. The other comes on another day. You\'re halfway there. I\'ve written that down.'
   };
   DR.SEYMOUR = SEYMOUR;
   // Clients. Tier 1 is on the board from the first night; tier 2 arrives with reputation (night 3). Coo joins tier 2
