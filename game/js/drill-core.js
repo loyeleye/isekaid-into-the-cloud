@@ -59,6 +59,26 @@
     // The Gate publishing to an SNS topic (only in a drill with one): the integration request's mapping.
     snsattr: { at: 'gate', needs: 'sns', name: 'Integration: send order_type as a message attribute', text: 'The Publish call carries order_type in MessageAttributes, not only in the order\'s JSON.',
       back: 'A filter policy reads message attributes by default. An attribute the publisher never sets can\'t match anything.', set: c => { c.gate.snsattr = true; }, on: c => c.gate.snsattr },
+    // Usage plans (only in a drill with API keys). Each key in a plan gets its own throttle and quota counters.
+    keysplit: { at: 'gate', needs: 'keys', name: 'Give the partner its own API key', text: 'The partner gets partner-key in the same usage plan. The shop\'s app keeps app-key.',
+      back: 'A usage plan\'s throttle and quota apply to each API key on its own. Two clients on one key share one count.', set: c => { c.gate.split = true; }, on: c => c.gate.split },
+    quotaup: { at: 'gate', needs: 'keys', name: 'Raise the plan\'s quota to 100 a day', text: 'Double the requests each key may make in a day.',
+      back: 'It stops tonight\'s 429s, and the partner\'s contract is 50 a day. One shared key can\'t limit one client without the other.', set: c => { c.gate.quota = 100; }, on: c => c.gate.quota === 100 },
+    stagerate: { at: 'gate', needs: 'keys', name: 'Raise the stage\'s throttle', text: 'Let the stage take more requests a second.',
+      back: 'Stage and method throttling limit the rate. A quota counts requests over a day, a week or a month, per API key.', set: c => { c.gate.stage = true; }, on: c => c.gate.stage },
+    // The API Gateway stage cache (only in a drill with one). A response is cached by its cache key for the TTL.
+    gttl0: { at: 'gate', dial: 'gcachettl', needs: 'gcache', name: 'Stage cache TTL 0 (off)', text: 'Nothing is cached: every request goes to the function.',
+      back: 'A TTL of 0 turns caching off. Every request reaches the backend.', set: c => { c.gate.gttl = 0; }, on: c => c.gate.gttl === 0 },
+    gttl300: { at: 'gate', dial: 'gcachettl', needs: 'gcache', name: 'Stage cache TTL 300 s', text: 'A cached response is served for 5 minutes.',
+      back: '300 seconds is the default.', set: c => { c.gate.gttl = 300; }, on: c => c.gate.gttl === 300 },
+    gttl3600: { at: 'gate', dial: 'gcachettl', needs: 'gcache', name: 'Stage cache TTL 3600 s', text: 'A cached response is served for an hour.',
+      back: '3600 seconds is the most API Gateway allows.', set: c => { c.gate.gttl = 3600; }, on: c => c.gate.gttl === 3600 },
+    ckey: { at: 'gate', needs: 'gcache', name: 'Cache key: add the customerId query string', text: 'GET /orders caches one response per customerId instead of one for everyone.',
+      back: 'The cache tells requests apart only by the parameters you mark as cache keys: headers, paths or query strings.', set: c => { c.gate.ckey = true; }, on: c => c.gate.ckey },
+    gflush: { at: 'gate', needs: 'gcache', name: 'Flush the stage cache', text: 'Empty the stage\'s cache, once, at the start of the run.',
+      back: 'Flushing empties the cache. The next response is cached under the same key as before.', set: c => { c.gate.gflush = true; }, on: c => c.gate.gflush, once: true },
+    maxage: { at: 'gate', needs: 'gcache', name: 'Clients send Cache-Control: max-age=0', text: 'The shop\'s app asks for a fresh answer on every request.',
+      back: 'Only a caller allowed execute-api:InvalidateCache can invalidate an entry. This stage requires that, and ignores the header from anyone else, with a warning.', set: c => { c.gate.maxage = true; }, on: c => c.gate.maxage },
     gtrace: { at: 'gate', name: 'X-Ray tracing on the stage', obs: true, text: 'The Gate shows on the trace map in its real colour.',
       back: 'API Gateway tracing is turned on per stage.', set: c => { c.gate.trace = true; }, on: c => c.gate.trace },
     // Mira: the Queue
@@ -221,7 +241,7 @@
   };
   const C = D.CARDS;
   D.HANDS = {
-    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'snsattr', 'gtrace'],
+    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'snsattr', 'keysplit', 'quotaup', 'stagerate', 'gttl0', 'gttl300', 'gttl3600', 'ckey', 'gflush', 'maxage', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail', 'scopebody', 'nofilter', 'subdlq', 'rawon',
       'rnone', 'rtrans', 'rall', 'catchnone', 'catchno', 'catchrp', 'catchfirst'],
     fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'exp60', 'exp900', 'exp7d', 'exp30d', 'demand', 'userkey', 'single', 'ftrace'],
@@ -231,7 +251,7 @@
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
   function baseCfg() {
     return {
-      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, snsattr: false },
+      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, snsattr: false, split: false, quota: 50, stage: false, gttl: 300, ckey: false, gflush: false, maxage: false },
       queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
       fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
@@ -342,6 +362,20 @@
       fix: [['demand'], ['demand', 'lifecycle']], lazy: [['exp900'], ['exp7d'], ['lifecycle'], ['userkey'], ['exp900', 'userkey'], ['publicput'], ['reserved'], ['to120']],
       hidden: 'The function signed all of a video\'s part URLs at the start. Late parts outlived the URL\'s 60 seconds, and parts sent after the role\'s credentials expired failed whatever ExpiresIn said.',
       q: /presigned|pre-signed|multipart upload/i },
+    quota: { name: 'The Shared Key', cause: 'gate', lead: 'seoyeon', path: 'sync', keys: true,
+      says: 'The partner\'s nightly sync started early. Now the shop can\'t get in either.',
+      setup: v => ({ bucket: [40, 40], keys: true, arrivals: both(steady(3, { client: 'shop' }), t => (t < D.TICKS ? Array.from({ length: 3 + (v.k % 2) }, (_, i) => R(`n${t}-${i}`, { client: 'partner' })) : [])) }),
+      break: () => {},
+      ok: m => m.shopLimited === 0 && !m.quotaRaised, fix: [['keysplit']], lazy: [['quotaup'], ['stagerate'], ['plan'], ['immediate'], ['reserved']],
+      hidden: 'The shop\'s app and the partner sent the same API key, so they shared one quota. The partner spent it, and then everyone on the key got 429.',
+      q: /usage plan|API key|quota/i },
+    receipt: { name: 'The Wrong Receipt', cause: 'gate', lead: 'seoyeon', path: 'sync', gcache: true,
+      says: 'Fast answers all night. Some of them were somebody else\'s.',
+      setup: v => ({ bucket: [40, 40], gcache: true, warm: 'c' + ((v.k + 3) % 6), arrivals: steady(4) }),
+      break: () => {},
+      ok: m => m.leaked === 0 && !m.cacheOff, fix: [['ckey']], lazy: [['gttl0'], ['gflush'], ['maxage'], ['gttl3600'], ['reserved']],
+      hidden: 'GET /orders was cached without customerId in its cache key, so every customer got whichever customer\'s orders were cached first.',
+      q: /cache key|stage cache|API Gateway cach|caching .*API Gateway|InvalidateCache|max-age=0/i },
     cold: { name: 'Cold Open', cause: 'fn', lead: 'kai', path: 'sync',
       says: 'Quiet, quiet, then everyone at once.',
       setup: v => ({ bucket: [40, 40], cold: true, arrivals: t => (t % 4 === 0 ? Array.from({ length: 5 + (v.k % 2) }, (_, i) => R(`c${t}-${i}`)) : []) }),
@@ -409,7 +443,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold', 'pass'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet'], ['poison', 'stampede', 'catch'], ['midnight']];
+  D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet', 'receipt'], ['poison', 'stampede', 'catch'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -423,6 +457,7 @@
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
       poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
+      limit429: 0, shopLimited: 0, quotaAt: 0, quotaRaised: !!(set.keys && cfg.gate.quota > 50), ghits: 0, gmisses: 0, leaked: 0, cacheWarn: 0, cacheOff: !!(set.gcache && cfg.gate.gttl === 0),
       reads: 0, hits: 0, misses: 0, cstale: 0, evictions: 0, cacheMax: 0, flushed: 0,
       uploads: 0, upDone: 0, upFail: 0, up403: 0, upToken: 0, parts: 0, signed: 0, orphans: 0, userKey: !!(set.upload && cfg.up.userKey), pubPut: !!(set.upload && cfg.up.pub),
       published: 0, delivered: 0, filteredOut: 0, noAttr: 0, filtered: 0, misrouted: 0,
@@ -449,6 +484,23 @@
       if (!c || t >= c.exp) { m.authCalls++; c = { res: cfg.gate.wild ? '*' : r.meth, exp: t + Math.ceil(cfg.gate.ttl / D.TICK_S) }; if (cfg.gate.ttl > 0) authCache[r.token] = c; }
       if (c.res === '*' || c.res === r.meth) return true;
       m.forbidden++; if (r.meth === 'POST') m.forbidPost++; return false;
+    };
+    // Usage plan quotas, per API key (The Shared Key): requests the plan has let through so far tonight. A run is the
+    // game's day. A request over its key's quota gets 429 (QUOTA_EXCEEDED) before any throttling.
+    const used = {};
+    const keyOf = r => (cfg.gate.split && r.client === 'partner' ? 'partner-key' : 'app-key');
+    // The stage cache (The Wrong Receipt): GET /orders?customerId=..., cached by its cache key for cfg.gate.gttl
+    // seconds. Without customerId in the key, every customer shares one entry. It starts warm with an earlier
+    // customer's answer, unless flushed.
+    const gcache = {};
+    if (set.gcache && cfg.gate.gttl > 0 && !cfg.gate.gflush) gcache['GET /orders'] = { cust: set.warm, exp: D.TICKS + D.DRAIN };
+    const gcached = (r, t) => {
+      const ck = cfg.gate.ckey ? 'GET /orders?customerId=' + r.cust : 'GET /orders', e = gcache[ck];
+      if (cfg.gate.maxage) m.cacheWarn++;   // the header is ignored: these callers may not invalidate
+      if (cfg.gate.gttl > 0 && e && t < e.exp) { m.ghits++; m.latency = Math.max(m.latency, 40); if (e.cust !== r.cust) m.leaked++; else m.ok++; return; }
+      m.gmisses++; m.invocations++; m.ok++; m.latency = Math.max(m.latency, 600);
+      m.maxConc = Math.max(m.maxConc, 1);
+      if (cfg.gate.gttl > 0) gcache[ck] = { cust: r.cust, exp: t + Math.ceil(cfg.gate.gttl / D.TICK_S) };
     };
     // A write to the Store: returns 'ok', 'dupe', 'blocked', 'hot', 'over' or 'denied'.
     let tickWrites = [];
@@ -507,6 +559,7 @@
       });
     };
     const sync = (r, t) => {
+      if (set.gcache) return gcached(r, t);
       if (set.auth && !authorize(r, t)) return;
       // The topic (The Quiet Subscriber): the Gate publishes each order, and the caller gets the Publish's 200 at once.
       // The shipping subscription's filter policy, { "order_type": ["ship"] }, decides what reaches the function.
@@ -658,7 +711,10 @@
         const r = x.r;
         perClient[r.client] = (perClient[r.client] | 0) + 1;
         const planned = cfg.gate.plan && r.client === 'batch' && perClient.batch > 2;
-        if (planned || !AS.gateTake(gate)) {
+        const overQuota = set.keys && (used[keyOf(r)] | 0) >= cfg.gate.quota;
+        if (overQuota) { m.limit429++; if (r.client === 'shop') m.shopLimited++; if (!m.quotaAt) m.quotaAt = t * D.TICK_S || 1; }
+        else if (set.keys) used[keyOf(r)] = (used[keyOf(r)] | 0) + 1;
+        if (overQuota || planned || !AS.gateTake(gate)) {
           m.throttles429++;
           if (x.att < D.ATTEMPTS) retries.push({ r, att: x.att + 1, at: t + AS.retryDelay(x.att, cfg.gate.retry === 'backoff', r.id) });
           else { m.gaveUp++; if (r.client !== 'batch') m.shopGaveUp++; }
@@ -735,7 +791,8 @@
     const hub = dd && dd.hub;
     const by = f => frames.map(fr => f(fr.d, fr) | 0);
     return {
-      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
+      gate: Object.assign({ Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : d.gmisses ? 600 : d.ghits ? 40 : 120)) },
+        dd && dd.gcache ? { CacheHitCount: by(d => d.ghits), CacheMissCount: by(d => d.gmisses) } : {}),
       queue: hub === 'sns' ? { NumberOfMessagesPublished: by(d => d.published), NumberOfNotificationsDelivered: by(d => d.delivered), NumberOfNotificationsFilteredOut: by(d => d.filteredOut), '…FilteredOut-NoMessageAttributes': by(d => d.noAttr) }
         : hub === 'sfn' ? { ExecutionsStarted: by(d => d.started), ExecutionsSucceeded: by(d => d.succeeded), ExecutionsFailed: by(d => d.execFailed) }
         : stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
@@ -751,7 +808,7 @@
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
       + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.filtered + m.misrouted + m.stuck + m.recharged
       + m.cstale + Math.ceil(m.evictions / 3) + (m.misses * 2 > m.reads ? Math.ceil((m.misses - m.reads / 2) / 3) : 0)
-      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0);
+      + m.upFail + (m.userKey ? 2 : 0) + (m.pubPut ? 3 : 0) + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -774,7 +831,8 @@
   D.metrics = function (drill, cfg, m) {
     const d = DR[drill];
     return {
-      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']],
+      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']]
+        .concat(d.gcache ? [['CacheHitCount', m.ghits], ['CacheMissCount', m.gmisses]] : []),
       queue: d.hub === 'sns' ? [['NumberOfMessagesPublished', m.published], ['NumberOfNotificationsDelivered', m.delivered], ['NumberOfNotificationsFilteredOut', m.filteredOut]].concat(m.noAttr ? [['…FilteredOut-NoMessageAttributes', m.noAttr]] : [])
         : d.hub === 'sfn' ? [['ExecutionsStarted', m.started], ['ExecutionsSucceeded', m.succeeded], ['ExecutionsFailed', m.execFailed]]
         : d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
@@ -788,7 +846,8 @@
   function pager(d, cfg, m, set) {
     const L = [];
     const n = (x, a, b) => `${x} ${x === 1 ? a : (b || a + 's')}`;
-    if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
+    if (m.limit429) L.push(['seoyeon', `${n(m.limit429, 'request')} got 429, and the access logs say QUOTA_EXCEEDED, not THROTTLED, from ${m.quotaAt} seconds on.${m.shopLimited ? ` ${m.shopLimited} of them were the shop's own app.` : ''} ${cfg.gate.split ? 'The partner now sends partner-key, and the shop sends app-key.' : 'The shop and the partner both send the same API key, app-key.'}`]);
+    else if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
     else if (m.forbidden) L.push(['seoyeon', `${n(m.forbidden, 'request')} got 403 Forbidden${m.forbidPost === m.forbidden ? ', every one a POST' : ''}. The same tokens' first calls went through.${m.unauth ? ` ${n(m.unauth, 'request')} got 401 Unauthorized: no token at all, the scraper bot.` : ''}`]);
     else if (m.stale) L.push(['seoyeon', `${n(m.stale, 'caller')} got 404 Not Found for an order they had just placed.`]);
     else if (m.cstale) L.push(['seoyeon', `${n(m.cstale, 'caller')} got a 200 with this morning's price. Nothing failed. The answer was just old.`]);
@@ -797,6 +856,7 @@
     else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
+    else if (m.leaked) L.push(['seoyeon', `Every response was 200 OK, fast, and CacheHitCount is ${m.ghits}. But ${m.leaked} of those answers showed a customer someone else's orders.`]);
     else if (m.unauth) L.push(['seoyeon', `Every caller with a token got through. ${n(m.unauth, 'request')} got 401 Unauthorized: the scraper bot, with no token at all.`]);
     else if (d.hub === 'sns') L.push(['seoyeon', `Every Publish to the orders topic got 200 OK and a MessageId.${cfg.gate.snsattr ? ' Each one carries order_type as a message attribute now.' : ''}`]);
     else if (d.hub === 'sfn') L.push(['seoyeon', 'Every StartExecution got 200 OK and an executionArn. What happens after that isn\'t the Gate\'s to see.']);
@@ -835,6 +895,9 @@
       if (m.fnThrottled) L.push(['kai', `Lambda throttled ${n(m.fnThrottled, 'invocation')} from Charge: TooManyRequestsException.${cfg.flow.retry !== 'none' ? ' Each one went through on its retry.' : ''}`]);
       if (m.declines) L.push(['kai', `${n(m.declines, 'order')} threw CardDeclined: the payment provider said no.`]);
     }
+    if (m.cacheWarn) L.push(['seoyeon', `${n(m.cacheWarn, 'response')} carried a warning header: the app's Cache-Control: max-age=0 was ignored.`]);
+    if (d.gcache) L.push(['kai', m.cacheOff ? `Every request reached me: ${n(m.invocations, 'invocation')}, about 600 ms each.` : `Only ${n(m.invocations, 'request')} reached me all night. The Gate answered the other ${m.ghits} from its cache.`]);
+    if (m.limit429) L.push(['kai', `Nothing reached me for those ${m.limit429}. The Gate turned them away before the function ran.`]);
     if (m.timeouts) L.push(['kai', `Task timed out after ${cfg.fn.timeout}.00 seconds, ${n(m.timeouts, 'time')}.`]);
     if (m.forbidden) L.push(['kai', `Nothing reached me for those ${m.forbidden}. The Gate turned them away before the function ran.`]);
     if (m.stale) L.push(['kai', `${n(m.stale, 'order')} came back "not found" when I read them right after writing them.`]);
@@ -873,6 +936,7 @@
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
     if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
+    if (d.gcache) L.push(['dutch', 'Table\'s fine. Every order is filed under the right customer.']);
     if (m.stale) L.push(['dutch', 'Every one of those orders is in the table. Read it again a second later and it\'s there.']);
     else if (cfg.store.consistent && m.rcu) L.push(['dutch', `Strongly consistent reads: ${m.rcu} read units, twice what eventually consistent costs. DAX passed them all through.`]);
     if (m.rotated) L.push(['dutch', `Secrets Manager rotated ledger/orders_app at ${m.rotated} seconds. ${cfg.store.rot === 'alt' ? 'Alternating users: the previous password still works.' : 'Single user: the old password stopped working.'}`]);
@@ -903,7 +967,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async' && !d.hub) return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', upload: 'Nothing uploads to S3 in this drill.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', sns: 'There\'s no topic in this drill.', sfn: 'No state machine runs in this drill.', cache: 'There\'s no cache in this drill.', keys: 'This API has no API keys or usage plan.', gcache: 'This stage has no cache.', upload: 'Nothing uploads to S3 in this drill.' }[c.needs];
     if (c.sqs && (d.stream || d.hub)) return `That's an SQS setting, and this is ${d.hub === 'sns' ? 'an SNS topic' : d.hub === 'sfn' ? 'a state machine' : 'a stream'}.`;
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -929,7 +993,7 @@
     e.spark = D.sparks(r.frames, d.stream, d);
     D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
-    f.cfg.queue.purge = false;
+    f.cfg.queue.purge = false; f.cfg.gate.gflush = false;
     if (ok) f.state = 'contained'; else if (f.deploys >= D.DEPLOYS) f.state = 'escalated';
     return e;
   };
@@ -957,12 +1021,16 @@
     token: ['dutch', 'A URL can\'t outlive the credentials that signed it. Signed by a role, it dies with the role\'s session, whatever ExpiresIn says.'],
     fanout: ['mira', 'A filter policy reads message attributes unless you tell it to read the body. No attributes, no match, and SNS doesn\'t call that an error.'],
     flow: ['kai', 'Retry what might work next time. Catch what never will. And give the catch a ResultPath, or the error replaces your input.'],
+    quota: ['seoyeon', 'A usage plan counts each API key on its own. Share a key and you share its quota, and once it\'s spent, everyone on that key gets 429.'],
+    gcache: ['seoyeon', 'The stage cache tells requests apart only by the cache keys you give it. Leave out who\'s asking, and everyone gets the first answer.'],
     canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
   };
   // Which teach line a run earns first.
   D.teachFor = function (f, e, taught) {
     const m = e.m, keys = [];
-    if (m.throttles429) keys.push('429');
+    if (m.limit429) keys.push('quota');
+    if (m.throttles429 > m.limit429) keys.push('429');
+    if (m.leaked) keys.push('gcache');
     if (m.hot) keys.push('hot');
     if (m.denied) keys.push('kms');
     if (m.iamDenied) keys.push('iam');

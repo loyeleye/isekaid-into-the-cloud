@@ -97,7 +97,7 @@
   // The lead's lines after a run, as speech bubbles under the board.
   // Each lead's face reacts to what their station saw: a problem there, or not.
   const TROUBLE = {
-    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.cstale,
+    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.cstale || m.leaked,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost || m.filtered || m.misrouted || m.execFailed,
     kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked || m.upFail || m.misses * 2 > m.reads,
     dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale || m.filtered || m.misrouted || m.stuck || m.cstale || m.evictions || m.upFail || m.userKey || m.pubPut
@@ -127,6 +127,8 @@
     if (d.denied) out.push(['store', `${d.denied} denied`, 'error']);
     if (d.forbidden) out.push(['gate', `${d.forbidden} × 403`, 'error']);
     if (d.unauth) out.push(['gate', `${d.unauth} × 401`, 'error']);
+    if (d.leaked) out.push(['gate', `${d.leaked} wrong customer`, 'error']);
+    else if (d.ghits) out.push(['gate', `${d.ghits} from cache`, 'ok']);
     if (d.stale) out.push(['store', `${d.stale} not found yet`, 'error']);
     if (d.cstale) out.push(['store', `${d.cstale} old price${d.cstale > 1 ? 's' : ''}`, 'error']);
     if (d.evictions) out.push(['store', `${d.evictions} evicted`, 'throttle']);
