@@ -42,6 +42,7 @@
   // ---- The shared shell (js/modes.js), or the same rules here until it lands ----
   const STAKES = [[1, 0], [2, -1], [3, -3]];
   const CONF = ['Guess', 'Think so', 'Sure'];
+  const PIN_TOP = 1;   // the highest confidence Pin it down offers: Think so
   const sgn = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n);
   const local = {
     STAKES,
@@ -412,8 +413,9 @@
       if (m.pin.none) { m.k++; S.persist(); return; }
       const r = await (SD.huntDebrief ? SD.huntDebrief.ask(m, () => pinIt(m, ctx), { battle: 'pin', face: faceOf(m) }) : pinIt(m, ctx));
       if (!live || live.tok !== tok || !r) return;
-      if (h.tally) { const t = h.tally[r.conf] || (h.tally[r.conf] = [0, 0]); t[1]++; if (r.ok) t[0]++; }
-      record(h, m, 'pin', r.ok, r.conf, stake(r.ok, r.conf));
+      // Pin is a recognition check, not an exam item: it stays out of the calibration tally, and its stake tops out at
+      // Think so (Ladi, Nov 16).
+      record(h, m, 'pin', r.ok, r.conf, stake(r.ok, Math.min(r.conf, PIN_TOP)));
       return;
     }
     if (step === 'fight' && m.qs.faded && !m.fadedDone && fmtOn()) {
@@ -682,7 +684,8 @@
   // Options as actions where you corner the monster (SD.modes.ask opts.act).
   const ACT = { track: { label: 'Set a trap on its trail', icon: '🪤' }, fight: { label: 'Make your move', icon: '⚔️' } };
 
-  // Pin it down: the option, three reasons, then a confidence to commit. The verdict is one line plus the real reason.
+  // Pin it down: the option, three reasons, then a confidence to commit (Guess or Think so: Sure isn't offered, because
+  // picking the right reason from three is recognition, not recall). The verdict is one line plus the real reason.
   function pinIt(m, ctx) {
     const p = m.pin, q = find(p.q);
     return new Promise(done => {
@@ -695,13 +698,13 @@
           ${q ? `<details class="q-recap"><summary><span class="qr-lbl">The scenario</span><span class="qr-peek">${esc(q.q)}</span></summary><div class="qr-body">${q.ev ? `<pre class="q-ev">${esc(q.ev)}</pre>` : ''}<p class="q-q">${esc(q.q)}</p></div></details>` : ''}
           <div class="opts">${p.reasons.map((r, i) => `<button class="opt${pick === i ? ' on' : ''}" data-pr="${i}" aria-pressed="${pick === i}">${esc(r)}</button>`).join('')}</div>
           <div class="conf"><span class="muted small">Commit your answer. How sure are you?</span><div class="conf-b">
-          ${CONF.map((t, i) => `<button data-pc="${i}" ${pick == null ? 'disabled' : ''}>${t}<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small></button>`).join('')}</div></div>`;
+          ${CONF.slice(0, PIN_TOP + 1).map((t, i) => `<button data-pc="${i}" ${pick == null ? 'disabled' : ''}>${t}<small class="stake"><span class="up">${sgn(T[i][0])}</span> / <span class="dn">${sgn(T[i][1])}</span></small></button>`).join('')}</div></div>`;
         const b = U.panel(h, { title: TITLE, noClose: true, cls: 'quiz' });
         b.querySelectorAll('[data-pr]').forEach(el => el.onclick = () => { pick = +el.dataset.pr; draw(); });
         b.querySelectorAll('[data-pc]').forEach(el => el.onclick = () => verdict(+el.dataset.pc));
       };
       const verdict = conf => {
-        const ok = pick === p.a, pts = stake(ok, conf);
+        const ok = pick === p.a, pts = stake(ok, Math.min(conf, PIN_TOP));
         if (SD.audio) SD.audio.sfx(ok ? 'right' : 'wrong');
         const b = U.panel(`<div class="verdict-row"><div class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'PINNED IT!' : 'NOT QUITE!'}</div><span class="hn-pts">${sgn(pts)} pts</span></div>
           <p class="hn-oneline"><b>${esc(p.opt)}</b><br>${esc(p.reasons[p.a])}</p>
