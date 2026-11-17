@@ -67,7 +67,8 @@
     let s = cur();
     if (!s || s.v !== 1 || s.phase === 'done') {
       const k = keep();
-      s = R.newNight({ night: k.night + 1, misses: k.misses });
+      s = R.newNight({ night: k.night + 1, misses: k.misses, lastGrand: k.lastGrand });
+      s.back = s.jobs.map(j => j.id).filter(id => (k.misses || []).includes(id));
       s.tally = M.newTally();
       s.carry = (k.carry || []).slice();
     }
@@ -101,16 +102,27 @@
     }).join('');
     return `<div class="rn-map" role="img" aria-label="Map of Pingsby's Quarter with tonight's ${s.jobs.length} jobs pinned">${streetImg('quarter-map', 'rn-mapsp')}${pins}</div>`;
   }
+  // From night 4 the board mixes all three districts and brings back what wasn't signed (playtest, Nov 17: these nights
+  // opened on the old Draft's "under delete markers" line, which says nothing about either and contradicts night 1).
+  function mixIntro(s) {
+    const coo = foreman() === 'coo', pre = coo ? 'Coo. ' : '', back = (s.back || []).length;
+    const gb = (s.back || []).some(id => R.T[id] && R.T[id].grand);
+    const line = s.night === 4 ? 'From tonight the jobs come from all three districts, mixed on one board. Anything Seymour doesn\'t sign comes back first on a later night.'
+      : back ? `${back === 1 ? (gb ? 'The Grand Opening that stayed shut is back' : 'One job is back from before, first on the board') : `${['', 'One', 'Two', 'Three', 'Four', 'Five'][back] || back} jobs are back from before${gb ? ', the Grand Opening among them' : ', first on the board'}`}. The rest come from all three districts.`
+      : 'All three districts on tonight\'s board, and nothing owed from before.';
+    return pre + line + (coo ? ' Read the whole scroll. Build what it says.' : ' Read the whole scroll. HA!');
+  }
   function boardScreen(s) {
-    const F = DR.foreman(), first = s.at === 0 && !s.jobs[0].plans.length;
+    const first = s.at === 0 && !s.jobs[0].plans.length;
     const rows = s.jobs.map((j, i) => {
       const job = jobOf(s, i), dd = R.DISTRICTS[job.d];
       const st = j.done ? (j.pass ? '✓ signed' : '✗ scaffolding') : i === s.at ? '▶ next' : '';
-      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}"><span class="rn-num">${i + 1}</span>${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(job.grand ? 'the market square' : dd.name)}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
+      const back = (s.back || []).includes(job.id) ? ' · back from before' : '';
+      return `<li class="rn-job${i === s.at ? ' on' : ''}${j.done ? ' done' : ''}${job.grand ? ' grand' : ''}"><span class="rn-num">${i + 1}</span>${head(job.client)}<span><b>${esc(job.title)}</b><br><span class="small">${esc(NAMES[job.client])} · ${esc(job.grand ? 'the market square' : dd.name)}${back}</span></span><span class="rn-st small">${esc(st)}</span></li>`;
     }).join('');
     const newD = s.night <= 3 ? R.DISTRICTS[Object.keys(R.DISTRICTS).find(d => R.DISTRICTS[d].night === s.night)] : null;
     const b = panel(`<p class="rn-night">Night ${s.night}${newD ? `: ${esc(newD.name)} opens` : ''}</p>
-      ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : F.intro) : ''}
+      ${first ? say(foreman(), s.night === 1 ? 'Pingsby\'s Quarter is lived in again. Every job is a new version of someone\'s building, and the residents don\'t stop coming home while you work. Seymour checks everything twice.' : newD ? `New tonight: ${newD.name}. ${newD.what[0].toUpperCase() + newD.what.slice(1)}. Same rules: ship it, and nobody should notice.` : mixIntro(s)) : ''}
       <div class="rn-boardgrid">${mapHtml(s)}<ol class="rn-jobs">${rows}</ol></div>
       <div class="rn-dock"><button class="primary" id="rn-go">${s.jobs[s.at].plans.length ? 'Back to the job' : 'Take the job'}</button><button class="ghost" id="rn-q">Pingsby's Quarter</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     b.querySelector('#rn-go').onclick = () => { s.phase = 'plan'; save(s); draw(s); };
@@ -202,7 +214,7 @@
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
       ${knobs ? `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>` : ''}
-      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
+      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · ${job.d === 'cfn' ? 'Seymour watches the teardown' : 'Seymour runs it twice'}</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     if (SD.renoStreet) SD.renoStreet.mount(b);
     keepCamera(s, b);
@@ -1037,7 +1049,7 @@
         ${line ? say(job.client, line) : ''}
         ${office ? '' : say('seymour', sey)}
       </div></div>
-      ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : 'The plan didn\'t hold. This job comes back first on a later night.'}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
+      ${!stands ? `<p class="small rn-wallnote">${j.pass ? 'The plan held, but the permit question didn\'t. It\'s on the Wall: bring that poster down and the scaffolding comes off.' : (job.grand ? 'The plan didn\'t hold. This Grand Opening comes back as a later night\'s.' : 'The plan didn\'t hold. This job comes back first on a later night.')}${d && !d.ok ? ' A question on the same idea opens the next night\'s first permit.' : ''}</p>` : ''}
       <div class="rn-dock"><button class="primary" id="rn-next">${s.at + 1 < s.jobs.length ? 'Next job' : 'End the night'}</button></div>`);
     if (office) SD.renoStreet.mount(b);
     const cv = b.querySelector('.rn-bcv');
@@ -1052,7 +1064,7 @@
   // ---- The end: the Grand Opening, win or lose (L1), then one line and Pip ----
   function endScreen(s) {
     const k = keep();
-    if (!s.paid) { s.paid = M.pay('draft') || ' '; k.night = s.night; save(s); }
+    if (!s.paid) { s.paid = M.pay('draft') || ' '; k.night = s.night; k.lastGrand = s.jobs[s.jobs.length - 1].pass ? s.jobs[s.jobs.length - 1].id : null; save(s); }
     const signed = s.jobs.filter(j => j.pass).length, proofs = s.debriefs.filter(d => d.ok).length;
     const g = s.jobs[s.jobs.length - 1], gj = jobOf(s, s.jobs.length - 1);
     const F = DR.foreman();
