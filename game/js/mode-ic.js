@@ -385,26 +385,73 @@
       <div class="bar ic-bar" role="img" aria-label="Error budget ${b}%"><i style="width:${b}%"></i></div>
       ${perks.length ? `<p class="small ic-perks">${perks.map(esc).join(' · ')}</p>` : ''}`;
   }
-  // The request path, top to bottom: the runbook shelf and the gate, the forge, then the three stores side by side.
-  function nodeBtn(s, n) {
-    const here = s.at === n.id, open = s.board.filter(b => b.at === n.id), d = IC.dist(s.at, n.id);
-    const can = !here && d === 1 && IC.canAct(s, 'walk');
-    const nxt = s.runbook === s.wave ? IC.nextLanding(s).filter(x => x === n.id).length : 0;
-    const low = open.length ? Math.min(...open.map(b => b.clock)) : 0;
-    const state = [here ? '📍 You are here' : d === 1 ? '1 step' : `${d} steps`, open.length ? `🔔 ${open.length} open, lowest ${plural(low, 'tick')}` : n.id === 'runbook' ? '📖 next wave' : '✓ quiet', nxt ? `🎯 ${nxt} next wave` : ''].filter(Boolean);
-    return `<button class="ic-node${here ? ' here' : ''}${open.length ? ' alarm' : ''}" data-walk="${n.id}"${can ? '' : ' disabled'} aria-label="${esc(n.name)}: ${esc(state.join(', '))}${can ? '. Walk here, 1 tick' : ''}">
-      <b>${here ? '📍 ' : ''}${esc(n.name)}</b><span class="small">${esc(state.slice(here ? 1 : 0).join(' · ') || (here ? 'You are here' : ''))}</span>${can ? '<span class="small ic-go">Walk · 1 tick</span>' : ''}</button>`;
+  // ---- The camp at night (Ladi, Nov 17: "keep the old version and remove the boxes"; "the camp at night is to show
+  // what's happening"). The request path is the camp's road, painted edge to edge (assets/img/ic/camp-night.webp): the
+  // gate (API Gateway), the forge (Lambda), the post (SQS), the ledger hall (DynamoDB) and the vault (S3), with
+  // Uptima's runbook on the grass by the gate. An open incident is happening on its building: smoke over the roof,
+  // its trouble at the door, and one candle on the roof per incident, its wax the clock (it burns down a tick with
+  // every answer and step) and its colour the page cost (white SEV-3, amber SEV-2, red SEV-1). The error budget is
+  // the oil in the lamp. Rules and words are unchanged: every state the scene shows is also in each building's label,
+  // and "Map as list" is one tap away. Shift 1 has no walking: tapping a building shows its pager slips.
+  // Where each building stands in the painting (% of its width and height): centre x, roof top, door bottom, width.
+  const CAMP = {
+    runbook: { x: 19.5, top: 80, base: 97, w: 7 },
+    apigw: { x: 10.8, top: 51, base: 78, w: 16 },
+    lambda: { x: 29.4, top: 44, base: 76, w: 12 },
+    sqs: { x: 45.4, top: 53, base: 78, w: 15 },
+    ddb: { x: 65.8, top: 29, base: 79, w: 19 },
+    s3: { x: 87.8, top: 50, base: 81, w: 17 }
+  };
+  IC.CAMP = CAMP;
+  // The road between them, as walked (viewBox of the painting, 1344 by 768): the forge is the crossroads.
+  const ROAD = {
+    'runbook-apigw': 'M262 720 Q200 690 145 610', 'apigw-lambda': 'M145 610 Q270 600 395 590',
+    'lambda-sqs': 'M395 590 Q500 625 610 605', 'lambda-ddb': 'M395 590 Q620 700 885 615', 'lambda-s3': 'M395 590 Q760 760 1180 625'
+  };
+  // What each building's trouble looks like at its door (assets/img/ic-live envelopes: the Live shift's orders).
+  const TROUBLE = { apigw: ['env-429', 'env-429', 'env-429'], lambda: ['env', 'env'], sqs: ['env-poison', 'env-poison'], ddb: ['env-twice', 'env-twice'], s3: ['env-429', 'env'] };
+  const PLACE_OF = { apigw: 'the gate', lambda: 'the forge', sqs: 'the post', ddb: 'the ledger hall', s3: 'the vault', runbook: 'Uptima\'s runbook' };
+  const wax = b => (b.cost >= 25 ? 'sev1' : b.cost >= 15 ? 'sev2' : 'sev3');
+  function candles(list) {
+    return `<span class="ic-cdls" aria-hidden="true">${list.map(b => `<span class="ic-cdl ${wax(b)}${b.fmt ? ' fmt' : ''}" style="--h:${Math.max(.12, b.clock / Math.max(b.max, b.clock, 1)).toFixed(2)}"><i></i><b>${b.clock}</b></span>`).join('')}</span>`;
   }
-  function mapHtml(s) {
-    const path = s.view === 'list'
-      ? `<ul class="ic-list">${PLACES.map(n => { const open = s.board.filter(b => b.at === n.id); const d = IC.dist(s.at, n.id), can = d === 1 && IC.canAct(s, 'walk');
-          return `<li><b>${s.at === n.id ? '📍 ' : ''}${esc(n.name)}</b> <span class="small">(${esc(n.place)}) · ${s.at === n.id ? 'you are here' : plural(d, 'step')} · ${open.length ? `🔔 ${open.length} open: ${open.map(b => `${sev(b.cost)[1]}, ${plural(b.clock, 'tick')}`).join('; ')}` : n.id === 'runbook' ? '📖 where the next wave lands' : '✓ quiet'}</span>${can ? ` <button class="ghost ic-step" data-walk="${n.id}">Walk here · 1 tick</button>` : ''}</li>`; }).join('')}</ul>`
-      : `<div class="ic-map" role="group" aria-label="The request path">
-          <div class="ic-row">${nodeBtn(s, RUNBOOK)}${nodeBtn(s, place('apigw'))}</div><div class="ic-link" aria-hidden="true">│</div>
-          <div class="ic-row">${nodeBtn(s, place('lambda'))}</div><div class="ic-link" aria-hidden="true">┌──┼──┐</div>
-          <div class="ic-row">${nodeBtn(s, place('ddb'))}${nodeBtn(s, place('sqs'))}${nodeBtn(s, place('s3'))}</div></div>`;
-    return `${path}
-      <div class="row ic-tools"><button class="ghost" id="ic-view">${s.view === 'list' ? '🗺 Show the map' : '☰ Map as list'}</button></div>
+  // A building: on the map you walk to it (one step) or stand at it; on the board, a tap shows its slips.
+  function building(s, id) {
+    const n = place(id), c = CAMP[id], here = s.map && s.at === id, d = s.map ? IC.dist(s.at, id) : 0;
+    const open = s.board.filter(b => b.at === id), can = s.map && !here && d === 1 && IC.canAct(s, 'walk');
+    const nxt = s.map && s.runbook === s.wave ? IC.nextLanding(s).filter(x => x === id).length : 0;
+    const low = open.length ? Math.min(...open.map(b => b.clock)) : 0;
+    const state = [here ? '📍 You are here' : s.map ? (d === 1 ? '1 step' : `${d} steps`) : '', open.length ? `🔔 ${open.length} open, lowest ${plural(low, 'tick')}` : id === 'runbook' ? '📖 next wave' : '✓ quiet', nxt ? `🎯 ${nxt} next wave` : ''].filter(Boolean);
+    const cls = `${s.map ? 'ic-node' : 'ic-bld'} ic-b-${id}${here ? ' here' : ''}${open.length ? ' alarm' : ''}${can ? ' reach' : ''}${open.some(b => b.cost >= 25) ? ' sev1' : ''}`;
+    const attr = s.map ? `data-walk="${id}"${can || here ? '' : ' disabled'}` : `data-bld="${id}"${open.length ? '' : ' disabled'}`;
+    const tr = open.length && TROUBLE[id] ? `<span class="ic-trouble" aria-hidden="true">${TROUBLE[id].map((t, k) => `<img src="assets/img/ic-live/${t}.webp" alt="" style="--k:${k}" draggable="false">`).join('')}</span>` : '';
+    return `<button class="${cls}" ${attr} style="--x:${c.x}%;--top:${c.top}%;--base:${c.base}%;--w:${c.w}%" aria-label="${esc(n.name)}, ${esc(PLACE_OF[id])}: ${esc(state.join(', '))}${can ? '. Walk here, 1 tick' : ''}">
+      ${open.length ? '<span class="ic-smoke" aria-hidden="true"></span>' + candles(open) : ''}${tr}
+      ${id === 'runbook' ? '<img class="ic-book" src="assets/img/ic/fix-glass.webp" alt="" draggable="false">' : ''}
+      ${here ? '<img class="ic-me" src="assets/img/ic/fix-lantern.webp" alt="" draggable="false">' : ''}
+      <span class="ic-tag"><b>${here ? '📍 ' : ''}${esc(n.name)}</b>${nxt ? ` <span>🎯 ${nxt}</span>` : ''}${can ? '<span class="ic-go">Walk · 1 tick</span>' : ''}</span></button>`;
+  }
+  function campHtml(s) {
+    const b = Math.max(0, s.budget);
+    const ids = s.map ? PLACES.map(n => n.id) : IC.NODES.map(n => n.id);
+    const lit = k => s.map && k.split('-').includes(s.at);
+    const road = Object.keys(ROAD).filter(k => s.map || !k.startsWith('runbook')).map(k => `<path d="${ROAD[k]}" class="${lit(k) ? 'lit' : ''}"/>`).join('');
+    const perks = [s.perks.coo ? '🪶 Coo: next timeout costs half' : '', s.perks.bru ? (s.map ? `🚪 Bru: one free step a wave${s.bruWave === s.wave ? ' (used this wave)' : ''}` : '🚪 Bru: next answer ticks no clock') : '', s.perks.dutch ? '🛡 Dutch: +2 on one clock' : ''].filter(Boolean);
+    return `<div class="ic-camp${s.map ? ' ic-map' : ''}" role="group" aria-label="${s.map ? 'The request path' : 'The camp'}">
+        <img class="ic-camp-bg" src="assets/img/ic/camp-night.webp" alt="" draggable="false">
+        <svg class="ic-road" viewBox="0 0 1344 768" preserveAspectRatio="none" aria-hidden="true">${road}</svg>
+        <div class="ic-hud"><span><b>${isMajor(s) ? '🚨 Major incident' : `Wave ${s.wave}`}</b> of ${waves()}</span><span>Points <b>${M.sgn(s.pts)}</b></span><span>↻ Retries left <b>${Math.max(0, RERUNS - (s.reruns | 0))}</b></span></div>
+        <div class="ic-lamp" role="img" aria-label="Error budget ${b}%"><i style="height:${b}%"></i><b>${b}%</b><span>budget</span></div>
+        ${ids.map(id => building(s, id)).join('')}
+      </div>${perks.length ? `<p class="small ic-perks">${perks.map(esc).join(' · ')}</p>` : ''}`;
+  }
+  function listHtml(s) {
+    return `<ul class="ic-list">${PLACES.map(n => { const open = s.board.filter(b => b.at === n.id); const d = IC.dist(s.at, n.id), can = d === 1 && IC.canAct(s, 'walk');
+      return `<li><b>${s.at === n.id ? '📍 ' : ''}${esc(n.name)}</b> <span class="small">(${esc(n.place)}) · ${s.at === n.id ? 'you are here' : plural(d, 'step')} · ${open.length ? `🔔 ${open.length} open: ${open.map(b => `${sev(b.cost)[1]}, ${plural(b.clock, 'tick')}`).join('; ')}` : n.id === 'runbook' ? '📖 where the next wave lands' : '✓ quiet'}</span>${can ? ` <button class="ghost ic-step" data-walk="${n.id}">Walk here · 1 tick</button>` : ''}</li>`; }).join('')}</ul>
+      <div class="ic-hud"><span><b>${isMajor(s) ? '🚨 Major incident' : `Wave ${s.wave}`}</b> of ${waves()}</span><span>Error budget <b>${Math.max(0, s.budget)}%</b></span><span>Points <b>${M.sgn(s.pts)}</b></span><span>↻ Retries left <b>${Math.max(0, RERUNS - (s.reruns | 0))}</b></span></div>`;
+  }
+  function mapTools(s) {
+    return `<div class="row ic-tools"><button class="ghost" id="ic-view">${s.view === 'list' ? '🗺 Show the map' : '☰ Map as list'}</button></div>
       ${s.acts >= MAP_CAP ? '<p class="small"><b>Four map actions since your last answer: work an incident here next.</b></p>' : `<p class="muted small">Map actions since your last answer: ${s.acts} of ${MAP_CAP}.</p>`}`;
   }
   IC.board = function () {
@@ -414,21 +461,72 @@
     if (s.phase === 'zero') return zeroPanel(s);
     if (s.phase === 'done') return results(s);
     const order = s.board.map((b, i) => i).sort((a, c) => (workable(s, s.board[c]) - workable(s, s.board[a])) || (s.board[a].clock - s.board[c].clock));
+    const scene = s.map && s.view === 'list' ? listHtml(s) : campHtml(s);
     const b = U.panel(`<p class="ic-say" data-vo="${esc(voOf(s.msg || SAY.open))}"><b>Uptima:</b> ${esc(s.msg || SAY.open)}</p>
       ${s.since ? `<p class="small ic-since">${esc(s.since)}</p>` : ''}
-      ${hud(s)}
-      ${s.map ? mapHtml(s) : ''}
-      <p class="small">${s.map ? `Work an incident where you stand (${esc(place(s.at).name)}). Every answer and every step ticks the other clocks by one.` : 'Pick an incident to work. Every answer ticks the other clocks by one.'} The board waits while you read.</p>
+      ${scene}
+      ${s.map ? mapTools(s) : ''}
+      <p class="small ic-how">${s.map ? `Work an incident where you stand (${esc(place(s.at).name)}). Every answer and every step burns the other candles down a tick.` : 'Pick an incident to work. Every answer burns the other candles down a tick.'} The camp waits while you read.</p>
       <div class="ic-board">${order.map(i => cardHtml(s, s.board[i], i)).join('')}</div>
       <div class="row"><button class="ghost" id="ic-how">How to play</button><button class="ghost" id="ic-stop">Stop for now</button></div>`, { title: TITLE, onClose: stopNow });
     b.querySelectorAll('[data-inc]').forEach(el => el.onclick = () => { if (workable(s, s.board[+el.dataset.inc])) work(+el.dataset.inc); });
     b.querySelectorAll('[data-dutch]').forEach(el => el.onclick = () => { IC.useDutch(s, +el.dataset.dutch); save(s); IC.board(); });
-    b.querySelectorAll('[data-walk]').forEach(el => el.onclick = () => { if (IC.walk(s, el.dataset.walk)) afterMap(s); });
+    // Tapping where you stand, or a building on the board, brings its slips into view.
+    const show = id => { const i = s.board.findIndex(x => x.at === id); const el = i >= 0 && b.querySelector(`[data-inc="${i}"]`); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('ic-flash'); setTimeout(() => el.classList.remove('ic-flash'), 900); } };
+    b.querySelectorAll('[data-walk]').forEach(el => el.onclick = () => { if (el.dataset.walk === s.at) return show(s.at); if (IC.walk(s, el.dataset.walk)) afterMap(s); });
+    b.querySelectorAll('[data-bld]').forEach(el => el.onclick = () => show(el.dataset.bld));
     const v = b.querySelector('#ic-view');
     if (v) v.onclick = () => { s.view = s.view === 'list' ? 'map' : 'list'; save(s); IC.board(); };
     b.querySelector('#ic-stop').onclick = () => { U.closePanel(); stopNow(); };
     b.querySelector('#ic-how').onclick = () => M.walk(ID, walkScreens(s)).then(IC.board);
   };
+
+  // ---- The fix, shown where it happened (Ladi, Nov 17): a picture of the mechanism, the exact AWS name or config line,
+  // and what it does (js/ic-fix.js). After a right answer, or a miss that's gone for good: never while the twin retry
+  // is still open, since the twin is the same fault and the card would give it away. The first time a config line
+  // turns up in a save, you write it out yourself before the shift goes on (S.save.icTyped).
+  IC.fixFor = function (inc, q) {
+    if (!SD.icFix || !q || inc.fmt || isFmt(inc.q)) return null;
+    const n = IC.nodeOf(q);
+    return SD.icFix.fixOf(q, n ? n.id : inc.at);
+  };
+  const typedSet = () => (sv().icTyped = sv().icTyped || {});
+  IC.showFix = (s, inc, f, ok) => showFix(s, inc, f, ok);
+  function showFix(s, inc, f, ok) {
+    return new Promise(done => {
+      const c = CAMP[inc.at] || CAMP.lambda, first = SD.icFix.toType(f) && !typedSet()[f.id];
+      const head = ok ? `✓ Resolved at ${esc(PLACE_OF[inc.at] || where(inc))}` : `✗ The fix at ${esc(PLACE_OF[inc.at] || where(inc))} was`;
+      const b = U.panel(`<div class="ic-fix${ok ? ' ok' : ' miss'}">
+          <div class="ic-camp ic-zoom" style="--zx:${c.x}%;--zy:${(c.top + c.base) / 2}%" aria-hidden="true">
+            <img class="ic-camp-bg" src="assets/img/ic/camp-night.webp" alt="" draggable="false">
+            <img class="ic-fixpic" src="assets/img/ic/fix-${f.pic}.webp" alt="" draggable="false">
+          </div>
+          <div class="ic-fixnote">
+            <p class="ic-fixh">${head}</p>
+            <p class="ic-fixname">${esc(f.name)}</p>
+            <code class="ic-line">${esc(f.line)}</code>
+            <p class="ic-does">${esc(f.does)}</p>
+            ${first ? `<label class="ic-wl" for="ic-type">First time you've met this one: write it out yourself.</label>
+              <input id="ic-type" class="ic-type" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-describedby="ic-typeh" placeholder="Type the line here">
+              <p class="small ic-typeh" id="ic-typeh" aria-live="polite">Spaces don't matter. Capitals and punctuation do: AWS names are exact.</p>` : ''}
+            <div class="row"><button class="primary" id="ic-fixgo"${first ? ' disabled' : ''}>${first ? 'Write it to go on' : 'Back to the camp'}</button></div>
+          </div></div>`, { title: TITLE, onClose: () => done() });
+      const go = b.querySelector('#ic-fixgo'), inp = b.querySelector('#ic-type'), hint = b.querySelector('#ic-typeh');
+      if (inp) {
+        inp.oninput = () => {
+          const v = inp.value, okNow = SD.icFix.typed(f, v), at = SD.icFix.firstDiff(f, v);
+          go.disabled = !okNow; go.textContent = okNow ? 'Written. Back to the camp' : 'Write it to go on';
+          inp.classList.toggle('bad', at >= 0); inp.classList.toggle('good', okNow);
+          hint.textContent = okNow ? '✓ Exactly right.' : at >= 0 ? `Character ${at + 1} differs from the line above (spaces aside).` : 'Spaces don\'t matter. Capitals and punctuation do: AWS names are exact.';
+        };
+        setTimeout(() => { try { inp.focus({ preventScroll: true }); } catch (e) { /* no focus */ } }, 60);
+      }
+      go.onclick = () => {
+        if (first) { typedSet()[f.id] = 1; s.wrote = (s.wrote || []).concat(f.id); save(s); }
+        done();
+      };
+    });
+  }
   function stopNow() { S.persist(); if (SD.today) SD.today.render(); }
   function afterMap(s) {
     if (/paged/.test(s.since)) U.system('PAGED', esc(s.since.replace(/^Since your last move: /, '')), 'red');
@@ -455,10 +553,14 @@
     });
     if (r.stopped && !r.committed) return stopNow();
     if (r.closed) return IC.board();
+    const asked = q;
     IC.settle(s, inc, r);
-    if (IC.settleNotes(s)) U.system('PAGED', esc(s.since.replace(/^Since your last answer: /, '')), 'red');
     save(s);
     if (r.stopped) { s.phase = phaseAfter(s); save(s); return stopNow(); }
+    // The fix, once the incident is settled for good (resolved, or missed with no retry left).
+    const f = r.ok || !s.board.includes(inc) ? IC.fixFor(inc, asked) : null;
+    if (f) await showFix(s, inc, f, !!r.ok);
+    if (IC.settleNotes(s)) U.system('PAGED', esc(s.since.replace(/^Since your last answer: /, '')), 'red');
     after(s);
   }
   IC.settleNotes = s => /paged/.test(s.since || '');
@@ -537,6 +639,7 @@
       <p class="td-big">${right} of ${s.log.length} incidents resolved.</p>
       <p class="small">${s.zero ? 'The error budget hit 0%, so the shift ended early.' : `Error budget left: <b>${s.budget}%</b>.`} Points: <b>${M.sgn(s.pts)}</b> from ${plural(n, 'answer')}.${sureMiss ? ` ${sureMiss === 1 ? 'One Sure miss' : sureMiss + ' Sure misses'} went up on the Wall.` : ''}</p>
       <p class="small ic-advice"><b>${esc(advice(s))}</b></p>
+      ${(s.wrote || []).length ? `<p class="small ic-wrote">✍ Written out by hand tonight: ${s.wrote.map(id => { const f = SD.icFix.FIXES.find(x => x.id === id); return f ? `<code>${esc(f.line)}</code>` : ''; }).join(', ')}</p>` : ''}
       ${s.left ? `<p class="small">⏱ ${plural(s.left, 'incident')} still open ${s.left === 1 ? 'starts' : 'start'} your next shift.</p>` : ''}
       ${s.paid ? `<p class="small"><b>${esc(s.paid)}</b></p>` : ''}
       <p class="muted small">${s.verified} of the shift's incidents were verified against AWS docs.${s.topped ? ` ${s.topped} unchecked ones filled in, marked "Not verified yet".` : ''} Topics: ${esc(topics.join(', ') || 'none')}.</p>
@@ -651,14 +754,6 @@
     .ic-bar { margin: 4px 0 8px; }
     .ic-bar i { background: var(--mint, #5bc08a); }
     .ic-perks { margin: 0 0 6px; }
-    .ic-map { display: flex; flex-direction: column; align-items: stretch; margin: 4px 0; }
-    .ic-row { display: flex; gap: 6px; justify-content: center; }
-    .ic-row > .ic-node { flex: 1 1 0; min-width: 0; }
-    .ic-link { text-align: center; line-height: 1; font-family: monospace; opacity: .7; }
-    .ic-node { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 6px 4px; text-align: center; overflow-wrap: anywhere; border: 2px solid var(--ink, #222); border-radius: 6px; background: var(--paper, #fff); color: inherit; font: inherit; }
-    .ic-node.here { border-width: 4px; border-style: double; }
-    .ic-node:disabled { opacity: 1; cursor: default; }
-    .ic-node .ic-go { text-decoration: underline; }
     .ic-list { padding-left: 18px; margin: 4px 0; }
     .ic-list li { margin: 6px 0; overflow-wrap: anywhere; }
     .ic-step { min-height: 44px; }
@@ -680,6 +775,77 @@
     .ic-dutch { min-height: 44px; }
     .ic-pick { text-align: left; }
     .ic-log ul { padding-left: 18px; margin: 4px 0; }
-    .ic-log li { margin: 6px 0; overflow-wrap: anywhere; }`;
+    .ic-log li { margin: 6px 0; overflow-wrap: anywhere; }
+    /* ---- The camp at night (see campHtml) ---- */
+    .ic-camp { position: relative; width: min(100%, calc(62vh * 16 / 9)); aspect-ratio: 16 / 9; margin: 4px auto 10px; border-radius: 6px; overflow: hidden; background: #0d1426; box-shadow: 0 6px 18px rgba(0, 0, 0, .6); container-type: inline-size; }
+    .ic-camp-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+    .ic-road { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .ic-road path { fill: none; stroke: #ffd98a; stroke-width: 5; stroke-dasharray: 14 12; stroke-linecap: round; opacity: .32; }
+    .ic-road path.lit { opacity: .85; filter: drop-shadow(0 0 6px rgba(255, 210, 120, .9)); }
+    body.in-mode[data-stage="ic"] #panel .ic-camp .ic-hud { position: absolute; left: 1.5%; top: 2.5%; display: flex; flex-wrap: wrap; gap: 0 10px; max-width: 70%; padding: 0; background: none; box-shadow: none; border-radius: 0;
+      color: #f6ead0; font-size: clamp(11px, 2.6cqi, 15px); text-shadow: 0 1px 3px #000, 0 0 8px #000; }
+    .ic-lamp { position: absolute; right: 2%; top: 4%; width: clamp(26px, 6cqi, 46px); height: 38%; border: 2px solid #c9a24e; border-radius: 10px 10px 6px 6px; background: rgba(20, 14, 8, .7); overflow: hidden; box-shadow: 0 0 12px rgba(255, 190, 90, .35); }
+    .ic-lamp i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(#ffd27a, #e08a1e); box-shadow: 0 0 10px rgba(255, 170, 60, .7); transition: height .5s ease; }
+    .ic-lamp b { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font-size: clamp(9px, 2.1cqi, 13px); color: #fff; text-shadow: 0 1px 2px #000; }
+    .ic-lamp span { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: clamp(7px, 1.5cqi, 10px); color: #2a1a06; font-weight: 700; }
+    .ic-camp :is(.ic-node, .ic-bld) { position: absolute; left: calc(var(--x) - var(--w) / 2); top: var(--top); width: var(--w); height: calc(var(--base) - var(--top)); min-height: 0; padding: 0; margin: 0;
+      display: block; border: 0; border-radius: 8px; background: none; box-shadow: none; color: #fff; font: inherit; cursor: default; }
+    body.in-mode[data-stage="ic"] #panel .ic-camp :is(.ic-node, .ic-bld) { background: none !important; border: 0 !important; box-shadow: none !important; filter: none !important; }
+    .ic-camp :is(.ic-node, .ic-bld):disabled { opacity: 1; }
+    .ic-camp :is(.ic-node.reach, .ic-node.here, .ic-bld.alarm) { cursor: pointer; }
+    body.in-mode[data-stage="ic"] #panel .ic-camp .ic-node.reach, .ic-camp .ic-node.reach { box-shadow: 0 0 0 2px rgba(255, 217, 138, .75), 0 0 18px rgba(255, 210, 120, .55) !important; animation: icreach 2.4s ease-in-out infinite; }
+    @keyframes icreach { 50% { box-shadow: 0 0 0 2px rgba(255, 217, 138, .35), 0 0 8px rgba(255, 210, 120, .25); } }
+    .ic-camp :is(.ic-node, .ic-bld):focus-visible { outline: 3px dashed #ffe9b0; outline-offset: 3px; }
+    .ic-tag { position: absolute; left: 50%; bottom: -2px; transform: translate(-50%, 100%); white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0;
+      font-size: clamp(8px, 1.9cqi, 13px); line-height: 1.15; color: #fbeccc; text-shadow: 0 1px 2px #000, 0 0 6px #000; pointer-events: none; }
+    .ic-tag b { font-weight: 800; }
+    .ic-node.here .ic-tag b { color: #ffe08a; }
+    .ic-go { color: #ffd98a; text-decoration: underline; }
+    .ic-b-ddb .ic-tag, .ic-b-runbook .ic-tag { bottom: 0; }
+    .ic-b-runbook .ic-tag { left: auto; right: 100%; bottom: 4%; transform: none; align-items: flex-end; }
+    .ic-b-apigw .ic-tag { left: 4%; transform: translate(0, 100%); align-items: flex-start; }
+    .ic-book { position: absolute; left: 10%; bottom: 8%; width: 80%; filter: drop-shadow(0 2px 3px #000); }
+    .ic-me { position: absolute; left: -14%; bottom: -6%; width: 30%; max-width: 40px; filter: drop-shadow(0 0 10px rgba(255, 200, 100, .9)); }
+    /* Trouble: smoke over the roof, red for a SEV-1; what's going wrong piles up at the door. */
+    .ic-smoke { position: absolute; left: 15%; right: 15%; top: -35%; height: 60%; border-radius: 50%; background: radial-gradient(closest-side, rgba(150, 150, 160, .55), transparent); filter: blur(4px); animation: icsmoke 3.2s ease-in-out infinite; pointer-events: none; }
+    .sev1 > .ic-smoke { background: radial-gradient(closest-side, rgba(220, 60, 40, .6), transparent); }
+    @keyframes icsmoke { 0% { transform: translateY(10%) scale(.85); opacity: .55; } 60% { opacity: .9; } 100% { transform: translateY(-18%) scale(1.15); opacity: .4; } }
+    .alarm::before { content: ''; position: absolute; inset: 15% 10% 0; border-radius: 40%; background: radial-gradient(closest-side, rgba(255, 120, 60, .28), transparent); animation: icglow 1.8s ease-in-out infinite; pointer-events: none; }
+    @keyframes icglow { 50% { opacity: .35; } }
+    .ic-trouble { position: absolute; left: 50%; bottom: 2%; transform: translateX(-50%); display: flex; gap: 1px; pointer-events: none; }
+    .ic-trouble img { width: clamp(10px, 2.4cqi, 22px); image-rendering: pixelated; filter: drop-shadow(0 1px 1px #000); animation: ictrouble 1.6s ease-in-out infinite; animation-delay: calc(var(--k) * -.5s); }
+    .ic-b-sqs .ic-trouble { bottom: auto; top: -10%; } .ic-b-sqs .ic-trouble img { animation-name: iccircle; }
+    @keyframes ictrouble { 50% { transform: translateY(-25%); } }
+    @keyframes iccircle { 0% { transform: translate(0, 0); } 25% { transform: translate(40%, -40%); } 50% { transform: translate(0, -70%); } 75% { transform: translate(-40%, -40%); } 100% { transform: translate(0, 0); } }
+    /* The clock: one candle per incident on the roof. Its wax is the ticks left; its colour, how hard it pages. */
+    .ic-cdls { position: absolute; left: 50%; top: -6%; transform: translate(-50%, -100%); display: flex; gap: clamp(3px, .9cqi, 8px); align-items: flex-end; pointer-events: none; }
+    .ic-cdl { position: relative; display: block; width: clamp(5px, 1.2cqi, 10px); height: calc(var(--h) * clamp(16px, 5cqi, 40px)); border-radius: 2px 2px 1px 1px; background: linear-gradient(90deg, #e9dfc8, #fffaf0 45%, #d8ccb0); box-shadow: 0 0 6px rgba(255, 200, 120, .5); }
+    .ic-cdl.sev2 { background: linear-gradient(90deg, #d99a2b, #ffd27a 45%, #c48420); }
+    .ic-cdl.sev1 { background: linear-gradient(90deg, #a5281e, #e8574a 45%, #8e1f17); }
+    .ic-cdl i { position: absolute; left: 50%; bottom: 100%; width: 140%; height: clamp(7px, 1.8cqi, 14px); transform: translateX(-50%); border-radius: 50% 50% 45% 45%; background: radial-gradient(circle at 50% 70%, #fff6c8, #ffc23d 50%, rgba(255, 120, 20, 0) 75%); animation: icflame .9s ease-in-out infinite alternate; }
+    .ic-cdl b { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font-size: clamp(8px, 1.8cqi, 12px); color: #fff; text-shadow: 0 1px 2px #000; }
+    @keyframes icflame { to { transform: translateX(-50%) scale(.85, 1.12); } }
+    .ic-flash .ic-card, .ic-flash.ic-card { outline: 3px solid #ffd98a; outline-offset: 2px; }
+    /* The fix: zoomed in on the building, the prop, then the exact line. */
+    .ic-fix { display: flex; flex-direction: column; gap: 10px; max-width: 760px; margin: 0 auto; }
+    .ic-zoom .ic-camp-bg { transform-origin: var(--zx) var(--zy); transform: scale(2.2); animation: iczoom .6s ease-out; }
+    @keyframes iczoom { from { transform: scale(1); } }
+    .ic-fixpic { position: absolute; left: 50%; top: 50%; width: 38%; max-width: 220px; transform: translate(-50%, -50%); filter: drop-shadow(0 0 18px rgba(255, 220, 140, .85)) drop-shadow(0 6px 8px #000); animation: icpop .5s .3s ease-out both; }
+    .ic-fix.miss .ic-fixpic { filter: drop-shadow(0 0 14px rgba(255, 120, 100, .7)) drop-shadow(0 6px 8px #000); }
+    @keyframes icpop { from { transform: translate(-50%, -30%) scale(.6); opacity: 0; } }
+    .ic-fixnote { position: relative; padding: 14px 16px 12px; color: #2a2018; background: linear-gradient(#f8f1df, #ecdfc2); border-radius: 2px; box-shadow: 0 4px 10px rgba(0, 0, 0, .55);
+      --ink: #2a2018; --muted: #6a5a48; --cream: #f3e9d2; --paper: #eadfc4; --bone: #f8f1df; --line: #b9a780; }
+    .ic-fixnote p { margin: 0 0 6px; }
+    .ic-fixh { font-size: 13px; font-weight: 700; color: #2f6b3f; }
+    .ic-fix.miss .ic-fixh { color: #9e3a34; }
+    .ic-fixname { font-family: var(--f-head, serif); font-size: 20px; font-weight: 800; }
+    .ic-line, .ic-wrote code { display: block; margin: 0 0 8px; padding: 8px 10px; border-radius: 4px; background: #1b1f27; color: #bff0c8; font: 600 15px/1.35 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .ic-wrote code { display: inline; padding: 1px 5px; font-size: 13px; }
+    .ic-does { font-size: 15px; line-height: 1.4; }
+    .ic-wl { display: block; margin: 8px 0 4px; font-weight: 700; }
+    .ic-type { width: 100%; box-sizing: border-box; padding: 10px; border: 2px solid #8a7a5a; border-radius: 4px; background: #fffdf7; color: #17131f; font: 600 16px ui-monospace, Menlo, Consolas, monospace; }
+    .ic-type.bad { border-color: #b5463c; } .ic-type.good { border-color: #3d8a52; background: #f1fbf2; }
+    .ic-typeh { margin-top: 4px; color: #5a4a38; }
+    @media (prefers-reduced-motion: reduce) { .ic-smoke, .alarm::before, .ic-trouble img, .ic-cdl i, .ic-node.reach, .ic-zoom .ic-camp-bg, .ic-fixpic { animation: none !important; } }`;
   document.head.appendChild(css);
 })();
