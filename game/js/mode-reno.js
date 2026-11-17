@@ -601,7 +601,9 @@
       const [which, r] = runs[phase];
       if (r.ticks.length) show(which, r, t);
       t++;
-      if (t < r.ticks.length) { timer = setTimeout(step, 620); return; }
+      // Hold on the moments that teach: the test walker, the first soot, the bell.
+      const was = r.ticks[t - 1], hold = was && (was.soot || was.note === 'pre' || was.note === 'post' || was.note === 'rollback') ? 1700 : 950;
+      if (t < r.ticks.length) { timer = setTimeout(step, hold); return; }
       if (phase === 0) {
         phase = 1; t = 0;
         timer = setTimeout(() => {
@@ -614,7 +616,7 @@
         }, 900);
         return;
       }
-      timer = setTimeout(finish, 1100);
+      timer = setTimeout(finish, 1900);
     };
     b.querySelector('#rn-skip').onclick = finish;
     s.phase = 'plan'; save(s);
