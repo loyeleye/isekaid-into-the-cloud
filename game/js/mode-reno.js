@@ -740,6 +740,13 @@
       ${WIN} .win-b > * { flex: none; margin: 0; background: rgba(29, 61, 107, .94); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
       ${WIN} .win-b > :is(.q-ctx, .verdict-row) { align-self: flex-start; max-width: 100%; }
       ${WIN} .win-b > .q-ctx { background: rgba(23, 33, 58, .9); padding: 4px 10px; }
+      ${WIN} .q-recap .qr-peek { color: #b9cce4; }
+      /* A phone: Kai and Seymour stand in the band above the boxes, so the verdict's stamp or wave-off stays in view. */
+      @media (max-width: 899px) {
+        .rn-pq .rs-fg { bottom: auto; height: calc(max(150px, 52vh - 120px) + 74px); }
+        .rn-pq .rs:not(.rs-wide).rs-close .rs-kai { height: 80%; }
+        .rn-pq .rs:not(.rs-wide) .rs-sey { height: calc(80% * 1.3 * var(--sh, 1)); }
+      }
       @media (min-width: 900px) {
         ${WIN} .win-b::before { height: 2vh; }
         ${WIN} .win-b { padding-left: max(16px, 17vw); padding-right: max(16px, 33vw); }

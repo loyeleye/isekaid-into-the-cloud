@@ -168,7 +168,7 @@
     const w = list[k];
     if (!ok) { w.rights = []; return 'reset'; }
     w.rights = (w.rights || []).concat({ t: Date.now(), q: qid });
-    if (T.wallDone(w)) { list.splice(k, 1); return 'down'; }
+    if (T.wallDone(w)) { list.splice(k, 1); downs.push(w); return 'down'; }
     return 'up';
   };
   // A miss on a question (or a twin of one) already up resets that poster instead of adding a second.
@@ -279,10 +279,11 @@
     } else if (s.kind === 'drill') {
       h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">Domain ${s.dom}: ${esc(E().DOMAINS[s.dom])}.</p>`;
     } else {
-      h = `<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">${plural(wall().length, 'poster')} still up. Each comes down after two different questions on its idea are right, on different days.</p>`;
+      h = `${wallScene(wall().slice().sort((a, b) => a.t - b.t))}<p class="td-big">${s.right} of ${s.items.length} right.</p><p class="muted small">${plural(wall().length, 'poster')} still up. Each comes down after two different questions on its idea are right, on different days.</p>`;
     }
     if (s.typed) h += `<p class="small"><span class="rc-badge mem">From memory</span> ${s.mem | 0} of ${s.typed} you typed first.</p>`;
     const b = U.panel(`${h}<div class="row">${more ? '<button class="primary" id="td-again">+10 more</button>' : ''}<button class="ghost" id="td-done">Done</button></div>`, { title: TITLE[s.kind], onClose: T.render });
+    if (s.kind === 'wall') mountWall(b);
     b.querySelector('#td-done').onclick = () => { U.closePanel(); T.render(); };
     const m = b.querySelector('#td-again'); if (m) m.onclick = T.more;
     S.persist();
@@ -441,6 +442,20 @@
     const task = E().taskOf(q);
     return (topic || 'AN IDEA') + (task ? ' · task ' + task : '');
   };
+  // The Wall as a scene (js/reno-street.js): Ladi's parchment posters pinned on the town wall, each named as below,
+  // and any poster that came down since the Wall was last shown, tearing loose and falling once.
+  const downs = [];
+  function wallScene(list) {
+    const RS = SD.renoStreet;
+    if (!RS) return '';
+    const ps = list.map(w => ({ w, name: T.posterName(E().find(w.id)), foot: 'Up since ' + fmtDay(w.t) }))
+      .concat(downs.splice(0).filter(d => !list.some(w => w.id === d.id)).map(w => ({ w, name: T.posterName(E().find(w.id)), down: true })))
+      .sort((a, b) => a.w.t - b.w.t);
+    const fell = ps.filter(p => p.down).length;
+    const label = `The Wall: ${plural(ps.length - fell, 'poster')} up${fell ? `, ${fell} coming down` : ''}`;
+    return `<div class="td-wallscene">${RS.scene({ shot: 'wide', wall: ps, label })}</div>`;
+  }
+  const mountWall = b => { if (SD.renoStreet && b) SD.renoStreet.mount(b); };
   T.wallPanel = function () {
     const list = wall().slice().sort((a, b) => a.t - b.t);
     const rows = list.map((w, i) => {
@@ -453,11 +468,12 @@
         ${q ? `<details class="td-orig"><summary>The question that put it up</summary><p class="small">${esc(q.q)}</p></details>` : ''}</li>`;
     }).join('');
     const lonely = list.filter(w => !T.hasTwin(w.id)).map(w => w.id);
-    const b = U.panel(`<p class="td-head">${T.uptima() ? 'Wanted: ideas that got away. I drew the faces myself.' : 'The only honest posters in the Cloud'}</p>
+    const b = U.panel(`${wallScene(list)}<p class="td-head">${T.uptima() ? 'Wanted: ideas that got away. I drew the faces myself.' : 'The only honest posters in the Cloud'}</p>
       ${list.length ? `<ul class="td-wall">${rows}</ul>` : '<p class="muted">Nothing on the wall. Mock misses and sure-but-wrong answers go up here.</p>'}
       <p class="muted small">Drilling the wall asks a question you haven't seen on the same idea when there is one. A poster comes down after two different questions on its idea are right, on two different days.</p>
       ${lonely.length ? `<p class="muted small">Posters marked "needs a twin" get a new question written for them. <button class="td-link" id="td-twins">Copy their IDs</button> <span id="td-twins-ok" class="small" hidden>Copied.</span></p>` : ''}
       <div class="row">${list.length ? '<button class="primary" id="td-wall-go">Drill the wall</button>' : ''}</div>`, { title: 'THE WALL', onClose: T.render });
+    mountWall(b);
     const g = b.querySelector('#td-wall-go'); if (g) g.onclick = T.drillWall;
     const cp = b.querySelector('#td-twins');
     if (cp) cp.onclick = () => {
@@ -659,6 +675,9 @@
     .td-sb > span:first-child { grid-column: 1; } .td-sb b { grid-column: 2; grid-row: 1; }
     .td-sf { background: var(--blue, #2f4a6b); } .td-sa { background: #8a7f9c; }
     .td-seen { margin-top: 14px; display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+    .td-wallscene { margin: 0 0 10px; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; }
+    .td-wallscene .rs { height: 250px; aspect-ratio: auto; max-height: none; }
+    @media (min-width: 700px) { .td-wallscene .rs { height: 310px; } }
     .td-wall { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; }
     .td-poster { display: grid; gap: 4px; padding: 8px 10px; background: #fffdf6; border: 2px solid var(--ink); border-radius: 4px; box-shadow: 2px 3px 0 rgba(43,35,64,.6); overflow-wrap: anywhere; }
     .td-poster:nth-child(odd) { transform: rotate(-.6deg); } .td-poster:nth-child(even) { transform: rotate(.5deg); }
