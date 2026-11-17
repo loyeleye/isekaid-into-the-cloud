@@ -83,6 +83,21 @@
       back: 'An Allow in IAM still needs the key policy to let IAM decide. And it breaks least privilege.', set: c => { c.fn.admin = true; }, on: c => c.fn.admin },
     cond: { at: 'fn', name: 'Conditional write', text: 'Write with attribute_not_exists(orderId): a second write of the same order changes nothing.',
       back: 'A failed condition returns ConditionalCheckFailedException instead of overwriting.', set: c => { c.fn.cond = true; }, on: c => c.fn.cond },
+    ddbput: { at: 'fn', name: 'Role policy: allow dynamodb:PutItem on table/orders', text: 'The function\'s role may write items to the orders table, and nothing more.',
+      back: 'Least privilege: allow only the actions and resources the function needs. With no Allow, IAM denies by default.', set: c => { c.fn.iam = c.fn.iam.concat('dynamodb:PutItem'); }, on: c => c.fn.iam.includes('dynamodb:PutItem') },
+    ddbstar: { at: 'fn', name: 'Role policy: allow dynamodb:* on *', text: 'The function\'s role may do anything to any table.',
+      back: 'It works, and it breaks least privilege: one bug in the function can now delete any table.', set: c => { c.fn.iam = c.fn.iam.concat('dynamodb:*'); c.fn.wide = true; }, on: c => c.fn.wide },
+    // The release (only in a drill with one): how CodeDeploy shifts the alias live to the new version (SAM DeploymentPreference).
+    allatonce: { at: 'fn', dial: 'shift', rel: true, name: 'Deployment: AllAtOnce', text: 'All of live\'s traffic moves to the new version at once.',
+      back: 'AllAtOnce shifts everything in one step, and the deployment is over almost as soon as it starts.', set: c => { c.fn.shift = 'all'; }, on: c => c.fn.shift === 'all' },
+    canary: { at: 'fn', dial: 'shift', rel: true, name: 'Deployment: Canary10Percent5Minutes', text: '10% of live\'s traffic goes to the new version for 5 minutes, then the rest.',
+      back: 'A canary shifts traffic in two steps. The deployment runs until the last step.', set: c => { c.fn.shift = 'canary'; }, on: c => c.fn.shift === 'canary' },
+    linear: { at: 'fn', dial: 'shift', rel: true, name: 'Deployment: Linear10PercentEvery1Minute', text: 'Another 10% of live\'s traffic moves to the new version every minute.',
+      back: 'Linear shifts traffic in equal steps, a set time apart.', set: c => { c.fn.shift = 'linear'; }, on: c => c.fn.shift === 'linear' },
+    alarm: { at: 'fn', rel: true, name: 'Alarms: roll back on the alias\'s Errors', text: 'A CloudWatch alarm on Errors greater than 0 is listed in the deployment preference.',
+      back: 'CodeDeploy stops and rolls back a deployment when one of its alarms goes off while it\'s running.', set: c => { c.fn.alarm = true; }, on: c => c.fn.alarm },
+    hook: { at: 'fn', rel: true, name: 'Hooks: PreTraffic test', text: 'Before any traffic moves, a test function sends the new version one order and reports back.',
+      back: 'CodeDeploy runs the PreTraffic hook before shifting. If it reports Failed, the deployment rolls back.', set: c => { c.fn.hook = true; }, on: c => c.fn.hook },
     ftrace: { at: 'fn', name: 'X-Ray active tracing', obs: true, text: 'The function, and the calls it makes, show on the trace map in their real colours.',
       back: 'Lambda sends traces to X-Ray only with Active tracing on.', set: c => { c.fn.trace = true; }, on: c => c.fn.trace },
     // Dutch: the Store
@@ -104,7 +119,7 @@
   D.HANDS = {
     gate: ['backoff', 'immediate', 'plan', 'burst', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge'],
-    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'admin', 'cond', 'ftrace'],
+    fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'ddbput', 'ddbstar', 'admin', 'cond', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
     store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'insights', 'trail']
   };
 
@@ -113,7 +128,8 @@
     return {
       gate: { retry: 'backoff', plan: false, trace: false },
       queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
-      fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false },
+      fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
+        iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false },
       store: { on: true, key: 'orderId', wcu: 12, wcu0: 12, keyPolicy: 'iam', kms: false, insights: false, trail: false }
     };
   }
@@ -158,6 +174,20 @@
       ok: m => m.denied === 0 && !m.adminUsed, fix: [['kprole'], ['kpiam', 'rolekms']], lazy: [['admin'], ['rolekms'], ['reserved']],
       hidden: 'The key policy named only the key\'s administrators, so nothing else could use the key.',
       q: /KMS|key polic|kms:Decrypt|customer managed key|grant/i },
+    badge: { name: 'The Wrong Badge', cause: 'fn', lead: 'dutch', path: 'sync',
+      says: 'Everyone upstairs says 500. Somebody downstairs said 400 first.',
+      setup: v => ({ bucket: [40, 40], arrivals: steady(3 + (v.k % 2)) }),
+      break: c => { c.fn.iam = ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:Scan', 'dynamodb:BatchGetItem']; },
+      ok: m => m.iamDenied === 0 && !m.adminUsed && !m.wideUsed, fix: [['ddbput']], lazy: [['admin'], ['ddbstar'], ['wcu'], ['reserved']],
+      hidden: 'The function\'s role could only read the table, so every PutItem was denied with a 4xx, and the Gate passed it on as a 5xx.',
+      q: /AccessDenied|least[- ]privilege|execution role|not authorized to perform|identity-based polic/i },
+    canary: { name: 'The Bad Canary', cause: 'fn', lead: 'kai', path: 'sync', release: true,
+      says: 'Release night! Version 2 ships twenty seconds in, ready or not.',
+      setup: v => ({ bucket: [40, 40], release: 2 + (v.k % 2), arrivals: steady(5 + (v.k % 2)) }),
+      break: () => {},
+      ok: m => m.v2Fail <= 1 && m.stopped > 0, fix: [['canary', 'alarm'], ['linear', 'alarm'], ['hook']], lazy: [['canary'], ['linear'], ['alarm'], ['reserved'], ['to120']],
+      hidden: 'Version 2 failed every order, and AllAtOnce gave it all of live\'s traffic with nothing to stop it.',
+      q: /canary|traffic shift|DeploymentPreference|weighted alias|PreTraffic|AllAtOnce|Linear10Percent|Canary10Percent/i },
     cold: { name: 'Cold Open', cause: 'fn', lead: 'kai', path: 'sync',
       says: 'Quiet, quiet, then everyone at once.',
       setup: v => ({ bucket: [40, 40], cold: true, arrivals: t => (t % 4 === 0 ? Array.from({ length: 5 + (v.k % 2) }, (_, i) => R(`c${t}-${i}`)) : []) }),
@@ -198,7 +228,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold'], ['hot', 'locked'], ['herd'], ['fuse', 'single'], ['poison'], ['midnight']];
+  D.ROWS = [['storm', 'cold'], ['hot', 'locked'], ['badge', 'canary'], ['herd'], ['fuse', 'single'], ['poison'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -208,16 +238,22 @@
     const gate = AS.gateBucket(...(set.bucket || [40, 40]));
     const m = { req: 0, ok: 0, gaveUp: 0, shopGaveUp: 0, throttles429: 0, fault5xx: 0, error4xx: 0, hot: 0, over: 0, denied: 0, slow: 0, dupes: 0, condBlocked: 0,
       timeouts: 0, errors: 0, invocations: 0, maxConc: 0, maxDur: 0, sent: 0, received: 0, deleted: 0, maxAge: 0, left: 0, parked: 0, goodParked: 0,
-      poisonLoose: 0, lost: 0, purged: 0, wcuUsed: 0, latency: 0, adminUsed: !!cfg.fn.admin };
+      poisonLoose: 0, lost: 0, purged: 0, wcuUsed: 0, latency: 0, adminUsed: !!cfg.fn.admin, iamDenied: 0, wideUsed: !!cfg.fn.wide,
+      v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0 };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
     const q = { items: [], dlq: [] };               // { r, vis (tick visible from), recv, sentAt, inflight }
     for (let i = 0; i < (cfg.fn.prov | 0); i++) envs.push({ busy: -1, last: -1, prov: true });
     const REAP = 3;                                  // ticks an idle environment stays warm (the game's number)
     const pool = cfg.fn.reserved != null ? cfg.fn.reserved : 10;
     const kmsOk = !cfg.store.kms || AS.kmsAllows(cfg.store.keyPolicy, cfg.fn.kms || cfg.fn.admin);
+    const putOk = AS.iamAllows(cfg.fn.admin ? ['*'] : cfg.fn.iam, 'dynamodb:PutItem');
+    // The release: at set.release CodeDeploy starts moving the alias live to version 2, which fails every order.
+    // rel.w: version 2's share of live's traffic. rel.state: null, 'shifting' (the deployment is running), 'done', 'stopped'.
+    const rel = { w: 0, state: null, n: 0, at: set.release };
     // A write to the Store: returns 'ok', 'dupe', 'blocked', 'hot', 'over' or 'denied'.
     let tickWrites = [];
     const write = (r) => {
+      if (!putOk) { m.iamDenied++; return 'denied'; }
       if (!kmsOk) { m.denied++; return 'denied'; }
       const part = AS.partitionOf(cfg.store.key === 'status' ? 'status' : 'spread', tickWrites.length, D.PARTS);
       tickWrites.push({ id: r.id, part });
@@ -240,8 +276,27 @@
       e.busy = t; e.last = t; m.invocations++;
       m.maxConc = Math.max(m.maxConc, envs.filter(x => x.busy === t).length);
       if (cold && set.cold) { m.slow++; m.latency = Math.max(m.latency, 3000); } else m.latency = Math.max(m.latency, 120);
+      // The alias's weighted routing: the share of requests the new version gets, spread evenly.
+      if (rel.w > 0) {
+        const to2 = Math.floor((rel.n + 1) * rel.w + 1e-9) > Math.floor(rel.n * rel.w + 1e-9); rel.n++;
+        if (to2) { m.v2++; m.v2Fail++; m.errors++; m.fault5xx++; return; }
+      }
       const w = write(r);
       if (w === 'ok' || w === 'blocked') m.ok++; else { m.errors++; m.fault5xx++; }
+    };
+    // One tick of the deployment, before the tick's requests. The alarm (Errors > 0 on live) goes off the tick after
+    // an error; CodeDeploy acts on it only while the deployment is still running (the game's timing: a real alarm
+    // evaluates over periods of a minute or more).
+    const releaseTick = t => {
+      if (rel.state === 'shifting' && cfg.fn.alarm && m.v2Fail) { rel.state = 'stopped'; rel.w = 0; m.stopped++; return; }
+      if (rel.state === 'done' && cfg.fn.alarm && m.v2Fail && !m.lateAlarm) m.lateAlarm++;
+      if (t === rel.at) {
+        if (cfg.fn.hook) { m.hookFailed++; m.stopped++; rel.state = 'stopped'; return; }
+        m.shifted++;
+        rel.state = cfg.fn.shift === 'all' ? 'done' : 'shifting';
+        rel.w = AS.shiftWeight(cfg.fn.shift, 0);
+      } else if (rel.state === 'shifting') rel.w = AS.shiftWeight(cfg.fn.shift, (t - rel.at) * D.TICK_S);
+      if (rel.state === 'shifting' && rel.w >= 1) rel.state = 'done';
     };
     const inflight = [];   // { end, items: [msg], fail: bool }
     const groupOf = r => (cfg.queue.fifo ? (cfg.queue.groups === 'customer' ? r.cust : 'all') : null);
@@ -261,6 +316,7 @@
     for (let t = 0; t < last; t++) {
       tickWrites = [];
       AS.gateRefill(gate);
+      if (rel.at != null) releaseTick(t);
       // Arrivals and due retries, interleaved by client so no client always goes first.
       const now = (t < D.TICKS ? set.arrivals(t) : []).map(r => ({ r, att: 1 }));
       now.forEach(() => m.req++);
@@ -357,7 +413,7 @@
 
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
-    const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0);
+    const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -370,7 +426,7 @@
       gate: AS.xrayStatus({ fault: m.fault5xx > 0, throttle: m.throttles429 > 0 }),
       queue: 'ok',
       fn: AS.xrayStatus({ fault: m.errors > 0 }),
-      store: AS.xrayStatus({ throttle: m.hot + m.over > 0, error: m.denied > 0 || m.condBlocked > 0 })
+      store: AS.xrayStatus({ throttle: m.hot + m.over > 0, error: m.denied > 0 || m.iamDenied > 0 || m.condBlocked > 0 })
     };
     const out = {};
     D.ORDER.forEach(k => { out[k] = traced[k] ? st[k] : 'dark'; });
@@ -391,6 +447,7 @@
     const L = [];
     const n = (x, a, b) => `${x} ${x === 1 ? a : (b || a + 's')}`;
     if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
+    else if (m.fault5xx && (m.iamDenied || m.v2Fail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
     else L.push(['seoyeon', 'Gate\'s quiet. Every caller got an answer.']);
@@ -401,16 +458,23 @@
       if (m.lost) L.push(['mira', `The purge took ${n(m.lost, 'good message')} with it.`]);
     }
     if (m.timeouts) L.push(['kai', `Task timed out after ${cfg.fn.timeout}.00 seconds, ${n(m.timeouts, 'time')}.`]);
+    if (m.iamDenied) L.push(['kai', `AccessDeniedException on ${n(m.iamDenied, 'write')}: orders-fn-role is not authorized to perform dynamodb:PutItem on table/orders, because no identity-based policy allows it.`]);
     if (m.denied) L.push(['kai', `AccessDeniedException on ${n(m.denied, 'write')}: not authorized to perform kms:GenerateDataKey.`]);
+    if (m.v2Fail) L.push(['kai', (m.v2Fail === 1 ? '1 invocation failed, on version 2 (ExecutedVersion).' : `${m.v2Fail} invocations failed, every one on version 2 (ExecutedVersion).`) + ' Version 1 had none.']);
+    if (m.hookFailed) L.push(['kai', 'The PreTraffic hook\'s test order failed on version 2, so CodeDeploy rolled back before live moved at all.']);
+    else if (m.stopped) L.push(['kai', 'The Errors alarm went off mid-deployment, and CodeDeploy rolled live back to version 1.']);
+    else if (m.lateAlarm) L.push(['kai', 'The Errors alarm went off, but the deployment had already finished, so nothing rolled back.']);
+    else if (m.shifted && cfg.fn.shift !== 'all') L.push(['kai', `CodeDeploy is still shifting: version 2 has ${cfg.fn.shift === 'canary' ? '10%' : 'a growing share'} of live, and nothing is watching it.`]);
     if (m.hot) L.push(['kai', `ThrottlingException on ${n(m.hot, 'write')}.`]);
     if (m.over) L.push(['kai', `ProvisionedThroughputExceededException on ${n(m.over, 'write')}.`]);
-    if (m.errors && !m.timeouts && !m.denied && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
+    if (m.errors && !m.timeouts && !m.denied && !m.iamDenied && !m.v2Fail && !m.hot && !m.over) L.push(['kai', `${n(m.errors, 'invocation')} failed. One message throws every time it's read.`]);
     if (m.condBlocked) L.push(['kai', `ConditionalCheckFailedException ${n(m.condBlocked, 'time')}: the order was already written.`]);
     if (!L.some(x => x[0] === 'kai')) L.push(['kai', `${n(m.invocations, 'invocation')}, no errors${m.maxConc ? `, at most ${m.maxConc} at once` : ''}.`]);
     if (m.dupes) L.push(['dutch', `${n(m.dupes, 'order')} written twice.`]);
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
     if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
+    if (m.iamDenied) L.push(['dutch', `The table turned away ${n(m.iamDenied, 'write')} with a 400. It never got as far as capacity.`]);
     if (!L.some(x => x[0] === 'dutch')) L.push(['dutch', m.denied ? 'Nothing reached the table.' : 'Table\'s fine from here.']);
     return L;
   }
@@ -433,6 +497,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async') return 'There\'s no queue on this path.';
+    if (c.rel && !d.release) return 'No release goes out in this drill.';
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
     return c.why ? c.why(f.cfg, d) : '';
@@ -469,7 +534,9 @@
     fifo: ['mira', 'One group, one line. The function can only work as many groups as there are.'],
     poison: ['kai', 'Without ReportBatchItemFailures, one bad message sends the whole batch back.'],
     refused: ['dutch', 'AWS won\'t take that one. Read the refusal: it\'s the lesson.'],
-    grey: ['seoyeon', 'Grey on the map means nobody traced it. You can\'t see what you didn\'t instrument.']
+    grey: ['seoyeon', 'Grey on the map means nobody traced it. You can\'t see what you didn\'t instrument.'],
+    iam: ['dutch', 'A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.'],
+    canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
   };
   // Which teach line a run earns first.
   D.teachFor = function (f, e, taught) {
@@ -477,6 +544,8 @@
     if (m.throttles429) keys.push('429');
     if (m.hot) keys.push('hot');
     if (m.denied) keys.push('kms');
+    if (m.iamDenied) keys.push('iam');
+    if (m.v2Fail) keys.push('canary');
     if (m.slow) keys.push('cold');
     if (m.dupes && DR[f.drill].path === 'async') keys.push('vis');
     if (f.cfg.queue.fifo && m.maxAge > 30) keys.push('fifo');

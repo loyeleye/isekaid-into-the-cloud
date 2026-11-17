@@ -47,6 +47,21 @@
 //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/contributorinsights_HowItWorks.html
 //   - CloudTrail records KMS calls such as Decrypt, and some denied calls too.
 //     https://docs.aws.amazon.com/kms/latest/developerguide/logging-using-cloudtrail.html
+//   - IAM denies by default: a call needs an Allow for its action in the caller's identity policy (or a resource
+//     policy). DynamoDB answers a denied call with AccessDeniedException, an HTTP 400.
+//     https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_access-denied.html
+//     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
+//     https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonDynamoDBReadOnlyAccess.html
+//   - With the Lambda proxy integration, a function error (output not in the proxy format) reaches the caller as
+//     502 Bad Gateway. In X-Ray an Error is a 4xx, a Fault a 5xx and a Throttle a 429.
+//     https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
+//     https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html
+//   - SAM's DeploymentPreference has CodeDeploy shift an alias to a new version: AllAtOnce, CanaryXPercentYMinutes
+//     or LinearXPercentEveryYMinutes. Alarms roll the deployment back if one goes off while it runs, and a
+//     PreTraffic hook that reports Failed rolls it back before any traffic moves.
+//     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/automating-updates-to-serverless-apps.html
+//     https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html
+//     https://docs.aws.amazon.com/codedeploy/latest/userguide/monitoring-create-alarms.html
 //   - SDK retries use exponential backoff with jitter. https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html
 (function (root) {
   const AS = (root && root.SD && root.SD.awsSim) || (typeof require !== 'undefined' ? require('./aws-sim.js') : {});
@@ -89,6 +104,13 @@
   // in this account grant access, as the default key policy does), 'role' (names the function's role as a user).
   // identity: the role's own IAM policy allows kms:Decrypt (AdministratorAccess counts as allowing it).
   AS.kmsAllows = (keyPolicy, identity) => keyPolicy === 'role' || (keyPolicy === 'iam' && !!identity);
+
+  // ---- IAM: an action is allowed only if some Allow matches it ('*', 'service:*' or the action itself) ----
+  AS.iamAllows = (allowed, action) => (allowed || []).some(a => a === '*' || a === action || (a.endsWith(':*') && action.startsWith(a.slice(0, -1))));
+
+  // ---- CodeDeploy traffic shifting for a Lambda alias: the new version's share, s seconds after the shift starts ----
+  // all: AllAtOnce. canary: Canary10Percent5Minutes. linear: Linear10PercentEvery1Minute.
+  AS.shiftWeight = (type, s) => (type === 'canary' ? (s < 300 ? 0.1 : 1) : type === 'linear' ? Math.min(1, 0.1 * (1 + Math.floor(s / 60))) : 1);
 
   // ---- Lambda and SQS ----
   // The visibility timeout AWS recommends for a function timeout and batching window (seconds).

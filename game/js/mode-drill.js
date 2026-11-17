@@ -163,6 +163,7 @@
     retry: { at: 'gate', label: 'Retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
     vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
     timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
+    shift: { at: 'fn', rel: true, label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
     key: { at: 'store', label: 'Partition key', icon: 'key', ids: ['kstatus', 'korder', 'kshard'] },
     kp: { at: 'store', label: 'Key policy', icon: 'padlock', ids: ['kprole', 'kpiam'], cur: c => (c.store.keyPolicy === 'admins' ? 'Admins only' : '') }
@@ -171,9 +172,12 @@
     vis30: '30 s', vis60: '60 s', vis120: '2 min', vis360: '6 min', dlq: 'Redrive → orders-dlq', dlqfifo: 'Redrive → orders-dlq.fifo', groups: 'MessageGroupId = customerId', purge: 'Purge the queue',
     to30: '30 s', to60: '60 s', to120: '2 min', b1: '1', b3: '3', partial: 'ReportBatchItemFailures', reserved: 'Reserved concurrency 20', prov: 'Provisioned 6 on alias live',
     provlatest: 'Provisioned 6 on $LATEST', rolekms: 'Role allows kms:Decrypt', admin: 'AdministratorAccess', cond: 'Conditional write', ftrace: 'X-Ray active tracing',
+    ddbput: 'Allow PutItem on orders', ddbstar: 'Allow dynamodb:* on *', allatonce: 'All at once', canary: 'Canary 10%', linear: 'Linear 10%/min',
+    alarm: 'Roll back on Errors alarm', hook: 'PreTraffic test',
     kstatus: 'status', korder: 'orderId', kshard: 'status#1-9', wcu: '2× table WCU', kprole: 'Names the role', kpiam: 'Lets IAM decide', insights: 'Contributor Insights', trail: 'CloudTrail' };
   const SW_ICON = { plan: 'ticket', burst: 'padlock', dlq: 'return-arrow', dlqfifo: 'return-arrow', groups: 'card-random', purge: 'broom', partial: 'scroll-quill', reserved: 'checked-shield',
-    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart' };
+    prov: 'campfire', provlatest: 'campfire', rolekms: 'key', admin: 'key', cond: 'checked-shield', wcu: 'pie-chart',
+    ddbput: 'key', ddbstar: 'padlock-open', alarm: 'ringing-bell', hook: 'checked-shield' };
   const inDial = id => Object.keys(DIALS).some(k => DIALS[k].ids.includes(id));
   const spark = (arr, bad) => {
     if (!arr || !arr.length) return '';
@@ -187,13 +191,15 @@
     return `<button class="${opts.cls}${on ? ' on' : ''}${why && !on ? ' no' : ''}${placed ? ' new' : ''}" data-card="${id}" aria-pressed="${on}" title="${esc(c.name + ': ' + c.text)}" data-tip="${esc(c.text)}">
       ${opts.icon ? icon(opts.icon) : ''}<span>${esc(SHORT[id] || c.name)}</span>${opts.sw ? `<i class="dr-sw" aria-hidden="true"></i>` : ''}</button>`;
   }
-  function stationHtml(s, f, e) {
+  // talk: { lines, notes } — in the room, what this station's lead says, shown as their speech bubble at their desk.
+  function stationHtml(s, f, e, talk) {
     const k = s.at, st = D.STATIONS[k], d = D.DRILLS[f.drill];
     if (k === 'queue' && d.path !== 'async') return `<div class="dr-station ms-lt"><p class="small muted">No queue on this path: the Gate calls the function directly.</p></div>`;
     const mt = D.metrics(f.drill, f.cfg, e.m)[k], sp = (e.spark || {})[k] || {};
     const left = D.CHANGES - f.changes.length;
-    const hand = D.HANDS[k];
-    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k).map(n => {
+    // A release's settings show only in a drill that has a release, as the queue's show only with a queue.
+    const hand = D.HANDS[k].filter(id => !C[id].rel || d.release);
+    const dials = Object.keys(DIALS).filter(n => DIALS[n].at === k && (!DIALS[n].rel || d.release)).map(n => {
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span></div>`;
@@ -202,14 +208,22 @@
     const looks = hand.filter(id => C[id].obs).map(id => control(f, id, { cls: 'dr-card dr-look obs', icon: 'all-seeing-eye' })).join('');
     return `<div class="dr-station ms-lt"><div class="dr-sh">${head(st.who)}<b>${esc(st.name)}</b><span class="small">${esc(NAMES[st.who])} · ${esc(st.svc)}</span>
         <span class="dr-left" aria-label="${plural(left, 'change')} left this deploy">${Array.from({ length: D.CHANGES }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</span></div>
+      ${talk ? said(k, st.who, talk, e.m) : ''}
       <div class="dr-metrics" aria-label="CloudWatch metrics, last run">${mt.map(([n, v]) => `<span class="dr-mt"><code>${esc(n)}</code><b>${esc(v)}</b>${spark(sp[n], BAD[n] && /[1-9]/.test(String(v)))}</span>`).join('')}</div>
       ${dials}
       ${sws ? `<div class="dr-hand dr-togs">${sws}</div>` : ''}
       ${looks ? `<div class="dr-looks"><span class="dr-dl">${icon('all-seeing-eye')}Look closer</span>${looks}</div>` : ''}
       <p class="dr-tip small" aria-live="polite">${plural(left, 'change')} left this deploy. Settings say what they set, never whether they help.</p></div>`;
   }
+  function said(k, who, talk, m) {
+    const ls = (talk.lines || []).filter(x => x[0] === who).map(x => x[1]);
+    const ns = (talk.notes || []).filter(x => x[0] === k);
+    if (!ls.length && !ns.length) return '';
+    const bad = SD.drillBoard && SD.drillBoard.TROUBLE[who] && SD.drillBoard.TROUBLE[who](m);
+    return `<div class="dr-said" aria-live="polite">${ns.map(([, w, t]) => `<p class="dr-say teach" data-vo="${esc(w + '|' + t)}">${w !== who ? `<b>${esc(NAMES[w])}</b> ` : ''}${esc(t)}</p>`).join('')}${ls.length ? `<p class="dr-say${bad ? ' bad' : ''}" data-vo="${esc(who + '|' + ls[0])}">${ls.map(esc).join(' ')}</p>` : ''}</div>`;
+  }
   // Where each teach line points on the board ('here': the station being worked on).
-  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn' };
+  const TEACH_AT = { '429': 'gate', vis: 'queue', hot: 'store', kms: 'store', cold: 'fn', fifo: 'queue', poison: 'fn', refused: 'here', grey: 'fn', iam: 'store', canary: 'fn' };
   // A run being played out on the board (js/drill-board.js): { frames, budget0, cost }. Not saved: a reload shows the result.
   let playing = null;
   function drillScreen(s) {
@@ -237,7 +251,7 @@
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
       ${budgetJar(jarS)}
       <div class="dr-bw dr-roomw${zoom ? ' zoomed' : ''}">${RO.html(f, e, { at: s.at, zoom, notes: play ? [] : notes, lines: play ? [] : e.lines, m: e.m, play: !!play })}${stamp}
-        ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e)}</div>` : ''}</div>
+        ${zoom ? `<div class="dr-tray">${stationHtml(s, f, e, { lines: e.lines, notes })}</div>` : ''}</div>
       ${reveal}
       <div class="dr-dock">${dock}</div>`) : panel(`<div class="dr-top"><div><p class="dr-claim">${d.boss ? icon('siren') : ''}${esc(d.name)}</p><p class="small">"${esc(d.says)}"</p></div>
         <p class="dr-turn">${esc(play ? (e.warm ? 'Warm-up run' : `Deploy ${f.deploys}: running`) : head1)}</p></div>
@@ -442,6 +456,12 @@
     .dr-station .small { color: #2a2333; }
     .dr-station { border: 3px solid var(--ink, #17131f); border-radius: 10px; padding: 6px 8px; background: #c9b590; color: #17131f; display: flex; flex-direction: column; gap: 6px; }
     .dr-sh { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    /* The lead speaks from their portrait: a comic speech bubble, not a text box. */
+    .dr-said { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 0 4px; }
+    .dr-say { position: relative; margin: 0; padding: 6px 10px; border-radius: 14px; background: #fffaf0; color: #17131f; border: 2px solid #17131f; font-size: 14px; line-height: 1.3; }
+    .dr-said .dr-say:first-child::before { content: ''; position: absolute; top: -9px; left: 12px; border: 8px solid transparent; border-bottom-color: #17131f; border-top: 0; }
+    .dr-say.bad { background: #fbe4dc; border-color: #9e3a34; } .dr-said .dr-say.bad:first-child::before { border-bottom-color: #9e3a34; }
+    .dr-say.teach { background: #fff3c4; }
     .dr-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
     .dr-mt { display: flex; flex-direction: column; padding: 3px 6px; border-radius: 6px; background: #fffaf0; color: #17131f; border: 2px solid var(--ink, #17131f); min-width: 0; }
     .dr-mt code { font-size: 10.5px; overflow-wrap: anywhere; color: #3a3346; background: none; padding: 0; }
@@ -529,6 +549,43 @@
     .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
     @keyframes drtray { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
     .dr-tray .dr-station { box-shadow: 0 -6px 24px rgba(0, 0, 0, .55); border-radius: 14px; }
+    /* The desk itself, not a panel (Ladi, Nov 16: "there's still a box"). Pushing in on a lead slides their desk up
+       from the counter: wood planks with the metrics pinned to it as paper notes, the dials as brass lever plates,
+       the switches as brass tags and the looks as index cards. */
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station { border: 0; border-radius: 0; padding: 12px 12px 10px; gap: 9px; color: #f3e6c8; box-shadow: inset 0 6px 10px rgba(0, 0, 0, .45);
+      background: linear-gradient(180deg, #6b4524 0, #6b4524 5px, #3b2413 5px, #3b2413 8px, transparent 8px),
+        repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 38px, rgba(0, 0, 0, .28) 38px 40px),
+        repeating-linear-gradient(97deg, rgba(255, 220, 160, .035) 0 3px, rgba(0, 0, 0, .04) 3px 9px),
+        linear-gradient(180deg, #7a5230, #5c3a1e 60%, #4a2e17); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-station .small { color: #e8d6b0; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sh b { font-family: var(--f-head, serif); color: #2a1a08; padding: 1px 10px; border-radius: 4px; border: 2px solid #5a3b10;
+      background: linear-gradient(#e3c06a, #a77d2c); box-shadow: 0 2px 0 rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .45); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-head { display: none; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i { border-color: #2a1a08; background: #3b2413; } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-left i.on { background: radial-gradient(circle at 35% 35%, #ffe7a0, #c9952d 60%, #7a5418); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-metrics { gap: 10px 8px; padding: 2px 2px 4px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt { position: relative; border: 0; border-radius: 1px; background: linear-gradient(#fbf4df, #efe3c2); color: #2a2018; padding: 8px 7px 4px;
+      box-shadow: 1px 3px 4px rgba(0, 0, 0, .5); transform: rotate(-1.2deg); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt:nth-child(2n) { transform: rotate(1.4deg); } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt:nth-child(3n) { transform: rotate(.4deg); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt::before { content: ''; position: absolute; top: 2px; left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ff9a8a, #b0302a 65%); box-shadow: 0 1px 1px rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-mt code { color: #5a4a3a; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-dl { color: #f0dcb0; text-shadow: 0 1px 0 rgba(0, 0, 0, .6); } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-dl .dr-gi { fill: currentColor; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-seg { border: 2px solid #3b2413; border-radius: 7px; padding: 3px; gap: 3px; background: linear-gradient(#d7b462, #9b7228); box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .4); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-seg > * + * { border-left: 0 !important; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick { border-radius: 4px; background: rgba(255, 244, 210, .35); color: #2a1a08; min-height: 36px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-pick.on { background: #3b2413; color: #ffe7a0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, .7); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-cur { background: transparent; color: #4a2e10; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog { border: 2px solid #5a3b10; border-radius: 6px; background: linear-gradient(#e6c879, #b48a38); color: #2a1a08;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .45); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on[aria-pressed="true"], :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.on { background: linear-gradient(#f5dc8e, #c99a3c); border-color: #2a1a08; color: #2a1a08; box-shadow: 0 0 0 2px #ffe7a0, 0 2px 0 rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.no { background: linear-gradient(#b9a77c, #8a7448); opacity: .8; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-tog.once { border-color: #7a1f1a; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-sw { background: #3b2413; border-color: #2a1a08; } :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.on .dr-sw { background: #4f7f5c; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.dr-look { border: 0; border-radius: 2px; background: repeating-linear-gradient(180deg, #fbf6e6 0 15px, #d9e3ee 15px 16px); color: #2a2018; box-shadow: 1px 3px 4px rgba(0, 0, 0, .5); }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-card.new { outline: 3px solid #ffe7a0; outline-offset: 1px; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-tip { background: none; color: #e8d6b0; font-style: italic; padding: 0 2px; min-height: 2.4em; }
+    :is(body.in-mode #panel .win, #panel) .dr-tray .dr-say { box-shadow: 0 2px 4px rgba(0, 0, 0, .45); }
+    @media (max-width: 700px) { .dr-roomw.zoomed .dr-tray { margin-top: -64px; } .dr-roomw.zoomed .dr-tray .dr-station { box-shadow: inset 0 6px 10px rgba(0, 0, 0, .45); } }
     @media (min-width: 900px) {
       .dr-roomw.zoomed .dr-tray { position: absolute; left: 50%; bottom: 0; width: min(780px, 92%); max-height: 74%; overflow-y: auto; margin: 0;
         transform: translateX(-50%); animation: drtrayw .45s cubic-bezier(.2, .8, .2, 1) both; }
