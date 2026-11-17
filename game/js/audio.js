@@ -67,13 +67,36 @@
   A.voice = function (file, done) {
     if (voEl) { const d = voEl.done; voEl.done = null; voEl.pause(); voEl = null; if (d) d(false); }
     if (!file || !prefs.sfx) return false;
-    const el = voEl = new Audio('assets/audio/vo/' + file + '.mp3');
+    const hit = voCache.get(file);
+    const el = voEl = new Audio(hit && hit.url || 'assets/audio/vo/' + file + '.mp3');
+    el.preload = 'auto';
     const end = ok => { const d = el.done; el.done = null; if (voEl === el && ok !== false) voEl = null; if (d) d(ok); };
     el.done = done || null;
     el.addEventListener('ended', () => end(true));
     el.addEventListener('error', () => end('error'));
     el.play().catch(() => end('error'));
     return true;
+  };
+  // Voice lines downloaded ahead of time (Ladi, 2026-11-17: lines lagged behind their text box while each one
+  // downloaded as it was needed). js/vn.js passes a scene's lines as it starts and js/vo-modes.js the [data-vo] lines on
+  // the page, so A.voice above plays from memory. Up to 80 kept (about 3 MB); a fetch that fails (a local file:// copy,
+  // a 404) just leaves the line to load from its URL as before.
+  const voCache = new Map();   // file -> { url: object URL once downloaded }
+  A.prefetch = function (files) {
+    if (!prefs.sfx || typeof fetch !== 'function' || typeof URL === 'undefined' || !URL.createObjectURL) return;
+    [].concat(files || []).forEach(file => {
+      if (!file || voCache.has(file)) { if (file) { const e = voCache.get(file); voCache.delete(file); voCache.set(file, e); } return; }
+      const e = { url: null };
+      voCache.set(file, e);
+      fetch('assets/audio/vo/' + file + '.mp3').then(r => (r.ok ? r.blob() : null)).then(b => {
+        if (b && voCache.get(file) === e) e.url = URL.createObjectURL(b);
+      }).catch(() => {});
+      while (voCache.size > 80) {
+        const [k, old] = voCache.entries().next().value;
+        voCache.delete(k);
+        if (old.url && !(voEl && voEl.src === old.url)) URL.revokeObjectURL(old.url);
+      }
+    });
   };
   // Whether a voice line is playing now (a cutscene holds its next beat until it ends, js/mode-reno.js).
   A.speaking = () => !!(voEl && !voEl.paused && !voEl.ended);

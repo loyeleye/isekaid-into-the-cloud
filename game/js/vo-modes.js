@@ -303,6 +303,8 @@
   }
   function pass() {
     timer = 0;
+    // Every line already on the page, shown or not yet, starts downloading, so it plays the moment it appears.
+    if (SD.audio && SD.audio.prefetch) SD.audio.prefetch([...document.querySelectorAll('[data-vo]')].map(el => el.getAttribute('data-vo')).filter(k => !missing.has(k)).map(k => LINES[k]).filter(Boolean));
     const els = [...document.querySelectorAll('[data-vo]')].filter(visible), now = new Set(), fresh = [];
     els.forEach(el => {
       const k = el.getAttribute('data-vo');

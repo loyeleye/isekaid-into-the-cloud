@@ -71,6 +71,7 @@
     U.dialog = function (lines) {
       queue = (Array.isArray(lines) ? lines : []).map(l => (l && typeof l === 'object' ? (l.s || '') + '|' + (typeof l.t === 'string' ? l.t : '') : ''));
       prev = '';
+      if (SD.audio && SD.audio.prefetch) SD.audio.prefetch(queue.map(k => SD.vo[k]).filter(Boolean));
       return dialog.apply(this, arguments);
     };
     U.dialog.vo2 = true;
