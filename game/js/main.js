@@ -79,7 +79,6 @@
       ${SD.offline && SD.offline.supported() ? `<button class="opt" id="m-offline" role="switch" aria-checked="${SD.offline.enabled()}">Play offline: <b>${SD.offline.enabled() ? 'On' : 'Off'}</b><small class="muted" id="m-offline-d" style="display:block;font-weight:600">${U.esc(SD.offline.label())}</small></button>` : ''}
       ${SD.lens ? `<button class="opt" id="m-lens">Version Lens: <b>${SD.lens.unlimited() ? 'Unlimited' : 'Limited looks'}</b></button>` : ''}
       ${S.cloud && S.cloud.where === 'code' ? '<button class="opt" id="m-code">Play on another device: your save code</button>' : ''}
-      <button class="opt" id="m-name">Change name</button>
       <button class="opt" id="m-credits">Credits</button>
       <button class="opt" id="m-reset">Erase save and start over</button>
       ${SD.debugGate && SD.debugGate.open() ? `<button class="opt" id="m-debug">Debug start (testing): <b>${SD.debug ? 'On' : 'Off'}</b></button>` : ''}</div>
@@ -131,7 +130,6 @@
     // Version Lens (js/lens.js): an accessibility option, for anyone the looks and their timer get in the way of.
     const ml = b.querySelector('#m-lens');
     if (ml) ml.onclick = () => { if (!S.save) return; S.save.lensFree = !SD.lens.unlimited(); S.persist(); menu(); M.hud(); };
-    b.querySelector('#m-name').onclick = () => askName(() => { U.closePanel(); M.hud(); });
     const mc = b.querySelector('#m-code'); if (mc) mc.onclick = saveCode;
     b.querySelector('#m-reset').onclick = () => {
       const c = U.panel('<p>Erase everything: levels, shards and cheat sheet pages? This cannot be undone.</p><div class="row"><button class="danger" id="r-y">Erase</button><button class="ghost" id="r-n">Cancel</button></div>', { title: 'ARE YOU SURE?' });
@@ -185,13 +183,6 @@
       <li><b>Questions.</b> Answer first, then rate how sure you are. Confident misses come back soonest. Cheat sheet pages return when you get a concept right twice in a row.</li>
       <li><b>Loops.</b> If SLA hits zero, you respawn in town. You keep XP, shards, cards unlocked and everything you learned.</li></ul>`), { title: 'HOW TO PLAY', cls: 'wide' });
   }
-  function askName(done) {
-    const b = U.panel(`<p class="small">Name, please.</p><label class="num">Hero name <input id="nm" maxlength="16" value="${U.esc(S.save.name)}"></label><button class="primary" id="nm-ok">Sign here</button>`, { title: 'HERO REGISTRATION FORM', noClose: true });
-    const go = () => { const v = b.querySelector('#nm').value.trim(); S.save.name = v || 'Ash'; S.persist(); AU.sfx('ok'); done(); };
-    b.querySelector('#nm-ok').onclick = go;
-    b.querySelector('#nm').onkeydown = e => { if (e.key === 'Enter') go(); };
-    setTimeout(() => b.querySelector('#nm').focus(), 50);
-  }
 
   // ---------- Title ----------
   let started = false;
@@ -226,13 +217,11 @@
     else $('#t-new').onclick = () => SD.ch1 ? SD.ch1.newGame() : newGame();
   };
 
-  // No cold open yet (the first game's is in its js/intro.js): ask the hero's name and go to town.
+  // Fallback when no chapter is loaded: go straight to town. The sequel has no nameable hero; each chapter sets
+  // S.save.name to its lead's first name for the speaker label.
   function newGame() {
-    askName(() => {
-      U.closePanel();
-      S.save.flags.prologue = true; S.persist();
-      M.toHub(false);
-    });
+    S.save.flags.prologue = true; S.persist();
+    M.toHub(false);
   }
 
   M.toHub = function (afterRun) {
