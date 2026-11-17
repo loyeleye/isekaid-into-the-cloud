@@ -44,7 +44,13 @@ Object.keys(lazyPass).forEach(k => {
 for (let n = 4; n <= 9; n++) {
   const s = R.newNight({ night: n, misses: n === 5 ? ['rush'] : [] });
   const ds = new Set(s.jobs.map(j => R.T[j.id].d));
-  check(s.jobs.length === R.JOBS && R.T[s.jobs[R.JOBS - 1].id].grand && ds.size >= 2 && (n !== 5 || s.jobs[0].id === 'rush'), `night ${n}: ${s.jobs.map(j => j.id).join(', ')}`);
+  check(s.jobs.length === R.JOBS && R.T[s.jobs[R.JOBS - 1].id].grand && new Set(s.jobs.slice(0, -1).map(j => R.T[j.id].d)).size === 3 && (n !== 5 || s.jobs[0].id === 'rush'), `night ${n}: ${s.jobs.map(j => j.id).join(', ')}`);
+}
+{ // A fresh Grand Opening is never the one that just opened; a missed one comes back as the next night's.
+  let last = null, same = 0;
+  for (let n = 4; n <= 20; n++) { const g = R.newNight({ night: n, lastGrand: last }).jobs[R.JOBS - 1].id; if (g === last) same++; last = g; }
+  check(!same, 'nights 4 to 20: no Grand Opening two nights running');
+  check(R.newNight({ night: 6, misses: ['sweep'], lastGrand: 'sweep' }).jobs[R.JOBS - 1].id === 'sweep', 'a missed Grand Opening comes back as the next one');
 }
 console.log(fails.length ? `\n${fails.length} FAILED` : '\nAll reno balance checks passed.');
 process.exit(fails.length ? 1 : 0);

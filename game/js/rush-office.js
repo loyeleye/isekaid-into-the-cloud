@@ -73,7 +73,7 @@
   const NEEDS = { post: ['seal', 'file'], clerk: ['seal', 'file'], lookup: ['read'], chore: ['empty'] };
   const HONEST = new Set(['post', 'clerk', 'lookup', 'chore']);
   R.CLAIMS.locked = {
-    name: 'THE LOCKED DESK', title: 'the Locked Desk', locked: [], next: null, close: 72, clerk: 'papers', office: true, mira: 3, coins: 2,
+    name: 'THE LOCKED DESK', title: 'the Locked Desk', locked: [], next: 'audit', close: 72, clerk: 'papers', office: true, mira: 3, coins: 2,
     belt: ['badge', 'pad', 'cache', 'param', 'safe', 'waiter'], review: 'review7',
     // parcel: share of Mira's and Riverside's tickets that are over 4 KB. clerk, lookup: shares of the wave. forged,
     // street: counts. pick: the Alibi picks Mira's pocket early in the wave. Forged and street vary by one each way. ask: review letters that land on the desk.
