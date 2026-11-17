@@ -342,7 +342,7 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     nameEl.hidden = who === 'narr';
     nameEl.textContent = who === 'narr' ? '' : who === 'you' ? SD.state.save.name : (c ? c.name : who);
     root.classList.remove('vn-ready');
-    full = text.replace(/\{name\}/g, SD.state.save.name);
+    full = text;
     textEl.textContent = '';
     const spoken = voice(who + '|' + text);
     return new Promise(res => {
