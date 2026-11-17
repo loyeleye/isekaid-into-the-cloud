@@ -49,8 +49,8 @@
   // loop and stings until the Rush's own tracks come in (project files real-game/v3/audio/mureka-prompts.md) ----
   const AU = SD.audio;
   if (AU) AU.add({
-    songs: { rushCellar: 'm-floor', rushDock: 'm-floor' },
-    jingles: { rushWin: 'j-floor-win', rushLose: 'j-floor-lose' },
+    songs: { rushCellar: 'm-rush-cellar', rushDock: 'm-rush-dock' },
+    jingles: { rushWin: 'j-rush-closed', rushLose: 'j-rush-flooded' },
     samples: { rLever: 's-x-lever', rBell: 's-x-bell', rStamp: 's-x-stamp', rPage: 's-x-page', rThud: 's-thud', rLock: 's-x-lock', rTick: 's-x-tick', rChime: 's-x-chime', rClank: 's-clank2' }
   });
   // A busy floor makes a lot of noise: each sound waits a moment before it can play again.
