@@ -230,6 +230,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await place('consread'); await deploy();
   check((await st()).drill.state === 'contained', 'ConsistentRead contains The Stale Shelf');
 
+  // ---- The Shared Key and The Wrong Receipt ----
+  await open('quota');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; SD.drillUi.draw(); });
+  check(!!await page.$('[data-card="keysplit"]') && !await page.$('[data-card="ckey"]') && /QUOTA_EXCEEDED/.test(await txt('.dr-tray .dr-said')) && /app-key/.test(await txt('.dr-tray .dr-said')), 'The Shared Key: Seo-yeon reads QUOTA_EXCEEDED on one shared key, and the usage plan settings are at her desk');
+  await shot('quota');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('quota');
+  await place('keysplit'); await deploy();
+  check((await st()).drill.state === 'contained', 'a key of its own for the partner contains The Shared Key');
+  await open('receipt');
+  await page.evaluate(() => { const s = SD.state.save.drill; s.at = 'gate'; SD.drillUi.draw(); });
+  check(!!await page.$('[data-card="ckey"]') && !!await page.$('[data-card="cttl0"]') && /someone else's orders/.test(await txt('.dr-tray .dr-said')) && /CacheHitCount/.test(await txt('.dr-tray')), 'The Wrong Receipt: Seo-yeon reports the wrong orders, her desk shows CacheHitCount and the cache settings');
+  await shot('receipt');
+  await page.click('#dr-back'); await page.waitForTimeout(700); await noHScroll('receipt');
+  await place('ckey'); await deploy();
+  check((await st()).drill.state === 'contained', 'customerId in the cache key contains The Wrong Receipt');
+
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nAll Fire Drill checks pass.');

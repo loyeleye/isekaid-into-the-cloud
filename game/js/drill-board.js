@@ -86,7 +86,7 @@
   // The lead's lines after a run, as speech bubbles under the board.
   // Each lead's face reacts to what their station saw: a problem there, or not.
   const TROUBLE = {
-    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale,
+    seoyeon: m => m.throttles429 || m.fault5xx || m.slow || m.forbidden || m.stale || m.leaked,
     mira: m => m.received > m.sent || m.parked || m.maxAge > 30 || m.lost,
     kai: m => m.timeouts || m.denied || m.iamDenied || m.hot || m.over || m.errors || m.condBlocked,
     dutch: m => m.dupes || m.hot + m.over || m.denied || m.iamDenied || m.stale
@@ -116,6 +116,8 @@
     if (d.denied) out.push(['store', `${d.denied} denied`, 'error']);
     if (d.forbidden) out.push(['gate', `${d.forbidden} × 403`, 'error']);
     if (d.unauth) out.push(['gate', `${d.unauth} × 401`, 'error']);
+    if (d.leaked) out.push(['gate', `${d.leaked} wrong customer`, 'error']);
+    else if (d.hits) out.push(['gate', `${d.hits} from cache`, 'ok']);
     if (d.stale) out.push(['store', `${d.stale} not found yet`, 'error']);
     if (d.iamDenied) out.push(['store', `${d.iamDenied} × 400 denied`, 'error']);
     if (d.dupes) out.push(['store', `${d.dupes} twice`, 'ok']);

@@ -56,6 +56,26 @@
       back: '3600 seconds is the most API Gateway allows.', set: c => { c.gate.ttl = 3600; }, on: c => c.gate.ttl === 3600 },
     authwild: { at: 'gate', needs: 'auth', name: 'Authorizer policy: the whole API (stage/*/*)', text: 'The authorizer\'s Allow covers every method and path in the stage, not just the one called.',
       back: 'A cached policy is checked against every later call with the same token. Scope it to what the token may do, not to the first call.', set: c => { c.gate.wild = true; }, on: c => c.gate.wild },
+    // Usage plans (only in a drill with API keys). Each key in a plan gets its own throttle and quota counters.
+    keysplit: { at: 'gate', needs: 'keys', name: 'Give the partner its own API key', text: 'The partner gets partner-key in the same usage plan. The shop\'s app keeps app-key.',
+      back: 'A usage plan\'s throttle and quota apply to each API key on its own. Two clients on one key share one count.', set: c => { c.gate.split = true; }, on: c => c.gate.split },
+    quotaup: { at: 'gate', needs: 'keys', name: 'Raise the plan\'s quota to 100 a day', text: 'Double the requests each key may make in a day.',
+      back: 'It stops tonight\'s 429s, and the partner\'s contract is 50 a day. One shared key can\'t limit one client without the other.', set: c => { c.gate.quota = 100; }, on: c => c.gate.quota === 100 },
+    stagerate: { at: 'gate', needs: 'keys', name: 'Raise the stage\'s throttle', text: 'Let the stage take more requests a second.',
+      back: 'Stage and method throttling limit the rate. A quota counts requests over a day, a week or a month, per API key.', set: c => { c.gate.stage = true; }, on: c => c.gate.stage },
+    // The stage cache (only in a drill with one). A response is cached by its cache key for the TTL.
+    cttl0: { at: 'gate', dial: 'cachettl', needs: 'cache', name: 'Stage cache TTL 0 (off)', text: 'Nothing is cached: every request goes to the function.',
+      back: 'A TTL of 0 turns caching off. Every request reaches the backend.', set: c => { c.gate.cttl = 0; }, on: c => c.gate.cttl === 0 },
+    cttl300: { at: 'gate', dial: 'cachettl', needs: 'cache', name: 'Stage cache TTL 300 s', text: 'A cached response is served for 5 minutes.',
+      back: '300 seconds is the default.', set: c => { c.gate.cttl = 300; }, on: c => c.gate.cttl === 300 },
+    cttl3600: { at: 'gate', dial: 'cachettl', needs: 'cache', name: 'Stage cache TTL 3600 s', text: 'A cached response is served for an hour.',
+      back: '3600 seconds is the most API Gateway allows.', set: c => { c.gate.cttl = 3600; }, on: c => c.gate.cttl === 3600 },
+    ckey: { at: 'gate', needs: 'cache', name: 'Cache key: add the customerId query string', text: 'GET /orders caches one response per customerId instead of one for everyone.',
+      back: 'The cache tells requests apart only by the parameters you mark as cache keys: headers, paths or query strings.', set: c => { c.gate.ckey = true; }, on: c => c.gate.ckey },
+    flush: { at: 'gate', needs: 'cache', name: 'Flush the stage cache', text: 'Empty the stage\'s cache, once, at the start of the run.',
+      back: 'Flushing empties the cache. The next response is cached under the same key as before.', set: c => { c.gate.flush = true; }, on: c => c.gate.flush, once: true },
+    maxage: { at: 'gate', needs: 'cache', name: 'Clients send Cache-Control: max-age=0', text: 'The shop\'s app asks for a fresh answer on every request.',
+      back: 'Only a caller allowed execute-api:InvalidateCache can invalidate an entry. This stage requires that, and ignores the header from anyone else, with a warning.', set: c => { c.gate.maxage = true; }, on: c => c.gate.maxage },
     gtrace: { at: 'gate', name: 'X-Ray tracing on the stage', obs: true, text: 'The Gate shows on the trace map in its real colour.',
       back: 'API Gateway tracing is turned on per stage.', set: c => { c.gate.trace = true; }, on: c => c.gate.trace },
     // Mira: the Queue
@@ -159,7 +179,7 @@
   };
   const C = D.CARDS;
   D.HANDS = {
-    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'gtrace'],
+    gate: ['backoff', 'immediate', 'plan', 'burst', 'ttl300', 'ttl0', 'ttl3600', 'authwild', 'keysplit', 'quotaup', 'stagerate', 'cttl0', 'cttl300', 'cttl3600', 'ckey', 'flush', 'maxage', 'gtrace'],
     queue: ['vis30', 'vis60', 'vis120', 'vis360', 'dlq', 'dlqfifo', 'groups', 'purge', 'bisect', 'retry2', 'onfail'],
     fn: ['to30', 'to60', 'to120', 'b1', 'b3', 'partial', 'reserved', 'prov', 'provlatest', 'rolekms', 'fninvoke', 'ddbput', 'ddbstar', 'admin', 'cond', 'secinit', 'secttl', 'seccall', 'refetch', 'allatonce', 'canary', 'linear', 'alarm', 'hook', 'ftrace'],
     store: ['kstatus', 'korder', 'kshard', 'wcu', 'kprole', 'kpiam', 'consread', 'daxnode', 'gsiread', 'rotsingle', 'rotalt', 'rotoff', 'insights', 'trail']
@@ -168,7 +188,7 @@
   // ---- The default system: healthy-looking settings, which each drill then breaks one way ----
   function baseCfg() {
     return {
-      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false },
+      gate: { retry: 'backoff', plan: false, trace: false, ttl: 300, wild: false, split: false, quota: 50, stage: false, cttl: 300, ckey: false, flush: false, maxage: false },
       queue: { on: false, fifo: false, vis: 120, dlq: null, groups: 'one', purge: false },
       fn: { timeout: 30, batch: 1, partial: false, reserved: null, prov: 0, kms: true, admin: false, cond: false, trace: false,
         iam: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem'], wide: false, shift: 'all', alarm: false, hook: false, sec: 'init', refetch: false },
@@ -253,6 +273,20 @@
       ok: m => m.stale === 0, fix: [['consread']], lazy: [['daxnode'], ['wcu'], ['gsiread'], ['reserved'], ['cond']],
       hidden: 'The function read each order back right after writing it, with an eventually consistent read through DAX, so some reads didn\'t see the write yet.',
       q: /ConsistentRead|strongly consistent|eventually consistent|read-after-write|\bDAX\b/i },
+    quota: { name: 'The Shared Key', cause: 'gate', lead: 'seoyeon', path: 'sync', keys: true,
+      says: 'The partner\'s nightly sync started early. Now the shop can\'t get in either.',
+      setup: v => ({ bucket: [40, 40], keys: true, arrivals: both(steady(3, { client: 'shop' }), t => (t < D.TICKS ? Array.from({ length: 3 + (v.k % 2) }, (_, i) => R(`n${t}-${i}`, { client: 'partner' })) : [])) }),
+      break: () => {},
+      ok: m => m.shopLimited === 0 && !m.quotaRaised, fix: [['keysplit']], lazy: [['quotaup'], ['stagerate'], ['plan'], ['immediate'], ['reserved']],
+      hidden: 'The shop\'s app and the partner sent the same API key, so they shared one quota. The partner spent it, and then everyone on the key got 429.',
+      q: /usage plan|API key|quota/i },
+    receipt: { name: 'The Wrong Receipt', cause: 'gate', lead: 'seoyeon', path: 'sync', cache: true,
+      says: 'Fast answers all night. Some of them were somebody else\'s.',
+      setup: v => ({ bucket: [40, 40], cache: true, warm: 'c' + ((v.k + 3) % 6), arrivals: steady(4) }),
+      break: () => {},
+      ok: m => m.leaked === 0 && !m.cacheOff, fix: [['ckey']], lazy: [['cttl0'], ['flush'], ['maxage'], ['cttl3600'], ['reserved']],
+      hidden: 'GET /orders was cached without customerId in its cache key, so every customer got whichever customer\'s orders were cached first.',
+      q: /cache key|stage cache|API Gateway cach|caching .*API Gateway|InvalidateCache|max-age=0/i },
     cold: { name: 'Cold Open', cause: 'fn', lead: 'kai', path: 'sync',
       says: 'Quiet, quiet, then everyone at once.',
       setup: v => ({ bucket: [40, 40], cold: true, arrivals: t => (t % 4 === 0 ? Array.from({ length: 5 + (v.k % 2) }, (_, i) => R(`c${t}-${i}`)) : []) }),
@@ -302,7 +336,7 @@
   const DR = D.DRILLS;
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold', 'pass'], ['hot', 'locked', 'shelf'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single'], ['poison', 'stampede'], ['midnight']];
+  D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'receipt'], ['badge', 'canary', 'vault'], ['herd'], ['fuse', 'single'], ['poison', 'stampede'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----
@@ -315,7 +349,8 @@
       poisonLoose: 0, lost: 0, purged: 0, wcuUsed: 0, latency: 0, adminUsed: !!cfg.fn.admin, iamDenied: 0, wideUsed: !!cfg.fn.wide,
       v2: 0, v2Fail: 0, shifted: 0, stopped: 0, hookFailed: 0, lateAlarm: 0,
       authFail: 0, secretCalls: 0, refetched: 0, rotated: 0, perCall: !!(set.rotate != null && cfg.fn.sec === 'call'), rotOff: !!(set.rotate != null && cfg.store.rot === 'off'),
-      poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0 };
+      poisonParked: 0, poisonDropped: 0, splits: 0, gaveUpBatches: 0, forbidden: 0, unauth: 0, authCalls: 0, forbidPost: 0, stale: 0, rcu: 0,
+      limit429: 0, shopLimited: 0, quotaAt: 0, quotaRaised: !!(set.keys && cfg.gate.quota > 50), hits: 0, misses: 0, leaked: 0, cacheWarn: 0, cacheOff: !!(set.cache && cfg.gate.cttl === 0) };
     const written = {}, retries = [], envs = [];   // envs: { busy: tick until, last: tick last used, prov }
     const q = { items: [], dlq: [] };               // { r, vis (tick visible from), recv, sentAt, inflight }
     for (let i = 0; i < (cfg.fn.prov | 0); i++) envs.push({ busy: -1, last: -1, prov: true });
@@ -339,6 +374,23 @@
       if (c.res === '*' || c.res === r.meth) return true;
       m.forbidden++; if (r.meth === 'POST') m.forbidPost++; return false;
     };
+    // Usage plan quotas, per API key (The Shared Key): requests the plan has let through so far tonight. A run is the
+    // game's day. A request over its key's quota gets 429 (QUOTA_EXCEEDED) before any throttling.
+    const used = {};
+    const keyOf = r => (cfg.gate.split && r.client === 'partner' ? 'partner-key' : 'app-key');
+    // The stage cache (The Wrong Receipt): GET /orders?customerId=..., cached by its cache key for cfg.gate.cttl
+    // seconds. Without customerId in the key, every customer shares one entry. It starts warm with an earlier
+    // customer's answer, unless flushed.
+    const cache = {};
+    if (set.cache && cfg.gate.cttl > 0 && !cfg.gate.flush) cache['GET /orders'] = { cust: set.warm, exp: D.TICKS + D.DRAIN };
+    const cached = (r, t) => {
+      const ck = cfg.gate.ckey ? 'GET /orders?customerId=' + r.cust : 'GET /orders', e = cache[ck];
+      if (cfg.gate.maxage) m.cacheWarn++;   // the header is ignored: these callers may not invalidate
+      if (cfg.gate.cttl > 0 && e && t < e.exp) { m.hits++; m.latency = Math.max(m.latency, 40); if (e.cust !== r.cust) m.leaked++; else m.ok++; return; }
+      m.misses++; m.invocations++; m.ok++; m.latency = Math.max(m.latency, 600);
+      m.maxConc = Math.max(m.maxConc, 1);
+      if (cfg.gate.cttl > 0) cache[ck] = { cust: r.cust, exp: t + Math.ceil(cfg.gate.cttl / D.TICK_S) };
+    };
     // A write to the Store: returns 'ok', 'dupe', 'blocked', 'hot', 'over' or 'denied'.
     let tickWrites = [];
     const write = (r) => {
@@ -354,6 +406,7 @@
       written[r.id] = 1; return 'ok';
     };
     const sync = (r, t) => {
+      if (set.cache) return cached(r, t);
       if (set.auth && !authorize(r, t)) return;
       // A warm environment if one is free (provisioned ones never go cold), else a new one: a cold start.
       let e = envs.find(x => x.busy !== t && (x.prov || (x.last >= 0 && t - x.last <= REAP)));
@@ -465,7 +518,10 @@
         const r = x.r;
         perClient[r.client] = (perClient[r.client] | 0) + 1;
         const planned = cfg.gate.plan && r.client === 'batch' && perClient.batch > 2;
-        if (planned || !AS.gateTake(gate)) {
+        const overQuota = set.keys && (used[keyOf(r)] | 0) >= cfg.gate.quota;
+        if (overQuota) { m.limit429++; if (r.client === 'shop') m.shopLimited++; if (!m.quotaAt) m.quotaAt = t * D.TICK_S || 1; }
+        else if (set.keys) used[keyOf(r)] = (used[keyOf(r)] | 0) + 1;
+        if (overQuota || planned || !AS.gateTake(gate)) {
           m.throttles429++;
           if (x.att < D.ATTEMPTS) retries.push({ r, att: x.att + 1, at: t + AS.retryDelay(x.att, cfg.gate.retry === 'backoff', r.id) });
           else { m.gaveUp++; if (r.client !== 'batch') m.shopGaveUp++; }
@@ -538,10 +594,11 @@
   };
 
   // Per-tick series for each station's metrics (the console's small charts). Small: 20 numbers each.
-  D.sparks = function (frames, stream) {
+  D.sparks = function (frames, stream, cache) {
     const by = f => frames.map(fr => f(fr.d, fr) | 0);
     return {
-      gate: { Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : 120)) },
+      gate: Object.assign({ Count: by(d => (d.req | 0) + (d.throttles429 | 0)), '4XXError': by(d => (d.throttles429 | 0) + (d.forbidden | 0) + (d.unauth | 0) + (d.stale | 0)), '5XXError': by(d => d.fault5xx), Latency: by(d => (d.slow ? 3000 : d.misses ? 600 : d.hits ? 40 : 120)) },
+        cache ? { CacheHitCount: by(d => d.hits), CacheMissCount: by(d => d.misses) } : {}),
       queue: stream ? { IncomingRecords: by(d => d.sent), IteratorAge: by((d, fr) => fr.qv) } : { NumberOfMessagesSent: by(d => d.sent), NumberOfMessagesReceived: by(d => d.received), NumberOfMessagesDeleted: by(d => d.deleted), ApproximateAgeOfOldestMessage: by((d, fr) => fr.qv + fr.qh) },
       fn: { Invocations: by(d => d.invocations), Errors: by(d => d.errors), Duration: by(d => (d.timeouts ? 2 : 1)), ConcurrentExecutions: by((d, fr) => fr.busy) },
       store: { ConsumedWriteCapacityUnits: by(d => d.wcuUsed), WriteThrottleEvents: by(d => (d.hot | 0) + (d.over | 0)) }
@@ -551,7 +608,7 @@
   // ---- The run's cost to the error budget ----
   D.cost = function (drill, m) {
     const c = m.gaveUp + m.fault5xx + m.slow + m.dupes + m.lost + m.goodParked + (DR[drill].path === 'async' ? Math.ceil(m.left / 2) + m.poisonLoose * 2 : 0) + (m.adminUsed ? 2 : 0) + (m.wideUsed ? 2 : 0)
-      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale;
+      + m.poisonDropped + (m.perCall ? 2 : 0) + (m.rotOff ? 2 : 0) + m.forbidden + m.stale + m.leaked + (m.quotaRaised ? 2 : 0) + (m.cacheOff ? 2 : 0);
     return Math.min(D.RUN_CAP, c);
   };
 
@@ -574,7 +631,8 @@
   D.metrics = function (drill, cfg, m) {
     const d = DR[drill];
     return {
-      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']],
+      gate: [['Count', m.req + m.throttles429 - m.gaveUp], ['4XXError', m.throttles429 + m.forbidden + m.unauth + m.stale], ['5XXError', m.fault5xx], ['Latency', (m.latency || 0) + ' ms']]
+        .concat(d.cache ? [['CacheHitCount', m.hits], ['CacheMissCount', m.misses]] : []),
       queue: d.stream ? [['IncomingRecords', m.sent], ['IteratorAge', m.maxAge * 1000 + ' ms max']] : d.path === 'async' ? [['NumberOfMessagesSent', m.sent], ['NumberOfMessagesReceived', m.received], ['NumberOfMessagesDeleted', m.deleted], ['ApproximateAgeOfOldestMessage', m.maxAge + ' s']] : [],
       fn: [['Invocations', m.invocations], ['Errors', m.errors], ['Duration', (d.path === 'async' ? m.maxDur : 1) * 1000 + ' ms max'], ['ConcurrentExecutions', m.maxConc]],
       store: [['ConsumedWriteCapacityUnits', m.wcuUsed], ['WriteThrottleEvents', m.hot + m.over]]
@@ -584,12 +642,14 @@
   function pager(d, cfg, m) {
     const L = [];
     const n = (x, a, b) => `${x} ${x === 1 ? a : (b || a + 's')}`;
-    if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
+    if (m.limit429) L.push(['seoyeon', `${n(m.limit429, 'request')} got 429, and the access logs say QUOTA_EXCEEDED, not THROTTLED, from ${m.quotaAt} seconds on.${m.shopLimited ? ` ${m.shopLimited} of them were the shop's own app.` : ''} ${cfg.gate.split ? 'The partner now sends partner-key, and the shop sends app-key.' : 'The shop and the partner both send the same API key, app-key.'}`]);
+    else if (m.throttles429) L.push(['seoyeon', `${n(m.throttles429, 'request')} got 429 Too Many Requests${m.gaveUp ? `, and ${n(m.gaveUp, 'caller')} gave up after trying again and again` : ''}.`]);
     else if (m.forbidden) L.push(['seoyeon', `${n(m.forbidden, 'request')} got 403 Forbidden${m.forbidPost === m.forbidden ? ', every one a POST' : ''}. The same tokens' first calls went through.${m.unauth ? ` ${n(m.unauth, 'request')} got 401 Unauthorized: no token at all, the scraper bot.` : ''}`]);
     else if (m.stale) L.push(['seoyeon', `${n(m.stale, 'caller')} got 404 Not Found for an order they had just placed.`]);
     else if (m.fault5xx && (m.iamDenied || m.v2Fail || m.authFail)) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got 502 Bad Gateway: the function errored, so the Gate had no answer to pass on.`]);
     else if (m.fault5xx) L.push(['seoyeon', `${n(m.fault5xx, 'caller')} got a 5XX from the Gate.`]);
     else if (m.slow) L.push(['seoyeon', `Latency spiked to ${m.latency} ms on ${n(m.slow, 'request')}. IntegrationLatency is most of it.`]);
+    else if (m.leaked) L.push(['seoyeon', `Every response was 200 OK, fast, and CacheHitCount is ${m.hits}. But ${m.leaked} of those answers showed a customer someone else's orders.`]);
     else if (m.unauth) L.push(['seoyeon', `Every caller with a token got through. ${n(m.unauth, 'request')} got 401 Unauthorized: the scraper bot, with no token at all.`]);
     else L.push(['seoyeon', 'Gate\'s quiet. Every caller got an answer.']);
     if (d.stream) {
@@ -604,6 +664,9 @@
       if (m.maxAge > 30) L.push(['mira', `ApproximateAgeOfOldestMessage reached ${m.maxAge} seconds.${m.left + m.poisonLoose ? ` ${n(m.left + m.poisonLoose, 'message')} still waiting.` : ''}`]);
       if (m.lost) L.push(['mira', `The purge took ${n(m.lost, 'good message')} with it.`]);
     }
+    if (m.cacheWarn) L.push(['seoyeon', `${n(m.cacheWarn, 'response')} carried a warning header: the app's Cache-Control: max-age=0 was ignored.`]);
+    if (d.cache) L.push(['kai', m.cacheOff ? `Every request reached me: ${n(m.invocations, 'invocation')}, about 600 ms each.` : `Only ${n(m.invocations, 'request')} reached me all night. The Gate answered the other ${m.hits} from its cache.`]);
+    if (m.limit429) L.push(['kai', `Nothing reached me for those ${m.limit429}. The Gate turned them away before the function ran.`]);
     if (m.timeouts) L.push(['kai', `Task timed out after ${cfg.fn.timeout}.00 seconds, ${n(m.timeouts, 'time')}.`]);
     if (m.forbidden) L.push(['kai', `Nothing reached me for those ${m.forbidden}. The Gate turned them away before the function ran.`]);
     if (m.stale) L.push(['kai', `${n(m.stale, 'order')} came back "not found" when I read them right after writing them.`]);
@@ -626,6 +689,7 @@
     if (m.hot + m.over) L.push(['dutch', `WriteThrottleEvents: ${m.hot + m.over}. ConsumedWriteCapacityUnits ${m.wcuUsed} of ${cfg.store.wcu * (D.TICKS + D.DRAIN)}, so the table isn't full.`.replace(/ConsumedWriteCapacityUnits (\d+) of (\d+), so the table isn't full\./, (s, a, b) => (m.over ? `The table hit its provisioned WCU.` : `ConsumedWriteCapacityUnits ${a}, well under the table's ${b}.`))]);
     if (cfg.store.insights && m.hot) L.push(['dutch', 'Contributor Insights: the most throttled key is status = PENDING, almost every write.']);
     if (cfg.store.trail && m.denied) L.push(['dutch', `CloudTrail: GenerateDataKey denied for role orders-fn. The key policy names only the key's admins${cfg.store.keyPolicy === 'iam' ? ', plus the account' : ''}.`]);
+    if (d.cache) L.push(['dutch', 'Table\'s fine. Every order is filed under the right customer.']);
     if (m.stale) L.push(['dutch', 'Every one of those orders is in the table. Read it again a second later and it\'s there.']);
     else if (cfg.store.consistent && m.rcu) L.push(['dutch', `Strongly consistent reads: ${m.rcu} read units, twice what eventually consistent costs. DAX passed them all through.`]);
     if (m.rotated) L.push(['dutch', `Secrets Manager rotated ledger/orders_app at ${m.rotated} seconds. ${cfg.store.rot === 'alt' ? 'Alternating users: the previous password still works.' : 'Single user: the old password stopped working.'}`]);
@@ -644,7 +708,7 @@
     const f = { drill, cfg, v, deploys: 0, changes: [], log: [], state: 'read' };
     // The warm-up run: the fault in place, free.
     const r = D.run(drill, cfg, v);
-    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream) });
+    f.log.push({ m: r.m, lines: r.lines, nodes: r.nodes, cost: 0, ok: DR[drill].ok(r.m), warm: true, spark: D.sparks(r.frames, DR[drill].stream, DR[drill].cache) });
     D.lastFrames = r.frames;
     return f;
   };
@@ -653,7 +717,7 @@
     const c = C[id], d = DR[f.drill];
     if (!c) return 'No such setting.';
     if (c.at === 'queue' && d.path !== 'async') return 'There\'s no queue on this path.';
-    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.' }[c.needs];
+    if (c.needs && !d[c.needs]) return { release: 'No release goes out in this drill.', secret: 'This system has no secret to read.', stream: 'There\'s no stream on this path.', auth: 'This API has no authorizer.', reads: 'Nothing reads its writes back in this drill.', keys: 'This API has no API keys or usage plan.', cache: 'This stage has no cache.' }[c.needs];
     if (c.sqs && d.stream) return 'That\'s an SQS setting, and this is a stream.';
     if (c.on(f.cfg)) return 'Already set.';
     if (f.changes.length >= D.CHANGES) return `That's ${D.CHANGES} changes for this deploy.`;
@@ -674,10 +738,10 @@
     const r = D.run(f.drill, f.cfg, f.v);
     const ok = d.ok(r.m);
     const e = { m: r.m, lines: r.lines, nodes: r.nodes, cost: D.cost(f.drill, r.m), ok, changes: f.changes.slice() };
-    e.spark = D.sparks(r.frames, d.stream);
+    e.spark = D.sparks(r.frames, d.stream, d.cache);
     D.lastFrames = r.frames;   // for the board's playback; not saved
     f.deploys++; f.log.push(e); f.changes = [];
-    f.cfg.queue.purge = false;
+    f.cfg.queue.purge = false; f.cfg.gate.flush = false;
     if (ok) f.state = 'contained'; else if (f.deploys >= D.DEPLOYS) f.state = 'escalated';
     return e;
   };
@@ -699,12 +763,16 @@
     secret: ['dutch', 'A secret you read once and keep goes stale the moment it rotates. Cache it, and know when to read it again.'],
     stream: ['mira', 'A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.'],
     iam: ['dutch', 'A 4xx down here turns into a 5xx up there. On the trace, yellow is a 4xx and red is a 5xx. Start at the yellow.'],
+    quota: ['seoyeon', 'A usage plan counts each API key on its own. Share a key and you share its quota, and once it\'s spent, everyone on that key gets 429.'],
+    cache: ['seoyeon', 'The stage cache tells requests apart only by the cache keys you give it. Leave out who\'s asking, and everyone gets the first answer.'],
     canary: ['kai', 'A canary only helps if something is watching it. CodeDeploy rolls back on an alarm only while the deployment is still running.']
   };
   // Which teach line a run earns first.
   D.teachFor = function (f, e, taught) {
     const m = e.m, keys = [];
-    if (m.throttles429) keys.push('429');
+    if (m.limit429) keys.push('quota');
+    if (m.throttles429 > m.limit429) keys.push('429');
+    if (m.leaked) keys.push('cache');
     if (m.hot) keys.push('hot');
     if (m.denied) keys.push('kms');
     if (m.iamDenied) keys.push('iam');

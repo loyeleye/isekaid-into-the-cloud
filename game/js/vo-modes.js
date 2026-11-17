@@ -60,6 +60,8 @@
     "mira|A stream keeps its order. A record that always fails holds up everything behind it, and by default Lambda retries it until it expires.": 'mira-mg-drill-teach-stream',
     "seoyeon|401 means no pass at all. 403 means a pass that says no. And the Gate remembers what a pass said.": 'seoyeon-mg-drill-teach-auth',
     "dutch|Reads are eventually consistent unless you ask. Right after a write, ask: ConsistentRead.": 'dutch-mg-drill-teach-reads',
+    "seoyeon|A usage plan counts each API key on its own. Share a key and you share its quota, and once it's spent, everyone on that key gets 429.": 'seoyeon-mg-drill-teach-quota',
+    "seoyeon|The stage cache tells requests apart only by the cache keys you give it. Leave out who's asking, and everyone gets the first answer.": 'seoyeon-mg-drill-teach-cache',
     "seoyeon|Held. Write it up before you forget why.": 'seoyeon-mg-drill-held',
     "seoyeon|We didn't find it in time. Now we know where to look.": 'seoyeon-mg-drill-lost',
     "mira|Held. Write it up before you forget why.": 'mira-mg-drill-held',
