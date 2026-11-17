@@ -13,6 +13,7 @@ os.makedirs(OUT, exist_ok=True)
 # name -> (source file relative to SRC, height in px)
 JOBS = {
     'street': ('street-wide.png', 1072),
+    'office-yard': ('office-yard.png', 1072), 'bridge': ('bridge-wide.png', 1072),
     'gate': ('cut/gate.png', 520),
     'house-old': ('cut/house-old.png', 600), 'house-new': ('cut/house-new.png', 600),
     'house-scaf': ('cut/house-scaf.png', 600), 'house-dark': ('cut/house-dark.png', 600),
