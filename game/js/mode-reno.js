@@ -936,9 +936,15 @@
     const ps = j.plans || [];
     const failed = ps.filter(x => !x.pass).pop(), last = ps[ps.length - 1];
     if (!failed) return '';
-    const bl = blame(job, failed.plan).filter(x => x.keys.length);
-    if (!bl.length) return '';
     const fixed = last && last.pass ? last.plan : null;
+    // With a plan that held, blame only what that plan actually changed (another fix that would also have worked isn't
+    // the lesson of this job); with none, everything that would have kept the line.
+    const changed = fixed ? blameKeys(job, fixed, failed.plan) : null;
+    const bl = blame(job, failed.plan).map(x => {
+      const ks = changed ? x.keys.filter(k => changed.includes(k)) : x.keys;
+      return Object.assign({}, x, { keys: ks.length ? ks : x.keys, fix: ks.length && fixed ? fixed : x.fix });
+    }).filter(x => x.keys.length);
+    if (!bl.length) return '';
     // A setting that broke the slate by being left out (no alarm, no hook) has no line to circle: the line it needed
     // is shown where it would go, marked missing (the job is settled, so this is the lesson, not a hint).
     const card = (plan, cls, keys, note) => {
@@ -961,13 +967,13 @@
           rows.push(`<span class="hit miss">${'  '.repeat(ind)}${esc(text.replace(/\s+#.*$/, ''))}</span><i>missing · ${esc(note(ks))}</i>`);
         });
       });
-      return `<pre class="rn-rep ${cls}">${rows.join('\n')}</pre>`;
+      return `<pre class="rn-rep ${cls}">${rows.join('')}</pre>`;
     };
     const keysAll = [...new Set([].concat(...bl.map(x => x.keys)))];
     const why = ks => '✗ ' + bl.filter(x => x.keys.some(k => ks.includes(k))).map(x => x.line.text).join('; ');
     return `<div class="rn-report"><p class="rn-tplh">Seymour's report · ${esc(tplLines(job, failed.plan).file)}</p>
-      <p class="small">Plan ${ps.indexOf(failed) + 1}, the line that broke the slate:</p>${card(failed.plan, 'bad', keysAll, why)}
-      ${fixed ? `<p class="small">Plan ${ps.length}, the line that held:</p>${card(fixed, 'good', keysAll, null)}` : ''}</div>`;
+      <div class="rn-repcols"><div><p class="small">Plan ${ps.indexOf(failed) + 1}, the line that broke the slate:</p>${card(failed.plan, 'bad', keysAll, why)}</div>
+      ${fixed ? `<div><p class="small">Plan ${ps.length}, the line that held:</p>${card(fixed, 'good', keysAll, null)}</div>` : ''}</div></div>`;
   }
   // Each job's what-if roll: random per playthrough, saved with the job so a reload asks the same what-if.
   const wiRoll = (s, j) => { if (j.wiR == null) { j.wiR = Math.floor(Math.random() * 0x7fffffff); save(s); } return j.wiR; };
@@ -1632,7 +1638,11 @@
     .rn-report { margin: 10px 0 4px; padding: 8px 12px 10px; border-radius: 6px; background: #fbf4e2; color: #241a10; border: 2px solid #8a6a3a; box-shadow: 0 3px 0 #5a4020; }
     .rn-report > .small { margin: 6px 0 2px; color: #5a3a18; }
     .rn-rep { margin: 0; font: 600 13px/1.55 var(--f-mono, ui-monospace, Menlo, Consolas, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .rn-rep span { display: block; width: fit-content; }
     .rn-rep span.dim { opacity: .45; }
+    .rn-repcols { display: grid; gap: 4px 18px; }
+    .rn-repcols p.small { margin: 6px 0 2px; color: #5a3a18; }
+    @media (min-width: 700px) { .rn-repcols { grid-template-columns: 1fr 1fr; } }
     .rn-rep.bad span.hit { color: #8f1d1d; border: 2px solid #c0392b; border-radius: 12px; padding: 0 6px; margin-left: -8px; }
     .rn-rep.good span.hit { color: #1d6b3a; background: #e3f6e8; border-radius: 4px; padding: 0 4px; }
     .rn-rep.bad span.miss { color: #8f1d1d; border-style: dashed; opacity: .9; }
