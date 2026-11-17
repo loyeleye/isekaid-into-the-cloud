@@ -484,19 +484,21 @@
   // ---- The fix, shown where it happened (Ladi, Nov 17): a picture of the mechanism, the exact AWS name or config line,
   // and what it does (js/ic-fix.js). After a right answer, or a miss that's gone for good: never while the twin retry
   // is still open, since the twin is the same fault and the card would give it away. The first time a config line
-  // turns up in a save, you write it out yourself before the shift goes on (S.save.icTyped).
+  // turns up in a save, you type its key token into the line yourself, with the shared type-it-once rules
+  // (js/type-once.js): keyed by the token across modes, two misses show it faintly, and "Not now" brings it back later.
   IC.fixFor = function (inc, q) {
     if (!SD.icFix || !q || inc.fmt || isFmt(inc.q)) return null;
     const n = IC.nodeOf(q);
     return SD.icFix.fixOf(q, n ? n.id : inc.at);
   };
-  const typedSet = () => (sv().icTyped = sv().icTyped || {});
   IC.showFix = (s, inc, f, ok) => showFix(s, inc, f, ok);
   function showFix(s, inc, f, ok) {
     return new Promise(done => {
-      const c = CAMP[inc.at] || CAMP.lambda, first = SD.icFix.toType(f) && !typedSet()[f.id];
+      const c = CAMP[inc.at] || CAMP.lambda, T = SD.icFix.once(), term = SD.icFix.termOf(f);
+      const at = term ? f.line.indexOf(term) : -1, first = at >= 0 && T.need(term);
+      const pre = first ? f.line.slice(0, at) : '', post = first ? f.line.slice(at + term.length) : '';
       const head = ok ? `✓ Resolved at ${esc(PLACE_OF[inc.at] || where(inc))}` : `✗ The fix at ${esc(PLACE_OF[inc.at] || where(inc))} was`;
-      const b = U.panel(`<div class="ic-fix${ok ? ' ok' : ' miss'}">
+      const b = U.panel(`<div class="ic-fix${ok ? ' ok' : ' miss'}" data-fix="${esc(f.id)}">
           <div class="ic-camp ic-zoom" style="--zx:${c.x}%;--zy:${(c.top + c.base) / 2}%" aria-hidden="true">
             <img class="ic-camp-bg" src="assets/img/ic/camp-night.webp" alt="" draggable="false">
             <img class="ic-fixpic" src="assets/img/ic/fix-${f.pic}.webp" alt="" draggable="false">
@@ -504,29 +506,28 @@
           <div class="ic-fixnote">
             <p class="ic-fixh">${head}</p>
             <p class="ic-fixname">${esc(f.name)}</p>
-            <code class="ic-line">${esc(f.line)}</code>
-            <p class="ic-does">${esc(f.does)}</p>
-            ${first ? `<label class="ic-wl" for="ic-type">First time you've met this one: write it out yourself.</label>
-              <input id="ic-type" class="ic-type" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-describedby="ic-typeh" placeholder="Type the line here">
-              <p class="small ic-typeh" id="ic-typeh" aria-live="polite">Spaces don't matter. Capitals and punctuation do: AWS names are exact.</p>` : ''}
-            <div class="row"><button class="primary" id="ic-fixgo"${first ? ' disabled' : ''}>${first ? 'Write it to go on' : 'Back to the camp'}</button></div>
+            ${first ? `<p class="ic-wl">First time this one's come up: type the missing part yourself, the way AWS spells it.</p>
+              <code class="ic-line ic-blank"><span>${esc(pre)}</span><input id="ic-type" class="ic-type" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type the missing part" aria-describedby="ic-typeh" size="${Math.max(6, Math.min(32, term.length + 1))}"><span>${esc(post)}</span></code>
+              <p class="small ic-typeh" id="ic-typeh" aria-live="polite">Two misses and it shows faintly to copy.</p>` : `<code class="ic-line">${esc(f.line)}</code>`}
+            <p class="ic-does">${first ? esc(f.does).split(esc(term)).join('<b class="ic-gap">____</b>') : esc(f.does)}</p>
+            <div class="row"><button class="primary" id="ic-fixgo"${first ? ' disabled' : ''}>${first ? 'Type it to go on' : 'Back to the camp'}</button>${first ? '<button class="ghost" id="ic-fixlater">Not now</button>' : ''}</div>
           </div></div>`, { title: TITLE, onClose: () => done() });
       const go = b.querySelector('#ic-fixgo'), inp = b.querySelector('#ic-type'), hint = b.querySelector('#ic-typeh');
       if (inp) {
-        inp.oninput = () => {
-          const v = inp.value, okNow = SD.icFix.typed(f, v), at = SD.icFix.firstDiff(f, v);
-          go.disabled = !okNow; go.textContent = okNow ? 'Written. Back to the camp' : 'Write it to go on';
-          inp.classList.toggle('bad', at >= 0); inp.classList.toggle('good', okNow);
-          hint.textContent = okNow ? '✓ Exactly right.' : at >= 0 ? `Character ${at + 1} differs from the line above (spaces aside).` : 'Spaces don\'t matter. Capitals and punctuation do: AWS names are exact.';
-        };
+        // The shared rule (js/type-once.js): Enter or leaving the box checks it; two misses show it faintly.
+        const h = T.bind(inp, term, {
+          onOk: m => { b.querySelectorAll('.ic-gap').forEach(g => { g.textContent = term; }); const later = b.querySelector('#ic-fixlater'); if (later) later.hidden = true; go.disabled = false; go.textContent = 'Typed. Back to the camp'; hint.textContent = m ? '✓ It\'s yours now.' : '✓ First try.'; s.wrote = (s.wrote || []).concat(f.id); save(s); try { go.focus(); } catch (e) { /* no focus */ } },
+          onMiss: m => { hint.textContent = m >= 2 ? 'Here it is, faintly. Copy it in.' : 'Not quite. One more try, then it shows faintly.'; }
+        });
+        // Typing the exact token checks it at once, without needing Enter.
+        inp.addEventListener('input', () => { if (T.match(inp.value, term)) h.check(); });
         setTimeout(() => { try { inp.focus({ preventScroll: true }); } catch (e) { /* no focus */ } }, 60);
+        b.querySelector('#ic-fixlater').onclick = () => done();
       }
-      go.onclick = () => {
-        if (first) { typedSet()[f.id] = 1; s.wrote = (s.wrote || []).concat(f.id); save(s); }
-        done();
-      };
+      go.onclick = () => done();
     });
   }
+
   function stopNow() { S.persist(); if (SD.today) SD.today.render(); }
   function afterMap(s) {
     if (/paged/.test(s.since)) U.system('PAGED', esc(s.since.replace(/^Since your last move: /, '')), 'red');
@@ -843,8 +844,10 @@
     .ic-wrote code { display: inline; padding: 1px 5px; font-size: 13px; }
     .ic-does { font-size: 15px; line-height: 1.4; }
     .ic-wl { display: block; margin: 8px 0 4px; font-weight: 700; }
-    .ic-type { width: 100%; box-sizing: border-box; padding: 10px; border: 2px solid #8a7a5a; border-radius: 4px; background: #fffdf7; color: #17131f; font: 600 16px ui-monospace, Menlo, Consolas, monospace; }
-    .ic-type.bad { border-color: #b5463c; } .ic-type.good { border-color: #3d8a52; background: #f1fbf2; }
+    .ic-type { font: inherit; font-size: 16px; color: #ffe58a; background: #2c2838; border: 0; border-bottom: 2px solid #ffe58a; border-radius: 3px; padding: 0 4px; min-width: 6ch; max-width: 100%; }
+    .ic-type.faint::placeholder { color: rgba(255, 229, 138, .38); }
+    .ic-type.ok { color: #bff0c8; border-bottom-color: #7fd890; }
+    .ic-gap { font-family: ui-monospace, Menlo, Consolas, monospace; }
     .ic-typeh { margin-top: 4px; color: #5a4a38; }
     @media (prefers-reduced-motion: reduce) { .ic-smoke, .alarm::before, .ic-trouble img, .ic-cdl i, .ic-node.reach, .ic-zoom .ic-camp-bg, .ic-fixpic { animation: none !important; } }`;
   document.head.appendChild(css);
