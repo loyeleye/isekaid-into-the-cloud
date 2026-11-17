@@ -766,6 +766,8 @@ const LEAD_STAND = { dutch: 'dutch-stand' };
     root.hidden = false;
     document.body.classList.add('vn-on');
     root.querySelector('.vn-black').classList.add('on');
+    // Its voice lines start downloading now, under the fade in, so each one plays as its text box shows (js/audio.js).
+    if (SD.vo && SD.audio.prefetch) SD.audio.prefetch(steps.filter(([k, a]) => !CMD.has(k) && typeof a === 'string').map(([k, a]) => SD.vo[k + '|' + a]).filter(Boolean));
     await Promise.all([sleep(60), preload(steps)]);
     for (let i = 0; i < steps.length; i++) {
       if (skipping) break;
