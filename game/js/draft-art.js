@@ -4,6 +4,7 @@
 // its Wall poster comes down. Each district's landmark is a set piece of its own.
 //   SD.draftArt.building(canvas, { client, floors, scaf, cracks })     SD.draftArt.landmark(canvas, d)
 //   SD.draftArt.lot(canvas)  an empty lot
+// Painted Sogni pieces replace the code drawings one by one as they land (A.PAINTED below).
 (function () {
   const A = SD.draftArt = {};
   const INK = '#2b2340';
@@ -57,6 +58,17 @@
 
   // An empty plot in Pingsby's Quarter: a ghost of the old house, faint, with Freya's delete marker hung on it.
   A.ghost = function (cv) {
+    const ghostOf = [...A.PAINTED].find(n => n.endsWith('-small'));
+    if (ghostOf && A.PAINTED.has('delete-marker')) {
+      Promise.all([pic(ghostOf), pic('delete-marker')]).then(([im, mk]) => {
+        if (!cv.isConnected) return;
+        const { ctx, H } = setup(cv), g = G(ctx);
+        ground(g);
+        stand(ctx, im, (H - 2) * HEIGHT.small, 40, 0.3);
+        const m = stand(ctx, mk, (H - 2) * 0.75, 30);
+        g.text('DELETE', 32, -m.h * 0.78, 4.6, '#fff');
+      }).catch(() => {});
+    }
     const { ctx, H } = setup(cv), g = G(ctx);
     ground(g);
     const top = -Math.min(H - 6, 24);
@@ -70,9 +82,42 @@
     g.text('DELETE', 32, top + 18, 5.6, '#fff');
   };
 
-  // A building: base, storeys, roof, the client's sign. o: { client: { roof, wall, sign, trim }, floors, scaf, cracks }
+  // The painted Quarter (Sogni renders in assets/img/draft/quarter, credited in CREDITS.md): a name is listed here once
+  // its file is in, and until then that piece keeps its code drawing, so the art can land a few files at a time.
+  // Buildings are '<client>-small|mid|tall' (1-2, 3-4 and 5-6 storeys); also 'scaffold' and 'delete-marker'.
+  A.PAINTED = new Set([]);
+  const PIC = {};
+  const pic = n => PIC[n] || (PIC[n] = new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = `assets/img/draft/quarter/${n}.webp`; }));
+  A.size = f => { const n = A.storeys(f); return n <= 2 ? 'small' : n <= 4 ? 'mid' : 'tall'; };
+  // Draws a picture standing on the ground line, centred, at most hMax units tall and wMax wide.
+  function stand(ctx, im, hMax, wMax, alpha) {
+    const k = Math.min(hMax / im.naturalHeight, wMax / im.naturalWidth), w = im.naturalWidth * k, h = im.naturalHeight * k;
+    ctx.save(); if (alpha != null) ctx.globalAlpha = alpha; ctx.drawImage(im, 32 - w / 2, -h, w, h); ctx.restore();
+    return { w, h };
+  }
+  const HEIGHT = { small: 0.6, mid: 0.8, tall: 1 };
+  function painted(cv, o) {
+    const name = `${o.id}-${A.size(o.floors)}`;
+    if (!o.id || !A.PAINTED.has(name)) return false;
+    const scaf = o.scaf && A.PAINTED.has('scaffold');
+    Promise.all([pic(name), scaf ? pic('scaffold') : null]).then(([im, sc]) => {
+      if (!cv.isConnected) return;
+      const { ctx, H } = setup(cv), g = G(ctx);
+      ground(g);
+      const box = stand(ctx, im, (H - 2) * HEIGHT[A.size(o.floors)], 52);
+      for (let k = 0; k < Math.min(3, o.cracks | 0); k++) {
+        const cx = 32 - box.w / 4 + k * box.w / 5, cy = -box.h * (0.25 + 0.2 * k);
+        g.line(cx, cy, cx + 2, cy + 3, cx - 1, cy + 5, cx + 1.5, cy + 8).stroke('#3a2a20', 0.8);
+      }
+      if (o.scaf) { if (sc) stand(ctx, sc, box.h + 4, box.w + 10); else scaffold(g, 32 - box.w / 2, box.w, -box.h); }
+    }).catch(() => {});
+    return true;
+  }
+
+  // A building: base, storeys, roof, the client's sign. o: { client: { roof, wall, sign, trim }, id, floors, scaf, cracks }
   A.building = function (cv, o) {
     const { ctx, H } = setup(cv), g = G(ctx);
+    if (painted(cv, o)) { ground(G(setup(cv).ctx)); return; }
     const c = o.client || {}, roof = c.roof || '#5a7ea6', wall = c.wall || '#efe2c6', trim = c.trim || '#6a4a2a';
     const n = A.storeys(o.floors), sh = Math.min(10, (H - 22) / n), x0 = 14, w = 36;
     ground(g);

@@ -500,7 +500,7 @@
       ${!ok ? `<p class="small dr-wallnote">📐 ${bld.scaf ? 'This build order comes back first on a later night. Get it right then and the scaffolding comes off.' : 'The building already stood, so it keeps standing. The build order comes back on a later night.'}</p>` : ''}
       <button class="primary" id="dr-next">${bld.plot == null ? 'Place the building' : 'Continue'}</button>`;
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
-    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
+    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, id: bld.client, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
     b.querySelector('#dr-next').onclick = next;
   }
 
@@ -576,7 +576,7 @@
     const nextLabel = it.retry ? (it.back === 'place' ? 'Place the building' : 'Continue') : bld.plot == null ? 'Place the building' : 'Continue';
     h += '</div>' + sourceBlock(q) + (twin ? `<div class="dr-retry"><p class="small"><b data-vo="${esc('seymour|' + SEYMOUR.retry)}">Seymour:</b> "${esc(SEYMOUR.retry)}" Its twin is a different scenario on the same rule, free.</p><div class="row"><button class="primary" id="dr-twin">Retry its twin now</button><button class="ghost" id="dr-next">${nextLabel}</button></div></div>` : `<button class="primary" id="dr-next">${nextLabel}</button>`);
     const b = U.panel(h, { title: 'INSPECTION', cls: 'dr-win', noClose: true });
-    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
+    const cv = b.querySelector('.dr-cv'); if (cv && SD.draftArt) SD.draftArt.building(cv, { client: c, id: bld.client, floors: bld.floors, scaf: bld.scaf, cracks: bld.cracks });
     b.querySelector('#dr-next').onclick = next;
     const tw = b.querySelector('#dr-twin'); if (tw) tw.onclick = () => { it.retryNow = 1; next(); };
   }
@@ -697,7 +697,7 @@
     b.querySelectorAll('.dr-pcv').forEach(cv => {
       if (cv.dataset.ghost) return SD.draftArt.ghost(cv);
       const bl = sv().town[cv.dataset.q]; if (!bl) return;
-      SD.draftArt.building(cv, { client: cl(bl.client), floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+      SD.draftArt.building(cv, { client: cl(bl.client), id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     });
   }
 
@@ -767,7 +767,7 @@
       <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       ${retryLine}
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
-    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
     const rt = b.querySelector('#dr-rt'); if (rt) rt.onclick = () => DR.retry(qid, back);
   }
@@ -779,7 +779,7 @@
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its build order comes back first on a later night: get it right then to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its build order held.' : '🏛 Standing.'}</p></div></div>
       <div class="dr-plaque"><div class="q-ctx">Plaque · build order</div><p class="small"><b>${esc(x.title || bl.idea)}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
-    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
+    SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);
   }
 
