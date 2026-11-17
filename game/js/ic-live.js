@@ -57,10 +57,13 @@
   // Like the Look-Alike Cup, it saves what was playing and puts it back when the shift closes.
   const AU = () => SD.audio && SD.audio.music ? SD.audio : null;
   if (AU() && SD.audio.add) SD.audio.add({ songs: { iclive: 'm-ic-live' }, jingles: { icmet: 'j-ic-met', icred: 'j-ic-red' } });
+  // Opened from the title, the mode stage (js/mode-stage.js) already plays this same loop as 'stage-ic' from the menu:
+  // keep that one going (no restart), and let the stage put the old music back on Home.
   let before = null;
-  const tune = () => { const a = AU(); if (!a) return; if (before === null) before = a.loopName && a.loopName !== 'iclive' ? a.loopName : ''; if (a.loopName !== 'iclive') a.music('iclive'); };
+  const staged = a => a.loopName === 'stage-ic';
+  const tune = () => { const a = AU(); if (!a || staged(a)) return; if (before === null) before = a.loopName && a.loopName !== 'iclive' ? a.loopName : ''; if (a.loopName !== 'iclive') a.music('iclive'); };
   const untune = () => { const a = AU(); if (!a || before === null) return; a.music(before || null); before = null; };
-  const sting = ok => { const a = AU(); if (a && a.jingle) a.jingle(ok ? 'icmet' : 'icred', 'iclive'); };
+  const sting = ok => { const a = AU(); if (a && a.jingle) a.jingle(ok ? 'icmet' : 'icred', staged(a) ? 'stage-ic' : 'iclive'); };
 
   // ---- Art (PixelLab, CREDITS.md; tools/ic_live_art.py): each part is a thing in Uptima's camp, beside its name.
   const IMG = 'assets/img/ic-live/';
@@ -122,7 +125,7 @@
   // result, the end) the interface slides down and she says her lines; a tap moves on.
   const FACE_BOX = { left: 29.948, top: 9.448, width: 37.76, height: 18.168 };   // % of the body canvas
   const FACES = ['neutral', 'blink', 'talk', 'happy', 'happy-talk', 'stern', 'stern-talk', 'worried', 'worried-talk'];
-  const UP = { mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '', pose: null, idle: 0 };
+  const UP = { beatSaid: new Set(), mood: 'neutral', blink: false, open: false, talkUntil: 0, timers: [], watch: 0, line: '', pose: null, idle: 0 };
   // Whole-body poses (Ladi's pose sheets, repainted on her canvas): the yawn at dawn, and dozing off if you leave her waiting.
   const POSES = ['yawn', 'asleep'], DOZE_MS = 30000;
   function pose(name) {
@@ -169,7 +172,7 @@
       const rim = el.querySelector('.icl-room img'); rim.addEventListener('load', wall); if (rim.complete) wall();
       addEventListener('resize', wall);
       // Her bubble floats above the work (the panel's wash would dim it), so it lives on the body like the talk box.
-      const bub = document.createElement('div'); bub.id = 'icl-bubble'; bub.className = 'icl-bubble'; bub.hidden = true; document.body.appendChild(bub);
+      UP.line = ''; UP.beatSaid = new Set(); const bub = document.createElement('div'); bub.id = 'icl-bubble'; bub.className = 'icl-bubble'; bub.hidden = true; document.body.appendChild(bub);
       FACES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-face-${f}.webp`; });
       POSES.forEach(f => { const i = new Image(); i.src = `${IMG}uptima-pose-${f}.webp`; });
       blinkSoon();
@@ -226,13 +229,16 @@
     };
     flap();
   }
+  // The bubble voices its line (data-vo, js/vo-modes.js) unless a beat just said it out loud: so a resumed shift,
+  // which skips the beats it already played, still hears her (Ladi, Nov 17: "I can't hear Uptima's voice line").
   function speak(line, mood) {
     if (mood) UP.mood = mood;
     paintFace();
     const bub = document.getElementById('icl-bubble');
-    if (bub) bub.removeAttribute('data-vo');
-    if (bub && line && line !== UP.line) { bub.hidden = false; bub.textContent = line; talk(line); }
-    else if (bub && !line) bub.hidden = true;
+    if (bub && line && line !== UP.line) {
+      bub.hidden = false; bub.textContent = line; talk(line);
+      if (UP.beatSaid.has(line)) bub.removeAttribute('data-vo'); else bub.setAttribute('data-vo', 'uptima|' + line);
+    } else if (bub && !line) { bub.hidden = true; bub.removeAttribute('data-vo'); }
     UP.line = line || '';
   }
   // How she looks while you work: what she last said, or the knob you just touched.
@@ -262,6 +268,7 @@
     return true;
   }
   function beat(lines, mood, then) {
+    UP.beatSaid = new Set(lines);
     document.body.classList.add('icl-beat');
     let vn = document.getElementById('icl-vn');
     if (!vn) { vn = document.createElement('button'); vn.id = 'icl-vn'; vn.type = 'button'; document.body.appendChild(vn); }
@@ -679,7 +686,8 @@
       body.icl-on .icl-pred::before { content: 'Uptima'; position: absolute; top: -15px; left: 16px; padding: 2px 12px; border-radius: 6px; background: linear-gradient(#dcb65e, #a67c2c); color: #2a1c08; font-size: 13px; letter-spacing: .06em; border: 2px solid #140b05; }
       body.icl-on .icl-pred .muted { color: #6b5a40; }
       body.icl-on .icl-pred .icl-vals button { min-width: 64px; min-height: 48px; font-size: 20px; font-weight: 800; background: #fff8e6; color: #2a2018; border-color: #6b4f22; }
-      body.icl-on .icl-pred .icl-conf button { color: #2a2018; border-color: #6b4f22; background: #fff8e6; }
+      /* The second selector outranks the mode stage's dark-glass button rule (js/mode-stage.js), which turned this text pale on the paper. */
+      body.icl-on :is(.icl-pred .icl-conf button, .in-mode #panel .win .icl-pred .icl-conf button.ghost:not(.primary):not(.ms-lt)) { color: #2a2018; border-color: #6b4f22; background: #fff8e6; }
     }
     /* Narrow: she stands behind the work, dimmed, and the note carries her words. */
     @media (max-width: 899px) {
