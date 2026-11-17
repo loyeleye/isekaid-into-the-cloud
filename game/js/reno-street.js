@@ -115,11 +115,47 @@
     return out;
   }
 
+  // ---- Night 3, the Blueprint Office: a stack in the Office's yard, torn down by DeletionPolicy ----
+  // Each resource stands in a slot: the rooms are a cottage (EC2), the records well (RDS), the ledger cabinet
+  // (DynamoDB) and the notice board (S3). After the teardown: Delete leaves rubble, Retain leaves it standing with a
+  // wax-sealed tag (and it keeps costing lumber), Snapshot leaves a glass jar holding a tiny copy.
+  // YARD_ART: [file, width / height, height in adults]. Until Ladi's renders arrive, the old PixelLab sprites stand in.
+  const YARD_ART = {
+    bg: 'street',
+    ec2: ['house-old', AR['house-old'], 4.8], rds: ['../well', 39 / 42, 2.4], ddb: ['../ledger', 41 / 48, 2.2], s3: ['../board', 41 / 44, 2.4],
+    jar: ['../jar', 28 / 32, 1.1], rubble: ['lot', AR.lot, 0.9], seal: null
+  };
+  const yardSp = (k, cx, feet, o) => {
+    const a = YARD_ART[k]; if (!a) return '';
+    const h = ADULT * a[2], w = h * a[1];
+    return `<img class="rs-sp ${(o && o.cls) || ''}${a[0].startsWith('../') ? ' rs-px' : ''}" src="${IMG(a[0])}" alt="${esc((o && o.alt) || '')}" draggable="false" style="left:${px(cx - w / 2)};top:${px(feet - h)};width:${px(w)};height:${px(h)}">`;
+  };
+  const YARD_SAYS = { ec2: 'the rooms (an EC2 instance)', rds: 'the records well (an RDS database)', ddb: 'the ledger cabinet (a DynamoDB table)', s3: 'the notice board (an S3 bucket)' };
+  // o: { stack: [{ id, type, name }], plan: { id: policy }, res: teardown results (or null while planning),
+  //      upto: how many resources the teardown has reached, tap: true to make each a button that cycles its policy }
+  function yard(o) {
+    let out = '';
+    const n = o.stack.length, worldW = Math.max(W, slotX(n) + 300);
+    for (let i = 0; i * W < worldW; i++) out += `<img class="rs-bg${i % 2 ? ' flip' : ''}" src="${IMG(YARD_ART.bg)}" alt="" draggable="false" style="left:${i * W}px">`;
+    o.stack.forEach((r, i) => {
+      const cx = centreX(i), res = o.res && i < (o.upto == null ? n : o.upto) ? o.res.find(x => x.id === r.id) : null;
+      const pol = res ? res.policy : (o.plan && o.plan[r.id]) || 'Delete';
+      if (!res) out += shadow(cx, FEET, 160) + yardSp(r.type, cx, FEET, { alt: `${r.name}: ${YARD_SAYS[r.type]}, marked ${pol}` });
+      else if (res.kept === 'running') out += shadow(cx, FEET, 160) + yardSp(r.type, cx, FEET, { alt: `${r.name}, kept running (Retain)`, cls: 'rs-kept' }) + `<b class="rs-seal" style="left:${px(cx + 40)};top:${px(FEET - ADULT * 1.4)}">⚙</b>`;
+      else if (res.kept === 'snapshot') out += yardSp('rubble', cx, FEET + 10, { alt: '' }) + yardSp('jar', cx, FEET + 6, { alt: `${r.name}: a snapshot in a jar, then deleted`, cls: 'rs-jar' });
+      else out += yardSp('rubble', cx, FEET + 10, { alt: `${r.name}: deleted, and its data with it`, cls: 'rs-gone' });
+      out += `<span class="rs-plq${res ? ' done' : ''}" style="left:${px(cx - 90)};top:${px(FEET + 18)}">${esc(pol)}</span>`;
+      if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(slotX(i))};top:${px(FEET - ADULT * 4)};width:${px(SLOT_W)};height:${px(ADULT * 4)}"></button>`;
+    });
+    if (o.seymour) { const sp = 'sey-' + o.seymour; out += stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, X0 - 170, SEY_FEET, { alt: 'Sir Seymour Backups', z: 3 }); }
+    return { html: out, width: worldW };
+  }
+
   // ---- The scene: the world inside a camera, plus the foreground (Kai, and Seymour for close-ups) and the UI layer ----
   // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on, kai: face, close: Seymour's pose,
   //      ui: html laid over the scene, label }
   function scene(o) {
-    const w = world(o);
+    const w = o.stack ? yard(o) : world(o);
     const kai = o.kai ? `<img class="rs-kai" src="${IMG('kai-' + o.kai)}" alt="Kai" draggable="false" data-face="${esc(o.kai)}">` : '';
     const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
     return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${o.focus == null ? '' : o.focus}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
@@ -183,7 +219,7 @@
   }
   // A new tick: redraw the world only, so the camera box, Kai and the UI stay put.
   function update(el, o) {
-    const w = world(o), wd = el.querySelector('.rs-world');
+    const w = o.stack ? yard(o) : world(o), wd = el.querySelector('.rs-world');
     wd.innerHTML = w.html; wd.style.width = Math.round(w.width) + 'px'; el.dataset.ww = Math.round(w.width);
     frame(el); return w;
   }
@@ -218,6 +254,13 @@
     @keyframes rs-step { 0% { opacity: 0; } 50% { opacity: 1; } }
     @keyframes rs-in { from { transform: translateX(70px); } to { transform: none; } }
     .rs-turned { opacity: .85; filter: saturate(.6); }
+    .rs-px { image-rendering: pixelated; }
+    .rs-gone { opacity: .9; } .rs-kept { filter: drop-shadow(0 0 12px rgba(255,212,90,.85)); }
+    .rs-jar { filter: drop-shadow(0 0 16px rgba(190,230,255,.9)); animation: rs-pop .5s ease-out both; }
+    @keyframes rs-pop { from { transform: translateY(-60px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+    .rs-seal { position: absolute; font: 900 54px/1 sans-serif; color: #fff; background: #b23b3b; border: 4px solid #6e1c1c; border-radius: 50%; width: 72px; height: 72px; display: grid; place-items: center; }
+    .rs-plq { position: absolute; width: 180px; text-align: center; font: 800 30px/1.2 var(--f-head, sans-serif); color: #3a2a12; background: linear-gradient(#ffe58a, #e0a030); border: 3px solid #5a3a12; border-radius: 10px; padding: 4px 0; }
+    .rs-plq.done { background: linear-gradient(#e6d3a3, #b99b5e); }
     .rs-fg { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
     .rs-kai { position: absolute; left: 0; bottom: -8%; height: 96%; width: auto; transform-origin: 50% 100%; animation: rs-breathe 3.6s ease-in-out infinite alternate; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
     @keyframes rs-breathe { from { transform: scaleY(1); } to { transform: scaleY(1.008) translateY(-1px); } }
@@ -255,5 +298,5 @@
   `;
   document.head.appendChild(css);
 
-  SD.renoStreet = { scene, mount, cut, update, frame, world, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
+  SD.renoStreet = { scene, mount, cut, update, frame, world, yard, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
 })();

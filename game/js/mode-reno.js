@@ -166,10 +166,14 @@
         + seg('post', [['false', 'None'], ['true', 'Test function']], String(!!p.post), 'Post-traffic hook (AfterAllowTraffic)');
       if (job.crack) scene += `<p class="small rn-crack">Seymour's cracked run: ${job.crack === 'test' ? 'a crack a test can find' : 'a crack that only shows under real traffic'}.</p>`;
     } else {
-      scene = `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
+      scene = SD.renoStreet ? SD.renoStreet.scene({ stack: job.stack, plan: p, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
+        label: 'The Blueprint Office yard: the stack to tear down, each resource with its DeletionPolicy plaque',
+        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip">The stack is being torn down. Mark each resource's DeletionPolicy.</span></span>${slateHtml(job)}</div>
+          <div class="rs-row"><span></span><span class="rs-chip">Tap a resource to change its plaque</span></div>` })
+        : `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
       knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
     }
-    const slateBelow = job.d === 'eb' && SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
+    const slateBelow = (job.d === 'eb' || job.d === 'cfn') && SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
     const refused = j.refused ? `<div class="rn-refused">${say(job.client, j.refused)}${j.teachRef || ''}</div>` : '';
     const b = panel(`<div class="rn-top">${head(job.client)}<div><p class="rn-title">${esc(job.title)}</p><p class="small">${esc(NAMES[job.client])} · ${esc(R.DISTRICTS[job.d].name)}</p></div></div>
       <p class="rn-scroll">“${esc(job.scroll)}”</p>
@@ -189,6 +193,10 @@
       if (k.startsWith('cfn:')) p[k.slice(4)] = v;
       else p[k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v;
       redraw();
+    });
+    b.querySelectorAll('[data-res]').forEach(el => el.onclick = () => {   // tap a resource: Delete, Retain, Snapshot, round again
+      const k = el.dataset.res, o = ['Delete', 'Retain', 'Snapshot'];
+      p[k] = o[(o.indexOf(p[k] || 'Delete') + 1) % 3]; redraw();
     });
     b.querySelectorAll('[data-house]').forEach(el => el.onclick = () => { p.batch = +el.dataset.house; redraw(); });   // tap a house on the street
     b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(); });
@@ -280,6 +288,7 @@
   }
   function showRun(s, job, res) {
     if (job.d === 'eb' && SD.renoStreet) return showStreetRun(s, job, res);
+    if (job.d === 'cfn' && SD.renoStreet) return showYardRun(s, job, res);
     const j = s.jobs[s.at], left = R.PLANS - j.plans.length;
     const pass = res.pass, last = left <= 0;
     const ev = events(job, res, j.plans[j.plans.length - 1].plan);
@@ -445,6 +454,60 @@
     s.phase = 'plan'; save(s);
     if (reduced()) return finish();
     step();
+  }
+  // The Blueprint Office's teardown as a cutscene: the camera goes resource by resource, each one becomes rubble, a jar,
+  // or stays standing with its seal; then Seymour's verdict, as on Beanstalk Row.
+  function showYardRun(s, job, res) {
+    const RS = SD.renoStreet, j = s.jobs[s.at], left = R.PLANS - j.plans.length;
+    const pass = res.pass, last = left <= 0, planNow = j.plans[j.plans.length - 1].plan, g = res.good;
+    const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
+    const seyLine = pass ? DR.SEYMOUR.clean : last ? 'Three plans, none signed. The scaffolding goes up anyway, and the permit question still gets asked.' : 'Not like that. Look at the slate.';
+    const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
+      <div class="rn-bleed rn-cut">${RS.scene({ stack: job.stack, plan: planNow, res: g.res, upto: 0, seymour: 'inspect', kai: 'neutral', shot: 'wide', label: 'The teardown playing out in the Office yard',
+        ui: `<div class="rs-row"><span class="rs-chip">The teardown</span><span class="rs-chip rs-lumber">0 lumber a night afterwards</span></div><div class="rs-row rs-mid"></div><div></div>` })}</div>
+      <div class="rn-runs rn-runrows"><div class="rn-run" data-run="g"><p class="rn-runh"><b>The teardown</b></p><p class="small rn-sum"></p></div></div>
+      <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', stack: job.stack, plan: planNow, res: g.res,
+        label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
+        ui: `<div class="rs-row"><span></span><p class="rs-say"><b>Seymour:</b> ${esc(seyLine)}</p></div><div></div>` })}</div>
+      <div class="rn-after" hidden>
+        <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
+        ${slateHtml(job, res)}
+        <ul class="rn-res">${g.res.map(x => `<li><span><b>${esc(nameIn(job, x.id))}</b> · ${esc(x.policy)}${x.dflt ? ' (default)' : ''}<br><span class="small">${x.kept === 'running' ? 'still standing, still costing lumber' : x.kept === 'snapshot' ? 'a snapshot in a jar, then deleted' : 'gone, and its data with it'}</span></span></li>`).join('')}</ul>
+        ${pass || last ? '' : say(job.client, CL(job.client).wrong || 'Not like that.')}
+        <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
+      </div>
+      <div class="rn-dock rn-skipd"><button class="ghost" id="rn-skip">▶▶ Skip to the verdict</button></div>`, 'SEYMOUR\'S INSPECTION');
+    const el = b.querySelector('.rn-cut .rs'), rnBox = b.querySelector('.rn');
+    el.classList.add('rs-run'); if (rnBox) rnBox.classList.add('rn-playing');
+    RS.mount(b);
+    let i = 0, timer = null, ended = false;
+    const show = k => {
+      RS.update(el, { stack: job.stack, plan: planNow, res: g.res, upto: k, seymour: 'inspect' });
+      if (k > 0 && k <= job.stack.length) RS.cut(el, 'push', k - 1); else RS.cut(el, 'wide');
+      const lum = g.res.slice(0, k).reduce((a, x) => a + x.cost, 0);
+      el.querySelector('.rs-lumber').textContent = `${lum} lumber a night afterwards`;
+      const x = g.res[k - 1];
+      if (x) el.querySelector('.rs-mid').innerHTML = `<p class="rs-say"><b>${esc(nameIn(job, x.id))}:</b> ${esc(x.policy)}. ${x.kept === 'running' ? 'Still standing, still costing.' : x.kept === 'snapshot' ? 'Into the jar, then down it comes.' : 'Gone, and everything in it.'}</p>`;
+    };
+    const finish = () => {
+      if (ended) return; ended = true; if (timer) clearTimeout(timer);
+      b.querySelector('[data-run="g"] .rn-sum').textContent = `${g.lumber} lumber a night afterwards`;
+      const vd = b.querySelector('.rn-verdict'); vd.hidden = false; b.querySelector('.rn-after').hidden = false; b.querySelector('.rn-cut').hidden = true;
+      if (rnBox) rnBox.classList.remove('rn-playing');
+      const sk = b.querySelector('.rn-skipd'); if (sk) sk.remove();
+      RS.mount(vd);
+      if (pass && U.burst) { const v = b.querySelector('.verdict'); if (v) U.burst(v); }
+      if (pass && job.grand && SD.modeStage && SD.modeStage.sting) SD.modeStage.sting('draft', 'win');
+      const deb = b.querySelector('#rn-deb'), again = b.querySelector('#rn-again'), give = b.querySelector('#rn-give');
+      if (deb) deb.onclick = () => { s.phase = 'debrief'; j.done = true; save(s); draw(s); };
+      if (again) again.onclick = () => { s.phase = 'plan'; save(s); draw(s); };
+      if (give) give.onclick = () => { s.phase = 'debrief'; j.done = true; j.pass = false; save(s); draw(s); };
+    };
+    const step = () => { if (ended) return; i++; show(i); timer = setTimeout(i < job.stack.length ? step : finish, i < job.stack.length ? 1300 : 1600); };
+    b.querySelector('#rn-skip').onclick = finish;
+    s.phase = 'plan'; save(s);
+    if (reduced()) return finish();
+    timer = setTimeout(step, 900);
   }
   const nameIn = (job, id) => { const r = job.stack.find(x => x.id === id); return r ? r.name : id; };
   function planName(job, p) {
