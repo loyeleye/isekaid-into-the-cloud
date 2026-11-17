@@ -178,8 +178,8 @@
     authttl: { at: 'gate', needs: 'auth', label: 'Authorizer cache', icon: 'hourglass', ids: ['ttl0', 'ttl300', 'ttl3600'] },
     gcachettl: { at: 'gate', needs: 'gcache', label: 'Stage cache TTL', icon: 'hourglass', ids: ['gttl0', 'gttl300', 'gttl3600'] },
     retry: { at: 'gate', label: 'Callers\' SDK: retry on 429', icon: 'anticlockwise-rotation', ids: ['immediate', 'backoff'] },
-    vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'] },
-    timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'] },
+    vis: { at: 'queue', label: 'Visibility timeout', icon: 'hourglass', ids: ['vis30', 'vis60', 'vis120', 'vis360'], cur: c => ([30, 60, 120, 360].includes(c.queue.vis) ? '' : c.queue.vis + ' s'), real: c => `VisibilityTimeout: ${c.queue.vis}` },
+    timeout: { at: 'fn', label: 'Function timeout', icon: 'stopwatch', ids: ['to30', 'to60', 'to120'], cur: c => ([30, 60, 120].includes(c.fn.timeout) ? '' : c.fn.timeout + ' s'), real: c => `Timeout: ${c.fn.timeout}` },
     shift: { at: 'fn', needs: 'release', label: 'Deployment', icon: 'bird-cage', ids: ['allatonce', 'canary', 'linear'] },
     sec: { at: 'fn', needs: 'secret', label: 'The ledger password', icon: 'key', ids: ['secinit', 'secttl', 'seccall'] },
     batch: { at: 'fn', label: 'Batch size', icon: 'card-random', ids: ['b1', 'b3'], cur: c => (c.fn.batch === 1 || c.fn.batch === 3 ? '' : String(c.fn.batch)) },
@@ -365,7 +365,8 @@
     const dials = (desk ? SD.drillBatch.html(f) : '') + (k === 'queue' && d.visLine ? visLineHtml(f) : '') + Object.keys(DIALS).filter(n => DIALS[n].at === k && !(n === 'vis' && d.visLine) && DIALS[n].ids.some(id => D.shown(f.drill, id) && !held.includes(id))).map(n => {
       if (n === 'key' && SD.drillHotKey) return SD.drillHotKey.html(f);   // the partition key desk: js/drill-hotkey.js
       const g = DIALS[n], cur = g.cur ? g.cur(f.cfg) : '', onId = g.ids.find(id => C[id].on(f.cfg));
-      const line = onId && REAL[onId] ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(REAL[onId])}</code>` : '';
+      const real = onId && REAL[onId] ? REAL[onId] : cur && g.real ? g.real(f.cfg) : '';   // a value off the dial's stops still shows as AWS spells it
+      const line = real ? `<code class="dr-cfg" aria-live="polite" title="The setting as AWS spells it">${esc(real)}</code>` : '';
       return `<div class="dr-dial" role="group" aria-label="${esc(g.label)}"><span class="dr-dl">${icon(g.icon)}${esc(g.label)}</span>
         <span class="dr-seg">${cur ? `<span class="dr-cur" title="The current setting">${esc(cur)}</span>` : ''}${g.ids.map(id => control(f, id, { cls: 'dr-card dr-pick' })).join('')}</span>${line}</div>`;
     }).join('');
