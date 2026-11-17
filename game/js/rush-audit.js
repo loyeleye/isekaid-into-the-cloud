@@ -43,23 +43,23 @@
     // Fault strength: a slow station's extra seconds; how often an error fault fails a ticket; a burst's on and off.
     // A fault gets worse the longer it runs (a backlog builds, retries pile up): its strength starts at sev0 and
     // reaches full after ramp seconds. So a quick mend is cheap and a neglected fault floods the ink.
-    slow: 5, errP: 0.25, burstOn: 2, burstOff: 14, transient: [6, 12], sev0: 0.25, ramp: 60, hang0: 0.1, hangRamp: 30, hangMax: 0.6,
+    slow: 5, errP: 0.25, burstOn: 2, burstOff: 10, transient: [6, 12], sev0: 0.25, ramp: 40, hang0: 0.3, hangRamp: 10, hangMax: 1,
     // The porter: the walk to any cabinet, then oiling, patching, or restarting a silent station.
-    walk: 0.6, oil: 1.5, patch: 1.8, restart: 2.5, jobs: 3,
+    walk: 0.6, oil: 1.5, patch: 1.8, restart: 2.5, jobs: 3, restartLoss: 1,
     // Gauges: the standard period (a "minute") and the 1-second dial's; the tracer's reservoir and its rate after.
     min: 6, sec: 1, reservoir: 2.5, sampleP: 0.05,
     // Alarm thresholds: average seconds per gauge, and a failure rate over 0.4.
     thr: { counter: 4.5, desk: 3, drawer: 1.5, drawerMs: 1.5, engineMs: 1.8 }, rateThr: 0.4,
-    fee: 0, float: 0, bonusEvery: 12, perDim: 10, reviewGap: 2, internEvery: 9, internWrong: 0.25, tray: 3,
+    fee: 0, float: 4, bonusEvery: 4, bonusFrom: 0, perDim: 10, reviewGap: 2, internEvery: 9, internWrong: 0.25, tray: 3,
     logKeep: 60, traceKeep: 12, recKeep: 20
   };
   const STATIONS = ['counter', 'desk', 'drawer', 'engine'];
   const NAME = { counter: 'Counter', desk: 'Mira', drawer: 'Drawer', engine: 'Engine' };
   // Which stations each fault kind can hit. Silent is the Engine only: a self-run server can hang; DynamoDB doesn't.
-  const WHERE = { slow: STATIONS, error: STATIONS, refund: ['engine', 'drawer', 'desk'], burst: ['drawer', 'counter'], silent: ['engine'] };
+  const WHERE = { slow: STATIONS, error: STATIONS, refund: ['engine', 'drawer', 'desk'], burst: ['drawer'], silent: ['engine'] };
   const KINDS = ['slow', 'error', 'refund', 'burst', 'silent'];
-  const COST = { tracer: 2, pins: 1, rule: 1, alarm: 1, stamp: 1, tally: 1, hires: 1, lens: 1, intern: 1 };
-  const UPKEEP = { tracer: 1, rule: 0, tally: 0, hires: 1 };
+  const COST = { tracer: 2, pins: 0, rule: 1, alarm: 1, stamp: 1, tally: 1, hires: 0, lens: 1, intern: 1 };
+  const UPKEEP = { tracer: 1, rule: 0, tally: 1, hires: 0 };
   function rng(seed) {
     let a = seed >>> 0;
     return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -98,7 +98,7 @@
       else {
         // Unseen kinds first; then a mix (silent at most once more, late on).
         const fresh = KINDS.filter(k => !seen.has(k) && k !== 'silent');
-        const pool = fresh.length ? fresh : ['slow', 'error', 'error', 'refund', 'burst', 'slow'].concat(h >= 6 && plan.filter(f => f.kind === 'silent').length < 2 ? ['silent'] : []);
+        const pool = fresh.length ? fresh : ['slow', 'error', 'refund', 'burst', 'burst', 'slow'].concat(h >= 6 && plan.filter(f => f.kind === 'silent').length < 2 ? ['silent'] : []);
         kind = pick(pool);
       }
       let station;
@@ -458,7 +458,13 @@
       const j = p.job, f = a.live[j.station], match = f && (j.job === 'oil') === (f.kind === 'slow');
       if (match) { endFault(S, j.station, 'mended'); a.stats.mended++; ev(S, 'mend', { station: j.station, job: j.job, kind: f.kind, from: j.from }); }
       else if (!f && a.cleared[j.station] != null && a.cleared[j.station] >= j.at - 3) { a.stats.wasted++; ev(S, 'wasted', { station: j.station, job: j.job, from: j.from }); }
-      else { a.stats.wrong++; const paid = S.coins > 0; if (paid) S.coins--; ev(S, 'mendWrong', { station: j.station, job: j.job, from: j.from, paid, kind: f ? f.kind : null }); }
+      else {
+        // Mending blind costs: the coin for the trip, and a patch restarts a healthy station, which drops the call it
+        // was in the middle of (a lost ticket).
+        a.stats.wrong++; const paid = S.coins > 0; if (paid) S.coins--;
+        ev(S, 'mendWrong', { station: j.station, job: j.job, from: j.from, paid, kind: f ? f.kind : null });
+        if (j.job === 'patch') for (let i = 0; i < T.restartLoss; i++) lose(S, 'restart');
+      }
       p.job = null; p.phase = 'back'; p.t = 0; p.dur = T.walk;
     }
   }
@@ -490,7 +496,7 @@
   function costOf(S, tool) { return tool === 'alarm' && S.orders.has('composite') ? 0 : COST[tool]; }
   function canPlace(S, tool, target, opts) {
     const a = S.audit;
-    if (!COST[tool] && tool !== 'alarm') return 'unknown';
+    if (!(tool in COST)) return 'unknown';
     if (tool !== 'intern' && !S.belt.includes(tool)) return 'locked';
     if (S.over) return 'over';
     if (['tracer', 'pins', 'rule', 'stamp'].includes(tool) && (tool === 'stamp' ? a.stamp : a[tool])) return 'placed';
@@ -658,7 +664,7 @@
     if (a.down) {
       a.stats.downT += dt;
       // Trusting your alarms pays: from 00:00, a coin for every bonusEvery seconds downstairs with a klaxon up.
-      if (h >= 2 && a.alarms.length) { a.bonusT += dt; if (a.bonusT >= T.bonusEvery) { a.bonusT -= T.bonusEvery; S.coins++; a.stats.bonus++; ev(S, 'bonus'); } }
+      if (h >= T.bonusFrom && a.alarms.length) { a.bonusT += dt; if (a.bonusT >= T.bonusEvery) { a.bonusT -= T.bonusEvery; S.coins++; a.stats.bonus++; ev(S, 'bonus'); } }
     } else a.stats.upT += dt;
     internStep(S);
     if (S.time >= S.close) {

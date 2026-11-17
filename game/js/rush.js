@@ -759,7 +759,7 @@
   }
   function rrect(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); }
   function text(t, x, y, size, col, align, weight) {
-    size *= L.fs; cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
+    size = Math.max(size * L.fs, audMinPx()); cx.save(); cx.font = `${weight || 700} ${size}px Fredoka, "Trebuchet MS", system-ui, sans-serif`; cx.textAlign = align || 'center'; cx.textBaseline = 'middle';
     cx.lineJoin = 'round'; cx.lineWidth = Math.max(3, size / 6); cx.strokeStyle = 'rgba(0,0,0,.9)'; cx.strokeText(t, x, y); cx.fillStyle = col; cx.fillText(t, x, y); cx.restore();
   }
   function plaque(t, x, y) {
@@ -1227,8 +1227,8 @@
       if (!used) img(TOOL_IMG[t], r[0] + r[2] / 2, r[1] + r[3] / 2 - 8 * L.fs, 52 * L.fs, 'mm', locked || poor ? .4 : 1);
       // The label shrinks to fit a narrow slot.
       const label = use || (used ? 'placed' : locked ? 'next claim' : TOOL_LABEL[t]);
-      cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
-      if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
+      const bf = Math.max(14 * L.fs, audMinPx()); cx.save(); cx.font = `700 ${bf}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
+      if (lw > r[2] - 6) cx.font = `700 ${Math.max(bf * (r[2] - 6) / lw, audMinPx())}px Nunito, "Segoe UI", sans-serif`;
       cx.textAlign = 'center'; cx.fillStyle = used ? '#8a7f92' : '#f2e6cc';
       cx.fillText(label, r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
       if (!S[t] && !locked) {
@@ -1616,17 +1616,22 @@
     down: { pile: [560, 470, 220, 130], mail: [990, 330, 120, 66], tray: [860, 500, 170, 90], lamp: [1110, 70], up: [0, 476, 44, 150] }
   };
   const WATCH_TALL = {
-    W: 768, H: 1344, bg: 'watch-tall', painted: false, fs: 1.6, watch: true,
+    W: 768, H: 1504, bg: 'watch-tall', painted: false, fs: 1.6, watch: true,
     title: [20, 20], say: { x: 16, y: 150, w: 736 }, belt: { h: 150, slot: 162 }, coinsAt: [470, 50],
-    // Two rows: the Counter and Mira up top, the Engine and the Drawer (the calls she makes) below.
-    st: { counter: [210, 740], desk: [510, 740], drawer: [510, 1080], engine: [210, 1080] }, cab: [176, 200], floor: 1080,
-    tube: 620, ret: 620, intake: [44, 400], cup: [44, 620], outX: 640, basket: [640, 1140, 96, 60],
-    dialY: null, dialR: 30, dialDx: 80,
-    clock: [92, 380, 110, 200], ink: [716, 290, 36, 360], jobs: [212, 374, 470, 80], board: [212, 286, 470, 84],
-    logs: { counter: [44, 800, 56, 70], desk: [360, 790, 56, 70] }, bench: [360, 1160], porterH: 224,
-    door: [0, 1040, 44, 120], bellAt: [700, 250],
-    down: { pile: [384, 700, 300, 150], mail: [600, 470, 130, 70], tray: [384, 940, 240, 100], lamp: [384, 300], up: [0, 1040, 44, 120] }
+    // Two rows: the Counter and Mira up top, the Engine and the Drawer (the calls she makes) below. The board and the
+    // porter's list sit above them at phone-readable size (22 px on this stage is 11 CSS px on a 390 px phone).
+    st: { counter: [210, 880], desk: [510, 880], drawer: [510, 1220], engine: [210, 1220] }, cab: [176, 200], floor: 1220,
+    tube: 760, ret: 760, intake: [44, 400], cup: [44, 760], outX: 700, basket: [700, 1290, 90, 60],
+    dialY: null, dialR: 30, dialDx: 100,
+    clock: [92, 380, 110, 200], ink: [716, 290, 36, 360], jobs: [212, 350, 470, 176], board: [212, 150, 470, 190],
+    logs: { counter: [44, 810, 64, 76], desk: [360, 810, 64, 76] }, bench: [360, 1300], porterH: 224,
+    door: [0, 1180, 44, 120], bellAt: [700, 250],
+    down: { pile: [384, 700, 300, 150], mail: [600, 470, 130, 70], tray: [384, 940, 240, 100], lamp: [384, 300], up: [0, 1180, 44, 120] }
   };
+
+  // Phone legibility: on the tall Watch Room (scaled to about half on a 390 px phone), no text under ~11 CSS px.
+  const AUD_MIN_TALL = 22;
+  function audMinPx() { return S && S.audit && L === WATCH_TALL ? AUD_MIN_TALL : 0; }
   const AUD_BELT_LABEL = { tracer: 'Tracer', pins: 'Pins', alarm: 'Klaxon', stamp: 'EMF stamp', tally: 'Tally', hires: '1s dial', rule: 'Rule card', lens: 'Lens', intern: 'Intern' };
   // What each buy goes on, for tap-to-arm: room-wide buys go on at once; the rest wait for a tap on their target.
   const AUD_WHERE = { tracer: 'room', pins: 'room', lens: 'room', intern: 'room', rule: 'counter', stamp: 'desk', tally: 'station', alarm: 'gauge', hires: 'gauge' };
@@ -1643,7 +1648,7 @@
     decoy: 'Mira\'s Duration is up, but her Duration counts her waits on calls. Check the subsegments before you oil her.',
     transient: 'It fixed itself. Some do. Chasing those costs you porter time.',
     overlap: 'Two at once. One porter. Pick: silence first, then errors, then slowness.',
-    mendWrong: 'Nothing wrong there. That cost a coin. Look before you fix.',
+    mendWrong: 'Nothing wrong there. That cost a coin, and a restart drops the call it was on. Look before you fix.',
     wasted: 'Already fixed itself before he got there. A wasted trip.',
     mend: 'Fixed. The gauge will settle over the next data point or two.',
     alarm: 'A klaxon changed state. OK, ALARM, or grey for no data. Grey isn\'t OK: pick a missing-data treatment.',
@@ -1656,14 +1661,14 @@
     dark: 'Couldn\'t pay the hour\'s upkeep, so something went dark. Coins come from the cellar.',
     down: 'The cellar. Answer review questions for coins. Only a klaxon reaches you down here.',
     downNoAlarm: 'No klaxons up. Nothing will call you back. Don\'t stay long.',
-    bonus: 'Trusting your klaxons pays. A coin for the quiet time down here.',
+    bonus: 'Trusting your klaxons pays. A coin for every few quiet seconds down here.',
     jobsFull: 'He\'s got three jobs already. Cancel one, or wait.',
     tracer: 'The tracer. One ticket in a while gets a thread: its trace shows every call and how long each took.',
-    pins: 'Pins are annotations. Indexed, so you can search traces by route.',
+    pins: 'Pins are annotations. Indexed, so you can search traces by route. They cost nothing extra, so they\'re free.',
     alarm: 'A klaxon: an alarm on one gauge. Tap the gauge to set M of N and what missing data means.',
     stamp: 'The EMF stamp. Mira\'s log lines now carry her call timings, and CloudWatch turns them into gauges.',
-    tally: 'A tally counts finished jobs from inside the cabinet. A heartbeat: it stops when the cabinet hangs.',
-    hires: 'The 1-second dial. A data point every second, not every minute.',
+    tally: 'A tally counts finished jobs from inside the cabinet. A heartbeat: it stops when the cabinet hangs. Custom metrics bill by the month, so it\'s a coin an hour. Miss the bill and it goes quiet, which looks just like a hang.',
+    hires: 'The 1-second dial. A data point every second, not every minute. On the house, but it twitches: put a 1-of-1 klaxon on it and it\'ll ring at every hiccup.',
     rule: 'A sampling rule at the root. Every refund gets traced now.',
     lens: 'The lens runs a Logs Insights query over the last hour. A coin a query.',
     intern: 'The intern answers the questions you\'ve already solved. Check his work: some of it\'s wrong.',
@@ -1883,7 +1888,7 @@
   }
   // ---- Drawing ----
   // Plain small print (no outline), for badges and price tags.
-  function ptext(t, x, y, size, col) { cx.save(); cx.font = `800 ${size * L.fs}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(t, x, y); cx.restore(); }
+  function ptext(t, x, y, size, col) { cx.save(); cx.font = `800 ${Math.max(size * L.fs, audMinPx())}px Nunito, "Segoe UI", sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(t, x, y); cx.restore(); }
   function audBg() {
     const bg = IMG[L.bg];
     if (bg) { cx.drawImage(bg, 0, 0, L.W, L.H); return; }
@@ -1925,7 +1930,7 @@
     const aws = { counter: 'API Gateway', desk: 'Lambda', drawer: 'DynamoDB', engine: 'app server' }[st];
     plaque(`${A8.NAME[st]} · ${aws}`, x, y + 18 * L.fs);
     if (a.tallies.includes(st)) { cx.fillStyle = a.dark.has('tally:' + st) ? '#555' : '#d6b254'; rrect(sx + w - 30, sy + h - 40, 22, 28, 4); cx.fill(); ptext('#', sx + w - 19, sy + h - 26, 14, '#2b1a08'); }
-    if (st === 'desk' && a.stamp) { cx.fillStyle = a.dark.has('stamp') ? '#555' : '#c8473b'; rrect(sx + 8, sy + h - 40, 26, 28, 4); cx.fill(); ptext('EMF', sx + 21, sy + h - 26, 9, '#fff'); }
+    if (st === 'desk' && a.stamp) { cx.fillStyle = a.dark.has('stamp') ? '#555' : '#c8473b'; const bw = audMinPx() ? 58 : 26, bh = audMinPx() ? 32 : 28; rrect(sx + 8, sy + h - 12 - bh, bw, bh, 4); cx.fill(); ptext('EMF', sx + 8 + bw / 2, sy + h - 12 - bh / 2, 9, '#fff'); }
     if (st === 'counter' && a.rule) { cx.fillStyle = '#f1e2b8'; rrect(sx + 8, sy + h - 40, 34, 24, 3); cx.fill(); ptext('100%', sx + 25, sy + h - 28, 9, '#2b1a08'); }
     if (AU8.armed && targetOk(AU8.armed, st)) glowSpot([sx - 6, sy - 6, w + 12, h + 12], true);
   }
@@ -2020,28 +2025,29 @@
     const a = M.audit; if (!a.tracer) return;
     const [x, y, w, h] = L.board;
     cx.save(); rrect(x, y, w, h, 8); cx.fillStyle = a.dark.has('tracer') ? 'rgba(60,60,60,.9)' : 'rgba(240,228,200,.95)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#5a4020'; cx.stroke();
-    cx.font = `700 ${14 * Math.min(L.fs, 1.3)}px Nunito, sans-serif`; cx.fillStyle = '#3a2510'; cx.textAlign = 'left'; cx.textBaseline = 'top';
+    const fz = Math.max(14 * Math.min(L.fs, 1.3), audMinPx()), head = fz + 12, rowH = (h - head - 6) / 4, bx = x + 20 + fz * 2.8;
+    cx.font = `700 ${fz}px Nunito, sans-serif`; cx.fillStyle = '#3a2510'; cx.textAlign = 'left'; cx.textBaseline = 'top';
     cx.fillText(a.dark.has('tracer') ? 'X-RAY TRACES (dark: no upkeep)' : 'X-RAY TRACES · tap to read', x + 10, y + 6);
     // The last few traces as thin timelines: red for a fault, amber for slow, green for fine.
     const last = a.traces.slice(-4).reverse();
     last.forEach((tr, i) => {
-      const ty = y + 30 + i * ((h - 36) / 4), bad = tr.rows.some(r => r.points && r.points.job === 'patch'), slow = tr.rows.some(r => r.points && r.points.job === 'oil');
+      const ty = y + head + i * rowH, bad = tr.rows.some(r => r.points && r.points.job === 'patch'), slow = tr.rows.some(r => r.points && r.points.job === 'oil');
       cx.fillStyle = '#7a6040'; cx.fillText(tr.at, x + 10, ty);
-      cx.fillStyle = bad ? '#c8473b' : slow ? '#d99a2a' : '#4a9a5e'; cx.fillRect(x + 70, ty + 4, Math.min(w - 90, (w - 90) * tr.resp / 8), 10);
+      cx.fillStyle = bad ? '#c8473b' : slow ? '#d99a2a' : '#4a9a5e'; cx.fillRect(bx, ty + fz * .25, Math.min(x + w - 20 - bx, (x + w - 20 - bx) * tr.resp / 8), Math.max(10, fz * .5));
     });
-    if (!last.length) { cx.fillStyle = '#7a6040'; cx.fillText('No traces yet.', x + 10, y + 34); }
+    if (!last.length) { cx.fillStyle = '#7a6040'; cx.fillText('No traces yet.', x + 10, y + head + 4); }
     cx.restore();
   }
   function audJobsPanel() {
     const a = M.audit, [x, y, w, h] = L.jobs, p = a.porter;
     cx.save(); rrect(x, y, w, h, 10); cx.fillStyle = 'rgba(24,20,30,.88)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
-    const fz = 14 * Math.min(L.fs, 1.3);
+    const fz = Math.max(14 * Math.min(L.fs, 1.3), audMinPx()), head = fz * 1.6, rowH = (h - head - 6) / 3;
     cx.save(); cx.font = `700 ${fz}px Nunito, sans-serif`; cx.textAlign = 'left'; cx.textBaseline = 'middle';
-    cx.fillStyle = '#ffe6a8'; cx.fillText(p.job ? `Porter: ${p.job.job === 'oil' ? 'oiling' : 'patching'} ${WHO(p.job.station)}` : 'Porter: on his bench', x + 10, y + 16);
+    cx.fillStyle = '#ffe6a8'; cx.fillText(p.job ? `Porter: ${p.job.job === 'oil' ? 'oiling' : 'patching'} ${WHO(p.job.station)}` : 'Porter: on his bench', x + 10, y + fz * .9);
     for (let i = 0; i < A8.T.jobs; i++) {
-      const j = a.jobs[i], ry = y + 36 + i * ((h - 40) / 3);
+      const j = a.jobs[i], ry = y + head + i * rowH + rowH / 2;
       cx.fillStyle = j ? '#f2e6cc' : '#6a6070';
-      cx.fillText(j ? `${i + 1}. ${j.job === 'oil' ? 'Oil' : 'Patch'} ${WHO(j.station)}${j.from === 'alarm' ? ' (klaxon)' : ''}` : `${i + 1}. -`, x + 14, ry + 8);
+      cx.fillText(j ? `${i + 1}. ${j.job === 'oil' ? 'Oil' : 'Patch'} ${WHO(j.station)}${j.from === 'alarm' ? ' (klaxon)' : ''}` : `${i + 1}. -`, x + 14, ry);
     }
     cx.restore();
     if (M.orders.has('composite')) { const [bx, by] = L.bellAt; cx.beginPath(); cx.arc(bx, by, 18, 0, 7); cx.fillStyle = a.bell.state === 'ALARM' ? '#ff4a3a' : '#d6b254'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#000'; cx.stroke(); text(a.bell.op.toUpperCase(), bx, by + 30, 12, '#ffe6a8'); }
@@ -2076,7 +2082,7 @@
   function audDoor() {
     const r = AU8.room === 'down' ? L.down.up : L.door, a = M.audit, ringing = AU8.room === 'down' && a.alarms.some(al => al.state === 'ALARM');
     cx.save(); rrect(r[0], r[1], r[2], r[3], 8); cx.fillStyle = ringing ? 'rgba(200,60,50,.9)' : 'rgba(40,30,20,.92)'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#be9650'; cx.stroke(); cx.restore();
-    cx.save(); cx.translate(r[0] + r[2] / 2, r[1] + r[3] / 2); cx.rotate(-Math.PI / 2); cx.font = `700 ${16 * Math.min(L.fs, 1.2)}px Fredoka, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffe6a8';
+    cx.save(); cx.translate(r[0] + r[2] / 2, r[1] + r[3] / 2); cx.rotate(-Math.PI / 2); cx.font = `700 ${Math.max(16 * Math.min(L.fs, 1.2), audMinPx())}px Fredoka, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffe6a8';
     cx.fillText(AU8.room === 'down' ? 'Up ▲' : 'Cellar ▼', 0, 0); cx.restore();
   }
   function audHud() {
@@ -2098,7 +2104,7 @@
       cx.save(); rrect(r[0], r[1], r[2], r[3], 14); cx.fillStyle = placed ? 'rgba(30,26,34,1)' : armed ? 'rgba(110,86,40,1)' : 'rgba(58,48,62,1)'; cx.fill();
       cx.lineWidth = armed ? 4 : 2; cx.strokeStyle = armed ? '#ffd666' : '#64566e'; cx.stroke(); cx.restore();
       audIcon(t, r[0] + r[2] / 2, r[1] + r[3] * .42, Math.min(r[2], r[3]) * .42, poor ? .4 : placed ? .35 : 1);
-      const label = placed ? 'placed' : AUD_BELT_LABEL[t];
+      const label = placed ? 'placed' : audMinPx() && t === 'stamp' ? 'Stamp' : AUD_BELT_LABEL[t];
       cx.save(); cx.font = `700 ${14 * L.fs}px Nunito, "Segoe UI", sans-serif`; const lw = cx.measureText(label).width;
       if (lw > r[2] - 6) cx.font = `700 ${14 * L.fs * (r[2] - 6) / lw}px Nunito, "Segoe UI", sans-serif`;
       cx.textAlign = 'center'; cx.fillStyle = placed ? '#8a7f92' : '#f2e6cc'; cx.fillText(label, r[0] + r[2] / 2, r[1] + r[3] - 6); cx.restore();
@@ -2120,10 +2126,10 @@
     if (t === 'tracer') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .7, -R0, R0 * 1.4, R0 * .3); cx.fillRect(-R0 * .7, R0 * .7, R0 * 1.4, R0 * .3); cx.fillStyle = '#d03030'; cx.fillRect(-R0 * .5, -R0 * .7, R0, R0 * 1.4); cx.strokeRect(-R0 * .7, -R0, R0 * 1.4, R0 * 2); }
     else if (t === 'pins') { cx.fillStyle = '#c8c8c8'; cx.fillRect(-2, -R0 * .2, 4, R0 * 1.2); cx.beginPath(); cx.arc(0, -R0 * .4, R0 * .45, 0, 7); cx.fillStyle = '#d03030'; cx.fill(); cx.stroke(); }
     else if (t === 'alarm') { cx.beginPath(); cx.arc(0, 0, R0 * .8, Math.PI, 0); cx.lineTo(R0 * .8, R0 * .5); cx.lineTo(-R0 * .8, R0 * .5); cx.closePath(); cx.fillStyle = '#d6b254'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, -R0 * .9, R0 * .25, 0, 7); cx.fillStyle = '#ff4a3a'; cx.fill(); cx.stroke(); }
-    else if (t === 'stamp') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .2, -R0, R0 * .4, R0 * .9); cx.fillStyle = '#c8473b'; cx.fillRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.strokeRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.fillStyle = '#fff'; cx.font = `800 ${R0 * .45}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('EMF', 0, R0 * .2); }
-    else if (t === 'tally') { rrect(-R0 * .7, -R0 * .7, R0 * 1.4, R0 * 1.5, 8); cx.fillStyle = '#9a9aa8'; cx.fill(); cx.stroke(); cx.fillStyle = '#1a1410'; cx.fillRect(-R0 * .5, -R0 * .3, R0, R0 * .4); cx.fillStyle = '#7f7'; cx.font = `700 ${R0 * .35}px monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('0042', 0, -R0 * .1); }
-    else if (t === 'hires') { cx.beginPath(); cx.arc(0, 0, R0 * .85, 0, 7); cx.fillStyle = '#2a5ab8'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, 0, R0 * .65, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.fillStyle = '#1a1410'; cx.fillRect(0, -1.5, R0 * .55, 3); cx.font = `800 ${R0 * .4}px sans-serif`; cx.textAlign = 'center'; cx.fillText('1s', 0, R0 * .4); }
-    else if (t === 'rule') { rrect(-R0 * .9, -R0 * .6, R0 * 1.8, R0 * 1.2, 4); cx.fillStyle = '#f1e2b8'; cx.fill(); cx.stroke(); cx.fillStyle = '#2b1a08'; cx.font = `800 ${R0 * .5}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('100%', 0, 0); }
+    else if (t === 'stamp') { cx.fillStyle = '#8a5a2c'; cx.fillRect(-R0 * .2, -R0, R0 * .4, R0 * .9); cx.fillStyle = '#c8473b'; cx.fillRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.strokeRect(-R0 * .8, -R0 * .1, R0 * 1.6, R0 * .6); cx.fillStyle = '#fff'; cx.font = `800 ${R0 * .45}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('EMF', 0, R0 * .2); }
+    else if (t === 'tally') { rrect(-R0 * .7, -R0 * .7, R0 * 1.4, R0 * 1.5, 8); cx.fillStyle = '#9a9aa8'; cx.fill(); cx.stroke(); cx.fillStyle = '#1a1410'; cx.fillRect(-R0 * .5, -R0 * .3, R0, R0 * .4); cx.fillStyle = '#7f7'; cx.font = `700 ${R0 * .35}px monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('0042', 0, -R0 * .1); }
+    else if (t === 'hires') { cx.beginPath(); cx.arc(0, 0, R0 * .85, 0, 7); cx.fillStyle = '#2a5ab8'; cx.fill(); cx.stroke(); cx.beginPath(); cx.arc(0, 0, R0 * .65, 0, 7); cx.fillStyle = '#f4ead2'; cx.fill(); cx.fillStyle = '#1a1410'; cx.fillRect(0, -1.5, R0 * .55, 3); cx.font = `800 ${R0 * .4}px sans-serif`; cx.textAlign = 'center'; if (!audMinPx()) cx.fillText('1s', 0, R0 * .4); }
+    else if (t === 'rule') { rrect(-R0 * .9, -R0 * .6, R0 * 1.8, R0 * 1.2, 4); cx.fillStyle = '#f1e2b8'; cx.fill(); cx.stroke(); cx.fillStyle = '#2b1a08'; cx.font = `800 ${R0 * .5}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; if (!audMinPx()) cx.fillText('100%', 0, 0); }
     else if (t === 'lens') { cx.beginPath(); cx.arc(-R0 * .15, -R0 * .15, R0 * .55, 0, 7); cx.fillStyle = 'rgba(170,210,240,.6)'; cx.fill(); cx.lineWidth = 5; cx.strokeStyle = '#b8924a'; cx.stroke(); cx.lineWidth = 7; cx.beginPath(); cx.moveTo(R0 * .25, R0 * .25); cx.lineTo(R0 * .8, R0 * .8); cx.stroke(); }
     else if (t === 'intern' && IMG.intern) { cx.drawImage(IMG.intern, -R0 * .6, -R0 * .8, R0 * 1.2, R0 * 1.6); }
     cx.restore();
@@ -2246,7 +2252,7 @@
         <div class="row">Action: ${opt('act', true, 'send the porter')}${opt('act', false, 'just ring')}</div></div>`;
     }).join('');
     const free = g.metrics.filter(m => !a.alarms.some(al => al.gauge === g.id && al.metric === m.key));
-    const buy = free.map(m => `<button type="button" class="b" data-act="addal:${m.key}">Klaxon on ${m.key} (${A8.costOf(M, 'alarm')})</button>`).join('') + (g.src !== 'builtin' && !g.hires ? `<button type="button" class="b" data-act="buy:hires:g">1s dial (1, -1/h)</button>` : g.src === 'builtin' ? `<button type="button" class="b alt" data-act="buy:hires:g">1s dial</button>` : '');
+    const buy = free.map(m => `<button type="button" class="b" data-act="addal:${m.key}">Klaxon on ${m.key} (${A8.costOf(M, 'alarm')})</button>`).join('') + (g.src !== 'builtin' && !g.hires ? `<button type="button" class="b" data-act="buy:hires:g">1s dial (${A8.costOf(M, 'hires')}${A8.UPKEEP.hires ? `, -${A8.UPKEEP.hires}/h` : ''})</button>` : g.src === 'builtin' ? `<button type="button" class="b alt" data-act="buy:hires:g">1s dial</button>` : '');
     cardOpen('gauge', `<h3>${A8.NAME[g.station]} gauge</h3><p class="sub">${src} · ${g.hires ? 'a data point every second' : 'a data point every minute'}</p><div class="kv">${kv}</div>${als}<div class="row">${buy}</div>`, { g: g.id });
   }
   function stampCard() {
@@ -2361,7 +2367,7 @@
       case 'hour': if (e.upkeep) { coinPulse = 1; popAt([L.W / 2, L.H * .3], `${e.clock} · upkeep -${e.upkeep}`, '#ff9a8a', 28); } else popAt([L.W / 2, L.H * .3], e.clock, '#ffe6a8', 30); break;
       case 'dark': say('dark', 'tired', AUD_LINES.dark); break;
       case 'bonus': coinPulse = 1.5; sfx('coin'); say('bonus', 'smile', AUD_LINES.bonus); break;
-      case 'spill': sfx('splat'); AU8.splash.push({ t: 0 }); if (AU8.room === 'up') popAt([L.basket[0], L.basket[1] - 50], e.why === 'late' ? '504 late' : e.why === 'silent' ? 'no answer' : e.why === 'intern' ? 'intern' : '5xx', '#ff9a8a', 24); break;
+      case 'spill': sfx('splat'); AU8.splash.push({ t: 0 }); if (AU8.room === 'up') popAt([L.basket[0], L.basket[1] - 50], e.why === 'late' ? '504 late' : e.why === 'silent' ? 'no answer' : e.why === 'intern' ? 'intern' : e.why === 'restart' ? 'dropped by the restart' : '5xx', '#ff9a8a', 24); break;
       case 'cardinality': say('cardinality', 'angry', AUD_LINES.cardinality); break;
       case 'place': if (e.tool === 'tracer') say('intro-tr', 'neutral', 'The board on the wall shows the latest traces. Tap it to read one.'); break;
       case 'mail': say('mail', 'neutral', AUD_LINES.mail); break;
@@ -2425,7 +2431,8 @@
       gauge: id => toClient(gaugePos(gaugeById(id))), clock: () => toClient([L.clock[0], L.clock[1]]), board: () => toClient([L.board[0] + L.board[2] / 2, L.board[1] + L.board[3] / 2]),
       log: src => toClient([L.logs[src][0], L.logs[src][1]]), door: () => { const r = AU8.room === 'down' ? L.down.up : L.door; return toClient([r[0] + r[2] / 2, r[1] + r[3] / 2]); },
       pile: () => toClient([L.down.pile[0], L.down.pile[1]]), jobs: () => toClient([L.jobs[0] + L.jobs[2] / 2, L.jobs[1] + L.jobs[3] / 2]),
-      belt: () => { const r = audBeltRect(); return { x: toClient([r[0], r[1]]), w: r[2] * scale, right: toClient([r[0] + r[2], r[1]])[0] }; }, switchRoom: audSwitch
+      belt: () => { const r = audBeltRect(); return { x: toClient([r[0], r[1]]), w: r[2] * scale, right: toClient([r[0] + r[2], r[1]])[0] }; }, switchRoom: audSwitch,
+      skipSay: () => { sayQ.length = 0; saying = null; said.intro = said.intro2 = true; }
     }
   };
   // ---- end claim 8 (Night Audit) block ----

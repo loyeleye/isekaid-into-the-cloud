@@ -224,10 +224,10 @@
   // One continuous night, 22:00 to 06:00, no waves: faults overlap at four stations, and the buys change what you can
   // see. Not chained yet (claim 7 comes before it); play it with rush.html?claim=audit.
   CLAIMS.audit = {
-    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: null, close: 144, clerk: 'papers', cap: 18,
+    name: 'THE NIGHT AUDIT', title: 'the Night Audit', engine: 'audit', room: 'watch', locked: [], next: null, close: 144, clerk: 'papers', cap: 26,
     belt: ['tracer', 'pins', 'alarm', 'stamp', 'tally', 'hires'], extras: ['rule', 'lens'],
-    night: { start: 22, hours: 8, hourSecs: 18, rate: [0.32, 0.36, 0.4, 0.44, 0.48, 0.52, 0.56, 0.6], maxLive: [1, 1, 2, 2, 2, 3, 3, 3],
-      gap: [[0, 0], [0, 0], [16, 20], [14, 20], [14, 18], [13, 17], [12, 17], [12, 16]], transientP: 0.35, refund: 0.3 }
+    night: { start: 22, hours: 8, hourSecs: 18, rate: [0.32, 0.36, 0.4, 0.44, 0.48, 0.52, 0.56, 0.6], maxLive: [1, 1, 2, 3, 3, 3, 3, 3],
+      gap: [[0, 0], [0, 0], [12, 16], [11, 15], [10, 14], [9, 13], [9, 13], [9, 12]], transientP: 0.35, refund: 0.3 }
   };
   // ---- end claim 8 ----
   const TOOLS = {

@@ -33,11 +33,14 @@ function queryEvidence(S, res) { return res && res.rows ? res.rows.filter(r => r
 // buy: what to buy and when ({ at: game seconds, or hour: clock hour, after: 'tool' }), in order, as coins allow.
 // read: what it reads upstairs. act: how it turns evidence into jobs. down: when it goes downstairs.
 const KL = (gauge, metric, o) => Object.assign({ tool: 'alarm', gauge, metric, m: 2, n: 3, missing: 'missing', act: true }, o || {});
-// The lesson build (section 12): tracer, an EMF stamp whose two gauges carry klaxons with actions, pins, an Engine
-// tally heartbeat with missing data breaching, a 1-second dial by 02:30, triage by impact, downstairs when calm.
-const LESSON = { buy: [{ tool: 'tracer' }, { tool: 'stamp', dim: 'station' }, KL('stamp:engine', 'EngineMs', { missing: 'notBreaching' }), KL('stamp:drawer', 'DrawerMs', { missing: 'notBreaching' }),
-    { tool: 'pins', hour: 1 }, { tool: 'tally', target: 'engine', hour: 2 }, KL('tally:engine', 'Jobs', { missing: 'breaching' }), KL('counter', '5XXError', { act: false, missing: 'notBreaching' }), { tool: 'hires', gauge: 'stamp:engine', hour: 4 }],
-    read: ['traces', 'deskLog'], wait: 1, triage: 'impact', down: 'calm', reserve: 1
+// The lesson build (section 12): tracer, an EMF stamp whose two gauges carry klaxons with actions (3 of 4, so a
+// passing slowness doesn't send the porter), pins, an Engine tally heartbeat with missing data breaching, triage by
+// impact, downstairs when calm, and trusting the klaxons: it comes up for a look every 16 s, not 12.
+// No second tally and no 1-second dial: each tally costs a coin an hour, and the lesson can't carry two.
+const LESSON = {
+  buy: [{ tool: 'tracer' }, { tool: 'stamp', dim: 'station' }, KL('stamp:engine', 'EngineMs', { missing: 'notBreaching', m: 3, n: 4 }), KL('stamp:drawer', 'DrawerMs', { missing: 'notBreaching', m: 3, n: 4 }),
+    { tool: 'tally', target: 'engine' }, KL('tally:engine', 'Jobs', { missing: 'breaching' }), { tool: 'pins', hour: 1 }],
+  read: ['traces', 'deskLog'], wait: 1, triage: 'impact', down: 'calm', reserve: 1, peek: 16
 };
 // The first lesson draft: built-in gauges, no actions (kept as a comparison).
 const LESSON_BUILTIN = {
@@ -71,7 +74,8 @@ const CHECKS = {
   'lesson -alarm': without('alarm'),
   'lesson -tally': without('tally'),
   'lesson -stamp': without('stamp'),
-  'lesson -hires': without('hires'),
+  // The 1-second dial isn't in the lesson: this adds a Drawer tally with a Failed klaxon and its 1-second dial.
+  'lesson +hires': Object.assign({}, LESSON, { buy: LESSON.buy.concat([{ tool: 'tally', target: 'drawer', hour: 2 }, KL('tally:drawer', 'Failed', { missing: 'notBreaching' }), { tool: 'hires', gauge: 'tally:drawer', hour: 2 }]) }),
   'lesson fifo': Object.assign({}, LESSON, { triage: 'fifo' }),
   'lesson chase': Object.assign({}, LESSON, { wait: 0, chase: true, buy: LESSON.buy.map(b => b.tool === 'alarm' ? Object.assign({}, b, { m: 1, n: 1, act: true }) : b) }),
   'lesson sampling': Object.assign({}, LESSON, { orders: ['sampling'] }),
@@ -100,7 +104,11 @@ function night(seed, b) {
       if (x.tool === 'stamp') target = 'desk';
       if ((x.tool === 'alarm' || x.tool === 'hires') && target == null) { if (b.asap) continue; return; }
       // A careful build keeps a coin back for the hour's upkeep (once the first buy is in).
-      if (b.reserve && i > 0 && S.coins - A.costOf(S, x.tool, target, opts) < b.reserve) return;
+      if (b.reserve && i > 0) {
+        const U = A.UPKEEP, bill = (a.tracer ? U.tracer : 0) + a.tallies.length * (U.tally || 0) + a.gauges.filter(g => g.hires).length * (U.hires || 0),
+          more = x.tool === 'tracer' ? U.tracer : x.tool === 'tally' ? U.tally || 0 : x.tool === 'hires' ? U.hires || 0 : 0;
+        if (S.coins - A.costOf(S, x.tool, target, opts) < bill + more + b.reserve - 1) return;
+      }
       const why = R.place(S, x.tool, target, opts);
       if (why === '' || why === 'placed') { x.done = true; continue; }
       if (!b.asap) return;
@@ -114,8 +122,9 @@ function night(seed, b) {
     if (src === 'deskLog') return [logEvidence(S, 'desk').filter(e => e.job === 'patch'), 1.2];
     if (src === 'traces') {
       if (!a.tracer || a.dark.has('tracer')) return [gaugeEvidence(S), 0.6];
-      // With pins, one search finds the refunds and the faults; without, open the latest cards one by one.
-      if (a.pins) { const seen = new Set(), trs = []; for (const e of ['refund', 'engine', 'drawer', 'counter', 'desk', 'slow']) for (const tr of (A.search(S, e) || []).slice(0, 3)) if (!seen.has(tr.id)) { seen.add(tr.id); trs.push(tr); } return [traceEvidence(trs.filter(tr => tr.t > S.time - 6)), 1.2]; }
+      // With pins, one search finds the refunds and the faults (plus a glance at the latest two); without, open the
+      // latest cards one by one.
+      if (a.pins) { const seen = new Set(), trs = a.traces.slice(-2); trs.forEach(tr => seen.add(tr.id)); for (const e of ['refund', 'engine', 'drawer', 'counter', 'desk', 'slow']) for (const tr of (A.search(S, e) || []).slice(0, 3)) if (!seen.has(tr.id)) { seen.add(tr.id); trs.push(tr); } return [traceEvidence(trs.filter(tr => tr.t > S.time - 6)), 1.2]; }
       return [traceEvidence(a.traces.slice(-2).filter(tr => tr.t > S.time - 6)), 2.4];
     }
     if (src === 'lens') {
@@ -143,7 +152,7 @@ function night(seed, b) {
     if (me.room === 'down') {
       if (S.time >= me.nextQ) { A.reviewAnswer(S, null, r() < 0.8); me.nextQ = S.time + 8; }
       // It also comes back up for a look every 12 s.
-      if (S.time - me.downAt > 12) { me.room = 'up'; A.setDown(S, false); me.free = S.time + 1; }
+      if (S.time - me.downAt > (b.peek || 12)) { me.room = 'up'; A.setDown(S, false); me.free = S.time + 1; }
       continue;
     }
     // Upstairs.
@@ -159,6 +168,8 @@ function night(seed, b) {
     // A klaxon in ALARM (or its lamp) is evidence too: its gauge's station.
     for (const al of a.alarms) if (al.state === 'ALARM') {
       const g = a.gauges.find(x => x.id === al.gauge), m = g.metrics.find(x => x.key === al.metric);
+      // A klaxon on a dark tally rings for the unpaid bill, not the station: a careful player sees the lamp out.
+      if (g.src === 'tally' && a.dark.has('tally:' + g.station)) continue;
       if (b.chase || g.src !== 'builtin') ev.push({ station: g.station, job: m.kind === 'time' ? 'oil' : 'patch', t: g.at, src: 'klaxon', silent: m.kind === 'beat' });
     }
     // Evidence older than the porter's last visit to that station is stale.
@@ -199,6 +210,8 @@ function run(name, b) {
   return { build: name, win: Math.round(100 * t.win / N) + '%', lost: f(t.lost), wrong: f(t.wrong), wasted: f(t.wasted), down: Math.round(100 * t.down / N) + '%', coinsEnd: f(t.coins), darkRuns: Math.round(100 * t.darkRuns / N) + '%',
     reviews: f(t.reviews), faults: f(t.faults), mended: f(t.mended), cleared: f(t.cleared), two: Math.round(100 * t.two / N) + '%', three: Math.round(100 * t.three / N) + '%', perSeed };
 }
+module.exports = { night, run, B, CHECKS, LESSON };
+if (require.main === module) {
 const rows = [];
 const sets = TABLE === 'checks' ? CHECKS : TABLE === 'all' ? Object.assign({}, B, CHECKS) : B;
 for (const [name, b] of Object.entries(sets)) if (!ONLY.length || ONLY.includes(name)) rows.push(run(name, b));
@@ -208,4 +221,5 @@ const lesson = rows.find(r => r.build === 'lesson');
 if (lesson && rows.length > 2) {
   const hard = Array.from({ length: N }, (_, i) => i).map(i => ({ i, n: rows.filter(r => !r.perSeed[i]).length })).sort((x, y) => y.n - x.n).slice(0, Math.max(2, Math.ceil(N * 0.05)));
   console.log('lesson on the hardest seeds:', hard.filter(h => lesson.perSeed[h.i]).length + '/' + hard.length);
+}
 }

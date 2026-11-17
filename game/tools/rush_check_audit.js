@@ -40,8 +40,46 @@ const ff = (pg, secs, until, nobot) => pg.evaluate(([secs, until, nobot]) => {
   }
   return { time: M.time, live: A.live(M).length, over: M.over, spill: M.spill };
 }, [secs, until || '', !!nobot]);
-async function shot(pg, name) { await wait(250); await pg.screenshot({ path: path.join(OUT, name + '.png') }); console.log('  shot', name); }
+// Text size on the phone: every canvas fillText is logged with its size in CSS px (font px x the context's scale x
+// the canvas's CSS-per-backing-pixel), and the card's DOM text and tap rows are measured. Nothing below MIN_PX.
+const MIN_PX = 11, MIN_TAP = 40;
+const TEXT_PROBE = () => {
+  window.__txt = [];
+  const P = CanvasRenderingContext2D.prototype;
+  for (const fn of ['fillText', 'strokeText']) {
+    const o = P[fn];
+    P[fn] = function (t, ...a) {
+      if (window.__txt && String(t).trim() && this.globalAlpha > 0.3) {
+        const m = /(\d+(?:\.\d+)?)px/.exec(this.font), tr = this.getTransform(), c = this.canvas;
+        const k = Math.hypot(tr.a, tr.b) * (c.clientWidth ? c.clientWidth / c.width : 1);
+        if (m && c.clientWidth) window.__txt.push([+m[1] * k, String(t).slice(0, 40)]);
+      }
+      return o.call(this, t, ...a);
+    };
+  }
+};
+async function legible(pg, what) {
+  await pg.evaluate(() => { window.__txt = []; }); await wait(300);
+  const r = await pg.evaluate(([MIN_PX, MIN_TAP]) => {
+    const small = {}; for (const [s, t] of window.__txt) if (s < MIN_PX - 0.25) small[t] = Math.min(small[t] || 99, Math.round(s * 10) / 10);
+    const p = document.getElementById('aud'), dom = [], taps = [];
+    if (p && p.classList.contains('on')) {
+      for (const el of p.querySelectorAll('*')) {
+        const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()); if (!own || !el.offsetParent) continue;
+        const fs = parseFloat(getComputedStyle(el).fontSize); if (fs < MIN_PX - 0.25) dom.push(el.className + ':' + fs + ':' + el.textContent.trim().slice(0, 24));
+      }
+      for (const el of p.querySelectorAll('.ln, .seg, .opt, button, .b')) { const h = el.getBoundingClientRect().height; if (el.offsetParent && h < MIN_TAP - 0.5) taps.push(el.className + ':' + Math.round(h) + ':' + el.textContent.trim().slice(0, 20)); }
+    }
+    return { small, dom: dom.slice(0, 8), taps: taps.slice(0, 8) };
+  }, [MIN_PX, MIN_TAP]);
+  const sm = Object.entries(r.small);
+  ok(!sm.length, what, 'canvas text under ' + MIN_PX + 'px', JSON.stringify(sm.slice(0, 12)));
+  ok(!r.dom.length, what, 'card text under ' + MIN_PX + 'px', JSON.stringify(r.dom));
+  ok(!r.taps.length, what, 'card rows under ' + MIN_TAP + 'px tall', JSON.stringify(r.taps));
+}
+async function shot(pg, name) { if (!/-(gauge-card|build)$/.test(name)) await api(pg, 'skipSay'); await wait(250); await pg.screenshot({ path: path.join(OUT, name + '.png') }); console.log('  shot', name); }
 async function fits(pg, what) {
+  if (/^phone/.test(what)) await legible(pg, what);
   const r = await pg.evaluate(() => {
     const b = SD_RUSH.audit.belt(), p = document.getElementById('aud'), pr = p && p.classList.contains('on') ? p.getBoundingClientRect() : null;
     return { sw: document.documentElement.scrollWidth, iw: innerWidth, bx: b.x[0], br: b.right, pr: pr && { l: pr.left, r: pr.right, t: pr.top, b: pr.bottom }, ih: innerHeight };
@@ -53,6 +91,7 @@ async function fits(pg, what) {
 async function run(browser, tag, vp) {
   console.log(tag, vp.width + 'x' + vp.height);
   const pg = await browser.newPage({ viewport: vp, deviceScaleFactor: 1 });
+  if (tag === 'phone') await pg.addInitScript(TEXT_PROBE);
   const errs = []; pg.on('pageerror', e => errs.push(String(e))); pg.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(m.text()); });
   await pg.goto(`http://localhost:${srv.address().port}/rush.html?claim=audit&seed=11${tag === 'phone' ? '&tall' : ''}`);
   await pg.waitForFunction(() => window.SD_RUSH && document.querySelector('#q.orders'));
@@ -92,6 +131,8 @@ async function run(browser, tag, vp) {
   await shot(pg, `${tag}-build`); await fits(pg, tag + ' build');
   // Wind the clock.
   await tap(pg, 'clock'); ok(await pg.evaluate(() => SD_RUSH.S.started), tag, 'clock did not start the night');
+  // Dutch's intro has had its say: clear his queue so the later screenshots show the room, not his bubble.
+  await api(pg, 'skipSay');
   // To the first overlap (two faults live) after 01:00.
   const r1 = await ff(pg, 130, 'M.time > 36 && A.live(M).length >= 2', true);
   ok(r1.live >= 2, tag, 'no overlap reached', JSON.stringify(r1));
