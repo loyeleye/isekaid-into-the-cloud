@@ -234,13 +234,44 @@
     return { html: out, width: W, kind: 'bridge' };
   }
 
+  // ---- The Wall: tonight's and carried posters, pinned on the town wall under its tiled overhang ----
+  // Each poster is Ladi's blank parchment notice (poster.webp, 306 x 420) with the game's text for it written on the top
+  // band, tilted a little. One coming down plays the torn-loose frame (poster-down.webp) and falls away. The wall's
+  // bare middle is x 280..1660, y 230..730 (wall.webp, 1920 x 1072): five posters across, then the wall repeats.
+  const PW = { top: 300, h: 400, x0: 432, step: 264, per: 5, max: 15 };
+  const posterX = i => Math.floor(i / PW.per) * W + PW.x0 + (i % PW.per) * PW.step;
+  const TILT = [-3, 2.2, -1.4, 3, -2.4];
+  // The top band holds about 239 world px of heading text: one line when it fits, else two smaller ones.
+  const bandFont = t => { const n = Math.max(1, String(t).length), one = 239 / (n * 0.62); return one >= 34 ? 34 : one >= 25 ? Math.floor(one) : Math.max(18, Math.min(25, Math.floor(one * 2))); };
+  // o.wall: [{ name, foot?: bottom band text, fresh?: just went up, down?: coming down }]
+  function wallWorld(o) {
+    const ps = o.wall.slice(0, PW.max), n = ps.length;
+    const worldW = Math.max(W, posterX(Math.max(0, n - 1)) + 440);
+    let out = '';
+    for (let i = 0; i * W < worldW; i++) out += `<img class="rs-bg${i % 2 ? ' flip' : ''}" src="${IMG('wall')}" alt="" draggable="false" style="left:${i * W}px">`;
+    ps.forEach((p, i) => {
+      const cx = posterX(i), h = PW.h, w = h * (p.down ? 314 : 306) / 420, fs = bandFont(p.name || '');
+      out += `<div class="rs-poster${p.down ? ' down' : ''}${p.fresh ? ' fresh' : ''}" role="img" aria-label="${esc((p.down ? 'Coming down: ' : 'Poster: ') + (p.name || 'an idea'))}" style="left:${px(cx - w / 2)};top:${px(PW.top)};width:${px(w)};height:${px(h)};--tilt:${TILT[i % TILT.length]}deg;animation-delay:${(i * 0.05).toFixed(2)}s">`
+        + `<img src="${IMG(p.down ? 'poster-down' : 'poster')}" alt="" draggable="false">`
+        + (p.down ? '' : `<b class="rs-pt" style="font-size:${fs}px">${esc(p.name || '')}</b><span class="rs-pw">WANTED</span>${p.foot ? `<span class="rs-pf">${esc(p.foot)}</span>` : ''}`)
+        + '</div>';
+    });
+    if (o.wall.length > PW.max) out += `<b class="rs-more" style="left:${px(posterX(PW.max - 1) + 170)};top:${px(PW.top + PW.h - 60)}">+${o.wall.length - PW.max}</b>`;
+    return { html: out, width: worldW, kind: 'wall' };
+  }
+  // A close-up away from the job's world (o.close with o.bg): just the painting, such as the permit office.
+  const backdrop = o => ({ html: `<img class="rs-bg" src="${IMG(o.bg)}" alt="" draggable="false" style="left:0">`, width: W, kind: 'bg' });
+  const build = o => o.close && o.bg ? backdrop(o) : o.wall ? wallWorld(o) : o.bridge ? bridge(o) : o.stack ? yard(o) : world(o);
+
   // ---- The scene: the world inside a camera, plus the foreground (Kai, and Seymour for close-ups) and the UI layer ----
-  // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on, kai: face, close: Seymour's pose,
-  //      ui: html laid over the scene, label }
+  // o: world options + { shot: 'wide' | 'push' | 'close', focus: slot to push in on (with bg: the world x to centre on
+  //      when the box is narrow), kai: face, close: Seymour's pose, bg: a backdrop for the close-up instead of the job's
+  //      world (a file in assets/img/reno/street, e.g. 'permit-office'), wall: posters (see wallWorld), ui: html laid
+  //      over the scene, label }
   function scene(o) {
-    const w = o.bridge ? bridge(o) : o.stack ? yard(o) : world(o);
+    const w = build(o);
     const kai = o.kai ? `<img class="rs-kai" src="${IMG('kai-' + o.kai)}" alt="Kai" draggable="false" data-face="${esc(o.kai)}">` : '';
-    const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
+    const sey = o.close ? `<img class="rs-sey" src="${IMG('sey-' + o.close)}" alt="Sir Seymour Backups" draggable="false" data-pose="${esc(o.close)}" style="--sh:${SEY_SRC[o.close] / 1000}">` : '';
     return `<div class="rs shot-${o.shot || 'wide'}${o.close ? ' rs-close' : ''}" data-ww="${Math.round(w.width)}" data-shot="${o.shot || 'wide'}" data-focus="${o.focus == null ? '' : o.focus}" data-kind="${w.kind || 'street'}" role="img" aria-label="${esc(o.label || 'Beanstalk Row: the gate and the houses')}">
       <div class="rs-cam"><div class="rs-sizer"><div class="rs-world" style="width:${Math.round(w.width)}px">${w.html}</div></div></div>
       <div class="rs-fg">${kai}${sey}</div><div class="rs-ui">${o.ui || ''}</div></div>`;
@@ -255,17 +286,19 @@
     el.classList.toggle('rs-wide', wide);
     const ww = +el.dataset.ww || W, shot = el.dataset.shot;
     let y0, h, cx;
-    const isYard = el.dataset.kind === 'yard', isBridge = el.dataset.kind === 'bridge';
-    if (shot === 'push' && isBridge) { h = H / (wide ? 2.0 : 1.6); y0 = 400 - h / 2; cx = BRIDGE_FOCUS[el.dataset.focus] || W / 2; }
+    const isYard = el.dataset.kind === 'yard', isBridge = el.dataset.kind === 'bridge', isWall = el.dataset.kind === 'wall';
+    if (isWall) { h = 470; y0 = 262; }   // the wall's band of posters; across, the first poster's edge or the whole wall
+    else if (shot === 'push' && isBridge) { h = H / (wide ? 2.0 : 1.6); y0 = 400 - h / 2; cx = BRIDGE_FOCUS[el.dataset.focus] || W / 2; }
     else if (shot === 'push' && isYard) { h = H / (wide ? 1.7 : 1.4); y0 = YF - YA * 1.1 - h / 2 + 40; cx = el.dataset.focus !== '' ? yx(+el.dataset.focus) : W / 2; }
     else if (shot === 'push') { h = H / (wide ? 2.4 : 2.0); y0 = FEET - HOUSE * 0.5 - h / 2 + 30; cx = el.dataset.focus !== '' ? centreX(+el.dataset.focus) : (X0 + W) / 2; }
-    else if (shot === 'close') { h = H; y0 = 0; cx = W / 2; }
+    else if (shot === 'close') { h = H; y0 = 0; cx = el.dataset.kind === 'bg' && el.dataset.focus !== '' ? +el.dataset.focus : W / 2; }
     else if (wide) { h = H; y0 = 0; cx = W / 2; }
     else if (isBridge) { h = 760; y0 = 120; cx = BR.sign.x; }   // a phone: the far bank, the signpost between the shrines
     else { h = 900; y0 = 172; cx = isYard ? yx(0) : centreX(0); }          // a phone: the street and the plaza, little sky
     // Fit the shot's height, but always cover the box: a wide box shows less sky rather than a dark edge.
     const s = Math.max(CH / h, CW / ww), vh = CH / s;
-    if (vh < h) y0 = shot === 'push' ? y0 + (h - vh) / 2 : y0 + (h - vh);   // a push stays centred; the others keep the plaza
+    if (isWall) cx = CW / s >= W - 40 ? W / 2 : posterX(0) - 190 + CW / s / 2;
+    if (vh < h) y0 = shot === 'push' || isWall ? y0 + (h - vh) / 2 : y0 + (h - vh);   // a push stays centred; the others keep the plaza
     // Never show past the painting's bottom edge or the world's ends.
     y0 = Math.max(0, Math.min(y0, H - vh));
     sizer.style.width = Math.round(ww * s) + 'px'; sizer.style.height = CH + 'px';
@@ -306,9 +339,19 @@
   }
   // A new tick: redraw the world only, so the camera box, Kai and the UI stay put.
   function update(el, o) {
-    const w = o.bridge ? bridge(o) : o.stack ? yard(o) : world(o), wd = el.querySelector('.rs-world');
+    const w = build(o), wd = el.querySelector('.rs-world');
     wd.innerHTML = w.html; wd.style.width = Math.round(w.width) + 'px'; el.dataset.ww = Math.round(w.width);
     frame(el); return w;
+  }
+  // A close-up's new beat without rebuilding it: Seymour's pose (one of SEY_SRC's five) and Kai's face.
+  function pose(el, p, face) {
+    const sey = el.querySelector('.rs-sey');
+    if (sey && SEY_SRC[p] && sey.dataset.pose !== p) {
+      sey.src = IMG('sey-' + p); sey.dataset.pose = p; sey.style.setProperty('--sh', SEY_SRC[p] / 1000);
+      sey.classList.remove('rs-beat'); void sey.offsetWidth; sey.classList.add('rs-beat');
+    }
+    const k = el.querySelector('.rs-kai');
+    if (k && face) { if (k.rsFace) k.rsFace(face); else k.src = IMG('kai-' + face); k.dataset.face = face; }
   }
   // Change the shot (a cut) without rebuilding the scene.
   function cut(el, shot, focus) { el.dataset.shot = shot; el.dataset.focus = focus == null ? '' : focus; el.className = el.className.replace(/shot-\w+/, 'shot-' + shot); frame(el); }
@@ -391,9 +434,23 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
+    .rs-sey.rs-beat { animation: rs-beat .32s ease-out; transform-origin: 50% 100%; }
+    @keyframes rs-beat { 0% { transform: translateY(6px) scaleY(.98); } 60% { transform: translateY(-4px); } 100% { transform: none; } }
+    /* The Wall: parchment posters pinned on the plaster, the game's words inked on the top band. */
+    .rs-poster { position: absolute; transform: rotate(var(--tilt, 0deg)); transform-origin: 50% 4%; filter: drop-shadow(0 8px 8px rgba(30,16,6,.45)); color: #3a2410; text-align: center; font-family: var(--f-head, sans-serif); }
+    .rs-poster img { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .rs-poster .rs-pt { position: absolute; left: 10%; right: 10%; top: 10.6%; height: 12.4%; display: flex; align-items: center; justify-content: center; font-weight: 800; line-height: 1.02; letter-spacing: .01em; overflow: hidden; overflow-wrap: anywhere; }
+    .rs-poster .rs-pw { position: absolute; left: 20%; right: 20%; top: 27%; height: 44%; display: grid; place-items: center; font: 900 40px/1 var(--f-head, sans-serif); letter-spacing: .08em; color: rgba(110,40,20,.55); transform: rotate(-8deg); }
+    .rs-poster .rs-pf { position: absolute; left: 11%; right: 11%; top: 77.5%; height: 14%; display: flex; align-items: center; justify-content: center; font: 700 24px/1.05 var(--f-head, sans-serif); color: #5a3a18; }
+    .rs-poster.fresh { animation: rs-pinup .5s ease-out both; }
+    @keyframes rs-pinup { from { transform: translateY(-60px) rotate(calc(var(--tilt) * -2)); opacity: 0; } to { transform: rotate(var(--tilt)); opacity: 1; } }
+    .rs-poster.down { animation: rs-down 2.4s ease-in both; }
+    @keyframes rs-down { 0%, 45% { transform: rotate(var(--tilt)); opacity: 1; } 100% { transform: translate(40px, 520px) rotate(28deg); opacity: 0; } }
+    .rs-more { position: absolute; font: 900 40px/1 var(--f-head, sans-serif); color: #ffe9b8; background: rgba(42,22,10,.85); border-radius: 30px; padding: 10px 18px; }
+    @media (prefers-reduced-motion: reduce) { .rs-poster.fresh, .rs-sey.rs-beat { animation: none; } .rs-poster.down { animation: none; opacity: .45; } }
     @media (prefers-reduced-motion: reduce) { .rs-ring, .rs-swing, .rs-tester, .rs-kai, .rs-walk, .rs-walk .a, .rs-walk .b { animation: none !important; } .rs-walk .b { opacity: 0; } }
   `;
   document.head.appendChild(css);
 
-  SD.renoStreet = { scene, mount, cut, update, frame, world, yard, bridge, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
+  SD.renoStreet = { scene, mount, cut, update, frame, pose, world, yard, bridge, slotOf, FEET, HOUSE, ADULT, SEY_H, ph };
 })();
