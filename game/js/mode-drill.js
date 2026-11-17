@@ -480,10 +480,10 @@
     .dr-door.boss .dr-dn { font-size: 16px; } .dr-door.boss .dr-dt { display: block; color: #7a2a22; }
     .dr-door.boss .dr-ic { width: 36px; height: 34px; }
     /* Reachable: circled in chalk, lit by the lamp, gently lifted off the board. */
-    .dr-door.reach { cursor: pointer; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .55)) drop-shadow(0 6px 6px rgba(0, 0, 0, .6)); animation: drlift 2.6s ease-in-out infinite; }
-    .dr-door.reach::after { content: ''; position: absolute; inset: -8px -7px; opacity: .75; background: url(assets/img/drill/map-chalk-ring.webp) center / 100% 100% no-repeat; pointer-events: none; }
+    .dr-door.reach { cursor: pointer; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .55)) drop-shadow(0 6px 6px rgba(0, 0, 0, .6)); }
+    .dr-door.reach::after { content: ''; position: absolute; inset: -8px -7px; opacity: .75; background: url(assets/img/drill/map-chalk-ring.webp) center / 100% 100% no-repeat; pointer-events: none; animation: drring 2.4s ease-in-out infinite; }
     .dr-door.reach:focus-visible { outline: 3px dashed rgba(244, 241, 230, .9); outline-offset: 8px; }
-    @keyframes drlift { 0%, 100% { transform: rotate(var(--r, 0deg)) translateY(0); } 50% { transform: rotate(var(--r, 0deg)) translateY(-3px); } }
+    @keyframes drring { 0%, 100% { opacity: .75; } 50% { opacity: .4; } }   /* the ring pulses; the card itself holds still so it's easy to tap */
     /* Done: a chalk tick and the verdict; passed over: crossed out; ahead: still in the dark. */
     .dr-door.done { filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5)) saturate(.75); }
     .dr-mk { position: absolute; pointer-events: none; background: center / contain no-repeat; }
@@ -495,7 +495,7 @@
     .dr-door.skip { filter: brightness(.55) saturate(.5) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
     .dr-door.ahead { filter: brightness(.72) saturate(.8) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
     .dr-row.past + .dr-up, .dr-row.now + .dr-up { opacity: .3; }
-    @media (prefers-reduced-motion: reduce) { .dr-door.reach { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .dr-door.reach::after { animation: none; } }
     @media (min-width: 600px) {
       .dr-door { max-width: 180px; min-height: 140px; padding: 20px 10px 14px; font-size: 13.5px; }
       .dr-dn, .dr-row[data-n] .dr-dn { font-size: 15px; letter-spacing: 0; } .dr-dt { display: block; } .dr-ic { width: 46px; height: 40px; }
