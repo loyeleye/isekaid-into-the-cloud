@@ -62,16 +62,64 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await wait(10);
     return q.id;
   }, [right, conf]);
-  // Sets the plan through the knobs on screen: a policy/config card, then each knob value.
+  // Sets the plan on screen: a policy/config card, then each knob value. The yard's DeletionPolicy is a tag picked up
+  // from the tray and put on the resource (the tap-and-tap way; a real drag is checked on its own below).
+  // The bridge is set on its scene: the signpost's swing and the hourglass are tracks (a tap on a stop), and the bell,
+  // the test walker and the version seal are pieces put on their places (tap the piece, then the place) or taken off
+  // (a tap on the placed one).
+  const LAM_PIECE = { alarm: ['bell', 'bell'], pre: ['tester', 'pre'], post: ['tester', 'post'], publish: ['seal', 'shrine'] };
+  const onBridge = () => page.evaluate(() => !!document.querySelector('#panel [data-slide="cfg"]'));
+  const slideTo = (name, v) => page.evaluate(([name, v]) => {
+    const tr = document.querySelector(`[data-slide="${name}"]`), i = tr.dataset.stops.split(',').indexOf(String(v));
+    const st = tr.querySelector(`[data-stop="${i}"]`), r = st.getBoundingClientRect();
+    const o = { bubbles: true, cancelable: true, button: 0, pointerId: 1, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+    st.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o));
+  }, [name, v]);
+  const v2b = v => v === true || v === 'true';
+  const placePiece = (k, on) => page.evaluate(([tok, at, on, k]) => {
+    const s = SD.state.save.reno, now = !!s.jobs[s.at].plan[k];
+    if (on && !now) { document.querySelector(`[data-tok="${tok}"]`).click(); document.querySelector(`[data-drop="${at}"]`).click(); }
+    if (!on && now) document.querySelector(`[data-drop="${at}"]`).click();
+  }, [...LAM_PIECE[k], v2b(on), k]);
   const setPlan = async o => {
     for (const [k, v] of Object.entries(o)) {
+      const bridge = await onBridge();
       if (k === 'policy') await page.click(`[data-pol="${v}"]`);
+      else if (bridge && (k === 'cfg' || k === 'wait' || k === 'every')) await slideTo(k, v);
+      else if (bridge && LAM_PIECE[k]) await placePiece(k, v);
       else if (k === 'cfg') await page.click(`[data-cfg="${v}"]`);
+      else if (k.startsWith('cfn:') && await page.$('[data-tok]')) await page.evaluate(([id, v]) => { document.querySelector(`[data-tok="${v}"]`).click(); document.querySelector(`[data-drop="${id}"]`).click(); }, [k.slice(4), v]);
+      // Beanstalk Row's plan is set on the street: a tap on a house for the batch (the rope's sweep is checked with a
+      // real mouse below), and a tap on a stop of a track (the health-check gauge, the gate's dial, the hourglass, the
+      // demolition stake) for the rest.
+      else if (k === 'batch' && await page.$('[data-house]')) await page.evaluate(v => document.querySelector(`[data-house="${v}"]`).click(), v);
+      else if (await page.$(`[data-slide="${k}"]`)) await page.evaluate(([k, v]) => {
+        const tr = document.querySelector(`[data-slide="${k}"]`), i = tr.dataset.stops.split(',').indexOf(String(v));
+        if (String(tr.dataset.val) === String(v)) return;
+        const st = tr.querySelector(`[data-stop="${i}"]`), r = st.getBoundingClientRect(), at = { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true };
+        st.dispatchEvent(new PointerEvent('pointerdown', at)); window.dispatchEvent(new PointerEvent('pointerup', at));
+      }, [k, v]);
       else await page.click(`[data-k="${k}"][data-v="${v}"]`);
+      await page.waitForTimeout(30);
     }
   };
+  const planNow = () => page.evaluate(() => { const s = SD.state.save.reno; return s.jobs[s.at].plan; });
+  // A real mouse drag from one point to another (the page's own pointer events), held for a moment at the end.
+  const drag = async (a, b, hold) => {
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 10 }); if (hold) await hold();
+    await page.mouse.up(); await page.waitForTimeout(150);
+  };
+  // The street is fixed behind the screen's boxes: scroll the boxes back down so the scene is in the open.
+  const toScene = () => page.evaluate(() => { document.querySelectorAll('#panel .win-b').forEach(w => { w.scrollTop = 0; }); window.scrollTo(0, 0); });
+  // Brings a world element into the camera's view (sideways only).
+  const inCam = sel => page.evaluate(sel => { const c = document.querySelector('.rn-bleed .rs-cam'), el = document.querySelector(sel), r = el.getBoundingClientRect(), cr = c.getBoundingClientRect(); c.scrollLeft += r.left + r.width / 2 - (cr.left + cr.width / 2); }, sel);
+  const mid = async sel => { const r = await (await page.$(sel)).boundingBox(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
+  // The template card's blanks: the first time a term shows up, it's written out in full before the plan runs.
+  const writeBlanks = async () => { for (let i = 0; i < 8; i++) { const x = await page.$('.rn-blank:not(.ok)'); if (!x) break; await x.fill(await x.getAttribute('data-term')); await page.waitForTimeout(520); } };
+  const runPlan = async () => { await writeBlanks(); await page.click('#rn-run'); };
   const renovate = async () => {
-    await page.click('#rn-run');
+    await runPlan();
     if (await page.$('#rn-skip')) await page.click('#rn-skip');
     await page.waitForSelector('.rn-after:not([hidden])', { timeout: 5000 }).catch(() => {});
   };
@@ -126,7 +174,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(!/helps|correct|right choice/i.test(await txt('.rn-cards')), 'policy cards say what they set, never whether they help');
   await noHScroll('plan'); await shot('plan');
   await setPlan({ policy: 'allAtOnce' });
-  await page.click('#rn-run');
+  await runPlan();
   check(await page.$$eval('.rn-run', x => x.length) === 2 && /cracked beam/.test(await txt('#panel')), 'Seymour runs it twice: a sound release and the cracked beam');
   await shot('running');
   if (await page.$('#rn-skip')) await page.click('#rn-skip');
@@ -157,6 +205,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- Job 2: the quiet ward (lumber 0): a wrong permit answer leaves scaffolding ----
   check(await page.$$eval('[data-pol]', x => x.length) === 4, 'the second job adds a fourth policy');
+  { // The rope: a real mouse pressed on house 1 and dragged along to house 2 ropes off a batch of 2.
+    await setPlan({ policy: 'rolling', batch: 1 });
+    await toScene(); await page.waitForTimeout(100);
+    await page.evaluate(() => { const c = document.querySelector('.rn-bleed .rs-cam'), h = document.querySelector('[data-sweepi="1"]'); c.scrollLeft += h.getBoundingClientRect().left - c.getBoundingClientRect().left - 10; });
+    const a = await mid('[data-sweepi="1"]'), r2 = await (await page.$('[data-sweepi="2"]')).boundingBox();
+    let mark = 0;
+    await drag(a, { x: Math.min(r2.x + r2.width / 2, 375 - 60), y: a.y }, async () => { mark = await page.$$eval('.rs-rb.rd-swept', x => x.length); });
+    check(mark === 2 && (await planNow()).batch === 2 && /BatchSize: 2/.test(await txt('.rn-tpl')) && /BatchSize: 2/.test(await txt('.rn-wrote')), 'dragging a rope from house 1 to house 2 ropes off two houses as it goes, sets a batch of 2, and floats BatchSize: 2');
+    check(await page.$$eval('.rs-batch b', x => x.map(b => b.textContent).slice(0, 4).join()) === '1,1,2,2' && /2 closed at a time/.test(await txt('.rs-ropetag')), 'on release the street regroups into batches of 2, and the rope says how many stay open');
+    // The health-check gauge: a real drag from the gate down to the ground ignores it.
+    await toScene(); await inCam('[data-slide="ignoreHC"]'); await page.waitForTimeout(100);
+    const g = await mid('[data-slide="ignoreHC"] .rd-knob'), gb = await (await page.$('[data-slide="ignoreHC"]')).boundingBox();
+    await drag(g, { x: g.x, y: gb.y + gb.height + 4 });
+    check((await planNow()).ignoreHC === true && /IgnoreHealthCheck: true/.test(await txt('.rn-tpl')) && /ignored/.test(await txt('.rs-hc ~ .rs-tag, .rs-tag.warn')), 'dragging the health-check gauge off the gate sets IgnoreHealthCheck: true');
+    check(!(await page.$('.rn-plaques[open]')) && !!(await page.$('.rn-plaques [data-k="batch"]')), 'Beanstalk Row\'s knob rows are folded away as "the same plaques as buttons"');
+  }
   await setPlan({ policy: 'rolling', batch: 2, ignoreHC: 'false' });
   await renovate();
   check(!!(await page.$('#rn-deb')), 'rolling in batches of 2 passes the quiet ward');
@@ -166,6 +230,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/SCAFFOLDING/.test(await txt('#panel')) && await page.evaluate(id => SD.draft.save().town[id].scaf && SD.draft.posterUp(id), p2.qid), 'a wrong permit answer: scaffolding, and the question on the Wall');
   await nextJob();
   // ---- Jobs 3 to 5 ----
+  { // The gate's dial: the crowd re-divides while it slides, before it's let go.
+    await setPlan({ policy: 'split', split: 10 });
+    await toScene(); await inCam('[data-slide="split"]'); await page.waitForTimeout(100);
+    const k = await mid('[data-slide="split"] .rd-knob'), e = await mid('[data-slide="split"] [data-stop="2"]');
+    let live = -1;
+    await drag(k, e, async () => { await page.waitForTimeout(60); live = await page.$$eval('.rs-cw.nw', x => x.length); });
+    check(live === 10 && (await planNow()).split === 50 && /NewVersionPercent: 50/.test(await txt('.rn-tpl')) && /50% → new street/.test(await txt('.rs-splittag')), 'sliding the gate\'s dial to 50% sends half the crowd to the new street as it slides: NewVersionPercent: 50');
+    await setPlan({ evalT: 4 });
+    check((await planNow()).evalT === 4 && /EvaluationTime: 4/.test(await txt('.rn-tpl')), 'the hourglass by the new street sets EvaluationTime');
+  }
   check(await play({ policy: 'allAtOnce' }, true), 'the test office: all at once passes');
   await nextJob();
   await setPlan({ policy: 'rolling', batch: 1, ignoreHC: 'true' });
@@ -185,11 +259,47 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.get('draft').start());
   check((await st()).night === 2 && /Shrine Bridge opens/.test(await txt('#panel')), 'night 2 opens the Shrine Bridge');
   await page.click('#rn-go');
+  { // The bridge is planned on its scene. A real drag of the signpost's swing from all at once to canary: the arm's
+    // weight follows the handle (100% to 10%) before it's let go, and letting go writes the deployment type.
+    // The camera tours the bridge when the screen opens: let it finish, then centre it on what's dragged.
+    const camTo = sel => page.evaluate(sel => { for (let e = document.querySelector('#panel .rn-top'); e; e = e.parentElement) e.scrollTop = 0; window.scrollTo(0, 0); document.querySelector('#panel .rn').classList.remove('rn-up'); const el = document.querySelector(sel), cam = el.closest('.rs-cam'), r = el.getBoundingClientRect(), c = cam.getBoundingClientRect(); cam.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2); }, sel);
+    const plan = () => page.evaluate(() => { const s = SD.state.save.reno; return s.jobs[s.at].plan; });
+    const lamUi = await page.evaluate(() => ({ tray: [...document.querySelectorAll('#panel .rs [data-tok]')].map(x => x.dataset.tok).join(','), folded: !!document.querySelector('.rn-plaques [data-cfg]') && !document.querySelector('.rn-cards:not(.rn-plaques .rn-cards)'), min: !!document.querySelector('[data-slide="wait"], [data-slide="every"]') }));
+    check(lamUi.tray === 'bell,tester,seal' && lamUi.folded && !lamUi.min, 'the bridge: a tray of the bell, the test walker and the version seal; the cards fold under the plaques; no hourglass for all at once');
+    await page.waitForFunction(() => !document.querySelector('#panel .rs').dataset.touring, null, { timeout: 20000 }).catch(() => {});
+    await camTo('[data-slide="cfg"]');
+    await page.waitForTimeout(100);
+    const kb = await (await page.$('[data-slide="cfg"] .rd-knob')).boundingBox(), sb = await (await page.$('[data-slide="cfg"] [data-stop="1"]')).boundingBox();
+    await page.mouse.move(kb.x + kb.width / 2, kb.y + kb.height / 2); await page.mouse.down();
+    await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2, { steps: 8 });
+    const midArm = await page.textContent('.rs-arm.r');
+    await page.mouse.up(); await page.waitForTimeout(150);
+    check(midArm === '10%' && (await plan()).cfg === 'canary' && /Type: Canary10Percent5Minutes/.test(await txt('.rn-wrote')), 'dragging the signpost\'s swing to canary: the arm drops to 10% as the handle slides, and Type: Canary10Percent5Minutes floats up');
+    const mins = await page.evaluate(() => { const t = document.querySelector('[data-slide="wait"]'); return t && [...t.querySelectorAll('[data-stop]')].map(x => x.textContent).join(','); });
+    await slideTo('wait', 15);
+    const w15 = (await plan()).wait;
+    await page.focus('[data-slide="cfg"] .rd-knob'); await page.keyboard.press('ArrowRight');
+    const lin = await page.evaluate(() => { const t = document.querySelector('[data-slide="every"]'); return t && t.dataset.stops; });
+    check(mins === '5 min,10 min,15 min,30 min' && w15 === 15 && (await plan()).cfg === 'linear' && lin === '1,2,3,10', 'the hourglass holds canary\'s predefined waits (5, 10, 15, 30 min) and linear\'s intervals (1, 2, 3, 10); the arrow keys move the swing');
+    // A real drag of the test walker onto the place before the signpost: the pre-traffic hook, run before any traffic shifts.
+    await camTo('[data-drop="pre"]');
+    await page.waitForTimeout(100);
+    const tb = await (await page.$('[data-tok="tester"]')).boundingBox(), pb = await (await page.$('[data-drop="pre"]')).boundingBox();
+    await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2); await page.mouse.down();
+    await page.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(150);
+    const pre = (await plan()).pre, preText = await txt('.rn-wrote');
+    await placePiece('publish', true);
+    const sealed = (await plan()).publish && /AutoPublishAlias: live/.test(await txt('.rn-wrote'));
+    await page.click('[data-drop="pre"]'); await placePiece('publish', false);
+    const p2 = await plan();
+    check(pre === true && /PreTraffic: PreTrafficTest/.test(preText) && !!(await page.$('.rs-brplq')) && sealed && !p2.pre && !p2.publish, 'the test walker dropped before the signpost is PreTraffic, the seal on the new shrine is AutoPublishAlias: live, and a tap on a placed piece takes it off');
+    await slideTo('cfg', 'all');
+  }
   await setPlan({ cfg: 'canary' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/\$LATEST/.test(await txt('.rn-refused')), 'a plan on $LATEST is refused, in the client\'s words');
   await setPlan({ publish: 'true' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/previous version/.test(await txt('.rn-refused')), 'a gradual shift on a brand-new function is refused');
   check(await play({ cfg: 'all' }, true), 'the first bell: all at once passes');
   await nextJob();
@@ -208,8 +318,26 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.get('draft').start());
   await page.click('#rn-go');
   check(/DeletionPolicy/.test(await txt('#panel')) && /Snapshot/.test(await txt('#panel')), 'night 3 opens the Blueprint Office with DeletionPolicy knobs');
+  check(/template\.yaml/.test(await txt('.rn-tpl')) && /DeletionPolicy:/.test(await txt('.rn-tpl')), 'the template card writes the plan the way AWS does');
+  check(await page.$$eval('[data-tok]', x => x.length) === 3, 'the yard has a tray of three DeletionPolicy tags');
+  { // A real drag: the Retain seal from the tray onto the first resource in view.
+    const tok = await page.$('[data-tok="Retain"]'), drop = await page.$('[data-drop]'), id = await drop.getAttribute('data-drop');
+    const tb = await tok.boundingBox(), db = await drop.boundingBox();
+    await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2); await page.mouse.down();
+    await page.mouse.move(db.x + db.width / 2, db.y + db.height / 2, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
+    check(await page.evaluate(id => { const s = SD.state.save.reno; return s.jobs[s.at].plan[id]; }, id) === 'Retain' && /DeletionPolicy: Retain/.test(await txt('.rn-wrote')), 'dragging the Retain seal onto a resource tags it, and the line it writes floats up over the yard');
+    check(!!(await page.$('.rn-blank[data-term="Retain"]')), 'the first Retain is a blank on the card, to write out');
+    await page.click('#rn-run'); await page.waitForTimeout(100);
+    check((await st()).phase === 'plan' && !!(await page.$('.rn-tplwait')), 'Seymour won\'t run a plan with a blank on its card');
+    const bl = await page.$('.rn-blank[data-term="Retain"]');
+    await bl.fill('Retian'); await bl.press('Enter'); await bl.fill(''); await bl.press('Enter');
+    check(await bl.getAttribute('placeholder') === 'Retain', 'two misses show the word faintly in the blank');
+    await bl.fill('retain'); await page.waitForTimeout(520);
+    check(await page.evaluate(() => !!SD.state.save.renoKeep.typed.Retain) && !(await page.$('.rn-blank[data-term="Retain"]')), 'written out once (any case), the word is learned for the save');
+    await setPlan({ ['cfn:' + id]: 'Delete' });
+  }
   await setPlan({ 'cfn:ledger': 'Snapshot' });
-  await page.click('#rn-run');
+  await runPlan();
   check(/Snapshot isn't supported/.test(await txt('.rn-refused')), 'Snapshot on a DynamoDB table is refused');
   check(await play({ 'cfn:ledger': 'Retain' }, true), 'Retain keeps the ledger');
   await noHScroll('office'); await shot('office');
@@ -219,7 +347,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.click('#rn-next'); if ((await st()).phase === 'board') await page.click('#rn-go');
   check(await edge(), 'edge to edge at 1280px');
   await page.click('[data-k="cfn:well"][data-v="Retain"]').catch(() => {});
-  await page.click('#rn-run'); if (await page.$('#rn-skip')) await page.click('#rn-skip');
+  await runPlan(); if (await page.$('#rn-skip')) await page.click('#rn-skip');
   await page.evaluate(() => { const s = SD.state.save.reno; s.jobs[s.at].plans = []; });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.evaluate(() => SD.state.save.reno && SD.renoUi.draw());

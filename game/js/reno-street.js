@@ -82,12 +82,14 @@
       const cx = centreX(x.slot), w = x.hh * (AR[x.name] || 0.66);
       if (x.h.rented && o.tick) out += stand('lot', SLOT_W / AR.lot, cx, FEET + 14, { cls: 'rs-lot' });
       out += shadow(cx, FEET, w * 0.9) + stand(x.name, x.hh, cx, FEET, { alt: x.say, cls: 'rs-house' + (x.h.rented ? ' rented' : '') });
-      if (x.h.g) out += `<i class="rs-batch g${x.h.g % 2}" style="left:${px(slotX(x.slot) - 6)};top:${px(FEET - HOUSE - 12)};width:${px(SLOT_W + 12)};height:${px(HOUSE + 22)}"><b>${x.h.g}</b></i>`;
+      if (x.h.g) out += `<i class="rs-batch g${x.h.g % 2}" style="--g:${x.h.g};left:${px(slotX(x.slot) - 6)};top:${px(FEET - HOUSE - 12)};width:${px(SLOT_W + 12)};height:${px(HOUSE + 22)}"><b>${x.h.g}</b></i>`;
     });
-    // While planning: tap a house to wrap it and the ones before it in scaffolding (the first batch).
+    // While planning: press on house 1 and drag along to house k to string the scaffolding rope around the first batch
+    // (js/reno-drag.js's sweep), or tap a house. Each button is a full step wide, so the rope runs on without a gap.
     if (o.tap) houses.slice(0, 3).forEach((x, i) => {
-      out += `<button class="rs-hb" data-house="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
+      out += `<button class="rs-hb rs-rb" data-house="${i + 1}" data-sweep="batch" data-sweepi="${i + 1}" aria-label="Rope off ${i + 1} ${i ? 'houses' : 'house'}: the batch taken out of service together" style="left:${px(slotX(x.slot) - (STEP - SLOT_W) / 2)};top:${px(FEET - HOUSE)};width:${px(STEP)};height:${px(HOUSE)}"></button>`;
     });
+    if (o.eb) out += ebPlan(o.eb, houses.length, o.tap, GATE_X + gW, gH);
     // Seymour, by the gate.
     if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups' }); }
     // Residents: one in front of each house that served someone this tick, soot on the ones who met the crack, and
@@ -96,6 +98,68 @@
     else if (o.folk) out += folk({ served: o.folk, soot: 0, turned: 0 }, houses, gx, gW);
     // The camera's tour on a phone: the gate and the first houses, then the far end (rented lots, a new street).
     return { html: out, width: worldW, houses, stops: [GATE_X + 260, centreX(lastSlot)] };
+  }
+
+  // ---- Beanstalk Row's plan, set on the street itself (Ladi, Nov 17: each gesture mirrors how the setting works) ----
+  //   rolling:    the scaffolding rope around the first batch (the houses taken out of service together, so that many
+  //               fewer stay open), and the health-check gauge hung on the gate or set down on the ground (ignored).
+  //   split:      a dial under the crowd coming in through the gate: the share that walks to the new street re-divides
+  //               as it slides; an hourglass by the new street's signpost for how long it's watched.
+  //   blueGreen:  the demolition stake on a tick ruler in front of the old street: down right away, or after 2 ticks.
+  // Tracks are js/reno-drag.js handles: data-slide, data-stops, a .rd-knob, a [data-stop] for each stop to tap.
+  const TOOL_AR = { 'tool-hc': 109 / 200, 'tool-scaffold': 96 / 200, 'tool-lot': 118 / 200 };
+  const tool = (name, h, cx, feet, cls) => stand(name, h, cx, feet, { cls, style: `width:${px(h * TOOL_AR[name])};left:${px(cx - h * TOOL_AR[name] / 2)};` });
+  // A track at (x, y) in world pixels; stops [value, label]; vert puts the first stop at the bottom.
+  function track(name, stops, val, box, knob, o) {
+    o = o || {};
+    const n = stops.length, at = stops.findIndex(s => String(s[0]) === String(val)), f = i => (n > 1 ? i / (n - 1) : 0.5);
+    const pos = i => (o.vert ? `top:${(1 - f(i)) * 100}%` : `left:${f(i) * 100}%`);
+    return `<div class="rs-tr rd-slide${o.vert ? ' v' : ''} ${o.cls || ''}" data-slide="${name}" data-stops="${stops.map(s => s[0]).join(',')}" data-val="${esc(val)}"${o.vert ? ' data-axis="y"' : ''} data-say="${esc(stops.map(s => s[2] || s[1]).join('|'))}" style="left:${px(box[0])};top:${px(box[1])};width:${px(box[2])};height:${px(box[3])}">
+      <i class="rs-rail"></i>${o.marks || ''}${stops.map((s, i) => `<span class="rs-st${i === at ? ' on' : ''}" data-stop="${i}" style="${pos(i)}">${esc(s[1])}</span>`).join('')}
+      <span class="rd-knob rs-knob" aria-label="${esc(o.label || name)}" style="${pos(Math.max(0, at))}">${knob}</span></div>`;
+  }
+  // A label in the world: centred on x, or starting at x with o.from (so a phone's narrow camera doesn't cut it).
+  const tag = (text, x, top, cls, from) => `<b class="rs-tag ${cls || ''}${from ? ' from' : ''}" style="left:${px(x)};top:${px(top)}">${text}</b>`;
+  function ebPlan(p, n, tap, gateR, gH) {
+    let out = '';
+    if (tap) {
+      // The rope: the first batch, scaffolding poles at its two ends. The rest of the street's batches are the outlines.
+      const k = Math.max(1, Math.min(3, n, +p.batch || 1)), l = slotX(0) - 10, r = slotX(k - 1) + SLOT_W + 10;
+      out += `<i class="rs-rope" style="left:${px(l)};top:${px(FEET - HOUSE - 18)};width:${px(r - l)};height:${px(HOUSE + 34)}"></i>`;
+      out += tool('tool-scaffold', 190, l + 8, FEET + 22, 'rs-pole') + tool('tool-scaffold', 190, r - 8, FEET + 22, 'rs-pole');
+      out += tag(p.policy === 'rollingBatch' ? `${k} rented first · all ${n} stay open` : `${k} closed at a time · ${n - k} of ${n} stay open`, l + 24, FEET - 76, 'rs-ropetag', true);
+      // The health-check gauge: hung on the gate, it reads each batch before the next starts; set down, it's ignored.
+      const cx = gateR - 40, top = FEET - gH * 0.7, h = FEET - 30 - top;
+      out += tag(p.ignoreHC ? 'Health check ignored' : 'Health check on', cx - 60, top - 125, p.ignoreHC ? 'warn' : '', true);
+      out += track('ignoreHC', [[true, '', 'Set down: ignored, the next batch starts anyway'], [false, '', 'On the gate: each batch must pass before the next']], !!p.ignoreHC,
+        [cx - 50, top, 100, h], `<img src="${IMG('tool-hc')}" alt="" draggable="false">`, { vert: true, cls: 'rs-hc' + (p.ignoreHC ? ' off' : ''), label: 'Health-check gauge: up on the gate, or down on the ground to ignore it' });
+    }
+    if (p.policy === 'split') {
+      // The crowd at the gate: 20 residents, the share for the new street (from the right) in blueprint blue.
+      const v = +p.split || 10, c = Math.round(v / 5), x0 = X0 + 10, dx = 31;
+      let crowd = '';
+      for (let col = 9; col >= 0; col--) [0, 1].forEach(row => {
+        const ci = (9 - col) * 2 + row, feet = row ? FEET + 10 : FEET - 6, x = x0 + col * dx + (row ? dx / 2 : 0);
+        crowd += `<span class="rs-cw${ci < c ? ' nw' : ''}" data-ci="${ci}">${stand(row ? 'res-b' : 'res-a', ph(feet) * 0.72, x, feet, { style: 'transform:scaleX(-1);' })}</span>`;
+      });
+      out += `<span class="rs-crowd" aria-hidden="true">${crowd}</span>`;
+      out += tag(`${100 - v}% old street · ${v}% → new street`, x0 + 5 * dx, FEET - 250, 'rs-splittag plan');
+      out += track('split', [[10, '10%', '10% of residents to the new street'], [25, '25%', '25% of residents to the new street'], [50, '50%', '50% of residents to the new street']], v,
+        [x0, FEET - 140, 9.5 * dx, 60], '→', { label: 'The gate\'s dial: the share of residents sent to the new street' });
+      // The hourglass by the new street: how long the new street is watched before everyone moves.
+      const sx = centreX(n);
+      out += tag(`Watched for ${+p.evalT || 2} ticks`, sx, FEET - 250, 'plan');
+      out += track('evalT', [[2, '2', '2 ticks'], [3, '3', '3 ticks'], [4, '4', '4 ticks']], +p.evalT || 2,
+        [sx - 120, FEET - 140, 240, 60], '⏳', { label: 'The hourglass: evaluation time before everyone moves' });
+    }
+    if (p.policy === 'blueGreen') {
+      // The demolition stake on a ruler of ticks after the swap.
+      const w = +p.wait || 0, x = X0;
+      out += tag(w ? 'Old street down after 2 ticks: stragglers with the old address still get in' : 'Old street down right away: a straggler with the old address finds it gone', x + 20, FEET - 330, w ? 'plan' : 'warn', true);
+      out += track('wait', [[0, 'now', 'Right away'], [2, '2 ticks', 'After 2 ticks']], w, [x + 50, FEET - 58, 240, 56],
+        `<img src="${IMG('tool-lot')}" alt="" draggable="false">`, { cls: 'rs-stake', marks: '<i class="rs-tk" style="left:50%"></i>', label: 'The demolition stake: when the old street comes down after the swap' });
+    }
+    return out;
   }
   // ---- Walking: a resident who travels along a path, stepping through the walk frames, growing as they come nearer ----
   // The path is resampled to equal steps so the pace is even, and the frames step every quarter second while they walk.
@@ -183,7 +247,7 @@
       // The plaque hangs just above whatever stands there, so the cards along the bottom never cover it.
       const standing = !res || res.kept === 'running' ? r.type : res.kept === 'snapshot' ? 'jar' : 'rubble';
       out += `<span class="rs-plq${res ? ' done' : ''}" style="left:${px(cx - 90)};top:${px(YF - YA * (YARD_ART[standing] || [0, 0, 1])[2] - 56)}">${esc(pol)}</span>`;
-      if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(cx - YSTEP / 2 + 10)};top:${px(YF - YA * 2.3)};width:${px(YSTEP - 20)};height:${px(YA * 2.3 + 80)}"></button>`;
+      if (o.tap && !o.res) out += `<button class="rs-hb" data-res="${esc(r.id)}" data-drop="${esc(r.id)}" aria-label="${esc(r.name)}: change its DeletionPolicy (now ${esc(pol)})" style="left:${px(cx - YSTEP / 2 + 10)};top:${px(YF - YA * 2.3)};width:${px(YSTEP - 20)};height:${px(YA * 2.3 + 80)}"></button>`;
     });
     return { html: out, width: worldW, kind: 'yard', stops: [yx(0), yx(n - 1)] };
   }
@@ -227,18 +291,20 @@
     out += shadow(BR.sign.x, BR.sign.y, sW * 0.5) + `<span class="rs-sign${swing}" style="left:${px(sx)};top:${px(sy)};width:${px(sW)};height:${px(sH)}">`
       + `<img class="rs-sp" src="${IMG('bridge-signpost')}" alt="the signpost: the live alias, ${100 - pct}% to the old shrine and ${pct}% to the new" draggable="false" style="left:0;top:0;width:100%;height:100%">`
       + `<b class="rs-arm l${o.first ? ' off' : ''}" style="left:0;top:26%;width:46%;height:9%">${o.first ? '' : (100 - pct) + '%'}</b>`
-      + `<b class="rs-arm r${pct ? ' on' : ''}" style="left:54%;top:38.5%;width:45%;height:10.5%">${pct}%</b></span>`;
+      + `<b class="rs-arm r${pct ? ' on' : ''}${o.tap && o.ghost && pct === 100 ? ' rs-armbig' : ''}" style="left:54%;top:38.5%;width:45%;height:10.5%">${pct}%</b></span>`;
     // The alarm bell: set up or not (a pale blueprint while planning, to tap), and ringing on a rollback.
-    const bH = bph(BR.bell.y) * 1.5;
+    const bH = bph(BR.bell.y) * 1.5, planning = !!(o.tap && o.ghost);
     if (o.alarm || o.tap) out += shadow(BR.bell.x, BR.bell.y, bH * 0.3) + bstand('bridge-bell', bH, BR.bell.x, BR.bell.y,
       { cls: (o.alarm ? '' : 'rs-ghost rs-off') + (o.rang ? ' rs-ring' : ''), alt: o.alarm ? (o.rang ? 'the alarm bell, ringing' : 'the alarm bell (a CloudWatch alarm)') : 'no alarm bell yet' });
-    if (o.tap) out += `<button class="rs-hb" data-flip="alarm" aria-pressed="${!!o.alarm}" aria-label="The alarm bell: ${o.alarm ? 'take it down' : 'put it up'}" style="left:${px(BR.bell.x - bH * 0.3)};top:${px(BR.bell.y - bH)};width:${px(bH * 0.6)};height:${px(bH)}"></button>`;
+    if (o.tap) out += `<button class="rs-hb" data-flip="alarm"${planning ? ' data-drop="bell"' : ''} aria-pressed="${!!o.alarm}" aria-label="${planning ? (o.alarm ? 'The alarm bell (Alarms: ErrorsAlarm): take it down' : 'The bell post: drop the alarm bell here (Alarms), or tap to hang it') : 'The alarm bell: ' + (o.alarm ? 'take it down' : 'put it up')}" style="left:${px(BR.bell.x - bH * 0.3)};top:${px(BR.bell.y - bH)};width:${px(bH * 0.6)};height:${px(bH)}"></button>`;
     // The clockwork test walker: waits by the signpost while planning (a hook), walks to the new shrine on its turn.
     const tH = bph(BR.sign.y) * 0.55;
     const hook = o.pre || o.post;
     if (o.note === 'pre' || o.note === 'post') {
       const t = { x: (BR.sign.x + BR.nw.x) / 2 + 40, y: (BR.sign.y + BR.nw.y) / 2 };
       out += bstand('bridge-tester', bph(t.y) * 0.55, t.x, t.y, { cls: 'rs-tester', alt: o.note === 'pre' ? 'the test walker crossing first (the pre-traffic hook)' : 'the test walker checking (the post-traffic hook)', style: 'transform:scaleX(-1);' });
+    } else if (planning) {
+      out += bridgePlan(o, { sW, sH, bH, tH });
     } else if (o.ghost && (hook || o.tap)) {
       out += bstand('bridge-tester', tH, BR.sign.x - sW * 0.75, BR.sign.y + 6, { cls: hook ? '' : 'rs-ghost rs-off', alt: hook ? 'the test walker, waiting (a traffic hook)' : 'no test walker yet' });
       if (o.tap) out += `<button class="rs-hb" data-flip="pre" aria-pressed="${!!o.pre}" aria-label="The test walker: ${o.pre ? 'no pre-traffic test' : 'test before any traffic (pre-traffic hook)'}" style="left:${px(BR.sign.x - sW * 0.75 - tH * 0.4)};top:${px(BR.sign.y + 6 - tH)};width:${px(tH * 0.8)};height:${px(tH)}"></button>`;
@@ -270,7 +336,76 @@
     }
     // Seymour watches from the far bank, beside the path.
     if (o.seymour) { const sp = 'sey-' + o.seymour, h = bph(BR.sey.y) * 1.30; out += shadow(BR.sey.x, BR.sey.y, h * 0.25) + stand(sp, h * SEY_SRC[o.seymour] / 1000, BR.sey.x, BR.sey.y, { alt: 'Sir Seymour Backups' }); }
+    if (planning) out += bridgeTracks(o);
     return { html: out, width: W, kind: 'bridge', stops: [BR.sign.x, BR.old.x, BR.nw.x, BR.bell.x - 80] };
+  }
+  // ---- Planning the bridge by hand (Ladi, Nov 17: each gesture mirrors how CodeDeploy does it) ----
+  // Places on the far bank for the tray's pieces (js/reno-drag.js): the test walker before the signpost is the
+  // PreTraffic hook (it runs while 0% has shifted), the one past it by the new shrine is PostTraffic (it runs once 100%
+  // has shifted); the version seal on the new shrine is AutoPublishAlias (without it the alias stays on $LATEST); the
+  // bell on its post is the CloudWatch alarm. Each place is a button too: a tap takes a placed piece off (or puts it up).
+  // Every plaque names the SAM property the piece writes.
+  // A phone's camera shows only about 370 world px around the signpost (x 815..1185) above the boxes, so the near places
+  // and the dial fit there; a wide screen shows the whole bank and draws the plaques and the dial larger (CSS).
+  const BRP = { pre: BR.sign.x - 120, post: BR.sign.x + 120, feet: BR.sign.y + 6, plq: 346, seal: { x: BR.nw.x, y: 226, h: 100 } };
+  const brPlq = (x, y, w, title, sub, on, cls) => `<span class="rs-brplq${on ? ' on' : ''}${cls ? ' ' + cls : ''}" style="left:${px(x - w / 2)};top:${px(y)};width:${px(w)}"><b>${esc(title)}</b><i>${esc(sub)}</i></span>`;
+  function bridgePlan(o, m) {
+    const pl = o.plan || {};
+    let out = '';
+    [['pre', BRP.pre, 'PreTraffic', 'before any shift', 'tests the new shrine before a single walker is sent to it'],
+      ['post', BRP.post, 'PostTraffic', 'after 100% shifted', 'tests the new shrine once every walker goes there']].forEach(([k, x, title, sub, says]) => {
+      const on = !!o[k], h = m.tH;
+      out += bstand('bridge-tester', h, x, BRP.feet, { cls: on ? 'rs-brpiece' : 'rs-ghost rs-off', alt: on ? `the test walker, ${title} hook: it ${says}` : `no ${title} test walker yet`, style: 'transform:scaleX(-1);' });
+      out += brPlq(x, BRP.plq, 124, title, sub, on, 'rs-brhook');
+      out += `<button class="rs-hb rs-brdrop" data-flip="${k}" data-drop="${k}" aria-pressed="${on}" aria-label="${on ? `The ${title} test walker (it ${says}): take it off` : `${title}: drop the test walker here (it ${says}), or tap`}" style="left:${px(x - 62)};top:${px(BRP.plq)};width:124px;height:${px(BRP.feet - BRP.plq + 4)}"></button>`;
+    });
+    // The version seal on the new shrine: AutoPublishAlias publishes a version and moves the live alias onto it.
+    const sl = BRP.seal, sw = sl.h * 176 / 240, pub = !!pl.publish;
+    out += `<img class="rs-sp ${pub ? 'rs-brpiece rs-seal' : 'rs-ghost rs-off'}" src="${IMG('yard-seal')}" alt="${pub ? 'the version seal on the new shrine: AutoPublishAlias publishes it as a version for the live alias' : 'no version seal: the alias stays on $LATEST'}" draggable="false" style="left:${px(sl.x - sw / 2)};top:${px(sl.y)};width:${px(sw)};height:${px(sl.h)}">`;
+    out += brPlq(sl.x, sl.y - 54, 190, 'AutoPublishAlias', pub ? `live → v${o.first ? 1 : 2}` : 'none: $LATEST', pub);
+    out += `<button class="rs-hb rs-brdrop" data-flip="publish" data-drop="shrine" aria-pressed="${pub}" aria-label="${pub ? 'The version seal on the new shrine (AutoPublishAlias: live): take it off' : 'The new shrine: drop the version seal here (AutoPublishAlias: publish a version for the live alias), or tap'}" style="left:${px(sl.x - 110)};top:${px(sl.y - 58)};width:220px;height:${px(BR.nw.y - sl.y + 50)}"></button>`;
+    out += brPlq(BR.bell.x - 70, BR.bell.y + 8, 150, 'Alarms', o.alarm ? 'ErrorsAlarm' : 'none yet', !!o.alarm);
+    return out;
+  }
+  // The dial under the signpost: two tracks. The first sets its first swing: all at once (100%), canary (10%, then the
+  // rest after a wait), linear (10% more each step); its handle moves the arms' weights as it slides. The second, an
+  // hourglass, is the minutes: canary's wait or linear's interval, only the predefined ones. Hidden for all at once.
+  // On a small phone Kai's frame sits at the dial's lower left, so the minutes run from the middle and the hourglass is on the right.
+  const DIAL = { x: BR.sign.x - 180, y: BR.sign.y + 2, w: 360, cfg: { x0: 60, step: 120, y: 22, h: 46, cell: 116 }, min: { x0: 100, step: 64, y: 74, h: 34, cell: 60 } };
+  const CFG_STOPS = [['all', 'All at once', '100% in one go'], ['canary', 'Canary', '10%, wait, 90%'], ['linear', 'Linear', '+10% a step']];
+  function bridgeTracks(o) {
+    const pl = o.plan || {}, cfg = pl.cfg || 'all', t = DIAL.cfg;
+    const cell = (i, n, cw, inner, on) => `<span class="rs-brstop${on ? ' on' : ''}" data-stop="${i}" style="left:calc(${n > 1 ? i / (n - 1) * 100 : 50}% - ${cw / 2}px);width:${cw}px">${inner}</span>`;
+    let out = `<div class="rs-brdial" style="left:${px(DIAL.x)};top:${px(DIAL.y)};width:${px(DIAL.w)};height:${px(DIAL.min.y + DIAL.min.h)}">`;
+    out += `<span class="rs-brcap" style="left:0;top:0;width:100%">The signpost's first swing</span>`;
+    out += `<div class="rd-slide rs-brtrack" data-slide="cfg" data-stops="${CFG_STOPS.map(c => c[0]).join(',')}" data-val="${cfg}" data-say="${CFG_STOPS.map(c => c[1] + ': ' + c[2]).join('|')}" style="left:${px(t.x0)};top:${px(t.y)};width:${px(t.step * 2)};height:${px(t.h)}">`
+      + `<i class="rs-brrail" style="left:${px(-t.cell / 2 - 2)};right:${px(-t.cell / 2 - 2)}"></i>`
+      + `<span class="rd-knob rs-brknob" aria-label="The signpost's first swing (deployment type)" style="width:${px(t.cell)}"></span>`
+      + CFG_STOPS.map(([id, name, sub], i) => cell(i, 3, t.cell, `<b>${esc(name)}</b><i>${esc(sub)}</i>`, id === cfg)).join('') + '</div>';
+    if (cfg === 'canary' || cfg === 'linear') {
+      const m = DIAL.min, key = cfg === 'canary' ? 'wait' : 'every', AD = SD.awsDeploy || {}, stops = (cfg === 'canary' ? AD.CANARY : AD.LINEAR) || (cfg === 'canary' ? [5, 10, 15, 30] : [1, 2, 3, 10]);
+      const val = stops.includes(+pl[key]) ? +pl[key] : stops[0], n = stops.length;
+      out += `<span class="rs-brglass" aria-hidden="true" style="left:${px(m.x0 + m.step * (n - 1) + m.cell / 2 + 4)};top:${px(m.y)};right:0;height:${px(m.h)}"><i></i><b>${cfg === 'canary' ? 'wait' : 'every'}</b></span>`;
+      out += `<div class="rd-slide rs-brtrack rs-brmin" data-slide="${key}" data-stops="${stops.join(',')}" data-val="${val}" data-say="${stops.map(v => (cfg === 'canary' ? `wait ${v} minutes, then the other 90%` : `10% more every ${v} minute${v === 1 ? '' : 's'}`)).join('|')}" style="left:${px(m.x0)};top:${px(m.y)};width:${px(m.step * (n - 1))};height:${px(m.h)}">`
+        + `<i class="rs-brrail" style="left:${px(-m.cell / 2 - 2)};right:${px(-m.cell / 2 - 2)}"></i>`
+        + `<span class="rd-knob rs-brknob" aria-label="${cfg === 'canary' ? 'The hourglass: minutes before the other 90%' : 'The hourglass: minutes between steps'}" style="width:${px(m.cell)}"></span>`
+        + stops.map((v, i) => cell(i, n, m.cell, `<b>${v} min</b>`, v === val)).join('') + '</div>';
+    }
+    return out + '</div>';
+  }
+  // While the swing's handle slides, the signpost's arms show the weights it would set: 100% in one go, or 10% first.
+  function armLive(el) {
+    const tr = el.querySelector('[data-slide="cfg"]'), knob = tr && tr.querySelector('.rd-knob');
+    if (!knob || knob.rsArm) return;
+    knob.rsArm = true;
+    const r = el.querySelector('.rs-arm.r'), l = el.querySelector('.rs-arm.l'), stops = tr.dataset.stops.split(',');
+    const show = () => {
+      const f = parseFloat(knob.style.left) / 100; if (isNaN(f)) return;
+      const pct = stops[Math.round(f * (stops.length - 1))] === 'all' ? 100 : 10;
+      if (r) { r.textContent = pct + '%'; r.classList.toggle('rs-armbig', pct === 100); }
+      if (l && !l.classList.contains('off')) l.textContent = (100 - pct) + '%';
+    };
+    new MutationObserver(show).observe(knob, { attributes: true, attributeFilter: ['style'] });
   }
 
   // ---- The Grand Opening, in the market square: the ribbon arch in front of the fountain, the residents around it ----
@@ -449,7 +584,7 @@
 
   function mount(root) {
     root.querySelectorAll('.rs').forEach(el => {
-      frame(el); kaiLife(el);
+      frame(el); kaiLife(el); if (el.dataset.kind === 'bridge') armLive(el);
       if (window.ResizeObserver && !el.rsRO) { el.rsRO = new ResizeObserver(() => frame(el)); el.rsRO.observe(el); }
       const k = el.querySelector('.rs-kai'); if (k && k.rsTalk && el.dataset.talk !== 'done' && el.querySelector('.rs-say')) { el.dataset.talk = 'done'; k.rsTalk(2000); }
     });
@@ -494,6 +629,44 @@
     .rs-batch b { position: absolute; top: -34px; left: 50%; transform: translateX(-50%); font: 800 36px/1 var(--f-head, sans-serif); min-width: 54px; padding: 6px 8px; text-align: center; border-radius: 28px; background: #1f4e8c; color: #fff; border: 3px solid #bfe0ff; }
     .rs-hb { position: absolute; background: none; border: 0; padding: 0; cursor: pointer; border-radius: 14px; }
     .rs-hb:focus-visible { outline: 6px solid #ffd45a; }
+    /* Beanstalk Row's plan on the street (ebPlan): the rope, the gauge, the dial, the hourglass, the stake. World pixels. */
+    .rs-rope, .rs-hb.rs-rb.rd-swept { --rope: repeating-linear-gradient(60deg, #f0cf86 0 10px, #8a5a2a 10px 17px); }
+    .rs-rope { position: absolute; pointer-events: none; border-radius: 10px;
+      background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, var(--rope) right / 12px 100% no-repeat; filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)); }
+    .rs-pole { filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); }
+    .rd-sweeping .rs-rope, .rd-sweeping .rs-pole, .rd-sweeping .rs-ropetag { opacity: 0; }
+    .rs-hb.rs-rb.rd-swept { outline: none; border-radius: 0; background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept[data-sweepi="1"] { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept:not(:has(+ .rs-rb.rd-swept)) { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) right / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept[data-sweepi="1"]:not(:has(+ .rs-rb.rd-swept)) { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, var(--rope) right / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-regroup .rs-batch { animation: rs-regroup .45s ease-out both; animation-delay: calc(var(--g, 1) * .12s); }
+    @keyframes rs-regroup { from { transform: scale(.82); opacity: 0; } to { transform: none; opacity: 1; } }
+    .rs-tag { position: absolute; transform: translateX(-50%); width: max-content; max-width: 560px; text-align: center; font: 800 26px/1.15 var(--f-head, sans-serif); color: #fff; background: rgba(23,19,31,.86); border-radius: 14px; padding: 6px 14px; pointer-events: none; z-index: 2; }
+    .rs-tag.from { transform: none; text-align: left; }
+    .rs:not(.rs-wide) .rs-tag { font-size: 19px; max-width: 300px; padding: 4px 10px; }
+    .rs:not(.rs-wide) .rs-tr .rs-st { min-width: 50px; height: 50px; font-size: 22px; }
+    .rs:not(.rs-wide) .rs-tr .rs-knob:not(:has(img)) { width: 68px; height: 68px; font-size: 36px; }
+    .rs-tag.plan { background: rgba(31,78,140,.94); border: 2px dashed #bfe0ff; } .rs-tag.warn { background: rgba(200,120,20,.96); }
+    .rs-world .rs-tr { position: absolute; z-index: 3; }
+    .rs-tr .rs-rail { position: absolute; left: 0; right: 0; top: 50%; height: 16px; margin-top: -8px; border-radius: 8px; background: linear-gradient(#8a6a3a, #5a4020); border: 3px solid #3a2410; box-shadow: 0 4px 6px rgba(0,0,0,.45); }
+    .rs-tr.v .rs-rail { left: 50%; right: auto; top: 0; bottom: 0; width: 16px; height: auto; margin: 0 0 0 -8px; }
+    .rs-tr .rs-st { position: absolute; top: 50%; transform: translate(-50%, -50%); min-width: 64px; height: 64px; padding: 0 8px; display: grid; place-items: center; border-radius: 32px; white-space: nowrap; font: 800 28px/1 var(--f-head, sans-serif); color: #3a2410; background: #e8d3a0; border: 3px solid #5a4020; box-sizing: border-box; }
+    .rs-tr .rs-st.on { background: #ffd45a; }
+    .rs-tr.v .rs-st { left: 50%; min-width: 40px; height: 40px; }
+    .rs-tr .rs-tk { position: absolute; top: 50%; width: 6px; height: 40px; margin: -20px 0 0 -3px; background: #3a2410; border-radius: 3px; }
+    .rs-tr .rs-knob { top: 50%; transform: translate(-50%, -50%); z-index: 1; width: 84px; height: 84px; display: grid; place-items: center; border-radius: 50%; font: 900 44px/1 sans-serif; color: #3a2410; background: radial-gradient(circle at 35% 30%, #fff3c8, #e0a030 70%); border: 4px solid #5a3a12; box-shadow: 0 6px 10px rgba(0,0,0,.5); }
+    .rs-tr.v .rs-knob { left: 50%; }
+    .rs-tr .rs-knob img { pointer-events: none; }
+    .rs-tr.rs-hc .rs-knob, .rs-tr.rs-stake .rs-knob { background: none; border: 0; box-shadow: none; border-radius: 12px; width: 110px; height: 190px; }
+    .rs-tr.rs-hc .rs-knob img { height: 180px; width: auto; filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+    .rs-tr.rs-hc.off .rs-knob img { transform: rotate(70deg); transform-origin: 50% 85%; }
+    .rs-tr.rs-stake .rs-knob { transform: translate(-36%, -96%); }
+    .rs-tr.rs-stake .rs-knob img { height: 150px; width: auto; filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+    .rs-tr .rs-knob:focus-visible { outline: 6px solid #ffd45a; outline-offset: 4px; }
+    .rs-tr.rd-live .rs-knob { box-shadow: 0 0 0 8px rgba(255,212,90,.6), 0 6px 10px rgba(0,0,0,.5); }
+    .rs-crowd .rs-sp { transition: filter .2s; }
+    .rs-cw.nw .rs-sp { filter: sepia(1) hue-rotate(175deg) saturate(3) brightness(1.15) drop-shadow(0 0 6px #bfe0ff); }
+    @media (prefers-reduced-motion: reduce) { .rs-regroup .rs-batch { animation: none; } .rs-crowd .rs-sp { transition: none; } }
     .rs-marks { position: absolute; color: #ff5a4a; font: 900 44px/1 sans-serif; letter-spacing: -6px; text-shadow: 0 2px 0 #000; white-space: nowrap; z-index: 2; }
     .rs-post { position: absolute; font: 800 28px/1 var(--f-head, sans-serif); padding: 8px 14px; border-radius: 8px; background: #6b4423; border: 3px solid #3b2410; color: #ffe9b8; white-space: nowrap; }
     .rs-trav { position: absolute; left: 0; top: 0; pointer-events: none; }
@@ -561,6 +734,38 @@
     .rs.rs-run .rs-kai { bottom: calc(5% + 10px); }
     .rs-ui .rn-chalk { max-width: 420px; }
     .rs:not(.rs-wide) .rs-ui .rn-chalk { display: none; }
+    /* The Shrine Bridge, planned by hand: plaques naming each SAM property, the swing's track and the hourglass.
+       World px: a phone's camera draws them about 1:1, a wide screen at about 0.7, so there they're drawn larger. */
+    .rs-brplq { position: absolute; display: flex; flex-direction: column; align-items: center; padding: 3px 4px; border-radius: 9px; text-align: center; pointer-events: none; z-index: 1;
+      background: rgba(31,78,140,.82); border: 2px dashed #bfe0ff; color: #e6f2ff; transform-origin: 50% 0; }
+    .rs-brplq b { font: 800 19px/1.1 var(--f-head, sans-serif); white-space: nowrap; } .rs-brplq i { font: 700 13px/1.15 sans-serif; font-style: normal; white-space: nowrap; }
+    .rs-brplq.on { background: linear-gradient(#ffe58a, #e0a030); border: 2px solid #5a3a12; color: #3a2a12; }
+    .rs-wide .rs-brplq { transform: scale(1.3); }
+    .rs-wide .rs-brplq.rs-brhook { transform: scale(1.2); }
+    .rs-brpiece { filter: drop-shadow(0 0 10px rgba(255,212,90,.95)); }
+    .rs-brdrop { z-index: 1; }
+    .rs-brdrop:hover { background: rgba(255,212,90,.12); }
+    .rs-brdial { position: absolute; z-index: 2; transform-origin: 50% 0; user-select: none; -webkit-user-select: none; }
+    .rs-wide .rs-brdial { transform: scale(1.5); }
+    .rs-brdial .rs-brtrack { position: absolute; }
+    @media (max-height: 720px) { .rs:not(.rs-wide) .rs-brdial { transform: translateY(-14px) scale(.88); } }   /* a small phone: clear of Kai's frame and the tray */
+    .rs-brcap { position: absolute; text-align: center; font: 800 19px/1 var(--f-head, sans-serif); color: #ffe9b8; text-shadow: 0 2px 0 #2a160a, 0 0 6px #2a160a, 0 0 10px #2a160a; pointer-events: none; }
+    .rs-brrail { position: absolute; top: 0; bottom: 0; border-radius: 14px; background: linear-gradient(#6b4423, #4a2c14); border: 3px solid #2a160a; box-shadow: 0 5px 10px rgba(0,0,0,.45); }
+    .rs-brknob { top: -4px; bottom: -4px; transform: translateX(-50%); border-radius: 13px; background: linear-gradient(#fff3c8, #ffd45a); border: 3px solid #8a5a12; box-shadow: 0 0 14px rgba(255,212,90,.85); }
+    .rs-brstop { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ffe9b8; z-index: 1; text-align: center; text-shadow: 0 2px 0 #2a160a; }
+    .rs-brstop b { font: 800 18px/1.05 var(--f-head, sans-serif); white-space: nowrap; } .rs-brstop i { font: 700 13px/1.1 sans-serif; font-style: normal; white-space: nowrap; }
+    .rs-brmin .rs-brstop b { font-size: 17px; }
+    .rs-brstop.on { color: #3a2410; text-shadow: none; }
+    .rs-brtrack.rd-live .rs-brstop.on { color: #ffe9b8; text-shadow: 0 2px 0 #2a160a; }
+    .rs-brknob:focus-visible { outline: 4px solid #fff; outline-offset: 2px; }
+    .rs-brglass { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 10px; background: rgba(42,22,10,.88); border: 2px solid #2a160a; color: #ffe9b8; pointer-events: none; }
+    .rs-brglass i { width: 14px; height: 17px; background: #ffd45a; clip-path: polygon(0 0, 100% 0, 56% 50%, 100% 100%, 0 100%, 44% 50%); }
+    .rs-brglass b { font: 800 11px/1 var(--f-head, sans-serif); }
+    .rs-arm.rs-armbig { font-size: 38px; color: #fff3a8; }
+    .rs:not(.rs-wide) .rs-brrow { padding-left: 98px; }   /* clear of Kai's frame even when a written line floats in after it */
+    .rs:not(.rs-wide) .rs-brrow .rd-tray { flex-wrap: nowrap; gap: 6px; }
+    .rs:not(.rs-wide) .rs-brrow .rd-tok { flex-direction: column; gap: 1px; min-height: 0; padding: 3px 6px 4px; font-size: 11px; }
+    .rs:not(.rs-wide) .rs-brrow .rd-tok img { width: 30px; height: 30px; }
     .rs-sey.rs-beat { animation: rs-beat .32s ease-out; transform-origin: 50% 100%; }
     @keyframes rs-beat { 0% { transform: translateY(6px) scaleY(.98); } 60% { transform: translateY(-4px); } 100% { transform: none; } }
     /* The Wall: parchment posters pinned on the plaster, the game's words inked on the top band. */

@@ -130,6 +130,9 @@ const GIVE = new Set((process.env.GIVE || '').split(',').filter(Boolean));
   };
 
   // Sets the plan through the game's own handlers (the knobs' data), then redraws.
+  // The template card's blanks: the first time a term shows up, it's written out in full before the plan runs.
+  const writeBlanks = async () => { for (let i = 0; i < 8; i++) { const x = await page.$('.rn-blank:not(.ok)'); if (!x) break; await x.fill(await x.getAttribute('data-term')); await page.waitForTimeout(520); } };
+  const runPlan = async () => { await writeBlanks(); await page.click('#rn-run'); };
   const setPlan = plan => page.evaluate(plan => { const s = SD.state.save.reno; s.jobs[s.at].plan = Object.assign({}, s.jobs[s.at].plan || {}, plan); SD.state.persist(); SD.renoUi.draw(); }, plan);
   const par = () => page.evaluate(() => { const s = SD.state.save.reno, j = SD.reno.job(s.jobs[s.at].id, s.jobs[s.at].seed); const b = SD.reno.par(j); return { plan: b && b.plan, d: j.d, title: j.title, grand: !!j.grand }; });
   const failing = () => page.evaluate(() => { const s = SD.state.save.reno, j = SD.reno.job(s.jobs[s.at].id, s.jobs[s.at].seed); const p = SD.reno.plans(j).find(x => { const r = SD.reno.inspect(j, x); return !r.refused && !r.pass; }); return p || null; });
@@ -149,7 +152,7 @@ const GIVE = new Set((process.env.GIVE || '').split(',').filter(Boolean));
     const plans = give ? [give] : o.fail ? [(await failing()) || { refuse: true }, info.plan] : [info.plan];
     for (let i = 0; i < plans.length; i++) {
       if (plans[i].refuse) {
-        await page.click('#rn-run'); await wait(600);
+        await runPlan(); await wait(600);
         check(!!(await page.$('.rn-refused')), `${TAG} ${tag}: the default plan is refused, in the client's words`);
         await audit(`${tag} refused`); await shot(`${tag}-refused`);
         continue;
@@ -159,7 +162,7 @@ const GIVE = new Set((process.env.GIVE || '').split(',').filter(Boolean));
       if (pi.scroll != null) console.log(`     plan screen: ${pi.scroll}px to scroll to the Renovate button`);
       await shot(`${tag}-plan${i + 1}`);
       const t0 = Date.now();
-      await page.click('#rn-run');
+      await runPlan();
       await wait(60); await shot(`${tag}-run${i + 1}-start`);
       await audit(`${tag} run ${i + 1} playing`);
       // Watch the cutscene at its real pace: a frame every 1.5s, until the verdict.
