@@ -116,7 +116,7 @@
   // One stage element lives across re-renders (mount() moves it into each new room, so a clip keeps playing).
   // Idle takes play back to back in random order; alarm / clear / slump fade in over them, hold their last
   // frame a moment, then fade back to idle. The clips frame the plate's middle 1880 of 1920 px, full height.
-  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
+  const VID = 'assets/video/drill/', IDLES = ['idle-a', 'idle-b', 'idle-c', 'idle-d', 'idle-e', 'idle-f'], HOLD = { alarm: 600, clear: 2600, slump: 2600 };   // plus intro: the leads walk in
   const LISTEN_HOLD = 2.0;
   let listening = false, alarmed = false, stage = null, lastKey = null, moodT = 0, arriving = false, arriveT = 0;
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
