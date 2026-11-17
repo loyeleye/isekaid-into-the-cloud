@@ -770,6 +770,13 @@
     const qb = b.querySelector('#dr-qb'); if (qb) qb.onclick = back;
     const nw = b.querySelector('#dr-new'); if (nw) nw.onclick = () => DR.open(null);
   };
+  // The plaque carries what the building stands for in AWS's own words (Ladi, Nov 17): the answer that sealed it and
+  // the rule, the first sentence of its explanation, where the real term or syntax is. Not the exam task's title.
+  function plaqueRule(q) {
+    const right = q.type === 'mc' && q.opts ? [q.opts[q.a]] : (q.items || []).filter(it => it.ok).map(it => it.t);
+    const w = String(q.why || '').trim(), m = w.match(/^.+?[.!?](?=\s+[A-Z(`"]|$)/), rule = (m ? m[0] : w).slice(0, 240);
+    return `${right.length ? `<p class="small dr-sealed">✓ ${right.map(t => esc(typeof t === 'string' ? t : '')).join('<br>✓ ')}</p>` : ''}${rule ? `<p class="small">${esc(rule)}</p>` : ''}`;
+  }
   function plaque(qid, back) {
     const bl = sv().town[qid], q = bl && bl.seq ? seqFind(qid) : find(qid);
     if (!bl || !q) return DR.quarter(back);
@@ -779,7 +786,7 @@
     const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${bl.plot != null ? esc(R.name(bl.plot)) + (R.riverside(bl.plot) ? ' · by the river' : '') : 'On the books'} · ${esc(dom(bl.d))} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its question is on the Wall: bring that poster down (Monster Hunt or a Wall drill) to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its poster came down.' : '🏛 Standing.'}</p></div></div>
-      <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
+      <div class="dr-plaque"><div class="q-ctx">Plaque</div><p class="small"><b>${esc(bl.idea || DR.ideaOf(q))}</b></p>${plaqueRule(q)}<p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       ${retryLine}
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
     SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
@@ -792,7 +799,7 @@
     const b = U.panel(`<div class="dr-result"><canvas class="dr-cv" width="96" height="96" aria-hidden="true"></canvas><div>
       <p><b>${esc(bldName(bl.client))}</b></p><p class="small">${bl.plot != null ? esc(R.name(bl.plot)) + (R.riverside(bl.plot) ? ' · by the river' : '') : 'On the books'} · ${esc(dom(bl.d))} · ${plural(bl.floors, 'floor')}${bl.cracks ? ` · ${plural(bl.cracks, 'crack')}` : ''}</p>
       <p class="small">${bl.scaf ? '🚧 Under scaffolding. Its build order comes back first on a later night: get it right then to finish it.' : bl.fin ? '🏛 Standing. The scaffolding came off when its build order held.' : '🏛 Standing.'}</p></div></div>
-      <div class="dr-plaque"><div class="q-ctx">Plaque · build order</div><p class="small"><b>${esc(x.title || bl.idea)}</b></p><p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
+      <div class="dr-plaque"><div class="q-ctx">Plaque · build order</div><p class="small"><b>${esc(x.title || bl.idea)}</b></p>${Array.isArray(x.steps) ? `<ol class="small dr-steps">${x.steps.map(t => `<li>${esc(typeof t === 'string' ? t : t.t || '')}</li>`).join('')}</ol>` : ''}<p class="small muted">Built for ${esc(c.name)}. ${esc(domName(bl.d))}.</p></div>
       <div class="row"><button class="ghost" id="dr-pb">Back to the Quarter</button></div>`, { title: 'PINGSBY\'S QUARTER', cls: 'dr-win' });
     SD.draftArt.building(b.querySelector('.dr-cv'), { client: c, id: bl.client, floors: bl.floors, scaf: bl.scaf, cracks: bl.cracks });
     b.querySelector('#dr-pb').onclick = () => DR.quarter(back);

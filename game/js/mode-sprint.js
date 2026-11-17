@@ -57,6 +57,15 @@
   const optsOf = q => (q.type === 'multi' ? q.items.map(it => it.t) : q.opts);
   const stemOf = q => (q.type === 'multi' ? q.q.replace(/\s*\((select|choose)\s+\w+\.?\)\s*$/i, '') + ` (Select ${['', 'ONE', 'TWO', 'THREE'][need(q)] || need(q)}.)` : q.q);
   const firstLine = q => { const t = String(q.q); const m = t.match(/^.{0,90}?[.?!](\s|$)/); return m ? m[0].trim() : t.slice(0, 80) + '…'; };
+  // The stem with each part of its deciding phrase ("…" joins two parts) marked in place. '' when a part isn't found.
+  const markIn = (stem, dec) => {
+    const parts = String(dec).split(/\s*…\s*/).filter(Boolean);
+    let out = esc(stem), ok = true;
+    parts.forEach(p => { const e = esc(p); if (out.includes(e)) out = out.replace(e, `<mark class="sp-dec">${e}</mark>`); else ok = false; });
+    return ok ? out : '';
+  };
+  // A caught daemon's rule: the first sentence of its question's explanation, where the AWS term is.
+  const ruleOf = q => { const w = String((q && q.why) || '').trim(), m = w.match(/^.+?[.!?](?=\s+[A-Z(`"]|$)/); return (m ? m[0] : w).slice(0, 240); };
   const isRight = (q, pick) => pick != null && E().correct(q, pick);
   const rightText = q => (q.type === 'mc' ? [q.opts[q.a]] : q.items.filter(it => it.ok).map(it => it.t));
   const whyNot = q => (q.type === 'mc' ? q.opts.map((o, i) => (i !== q.a && q.no && q.no[i] ? [o, q.no[i]] : null)).filter(Boolean)
@@ -767,7 +776,11 @@
       let c = '';
       const firstEmpty = !store().emptySaid && k === 'empty';
       if (firstEmpty) { store().emptySaid = 1; }
-      const head = `<p class="sp-jh"><b>Jar ${r.i + 1}</b> · ${conf}${r.unans ? '' : k === 'gold' ? ' · ★ gold seal' : k === 'loose' ? ' · loose' : k === 'empty' ? ' · × empty' : ' · caught'}</p><p class="small muted">"${esc(firstLine(q))}"</p>`;
+      // With a deciding phrase, the whole stem shows with the phrase marked where it sits (Ladi, Nov 17: the term beside
+      // its result, not quoted off on its own); without one, the stem's first line as before.
+      const hl = dec ? markIn(String(q.q), dec) : '';
+      const head = `<p class="sp-jh"><b>Jar ${r.i + 1}</b> · ${conf}${r.unans ? '' : k === 'gold' ? ' · ★ gold seal' : k === 'loose' ? ' · loose' : k === 'empty' ? ' · × empty' : ' · caught'}</p>${hl ? `<p class="small sp-stem">${hl}</p>` : `<p class="small muted">"${esc(firstLine(q))}"</p>`}`;
+      const rule = r.ok ? ruleOf(q) : '';
       const who = r.ok ? daemon(r.fam, 64, k === 'loose') : `<span class="sp-peek">${daemon(r.fam, 48, false, true)}<span class="small">rustling in the grass</span></span>`;
       const sureMiss = !r.ok && r.counted && r.conf === 2;
       const whyBody = `<p>${esc(q.why || '')}</p>${whyNot(q).map(([o, n]) => `<p class="small"><b>Why not</b> "${esc(o)}": ${esc(n)}</p>`).join('')}
@@ -777,7 +790,7 @@
       else {
         c = `<ul class="sp-jl"><li>✓ ${rightText(q).map(esc).join(' <br>✓ ')}</li>
           ${r.ok ? '' : `<li>× ${[].concat(pick).map(esc).join(' <br>× ')}</li>`}
-          ${dec ? `<li>Deciding phrase: "${esc(dec)}"</li>` : ''}</ul>
+          ${dec ? `<li>Deciding phrase: ${hl ? 'marked in the question above' : `"${esc(dec)}"`}</li>` : ''}</ul>
           <details class="sp-whyd"${sureMiss ? ' open' : ''}><summary>Why</summary>${whyBody}</details>`;
       }
       // The contrast line on the pair's second jar in road order.
@@ -789,7 +802,7 @@
           pairL = `<p class="sp-pair">Patch ${a + 1} was ${esc(D.pairLine[run.ids[a]])}. Patch ${bb + 1} was ${esc(D.pairLine[run.ids[bb]])}.</p>`;
         }
       }
-      return `<div class="sp-jc ${k}">${firstEmpty ? host('lexi', 'Lexi', ['"The lid didn\'t take. It slipped out somewhere on the road."']) : ''}${head}<div class="sp-jw">${who}</div>${c}${pairL}</div>`;
+      return `<div class="sp-jc ${k}">${firstEmpty ? host('lexi', 'Lexi', ['"The lid didn\'t take. It slipped out somewhere on the road."']) : ''}${head}<div class="sp-jw">${who}</div>${rule ? `<p class="small sp-rule"><b>${esc(r.fam.name)}'s rule:</b> ${esc(rule)}</p>` : ''}${c}${pairL}</div>`;
     };
     const at = sc.rows.find(r => r.i === run.jarAt);
     const all = op.length >= sc.rows.length;
@@ -1137,6 +1150,8 @@
     .sp-jl li { margin: 4px 0; }
     .sp-whyd summary { min-height: 48px; display: flex; align-items: center; font-weight: 800; cursor: pointer; }
     .sp-pair { padding: 6px 10px; border-left: 5px solid var(--blue-d); background: #eef4ff; font-weight: 700; }
+    .sp-stem { line-height: 1.45; } .sp-dec { background: #ffe58a; color: #1d1a12; border-radius: 3px; padding: 0 2px; font-weight: 700; box-shadow: inset 0 -2px 0 #d9a13a; }
+    .sp-rule { margin: 4px 0; }
     .sp-era { color: #7a4a00; }
     .sp-dae { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; position: relative; padding: 2px; }
     .sp-dae.loose { outline: 2px dotted var(--ink); outline-offset: 2px; border-radius: 8px; }

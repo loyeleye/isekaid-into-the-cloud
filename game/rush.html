@@ -7,7 +7,8 @@
 <!-- Test page for the Sorting Floor as a real-time game (js/rush-core.js rules, js/rush.js drawing). Not linked from
      the game yet. Serve game/ (python3 -m http.server 8000) and open http://localhost:8000/rush.html.
      Each claim opens on its Night Orders pick. ?seed=N picks the night's ticket order, ?claim=bell starts on claim 2,
-     ?orders=cold,shelf pins those orders and skips the pick, and ?tall forces the phone layout. -->
+     ?orders=cold,shelf pins those orders and skips the pick, and ?tall forces the phone layout. With no ?claim or ?orders the night starts in the claims hall
+     (js/rush-hall.js: the hall, the debrief, the parts cart, the morning); ?nohall skips all four. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
@@ -235,6 +236,7 @@ button.yc-line:hover:not(:disabled) { border-color: #f5c45a; background: rgba(24
 <script src="js/rush-learn.js"></script>
 <script src="js/rush-sheet.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/rush-hall.js"></script>
 <script src="js/rush.js"></script>
 </body>
 </html>

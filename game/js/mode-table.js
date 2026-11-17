@@ -216,6 +216,8 @@
       <b class="ct-stamp ${o.held ? 'ok' : 'crack'}">${o.held ? 'HOLDS' : 'CRACKS'}</b>
     </div>`;
   }
+  // The pin's real name in AWS, chalked under the verdict (Ladi, Nov 17: the AWS term beside the action and its result).
+  const termHtml = pin => T.PINS[pin] && T.PINS[pin].term ? `<p class="ct-term"><span>${esc(pinName(pin))}</span> <code>${esc(T.PINS[pin].term)}</code></p>` : '';
   function testScreen(s, r) {
     const b = s.b, j = b.jobs[r.sq];
     const verdict = r.kind === 'call' ? (r.ok ? 'Fake. It cracks, and the square is yours.' : 'Genuine. It holds, and stays his.') : (r.ok ? 'It holds. The square is yours.' : 'It cracks. He takes the square.');
@@ -230,7 +232,7 @@
       teach: `${teachLine(s, tk)}${j.needs.length > 1 ? teachLine(s, 'chalk') : ''}`,
       hud: `<span class="du-hud"><span><b>The test</b> · ${esc(T.SQ[r.sq])} · ${esc(T.SETS[j.set].name)} · ${esc(pinName(r.pin))}</span></span>`,
       back: benchHtml(r.pin, j.set, { call: r.kind === 'call', held }),
-      down: `<div class="ct-test ${held ? 'held' : 'cracked'}"><p class="ct-cap" aria-live="polite"></p><p class="ct-verdict"><b>${esc(verdict)}</b></p>${extra}</div>
+      down: `<div class="ct-test ${held ? 'held' : 'cracked'}"><p class="ct-cap" aria-live="polite"></p><p class="ct-verdict"><b>${esc(verdict)}</b></p>${termHtml(r.pin)}${extra}</div>
         <div class="row"><button class="primary" id="ct-next">Back to the table</button></div>`
     }));
     const bench = body.querySelector('.ct-bench');
@@ -292,13 +294,13 @@
     if (L.i >= L.items.length) return afterBill(s);
     const it = L.items[L.i];
     // His ledger, open across the counter: what you owe on the left, the line you're paying on the right.
-    const list = L.items.map((x, k) => `<li class="${k < L.i ? 'done' : k === L.i ? 'on' : ''}"><img src="assets/img/table/pin-${x.pin}.webp" alt="" width="48" height="48"><span><b>${esc(pinName(x.pin))}</b>, ${esc(x.needs.map(n => T.NEEDS[n].t).join(' + '))}<i>${esc(WHY[x.why].replace(/^./, c => c.toUpperCase()))}.${k < L.i ? (L.res[k] && L.res[k].ok ? ' Paid ✓' : ' Still owed') : ''}</i></span></li>`).join('');
+    const list = L.items.map((x, k) => `<li class="${k < L.i ? 'done' : k === L.i ? 'on' : ''}"><img src="assets/img/table/pin-${x.pin}.webp" alt="" width="48" height="48"><span><b>${esc(pinName(x.pin))}</b>, ${esc(x.needs.map(n => T.NEEDS[n].t).join(' + '))}<i>${esc(WHY[x.why].replace(/^./, c => c.toUpperCase()))}.${k < L.i ? (L.res[k] && L.res[k].ok ? ' Paid ✓' : ' Still owed') : ''}</i>${k < L.i ? `<small class="ct-rule">${esc(T.PINS[x.pin].back)}</small>` : ''}</span></li>`).join('');
     const body = panel(world({
       cls: 'bill', say: L.i === 0 ? (L.items.some(x => x.why !== 'held') ? SAY.bill : SAY.billNone) : 'Next item.',
       hud: `<span class="du-hud"><span><b>His bill</b> · line ${L.i + 1} of ${L.items.length}</span></span><span class="w-hudb">${stopBtn}</span>`,
       down: `<div class="ct-book"><div class="ct-pg"><p class="ct-pgh">The bill</p><ul class="ct-bill">${list}</ul></div>
-        <div class="ct-pg"><p class="ct-pgh">This line</p><p>${esc(pinName(it.pin))}: ${esc(T.PINS[it.pin].back)}</p>
-          <p class="ct-pgnote">One exam question per line. Say how sure you are.</p>
+        <div class="ct-pg"><p class="ct-pgh">This line</p><p>${esc(pinName(it.pin))}, ${esc(it.needs.map(n => T.NEEDS[n].t).join(' + '))}. ${it.why === 'held' ? 'Why did it hold?' : 'Why did it go that way?'} Say it to yourself first.</p>
+          <p class="ct-pgnote">One exam question per line. The rule goes in the ledger once you've paid. Say how sure you are.</p>
           <button class="ct-paystamp" id="ct-pay">Pay line ${L.i + 1} of ${L.items.length}</button></div></div>`
     }), 'HIS BILL');
     wireStop(body); alive(body);
@@ -641,6 +643,9 @@
     .ct-capneed { display: block; opacity: .85; margin-top: 6px; }
     .ct-capline { display: block; font-weight: 700; } .ct-capline.ok { color: #9fe3a8; } .ct-capline.bad { color: #f0a29b; }
     .ct-verdict { margin: 4px 0; }
+    .ct-term { margin: 2px 0 6px; font-size: 12px; line-height: 1.35; } .ct-term span { font-weight: 800; }
+    .ct-term code { display: inline-block; font: 600 11.5px/1.35 ui-monospace, Menlo, Consolas, monospace; background: rgba(23, 19, 31, .08); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+    .ct-rule { display: block; font-size: 11px; line-height: 1.3; margin-top: 2px; opacity: .85; }
     .ct-lines { list-style: none; padding: 0; margin: 6px 0; }
     .ct-lines li { padding: 4px 0 4px 8px; border-left: 4px solid #4caf62; margin: 4px 0; }
     .ct-lines li.bad { border-left-color: #d0645c; }

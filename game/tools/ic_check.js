@@ -80,7 +80,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   }, [right, conf]);
 
 
-  const next = () => page.click('#q-next');
+  // After a verdict, a settled incident shows its fix (js/ic-fix.js); the first sighting of a config line wants it typed.
+  let fixes = 0, typedFix = 0;
+  const pastFix = async () => {
+    if (!await page.$('#ic-fixgo')) return;
+    fixes++;
+    const inp = await page.$('#ic-type');
+    if (inp) { typedFix++; const line = await page.$eval('.ic-line', e => e.textContent); await inp.fill(line.replace(/ /g, '')); }
+    await page.click('#ic-fixgo'); await page.waitForTimeout(20);
+  };
+  const next = async () => { await page.click('#q-next'); await page.waitForTimeout(30); await pastFix(); };
   const ic = () => page.evaluate(() => JSON.parse(JSON.stringify(SD.state.save.ic)));
   const txt = sel => page.textContent(sel);
   const work = async (i, ok, conf) => { await page.click(`[data-inc="${i}"]`); await page.waitForSelector('#panel .win.quiz'); await answer(ok, conf); await next(); await page.waitForTimeout(40); };
@@ -440,6 +449,23 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   const s10 = await ic();
   check(back.slice(0, 4).every(id => s10.board.concat(s10.queue).some(x => x.q === id)), 'the next shift starts with them');
   check(await page.evaluate(() => SD.state.save.wall.length >= 1), 'Sure misses went up on the Wall');
+
+  // ---- The fix card (js/ic-fix.js): picture, exact line, and the first sighting typed out ----
+  check(fixes > 0 && typedFix > 0, `settled incidents showed their fix (${fixes}), and first sightings asked to be typed (${typedFix})`);
+  const fx = await page.evaluate(() => {
+    const F = SD.icFix, q = SD.exam.find('dva-1-104'), f = F.fixOf(q, 'sqs');
+    const twinFree = SD.icFix.FIXES.every(x => x.line && x.does && x.name && x.pic);
+    return { id: f && f.id, typed: F.typed(f, '"maxReceiveCount":5'), loose: F.typed(f, '"maxreceivecount": 5'), diff: F.firstDiff(f, '"maxRe'), wrong: F.fixOf({ type: 'mc', opts: ['Raise the visibility timeout', 'Add a dead-letter queue'], a: 0 }, 'sqs').id, twinFree };
+  });
+  check(fx.id === 'dlq' && fx.typed && !fx.loose && fx.diff === -1 && fx.wrong === 'vis' && fx.twinFree, 'a fix comes from the right answer only, typing ignores spaces but not case, and every fix has a picture, a line and what it does');
+  await page.evaluate(() => { SD.state.save.icTyped = {}; SD.state.persist(); });
+  const fixShot = await page.evaluate(async () => {
+    const s = SD.state.save.ic, q = SD.exam.find('dva-1-104');
+    const inc = { q: q.id, at: 'sqs', fmt: 0 };
+    const f = SD.ic.fixFor(inc, q);
+    return !!f;
+  });
+  check(fixShot, 'the fix is found for a bank incident and never for a format check');
 
   await browser.close(); server.close();
   errors.forEach(e => console.log(e));
