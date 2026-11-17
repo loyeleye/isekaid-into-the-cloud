@@ -69,10 +69,32 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       if (k === 'policy') await page.click(`[data-pol="${v}"]`);
       else if (k === 'cfg') await page.click(`[data-cfg="${v}"]`);
       else if (k.startsWith('cfn:') && await page.$('[data-tok]')) await page.evaluate(([id, v]) => { document.querySelector(`[data-tok="${v}"]`).click(); document.querySelector(`[data-drop="${id}"]`).click(); }, [k.slice(4), v]);
+      // Beanstalk Row's plan is set on the street: a tap on a house for the batch (the rope's sweep is checked with a
+      // real mouse below), and a tap on a stop of a track (the health-check gauge, the gate's dial, the hourglass, the
+      // demolition stake) for the rest.
+      else if (k === 'batch' && await page.$('[data-house]')) await page.evaluate(v => document.querySelector(`[data-house="${v}"]`).click(), v);
+      else if (await page.$(`[data-slide="${k}"]`)) await page.evaluate(([k, v]) => {
+        const tr = document.querySelector(`[data-slide="${k}"]`), i = tr.dataset.stops.split(',').indexOf(String(v));
+        if (String(tr.dataset.val) === String(v)) return;
+        const st = tr.querySelector(`[data-stop="${i}"]`), r = st.getBoundingClientRect(), at = { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true };
+        st.dispatchEvent(new PointerEvent('pointerdown', at)); window.dispatchEvent(new PointerEvent('pointerup', at));
+      }, [k, v]);
       else await page.click(`[data-k="${k}"][data-v="${v}"]`);
       await page.waitForTimeout(30);
     }
   };
+  const planNow = () => page.evaluate(() => { const s = SD.state.save.reno; return s.jobs[s.at].plan; });
+  // A real mouse drag from one point to another (the page's own pointer events), held for a moment at the end.
+  const drag = async (a, b, hold) => {
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 10 }); if (hold) await hold();
+    await page.mouse.up(); await page.waitForTimeout(150);
+  };
+  // The street is fixed behind the screen's boxes: scroll the boxes back down so the scene is in the open.
+  const toScene = () => page.evaluate(() => { document.querySelectorAll('#panel .win-b').forEach(w => { w.scrollTop = 0; }); window.scrollTo(0, 0); });
+  // Brings a world element into the camera's view (sideways only).
+  const inCam = sel => page.evaluate(sel => { const c = document.querySelector('.rn-bleed .rs-cam'), el = document.querySelector(sel), r = el.getBoundingClientRect(), cr = c.getBoundingClientRect(); c.scrollLeft += r.left + r.width / 2 - (cr.left + cr.width / 2); }, sel);
+  const mid = async sel => { const r = await (await page.$(sel)).boundingBox(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
   // The template card's blanks: the first time a term shows up, it's written out in full before the plan runs.
   const writeBlanks = async () => { for (let i = 0; i < 8; i++) { const x = await page.$('.rn-blank:not(.ok)'); if (!x) break; await x.fill(await x.getAttribute('data-term')); await page.waitForTimeout(520); } };
   const runPlan = async () => { await writeBlanks(); await page.click('#rn-run'); };
@@ -163,6 +185,22 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 
   // ---- Job 2: the quiet ward (lumber 0): a wrong permit answer leaves scaffolding ----
   check(await page.$$eval('[data-pol]', x => x.length) === 4, 'the second job adds a fourth policy');
+  { // The rope: a real mouse pressed on house 1 and dragged along to house 2 ropes off a batch of 2.
+    await setPlan({ policy: 'rolling', batch: 1 });
+    await toScene(); await page.waitForTimeout(100);
+    await page.evaluate(() => { const c = document.querySelector('.rn-bleed .rs-cam'), h = document.querySelector('[data-sweepi="1"]'); c.scrollLeft += h.getBoundingClientRect().left - c.getBoundingClientRect().left - 10; });
+    const a = await mid('[data-sweepi="1"]'), r2 = await (await page.$('[data-sweepi="2"]')).boundingBox();
+    let mark = 0;
+    await drag(a, { x: Math.min(r2.x + r2.width / 2, 375 - 60), y: a.y }, async () => { mark = await page.$$eval('.rs-rb.rd-swept', x => x.length); });
+    check(mark === 2 && (await planNow()).batch === 2 && /BatchSize: 2/.test(await txt('.rn-tpl')) && /BatchSize: 2/.test(await txt('.rn-wrote')), 'dragging a rope from house 1 to house 2 ropes off two houses as it goes, sets a batch of 2, and floats BatchSize: 2');
+    check(await page.$$eval('.rs-batch b', x => x.map(b => b.textContent).slice(0, 4).join()) === '1,1,2,2' && /2 closed at a time/.test(await txt('.rs-ropetag')), 'on release the street regroups into batches of 2, and the rope says how many stay open');
+    // The health-check gauge: a real drag from the gate down to the ground ignores it.
+    await toScene(); await inCam('[data-slide="ignoreHC"]'); await page.waitForTimeout(100);
+    const g = await mid('[data-slide="ignoreHC"] .rd-knob'), gb = await (await page.$('[data-slide="ignoreHC"]')).boundingBox();
+    await drag(g, { x: g.x, y: gb.y + gb.height + 4 });
+    check((await planNow()).ignoreHC === true && /IgnoreHealthCheck: true/.test(await txt('.rn-tpl')) && /ignored/.test(await txt('.rs-hc ~ .rs-tag, .rs-tag.warn')), 'dragging the health-check gauge off the gate sets IgnoreHealthCheck: true');
+    check(!(await page.$('.rn-plaques[open]')) && !!(await page.$('.rn-plaques [data-k="batch"]')), 'Beanstalk Row\'s knob rows are folded away as "the same plaques as buttons"');
+  }
   await setPlan({ policy: 'rolling', batch: 2, ignoreHC: 'false' });
   await renovate();
   check(!!(await page.$('#rn-deb')), 'rolling in batches of 2 passes the quiet ward');
@@ -172,6 +210,16 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/SCAFFOLDING/.test(await txt('#panel')) && await page.evaluate(id => SD.draft.save().town[id].scaf && SD.draft.posterUp(id), p2.qid), 'a wrong permit answer: scaffolding, and the question on the Wall');
   await nextJob();
   // ---- Jobs 3 to 5 ----
+  { // The gate's dial: the crowd re-divides while it slides, before it's let go.
+    await setPlan({ policy: 'split', split: 10 });
+    await toScene(); await inCam('[data-slide="split"]'); await page.waitForTimeout(100);
+    const k = await mid('[data-slide="split"] .rd-knob'), e = await mid('[data-slide="split"] [data-stop="2"]');
+    let live = -1;
+    await drag(k, e, async () => { await page.waitForTimeout(60); live = await page.$$eval('.rs-cw.nw', x => x.length); });
+    check(live === 10 && (await planNow()).split === 50 && /NewVersionPercent: 50/.test(await txt('.rn-tpl')) && /50% → new street/.test(await txt('.rs-splittag')), 'sliding the gate\'s dial to 50% sends half the crowd to the new street as it slides: NewVersionPercent: 50');
+    await setPlan({ evalT: 4 });
+    check((await planNow()).evalT === 4 && /EvaluationTime: 4/.test(await txt('.rn-tpl')), 'the hourglass by the new street sets EvaluationTime');
+  }
   check(await play({ policy: 'allAtOnce' }, true), 'the test office: all at once passes');
   await nextJob();
   await setPlan({ policy: 'rolling', batch: 1, ignoreHC: 'true' });

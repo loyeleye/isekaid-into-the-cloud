@@ -161,7 +161,7 @@
         return { file: 'the command line', lines: L };
       }
       L.push([0, 'option_settings:'], [1, 'aws:elasticbeanstalk:command:'], [2, `DeploymentPolicy: ${EB_POLICY[p.policy] || p.policy}`, ['policy'], EB_POLICY[p.policy]]);
-      if (p.policy === 'rolling' || p.policy === 'rollingBatch') L.push([2, 'BatchSizeType: Fixed', ['batch']], [2, `BatchSize: ${p.batch || 1}`, ['batch']], [2, `IgnoreHealthCheck: ${!!p.ignoreHC}`, ['ignoreHC']]);
+      if (p.policy === 'rolling' || p.policy === 'rollingBatch') L.push([2, `BatchSize: ${p.batch || 1}`, ['batch']], [2, 'BatchSizeType: Fixed', ['batch']], [2, `IgnoreHealthCheck: ${!!p.ignoreHC}`, ['ignoreHC']]);
       if (p.policy === 'split') L.push([1, 'aws:elasticbeanstalk:trafficsplitting:'], [2, `NewVersionPercent: ${p.split}`, ['split']], [2, `EvaluationTime: ${p.evalT}`, ['evalT']]);
       return { file: '.ebextensions/deploy.config', lines: L };
     }
@@ -248,10 +248,14 @@
       const st = job.street, g = ghostOf(job, p);
       const info = `${plural(st.houses, 'house')} · ${st.demand ? plural(st.demand, 'resident') + ' coming home every tick' : 'nobody lives here yet'} · the gate is ${st.gate === 'alb' ? 'an Application Load Balancer' : 'a Classic Load Balancer'}`;
       const tap = p.policy === 'rolling' || p.policy === 'rollingBatch';
-      scene = SD.renoStreet ? SD.renoStreet.scene({ ghost: g, tap, seymour: 'proud', folk: st.demand, kai: 'neutral', shot: 'wide',
+      // The plan is set on the street (reno-street.js ebPlan): the rope around a batch, the health-check gauge, the
+      // gate's dial and the hourglass, the demolition stake. The blueprint cards pick the policy.
+      const how = tap ? 'Drag the rope from house 1: one batch' : p.policy === 'split' ? 'Slide the gate\'s dial, and the hourglass by the new street' : p.policy === 'blueGreen' ? 'Slide the demolition stake' : '';
+      scene = SD.renoStreet ? SD.renoStreet.scene({ ghost: g, tap, eb: p, seymour: 'proud', folk: p.policy === 'split' ? 0 : st.demand, kai: 'neutral', shot: 'wide',
+        cls: fresh && j.tplHi === 'batch' ? 'rs-regroup' : '',
         label: `Beanstalk Row: ${info}`,
-        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip rs-hidephone">${esc(info)}</span>${g.tag ? `<span class="rs-chip plan">Blueprint: ${esc(g.tag)}</span>` : ''}</span>${slateHtml(job)}</div>
-          <div class="rs-row"><span></span>${tap ? '<span class="rs-chip">Tap a house: that many per batch</span>' : ''}</div>` })
+        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip rs-hidephone">${esc(info)}</span>${g.tag ? `<span class="rs-chip plan">Blueprint: ${esc(g.tag)}</span>` : ''}${how ? `<span class="rs-chip">${esc(how)}</span>` : ''}</span>${slateHtml(job)}</div>
+          <div class="rs-row"><span></span></div>` })
         : streetRow(job, { houses: g.houses }, { ghost: g, slate: slateHtml(job), info, folk: st.demand ? residents({ served: Math.min(st.demand, 8) }) : '' });
       cards = job.hand.map(id => bp('data-pol', id, p.policy === id, AD.EB_NAME[id], POLICY_TEXT[id])).join('');
       if (p.policy === 'rolling' || p.policy === 'rollingBatch') knobs = seg('batch', [[1, '1 house'], [2, '2 houses'], [3, '3 houses']], p.batch, 'Batch size (fixed)') + seg('ignoreHC', [['false', 'Off'], ['true', 'On']], String(!!p.ignoreHC), 'Ignore health check');
@@ -291,7 +295,7 @@
       ${slateBelow}
       ${refused}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
-      ${knobs ? (SD.renoStreet && job.d === 'cfn'
+      ${knobs ? (SD.renoStreet && (job.d === 'cfn' || job.d === 'eb')
         ? `<details class="rn-plaques"${j.plaquesOpen ? ' open' : ''}><summary class="q-ctx">The same plaques as buttons</summary><div class="rn-knobs">${knobs}</div></details>`
         : `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>`) : ''}
       <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · Seymour runs it twice</span></div>
@@ -321,8 +325,15 @@
     // Hands-on: pieces dragged onto the scene, handles slid along a track, a rope strung across the houses (js/reno-drag.js).
     if (SD.renoDrag) SD.renoDrag.bind(b, {
       drop: (tok, at) => { if (job.d === 'cfn') { p[at] = tok; redraw(at); } else if (DROP[job.d]) DROP[job.d](p, tok, at, redraw); },
-      set: (name, v) => { p[name] = v; redraw(name); }
+      set: (name, v) => { p[name] = v === 'true' ? true : v === 'false' ? false : v; redraw(name); }
     });
+    // The gate's dial: the crowd re-divides as it slides, before it's let go (the share snaps to the nearest stop).
+    const dial = job.d === 'eb' && b.querySelector('[data-slide="split"]'), dk = dial && dial.querySelector('.rd-knob');
+    if (dk && window.MutationObserver) new MutationObserver(() => {
+      const v = [10, 25, 50][Math.round(Math.max(0, Math.min(1, parseFloat(dk.style.left) / 100)) * 2)], c = Math.round(v / 5);
+      b.querySelectorAll('.rs-cw').forEach(el => el.classList.toggle('nw', +el.dataset.ci < c));
+      const t = b.querySelector('.rs-splittag'); if (t) t.textContent = `${100 - v}% old street · ${v}% → new street`;
+    }).observe(dk, { attributes: true, attributeFilter: ['style'] });
     // A blank on the card: Seymour won't run a plan that isn't written out.
     b.querySelector('#rn-run').onclick = () => {
       const blank = b.querySelector('.rn-blank:not(.ok)');

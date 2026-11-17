@@ -82,12 +82,14 @@
       const cx = centreX(x.slot), w = x.hh * (AR[x.name] || 0.66);
       if (x.h.rented && o.tick) out += stand('lot', SLOT_W / AR.lot, cx, FEET + 14, { cls: 'rs-lot' });
       out += shadow(cx, FEET, w * 0.9) + stand(x.name, x.hh, cx, FEET, { alt: x.say, cls: 'rs-house' + (x.h.rented ? ' rented' : '') });
-      if (x.h.g) out += `<i class="rs-batch g${x.h.g % 2}" style="left:${px(slotX(x.slot) - 6)};top:${px(FEET - HOUSE - 12)};width:${px(SLOT_W + 12)};height:${px(HOUSE + 22)}"><b>${x.h.g}</b></i>`;
+      if (x.h.g) out += `<i class="rs-batch g${x.h.g % 2}" style="--g:${x.h.g};left:${px(slotX(x.slot) - 6)};top:${px(FEET - HOUSE - 12)};width:${px(SLOT_W + 12)};height:${px(HOUSE + 22)}"><b>${x.h.g}</b></i>`;
     });
-    // While planning: tap a house to wrap it and the ones before it in scaffolding (the first batch).
+    // While planning: press on house 1 and drag along to house k to string the scaffolding rope around the first batch
+    // (js/reno-drag.js's sweep), or tap a house. Each button is a full step wide, so the rope runs on without a gap.
     if (o.tap) houses.slice(0, 3).forEach((x, i) => {
-      out += `<button class="rs-hb" data-house="${i + 1}" aria-label="Scaffold ${i + 1} ${i ? 'houses' : 'house'} per batch" style="left:${px(slotX(x.slot))};top:${px(FEET - HOUSE)};width:${px(SLOT_W)};height:${px(HOUSE)}"></button>`;
+      out += `<button class="rs-hb rs-rb" data-house="${i + 1}" data-sweep="batch" data-sweepi="${i + 1}" aria-label="Rope off ${i + 1} ${i ? 'houses' : 'house'}: the batch taken out of service together" style="left:${px(slotX(x.slot) - (STEP - SLOT_W) / 2)};top:${px(FEET - HOUSE)};width:${px(STEP)};height:${px(HOUSE)}"></button>`;
     });
+    if (o.eb) out += ebPlan(o.eb, houses.length, o.tap, GATE_X + gW, gH);
     // Seymour, by the gate.
     if (o.seymour) { const sp = 'sey-' + o.seymour; out += shadow(GATE_X + gW + 40, SEY_FEET, 60) + stand(sp, SEY_H * SEY_SRC[o.seymour] / 1000, GATE_X + gW + 40, SEY_FEET, { alt: 'Sir Seymour Backups' }); }
     // Residents: one in front of each house that served someone this tick, soot on the ones who met the crack, and
@@ -96,6 +98,68 @@
     else if (o.folk) out += folk({ served: o.folk, soot: 0, turned: 0 }, houses, gx, gW);
     // The camera's tour on a phone: the gate and the first houses, then the far end (rented lots, a new street).
     return { html: out, width: worldW, houses, stops: [GATE_X + 260, centreX(lastSlot)] };
+  }
+
+  // ---- Beanstalk Row's plan, set on the street itself (Ladi, Nov 17: each gesture mirrors how the setting works) ----
+  //   rolling:    the scaffolding rope around the first batch (the houses taken out of service together, so that many
+  //               fewer stay open), and the health-check gauge hung on the gate or set down on the ground (ignored).
+  //   split:      a dial under the crowd coming in through the gate: the share that walks to the new street re-divides
+  //               as it slides; an hourglass by the new street's signpost for how long it's watched.
+  //   blueGreen:  the demolition stake on a tick ruler in front of the old street: down right away, or after 2 ticks.
+  // Tracks are js/reno-drag.js handles: data-slide, data-stops, a .rd-knob, a [data-stop] for each stop to tap.
+  const TOOL_AR = { 'tool-hc': 109 / 200, 'tool-scaffold': 96 / 200, 'tool-lot': 118 / 200 };
+  const tool = (name, h, cx, feet, cls) => stand(name, h, cx, feet, { cls, style: `width:${px(h * TOOL_AR[name])};left:${px(cx - h * TOOL_AR[name] / 2)};` });
+  // A track at (x, y) in world pixels; stops [value, label]; vert puts the first stop at the bottom.
+  function track(name, stops, val, box, knob, o) {
+    o = o || {};
+    const n = stops.length, at = stops.findIndex(s => String(s[0]) === String(val)), f = i => (n > 1 ? i / (n - 1) : 0.5);
+    const pos = i => (o.vert ? `top:${(1 - f(i)) * 100}%` : `left:${f(i) * 100}%`);
+    return `<div class="rs-tr rd-slide${o.vert ? ' v' : ''} ${o.cls || ''}" data-slide="${name}" data-stops="${stops.map(s => s[0]).join(',')}" data-val="${esc(val)}"${o.vert ? ' data-axis="y"' : ''} data-say="${esc(stops.map(s => s[2] || s[1]).join('|'))}" style="left:${px(box[0])};top:${px(box[1])};width:${px(box[2])};height:${px(box[3])}">
+      <i class="rs-rail"></i>${o.marks || ''}${stops.map((s, i) => `<span class="rs-st${i === at ? ' on' : ''}" data-stop="${i}" style="${pos(i)}">${esc(s[1])}</span>`).join('')}
+      <span class="rd-knob rs-knob" aria-label="${esc(o.label || name)}" style="${pos(Math.max(0, at))}">${knob}</span></div>`;
+  }
+  // A label in the world: centred on x, or starting at x with o.from (so a phone's narrow camera doesn't cut it).
+  const tag = (text, x, top, cls, from) => `<b class="rs-tag ${cls || ''}${from ? ' from' : ''}" style="left:${px(x)};top:${px(top)}">${text}</b>`;
+  function ebPlan(p, n, tap, gateR, gH) {
+    let out = '';
+    if (tap) {
+      // The rope: the first batch, scaffolding poles at its two ends. The rest of the street's batches are the outlines.
+      const k = Math.max(1, Math.min(3, n, +p.batch || 1)), l = slotX(0) - 10, r = slotX(k - 1) + SLOT_W + 10;
+      out += `<i class="rs-rope" style="left:${px(l)};top:${px(FEET - HOUSE - 18)};width:${px(r - l)};height:${px(HOUSE + 34)}"></i>`;
+      out += tool('tool-scaffold', 190, l + 8, FEET + 22, 'rs-pole') + tool('tool-scaffold', 190, r - 8, FEET + 22, 'rs-pole');
+      out += tag(p.policy === 'rollingBatch' ? `${k} rented first · all ${n} stay open` : `${k} closed at a time · ${n - k} of ${n} stay open`, l + 24, FEET - 76, 'rs-ropetag', true);
+      // The health-check gauge: hung on the gate, it reads each batch before the next starts; set down, it's ignored.
+      const cx = gateR - 40, top = FEET - gH * 0.7, h = FEET - 30 - top;
+      out += tag(p.ignoreHC ? 'Health check ignored' : 'Health check on', cx - 60, top - 125, p.ignoreHC ? 'warn' : '', true);
+      out += track('ignoreHC', [[true, '', 'Set down: ignored, the next batch starts anyway'], [false, '', 'On the gate: each batch must pass before the next']], !!p.ignoreHC,
+        [cx - 50, top, 100, h], `<img src="${IMG('tool-hc')}" alt="" draggable="false">`, { vert: true, cls: 'rs-hc' + (p.ignoreHC ? ' off' : ''), label: 'Health-check gauge: up on the gate, or down on the ground to ignore it' });
+    }
+    if (p.policy === 'split') {
+      // The crowd at the gate: 20 residents, the share for the new street (from the right) in blueprint blue.
+      const v = +p.split || 10, c = Math.round(v / 5), x0 = X0 + 10, dx = 31;
+      let crowd = '';
+      for (let col = 9; col >= 0; col--) [0, 1].forEach(row => {
+        const ci = (9 - col) * 2 + row, feet = row ? FEET + 10 : FEET - 6, x = x0 + col * dx + (row ? dx / 2 : 0);
+        crowd += `<span class="rs-cw${ci < c ? ' nw' : ''}" data-ci="${ci}">${stand(row ? 'res-b' : 'res-a', ph(feet) * 0.72, x, feet, { style: 'transform:scaleX(-1);' })}</span>`;
+      });
+      out += `<span class="rs-crowd" aria-hidden="true">${crowd}</span>`;
+      out += tag(`${100 - v}% old street · ${v}% → new street`, x0 + 5 * dx, FEET - 250, 'rs-splittag plan');
+      out += track('split', [[10, '10%', '10% of residents to the new street'], [25, '25%', '25% of residents to the new street'], [50, '50%', '50% of residents to the new street']], v,
+        [x0, FEET - 140, 9.5 * dx, 60], '→', { label: 'The gate\'s dial: the share of residents sent to the new street' });
+      // The hourglass by the new street: how long the new street is watched before everyone moves.
+      const sx = centreX(n);
+      out += tag(`Watched for ${+p.evalT || 2} ticks`, sx, FEET - 250, 'plan');
+      out += track('evalT', [[2, '2', '2 ticks'], [3, '3', '3 ticks'], [4, '4', '4 ticks']], +p.evalT || 2,
+        [sx - 120, FEET - 140, 240, 60], '⏳', { label: 'The hourglass: evaluation time before everyone moves' });
+    }
+    if (p.policy === 'blueGreen') {
+      // The demolition stake on a ruler of ticks after the swap.
+      const w = +p.wait || 0, x = X0;
+      out += tag(w ? 'Old street down after 2 ticks: stragglers with the old address still get in' : 'Old street down right away: a straggler with the old address finds it gone', x + 20, FEET - 330, w ? 'plan' : 'warn', true);
+      out += track('wait', [[0, 'now', 'Right away'], [2, '2 ticks', 'After 2 ticks']], w, [x + 50, FEET - 58, 240, 56],
+        `<img src="${IMG('tool-lot')}" alt="" draggable="false">`, { cls: 'rs-stake', marks: '<i class="rs-tk" style="left:50%"></i>', label: 'The demolition stake: when the old street comes down after the swap' });
+    }
+    return out;
   }
   // ---- Walking: a resident who travels along a path, stepping through the walk frames, growing as they come nearer ----
   // The path is resampled to equal steps so the pace is even, and the frames step every quarter second while they walk.
@@ -494,6 +558,44 @@
     .rs-batch b { position: absolute; top: -34px; left: 50%; transform: translateX(-50%); font: 800 36px/1 var(--f-head, sans-serif); min-width: 54px; padding: 6px 8px; text-align: center; border-radius: 28px; background: #1f4e8c; color: #fff; border: 3px solid #bfe0ff; }
     .rs-hb { position: absolute; background: none; border: 0; padding: 0; cursor: pointer; border-radius: 14px; }
     .rs-hb:focus-visible { outline: 6px solid #ffd45a; }
+    /* Beanstalk Row's plan on the street (ebPlan): the rope, the gauge, the dial, the hourglass, the stake. World pixels. */
+    .rs-rope, .rs-hb.rs-rb.rd-swept { --rope: repeating-linear-gradient(60deg, #f0cf86 0 10px, #8a5a2a 10px 17px); }
+    .rs-rope { position: absolute; pointer-events: none; border-radius: 10px;
+      background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, var(--rope) right / 12px 100% no-repeat; filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)); }
+    .rs-pole { filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); }
+    .rd-sweeping .rs-rope, .rd-sweeping .rs-pole, .rd-sweeping .rs-ropetag { opacity: 0; }
+    .rs-hb.rs-rb.rd-swept { outline: none; border-radius: 0; background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept[data-sweepi="1"] { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept:not(:has(+ .rs-rb.rd-swept)) { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) right / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-hb.rs-rb.rd-swept[data-sweepi="1"]:not(:has(+ .rs-rb.rd-swept)) { background: var(--rope) top / 100% 12px no-repeat, var(--rope) bottom / 100% 12px no-repeat, var(--rope) left / 12px 100% no-repeat, var(--rope) right / 12px 100% no-repeat, rgba(255,212,90,.16); }
+    .rs-regroup .rs-batch { animation: rs-regroup .45s ease-out both; animation-delay: calc(var(--g, 1) * .12s); }
+    @keyframes rs-regroup { from { transform: scale(.82); opacity: 0; } to { transform: none; opacity: 1; } }
+    .rs-tag { position: absolute; transform: translateX(-50%); width: max-content; max-width: 560px; text-align: center; font: 800 26px/1.15 var(--f-head, sans-serif); color: #fff; background: rgba(23,19,31,.86); border-radius: 14px; padding: 6px 14px; pointer-events: none; z-index: 2; }
+    .rs-tag.from { transform: none; text-align: left; }
+    .rs:not(.rs-wide) .rs-tag { font-size: 19px; max-width: 300px; padding: 4px 10px; }
+    .rs:not(.rs-wide) .rs-tr .rs-st { min-width: 50px; height: 50px; font-size: 22px; }
+    .rs:not(.rs-wide) .rs-tr .rs-knob:not(:has(img)) { width: 68px; height: 68px; font-size: 36px; }
+    .rs-tag.plan { background: rgba(31,78,140,.94); border: 2px dashed #bfe0ff; } .rs-tag.warn { background: rgba(200,120,20,.96); }
+    .rs-world .rs-tr { position: absolute; z-index: 3; }
+    .rs-tr .rs-rail { position: absolute; left: 0; right: 0; top: 50%; height: 16px; margin-top: -8px; border-radius: 8px; background: linear-gradient(#8a6a3a, #5a4020); border: 3px solid #3a2410; box-shadow: 0 4px 6px rgba(0,0,0,.45); }
+    .rs-tr.v .rs-rail { left: 50%; right: auto; top: 0; bottom: 0; width: 16px; height: auto; margin: 0 0 0 -8px; }
+    .rs-tr .rs-st { position: absolute; top: 50%; transform: translate(-50%, -50%); min-width: 64px; height: 64px; padding: 0 8px; display: grid; place-items: center; border-radius: 32px; white-space: nowrap; font: 800 28px/1 var(--f-head, sans-serif); color: #3a2410; background: #e8d3a0; border: 3px solid #5a4020; box-sizing: border-box; }
+    .rs-tr .rs-st.on { background: #ffd45a; }
+    .rs-tr.v .rs-st { left: 50%; min-width: 40px; height: 40px; }
+    .rs-tr .rs-tk { position: absolute; top: 50%; width: 6px; height: 40px; margin: -20px 0 0 -3px; background: #3a2410; border-radius: 3px; }
+    .rs-tr .rs-knob { top: 50%; transform: translate(-50%, -50%); z-index: 1; width: 84px; height: 84px; display: grid; place-items: center; border-radius: 50%; font: 900 44px/1 sans-serif; color: #3a2410; background: radial-gradient(circle at 35% 30%, #fff3c8, #e0a030 70%); border: 4px solid #5a3a12; box-shadow: 0 6px 10px rgba(0,0,0,.5); }
+    .rs-tr.v .rs-knob { left: 50%; }
+    .rs-tr .rs-knob img { pointer-events: none; }
+    .rs-tr.rs-hc .rs-knob, .rs-tr.rs-stake .rs-knob { background: none; border: 0; box-shadow: none; border-radius: 12px; width: 110px; height: 190px; }
+    .rs-tr.rs-hc .rs-knob img { height: 180px; width: auto; filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+    .rs-tr.rs-hc.off .rs-knob img { transform: rotate(70deg); transform-origin: 50% 85%; }
+    .rs-tr.rs-stake .rs-knob { transform: translate(-36%, -96%); }
+    .rs-tr.rs-stake .rs-knob img { height: 150px; width: auto; filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+    .rs-tr .rs-knob:focus-visible { outline: 6px solid #ffd45a; outline-offset: 4px; }
+    .rs-tr.rd-live .rs-knob { box-shadow: 0 0 0 8px rgba(255,212,90,.6), 0 6px 10px rgba(0,0,0,.5); }
+    .rs-crowd .rs-sp { transition: filter .2s; }
+    .rs-cw.nw .rs-sp { filter: sepia(1) hue-rotate(175deg) saturate(3) brightness(1.15) drop-shadow(0 0 6px #bfe0ff); }
+    @media (prefers-reduced-motion: reduce) { .rs-regroup .rs-batch { animation: none; } .rs-crowd .rs-sp { transition: none; } }
     .rs-marks { position: absolute; color: #ff5a4a; font: 900 44px/1 sans-serif; letter-spacing: -6px; text-shadow: 0 2px 0 #000; white-space: nowrap; z-index: 2; }
     .rs-post { position: absolute; font: 800 28px/1 var(--f-head, sans-serif); padding: 8px 14px; border-radius: 8px; background: #6b4423; border: 3px solid #3b2410; color: #ffe9b8; white-space: nowrap; }
     .rs-trav { position: absolute; left: 0; top: 0; pointer-events: none; }
