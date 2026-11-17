@@ -69,6 +69,11 @@
   }
   function draw(s) {
     ({ board: boardScreen, plan: planScreen, debrief: debriefScreen, after: afterScreen, end: endScreen }[s.phase] || boardScreen)(s);
+    // A new screen opens at its top. js/ui.js keeps a window's scroll when the next one has the same title (all of
+    // these do), so a phone that scrolled down to "Take the job" opened the plan with the street half covered
+    // (playtest, Nov 17). A redraw of the same screen (a knob, a refused plan) doesn't come through here and keeps it.
+    const wb = document.querySelector('#panel > .win > .win-b'); if (wb) wb.scrollTop = 0;
+    const rn = wb && wb.querySelector(':scope > .rn'); if (rn) rn.classList.remove('rn-up');
   }
   const jobOf = (s, i) => R.job(s.jobs[i].id, s.jobs[i].seed);
 

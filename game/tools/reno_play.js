@@ -55,6 +55,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const audit = async where => {
     const r = await page.evaluate(() => {
       const W = innerWidth, H = innerHeight, bad = [];
+      const wbA = document.querySelector('#panel .win-b'), at = wbA ? Math.round(wbA.scrollTop) : 0;
       if (document.documentElement.scrollWidth > W + 1) bad.push('page scrolls sideways (' + document.documentElement.scrollWidth + 'px)');
       const p = document.querySelector('#panel');
       if (!p || p.hidden) return { bad: ['no panel'], info: {} };
@@ -93,12 +94,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
         const b = el.getBoundingClientRect(), e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
         if (!e || (e !== el && !el.contains(e))) bad.push(`${el.id || el.textContent.trim().slice(0, 24)} can't be pressed: under ${e ? (e.className || e.tagName) : 'nothing'}`);
       });
+      info.at = at;
       const pb = p.querySelector('.win-b');
       if (pb) pb.scrollTop = 0; p.scrollTop = 0;
       const sc = p.querySelector('.win-b') || p;
       info.scroll = Math.max(0, (sc.scrollHeight || 0) - (sc.clientHeight || 0));
       return { bad: [...new Set(bad)].slice(0, 6), info };
     });
+    if (!/playing|verdict|refused/.test(where) && r.info.at) r.bad.push(`opens scrolled ${r.info.at}px down`);
     check(!r.bad.length, `${TAG} ${where}: seams${r.bad.length ? ': ' + r.bad.join(' | ') : ''}`);
     return r.info;
   };
