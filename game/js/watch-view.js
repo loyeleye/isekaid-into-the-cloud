@@ -347,7 +347,7 @@
       const top = T.buildings ? SY(Y[WW.LEVELS[Math.max(0, li - 1)]]) - 4 : Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
-        else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
+        else c.drawImage(p, -camX * l.speed, -camY * l.speed + (l.y || 0)); });   // y: lift a backdrop so more of it shows over the wall
       // Each road's buildings, top road first, drawn just before that road's people (below), so a road's houses
       // stand in front of whoever walks on the road above (Ladi, Nov 18). Yours and the one above are solid, roads
       // below you see-through and soft so they read as distant; two or more roads up aren't drawn at all.
