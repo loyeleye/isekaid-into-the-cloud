@@ -8,7 +8,12 @@
 //   Dawn:    pay: base 20, +10 a fix, -10 a missed breach (night 1 has no fines).
 // Content comes from window.WATCH_CONTENT (js/watch-content.js, the content thread); until it's there, the night's
 // breaches come from the v2 locks in js/watch-data.js and three placeholder shortcut quests stand in.
-// Still to come in this file: hiring watchers and ward levels, the Long Night's town raid, endings.
+//   Watchers: talk to one of the eight in the day to hire them (50, then 80). Ward level 0-4 = paid (up to 2) +
+//            their quest's heart + trust in you of 60 or more. On the Long Night: 1 counts, 2 marks, 3 fixes one, 4 all.
+//   Night 9: the Long Night. Every breach missed on nights 1-8 comes back first, new ones wait in town, the castle
+//            gate stays open both ways, and unwarded breaches only show when you're close. Three endings; retry from
+//            that dusk keeps silver, watchers and trust.
+// Still to come: the shop (spare tools, lantern posts, outposts) and the night 1 walkthrough's arrow.
 // Save: S.save.watch3 = { v: 3, day, silver, unlocks, quests: { id: { step, done } }, hearts, fixed, missed, bonds }.
 (function () {
   const M = SD.modes, U = SD.ui, S = SD.state, W = SD.watchData, WW = SD.watchWorld, WV = SD.watchView, B = SD.watchBonds;
@@ -20,6 +25,13 @@
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
   const PEOPLE = ['mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'captain'];
+  // Watchers (doc: The Long Night, "The map is eight areas"): one per area, hired in the day.
+  const WATCHERS = { mira: 'main-street', coo: 'hill-road', kagemaru: 'far-lane', bru: 'west-road',
+    lexi: 'castle:towers', kai: 'castle:upper', dutch: 'castle:ground', hobb: 'castle:cellars' };
+  const HIRE = [50, 80];
+  const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
+  // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
+  const ward = who => { const w = sv(); return Math.min(2, (w.hires || {})[who] || 0) + (w.hearts[who] ? 1 : 0) + (B.trust(w.bonds, who) >= 60 ? 1 : 0); };
   const OLD_ROOM = { tower: 'watchtower', bridge: 'bridge-tower', post: 'post-room', strong: 'strongroom' };
   const FIX_OF = { lock: 'door', key: 'badge-desk' };
 
@@ -46,14 +58,25 @@
         choices: Object.keys(s.tiles).map(k => ({ text: s.tiles[k].label, best: s.tiles[k].res === 'ok', why: s.tiles[k].line })), _i: i };
     });
   }
+  function fallbackNine() {   // the Long Night's new breaches, until content lands: the night-9 locks, one per town level
+    return fallbackBreaches(9).map((b, i) => {
+      const lvl = WW.LEVELS[i % 4], spot = WW.TOWN[lvl].spots.find(s => s.kind === 'fix') || WW.TOWN[lvl].spots[0];
+      return Object.assign({}, b, { where: { level: lvl, x: spot.x } });
+    });
+  }
+  const allFor = n => { const c = content().breaches; return c && c.length ? c.filter(b => b.night === n) : n === 9 ? fallbackNine() : fallbackBreaches(n); };
   function breaches(n) {
-    const c = content().breaches;
-    let list = c && c.length ? c.filter(b => b.night === n) : fallbackBreaches(n);
+    let list = allFor(n);
+    if (n === 9) {   // returning: every breach missed on nights 1-8, in the same place, first
+      const w = sv(), back = [];
+      for (let k = 1; k <= 8; k++) allFor(k).forEach(b => { if (w.missed[b.id]) back.push(b); });
+      list = back.concat(list);
+    }
     if (n === 1) list = list.slice(0, 1);   // night 1: one breach, on the ground floor (doc: Night 1)
     return list.map((b, i) => {
       const scene = b.where && b.where.level ? b.where.level : 'castle:' + ((b.where && b.where.floor) || 'ground');
       const sc = WW.scene(scene);
-      const x = b.where && b.where.x != null ? b.where.x : b.where && b.where.room ? roomX(b.where.floor, b.where.room, i + 1) : Math.round((sc.from + sc.to) / 2);
+      const x = b.where && b.where.x != null ? b.where.x : b.where && b.where.room ? roomX(b.where.floor, b.where.room, (b.id.length + i) % 7 + 1) : Math.round((sc.from + sc.to) / 2);
       return Object.assign({ scene, x }, b);
     });
   }
@@ -186,6 +209,15 @@
     const wx = WW.weather(day, run && run.phase === 'night' ? 'night' : 'day');
     const g = gossipFor(who, day, wx);
     if (g && g.tie) B.shift(b, g.tie.a, g.tie.b, g.tie.to);
+    if (WATCHERS[who] && run && run.phase === 'day' && day <= 9) {
+      const paid = (w.hires = w.hires || {})[who] || 0, cost = HIRE[paid], area = WW.scene(WATCHERS[who]).name;
+      const o = overlay(`${line(who, g ? g.line : 'Quiet day so far.')}<p class="ww-meta">${esc(nm(who))} can watch the ${esc(area)} on the Long Night. Ward level ${ward(who)} of 4 (paid ${paid} of 2, trust ${ward(who) - paid} of 2).</p>
+        <div class="row"><button class="ghost" data-a="x">Bye</button>${cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
+      o.querySelector('[data-a=x]').onclick = close;
+      const h = o.querySelector('[data-a=h]');
+      if (h) h.onclick = () => { w.silver -= cost; w.hires[who] = paid + 1; S.persist(); close(); };
+      return;
+    }
     sayAll([[who, g ? g.line : who === 'pell' ? 'Mind the locks.' : 'Evening soon. Be careful up at the castle.']]);
   }
   function step(q) {
@@ -281,7 +313,15 @@
     if (view) view.stop();
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? 160 : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
-    run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0 };
+    run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
+    if (phase === 'night' && w.day === 9) {   // ward levels act before you arrive (doc: Ward level)
+      Object.keys(WATCHERS).forEach(k => {
+        const lv = ward(k), mine = run.list.filter(x => x.scene === WATCHERS[k]);
+        run.ward[WATCHERS[k]] = lv;
+        if (lv >= 4) mine.forEach(x => { run.fixed[x.id] = 'ward'; });
+        else if (lv >= 3 && mine[0]) run.fixed[mine[0].id] = 'ward';
+      });
+    }
     clock = phase === 'night' ? nightS(w.day) : phase === 'day' ? DAY_S : 0;
     const b = U.panel(`<p class="ww-top" id="ww-top"></p><div class="ww-wrap"><div class="ww-view"></div></div>
       <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
@@ -290,7 +330,8 @@
     if (phase === 'dusk') endB.hidden = true;
     b.querySelector('#ww-quit').onclick = () => { if (view) view.stop(); view = null; S.persist(); M.open && M.open(); };
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
-    const marks = () => run.list.filter(x => !run.fixed[x.id]).map(x => ({ scene: x.scene, x: x.x, text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
+    const seen = x => w.day !== 9 || (run.ward[x.scene] || 0) >= 2 || Math.abs(x.x - st.x) < 220;   // night 9: search unless warded
+    const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
     view = WV.mount(b.querySelector('.ww-view'), {
       st, people: people(phase, w.day), marks: marks(), weather: wx,
@@ -308,8 +349,8 @@
       },
       onMove(m) {
         if (busy) return false;
-        if (m.via === 'pell-gate') { setTimeout(() => walk('night'), 0); return false; }
-        if (m.via === 'castle-exit' && phase === 'night') return false;
+        if (m.via === 'pell-gate' && phase !== 'night') { setTimeout(() => walk('night'), 0); return false; }
+        if (m.via === 'castle-exit' && phase === 'night' && w.day !== 9) return false;
         return true;
       },
       onLift(moves) {
@@ -319,13 +360,15 @@
         o.querySelector('[data-a=x]').onclick = close;
       },
       onTick(s, dt) {
+        if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
         if (!busy && clock > 0) {
           clock -= dt;
           if (phase === 'night') { const bell = Math.floor((nightS(w.day) - clock) / 60); if (bell > run.bell) { run.bell = bell; } }
           if (clock <= 0) { clock = 0; setTimeout(() => (phase === 'night' ? dawn() : dusk()), 0); }
         }
-        const left = run.list.filter(x => !run.fixed[x.id]).length;
-        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? ` · ${left} breach${left === 1 ? '' : 'es'} left · 🔔 ${run.bell}` : ''}`;
+        const left = run.list.filter(x => !run.fixed[x.id]).length, lv = run.ward[st.scene];
+        const here = w.day === 9 && lv >= 1 ? ` · ${run.list.filter(x => x.scene === st.scene && !run.fixed[x.id]).length || 'all clear'} here (${nm(watcherOf(st.scene))})` : '';
+        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left} breach${left === 1 ? '' : 'es'} left`) + ` · 🔔 ${run.bell}` : ''}`;
         if (top.textContent !== t) top.textContent = t;
       }
     });
@@ -333,6 +376,8 @@
       const d = (content().dusk || []).find(x => x.night === w.day);
       sayAll((d ? d.lines.map(l => [d.who || 'pell', l]) : [['pell', 'Night\'s coming. Walk with me to the gate, and keep your lantern low.']]));
     }
+    if (phase === 'night' && w.day === 9) sayAll([['pell', 'The Long Night. Every lock you missed is open again, and there are new ones in town. The castle gate stays open tonight: the town is ours to search too.']]);
+    if (phase === 'dusk' && w.day === 9 && !w.retry) w.retry = JSON.stringify(Object.assign({}, w, { retry: null }));
     if (phase === 'night' && w.day === 1) sayAll([['pell', 'One problem tonight, at the main gate. Walk to the glowing marker and press use.']]);
   }
   function dusk() { walk('dusk'); }
@@ -343,7 +388,8 @@
     const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why };
     const tries = sv().day === 1 ? 99 : 1;
     choose(x.title, q, tries, ok => {
-      if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; } else run.locked[x.id] = 1;
+      const keeper = watcherOf(x.scene);
+      if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
       S.persist(); after();
       if (run.list.every(v => run.fixed[v.id] || run.locked[v.id])) sayAll([['seoyeon', 'That\'s everything I can do tonight. Time to report at dawn.']], () => dawn());
     });
@@ -353,6 +399,7 @@
   function dawn() {
     if (!run || run.phase !== 'night') return;
     const w = sv(), fixed = run.list.filter(x => run.fixed[x.id]), missed = run.list.filter(x => !run.fixed[x.id]);
+    if (w.day === 9) return ending(missed, fixed);
     const fines = w.day === 1 ? 0 : missed.length * PAY.miss;
     const pay = PAY.base + fixed.length * PAY.fix + fines;
     missed.forEach(x => { w.missed[x.id] = x.raid || 'Thieves'; });
@@ -370,9 +417,34 @@
       <div class="row"><button class="primary" id="ww-next">${w.day > 9 ? 'The end' : 'Day ' + w.day}</button></div>`, { title: 'THE NIGHT WATCH' });
     b.querySelector('#ww-next').onclick = () => (w.day > 9 ? ending() : morning());
   }
-  function ending() {
+  // Endings (doc: The Long Night, Dawn): by how many got through. Retry from that morning keeps silver, watchers, trust.
+  const ENDINGS = [
+    { id: 'lanterns', name: 'Lanterns at Dawn', text: 'On the last chime the Stranger tries the main gate with a forged pass and walks straight into every watcher you earned. The hood comes off: it\'s Kevin, Doug\'s old bot, wearing a stolen badge. His signal leads to the café terrace, where Chad the Consultant is mid-pitch with a laptop open. The Captain hands Seo-yeon the captain\'s key, and the town walks the West Road with lanterns, up the hill to the castle gate.' },
+    { id: 'morning', name: 'The Long Morning', text: 'The Stranger escapes over the rooftops with whatever the worst breach exposed. The Captain is hurt holding the stairs. By noon a wanted poster with the Stranger\'s mark is on Bru\'s bounty board, and Seo-yeon keeps her lantern on probation.' },
+    { id: 'fall', name: 'The Fall of the Watch', text: 'The Stranger opens the main gate from inside. Every breach you missed lights up across the town one by one, the castle bell rings by itself, and the watch\'s banners come down. At Mira\'s fire Seo-yeon apologizes. Mira looks into the flames: "It\'s not over, Seo-yeon... This is only the beginning."' }
+  ];
+  const endingFor = got => ENDINGS[got === 0 ? 0 : got <= 3 ? 1 : 2];
+  function ending(missed, fixed) {
     const w = sv();
-    U.panel(`<p>The nine nights are over. You fixed ${Object.keys(w.fixed).length} breaches and saved ${w.silver} silver.</p><p class="small muted">Endings and the Long Night's raid are still being built.</p>`, { title: 'THE NIGHT WATCH' });
+    missed = missed || []; fixed = fixed || [];
+    if (view) view.stop(); view = null; run = null;
+    const e = endingFor(missed.length);
+    w.ending = e.id; w.day = 10;
+    const xp = M.pay('watch');
+    S.persist();
+    const b = U.panel(`<p class="ww-top">The Long Night · Dawn</p><h3 class="ww-end">${esc(e.name)}</h3><p>${esc(e.text)}</p>
+      <p class="ww-pay">${fixed.length} fixed · ${missed.length} got through</p>
+      ${missed.length ? `<ul class="nw-rows">${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)} · ${esc(x.raid || 'Thieves')} got in</span></li>`).join('')}</ul>` : ''}
+      ${xp ? `<p class="small muted">${esc(xp)}</p>` : ''}
+      <div class="row">${w.retry ? '<button class="ghost" id="ww-retry">Retry the Long Night</button>' : ''}<button class="primary" id="ww-new">New watch</button></div>`, { title: 'THE NIGHT WATCH' });
+    const r = b.querySelector('#ww-retry');
+    if (r) r.onclick = () => {   // the ones that got through come back first, in the same places
+      const back = JSON.parse(w.retry), got = {};
+      missed.forEach(x => { got[x.id] = 1; });
+      S.save.watch3 = Object.assign(back, { retry: w.retry, missed: Object.assign({}, back.missed, got) });
+      S.persist(); walk('dusk');
+    };
+    b.querySelector('#ww-new').onclick = () => { S.save.watch3 = null; S.persist(); morning(); };
   }
 
   M.register({
@@ -381,12 +453,13 @@
     start: () => morning(),
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; } };
+  SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; } };
 
   const css = document.createElement('style');
   css.textContent = `
     .ww-wrap { position: relative; }
     .ww-pay { font-weight: 700; color: #7a5410; }
+    .ww-end { margin: 4px 0; color: #2c3566; }
     .ww-top { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #2c3566; }
     .ww-o { position: absolute; top: 0; left: 0; right: 0; min-height: 100%; display: grid; align-items: start; padding: 8px; background: rgba(4,6,20,.35); border-radius: 10px; }
     .ww-o[hidden] { display: none; }

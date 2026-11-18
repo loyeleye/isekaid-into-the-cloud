@@ -45,7 +45,8 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check((await card()).includes('Mira'), 'talking to Mira opens her line');
   check(await ev(() => SD.watchWalk.busy), 'the clock pauses while talking');
   await shot('talk');
-  await btn('[data-a=n]');
+  check(/Ward level 0 of 4/.test(await card()) && /Hire · 50/.test(await card()), 'Mira is a watcher: her ward level and the hire button show');
+  await btn('[data-a=x]');
   check(await ev(() => SD.watchBonds.trust(SD.watchWalk.sv().bonds, 'mira')) === 42, 'the first chat of the day adds 2 trust');
 
   // Quests: jump to day 3 for Kai's referral quest (fallback quests).
@@ -109,6 +110,39 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => document.querySelector('.ww-o:not([hidden]) button') && document.querySelector('.ww-o:not([hidden]) button').click());
   await ev(() => SD.watchWalk.view.press('up')); await page.waitForTimeout(100);
   check(await ev(() => SD.watchWalk.run.st.scene === 'castle:towers'), 'the back stair goes from the upper floor to the towers once unlocked');
+
+  // Hiring, ward levels and the Long Night.
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.silver = 200; SD.watchWalk.walk('day'); });
+  await page.waitForTimeout(150);
+  await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
+  await btn('[data-a=h]');
+  const k = await ev(() => { const w = SD.watchWalk.sv(); return [w.silver, w.hires.kagemaru, SD.watchWalk.ward('kagemaru')]; });
+  check(k[0] === 150 && k[1] === 1 && k[2] === 1, `hiring Kagemaru costs 50 and gives ward level 1 (${k})`);
+  const n9 = await ev(() => {
+    const w = SD.watchWalk.sv(); w.day = 9; w.missed = {}; w.retry = null;
+    SD.watchWalk.breaches(2).forEach(b => { w.missed[b.id] = 1; });              // missed both night-2 breaches
+    w.hires = { dutch: 2, hobb: 2, kagemaru: 1, bru: 2 }; w.hearts = { dutch: 1, kai: 1 };
+    SD.watchBonds.add(w.bonds, 'dutch', 60);
+    return SD.watchWalk.breaches(9).map(b => b.scene);
+  });
+  check(n9.length === 6 && n9.filter(s => s.startsWith('castle')).length === 2 && n9.slice(2).every(s => !s.startsWith('castle')), `the Long Night brings back the missed breaches and adds town ones (${n9.join(', ')})`);
+  check(await ev(() => SD.watchWalk.ward('dutch')) === 4, 'paid 2 + a heart + trust 60 makes ward level 4');
+  await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150); await btn('[data-a=n]');
+  check(await ev(() => !!SD.watchWalk.sv().retry), 'the Long Night saves a retry point at dusk');
+  await tp('west-road', 3280); await use(); await page.waitForTimeout(250); await btn('[data-a=n]');
+  const r9 = await ev(() => { const r = SD.watchWalk.run; return { ground: r.ward['castle:ground'], wardFixed: Object.values(r.fixed).filter(v => v === 'ward').length }; });
+  check(r9.ground === 4 && r9.wardFixed >= 2, `Dutch at level 4 clears the ground floor before you arrive (${JSON.stringify(r9)})`);
+  await tp('castle:ground', 40); await use(); await page.waitForTimeout(150);
+  check(await ev(() => SD.watchWalk.run.st.scene === 'west-road'), 'on the Long Night the castle gate leads back to town');
+  await shot('long-night');
+  await ev(() => SD.watchWalk.dawn()); await page.waitForSelector('.ww-end');
+  const end = await page.textContent('.ww-end');
+  check(/Long Morning|Fall of the Watch/.test(end), 'an ending plays by how many got through: ' + end);
+  check(await ev(() => SD.watchWalk.endingFor(0).id === 'lanterns' && SD.watchWalk.endingFor(3).id === 'morning' && SD.watchWalk.endingFor(4).id === 'fall'), 'ending thresholds: 0, 1-3, 4+');
+  await shot('ending');
+  await page.click('#ww-retry'); await page.waitForTimeout(200);
+  const rt = await ev(() => { const w = SD.watchWalk.sv(); return [w.day, Object.keys(w.missed).length, SD.watchWalk.run.phase, w.hires.dutch]; });
+  check(rt[0] === 9 && rt[1] >= 2 && rt[2] === 'dusk' && rt[3] === 2, `retry returns to that dusk with watchers kept (${rt})`);
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');

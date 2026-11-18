@@ -135,7 +135,7 @@
     if (!s) return false;
     if (s.needs && !st.unlocks[s.needs]) return false;
     if (s.kind === 'gate') return st.phase === 'dusk' || st.phase === 'night';
-    if (s.dawn) return st.phase !== 'night';
+    if (s.dawn) return st.phase !== 'night' || st.night === 9;   // the Long Night spans town and castle
     return true;
   };
   // The moves available at the current spot: [{ key: 'up' | 'down' | 'use', to: { scene, x }, label }].
