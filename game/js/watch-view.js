@@ -183,7 +183,7 @@
   const townArt = () => (art() && art().town) || null;
   V.town = function () {
     const a = townArt() || {}, levelY = a.levelY || TOWN_Y;
-    return { width: a.width || 4100, height: a.height || 1200, levelY, layers: a.layers || null, ramps: a.ramps || [], chute: a.chute || null };
+    return { width: a.width || 4100, height: a.height || 1200, levelY, layers: a.layers || null, ramps: a.ramps || [], chute: a.chute || null, roofs: a.roofs || 0 };
   };
   // The path walked for a move between levels: a painted ramp if there is one (either direction), else a straight line.
   V.rampPath = function (fromScene, fromX, to) {
@@ -339,7 +339,8 @@
       // Only your road and the one above it are drawn; higher terraces drop away so the backdrop and sky show
       // (Ladi, Nov 18). `top` is where the level above's rooftops end.
       const li = WW.LEVELS.indexOf(st.scene), above = WW.LEVELS[Math.max(0, li - (ramp && ramp.key === 'up' ? 2 : 1))];   // mid-climb, keep the next road's own neighbour in view
-      const top = SY(Y[above]) - (T.roofs || 240);
+      const above2 = WW.LEVELS[WW.LEVELS.indexOf(above) - 1];   // the road two up is cut away, even where roofs would reach it
+      const top = Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
