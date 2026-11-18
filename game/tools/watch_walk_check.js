@@ -213,6 +213,13 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');
+  // Climbing a ramp in the stacked town (Ladi hit a frozen sky mid-climb, Nov 18).
+  await ev(() => { SD.watchView.forceStacked = true; const w = SD.watchWalk.sv(); w.day = 2; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
+  await ev(() => { const st = SD.watchWalk.run.st, f = SD.watchWorld.spot('main-street', 'fork-main-up'); st.scene = 'main-street'; st.x = f.x; });
+  await ev(() => SD.watchWalk.view.press('up')); await page.waitForTimeout(250);
+  const midClimb = await ev(() => !!SD.watchWalk.view.ramp); await page.waitForTimeout(3000);
+  check(midClimb && await ev(() => SD.watchWalk.run.st.scene === 'hill-road' && !SD.watchWalk.view.ramp), 'a ramp climb in the stacked town arrives on the road above');
+  await ev(() => { SD.watchView.forceStacked = false; });
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} failed` : '\nall ok'); process.exit(fails.length ? 1 : 0);

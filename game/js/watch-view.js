@@ -331,10 +331,10 @@
       sky(c, phase, 'town', true);
       const SX = x => x - camX, SY = y => y - camY;
       const lvI = WW.LEVELS.indexOf(st.scene);
-      const levels = WW.LEVELS.filter((l, i) => i >= lvI - 1 && SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
+      const levels = WW.LEVELS.filter((l, i) => i >= lvI - (ramp && ramp.key === 'up' ? 2 : 1) && SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
       // Only your road and the one above it are drawn; higher terraces drop away so the backdrop and sky show
       // (Ladi, Nov 18). `top` is where the level above's rooftops end.
-      const li = WW.LEVELS.indexOf(ramp ? (ramp.key === 'up' ? ramp.to.scene : st.scene) : st.scene), above = WW.LEVELS[Math.max(0, li - 1)];
+      const li = WW.LEVELS.indexOf(st.scene), above = WW.LEVELS[Math.max(0, li - (ramp && ramp.key === 'up' ? 2 : 1))];   // mid-climb, keep the next road's own neighbour in view
       const top = SY(Y[above]) - (T.roofs || 240);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, VW, VH - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
