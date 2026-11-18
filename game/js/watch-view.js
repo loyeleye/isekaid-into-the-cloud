@@ -30,7 +30,7 @@
   const tint = (phase) => phase === 'night' ? 'rgba(10,16,48,.55)' : phase === 'dusk' ? 'rgba(120,50,30,.22)' : phase === 'dawn' ? 'rgba(255,170,120,.12)' : null;
 
   // ---- Layers ----
-  function sky(c, phase, sceneKind) {
+  function sky(c, phase, sceneKind, hasLayers) {
     const a = art(), pic = a && a.skies && img(a.skies[phase === 'night' || phase === 'dusk' ? 'night' : 'day']);
     if (pic) c.drawImage(pic, 0, 0, VW, VH);
     else {
@@ -46,7 +46,7 @@
         c.fillStyle = 'rgba(255,240,180,.9)'; c.beginPath(); c.arc(70, 50, 22, 0, 7); c.fill();  // the sun, upper left
       }
     }
-    if (sceneKind === 'castle') { c.fillStyle = 'rgba(30,26,22,.92)'; c.fillRect(0, 0, VW, VH); }
+    if (sceneKind === 'castle' && !hasLayers) { c.fillStyle = 'rgba(30,26,22,.92)'; c.fillRect(0, 0, VW, VH); }   // art: windows show the sky
   }
   function layerImgs(sc) {
     const a = art(); if (!a) return null;
@@ -118,11 +118,11 @@
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(text, sx, y);
   }
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
-  function person(c, who, sx, facing, moving, t) {
+  function person(c, who, sx, facing, moving, t, lit) {
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
     c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill();
     if (sheet) {
-      const anim = (p.anims && (moving ? p.anims.walk : p.anims.idle)) || [0];
+      const A = p.anims || {}, anim = (lit && (moving ? A.lanternWalk || A.lantern : A.lantern)) || (moving ? A.walk : A.idle) || [0];   // lit: Seo-yeon's lantern at night
       const f = anim[Math.floor(t * (p.fps || 8)) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / p.w));
       c.save(); c.translate(sx, G); c.scale(facing, 1);
@@ -214,7 +214,7 @@
       const X = x => x - cam;
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
       const layers = layerImgs(sc);
-      sky(c, phase, sc.kind);
+      sky(c, phase, sc.kind, !!layers);
       if (layers) layers.forEach(l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } });
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });
@@ -225,7 +225,7 @@
         const sx = X(m.x); c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
         c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
       });
-      person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.walk);
+      person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.walk, phase === 'night' || phase === 'dusk');
       if (st.phase === 'night' && sc.kind !== 'castle') { c.fillStyle = 'rgba(255,220,140,.12)'; c.beginPath(); c.arc(X(st.x), G - 40, 110, 0, 7); c.fill(); }
       if (!layers) frontLayer(c, sc, cam);
       const tn = tint(phase); if (tn && !(art() && art().skies)) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }
