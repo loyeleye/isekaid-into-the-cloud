@@ -1506,6 +1506,10 @@ window.WATCH_ART = {
     "speed": 0.2
    },
    {
+    "img": "assets/img/watch/town/back.webp",
+    "speed": 0.3
+   },
+   {
     "img": "assets/img/watch/town/town.webp",
     "speed": 1
    }
@@ -1571,37 +1575,41 @@ window.WATCH_ART = {
  },
  "floors": {
   "towers": {
-   "width": 1200,
+   "width": 1296,
    "ground": 300,
    "rooms": [
     [
      "watchtower",
-     166,
-     412
+     262,
+     508
     ],
     [
      "lookout",
-     412,
-     660
+     508,
+     756
     ],
     [
      "captain",
-     660,
-     1148
+     756,
+     1244
     ]
    ],
    "doors": {
-    "lookout": 562,
-    "captain": 810
+    "lookout": 658,
+    "captain": 906
    },
    "links": {
-    "stair-left": 75,
-    "stair-right": 1120,
-    "cellar-stair": 150,
-    "back-stair": 1040,
-    "hoist": 600,
-    "bridge-door": 1085
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
    },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/towers/far.webp",
@@ -1614,37 +1622,41 @@ window.WATCH_ART = {
    ]
   },
   "upper": {
-   "width": 1200,
+   "width": 1296,
    "ground": 300,
    "rooms": [
     [
      "wardrobe",
-     191,
-     600
+     287,
+     696
     ],
     [
      "ledger",
-     600,
-     806
+     696,
+     902
     ],
     [
      "bridge-tower",
-     806,
-     1016
+     902,
+     1112
     ]
    ],
    "doors": {
-    "ledger": 712,
-    "bridge-tower": 919
+    "ledger": 808,
+    "bridge-tower": 1015
    },
    "links": {
-    "stair-left": 75,
-    "stair-right": 1120,
-    "cellar-stair": 150,
-    "back-stair": 1040,
-    "hoist": 600,
-    "bridge-door": 1085
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
    },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/upper/far.webp",
@@ -1657,43 +1669,47 @@ window.WATCH_ART = {
    ]
   },
   "ground": {
-   "width": 1200,
+   "width": 1296,
    "ground": 300,
    "rooms": [
     [
      "gate",
-     150,
-     375
+     246,
+     471
     ],
     [
      "hall",
-     375,
-     600
+     471,
+     696
     ],
     [
      "post-room",
-     600,
-     825
+     696,
+     921
     ],
     [
      "tavern",
-     825,
-     1050
+     921,
+     1146
     ]
    ],
    "doors": {
-    "hall": 431,
-    "post-room": 660,
-    "tavern": 885
+    "hall": 527,
+    "post-room": 756,
+    "tavern": 981
    },
    "links": {
-    "stair-left": 75,
-    "stair-right": 1120,
-    "cellar-stair": 150,
-    "back-stair": 1040,
-    "hoist": 600,
-    "bridge-door": 1085
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
    },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/ground/far.webp",
@@ -1706,37 +1722,41 @@ window.WATCH_ART = {
    ]
   },
   "cellars": {
-   "width": 1200,
+   "width": 1296,
    "ground": 300,
    "rooms": [
     [
      "archive",
-     161,
-     382
+     257,
+     478
     ],
     [
      "strongroom",
-     382,
-     600
+     478,
+     696
     ],
     [
      "barracks",
-     600,
-     1065
+     696,
+     1161
     ]
    ],
    "doors": {
-    "strongroom": 490,
-    "barracks": 712
+    "strongroom": 586,
+    "barracks": 808
    },
    "links": {
-    "stair-left": 75,
-    "stair-right": 1120,
-    "cellar-stair": 150,
-    "back-stair": 1040,
-    "hoist": 600,
-    "bridge-door": 1085
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
    },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/cellars/far.webp",
