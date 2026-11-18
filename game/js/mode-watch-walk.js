@@ -32,9 +32,9 @@
   const esc = s => U.esc(String(s == null ? '' : s));
   const content = () => window.WATCH_CONTENT || {};
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
-  // Days are 6 minutes from day 2 (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
-  // job takes about 130% of an average day. Day 1 keeps 10 minutes for Mira's walk and the lessons.
-  const DAY_1 = 600, DAY_S = 360, JOB_S = 60, dayLen = d => (d === 1 ? DAY_1 : DAY_S), nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
+  // Days are 6 minutes (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
+  // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
+  const DAY_S = 360, JOB_S = 60, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
   const PEOPLE = ['mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'captain'];
