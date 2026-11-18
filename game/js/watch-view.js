@@ -343,7 +343,8 @@
       const above2 = WW.LEVELS[WW.LEVELS.indexOf(above) - 1];   // the road two up is cut away, even where roofs would reach it
       // With buildings on their own layers, the hillside stops at the road above's surface: one bank of earth, the
       // one you'd climb, and above it only that road's buildings against the backdrop (Ladi, Nov 18).
-      const top = T.buildings ? SY(Y[WW.LEVELS[Math.max(0, li - 1)]]) - 14 : Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
+      // The painted road surface starts 4 px above levelY, so the earth is cut there.
+      const top = T.buildings ? SY(Y[WW.LEVELS[Math.max(0, li - 1)]]) - 4 : Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
