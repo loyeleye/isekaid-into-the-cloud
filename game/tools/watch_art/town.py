@@ -30,27 +30,44 @@ def ramp_y(r, x):
     (x0, y0), (x1, y1) = r['path']
     if not (min(x0, x1) <= x <= max(x0, x1)): return None
     return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+def dock(town, im, x, gy, deck=136):
+    # Far Lane's river dock: people walk on planks over the water, the boat floats below the plank line (Ladi, Nov 18)
+    d = ImageDraw.Draw(town); r = random.Random(11)
+    x0, x1 = int(x - im.width / 2) - 50, int(x + im.width / 2) + 50
+    # river channel cut through the bank under the road, with the far bank in shadow
+    d.rectangle([x0, gy + 8, x1, TH], fill=(46, 70, 98, 255))
+    for k in range(x1 - x0):
+        if r.random() < 0.3: d.point((x0 + k, gy + r.randint(16, TH - gy - 2)), fill=(104, 146, 186, 255))
+    for y in range(gy + 14, TH, 9): d.line([x0 + r.randint(0, 30), y, x1 - r.randint(0, 30), y], fill=(70, 100, 132, 255))
+    for xe, sgn in ((x0, 1), (x1, -1)):   # stone banks either side of the channel
+        d.polygon([(xe, gy + 8), (xe + sgn * 14, gy + 8), (xe + sgn * 4, TH), (xe, TH)], fill=(96, 90, 84, 255))
+    # the dock house stands on the walkway; the boat and its water go below the plank line
+    top, low = im.crop((0, 0, im.width, deck)), im.crop((0, deck - 4, im.width, im.height))
+    town.alpha_composite(top, (int(x - im.width / 2), gy - deck + 2))
+    town.alpha_composite(low, (int(x - im.width / 2), gy + 8))
+    # plank walkway along the road line, on posts down into the water
+    pal = [(126, 92, 60), (112, 80, 52), (140, 104, 68), (100, 72, 46)]
+    for px in range(x0, x1, 22):
+        d.rectangle([px, gy, px + 21, gy + 9], fill=pal[r.randrange(4)]); d.line([px, gy, px, gy + 9], fill=(70, 50, 34)); d.point((px + 4, gy + 4), fill=(60, 44, 30))
+    d.line([x0, gy, x1, gy], fill=(150, 116, 78, 255)); d.line([x0, gy + 10, x1, gy + 10], fill=(60, 42, 28, 255))
+    for px in range(x0 + 10, x1, 64): d.rectangle([px, gy + 10, px + 5, TH], fill=(84, 60, 38, 255)); d.line([px, gy + 10, px, TH], fill=(60, 42, 28, 255))
 def build(spots):
     soil = tile('hillside-tile', 0.25, 70); wallt = tile('stone-wall-tile', 0.22)
     town = Image.new('RGBA', (TW, TH)); d = ImageDraw.Draw(town)
     ramps = ramps_from(spots)
     chute = [[1440, LY['west-road']], [1120, LY['far-lane']]]
     r = random.Random(5)
-    # 1) hillside faces, top to bottom: retaining wall under each road, then the earthen bank, hazed toward the back
+    # 1) each road is a terrace edge: a stone retaining wall with a grassy earth lip that fades into the backdrop
+    #    (Ladi, Nov 18: the hazed town and hills of the first demo show between the terraces, not a dirt bank)
     for i, lv in enumerate(ORDER):
-        y = LY[lv]; nxt = LY[ORDER[i + 1]] if i + 1 < len(ORDER) else TH
-        fill_tiled(town, soil, (0, y + 10, TW, nxt))
-        band = Image.new('RGBA', (TW, nxt - y - 10), (36, 30, 26, 0)); a = np.asarray(band).copy()
-        h = a.shape[0]; a[:, :, 3] = (np.linspace(0, 70, h)[:, None]).astype(np.uint8); town.alpha_composite(Image.fromarray(a, 'RGBA'), (0, y + 10))
+        y = LY[lv]; depth = 70
+        bank = Image.new('RGBA', (TW, depth)); fill_tiled(bank, soil, (0, 0, TW, depth))
+        a = np.asarray(bank).copy(); a[:, :, 3] = (255 * (1 - np.linspace(0, 1, depth)) ** 1.5)[:, None].astype(np.uint8)
+        a[:, :, :3] = (a[:, :, :3] * 0.8).astype(np.uint8)
+        town.alpha_composite(Image.fromarray(a, 'RGBA'), (0, y + 44))
         fill_tiled(town, wallt, (0, y + 10, TW, y + 44))
         d.line([0, y + 44, TW, y + 44], fill=(60, 52, 44, 255), width=2)
-        # grass lip along the bank and a few hazed trees and bushes growing on it
         for x in range(0, TW, 3): d.line([x, y + 46, x, y + 46 + r.randint(1, 5)], fill=(88, 128, 60, 255))
-        if i + 1 < len(ORDER):
-            x = r.randint(50, 300)
-            while x < TW:
-                nm = r.choice(['bush', 'bush', 'tree-apple', 'tree-oak']); hh = {'bush': 46, 'tree-apple': 110, 'tree-oak': 130}[nm]
-                place(town, haze(piece(nm, hh), (120, 140, 120), 0.25), x, min(nxt - 40, y + 90 + r.randint(0, 60))); x += r.randint(240, 520)
     # 2) the chute: a wooden trough down the cliff (behind the streets)
     (cx0, cy0), (cx1, cy1) = chute
     for t in np.linspace(0, 1, 900):
@@ -101,6 +118,7 @@ def build(spots):
                 if filler: report.append(f'dropped filler {lv}:{nm}@{x}'); continue
                 report.append(f'CLASH {lv}:{nm}@{x} needs {im.height}px, room {room:.0f}px')
             elif h < [i[2] for i in items if i[0] == nm and i[1] == x][0]: report.append(f'shrunk {lv}:{nm}@{x} to {h}px')
+            if nm == 'dock': dock(town, im, x, gy); continue
             place(town, im, x, gy + sink)
     return town, ramps, chute, report
 if __name__ == '__main__':
