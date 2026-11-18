@@ -67,14 +67,14 @@
   // ================================================================================================================
   C.lines = {
     mira: ['Eat something before your shift. Locks don\'t fix themselves on an empty stomach.',
-      'I keep letters I never sent. Don\'t ask. Do ask how your feet are.',
+      'Kai\'s cooking tonight. Dutch is pretending he isn\'t hungry. Come and watch.',
       'Listen first, then lock. Half of this job is knowing what you\'re guarding.'],
     kai: ['Every station in my kitchen has its own knives. Nobody borrows. That\'s how nobody bleeds.',
       'Up at dawn? Me too. Forms, then onions.',
       'A cook who gives everyone the walk-in key loses the walk-in.'],
     dutch: ['Give a crew one job and one key. Never the ring.',
       'I log every crate in and out. The day you skip the log is the day it matters.',
-      'My girl used to count the steps up to the keep. Hundred and twelve.'],
+      'Sit. No, not that chair. That one wobbles.'],
     ayo: ['A blade is only as good as the one who holds the key to the rack. Ha!',
       'My apprentices each get their own hammer. Don\'t make it weird.',
       'Heat, hammer, quench. Then lock the forge. Every night.'],
@@ -126,13 +126,12 @@
   // SECRETS. At trust 40 (a friend), each person tells you one thing about themselves, once.
   // ================================================================================================================
   C.secrets = {
-    mira: [['mira', 'I had a girl once. Not mine by birth. She thinks I\'m a monster now.'], ['mira', 'Maybe she\'s right. I still keep her soup on.']],
-    kai: [['kai', 'My sister cooked better than me. I never told her.'], ['kai', 'So I tell people now. Your forms are good. There.']],
-    dutch: [['dutch', 'My daughter kept the logs for me. Every crate. She was better at it.'], ['dutch', 'That\'s why I log. It\'s her handwriting I\'m copying.']],
+    mira: [['mira', 'I walked you in on day one because I was nervous, love. Not you. Me.'], ['mira', 'Don\'t tell Dutch. He had money on it.']],
+    kai: [['kai', 'I\'m teaching the baker\'s boy knife work. He\'s hopeless.'], ['kai', 'Don\'t tell him I\'m proud of him.']],
+    dutch: [['dutch', 'On your watch nights I sleep across the castle doorway. Old habit.'], ['dutch', 'Don\'t mention it. Kid.']],
     ayo: [['ayo', 'I was one anvil once. One man. Somebody taught me to take on help.'], ['ayo', 'Best lesson I ever had. Worst week of my life.']],
     tess: [['tess', 'I don\'t really see EVERYTHING.'], ['tess', 'I just say it so people tell me the rest!']],
     wen: [['wen', 'My husband lost one notebook in a flood. Only one. The one he never copied.'], ['wen', 'Seymour keeps my second notebook now. Don\'t tell him I said thank you.']],
-    kagemaru: [['kagemaru', 'I had a big job once. Biggest systems in the kingdom.'], ['kagemaru', 'Now I sell lanterns. Better hours. Ah ha. Ha.']],
     hobb: [['hobb', 'I cut a key for the wrong man once. Twenty years ago.'], ['hobb', 'Every key since, I ask what it\'s for. Every one.']],
     coo: [['coo', 'Coo. I opened a letter once. Just one.'], ['coo', 'I put a new seal on it. I think about it every day.']],
     lexi: [['lexi', 'The eye under the patch is perfectly fine.'], ['lexi', 'You may know that. You may not tell Doug.']],
@@ -161,7 +160,7 @@
     { a: 'coo', b: 'hollis', tie: 'warm', lines: [['coo', 'Mailbag for the coach, Hollis. Coo.'], ['hollis', 'Ticket?'], ['coo', 'I\'m a pigeon.'], ['hollis', 'Rules are rules.']] },
     { a: 'seymour', b: 'lexi', tie: 'warm', lines: [['seymour', 'Copy of the Index, page forty. For safekeeping.'], ['lexi', 'The Index cannot be copied. It can be honoured.'], ['seymour', 'I honoured it three times.']] },
     { a: 'doug', b: 'lexi', tie: 'cool', lines: [['doug', 'Can I borrow the Index? Just look?'], ['lexi', 'Your crawlers looked. Ten thousand times a minute.'], ['doug', 'That was Kevin.']] },
-    { a: 'kagemaru', b: 'odu', tie: 'warm', lines: [['kagemaru', 'The usual crates, Odu.'], ['odu', 'Opened and checked. Like always.'], ['kagemaru', 'You never trust me.'], ['odu', 'I trust the checking.']] },
+    { a: 'kagemaru', b: 'odu', lines: [['kagemaru', 'The usual crates, Odu.'], ['odu', 'Opened and checked. Like always.'], ['kagemaru', 'You never trust me.'], ['odu', 'I trust the checking.']] },
     { a: 'fennel', b: 'kagemaru', lines: [['fennel', 'A basket of apples for a lantern wick.'], ['kagemaru', 'Two baskets. The wick is premium.']] },
     { a: 'aigerim', b: 'ayo', lines: [['aigerim', 'Ayo, what time did you light the forge?'], ['ayo', 'Why do you need to know?'], ['aigerim', 'For the diary.']] },
     { a: 'tess', b: 'wen', lines: [['tess', 'Wen! Who bought six buns at dawn?'], ['wen', 'A regular, dear. I forget the rest on purpose.']] },

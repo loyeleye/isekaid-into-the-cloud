@@ -420,10 +420,11 @@
     const b = sv().bonds, T = B.TIERS || [], i0 = T.findIndex(x => x[1] === B.tier(B.trust(b, who)));
     f();
     const i1 = T.findIndex(x => x[1] === B.tier(B.trust(b, who)));
-    if (i1 > i0) toast(`${nm(who)} now counts you as a ${T[i1][1]}.${T[i1][0] === 40 ? ' They might tell you something tomorrow.' : ''}`);
+    if (i1 > i0 && who !== 'kagemaru') toast(`${nm(who)} now counts you as a ${T[i1][1]}.${T[i1][0] === 40 ? ' They might tell you something tomorrow.' : ''}`);
   }
   function toast(text) {
     if (!wrap) return;
+    wrap.querySelectorAll('.ww-toast').forEach(x => x.remove());   // one at a time
     const t = document.createElement('div'); t.className = 'ww-toast'; t.textContent = text; t.setAttribute('role', 'status');
     wrap.appendChild(t); setTimeout(() => t.remove(), 3600);
   }
@@ -479,9 +480,11 @@
   // overheard or been told).
   function townBook() {
     const w = sv(), b = w.bonds, known = w.known || {};
-    const met = PEOPLE.filter(p => p !== 'captain' && p !== 'pell' || b.chatted[p]).concat(['chad']).filter((p, i, a) => a.indexOf(p) === i);
+    // Kagemaru isn't listed (Ladi, Nov 18: he's an odd one, not a neighbour you befriend).
+    const HIDE = { kagemaru: 1 };
+    const met = PEOPLE.filter(p => !HIDE[p] && (p !== 'captain' && p !== 'pell' || b.chatted[p])).concat(['chad']).filter((p, i, a) => a.indexOf(p) === i);
     const here = who => { const v = run && run.walkers && run.walkers.find(x => x.who === who); return v ? (v.ramp ? 'on the way to ' + WW.scene(v.ramp.to.scene).name : WW.scene(v.scene).name) : ''; };
-    const ties = who => Object.keys(known).filter(k => k.split('|').includes(who)).map(k => { const o = k.split('|').find(x => x !== who) || who; return `<span class="ww-tie ${known[k]}">${known[k] === 'warm' ? '♥' : known[k] === 'cool' ? '✗' : '·'} ${esc(nm(o))}</span>`; }).join(' ');
+    const ties = who => Object.keys(known).filter(k => k.split('|').includes(who) && !k.split('|').some(x => HIDE[x])).map(k => { const o = k.split('|').find(x => x !== who) || who; return `<span class="ww-tie ${known[k]}">${known[k] === 'warm' ? '♥' : known[k] === 'cool' ? '✗' : '·'} ${esc(nm(o))}</span>`; }).join(' ');
     const o = overlay(`<p class="ww-t">📖 Town book</p><p class="ww-meta">Trust grows when you chat, help and learn. At "friend" people share a secret. ♥ likes, ✗ won't help.</p>
       <div class="ww-book">${met.map(p => { const n = B.trust(b, p); return `<div class="ww-who">${face(p)}<div><b>${esc(nm(p))}</b> <small>${esc(B.tier(n))}${w.hearts[p] ? ' · ❤' : ''}${(w.lessons || {})[p] ? ' · 💡' : ''}${here(p) ? ' · ' + esc(here(p)) : ''}</small>
         <i class="ww-bar" style="--v:${n}"></i>${ties(p) ? `<div class="ww-ties">${ties(p)}</div>` : ''}</div></div>`; }).join('')}</div>

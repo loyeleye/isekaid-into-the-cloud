@@ -50,7 +50,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(!/Hire|ninth night|Ward level/.test(await card()), 'day 1: no hiring or ninth-night talk before Mira explains it');
   await page.evaluate(() => document.activeElement && document.activeElement.blur()); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
   check(!(await card()), 'Enter closes a message');
-  check(await ev(() => SD.watchBonds.trust(SD.watchWalk.sv().bonds, 'mira')) === 42, 'the first chat of the day adds 2 trust');
+  check(await ev(() => SD.watchBonds.trust(SD.watchWalk.sv().bonds, 'mira')) === 82, 'the first chat of the day adds 2 trust');
 
   // Quests: jump to day 3 for Kai's referral quest (fallback quests).
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; w.bonds.day = 3; SD.watchWalk.walk('day'); });
@@ -76,7 +76,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await shot('referral');
   await btn('[data-a=d]'); await btn('[data-a=n]');
   check(await ev(() => SD.watchWalk.sv().quests['kai-night-cloak'].step === 2), 'Hobb\'s step done');
-  await ev(() => { window.WATCH_CONTENT = null; });
+  await ev(() => { window.WATCH_CONTENT = null; SD.watchWalk.sv().bonds.trust.kai = 50; });   // under 80: no second try
   await tp('main-street', 520); await use(); await page.waitForTimeout(150);
   await btn('[data-i="1"]');   // wrong answer ends the try (trust under 80)
   check(await ev(() => SD.watchWalk.sv().quests['kai-night-cloak'].step === 2), 'a wrong answer keeps the quest on its question');
@@ -237,7 +237,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   });
   check(!town.bad.length, 'every schedule place, small job, lesson and meetup resolves' + (town.bad.length ? ': ' + town.bad.slice(0, 6).join('; ') : ''));
   check(town.day1 >= 4 && town.teach, `day 1 has ${town.day1} lessons, each teaching before it asks`);
-  check(town.lines >= 18 && town.secrets >= 18, 'everyone has everyday lines and a secret');
+  check(town.lines >= 18 && town.secrets >= 17, 'everyone has everyday lines and a secret');
   // A day-1 lesson: the pictures, then the question; a wrong pick explains and lets you try again.
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200); await clear();
   await ev(() => { const r = SD.watchWalk.run; r.tut = 99; r.escort = false; SD.watchWalk.view.set('follow', null); });

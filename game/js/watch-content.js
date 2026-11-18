@@ -1628,24 +1628,23 @@
   // TIES. How each person feels about others (one-way), drafted from the story bible. Anyone unlisted is neutral.
   // Two or three warm, at most one cool. Chad and Kevin have none: nobody is pointed at them.
   // ================================================================================================================
-  C.ties = {
-    seoyeon: { warm: ['mira', 'kai', 'dutch'] },
-    mira: { warm: ['seoyeon', 'kai', 'wen'], cool: ['kagemaru'] },        // the party uses him and never trusts him
-    kai: { warm: ['wen', 'dutch', 'seoyeon'], cool: ['pell'] },           // fired from four kitchens by men like Pell
-    dutch: { warm: ['hobb', 'mira', 'captain'], cool: ['kagemaru'] },
-    coo: { warm: ['bru', 'hollis', 'wen'], cool: ['doug'] },              // Kevin's spoofed heartbeats
-    bru: { warm: ['coo', 'tess', 'ayo'], cool: ['doug'] },                // his row on her board is always stale
-    kagemaru: { warm: ['ayo', 'odu'], cool: ['aigerim'] },                // her diary is the one place he's written down
-    lexi: { warm: ['seymour', 'coo', 'aigerim'] },
-    hobb: { warm: ['mira', 'odu', 'dutch'], cool: ['doug'] },
-    pell: { warm: ['captain', 'hollis', 'bru'], cool: ['kai'] },
-    wen: { warm: ['ayo', 'seymour', 'mira'] },                            // she keeps her second notebook at Seymour's
+  C.ties = {   // from the main game, shortly after its finale (Ladi, Nov 18). No spoilers: nothing names why.
+    seoyeon: { warm: ['mira', 'kai', 'dutch'] },                          // her party: family by choice
+    mira: { warm: ['seoyeon', 'kai', 'dutch'], cool: ['kagemaru'] },        // the party uses him and never trusts him
+    kai: { warm: ['seoyeon', 'mira', 'dutch', 'wen'], cool: ['kagemaru'] }, // Wen and Kai ran the market together
+    dutch: { warm: ['mira', 'kai', 'seoyeon', 'hobb'], cool: ['kagemaru'] },
+    coo: { warm: ['bru', 'seymour', 'hollis'] },                          // the post office and the quest board, side by side
+    bru: { warm: ['coo', 'wen', 'tess'], cool: ['doug'] },                // Kevin once refreshed her board ten thousand times a minute
+    lexi: { warm: ['seymour', 'coo'], cool: ['doug'] },                   // she banned his crawlers from the Index
+    hobb: { warm: ['dutch', 'ayo', 'odu'], cool: ['doug'] },
+    pell: { warm: ['captain', 'hollis', 'bru'] },
+    wen: { warm: ['kai', 'seymour', 'ayo'] },                             // Seymour keeps her ledger thrice-copied
     ayo: { warm: ['wen', 'hobb', 'doug'] },                              // he gets a man who hates doing things twice
-    aigerim: { warm: ['seoyeon', 'kagemaru', 'wen'] },
-    doug: { warm: ['ayo', 'hollis'], cool: ['lexi'] },                    // she banned his crawlers from the Index
+    aigerim: { warm: ['seoyeon', 'wen'], cool: ['kagemaru'] },            // a card peddler, and the other card dealer
+    doug: { warm: ['ayo', 'wen'], cool: ['lexi'] },
     tess: { warm: ['pell', 'ayo', 'bru'], cool: ['aigerim'] },            // the diary logs every lamp she lights
     hollis: { warm: ['coo', 'pell', 'odu'] },
-    odu: { warm: ['hobb', 'kagemaru', 'fennel'] },
+    odu: { warm: ['hobb', 'fennel', 'hollis'] },
     fennel: { warm: ['odu', 'mira'], cool: ['tess'] },                    // the lamps keep her up
     seymour: { warm: ['wen', 'lexi', 'coo'] },
     captain: { warm: ['pell', 'dutch'] }
