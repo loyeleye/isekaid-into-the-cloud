@@ -38,7 +38,7 @@
   // Sprite width / height.
   const AR = { 'brazier-off': 231 / 256, 'brazier-on': 225 / 256, hat: 256 / 200, hook: 110 / 256, jar: 124 / 256, knob: 1, pegrack: 400 / 71,
     'plate-full': 150 / 100, plate: 150 / 68, pot: 256 / 162, rail: 900 / 65, tag: 61 / 140, ticket: 69 / 120, timer: 189 / 256, tray: 256 / 178,
-    'mira-smile': 288 / 640, 'mira-neutral': 288 / 640, key: 97 / 256, crate: 246 / 256 };
+    'mira-face-smile': 480 / 512, 'mira-face-neutral': 480 / 512, key: 97 / 256, crate: 246 / 256 };
   const SRC = { key: 'assets/img/ic/fix-key.webp', crate: 'assets/img/ic/fix-crate.webp' };
   const src = n => SRC[n] || IMG(n);
 
@@ -51,13 +51,13 @@
       hook: [470, 400, 34], keyHook: [470, 442, 26], pot: [330, 462, 112], keyPot: [330, 428, 26],
       tray: [850, 412, 120], jar: [760, 412, 64], peg: [585, 342, 160],
       braziers: [30, 640, 470, 745], plates: [610, 580, 1010, 700], book: [600, 505, 870, 600], crate: [565, 700, 96],
-      mira: [1150, 748, 238], bubble: [500, 100, 600] },
+      mira: [1175, 790, 360], bubble: [500, 100, 600] },
     tall: { W: 768, H: 1344, bg: 'assets/img/stage/kitchen-tall.webp', focus: [400, 810],
       rail: [280, 520, 520], tickets: [30, 520, 530, 610], knob: [250, 830, 56], timer: [470, 692, 62],
       hook: [560, 620, 30], keyHook: [560, 662, 24], pot: [170, 712, 110], keyPot: [170, 678, 26],
       tray: [655, 628, 104], jar: [385, 690, 50], peg: [640, 500, 160],
       braziers: [230, 960, 540, 1030], plates: [20, 1040, 540, 1180], book: [240, 860, 640, 960], crate: [110, 1030, 96],
-      mira: [665, 1185, 185] }
+      mira: [640, 1200, 260] }
   };
   KS.layout = () => (window.innerWidth < window.innerHeight * 0.95 || window.innerWidth < 640 ? 'tall' : 'wide');
   const px = n => Math.round(n * 10) / 10 + 'px';
@@ -171,9 +171,10 @@
     parts.push(`<button type="button" class="kw-book" aria-label="Bram's book: read the recipe as code" style="${box(L.book)}"><span>${icon('open-book')}The recipe as code</span></button>`);
     if (o2.wrote) parts.push(`<p class="kw-wrote" aria-hidden="true" style="left:${px(L.book[0])};top:${px(L.book[1] - 60)};max-width:${px(Math.max(420, L.book[2] - L.book[0]))}">${esc(o2.wrote)}</p>`);
     // Mira, and what she says.
-    const mood = o2.mood === 'smile' ? 'mira-smile' : 'mira-neutral';
-    // A phone: Mira steps out while the stove fires, so the plates and braziers have the room.
-    if (!(lay === 'tall' && r)) parts.push(`<img class="kw-mira" src="${IMG(mood)}" alt="" draggable="false" style="${spot(mood, L.mira)}">`);
+    const mood = o2.mood === 'smile' ? 'mira-face-smile' : 'mira-face-neutral';
+    // Mira (Ladi, Nov 17: "just a face looking towards the kitchen ... transparent so you can see the kitchen"): her
+    // head and shoulders in the corner, turned toward the room, see-through, so nothing behind her is hidden.
+    parts.push(`<img class="kw-mira" src="${IMG(mood)}" alt="" draggable="false" style="${spot(mood, L.mira)}">`);
     const bub = o2.say ? `<div class="kw-say" aria-live="polite"${L.bubble ? ` data-bx="${L.bubble[0]}" data-by="${L.bubble[1]}" data-bw="${L.bubble[2]}"` : ''}><div>${o2.say}</div></div>` : '';
     return `<div class="kw-stage" data-layout="${lay}">${bub}<div class="kw-view"><div class="kw-world${live ? ' live' : ''}" style="width:${L.W}px;height:${L.H}px" data-fx="${L.focus[0]}" data-fy="${L.focus[1]}">
       <img class="kw-bg" src="${L.bg}" alt="Bram's kitchen at night: the stove lit, the recipe book open on the bench" draggable="false">${parts.join('')}</div></div></div>`;
@@ -464,7 +465,9 @@
     .kw-wrote { position: absolute; z-index: 6; margin: 0; padding: 6px 12px; border-radius: 6px; background: #fbf4e3; color: #2a1a06; font: 700 18px/1.3 ui-monospace, monospace; box-shadow: 0 4px 10px rgba(0,0,0,.5); pointer-events: none; animation: kwWrote 2.6s ease-out forwards; }
     [data-layout="tall"] .kw-wrote { font-size: 22px; }
     @keyframes kwWrote { 0% { opacity: 0; transform: translateY(20px); } 12% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px); } }
-    .kw-mira { position: absolute; z-index: 3; pointer-events: none; filter: drop-shadow(0 10px 14px rgba(0,0,0,.6)); transform-origin: 50% 100%; animation: kwBreathe 3.8s ease-in-out infinite; }
+    .kw-mira { position: absolute; z-index: 3; pointer-events: none; opacity: .55; transform-origin: 50% 100%; animation: kwBreathe 3.8s ease-in-out infinite;
+      -webkit-mask-image: linear-gradient(#000 55%, transparent 98%); mask-image: linear-gradient(#000 55%, transparent 98%); }
+    .kw-world.firing .kw-mira { opacity: .4; }
     @keyframes kwBreathe { 50% { transform: scale(1.006, 1.012); } }
     .kw-say { position: relative; z-index: 7; flex: 0 0 auto; display: flex; font-size: 15px; }
     .kw-say > div { flex: 1; min-width: 0; max-height: 100%; overflow: auto; padding: 8px 12px; background: #fbf5e3; color: #2a2018; line-height: 1.35; box-shadow: 0 6px 14px rgba(0,0,0,.5); }

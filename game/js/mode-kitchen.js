@@ -153,7 +153,7 @@
       const show = () => {
         const bub = b.querySelector('.kw-say > div'), a = b.querySelector('.kt-after'), sk = b.querySelector('#kt-skip'), m = b.querySelector('.kw-mira');
         if (bub) { bub.innerHTML = verdict; bub.scrollTop = 0; }
-        if (m && mood === 'smile') m.src = 'assets/img/kitchen/mira-smile.webp';
+        if (m && mood === 'smile') m.src = 'assets/img/kitchen/mira-face-smile.webp';
         if (a) a.hidden = false; if (sk) sk.remove();
       };
       const stop = KS().play(b, r, show);
