@@ -33,13 +33,30 @@
 //   - IAM: everything is implicitly denied unless allowed, and an explicit deny beats any allow.
 //     https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html
 //
-// A ticket (one request or event): { id, tag, sync, work, poison, dup, n, group, forbidden, badge }
+// Added Nov 18 for the Sorting Floor's Development cut (the door is API Gateway; the ledger is DynamoDB):
+//   - API Gateway caching (REST API, per stage): a response is cached for its TTL (default 300 s, max 3600 s), and a
+//     request with the same cache key is answered from the cache instead of calling the backend.
+//     https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-caching.html
+//   - DynamoDB Query vs Scan: a Query needs an equality condition on the partition key; a Scan reads every item in the
+//     table or index. A global secondary index gives the table another partition key, so a lookup on a non-key
+//     attribute can be a Query (GSI reads are eventually consistent; a GSI can be added to an existing table).
+//     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.html
+//     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html
+//     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
+//   - Hot partitions and write sharding: see AS.writePartition below. Game: 3 partitions, 1 write each per turn; a
+//     throttled write is retried like any throttling error.
+//
+// A ticket (one request or event): { id, tag, sync, work, poison, dup, n, group, forbidden, badge, same, lookup, hotkey }
 //   tag: its source, which desk should handle it ('any' for every desk) · sync: the caller waits for the answer
 //   work: turns of processing (1, or 2 for a heavy one) · poison: fails every time · dup: the producer sends it twice
 //   n, group: its place in an ordered group · forbidden: an action nobody should be allowed · badge: it carries Allow *
+//   same: a read whose cache key matches others with the same value · lookup: a read by a non-key attribute (a Scan,
+//   one turn heavier, unless a GSI makes it a Query) · hotkey: a write on one low-cardinality partition key value
 // The world (see AS.world): door, router, queue, desks, pool, retry, idem, plus the running state.
 // Events (AS.tick's result): { type, id, desk } with type one of
-//   denied, done, dupe, dupeBlocked, order, leak, rejected, fail, throttled, gaveUp, unanswered, dlq, deduped
+//   denied, done, dupe, dupeBlocked, order, leak, rejected, fail, throttled, gaveUp, unanswered, dlq, deduped,
+//   cached (answered at the door from the cache), scanned (a Scan read the whole table), hot (a write throttled on a
+//   hot partition)
 (function (root) {
   const AS = {};
 
@@ -57,6 +74,11 @@
       pool: o.pool || null,              // { total, neighbour }: an account pool shared with a noisy neighbour
       retry: { backoff: false, max: 3 },
       idem: false,                       // conditional writes: a second write of the same ticket changes nothing
+      cache: null,                       // { ttl }: API Gateway caching at the door; cached: cache key -> turn stored
+      cached: {},
+      gsi: false,                        // a global secondary index on the lookup attribute: lookups are Queries
+      shard: false,                      // write sharding: a suffix on the hot key spreads its writes
+      pload: {},                         // writes per partition this turn
       pending: [],                       // [{ tk, at }] retries waiting for their turn
       done: {}, last: {}, seen: {},      // tickets handled, last n per group, deliveries per ticket
       resolved: {},                      // tickets settled for good (handled by the right desk, or denied)
@@ -113,6 +135,11 @@
   function handle(w, d, tk, out) {
     if (!fits(d, tk)) { out.push(ev(w, 'rejected', tk, d.id)); return 'rejected'; }
     if (tk.poison) { out.push(ev(w, 'fail', tk, d.id)); return 'fail'; }
+    if (tk.hotkey) {
+      const p = writePartition(w.shard ? 'shard' : 'hot', tk.id, AS.PARTS);
+      w.pload[p] = (w.pload[p] | 0) + 1;
+      if (w.pload[p] > AS.PART_CAP) { out.push(ev(w, 'hot', tk, d.id)); return 'fail'; }
+    }
     const key = tk.id + '@' + (tk.tag === 'any' ? d.id : 'x');
     if (w.done[key]) { out.push(ev(w, w.idem ? 'dupeBlocked' : 'dupe', tk, d.id)); return 'ok'; }
     w.done[key] = 1;
@@ -121,6 +148,8 @@
       if (tk.n !== prev + 1) out.push(ev(w, 'order', tk, d.id));
       w.last[tk.group] = Math.max(prev, tk.n);
     }
+    if (tk.scan) out.push(ev(w, 'scanned', tk, d.id));
+    if (tk.same != null && w.cache) w.cached[tk.same] = w.t;
     if (tk.forbidden) out.push(ev(w, 'leak', tk, d.id));
     else out.push(ev(w, 'done', tk, d.id));
     w.resolved[tk.id] = 1;
@@ -161,7 +190,10 @@
     const out = [];
     const due = w.pending.filter(p => p.at <= w.t);
     w.pending = w.pending.filter(p => p.at > w.t);
-    const incoming = (arrivals || []).map(tk => Object.assign({ attempts: 0 }, tk)).concat(due.map(p => p.tk));
+    w.pload = {};
+    // A lookup without a GSI is a Scan: it reads every item, so it takes a turn longer at the desk.
+    const scan = tk => (tk.lookup && !w.gsi ? { work: (tk.work || 1) + 1, scan: true } : {});
+    const incoming = (arrivals || []).map(tk => Object.assign({ attempts: 0 }, tk, scan(tk))).concat(due.map(p => p.tk));
     const st = AS.stools(w);
     const free = {};
     w.desks.forEach(d => { free[d.id] = st[d.id] - d.busy.length; });
@@ -183,6 +215,10 @@
     // 3. Arrivals.
     incoming.forEach(tk => {
       if (!door(w, tk, out)) return;
+      // The door's cache: a read with a cache key answered within the TTL never reaches a desk.
+      if (w.cache && tk.same != null && w.cached[tk.same] != null && w.t - w.cached[tk.same] < w.cache.ttl) {
+        out.push(ev(w, 'cached', tk)); w.resolved[tk.id] = 1; return;
+      }
       // A retry goes back to the desk it was calling, not through the router again.
       const to = tk.toDesk ? [deskFor(w, tk.toDesk)].filter(Boolean) : route(w, tk);
       to.forEach(d => {
@@ -303,6 +339,7 @@
   // high-cardinality key, such as orderId). Returns the partition each write lands on.
   // Its own name: js/aws-sim-ops.js (the Fire Drill) defines AS.partitionOf with other arguments and loads later.
   const writePartition = AS.writePartition = (keyMode, id, parts) => (keyMode === 'hot' ? 0 : idNum({ id: keyMode + ':' + id }) % parts);
+  AS.PARTS = 3; AS.PART_CAP = 1;     // the Sorting Floor's ledger: 3 partitions, 1 write each per turn
   // One turn of writes: [{ id }] against `parts` partitions of `cap` writes each. Returns { ok: [ids], throttled: [ids],
   // load: [writes per partition] }. A throttled write is a throttling error the SDK retries.
   AS.writeTurn = function (writes, keyMode, parts, cap) {

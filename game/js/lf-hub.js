@@ -19,15 +19,15 @@
   const stat = d => { try { return d.status ? d.status() || '' : ''; } catch (e) { return ''; } };
 
   floor.folded = true;
-  // Each door's exam domains (Ladi, Nov 17): the floor's debriefs ask about the pieces played, which are mostly
-  // Development questions with Troubleshooting next (SQS, SNS, EventBridge, Lambda concurrency, retries); the heap asks all four.
+  // Each door's exam domains (Ladi, Nov 17): the floor is the Development game (its debriefs ask Development questions
+  // on the pieces played, js/mode-floor.js); the heap asks all four.
   const dom = list => { const t = M.domainLine ? M.domainLine(list) : ''; return t ? `<span class="lf-dom">${esc(t)}</span>` : ''; };
   function hub() {
     if (SD.modeStage && SD.modeStage.enter) SD.modeStage.enter(STAGE);
     const fs = stat(floor), ps = stat(pop);
     const b = U.panel(`<p class="lf-say"><b>Dutch:</b> ${esc(SAY)}</p>
       <div class="opts">
-        <button class="opt md-mode" id="lf-floor"><span class="md-n">📦 ${fs ? 'Resume the Sorting Floor' : 'The Sorting Floor'}</span>${dom([1, 4])}<span class="small">Every claim is a workload. Build the architecture that handles it: queues, bins, bells and rules.${fs ? ' ' + esc(fs.replace(/^Resume · /, '')) + '.' : ''}</span></button>
+        <button class="opt md-mode" id="lf-floor"><span class="md-n">📦 ${fs ? 'Resume the Sorting Floor' : 'The Sorting Floor'}</span>${dom([1])}<span class="small">Every claim is a workload. Build the architecture that handles it: queues, bins, bells and rules.${fs ? ' ' + esc(fs.replace(/^Resume · /, '')) + '.' : ''}</span></button>
         <button class="opt md-mode" id="lf-heap"><span class="md-n">🧳 ${ps ? 'Resume the Lost and Found' : 'The heap: stake and prove'}</span>${dom(0)}<span class="small">Exam questions from every domain. Stake your cards before you read the check, then prove it.${ps ? ' ' + esc(ps.replace(/^Resume · /, '')) + '.' : ''}</span></button>
       </div>`, { title: NAME });
     b.querySelector('#lf-floor').onclick = () => { remember('floor'); floor.start({}); };

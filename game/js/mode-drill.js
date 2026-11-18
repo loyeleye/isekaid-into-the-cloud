@@ -524,6 +524,7 @@
     if (e.warm && !e.teach) { e.teach = D.teachFor(f, e, s.taught); e.teach.forEach(t => { s.taught[t] = 1; }); keep().taught = s.taught; save(s); if (e.teach.length) draw(s); }
   }
 
+  const SVC_TOPIC = { gate: 'apigateway', queue: 'sqs', fn: 'lambda', store: 'dynamodb' };
   // ---- The debrief: "why did that work?" (or, after an escalation, "what was it?") ----
   function debriefQuestion(s) {
     const k = keep(), d = D.DRILLS[s.drill.drill];
@@ -533,7 +534,13 @@
       if (q && E().allowed(q) && !used.has(q.id)) { k.carry = s.carry.slice(); return q; }
     }
     const text = q => [q.q].concat(q.opts || []).join(' ');
-    const r = M.pick({ match: q => d.q.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    // Troubleshooting questions only (Ladi, Nov 17: one game per exam domain): on the drill's cause, else on the cause
+    // station's service, else (no Domain 4 question on either) the cause's own question from any domain.
+    const o = { n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) };
+    const svc = String(d.cause || '').split('+').map(k => SVC_TOPIC[k]).filter(Boolean);
+    let r = M.pick(Object.assign({}, o, { match: q => d.q.test(text(q)) && M.inDomain(q, 4) }));
+    if (!r.items.length && svc.length) r = M.pick(Object.assign({}, o, { match: q => svc.includes(String(q.topic || '').toLowerCase().replace(/[\s_-]+/g, '')) && M.inDomain(q, 4) }));
+    if (!r.items.length) r = M.pick(Object.assign({}, o, { match: q => d.q.test(text(q)) }));
     return r.items[0] ? E().find(r.items[0].q) : null;
   }
   // Type it once (js/type-once.js): after the postmortem, the lead has you write the fix into the runbook, its key

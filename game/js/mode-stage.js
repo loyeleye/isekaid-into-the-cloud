@@ -38,12 +38,14 @@
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
   // The Sorting Floor's sorting room (Gemini, Nov 16). The Fire Drill's war room is a Gemini image too
   // (project files game-modes/multiplayer-real/art-and-music.md).
-  const PLATES = ['floor', 'drill', 'lf'];
+  // Mira's Kitchen: Bram's cottage kitchen (Sogni, Nov 18).
+  const PLATES = ['floor', 'drill', 'lf', 'kitchen'];
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
   // Incident Commander's live incident loop starts on its menu (Ladi, Nov 17: "the music should start playing on this
   // screen"), and plays through both shifts; js/ic-live.js keeps it going rather than starting it over.
   // 'lf' is the Lost and Found's chooser (js/lf-hub.js): the Sorting Floor's song, which carries on through either door.
-  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor' };
+  // Mira's Kitchen borrows chapter 3's cafe song.
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor', kitchen: 'm-c3-cafe' };
   // Mode id: { win, lose } jingle files in assets/audio/.
   const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
