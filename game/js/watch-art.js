@@ -1401,12 +1401,12 @@ window.WATCH_ART = {
  },
  "town": {
   "width": 4100,
-  "height": 1200,
+  "height": 990,
   "levelY": {
    "west-road": 300,
-   "hill-road": 580,
-   "main-street": 860,
-   "far-lane": 1140
+   "hill-road": 510,
+   "main-street": 720,
+   "far-lane": 930
   },
   "ramps": [
    {
@@ -1421,7 +1421,7 @@ window.WATCH_ART = {
     "path": [
      [
       2264,
-      580
+      510
      ],
      [
       2600,
@@ -1441,11 +1441,11 @@ window.WATCH_ART = {
     "path": [
      [
       760,
-      860
+      720
      ],
      [
       1200,
-      580
+      510
      ]
     ]
    },
@@ -1461,11 +1461,11 @@ window.WATCH_ART = {
     "path": [
      [
       560,
-      1140
+      930
      ],
      [
       320,
-      860
+      720
      ]
     ]
    },
@@ -1481,11 +1481,11 @@ window.WATCH_ART = {
     "path": [
      [
       2000,
-      1140
+      930
      ],
      [
       1680,
-      860
+      720
      ]
     ]
    }
@@ -1497,9 +1497,10 @@ window.WATCH_ART = {
    ],
    [
     1120,
-    1140
+    930
    ]
   ],
+  "roofs": 220,
   "layers": [
    {
     "img": "assets/img/watch/town/far.webp",

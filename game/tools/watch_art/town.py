@@ -3,8 +3,8 @@ import json, random, numpy as np
 from PIL import Image, ImageDraw
 import proc
 from compose import piece, place, haze, BLD, LEVELS, GROUND, VW
-TW, TH = 4100, 1200
-LY = {'west-road': 300, 'hill-road': 580, 'main-street': 860, 'far-lane': 1140}
+TW, TH = 4100, 990
+LY = {'west-road': 300, 'hill-road': 510, 'main-street': 720, 'far-lane': 930}   # 210 apart (Ladi, Nov 18: climbs closer together)
 ORDER = ['west-road', 'hill-road', 'main-street', 'far-lane']
 def tile(name, scale, crop_top=0):
     im = Image.open(f'bld/{name}.png').convert('RGB'); im = im.crop((0, crop_top, im.width, im.height))
