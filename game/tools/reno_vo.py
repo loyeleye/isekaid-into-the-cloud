@@ -16,8 +16,11 @@ VOICES = {'seymour': ('gemini-2.5-flash-preview-tts', 'Orus'), 'kai': ('gemini-2
 STYLE = {'seymour': 'Read this aloud as a fussy, uptight hall monitor or a by-the-book night security guard: clipped, stern and officious, at a brisk pace, '
                     'barking the exclamations. Where the line trails off with an ellipsis, pause, then say the rest more quietly, '
                     'a little embarrassed, reining himself in. Say only these words: ',
-         # Kai is the straight man to Seymour's jokes (his three replies, kai-mg-reno-hinges, -ledger, -frame).
-         'kai': 'Say this dryly and deadpan, as a tired aside to a friend. Say only these words: '}
+         # Kai is the straight man to Seymour's eccentricity. Re-voiced 2026-11-17 (Ladi): the old "tired aside" direction
+         # made him slow, dragged out and reluctant; he now talks at a normal pace, plainly and a little wry.
+         'kai': 'Say this at a normal, natural conversational pace, like a level-headed friend talking plainly: dry and matter-of-fact, '
+                'the calm straight man next to an eccentric colleague. Understated and quietly wry, never sleepy, sighing or reluctant, '
+                'and no drawn-out words or long pauses. Say only these words: '}
 # The stern delivery sometimes leaves seconds of dead air mid-line: shorten any pause to 0.6s.
 PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_silence=0.6:stop_threshold=-40dB'
 # The lines heard on every job are read gently and encouragingly, in his own way: still proper, never nagging.

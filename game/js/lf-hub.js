@@ -19,13 +19,16 @@
   const stat = d => { try { return d.status ? d.status() || '' : ''; } catch (e) { return ''; } };
 
   floor.folded = true;
+  // Each door's exam domains (Ladi, Nov 17): the floor's debriefs ask about the pieces played, which are mostly
+  // Development questions with Troubleshooting next (SQS, SNS, EventBridge, Lambda concurrency, retries); the heap asks all four.
+  const dom = list => { const t = M.domainLine ? M.domainLine(list) : ''; return t ? `<span class="lf-dom">${esc(t)}</span>` : ''; };
   function hub() {
     if (SD.modeStage && SD.modeStage.enter) SD.modeStage.enter(STAGE);
     const fs = stat(floor), ps = stat(pop);
     const b = U.panel(`<p class="lf-say"><b>Dutch:</b> ${esc(SAY)}</p>
       <div class="opts">
-        <button class="opt md-mode" id="lf-floor"><span class="md-n">📦 ${fs ? 'Resume the Sorting Floor' : 'The Sorting Floor'}</span><span class="small">Every claim is a workload. Build the architecture that handles it: queues, bins, bells and rules.${fs ? ' ' + esc(fs.replace(/^Resume · /, '')) + '.' : ''}</span></button>
-        <button class="opt md-mode" id="lf-heap"><span class="md-n">🧳 ${ps ? 'Resume the Lost and Found' : 'The heap: stake and prove'}</span><span class="small">Exam questions from every domain. Stake your cards before you read the check, then prove it.${ps ? ' ' + esc(ps.replace(/^Resume · /, '')) + '.' : ''}</span></button>
+        <button class="opt md-mode" id="lf-floor"><span class="md-n">📦 ${fs ? 'Resume the Sorting Floor' : 'The Sorting Floor'}</span>${dom([1, 4])}<span class="small">Every claim is a workload. Build the architecture that handles it: queues, bins, bells and rules.${fs ? ' ' + esc(fs.replace(/^Resume · /, '')) + '.' : ''}</span></button>
+        <button class="opt md-mode" id="lf-heap"><span class="md-n">🧳 ${ps ? 'Resume the Lost and Found' : 'The heap: stake and prove'}</span>${dom(0)}<span class="small">Exam questions from every domain. Stake your cards before you read the check, then prove it.${ps ? ' ' + esc(ps.replace(/^Resume · /, '')) + '.' : ''}</span></button>
       </div>`, { title: NAME });
     b.querySelector('#lf-floor').onclick = () => { remember('floor'); floor.start({}); };
     // The heap's own def was replaced on the registry (above), so it isn't wrapped by js/mode-stage.js: enter its stage here.
@@ -51,6 +54,7 @@
   const css = document.createElement('style');
   css.textContent = `
     .lf-say { font-size: 15px; line-height: 1.4; margin: 0 0 10px; }
+    .lf-dom { display: block; margin: 1px 0 2px; color: #e9c56d; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
     /* The chooser sits high and only as tall as its two doors' buttons, so Dutch stays in view below it. */
     body.in-mode[data-stage="lf"] #panel .win { min-height: 0; align-self: flex-start; margin-top: 12px; }
     @media (orientation: portrait) and (max-width: 700px) { body.in-mode[data-stage="lf"] #panel .win { align-self: flex-end; margin-top: 0; } }`;
