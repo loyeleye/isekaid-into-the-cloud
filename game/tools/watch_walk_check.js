@@ -281,6 +281,8 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(await ev(() => Object.keys(SD.watchWalk.sv().known || {}).length >= 1), 'the Town book learns who likes whom');
   await page.click('#ww-book'); await page.waitForTimeout(150);
   check(/Town book/.test(await card()) && /acquaintance|friend/.test(await card()), 'the Town book lists trust steps');
+  const order = await ev(() => [...document.querySelectorAll('.ww-o:not([hidden]) .ww-who b')].map(b => b.textContent));
+  check(order.length > 3 && order.join('|') === order.slice().sort((x, y) => x.replace(/^(Grandma|Old|The) /, '').localeCompare(y.replace(/^(Grandma|Old|The) /, ''))).join('|'), `the Town book is in alphabetical order (${order.join(', ')})`);
   await shot('town-book'); await btn('[data-a=x]');
   // Running jokes: at most two people a day on the same topic, and only when they've no business for you.
   const quips = await ev(async () => {

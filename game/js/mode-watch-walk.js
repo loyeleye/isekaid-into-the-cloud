@@ -507,7 +507,9 @@
     const w = sv(), b = w.bonds, known = w.known || {};
     // Kagemaru isn't listed (Ladi, Nov 18: he's an odd one, not a neighbour you befriend).
     const HIDE = { kagemaru: 1 };
-    const met = PEOPLE.filter(p => !HIDE[p] && (p !== 'captain' && p !== 'pell' || b.chatted[p])).concat(['chad']).filter((p, i, a) => a.indexOf(p) === i);
+    const key = p => nm(p).replace(/^(Grandma|Old|The) /, '');
+    const met = PEOPLE.filter(p => !HIDE[p] && (p !== 'captain' && p !== 'pell' || b.chatted[p])).concat(['chad']).filter((p, i, a) => a.indexOf(p) === i)
+      .sort((x, y) => key(x).localeCompare(key(y)));   // alphabetical by name, so Grandma Wen sits under W (Ladi, Nov 18)
     const here = who => { const v = run && run.walkers && run.walkers.find(x => x.who === who); return v ? (v.ramp ? 'on the way to ' + WW.scene(v.ramp.to.scene).name : WW.scene(v.scene).name) : ''; };
     const ties = who => Object.keys(known).filter(k => k.split('|').includes(who) && !k.split('|').some(x => HIDE[x])).map(k => { const o = k.split('|').find(x => x !== who) || who; return `<span class="ww-tie ${known[k]}">${known[k] === 'warm' ? '♥' : known[k] === 'cool' ? '✗' : '·'} ${esc(nm(o))}</span>`; }).join(' ');
     const o = overlay(`<p class="ww-t">📖 Town book</p><p class="ww-meta">Trust grows when you chat, help and learn. At "friend" people share a secret. ♥ likes, ✗ won't help.</p>
