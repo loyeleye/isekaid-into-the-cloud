@@ -40,7 +40,7 @@ for i in range(8):
     if x > BW: break
 save(back, 'out/town/back.webp')
 L['town'] = {'width': T.TW, 'height': T.TH, 'levelY': T.LY, 'ramps': ramps, 'chute': chute,
-             'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back.webp', 'speed': BS}, {'img': A + 'town/town.webp', 'speed': 1}]}
+             'roofs': 220, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back.webp', 'speed': BS}, {'img': A + 'town/town.webp', 'speed': 1}]}
 for lv, gy in T.LY.items():   # single-level views kept for compatibility: a 360-tall crop of the town around each road
     crop = Image.new('RGBA', (T.TW, 360)); crop.alpha_composite(town.crop((0, max(0, gy - 300), T.TW, gy + 60)), (0, max(0, 300 - gy)))
     save(crop, f'out/levels/{lv}/street.webp')
