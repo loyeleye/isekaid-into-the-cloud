@@ -846,7 +846,11 @@
           run.tk = 0;
           run.list.forEach(x => {
             if (run.fixed[x.id] || run.locked[x.id] === 'gone') return;
-            if (x.at && up(x) && !(run.rung = run.rung || {})[x.id]) { run.rung[x.id] = 1; if (gone() - x.at < 5) toast(`🔔 Trouble in the ${WW.scene(x.scene).name.toLowerCase()}: ${x.title}.`); }
+            if (x.at && up(x) && !(run.rung = run.rung || {})[x.id]) { run.rung[x.id] = 1; if (gone() - x.at < 5) {
+              // Where it is stays yours to find (Ladi, Nov 18). On the Long Night a watcher calls out their own area.
+              const k = w.day === 9 && (run.ward[x.scene] || 0) >= 1 && watcherOf(x.scene);
+              toast(k ? `🔔 ${nm(k)}: "Trouble on the ${WW.scene(x.scene).name}!"` : `🔔 Somewhere in the ${w.day === 9 ? 'town' : 'castle'}, a lock gives.`);
+            } }
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
               run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
             }

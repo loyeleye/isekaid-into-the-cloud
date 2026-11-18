@@ -411,7 +411,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(f0[0] <= 360 && f0[1] === 0, `a night is 6 minutes and starts quiet: break-ins come later (${f0})`);
   await ev(() => SD.watchWalk.clock(360 - 16)); await page.waitForTimeout(500);
   const f1 = await ev(() => [(SD.watchWalk.view.marks || []).map(m => m.text), (document.querySelector('.ww-toast') || {}).textContent || '']);
-  check(f1[0].length === 1 && /⏳ 2:/.test(f1[0][0]) && /Trouble/.test(f1[1]), `the first break-in rings in with its fuse showing (${f1})`);
+  check(f1[0].length === 1 && /⏳ 2:/.test(f1[0][0]) && /Somewhere/.test(f1[1]) && !/floor/.test(f1[1]), `the first break-in rings in, without saying where, and shows its fuse (${f1})`);
   await ev(() => SD.watchWalk.clock(360 - 170)); await page.waitForTimeout(500);
   const f2 = await ev(() => { const r = SD.watchWalk.run, x = r.list[0]; return [r.locked[x.id], (SD.watchWalk.view.marks || []).map(m => m.text).join('|'), (document.querySelector('.ww-toast') || {}).textContent || '']; });
   check(f2[0] === 'gone' && /got through/.test(f2[2]) && f2[1].split('|').filter(Boolean).length === 1, `when its fuse runs out it gets through, and the next one is up (${f2})`);
