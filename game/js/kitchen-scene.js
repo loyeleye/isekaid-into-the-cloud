@@ -55,7 +55,7 @@
     tall: { W: 768, H: 1344, bg: 'assets/img/stage/kitchen-tall.webp', focus: [400, 810],
       rail: [280, 520, 520], tickets: [30, 520, 530, 610], knob: [250, 830, 56], timer: [470, 692, 62],
       hook: [560, 620, 30], keyHook: [560, 662, 24], pot: [170, 712, 110], keyPot: [170, 678, 26],
-      tray: [640, 745, 104], jar: [385, 690, 50], peg: [662, 578, 160],
+      tray: [655, 628, 104], jar: [385, 690, 50], peg: [640, 500, 160],
       braziers: [230, 960, 540, 1030], plates: [20, 1040, 540, 1180], book: [240, 860, 640, 960], crate: [110, 1030, 96],
       mira: [665, 1185, 185] }
   };
@@ -140,7 +140,7 @@
     parts.push(slot('outside', 'hook', L.hook, 'Hang the pantry key on the hook: open the pantry once per cook, outside the handler'));
     parts.push(slot('inside', 'pot', L.pot, 'Drop the pantry key in the pot: open the pantry on every call, inside the handler'));
     parts.push(`<${can('prep') ? 'button type="button"' : 'div'} class="kw-thing kw-key${hot === 'prep' ? ' hot' : ''}${c.prep === 'inside' ? ' in' : ''}" ${can('prep') ? 'data-drag="prep"' : ''} aria-label="The pantry key: ${esc(K.KNOBS.prep.say(c.prep))}" style="${spot('key', keyAt)}">${img('key')}</${can('prep') ? 'button' : 'div'}>`);
-    parts.push(`<span class="kw-chalk kw-keyl" style="left:${px(c.prep === 'outside' ? L.hook[0] - 70 : L.pot[0] - 70)};top:${px(c.prep === 'outside' ? L.hook[1] + 46 : L.pot[1] + 4)}">${c.prep === 'outside' ? 'once per cook' : 'every call'}</span>`);
+    parts.push(`<span class="kw-chalk kw-keyl${can('prep') ? '' : ' fixed'}" style="left:${px(c.prep === 'outside' ? L.hook[0] - 70 : L.pot[0] - 70)};top:${px(c.prep === 'outside' ? L.hook[1] + 46 : L.pot[1] + 4)}">${c.prep === 'outside' ? 'once per cook' : 'every call'}</span>`);
     // The tray, with or without its statusCode tag.
     if (api || k.includes('ret')) parts.push(tap('ret', `${img('tray')}${c.ret === 'proxy' ? `<span class="kw-tag"><img src="${IMG('tag')}" alt=""><i>statusCode 200<br>+ body</i></span>` : ''}${chalk(c.ret === 'proxy' ? 'tagged' : 'just the dish')}`, L.tray, 'tray',
       `The tray: ${K.KNOBS.ret.say(c.ret)}`, `data-tog="ret" aria-pressed="${c.ret === 'proxy'}"`));
@@ -172,7 +172,8 @@
     if (o2.wrote) parts.push(`<p class="kw-wrote" aria-hidden="true" style="left:${px(L.book[0])};top:${px(L.book[1] - 60)};max-width:${px(Math.max(420, L.book[2] - L.book[0]))}">${esc(o2.wrote)}</p>`);
     // Mira, and what she says.
     const mood = o2.mood === 'smile' ? 'mira-smile' : 'mira-neutral';
-    parts.push(`<img class="kw-mira" src="${IMG(mood)}" alt="" draggable="false" style="${spot(mood, L.mira)}">`);
+    // A phone: Mira steps out while the stove fires, so the plates and braziers have the room.
+    if (!(lay === 'tall' && r)) parts.push(`<img class="kw-mira" src="${IMG(mood)}" alt="" draggable="false" style="${spot(mood, L.mira)}">`);
     const bub = o2.say ? `<div class="kw-say" aria-live="polite"${L.bubble ? ` data-bx="${L.bubble[0]}" data-by="${L.bubble[1]}" data-bw="${L.bubble[2]}"` : ''}><div>${o2.say}</div></div>` : '';
     return `<div class="kw-stage" data-layout="${lay}">${bub}<div class="kw-view"><div class="kw-world${live ? ' live' : ''}" style="width:${L.W}px;height:${L.H}px" data-fx="${L.focus[0]}" data-fy="${L.focus[1]}">
       <img class="kw-bg" src="${L.bg}" alt="Bram's kitchen at night: the stove lit, the recipe book open on the bench" draggable="false">${parts.join('')}</div></div></div>`;
@@ -207,6 +208,15 @@
     const x = root.querySelector('.kw-world');
     if (!x) return;
     const book = x.querySelector('.kw-book');
+    // A tapped plate says what happened to it (its seconds, cold start and tries are hidden on a phone).
+    x.querySelectorAll('[data-pl]').forEach(el => el.onclick = () => {
+      const st = root.querySelector('.kw-view');
+      let tip = st && st.querySelector('.kw-tip');
+      if (!st) return;
+      if (!tip) { tip = document.createElement('p'); tip.className = 'kw-tip'; tip.setAttribute('role', 'status'); st.appendChild(tip); }
+      tip.textContent = el.getAttribute('aria-label');
+      clearTimeout(tip._t); tip.hidden = false; tip._t = setTimeout(() => { tip.hidden = true; }, 3500);
+    });
     if (book) book.onclick = () => o.book && o.book();
     if (!x.classList.contains('live')) return;
     x.querySelectorAll('button[data-set]').forEach(el => el.onclick = () => set(el.dataset.set, el.dataset.v));
@@ -434,7 +444,16 @@
     .kw-stamp { position: absolute; left: 50%; top: 4%; transform: translateX(-50%) rotate(-10deg); padding: 0 5px; border-radius: 5px; font: 900 18px/1.2 var(--f-head, serif); color: #fff; background: #2f7a3a; box-shadow: 0 2px 0 rgba(0,0,0,.4); }
     .kw-plate.warn .kw-stamp { background: #c0892a; } .kw-plate.bad .kw-stamp { background: #9e3a34; } .kw-plate.keep .kw-stamp { background: #2a4360; }
     .kw-pd { font: 700 12px var(--f-body, system-ui); color: #fff3da; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; }
-    [data-layout="tall"] .kw-stamp { font-size: 24px; } [data-layout="tall"] .kw-pd { font-size: 16px; }
+    [data-layout="tall"] .kw-stamp { font-size: 24px; } [data-layout="tall"] .kw-pd { display: none; }
+    /* A phone: only the things this order lets you change carry a label; the rest stay in the picture unlabelled, and
+       each live thing gets a finger-sized tap area around it. Brazier notes show only while the stove fires. */
+    [data-layout="tall"] :is(.kw-thing.fixed .kw-chalk, .kw-keyl.fixed, .kw-signs:not(button .kw-signs)) { display: none; }
+    [data-layout="tall"] .kw-thing.fixed > img { opacity: .9; }
+    [data-layout="tall"] button.kw-thing::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 100px); height: max(100%, 100px); transform: translate(-50%, -50%); }
+    [data-layout="tall"] .kw-world:not(.firing) .kw-bt { display: none; }
+    [data-layout="tall"] .kw-plates .kw-plate { cursor: pointer; }
+    .kw-tip { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 12; margin: 0; padding: 6px 10px; border-radius: 8px; background: rgba(20, 16, 14, .9); color: #ffe7a8; font: 600 14px/1.3 var(--f-body, system-ui); }
+    .kw-tip[hidden] { display: none; }
     .kw-plate.kw-wait { visibility: hidden; }
     .kw-flying .sr { display: none; }
     .kw-book { position: absolute; border: 0 !important; background: none !important; box-shadow: none !important; padding: 0; border-radius: 12px; cursor: pointer; display: flex; align-items: flex-start; justify-content: center; }
@@ -449,7 +468,7 @@
     @keyframes kwBreathe { 50% { transform: scale(1.006, 1.012); } }
     .kw-say { position: relative; z-index: 7; flex: 0 0 auto; display: flex; font-size: 15px; }
     .kw-say > div { flex: 1; min-width: 0; max-height: 100%; overflow: auto; padding: 8px 12px; background: #fbf5e3; color: #2a2018; line-height: 1.35; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
-    [data-layout="tall"] > .kw-say { max-height: 34%; border-bottom: 3px solid #2a2018; }
+    [data-layout="tall"] > .kw-say { max-height: 27%; border-bottom: 3px solid #2a2018; }
     [data-layout="tall"] > .kw-say::after { content: ''; position: absolute; right: 22%; bottom: -15px; border: 12px solid transparent; border-top-color: #2a2018; border-bottom: 0; }
     [data-layout="wide"] > .kw-say { position: absolute; }
     [data-layout="wide"] > .kw-say > div { border-radius: 16px; border: 3px solid #2a2018; }

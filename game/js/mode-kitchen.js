@@ -113,8 +113,9 @@
     const id = K.order(s), o = K.ORDERS[id], c = s.cfg;
     const first = s.fresh && s.night === 1 && s.step === 0 && !s.fires.length;
     const left = K.firesLeft(s), last = s.fires[s.fires.length - 1];
-    const words = (first ? p('<b class="kw-who">Mira:</b> This was Bram\'s kitchen. His book still works, mostly. Every order cooks from one recipe: the knob, the timer, the key, the tray, the jar. The glowing things are yours to set. Then fire the stove and watch.') : '')
-      + `<p class="kt-claim">${icon(o.icon)} ${esc(o.name)}</p>` + p(`<b class="kw-who">${esc(o.ward)}:</b> "${esc(o.says)}"`)
+    // The order first (a phone's bubble is short and scrolls), then Mira's welcome on the first night.
+    const words = `<p class="kt-claim">${icon(o.icon)} ${esc(o.name)}</p>` + p(`<b class="kw-who">${esc(o.ward)}:</b> "${esc(o.says)}"`)
+      + (first ? p('<b class="kw-who">Mira:</b> This was Bram\'s kitchen. His book still works, mostly. Every order cooks from one recipe: the knob, the timer, the key, the tray, the jar. The glowing things are yours to set. Then fire the stove and watch.') : '')
       + `<small>${esc(o.brief)}</small><small>${esc(guestsLine(o))}</small><small><b>${esc(rule(o))}</b></small>`
       + (last ? `<small>Last firing: ${starLine(last.stars)} · bill ${last.bill} GB-s · best so far ${'★'.repeat(s.stars[id] | 0) || 'none'}</small>` : '');
     const { b, book } = room(s, id, c, { live: true, hot, say: words, mood: first ? 'smile' : 'neutral', wrote: hot ? wroteLine(id, c, hot) : '' },
