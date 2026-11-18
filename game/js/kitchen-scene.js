@@ -57,7 +57,7 @@
       hook: [560, 620, 30], keyHook: [560, 662, 24], pot: [170, 712, 110], keyPot: [170, 678, 26],
       tray: [655, 628, 104], jar: [385, 690, 50], peg: [640, 500, 160],
       braziers: [230, 960, 540, 1030], plates: [20, 1040, 540, 1180], book: [240, 860, 640, 960], crate: [110, 1030, 96],
-      mira: [640, 1200, 260], miraBack: [655, 1310, 380] }
+      mira: [640, 1200, 260], miraBack: [655, 1352, 390] }
   };
   KS.layout = () => (window.innerWidth < window.innerHeight * 0.95 || window.innerWidth < 640 ? 'tall' : 'wide');
   const px = n => Math.round(n * 10) / 10 + 'px';
@@ -469,7 +469,7 @@
     .kw-mira { position: absolute; z-index: 3; pointer-events: none; opacity: .55; transform-origin: 50% 100%; animation: kwBreathe 3.8s ease-in-out infinite;
       -webkit-mask-image: linear-gradient(#000 55%, transparent 98%); mask-image: linear-gradient(#000 55%, transparent 98%); }
     /* Her back is a dark veil on a dark room: lift it and rim it with the fire's light so she reads while staying see-through. */
-    .kw-mira.back { opacity: .62; filter: brightness(1.9) drop-shadow(0 0 3px rgba(255, 214, 150, .85)); -webkit-mask-image: none; mask-image: none; }
+    .kw-mira.back { opacity: .74; filter: brightness(1.9) drop-shadow(0 0 3px rgba(255, 214, 150, .85)); -webkit-mask-image: none; mask-image: none; }
     @keyframes kwBreathe { 50% { transform: scale(1.006, 1.012); } }
     .kw-say { position: relative; z-index: 7; flex: 0 0 auto; display: flex; font-size: 15px; }
     .kw-say > div { flex: 1; min-width: 0; max-height: 100%; overflow: auto; padding: 8px 12px; background: #fbf5e3; color: #2a2018; line-height: 1.35; box-shadow: 0 6px 14px rgba(0,0,0,.5); }
