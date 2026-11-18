@@ -589,7 +589,8 @@
     if (view) view.stop(); view = null; run = null;
     const e = endingFor(missed.length);
     w.ending = e.id; w.day = 10;
-    jingle({ lanterns: 'watchEndLanterns', morning: 'watchEndMorning', fall: 'watchEndFall' }[e.id], 'watchMorning');
+    // The best ending plays the whole celebration song through once (Ladi, Nov 18); the others are stings back to Mira's fire.
+    jingle({ lanterns: 'watchEndLanterns', morning: 'watchEndMorning', fall: 'watchEndFall' }[e.id], e.id === 'lanterns' ? null : 'watchMorning');
     const xp = M.pay('watch');
     S.persist();
     const b = U.panel(`<p class="ww-top">The Long Night · Dawn</p><h3 class="ww-end">${esc(e.name)}</h3><p>${esc(e.text)}</p>
