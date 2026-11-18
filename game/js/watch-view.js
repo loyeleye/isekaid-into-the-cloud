@@ -120,7 +120,7 @@
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
   function person(c, who, sx, facing, moving, t, lit) {
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
-    c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill();
+    if (!sheet) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill(); }   // art has its shadow baked in
     if (sheet) {
       const A = p.anims || {}, anim = (lit && (moving ? A.lanternWalk || A.lantern : A.lantern)) || (moving ? A.walk : A.idle) || [0];   // lit: Seo-yeon's lantern at night
       const f = anim[Math.floor(t * (p.fps || 8)) % anim.length];
@@ -208,6 +208,7 @@
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => { input[k] = 0; }));
       } else b.addEventListener('click', () => press(k));
     });
+    let dt0 = 0;
     function draw() {
       const sc = WW.scene(st.scene), phase = st.phase;
       const cam = Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
@@ -218,17 +219,27 @@
       if (layers) layers.forEach(l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } });
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });
-      sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });
-      (o.people && o.people[st.scene] || []).forEach(p => { const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), false, t + p.x); });
+      if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
+      (o.people && o.people[st.scene] || []).forEach(p => {
+        if (p.walk && !reduced()) {   // background walkers stroll and turn at the ends of the level
+          p.facing = p.facing || 1; p.x += p.facing * 40 * dt0;
+          if (p.x > sc.to - 40) p.facing = -1; if (p.x < sc.from + 40) p.facing = 1;
+        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, t + p.x); });
       animals.forEach(a => animal(c, a, X(a.x), t));
       (o.marks || []).filter(m => m.scene === st.scene).forEach(m => {
-        const sx = X(m.x); c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
+        const sx = X(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);
+        if (sp) { const f = Math.floor(t * 8) % 4; c.drawImage(sp, f * 16, 0, 16, 16, sx - 16, G - 34, 32, 32); if (m.text) label(c, m.text, sx, G - 50); return; }
+        c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
         c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
       });
       person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.walk, phase === 'night' || phase === 'dusk');
-      if (st.phase === 'night' && sc.kind !== 'castle') { c.fillStyle = 'rgba(255,220,140,.12)'; c.beginPath(); c.arc(X(st.x), G - 40, 110, 0, 7); c.fill(); }
       if (!layers) frontLayer(c, sc, cam);
-      const tn = tint(phase); if (tn && !(art() && art().skies)) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }
+      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
+      if (phase === 'night' || phase === 'dusk') {   // Seo-yeon's lantern lights the ground around her, over the tint
+        const gx = X(st.x), g = c.createRadialGradient(gx, G - 50, 10, gx, G - 50, 130);
+        g.addColorStop(0, 'rgba(255,214,140,.32)'); g.addColorStop(1, 'rgba(255,214,140,0)');
+        c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(gx - 130, G - 180, 260, 260); c.restore();
+      }
       if (o.weather && o.weather !== 'clear') weather(c, o.weather, t);
       const s = WW.near(st);
       if (s) {
@@ -242,7 +253,7 @@
     function loop(now) {
       if (!running) return;
       const dt = Math.min(0.05, last ? (now - last) / 1000 : 0); last = now; t += dt;
-      WW.step(st, dt, input);
+      WW.step(st, dt, input); dt0 = dt;
       if (animals && !reduced()) WW.animals(animals, dt, st.x);
       draw();
       if (o.onTick) o.onTick(st, dt);
@@ -260,7 +271,7 @@
   css.textContent = `
     .wv { display: grid; gap: 6px; }
     .wv-c { width: 100%; height: auto; aspect-ratio: ${VW} / ${VH}; border-radius: 10px; background: #0c1430; image-rendering: auto; touch-action: none; }
-    .wv-where { margin: 0; font-size: 13px; color: #b9c4ff; text-align: center; }
+    .wv-where { margin: 0; font-size: 13px; font-weight: 600; color: #3b4470; text-align: center; }
     .wv-pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
     .wv-pad button { min-height: 48px; border-radius: 10px; border: 1px solid rgba(185,196,255,.4); background: rgba(20,28,70,.7); color: #fff; font-size: 20px; touch-action: none; user-select: none; }
     .wv-pad button:active { background: rgba(233,197,109,.3); }

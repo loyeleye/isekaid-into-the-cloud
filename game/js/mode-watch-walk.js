@@ -142,6 +142,9 @@
         put(l, s.who, s.x + 34);
         (s.also || []).forEach((w, i) => put(l, w, s.x - 40 - i * 40));
       }));
+      if (phase === 'day' && wx !== 'rain') WW.LEVELS.forEach((l, i) => [1, 2].forEach(k => {   // the background crowd
+        const T = WW.TOWN[l]; (out[l] = out[l] || []).push({ who: 'townsfolk-' + ((i + k) % 3 + 1), x: T.from + (T.to - T.from) * (k / 3), walk: true, facing: k === 1 ? 1 : -1, crowd: true });
+      }));
     } else {
       put('castle:towers', 'captain', 1150);
       if (day === 1) put('castle:ground', 'pell', 230);
@@ -372,7 +375,7 @@
     b.querySelector('#ww-quit').onclick = () => { if (view) view.stop(); view = null; S.persist(); M.open && M.open(); };
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
     const seen = x => w.day !== 9 || (run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene] || Math.abs(x.x - st.x) < 220;   // night 9: search unless warded
-    const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
+    const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
     view = WV.mount(b.querySelector('.ww-view'), {
       st, people: people(phase, w.day), marks: marks(), weather: wx,
@@ -383,7 +386,7 @@
           const x = run.list.find(v => !run.fixed[v.id] && v.scene === st.scene && Math.abs(v.x - st.x) <= WW.REACH);
           if (x) return fix(x, () => view.set('marks', marks()));
         }
-        const p = (people(phase, w.day)[st.scene] || []).find(v => Math.abs(v.x - st.x) <= WW.REACH);
+        const p = (people(phase, w.day)[st.scene] || []).find(v => !v.crowd && Math.abs(v.x - st.x) <= WW.REACH);
         if (p) return talk(p.who);
         const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
         if (q) return step(q);
