@@ -8,6 +8,7 @@
   if (!window.SD || !SD.watchWorld) return;
   const WW = SD.watchWorld, G = WW.GROUND, VW = 640, VH = WW.VIEW_H;
   const V = SD.watchView = {};
+  V.TOWN_ZOOM = 0.75;   // town drawn at 75% so the road above and the sky fit (Ladi's pick pending, Nov 18)
   const art = () => window.WATCH_ART || null;
   const imgs = {};
   const img = src => {
@@ -322,30 +323,33 @@
     // The stacked town needs the whole-town picture (or no art at all); with only per-level art, levels stay separate.
     const stacked = () => WW.scene(st.scene).kind === 'town' && (V.forceStacked || !!townArt() || !layerImgs(WW.scene(st.scene)));   // forceStacked: preview it with placeholders
     function drawTown() {
+      // V.TOWN_ZOOM < 1 draws the town smaller, so the road above and the sky over it fit the view (Ladi, Nov 18).
+      const Z = V.TOWN_ZOOM || 1, vw = VW / Z, vh = VH / Z;
       const T = V.town(), Y = T.levelY, phase = st.phase, sc = WW.scene(st.scene);
       const pos = ramp ? pathAt(ramp.path, ramp.d) : [st.x, Y[st.scene]];
-      const tx = Math.max(0, Math.min(T.width - VW, pos[0] - VW / 2)), ty = Math.max(0, Math.min(T.height + 60 - VH, pos[1] - G));
+      const tx = Math.max(0, Math.min(T.width - vw, pos[0] - vw / 2)), ty = Math.max(0, Math.min(T.height + 60 - vh, pos[1] - (vh - (VH - G))));
       if (camX == null) { camX = tx; camY = ty; }
       const k = Math.min(1, dt0 * 6); camX += (tx - camX) * k; camY += (ty - camY) * k;   // the camera eases after her
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
       sky(c, phase, 'town', true);
+      c.save(); c.scale(Z, Z);
       const SX = x => x - camX, SY = y => y - camY;
       const lvI = WW.LEVELS.indexOf(st.scene);
-      const levels = WW.LEVELS.filter((l, i) => i >= lvI - (ramp && ramp.key === 'up' ? 2 : 1) && SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
+      const levels = WW.LEVELS.filter((l, i) => i >= lvI - (ramp && ramp.key === 'up' ? 2 : 1) && SY(Y[l]) > -60 && SY(Y[l]) - 260 < vh);
       // Only your road and the one above it are drawn; higher terraces drop away so the backdrop and sky show
       // (Ladi, Nov 18). `top` is where the level above's rooftops end.
       const li = WW.LEVELS.indexOf(st.scene), above = WW.LEVELS[Math.max(0, li - (ramp && ramp.key === 'up' ? 2 : 1))];   // mid-climb, keep the next road's own neighbour in view
       const top = SY(Y[above]) - (T.roofs || 240);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
-        if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, VW, VH - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
+        if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
       else {
         farLayer(c, { kind: 'town', id: 'west-road' }, camX);
         WW.LEVELS.forEach(l => {   // each road and the hillside face below it, down to the next road
-          const y = SY(Y[l]); if (y > VH || y + 300 < 0) return;
-          c.fillStyle = '#8c7a5c'; c.fillRect(0, y, VW, 300);
-          c.fillStyle = '#9b8a6a'; c.fillRect(0, y, VW, 16); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(0, y, VW, 3);
-          if (l === 'far-lane') { c.fillStyle = '#4f7da0'; c.fillRect(0, y + 30, VW, 300); }
+          const y = SY(Y[l]); if (y > vh || y + 300 < 0) return;
+          c.fillStyle = '#8c7a5c'; c.fillRect(0, y, vw, 300);
+          c.fillStyle = '#9b8a6a'; c.fillRect(0, y, vw, 16); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(0, y, vw, 3);
+          if (l === 'far-lane') { c.fillStyle = '#4f7da0'; c.fillRect(0, y + 30, vw, 300); }
         });
         c.strokeStyle = '#a8966f'; c.lineWidth = 14; c.lineCap = 'round';   // ramps between the roads
         WW.LEVELS.forEach(l => WW.TOWN[l].spots.forEach(s => {
@@ -356,7 +360,7 @@
         }));
         levels.forEach(l => {
           c.save(); c.translate(0, SY(Y[l]) - G);
-          WW.scene(l).spots.forEach(s => { const sx = SX(s.x); if (sx > -120 && sx < VW + 120 && s.kind !== 'fork') building(c, s, sx, WW.scene(l)); });
+          WW.scene(l).spots.forEach(s => { const sx = SX(s.x); if (sx > -120 && sx < vw + 120 && s.kind !== 'fork') building(c, s, sx, WW.scene(l)); });
           c.restore();
         });
       }
@@ -365,7 +369,7 @@
         c.save(); c.translate(0, SY(Y[l]) - G);
         (o.people && o.people[l] || []).forEach(p => {
           if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 120 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
-          const sx = SX(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97);
+          const sx = SX(p.x); if (sx > -40 && sx < vw + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97);
         });
         if (l === st.scene && !ramp) animals.forEach(a => animal(c, a, SX(a.x), t));
         (o.marks || []).filter(m => m.scene === l).forEach(m => {
@@ -383,18 +387,20 @@
       }
       c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk'); c.restore();
       if (!T.layers) frontLayer(c, sc, camX);
-      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }
+      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, vw, vh); }
+      const hintAt = s0 => [SX(s0.x) * Z, (py - 160) * Z];
       if (phase === 'night' || phase === 'dusk') {
         const g = c.createRadialGradient(px, py - 50, 10, px, py - 50, 130);
         g.addColorStop(0, 'rgba(255,214,140,.32)'); g.addColorStop(1, 'rgba(255,214,140,0)');
         c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(px - 130, py - 180, 260, 260); c.restore();
       }
+      c.restore();
       if (o.weather && o.weather !== 'clear') weather(c, o.weather, t);
       const s = !ramp && WW.near(st);
       if (s) {
         const ms = WW.moves(st);
         const hint = ms.length ? ms.map(m => (m.key === 'up' ? '▲ ' : m.key === 'down' ? '▼ ' : '● ') + m.label).filter((v, i, a) => a.indexOf(v) === i).join('   ') : s.label + (s.needs && !st.unlocks[s.needs] ? ' (locked)' : '');
-        label(c, hint, SX(s.x), py - 160, true);
+        const [hx, hy] = hintAt(s); label(c, hint, hx, hy, true);
       }
       const txt = `${sc.name}${o.hint ? ' · ' + o.hint : ''}`;
       if (where.textContent !== txt) where.textContent = txt;
