@@ -1530,6 +1530,41 @@
     { night: 9, who: 'pell', lines: ['Full moon. Clear sky.', 'Everything you missed is back, and the town\'s in it too.', 'Twelve bells. Go.'] }
   ];
 
+  // PELL IS VERY TALL (Ladi, Nov 18: a running joke). Everyone remarks on it once; Pell always answers deadpan.
+  // meet: Seo-yeon's first dusk at the gate. chad: Chad's pitch at the gate on dusk 2. quips: the first time you talk
+  // to each person from day 2, they say their line; Pell answers it at the next dusk.
+  C.pellTall = {
+    meet: [['seoyeon', '(She looks up. Then further up.)'], ['pell', 'Yes. Everyone does that. Evening, warden.']],
+    chad: [
+      ['chad', 'Sergeant! Big man. Big vision. Let me size you up. Literally. Ha!'],
+      ['pell', 'No.'],
+      ['chad', 'Hear me out: Height-as-a-Service. We rent you to the castle as a lookout tower. Monthly billing.'],
+      ['pell', 'The castle has a lookout tower.'],
+      ['chad', 'A tower that salutes, though. Synergy at elevation. Lighthouse franchise. Think about it.'],
+      ['pell', 'I thought about it.'],
+      ['chad', 'And?'],
+      ['pell', 'No.'],
+      ['chad', 'Respect. Circling back.']],
+    quips: {
+      kai: ['I cooked for Pell once. Had to serve it on the top shelf.', 'Kai put my supper on a shelf. I ate it.'],
+      dutch: ['Pell\'s the only man I\'ve ever saluted upwards.', 'Dutch salutes fine. Slightly upwards.'],
+      ayo: ['Pell walked past the forge and the smoke had to go round him.', 'The smoke and I have an arrangement.'],
+      coo: ['Pell is the only one who can reach the top pigeonholes. Coo.', 'Coo wants the top shelf read again. Tell Coo no.'],
+      bru: ['I\'ve put Pell on the bounty board as a landmark.', 'I have been a landmark before.'],
+      kagemaru: ['For the sergeant, a special: an extra-long lantern pole. Ah ha ha. No discount.', 'I do not need a pole.'],
+      lexi: ['Pell\'s in the Index under "Tall, see also: Sergeant".', 'Correct filing.'],
+      hobb: ['Cut Pell a key once. He held it up to the light. I never saw it again.', 'It was up there. Hobb could not see.'],
+      wen: ['I bake Pell\'s buns twice the size, dear. It\'s only proportional.', 'They are normal buns.'],
+      aigerim: ['Diary, 09:14: Sergeant Pell ducked under the clock tower. The CLOCK TOWER.', 'I did not duck. The clock leaned.'],
+      doug: ['Pell looked into my flat through the upstairs window. From the street.', 'The curtains were open.'],
+      tess: ['I have to tip my head ALL the way back to gossip at him! All the way!', 'Tess talks to my belt buckle. It has heard plenty.'],
+      hollis: ['Pell rode in my coach once. Knees up by his ears the whole way.', 'It was a small coach.'],
+      odu: ['Pell waded out for a barge rope. River came up to his knees. Mine would be my chin.', 'Wet knees. Fine.'],
+      fennel: ['Pell picks my top apples. I don\'t even get the ladder out.', 'Fennel pays in apples. Good apples.'],
+      seymour: ['Pell\'s height is a security risk. Visible from three streets. I\'ve written to someone.', 'Seymour writes to someone every week.']
+    }
+  };
+
   // Day 1's walk with the clock stopped: Mira introduces each thing as you reach it (storyboard "Night 1").
   // Day 1: Mira walks Seo-yeon in, a step behind her, "just in case". She mothers by reflex but isn't pushy, and
   // Seo-yeon stays polite (story bible, Arc 4). Ladi, Nov 18: a humor beat that also explains why her lines pop up.
@@ -1556,6 +1591,8 @@
       ['mira', 'This is where I stop. Pell takes it from here. Come by my fire in the morning, love. I\'ll keep the soup on.'],
       ['seoyeon', 'Thank you. For coming.'],
       ['mira', 'Just in case.'],
+      ['mira', 'He\'s tall, love. Try not to stare. Everyone stares.'],
+      ['pell', 'She stared.'],
       ['pell', 'She told me about you four times this morning. Four.']] }
   ];
 

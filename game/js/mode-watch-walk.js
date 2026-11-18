@@ -247,6 +247,11 @@
   }
   function talk(who) {
     const w = sv(), day = w.day, b = w.bonds, ties = content().ties || {};
+    const pq = (content().pellTall || {}).quips || {};   // once each, after you've met Pell: a line about his height
+    if (w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who]) {
+      w.pellq[who] = 1; w.pellReply = who; S.persist();
+      return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who), 90));
+    }
     B.chat(b, who);
     // A quest step at this person?
     for (const q of quests()) {
@@ -499,8 +504,13 @@
       }
     });
     if (phase === 'dusk') {
-      const d = (content().dusk || []).find(x => x.night === w.day);
-      sayAll((d ? d.lines.map(l => [d.who || 'pell', l]) : [['pell', 'Night\'s coming. Walk with me to the gate, and keep your lantern low.']]));
+      const d = (content().dusk || []).find(x => x.night === w.day), P = content().pellTall || {};
+      const pre = [];   // the Pell running joke: meeting him, Chad's pitch on dusk 2, his answer to the latest quip
+      if (!w.metPell && P.meet) { pre.push(...P.meet); w.metPell = 1; }
+      if (w.day === 2 && P.chad && !w.chadPitched) { pre.push(...P.chad); w.chadPitched = 1; }
+      if (w.pellReply && (P.quips || {})[w.pellReply]) { pre.push(['pell', P.quips[w.pellReply][1]]); w.pellReply = null; }
+      S.persist();
+      sayAll(pre.concat(d ? d.lines.map(l => [d.who || 'pell', l]) : [['pell', 'Night\'s coming. Walk with me to the gate, and keep your lantern low.']]));
     }
     if (phase === 'night' && w.day === 9) sayAll([['pell', 'The Long Night. Every lock you missed is open again, and there are new ones in town. The castle gate stays open tonight: the town is ours to search too.']]);
     if (phase === 'dusk' && w.day === 9 && !w.retry) w.retry = JSON.stringify(Object.assign({}, w, { retry: null }));
