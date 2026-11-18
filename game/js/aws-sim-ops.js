@@ -121,6 +121,28 @@
   AS.provTargetOk = target => target !== '$LATEST';
   // A FIFO queue's dead-letter queue must be FIFO too, and a standard queue's standard.
   AS.dlqTypeOk = (queueFifo, dlqFifo) => !!queueFifo === !!dlqFifo;
+  // The Night Watch (js/mode-watch.js):
+  //   - A role's trust policy is the resource-based policy that lists who may assume it. Naming the caller's role lets
+  //     it in; naming the account (its root) hands the decision to IAM, so the caller's own policy must allow
+  //     sts:AssumeRole; a role it doesn't name is denied, "because no role trust policy allows the sts:AssumeRole
+  //     action". https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts.html
+  //     https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_access-denied.html
+  //     trust: 'fn' (names orders-fn-role), 'acct', 'star' (Principal "*"), 'fin' (only finance-fn-role).
+  AS.trustAllows = (trust, identity) => trust === 'fn' || trust === 'star' || (trust === 'acct' && !!identity);
+  //   - Across accounts both evaluations must allow: the identity policy in the caller's account and the resource
+  //     policy in the account that owns the resource. https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic-cross-account.html
+  AS.crossAccountAllows = (identity, resource) => !!identity && !!resource;
+  //   - KMS Encrypt takes at most 4,096 bytes of plaintext; larger data wants a data key (GenerateDataKey) or SSE-KMS,
+  //     whose PutObject needs kms:GenerateDataKey. https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html
+  //     https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html
+  //     https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
+  AS.KMS_ENCRYPT_MAX = 4096;
+  //   - Credentials: AWS recommends Secrets Manager over environment variables, which Lambda hands to the code in plain
+  //     text. A SecureString needs ssm:GetParameter and kms:Decrypt; the Parameters and Secrets extension caches for
+  //     300 s by default. https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html
+  //     https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars-encryption.html
+  //     https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html
+  //     https://docs.aws.amazon.com/lambda/latest/dg/with-secrets-manager.html
 
   // ---- Signals ----
   AS.METRICS = {
