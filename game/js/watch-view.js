@@ -287,7 +287,7 @@
       if (where.textContent !== txt) where.textContent = txt;
     }
     // The stacked town needs the whole-town picture (or no art at all); with only per-level art, levels stay separate.
-    const stacked = () => WW.scene(st.scene).kind === 'town' && (!!townArt() || !layerImgs(WW.scene(st.scene)));
+    const stacked = () => WW.scene(st.scene).kind === 'town' && (V.forceStacked || !!townArt() || !layerImgs(WW.scene(st.scene)));   // forceStacked: preview it with placeholders
     function drawTown() {
       const T = V.town(), Y = T.levelY, phase = st.phase, sc = WW.scene(st.scene);
       const pos = ramp ? pathAt(ramp.path, ramp.d) : [st.x, Y[st.scene]];
