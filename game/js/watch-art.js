@@ -399,10 +399,10 @@ window.WATCH_ART = {
   },
   "chad": {
    "sheet": "assets/img/watch/people/chad.png",
-   "w": 110,
+   "w": 108,
    "h": 224,
    "anchor": [
-    55,
+    54,
     212
    ],
    "anims": {
