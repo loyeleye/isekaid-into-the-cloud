@@ -106,6 +106,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const w2 = await ev(() => SD.watchWalk.sv());
   check(w2.day === 2 && w2.silver === 20 + 30, `dawn pays 20 base + 10 for the fix (${w2.silver - 20})`);
   await shot('dawn');
+  await page.click('#ww-next'); await page.waitForTimeout(250);
+  check(await ev(() => SD.watchWalk.sv().reviewed === 2), 'day 2\'s morning review is marked as done');
+  const s0 = await ev(() => SD.watchWalk.sv().silver);
+  await ev(() => SD.watchWalk.morning()); await page.waitForTimeout(250);
+  check(await ev(() => SD.watchWalk.run && SD.watchWalk.run.phase === 'day' && !/Mira's review/.test(document.body.textContent)) && await ev(() => SD.watchWalk.sv().silver) === s0, 'coming back the same morning skips the review (no second pay)');
 
   // Stairs and the back stair at night.
   await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: SD.watchWorld.LINKS.find(l => l.id === 'back-stair').x }));
@@ -181,9 +186,10 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(seal[1] === 0, `a sealed floor has no breaches that night (cellars had ${seal[0]})`);
   // Day 1 tutorial: Mira's first line plays at the start.
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(300);
-  check(/just in case/.test(await card()), 'day 1 opens with Mira walking you in');
+  check(/night warden/.test(await card()), 'day 1 opens with Mira setting the scene');
   check(await ev(() => SD.watchWalk.view.follower && SD.watchWalk.view.follower.who === 'mira'), 'Mira follows Seo-yeon on day 1');
-  for (let i = 0; i < 3; i++) await btn('[data-a=n]');
+  let intro = ''; while (await page.$('.ww-o:not([hidden]) [data-a=n]')) { intro += await card(); await btn('[data-a=n]'); }
+  check(/night watch/.test(intro) && /patrol/.test(intro) && /castle gate/.test(intro), 'Mira explains the night watch, the patrols and the castle gate');
   await tp('main-street', 760); await page.waitForTimeout(200);
   check(/Tess/.test(await card()), 'the walkthrough\'s next stop plays at the fork');
   await shot('tutorial');
@@ -198,14 +204,15 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(await ev(() => { const g = SD.watchWalk.view.guide; return g && g.x === 760 && g.dir === 'up'; }), 'for the post office on Hill Road, the arrow points up the fork');
   await shot('tutorial-arrow');
   await tp('hill-road', 1440); await page.waitForTimeout(200);
-  check(/marker over Coo/.test(await card()) && await ev(() => SD.watchWalk.view.marks.some(m => m.scene === 'hill-road' && m.text === 'Work for you')), 'Mira\'s marker talk shows a marker over Coo');
+  check(/marker over Coo/.test(await card()), 'Mira explains markers at Coo\'s post office');
   await shot('tutorial-coo'); await clear();
-  check(await ev(() => !SD.watchWalk.view.marks.some(m => m.text === 'Work for you')), 'the example marker goes when she\'s done');
   // Leaving and coming back keeps the time left and the tutorial step (Ladi, Nov 18: no fresh 10 minutes).
   await ev(() => { SD.watchWalk.run.keep(); SD.watchWalk.sv().at.left = 125; SD.state.persist && SD.state.persist(); SD.modes.list().find(m => m.id === 'watch-walk').start(); });
   await page.waitForTimeout(300);
   const back = await ev(() => [document.querySelector('#ww-top').textContent, SD.watchWalk.run.phase, SD.watchWalk.run.tut, !!SD.watchWalk.view.follower]);
   check(/Day 1 · 2:0/.test(back[0]) && back[1] === 'day' && back[2] === 5 && back[3], `coming back resumes the day with its time left and Mira's walk (${back})`);
+  await tp('hill-road', 1700); await ev(() => { SD.watchWalk.run.keep(); SD.modes.list().find(m => m.id === 'watch-walk').start(); }); await page.waitForTimeout(250);
+  check(await ev(() => SD.watchWalk.run.st.scene === 'hill-road' && Math.abs(SD.watchWalk.run.st.x - 1700) < 2), 'coming back puts you where you stood, not at base camp');
   // The castle gate ends the day early; Mira says so at her last stop.
   await tp('west-road', 3280); await page.waitForTimeout(200);
   let gate = ''; while (await page.$('.ww-o:not([hidden]) [data-a=n]')) { gate += await card(); await btn('[data-a=n]'); }

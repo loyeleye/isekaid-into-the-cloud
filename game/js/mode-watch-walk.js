@@ -18,6 +18,7 @@
 (function () {
   const M = SD.modes, U = SD.ui, S = SD.state, W = SD.watchData, WW = SD.watchWorld, WV = SD.watchView, B = SD.watchBonds;
   if (!M || !U || !WW || !WV || !B) return;
+  const SCH = SD.watchSchedule;   // daily schedules (js/watch-schedule.js); without it people stand still
   const esc = s => U.esc(String(s == null ? '' : s));
   const content = () => window.WATCH_CONTENT || {};
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
@@ -142,6 +143,11 @@
         if (!(s.who === 'mira' && run && run.escort && run.phase === phase)) put(l, s.who, s.x + 34);   // day 1: she's walking with you
         (s.also || []).forEach((w, i) => put(l, w, s.x - 40 - i * 40));
       }));
+      if (phase === 'day' && SCH) Object.keys(content().schedule || {}).forEach(who => {   // people with a plan but no spot (Aigerim, Chad)
+        if (Object.values(out).some(a => a.some(p => p.who === who))) return;
+        const pl = SCH.planFor(content().schedule, who, day, wx), at = pl && SCH.resolve(WW, pl[0][1]);
+        if (at) put(at.scene, who, at.x);
+      });
       if (phase === 'day' && wx !== 'rain') WW.LEVELS.forEach((l, i) => [1, 2].forEach(k => {   // the background crowd
         const T = WW.TOWN[l]; (out[l] = out[l] || []).push({ who: 'townsfolk-' + ((i + k) % 3 + 1), x: T.from + (T.to - T.from) * (k / 3), walk: true, facing: k === 1 ? 1 : -1, crowd: true });
       }));
@@ -156,7 +162,9 @@
   function homeMira() {
     if (!run || !run.escort) return;
     run.escort = false; view.set('follow', null); view.set('hint', ''); view.set('guide', null); music(tune('day'));
-    (run.ppl['main-street'] = run.ppl['main-street'] || []).push({ who: 'mira', x: (WW.spot('main-street', 'base-camp') || { x: 560 }).x + 34 });
+    const home = { who: 'mira', scene: 'main-street', x: (WW.spot('main-street', 'base-camp') || { x: 560 }).x + 34, facing: -1, d: 0 };
+    if (run.walkers) run.walkers.push(home); else (run.ppl['main-street'] = run.ppl['main-street'] || []).push(home);
+    if (run.walkers) syncPeople();
   }
 
   // ---- Screens over the view ----
@@ -386,7 +394,7 @@
     const w = sv();
     B.newDay(w.bonds, w.day);
     music('watchMorning');
-    if (w.day >= 2) await review();
+    if (w.day >= 2 && w.reviewed !== w.day) { w.reviewed = w.day; S.persist(); await review(); }   // once a day: leaving and coming back doesn't ask again (Ladi, Nov 18)
     if (w.day >= HIRE_DAY && !w.toldHire) await tellHire();
     walk('day');
   }
@@ -453,6 +461,8 @@
     const w = sv();
     if (view) view.stop();
     busy = false;   // a new screen replaces any open talk
+    const at0 = w.at && w.at.day === w.day && w.at.phase === phase ? w.at : null;   // coming back: where you stood
+    if (at0 && opts.resume && at0.scene && WW.scene(at0.scene) && at0.x != null) opts = Object.assign({}, opts, { scene: at0.scene, x: at0.x });
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
@@ -474,8 +484,13 @@
     clock = phase === 'night' ? nightS(w.day) : phase === 'day' ? DAY_S : 0;
     if (at && at.left != null) clock = Math.max(0, Math.min(clock, at.left));
     run.list.forEach(x => { if (w.fixed[x.id] && !run.fixed[x.id]) run.fixed[x.id] = 1; });   // tonight's fixes so far
-    w.at = { day: w.day, phase, left: clock, tut: run.tut, locked: run.locked };
-    const keep = () => { if (run && run.st === st && w.at && w.at.phase === phase) { w.at.left = Math.ceil(clock); w.at.tut = run.tut || 0; w.at.locked = run.locked; } S.persist(); };
+    w.at = { day: w.day, phase, left: clock, tut: run.tut, locked: run.locked, scene: st.scene, x: Math.round(st.x) };
+    const keep = () => {
+      if (run && run.st === st && w.at && w.at.phase === phase) {
+        Object.assign(w.at, { left: Math.ceil(clock), tut: run.tut || 0, locked: run.locked, scene: st.scene, x: Math.round(st.x) });
+      }
+      S.persist();
+    };
     run.keep = keep; S.persist();
     const b = U.panel(`<p class="ww-top" id="ww-top"></p><div class="ww-wrap"><div class="ww-view"></div></div>
       <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
@@ -651,7 +666,7 @@
   M.register({
     id: 'watch-walk', name: 'The Night Watch (walkable preview)', host: 'Seo-yeon', minutes: 'about 20 a day and night',
     blurb: 'Walk the town by day for gossip and quests, then patrol the castle at night and fix each breach. Security only.',
-    start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase) : morning(); },
+    start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
   SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; } };
