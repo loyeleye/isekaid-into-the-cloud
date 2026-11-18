@@ -347,15 +347,12 @@
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
-      if (T.buildings) {   // each road's buildings, top road first: yours and the one above solid, roads below you
-        // see-through and soft so they read as distant (Ladi, Nov 18); two or more roads up aren't drawn at all.
-        const ai = WW.LEVELS.indexOf(above);
-        WW.LEVELS.forEach((l, i) => {
-          if (i < ai) return;
-          const p = img((i > li && T.buildingsSoft && T.buildingsSoft[l]) || T.buildings[l]); if (!p) return;
-          c.drawImage(p, -camX, -camY);   // never clipped: the road above's buildings stand against the sky
-        });
-      }
+      // Each road's buildings, top road first, drawn just before that road's people (below), so a road's houses
+      // stand in front of whoever walks on the road above (Ladi, Nov 18). Yours and the one above are solid, roads
+      // below you see-through and soft so they read as distant; two or more roads up aren't drawn at all.
+      const ai = WW.LEVELS.indexOf(above);
+      const bld = l => { const i = WW.LEVELS.indexOf(l); if (!T.buildings || i < ai) return;
+        const p = img((i > li && T.buildingsSoft && T.buildingsSoft[l]) || T.buildings[l]); if (p) c.drawImage(p, -camX, -camY); };
       if (!T.layers) {
         farLayer(c, { kind: 'town', id: 'west-road' }, camX);
         WW.LEVELS.forEach(l => {   // each road and the hillside face below it, down to the next road
@@ -377,7 +374,9 @@
           c.restore();
         });
       }
+      WW.LEVELS.filter(l => !levels.includes(l)).forEach(bld);   // roads in range but out of view still cast their buildings
       levels.forEach(l => {   // people and markers on every road in view, so the road above is alive too
+        bld(l);
         const lsc = WW.scene(l);
         c.save(); c.translate(0, SY(Y[l]) - G);
         (o.people && o.people[l] || []).forEach(p => {
