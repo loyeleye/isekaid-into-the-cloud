@@ -183,7 +183,8 @@
   function close() { const o = wrap && wrap.querySelector('.ww-o'); if (o) { o.hidden = true; o.innerHTML = ''; } setTimeout(() => { const o2 = wrap && wrap.querySelector('.ww-o'); if (!o2 || o2.hidden) busy = false; }, 80); }
   // Faces (Ladi, Nov 18: every dialog box shows the speaker's face). The painted portrait where the cast has one,
   // else the head cropped from their side-view sprite (js/watch-art.js), else their initial.
-  const PORTRAIT = { seoyeon: 1, mira: 1, coo: 1, bru: 1, kagemaru: 1, lexi: 1, kai: 1, dutch: 1, wen: 1, ayo: 1, aigerim: 1, seymour: 1, chad: 1 };
+  // Painted busts for every speaker (Sogni, Nov 18) at assets/img/watch/portraits/<who>.webp; anyone else gets a crop of their sprite.
+  const PORTRAIT = { seoyeon: 1, mira: 1, kai: 1, dutch: 1, coo: 1, bru: 1, kagemaru: 1, lexi: 1, wen: 1, ayo: 1, aigerim: 1, chad: 1, seymour: 1, hobb: 1, pell: 1, tess: 1, doug: 1, hollis: 1, odu: 1, fennel: 1, captain: 1, kevin: 1 };
   const crops = {};
   function cropHead(who) {
     if (who in crops) return crops[who];
@@ -205,7 +206,7 @@
     return null;
   }
   const face = who => {
-    const src = PORTRAIT[who] ? `assets/img/portraits/${who}-neutral.webp` : cropHead(who);
+    const src = PORTRAIT[who] ? `assets/img/watch/portraits/${who}.webp` : cropHead(who);
     return `<span class="ww-face${PORTRAIT[who] ? ' bust' : ''}" data-who="${who}" aria-hidden="true">${src ? `<img src="${src}" alt="">` : esc(nm(who).charAt(0))}</span>`;
   };
   const line = (who, text) => `<p class="ww-say">${face(who)}<span><b>${esc(nm(who))}:</b> ${esc(text)}</span></p>`;

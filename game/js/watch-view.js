@@ -120,7 +120,6 @@
   }
   const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
-  const SIZE = { tess: 0.8 };   // Tess's sheet is drawn about a quarter bigger than the cast (Ladi, Nov 18); drop once repainted
   function person(c, who, sx, facing, moving, t, lit) {
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
     if (!sheet) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill(); }   // art has its shadow baked in
@@ -130,7 +129,7 @@
       // feet keep pace with the ground at any speed. Standing still cycles slowly (breathing). t is px when moving.
       const f = anim[Math.floor(moving ? t / STRIDE : t * IDLE_FPS) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / p.w));
-      const k = p.scale || SIZE[who] || 1;   // a sheet drawn at the wrong size can be scaled to the cast
+      const k = p.scale || 1;   // sheets are painted at 2x and carry scale 0.5
       c.save(); c.translate(sx, G); c.scale(facing * k, k);
       c.drawImage(sheet, (f % cols) * p.w, Math.floor(f / cols) * p.h, p.w, p.h, -p.anchor[0], -p.anchor[1], p.w, p.h);
       c.restore(); return;
@@ -150,11 +149,11 @@
     const y = a.flier && (a.state === 'fly' || a.kind === 'bat' || a.kind === 'moth' || a.kind === 'firefly' || a.kind === 'bee') ? G - 60 - 30 * Math.sin(t * 2 + a.x / 50) : a.kind === 'duck' ? G + 34 : G;
     if (sheet) {
       const A = sk.anims || {}, anim = A[a.state] || (a.state === 'run' && A.walk) || A.idle || [0], onFoot = a.state === 'walk' || a.state === 'run';
-      const f = anim[Math.floor(onFoot ? Math.abs(a.x) / Math.max(5, sk.w * 0.3) : t * Math.min(sk.fps || 6, 6)) % anim.length];
+      const f = anim[Math.floor(onFoot ? Math.abs(a.x) / Math.max(5, sk.w * (sk.scale || 1) * 0.3) : t * Math.min(sk.fps || 6, 6)) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / sk.w));
       // Birds on the ground hop as they walk (Ladi, Nov 18), so a walk never looks like a slide.
       const hop = a.flier && y === G && (a.state === 'walk' || a.state === 'run') ? -Math.abs(Math.sin(t * 10 + a.x * 0.1)) * 4 : 0;
-      c.save(); c.translate(sx, y + hop); c.scale(a.facing, 1);
+      const k = sk.scale || 1; c.save(); c.translate(sx, y + hop); c.scale(a.facing * k, k);
       c.drawImage(sheet, (f % cols) * sk.w, Math.floor(f / cols) * sk.h, sk.w, sk.h, -sk.anchor[0], -sk.anchor[1], sk.w, sk.h); c.restore(); return;
     }
     const big = { horse: 46, goat: 22, dog: 18, fox: 16, cat: 12, heron: 26 }[a.kind] || 7;
