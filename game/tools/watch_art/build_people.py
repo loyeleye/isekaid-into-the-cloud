@@ -5,7 +5,7 @@ from cutout import cutout
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'out/people'
 os.makedirs(OUT, exist_ok=True)
 # bbox height in px for the standing frame (hats, plumes and props included), on a 360-tall view with people ~75-92 px
-HT = dict(seoyeon=76, mira=82, kai=84, dutch=92, coo=74, bru=80, kagemaru=90, lexi=94, wen=76, ayo=90, aigerim=84, chad=86,
+HT = dict(seoyeon=76, mira=82, kai=84, dutch=92, coo=74, bru=80, kagemaru=90, lexi=79, wen=76, ayo=90, aigerim=84, chad=86,
           seymour=96, hobb=74, pell=140, tess=60, doug=82, hollis=84, odu=86, fennel=84, captain=88, kevin=88,
           **{'townsfolk-1': 80, 'townsfolk-2': 84, 'townsfolk-3': 80})
 RES = 2                      # sheets are drawn at 2x and tagged scale 1/RES, so they stay sharp on high-res screens
