@@ -46,6 +46,7 @@
       { id: 'path-down', x: 320, kind: 'fork', label: 'Down to the Far Lane', to: { scene: 'far-lane', x: 560 }, dir: 'down' },
       { id: 'base-camp', x: 560, kind: 'place', label: 'Base Camp', who: 'mira', also: ['kai', 'dutch', 'ayo'] },
       { id: 'fork-main-up', x: 760, kind: 'fork', label: 'Up to Hill Road', to: { scene: 'hill-road', x: 1200 }, dir: 'up', who: 'tess' },
+      { id: 'forge', x: 1120, kind: 'place', label: 'Forge' },
       { id: 'bakery', x: 1440, kind: 'place', label: 'Bakery' },
       { id: 'fork-main-down', x: 1680, kind: 'fork', label: 'Down to the Far Lane', to: { scene: 'far-lane', x: 2000 }, dir: 'down' },
       { id: 'cafe', x: 2000, kind: 'fix', fix: 'door', label: 'Cache Café', who: 'wen' },
@@ -63,6 +64,14 @@
     ] }
   };
   WW.TOWN = T;
+  // Other names the content uses for the same spots (js/watch-content.js), and a lookup by either name.
+  WW.ALIAS = { 'kagemaru-stall': 'stall', 'cafe-back-door': 'cafe', 'key-cabinet': 'lock-shop', 'library-archive': 'library',
+    'post-counter': 'post-office', harbourmaster: 'dock', 'first-fork': 'fork-main-up', 'castle-gate': 'pell-gate' };
+  WW.spot = function (level, id) {
+    const real = WW.ALIAS[id] || id, lv = level ? [level] : Object.keys(T);
+    for (const l of lv) { const s = T[l] && T[l].spots.find(v => v.id === real); if (s) return Object.assign({ level: l }, s); }
+    return null;
+  };
 
   // ---- The castle: four floors, 1600 wide. Rooms by x range; doors (lock slots) sit between rooms. ----
   const FW = 1600;

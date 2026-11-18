@@ -30,6 +30,8 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const card = () => page.evaluate(() => { const o = document.querySelector('.ww-o:not([hidden])'); return o ? o.textContent : ''; });
 
   check(await ev(() => SD.modes.list().some(m => m.id === 'watch-walk')), 'the walkable mode is registered');
+  check(await ev(() => !!(window.WATCH_CONTENT && window.WATCH_CONTENT.breaches)), 'the content file loads');
+  await ev(() => { window.__C = window.WATCH_CONTENT; window.WATCH_CONTENT = null; });   // first, the placeholder path
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); });
   await page.waitForSelector('.wv-c'); await page.waitForTimeout(200);
   check(await ev(() => SD.watchWalk.run.st.scene === 'main-street'), 'day 1 starts on Main Street');
@@ -143,6 +145,56 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await page.click('#ww-retry'); await page.waitForTimeout(200);
   const rt = await ev(() => { const w = SD.watchWalk.sv(); return [w.day, Object.keys(w.missed).length, SD.watchWalk.run.phase, w.hires.dutch]; });
   check(rt[0] === 9 && rt[1] >= 2 && rt[2] === 'dusk' && rt[3] === 2, `retry returns to that dusk with watchers kept (${rt})`);
+
+  // ---- With the real content (js/watch-content.js) ----
+  const cc = await ev(() => {
+    const C = window.WATCH_CONTENT = window.__C, WW = SD.watchWorld, bad = [];
+    const people = new Set(['seoyeon', 'mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'chad', 'kevin', 'captain']);
+    C.breaches.forEach(b => {
+      if (b.choices.filter(c => c.best).length !== 1) bad.push(b.id + ': best count');
+      if (b.where.spot && !WW.spot(b.where.level, b.where.spot)) bad.push(b.id + ': spot ' + b.where.spot);
+      if (b.where.room && !(WW.CASTLE[b.where.floor] || { rooms: [] }).rooms.some(r => r[0] === b.where.room)) bad.push(b.id + ': room ' + b.where.room);
+    });
+    C.quests.forEach(q => {
+      if (!people.has(q.giver)) bad.push(q.id + ': giver');
+      q.steps.forEach((t, i) => {
+        if (t.at && t.at.who && !people.has(t.at.who)) bad.push(q.id + ' step ' + i + ': who ' + t.at.who);
+        if (t.at && t.at.spot && !WW.spot(t.at.level, t.at.spot)) bad.push(q.id + ' step ' + i + ': spot ' + t.at.spot);
+        if (t.ask && !(t.ask.answer >= 0 && t.ask.answer < t.ask.choices.length)) bad.push(q.id + ': answer');
+        if (t.help && t.help.low && !C.reviews.some(r => r.id === t.help.low)) bad.push(q.id + ': help.low ' + t.help.low);
+      });
+    });
+    (C.tutorial || []).forEach(t => { if (!WW.spot(null, t.at)) bad.push('tutorial spot ' + t.at); });
+    Object.keys(C.ties || {}).forEach(k => { if (!people.has(k)) bad.push('ties ' + k); });
+    const w = SD.watchWalk.sv(); w.missed = {};
+    const n9 = SD.watchWalk.breaches(9), perNight = [1, 2, 3, 4, 5, 6, 7, 8].map(n => SD.watchWalk.breaches(n).length);
+    return { bad, n9: n9.length, areas: new Set(n9.map(b => b.scene)).size, perNight };
+  });
+  check(!cc.bad.length, 'every content breach, quest step, spot, person, review link and tutorial stop resolves in the engine' + (cc.bad.length ? ': ' + cc.bad.slice(0, 8).join('; ') : ''));
+  check(cc.n9 === 8 && cc.areas === 8, `the Long Night picks one new breach per area from the pool (${cc.n9} in ${cc.areas} areas)`);
+  check(cc.perNight.every(n => n >= 1), 'every night 1-8 has at least one breach: ' + cc.perNight.join(','));
+  // Sealing: Hobb's key-pair quest seals the cellars for that night.
+  const seal = await ev(() => { const w = SD.watchWalk.sv(); w.sealed = { cellars: 5 };
+    const C = window.WATCH_CONTENT, n5 = C.breaches.filter(b => b.night === 5 && b.where.floor === 'cellars').length;
+    return [n5, SD.watchWalk.breaches(5).filter(b => b.scene === 'castle:cellars').length]; });
+  check(seal[1] === 0, `a sealed floor has no breaches that night (cellars had ${seal[0]})`);
+  // Day 1 tutorial: Mira's first line plays at the start.
+  await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(300);
+  check(/Arrows to move/.test(await card()), 'day 1 opens with Mira\'s walkthrough');
+  await btn('[data-a=n]');
+  await tp('main-street', 760); await page.waitForTimeout(200);
+  check(/Tess/.test(await card()), 'the walkthrough\'s next stop plays at the fork');
+  await shot('tutorial');
+  await btn('[data-a=n]');
+  // Capstone: Hobb at ward 4 takes the cellars.
+  const cap = await ev(() => { const w = SD.watchWalk.sv(); w.day = 6; w.hires = { hobb: 2 }; w.hearts = { hobb: 1 }; SD.watchBonds.add(w.bonds, 'hobb', 60);
+    ['hobb-key-pair', 'hobb-practice-crest'].forEach(id => { w.quests[id] = { step: 99, done: true }; }); SD.watchWalk.walk('day'); return SD.watchWalk.ward('hobb'); });
+  await page.waitForTimeout(200);
+  await tp('main-street', 2760 + 34); await use(); await page.waitForTimeout(150);
+  for (let i = 0; i < 3; i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); }
+  if (await page.$('.ww-o:not([hidden]) [data-a=d]')) await btn('[data-a=d]');
+  const capW = await ev(() => { const w = SD.watchWalk.sv(); return [w.quests['hobb-last-lock'] && w.quests['hobb-last-lock'].done, w.sealed && w.sealed.cellars]; });
+  check(cap === 4 && capW[0] && capW[1] === 'all', `Hobb's capstone at ward 4 seals the cellars for good (${capW})`);
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');

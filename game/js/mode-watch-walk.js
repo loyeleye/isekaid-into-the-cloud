@@ -65,8 +65,14 @@
     });
   }
   const allFor = n => { const c = content().breaches; return c && c.length ? c.filter(b => b.night === n) : n === 9 ? fallbackNine() : fallbackBreaches(n); };
+  const AREA = a => (WW.FLOORS.includes(a) ? 'castle:' + a : a);
   function breaches(n) {
-    let list = allFor(n);
+    const w0 = sv(), sealed = w0.sealed || {};
+    let list = allFor(n).filter(b => !(b.where && b.where.floor && n < 9 && (sealed[b.where.floor] === 'all' || sealed[b.where.floor] === n)));
+    if (n === 9 && list.some(b => b.area)) {   // the night-9 pool: about one per area
+      const seenA = {};
+      list = list.filter(b => { const a = AREA(b.area || ''); if (seenA[a]) return false; seenA[a] = 1; return true; });
+    }
     if (n === 9) {   // returning: every breach missed on nights 1-8, in the same place, first
       const w = sv(), back = [];
       for (let k = 1; k <= 8; k++) allFor(k).forEach(b => { if (w.missed[b.id]) back.push(b); });
@@ -76,7 +82,9 @@
     return list.map((b, i) => {
       const scene = b.where && b.where.level ? b.where.level : 'castle:' + ((b.where && b.where.floor) || 'ground');
       const sc = WW.scene(scene);
-      const x = b.where && b.where.x != null ? b.where.x : b.where && b.where.room ? roomX(b.where.floor, b.where.room, (b.id.length + i) % 7 + 1) : Math.round((sc.from + sc.to) / 2);
+      const sp = b.where && b.where.spot && WW.spot(b.where.level, b.where.spot);
+      const x = b.where && b.where.x != null ? b.where.x : sp ? sp.x + 24 : b.where && b.where.room ? roomX(b.where.floor, b.where.room, (b.id.length + i) % 7 + 1)
+        : Math.round(sc.from + 200 + ((b.id.length * 7919) % 1000) / 1000 * (sc.to - sc.from - 400));   // a sparkle somewhere on the level
       return Object.assign({ scene, x }, b);
     });
   }
@@ -194,6 +202,12 @@
       const s = qstate(q.id);
       if (s.done) continue;
       if (s.step < 0) {
+        if (q.giver === who && openOn(q, day) && q.kind === 'capstone') {   // needs ward level 4: both hires and trust
+          const paid = Math.min(2, (w.hires || {})[who] || 0), trustLv = ward(who) - paid, L = q.lines || {};
+          const set = trustLv < 2 ? L.trust : paid < 2 ? L.pay : L.yes;
+          sayAll((set || ['Not yet.']).map(t => [who, t]), () => { if (trustLv >= 2 && paid >= 2) finish(q); });
+          return;
+        }
         if (q.giver === who && openOn(q, day)) {
           const o = overlay(`${line(who, 'Have you got a minute? I could use the watch\'s help.')}<p class="ww-meta">${esc(q.kind)} quest · pays ${q.reward.silver} silver${q.reward.unlock ? ' and a shortcut' : ''}</p>
             <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">Help</button></div>`);
@@ -262,10 +276,11 @@
     s.done = true;
     w.silver += r.silver || 0;
     if (r.heart) w.hearts[q.giver] = 1;
-    if (r.unlock) { w.unlocks[r.unlock] = 1; if (run) run.st.unlocks[r.unlock] = 1; }
+    if (r.unlock === 'seal-floor' && r.floor) (w.sealed = w.sealed || {})[r.floor] = r.permanent ? 'all' : w.day;   // no breaches there
+    else if (r.unlock) { w.unlocks[r.unlock] = 1; if (run) run.st.unlocks[r.unlock] = 1; }
     B.add(w.bonds, q.giver, q.kind === 'small' ? 'small' : 'trust');
     S.persist();
-    const o = overlay(`<p class="ww-ok">Quest done</p><p>🪙 +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
+    const o = overlay(`<p class="ww-ok">Quest done</p><p>🪙 +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
     o.querySelector('[data-a=d]').onclick = close;
   }
 
@@ -311,6 +326,7 @@
     opts = opts || {};
     const w = sv();
     if (view) view.stop();
+    busy = false;   // a new screen replaces any open talk
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? 160 : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
@@ -344,7 +360,7 @@
         }
         const p = (people(phase, w.day)[st.scene] || []).find(v => Math.abs(v.x - st.x) <= WW.REACH);
         if (p) return talk(p.who);
-        const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && t.at.spot === spot.id; });
+        const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
         if (q) return step(q);
       },
       onMove(m) {
@@ -360,6 +376,12 @@
         o.querySelector('[data-a=x]').onclick = close;
       },
       onTick(s, dt) {
+        const tut = content().tutorial;
+        if (phase === 'day' && w.day === 1 && tut && !busy && (run.tut || 0) < tut.length) {
+          const t = tut[run.tut || 0], sp = WW.spot(null, t.at);
+          if (!sp || (s.scene === sp.level && Math.abs(s.x - sp.x) < 120)) { run.tut = (run.tut || 0) + 1; sayAll([[t.who, t.line]]); }
+          else view.set('hint', 'Follow Mira: ' + sp.label);
+        } else if (phase === 'day' && w.day === 1 && tut && run.tut === tut.length) { run.tut++; view.set('hint', ''); }
         if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
         if (!busy && clock > 0) {
           clock -= dt;
