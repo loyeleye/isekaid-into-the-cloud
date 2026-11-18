@@ -118,6 +118,23 @@
     c.fillStyle = 'rgba(10,14,30,.66)'; c.fillRect(sx - w / 2, y - 13, w, 18);
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(text, sx, y);
   }
+  // o.guide { scene, x, dir }: where someone wants you to go (Mira's walk-in, Ladi Nov 18). A bobbing arrow over the
+  // spot when it's in view, else an arrow at the edge of the screen pointing the way. dir 'up' | 'down' marks a fork.
+  function guideArrow(c, gx, gy, vw, t, dir, label0) {
+    const bob = Math.sin(t * 5) * 5, on = gx > 20 && gx < vw - 20;
+    c.save(); c.fillStyle = '#ffd34d'; c.strokeStyle = 'rgba(40,24,0,.85)'; c.lineWidth = 3; c.lineJoin = 'round';
+    c.beginPath();
+    if (on) {   // pointing down at the spot
+      const y = gy - 150 + bob;
+      c.moveTo(gx - 9, y - 24); c.lineTo(gx + 9, y - 24); c.lineTo(gx + 9, y - 10); c.lineTo(gx + 18, y - 10); c.lineTo(gx, y + 8); c.lineTo(gx - 18, y - 10); c.lineTo(gx - 9, y - 10);
+    } else {   // at the edge, pointing along the road
+      const r = gx >= vw - 20, x = r ? vw - 14 + bob * 0.6 : 14 - bob * 0.6, k = r ? 1 : -1, y = gy - 70;
+      c.moveTo(x - k * 26, y - 7); c.lineTo(x - k * 10, y - 7); c.lineTo(x - k * 10, y - 16); c.lineTo(x + k * 6, y); c.lineTo(x - k * 10, y + 16); c.lineTo(x - k * 10, y + 7); c.lineTo(x - k * 26, y + 7);
+    }
+    c.closePath(); c.stroke(); c.fill();
+    if (on && (dir === 'up' || dir === 'down' || label0)) label(c, label0 || (dir === 'up' ? '▲ Up here' : '▼ Down here'), gx, gy - 182 + bob, true);
+    c.restore();
+  }
   const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
   function person(c, who, sx, facing, moving, t, lit) {
@@ -209,7 +226,7 @@
   };
 
   // ---- Mount: canvas + touch controls + the loop ----
-  // o: { st (from WW.create), people: { sceneId: [{ who, x }] }, marks: [{ scene, x, text }], weather, onUse(spot), onMove(move), hint }
+  // o: { st (from WW.create), people: { sceneId: [{ who, x }] }, marks: [{ scene, x, text }], weather, onUse(spot), onMove(move), hint, guide }
   V.mount = function (host, o) {
     host.innerHTML = `<div class="wv"><canvas class="wv-c" width="${VW}" height="${VH}" aria-label="The town, side view"></canvas>
       <p class="wv-where" aria-live="polite"></p>
@@ -305,6 +322,7 @@
       const f = follower(); if (f) person(c, f.who, X(f.x), f.facing, f.moving, f.moving ? f.d : t);
       person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk');
       if (!layers) frontLayer(c, sc, cam);
+      if (o.guide && o.guide.scene === st.scene) guideArrow(c, X(o.guide.x), G, VW, t, o.guide.dir, o.guide.label);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
       if (phase === 'night' || phase === 'dusk') {   // Seo-yeon's lantern lights the ground around her, over the tint
         const gx = X(st.x), g = c.createRadialGradient(gx, G - 50, 10, gx, G - 50, 130);
@@ -399,6 +417,7 @@
         c.save(); c.translate(0, SY(fp[1]) - G); person(c, f.who, SX(fp[0]), f.facing, f.moving, f.moving ? f.d : t); c.restore();
       }
       c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk'); c.restore();
+      if (o.guide && Y[o.guide.scene] != null && !ramp) guideArrow(c, SX(o.guide.x), SY(Y[o.guide.scene]), vw, t, o.guide.dir, o.guide.label);
       if (!T.layers) frontLayer(c, sc, camX);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, vw, vh); }
       const hintAt = s0 => [SX(s0.x) * Z, (py - 160) * Z];
@@ -438,6 +457,7 @@
     return {
       st, press, draw,
       get follower() { return fol; },
+      get guide() { return o.guide; }, get marks() { return o.marks; },
       get ramp() { return ramp; },
       stop() { running = false; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); },
       set(k, v) { o[k] = v; if (k === 'weather') animalsFor = ''; }

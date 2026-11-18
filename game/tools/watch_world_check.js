@@ -8,7 +8,12 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
 const from = { scene: 'main-street' };
 
 WW.LEVELS.forEach(l => check(!!WW.route(from, l, {}, 'day'), `by day, ${l} is reachable from Main Street`));
-check(!WW.route(from, 'castle:ground', {}, 'day'), 'by day, the castle is shut');
+{ // by day the castle gate is the early end of the day (the mode asks, then starts dusk); no other door opens
+  const g = WW.TOWN['west-road'].spots.find(v => v.id === 'pell-gate'), ms = WW.moves({ scene: 'west-road', x: g.x, unlocks: {}, phase: 'day' });
+  check(ms.length === 1 && ms[0].label === 'End the day early', 'by day, the castle gate offers to end the day early');
+  const o = WW.TOWN['main-street'].spots.find(v => v.id === 'outpost');
+  check(!WW.moves({ scene: 'main-street', x: o.x, unlocks: { outpost: 1 }, phase: 'day' }).length, 'by day, the watch outpost door stays shut');
+}
 WW.FLOORS.forEach(f => check(!!WW.route(from, 'castle:' + f, {}, 'dusk'), `at dusk, the castle ${f} is reachable`));
 check(!!WW.route(from, 'bridge', {}, 'night'), 'the bridge is reachable from the upper floor');
 

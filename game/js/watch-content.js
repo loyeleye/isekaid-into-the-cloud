@@ -1601,14 +1601,18 @@
     { at: 'kagemaru-stall', who: 'mira', lines: [
       ['mira', 'That\'s Kagemaru\'s stall. Your first lantern post is free. Don\'t let him tell you otherwise.'],
       ['kagemaru', 'I am standing right here, Mira.']] },
-    { at: 'post-office', who: 'mira', lines: [
-      ['mira', 'Anyone with work for you gets a marker over their head. Nobody yet. Give it a day. They\'ll love you.'],
+    { at: 'post-office', who: 'mira', mark: 'Work for you', lines: [   // mark: a marker shows over Coo while Mira explains it
+      ['mira', 'See the marker over Coo? Anyone with work for you gets one of those over their head.'],
+      ['coo', 'Mira asked me to wear it so you\'d know what to look for. Coo. It itches.'],
+      ['seoyeon', 'So nobody has work for me yet?'],
+      ['mira', 'Give it a day. They\'ll love you.'],
       ['seoyeon', 'You don\'t know that.'],
       ['mira', 'I know that.']] },
     { at: 'castle-gate', who: 'mira', lines: [
       ['mira', 'This is where I stop. Pell takes it from here. Come by my fire in the morning, love. I\'ll keep the soup on.'],
       ['seoyeon', 'Thank you. For coming.'],
       ['mira', 'Just in case.'],
+      ['mira', 'One more thing. The bells call you up here at dusk. If you\'ve done all you can before then, walk to this gate and go up early.'],
       ['mira', 'He\'s tall, love. Try not to stare. Everyone stares.'],
       ['pell', 'She stared.'],
       ['pell', 'She told me about you four times this morning. Four.']] }

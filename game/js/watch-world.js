@@ -191,7 +191,7 @@
   WW.open = function (st, s) {
     if (!s) return false;
     if (s.needs && !st.unlocks[s.needs]) return false;
-    if (s.kind === 'gate') return st.phase === 'dusk' || st.phase === 'night';
+    if (s.kind === 'gate') return st.phase === 'dusk' || st.phase === 'night' || (st.phase === 'day' && !!s.dusk);   // by day, the castle gate ends the day early (Ladi, Nov 18)
     if (s.dawn) return st.phase !== 'night' || st.night === 9;   // the Long Night spans town and castle
     return true;
   };
@@ -200,7 +200,7 @@
     const s = WW.near(st); if (!s) return [];
     const out = [];
     if ((s.kind === 'fork' || s.kind === 'travel' || s.kind === 'gate') && s.to) {
-      if (WW.open(st, s)) out.push({ key: s.dir === 'use' ? 'use' : s.dir, to: s.to, label: s.label, via: s.id });
+      if (WW.open(st, s)) out.push({ key: s.dir === 'use' ? 'use' : s.dir, to: s.to, label: s.kind === 'gate' && st.phase === 'day' ? 'End the day early' : s.label, via: s.id });
     }
     if ((s.kind === 'stair' || s.kind === 'lift') && WW.open(st, s)) {
       const l = s.link, f = WW.scene(st.scene).floor, i = WW.FLOORS.indexOf(f);

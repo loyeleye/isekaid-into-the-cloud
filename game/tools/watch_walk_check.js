@@ -188,6 +188,33 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(/Tess/.test(await card()), 'the walkthrough\'s next stop plays at the fork');
   await shot('tutorial');
   await btn('[data-a=n]');
+  const clear = async () => { while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); };
+  await clear();
+  // Arrows point the way to Mira's next stop: along the road, then up the fork when it's on another road.
+  await tp('main-street', 1000); await page.waitForTimeout(200);
+  check(await ev(() => { const g = SD.watchWalk.view.guide; return g && g.scene === 'main-street' && g.x === 2400; }), 'an arrow points to Kagemaru\'s stall, the next stop');
+  await tp('main-street', 2400); await page.waitForTimeout(200); await clear();
+  await tp('main-street', 1600); await page.waitForTimeout(200);
+  check(await ev(() => { const g = SD.watchWalk.view.guide; return g && g.x === 760 && g.dir === 'up'; }), 'for the post office on Hill Road, the arrow points up the fork');
+  await shot('tutorial-arrow');
+  await tp('hill-road', 1440); await page.waitForTimeout(200);
+  check(/marker over Coo/.test(await card()) && await ev(() => SD.watchWalk.view.marks.some(m => m.scene === 'hill-road' && m.text === 'Work for you')), 'Mira\'s marker talk shows a marker over Coo');
+  await shot('tutorial-coo'); await clear();
+  check(await ev(() => !SD.watchWalk.view.marks.some(m => m.text === 'Work for you')), 'the example marker goes when she\'s done');
+  // Leaving and coming back keeps the time left and the tutorial step (Ladi, Nov 18: no fresh 10 minutes).
+  await ev(() => { SD.watchWalk.run.keep(); SD.watchWalk.sv().at.left = 125; SD.state.persist && SD.state.persist(); SD.modes.list().find(m => m.id === 'watch-walk').start(); });
+  await page.waitForTimeout(300);
+  const back = await ev(() => [document.querySelector('#ww-top').textContent, SD.watchWalk.run.phase, SD.watchWalk.run.tut, !!SD.watchWalk.view.follower]);
+  check(/Day 1 · 2:0/.test(back[0]) && back[1] === 'day' && back[2] === 5 && back[3], `coming back resumes the day with its time left and Mira's walk (${back})`);
+  // The castle gate ends the day early; Mira says so at her last stop.
+  await tp('west-road', 3280); await page.waitForTimeout(200);
+  let gate = ''; while (await page.$('.ww-o:not([hidden]) [data-a=n]')) { gate += await card(); await btn('[data-a=n]'); }
+  check(/go up early/.test(gate), 'Mira explains going up early at the castle gate');
+  await use(); await page.waitForTimeout(150);
+  check(/Head up to the castle now/.test(await card()), 'using the gate by day asks before ending the day');
+  await btn('[data-a=y]'); await page.waitForTimeout(200);
+  check(await ev(() => SD.watchWalk.run.phase === 'dusk'), 'ending the day early goes to dusk');
+  await clear();
   // Capstone: Hobb at ward 4 takes the cellars.
   const cap = await ev(() => { const w = SD.watchWalk.sv(); w.day = 6; w.hires = { hobb: 2 }; w.hearts = { hobb: 1 }; SD.watchBonds.add(w.bonds, 'hobb', 60);
     ['hobb-key-pair', 'hobb-practice-crest'].forEach(id => { w.quests[id] = { step: 99, done: true }; }); SD.watchWalk.walk('day'); return SD.watchWalk.ward('hobb'); });
@@ -202,6 +229,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; w.silver = 100; w.hires = { kagemaru: 2 }; w.unlocks = {}; w.toldHire = 1; SD.watchWalk.walk('day'); });
   await page.waitForTimeout(200);
   await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
+  while (!(await page.$('.ww-o:not([hidden]) [data-a=s]')) && await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // a gossip line can come first
   await btn('[data-a=s]'); await btn('[data-b=tools]'); await btn('[data-b=outpost]'); await btn('[data-b=post]'); await btn('[data-p="far-lane"]');
   const sh = await ev(() => { const w = SD.watchWalk.sv(); return [w.silver, w.tools, w.unlocks.outpost, w.posts['far-lane']]; });
   check(sh[0] === 100 - 10 - 60 - 15 && sh[1] === 1 && sh[2] && sh[3], `the shop sells tools, an outpost and a lantern post (${sh})`);

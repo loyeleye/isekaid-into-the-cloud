@@ -155,7 +155,7 @@
   // The walk-in ends at the castle gate: Mira goes back to her fire, and the hint clears.
   function homeMira() {
     if (!run || !run.escort) return;
-    run.escort = false; view.set('follow', null); view.set('hint', ''); music(tune('day'));
+    run.escort = false; view.set('follow', null); view.set('hint', ''); view.set('guide', null); music(tune('day'));
     (run.ppl['main-street'] = run.ppl['main-street'] || []).push({ who: 'mira', x: (WW.spot('main-street', 'base-camp') || { x: 560 }).x + 34 });
   }
 
@@ -180,6 +180,7 @@
     const b = o.querySelector('[data-a=n]') || o.querySelector('[data-a=d]') || o.querySelector('[data-a=x]');   // Next, OK, or Bye: never a purchase
     if (b) { e.preventDefault(); b.click(); }
   });
+  window.addEventListener('pagehide', () => { if (run && run.keep) run.keep(); });   // closing the tab keeps the clock too
   function close() { const o = wrap && wrap.querySelector('.ww-o'); if (o) { o.hidden = true; o.innerHTML = ''; } setTimeout(() => { const o2 = wrap && wrap.querySelector('.ww-o'); if (!o2 || o2.hidden) busy = false; }, 80); }
   // Faces (Ladi, Nov 18: every dialog box shows the speaker's face). The painted portrait where the cast has one,
   // else the head cropped from their side-view sprite (js/watch-art.js), else their initial.
@@ -455,7 +456,12 @@
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
-    run.escort = phase === 'day' && w.day === 1 && !!(content().tutorial || []).length;   // Mira walks you in on day 1 (Ladi, Nov 18)
+    // Where you left off (Ladi, Nov 18: leaving and coming back must not refill the clock). w.at holds the day, the
+    // phase, the time left and the tutorial step; it only counts for the same day and phase.
+    const at = w.at && w.at.day === w.day && w.at.phase === phase ? w.at : null;
+    run.tut = at ? at.tut || 0 : 0;
+    if (at && at.locked) run.locked = Object.assign({}, at.locked);
+    run.escort = phase === 'day' && w.day === 1 && run.tut < (content().tutorial || []).length;   // Mira walks you in on day 1 (Ladi, Nov 18)
     music(tune(phase));
     if (phase === 'night' && w.day === 9) {   // ward levels act before you arrive (doc: Ward level)
       Object.keys(WATCHERS).forEach(k => {
@@ -466,12 +472,17 @@
       });
     }
     clock = phase === 'night' ? nightS(w.day) : phase === 'day' ? DAY_S : 0;
+    if (at && at.left != null) clock = Math.max(0, Math.min(clock, at.left));
+    run.list.forEach(x => { if (w.fixed[x.id] && !run.fixed[x.id]) run.fixed[x.id] = 1; });   // tonight's fixes so far
+    w.at = { day: w.day, phase, left: clock, tut: run.tut, locked: run.locked };
+    const keep = () => { if (run && run.st === st && w.at && w.at.phase === phase) { w.at.left = Math.ceil(clock); w.at.tut = run.tut || 0; w.at.locked = run.locked; } S.persist(); };
+    run.keep = keep; S.persist();
     const b = U.panel(`<p class="ww-top" id="ww-top"></p><div class="ww-wrap"><div class="ww-view"></div></div>
       <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
     wrap = b.querySelector('.ww-wrap');
     const top = b.querySelector('#ww-top'), endB = b.querySelector('#ww-end');
     if (phase === 'dusk') endB.hidden = true;
-    b.querySelector('#ww-quit').onclick = () => { if (view) view.stop(); view = null; S.persist(); M.open && M.open(); };
+    b.querySelector('#ww-quit').onclick = () => { keep(); if (view) view.stop(); view = null; M.open && M.open(); };
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
     const seen = x => w.day !== 9 || (run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene] || Math.abs(x.x - st.x) < 220;   // night 9: search unless warded
     const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
@@ -495,6 +506,7 @@
       },
       onMove(m) {
         if (busy) return false;
+        if (phase === 'day' && m.via === 'pell-gate') { setTimeout(endEarly, 0); return false; }
         if (/^castle:/.test(m.to.scene) && phase !== 'night') { setTimeout(() => walk('night', m.via === 'pell-gate' ? {} : { scene: m.to.scene, x: m.to.x }), 0); return false; }
         if (m.via === 'castle-exit' && phase === 'night' && w.day !== 9) return false;
         return true;
@@ -509,14 +521,19 @@
         const tut = content().tutorial;
         if (phase === 'day' && w.day === 1 && tut && !busy && (run.tut || 0) < tut.length) {
           const t = tut[run.tut || 0], sp = WW.spot(null, t.at);
-          if (!sp || (s.scene === sp.level && Math.abs(s.x - sp.x) < 120)) { run.tut = (run.tut || 0) + 1; sayAll(t.lines || [[t.who, t.line]], run.tut === tut.length ? homeMira : null); }
-          else view.set('hint', 'Mira wants to show you ' + sp.label);
+          if (!sp || (s.scene === sp.level && Math.abs(s.x - sp.x) < 120)) {
+            run.tut = (run.tut || 0) + 1; keep();
+            if (t.mark) view.set('marks', [{ scene: sp.level, x: sp.x + 34, text: t.mark, color: '#e9c56d' }]);   // Mira's example: a marker over Coo
+            const last = run.tut === tut.length;
+            sayAll(t.lines || [[t.who, t.line]], () => { if (t.mark) view.set('marks', marks()); if (last) homeMira(); });
+          } else { view.set('hint', 'Mira wants to show you ' + sp.label); view.set('guide', guideTo(s, sp)); }
         }
         if (phase === 'night' && w.day === 1 && !busy && !run.rang && clock < nightS(1) / 2) {   // a humor beat: she can't help herself
           run.rang = 1;   // Coo flies a note up from Mira
           sayAll([['coo', 'Coo. Note from Mira. It says: "Are the doors locked?"'], ['seoyeon', 'Locking the doors is the whole job.'], ['coo', 'She sent three of these. Coo. I\'m only bringing one.']]);
         }
         if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
+        if ((run.sv = (run.sv || 0) + dt) > 3) { run.sv = 0; keep(); }
         if (!busy && clock > 0) {
           clock -= dt;
           if (phase === 'night') { const bell = Math.floor((nightS(w.day) - clock) / 60); if (bell > run.bell) { run.bell = bell; } }
@@ -542,6 +559,23 @@
     if (phase === 'night' && w.day === 1) sayAll([['pell', 'One problem tonight, at the main gate. Walk to the glowing marker and press use.']]);
   }
   function dusk() { walk('dusk'); }
+  // The castle gate by day: head up early and the night starts sooner (Ladi, Nov 18). Asks first, so a stray press
+  // doesn't throw the day away.
+  function endEarly() {
+    if (busy || !run || run.phase !== 'day') return;
+    const m = Math.ceil(clock / 60);
+    const o = overlay(`${line('seoyeon', `Head up to the castle now? There's about ${m} minute${m === 1 ? '' : 's'} of daylight left.`)}<div class="row"><button class="primary" data-a="y">End the day</button><button class="ghost" data-a="x">Not yet</button></div>`);
+    o.querySelector('[data-a=y]').onclick = () => { close(); dusk(); };
+    o.querySelector('[data-a=x]').onclick = close;
+  }
+  // The next step toward a spot: the spot itself on this road, else the fork that starts the way there.
+  function guideTo(st, sp) {
+    if (st.scene === sp.level) return { scene: sp.level, x: sp.x };
+    const path = WW.route(st, sp.level, st.unlocks, 'day'), next = path && path[1];
+    const forks = WW.scene(st.scene).spots.filter(v => v.kind === 'fork' && v.to && v.to.scene === next);
+    const f = forks.sort((a, b) => Math.abs(a.x - st.x) - Math.abs(b.x - st.x))[0];
+    return f ? { scene: st.scene, x: f.x, dir: f.dir } : null;
+  }
 
   // ---- Fix screens ----
   function fix(x, after) {
@@ -570,7 +604,7 @@
     w.silver += pay;
     const night = w.day;
     w.day = Math.min(10, w.day + 1);
-    w.bonds.day = w.day;
+    w.bonds.day = w.day; w.at = null;
     const xp = M.pay('watch');
     S.persist();
     if (view) view.stop(); view = null; run = null;
@@ -617,7 +651,7 @@
   M.register({
     id: 'watch-walk', name: 'The Night Watch (walkable preview)', host: 'Seo-yeon', minutes: 'about 20 a day and night',
     blurb: 'Walk the town by day for gossip and quests, then patrol the castle at night and fix each breach. Security only.',
-    start: () => morning(),
+    start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
   SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; } };
