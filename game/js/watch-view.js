@@ -169,6 +169,37 @@
   }
   V.STORM_FLASH = s => (Math.floor(s * 10) % 70) === 0;
 
+  // ---- The town as one stacked hillside (Ladi, Nov 18: walk a path between levels and see the road above) ----
+  // Town pixels: x is the same as each level's x; each level's road sits at levelY. WATCH_ART.town (art thread)
+  // brings the painted picture and the ramp paths; until then the same numbers with straight ramps.
+  const TOWN_Y = { 'west-road': 300, 'hill-road': 580, 'main-street': 860, 'far-lane': 1140 };
+  const townArt = () => (art() && art().town) || null;
+  V.town = function () {
+    const a = townArt() || {}, levelY = a.levelY || TOWN_Y;
+    return { width: a.width || 4100, height: a.height || 1200, levelY, layers: a.layers || null, ramps: a.ramps || [], chute: a.chute || null };
+  };
+  // The path walked for a move between levels: a painted ramp if there is one (either direction), else a straight line.
+  V.rampPath = function (fromScene, fromX, to) {
+    const T = V.town(), Y = T.levelY;
+    if (!(fromScene in Y) || !(to.scene in Y)) return null;
+    const near = (a, b) => Math.abs(a - b) < 12;
+    for (const r of T.ramps) {
+      if (r.from[0] === fromScene && near(r.from[1], fromX) && r.to[0] === to.scene && near(r.to[1], to.x)) return r.path;
+      if (r.to[0] === fromScene && near(r.to[1], fromX) && r.from[0] === to.scene && near(r.from[1], to.x)) return r.path.slice().reverse();
+    }
+    if (T.chute && fromScene === 'west-road' && to.scene === 'far-lane' && near(fromX, 1440)) return T.chute;
+    return [[fromX, Y[fromScene]], [to.x, Y[to.scene]]];
+  };
+  const pathLen = p => p.reduce((n, q, i) => (i ? n + Math.hypot(q[0] - p[i - 1][0], q[1] - p[i - 1][1]) : 0), 0);
+  const pathAt = (p, d) => {
+    for (let i = 1; i < p.length; i++) {
+      const l = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
+      if (d <= l || i === p.length - 1) { const f = l ? Math.min(1, d / l) : 1; return [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * f, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * f]; }
+      d -= l;
+    }
+    return p[p.length - 1];
+  };
+
   // ---- Mount: canvas + touch controls + the loop ----
   // o: { st (from WW.create), people: { sceneId: [{ who, x }] }, marks: [{ scene, x, text }], weather, onUse(spot), onMove(move), hint }
   V.mount = function (host, o) {
@@ -180,7 +211,7 @@
       </div></div>`;
     const cv = host.querySelector('.wv-c'), c = cv.getContext('2d'), where = host.querySelector('.wv-where');
     const input = { left: 0, right: 0 };
-    let raf = 0, last = 0, t = 0, animals = null, animalsFor = '', running = true;
+    let raf = 0, last = 0, t = 0, animals = null, animalsFor = '', running = true, ramp = null, camX = null, camY = null;
     const st = o.st;
     const press = k => {
       if (k === 'use') {
@@ -194,7 +225,10 @@
       }
       if (k === 'up' || k === 'down') {
         const m = WW.moves(st).find(v => v.key === k);
-        if (m && (!o.onMove || o.onMove(m) !== false)) WW.go(st, k);
+        if (!m || ramp || (o.onMove && o.onMove(m) === false)) return;
+        const from = WW.near(st), path = (from && (from.kind === 'fork' || from.id === 'lookout-ruin')) ? V.rampPath(st.scene, from.x, m.to) : null;
+        if (path && stacked() && !reduced()) { ramp = { path, d: 0, len: pathLen(path), key: k }; return; }   // walk the path, then arrive
+        WW.go(st, k);
       }
     };
     const KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', e: 'use', E: 'use', Enter: 'use', ' ': 'use' };
@@ -210,6 +244,8 @@
     });
     let dt0 = 0;
     function draw() {
+      if (stacked()) return drawTown();
+      camX = camY = null;
       const sc = WW.scene(st.scene), phase = st.phase;
       const cam = Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
       const X = x => x - cam;
@@ -250,10 +286,86 @@
       const txt = `${sc.name}${o.hint ? ' · ' + o.hint : ''}`;
       if (where.textContent !== txt) where.textContent = txt;
     }
+    // The stacked town needs the whole-town picture (or no art at all); with only per-level art, levels stay separate.
+    const stacked = () => WW.scene(st.scene).kind === 'town' && (!!townArt() || !layerImgs(WW.scene(st.scene)));
+    function drawTown() {
+      const T = V.town(), Y = T.levelY, phase = st.phase, sc = WW.scene(st.scene);
+      const pos = ramp ? pathAt(ramp.path, ramp.d) : [st.x, Y[st.scene]];
+      const tx = Math.max(0, Math.min(T.width - VW, pos[0] - VW / 2)), ty = Math.max(0, Math.min(T.height + 60 - VH, pos[1] - G));
+      if (camX == null) { camX = tx; camY = ty; }
+      const k = Math.min(1, dt0 * 6); camX += (tx - camX) * k; camY += (ty - camY) * k;   // the camera eases after her
+      if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
+      sky(c, phase, 'town', true);
+      const SX = x => x - camX, SY = y => y - camY;
+      const levels = WW.LEVELS.filter(l => SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
+      if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (p) c.drawImage(p, -camX * l.speed, -camY * l.speed); });
+      else {
+        farLayer(c, { kind: 'town', id: 'west-road' }, camX);
+        WW.LEVELS.forEach(l => {   // each road and the hillside face below it, down to the next road
+          const y = SY(Y[l]); if (y > VH || y + 300 < 0) return;
+          c.fillStyle = '#8c7a5c'; c.fillRect(0, y, VW, 300);
+          c.fillStyle = '#9b8a6a'; c.fillRect(0, y, VW, 16); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(0, y, VW, 3);
+          if (l === 'far-lane') { c.fillStyle = '#4f7da0'; c.fillRect(0, y + 30, VW, 300); }
+        });
+        c.strokeStyle = '#a8966f'; c.lineWidth = 14; c.lineCap = 'round';   // ramps between the roads
+        WW.LEVELS.forEach(l => WW.TOWN[l].spots.forEach(s => {
+          if (s.kind !== 'fork' && s.id !== 'lookout-ruin') return;
+          const p = V.rampPath(l, s.x, s.to); if (!p) return;
+          c.globalAlpha = s.needs && !st.unlocks[s.needs] ? 0.35 : 1;
+          c.beginPath(); p.forEach((q, i) => (i ? c.lineTo(SX(q[0]), SY(q[1])) : c.moveTo(SX(q[0]), SY(q[1])))); c.stroke(); c.globalAlpha = 1;
+        }));
+        levels.forEach(l => {
+          c.save(); c.translate(0, SY(Y[l]) - G);
+          WW.scene(l).spots.forEach(s => { const sx = SX(s.x); if (sx > -120 && sx < VW + 120 && s.kind !== 'fork') building(c, s, sx, WW.scene(l)); });
+          c.restore();
+        });
+      }
+      levels.forEach(l => {   // people and markers on every road in view, so the road above is alive too
+        const lsc = WW.scene(l);
+        c.save(); c.translate(0, SY(Y[l]) - G);
+        (o.people && o.people[l] || []).forEach(p => {
+          if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 40 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
+          const sx = SX(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, t + p.x);
+        });
+        if (l === st.scene && !ramp) animals.forEach(a => animal(c, a, SX(a.x), t));
+        (o.marks || []).filter(m => m.scene === l).forEach(m => {
+          const sx = SX(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);
+          if (sp) { const f = Math.floor(t * 8) % 4; c.drawImage(sp, f * 16, 0, 16, 16, sx - 16, G - 34, 32, 32); if (m.text) label(c, m.text, sx, G - 50); return; }
+          c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
+          c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
+        });
+        c.restore();
+      });
+      const px = SX(pos[0]), py = SY(pos[1]);
+      c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.walk, phase === 'night' || phase === 'dusk'); c.restore();
+      if (!T.layers) frontLayer(c, sc, camX);
+      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }
+      if (phase === 'night' || phase === 'dusk') {
+        const g = c.createRadialGradient(px, py - 50, 10, px, py - 50, 130);
+        g.addColorStop(0, 'rgba(255,214,140,.32)'); g.addColorStop(1, 'rgba(255,214,140,0)');
+        c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(px - 130, py - 180, 260, 260); c.restore();
+      }
+      if (o.weather && o.weather !== 'clear') weather(c, o.weather, t);
+      const s = !ramp && WW.near(st);
+      if (s) {
+        const ms = WW.moves(st);
+        const hint = ms.length ? ms.map(m => (m.key === 'up' ? '▲ ' : m.key === 'down' ? '▼ ' : '● ') + m.label).filter((v, i, a) => a.indexOf(v) === i).join('   ') : s.label + (s.needs && !st.unlocks[s.needs] ? ' (locked)' : '');
+        label(c, hint, SX(s.x), py - 160, true);
+      }
+      const txt = `${sc.name}${o.hint ? ' · ' + o.hint : ''}`;
+      if (where.textContent !== txt) where.textContent = txt;
+    }
     function loop(now) {
       if (!running) return;
       const dt = Math.min(0.05, last ? (now - last) / 1000 : 0); last = now; t += dt;
-      WW.step(st, dt, input); dt0 = dt;
+      if (ramp) {   // walking a ramp between levels: input waits until she arrives
+        ramp.d += WW.SPEED * dt * (ramp.key === 'down' && ramp.path === V.town().chute ? 2.2 : 0.8);
+        const p0 = pathAt(ramp.path, ramp.d - 1), p1 = pathAt(ramp.path, ramp.d);
+        if (p1[0] !== p0[0]) st.facing = p1[0] > p0[0] ? 1 : -1;
+        st.moving = true; st.walk += dt;
+        if (ramp.d >= ramp.len) { const k = ramp.key; ramp = null; WW.go(st, k); }
+      } else WW.step(st, dt, input);
+      dt0 = dt;
       if (animals && !reduced()) WW.animals(animals, dt, st.x);
       draw();
       if (o.onTick) o.onTick(st, dt);
@@ -262,6 +374,7 @@
     raf = requestAnimationFrame(loop);
     return {
       st, press, draw,
+      get ramp() { return ramp; },
       stop() { running = false; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); },
       set(k, v) { o[k] = v; if (k === 'weather') animalsFor = ''; }
     };
