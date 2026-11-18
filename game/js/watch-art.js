@@ -1552,7 +1552,7 @@ window.WATCH_ART = {
     "speed": 0.2
    },
    {
-    "img": "assets/img/watch/town/back.webp",
+    "img": "assets/img/watch/town/back-mix.webp",
     "speed": 0.3
    },
    {
