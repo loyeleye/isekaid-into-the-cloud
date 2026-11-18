@@ -106,15 +106,22 @@ def build(spots):
     bl = {lv: Image.new("RGBA", (TW, TH)) for lv in ORDER}   # one buildings layer per road
     for lv in ORDER:
         W, gkind, pal, fill = LEVELS[lv]; gy = LY[lv]
-        items = [(nm, x, h, 4) for nm, x, h in fill]
+        items = []
         for s in spots[lv]:
-            if s['id'] in BLD: nm, h, sink = BLD[s['id']]; items.append((nm, s['x'], h, sink))
+            if s['id'] in BLD:
+                nm, h, sink = BLD[s['id']]
+                if nm == 'bunker': h, sink = 190, 4
+                items.append((nm, s['x'], h, sink))
+        items += [(nm, x, h, 4) for nm, x, h in fill]   # fillers last: dropped where they would overlap a spot's building
+        taken = []
         up = [rp for rp in ramps if rp['from'][0] == lv]
         prev = ORDER[ORDER.index(lv) - 1] if ORDER.index(lv) else None
         for nm, x, h, sink in items:
             filler = any(nm == f[0] and x == f[1] for f in fill)
             for _ in range(12):
-                im = piece(nm, h); x0, x1, top = x - im.width / 2, x + im.width / 2, gy + sink - im.height
+                im = piece(nm, h)
+                if nm == 'bunker': im = im.crop((0, 0, im.width, int(im.height * 0.67)))   # drop its own soil block (Ladi, Nov 18)
+                x0, x1, top = x - im.width / 2, x + im.width / 2, gy + sink - im.height
                 room = 9999   # buildings may rise in front of the road above (Ladi, Nov 18); the game fades the roads below you
                 for rp in up:
                     for xx in range(int(x0), int(x1), 4):
@@ -126,6 +133,10 @@ def build(spots):
                 if filler: report.append(f'dropped filler {lv}:{nm}@{x}'); continue
                 report.append(f'CLASH {lv}:{nm}@{x} needs {im.height}px, room {room:.0f}px')
             elif h < [i[2] for i in items if i[0] == nm and i[1] == x][0]: report.append(f'shrunk {lv}:{nm}@{x} to {h}px')
+            ov = [t for t in taken if x0 < t[1] + 16 and x1 > t[0] - 16 and not nm.startswith(('tree', 'bush')) and not t[2].startswith(('tree', 'bush'))]
+            if ov and filler: report.append(f'dropped filler {lv}:{nm}@{x} (overlaps {ov[0][2]})'); continue
+            if ov: report.append(f'OVERLAP {lv}:{nm}@{x} with {ov[0][2]}')
+            taken.append((x0, x1, nm))
             if nm == 'dock': dock(town, im, x, gy); continue
             place(bl[lv], im, x, gy + sink)
     return town, ramps, chute, report, bl
