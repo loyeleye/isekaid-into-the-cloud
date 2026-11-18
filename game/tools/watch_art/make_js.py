@@ -1,7 +1,7 @@
 import json
 P = json.load(open('out/people/meta.json')); A = json.load(open('out/animals/meta.json')); L = json.load(open('out/layers.json'))
 def ent(base, k, m):
-    return {'sheet': f'assets/img/watch/{base}/{k}.png', 'w': m['w'], 'h': m['h'], 'anchor': m['anchor'], 'anims': m['anims'], 'fps': m.get('fps', 8)}
+    return {'sheet': f'assets/img/watch/{base}/{k}.png', 'w': m['w'], 'h': m['h'], 'anchor': m['anchor'], 'anims': m['anims'], 'fps': m.get('fps', 8), **({'scale': m['scale']} if m.get('scale', 1) != 1 else {})}
 art = {
  'version': 1,
  'people': {k: ent('people', k, m) for k, m in P.items()},
