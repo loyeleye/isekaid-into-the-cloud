@@ -47,8 +47,9 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check((await card()).includes('Mira'), 'talking to Mira opens her line');
   check(await ev(() => SD.watchWalk.busy), 'the clock pauses while talking');
   await shot('talk');
-  check(/Ward level 0 of 4/.test(await card()) && /Hire · 50/.test(await card()), 'Mira is a watcher: her ward level and the hire button show');
-  await btn('[data-a=x]');
+  check(!/Hire|ninth night|Ward level/.test(await card()), 'day 1: no hiring or ninth-night talk before Mira explains it');
+  await page.evaluate(() => document.activeElement && document.activeElement.blur()); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+  check(!(await card()), 'Enter closes a message');
   check(await ev(() => SD.watchBonds.trust(SD.watchWalk.sv().bonds, 'mira')) === 42, 'the first chat of the day adds 2 trust');
 
   // Quests: jump to day 3 for Kai's referral quest (fallback quests).
@@ -64,7 +65,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => SD.watchBonds.add(SD.watchWalk.sv().bonds, 'odu', 20));
   await tp('main-street', 2760 + 34); await use(); await page.waitForTimeout(150);
   const deny = await card();
-  check(/explicit deny/.test(deny) && /Odu could vouch/.test(deny), 'a cool tie denies the referral and names who could vouch');
+  check(/being nice won't change it/.test(deny) && /But Odu gets on with both/.test(deny), 'a cool tie denies the referral and names who could vouch');
   await shot('deny');
   await btn('[data-a=d]');
   // Warm tie -> both bars and Pell's line on the first referral.
@@ -180,8 +181,9 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(seal[1] === 0, `a sealed floor has no breaches that night (cellars had ${seal[0]})`);
   // Day 1 tutorial: Mira's first line plays at the start.
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(300);
-  check(/Arrows to move/.test(await card()), 'day 1 opens with Mira\'s walkthrough');
-  await btn('[data-a=n]');
+  check(/walk you round/.test(await card()), 'day 1 opens with Mira walking you in');
+  check(await ev(() => SD.watchWalk.view.follower && SD.watchWalk.view.follower.who === 'mira'), 'Mira follows Seo-yeon on day 1');
+  for (let i = 0; i < 3; i++) await btn('[data-a=n]');
   await tp('main-street', 760); await page.waitForTimeout(200);
   check(/Tess/.test(await card()), 'the walkthrough\'s next stop plays at the fork');
   await shot('tutorial');
@@ -197,7 +199,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(cap === 4 && capW[0] && capW[1] === 'all', `Hobb's capstone at ward 4 seals the cellars for good (${capW})`);
 
   // The shop.
-  await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; w.silver = 100; w.hires = { kagemaru: 2 }; w.unlocks = {}; SD.watchWalk.walk('day'); });
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; w.silver = 100; w.hires = { kagemaru: 2 }; w.unlocks = {}; w.toldHire = 1; SD.watchWalk.walk('day'); });
   await page.waitForTimeout(200);
   await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
   await btn('[data-a=s]'); await btn('[data-b=tools]'); await btn('[data-b=outpost]'); await btn('[data-b=post]'); await btn('[data-p="far-lane"]');

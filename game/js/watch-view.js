@@ -117,13 +117,16 @@
     c.fillStyle = 'rgba(10,14,30,.66)'; c.fillRect(sx - w / 2, y - 13, w, 18);
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(text, sx, y);
   }
+  const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
   function person(c, who, sx, facing, moving, t, lit) {
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
     if (!sheet) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill(); }   // art has its shadow baked in
     if (sheet) {
       const A = p.anims || {}, anim = (lit && (moving ? A.lanternWalk || A.lantern : A.lantern)) || (moving ? A.walk : A.idle) || [0];   // lit: Seo-yeon's lantern at night
-      const f = anim[Math.floor(t * (p.fps || 8)) % anim.length];
+      // Walking steps by distance, not time (Ladi, Nov 18: the walks looked frantic): one frame per STRIDE px, so the
+      // feet keep pace with the ground at any speed. Standing still cycles slowly (breathing). t is px when moving.
+      const f = anim[Math.floor(moving ? t / STRIDE : t * IDLE_FPS) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / p.w));
       c.save(); c.translate(sx, G); c.scale(facing, 1);
       c.drawImage(sheet, (f % cols) * p.w, Math.floor(f / cols) * p.h, p.w, p.h, -p.anchor[0], -p.anchor[1], p.w, p.h);
@@ -143,7 +146,8 @@
     const sk = art() && art().animals && art().animals[a.kind], sheet = sk && img(sk.sheet);
     const y = a.flier && (a.state === 'fly' || a.kind === 'bat' || a.kind === 'moth' || a.kind === 'firefly' || a.kind === 'bee') ? G - 60 - 30 * Math.sin(t * 2 + a.x / 50) : a.kind === 'duck' ? G + 34 : G;
     if (sheet) {
-      const A = sk.anims || {}, anim = A[a.state] || (a.state === 'run' && A.walk) || A.idle || [0], f = anim[Math.floor(t * (sk.fps || 8)) % anim.length];
+      const A = sk.anims || {}, anim = A[a.state] || (a.state === 'run' && A.walk) || A.idle || [0], onFoot = a.state === 'walk' || a.state === 'run';
+      const f = anim[Math.floor(onFoot ? Math.abs(a.x) / Math.max(5, sk.w * 0.3) : t * Math.min(sk.fps || 6, 6)) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / sk.w));
       // Birds on the ground hop as they walk (Ladi, Nov 18), so a walk never looks like a slide.
       const hop = a.flier && y === G && (a.state === 'walk' || a.state === 'run') ? -Math.abs(Math.sin(t * 10 + a.x * 0.1)) * 4 : 0;
@@ -234,7 +238,8 @@
       }
     };
     const KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', e: 'use', E: 'use', Enter: 'use', ' ': 'use' };
-    const kd = e => { const k = KEYS[e.key]; if (!k || !running) return; e.preventDefault(); if (k === 'left' || k === 'right') input[k] = 1; else if (!e.repeat) press(k); };
+    // While a dialog is open (o.paused), its own keys apply and walking waits.
+    const kd = e => { const k = KEYS[e.key]; if (!k || !running || (o.paused && o.paused())) return; e.preventDefault(); if (k === 'left' || k === 'right') input[k] = 1; else if (!e.repeat) press(k); };
     const ku = e => { const k = KEYS[e.key]; if (k === 'left' || k === 'right') input[k] = 0; };
     document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
     host.querySelectorAll('.wv-pad button').forEach(b => {
@@ -245,6 +250,19 @@
       } else b.addEventListener('click', () => press(k));
     });
     let dt0 = 0;
+    // o.follow: someone who walks a step behind Seo-yeon (Mira on day 1, fussing). She trails her along ramps too.
+    let fol = null;
+    function follower() {
+      if (!o.follow) return (fol = null);
+      if (!fol || fol.who !== o.follow) fol = { who: o.follow, scene: st.scene, x: st.x - 60, d: 0, moving: false, facing: 1 };
+      if (ramp) { fol.ramp = Math.max(0, ramp.d - 55); fol.moving = true; fol.d += WW.SPEED * dt0 * 0.8; return fol; }
+      fol.ramp = null;
+      if (fol.scene !== st.scene) { fol.scene = st.scene; fol.x = st.x - st.facing * 58; }
+      const dx = st.x - st.facing * 58 - fol.x;
+      if (Math.abs(dx) > 10) { const m = Math.sign(dx) * Math.min(Math.abs(dx) - 10, WW.SPEED * 1.1 * dt0); fol.x += m; fol.d += Math.abs(m); fol.moving = true; fol.facing = Math.sign(dx); }
+      else { fol.moving = false; fol.facing = st.x >= fol.x ? 1 : -1; }
+      return fol;
+    }
     function draw() {
       if (stacked()) return drawTown();
       camX = camY = null;
@@ -260,9 +278,9 @@
       if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
       (o.people && o.people[st.scene] || []).forEach(p => {
         if (p.walk && !reduced()) {   // background walkers stroll and turn at the ends of the level
-          p.facing = p.facing || 1; p.x += p.facing * 40 * dt0;
+          p.facing = p.facing || 1; p.x += p.facing * 120 * dt0;
           if (p.x > sc.to - 40) p.facing = -1; if (p.x < sc.from + 40) p.facing = 1;
-        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, t + p.x); });
+        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97); });
       animals.forEach(a => animal(c, a, X(a.x), t));
       (o.marks || []).filter(m => m.scene === st.scene).forEach(m => {
         const sx = X(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);
@@ -270,7 +288,8 @@
         c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
         c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
       });
-      person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.walk, phase === 'night' || phase === 'dusk');
+      const f = follower(); if (f) person(c, f.who, X(f.x), f.facing, f.moving, f.moving ? f.d : t);
+      person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk');
       if (!layers) frontLayer(c, sc, cam);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
       if (phase === 'night' || phase === 'dusk') {   // Seo-yeon's lantern lights the ground around her, over the tint
@@ -326,8 +345,8 @@
         const lsc = WW.scene(l);
         c.save(); c.translate(0, SY(Y[l]) - G);
         (o.people && o.people[l] || []).forEach(p => {
-          if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 40 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
-          const sx = SX(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, t + p.x);
+          if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 120 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
+          const sx = SX(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97);
         });
         if (l === st.scene && !ramp) animals.forEach(a => animal(c, a, SX(a.x), t));
         (o.marks || []).filter(m => m.scene === l).forEach(m => {
@@ -338,8 +357,12 @@
         });
         c.restore();
       });
-      const px = SX(pos[0]), py = SY(pos[1]);
-      c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.walk, phase === 'night' || phase === 'dusk'); c.restore();
+      const px = SX(pos[0]), py = SY(pos[1]), f = follower();
+      if (f) {
+        const fp = f.ramp != null ? pathAt(ramp.path, f.ramp) : [f.x, Y[f.scene]];
+        c.save(); c.translate(0, SY(fp[1]) - G); person(c, f.who, SX(fp[0]), f.facing, f.moving, f.moving ? f.d : t); c.restore();
+      }
+      c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk'); c.restore();
       if (!T.layers) frontLayer(c, sc, camX);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }
       if (phase === 'night' || phase === 'dusk') {
@@ -376,6 +399,7 @@
     raf = requestAnimationFrame(loop);
     return {
       st, press, draw,
+      get follower() { return fol; },
       get ramp() { return ramp; },
       stop() { running = false; cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); },
       set(k, v) { o[k] = v; if (k === 'weather') animalsFor = ''; }

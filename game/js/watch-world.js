@@ -16,7 +16,7 @@
   const WW = {};
   WW.GROUND = 300;
   WW.VIEW_H = 360;
-  WW.SPEED = 230;            // walking speed, px per second
+  WW.SPEED = 200;              // walking speed, px per second
   WW.REACH = 56;             // how close you must stand to use something
   WW.FLOORS = ['towers', 'upper', 'ground', 'cellars'];
   WW.LEVELS = ['west-road', 'hill-road', 'main-street', 'far-lane'];

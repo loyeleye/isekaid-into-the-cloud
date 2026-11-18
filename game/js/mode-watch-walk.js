@@ -28,7 +28,7 @@
   // Watchers (doc: The Long Night, "The map is eight areas"): one per area, hired in the day.
   const WATCHERS = { mira: 'main-street', coo: 'hill-road', kagemaru: 'far-lane', bru: 'west-road',
     lexi: 'castle:towers', kai: 'castle:upper', dutch: 'castle:ground', hobb: 'castle:cellars' };
-  const HIRE = [50, 80];
+  const HIRE = [50, 80], HIRE_DAY = 3;
   // The shop at Kagemaru's stall (doc: Economy, money out). Trust 60 takes 20% off (js/watch-bonds.js).
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
@@ -139,7 +139,7 @@
         if (s.who === 'pell' && phase !== 'dusk') return;
         if (s.who === 'fennel' && wx === 'mist') return;                 // doc: day 7 mist, Fennel stays in
         if (s.who === 'kagemaru' && wx === 'rain') { put('main-street', 'kagemaru', 1960); return; }  // under the café awning
-        put(l, s.who, s.x + 34);
+        if (!(s.who === 'mira' && run && run.escort && run.phase === phase)) put(l, s.who, s.x + 34);   // day 1: she's walking with you
         (s.also || []).forEach((w, i) => put(l, w, s.x - 40 - i * 40));
       }));
       if (phase === 'day' && wx !== 'rain') WW.LEVELS.forEach((l, i) => [1, 2].forEach(k => {   // the background crowd
@@ -150,6 +150,13 @@
       if (day === 1) put('castle:ground', 'pell', 230);
     }
     return out;
+  }
+
+  // The walk-in ends at the castle gate: Mira goes back to her fire, and the hint clears.
+  function homeMira() {
+    if (!run || !run.escort) return;
+    run.escort = false; view.set('follow', null); view.set('hint', '');
+    (run.ppl['main-street'] = run.ppl['main-street'] || []).push({ who: 'mira', x: (WW.spot('main-street', 'base-camp') || { x: 560 }).x + 34 });
   }
 
   // ---- Screens over the view ----
@@ -163,6 +170,16 @@
     const f = o.querySelector('button'); if (f) setTimeout(() => f.focus(), 0);
     return o;
   }
+  // Enter, Space or E moves a message on or closes it (Ladi, Nov 18). Choice lists keep their buttons:
+  // a focused choice still answers with Enter, and nothing is picked for you.
+  document.addEventListener('keydown', e => {
+    if (!busy || !wrap || !['Enter', ' ', 'e', 'E'].includes(e.key)) return;
+    const o = wrap.querySelector('.ww-o:not([hidden])'); if (!o) return;
+    const f = document.activeElement;
+    if (f && o.contains(f) && f.tagName === 'BUTTON' && (e.key === 'Enter' || e.key === ' ')) return;   // the browser clicks it
+    const b = o.querySelector('[data-a=n]') || o.querySelector('[data-a=d]') || o.querySelector('[data-a=x]');   // Next, OK, or Bye: never a purchase
+    if (b) { e.preventDefault(); b.click(); }
+  });
   function close() { const o = wrap && wrap.querySelector('.ww-o'); if (o) { o.hidden = true; o.innerHTML = ''; } setTimeout(() => { const o2 = wrap && wrap.querySelector('.ww-o'); if (!o2 || o2.hidden) busy = false; }, 80); }
   // Faces (Ladi, Nov 18: every dialog box shows the speaker's face). The painted portrait where the cast has one,
   // else the head cropped from their side-view sprite (js/watch-art.js), else their initial.
@@ -243,8 +260,8 @@
           return;
         }
         if (q.giver === who && openOn(q, day)) {
-          const o = overlay(`${line(who, 'Have you got a minute? I could use the watch\'s help.')}<p class="ww-meta">${esc(q.kind)} quest · pays ${q.reward.silver} silver${q.reward.unlock ? ' and a shortcut' : ''}</p>
-            <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">Help</button></div>`);
+          const o = overlay(`${line(who, 'Have you got a minute? I could use the watch\'s help.')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
+            <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">Help · ${q.reward.silver} silver</button></div>`);
           o.querySelector('[data-a=no]').onclick = close;
           o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; close(); setTimeout(() => step(q), 90); };
           return;
@@ -257,10 +274,12 @@
     const wx = WW.weather(day, run && run.phase === 'night' ? 'night' : 'day');
     const g = gossipFor(who, day, wx);
     if (g && g.tie) B.shift(b, g.tie.a, g.tie.b, g.tie.to);
-    if (WATCHERS[who] && run && run.phase === 'day' && day <= 9) {
+    const shopOpen = who === 'kagemaru' && day >= 2;
+    if ((WATCHERS[who] && day >= HIRE_DAY || shopOpen) && run && run.phase === 'day' && day <= 9) {
       const paid = (w.hires = w.hires || {})[who] || 0, cost = HIRE[paid], area = WW.scene(WATCHERS[who]).name;
-      const o = overlay(`${line(who, g ? g.line : 'Quiet day so far.')}<p class="ww-meta">${esc(nm(who))} can watch the ${esc(area)} on the Long Night. Ward level ${ward(who)} of 4 (paid ${paid} of 2, trust ${ward(who) - paid} of 2).</p>
-        <div class="row"><button class="ghost" data-a="x">Bye</button>${who === 'kagemaru' ? '<button class="ghost" data-a="s">Shop</button>' : ''}${cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
+      const hiring = WATCHERS[who] && day >= HIRE_DAY, lv = ward(who);
+      const o = overlay(`${line(who, g ? g.line : 'Quiet day so far.')}${hiring ? line(who, wardLine(who, area, lv, Math.min(2, paid))) : ''}
+        <div class="row"><button class="ghost" data-a="x">Bye</button>${shopOpen ? '<button class="ghost" data-a="s">Shop</button>' : ''}${hiring && cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
       o.querySelector('[data-a=x]').onclick = close;
       const sb = o.querySelector('[data-a=s]'); if (sb) sb.onclick = shop;
       const h = o.querySelector('[data-a=h]');
@@ -268,6 +287,16 @@
       return;
     }
     sayAll([[who, g ? g.line : who === 'pell' ? 'Mind the locks.' : 'Evening soon. Be careful up at the castle.']]);
+  }
+  // What a watcher says about the ninth night, in their own words, instead of a ward-level readout (Ladi: keep tips as gossip).
+  function wardLine(who, area, lv, paid) {
+    const say = [`On the ninth night? I could keep an eye on the ${area}, I suppose. Can't promise much. I hardly know you.`,
+      `On the ninth night I'd watch the ${area} and tell you how many got in. That's about all.`,
+      `On the ninth night I'd mark every break-in round the ${area} for you.`,
+      `On the ninth night I'd fix a break-in in the ${area} myself before you got there.`,
+      `The ${area} on the ninth night? Leave it to me. All of it.`][lv];
+    const more = lv >= 4 ? '' : paid < 2 && B.trust(sv().bonds, who) < 60 ? ' Silver helps. A friend helps more.' : paid < 2 ? ' Silver would help.' : ' I\'d do more for a friend.';
+    return say + more;
   }
   function step(q) {
     const w = sv(), s = qstate(q.id), st = q.steps[s.step], ties = content().ties || {};
@@ -289,7 +318,7 @@
       const r = B.refer(w.bonds, ties, who, q.giver), help = st.help || {};
       if (r.band === 'deny') {
         const v = B.vouchers(w.bonds, ties, who, q.giver, PEOPLE);
-        const o = overlay(`${line(who, help.deny || `${nm(q.giver)} sent you? Then no.`)}${bars(r)}<p class="ww-meta">A cool tie works like an explicit deny: it beats any trust you've earned.${v.length ? ' ' + esc(v.map(nm).join(' or ')) + ' could vouch for you.' : ' Try again another day.'}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
+        const o = overlay(`${line(who, help.deny || `${nm(q.giver)} sent you? Then no.`)}${bars(r)}${line('tess', `Psst! Once ${nm(who)} says no about ${nm(q.giver)}, being nice won't change it. Nothing will. ` + (v.length ? `But ${v.map(nm).join(' or ')} gets on with both of them. Get them to send you instead!` : 'Nobody can talk them round today. Try another day!'))}<div class="row"><button class="primary" data-a="d">OK</button></div>`);
         o.querySelector('[data-a=d]').onclick = close;
         return;
       }
@@ -309,7 +338,7 @@
   function shop() {
     const w = sv(), price = it => B.price(w.bonds, 'kagemaru', it.cost);
     const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
-      <div class="ww-ch">${SHOP.map(it => `<button data-b="${it.id}" ${w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(it.what)}</small></button>`).join('')}</div>
+      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || w.toldHire).map(it => `<button data-b="${it.id}" ${w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(it.what)}</small></button>`).join('')}</div>
       <div class="row"><button class="ghost" data-a="x">Done</button></div>`);
     o.querySelector('[data-a=x]').onclick = close;
     o.querySelectorAll('[data-b]').forEach(el => el.onclick = () => {
@@ -344,7 +373,19 @@
     const w = sv();
     B.newDay(w.bonds, w.day);
     if (w.day >= 2) await review();
+    if (w.day >= HIRE_DAY && !w.toldHire) await tellHire();
     walk('day');
+  }
+  // Hiring stays hidden until Mira explains the ninth night (Ladi, Nov 18: day 1 had too much, too early).
+  function tellHire() {
+    const w = sv(); w.toldHire = 1; S.persist();
+    return new Promise(res => {
+      const b = U.panel(`<p class="ww-top">Day ${w.day} · Morning</p>
+        ${line('mira', 'The Captain thinks all these break-ins are practice. On the ninth night, the full moon, the thief tries for everything at once.')}
+        ${line('mira', 'You can\'t be everywhere that night. Ask people to keep watch over their own corner of town or the castle. Pay helps, but people work hardest for someone they trust.')}
+        <div class="row"><button class="primary" id="ww-hn">Got it</button></div>`, { title: 'THE NIGHT WATCH' });
+      b.querySelector('#ww-hn').onclick = res;
+    });
   }
   async function review() {
     const w = sv(), pool = (content().reviews || []).filter(r => r.day <= w.day && !(w.asked || {})[r.id]);
@@ -385,6 +426,7 @@
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? 160 : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
+    run.escort = phase === 'day' && w.day === 1 && !!(content().tutorial || []).length;   // Mira walks you in on day 1 (Ladi, Nov 18)
     if (phase === 'night' && w.day === 9) {   // ward levels act before you arrive (doc: Ward level)
       Object.keys(WATCHERS).forEach(k => {
         const lv = ward(k), mine = run.list.filter(x => x.scene === WATCHERS[k]);
@@ -405,7 +447,8 @@
     const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
     view = WV.mount(b.querySelector('.ww-view'), {
-      st, people: people(phase, w.day), marks: marks(), weather: wx,
+      paused: () => busy,
+      st, people: (run.ppl = people(phase, w.day)), marks: marks(), weather: wx, follow: run.escort ? 'mira' : null,
       hint: phase === 'night' ? '' : phase === 'dusk' ? 'Walk to Pell at the gate' : '',
       onUse(spot) {
         if (busy) return;
@@ -413,6 +456,8 @@
           const x = run.list.find(v => !run.fixed[v.id] && v.scene === st.scene && Math.abs(v.x - st.x) <= WW.REACH);
           if (x) return fix(x, () => view.set('marks', marks()));
         }
+        const f = run.escort && view.follower;
+        if (f && f.scene === st.scene && Math.abs(f.x - st.x) <= WW.REACH) return sayAll([['mira', 'Don\'t mind me. Pretend I\'m not here.']]);
         const p = (people(phase, w.day)[st.scene] || []).find(v => !v.crowd && Math.abs(v.x - st.x) <= WW.REACH);
         if (p) return talk(p.who);
         const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
@@ -434,9 +479,13 @@
         const tut = content().tutorial;
         if (phase === 'day' && w.day === 1 && tut && !busy && (run.tut || 0) < tut.length) {
           const t = tut[run.tut || 0], sp = WW.spot(null, t.at);
-          if (!sp || (s.scene === sp.level && Math.abs(s.x - sp.x) < 120)) { run.tut = (run.tut || 0) + 1; sayAll([[t.who, t.line]]); }
-          else view.set('hint', 'Follow Mira: ' + sp.label);
-        } else if (phase === 'day' && w.day === 1 && tut && run.tut === tut.length) { run.tut++; view.set('hint', ''); }
+          if (!sp || (s.scene === sp.level && Math.abs(s.x - sp.x) < 120)) { run.tut = (run.tut || 0) + 1; sayAll(t.lines || [[t.who, t.line]], run.tut === tut.length ? homeMira : null); }
+          else view.set('hint', 'Mira wants to show you ' + sp.label);
+        }
+        if (phase === 'night' && w.day === 1 && !busy && !run.rang && clock < nightS(1) / 2) {   // a humor beat: she can't help herself
+          run.rang = 1;   // Coo flies a note up from Mira
+          sayAll([['coo', 'Coo. Note from Mira. It says: "Are the doors locked?"'], ['seoyeon', 'Locking the doors is the whole job.'], ['coo', 'She sent three of these. Coo. I\'m only bringing one.']]);
+        }
         if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
         if (!busy && clock > 0) {
           clock -= dt;

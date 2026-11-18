@@ -1531,13 +1531,32 @@
   ];
 
   // Day 1's walk with the clock stopped: Mira introduces each thing as you reach it (storyboard "Night 1").
+  // Day 1: Mira walks Seo-yeon in, a step behind her the whole way, like a mother on her daughter's first day at work
+  // (Ladi, Nov 18: a humor beat that also explains why her lines keep popping up).
   C.tutorial = [
-    { at: 'base-camp', who: 'mira', line: 'Morning. Walk with me. Arrows to move.' },
-    { at: 'first-fork', who: 'mira', line: 'That\'s Tess. Tap her. Whatever you hear goes in your notebook.' },
-    { at: 'first-fork', who: 'mira', line: 'Press up at a fork to climb a path. Down to come back.' },
-    { at: 'kagemaru-stall', who: 'mira', line: 'The shop. Don\'t let him charge you for the first one.' },
-    { at: 'post-office', who: 'mira', line: 'People with work for you get a marker. None yet.' },
-    { at: 'castle-gate', who: 'mira', line: 'Pell takes it from here. Come back to my fire in the morning.' }
+    { at: 'base-camp', who: 'mira', lines: [
+      ['mira', 'Morning! I\'ll walk you round. Just today. Arrows to move.'],
+      ['seoyeon', 'Mira, I know how to walk.'],
+      ['mira', 'Of course you do. Arrows, though.']] },
+    { at: 'first-fork', who: 'mira', lines: [
+      ['mira', 'That\'s Tess by the fork. Tap her and listen. Whatever you hear goes in your notebook by itself.'],
+      ['mira', 'Don\'t believe all of it. Do believe some of it.']] },
+    { at: 'first-fork', who: 'mira', lines: [
+      ['mira', 'Press up at a fork to climb a path, down to come back. Walk in the middle. Not near the edge.'],
+      ['seoyeon', 'It\'s a road, Mira.'],
+      ['mira', 'Roads have edges.']] },
+    { at: 'kagemaru-stall', who: 'mira', lines: [
+      ['mira', 'That\'s Kagemaru\'s stall. Your first lantern post is free. Don\'t let him tell you otherwise.'],
+      ['kagemaru', 'I am standing right here, Mira.']] },
+    { at: 'post-office', who: 'mira', lines: [
+      ['mira', 'Anyone with work for you gets a marker over their head. Nobody yet. Give it a day. They\'ll love you.'],
+      ['seoyeon', 'You don\'t know that.'],
+      ['mira', 'I know that.']] },
+    { at: 'castle-gate', who: 'mira', lines: [
+      ['mira', 'This is where I stop. Pell takes it from here. Come to my fire in the morning. I\'ll keep the soup on.'],
+      ['seoyeon', 'You can go home now.'],
+      ['mira', 'I\'m going. I\'m going.'],
+      ['pell', 'She told me about you four times this morning. Four.']] }
   ];
 
   // ================================================================================================================
