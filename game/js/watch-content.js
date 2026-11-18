@@ -1534,17 +1534,17 @@
   // ================================================================================================================
   // DUSK BRIEFINGS. Sergeant Pell at the gate, setting the night's first locks.
   // ================================================================================================================
-  C.dusk = [
-    { night: 1, who: 'pell', lines: ['Evening, warden. Floor plan.', 'An empty lock slot means no. Nobody\'s allowed unless something says so.',
-      'Tonight, just the gate. Let\'s set it together.'] },
-    { night: 2, who: 'pell', lines: ['Two floors tonight. Keys and badges.', 'Hint button\'s there if you want it. No shame.'] },
-    { night: 3, who: 'pell', lines: ['No more hints. Normal fines.', 'One retry per fix. Miss twice and it waits till dawn.'] },
-    { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'The bridge, tonight. Two signs.'] },
-    { night: 5, who: 'pell', lines: ['Busy one. Four breaches.', 'Ten minutes on the bell from tonight. Use them.'] },
+  C.dusk = [   // matched to the night as it plays now: break-ins arrive across the night on fuses (Ladi, Nov 18)
+    { night: 1, who: 'pell', lines: ['Evening, warden. First night.', 'One break-in tonight, and no rush. Find it, fix it, report at dawn.'] },
+    { night: 2, who: 'pell', lines: ['From tonight they don\'t all come at once.', 'When a lock gives, you\'ll hear it. Finding where is your job.',
+      'Each one burns like a fuse. Leave it too long and it gets through.'] },
+    { night: 3, who: 'pell', lines: ['One retry per fix. Miss twice and it waits till dawn.', 'Every fix eats into the night. Don\'t dawdle between them.'] },
+    { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'Keep your ears open. You won\'t see them coming.'] },
+    { night: 5, who: 'pell', lines: ['Busy one. Four tonight, and they come in pairs.', 'You might not reach both. Know your stairs.'] },
     { night: 6, who: 'pell', lines: ['Storm tonight. Lightning shows what the dark hides.', 'Letters. Big ones.'] },
-    { night: 7, who: 'pell', lines: ['Cellars and the bridge.', 'Keys, crates and the archive.'] },
+    { night: 7, who: 'pell', lines: ['Pairs again tonight.', 'Keys, crates and the archive.'] },
     { night: 8, who: 'pell', lines: ['Last ordinary night.', 'Listen for loose talk.'] },
-    { night: 9, who: 'pell', lines: ['Full moon. Clear sky.', 'Everything you missed is back, and the town\'s in it too.', 'Twelve bells. Go.'] }
+    { night: 9, who: 'pell', lines: ['Full moon. Clear sky.', 'Everything you missed is back, and the town\'s in it too.', 'Fifteen bells. Go.'] }
   ];
 
   // PELL IS VERY TALL (Ladi, Nov 18: a running joke). Everyone remarks on it once; Pell always answers deadpan.

@@ -823,6 +823,8 @@
       onMove(m) {
         if (busy) return false;
         if (phase === 'day' && m.via === 'pell-gate') { setTimeout(endEarly, 0); return false; }
+        // Dusk is the walk to the gate, not more time in town (Ladi, Nov 18): the way down the hill is closed.
+        if (phase === 'dusk' && !/^castle:/.test(m.to.scene)) { setTimeout(() => sayAll([['pell', 'Town\'s shutting up for the night, warden. The gate\'s this way.']]), 0); return false; }
         if (/^castle:/.test(m.to.scene) && phase !== 'night') { setTimeout(() => walk('night', m.via === 'pell-gate' ? {} : { scene: m.to.scene, x: m.to.x }), 0); return false; }
         if (m.via === 'castle-exit' && phase === 'night' && w.day !== 9) return false;
         return true;

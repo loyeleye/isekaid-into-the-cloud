@@ -374,6 +374,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
   await page.waitForTimeout(300);
   check(await ev(() => SD.watchWalk.run && SD.watchWalk.run.phase === 'dusk'), 'then the day ends at dusk');
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  const dz = await ev(() => { const r = SD.watchWalk.run, f = SD.watchWorld.scene('west-road').spots.find(v => v.id === 'fork-west-down'); r.st.x = f.x; SD.watchWalk.view.press('down'); return r.st.scene; });
+  await page.waitForTimeout(200);
+  check(dz === 'west-road' && await ev(() => SD.watchWalk.run.st.scene === 'west-road' && /shutting up/.test(document.querySelector('.ww-o:not([hidden])') ? document.querySelector('.ww-o:not([hidden])').textContent : '')), 'at dusk the way down the hill is closed, and Pell says so');
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   // Her party doesn't take silver: their feast job is what keeps them away (Ladi, Nov 18).
   await ev(() => { const w = SD.watchWalk.sv(); w.freed = {}; w.quests['kai-night-cloak'] = { step: 99, done: true }; delete w.quests['kai-feast-line']; SD.watchWalk.talk('kai'); });
