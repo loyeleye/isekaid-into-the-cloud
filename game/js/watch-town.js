@@ -452,41 +452,60 @@
   // Cognito identity pool guest access (cognito/latest/developerguide/identity-pools.html), IAM condition keys
   // aws:SourceIp and aws:CurrentTime (IAM/latest/UserGuide/reference_policies_condition-keys.html).
   C.quests = (C.quests || []).concat([
+    // Each asks their own question first, then sends you to a cover who wants something before saying yes (Ladi, Nov 18).
     { id: 'mira-feast-tent', giver: 'mira', kind: 'duty', opens: 3, closes: 8, skill: '2.2.4', reward: { silver: 0, heart: false, free: true },
       lines: { offer: ['The ninth night? I\'d love to. But it\'s the harvest moon.',
         'Half the town eats at Kai\'s feast, and the other half ends up in my sick tent. Somebody has to sit with them.'] },
       steps: [
-        { at: { who: 'mira' }, say: [['mira', 'Fennel knows her herbs better than I do. If she\'d take the tent for one night, I\'m yours.'], ['mira', 'Tell her I asked.']] },
-        { at: { level: 'far-lane', who: 'fennel' }, help: { high: 'Mira\'s tent? Of course.' }, ask: {
+        { at: { who: 'mira' }, say: [['mira', 'If I hand my tent to someone, I hand them my medicine chest too. For one night only.'], ['mira', 'Tell me how you\'d do that.']] },
+        { at: { who: 'mira' }, ask: {
           q: 'KMS key policies. A job needs to decrypt with your KMS key for one night, then lose access. You don\'t want to edit the key policy. What fits?',
           choices: ['Create a grant for the job\'s role, then retire or revoke it afterwards', 'Add the role to the key policy and hope someone removes it',
             'Export the key material and hand it to the job', 'Give the role kms:* on every key'], answer: 0,
           why: 'A grant lets a principal use a KMS key without changing the key policy, and you retire or revoke it when the job is done. KMS keys never leave KMS unencrypted, and kms:* is far more than one night needs.' } },
-        { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'One night. Chamomile for everyone.'], ['fennel', 'Tell Mira the tent\'s mine.']] },
+        { at: { who: 'mira' }, say: [['mira', 'That\'s it exactly. Fennel knows her herbs better than I do.'], ['mira', 'If she\'d take the tent for one night, I\'m yours. Tell her I asked.']] },
+        { at: { level: 'far-lane', who: 'fennel' }, proof: false, help: { high: 'Mira\'s tent? Of course.' },
+          say: [['fennel', 'Mira\'s tent? I\'d do it. But not without my herb satchel.'], ['fennel', 'I left it up by the old lookout on the West Road. These knees aren\'t climbing up there again.']] },
+        { at: { level: 'west-road', spot: 'lookout-ruin' }, say: [['seoyeon', 'Under the fallen stones: a satchel that smells of chamomile.']] },
+        { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'My satchel! Chamomile for everyone, then.'], ['fennel', 'Tell Mira the tent\'s mine for the night.']] },
         { at: { who: 'mira' }, say: [['mira', 'She said yes? Then on the ninth night I\'m on Main Street.'], ['mira', 'Thank you, Seo-yeon.']] }
       ], clue: null },
     { id: 'kai-feast-line', giver: 'kai', kind: 'duty', opens: 3, closes: 8, skill: '2.1.2', reward: { silver: 0, heart: false, free: true },
       lines: { offer: ['Ninth night? That\'s the harvest feast. I\'m cooking for the whole town.', 'Can\'t walk out of a kitchen mid-service, Seo-yeon. Not even for you.'] },
       steps: [
-        { at: { who: 'kai' }, say: [['kai', 'Wen could run the line. She fed this market before I could hold a knife.'], ['kai', 'She won\'t like being asked. Ask her anyway.']] },
-        { at: { who: 'wen' }, help: { high: 'For Kai? Anything, dear.' }, ask: {
+        { at: { who: 'kai' }, say: [['kai', 'Guests want to put their feast pictures somewhere. Nobody\'s making an account to do it.'], ['kai', 'You\'re the security one. How?']] },
+        { at: { who: 'kai' }, ask: {
           q: 'Cognito identity pools. Feast guests should upload photos to one S3 folder without making an account. What fits?',
           choices: ['An identity pool with guest access, whose unauthenticated role allows uploads to that folder only', 'Put an access key in the web page',
             'Let anyone write to the bucket', 'Make every guest an IAM user'], answer: 0,
           why: 'An identity pool can give guests temporary AWS credentials through its unauthenticated role, so keep that role to the one action and folder. A key in the page, or a bucket anyone can write to, works for anybody and never expires.' } },
-        { at: { who: 'wen' }, say: [['wen', 'Run Kai\'s line? I ran it first, dear.'], ['wen', 'Tell him to leave his recipes and stay out of my kitchen.']] },
+        { at: { who: 'kai' }, say: [['kai', 'Huh. Fine. Wen could run my line. She fed this market before I could hold a knife.'], ['kai', 'She won\'t like being asked. Ask her anyway.']] },
+        { at: { who: 'wen' }, proof: false, help: { high: 'For Kai? Anything, dear.' },
+          say: [['wen', 'Run Kai\'s line? I might. But a kitchen that night means strangers with keys.'], ['wen', 'Show me you\'d hand out the right ones, dear.']] },
+        { at: { who: 'wen' }, keys: [
+          { title: 'The night cook', say: 'The night cook cooks from the menu. Nothing else. Which keys?', ok: 'Just what the job needs.',
+            items: [['Read the menu', true, ''], ['Open the walk-in', true, ''], ['Open the till', false, 'The cook never takes money: no till key.'],
+              ['Change the rota', false, 'Changing the rota is the head cook\'s job.'], ['Order stock', false, 'Ordering spends the kitchen\'s money: not a cook\'s key.']] },
+          { title: 'The dishwasher', say: 'And the dishwasher, who only washes up?', ok: 'One job, one key.',
+            items: [['Open the scullery', true, ''], ['Open the walk-in', false, 'Washing up never needs the walk-in.'], ['Read the menu', false, 'A dishwasher doesn\'t need the menu.'],
+              ['Open the till', false, 'Nobody washing up needs the till.']] }] },
+        { at: { who: 'wen' }, say: [['wen', 'Every key for its job and no more. That\'s my kitchen.'], ['wen', 'Tell Kai to leave his recipes and stay out of my way.']] },
         { at: { who: 'kai' }, say: [['kai', 'She said that? She\'s right.'], ['kai', 'Ninth night, I\'m on the upper floor. Save me a plate.']] }
       ], clue: null },
     { id: 'dutch-feast-walk', giver: 'dutch', kind: 'duty', opens: 3, closes: 8, skill: '2.1.6', reward: { silver: 0, heart: false, free: true },
       lines: { offer: ['Ninth night, the Captain goes down to the feast by boat. Somebody rides along, there and back.', 'That\'s been me. I don\'t hand it to just anyone.'] },
       steps: [
-        { at: { who: 'dutch' }, say: [['dutch', 'Odu, down at the river dock. Hobb swears by him, and Hobb doesn\'t swear by anybody.'], ['dutch', 'If Odu takes the Captain down, the ground floor\'s mine.']] },
-        { at: { who: 'odu' }, help: { high: 'For the Captain? Gladly.' }, ask: {
+        { at: { who: 'dutch' }, say: [['dutch', 'Whoever rides along gets the Captain\'s gate key for the night. Only the night.'], ['dutch', 'Tell me how you\'d make sure of that.']] },
+        { at: { who: 'dutch' }, ask: {
           q: 'IAM policy conditions. A stand-in may use the gate\'s permissions only from the castle network, and only tonight. What fits?',
           choices: ['An Allow with conditions: aws:SourceIp for the castle range, and aws:CurrentTime between the start and end of the night',
             'A separate access key that someone deletes in the morning', 'The same permissions with no conditions, and a note in the log', 'Share Dutch\'s password for one night'], answer: 0,
           why: 'Condition keys narrow an Allow: aws:SourceIp checks where the request came from, and DateGreaterThan and DateLessThan on aws:CurrentTime set the window. A key someone must remember to delete, or a shared password, keeps working if they forget.' } },
-        { at: { who: 'odu' }, say: [['odu', 'Row the Captain to the feast? I\'d be honoured.'], ['odu', 'Tell Dutch I\'ll bring the Captain home safe.']] },
+        { at: { who: 'dutch' }, say: [['dutch', 'Good. Odu, down at the river dock. Hobb swears by him, and Hobb doesn\'t swear by anybody.'], ['dutch', 'If Odu takes the Captain down, the ground floor\'s mine.']] },
+        { at: { who: 'odu' }, proof: false, help: { high: 'For the Captain? Gladly.' },
+          say: [['odu', 'Row the Captain to the feast? Gladly. On an empty stomach? No.'], ['odu', 'Bring me one of Wen\'s meat pies and you\'ve got your boatman.']] },
+        { at: { who: 'wen' }, say: [['wen', 'A meat pie for Odu? He always wants the burnt one.']], buy: { item: 'a meat pie', cost: 5 } },
+        { at: { who: 'odu' }, say: [['odu', 'Burnt. Perfect.'], ['odu', 'Tell Dutch I\'ll bring the Captain home safe.']] },
         { at: { who: 'dutch' }, say: [['dutch', 'Odu said yes. Good.'], ['dutch', 'Ground floor on the ninth night. Nobody gets past me.']] }
       ], clue: null }
   ]);

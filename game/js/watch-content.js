@@ -1538,7 +1538,7 @@
     { night: 1, who: 'pell', lines: ['Evening, warden. First night.', 'One break-in tonight, and no rush. Find it, fix it, report at dawn.'] },
     { night: 2, who: 'pell', lines: ['From tonight they don\'t all come at once.', 'When a lock gives, you\'ll hear it. Finding where is your job.',
       'Each one burns like a fuse. Leave it too long and it gets through.'] },
-    { night: 3, who: 'pell', lines: ['One retry per fix. Miss twice and it waits till dawn.', 'Every fix eats into the night. Don\'t dawdle between them.'] },
+    { night: 3, who: 'pell', lines: ['One try per fix. Get it wrong and it waits till dawn. Kagemaru\'s spare tools buy you a second go.', 'Every fix eats into the night. Don\'t dawdle between them.'] },
     { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'Keep your ears open. You won\'t see them coming.'] },
     { night: 5, who: 'pell', lines: ['Busy one. Four tonight, and they come in pairs.', 'You might not reach both. Know your stairs.'] },
     { night: 6, who: 'pell', lines: ['Storm tonight. Lightning shows what the dark hides.', 'Letters. Big ones.'] },

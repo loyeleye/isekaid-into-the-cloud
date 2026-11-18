@@ -325,45 +325,25 @@
       return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who, 1), 90));
     }
     gain(who, () => B.chat(b, who));
-    // A quest step at this person? Errands you're already on come before anything new they'd ask of you.
-    const doing = quests().find(q => { const s = qstate(q.id), st = s.step >= 0 && !s.done && q.steps[s.step]; return st && st.at && st.at.who === who; });
-    if (doing) { step(doing); return; }
+    // What you could do with this person: errands you're on that stop here, jobs they'd give you, a quick job. With two
+    // or more, you pick (Ladi, Nov 18: Kai on day 3 has two).
+    const opts = [];
     for (const q of quests()) {
-      const s = qstate(q.id);
+      const s = qstate(q.id), st = s.step >= 0 && !s.done && q.steps[s.step];
       if (s.done) continue;
-      if (s.step < 0) {
-        if (q.giver === who && openOn(q, day) && q.kind === 'capstone') {   // needs ward level 4: both hires and trust
-          const paid = Math.min(2, (w.hires || {})[who] || 0), trustLv = ward(who) - paid, L = q.lines || {};
-          const party = PARTY.includes(who), lv = ward(who), set = party ? (!(w.freed || {})[who] ? L.duty : lv < 4 ? L.trust : L.yes)
-            : trustLv < 2 ? L.trust : paid < 2 ? L.pay : L.yes;
-          sayAll((set || ['Not yet.']).map(t => [who, t]), () => { if (party ? lv >= 4 : trustLv >= 2 && paid >= 2) finish(q); });
-          return;
-        }
-        if (q.giver === who && openOn(q, day)) {
-          const ask = (q.lines && q.lines.offer) || ['Have you got a minute? I could use the watch\'s help.'];
-          const o = overlay(`${ask.map(t => line(who, t)).join('')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
-            <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">${q.reward.silver ? `Help · ${q.reward.silver} silver` : 'I\'ll find someone'}</button></div>`);
-          o.querySelector('[data-a=no]').onclick = close;
-          o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; take(); close(); setTimeout(() => step(q), 90); };
-          return;
-        }
-        continue;
-      }
-      const st = q.steps[s.step];
-      if (st && st.at && st.at.who === who) { step(q); return; }
+      if (st && st.at && st.at.who === who) opts.push({ label: `Carry on: ${jobName(q)}`, go: () => step(q) });
+      else if (s.step < 0 && q.giver === who && openOn(q, day)) opts.push({ label: q.kind === 'capstone' ? 'The ninth night' : `New job: ${jobName(q)}`, go: () => offer(q) });
     }
-    // A small job: one question in the watch's question box. Day 1's are lessons first (Ladi, Nov 18).
     const mini = run && run.phase === 'day' ? miniFor(who) : null;
-    if (mini) {
-      // They already know Seo-yeon, just not well yet (Ladi, Nov 18): a plain hello, not "Mira says you're new".
-      const hello = (content().lessonHello || {})[who];
-      const intro = mini.teach ? hello || 'Morning, Seo-yeon. Got a minute? I could show you something.'
-        : 'Quick one for the watch, if you\'ve a moment.';
-      const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
+    if (mini) opts.push({ label: `${mini.teach ? 'Lesson' : 'Quick job'}: ${jobName(mini)}`, go: () => miniOffer(mini) });
+    if (opts.length > 1) {
+      const o = overlay(`${line(who, 'What can I do for you, warden?')}<div class="ww-ch">${opts.map((v, k) => `<button data-o="${k}">${esc(v.label)}</button>`).join('')}</div>
+        <div class="row"><button class="ghost" data-a="x">Just saying hello</button></div>`);
       o.querySelector('[data-a=x]').onclick = close;
-      o.querySelector('[data-a=y]').onclick = () => { if (!mini.teach) take(); close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
+      o.querySelectorAll('[data-o]').forEach(el => el.onclick = () => { close(); setTimeout(opts[+el.dataset.o].go, 90); });
       return;
     }
+    if (opts.length) return opts[0].go();
     const wx = WW.weather(day, run && run.phase === 'night' ? 'night' : 'day');
     const g = gossipFor(who, day, wx);
     if (g && g.tie) { B.shift(b, g.tie.a, g.tie.b, g.tie.to); (w.known = w.known || {})[pair(g.tie.a, g.tie.b)] = g.tie.to; }
@@ -390,6 +370,61 @@
     const o = overlay(`${line(who, said0 || everyday(who, day))}<div class="row"><button class="ghost" data-a="x">Bye</button>${lessonBtn(who)}</div>`);
     o.querySelector('[data-a=x]').onclick = close;
     const lb = o.querySelector('[data-a=l]'); if (lb) lb.onclick = () => { close(); setTimeout(() => lesson(who), 90); };
+  }
+  // A job's name for the picker: its AWS topic, from the first words of its question (Ladi: name the service outright).
+  function jobName(q) {
+    if (q.kind === 'duty') return 'the harvest feast';
+    const a = q.q ? q : ((q.steps || []).find(v => v.ask) || {}).ask;
+    return a && a.q ? a.q.split('. ')[0] : 'a favour';
+  }
+  function offer(q) {
+    const w = sv(), who = q.giver, s = qstate(q.id);
+    if (q.kind === 'capstone') {   // needs ward level 4
+      const paid = Math.min(2, (w.hires || {})[who] || 0), trustLv = ward(who) - paid, L = q.lines || {};
+      const party = PARTY.includes(who), lv = ward(who), set = party ? (!(w.freed || {})[who] ? L.duty : lv < 4 ? L.trust : L.yes)
+        : trustLv < 2 ? L.trust : paid < 2 ? L.pay : L.yes;
+      return sayAll((set || ['Not yet.']).map(t => [who, t]), () => { if (party ? lv >= 4 : trustLv >= 2 && paid >= 2) finish(q); });
+    }
+    const ask = (q.lines && q.lines.offer) || ['Have you got a minute? I could use the watch\'s help.'];
+    const o = overlay(`${ask.map(t => line(who, t)).join('')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
+      <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">${q.reward.silver ? `Help · ${q.reward.silver} silver` : 'I\'ll help'}</button></div>`);
+    o.querySelector('[data-a=no]').onclick = close;
+    o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; take(); close(); setTimeout(() => step(q), 90); };
+  }
+  function miniOffer(mini) {
+    const who = mini.who, hello = (content().lessonHello || {})[who];
+    // They already know Seo-yeon, just not well yet (Ladi, Nov 18): a plain hello, not "Mira says you're new".
+    const intro = mini.teach ? hello || 'Morning, Seo-yeon. Got a minute? I could show you something.' : 'Quick one for the watch, if you\'ve a moment.';
+    const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
+    o.querySelector('[data-a=x]').onclick = close;
+    o.querySelector('[data-a=y]').onclick = () => { if (!mini.teach) take(); close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
+  }
+  // Errand steps (Ladi, Nov 18: a cover wants something first). buy: pay for something at a stall. keys: hand out only
+  // the keys a job needs, a least-privilege minigame with no wrong-answer penalty.
+  function buyStep(who, st, go) {
+    const w = sv(), b = st.buy;
+    const o = overlay(`${(st.say || []).map(l => line(l[0], l[1])).join('')}<p class="ww-meta">🪙 ${w.silver}</p>
+      <div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="b" ${w.silver < b.cost ? 'disabled' : ''}>Buy ${esc(b.item)} · ${b.cost} silver</button></div>`);
+    o.querySelector('[data-a=x]').onclick = close;
+    o.querySelector('[data-a=b]').onclick = () => { w.silver -= b.cost; S.persist(); close(); toast(`🧺 ${b.item} bought.`); setTimeout(go, 90); };
+  }
+  function keysStep(who, st, go) {
+    const rounds = st.keys; let r = 0, on = {};
+    const draw = note => {
+      const k = rounds[r];
+      const o = overlay(`<p class="ww-t">🔑 ${esc(k.title)}</p>${line(who, k.say)}${note || ''}
+        <div class="ww-ch">${k.items.map((it, i) => `<button data-k="${i}" class="${on[i] ? 'on' : ''}" aria-pressed="${!!on[i]}">${on[i] ? '🔑 ' : ''}${esc(it[0])}</button>`).join('')}</div>
+        <div class="row"><span class="ww-meta">${r + 1} of ${rounds.length}</span><button class="primary" data-a="g">Hand them over</button></div>`);
+      o.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { on[+el.dataset.k] = !on[+el.dataset.k]; draw(note); });
+      o.querySelector('[data-a=g]').onclick = () => {
+        const bad = k.items.map((it, i) => (!!on[i] !== !!it[1] ? i : -1)).filter(i => i >= 0);
+        if (bad.length) return draw(`<p class="ww-no">✗ Not quite. ${bad.map(i => esc(k.items[i][2])).join(' ')}</p>`);
+        r++; on = {};
+        if (r < rounds.length) return draw(`<p class="ww-ok">✓ ${esc(k.ok || 'Just what the job needs.')}</p>`);
+        close(); setTimeout(go, 90);
+      };
+    };
+    draw();
   }
   // ---- The living town (Ladi, Nov 18): everyday lines, lessons, small jobs, trust steps, the Town book ----
   const pair = (a, b) => [a, b].sort().join('|');
@@ -596,7 +631,8 @@
       s.step++; S.persist();
       if (s.step >= q.steps.length) return finish(q);
       const n = q.steps[s.step];
-      if (n.at && n.at.who === who) step(q);   // the same person carries on
+      const here = st.at || {}, there = n.at || {};   // the same person, or the same spot, carries straight on
+      if (who ? there.who === who : !there.who && ((here.spot && there.spot === here.spot) || (here.room && there.room === here.room && there.floor === here.floor))) step(q);
     };
     const body = () => {
       // Out of daylight between two questions (Ladi, Nov 18): keep your place in the job and head for dusk.
@@ -604,12 +640,14 @@
         run.over = 1;
         return sayAll([['seoyeon', 'The light\'s going. I\'ll pick this up tomorrow, right where I left it.']], () => dusk());
       }
+      if (st.buy) return buyStep(who, st, go);
+      if (st.keys) return keysStep(who, st, go);
       if (st.ask) {
         const tries = B.trust(w.bonds, q.giver) >= 80 ? 1 : 0;   // trust 80 perk: a second try after the explanation
         choose(nm(q.giver) + '\'s question', st.ask, tries, ok => { if (ok) go(); else { B.add(w.bonds, q.giver, 'wrong'); S.persist(); } }, q.giver);
       } else sayAll(st.say || [], go);
     };
-    if (who && who !== q.giver) {
+    if (who && who !== q.giver && !(s.met || {})[who]) {   // a referral: once per person per job, not every step
       const r = B.refer(w.bonds, ties, who, q.giver), help = st.help || {};
       if (r.band === 'deny') {
         const v = B.vouchers(w.bonds, ties, who, q.giver, PEOPLE);
@@ -618,14 +656,14 @@
         return;
       }
       const first = !w.seenReferral; w.seenReferral = true;
-      const o = overlay(`${line(who, r.band === 'high' ? `Anyone ${nm(q.giver)} sends is welcome. ${help.high || ''}` : r.band === 'low' ? 'I don\'t know you well. Prove you know your stuff first.' : `${nm(q.giver)} sent you? All right.`)}${bars(r)}
+      const o = overlay(`${line(who, r.band === 'high' ? `Anyone ${nm(q.giver)} sends is welcome. ${help.high || ''}` : r.band === 'low' && st.proof !== false ? 'I don\'t know you well. Prove you know your stuff first.' : `${nm(q.giver)} sent you? All right.`)}${bars(r)}
         ${first ? line('pell', 'Same as the castle locks: both doors have to open, and one bolt shuts it.') : ''}<div class="row"><button class="primary" data-a="d">Go on</button></div>`);
       const proof = () => {   // low band: one review question first (doc: Relationships)
         const pool = content().reviews || [], rv = pool.find(x => x.id === help.low) || pool.find(x => x.day <= w.day);
-        if (r.band !== 'low' || !rv) return body();
+        if (r.band !== 'low' || !rv || st.proof === false) return body();
         choose(nm(who) + ' wants proof', rv, 0, ok => { if (ok) { B.add(w.bonds, who, 'chat'); setTimeout(body, 90); } }, who);
       };
-      o.querySelector('[data-a=d]').onclick = () => { close(); setTimeout(proof, 90); };
+      o.querySelector('[data-a=d]').onclick = () => { close(); (s.met = s.met || {})[who] = 1; S.persist(); setTimeout(proof, 90); };
       return;
     }
     body();
@@ -934,12 +972,12 @@
 
   // ---- Fix screens ----
   function fix(x, after) {
-    if (run.locked[x.id]) { sayAll([['seoyeon', 'I\'ve tried this one twice. It has to wait for morning.']]); return; }
+    if (run.locked[x.id]) { sayAll([['seoyeon', 'I got this one wrong. It has to wait for morning.']]); return; }
     const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why, topic: TOPIC[x.skill] || '', ev: x.tell || '' };
     const w = sv(), tools = w.day > 1 && (w.tools || 0) > 0;
-    const tries = w.day === 1 ? 99 : tools ? 2 : 1;   // spare tools: one extra try
+    const tries = w.day === 1 ? 99 : tools ? 1 : 0;   // one try per fix (Ladi, Nov 18); spare tools buy a second
     choose(x.title, q, tries, (ok, miss) => {
-      if (tools && miss >= 2) w.tools--;
+      if (tools && miss >= 1) w.tools--;
       const keeper = watcherOf(x.scene);
       if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
       if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
@@ -971,6 +1009,8 @@
     S.persist();
     if (view) view.stop(); view = null; run = null;
     jingle('watchDawn', 'watchMorning');
+    // Mira's whole morning song under the dawn report and her review (Ladi, Nov 18: it went quiet after the sting).
+    setTimeout(() => { if (!run && AU && AU.loopName !== 'watchMorning') music('watchMorning'); }, 5600);
     const b = U.panel(`<p class="ww-top">Night ${night} · Dawn</p>
       <ul class="nw-rows">${fixed.map(x => `<li class="nw-r ok"><span class="nw-rr">✓</span><span>${esc(x.title)}</span></li>`).join('')}${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)}${night < 9 ? ' · comes back on the Long Night' : ''}</span></li>`).join('')}</ul>
       <p class="ww-pay">🪙 Pay: ${PAY.base} base + ${fixed.length * PAY.fix} for fixes${fines ? ` ${fines} in fines` : ''} = ${pay} · ${w.silver} saved</p>
