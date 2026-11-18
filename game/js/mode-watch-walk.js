@@ -55,6 +55,7 @@
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
     { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' },
+    { id: 'guard', name: 'GuardDuty bell', cost: 15, what: 'tonight only: rings with the floor of every break-in and shows each fuse, wherever you are' },
     { id: 'watch1', name: 'Pocket watch', cost: 20, what: '+25 seconds to think on every question before your clock runs' },
     { id: 'watch2', name: 'Fine pocket watch', cost: 40, what: '+35 more seconds to think, for a friend of the stall' }];
   // Questions past day 1 (Ladi, Nov 18): you get a grace of thinking time on each one, then it eats your day or night
@@ -632,7 +633,8 @@
   function shop() {
     const w = sv(), price = it => B.price(w.bonds, 'kagemaru', it.cost);
     const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
-      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
+      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
+        .filter(it => !(it.id === 'guard' && (w.day >= 9 || w.guard === w.day)))
         .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
         .map(it => { const lockd = it.id === 'watch2' && !kageDone();
           return `<button data-b="${it.id}" ${lockd || w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(lockd ? 'Do a job for Kagemaru first' : it.what)}</small></button>`; }).join('')}</div>
@@ -648,6 +650,7 @@
       }
       w.silver -= price(it);
       if (it.id === 'tools') w.tools = (w.tools || 0) + 1;
+      if (it.id === 'guard') w.guard = w.day;   // good for tonight (Ladi, Nov 18: optional, every night but the last)
       if (it.id === 'watch1' || it.id === 'watch2') w.watchUp = (w.watchUp || 0) + 1;
       if (it.id === 'outpost') { w.unlocks.outpost = 1; if (run) run.st.unlocks.outpost = 1; }
       S.persist(); shop();
@@ -849,7 +852,8 @@
             if (x.at && up(x) && !(run.rung = run.rung || {})[x.id]) { run.rung[x.id] = 1; if (gone() - x.at < 5) {
               // Where it is stays yours to find (Ladi, Nov 18). On the Long Night a watcher calls out their own area.
               const k = w.day === 9 && (run.ward[x.scene] || 0) >= 1 && watcherOf(x.scene);
-              toast(k ? `🔔 ${nm(k)}: "Trouble on the ${WW.scene(x.scene).name}!"` : `🔔 Somewhere in the ${w.day === 9 ? 'town' : 'castle'}, a lock gives.`);
+              const gd = w.guard === w.day && w.day < 9;
+              toast(gd ? `🔔 GuardDuty: ${x.title}, on the ${WW.scene(x.scene).name.toLowerCase()}.` : k ? `🔔 ${nm(k)}: "Trouble on the ${WW.scene(x.scene).name}!"` : `🔔 Somewhere in the ${w.day === 9 ? 'town' : 'castle'}, a lock gives.`);
             } }
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
               run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
@@ -880,8 +884,9 @@
         }
         const open = run.list.filter(x => !run.fixed[x.id] && !run.locked[x.id]), lv = run.ward[st.scene];
         const left = open.filter(up).length, soon = open.length - left;
+        const gd = phase === 'night' && w.guard === w.day && w.day < 9 ? open.filter(up).map(x => `${WW.scene(x.scene).name.replace(/ floor$/i, '')} ${mm(Math.max(0, fuseLeft(x)))}`) : [];
         const here = w.day === 9 && lv >= 1 ? ` · ${run.list.filter(x => x.scene === st.scene && !run.fixed[x.id]).length || 'all clear'} here (${nm(watcherOf(st.scene))})` : '';
-        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left ? `${left} breach${left === 1 ? '' : 'es'} now` : 'quiet'}${soon ? ' · more coming' : ''}`) + ` · 🔔 ${run.bell}` : ''}`;
+        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left ? `${left} breach${left === 1 ? '' : 'es'} now` : 'quiet'}${soon ? ' · more coming' : ''}${gd.length ? ' · 🔔 ' + gd.join(', ') : ''}`) + ` · 🔔 ${run.bell}` : ''}`;
         if (top.textContent !== t) top.textContent = t;
       }
     });
@@ -1006,7 +1011,7 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, qGrace, step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+  SD.watchWalk = { sv, breaches, qGrace, shopItems: () => SHOP.filter(it => !(it.id === 'guard' && (sv().day >= 9 || sv().guard === sv().day))), step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
     clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');

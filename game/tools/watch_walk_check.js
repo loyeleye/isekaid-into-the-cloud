@@ -415,6 +415,13 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => SD.watchWalk.clock(360 - 170)); await page.waitForTimeout(500);
   const f2 = await ev(() => { const r = SD.watchWalk.run, x = r.list[0]; return [r.locked[x.id], (SD.watchWalk.view.marks || []).map(m => m.text).join('|'), (document.querySelector('.ww-toast') || {}).textContent || '']; });
   check(f2[0] === 'gone' && /got through/.test(f2[2]) && f2[1].split('|').filter(Boolean).length === 1, `when its fuse runs out it gets through, and the next one is up (${f2})`);
+  // Kagemaru's GuardDuty bell: for one night, the floor of every break-in and every fuse, from anywhere.
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.at = null; w.fixed = {}; w.guard = 4; SD.watchWalk.walk('night'); });
+  await page.waitForTimeout(300);
+  await ev(() => { const r = SD.watchWalk.run; r.st.scene = 'castle:towers'; SD.watchWalk.clock(360 - 16); }); await page.waitForTimeout(500);
+  const gdt = await ev(() => [(document.querySelector('.ww-toast') || {}).textContent || '', (document.querySelector('.ww-top') || document.body).textContent]);
+  check(/GuardDuty: .*on the upper floor/.test(gdt[0]) && /🔔 Upper 2:/.test(gdt[1]), `the GuardDuty bell names the floor and shows the fuse from another floor (${gdt[0]})`);
+  check(await ev(() => { const w = SD.watchWalk.sv(); w.day = 9; const ok = !SD.watchWalk.shopItems().some(it => it.id === 'guard'); w.day = 4; return ok; }), 'no GuardDuty bell for the Long Night');
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} failed` : '\nall ok'); process.exit(fails.length ? 1 : 0);
