@@ -225,7 +225,19 @@
   AD.CANARY = [5, 10, 15, 30];
   AD.LINEAR = [1, 2, 3, 10];
   AD.cfgName = p => (p.cfg === 'canary' ? `Canary10Percent${p.wait}Minutes` : p.cfg === 'linear' ? `Linear10PercentEvery${p.every}Minute${p.every === 1 ? '' : 's'}` : 'AllAtOnce');
+  // The crate (Nov 18, task 3.1): how the function's code and libraries are packaged. A .zip deployment package and
+  // all its layers must fit in 250 MB unzipped; a container image (pushed to Amazon ECR) can be up to 10 GB. A layer is
+  // a .zip archive of libraries that several functions can share (up to 5 layers a function).
+  // https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
+  // https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html  https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
+  // fn.pkg: { mb: unzipped size of code and libraries, fns: functions sharing the library }. plan.pkg: 'zip' | 'layer' | 'image'.
+  // The line (task 3.4): plan.build runs unit tests in the pipeline's CodeBuild stage before anything deploys; they find
+  // a 'unit' crack (a logic bug), but not a 'test' one (a missing permission shows only in the real environment, where
+  // a pre-traffic hook's test runs). plan.approval adds a manual approval action: a person signs off before Deploy.
+  // https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals.html  https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html
+  AD.PKG_MAX_ZIP = 250;
   AD.lamRefuse = function (fn, plan) {
+    if (fn.pkg && (plan.pkg || 'zip') !== 'image' && fn.pkg.mb > AD.PKG_MAX_ZIP) return `Unzipped, the code and its libraries are ${fn.pkg.mb} MB. A .zip package and all its layers must fit in 250 MB; a container image can be up to 10 GB.`;
     if (!plan.publish) return 'The alias can\'t point to $LATEST. Publish a version first (that\'s what AutoPublishAlias does).';
     if (fn.first && plan.cfg !== 'all') return 'CodeDeploy needs a previous version to shift traffic from. Ship this one once, then shift the next.';
     if (plan.cfg === 'canary' && !AD.CANARY.includes(plan.wait)) return 'That isn\'t a predefined canary.';
@@ -240,10 +252,17 @@
   };
   AD.lamRun = function (fn, plan, release) {
     const D = fn.demand || 10;
-    const out = { ticks: [], soot: 0, finish: null, failAt: null, recover: null, refused: AD.lamRefuse(fn, plan), caughtBy: null };
+    const out = { ticks: [], soot: 0, finish: null, failAt: null, recover: null, refused: AD.lamRefuse(fn, plan), caughtBy: null, shipped: true, approved: !!plan.approval, pkg: plan.pkg || 'zip' };
     if (out.refused) return out;
     const bad = release && release !== 'good';
     let t = 0, m = 0, rolled = false;
+    const step = note => { t++; out.ticks.push({ t, w: 0, newWalkers: 0, soot: 0, note }); };
+    // The pipeline before Deploy: the build's unit tests, then a person's sign-off.
+    if (plan.build) {
+      step('build');
+      if (release === 'unit') { out.caughtBy = 'build'; out.shipped = false; out.failAt = t; out.recover = 0; return out; }
+    }
+    if (plan.approval) step('approval');
     const tick = (w, note) => {
       t++;
       const nw = rolled ? 0 : Math.round(D * w);
@@ -255,7 +274,7 @@
     // BeforeAllowTraffic: one minute; a test crack fails it and nothing shifts.
     if (plan.pre) {
       tick(0, 'pre');
-      if (release === 'test') { out.failAt = t; out.recover = 0; out.caughtBy = 'pre'; return out; }
+      if (release === 'test' || release === 'unit') { out.failAt = t; out.recover = 0; out.caughtBy = 'pre'; return out; }
     }
     for (let guard = 0; guard < 200; guard++) {
       const w = AD.weight(plan, m);
@@ -267,7 +286,7 @@
     // AfterAllowTraffic: one minute after everything has shifted; a test crack fails it, and the deployment rolls back.
     if (plan.post) {
       const s = tick(1, 'post');
-      if (release === 'test') { rolled = true; out.failAt = t; out.caughtBy = 'post'; tick(0, 'rollback'); out.recover = 1; return out; }
+      if (release === 'test' || release === 'unit') { rolled = true; out.failAt = t; out.caughtBy = 'post'; tick(0, 'rollback'); out.recover = 1; return out; }
       if (s && plan.alarm) { rolled = true; out.failAt = t; out.caughtBy = 'alarm'; tick(0, 'rollback'); out.recover = 1; return out; }
     }
     if (!bad) { out.finish = t; return out; }
@@ -298,6 +317,28 @@
       const p = plan[r.id] || AD.cfnDefault(r.type);
       const o = p === 'Retain' ? { kept: 'running', data: true, cost: 2 } : p === 'Snapshot' ? { kept: 'snapshot', data: true, cost: 1 } : { kept: null, data: false, cost: 0 };
       out.res.push(Object.assign({ id: r.id, type: r.type, policy: p, dflt: !plan[r.id] }, o));
+      out.lumber += o.cost;
+    });
+    return out;
+  };
+
+  // ======================= CloudFormation UpdateReplacePolicy (Nov 18) =======================
+  // A stack update whose change set marks some resources Replacement: True (r.replace). CloudFormation builds the new
+  // resource, and UpdateReplacePolicy decides what happens to the old one: Delete (the default for every type, unlike
+  // DeletionPolicy's Snapshot default for RDS), Retain (kept, out of the stack's scope, still billed) or Snapshot (on the
+  // types that support it, such as RDS; on any other type CloudFormation falls back to Delete). The new resource starts
+  // empty, so "keep the data" means the old one's. Resources the change set doesn't replace update in place.
+  // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-updatereplacepolicy.html
+  // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html
+  AD.cfnUpdate = function (stack, plan) {
+    const out = { refused: null, res: [], lumber: 0, update: true };
+    stack.forEach(r => {
+      if (!r.replace) { out.res.push({ id: r.id, type: r.type, policy: null, inPlace: true, kept: 'live', data: true, cost: 0 }); return; }
+      let p = plan[r.id] || 'Delete';
+      const fellBack = p === 'Snapshot' && !AD.SNAPSHOT_OK.includes(r.type);
+      if (fellBack) p = 'Delete';
+      const o = p === 'Retain' ? { kept: 'running', data: true, cost: 2 } : p === 'Snapshot' ? { kept: 'snapshot', data: true, cost: 1 } : { kept: null, data: false, cost: 0 };
+      out.res.push(Object.assign({ id: r.id, type: r.type, policy: p, asked: plan[r.id] || 'Delete', fellBack, dflt: !plan[r.id] }, o));
       out.lumber += o.cost;
     });
     return out;

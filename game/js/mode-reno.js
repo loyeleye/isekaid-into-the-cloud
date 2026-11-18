@@ -34,7 +34,7 @@
   // A speech bubble in the scene, voiced like any other line (js/vo-modes.js maps who|line to its recording).
   const bubble = (who, line) => `<p class="rs-say" data-vo="${esc(who + '|' + line)}"><b>${esc(who === 'seymour' ? 'Seymour' : NAMES[who] || who)}:</b> ${esc(line)}</p>`;
   // Seymour's line between the Shrine Bridge's two runs, by the kind of crack in the second (a job's crack: test, crowd).
-  const AGAIN = { test: 'Once more. This time the new shrine has a crack a test can find. Good luck. Officially.', load: 'Once more. This time the new shrine has a crack only a crowd finds. You\'re doing fine. Noted.', none: 'Once more. I always check twice. It\'s nothing personal. It\'s procedure.' };
+ const AGAIN = { unit: 'Once more. This time the new shrine has a plain bug in its sums. Any unit test would find it. Good luck. Officially.', test: 'Once more. This time the new shrine has a crack a test can find. Good luck. Officially.', load: 'Once more. This time the new shrine has a crack only a crowd finds. You\'re doing fine. Noted.', none: 'Once more. I always check twice. It\'s nothing personal. It\'s procedure.' };
   // Seymour is the Quarter's hall monitor. Lines heard on every job stay short and kind (Ladi, Nov 17: strictness on repeat wears on a player); the jokes live in the
   // once-per-save teach lines, where Kai plays the straight man.
   const SEY = { clean: 'Both runs held. It stands. Well done. I mean that. It\'s going in the report.', scaf: 'The scaffolding stays up for now. Show me it holds twice, and I\'ll sign. I\'d like to sign.', notyet: 'Not quite. Have another look at the slate. You\'re close. I\'d put that in writing.', nosign: 'Three plans, none signed. That\'s all right. Good builders have nights like this. I have the records. On to the permit question.' };
@@ -53,6 +53,7 @@
     rented: ['seymour', 'Rented lots cost lumber. The slate says how much you may spend. Not one plank over. I have counted the planks.', 'He\'s not joking. He keeps a ledger.'],
     mixed: ['seymour', 'For a while, some residents were in old rooms and some in new ones. Both at once. That is normal while a release rolls out. I checked.'],
     alarm: ['seymour', 'The bell rang and the signpost swung back by itself. That is what an alarm on a deployment is for.'],
+    build: ['seymour', 'The build\'s unit tests failed, so the pipeline stopped before Deploy. The broken version never left the yard. That is the cheapest place to catch it.'],
     pre: ['seymour', 'The test walker crossed first, found the crack, and nobody else set foot on it. Textbook. I may frame this. ...I won\'t.', 'He will.'],
     stuck: ['seymour', 'Nobody was watching for errors, so the signpost kept pointing at the crack. Unacceptable.'],
     refused: ['seymour', 'Denied! That plan can\'t be built at all. The reason is on the scroll, in red. It costs you nothing.']
@@ -239,10 +240,28 @@
       if (p.pre || p.post) L.push([3, 'Hooks:']);   // no keys: a hook placed floats its own line, not this one
       if (p.pre) L.push([4, 'PreTraffic: PreTrafficTest', ['pre']]);
       if (p.post) L.push([4, 'PostTraffic: PostTrafficTest', ['post']]);
+      if (job.fn.pkg) {
+        const pk = p.pkg || 'zip';
+        if (pk === 'image') L.push([2, 'PackageType: Image', ['pkg'], 'PackageType'], [2, '# the image is pushed to Amazon ECR', ['pkg']]);
+        else L.push([2, 'CodeUri: src/  # a .zip deployment package', ['pkg']]);
+        if (pk === 'layer') L.push([2, 'Layers:', ['pkg'], 'Layers'], [3, '- !Ref RopeLibrary  # one layer, shared', ['pkg']]);
+      }
+      if (job.pipe) {
+        L.push([0, '# The pipeline before Deploy (CodePipeline):']);
+        L.push(p.build ? [0, '#   Build: CodeBuild runs the unit tests (buildspec.yml)', ['build'], 'buildspec'] : [0, '#   Build: no tests run', ['build']]);
+        if (p.approval) L.push([0, '#   Approve: a manual approval action', ['approval']]);
+      }
       return { file: 'template.yaml (SAM)', lines: L };
     }
     L.push([0, 'Resources:']);
     job.stack.forEach(r => {
+      if (job.update) {
+        L.push([1, `${logical(r.id)}:`], [2, `Type: ${CFN_TYPE[r.type]}`]);
+        if (!r.replace) { L.push([2, '# change set: Replacement: False']); return; }
+        const v = p[r.id] || 'Delete';
+        L.push([2, '# change set: Replacement: True'], [2, `UpdateReplacePolicy: ${v}${!p[r.id] || v === 'Delete' ? '  # default' : ''}`, [r.id], 'UpdateReplacePolicy']);
+        return;
+      }
       const v = p[r.id] || AD.cfnDefault(r.type), dflt = !p[r.id] || v === AD.cfnDefault(r.type);
       L.push([1, `${logical(r.id)}:`], [2, `Type: ${CFN_TYPE[r.type]}`], [2, `DeletionPolicy: ${v}${dflt ? '  # default' : ''}`, [r.id], v]);
     });
@@ -324,7 +343,7 @@
   function planScreen(s, fresh) {
     const job = jobOf(s, s.at), j = s.jobs[s.at], p = planOf(s, job);
     const left = R.PLANS - j.plans.length;
-    let cards = '', knobs = '', scene = '';
+    let cards = '', knobs = '', scene = '', extra = '';
     const bp = (attr, id, on, name, text) => `<button class="rn-card${on ? ' on' : ''}" ${attr}="${id}" aria-pressed="${on}">${on ? streetImg('pin', 'rn-tack') : ''}${streetImg('blueprint', 'rn-bpsp')}<b>${esc(name)}</b><span class="small">${esc(text)}</span></button>`;
     if (job.d === 'eb') {
       const st = job.street, g = ghostOf(job, p);
@@ -361,14 +380,17 @@
         + seg('alarm', [['false', 'None'], ['true', 'On errors']], String(!!p.alarm), 'CloudWatch alarm on the deployment')
         + seg('pre', [['false', 'None'], ['true', 'Test function']], String(!!p.pre), 'Pre-traffic hook (BeforeAllowTraffic)')
         + seg('post', [['false', 'None'], ['true', 'Test function']], String(!!p.post), 'Post-traffic hook (AfterAllowTraffic)');
-      if (job.crack) scene += `<p class="small rn-crack">Seymour's cracked run: ${job.crack === 'test' ? 'a crack a test can find' : 'a crack that only shows under real traffic'}.</p>`;
+      if (job.fn.pkg) extra = seg('pkg', [['zip', '.zip package'], ['layer', '.zip + a shared layer'], ['image', 'Container image (ECR)']], p.pkg || 'zip', 'The crate: how the function is packed');
+      if (job.pipe) extra = seg('build', [['false', 'No tests'], ['true', 'Unit tests']], String(!!p.build), 'Build stage (CodeBuild)') + seg('approval', [['false', 'None'], ['true', 'Manual approval']], String(!!p.approval), 'Before Deploy');
+      if (job.crack) scene += `<p class="small rn-crack">Seymour's cracked run: ${job.crack === 'unit' ? 'a plain bug a unit test can find' : job.crack === 'test' ? 'a crack a test in the real environment can find' : 'a crack that only shows under real traffic'}.</p>`;
     } else {
       scene = SD.renoStreet ? SD.renoStreet.scene({ stack: job.stack, plan: p, tap: true, seymour: 'proud', kai: 'neutral', shot: 'wide',
-        label: 'The Blueprint Office yard: the stack to tear down, each resource with its DeletionPolicy plaque',
-        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip">The stack is being torn down. Mark each resource's DeletionPolicy.</span></span>${slateHtml(job)}</div>
+        label: job.update ? 'The Blueprint Office yard: the stack update, with an UpdateReplacePolicy plaque on each resource the change set replaces' : 'The Blueprint Office yard: the stack to tear down, each resource with its DeletionPolicy plaque',
+        ui: `<div class="rs-row"><span class="rs-col"><span class="rs-chip">${job.update ? 'The change set replaces what\'s marked Replacement: True. Mark its UpdateReplacePolicy.' : 'The stack is being torn down. Mark each resource\'s DeletionPolicy.'}</span></span>${slateHtml(job)}</div>
           <div class="rs-row rd-row"><span class="rs-chip rs-hidephone">Drag a tag onto a resource</span><span class="rd-tray" aria-label="DeletionPolicy tags: drag one onto a resource, or tap one and then the resource">${CFN_TAGS.map(([v, img, say]) => `<button class="rd-tok" data-tok="${v}" title="${esc(say)}">${streetImg(img, '')}${v}</button>`).join('')}</span></div>` })
-        : `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">The stack is being torn down. Mark each resource's DeletionPolicy.</p>${stackRow(job)}</div>`;
-      knobs = job.stack.map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (AD.cfnDefault(r.type) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}`)).join('');
+        : `<div class="rn-street rn-office"><div class="rn-gatepost">${slateHtml(job)}</div><p class="rn-street-info small">${job.update ? 'The change set replaces what\'s marked Replacement: True. Mark its UpdateReplacePolicy.' : 'The stack is being torn down. Mark each resource\'s DeletionPolicy.'}</p>${stackRow(job)}</div>`;
+      const dflt = r => (job.update ? 'Delete' : AD.cfnDefault(r.type));
+      knobs = job.stack.filter(r => !job.update || r.replace).map(r => seg('cfn:' + r.id, ['Delete', 'Retain', 'Snapshot'].map(o => [o, o + (dflt(r) === o ? ' (default)' : '')]), p[r.id], `${r.name} · ${AD.TYPE_NAME[r.type]}${job.update ? ' · Replacement: True' : ''}`)).join('');
     }
     const slateBelow = SD.renoStreet ? `<div class="rn-slatebelow">${slateHtml(job)}</div>` : '';
     const refused = j.refused ? `<div class="rn-refused">${say(job.client, j.refused)}${j.teachRef || ''}</div>` : '';
@@ -378,11 +400,12 @@
       ${tplHtml(job, p, j.tplHi)}
       ${slateBelow}
       ${refused}
+      ${extra ? `<p class="q-ctx">${job.pipe ? 'The pipeline' : 'The crate'}</p><div class="rn-knobs">${extra}</div>` : ''}
       ${cards ? `<p class="q-ctx">${job.d === 'eb' ? 'Deployment policy: pick a blueprint' : 'Traffic shifting: pick a blueprint'}</p><div class="rn-cards">${cards}</div>` : ''}
       ${knobs ? (SD.renoStreet
         ? `<details class="rn-plaques"${j.plaquesOpen ? ' open' : ''}><summary class="q-ctx">The same plaques as buttons</summary><div class="rn-knobs">${knobs}</div></details>`
-        : `<p class="q-ctx">${job.d === 'cfn' ? 'DeletionPolicy plaques' : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>`) : ''}
-      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? 'Tear it down' : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · ${job.d === 'cfn' ? 'Seymour watches the teardown' : 'Seymour runs it twice'}</span></div>
+        : `<p class="q-ctx">${job.d === 'cfn' ? (job.update ? 'UpdateReplacePolicy plaques' : 'DeletionPolicy plaques') : 'On the scaffolding'}</p><div class="rn-knobs">${knobs}</div>`) : ''}
+      <div class="rn-dock"><button class="primary" id="rn-run">${job.d === 'cfn' ? (job.update ? 'Run the update' : 'Tear it down') : 'Renovate'}</button><span class="small">${plural(left, 'plan')} left · ${job.d === 'cfn' ? (job.update ? 'Seymour watches the update' : 'Seymour watches the teardown') : 'Seymour runs it twice'}</span></div>
       <div class="rn-dock"><button class="ghost" id="rn-board">The night's jobs</button><button class="ghost" id="rn-stop">Stop for now</button></div>`);
     if (SD.renoStreet) SD.renoStreet.mount(b);
     keepCamera(s, b);
@@ -402,7 +425,7 @@
     });
     b.querySelectorAll('[data-res]').forEach(el => el.onclick = () => {   // tap a resource: Delete, Retain, Snapshot, round again
       const k = el.dataset.res, o = ['Delete', 'Retain', 'Snapshot'];
-      p[k] = o[(o.indexOf(p[k] || AD.cfnDefault((job.stack.find(r => r.id === k) || {}).type)) + 1) % 3]; redraw(k);
+      p[k] = o[(o.indexOf(p[k] || (job.update ? 'Delete' : AD.cfnDefault((job.stack.find(r => r.id === k) || {}).type))) + 1) % 3]; redraw(k);
     });
     b.querySelectorAll('[data-house]').forEach(el => el.onclick = () => { p.batch = +el.dataset.house; redraw('batch'); });   // tap a house on the street
     b.querySelectorAll('[data-flip]').forEach(el => el.onclick = () => { const k = el.dataset.flip; p[k] = !p[k]; redraw(k); });
@@ -531,7 +554,7 @@
       if (plan.policy === 'blueGreen') ev.push('straggler');
       else if (job.street.demand && g.mixed) ev.push('mixed');
     }
-    if (job.d === 'lam') { if (b.caughtBy === 'alarm') ev.push('alarm'); if (b.caughtBy === 'pre') ev.push('pre'); if (b.recover === Infinity) ev.push('stuck'); if (b.soot) ev.push('soot'); }
+    if (job.d === 'lam') { if (b.caughtBy === 'build') ev.push('build'); if (b.caughtBy === 'alarm') ev.push('alarm'); if (b.caughtBy === 'pre') ev.push('pre'); if (b.recover === Infinity) ev.push('stuck'); if (b.soot) ev.push('soot'); }
     return ev;
   }
   function showRun(s, job, res) {
@@ -713,16 +736,16 @@
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
     const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
     const b = panel(`<div class="rn-top">${head('seymour')}<div><p class="rn-title">${esc(job.title)}</p><p class="small">Plan ${j.plans.length} of ${R.PLANS} · ${esc(planName(job, planNow))}</p></div></div>
-      <div class="rn-bleed rn-cut">${RS.scene({ stack: job.stack, plan: planNow, res: g.res, upto: 0, seymour: 'inspect', kai: 'neutral', shot: 'wide', label: 'The teardown playing out in the Office yard',
-        ui: `<div class="rs-row"><span class="rs-chip">The teardown</span><span class="rs-chip rs-lumber">0 lumber a night afterwards</span></div><div class="rs-row rs-mid"></div><div></div>` })}</div>
-      <div class="rn-runs rn-runrows"><div class="rn-run" data-run="g"><p class="rn-runh"><b>The teardown</b></p><p class="small rn-sum"></p></div></div>
+      <div class="rn-bleed rn-cut">${RS.scene({ stack: job.stack, plan: planNow, res: g.res, upto: 0, seymour: 'inspect', kai: 'neutral', shot: 'wide', label: job.update ? 'The stack update playing out in the Office yard' : 'The teardown playing out in the Office yard',
+        ui: `<div class="rs-row"><span class="rs-chip">${job.update ? 'The update' : 'The teardown'}</span><span class="rs-chip rs-lumber">0 lumber a night afterwards</span></div><div class="rs-row rs-mid"></div><div></div>` })}</div>
+      <div class="rn-runs rn-runrows"><div class="rn-run" data-run="g"><p class="rn-runh"><b>${job.update ? 'The update' : 'The teardown'}</b></p><p class="small rn-sum"></p></div></div>
       <div class="rn-bleed rn-verdict" hidden>${RS.scene({ shot: 'close', kai: pass ? 'happy' : 'worried', close: pass ? 'approve' : 'disapprove', stack: job.stack, plan: planNow, res: g.res,
         label: pass ? 'Seymour gives a thumbs-up; Kai grins' : 'Seymour holds up a gauntlet: stop. Kai looks worried',
         ui: `<div class="rs-row"><span></span>${bubble('seymour', seyLine)}</div><div></div>` })}</div>
       <div class="rn-after" hidden>
         <div class="verdict-row"><div class="verdict ${pass ? 'ok' : 'bad'}">${verdict}</div></div>
         ${slateHtml(job, res)}
-        <ul class="rn-res">${g.res.map(x => `<li><span><b>${esc(nameIn(job, x.id))}</b> · ${esc(x.policy)}${x.dflt ? ' (default)' : ''}<br><span class="small">${x.kept === 'running' ? 'still standing, still costing lumber' : x.kept === 'snapshot' ? 'a snapshot in a jar, then deleted' : 'gone, and its data with it'}</span></span></li>`).join('')}</ul>
+        <ul class="rn-res">${g.res.map(x => `<li><span><b>${esc(nameIn(job, x.id))}</b> · ${x.inPlace ? 'Replacement: False' : esc(x.fellBack ? 'Snapshot, which this type doesn\'t support, so Delete' : x.policy)}${x.dflt ? ' (default)' : ''}<br><span class="small">${x.inPlace ? 'updated in place, data and all' : x.kept === 'running' ? (g.update ? 'the old one still standing outside the stack, still costing lumber' : 'still standing, still costing lumber') : x.kept === 'snapshot' ? 'a snapshot in a jar, then deleted' : g.update ? 'the old one gone, its data with it; the new one starts empty' : 'gone, and its data with it'}</span></span></li>`).join('')}</ul>
         ${pass || last ? '' : say(job.client, CL(job.client).wrong || 'Not like that.')}
         <div class="rn-dock">${pass || last ? '<button class="primary" id="rn-deb">The permit question</button>' : '<button class="primary" id="rn-again">Change the plan</button><button class="ghost" id="rn-give">Take it to the permit as it is</button>'}</div>
       </div>
@@ -737,7 +760,7 @@
       const lum = g.res.slice(0, k).reduce((a, x) => a + x.cost, 0);
       el.querySelector('.rs-lumber').textContent = `${lum} lumber a night afterwards`;
       const x = g.res[k - 1];
-      if (x) el.querySelector('.rs-mid').innerHTML = `<p class="rs-say"><b>${esc(nameIn(job, x.id))}:</b> ${esc(x.policy)}. ${x.kept === 'running' ? 'Still standing, still costing.' : x.kept === 'snapshot' ? 'Into the jar, then down it comes.' : 'Gone, and everything in it.'}</p>`;
+      if (x) el.querySelector('.rs-mid').innerHTML = `<p class="rs-say"><b>${esc(nameIn(job, x.id))}:</b> ${x.inPlace ? 'Replacement: False. Updated in place.' : `${esc(x.fellBack ? 'Snapshot isn\'t supported here, so CloudFormation deletes it' : x.policy)}. ${x.kept === 'running' ? 'Still standing, still costing.' : x.kept === 'snapshot' ? 'Into the jar, then down it comes.' : 'Gone, and everything in it.'}`}</p>`;
     };
     const finish = () => {
       if (ended) return; ended = true; if (timer) clearTimeout(timer);
@@ -767,7 +790,7 @@
     const ev = events(job, res, planNow);
     const verdict = pass ? '🏛 SEYMOUR SIGNS' : last ? '🚧 NOT SIGNED' : '✗ NOT YET';
     const seyLine = pass ? SEY.clean : last ? SEY.nosign : SEY.notyet;
-    const crackName = !job.crack ? 'the same sound release' : job.crack === 'test' ? 'a crack a test can find' : 'a crack only a crowd finds';
+    const crackName = !job.crack ? 'the same sound release' : job.crack === 'unit' ? 'a bug a unit test can find' : job.crack === 'test' ? 'a crack a test can find' : 'a crack only a crowd finds';
     const runRow = (label, which) => `<div class="rn-run" data-run="${which}"><p class="rn-runh"><b>${esc(label)}</b> <span class="small rn-tick"></span></p><p class="small rn-sum"></p></div>`;
     const base = { bridge: true, demand: job.fn.demand, first: job.fn.first, alarm: !!planNow.alarm, pre: !!planNow.pre, post: !!planNow.post };
     const at = (r, i, bad) => {
@@ -857,7 +880,7 @@
           const g = ui('.rs-gate'); g.className = 'rs-chip rs-gate ok'; g.textContent = 'Nobody has soot · new 0%';
           ui('.rs-tk').textContent = 'minute 0';
           ui('.rs-ticks').innerHTML = res.bad.ticks.map(() => '<i></i>').join('');
-          ui('.rs-mid').innerHTML = bubble('seymour', AGAIN[!job.crack ? 'none' : job.crack === 'test' ? 'test' : 'load']);
+          ui('.rs-mid').innerHTML = bubble('seymour', AGAIN[!job.crack ? 'none' : job.crack === 'unit' ? 'unit' : job.crack === 'test' ? 'test' : 'load']);
           said = {};
           timer = later(step, 1700);
         }, 900);
@@ -874,7 +897,7 @@
   function planName(job, p) {
     if (job.d === 'eb') return AD.EB_NAME[p.policy] + (p.policy === 'rolling' || p.policy === 'rollingBatch' ? `, batch ${p.batch}${p.ignoreHC ? ', ignoring health checks' : ''}` : p.policy === 'split' ? `, ${p.split}% for ${p.evalT} ticks` : p.policy === 'blueGreen' ? (p.wait ? ', old street kept 2 ticks' : ', old street torn down at once') : '');
     if (job.d === 'lam') return [AD.cfgName(p), p.alarm && 'alarm', p.pre && 'pre-traffic hook', p.post && 'post-traffic hook'].filter(Boolean).join(' + ');
-    return job.stack.map(r => `${r.name}: ${p[r.id]}`).join(', ');
+    return job.stack.filter(r => !job.update || r.replace).map(r => `${r.name}: ${p[r.id]}`).join(', ');
   }
   function runSummary(job, r, which) {
     if (job.d === 'eb') {
@@ -884,6 +907,7 @@
       parts.push(`${r.lumber} rented`);
       return parts.join(' · ');
     }
+    if (which === 'b' && r.caughtBy === 'build') return 'stopped at the build: the unit tests failed, nothing deployed';
     if (which === 'b') return `${r.soot} hit the crack · ${r.caughtBy ? `caught by the ${r.caughtBy === 'pre' ? 'pre-traffic hook' : r.caughtBy === 'post' ? 'post-traffic hook' : 'alarm'}` : 'nobody caught it'}`;
     return `everyone on the new version at minute ${r.finish}`;
   }
@@ -892,7 +916,10 @@
   const RE = {
     eb: /Elastic Beanstalk|Beanstalk/i,
     lam: /CodeDeploy|canary|Linear10|AllAtOnce|traffic shift|weighted alias|alias routing|BeforeAllowTraffic|AfterAllowTraffic|DeploymentPreference|AutoPublishAlias/i,
-    cfn: /DeletionPolicy|UpdateReplacePolicy|change set|CloudFormation stack|stack is deleted|delete the stack/i
+    cfn: /DeletionPolicy|UpdateReplacePolicy|change set|CloudFormation stack|stack is deleted|delete the stack/i,
+    // The crate and the line (Nov 18): packaging, and the pipeline before Deploy.
+    crate: /\blayers?\b|container image|deployment package|\bECR\b|\.zip|unzipped|sam (build|package)|artifact/i,
+    line: /CodePipeline|CodeBuild|buildspec|manual approval|approval action|unit tests?|pipeline/i
   };
   const isMulti = q => q && q.type === 'multi' && Array.isArray(q.items);
   const qText = q => [q.q].concat(q.opts || [], (q.items || []).map(i => i.t)).join(' ');
@@ -903,7 +930,8 @@
       keep().carry = s.carry.slice();
       if (q && E().allowed(q) && !used.has(q.id)) return q;
     }
-    const match = q => RE[d].test(qText(q));
+    const job = s.jobs && s.jobs[s.at] && R.T[s.jobs[s.at].id], re = (job && job.q && RE[job.q]) || RE[d];
+    const match = q => re.test(qText(q));
     const avoid = Array.from(used);
     // Deployment questions only (Ladi, Nov 17: one game per exam domain), multiple-response first.
     let r = M.pickDomain(3, { match, n: 1, verifiedOnly: true, mix: 0, avoid, filter: isMulti });
