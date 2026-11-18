@@ -296,7 +296,7 @@ window.WATCH_ART = {
     ]
    },
    "fps": 8,
-   "scale": 0.5
+   "scale": 0.42
   },
   "wen": {
    "sheet": "assets/img/watch/people/wen.png",
