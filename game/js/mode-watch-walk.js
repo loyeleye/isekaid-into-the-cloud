@@ -248,12 +248,12 @@
   }
   function talk(who, aside) {
     const w = sv(), day = w.day, b = w.bonds, ties = content().ties || {};
-    // One running-joke aside per chat at most, then the usual talk: Chad's "another world" story (from day 1), then a
+    // One running-joke aside per chat at most, then the usual talk: Chad's "another world" story (from day 6 on), then a
     // line about Pell's height (after you've met him). Each person says each once.
     const ci = content().chadIsekai || {}, pq = (content().pellTall || {}).quips || {};
-    if (!aside && ci[who] && !(w.chadq = w.chadq || {})[who]) {
+    if (!aside && ci[who] && day >= ci[who][0] && !(w.chadq = w.chadq || {})[who]) {
       w.chadq[who] = 1; S.persist();
-      return sayAll([[who, ci[who]]], () => setTimeout(() => talk(who, 1), 90));
+      return sayAll([[who, ci[who][1]]], () => setTimeout(() => talk(who, 1), 90));
     }
     if (!aside && w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who]) {
       w.pellq[who] = 1; w.pellReply = who; S.persist();

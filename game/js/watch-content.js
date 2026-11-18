@@ -1536,18 +1536,19 @@
   // Chad's clothes (Ladi, Nov 18): a navy quarter zip and a light blue shirt, nothing like anything in town, so folk
   // would suspect him at once unless they had a story for it. Their story: he came from another world, like the hero
   // of legend who saved Kyu. The truth comes out in the best ending: Freya brought him over, and he came for the money.
-  // Each person says theirs once, the first time you talk to them; Chad's is his own version. He just shares a name
+  // Each person says theirs once: [from day, line]. They start on day 6, when the town begins suspecting each other
+  // (Ladi, Nov 18: a whole town talking about Chad on day 1 was itself suspicious). Chad's is his own version. He just shares a name
   // with chapter 6's older consultant (Ladi, Nov 18), and Wen, who remembers that one, notices.
   C.chadIsekai = {
-    tess: 'The young man in the soft blue pullover? Fell out of the sky, they say! Like the hero in the old stories. The one who saved Kyu!',
-    wen: 'That pullover isn\'t wool, dear. Folk say he came from another world, like the hero who saved Kyu. And he\'s called Chad! Another one! The last Chad sold us a mega-region.',
-    bru: 'Another world, they say. Like the old hero. That one fought monsters, though. This one fights for a meeting.',
-    ayo: 'Says he\'s a hero from another world. The last one carried a sword. This one carries slides.',
-    hobb: 'Hero from another world, is he? Never met a hero who asked for his fee up front.',
-    coo: 'He tried to post a letter to "the cloud". Coo. The hero from the stories at least knew the address.',
-    lexi: 'In the old books the hero arrives in a flash of light. This one arrived asking where to charge his laptop.',
-    mira: 'That boy in the blue pullover? They say he came from another world. He looks like he hasn\'t eaten. I\'ll send him soup.',
-    chad: 'Yes, another world. Chosen, basically. Like the legend guy. And no relation to the other Chad. Anyway, I\'m doing a little consulting while I\'m here.'
+    tess: [6, 'The young man in the soft blue pullover? Fell out of the sky, they say! Like the hero in the old stories. The one who saved Kyu!'],
+    wen: [7, 'That pullover isn\'t wool, dear. Folk say he came from another world, like the hero who saved Kyu. And he\'s called Chad! Another one! The last Chad sold us a mega-region.'],
+    bru: [8, 'Another world, they say. Like the old hero. That one fought monsters, though. This one fights for a meeting.'],
+    ayo: [7, 'Says he\'s a hero from another world. The last one carried a sword. This one carries slides.'],
+    hobb: [8, 'Hero from another world, is he? Never met a hero who asked for his fee up front.'],
+    coo: [6, 'He tried to post a letter to "the cloud". Coo. The hero from the stories at least knew the address.'],
+    lexi: [7, 'In the old books the hero arrives in a flash of light. This one arrived asking where to charge his laptop.'],
+    mira: [8, 'That boy in the blue pullover? They say he came from another world. He looks like he hasn\'t eaten. I\'ll send him soup.'],
+    chad: [7, 'Yes, another world. Chosen, basically. Like the legend guy. And no relation to the other Chad. Anyway, I\'m doing a little consulting while I\'m here.']
   };
 
   C.pellTall = {
