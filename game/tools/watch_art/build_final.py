@@ -38,7 +38,7 @@ PH = BH - base + 30; strip = Image.new('RGBA', (BW, PH)); xo = 0; k = 0
 while xo < BW:
     p = Image.open(f'villages/pano-{k % 3 + 1}.png').convert('RGB').resize((1584, 672), Image.LANCZOS)
     top = {1: 250, 2: 200, 3: 200}[k % 3 + 1]
-    land = p.crop((0, top, 1584, top + 400)); w = round(1584 * PH / 400); land = land.resize((w, PH), Image.LANCZOS)
+    land = p.crop((0, top + 60, 1584, top + 300)); w = round(1584 * PH / 240); land = land.resize((w, PH), Image.LANCZOS)   # zoomed so the villages sit between the horizon row and the road above in size
     arr = np.asarray(land).astype(float); fog = np.array([150, 170, 176.0])
     t = np.linspace(0.55, 0.3, PH)[:, None, None]   # hazier towards the horizon
     arr = arr * (1 - t) + fog * t
@@ -49,8 +49,9 @@ while xo < BW:
     xo += w - f; k += 1
 back.alpha_composite(strip, (0, base - 30))
 x = 0
-for i in range(8):
-    row = rows[i % 4]; back.alpha_composite(row, (x, base - 305)); x += row.width
+for i in range(16):
+    row = rows[i % 4]; row = row.resize((row.width // 2, row.height // 2), Image.LANCZOS)   # half size: further away (Ladi, Nov 18)
+    back.alpha_composite(row, (x, base - 153)); x += row.width
     if x > BW: break
 save(back, 'out/town/back.webp')
 L['town'] = {'width': T.TW, 'height': T.TH, 'levelY': T.LY, 'ramps': ramps, 'chute': chute,
