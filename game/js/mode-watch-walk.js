@@ -672,7 +672,9 @@
     .ww-t { margin: 0 0 4px; font-weight: 700; color: #e9c56d; } .ww-q { margin: 0 0 8px; }
     .ww-ch { display: grid; gap: 6px; margin: 6px 0; }
     .ww-ch button { text-align: left; padding: 9px 10px; min-height: 44px; border-radius: 8px; border: 1px solid rgba(185,196,255,.4); background: rgba(255,255,255,.06); color: inherit; font: inherit; cursor: pointer; }
-    .ww-ok { color: #6fcf8a; font-weight: 700; } .ww-no { color: #ff9a9a; font-weight: 700; } .ww-why { font-size: 13px; color: #d6dbf3; }
+    /* On the cream panels (Mira's morning review): dark text. Inside the dark dialog cards: light text. (Ladi, Nov 18: contrast) */
+    .ww-ok { color: #1f6b35; font-weight: 700; } .ww-no { color: #a3261f; font-weight: 700; } .ww-why { font-size: 14px; color: #2a2f45; line-height: 1.45; }
+    .ww-card .ww-ok { color: #6fcf8a; } .ww-card .ww-no { color: #ff9a9a; } .ww-card .ww-why { font-size: 13px; color: #e6e9f8; }
     .ww-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; font-size: 12px; color: #c9d0ee; }
     .ww-bars i { display: block; height: 6px; margin-top: 3px; border-radius: 3px; background: linear-gradient(90deg, #e9c56d calc(var(--v) * 1%), rgba(255,255,255,.12) 0); }
   `;
