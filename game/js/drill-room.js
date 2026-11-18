@@ -46,10 +46,13 @@
     <g class="sq-b"><path d="M142 18 q12 12 0 26"/><path d="M156 10 q18 20 0 42"/><path d="M172 30 l8 -6 m-8 16 l12 0 m-12 10 l8 6"/></g>
     <g class="sq-c"><path d="M70 2 l4 -8 l4 6 l4 -8"/><path d="M118 0 l4 -8 l4 6 l4 -8"/><path d="M178 66 q8 -4 6 -12 q8 2 10 -6"/><path d="M22 66 q-8 -4 -6 -12 q-8 2 -10 -6"/></g></g></svg>`;
   const VX = .010417, VW = .979167;
-  R.layers = pose => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
+  // Her cloud, just under the error budget bar. On the board it hangs outside the room (R.html's .rm-perch); in a
+  // cutscene it sits at the same spot inside it.
+  R.cloud = () => `<div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()">${['bite', 'chew', 'smug'].map(n => `<img class="up-e up-${n}" src="assets/img/drill/uptima-cloud-${n}.webp" alt="" draggable="false" onerror="this.remove()">`).join('')}</span><span class="rm-emote"></span></div>`;
+  R.layers = (pose, cloud = true) => `<img class="rm-back" src="assets/img/drill/room-empty.webp" alt="" draggable="false" aria-hidden="true">
         <div class="rm-front"><img class="rm-plate" src="assets/img/drill/room.webp" alt="The war room: Seo-yeon, Mira, Kai and Dutch behind the counter" draggable="false">
         <div class="rm-vslot" aria-hidden="true"></div></div>
-        <div class="rm-cloud" aria-hidden="true"><span class="up-fig blinks" data-pose="cloud"><img class="up-b" src="assets/img/drill/uptima-cloud.webp" alt="" draggable="false"><img class="up-k" src="assets/img/drill/uptima-cloud-blink.webp" alt="" draggable="false" onerror="this.remove()">${['bite', 'chew', 'smug'].map(n => `<img class="up-e up-${n}" src="assets/img/drill/uptima-cloud-${n}.webp" alt="" draggable="false" onerror="this.remove()">`).join('')}</span><span class="rm-emote"></span></div>
+        ${cloud ? R.cloud() : ''}
         <div class="rm-up" aria-hidden="true">${R.pose(pose, 'blinks')}<span class="up-fly"><img class="fly-in" src="assets/img/drill/uptima-fly-in.webp" alt="" draggable="false"><img class="fly-out" src="assets/img/drill/uptima-fly-out.webp" alt="" draggable="false"></span>${SQUIG}</div>
         <canvas class="rm-over" width="960" height="536" aria-hidden="true"></canvas>`;
   let matte = null, overRaf = 0;
@@ -114,12 +117,13 @@
     }).join('');
     return `<div class="rm${o.zoom ? ' zoom' : ''}${o.play ? ' playing' : ''}" data-path="${d.path}" role="group" aria-label="The war room" style="--zx:${X[o.at] || 50}%">
       <div class="rm-cam">
-        ${R.layers(R.IDLE_POSE)}
+        ${R.layers(R.IDLE_POSE, false)}
         ${sts}
         <div class="rm-fly" aria-hidden="true"></div>
       </div>
       <div class="rm-callers"><span class="db-g-callers">${BD.gaugeCallers(e.m)}</span></div>
-      <div class="rm-clock" aria-hidden="true"><span class="rm-tick"></span></div></div>`;
+      <div class="rm-clock" aria-hidden="true"><span class="rm-tick"></span></div></div>
+    <div class="rm-perch" aria-hidden="true">${R.cloud()}</div>`;
   };
   // ---- The living plate: Sogni clips over the painted room ----
   // One stage element lives across re-renders (mount() moves it into each new room, so a clip keeps playing).
@@ -339,11 +343,19 @@
     /* She stands in the gap between Mira and Kai, at their scale; the counter hides her below the waist. */
     .rm-up { position: absolute; left: 31%; top: 8%; height: 96%; aspect-ratio: .62; z-index: 2; pointer-events: none;
       clip-path: inset(0 -20% ${100 - 100 * (COUNTER + 1 - 8) / 96}% -20%); }
-    /* Between lines she lazes on a cloud far back, up by the window, small and off to the side so the leads keep the
-       stage (Ladi, Nov 16). The leads are redrawn over her. While she talks she stands behind the desk instead. */
-    .rm-cloud { position: absolute; left: 37%; top: 1%; width: 20%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
+    /* Between lines she lazes on a small cloud just under the error budget bar, left of the lamp: the one spot no
+       lead reaches in any clip (Ladi, Nov 17: further in she sat over the video, and the leads move out from under
+       the still matte; Kai's walk-over in idle-c/d comes as far as the lamp). On the board it's .rm-perch, over the
+       room's top edge; in a cutscene it sits at the same spot. While she talks she stands behind the desk instead. */
+    .rm-cloud { position: absolute; left: 36%; top: -1.6%; width: 11%; aspect-ratio: 900 / 620; z-index: 2; pointer-events: none;
       animation: rmcloud 7s ease-in-out infinite; }
-    .rm-cloud .up-fig { filter: brightness(.82) saturate(.85) drop-shadow(0 .5cqi .6cqi rgba(0, 0, 0, .4)); }
+    .rm-cloud .up-fig { filter: brightness(.86) saturate(.85) sepia(.12) drop-shadow(0 2px 3px rgba(0, 0, 0, .45)); }
+    .rm-perch { position: absolute; left: 36%; top: 0; width: 11%; aspect-ratio: 900 / 620; transform: translateY(-12%); z-index: 2; pointer-events: none;
+      transition: opacity .3s ease; }
+    .rm-perch .rm-cloud { left: 0; top: 0; width: 100%; }
+    @media (max-width: 600px) { .rm-perch { left: 35%; width: 13%; transform: translateY(-36%); } }   /* the phone's bar sits further above the room */
+    .rm-perch .rm-emote { font-size: 20px; }
+    .dr-roomw.zoomed .rm-perch, .dr-roomw:has(.rm.arriving) .rm-perch, .dr-roomw:has(.rm.alarmed) .rm-perch { opacity: 0; }
     .rm-cloud .up-fig img { object-position: center; }
     /* She eats the cookie (Ladi, Nov 17: "A still would look a little weird"): every 11 s, two bites, a chew, a smug
        look with a crumb on her cheek, then back to nibbling. The eating frames sit over the blink frame. */
@@ -353,8 +365,8 @@
     @keyframes upchew { 0%, 38% { opacity: 0; } 39%, 44% { opacity: 1; } 45%, 48% { opacity: 0; } 49%, 60% { opacity: 1; } 61%, 100% { opacity: 0; } }
     @keyframes upsmug { 0%, 60% { opacity: 0; } 61%, 82% { opacity: 1; } 83%, 100% { opacity: 0; } }
     @keyframes rmcloud { 50% { transform: translate(-1.2%, 4%) rotate(-1deg); } }
-    /* Between the two spots she glides: from the cloud (small, up by the window) down to the desk, and back. */
-    .rm-up { opacity: 0; transform: translate(0, -42%) scale(.3); transition: opacity .2s ease .5s, transform .7s cubic-bezier(.4, 0, .2, 1); }
+    /* Between the two spots she glides: from the cloud (small, up under the top edge) down to the desk, and back. */
+    .rm-up { opacity: 0; transform: translate(-19%, -53%) scale(.12); transition: opacity .2s ease .5s, transform .7s cubic-bezier(.4, 0, .2, 1); }
     .rm.talk .rm-up { opacity: 1; transform: none; transition: opacity .2s ease, transform .7s cubic-bezier(.4, 0, .2, 1); }
     .rm-cloud { transition: opacity .3s ease; }
     .rm.talk .rm-cloud, .rm.fly .rm-cloud { opacity: 0; transition-duration: .15s; }
