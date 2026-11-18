@@ -1532,7 +1532,7 @@
   // DUSK BRIEFINGS. Sergeant Pell at the gate, setting the night's first locks.
   // ================================================================================================================
   C.dusk = [   // matched to the night as it plays now: break-ins arrive across the night on fuses (Ladi, Nov 18)
-    { night: 1, who: 'pell', lines: ['Evening, warden. First night.', 'One break-in tonight, and no rush. Find it, fix it, report at dawn.'] },
+    { night: 1, who: 'pell', lines: ['Evening, warden. First night.', 'One break-in tonight, and no rush. You won\'t see it till you\'re close, so walk the floors. Find it, fix it, report at dawn.'] },
     { night: 2, who: 'pell', lines: ['From tonight they don\'t all come at once.', 'When a lock gives, you\'ll hear it. Finding where is your job.',
       'Each one burns like a fuse. Leave it too long and it gets through.'] },
     { night: 3, who: 'pell', lines: ['One try per fix. Get it wrong and it waits till dawn. Kagemaru\'s spare tools buy you a second go.', 'Every fix eats into the night. Don\'t dawdle between them.'] },

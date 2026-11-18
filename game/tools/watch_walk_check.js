@@ -448,11 +448,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const r = SD.watchWalk.run; r.st.scene = 'castle:towers'; SD.watchWalk.clock(360 - 16); }); await page.waitForTimeout(500);
   const gdt = await ev(() => [(document.querySelector('.ww-toast') || {}).textContent || '', (document.querySelector('.ww-top') || document.body).textContent]);
   check(/GuardDuty: .*, on the /.test(gdt[0]) && /🔔 [\w ]+ 1:5/.test(gdt[1]), `the GuardDuty bell names the floor and shows the fuse from another floor (${gdt[0]} | ${gdt[1]})`);
-  // Search from night 2: a break-in shows only when she's within 220px of it.
+  // Search, every night: a break-in shows only when she's within 220px of it.
   const near = await ev(async () => { const r = SD.watchWalk.run, x = r.list.find(v => !v.at || v.at <= 20), st = r.st, ids = () => (SD.watchWalk.view.marks || []).filter(m => m.scene === x.scene && m.x === x.x).length;
     st.scene = x.scene; st.x = x.x > 700 ? 40 : 1280; await new Promise(z => setTimeout(z, 500)); const far = ids();
     st.x = x.x + 100; await new Promise(z => setTimeout(z, 500)); return [far, ids()]; });
-  check(near[0] === 0 && near[1] === 1, `from night 2 a break-in only shows up close (${near})`);
+  check(near[0] === 0 && near[1] === 1, `a break-in only shows up close (${near})`);
   const toKage = () => ev(() => { const r = SD.watchWalk.run; for (const sc in r.ppl) { const p = r.ppl[sc].find(v => v.who === 'kagemaru'); if (p) { r.st.scene = sc; r.st.x = p.x; return; } } });
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.guard = 0; w.guardTrial = 0; w.silver = 100; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   await toKage(); await use(); await page.waitForTimeout(150);

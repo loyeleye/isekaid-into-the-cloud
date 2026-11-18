@@ -848,9 +848,9 @@
     b.querySelector('#ww-quit').onclick = () => { keep(); if (view) view.stop(); view = null; M.open && M.open(); };
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
     b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
-    // Search (Ladi, Nov 18): from night 2 a break-in only shows when she's within 220px, so finding one takes walking.
-    // Night 1 shows them, to teach. On the Long Night a watcher at ward 2 or an outpost shows their whole area.
-    const seen = x => w.day === 1 || (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < 220;
+    // Search (Ladi, Nov 18): every night, a break-in only shows when she's within 220px, so finding one takes walking.
+    // On the Long Night a watcher at ward 2 or an outpost shows their whole area.
+    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < 220;
     const gone = () => phase === 'night' ? nightS(w.day) - clock : 0;   // seconds into the night
     const up = x => !x.at || gone() >= x.at;                                 // has this break-in started yet?
     const fuseLeft = x => (x.fuse ? x.at + x.fuse - gone() : Infinity);
