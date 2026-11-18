@@ -43,7 +43,17 @@
   // The shop at Kagemaru's stall (doc: Economy, money out). Trust 60 takes 20% off (js/watch-bonds.js).
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
-    { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' }];
+    { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' },
+    { id: 'watch1', name: 'Pocket watch', cost: 20, what: '+25 seconds to think on every question before your clock runs' },
+    { id: 'watch2', name: 'Fine pocket watch', cost: 40, what: '+35 more seconds to think, for a friend of the stall' }];
+  // Questions past day 1 (Ladi, Nov 18): you get a grace of thinking time on each one, then it eats your day or night
+  // clock. 90s, then Kagemaru's watches add 25s and 35s: 2:30, the pace for the longest exam security questions.
+  const QBUF = 90, QUP = [25, 35];
+  const qGrace = () => { const n = sv().watchUp || 0; return QBUF + (n >= 1 ? QUP[0] : 0) + (n >= 2 ? QUP[1] : 0); };
+  const kageDone = () => quests().some(q => q.giver === 'kagemaru' && qstate(q.id).done);
+  const qOpen = () => { const w = sv(); if (run && run.phase !== 'dusk' && w.day >= 2 && !run.q) { run.q = { left: qGrace(), of: qGrace(), first: !w.toldQ }; w.toldQ = 1; } };
+  const qShut = () => { if (run) run.q = null; };
+  const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Kagemaru sells pocket watches for longer.</p>` : ''}` : '';
   const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
   // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
   // Her party (Ladi, Nov 18) already trusts her and wouldn't take her silver. What stops them is the harvest-moon
@@ -250,11 +260,13 @@
   // A choice question: { q, choices, answer, why }. done(ok). tries: how many misses allowed before it locks.
   function choose(title, q, tries, done, who) {
     let miss = 0;
+    qOpen();
     const draw = (msg) => {
-      const o = overlay(`${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
+      const o = overlay(`${qLine()}${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
         <div class="ww-ch">${q.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`);
       o.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
         const i = +b.dataset.i;
+        if (i === q.answer || miss + 1 > tries) qShut();
         if (i === q.answer) {
           const o2 = overlay(`<p class="ww-ok">✓ ${esc(q.choices[i])}</p><p class="ww-why">${esc(q.why || '')}</p><div class="row"><button class="primary" data-a="d">Done</button></div>`);
           o2.querySelector('[data-a=d]').onclick = () => { close(); done(true, miss); };
@@ -464,8 +476,9 @@
   function box(m) {
     const order = m.opts.map((x, i) => i).sort(() => Math.random() - 0.5);
     let pick = null;
+    qOpen();
     const draw = note => {
-      const o = overlay(`<div class="ww-box"><p class="ww-ctx">${face(m.who)}<span>${esc(nm(m.who))}'s ${m.teach ? 'lesson' : 'question'} · 🪙 ${m.silver}</span></p>
+      const o = overlay(`${qLine()}<div class="ww-box"><p class="ww-ctx">${face(m.who)}<span>${esc(nm(m.who))}'s ${m.teach ? 'lesson' : 'question'} · 🪙 ${m.silver}</span></p>
         <p class="ww-q">${esc(m.q)}</p>${note || ''}
         <div class="ww-ch">${order.map(i => `<button data-i="${i}" class="${pick === i ? 'on' : ''}" aria-pressed="${pick === i}">${pick === i ? '✓ ' : ''}${esc(m.opts[i])}</button>`).join('')}</div>
         <div class="ww-conf"><span>${m.teach ? 'Practice: no wrong answers today. How sure are you?' : 'One try. How sure are you?'}</span>
@@ -476,6 +489,7 @@
     const answer = conf => {
       const w = sv(), ok = pick === m.a;
       if (!ok && m.teach) { const was = pick; pick = null; return draw(`<p class="ww-no">✗ ${esc((m.no || [])[was] || 'Not quite.')} Try another.</p>`); }
+      qShut();
       (w.minis = w.minis || {})[m.id] = ok ? 'ok' : 'miss';
       if (ok) { w.silver += m.silver; gain(m.who, () => B.add(w.bonds, m.who, 'mini')); }
       S.persist();
@@ -596,7 +610,10 @@
   function shop() {
     const w = sv(), price = it => B.price(w.bonds, 'kagemaru', it.cost);
     const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
-      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || w.toldHire).map(it => `<button data-b="${it.id}" ${w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(it.what)}</small></button>`).join('')}</div>
+      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
+        .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
+        .map(it => { const lockd = it.id === 'watch2' && !kageDone();
+          return `<button data-b="${it.id}" ${lockd || w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(lockd ? 'Do a job for Kagemaru first' : it.what)}</small></button>`; }).join('')}</div>
       <div class="row"><button class="ghost" data-a="x">Done</button></div>`);
     o.querySelector('[data-a=x]').onclick = close;
     o.querySelectorAll('[data-b]').forEach(el => el.onclick = () => {
@@ -609,6 +626,7 @@
       }
       w.silver -= price(it);
       if (it.id === 'tools') w.tools = (w.tools || 0) + 1;
+      if (it.id === 'watch1' || it.id === 'watch2') w.watchUp = (w.watchUp || 0) + 1;
       if (it.id === 'outpost') { w.unlocks.outpost = 1; if (run) run.st.unlocks.outpost = 1; }
       S.persist(); shop();
     });
@@ -799,14 +817,24 @@
           moveWalkers(dt); syncPeople();
           if ((run.mk = (run.mk || 0) + dt) > 0.3) { run.mk = 0; view.set('marks', dayMarks()); if (!run.escort) meetups(); townTalk(); }
         }
+        if (run.q) {   // a question is open: thinking time first, then the clock runs
+          if (run.q.left > 0) run.q.left -= dt;
+          else if (clock > 0) clock = Math.max(0, clock - dt);
+          const el = wrap && wrap.querySelector('.ww-qt'), mm = n => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
+          if (el) { const t = run.q.left > 0 ? `⏳ ${mm(Math.ceil(run.q.left))} to think, then your clock runs` : `⏳ Your ${phase} clock is running · ${mm(clock)} left`;
+            if (el.textContent !== t) { el.textContent = t; el.classList.toggle('on', run.q.left <= 0); } }
+          const bar = wrap && wrap.querySelector('.ww-qbar');
+          if (bar) { bar.classList.toggle('on', run.q.left <= 0); bar.firstChild.style.width = (run.q.left > 0 ? 100 * run.q.left / run.q.of : 100) + '%'; }
+        }
+        if (!busy && clock <= 0 && !run.over && phase !== 'dusk') { run.over = 1; setTimeout(() => (phase === 'night' ? dawn() : dusk()), 0); }
         if (!busy && clock > 0) {
           clock -= dt;
           if (phase === 'night') { const bell = Math.floor((nightS(w.day) - clock) / 60); if (bell > run.bell) { run.bell = bell; } }
-          if (clock <= 0) { clock = 0; setTimeout(() => (phase === 'night' ? dawn() : dusk()), 0); }
+          if (clock <= 0) { clock = 0; run.over = 1; setTimeout(() => (phase === 'night' ? dawn() : dusk()), 0); }
         }
         const left = run.list.filter(x => !run.fixed[x.id]).length, lv = run.ward[st.scene];
         const here = w.day === 9 && lv >= 1 ? ` · ${run.list.filter(x => x.scene === st.scene && !run.fixed[x.id]).length || 'all clear'} here (${nm(watcherOf(st.scene))})` : '';
-        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left} breach${left === 1 ? '' : 'es'} left`) + ` · 🔔 ${run.bell}` : ''}`;
+        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left} breach${left === 1 ? '' : 'es'} left`) + ` · 🔔 ${run.bell}` : ''}`;
         if (top.textContent !== t) top.textContent = t;
       }
     });
@@ -932,7 +960,7 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+  SD.watchWalk = { sv, breaches, qGrace, choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
     clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');
@@ -975,6 +1003,14 @@
     .ww-who small { color: #c9d0ee; } .ww-bar { display: block; height: 6px; margin: 4px 0; border-radius: 3px; background: linear-gradient(90deg, #e9c56d calc(var(--v) * 1%), rgba(255,255,255,.12) 0); }
     .ww-ties { display: flex; flex-wrap: wrap; gap: 4px; } .ww-tie { font-size: 11.5px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,.08); color: #eef1ff; }
     .ww-tie.warm { color: #ffc0cf; } .ww-tie.cool { color: #a9b4d8; }
+    .ww-qbar { height: 8px; border-radius: 4px; background: rgba(42,49,87,.15); overflow: hidden; margin: 0 0 4px; }
+    .ww-qbar i { display: block; height: 100%; width: 100%; background: #e9c56d; border-radius: 4px; transition: width .25s linear; }
+    .ww-qbar.on i { background: #d24c4c; animation: ww-qpulse 1s ease-in-out infinite; }
+    @keyframes ww-qpulse { 50% { opacity: .45; } }
+    @media (prefers-reduced-motion: reduce) { .ww-qbar i { transition: none; } .ww-qbar.on i { animation: none; } }
+    .ww-qt { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: #6a6f8a; }
+    .ww-qt.on { color: #d24c4c; }
+    .ww-card .ww-qt { color: #b9c4ff; } .ww-card .ww-qt.on { color: #ff9d9d; }
     .ww-topic { margin: 2px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: #9fd0ff; text-transform: uppercase; }
     .ww-ev { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: rgba(0,0,0,.35); color: #d8f5d0; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
     .ww-ok { color: #1f6b35; font-weight: 700; } .ww-no { color: #a3261f; font-weight: 700; } .ww-why { font-size: 14px; color: #2a2f45; line-height: 1.45; }

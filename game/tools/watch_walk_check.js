@@ -338,6 +338,29 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const sh = await ev(() => { const w = SD.watchWalk.sv(); return [w.silver, w.tools, w.unlocks.outpost, w.posts['far-lane']]; });
   check(sh[0] === 100 - 10 - 60 - 15 && sh[1] === 1 && sh[2] && sh[3], `the shop sells tools, an outpost and a lantern post (${sh})`);
   await btn('[data-a=x]');
+  // Timed questions past day 1 (Ladi, Nov 18): 90s to think, then the clock runs; Kagemaru's watches add 25s and 35s.
+  await ev(() => { const w = SD.watchWalk.sv(); w.watchUp = 0; w.toldQ = 0; SD.watchWalk.clock(300); SD.watchWalk.choose('Test', { q: 'Q?', choices: ['a', 'b'], answer: 0, why: '' }, 0); });
+  await page.waitForTimeout(150);
+  const qt = await ev(() => { const r = SD.watchWalk.run; return [r.q && Math.round(r.q.left), (document.querySelector('.ww-qt') || {}).textContent || '', /From today/.test(document.querySelector('.ww-o:not([hidden])').textContent)]; });
+  check(qt[0] >= 89 && qt[0] <= 90 && /to think/.test(qt[1]) && qt[2], `a day-3 question gives 90 seconds to think, shown on the question (${qt})`);
+  await ev(() => { SD.watchWalk.run.q.left = 0; }); await page.waitForTimeout(1200);
+  const qc = await ev(() => [SD.watchWalk.clock(), (document.querySelector('.ww-qt') || {}).textContent || '']);
+  check(qc[0] < 299.5 && qc[0] > 297 && /clock is running/.test(qc[1]), `after the grace, the open question eats the day clock (${qc})`);
+  await btn('[data-i="0"]'); await btn('[data-a=d]');
+  const qe = await ev(() => { const c = SD.watchWalk.clock(); return [SD.watchWalk.run.q, c]; }); await page.waitForTimeout(300);
+  check(qe[0] === null, 'answering stops the question timer');
+  await ev(() => { const w = SD.watchWalk.sv(); w.silver = 100; delete w.quests['kagemaru-upriver']; delete w.quests['kagemaru-prices']; });
+  await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
+  while (!(await page.$('.ww-o:not([hidden]) [data-a=s]')) && await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  await btn('[data-a=s]'); await btn('[data-b=watch1]');
+  const pw = await ev(() => { const b = document.querySelector('.ww-o:not([hidden]) [data-b=watch2]'); return [SD.watchWalk.qGrace(), !!b && b.disabled]; });
+  check(pw[0] === 115 && pw[1], `the first pocket watch adds 25s, and the second waits for a job for Kagemaru (${pw})`);
+  await ev(() => { SD.watchWalk.sv().quests['kagemaru-upriver'] = { step: 99, done: true }; }); await btn('[data-a=x]');
+  await use(); await page.waitForTimeout(150);
+  while (!(await page.$('.ww-o:not([hidden]) [data-a=s]')) && await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  await btn('[data-a=s]'); await btn('[data-b=watch2]');
+  check(await ev(() => SD.watchWalk.qGrace()) === 150, 'both watches make 2:30 a question');
+  await btn('[data-a=x]');
   // Her party doesn't take silver: their feast job is what keeps them away (Ladi, Nov 18).
   await ev(() => { const w = SD.watchWalk.sv(); w.freed = {}; w.quests['kai-night-cloak'] = { step: 99, done: true }; delete w.quests['kai-feast-line']; SD.watchWalk.talk('kai'); });
   await page.waitForTimeout(150);
