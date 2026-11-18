@@ -8,7 +8,7 @@
   if (!window.SD || !SD.watchWorld) return;
   const WW = SD.watchWorld, G = WW.GROUND, VW = 640, VH = WW.VIEW_H;
   const V = SD.watchView = {};
-  V.TOWN_ZOOM = 0.75;   // town drawn at 75% so the road above and the sky fit (Ladi's pick pending, Nov 18)
+  V.TOWN_ZOOM = 0.85;   // town drawn at 85% so more of the road above and the backdrop fit (Ladi's pick, Nov 18)
   const art = () => window.WATCH_ART || null;
   const imgs = {};
   const img = src => {
