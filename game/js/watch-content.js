@@ -1131,6 +1131,11 @@
           q: 'Secrets management. Where should a database password used by a script be kept?',
           choices: ['Written in the script next to the command', 'In Secrets Manager, fetched by the script when it runs', 'In a sticky note on the server', 'Split across three config files'], answer: 1,
           why: 'A secret store, like Secrets Manager. Never written down by the door it opens.' } },
+        { at: { level: 'far-lane', spot: 'well' }, ask: {   // big job, second question (Ladi, Nov 18)
+          q: 'Secrets Manager rotation. The combination must change every 30 days, and nobody should retype it into the script. What fits?',
+          choices: ['A calendar reminder, then edit the script', 'A plain Parameter Store String someone updates by hand',
+            'Turn on automatic rotation in Secrets Manager, and have the script fetch the current value each run', 'Email the new combination to everyone who needs it'], answer: 2,
+          why: 'Secrets Manager can rotate a secret on a schedule with a rotation function. A script that fetches the secret when it runs always gets the current one, so nothing is retyped.' } },
         { at: { level: 'hill-road', spot: 'bunker' }, say: [['seymour', 'HALT. Understood. Understood. Understood. — S.'],
           ['seymour', 'TUNNEL OPEN. BOTH WAYS. TELL NO ONE (EXCEPT YOU). — S.']] }
       ],
@@ -1147,6 +1152,11 @@
           q: 'Client-side vs server-side encryption. Data must be protected before it leaves the app, all the way into S3. When do you encrypt?',
           choices: ['Halfway, at a proxy', 'Never: send it faster', 'Client-side, in the app before upload', 'Server-side only, when S3 stores it'], answer: 2,
           why: 'Client-side: sealed before it leaves, so it\'s safe on the way. Sealing on arrival is server-side.' } },
+        { at: { level: 'west-road', spot: 'lookout-ruin' }, ask: {   // big job, second question (Ladi, Nov 18)
+          q: 'Envelope encryption with KMS. The app encrypts each sack before upload. Why does it ask KMS for a data key instead of sending every sack to KMS to encrypt?',
+          choices: ['KMS Encrypt takes at most 4 KB, so the app encrypts the data itself with a data key and keeps the encrypted data key with it',
+            'Data keys never expire, so they are safer than KMS keys', 'KMS can\'t be used with S3', 'So the plaintext data key can be stored next to the data'], answer: 0,
+          why: 'KMS Encrypt handles at most 4 KB. GenerateDataKey returns a plaintext key to encrypt the data with (then throw away) and an encrypted copy to store with it. Storing the plaintext key would defeat the point.' } },
         { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'Thank you.'], ['fennel', 'It goes down only. Mind the landing.']] }
       ],
       clue: 'The hooded one walks the same pace every night, to the step. Never stops for water, never stops for fruit. Nobody walks like that.' },
@@ -1160,6 +1170,11 @@
           q: 'Identity-based policies and least privilege. The watch needs every floor; the kitchen boy needs the cellars and ground. Which policies are right?',
           choices: ['Both: every floor', 'Both: the towers only', 'Watch: every floor. Boy: none', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
           why: 'An identity policy lists exactly what each principal may do. Nobody gets more than their job.' } },
+        { at: { floor: 'cellars', room: 'barracks' }, ask: {   // big job, second question (Ladi, Nov 18)
+          q: 'IAM permissions boundaries. Crew leads may create roles for their crews, but no role they create should ever reach the towers. What enforces that?',
+          choices: ['Trust each lead to write careful policies', 'Require a permissions boundary on every role they create, and leave the towers out of the boundary',
+            'Give the leads AdministratorAccess so they never get stuck', 'Delete any tower access you spot in the morning'], answer: 1,
+          why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles, and nothing they make can reach past it.' } },
         { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off. One bell tick a ride. Use it well, warden.']] }
       ], clue: null },
 
