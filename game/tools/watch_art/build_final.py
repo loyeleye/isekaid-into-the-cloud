@@ -62,7 +62,7 @@ back0 = back.copy()
 for sett, name in (('villages', 'back'), ('forest', 'back-forest'), ('mix', 'back-mix')): save(backdrop(sett), f'out/town/{name}.webp')
 
 L['town'] = {'width': T.TW, 'height': T.TH, 'levelY': T.LY, 'ramps': ramps, 'chute': chute,
-             'roofs': 115, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back-mix.webp', 'speed': BS, 'y': -70}, {'img': A + 'town/town.webp', 'speed': 1}],
+             'roofs': 115, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back-forest.webp', 'speed': BS, 'y': -70}, {'img': A + 'town/town.webp', 'speed': 1}],
              'buildings': {lv: A + f'town/bld-{lv}.webp' for lv in T.ORDER},
              'buildingsSoft': {lv: A + f'town/bld-{lv}-soft.webp' for lv in T.ORDER}}
 for lv, gy in T.LY.items():   # single-level views kept for compatibility: a 360-tall crop of the town around each road
