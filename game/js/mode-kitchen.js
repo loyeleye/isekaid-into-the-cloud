@@ -1,12 +1,14 @@
 // Mira's Kitchen (Ladi, Nov 18): Development's Lambda game, task 1.2. The rules are js/kitchen-core.js.
 // Mira runs Thornwick's infirmary kitchen from Bram's old recipe book. The kitchen is one Lambda function: the recipe
 // card on the bench is its code and configuration, and every order from the wards is a set of calls to it.
-//   - The loop: an order comes in, you set the card on the bench (memory, timeout, where the pantry connection opens,
-//     what the counter gets back, where failed photos go, which pantry, provisioned concurrency), fire the stove, and
-//     every plate says what Lambda did: served, late, 502, timed out, wrong pantry, lost or kept, with its seconds and
-//     whether it was a cold start. Up to 3 firings per order; the best one stands.
-//   - The card shows as real code and configuration, and changes as you turn the knobs, so the setting you pick is the
-//     line you'd write.
+//   - The loop: an order comes in (its tickets clip onto the rail), you set the recipe with the kitchen's own things
+//     (js/kitchen-scene.js: the memory dial and egg timer on the stove, the pantry key on its hook or in the pot, the
+//     tray's statusCode tag, the pantry jar's label, the spoiled crate, the cook stand), fire the stove and watch it
+//     play out: burners light for cold starts, pans cook, a call past the timer smokes, and every plate slides down the
+//     pass saying what Lambda did (served, late, 502, timed out, wrong pantry, lost or kept). Up to 3 firings per
+//     order; the best one stands.
+//   - Under the kitchen, the recipe as real code and configuration, rewritten as you change things, so the setting you
+//     pick is the line you'd write.
 //   - The question is the debrief: after each order, one verified bank question on what that order taught (task 1.2
 //     first, then any Development question on it), with the shared stake table (SD.modes.ask). A miss carries its
 //     verified twin (or itself) to the next night's first debrief.
@@ -43,7 +45,7 @@
 
   const route = s => `<ol class="kt-route" aria-label="Tonight's orders">${K.ROUTE.map((id, i) => {
     const o = K.ORDERS[id], st = s.stars[id] | 0, here = i === s.step;
-    return `<li class="${here ? 'here' : i < s.step ? 'done' : ''}${o.boss ? ' boss' : ''}">${icon(o.icon)}<span>${esc(o.name)}</span>${i < s.step || (here && s.fires.length) ? `<b aria-label="${st} of 3 stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</b>` : ''}</li>`;
+    return `<li class="${here ? 'here' : i < s.step ? 'done' : ''}${o.boss ? ' boss' : ''}">${icon(o.icon)}<span>${esc(o.name)}</span>${i < s.step ? `<b aria-label="${st} of 3 stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</b>` : ''}</li>`;
   }).join('')}</ol>`;
 
   // ---- The order ticket: who is coming, how they arrive and how long they wait ----
@@ -78,73 +80,64 @@
     if (k.includes('pc')) conf.push(L('pc', !pc[0] ? '<span class="kt-c"># no provisioned concurrency</span>' : pc[1] === 'latest' ? `ProvisionedConcurrency: ${pc[0]} on $LATEST` : `AutoPublishAlias: live · Provisioned: ${pc[0]}`));
     return `<pre class="kt-code" aria-label="The recipe as code">${lines.join('\n')}</pre><pre class="kt-code kt-conf" aria-label="The recipe's configuration">${conf.join('\n')}</pre>`;
   }
-  function knobHtml(key, c) {
-    const kn = K.KNOBS[key];
-    const btns = kn.opts.map(v => `<button type="button" class="${c[key] === v ? 'on' : ''}" aria-pressed="${c[key] === v}" data-k="${key}" data-v="${esc(JSON.stringify(v))}">${esc(key === 'mem' || key === 'timeout' ? kn.say(v) : short(key, v))}</button>`).join('');
-    return `<div class="kt-knob"><span class="kt-kn">${esc(kn.name)}</span><span class="kt-seg${kn.opts.length > 3 ? ' many' : ''}" role="group" aria-label="${esc(kn.name)}">${btns}</span><span class="small kt-kv">${esc(kn.say(c[key]))}</span></div>`;
-  }
-  const SHORT = { prep: { inside: 'Inside', outside: 'Outside' }, ret: { body: 'The dish', proxy: 'statusCode + body' }, dest: { false: 'Nowhere', true: 'Destination' },
-    env: { false: 'In the code', true: 'Env variable' }, pc: { none: 'None', latest5: '5 · $LATEST', alias2: '2 · live', alias5: '5 · live', alias10: '10 · live' } };
-  const short = (k, v) => (SHORT[k] && SHORT[k][String(v)]) || String(v);
+  const KS = () => SD.kitchenScene;
+  const orderCard = (o, open) => `<details class="kt-order${o.boss ? ' boss' : ''}"${open ? ' open' : ''}><summary class="kt-oh">${icon(o.icon)}<span><b>${esc(o.name)}</b><br><span class="small">${esc(o.ward)}: "${esc(o.says)}"</span></span></summary>
+      <p class="small">${esc(o.brief)}</p>
+      <ul class="kt-guests">${o.guests.map(guestRow).join('')}</ul>
+      <p class="small kt-ok">${o.lateOk ? `For 3 stars: nothing fails, at most ${o.lateOk} late, and a fair bill.` : 'For 3 stars: nothing fails, nothing late, and a fair bill.'}</p></details>`;
+  const starLine = n => `${'★'.repeat(n)}${'☆'.repeat(3 - n)}`;
 
+  // ---- The bench: the kitchen itself, its things set the recipe, and the card shows the code they write ----
   function bench(s, hot) {
     const id = K.order(s), o = K.ORDERS[id], c = s.cfg;
     const first = s.fresh && s.night === 1 && s.step === 0 && !s.fires.length;
-    const left = K.firesLeft(s);
+    const left = K.firesLeft(s), last = s.fires[s.fires.length - 1];
     const b = panel(`<p class="kt-night">Night ${s.night}</p>
       ${route(s)}
-      ${first ? say('warm', 'This was Bram\'s kitchen. His book still works, mostly. Every order the wards send runs through one recipe card: set it, then fire the stove and see what comes back.') : ''}
-      <div class="kt-order${o.boss ? ' boss' : ''}"><div class="kt-oh">${icon(o.icon)}<span><b>${esc(o.name)}</b><br><span class="small">${esc(o.ward)}: "${esc(o.says)}"</span></span></div>
-        <p class="small">${esc(o.brief)}</p>
-        <ul class="kt-guests">${o.guests.map(guestRow).join('')}</ul>
-        <p class="small kt-ok">${o.lateOk ? `For 3 stars: nothing fails, at most ${o.lateOk} late, and a fair bill.` : 'For 3 stars: nothing fails, nothing late, and a fair bill.'}</p></div>
-      <div class="kt-bench"><div class="kt-knobs">${o.knobs.map(k => knobHtml(k, c)).join('')}</div>
-        <div class="kt-card">${codeHtml(id, c, hot)}</div></div>
-      ${s.fires.length ? `<p class="small">Last firing: ${'★'.repeat(s.fires[s.fires.length - 1].stars)}${'☆'.repeat(3 - s.fires[s.fires.length - 1].stars)} · bill ${s.fires[s.fires.length - 1].bill} GB-s · best so far ${'★'.repeat(s.stars[id] | 0) || 'none'}</p>` : ''}
-      <div class="kt-dock"><button class="ghost" id="kt-stop">☰ Stop for now</button>${s.fires.length ? '<button class="ghost" id="kt-serve">Serve the best one</button>' : ''}<button class="primary" id="kt-fire">${icon('campfire')}Fire the stove <span class="small">(${left} of ${K.FIRES} left)</span></button></div>`);
-    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => {
-      s.cfg = Object.assign({}, s.cfg, { [el.dataset.k]: JSON.parse(el.dataset.v) });
-      s.fresh = false; save(s); bench(s, el.dataset.k);
-    });
-    b.querySelector('#kt-fire').onclick = () => { s.fresh = false; s.last = { lines: K.fireNight(s, s.cfg).lines }; save(s); draw(s); };
+      ${first ? say('warm', 'This was Bram\'s kitchen. His book still works, mostly. Every order the wards send cooks from one recipe: the dials, the key, the tray, the jar. Set them, then fire the stove and watch.') : ''}
+      ${orderCard(o, false)}
+      ${KS().html(id, c, { live: true, hot })}
+      <details class="kt-cardw"${hot || s.fires.length ? ' open' : ''}><summary>The recipe as code</summary><div class="kt-card">${codeHtml(id, c, hot)}</div></details>
+      ${last ? `<p class="small">Last firing: ${starLine(last.stars)} · bill ${last.bill} GB-s · best so far ${'★'.repeat(s.stars[id] | 0) || 'none'}</p>` : ''}
+      <div class="kt-dock"><button class="ghost" id="kt-stop" aria-label="Stop for now">☰ Stop</button>${s.fires.length ? '<button class="ghost" id="kt-serve">Serve the best one</button>' : ''}<button class="primary" id="kt-fire">${icon('campfire')}Fire the stove <span class="small">(${left} of ${K.FIRES} left)</span></button></div>`);
+    KS().wire(b, c, (k, v) => { s.cfg = Object.assign({}, s.cfg, { [k]: v }); s.fresh = false; save(s); bench(s, k); });
+    b.querySelector('#kt-fire').onclick = () => { s.fresh = false; s.last = { lines: K.fireNight(s, s.cfg).lines }; save(s); platesScreen(s, true); };
     const sv2 = b.querySelector('#kt-serve');
     if (sv2) sv2.onclick = () => { K.serve(s); save(s); draw(s); };
     b.querySelector('#kt-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
 
-  // ---- The plates ----
-  const OUT = {
-    served: ['✓', 'Served', 'good'], late: ['⌛', 'Late', 'warn'], '502': ['502', 'Bad Gateway', 'bad'], timeout: ['⏱', 'Timed out', 'bad'],
-    wrong: ['≠', 'Wrong pantry', 'bad'], lost: ['✗', 'Lost', 'bad'], kept: ['⇩', 'Kept', 'keep']
-  };
-  function plateHtml(p, i) {
-    const [g, word, cls] = OUT[p.out];
-    const note = [p.cold ? 'cold start' : 'warm', p.tries > 1 ? `${p.tries} tries` : ''].filter(Boolean).join(' · ');
-    const label = `${word}${p.stuck ? ' (the corrupt file)' : ''}. ${p.d} seconds, ${note}.`;
-    return `<li class="kt-plate ${cls}${p.stuck ? ' stuck' : ''}" style="--i:${i}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><span class="kt-pg">${esc(g)}</span><span class="kt-pw">${esc(word)}</span><span class="kt-pd">${p.d} s${p.cold ? ' ❄' : ''}${p.tries > 1 ? ' ↻' + p.tries : ''}</span></li>`;
-  }
-  function platesScreen(s) {
+  // ---- The firing: it plays out on the stove, then the verdict ----
+  function platesScreen(s, play) {
     const id = K.order(s), o = K.ORDERS[id];
     const r = K.fire(id, s.cfg), st = K.stars(id, r), miss = K.short(id, r);
     const lines = (s.last && s.last.lines) || [];
     const left = K.firesLeft(s);
-    const groups = o.guests.map((g, gi) => {
-      const ps = r.plates.filter(p => p.g === gi);
-      return `<div class="kt-row"><p class="small"><b>${esc(KIND[g.kind][0])}</b>${g.stage ? ` · ${g.stage === 'prod' ? 'production' : 'test'}` : ''}${g.stuck ? ' · the corrupt file' : ''}</p><ul class="kt-plates">${ps.map(plateHtml).join('')}</ul></div>`;
-    }).join('');
+    const OUT = KS().OUT;
     const counts = Object.keys(OUT).filter(k => r.counts[k]).map(k => `${r.counts[k]} ${OUT[k][1].toLowerCase()}`).join(' · ');
     const b = panel(`${route(s)}
-      <p class="kt-claim">${esc(o.name)}: ${r.refused ? 'the stove won\'t light' : `${'★'.repeat(st)}${'☆'.repeat(3 - st)}`}</p>
-      ${r.refused ? say('tired', K.TEACH.refused) : `<div class="kt-pass">${groups}</div>
-      <p class="kt-sum">${esc(counts)}</p>
+      ${KS().html(id, s.cfg, { r })}
+      <div class="kt-verdict"${play && !r.refused ? ' hidden' : ''}>
+      <p class="kt-claim">${esc(o.name)}: ${r.refused ? 'the stove won\'t light' : starLine(st)}</p>
+      ${r.refused ? say('tired', K.TEACH.refused) : `<p class="kt-sum">${esc(counts)}</p>
       <p class="small kt-bill">${icon('coins')}Bill <b>${r.bill} GB-s</b>${r.standing ? ` (${r.run} cooking, ${r.standing} for the provisioned cooks standing by)` : ''} · ❄ cold start · ↻ tries</p>`}
       ${lines.filter(e => e !== 'refused').map(e => say('neutral', K.TEACH[e])).join('')}
       ${!r.refused && st === 3 ? say('smile', s.fires.length === 1 ? 'First firing, every plate right. Bram would have written that one down.' : 'That\'s the one. Every plate right, and the bill is fair.') : ''}
       ${!r.refused && st === 2 && miss ? `<p class="kt-miss">For the third star: ${esc(miss)}.</p>` : ''}
-      <div class="kt-dock">${left > 0 && st < 3 ? `<button class="ghost" id="kt-again">Change the card (${plural(left, 'firing')} left)</button>` : ''}<button class="primary" id="kt-serve">${left > 0 && st < 3 ? 'Serve the best one' : 'Serve it'}</button></div>`);
+      </div>
+      <div class="kt-dock">${play && !r.refused ? '<button class="ghost" id="kt-skip">Skip ▸▸</button>' : ''}<span class="kt-after"${play && !r.refused ? ' hidden' : ''}>${left > 0 && st < 3 ? `<button class="ghost" id="kt-again">Change the recipe (${plural(left, 'firing')} left)</button>` : ''}<button class="primary" id="kt-serve">${left > 0 && st < 3 ? 'Serve the best one' : 'Serve it'}</button></span></div>`);
     const ag = b.querySelector('#kt-again');
     if (ag) ag.onclick = () => { K.again(s); save(s); draw(s); };
     b.querySelector('#kt-serve').onclick = () => { K.serve(s); save(s); draw(s); };
+    if (play && !r.refused) {
+      const show = () => {
+        const v = b.querySelector('.kt-verdict'), a = b.querySelector('.kt-after'), sk = b.querySelector('#kt-skip');
+        if (v) v.hidden = false; if (a) a.hidden = false; if (sk) sk.remove();
+        if (v && v.scrollIntoView) v.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      const stop = KS().play(b, r, show);
+      b.querySelector('#kt-skip').onclick = () => stop();
+    }
   }
 
   // ---- The debrief: one question on what the order taught ----
@@ -236,7 +229,9 @@
     .kt-route .kt-gi { width: 14px; height: 14px; }
     .kt-order { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #efe3c8; color: #2a2018; border: 2px solid #8a6a40; box-shadow: 0 2px 0 #5a4024; }
     .kt-order.boss { border-color: #9e3a34; }
-    .kt-oh { display: flex; gap: 8px; align-items: flex-start; } .kt-oh .kt-gi { width: 30px; height: 30px; }
+    .kt-oh { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; list-style: none; } .kt-oh::-webkit-details-marker { display: none; } .kt-oh .kt-gi { width: 30px; height: 30px; }
+    .kt-order:not([open]) .kt-oh::after { content: '▸ more'; margin-left: auto; font-size: 12px; opacity: .7; white-space: nowrap; }
+    .kt-cardw > summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 4px 0; }
     .kt-guests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .kt-guests li { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; }
     .kt-how { opacity: .75; } .kt-ok { font-weight: 700; }

@@ -59,7 +59,18 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     await wait(10);
     return q.id;
   }, [right, conf]);
-  const knob = (k, v) => page.click(`[data-k="${k}"][data-v='${JSON.stringify(v)}']`);
+  // Sets one recipe setting the way a player does it in the kitchen: tap the dial, the key's slot, the tray, the jar,
+  // the crate or the cook stand until it shows v.
+  const knob = async (k, v) => {
+    for (let guard = 0; guard < 8; guard++) {
+      if (await page.evaluate(([k, v]) => SD.state.save.kitchen.cfg[k] === v, [k, v])) return;
+      const sel = { mem: '[data-dial="mem"]', timeout: '[data-dial="timeout"]', prep: `[data-set="prep"][data-v="${v}"]`, ret: '[data-tog="ret"]', env: '[data-tog="env"]', dest: '[data-tog="dest"]', pc: '[data-cyc="pc"]' }[k];
+      await page.click(sel);
+    }
+    throw new Error('could not set ' + k);
+  };
+  // Fires the stove and skips the playback.
+  const fire = async () => { await page.click('#kt-fire'); const sk = await page.$('#kt-skip'); if (sk) await sk.click(); await page.waitForSelector('.kt-after:not([hidden])'); };
   const ask = async (right, conf) => {
     await page.click('#kt-ask');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'), null, { timeout: 5000 });
@@ -87,23 +98,35 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   check(/Night 1/.test(t) && /Breakfast at the counter/.test(t) && /Bram/.test(t), 'it opens on the bench: night 1, the first order and Mira\'s welcome');
   check(await page.$$eval('.kt-route li', x => x.length) === 5, 'the night\'s five orders show as a route');
   check(/return dish;/.test(await txt('.kt-code')) && /openPantry/.test(await txt('.kt-code')), 'the card shows as code: the handler returns just the dish');
-  check(await page.$$eval('.kt-knob', x => x.length) === 2, 'the first order opens two knobs');
+  check(await page.$$eval('.kx-prop:not(.fixed)', x => x.length) === 2 && !!(await page.$('[data-dial="mem"][disabled]')), 'the first order opens two things in the kitchen (the key and the tray); the dials stay put');
+  check(await page.$$eval('.kx-tk', x => x.length) === 6 && await page.$$eval('.kx-b', x => x.length) === 1, 'six tickets on the rail, one burner on the stove');
   await noHScroll('bench'); await shot('bench');
   await page.click('#kt-fire');
+  await page.waitForTimeout(450);
+  const mid = await page.evaluate(() => ({ lit: document.querySelectorAll('.kx-b.lit, .kx-b.lighting').length, on: document.querySelectorAll('.kx-tk.on, .kx-tk.done').length, hidden: document.querySelector('.kt-verdict').hidden }));
+  check(mid.lit > 0 && mid.on > 0 && mid.hidden, `the firing plays out: a burner lights, tickets come down, the verdict waits (${JSON.stringify(mid)})`);
+  await shot('firing');
+  await page.waitForSelector('.kt-after:not([hidden])', { timeout: 15000 });
+  check(await page.$$eval('.kt-plate.kx-wait', x => x.length) === 0, 'every plate lands on the pass');
   t = await txt('#panel');
   check((await st()).phase === 'plates' && await page.$$eval('.kt-plate.bad', x => x.length) === 6, 'firing the starting card: six bad plates');
   check(/502/.test(t) && /statusCode and a body/.test(t), 'every plate is a 502 and Mira says why, once');
   await noHScroll('plates'); await shot('502');
   await page.click('#kt-again');
   await knob('ret', 'proxy');
-  check(/statusCode: 200/.test(await txt('.kt-code')) && !!(await page.$('.kt-ln.hot')), 'turning a knob rewrites that line of the code, highlighted');
-  await page.click('#kt-fire');
+  check(/statusCode: 200/.test(await txt('.kt-code')) && !!(await page.$('.kt-ln.hot')) && !!(await page.$('.kx-tray .kx-tag')), 'tagging the tray rewrites that line of the code, highlighted');
+  await fire();
   check(await page.$$eval('.kt-plate.warn', x => x.length) === 6, 'proxy shape, pantry opened inside: six late plates');
   check(/third star/i.test(await txt('#panel')), 'a 2-star firing says what the third star needs');
   await page.click('#kt-again');
-  await knob('prep', 'outside');
-  check(/once per cook/.test(await txt('.kt-code')), 'the pantry connection moves outside the handler');
-  await page.click('#kt-fire');
+  { // A real drag: the pantry key from the pot up onto the hook.
+    const k = await page.$('.kx-key'), hook = await page.$('[data-set="prep"][data-v="outside"]');
+    const kb = await k.boundingBox(), hb = await hook.boundingBox();
+    await page.mouse.move(kb.x + kb.width / 2, kb.y + kb.height / 2); await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(100);
+  }
+  check((await st()).cfg.prep === 'outside' && /once per cook/.test(await txt('.kt-code')), 'dragging the key onto the hook moves the pantry connection outside the handler');
+  await fire();
   t = await txt('#panel');
   check(await page.$$eval('.kt-plate.good', x => x.length) === 5 && /cold start/.test(t), 'five served, one cold start, and Mira names it');
   check(!(await page.$('#kt-again')), 'no more firings after 3');
@@ -131,7 +154,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.evaluate(() => SD.modes.open());
   check(/Resume · Night 1 · The photo pantry/.test(await txt('[data-mode="kitchen"]')), 'after a reload the picker offers Resume on the photo pantry');
   await page.click('[data-mode="kitchen"]');
-  check(/The photo pantry/.test(await txt('#panel')) && await page.$$eval('.kt-knob', x => x.length) === 3, 'it resumes on the pantry\'s bench with its three knobs');
+  check(/The photo pantry/.test(await txt('#panel')) && await page.$$eval('.kx-dial:not([disabled])', x => x.length) === 2 && !!(await page.$('.kx-crate:not([disabled])')), 'it resumes on the pantry\'s bench: both dials and the crate are live');
 
   // ---- The rest of the night on the taught recipes ----
   const PLAN = {
@@ -140,7 +163,15 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   };
   for (const id of ['pantry', 'kitchens', 'banquet', 'rush']) {
     for (const [k, v] of PLAN[id]) await knob(k, v);
-    await page.click('#kt-fire');
+    if (id === 'pantry') { // A real dial turn: the egg timer dragged round from 3 s to 30 s, then tapped back to 10 s.
+      await knob('timeout', 3);
+      const d = await page.$('[data-dial="timeout"]'), bb = await d.boundingBox(), cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+      await page.mouse.move(cx - 30, cy + 10); await page.mouse.down(); await page.mouse.move(cx, cy - 34, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(100);
+      check((await st()).cfg.timeout === 30, `dragging the egg timer round sets it (${(await st()).cfg.timeout} s)`);
+      await knob('timeout', 10);
+    }
+    if (id === 'banquet') check(await page.$$eval('.kx-b.lit.pre', x => x.length) === 5, 'five provisioned cooks: five burners lit before the toast');
+    await fire();
     const s = await st();
     check(s.stars[id] === 3, `${id}: the taught recipe gets 3 stars`);
     if (id === 'pantry') { check(!!(await page.$('.kt-plate.keep.stuck')), 'the corrupt photo is kept by the on-failure destination'); await shot('pantry'); }
@@ -159,7 +190,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   // ---- The banquet's refusal ----
   await page.evaluate(() => { const K = SD.kitchen, s = K.newNight({}); s.step = 3; s.cfg = K.cfg('banquet'); SD.state.save.kitchen = s; SD.kitchenUi.draw(); });
   await knob('pc', 'latest5');
-  check(/\$LATEST/.test(await txt('.kt-conf')), 'provisioned concurrency on $LATEST shows in the config');
+  check(/\$LATEST/.test(await txt('.kt-conf')) && /\$LATEST/.test(await txt('.kx-h.on')), 'provisioned concurrency on $LATEST shows on the cook stand and in the config');
   await page.click('#kt-fire');
   check(/won't light/.test(await txt('#panel')) && /Publish a version/.test(await txt('#panel')), 'the stove won\'t light, and Mira says to publish a version and use an alias');
 
