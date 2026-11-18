@@ -316,7 +316,9 @@
     // A small job: one question in the watch's question box. Day 1's are lessons first (Ladi, Nov 18).
     const mini = run && run.phase === 'day' ? miniFor(who) : null;
     if (mini) {
-      const intro = mini.teach ? (who === 'mira' ? 'Sit a minute, love. Let me show you something.' : 'Mira says you\'re new. Want to see how I keep things safe?')
+      // They already know Seo-yeon, just not well yet (Ladi, Nov 18): a plain hello, not "Mira says you're new".
+      const hello = (content().lessonHello || {})[who];
+      const intro = mini.teach ? hello || 'Morning, Seo-yeon. Got a minute? I could show you something.'
         : 'Quick one for the watch, if you\'ve a moment.';
       const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
       o.querySelector('[data-a=x]').onclick = close;

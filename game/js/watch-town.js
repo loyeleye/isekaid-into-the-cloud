@@ -261,6 +261,15 @@
       { say: ['chad', 'Love that. Friction, but premium.'], tiles: [['λ', 'AWS_IAM', 'ok']] }] }
   };
 
+  // How each day-1 lesson opens. Everyone knows Seo-yeon already, just not well: a plain hello, warmer from Mira.
+  C.lessonHello = {
+    mira: 'Sit a minute, love. Let me show you something.',
+    tess: 'Seo-yeon! Hi! Got a minute? I want to show you a thing!',
+    coo: 'Hello, warden. Coo. Have you a moment for seals?',
+    hobb: 'Morning, Seo-yeon. Got a minute? Something I show every apprentice.',
+    kagemaru: 'Seo-yeon. A free sample, today only. Ah ha. It\'s advice.'
+  };
+
   // ================================================================================================================
   // SMALL JOBS (mini quests). One question in the Night Watch's question box. Day 1 jobs teach first: the lesson
   // plays, then the question, and a wrong pick just explains and lets you try again. From day 2 it's one try.
