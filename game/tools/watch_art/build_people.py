@@ -15,25 +15,26 @@ def frames_for(k):
     if k.startswith('townsfolk') or k == 'kevin': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
     return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk']
 def src(k, f): return f'base/{k}.png' if f == 'stand' else f'pose/{k}-{f}.png'
-def prep(path, scale):
+WIDE = dict(tess=1.25)       # Tess drawn broader: a short, sturdy woman rather than a child (Ladi, Nov 18)
+def prep(path, scale, wide=1.0):
     im = cutout(path)
     a = np.asarray(im)[:, :, 3] > 0
     ys, xs = np.where(a); top, bot = ys.min(), ys.max()
     # horizontal reference: centre of the head/shoulder band (top 30% of the figure), ignoring long props
     band = a[top: top + int(0.3 * (bot - top))]
     cols = np.where(band.any(0))[0]; cx = (cols.min() + cols.max()) / 2
-    w2, h2 = max(1, round(im.width * scale)), max(1, round(im.height * scale))
+    w2, h2 = max(1, round(im.width * scale * wide)), max(1, round(im.height * scale))
     sm = im.convert('RGBa').resize((w2, h2), Image.LANCZOS).convert('RGBA')
     arr = np.asarray(sm).copy(); al = arr[:, :, 3]
     arr[:, :, 3] = np.where(al > 110, 255, 0)   # hard pixel edges, no halo
-    return Image.fromarray(arr, 'RGBA'), cx * scale, bot * scale
+    return Image.fromarray(arr, 'RGBA'), cx * scale * wide, bot * scale
 meta = {}
 for k in HT:
     fs = [f for f in frames_for(k) if os.path.exists(src(k, f))]
     if 'stand' not in fs: continue
     FH = RES * max(FH0, HT[k] + 10); FOOT = FH - RES * (FH0 - FOOT0)
     st = cutout(src(k, 'stand')); bb = st.getbbox(); scale = RES * HT[k] / (bb[3] - bb[1])
-    parts = [prep(src(k, f), scale) for f in fs]
+    parts = [prep(src(k, f), scale, WIDE.get(k, 1.0)) for f in fs]
     half = 0
     for im, cx, bot in parts:
         b = im.getbbox(); half = max(half, cx - b[0], b[2] - cx)

@@ -537,10 +537,10 @@ window.WATCH_ART = {
   },
   "tess": {
    "sheet": "assets/img/watch/people/tess.png",
-   "w": 116,
+   "w": 146,
    "h": 224,
    "anchor": [
-    58,
+    73,
     212
    ],
    "anims": {
