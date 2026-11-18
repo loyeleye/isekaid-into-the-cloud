@@ -36,14 +36,15 @@ from compose import piece, haze
 # generation (tools/watch_art/<set>/pano-*.png), cropped just below their horizon, zoomed, hazed and cross-faded side
 # by side. back.webp uses the villages set; back-forest.webp (forest, terrain and lakes) and back-mix.webp (forest
 # with a few villages) are variants for Ladi to pick from.
-TOPS = {'villages': (310, 260, 260), 'forest': (200, 230, 180), 'mix': (160, 170, 160)}   # first row of land kept, per panorama
+TOPS = {'villages': (310, 260, 260), 'forest': (330, 360, 300), 'mix': (300, 330, 300)}   # first row of land kept, per panorama
 def backdrop(sett):
     bk = back0.copy(); PH = BH - base + 30; strip = Image.new('RGBA', (BW, PH)); xo = 0; k = 0
     while xo < BW:
         p = Image.open(f'{sett}/pano-{k % 3 + 1}.png').convert('RGB').resize((1584, 672), Image.LANCZOS); top = TOPS[sett][k % 3]
-        land = p.crop((0, top, 1584, top + 240)); w = round(1584 * PH / 240); land = land.resize((w, PH), Image.LANCZOS)   # zoomed so the villages sit between the horizon row and the road above in size
+        CH = 240 if sett == 'villages' else 110   # forest and mix zoomed in hard so trees, rocks and lakes read in the thin visible band (Ladi, Nov 18)
+        land = p.crop((0, top, 1584, top + CH)); w = round(1584 * PH / CH); land = land.resize((w, PH), Image.LANCZOS)   # zoomed so the villages sit between the horizon row and the road above in size
         arr = np.asarray(land).astype(float); fog = np.array([150, 170, 176.0])
-        t = np.linspace(0.55, 0.3, PH)[:, None, None]   # hazier towards the horizon
+        t = np.linspace(0.55, 0.3, PH)[:, None, None] * (1 if sett == 'villages' else 0.45)   # hazier towards the horizon
         arr = arr * (1 - t) + fog * t
         al = np.full((PH, w), 255.0); f = 80
         if xo: al[:, :f] = np.linspace(0, 255, f)[None, :]
