@@ -15,7 +15,7 @@
 //   Access keys and roles: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 //     https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
 //   Last-used keys: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_RotateAccessKey
-//   SigV4 (signed parts valid 15 minutes; temporary credentials send X-Amz-Security-Token):
+//   SigV4 (a request must reach AWS within 5 minutes of its timestamp; temporary credentials send X-Amz-Security-Token):
 //     https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html
 //     https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 //   Trust policies and ExternalId: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html
@@ -76,14 +76,14 @@
       story: 'A hooded figure strolls through the gate waving a pass he drew himself. Nobody checked it.',
       tell: 'Authorization: NONE on POST /orders',
       choices: [
-        { text: 'Check visitors carry an API key', best: false,
+        { text: 'Check each visitor carries an API key', best: false,
           why: 'API keys are for usage plans and throttling. AWS says not to use them to decide who gets in.' },
-        { text: 'Make visitors sign with IAM keys', best: false,
+        { text: 'Make visitors sign every call with IAM keys', best: false,
           why: 'Visitors sign in through the user pool and have no IAM keys. Their calls would all be refused.' },
         { text: 'A user pool guard checks each signed wristband', best: true,
           why: 'A Cognito user pool authorizer checks the token\'s signature and expiry. A forged one gets 401.' },
-        { text: 'Hand out one shared gate password', best: false,
-          why: 'Everyone knows a shared password, thieves included, and you can\'t tell who used it.' }
+        { text: 'Ask each visitor to show their signed-in name', best: false,
+          why: 'A name anyone can type proves nothing. The guard must check the token\'s signature.' }
       ], raid: 'Forgers' },
 
     // ---- Night 2: The Wrong Badge ----
@@ -93,13 +93,13 @@
       story: 'The new order clerk only writes orders. His ring holds a star key that opens every door.',
       tell: 'Action: "*"  Resource: "*"',
       choices: [
-        { text: 'Write access to every table', best: false,
+        { text: 'Write access to every table in the castle', best: false,
           why: 'Works, but wider than his job. A thief could rewrite any ledger in the castle.' },
         { text: 'One key: write orders, orders ledger only', best: true,
           why: 'Least privilege: dynamodb:PutItem on that one table\'s ARN. The errand works and nothing else opens.' },
-        { text: 'Keep the star key, he\'s trustworthy', best: false,
-          why: 'Too loose. Whoever steals his role gets every door too.' },
-        { text: 'A read-only key for the ledger', best: false,
+        { text: 'The star key, but with a short session', best: false,
+          why: 'Shorter, but still every door. Whoever steals his session gets them all for an hour.' },
+        { text: 'A read-only key for the orders ledger', best: false,
           why: 'Too tight. He can look but can\'t write the order. AccessDeniedException.' }
       ], raid: 'Key Copiers' },
 
@@ -111,12 +111,12 @@
       choices: [
         { text: 'Swap the town-hall ID for a short guest pass', best: true,
           why: 'A Cognito identity pool trades the sign-in token for temporary AWS credentials from a narrow role.' },
-        { text: 'Give each traveller a copy of the castle keys', best: false,
-          why: 'Long-lived keys handed out to strangers. You can never take them all back.' },
+        { text: 'Give each traveller a key to the lookout only', best: false,
+          why: 'Narrower, but still long-lived keys handed to strangers. You can never take them all back.' },
         { text: 'Make an IAM user for every traveller', best: false,
           why: 'It works, but you\'d run thousands of users by hand. Federation exists so you don\'t.' },
-        { text: 'Let anyone up without a pass', best: false,
-          why: 'No sign-in at all: the hooded one walks up with everyone else.' }
+        { text: 'Check their town-hall ID, then let them up as they are', best: false,
+          why: 'The ID proves who they are, but it isn\'t AWS credentials. They still need a pass to call anything.' }
       ], raid: 'Gatecrashers' },
 
     // ---- Night 3: The Borrowed Cloak ----
@@ -126,12 +126,12 @@
       story: 'The order worker needs the ledger cloak. Its tag says only finance may wear it.',
       tell: 'AccessDenied: not authorized to perform sts:AssumeRole',
       choices: [
-        { text: 'The tag says anyone may wear it', best: false,
-          why: 'Principal "*" lets any account try the cloak on. Far too loose.' },
+        { text: 'The tag says anyone in the castle may wear it', best: false,
+          why: 'Naming the whole account lets every role in it try the cloak on. Far wider than one worker.' },
         { text: 'Give the worker a copy of finance\'s keys', best: false,
           why: 'Sharing long-lived keys skips the cloak entirely. Use the role, not the keys.' },
-        { text: 'Leave the tag as finance only', best: false,
-          why: 'Too tight. The worker is still turned away at the wardrobe.' },
+        { text: 'Add the cloak to the worker\'s own key ring', best: false,
+          why: 'The worker\'s policy can allow sts:AssumeRole, but the cloak\'s own tag (its trust policy) still says no.' },
         { text: 'The tag names the order worker\'s role', best: true,
           why: 'The trust policy lists that role as Principal. It can assume the cloak, and nobody else can.' }
       ], raid: 'Cloak Thieves' },
@@ -142,11 +142,11 @@
       story: 'A clerk\'s laptop holds castle keys from two years ago. They still work.',
       tell: 'Access key age: 731 days. Last rotated: never.',
       choices: [
-        { text: 'Hide the keys in a different folder', best: false,
-          why: 'Moving the file doesn\'t change what it is. Whoever takes the laptop takes the keys.' },
-        { text: 'Paste the root user\'s keys instead', best: false,
-          why: 'Root keys can do anything and can\'t be limited. AWS says don\'t create them at all.' },
-        { text: 'Sign in through Identity Center for short sessions', best: true,
+        { text: 'Encrypt the laptop\'s disk and keep the keys', best: false,
+          why: 'Helps if the laptop is stolen while off. The keys are still long-lived and work from anywhere.' },
+        { text: 'Add MFA to the user the keys belong to', best: false,
+          why: 'MFA guards the console sign-in. Those access keys still work without it.' },
+        { text: 'Short sessions through Identity Center', best: true,
           why: 'IAM Identity Center hands the laptop temporary credentials that expire. No keys sit on disk.' },
         { text: 'Rotate the keys once a year', best: false,
           why: 'Better than never, but they\'re still long-lived keys on a laptop that can walk off.' }
@@ -159,12 +159,12 @@
       story: 'The bridge clerk has the right key, yet the neighbour\'s storehouse still turns her back.',
       tell: 'AccessDenied: s3:GetObject (bucket in another account)',
       choices: [
-        { text: 'Copy their crates into your castle nightly', best: false,
-          why: 'It dodges the question and doubles the data to guard. The fix is the policy on their side.' },
+        { text: 'Give your clerk s3:GetObject on their crates', best: false,
+          why: 'Your side already allows it. Across accounts, their bucket policy must say yes too.' },
         { text: 'The neighbour\'s sign names your clerk\'s role', best: true,
           why: 'Across accounts both sides must allow: your identity policy and their bucket policy.' },
-        { text: 'The neighbour makes the storehouse public', best: false,
-          why: 'Principal "*" lets your clerk in, and every passer-by too.' },
+        { text: 'The neighbour turns off Block Public Access', best: false,
+          why: 'That only lets a public policy in. Their sign still has to name your clerk.' },
         { text: 'Give your clerk s3:* on everything', best: false,
           why: 'Your side was already fine. Without their sign she\'s still refused, and now she\'s over-keyed.' }
       ], raid: 'Bridge Raiders' },
@@ -175,12 +175,12 @@
       story: 'The hall\'s workers pass orders room to room. They all wear the same master pass.',
       tell: 'All 6 functions: role/hall-master-role',
       choices: [
-        { text: 'Each worker gets its own role with only its doors', best: true,
+        { text: 'Each worker gets a role with only its doors', best: true,
           why: 'One execution role per function, each allowed only the calls it makes. One leak opens one door.' },
-        { text: 'Keep one pass, but change it monthly', best: false,
+        { text: 'Keep one pass, but rotate its keys monthly', best: false,
           why: 'Still one pass for everyone. Steal it once and you have every worker\'s doors for a month.' },
-        { text: 'Workers send the shared password in each message', best: false,
-          why: 'Now the secret travels with every order. Anyone who reads one message has it.' },
+        { text: 'One pass, with a permissions boundary on it', best: false,
+          why: 'A boundary caps the pass, but every worker still shares it. One leak still opens every worker\'s doors.' },
         { text: 'Drop the passes, the hall is inside the walls', best: false,
           why: 'Inside isn\'t safe by default. Each call between services should still prove who\'s calling.' }
       ], raid: 'Pass Sharers' },
@@ -192,11 +192,11 @@
       story: 'The order clerk waits at the strongroom all night. The master key\'s rule never names him.',
       tell: 'AccessDeniedException: kms:GenerateDataKey',
       choices: [
-        { text: 'The key rule lets anyone do anything', best: false,
-          why: 'kms:* for Principal "*": anyone could use the key, or rewrite its rule.' },
-        { text: 'Give him kms:* in his own key ring only', best: false,
+        { text: 'Let the whole castle use the key, by its rule', best: false,
+          why: 'Naming the whole account opens the key to every role in it. Far more than one clerk.' },
+        { text: 'Give him kms:Decrypt in his own policy', best: false,
           why: 'If the key policy doesn\'t allow it, or delegate to IAM, his own policy alone isn\'t enough.' },
-        { text: 'Let him carry the master key out', best: false,
+        { text: 'Give him a copy of the master key to carry', best: false,
           why: 'KMS keys never leave the strongroom. You send data in; the key stays.' },
         { text: 'The key rule lets his role encrypt and decrypt', best: true,
           why: 'The key policy allows his role kms:GenerateDataKey and kms:Decrypt on this key. Nothing more.' }
@@ -210,9 +210,9 @@
       choices: [
         { text: 'Trust the app to filter what it shows', best: false,
           why: 'The data still comes back. A bug or a crafted call shows someone else\'s drawer.' },
-        { text: 'Lock the whole cabinet', best: false,
-          why: 'Too tight. Nobody can reach even their own records.' },
-        { text: 'Only rows whose key starts with your own ID', best: true,
+        { text: 'A separate index on each clerk\'s ID', best: false,
+          why: 'An index makes his rows easy to find. It doesn\'t stop him reading anyone else\'s.' },
+        { text: 'Only rows keyed with your own ID', best: true,
           why: 'A dynamodb:LeadingKeys condition matches the partition key to the caller\'s ID. Fine-grained, per row.' },
         { text: 'A separate cabinet for every clerk', best: false,
           why: 'One table per clerk works, but it doesn\'t scale and is a pain to run. One condition does it.' }
@@ -224,14 +224,14 @@
       story: 'Twelve merchants rent space in the old barracks. Every merchant\'s key opens every crate.',
       tell: 's3:GetObject  Resource: arn:aws:s3:::castle-store/*',
       choices: [
-        { text: 'One merchant at a time may enter', best: false,
-          why: 'Takes turns, still sees everything. Isolation is about what, not when.' },
+        { text: 'Give each merchant an IAM user of their own', best: false,
+          why: 'Own users, but every user still has the same rights. And twelve more sets of keys to guard.' },
         { text: 'Each key opens only crates under its own name', best: true,
           why: 'Tag each session with the tenant and allow only its own prefix, like ${aws:PrincipalTag/tenant}/*.' },
         { text: 'Write a key rule for each merchant by hand', best: false,
           why: 'It works for twelve. At a thousand it breaks. One tag-based rule covers every tenant.' },
-        { text: 'Paint names on the crates and trust people', best: false,
-          why: 'A label isn\'t a lock. Every key still opens every crate.' }
+        { text: 'One shared key, with every opening logged', best: false,
+          why: 'A log shows who opened what, afterwards. It doesn\'t stop anyone.' }
       ], raid: 'Crate Snoops' },
 
     { id: 'post-chest-or-carriage', night: 5, skill: '2.2.1', fix: 'sealing-bench',
@@ -240,14 +240,14 @@
       story: 'The letters sleep in a locked chest. But the cart that carries them up the hill is open to the road.',
       tell: 'Request over http:// accepted',
       choices: [
-        { text: 'Keep the chest sealed and only accept closed carriages', best: true,
+        { text: 'Seal the chest and accept only closed carriages', best: true,
           why: 'Encrypt at rest and in transit: a bucket policy denies any request where aws:SecureTransport is false.' },
         { text: 'The chest is sealed, so the road doesn\'t matter', best: false,
           why: 'At rest covers the store, not the road. Without TLS anyone on the way can read it.' },
-        { text: 'Close the carriage, leave the chest open', best: false,
+        { text: 'Close the carriage, leave the chest as it is', best: false,
           why: 'In transit covers the road only. Once it lands, anyone in the room reads it.' },
-        { text: 'Send letters in pieces down different roads', best: false,
-          why: 'Splitting isn\'t encrypting. Each piece is still readable.' }
+        { text: 'Seal the chest twice, with two different keys', best: false,
+          why: 'Twice at rest is still nothing in transit. The road needs TLS.' }
       ], raid: 'Road Readers' },
 
     // ---- Night 6: The Big Letter ----
@@ -257,13 +257,13 @@
       story: 'The strongroom slot only takes thin letters. Tonight\'s are thick.',
       tell: 'KMS Encrypt: input too large (max 4,096 bytes)',
       choices: [
-        { text: 'Push it through the slot anyway', best: false,
+        { text: 'Send the whole letter to the strongroom', best: false,
           why: 'KMS Encrypt takes at most 4 KB. A 180 KB letter is refused.' },
         { text: 'Keep the plain data key next to the letter', best: false,
           why: 'Whoever finds the letter finds the key. Keep only the encrypted copy.' },
         { text: 'Cut it into 4 KB strips for the slot', best: false,
           why: 'Slow, costly and fiddly. Data keys exist so big things never go to KMS at all.' },
-        { text: 'Seal it with a data key, then seal the data key', best: true,
+        { text: 'Seal it with a data key, then seal that key', best: true,
           why: 'Envelope encryption: GenerateDataKey, encrypt with the plaintext key, erase it, keep the sealed copy.' }
       ], raid: 'Letter Openers' },
 
@@ -273,9 +273,9 @@
       story: 'The Captain\'s orders must stay secret even from the couriers who carry them.',
       tell: 'Courier role: s3:GetObject allowed, kms:Decrypt allowed',
       choices: [
-        { text: 'Pick a courier who can\'t read', best: false,
-          why: 'Trusting the carrier isn\'t a control. The next carrier might read just fine.' },
-        { text: 'Seal it in the Captain\'s room before it leaves', best: true,
+        { text: 'Send it only by the castle\'s closed carriages', best: false,
+          why: 'TLS protects the road, but each courier who receives it reads it plain.' },
+        { text: 'Seal it in the Captain\'s room first', best: true,
           why: 'Client-side encryption: the courier only ever holds ciphertext. Only the reader\'s key opens it.' },
         { text: 'Let the post room seal it on arrival', best: false,
           why: 'Server-side encryption protects it at rest, but the courier and the post room saw it plain.' }
@@ -288,14 +288,14 @@
       story: 'The archive changes the ledger password at midnight. The clerk copied it on his first day.',
       tell: 'Login failed: password authentication failed for user "clerk"',
       choices: [
-        { text: 'Keep it in a plain String parameter', best: false,
-          why: 'Not encrypted, and Parameter Store won\'t rotate it for you.' },
-        { text: 'Ask the archive each errand, with a short cache', best: true,
+        { text: 'Keep it in a SecureString he updates himself', best: false,
+          why: 'Encrypted, but Parameter Store won\'t rotate it, and his copy goes stale at midnight.' },
+        { text: 'Ask the archive each errand; cache briefly', best: true,
           why: 'Call GetSecretValue at run time. Secrets Manager rotates it; the cache refreshes every few minutes.' },
-        { text: 'Stop the archive changing it', best: false,
-          why: 'It works, but a leaked password stays good forever.' },
-        { text: 'Write the new one on his sleeve each night', best: false,
-          why: 'Now the secret is in plain sight, and still goes stale between copies.' }
+        { text: 'Copy it into his env var each morning', best: false,
+          why: 'Still a copy. It goes stale at midnight, and anyone who views his settings reads it.' },
+        { text: 'Cache it on his first day and never refresh', best: false,
+          why: 'A cache that never refreshes is just a copy. It fails the first night after midnight.' }
       ], raid: 'Vault Crackers' },
 
     { id: 'bridge-neighbour-crates', night: 7, skill: '2.2.6', fix: 'sealing-bench',
@@ -304,13 +304,13 @@
       story: 'The neighbour must open crates you sealed. Their clerk gets "access denied" at the strongroom.',
       tell: 'AccessDeniedException: kms:Decrypt (key in account 1111...)',
       choices: [
-        { text: 'Your key rule allows them, and their policy allows it too', best: true,
+        { text: 'Your key rule and their policy both allow it', best: true,
           why: 'Cross-account KMS: your key policy names their account, and their IAM policy allows the key\'s ARN.' },
         { text: 'Seal them with the castle\'s AWS managed key', best: false,
           why: 'You can\'t edit an AWS managed key\'s policy, so you can\'t share it. Use a customer managed key.' },
-        { text: 'Send the unsealed crates over the bridge', best: false,
-          why: 'Gives up encryption to dodge a policy. Fix the policy instead.' },
-        { text: 'Only change their IAM policy', best: false,
+        { text: 'Only add their account to your key rule', best: false,
+          why: 'Half the job. Their own IAM policy must allow the key\'s ARN too.' },
+        { text: 'Only change their IAM policy to allow the key', best: false,
           why: 'Half the job. Your key policy must allow their account too.' }
       ], raid: 'Bridge Raiders' },
 
@@ -324,9 +324,9 @@
           why: 'Works, but costly and easy to get wrong. Automatic rotation does it with no re-encryption.' },
         { text: 'Leave it, rotation breaks old letters', best: false,
           why: 'It doesn\'t. Same key ID, old material kept. Old letters open fine.' },
-        { text: 'Delete the key, make a new one', best: false,
-          why: 'Everything sealed with the deleted key is lost for good.' },
-        { text: 'Turn on automatic rotation; old letters still open', best: true,
+        { text: 'Rotate it, then re-seal every old letter', best: false,
+          why: 'No need. KMS keeps the old key material, so old letters open as they are.' },
+        { text: 'Turn on automatic rotation', best: true,
           why: 'KMS keeps the old key material, so old data decrypts. You pick the period, 365 days by default.' }
       ], raid: 'Tumbler Pickers' },
 
@@ -338,9 +338,9 @@
       choices: [
         { text: 'Lock all three the same way', best: false,
           why: 'Safe, but you can\'t tell what matters. Classifying first tells you where the effort goes.' },
-        { text: 'Lock nothing, it\'s the castle\'s own cellar', best: false,
-          why: 'Inside the walls isn\'t a control. PII and PHI still need protecting.' },
-        { text: 'Lock names and the healer\'s records; leave the menu', best: true,
+        { text: 'Lock the healer\'s records and the menu', best: false,
+          why: 'The menu is public. The names and addresses are what need locking.' },
+        { text: 'Lock the names and the healer\'s records', best: true,
           why: 'Names and addresses are PII; health records are PHI. Both need protecting. The menu is public.' },
         { text: 'Lock only the healer\'s records', best: false,
           why: 'Names and addresses are personal data too.' }
@@ -353,12 +353,12 @@
       story: 'The database password is pinned to the clerk\'s coat for everyone to read.',
       tell: 'Environment: DB_PASSWORD=wh1skers (plain text)',
       choices: [
-        { text: 'Keep it in Secrets Manager and fetch it at run time', best: true,
+        { text: 'Secrets Manager, fetched at run time', best: true,
           why: 'The function asks for it when it runs. Nobody who views its settings sees it.' },
         { text: 'Seal the coat tag with the castle\'s own key', best: false,
           why: 'Env vars encrypted with a KMS key are better than plain text, but a password belongs in a secret store.' },
-        { text: 'Write it inside the worker\'s code', best: false,
-          why: 'Worse: now it\'s in every copy of the code too.' }
+        { text: 'Keep it in a plain String parameter', best: false,
+          why: 'Out of the settings, but still plain text to anyone who can read the parameter.' }
       ], raid: 'Eavesdroppers' },
 
     { id: 'tavern-log', night: 8, skill: '2.3.4', fix: 'hiding-spot', built: 'logs',
@@ -369,10 +369,10 @@
       choices: [
         { text: 'Only let the captain read the log', best: false,
           why: 'Fewer readers, same secret written down. Don\'t log what you don\'t need.' },
-        { text: 'Mask anything that looks like a card number', best: true,
+        { text: 'Mask card numbers as they\'re written', best: true,
           why: 'A CloudWatch Logs data protection policy masks it. Only someone with logs:Unmask sees it.' },
-        { text: 'Turn the logs off', best: false,
-          why: 'Nothing leaks, and nothing helps you when the next order fails.' }
+        { text: 'Keep the log for one day, then burn it', best: false,
+          why: 'Shorter, but every number is still written down and readable that day.' }
       ], raid: 'Eavesdroppers' },
 
     { id: 'ledger-notice-numbers', night: 8, skill: '2.3.5', fix: 'hiding-spot',
@@ -381,13 +381,13 @@
       story: 'The ledger room\'s notice board lists who paid, with every account number in full.',
       tell: 'GET /notices -> "acct": "8204551930127734"',
       choices: [
-        { text: 'Encrypt the board', best: false,
+        { text: 'Encrypt the board with the castle\'s key', best: false,
           why: 'Readers decrypt to read it, so they still see every digit.' },
-        { text: 'Take the notice board down', best: false,
-          why: 'Too tight. People do need to check who paid.' },
-        { text: 'Write the numbers smaller', best: false,
-          why: 'Small print is still print.' },
-        { text: 'Keep the full number in the ledger, show the last four', best: true,
+        { text: 'Hash each number before posting it', best: false,
+          why: 'A hash nobody recognises is no help, and card numbers are few enough to guess back.' },
+        { text: 'Show each number only to signed-in clerks', best: false,
+          why: 'Fewer readers, still every digit. Most of them only need to recognise it.' },
+        { text: 'Show the last four; keep the rest stored', best: true,
           why: 'Mask in the app before display. People who only need to recognise it get ****7734.' }
       ], raid: 'Number Collectors' },
 
@@ -416,12 +416,12 @@
       story: 'A rider shows a pass sealed by a town Pingsby never agreed to trust.',
       tell: 'Identity provider: unknown issuer',
       choices: [
-        { text: 'Let him in if he knows a Pingsby name', best: false,
+        { text: 'Let him in if his pass names a Pingsby', best: false,
           why: 'Knowing a name proves nothing.' },
-        { text: 'Accept only passes from towns we set up as trusted', best: true,
+        { text: 'Accept only passes from towns we trust', best: true,
           why: 'Federation trusts the identity providers you configure. Tokens from any other issuer are refused.' },
-        { text: 'Any seal is fine if it looks official', best: false,
-          why: 'Anyone can make a seal. What matters is whose it is.' }
+        { text: 'Accept any pass with a valid seal on it', best: false,
+          why: 'A valid seal from a town you never trusted is still a stranger\'s. Check whose it is.' }
       ] },
     { id: 'n9-shrine-crest', night: 9, area: 'west-road', skill: '2.2.2', fix: 'sealing-bench',
       where: { level: 'west-road', spot: 'shrine' },
@@ -431,9 +431,9 @@
       choices: [
         { text: 'Tell pilgrims to click past the warning', best: false,
           why: 'Teaching people to ignore warnings is how the forged crest gets in next.' },
-        { text: 'Turn off the crest and use plain post', best: false,
-          why: 'Without TLS anyone on the road reads the offerings.' },
-        { text: 'Use a crest from the crest office that renews itself', best: true,
+        { text: 'Re-import the same crest with a new date', best: false,
+          why: 'An imported certificate is the one ACM won\'t renew. A new date on the same crest still runs out.' },
+        { text: 'A crest from the office that renews itself', best: true,
           why: 'ACM renews certificates it issued. Imported ones you have to renew and re-import yourself.' }
       ] },
     // ---- Main Street (Mira) ----
@@ -443,10 +443,10 @@
       story: 'Wen\'s three suppliers share the café\'s back pantry. The miller\'s key opens the butcher\'s shelf.',
       tell: 'Condition: none (all suppliers, all shelves)',
       choices: [
-        { text: 'Each supplier\'s key matches their own shelf\'s tag', best: true,
+        { text: 'Each key matches its own shelf\'s tag', best: true,
           why: 'Tag each session with the tenant and compare it to the resource\'s tag. One rule, every tenant.' },
-        { text: 'Give every supplier the same key', best: false,
-          why: 'That\'s the problem you started with.' },
+        { text: 'One key each, and a log of every opening', best: false,
+          why: 'The log tells you afterwards. The miller\'s key still opens the butcher\'s shelf.' },
         { text: 'Ask suppliers to stay on their own shelf', best: false,
           why: 'A request isn\'t a lock.' }
       ] },
@@ -456,11 +456,11 @@
       story: 'Kagemaru\'s stall gives credit to anyone with a wristband. Nobody checks the date on it.',
       tell: 'exp: three days ago -> 200 OK',
       choices: [
-        { text: 'Check the name printed on it', best: false,
-          why: 'Anyone can print a name. The signature is the proof.' },
-        { text: 'Check the signature, expiry, issuer and client', best: true,
+        { text: 'Check the name and the signature', best: false,
+          why: 'A real token from last week is still signed. Check expiry, issuer and client too.' },
+        { text: 'Check signature, expiry, issuer, client', best: true,
           why: 'A token is only good if it\'s signed by your pool, not expired, from your issuer, for your app.' },
-        { text: 'Check only that it\'s signed', best: false,
+        { text: 'Check only that it carries a real signature', best: false,
           why: 'A real token from last week is still signed. Check expiry too.' }
       ] },
     { id: 'n9-hobb-private-key', night: 9, area: 'main-street', skill: '2.2.5', fix: 'sealing-bench',
@@ -473,7 +473,7 @@
           why: 'Anyone who opens the cabinet can now be you.' },
         { text: 'Hang the private half, keep the public', best: false,
           why: 'Backwards. The public half is the one meant to be shared.' },
-        { text: 'Keep the private half on you; only the public half hangs', best: true,
+        { text: 'Keep the private half; hang the public', best: true,
           why: 'The server needs only the public key. The private key stays with its owner, locked down.' }
       ] },
     // ---- Hill Road (Coo) ----
@@ -483,12 +483,12 @@
       story: 'Lexi\'s archive room is for scholars only. Tonight it opens for any signed-in reader.',
       tell: 'Authorizer: valid token -> allow (no group check)',
       choices: [
-        { text: 'Open only for readers in the scholars group', best: true,
+        { text: 'Open only to the scholars group', best: true,
           why: 'Check the cognito:groups claim in the token, or map the group to its own role.' },
         { text: 'Any signed-in reader is fine', best: false,
           why: 'Signed in proves who you are, not what you may open.' },
-        { text: 'Lexi checks faces at the door', best: false,
-          why: 'She can\'t stand there all night. Let the token say it.' }
+        { text: 'Only readers whose email ends in scholars', best: false,
+          why: 'Readers can often change their own email. Groups are set by Lexi.' }
       ] },
     { id: 'n9-post-stale-signature', night: 9, area: 'hill-road', skill: '2.1.4', fix: 'badge-desk',
       where: { level: 'hill-road', spot: 'post-counter' },
@@ -498,7 +498,7 @@
       choices: [
         { text: 'Make people sign slips by hand', best: false,
           why: 'A copy of a hand signature is still a signature. Check when it was made.' },
-        { text: 'Refuse signatures older than 15 minutes', best: true,
+        { text: 'Refuse signatures older than 5 minutes', best: true,
           why: 'SigV4 signatures are only good near their timestamp, which stops a copied request being replayed.' },
         { text: 'Accept any slip with a real signature', best: false,
           why: 'A copied slip has a real signature. The timestamp is what stops replays.' }
@@ -511,9 +511,9 @@
       choices: [
         { text: 'Leave it, S3 already seals them', best: false,
           why: 'It does, but with keys you can\'t limit or audit per user. He wants a say.' },
-        { text: 'Store them unsealed in a locked bunker', best: false,
-          why: 'One lock, no seal. Whoever gets in reads everything.' },
-        { text: 'Seal them with his own KMS key and its own rule', best: true,
+        { text: 'Seal them with the castle\'s managed key', best: false,
+          why: 'An AWS managed key has a policy you can\'t edit. He still can\'t choose who opens them.' },
+        { text: 'Seal them with his own KMS key and rule', best: true,
           why: 'SSE-KMS with a customer managed key: its key policy decides who decrypts, and CloudTrail logs every use.' }
       ] },
     // ---- Far Lane (Kagemaru) ----
@@ -523,11 +523,11 @@
       story: 'The river gate\'s worker opens it with access keys carved right into its code.',
       tell: 'const AWS_SECRET_ACCESS_KEY = "wJal..."',
       choices: [
-        { text: 'Give the worker a role; the SDK picks up its credentials', best: true,
+        { text: 'Give it a role; the SDK finds its keys', best: true,
           why: 'Code running on AWS gets temporary credentials from its role. No keys in the code at all.' },
-        { text: 'Move the keys into a config file', best: false,
-          why: 'Still long-lived keys, now in a different file.' },
-        { text: 'Rotate the carved keys every week', best: false,
+        { text: 'Move the keys into an env var', best: false,
+          why: 'Still long-lived keys, now in its settings instead of its code.' },
+        { text: 'Keep the keys, but rotate them every week', best: false,
           why: 'Better than never, still keys in code. Use the role.' }
       ] },
     { id: 'n9-dock-external-id', night: 9, area: 'far-lane', skill: '2.1.5', fix: 'badge-desk',
@@ -536,9 +536,9 @@
       story: 'A barge company wears a cloak to unload at Odu\'s dock. Their other customers could ask to wear it too.',
       tell: 'Trust policy: Principal barge-co account, no condition',
       choices: [
-        { text: 'Trust anyone from any account', best: false,
-          why: 'Principal "*" on a trust policy is an open door.' },
-        { text: 'The tag also asks for a secret word only you and they share', best: true,
+        { text: 'Only let their account wear it', best: false,
+          why: 'That stops strangers, but not the company being tricked into wearing it for another customer.' },
+        { text: 'The tag also asks for a word only you share', best: true,
           why: 'An sts:ExternalId condition stops the company being tricked into using your cloak for someone else.' },
         { text: 'Give the company an IAM user\'s keys instead', best: false,
           why: 'Long-lived keys held by an outsider. A role is the right tool.' }
@@ -549,11 +549,11 @@
       story: 'The granary wants to throw away an old master key. Last year\'s sacks are still sealed with it.',
       tell: 'ScheduleKeyDeletion requested: PendingWindowInDays 7',
       choices: [
-        { text: 'Delete it today, it\'s old', best: false,
-          why: 'Data sealed with a deleted key can never be opened again.' },
-        { text: 'Hand it to Odu to keep at the dock', best: false,
-          why: 'KMS keys never leave KMS. Nobody can carry one off.' },
-        { text: 'Disable it first and wait to see who complains', best: true,
+        { text: 'Schedule it for deletion in 30 days', best: false,
+          why: 'Waiting helps, but once deletion runs, every sack it sealed is lost. Disable it first to find out who still needs it.' },
+        { text: 'Rotate it, then delete the old key for good', best: false,
+          why: 'Rotation keeps the old material inside the same key. Deleting the key still loses last year\'s sacks.' },
+        { text: 'Disable it first, and see who complains', best: true,
           why: 'A disabled key can be turned back on. Deleted, every sack it sealed is lost. Deletion waits 7 to 30 days.' }
       ] },
     // ---- Hiding spots: one sparkle per level, at a random spot ----
@@ -565,9 +565,9 @@
       choices: [
         { text: 'Move it to Secrets Manager and change it', best: true,
           why: 'Once seen, a secret is spent. Rotate it, and keep the new one in a secret store.' },
-        { text: 'Rub it off and keep the same password', best: false,
-          why: 'Anyone who read it still has it. Change it.' },
-        { text: 'Chalk it smaller', best: false,
+        { text: 'Move it to Secrets Manager as it is', best: false,
+          why: 'Safer from now on, but anyone who read the milestone still has it. Change it.' },
+        { text: 'Rub it off, and keep the same password in use', best: false,
           why: 'Still chalk. Still readable.' }
       ] },
     { id: 'n9-sparkle-main', night: 9, area: 'main-street', skill: '2.3.5', fix: 'hiding-spot',
@@ -576,12 +576,12 @@
       story: 'A café receipt in the gutter shows a full account number.',
       tell: 'Receipt: acct 8204551930127734',
       choices: [
-        { text: 'Stop giving receipts', best: false,
-          why: 'Too tight. People need receipts. Mask them.' },
+        { text: 'Print the number hashed', best: false,
+          why: 'A hash means nothing to the customer, and card numbers can be guessed back.' },
         { text: 'Print only the last four digits', best: true,
           why: 'Mask before it\'s shown or printed. The full number stays in the ledger.' },
-        { text: 'Print it in faint ink', best: false,
-          why: 'Faint is still readable.' }
+        { text: 'Print it, and ask them to keep it', best: false,
+          why: 'The receipt is already in the gutter.' }
       ] },
     { id: 'n9-sparkle-hill', night: 9, area: 'hill-road', skill: '2.3.1', fix: 'hiding-spot',
       where: { level: 'hill-road' },
@@ -591,9 +591,9 @@
       choices: [
         { text: 'Protect only the patient\'s note', best: false,
           why: 'A list of addresses is personal data too.' },
-        { text: 'Leave it, it\'s just paper', best: false,
-          why: 'Paper with PII and PHI on it still needs protecting.' },
-        { text: 'Protect the note and the addresses; the timetable is public', best: true,
+        { text: 'Protect the addresses; the note is private', best: false,
+          why: 'The note is health data: PHI. It needs protecting most of all.' },
+        { text: 'Protect the note and the addresses', best: true,
           why: 'Health notes are PHI and addresses are PII. Public timetables need no lock.' }
       ] },
     { id: 'n9-sparkle-far', night: 9, area: 'far-lane', skill: '2.3.2', fix: 'hiding-spot',
@@ -602,12 +602,12 @@
       story: 'The dock crane\'s automaton carries the warehouse code on a plain tag.',
       tell: 'Environment: WAREHOUSE_CODE=4471 (plain text)',
       choices: [
-        { text: 'Seal the tag with a key only the crane may use', best: true,
+        { text: 'Seal it with a key only the crane may use', best: true,
           why: 'Encrypt the environment variable with a customer managed KMS key that only its role can decrypt.' },
-        { text: 'Leave it, tags are private', best: false,
+        { text: 'Leave it; only the crane\'s keepers see tags', best: false,
           why: 'Anyone who can view the function\'s settings reads plain env vars.' },
-        { text: 'Paint over it', best: false,
-          why: 'Hiding isn\'t sealing.' }
+        { text: 'Use Lambda\'s default encryption for it', best: false,
+          why: 'It is encrypted at rest, but anyone who can view the function\'s settings still reads it plain.' }
       ] },
     // ---- The castle's four floors: one new breach each ----
     { id: 'n9-towers-dispatch', night: 9, area: 'towers', skill: '2.2.3', fix: 'sealing-bench',
@@ -616,9 +616,9 @@
       story: 'The watchtower sends reports to the Captain through three couriers. Each could read them.',
       tell: 'Encryption: server-side only',
       choices: [
-        { text: 'Use fewer couriers', best: false,
-          why: 'Fewer readers is still readers.' },
-        { text: 'Seal each report in the tower before it goes', best: true,
+        { text: 'Use only couriers with closed carriages', best: false,
+          why: 'TLS keeps the road safe. Each courier still opens it at every handover.' },
+        { text: 'Seal each report in the tower', best: true,
           why: 'Client-side encryption: only ciphertext ever leaves. The couriers carry it blind.' },
         { text: 'Let the Captain\'s room seal it when it lands', best: false,
           why: 'Server-side seals it at rest. Three couriers already read it.' }
@@ -629,11 +629,11 @@
       story: 'The masons\' clerk can read the weavers\' pages in the shared ledger.',
       tell: 'Query: no tenant condition',
       choices: [
-        { text: 'Trust clerks not to look', best: false,
-          why: 'Not looking isn\'t a control.' },
+        { text: 'Filter out other guilds\' pages in the app', best: false,
+          why: 'The app still gets every page back. A bug or a crafted call shows the weavers\' rows.' },
         { text: 'Give each guild a copy of the whole ledger', best: false,
           why: 'Now every guild has every page.' },
-        { text: 'Each clerk sees only rows that start with their guild', best: true,
+        { text: 'Only rows that start with their guild', best: true,
           why: 'Make the tenant the partition key and allow only matching LeadingKeys.' }
       ] },
     { id: 'n9-ground-open-url', night: 9, area: 'ground', skill: '2.1.8', fix: 'door',
@@ -642,12 +642,12 @@
       story: 'One great-hall worker takes orders through a window anyone can shout into.',
       tell: 'Function URL AuthType: NONE',
       choices: [
-        { text: 'Make callers sign with IAM; allow only the hall\'s roles', best: true,
+        { text: 'Sign with IAM; allow only the hall\'s roles', best: true,
           why: 'AuthType AWS_IAM: callers sign with SigV4, and policies say which roles may invoke it.' },
-        { text: 'Keep it open but hide the address', best: false,
+        { text: 'Keep it open, but at an address nobody knows', best: false,
           why: 'A secret address isn\'t authentication. It leaks.' },
-        { text: 'Put a shared password in the URL', best: false,
-          why: 'A password in a URL ends up in every log that sees it.' }
+        { text: 'Keep it open, with a CORS allow-list', best: false,
+          why: 'CORS only tells browsers what to allow. Anyone else can still call it.' }
       ] },
     { id: 'n9-cellars-plain-param', night: 9, area: 'cellars', skill: '2.3.3', fix: 'hiding-spot',
       where: { floor: 'cellars', room: 'archive' },
@@ -655,12 +655,12 @@
       story: 'The barrel-room password is kept in the archive as plain writing.',
       tell: 'Parameter type: String',
       choices: [
-        { text: 'Copy it into every worker\'s code', best: false,
-          why: 'Now it\'s in plain text in many places.' },
+        { text: 'Move it into an env var on every worker', best: false,
+          why: 'Now it\'s plain text in many places.' },
         { text: 'Make it a SecureString sealed with KMS', best: true,
           why: 'A SecureString is encrypted with a KMS key. Readers need ssm:GetParameter and kms:Decrypt.' },
-        { text: 'Rename it to something boring', best: false,
-          why: 'A boring name is still plain text.' }
+        { text: 'Keep it as a String, readable by few', best: false,
+          why: 'Fewer readers, still plain text. Anyone with ssm:GetParameter reads it.' }
       ] }
   ];
 
@@ -672,16 +672,16 @@
     // ---- 2.1.1 Federated access ----
     { id: 'r-2-1-1-a', skill: '2.1.1', day: 3,
       q: 'A mobile app\'s users sign in with a social login. The app must then upload to S3. What gives them AWS credentials?',
-      choices: ['An IAM user per person', 'An API key in the app', 'The root user\'s keys', 'A Cognito identity pool'], answer: 3,
+      choices: ['An IAM user per person', 'An API key in the app', 'The Cognito user pool by itself', 'A Cognito identity pool'], answer: 3,
       why: 'An identity pool trades the sign-in token for temporary credentials from a role you choose.' },
     { id: 'r-2-1-1-b', skill: '2.1.1', day: 3,
       q: 'Staff already sign in to a company directory. They need the AWS console without new passwords. Best fit?',
-      choices: ['Share one IAM user', 'Federate the directory with IAM Identity Center', 'Make IAM users with the same passwords', 'Email them access keys'], answer: 1,
+      choices: ['An IAM user per person, with MFA on', 'Federate it with IAM Identity Center', 'IAM users with passwords that match the directory', 'Long-term access keys for the AWS CLI'], answer: 1,
       why: 'Federation lets the existing identity provider vouch for them. AWS hands out short sessions in return.' },
     // ---- 2.1.2 Bearer tokens ----
     { id: 'r-2-1-2-a', skill: '2.1.2', day: 2,
       q: 'An API should accept only users signed in to your Cognito user pool. Least effort?',
-      choices: ['A resource policy allowing everyone', 'A Lambda authorizer that calls a database', 'A Cognito user pool authorizer on the API', 'An API key per user'], answer: 2,
+      choices: ['An IAM authorizer, with SigV4 on every call', 'A Lambda authorizer that calls a database', 'A Cognito user pool authorizer on the API', 'An API key per user in a usage plan'], answer: 2,
       why: 'API Gateway checks the user pool\'s tokens itself. No code to write.' },
     { id: 'r-2-1-2-b', skill: '2.1.2', day: 2,
       q: 'Your own code checks a Cognito access token. Which check is NOT needed?',
@@ -690,173 +690,173 @@
     // ---- 2.1.3 Programmatic access ----
     { id: 'r-2-1-3-a', skill: '2.1.3', day: 4,
       q: 'A developer\'s laptop has two-year-old access keys in its config. Best change?',
-      choices: ['Sign in with IAM Identity Center for temporary sessions', 'Move the file to another folder', 'Use the root user\'s keys', 'Rotate them yearly'], answer: 0,
+      choices: ['Use IAM Identity Center for short sessions', 'Rotate the keys and keep them in the file', 'Encrypt the credentials file on the disk', 'Add MFA to the IAM user the keys belong to'], answer: 0,
       why: 'Short-lived sessions mean nothing long-lived sits on the laptop.' },
     { id: 'r-2-1-3-b', skill: '2.1.3', day: 4,
       q: 'An old automation account is retired. Its access keys still exist. First safe step?',
-      choices: ['Delete the account at once', 'Make the keys inactive, then delete them', 'Leave them in case', 'Share them with the new team'], answer: 1,
+      choices: ['Delete the keys and the user right away', 'Make the keys inactive, then delete them', 'Leave them: unused keys can\'t do harm', 'Hand the keys to the team that took over'], answer: 1,
       why: 'Deactivating is reversible, so you can see if anything breaks before you delete.' },
     // ---- 2.1.4 Authenticated calls ----
     { id: 'r-2-1-4-a', skill: '2.1.4', day: 3,
       q: 'A script signs its own HTTP calls to AWS. Calls fail after its clock drifts by 20 minutes. Why?',
-      choices: ['TLS failed', 'The key expired', 'SigV4 signatures are only accepted near their timestamp', 'The region is wrong'], answer: 2,
-      why: 'Signed requests must reach AWS within 15 minutes of their timestamp. Sync the clock.' },
+      choices: ['The TLS certificate looks expired to the script', 'The access key expired while the clock drifted', 'SigV4 rejects requests far from their timestamp', 'The request needs a new session token'], answer: 2,
+      why: 'Most AWS services refuse a signed request that arrives more than 5 minutes from its timestamp. Sync the clock.' },
     { id: 'r-2-1-4-b', skill: '2.1.4', day: 6,
       q: 'Calls signed with an assumed role\'s keys get rejected as invalid. What\'s usually missing?',
-      choices: ['An API key', 'The root user ID', 'The session token', 'The account password'], answer: 2,
+      choices: ['An MFA code', 'The role\'s ARN in a header', 'The session token', 'The external ID'], answer: 2,
       why: 'Temporary credentials have three parts. The session token goes in X-Amz-Security-Token.' },
     // ---- 2.1.5 Assume a role ----
     { id: 'r-2-1-5-a', skill: '2.1.5', day: 4,
       q: 'A role\'s permissions are right, but the caller gets "not authorized to perform sts:AssumeRole". Fix?',
-      choices: ['Give the role AdministratorAccess', 'Make the role public', 'Create access keys for the role', 'Add the caller to the role\'s trust policy'], answer: 3,
+      choices: ['Add sts:AssumeRole to the role\'s own policy', 'Wait for the role\'s permissions to spread', 'Create access keys for the role', 'Add the caller to the role\'s trust policy'], answer: 3,
       why: 'The trust policy decides who may assume the role. Permissions decide what it can do after.' },
     { id: 'r-2-1-5-b', skill: '2.1.5', day: 4,
       q: 'A partner company assumes a role in your account. How do you stop them being tricked into using it for someone else?',
-      choices: ['Require an sts:ExternalId in the trust policy', 'Give them an IAM user', 'Use a longer session', 'Turn on MFA for your root user'], answer: 0,
+      choices: ['Require an sts:ExternalId in the trust policy', 'Give them an IAM user instead of a role', 'Limit the role\'s maximum session duration', 'Require MFA in the role\'s trust policy for them'], answer: 0,
       why: 'An ExternalId condition guards against the confused deputy problem with third parties.' },
     // ---- 2.1.6 Permissions for principals ----
     { id: 'r-2-1-6-a', skill: '2.1.6', day: 3,
       q: 'A function writes to one DynamoDB table. Which policy follows least privilege?',
-      choices: ['AdministratorAccess', 'dynamodb:* on *', 'dynamodb:PutItem on that table\'s ARN', 'dynamodb:PutItem on *'], answer: 2,
+      choices: ['dynamodb:* on that table\'s ARN', 'The AmazonDynamoDBFullAccess policy', 'dynamodb:PutItem on that table\'s ARN', 'dynamodb:PutItem on every table (*)'], answer: 2,
       why: 'One action, one resource. Nothing it doesn\'t need.' },
     { id: 'r-2-1-6-b', skill: '2.1.6', day: 5,
       q: 'A role in account A reads a bucket in account B. Account A\'s policy allows it. It still fails. Why?',
-      choices: ['The role needs root', 'Buckets must be public to share', 'B\'s bucket policy doesn\'t allow the role', 'S3 can\'t share across accounts'], answer: 2,
+      choices: ['A role can\'t be used across accounts', 'B must turn off Block Public Access first', 'B\'s bucket policy doesn\'t allow the role', 'B must turn on bucket ACLs first'], answer: 2,
       why: 'Across accounts, both sides must allow: the identity policy and the resource policy.' },
     // ---- 2.1.7 Fine-grained authorization ----
     { id: 'r-2-1-7-a', skill: '2.1.7', day: 5,
       q: 'Users must read only DynamoDB items whose partition key is their own user ID. How?',
-      choices: ['A table per user', 'Filter in the browser', 'A scan with a filter', 'A dynamodb:LeadingKeys condition'], answer: 3,
+      choices: ['A separate table for every user', 'A FilterExpression on the user ID', 'A GSI keyed on the user ID', 'A dynamodb:LeadingKeys condition'], answer: 3,
       why: 'LeadingKeys compares the partition key with the caller\'s identity on every request.' },
     { id: 'r-2-1-7-b', skill: '2.1.7', day: 6,
       q: 'Only "editors" in your user pool may call DELETE on the API. Simplest signal to check?',
-      choices: ['The cognito:groups claim in the token', 'The user\'s email domain', 'The caller\'s IP address', 'A header the client sets'], answer: 0,
+      choices: ['The cognito:groups claim in the token', 'The email claim in the ID token', 'The username claim in the access token', 'An X-Role header the app sends'], answer: 0,
       why: 'Put editors in a group. The group shows up in their tokens and can map to its own role.' },
     // ---- 2.1.8 Cross-service authentication ----
     { id: 'r-2-1-8-a', skill: '2.1.8', day: 3,
       q: 'Five Lambda functions share one execution role with wide rights. Best change?',
-      choices: ['Move them into one function', 'One role per function with only its own calls', 'Rotate the shared role monthly', 'Put a password in each event'], answer: 1,
+      choices: ['Merge the five into one bigger function', 'A role per function with only its own calls', 'Keep one role, but add a permissions boundary', 'Give each function its own access keys'], answer: 1,
       why: 'Separate roles mean a bug or leak in one function can\'t reach the others\' resources.' },
     { id: 'r-2-1-8-b', skill: '2.1.8', day: 5,
       q: 'One service calls another\'s Lambda function URL. Only that service may call it. Setting?',
-      choices: ['A shared API key in the query string', 'A public URL behind a long name', 'AuthType NONE with a secret path', 'AuthType AWS_IAM and allow only the caller\'s role'], answer: 3,
+      choices: ['A shared API key in the query string', 'AuthType NONE with a CORS allow-list', 'AuthType NONE plus a secret header', 'AuthType AWS_IAM, allowing its role'], answer: 3,
       why: 'With AWS_IAM, callers must sign with SigV4, and policy decides which roles may invoke.' },
     // ---- 2.2.1 At rest and in transit ----
     { id: 'r-2-2-1-a', skill: '2.2.1', day: 6,
       q: 'A bucket must refuse any request not sent over HTTPS. What does that?',
-      choices: ['Turn on versioning', 'Default SSE-S3 encryption', 'Block public access', 'Deny when aws:SecureTransport is false'], answer: 3,
+      choices: ['Default SSE-KMS encryption on the bucket', 'Block Public Access, every setting on', 'Require HTTPS in the bucket\'s CORS rules', 'Deny when aws:SecureTransport is false'], answer: 3,
       why: 'A bucket policy deny on aws:SecureTransport "false" stops plain HTTP. That\'s in transit.' },
     { id: 'r-2-2-1-b', skill: '2.2.1', day: 6,
       q: 'You need to control who can decrypt S3 objects and log each use of the key. Which encryption?',
-      choices: ['SSE-S3', 'SSE-KMS with a customer managed key', 'No encryption, use IAM only', 'Base64 encoding'], answer: 1,
+      choices: ['SSE-S3 with S3 managed keys', 'SSE-KMS with a customer managed key', 'SSE-KMS with the aws/s3 managed key', 'SSE-C with keys you send each time'], answer: 1,
       why: 'A customer managed key has its own key policy, and every use is logged in CloudTrail.' },
     // ---- 2.2.2 Certificate management ----
     { id: 'r-2-2-2-a', skill: '2.2.2', day: 4,
       q: 'Internal services need TLS certificates that only your own machines trust. Which service?',
-      choices: ['Secrets Manager', 'AWS Private CA', 'A public ACM certificate', 'A self-signed certificate per service'], answer: 1,
+      choices: ['IAM server certificates', 'AWS Private CA', 'A public ACM certificate', 'Self-signed, one per service'], answer: 1,
       why: 'AWS Private CA issues private certificates trusted by clients that trust your CA.' },
     { id: 'r-2-2-2-b', skill: '2.2.2', day: 7,
       q: 'A load balancer\'s certificate expired. ACM renews its others. Likely cause?',
-      choices: ['The bucket was public', 'The key was rotated', 'It was imported into ACM', 'ACM never renews anything'], answer: 2,
+      choices: ['It was issued in a different Region', 'Its key was rotated in KMS', 'It was imported into ACM', 'Auto-renew was switched off on it'], answer: 2,
       why: 'ACM doesn\'t renew imported certificates. You renew and re-import them yourself.' },
     // ---- 2.2.3 Client-side vs server-side ----
     { id: 'r-2-2-3-a', skill: '2.2.3', day: 5,
       q: 'Data must never be readable by AWS or anyone on the way, even for a moment. Which approach?',
-      choices: ['SSE-S3', 'SSE-KMS', 'HTTPS only', 'Client-side encryption before upload'], answer: 3,
+      choices: ['SSE-S3 plus a bucket policy', 'SSE-KMS with your own customer managed key', 'HTTPS with TLS 1.3 required', 'Client-side encryption before upload'], answer: 3,
       why: 'Client-side means only ciphertext leaves your hands. Server-side encrypts after it arrives.' },
     { id: 'r-2-2-3-b', skill: '2.2.3', day: 7,
       q: 'You want S3 to encrypt objects for you with no code changes. Which kind is that?',
-      choices: ['Server-side encryption', 'Client-side encryption', 'Envelope encryption done by hand', 'Hashing'], answer: 0,
+      choices: ['Server-side encryption', 'Client-side encryption', 'Envelope encryption done by hand', 'Hashing each object'], answer: 0,
       why: 'Server-side: S3 encrypts on write and decrypts on read for callers who are allowed.' },
     // ---- 2.2.4 Keys to encrypt and decrypt ----
     { id: 'r-2-2-4-a', skill: '2.2.4', day: 6,
       q: 'You must encrypt a 2 MB file with KMS. Which call starts it?',
-      choices: ['Decrypt', 'GenerateDataKey', 'Encrypt with the file as input', 'CreateKey for every file'], answer: 1,
+      choices: ['GenerateRandom', 'GenerateDataKey', 'Encrypt, with the file as plaintext', 'CreateKey for every file'], answer: 1,
       why: 'KMS Encrypt takes 4 KB at most. Use a data key: encrypt locally, keep only its encrypted copy.' },
     { id: 'r-2-2-4-b', skill: '2.2.4', day: 6,
       q: 'A role has kms:Decrypt in its IAM policy, but the key policy neither names it nor trusts IAM. Result?',
-      choices: ['It works only in the console', 'It works for 1 hour', 'AccessDeniedException', 'It works'], answer: 2,
+      choices: ['It works, since IAM allows it', 'KMSInvalidStateException', 'AccessDeniedException', 'NotFoundException'], answer: 2,
       why: 'A key policy must allow the call, directly or by delegating to IAM. IAM alone isn\'t enough.' },
     // ---- 2.2.5 Dev certificates and SSH keys ----
     { id: 'r-2-2-5-a', skill: '2.2.5', day: 3,
       q: 'You make an SSH key pair for a dev EC2 instance. What does the instance keep?',
-      choices: ['The private key', 'Both halves', 'Neither', 'The public key'], answer: 3,
+      choices: ['The private key', 'Both halves', 'Neither: AWS keeps both', 'The public key'], answer: 3,
       why: 'The instance holds the public key. You keep the private key, and AWS doesn\'t store it.' },
     { id: 'r-2-2-5-b', skill: '2.2.5', day: 6,
       q: 'A dev needs HTTPS on a local test server today. Fine for testing?',
-      choices: ['A self-signed certificate', 'The production certificate\'s private key', 'Turning TLS off in production', 'A public CA certificate for localhost'], answer: 0,
+      choices: ['A self-signed certificate', 'A copy of the production certificate', 'An IAM server certificate', 'A public CA certificate for localhost'], answer: 0,
       why: 'Self-signed is fine for local testing. Browsers won\'t trust it, which is why it never goes live.' },
     // ---- 2.2.6 Across accounts ----
     { id: 'r-2-2-6-a', skill: '2.2.6', day: 8,
       q: 'Account B must decrypt data sealed with your KMS key. What\'s needed?',
-      choices: ['Copy the key to B', 'Your key policy allows B, and B\'s IAM policy allows the key', 'Only B\'s IAM policy', 'An AWS managed key'], answer: 1,
+      choices: ['Export the key material and import it in B', 'Both your key policy and B\'s IAM policy allow it', 'Only an IAM policy in B that names your key\'s ARN', 'Your key policy allowing B\'s account alone'], answer: 1,
       why: 'Both sides must allow. Use a customer managed key, since you can\'t edit an AWS managed key\'s policy.' },
     { id: 'r-2-2-6-b', skill: '2.2.6', day: 8,
       q: 'In account B\'s IAM policy, how do you name a KMS key that lives in your account?',
-      choices: ['By its description', 'By its creation date', 'By its key ARN', 'By its alias name'], answer: 2,
+      choices: ['By its key ID alone', 'By its alias ARN', 'By its key ARN', 'By its alias name'], answer: 2,
       why: 'IAM policy statements identify KMS keys by key ARN, not alias.' },
     // ---- 2.2.7 Key rotation ----
     { id: 'r-2-2-7-a', skill: '2.2.7', day: 7,
       q: 'You turn on automatic rotation for a customer managed key. Data sealed last year?',
-      choices: ['Must be re-encrypted first', 'Is lost', 'Needs the old key ID', 'Still decrypts'], answer: 3,
+      choices: ['Must be re-encrypted first', 'Decrypts until the old version expires', 'Needs the old key ID passed in', 'Still decrypts'], answer: 3,
       why: 'KMS keeps the old key material under the same key ID, so old data still opens.' },
     { id: 'r-2-2-7-b', skill: '2.2.7', day: 8,
       q: 'Which statement about AWS managed keys is true?',
-      choices: ['They rotate every year and you can\'t change it', 'Rotation is off until you turn it on', 'You set the period from 90 days', 'They never rotate'], answer: 0,
+      choices: ['They rotate yearly; you can\'t change it', 'Rotation is off until you turn it on yourself', 'You set the period from 90 days', 'Every 90 days, like Secrets Manager'], answer: 0,
       why: 'AWS managed keys rotate yearly. Customer managed keys are off by default and you choose the period.' },
     // ---- 2.3.1 Data classification ----
     { id: 'r-2-3-1-a', skill: '2.3.1', day: 4,
       q: 'Which of these is PHI?',
-      choices: ['A public press release', 'A patient\'s diagnosis', 'A product price list', 'A bus timetable'], answer: 1,
+      choices: ['A customer\'s home address', 'A patient\'s diagnosis', 'A credit card number', 'An employee\'s badge number'], answer: 1,
       why: 'Protected health information is health data tied to a person.' },
     { id: 'r-2-3-1-b', skill: '2.3.1', day: 8,
       q: 'You must find which S3 buckets hold personal data. Which service helps most?',
-      choices: ['AWS Shield', 'Amazon Route 53', 'Amazon Macie', 'Amazon Inspector'], answer: 2,
+      choices: ['Amazon GuardDuty', 'AWS Config', 'Amazon Macie', 'Amazon Inspector'], answer: 2,
       why: 'Macie scans S3 objects for sensitive data such as names, addresses and card numbers.' },
     // ---- 2.3.2 Encrypted environment variables ----
     { id: 'r-2-3-2-a', skill: '2.3.2', day: 3,
       q: 'A Lambda env var holds an API token. Only this function should be able to read it. Best of these?',
-      choices: ['Leave it as plain text', 'Base64 encode it', 'Put it in the function name', 'Encrypt it with a customer managed KMS key only its role can use'], answer: 3,
+      choices: ['Lambda\'s default encryption with aws/lambda', 'Base64 encode it before saving', 'A tag on the function instead of a variable', 'A customer managed key only its role can use'], answer: 3,
       why: 'Lambda encrypts env vars at rest anyway. A customer managed key lets you limit who can decrypt.' },
     { id: 'r-2-3-2-b', skill: '2.3.2', day: 9,
       q: 'Anyone with lambda:GetFunctionConfiguration can read plain env vars. What stops that for a password?',
-      choices: ['Keep it in Secrets Manager and fetch it at run time', 'Use a longer variable name', 'Turn off logging', 'Use a bigger memory size'], answer: 0,
+      choices: ['Secrets Manager, fetched at run time', 'Base64 encode the variable\'s value', 'Store it in a function tag instead', 'Put it in a Lambda layer\'s config file'], answer: 0,
       why: 'A secret store keeps it out of the function\'s settings entirely.' },
     // ---- 2.3.3 Secret management services ----
     { id: 'r-2-3-3-a', skill: '2.3.3', day: 3,
       q: 'A database password must change every 30 days without code changes. Which service?',
-      choices: ['A text file in S3', 'Secrets Manager with rotation', 'Parameter Store String', 'An env var'], answer: 1,
+      choices: ['An encrypted text file in S3', 'Secrets Manager with rotation', 'Parameter Store SecureString', 'A KMS key with yearly rotation'], answer: 1,
       why: 'Secrets Manager rotates on a schedule. Apps fetching it each time get the new value.' },
     { id: 'r-2-3-3-b', skill: '2.3.3', day: 8,
       q: 'You need an encrypted config value. No rotation needed, lowest cost. Which?',
-      choices: ['A KMS key', 'DynamoDB', 'Parameter Store SecureString', 'Secrets Manager'], answer: 2,
+      choices: ['A Secrets Manager secret', 'Parameter Store String', 'Parameter Store SecureString', 'Secrets Manager with rotation off'], answer: 2,
       why: 'A standard SecureString is encrypted with KMS and has no storage charge. It just doesn\'t rotate itself.' },
     // ---- 2.3.4 Sanitizing sensitive data ----
     { id: 'r-2-3-4-a', skill: '2.3.4', day: 7,
       q: 'Card numbers keep showing up in CloudWatch Logs. Least effort to hide them?',
-      choices: ['Turn off logging', 'Delete the logs daily', 'Make the logs public', 'A data protection policy on the log group'], answer: 3,
+      choices: ['A metric filter that matches card numbers', 'A 1-day retention period on the group', 'KMS encryption on the log group', 'A data protection policy on the log group'], answer: 3,
       why: 'Data protection policies mask matching data as it\'s ingested. logs:Unmask is needed to see it.' },
     { id: 'r-2-3-4-b', skill: '2.3.4', day: 9,
       q: 'A function logs the whole request body for debugging. What\'s the safest habit?',
-      choices: ['Log IDs, not secrets or personal data', 'Log everything at DEBUG level', 'Log to a public bucket', 'Only log on weekends'], answer: 0,
+      choices: ['Log IDs, not secrets or personal data', 'Log it all, then encrypt the log group', 'Log the body only when errors happen', 'Base64 encode the body before logging'], answer: 0,
       why: 'Sanitize before you log. What\'s never written down can\'t leak.' },
     // ---- 2.3.5 Masking in the application ----
     { id: 'r-2-3-5-a', skill: '2.3.5', day: 5,
       q: 'A support screen must help agents spot an account without exposing it. Show?',
-      choices: ['Nothing at all', 'Only the last four digits', 'The full number', 'The number encrypted'], answer: 1,
+      choices: ['The number, hashed with SHA-256', 'Only the last four digits', 'The full number, for agents only', 'The number encrypted with KMS'], answer: 1,
       why: 'Masking keeps it recognisable but useless to a thief. The full value stays in the backend.' },
     { id: 'r-2-3-5-b', skill: '2.3.5', day: 9,
       q: 'Where should masking for a web page happen?',
-      choices: ['After the page loads', 'Nowhere, use HTTPS', 'In the backend, before the data is sent', 'In the browser with CSS'], answer: 2,
+      choices: ['In the browser, with JavaScript on load', 'Nowhere: HTTPS already protects it', 'In the backend, before the data is sent', 'In the page\'s HTML, hidden with CSS'], answer: 2,
       why: 'Hide it before it leaves the server. Anything sent to the browser can be read.' },
     // ---- 2.3.6 Multi-tenant data access ----
     { id: 'r-2-3-6-a', skill: '2.3.6', day: 3,
       q: 'Tenants share one S3 bucket under their own prefix. Scalable way to keep them apart?',
-      choices: ['A bucket policy line per tenant', 'Trust the app', 'One bucket for all with no prefix', 'Allow ${aws:PrincipalTag/tenant}/* from session tags'], answer: 3,
+      choices: ['A bucket policy statement added for every tenant', 'A separate IAM user for each tenant', 'One bucket per tenant, each with a policy', 'Allow ${aws:PrincipalTag/tenant}/* via session tags'], answer: 3,
       why: 'Attribute-based access control: one rule, and the tag decides which prefix each session may touch.' },
     { id: 'r-2-3-6-b', skill: '2.3.6', day: 6,
       q: 'In a shared DynamoDB table, what makes per-tenant isolation easy to enforce?',
-      choices: ['Tenant ID as the partition key, checked with LeadingKeys', 'A random partition key', 'One global secondary index', 'Scanning with a filter'], answer: 0,
+      choices: ['Tenant ID as partition key, with LeadingKeys', 'A random key, with the tenant as an attribute', 'One GSI per tenant on the shared table', 'A FilterExpression on the tenant ID'], answer: 0,
       why: 'If every item starts with the tenant ID, a LeadingKeys condition keeps each tenant to its own items.' }
   ];
 
@@ -891,8 +891,8 @@
           ['seoyeon', 'A borrowed cloak comes with three things, not two.']] },
         { at: { level: 'hill-road', spot: 'post-office' }, ask: {
           q: 'Temporary credentials from STS. A request is signed with the access key ID and secret access key, and still gets InvalidClientTokenId. What\'s missing?',
-          choices: ['Your IAM user password', 'A longer request body', 'The session token (X-Amz-Security-Token)', 'A second signature'], answer: 2,
-          why: 'Temporary credentials are a key ID, a secret and a session token. Send the token too.' } },
+          choices: ['The role\'s ARN in an X-Amz-Role header', 'A fresh access key from the IAM console', 'The session token (X-Amz-Security-Token)', 'The ExternalId from the trust policy'], answer: 2,
+          why: 'Temporary credentials are a key ID, a secret and a session token. Send the token too, in X-Amz-Security-Token.' } },
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'Three parts. I\'ll stamp it on the counter. Coo.']] }
       ], clue: null },
 
@@ -915,7 +915,7 @@
           ['seoyeon', 'Where did that one come from?'], ['bru', '...A man in the next town. We brought it in.']] },
         { at: { level: 'hill-road', spot: 'bounty-board' }, ask: {
           q: 'AWS Certificate Manager. A certificate in ACM expired instead of renewing. Why?',
-          choices: ['It was imported, and ACM doesn\'t renew imported certificates', 'ACM never renews certificates', 'The load balancer using it was stopped', 'Certificates in ACM never expire'], answer: 0,
+          choices: ['It was imported; ACM only renews its own', 'Auto-renew was switched off for it', 'It was in a different Region from the ALB', 'Certificates in ACM never expire'], answer: 0,
           why: 'ACM renews certificates it issued. Imported ones you renew and re-import yourself.' } },
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', 'I\'ll put it on the board. In red. With string.']] }
       ], clue: null },
@@ -939,7 +939,7 @@
           ['hobb', 'Made one myself. Drew it with a nail.']] },
         { at: { level: 'main-street', spot: 'lock-shop' }, ask: {
           q: 'Self-signed certificates. Where is a self-signed certificate fine to use?',
-          choices: ['On every public site', 'On a production login page', 'In a test environment only', 'Nowhere, ever'], answer: 2,
+          choices: ['On internal sites customers also use', 'On a production login page', 'In a test environment only', 'Nowhere: browsers block them outright'], answer: 2,
           why: 'Self-signed is fine for testing. Nobody else trusts it, so it never goes on the real gate.' } },
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'Crest\'ll hold.']] }
       ], clue: null },
@@ -954,7 +954,7 @@
             deny: 'Not today, dear. Mira and I had words about the soup.' } },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'Secrets in code. A database password is written in the app\'s source code. Where should it live?',
-          choices: ['In the code, but in a comment', 'In the developer\'s head only', 'In a public config file', 'In Secrets Manager (or a Parameter Store SecureString), fetched at run time'], answer: 3,
+          choices: ['In an environment variable set at deploy', 'In an encrypted file in the same repo', 'In a config file outside the source repo', 'In Secrets Manager, fetched at run time'], answer: 3,
           why: 'Secrets Manager or a SecureString: out of code and config, fetched when needed.' } },
         { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'Good. That\'s how you clean a wound.']] }
       ], clue: null },
@@ -966,7 +966,7 @@
           ['mira', 'A wound you never clean festers.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'Secrets Manager rotation. The database password now rotates every 30 days. How does the app keep working?',
-          choices: ['It fetches the current secret from Secrets Manager when it needs it', 'Someone pastes each new password into the code', 'It keeps using the first password', 'Rotation is turned off for that app'], answer: 0,
+          choices: ['It fetches the current secret when it needs it', 'Someone pastes each new password into the code', 'It caches the first password for good', 'It reads the password from its env var'], answer: 0,
           why: 'Secrets Manager rotates on a schedule. Apps that fetch it every time always have the new one.' } },
         { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'There. It\'ll heal itself now. I like that in a lock.']] }
       ], clue: null },
@@ -978,7 +978,7 @@
           ['lexi', 'Who you are. What you may borrow. And one for renewing.'], ['lexi', 'Which does the desk check? Choose wisely.']] },
         { at: { level: 'hill-road', spot: 'library' }, ask: {
           q: 'Cognito tokens. An API receives a Cognito access token. What should it check?',
-          choices: ['Only that a token is present', 'The signature, expiry, issuer, and that it was issued for this app\'s client ID', 'Only the user\'s email address in the ID token', 'That the refresh token is the newest'], answer: 1,
+          choices: ['That the token decodes as valid JSON', 'Signature, expiry, issuer, and its client ID', 'Only the user\'s email address in the ID token', 'Its signature only; the rest is optional'], answer: 1,
           why: 'Check the access token: signature, expiry, issuer, and that it was issued for your app.' } },
         { at: { level: 'hill-road', who: 'lexi' }, say: [['lexi', 'The Eye of Total Recall approves.'], ['lexi', '...That was genuinely good. Thank you.']] }
       ], clue: null },
@@ -993,7 +993,7 @@
             deny: 'Lexi banned my crawlers. I\'m not helping the Index.' } },
         { at: { level: 'hill-road', spot: 'library' }, ask: {
           q: 'DynamoDB fine-grained access. Each user may read only items whose partition key is their own user ID. How?',
-          choices: ['Filter the other items out in the app\'s screen', 'Deny all reads on the table', 'An IAM condition on dynamodb:LeadingKeys matching the caller\'s ID', 'A separate table per user'], answer: 2,
+          choices: ['Filter the other items out in the app\'s screen', 'A FilterExpression on the user ID', 'A dynamodb:LeadingKeys condition on their ID', 'A GSI on the user ID, queried by the app'], answer: 2,
           why: 'dynamodb:LeadingKeys matches the partition key to the caller. Per row, one rule.' } },
         { at: { level: 'hill-road', who: 'lexi' }, say: [['lexi', 'Sealed. The Catalogue keeps its secrets now.']] }
       ], clue: null },
@@ -1005,7 +1005,7 @@
           ['kai', 'Yes, chef. Great idea. Tell him, would you?']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'IAM roles and STS. A night clerk needs access only during the shift. What should they do instead of keeping a copied access key?',
-          choices: ['Keep the copied key, and rotate it monthly', 'Use the day clerk\'s access key', 'Get an IAM user with no expiry', 'Assume a role each shift and use the temporary credentials, which expire'], answer: 3,
+          choices: ['Keep the copied key, and rotate it monthly', 'An IAM user whose key is disabled each morning', 'A new access key each shift, deleted at dawn', 'Assume a role each shift; the credentials expire'], answer: 3,
           why: 'Assume the role each time. STS hands out credentials that expire.' } },
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll show you the back stair. Don\'t tell anyone I was nice.']] }
       ], clue: null },
@@ -1017,7 +1017,7 @@
           ['kai', 'One came up the hill on an open cart. Not good.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'Encryption in transit for S3. Objects are encrypted at rest. How do you refuse plain HTTP requests?',
-          choices: ['A bucket policy that denies requests when aws:SecureTransport is false', 'Encrypt the objects twice', 'Turn on versioning', 'Make the bucket public'], answer: 0,
+          choices: ['Deny requests where aws:SecureTransport is false', 'Turn on default SSE-KMS encryption', 'Turn on Block Public Access for the whole bucket', 'A CORS rule that allows only https origins'], answer: 0,
           why: 'At rest is the shelf; in transit is the road. A bucket policy deny refuses plain HTTP.' } },
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Closed carriages only. I\'ll keep the upper floor quiet tonight.']] }
       ], clue: null },
@@ -1031,7 +1031,7 @@
           help: { high: 'Tell Kane his key ring\'s too heavy too.', low: 'r-2-1-8-a', deny: 'Kane can come ask me himself.' } },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'Service-to-service authorization. Several Lambda functions call each other\'s APIs. What should each have?',
-          choices: ['No permissions: they\'re in the same account', 'Its own execution role, allowing only the calls it makes', 'One shared admin role', 'The shared admin role under a new name'], answer: 1,
+          choices: ['No permissions: they\'re in the same account', 'Its own role, allowing only the calls it makes', 'One shared role with every call any of them needs', 'Access keys for each, kept in env vars'], answer: 1,
           why: 'One role per service. If one leaks, it opens only that worker\'s doors.' } },
         { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. There\'s a stair down to the cellars. Near side. It\'s yours.']] }
       ], clue: null },
@@ -1043,7 +1043,7 @@
           ['dutch', 'Records with gaps are bad. Records with secrets are worse.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'CloudWatch Logs data protection. Logs must be kept, but card numbers must not show. Least work?',
-          choices: ['Delete log streams each morning', 'Only let one person read the logs', 'A data protection policy on the log group that masks them as they\'re ingested', 'Turn logging off'], answer: 2,
+          choices: ['A metric filter that alerts when card numbers appear', 'Encrypt the log group with a KMS key', 'A data protection policy that masks them on ingest', 'A 1-day retention policy on the group'], answer: 2,
           why: 'CloudWatch Logs data protection masks matching data on the way in.' } },
         { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Bless you. That was a long one. Ground floor\'s quiet tonight.']] }
       ], clue: null },
@@ -1058,7 +1058,7 @@
             deny: 'Not today. That hood still owes me for rope.' } },
         { at: { level: 'main-street', spot: 'kagemaru-stall' }, ask: {
           q: 'Cross-account KMS. Another account must decrypt data encrypted with your KMS key. What\'s needed?',
-          choices: ['Only an IAM policy in their account', 'Only your key policy', 'Send the data unencrypted', 'Your key policy allows their account, and their IAM policy allows the KMS actions too'], answer: 3,
+          choices: ['Only an IAM policy in their account naming the key', 'Only your key policy, naming their account', 'Share an AWS managed key with their account', 'Your key policy and their IAM policy both allow it'], answer: 3,
           why: 'Cross-account KMS: your key policy and their IAM policy must both allow it.' } },
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Paid in full. How disappointing for everyone else.']] }
       ], clue: null },
@@ -1070,7 +1070,7 @@
           ['kagemaru', 'Customers find it... unsettling.']] },
         { at: { level: 'main-street', spot: 'kagemaru-stall' }, ask: {
           q: 'Sanitizing sensitive data. A web page lists customers\' card numbers. What should it show?',
-          choices: ['Only the last four digits', 'The full number', 'The number encrypted on screen', 'The customer\'s home address instead'], answer: 0,
+          choices: ['Only the last four digits', 'The full number, to signed-in staff', 'The number encrypted on screen', 'The number hashed with SHA-256'], answer: 0,
           why: 'Sanitize what\'s shown. The full number stays in the ledger.' } },
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Discreet. Like me. Ah ha ha.']] }
       ], clue: null },
@@ -1129,12 +1129,11 @@
           ['seoyeon', 'Where anyone could read it.']] },
         { at: { level: 'far-lane', spot: 'well' }, ask: {
           q: 'Secrets management. Where should a database password used by a script be kept?',
-          choices: ['Written in the script next to the command', 'In Secrets Manager, fetched by the script when it runs', 'In a sticky note on the server', 'Split across three config files'], answer: 1,
+          choices: ['Written in the script next to the command', 'In Secrets Manager, fetched when it runs', 'In an environment variable on the server', 'In a config file only root can read'], answer: 1,
           why: 'A secret store, like Secrets Manager. Never written down by the door it opens.' } },
         { at: { level: 'far-lane', spot: 'well' }, ask: {   // big job, second question (Ladi, Nov 18)
           q: 'Secrets Manager rotation. The combination must change every 30 days, and nobody should retype it into the script. What fits?',
-          choices: ['A calendar reminder, then edit the script', 'A plain Parameter Store String someone updates by hand',
-            'Turn on automatic rotation in Secrets Manager, and have the script fetch the current value each run', 'Email the new combination to everyone who needs it'], answer: 2,
+          choices: ['A calendar reminder, then edit the script', 'A plain Parameter Store String someone updates by hand', 'Secrets Manager rotation, fetched by the script each run', 'A SecureString that a person updates monthly'], answer: 2,
           why: 'Secrets Manager can rotate a secret on a schedule with a rotation function. A script that fetches the secret when it runs always gets the current one, so nothing is retyped.' } },
         { at: { level: 'hill-road', spot: 'bunker' }, say: [['seymour', 'HALT. Understood. Understood. Understood. — S.'],
           ['seymour', 'TUNNEL OPEN. BOTH WAYS. TELL NO ONE (EXCEPT YOU). — S.']] }
@@ -1150,13 +1149,12 @@
         { at: { level: 'west-road', spot: 'lookout-ruin' }, say: [['seoyeon', 'Cleared. A sack is ready to go down.']] },
         { at: { level: 'west-road', spot: 'lookout-ruin' }, ask: {
           q: 'Client-side vs server-side encryption. Data must be protected before it leaves the app, all the way into S3. When do you encrypt?',
-          choices: ['Halfway, at a proxy', 'Never: send it faster', 'Client-side, in the app before upload', 'Server-side only, when S3 stores it'], answer: 2,
+          choices: ['At a proxy, before it reaches S3', 'Over HTTPS only; that covers storage too', 'Client-side, in the app before upload', 'Server-side only, when S3 stores it'], answer: 2,
           why: 'Client-side: sealed before it leaves, so it\'s safe on the way. Sealing on arrival is server-side.' } },
         { at: { level: 'west-road', spot: 'lookout-ruin' }, ask: {   // big job, second question (Ladi, Nov 18)
           q: 'Envelope encryption with KMS. The app encrypts each sack before upload. Why does it ask KMS for a data key instead of sending every sack to KMS to encrypt?',
-          choices: ['KMS Encrypt takes at most 4 KB, so the app encrypts the data itself with a data key and keeps the encrypted data key with it',
-            'Data keys never expire, so they are safer than KMS keys', 'KMS can\'t be used with S3', 'So the plaintext data key can be stored next to the data'], answer: 0,
-          why: 'KMS Encrypt handles at most 4 KB. GenerateDataKey returns a plaintext key to encrypt the data with (then throw away) and an encrypted copy to store with it. Storing the plaintext key would defeat the point.' } },
+          choices: ['KMS Encrypt takes 4 KB at most, so the app uses a data key', 'Data keys never expire, so they are safer than KMS keys', 'KMS charges by the byte, so data keys cost less', 'So the plaintext data key can be stored next to the data'], answer: 0,
+          why: 'KMS Encrypt handles at most 4 KB. GenerateDataKey returns a plaintext key to encrypt the data with (then throw away) and an encrypted copy to store with it. Storing the plaintext key would defeat the point, and data keys don\'t expire or save money by size.' } },
         { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'Thank you.'], ['fennel', 'It goes down only. Mind the landing.']] }
       ],
       clue: 'The hooded one walks the same pace every night, to the step. Never stops for water, never stops for fruit. Nobody walks like that.' },
@@ -1168,13 +1166,12 @@
           ['captain', 'Its key ring decides where each rider may stop.']] },
         { at: { floor: 'cellars', room: 'barracks' }, ask: {
           q: 'Identity-based policies and least privilege. The watch needs every floor; the kitchen boy needs the cellars and ground. Which policies are right?',
-          choices: ['Both: every floor', 'Both: the towers only', 'Watch: every floor. Boy: none', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
+          choices: ['Watch: every floor. Boy: every floor too', 'Watch: towers only. Boy: cellars and ground', 'Watch: every floor. Boy: the cellars only', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
           why: 'An identity policy lists exactly what each principal may do. Nobody gets more than their job.' } },
         { at: { floor: 'cellars', room: 'barracks' }, ask: {   // big job, second question (Ladi, Nov 18)
           q: 'IAM permissions boundaries. Crew leads may create roles for their crews, but no role they create should ever reach the towers. What enforces that?',
-          choices: ['Trust each lead to write careful policies', 'Require a permissions boundary on every role they create, and leave the towers out of the boundary',
-            'Give the leads AdministratorAccess so they never get stuck', 'Delete any tower access you spot in the morning'], answer: 1,
-          why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles, and nothing they make can reach past it.' } },
+          choices: ['Trust each lead to write careful policies', 'A permissions boundary required on roles they make', 'A deny on the towers in each crew lead\'s own policy', 'An AWS Config rule that reports tower access'], answer: 1,
+          why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles. A deny in a lead\'s own policy limits the lead, not the roles they make, and a Config rule only reports after the fact.' } },
         { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off. One bell tick a ride. Use it well, warden.']] }
       ], clue: null },
 
@@ -1185,7 +1182,7 @@
           ['wen', 'That big one\'s for "consulting lunches". Never paid.']] },
         { at: { level: 'main-street', spot: 'cafe' }, ask: {
           q: 'Multi-tenant data. Each customer\'s records are in one shared table. How should access work?',
-          choices: ['Each tenant\'s items under their own key, and a policy that lets each tenant read only their own', 'Everyone reads the whole table', 'Make the table smaller', 'Delete the records nightly'], answer: 0,
+          choices: ['Items under each tenant\'s key, read only by them', 'The app filters rows by tenant after it reads them', 'A table per tenant, created on sign-up', 'A GSI on tenant ID for the app to query'], answer: 0,
           why: 'Multi-tenant: each tenant sees only the rows under their own key.' } },
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'Lovely. A lunch box each.']] }
       ] },
@@ -1194,7 +1191,7 @@
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'The bread boy wants his own back-door key. Forever, he says.']] },
         { at: { level: 'main-street', spot: 'cafe' }, ask: {
           q: 'Temporary access. A delivery service needs access only on delivery mornings. What should it get?',
-          choices: ['No access: it can call support', 'A role it assumes for temporary credentials that expire', 'A copy of the owner\'s access keys', 'An IAM user with admin access'], answer: 1,
+          choices: ['An IAM user, disabled between mornings', 'A role it assumes; the credentials expire', 'An access key that someone rotates weekly', 'A shared access key kept in its config'], answer: 1,
           why: 'Temporary credentials: access that expires when the job is done.' } },
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'Mornings only. He\'ll live.']] }
       ] },
@@ -1203,7 +1200,7 @@
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'HA! My apprentices share one forge key. They fight over it.']] },
         { at: { level: 'main-street', spot: 'forge' }, ask: {
           q: 'Least privilege. Each apprentice service writes only to its own S3 prefix. What should each get?',
-          choices: ['The owner\'s credentials', 'Write access to the whole bucket', 'A policy that allows writes only to its own prefix', 'A copy of the bucket\'s root credentials'], answer: 2,
+          choices: ['Write access to the whole bucket, minus deletes', 'One shared role with every prefix listed', 'A policy allowing writes to its own prefix only', 'A bucket ACL granting each its own prefix'], answer: 2,
           why: 'Least privilege: each principal gets only what its job needs.' } },
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'One anvil, one key. My grandmother would say so. She didn\'t, but she would.']] }
       ] },
@@ -1214,7 +1211,7 @@
           help: { high: 'The lock\'s rule names him. Not his friends. Him.', low: 'r-2-2-4-b', deny: 'Not for sale. Not to you, today.' } },
         { at: { level: 'main-street', spot: 'forge' }, ask: {
           q: 'KMS key policies. Only one role should be able to decrypt with this KMS key. How?',
-          choices: ['Hide the encrypted data', 'Encrypt with a key anyone can use', 'Put the role\'s name in the object\'s tags', 'A key policy that allows kms:Decrypt only for that role'], answer: 3,
+          choices: ['An IAM policy on the role allowing kms:Decrypt', 'Use the aws/s3 managed key for the data', 'Put the role\'s name in the object\'s tags', 'A key policy letting only that role decrypt'], answer: 3,
           why: 'A key policy decides who may use the key to decrypt.' } },
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'HA! Sealed like a promise.']] }
       ] },
@@ -1224,7 +1221,7 @@
           ['aigerim', 'Would you gather them? Please?']] },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
           q: 'Data classification. A diary holds everyone\'s home addresses, a patient\'s health notes, and the weather. Which are sensitive?',
-          choices: ['The addresses (PII) and the health notes (PHI)', 'Only the health notes', 'All three', 'None of it'], answer: 0,
+          choices: ['The addresses and the health notes', 'Only the health notes; addresses are public', 'All three: anything written down is', 'Only the addresses (PII)'], answer: 0,
           why: 'Addresses are PII. The healer\'s notes are PHI. The weather is public.' } },
         { at: { level: 'main-street', who: 'aigerim' }, say: [['aigerim', 'You read them so carefully. I wrote that down.']] }
       ] },
@@ -1235,7 +1232,7 @@
           help: { high: 'An hour is plenty. Less is better.', low: 'r-2-1-6-a', deny: 'She writes down everything I say. No.' } },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
           q: 'S3 presigned URLs. How do you share one private object for one hour?',
-          choices: ['Copy the whole bucket to the person', 'A presigned URL for that object that expires in an hour', 'Make the bucket public', 'Give them your access keys'], answer: 1,
+          choices: ['A bucket policy allowing their IP for an hour', 'A presigned URL for it that expires in an hour', 'Make that one object public, then undo it', 'A CloudFront URL in front of the bucket'], answer: 1,
           why: 'An S3 presigned URL grants one object for a set time, using the signer\'s permissions.' } },
         { at: { level: 'main-street', who: 'aigerim' }, say: [['aigerim', 'One hour. I\'ll note when it ends.']] }
       ] },
@@ -1246,7 +1243,7 @@
           help: { high: 'Switch the keys off. Then wait. Then throw them away.', low: 'r-2-1-3-b', deny: 'Doug\'s keys? I don\'t touch Doug\'s keys.' } },
         { at: { level: 'hill-road', spot: 'doug-flat' }, ask: {
           q: 'IAM access keys. A retired bot\'s IAM user is no longer used. What else should you do?',
-          choices: ['Rename the user', 'Write the keys down for later', 'Deactivate its access keys, check nothing breaks, then delete them', 'Nothing: unused keys can\'t be used'], answer: 2,
+          choices: ['Rename the user so nobody uses it', 'Remove its console password and stop there', 'Deactivate the keys, check, then delete them', 'Nothing: an unused user\'s keys stop working'], answer: 2,
           why: 'Keys work from anywhere. Deactivate, check nothing breaks, then delete.' } },
         { at: { level: 'hill-road', who: 'doug' }, say: [['doug', 'Huh. I\'d have left them on. Don\'t tell Kevin.']] }
       ] },
@@ -1257,7 +1254,7 @@
           help: { high: 'His keys show when they were last used. Look there.', low: 'r-2-1-3-a', deny: 'Doug\'s row is always wrong. I\'m not helping him fix it.' } },
         { at: { level: 'hill-road', spot: 'doug-flat' }, ask: {
           q: 'IAM access keys. Something is still calling AWS with one of Doug\'s keys. How do you find which?',
-          choices: ['Guess', 'Create a new key', 'Turn off the account', 'Check each access key\'s last-used date and service'], answer: 3,
+          choices: ['Search the app logs for the secret key', 'Rotate both keys and see what fails', 'Check when the user last signed in to the console', 'Check each key\'s last-used date and service'], answer: 3,
           why: 'IAM shows when and where each access key was last used.' } },
         { at: { level: 'hill-road', who: 'doug' }, say: [['doug', 'One of them was used last night. I didn\'t use it last night.']] }
       ] },
@@ -1267,7 +1264,7 @@
           ['tess', 'Anyone who stops it can read it! Anyone!']] },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
           q: 'Lambda environment variables. A store code sits in a Lambda environment variable. How do you protect it?',
-          choices: ['Encrypt it with a customer managed KMS key that only the function\'s role can decrypt', 'Write it backwards', 'Rename the variable', 'Leave it: environment variables are private'], answer: 0,
+          choices: ['A customer managed key only its role can use', 'Base64 encode the value before you save it', 'Move it into the function\'s tags', 'Leave it: environment variables are private'], answer: 0,
           why: 'Encrypt the env var with a customer managed KMS key only its role can decrypt.' } },
         { at: { level: 'main-street', who: 'tess' }, say: [['tess', 'Sealed! The safest lamp in the WHOLE kingdom.']] }
       ] },
@@ -1278,7 +1275,7 @@
           help: { high: 'Next time, have the store write down who opens it.', low: 'r-2-1-6-a', deny: 'Her lamps keep me up. Ask someone else.' } },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
           q: 'CloudTrail data events. Next time, how will you know who read objects in the bucket?',
-          choices: ['Hide the objects', 'Turn on CloudTrail data events for the bucket', 'Ask around', 'Turn on versioning'], answer: 1,
+          choices: ['Turn on S3 versioning for the bucket', 'Turn on CloudTrail data events for it', 'Rely on CloudTrail\'s default event history', 'Turn on Block Public Access'], answer: 1,
           why: 'CloudTrail records who did what. Object reads are data events, which you turn on.' } },
         { at: { level: 'main-street', who: 'tess' }, say: [['tess', 'A record! Of EVERYONE!']] }
       ] },
@@ -1288,7 +1285,7 @@
           ['pell', 'You heard the Captain. Problem is, I\'ve only got the one password.']] },
         { at: { level: 'west-road', spot: 'castle-gate' }, ask: {
           q: 'Bearer tokens. The gate API uses one shared password for every visitor. What should it check instead?',
-          choices: ['A password that changes daily', 'Nothing: it knows the IP addresses', 'Each caller\'s own signed, expiring token', 'The same password, longer'], answer: 2,
+          choices: ['One shared password that changes daily', 'An allow-list of visitors\' IP addresses', 'Each caller\'s own signed, expiring token', 'An API key handed to each visitor'], answer: 2,
           why: 'Bearer tokens: each visitor carries their own signed, expiring token.' } },
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'By the book. I like a book.']] }
       ] },
@@ -1297,7 +1294,7 @@
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'A messenger needs through this afternoon. Only this afternoon.']] },
         { at: { level: 'west-road', spot: 'castle-gate' }, ask: {
           q: 'STS temporary credentials. A worker needs access until sundown. What do you give them?',
-          choices: ['An access key for the year', 'Pell\'s own access key', 'An access key with no expiry', 'Temporary credentials that expire at sundown'], answer: 3,
+          choices: ['An access key you plan to delete at sundown', 'An IAM user with a password reset at dusk', 'An access key, rotated every week', 'Temporary credentials ending at sundown'], answer: 3,
           why: 'Temporary credentials from STS last a set time, then stop working.' } },
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'Sundown. Not a minute after.']] }
       ] },
@@ -1307,7 +1304,7 @@
           ['hollis', 'Still don\'t know if it\'s good.']] },
         { at: { level: 'west-road', spot: 'coach-house' }, ask: {
           q: 'Identity federation. A token arrives from an outside identity provider. What should the app check?',
-          choices: ['That it\'s from a provider you trust, and its audience is your app', 'Only the user\'s display name', 'How old the token looks', 'That it\'s formatted neatly'], answer: 0,
+          choices: ['Its issuer is trusted and its audience is your app', 'That its email claim is verified', 'Only that it decodes as valid JSON', 'That it\'s signed, by whichever provider issued it'], answer: 0,
           why: 'Federation: trust only your configured identity providers, and check the token is meant for you.' } },
         { at: { level: 'west-road', who: 'hollis' }, say: [['hollis', 'Two checks. I like two. Counted.']] }
       ] },
@@ -1318,7 +1315,7 @@
           help: { high: 'Closed carriage on the road, locked chest in my store. Both.', low: 'r-2-2-1-a', deny: 'Coo. Hollis can bring his own questions.' } },
         { at: { level: 'west-road', spot: 'coach-house' }, ask: {
           q: 'Encryption in transit and at rest. Data must be safe on the network and in storage. What do you need?',
-          choices: ['A bigger instance', 'TLS in transit and encryption at rest', 'Only encryption at rest', 'Only TLS in transit'], answer: 1,
+          choices: ['A private subnet in place of TLS', 'TLS in transit and encryption at rest', 'Encryption at rest, which covers the network', 'TLS in transit, which covers storage too'], answer: 1,
           why: 'TLS covers the road. Encryption at rest covers the store. You need both.' } },
         { at: { level: 'west-road', who: 'hollis' }, say: [['hollis', 'Sealed twice. Counted twice.']] }
       ] },
@@ -1328,7 +1325,7 @@
           ['odu', 'Very popular board. Too popular.']] },
         { at: { level: 'far-lane', spot: 'dock' }, ask: {
           q: 'Masking sensitive data. A dashboard shows owners\' card numbers. What should it show?',
-          choices: ['Nothing about owners', 'The number backwards', 'The last four digits; the full number stays in the database', 'The full number'], answer: 2,
+          choices: ['The full number hashed with SHA-256', 'The full number, but only to signed-in owners', 'The last four; the database keeps the rest', 'The number encrypted on the screen'], answer: 2,
           why: 'Mask in the application before display. The record keeps the full value.' } },
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'Still popular. Less useful to thieves. Perfect!']] }
       ] },
@@ -1338,7 +1335,7 @@
           ['odu', 'The dock\'s own key, or hers?']] },
         { at: { level: 'far-lane', spot: 'dock' }, ask: {
           q: 'KMS key rotation. Which is true?',
-          choices: ['Neither AWS managed nor customer managed keys rotate', 'Both rotate monthly', 'Rotation makes old ciphertext unreadable', 'AWS managed keys rotate every year; customer managed keys only if you turn rotation on'], answer: 3,
+          choices: ['Neither AWS managed nor customer managed keys rotate', 'Both rotate yearly, and you can\'t change either', 'Rotation re-encrypts all your old ciphertext', 'AWS managed keys rotate yearly; yours if enabled'], answer: 3,
           why: 'AWS managed keys rotate every year. Customer managed keys rotate only if enabled, on a period you pick.' } },
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'And old crates still open! I\'ll tell everyone. Everyone!']] }
       ] }

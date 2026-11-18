@@ -158,10 +158,10 @@
       steps: [
         { at: { who: 'dutch' }, say: [['dutch', 'All four of my crews share one pass, and it opens every door in the cellars.'], ['seoyeon', 'Let me think about how it should work.']] },
         { at: { who: 'dutch' }, ask: { q: 'Four Lambda functions share one execution role that can read and write every table. What should change?',
-          choices: ['Give each function its own execution role that allows only the actions and tables it uses',
-            'Put an IAM user\'s access keys in each function\'s environment variables',
-            'Attach AdministratorAccess so no function ever fails'], answer: 0,
-          why: 'An execution role per function keeps each one to least privilege. Lambda gets the role\'s temporary credentials for you, so long-term keys aren\'t needed, and admin access is far wider than any function needs.' } },
+          choices: ['A role per function, allowing only its own tables',
+            'An IAM user\'s access keys in each function\'s env vars',
+            'Keep the shared role, but add a permissions boundary'], answer: 0,
+          why: 'An execution role per function keeps each one to least privilege. Lambda gets the role\'s temporary credentials for you, so long-term keys aren\'t needed, and a boundary on a shared role still lets every function reach every table.' } },
         { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, take the key to the old cellar stair by the gate.']] }
       ] },
     { id: 'kai-night-cloak', giver: 'kai', kind: 'shortcut', opens: 3, closes: 5, skill: '2.1', reward: { silver: 20, heart: true, unlock: 'back-stair' },
@@ -169,18 +169,18 @@
         { at: { who: 'kai' }, say: [['kai', 'The night clerk needs the ledger only during the shift. Right now they carry a copy of the key home.']] },
         { at: { who: 'hobb' }, say: [['hobb', 'Kai sent you? Then here is how cloaks work: you wear one for a while, then it goes back on the hook.']] },
         { at: { who: 'kai' }, ask: { q: 'A worker needs to read an S3 bucket only during the night shift. How should they get access?',
-          choices: ['Let them assume a role whose trust policy names them, so STS gives temporary credentials that expire',
-            'Create a long-term access key for them and delete it each morning', 'Make the bucket public at night'], answer: 0,
-          why: 'Assuming a role returns temporary security credentials from AWS STS that expire on their own. A long-term key lasts until someone deletes it, and a public bucket lets anyone read it.' } },
+          choices: ['Assume a role at the start of each shift',
+            'A long-term access key, deleted each morning', 'A bucket policy allowing their IP at night'], answer: 0,
+          why: 'Assuming a role returns temporary security credentials from AWS STS that expire on their own. A long-term key lasts until someone deletes it, and an IP rule lets anyone on that network in.' } },
         { at: { who: 'kai' }, say: [['kai', 'A cloak on a hook. Take the back stair key: it runs from the upper floor to the towers.']] }
       ] },
     { id: 'captain-hoist-key', giver: 'captain', kind: 'big', opens: 5, closes: 7, skill: '2.1', reward: { silver: 30, heart: false, unlock: 'hoist' },
       steps: [
         { at: { who: 'captain' }, say: [['captain', 'The hoist reaches every floor, so its key is the most dangerous one in the keep.']] },
         { at: { who: 'captain' }, ask: { q: 'One permission can reach every floor. What keeps it safest?',
-          choices: ['Give it to a role the watch assumes only while on patrol, and record each use in CloudTrail',
-            'Copy it to every worker so nobody is stuck', 'Leave it in the gatehouse so it never goes missing'], answer: 0,
-          why: 'Granting wide access through a role that is assumed only when needed limits how long anyone holds it, and CloudTrail records each AssumeRole call. Copies for everyone, or a key left where anyone can take it, defeat the point.' } },
+          choices: ['A role the watch assumes only on patrol, logged',
+            'An IAM user for the watch, with MFA on its sign-in', 'Attach it to every worker, with a permissions boundary'], answer: 0,
+          why: 'Granting wide access through a role that is assumed only when needed limits how long anyone holds it, and CloudTrail records each AssumeRole call. A standing IAM user holds the access all the time, and a boundary on every worker still gives every worker the hoist.' } },
         { at: { who: 'captain' }, say: [['captain', 'Good. The hoist is yours. Pull the cord for the floor you want.']] }
       ] }
   ];
@@ -291,10 +291,13 @@
   // A choice question: { q, choices, answer, why }. done(ok). tries: how many misses allowed before it locks.
   function choose(title, q, tries, done, who) {
     let miss = 0;
+    // Shuffle the order each time a question opens, so where the right answer sits tells you nothing (Ladi, Nov 18).
+    const order = q.choices.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     qOpen();
     const draw = (msg) => {
       const o = overlay(`${qLine()}${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
-        <div class="ww-ch">${q.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`);
+        <div class="ww-ch">${order.map(i => `<button data-i="${i}">${esc(q.choices[i])}</button>`).join('')}</div>`);
       o.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
         const i = +b.dataset.i;
         if (i === q.answer || miss + 1 > tries) qShut();
