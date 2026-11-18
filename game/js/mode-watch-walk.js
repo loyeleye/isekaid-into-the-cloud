@@ -59,6 +59,9 @@
   const HIRE = [50, 80], HIRE_DAY = 3;
   // The shop at Kagemaru's stall (doc: Economy, money out). Trust 60 takes 20% off (js/watch-bonds.js).
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
+    // Ladi, Nov 18: a one-off that removes an intruder but leaves its break-in open. Named for IAM's "revoke active
+    // sessions": the stolen pass stops working, and the guards walk them out.
+    { id: 'writ', name: 'Revocation writ', cost: 12, what: 'one use: walk up to an intruder and revoke their stolen pass. They\'re walked out. Their break-in stays open' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
     { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' },
     { id: 'guard', name: 'GuardDuty bell', cost: 0, what: 'tonight only: rings with the floor of every break-in and shows each fuse, wherever you are' },
@@ -696,8 +699,8 @@
     // it watches, 8 silver per break-in due tonight.
     const gdCost = () => (w.guardTrial ? GD_EACH * breaches(w.day).length : 0);
     const w = sv(), price = it => it.id === 'guard' ? (w.guardTrial ? B.price(w.bonds, 'kagemaru', gdCost()) : 0) : B.price(w.bonds, 'kagemaru', it.cost);
-    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
-      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
+    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0} · writs ${w.writs || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
+      <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'writ' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
         .filter(it => !(it.id === 'guard' && (w.day >= 9 || w.guard === w.day)))
         .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
         .map(it => { const lockd = it.id === 'watch2' && !kageDone();
@@ -714,6 +717,7 @@
       }
       w.silver -= price(it);
       if (it.id === 'tools') w.tools = (w.tools || 0) + 1;
+      if (it.id === 'writ') w.writs = (w.writs || 0) + 1;
       if (it.id === 'guard') { w.guard = w.day; w.guardTrial = 1; }   // good for tonight (Ladi, Nov 18: optional, every night but the last)
       if (it.id === 'watch1' || it.id === 'watch2') w.watchUp = (w.watchUp || 0) + 1;
       if (it.id === 'outpost') { w.unlocks.outpost = 1; if (run) run.st.unlocks.outpost = 1; }
@@ -872,16 +876,27 @@
     //     spiller: never chases, shies away; leaves puddles of lamp oil that slow her to 40% for a moment.
     //     jailer (night 6 on): slow, short-sighted, sees only ahead. Locks her in a closet: the night ends there. On the
     //       Long Night, it costs 2 minutes instead. Easy to outwalk, unless a spiller's puddle slows her down.
+    //     impersonator (night 5 on): dressed as feast staff. Real staff carry a tray or sack along their route; this
+    //       one has empty hands and wanders where staff never go. It drops the act within 110px and grabs 15 silver
+    //       (or a spare tool). Anyone can look right: check what they're doing.
     //   Not on night 1. All of them get a little faster each night.
+    //   Busy map (Ladi, Nov 18: "not a lot of space to walk around"): at most 3 intruders inside at once, one new kind
+    //   a night, at most 3 kinds a night, one jailer, and the kind's name shows only when it's close.
+    // Feast staff (from night 1, Ladi: so the first impersonator isn't confusing; 2 from night 6): a cook on the ground floor (tavern to great hall) and a porter in the
+    // cellars (barracks stores to the stair). Not security, so no help, and squeezing past one slows her a little.
     const KINDS = {
       pickpocket: { sp: 95, sight: 260, rush: 1.4, in: '👣 Light, quick footsteps. Someone\'s in, after your pockets.' },
       snuffer: { sp: 85, sight: 220, rush: 1.3, in: '👣 Footsteps, and a draught. Someone\'s in who hates a lantern.' },
       spiller: { sp: 70, sight: 0, rush: 1, in: '👣 Sloshing footsteps. Someone\'s in, and they\'re spilling something.' },
-      jailer: { sp: 52, sight: 150, rush: 1.6, ahead: true, in: '👣 Heavy, slow footsteps, and keys jangling. Stay out of their way.' }
+      jailer: { sp: 52, sight: 150, rush: 1.6, ahead: true, in: '👣 Heavy, slow footsteps, and keys jangling. Stay out of their way.' },
+      impersonator: { sp: 62, sight: 110, rush: 2.2, in: '👣 Footsteps that sound like the kitchen staff. But the kitchen\'s short tonight.' }
     };
-    const kindFor = (x, i) => { const n = w.day, r = (i * 7 + n * 3) % 10;
-      if (n >= 6 && i === 2) return 'jailer'; if (n === 9 && i % 6 === 5) return 'jailer';
-      if (n >= 4 && r < 3) return 'snuffer'; return r < 6 ? 'pickpocket' : 'spiller'; };
+    const ROSTER = { 2: ['pickpocket'], 3: ['pickpocket', 'spiller'], 4: ['pickpocket', 'spiller', 'snuffer'], 5: ['impersonator', 'spiller', 'snuffer'],
+      6: ['impersonator', 'snuffer'], 7: ['pickpocket', 'spiller'], 8: ['impersonator', 'snuffer'], 9: ['impersonator', 'spiller'] };
+    const MAX_IN = 3;
+    const kindFor = (x, i) => { const n = w.day, R = ROSTER[n] || ['pickpocket'];
+      if (n >= 6 && i === 2) return 'jailer';   // one jailer a night
+      return R[(i + n) % R.length]; };
     const PROWL = ['castle:towers', 'castle:upper', 'castle:ground', 'castle:cellars', 'bridge'];
     const crew = x => (x && x.raid ? x.raid : 'raiders').replace(/^The /, '');
     const exits = id => WW.scene(id).spots.filter(v => (v.kind === 'stair' && !v.needs) || v.id === 'bridge-exit' || v.id === 'bridge-door');
@@ -897,11 +912,12 @@
       p.exit = ex.sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0] || pick(exits(p.scene)) || null; p.next = next;
       p.tx = p.exit ? p.exit.x : p.x;
     };
-    const syncProwlers = () => { Object.keys(run.ppl).forEach(k => { run.ppl[k] = run.ppl[k].filter(v => !/^intruder/.test(v.who)); });
-      (run.prowl || []).forEach(p => (run.ppl[p.scene] = run.ppl[p.scene] || []).push(p)); view.set('people', run.ppl); view.set('puddles', run.puddles || []); };
+    const syncProwlers = () => { Object.keys(run.ppl).forEach(k => { run.ppl[k] = run.ppl[k].filter(v => !v.night); });
+      (run.prowl || []).concat(run.staff || []).forEach(p => (run.ppl[p.scene] = run.ppl[p.scene] || []).push(p)); view.set('people', run.ppl); view.set('puddles', run.puddles || []); };
     const intrude = x => {
       const kind = x.kind || kindFor(x, run.list.indexOf(x)), K = KINDS[kind], scene = pick(PROWL), e = pick(exits(scene));
-      const p = { who: 'intruder-' + kind, tag: kind.charAt(0).toUpperCase() + kind.slice(1), kind, scene, x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
+      const mask = kind === 'impersonator';
+      const p = { night: 1, who: mask ? 'staff' : 'intruder-' + kind, tag: mask ? '' : kind.charAt(0).toUpperCase() + kind.slice(1), mask, kind, scene, x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
       goal(p); run.inside[x.id] = p; (run.prowl = run.prowl || []).push(p); syncProwlers(); toast(K.in);
     };
     const leave = (p, line) => { run.prowl = (run.prowl || []).filter(v => v !== p);
@@ -933,6 +949,7 @@
         else { run.over = 1; leave(p); busy = true;
           sayAll([['seoyeon', 'They\'ve locked me in the linen closet.'], ['seoyeon', 'Nobody will hear me till the morning shift. That\'s the night gone.']], () => dawn()); return true; }
       } else if (p.kind === 'snuffer') { run.dark = 15; toast(`💨 One of the ${who} blows out your lantern and runs. You can barely see.`); }
+      else if (p.kind === 'impersonator' && (w.silver || 0) >= 15) { w.silver -= 15; toast(`🫳 The fake cook lifts 15 silver and runs.`); }
       else if ((w.tools || 0) > 0) { w.tools--; toast(`🫳 One of the ${who} snatches a spare tool and runs.`); }
       else if ((w.silver || 0) >= 10) { w.silver -= 10; toast(`🫳 One of the ${who} lifts 10 silver and runs.`); }
       else toast(`🫳 One of the ${who} finds your pockets empty, and runs.`);
@@ -940,19 +957,48 @@
       p.state = 'flee'; p.exit = ex[0] || null; p.next = null; p.tx = p.exit ? p.exit.x : bounds(p.scene)[p.x < st.x ? 0 : 1]; p.cool = 10; S.persist();
       return false;
     };
+    const STAFF = [{ scene: 'castle:ground', a: 'tavern', b: 'hall', carry: 'tray' }, { scene: 'castle:cellars', a: 'barracks', b: null, carry: 'sack' }];
+    const roomX = (scene, id) => { const r = WW.CASTLE[WW.scene(scene).floor].rooms.find(v => v[0] === id); return r ? (r[1] + r[2]) / 2 : null; };
+    const hireStaff = () => {
+      const n = w.day < 6 ? 1 : 2;   // from night 1, so you know the staff long before anyone dresses as one
+      run.staff = STAFF.slice(0, n).map(d => { const a = roomX(d.scene, d.a), b = d.b ? roomX(d.scene, d.b) : (exits(d.scene).find(v => v.kind === 'stair') || {}).x;
+        return { night: 1, who: 'staff', scene: d.scene, x: a, a, b, tx: b, go: true, d: 0, facing: 1, carry: d.carry, sp: 55, rest: 0 }; });
+      syncProwlers();
+    };
+    // Walking up to someone at night. Staff show their kitchen pass. Asking a fake cook for theirs makes them bolt
+    // (check who they are). A revocation writ removes an intruder for the night, but its break-in stays open.
+    function nightMeet(p) {
+      if (p.carry) return sayAll([['seoyeon', 'Kitchen pass?'], ['seoyeon', 'Stamped, signed and dated tonight. Mind the tray.']]);
+      const x = run.list.find(v => v.id === p.of);
+      if (p.mask) { p.mask = false; p.who = 'intruder-impersonator'; p.tag = 'Impersonator'; p.state = 'flee'; p.cool = 10;
+        const ex = exits(p.scene).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x)); p.exit = ex[0] || null; p.tx = p.exit ? p.exit.x : p.x; syncProwlers();
+        return sayAll([['seoyeon', 'Kitchen pass?'], ['seoyeon', 'No pass, no tray, and now they\'re running. That was no cook.']]); }
+      if ((w.writs || 0) > 0) { w.writs--; (run.out = run.out || {})[p.of] = 1; leave(p); S.persist();
+        return sayAll([['seoyeon', 'By order of the castle, your pass is revoked.'], ['seoyeon', `The guards will walk this one of the ${crew(x)} out. The lock they came through is still broken, though.`]]); }
+      return sayAll([['seoyeon', 'I can\'t make them leave without a revocation writ. Kagemaru sells them.']]);
+    }
     function prowl(dt) {
+      if (!run.staff) hireStaff();
       if (run.dark > 0) run.dark -= dt;
       if (busy) { run.calm = 2; return; }
       if (run.calm > 0) run.calm -= dt;
       run.puddles = (run.puddles || []).filter(m => (m.life -= dt) > 0); view.set('puddles', run.puddles);
       const wet = run.puddles.some(m => m.scene === st.scene && Math.abs(m.x - st.x) < 36);
       if (wet) run.slow = 1.2; else if (run.slow > 0) run.slow -= dt;
-      st.slow = run.slow > 0 ? 0.4 : 1;
+      const squeeze = (run.staff || []).some(p => p.scene === st.scene && Math.abs(p.x - st.x) < 26);
+      st.slow = run.slow > 0 ? 0.4 : squeeze ? 0.6 : 1;
+      (run.staff || []).forEach(p => {   // staff walk their route, stopping a moment at each end
+        if (p.rest > 0) { p.rest -= dt; return; }
+        const step = Math.sign(p.tx - p.x) * Math.min(Math.abs(p.tx - p.x), p.sp * dt);
+        p.x += step; p.d += Math.abs(step); if (step) p.facing = Math.sign(step);
+        if (Math.abs(p.tx - p.x) < 2) { p.tx = p.tx === p.a ? p.b : p.a; p.rest = 2.5; }
+      });
       let moved = false;
       for (const p of (run.prowl || []).slice()) {
         const K = KINDS[p.kind]; p.cool -= dt;
         const here = p.scene === st.scene, dx = st.x - p.x, ahead = !K.ahead || Math.sign(dx) === p.facing;
-        const sees = here && K.sight && run.dark <= 0 && Math.abs(dx) < K.sight && ahead && !hidden() && !(p.cool > 0) && p.state !== 'flee';
+        const sees = here && K.sight && !(run.dark > 0) && Math.abs(dx) < K.sight && ahead && !hidden() && !(p.cool > 0) && p.state !== 'flee';
+        if (p.mask && sees) { p.mask = false; p.who = 'intruder-impersonator'; p.tag = 'Impersonator'; moved = true; toast('🎭 That\'s no cook. Empty hands, and they\'re coming for you.'); }
         if (here && K.sight && !(run.calm > 0) && p.cool <= 0 && Math.abs(dx) < 50 && !hidden()) { if (caught(p, run.list.find(v => v.id === p.of))) return; continue; }
         if (sees) { p.tx = st.x; p.state = 'chase'; }
         else if (p.state === 'chase') { p.state = 'go'; aim(p); }
@@ -961,7 +1007,7 @@
           const x = run.list.find(v => v.id === p.of); if (x && x.fuse) x.fuse -= 15;
           toast(`💰 The ${crew(x)} cleaned out the ${p.goal.name.toLowerCase()}. Their lock is giving faster.`); goal(p); } continue; }
         if (Math.abs(p.tx - p.x) < 4 && p.state !== 'chase') {
-          if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); } moved = moved || sc0 !== p.scene; continue; }
+          if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); if (p.kind === 'impersonator') { p.mask = true; p.who = 'staff'; p.tag = ''; } } moved = moved || sc0 !== p.scene; continue; }
           if (p.state === 'flee') { p.state = 'go'; aim(p); continue; }
           if (p.state === 'go' && p.goal.scene === p.scene) { p.state = 'loot'; p.loot = 8; continue; }
           aim(p);
@@ -987,6 +1033,10 @@
         if (phase === 'night') {
           const x = run.list.find(v => !run.fixed[v.id] && run.locked[v.id] !== 'gone' && up(v) && v.scene === st.scene && Math.abs(v.x - st.x) <= WW.REACH);
           if (x) return fix(x, () => view.set('marks', marks()));
+        }
+        if (phase === 'night') {   // people in the castle at night: staff, intruders, an impersonator
+          const n = (run.ppl[st.scene] || []).filter(v => v.night && Math.abs(v.x - st.x) <= WW.REACH + 20).sort((a, b) => Math.abs(a.x - st.x) - Math.abs(b.x - st.x))[0];
+          if (n) return nightMeet(n);
         }
         const f = run.escort && view.follower;
         if (f && f.scene === st.scene && Math.abs(f.x - st.x) <= WW.REACH) return sayAll([['mira', 'Don\'t mind me. Pretend I\'m not here.']]);
@@ -1038,7 +1088,7 @@
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
               run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
             }
-            if (x.inAt && up(x) && gone() >= x.at + x.inAt && !(run.inside = run.inside || {})[x.id]) intrude(x);
+            if (x.inAt && up(x) && gone() >= x.at + x.inAt && !((run.inside = run.inside || {})[x.id]) && !(run.out || {})[x.id] && (run.prowl || []).length < MAX_IN) intrude(x);
           });
           Object.keys(run.inside || {}).forEach(id => { const x = run.list.find(v => v.id === id), p = run.inside[id];
             if (p && (run.fixed[id] || run.locked[id] === 'gone')) leave(p, run.fixed[id] ? `🚪 The ${crew(x)} lookout slips back out the way they came.` : ''); });
@@ -1050,7 +1100,7 @@
           moveWalkers(dt); syncPeople();
           if ((run.mk = (run.mk || 0) + dt) > 0.3) { run.mk = 0; view.set('marks', dayMarks()); if (!run.escort) meetups(); townTalk(); }
         }
-        if (phase === 'night' && run.inside) prowl(dt);
+        if (phase === 'night') prowl(dt);
         if (run.q) {   // a question is open: thinking time first, then the clock runs
           if (run.q.left > 0) run.q.left -= dt;
           else if (clock > 0) clock = Math.max(0, clock - dt);

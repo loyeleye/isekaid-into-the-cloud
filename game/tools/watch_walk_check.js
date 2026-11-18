@@ -486,6 +486,30 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await page.keyboard.down('ArrowRight'); await page.waitForTimeout(150); await page.keyboard.up('ArrowRight');
   const tk2 = await ev(() => !SD.watchWalk.run.st.tucked);
   check(tk1.every(Boolean) && tk2, `up at a doorway hides her from a prowler, and stepping right brings her out (${tk1},${tk2})`);
+  // Feast staff and the impersonator (Ladi, Nov 18).
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.at = null; w.fixed = {}; w.guard = 0; SD.watchWalk.walk('night'); }); await page.waitForTimeout(400);
+  const imp = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), st = r.st, out = [], wait = ms => new Promise(z => setTimeout(z, ms));
+    out.push((r.staff || []).length >= 1 && r.staff.every(p => p.carry && p.who === 'staff'));
+    (r.prowl || []).slice().forEach(p => { p.scene = 'castle:towers'; p.x = 1200; p.tx = 1200; });   // out of the way
+    const x = r.list.find(v => !r.fixed[v.id] && !r.locked[v.id] && !(r.inside || {})[v.id]); if (!x) return 'no free break-in';
+    x.kind = 'impersonator'; (r.prowl || []).forEach(p => { if (p !== null) p.of = p.of; }); const before = (r.prowl || []).length;
+    r.prowl = (r.prowl || []).slice(0, 2); SD.watchWalk.clock(Math.min(SD.watchWalk.clock(), 360 - x.at - x.inAt - 1)); await wait(500);
+    const p = r.inside[x.id]; if (!p) return 'not spawned ' + before;
+    out.push(p.who === 'staff' && !p.carry && !p.tag);
+    w.silver = 40; w.tools = 0; st.scene = p.scene; st.tucked = false; st.x = p.x + 200; p.tx = p.x; p.cool = 0; p.state = 'loot'; p.loot = 99; p.exit = null; await wait(300); out.push(p.mask === true);   // too far to tell
+    st.x = p.x + 70; await wait(300); out.push(p.mask === false && p.tag === 'Impersonator');
+    await wait(900); out.push(w.silver === 25);
+    return out; });
+  check(Array.isArray(imp) && imp.every(Boolean), `staff carry trays on their round; an impersonator looks like staff with empty hands, drops the act up close and lifts 15 silver (${imp})`);
+  const writ = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), st = r.st, wait = ms => new Promise(z => setTimeout(z, ms));
+    const p = (r.prowl || [])[0]; if (!p) return 'none'; w.writs = 1; p.cool = 99; p.state = 'loot'; p.loot = 99; p.exit = null; st.scene = p.scene; st.x = p.x + 10;
+    if (p.mask) { p.mask = false; p.who = 'intruder-impersonator'; }
+    SD.watchWalk.view.press('use'); await wait(200); const said = (document.querySelector('.ww-o:not([hidden])') || {}).textContent || '';
+    return [w.writs === 0, !(r.prowl || []).includes(p), /revoked/.test(said), !r.fixed[p.of]]; });
+  check(Array.isArray(writ) && writ.every(Boolean), `a revocation writ removes an intruder but leaves its break-in open (${writ})`);
+  while (await page.$('.ww-o:not([hidden]) [data-a]')) { const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=d]') || await page.$('.ww-o:not([hidden]) [data-a=x]'); if (!b) break; await b.click(); await page.waitForTimeout(150); }
+  const cap3 = await ev(() => (SD.watchWalk.run.prowl || []).length <= 3);
+  check(cap3, 'never more than 3 intruders inside at once');
   const roamed = await ev(async () => { const r = SD.watchWalk.run, x = r.list[1], st = r.st;
     st.scene = 'bridge'; st.x = 880; SD.watchWalk.clock(360 - x.at - x.inAt - 1); await new Promise(z => setTimeout(z, 400));
     const p = r.inside[x.id] || (r.prowl || [])[0]; if (!p) return 'none'; p.sp = 700; p.goal = { scene: p.scene === 'castle:cellars' ? 'castle:towers' : 'castle:cellars', x: 600, name: 'Archive' }; p.state = 'go'; p.exit = null; p.tx = p.x; const seen = new Set([p.scene]), states = new Set();
