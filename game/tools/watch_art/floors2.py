@@ -81,6 +81,23 @@ def shaft(f, wall, tile):
     door = (np.abs(xx - cx) <= rr) & (yy < FL) & ((yy >= top) | (np.hypot(xx - cx, yy - top) <= rr))
     rim = (np.abs(xx - cx) <= rr + 4) & (yy < FL) & ((yy >= top) | (np.hypot(xx - cx, yy - top) <= rr + 4)) & ~door
     a[rim, :3] = (150, 140, 124); a[door, :3] = (22, 18, 24); a[door | rim, 3] = 255
+    # Ladi, Nov 18: the way to the hoist must be open. Arches through whatever solid masonry stands between the
+    # left doorway and the rooms: under the left stair (upper, ground) and through the cellar's pier.
+    for x0, x1 in {'upper': [(98, 188)], 'ground': [(98, 186)], 'cellars': [(212, 250)]}.get(f, []):
+        cx, rr = (x0 + x1) / 2, (x1 - x0) / 2; dx = np.clip(np.abs(xx - cx) / rr, 0, 1)
+        top = FL - 112 + 26 * dx ** 2 if rr > 30 else FL - 104 + rr - np.sqrt(np.clip(rr * rr - (xx - cx) ** 2, 0, None))
+        door = (np.abs(xx - cx) <= rr) & (yy < FL) & (yy >= top)
+        grow = (np.abs(xx - cx) <= rr + 4) & (yy < FL) & (yy >= top - 4)
+        rim = grow & ~door
+        a[rim, :3] = (150, 140, 124); a[door, :3] = (26, 22, 28); a[door | rim, 3] = 255
+    if f == 'towers':   # a level walkway branching off the top of the stairs to the hoist doorway
+        a[FL:FL + 12, SW - 4:262, :3] = (138, 130, 118); a[FL, SW - 4:262, :3] = (176, 166, 146)
+        a[FL + 11:FL + 14, SW - 4:262, :3] = (52, 46, 46)
+        for x in range(SW + 6, 262, 18): a[FL + 1:FL + 11, x, :3] = (96, 90, 84)
+        for x in (SW + 10, 196): a[FL + 12:FL + 60, x:x + 8, :3] = (110, 102, 94); a[FL + 12:FL + 60, x, :3] = (70, 64, 60)
+        a[FL - 16:FL, SW + 36:262, :3] = np.where(a[FL - 16:FL, SW + 36:262, 3:4] > 0, a[FL - 16:FL, SW + 36:262, :3], 0)
+        for x in range(SW + 36, 262, 24): a[FL - 18:FL, x:x + 3, :3] = (92, 66, 42); a[FL - 18:FL, x:x + 3, 3] = 255
+        a[FL - 19:FL - 16, SW + 36:262, :3] = (120, 88, 56); a[FL - 19:FL - 16, SW + 36:262, 3] = 255
     if f == 'towers':                                                              # the winch at the top
         yy, xx = np.mgrid[0:60, 14:SW]; ring = np.abs(np.hypot(xx - 55, yy - 30) - 22) < 3
         sub = a[0:60, 14:SW]; sub[ring, :3] = (120, 88, 56); a[0:60, 14:SW] = sub
