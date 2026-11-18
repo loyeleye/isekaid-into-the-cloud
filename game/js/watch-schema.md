@@ -97,14 +97,21 @@ window.WATCH_CONTENT = {
       { at: { level: 'main-street', spot: 'base-camp' }, ask: {
           q: 'What should the cook do?', choices: ['...', '...', '...'], answer: 0, why: '...' } },
       { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'thanks line']] }
+      // A step whose `who` is not the giver is a referral: the engine checks that person's trust in you
+      // and their tie to the giver (js/watch-bonds.js). Optional on a referral step:
+      // help: { high: 'extra clue line', low: 'r-2-1-2-a' (review id asked first), deny: 'refusal line' }
     ],
     clue: null                            // big quests: the mystery clue text, if any
   }],
   gossip: [{                              // shown at dawn and around town
     id: 'g-3-wind-1', day: 3, who: 'tess', where: 'main-street',
     line: 'What they say.', weather: 'wind',   // weather optional: only shown on that weather
-    clue: false, herring: false            // clue lines count toward the mystery notebook
+    clue: false, herring: false,           // clue lines count toward the mystery notebook
+    tie: null                              // optional: { a: 'hobb', b: 'doug', to: 'cool' | 'warm' } shifts that tie for today
   }],
+  // Relationships (storyboard "Relationships"): how each person feels about others, from the story bible.
+  // Two or three warm, at most one cool; anyone unlisted is neutral. Ties are one-way (how `who` feels).
+  ties: { hobb: { warm: ['mira', 'odu'], cool: ['doug'] } },
   dusk: [{ night: 1, who: 'pell', lines: ['Pell\'s dusk briefing lines'] }]
 };
 ```
