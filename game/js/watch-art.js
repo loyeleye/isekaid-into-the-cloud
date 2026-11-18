@@ -20,11 +20,11 @@ window.WATCH_ART = {
  "people": {
   "seoyeon": {
    "sheet": "assets/img/watch/people/seoyeon.png",
-   "w": 58,
-   "h": 112,
+   "w": 108,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    54,
+    212
    ],
    "anims": {
     "idle": [
@@ -64,15 +64,16 @@ window.WATCH_ART = {
      10
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "mira": {
    "sheet": "assets/img/watch/people/mira.png",
-   "w": 52,
-   "h": 112,
+   "w": 100,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    50,
+    212
    ],
    "anims": {
     "idle": [
@@ -96,15 +97,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kai": {
    "sheet": "assets/img/watch/people/kai.png",
-   "w": 58,
-   "h": 112,
+   "w": 114,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    57,
+    212
    ],
    "anims": {
     "idle": [
@@ -128,15 +130,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "dutch": {
    "sheet": "assets/img/watch/people/dutch.png",
-   "w": 68,
-   "h": 112,
+   "w": 126,
+   "h": 224,
    "anchor": [
-    34,
-    106
+    63,
+    212
    ],
    "anims": {
     "idle": [
@@ -160,15 +163,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "coo": {
    "sheet": "assets/img/watch/people/coo.png",
-   "w": 66,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
@@ -192,15 +196,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "bru": {
    "sheet": "assets/img/watch/people/bru.png",
-   "w": 50,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    25,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
@@ -224,15 +229,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kagemaru": {
    "sheet": "assets/img/watch/people/kagemaru.png",
-   "w": 54,
-   "h": 112,
+   "w": 104,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    52,
+    212
    ],
    "anims": {
     "idle": [
@@ -256,15 +262,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "lexi": {
    "sheet": "assets/img/watch/people/lexi.png",
-   "w": 54,
-   "h": 112,
+   "w": 102,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    51,
+    212
    ],
    "anims": {
     "idle": [
@@ -288,15 +295,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "wen": {
    "sheet": "assets/img/watch/people/wen.png",
-   "w": 48,
-   "h": 112,
+   "w": 92,
+   "h": 224,
    "anchor": [
-    24,
-    106
+    46,
+    212
    ],
    "anims": {
     "idle": [
@@ -320,15 +328,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "ayo": {
    "sheet": "assets/img/watch/people/ayo.png",
-   "w": 62,
-   "h": 112,
+   "w": 120,
+   "h": 224,
    "anchor": [
-    31,
-    106
+    60,
+    212
    ],
    "anims": {
     "idle": [
@@ -352,15 +361,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "aigerim": {
    "sheet": "assets/img/watch/people/aigerim.png",
-   "w": 52,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
@@ -384,15 +394,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "chad": {
    "sheet": "assets/img/watch/people/chad.png",
-   "w": 58,
-   "h": 112,
+   "w": 110,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    55,
+    212
    ],
    "anims": {
     "idle": [
@@ -416,15 +427,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "seymour": {
    "sheet": "assets/img/watch/people/seymour.png",
-   "w": 66,
-   "h": 112,
+   "w": 126,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    63,
+    212
    ],
    "anims": {
     "idle": [
@@ -448,15 +460,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "hobb": {
    "sheet": "assets/img/watch/people/hobb.png",
-   "w": 48,
-   "h": 112,
+   "w": 90,
+   "h": 224,
    "anchor": [
-    24,
-    106
+    45,
+    212
    ],
    "anims": {
     "idle": [
@@ -480,15 +493,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "pell": {
    "sheet": "assets/img/watch/people/pell.png",
-   "w": 72,
-   "h": 112,
+   "w": 190,
+   "h": 300,
    "anchor": [
-    36,
-    106
+    95,
+    288
    ],
    "anims": {
     "idle": [
@@ -512,15 +526,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "tess": {
    "sheet": "assets/img/watch/people/tess.png",
-   "w": 94,
-   "h": 112,
+   "w": 116,
+   "h": 224,
    "anchor": [
-    47,
-    106
+    58,
+    212
    ],
    "anims": {
     "idle": [
@@ -544,15 +559,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "doug": {
    "sheet": "assets/img/watch/people/doug.png",
-   "w": 56,
-   "h": 112,
+   "w": 104,
+   "h": 224,
    "anchor": [
-    28,
-    106
+    52,
+    212
    ],
    "anims": {
     "idle": [
@@ -576,15 +592,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "hollis": {
    "sheet": "assets/img/watch/people/hollis.png",
-   "w": 60,
-   "h": 112,
+   "w": 114,
+   "h": 224,
    "anchor": [
-    30,
-    106
+    57,
+    212
    ],
    "anims": {
     "idle": [
@@ -608,15 +625,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "odu": {
    "sheet": "assets/img/watch/people/odu.png",
-   "w": 62,
-   "h": 112,
+   "w": 118,
+   "h": 224,
    "anchor": [
-    31,
-    106
+    59,
+    212
    ],
    "anims": {
     "idle": [
@@ -640,15 +658,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "fennel": {
    "sheet": "assets/img/watch/people/fennel.png",
-   "w": 50,
-   "h": 112,
+   "w": 92,
+   "h": 224,
    "anchor": [
-    25,
-    106
+    46,
+    212
    ],
    "anims": {
     "idle": [
@@ -672,15 +691,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "captain": {
    "sheet": "assets/img/watch/people/captain.png",
-   "w": 66,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
@@ -704,15 +724,16 @@ window.WATCH_ART = {
      5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kevin": {
    "sheet": "assets/img/watch/people/kevin.png",
-   "w": 52,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
@@ -732,15 +753,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-1": {
    "sheet": "assets/img/watch/people/townsfolk-1.png",
-   "w": 54,
-   "h": 112,
+   "w": 102,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    51,
+    212
    ],
    "anims": {
     "idle": [
@@ -760,15 +782,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-2": {
    "sheet": "assets/img/watch/people/townsfolk-2.png",
-   "w": 66,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
@@ -788,15 +811,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-3": {
    "sheet": "assets/img/watch/people/townsfolk-3.png",
-   "w": 52,
-   "h": 112,
+   "w": 102,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    51,
+    212
    ],
    "anims": {
     "idle": [
@@ -816,17 +840,18 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   }
  },
  "animals": {
   "horse": {
    "sheet": "assets/img/watch/animals/horse.png",
-   "w": 74,
-   "h": 71,
+   "w": 147,
+   "h": 141,
    "anchor": [
-    37,
-    69
+    73,
+    137
    ],
    "anims": {
     "idle": [
@@ -844,15 +869,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "crow": {
    "sheet": "assets/img/watch/animals/crow.png",
-   "w": 23,
-   "h": 19,
+   "w": 45,
+   "h": 38,
    "anchor": [
-    11,
-    17
+    22,
+    34
    ],
    "anims": {
     "idle": [
@@ -878,15 +904,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "rabbit": {
    "sheet": "assets/img/watch/animals/rabbit.png",
-   "w": 17,
-   "h": 18,
+   "w": 34,
+   "h": 36,
    "anchor": [
-    8,
-    16
+    17,
+    32
    ],
    "anims": {
     "idle": [
@@ -900,15 +927,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "owl": {
    "sheet": "assets/img/watch/animals/owl.png",
-   "w": 22,
-   "h": 24,
+   "w": 44,
+   "h": 49,
    "anchor": [
-    11,
-    22
+    22,
+    45
    ],
    "anims": {
     "idle": [
@@ -931,15 +959,16 @@ window.WATCH_ART = {
      6
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "pigeon": {
    "sheet": "assets/img/watch/animals/pigeon.png",
-   "w": 17,
-   "h": 17,
+   "w": 35,
+   "h": 35,
    "anchor": [
-    8,
-    15
+    17,
+    31
    ],
    "anims": {
     "idle": [
@@ -965,15 +994,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "cat": {
    "sheet": "assets/img/watch/animals/cat.png",
-   "w": 25,
-   "h": 24,
+   "w": 50,
+   "h": 48,
    "anchor": [
-    12,
-    22
+    25,
+    44
    ],
    "anims": {
     "idle": [
@@ -991,15 +1021,16 @@ window.WATCH_ART = {
      3
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "goat": {
    "sheet": "assets/img/watch/animals/goat.png",
-   "w": 46,
-   "h": 39,
+   "w": 92,
+   "h": 77,
    "anchor": [
-    23,
-    37
+    46,
+    73
    ],
    "anims": {
     "idle": [
@@ -1017,15 +1048,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "bat": {
    "sheet": "assets/img/watch/animals/bat.png",
-   "w": 19,
-   "h": 20,
+   "w": 38,
+   "h": 39,
    "anchor": [
-    9,
-    18
+    19,
+    35
    ],
    "anims": {
     "idle": [
@@ -1043,15 +1075,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "chicken": {
    "sheet": "assets/img/watch/animals/chicken.png",
-   "w": 20,
-   "h": 21,
+   "w": 39,
+   "h": 42,
    "anchor": [
-    10,
-    19
+    19,
+    38
    ],
    "anims": {
     "idle": [
@@ -1068,15 +1101,16 @@ window.WATCH_ART = {
      0
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "dog": {
    "sheet": "assets/img/watch/animals/dog.png",
-   "w": 36,
-   "h": 30,
+   "w": 72,
+   "h": 60,
    "anchor": [
-    18,
-    28
+    36,
+    56
    ],
    "anims": {
     "idle": [
@@ -1094,7 +1128,8 @@ window.WATCH_ART = {
      3
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "sparrow": {
    "sheet": "assets/img/watch/animals/sparrow.png",
@@ -1129,11 +1164,11 @@ window.WATCH_ART = {
   },
   "fox": {
    "sheet": "assets/img/watch/animals/fox.png",
-   "w": 35,
-   "h": 26,
+   "w": 70,
+   "h": 52,
    "anchor": [
-    17,
-    24
+    35,
+    48
    ],
    "anims": {
     "idle": [
@@ -1148,15 +1183,16 @@ window.WATCH_ART = {
      0
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "duck": {
    "sheet": "assets/img/watch/animals/duck.png",
-   "w": 22,
-   "h": 19,
+   "w": 43,
+   "h": 39,
    "anchor": [
-    11,
-    17
+    21,
+    35
    ],
    "anims": {
     "idle": [
@@ -1182,15 +1218,16 @@ window.WATCH_ART = {
      3
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "heron": {
    "sheet": "assets/img/watch/animals/heron.png",
-   "w": 39,
-   "h": 40,
+   "w": 78,
+   "h": 80,
    "anchor": [
-    19,
-    38
+    39,
+    76
    ],
    "anims": {
     "idle": [
@@ -1213,7 +1250,8 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "frog": {
    "sheet": "assets/img/watch/animals/frog.png",
@@ -1236,11 +1274,11 @@ window.WATCH_ART = {
   },
   "dove": {
    "sheet": "assets/img/watch/animals/dove.png",
-   "w": 18,
-   "h": 17,
+   "w": 37,
+   "h": 34,
    "anchor": [
-    9,
-    15
+    18,
+    30
    ],
    "anims": {
     "idle": [
@@ -1263,7 +1301,8 @@ window.WATCH_ART = {
      6
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "rat": {
    "sheet": "assets/img/watch/animals/rat.png",

@@ -6,9 +6,10 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else 'out/people'
 os.makedirs(OUT, exist_ok=True)
 # bbox height in px for the standing frame (hats, plumes and props included), on a 360-tall view with people ~75-92 px
 HT = dict(seoyeon=76, mira=82, kai=84, dutch=92, coo=74, bru=80, kagemaru=90, lexi=94, wen=76, ayo=90, aigerim=84, chad=86,
-          seymour=96, hobb=74, pell=104, tess=96, doug=82, hollis=84, odu=86, fennel=84, captain=88, kevin=88,
+          seymour=96, hobb=74, pell=140, tess=60, doug=82, hollis=84, odu=86, fennel=84, captain=88, kevin=88,
           **{'townsfolk-1': 80, 'townsfolk-2': 84, 'townsfolk-3': 80})
-FH, FOOT = 112, 106          # frame height and the feet line inside it
+RES = 2                      # sheets are drawn at 2x and tagged scale 1/RES, so they stay sharp on high-res screens
+FH0, FOOT0 = 112, 106        # frame height and feet line at 1x (taller people get a taller frame)
 def frames_for(k):
     if k == 'seoyeon': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk', 'lantern', 'lanternwalk', 'lanternwalkB']
     if k.startswith('townsfolk') or k == 'kevin': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
@@ -30,7 +31,8 @@ meta = {}
 for k in HT:
     fs = [f for f in frames_for(k) if os.path.exists(src(k, f))]
     if 'stand' not in fs: continue
-    st = cutout(src(k, 'stand')); bb = st.getbbox(); scale = HT[k] / (bb[3] - bb[1])
+    FH = RES * max(FH0, HT[k] + 10); FOOT = FH - RES * (FH0 - FOOT0)
+    st = cutout(src(k, 'stand')); bb = st.getbbox(); scale = RES * HT[k] / (bb[3] - bb[1])
     parts = [prep(src(k, f), scale) for f in fs]
     half = 0
     for im, cx, bot in parts:
@@ -42,15 +44,15 @@ for k in HT:
     for i, (im, cx, bot) in enumerate(parts):
         fr = Image.new('RGBA', (FW, FH), (0, 0, 0, 0))
         d = ImageDraw.Draw(fr)
-        sw = int(HT[k] * 0.36)
-        d.ellipse([ax - sw // 2, FOOT - 3, ax + sw // 2, FOOT + 3], fill=(20, 16, 30, 70))
+        sw = int(RES * HT[k] * 0.36)
+        d.ellipse([ax - sw // 2, FOOT - 3 * RES, ax + sw // 2, FOOT + 3 * RES], fill=(20, 16, 30, 70))
         fr.alpha_composite(im, (round(ax - cx), round(FOOT - bot)))
         sheet.alpha_composite(fr, (i * FW, 0))
     # breathing: copy the standing (and lantern) frame with the upper body lifted 1 px; the waist row is repeated
     def breathe(src_i):
         cell = sheet.crop((src_i * FW, 0, (src_i + 1) * FW, FH)); a = np.asarray(cell).copy()
         solid = np.where((a[:, :, 3] == 255).any(1))[0]; top = solid.min(); waist = top + int(0.52 * (FOOT - top))
-        a[top - 1: waist, :] = a[top: waist + 1, :]
+        a[top - RES: waist, :] = a[top: waist + RES, :]
         return Image.fromarray(a, 'RGBA')
     extra = [('breathe', breathe(order.index('stand')))]
     if 'lantern' in order: extra.append(('lanternBreathe', breathe(order.index('lantern'))))
@@ -64,6 +66,6 @@ for k in HT:
     if 'walkA' in idx and 'walkB' in idx: anims['walk'] = [idx['walkA'], idx['walkB'], idx.get('walkC', idx['walkA']), idx.get('walkD', idx['walkB'])]
     if 'talk' in idx: anims['talk'] = g('stand', 'talk')
     if 'lantern' in idx: anims['lantern'] = g('lantern', 'lantern', 'lantern', 'lantern', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe'); anims['lanternWalk'] = g('lanternwalk', 'lantern', 'lanternwalkB', 'lanternBreathe') if 'lanternwalkB' in idx else g('lanternwalk', 'lantern')
-    meta[k] = {'w': FW, 'h': FH, 'anchor': [ax, FOOT], 'frames': order, 'anims': anims}
+    meta[k] = {'w': FW, 'h': FH, 'anchor': [ax, FOOT], 'scale': 1 / RES, 'frames': order, 'anims': anims}
     print(k, FW, order)
 json.dump(meta, open(f'{OUT}/meta.json', 'w'), indent=1)

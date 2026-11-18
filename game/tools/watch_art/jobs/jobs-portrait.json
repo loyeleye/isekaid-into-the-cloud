@@ -1,0 +1,380 @@
+[
+{
+"out": "portrait/seoyeon-1.png",
+"ref": "base/seoyeon.png",
+"w": 1024,
+"h": 1024,
+"seed": 601,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-seoyeon-neutral.png"
+},
+{
+"out": "portrait/seoyeon-2.png",
+"ref": "base/seoyeon.png",
+"w": 1024,
+"h": 1024,
+"seed": 602,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-seoyeon-neutral.png"
+},
+{
+"out": "portrait/mira-1.png",
+"ref": "base/mira.png",
+"w": 1024,
+"h": 1024,
+"seed": 611,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a pale woman with long silver-grey hair under a black nun's habit trimmed in white; her left arm is a white-furred wolf foreleg with black claws. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-mira-neutral.png"
+},
+{
+"out": "portrait/mira-2.png",
+"ref": "base/mira.png",
+"w": 1024,
+"h": 1024,
+"seed": 612,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a pale woman with long silver-grey hair under a black nun's habit trimmed in white; her left arm is a white-furred wolf foreleg with black claws. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-mira-neutral.png"
+},
+{
+"out": "portrait/kai-1.png",
+"ref": "base/kai.png",
+"w": 1024,
+"h": 1024,
+"seed": 621,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a wiry young cook in a black chef jacket with a cream towel over his shoulder, short locs tied up, burn scars on his forearms, his right hand black and cracked with gold. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-kai-neutral.png"
+},
+{
+"out": "portrait/kai-2.png",
+"ref": "base/kai.png",
+"w": 1024,
+"h": 1024,
+"seed": 622,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a wiry young cook in a black chef jacket with a cream towel over his shoulder, short locs tied up, burn scars on his forearms, his right hand black and cracked with gold. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-kai-neutral.png"
+},
+{
+"out": "portrait/dutch-1.png",
+"ref": "base/dutch.png",
+"w": 1024,
+"h": 1024,
+"seed": 631,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a heavy-set older man with slicked-back steel-grey hair, a long navy coat over grey work clothes, a ring of keys on his belt and a mop in one hand. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-dutch-neutral.png"
+},
+{
+"out": "portrait/dutch-2.png",
+"ref": "base/dutch.png",
+"w": 1024,
+"h": 1024,
+"seed": 632,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a heavy-set older man with slicked-back steel-grey hair, a long navy coat over grey work clothes, a ring of keys on his belt and a mop in one hand. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-dutch-neutral.png"
+},
+{
+"out": "portrait/coo-1.png",
+"ref": "base/coo.png",
+"w": 1024,
+"h": 1024,
+"seed": 641,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a pigeon postmaster: a full-body grey pigeon with green and purple neck feathers, standing upright on two pink bird legs, wearing a navy postal uniform jacket and cap with a gold envelope badge and a brown mail satchel. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-coo-neutral.png"
+},
+{
+"out": "portrait/coo-2.png",
+"ref": "base/coo.png",
+"w": 1024,
+"h": 1024,
+"seed": 642,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a pigeon postmaster: a full-body grey pigeon with green and purple neck feathers, standing upright on two pink bird legs, wearing a navy postal uniform jacket and cap with a gold envelope badge and a brown mail satchel. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-coo-neutral.png"
+},
+{
+"out": "portrait/bru-1.png",
+"ref": "base/bru.png",
+"w": 1024,
+"h": 1024,
+"seed": 651,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a young woman with messy black hair and a pencil stuck in it, in a white shirt and navy vest. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-bru-neutral.png"
+},
+{
+"out": "portrait/bru-2.png",
+"ref": "base/bru.png",
+"w": 1024,
+"h": 1024,
+"seed": 652,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a young woman with messy black hair and a pencil stuck in it, in a white shirt and navy vest. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-bru-neutral.png"
+},
+{
+"out": "portrait/kagemaru-1.png",
+"ref": "base/kagemaru.png",
+"w": 1024,
+"h": 1024,
+"seed": 661,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a tall hooded card fixer in a long dark purple cloak with the hood up so his face is in shadow except a wide white grin, white gloves, a gold ring. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-kagemaru-neutral.png"
+},
+{
+"out": "portrait/kagemaru-2.png",
+"ref": "base/kagemaru.png",
+"w": 1024,
+"h": 1024,
+"seed": 662,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a tall hooded card fixer in a long dark purple cloak with the hood up so his face is in shadow except a wide white grin, white gloves, a gold ring. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-kagemaru-neutral.png"
+},
+{
+"out": "portrait/lexi-1.png",
+"ref": "base/lexi.png",
+"w": 1024,
+"h": 1024,
+"seed": 671,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a librarian witch with dark skin, a wide-brimmed dark purple witch hat, a long black braid, an eyepatch, a dark robe with purple bow, holding a book. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-lexi-neutral.png"
+},
+{
+"out": "portrait/lexi-2.png",
+"ref": "base/lexi.png",
+"w": 1024,
+"h": 1024,
+"seed": 672,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a librarian witch with dark skin, a wide-brimmed dark purple witch hat, a long black braid, an eyepatch, a dark robe with purple bow, holding a book. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-lexi-neutral.png"
+},
+{
+"out": "portrait/wen-1.png",
+"ref": "base/wen.png",
+"w": 1024,
+"h": 1024,
+"seed": 681,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a cheerful caf\u00e9 owner with her hair in a bun, round glasses, a beige cardigan over a striped top, a long apron and comfortable shoes. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-wen-neutral.png"
+},
+{
+"out": "portrait/wen-2.png",
+"ref": "base/wen.png",
+"w": 1024,
+"h": 1024,
+"seed": 682,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a cheerful caf\u00e9 owner with her hair in a bun, round glasses, a beige cardigan over a striped top, a long apron and comfortable shoes. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-wen-neutral.png"
+},
+{
+"out": "portrait/ayo-1.png",
+"ref": "base/ayo.png",
+"w": 1024,
+"h": 1024,
+"seed": 691,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a big dark-skinned blacksmith with a grey beard, short braids, brass goggles on his forehead, a green leather apron over a work shirt and heavy boots. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-ayo-neutral.png"
+},
+{
+"out": "portrait/ayo-2.png",
+"ref": "base/ayo.png",
+"w": 1024,
+"h": 1024,
+"seed": 692,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a big dark-skinned blacksmith with a grey beard, short braids, brass goggles on his forehead, a green leather apron over a work shirt and heavy boots. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-ayo-neutral.png"
+},
+{
+"out": "portrait/aigerim-1.png",
+"ref": "base/aigerim.png",
+"w": 1024,
+"h": 1024,
+"seed": 701,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a young woman with long black hair, a red beret with a white feather, a red embroidered coat with gold trim and dark boots. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-aigerim-neutral.png"
+},
+{
+"out": "portrait/aigerim-2.png",
+"ref": "base/aigerim.png",
+"w": 1024,
+"h": 1024,
+"seed": 702,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: She is a young woman with long black hair, a red beret with a white feather, a red embroidered coat with gold trim and dark boots. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-aigerim-neutral.png"
+},
+{
+"out": "portrait/chad-1.png",
+"ref": "base/chad.png",
+"w": 1024,
+"h": 1024,
+"seed": 711,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a slick consultant with grey swept-back hair, a grey suit, red shirt and white tie, polished shoes. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-chad-neutral.png"
+},
+{
+"out": "portrait/chad-2.png",
+"ref": "base/chad.png",
+"w": 1024,
+"h": 1024,
+"seed": 712,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a slick consultant with grey swept-back hair, a grey suit, red shirt and white tie, polished shoes. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-chad-neutral.png"
+},
+{
+"out": "portrait/seymour-1.png",
+"ref": "base/seymour.png",
+"w": 1024,
+"h": 1024,
+"seed": 721,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a knight in full steel plate armour with a closed helmet and red plume, a blue tabard with a gold gear emblem, carrying a clipboard. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-seymour-neutral.png"
+},
+{
+"out": "portrait/seymour-2.png",
+"ref": "base/seymour.png",
+"w": 1024,
+"h": 1024,
+"seed": 722,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: He is a knight in full steel plate armour with a closed helmet and red plume, a blue tabard with a gold gear emblem, carrying a clipboard. Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text.",
+"ref2": "portrait/ref-seymour-neutral.png"
+},
+{
+"out": "portrait/hobb-1.png",
+"ref": "base/hobb.png",
+"w": 1024,
+"h": 1024,
+"seed": 731,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: an old grumpy locksmith, short and a little stooped, bald with white mutton-chop whiskers and a squint, small round spectacles, a brown leather apron full of keys and picks over a rolled-sleeve shirt, a big iron key ring on his belt Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/hobb-2.png",
+"ref": "base/hobb.png",
+"w": 1024,
+"h": 1024,
+"seed": 732,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: an old grumpy locksmith, short and a little stooped, bald with white mutton-chop whiskers and a squint, small round spectacles, a brown leather apron full of keys and picks over a rolled-sleeve shirt, a big iron key ring on his belt Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/pell-1.png",
+"ref": "base/pell.png",
+"w": 1024,
+"h": 1024,
+"seed": 741,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a sergeant of the castle gate guard, a tall broad-shouldered man in his forties with a neat black moustache, a steel kettle helmet, a padded blue-and-grey gambeson with a sergeant's stripes, a halberd held upright beside him, stiff by-the-book posture Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/pell-2.png",
+"ref": "base/pell.png",
+"w": 1024,
+"h": 1024,
+"seed": 742,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a sergeant of the castle gate guard, a tall broad-shouldered man in his forties with a neat black moustache, a steel kettle helmet, a padded blue-and-grey gambeson with a sergeant's stripes, a halberd held upright beside him, stiff by-the-book posture Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/tess-1.png",
+"ref": "base/tess.png",
+"w": 1024,
+"h": 1024,
+"seed": 751,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a young lamplighter woman with freckles and a red-brown ponytail under a soft cap, a short green coat, brown trousers and boots, carrying a long brass lamplighter's pole with a small flame at the tip resting on her shoulder Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/tess-2.png",
+"ref": "base/tess.png",
+"w": 1024,
+"h": 1024,
+"seed": 752,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a young lamplighter woman with freckles and a red-brown ponytail under a soft cap, a short green coat, brown trousers and boots, carrying a long brass lamplighter's pole with a small flame at the tip resting on her shoulder Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/doug-1.png",
+"ref": "base/doug.png",
+"w": 1024,
+"h": 1024,
+"seed": 761,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a tired office-worker type man in his thirties with short brown hair, a blue cardigan jacket over a cream shirt, grey trousers, a lanyard badge around his neck and a coffee mug in hand, slightly slumped Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/doug-2.png",
+"ref": "base/doug.png",
+"w": 1024,
+"h": 1024,
+"seed": 762,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a tired office-worker type man in his thirties with short brown hair, a blue cardigan jacket over a cream shirt, grey trousers, a lanyard badge around his neck and a coffee mug in hand, slightly slumped Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/hollis-1.png",
+"ref": "base/hollis.png",
+"w": 1024,
+"h": 1024,
+"seed": 771,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: an ostler who keeps horses at a coach house, a lean weathered man in his fifties with grey stubble and a flat cap, a brown waistcoat over a linen shirt, riding breeches and tall boots, a ledger and pencil in his hands Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/hollis-2.png",
+"ref": "base/hollis.png",
+"w": 1024,
+"h": 1024,
+"seed": 772,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: an ostler who keeps horses at a coach house, a lean weathered man in his fifties with grey stubble and a flat cap, a brown waistcoat over a linen shirt, riding breeches and tall boots, a ledger and pencil in his hands Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/odu-1.png",
+"ref": "base/odu.png",
+"w": 1024,
+"h": 1024,
+"seed": 781,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a cheerful harbourmaster, a big round-bellied dark-skinned man with a short beard and a wide grin, a navy peacoat with brass buttons, a captain's flat cap, a rolled shipping manifest under one arm Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/odu-2.png",
+"ref": "base/odu.png",
+"w": 1024,
+"h": 1024,
+"seed": 782,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a cheerful harbourmaster, a big round-bellied dark-skinned man with a short beard and a wide grin, a navy peacoat with brass buttons, a captain's flat cap, a rolled shipping manifest under one arm Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/fennel-1.png",
+"ref": "base/fennel.png",
+"w": 1024,
+"h": 1024,
+"seed": 791,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a quiet orchard keeper woman in her thirties with long light-brown hair in a loose braid, a wide straw sun hat, an earth-green dress with rolled sleeves and a canvas apron, a basket of apples on her hip Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/fennel-2.png",
+"ref": "base/fennel.png",
+"w": 1024,
+"h": 1024,
+"seed": 792,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a quiet orchard keeper woman in her thirties with long light-brown hair in a loose braid, a wide straw sun hat, an earth-green dress with rolled sleeves and a canvas apron, a basket of apples on her hip Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/captain-1.png",
+"ref": "base/captain.png",
+"w": 1024,
+"h": 1024,
+"seed": 801,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: the captain of the castle guard, a tall stern woman in her fifties with short grey hair and a scar on her cheek, a polished steel breastplate over a deep red coat, a dark cloak, a sword at her hip and a brass key on a chain Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/captain-2.png",
+"ref": "base/captain.png",
+"w": 1024,
+"h": 1024,
+"seed": 802,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: the captain of the castle guard, a tall stern woman in her fifties with short grey hair and a scar on her cheek, a polished steel breastplate over a deep red coat, a dark cloak, a sword at her hip and a brass key on a chain Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/kevin-1.png",
+"ref": "base/kevin.png",
+"w": 1024,
+"h": 1024,
+"seed": 811,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a mysterious hooded stranger in a long dark grey hooded cloak that hides the whole body down to the ground, the hood's opening completely black except one small glowing pale blue round eye, a stolen brass badge pinned on the chest, slightly boxy rigid shoulders Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+},
+{
+"out": "portrait/kevin-2.png",
+"ref": "base/kevin.png",
+"w": 1024,
+"h": 1024,
+"seed": 812,
+"prompt": "Turn this character into a detailed pixel-art dialogue portrait: a head-and-shoulders bust, the face turned three-quarters toward the viewer, filling most of the frame, with clear expressive eyes, detailed hair, skin and clothing shading and a calm neutral expression. Same character, same outfit, colours and features. The character: a mysterious hooded stranger in a long dark grey hooded cloak that hides the whole body down to the ground, the hood's opening completely black except one small glowing pale blue round eye, a stolen brass badge pinned on the chest, slightly boxy rigid shoulders Plain flat dark slate-blue background, soft light from the upper left, rich cosy 16-bit RPG pixel art, crisp pixels, no text."
+}
+]

@@ -10,20 +10,21 @@ for k, h in H.items():
     names = ['idle'] + [p for p in POSES[k] + ['w1', 'w2', 'w3', 'w4'] if os.path.exists(f'anim/{k}-{p}.png')]  # w1-w4: the birds' 4-frame walk (or hop)
     if not os.path.exists(f'anim/{k}-idle.png'): continue
     cuts = {n: cutout(f'anim/{k}-{n}.png') for n in names}
-    base = cuts['idle'].getbbox(); s = h / (base[3] - base[1])
+    R = 1 if h <= 10 else 2   # 2x sheets (scale 0.5) for everything but the tiniest
+    base = cuts['idle'].getbbox(); s = R * h / (base[3] - base[1])
     fr = {}
     for n, im in cuts.items():
         im = im.crop(im.getbbox()); w2, h2 = max(1, round(im.width * s)), max(1, round(im.height * s))
         sm = im.convert('RGBa').resize((w2, h2), Image.LANCZOS).convert('RGBA'); a = np.asarray(sm).copy()
         a[:, :, 3] = np.where(a[:, :, 3] > 110, 255, 0); fr[n] = Image.fromarray(a, 'RGBA')
-    FW = max(f.width for f in fr.values()) + 4; FH = max(f.height for f in fr.values()) + 4
+    FW = max(f.width for f in fr.values()) + 4 * R; FH = max(f.height for f in fr.values()) + 4 * R
     sheet = Image.new('RGBA', (FW * len(names), FH))
     for i, n in enumerate(names):
         f = fr[n]; cell = Image.new('RGBA', (FW, FH)); d = ImageDraw.Draw(cell)
         fly = n.startswith('fly') or (k in ('bat', 'butterfly') and n in ('idle', 'fly2'))
         if not fly and h > 10:
-            sw = max(4, int(f.width * 0.7)); d.ellipse([FW // 2 - sw // 2, FH - 4, FW // 2 + sw // 2, FH - 1], fill=(20, 16, 30, 60))
-        cell.alpha_composite(f, ((FW - f.width) // 2, FH - 2 - f.height)); sheet.alpha_composite(cell, (i * FW, 0))
+            sw = max(4, int(f.width * 0.7)); d.ellipse([FW // 2 - sw // 2, FH - 4 * R, FW // 2 + sw // 2, FH - R], fill=(20, 16, 30, 60))
+        cell.alpha_composite(f, ((FW - f.width) // 2, FH - 2 * R - f.height)); sheet.alpha_composite(cell, (i * FW, 0))
     sheet.save(f'{O}/{k}.png', optimize=True)
     ix = {n: i for i, n in enumerate(names)}
     an = {'idle': [ix['idle']]}
@@ -38,7 +39,7 @@ for k, h in H.items():
     if 'perch' in ix: an['perch'] = [ix['perch']]
     if 'sleep' in ix: an['sleep'] = [ix['sleep']]
     if k == 'bat': an['sleep'] = an['perch']
-    meta[k] = {'w': FW, 'h': FH, 'anchor': [FW // 2, FH - 2], 'frames': names, 'anims': an, 'fps': 6}
+    meta[k] = {'w': FW, 'h': FH, 'anchor': [FW // 2, FH - 2 * R], 'scale': 1 / R, 'frames': names, 'anims': an, 'fps': 6}
     print(k, names)
 for k in ('moth', 'bee', 'firefly'):
     meta[k] = {'w': 8, 'h': 8, 'anchor': [4, 7], 'frames': ['a', 'b'], 'anims': {'idle': [0, 1], 'fly': [0, 1], 'walk': [0, 1], 'perch': [0], 'sleep': [1]}, 'fps': 10}
