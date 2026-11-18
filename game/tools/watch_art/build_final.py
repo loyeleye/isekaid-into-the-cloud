@@ -32,15 +32,22 @@ hill[:, :, 3] = 255; back.alpha_composite(Image.fromarray(hill, 'RGBA'), (0, bas
 rows = [Image.open(f'oldback/{lv}.webp').convert('RGBA') for lv in T.ORDER]
 bush = rows[0].crop((0, 262, rows[0].width, 306))          # the hazed hedge line along the bottom of a row
 from compose import piece, haze
-import random
-rr = random.Random(3)
-for yb in range(330, BH + 60, 46):                         # a hazed orchard hillside: trees and hedges, paler higher up
-    k = (yb - 330) / max(1, BH - 330); x = rr.randint(-80, 60)
-    while x < BW:
-        nm = rr.choice(['tree-oak', 'tree-apple', 'bush', 'bush', 'tree-oak'])
-        hh = {'tree-oak': 70, 'tree-apple': 60, 'bush': 28}[nm] * (0.8 + 0.5 * k)
-        back.alpha_composite(haze(piece(nm, int(hh)), (128, 150, 140), 0.55 - 0.25 * k).convert('RGBA'), (int(x), int(yb - hh)))
-        x += rr.randint(60, 260)
+# (Ladi, Nov 18) the plain below the hazed rooftops is filled with distant villages and farmland: three wide
+# panoramas made with Gemini image generation (villages/pano-*.png), cropped to the land, hazed, cross-faded side by side
+PH = BH - base + 30; strip = Image.new('RGBA', (BW, PH)); xo = 0; k = 0
+while xo < BW:
+    p = Image.open(f'villages/pano-{k % 3 + 1}.png').convert('RGB').resize((1584, 672), Image.LANCZOS)
+    top = {1: 250, 2: 200, 3: 200}[k % 3 + 1]
+    land = p.crop((0, top, 1584, top + 400)); w = round(1584 * PH / 400); land = land.resize((w, PH), Image.LANCZOS)
+    arr = np.asarray(land).astype(float); fog = np.array([150, 170, 176.0])
+    t = np.linspace(0.55, 0.3, PH)[:, None, None]   # hazier towards the horizon
+    arr = arr * (1 - t) + fog * t
+    al = np.full((PH, w), 255.0); f = 80
+    if xo: al[:, :f] = np.linspace(0, 255, f)[None, :]
+    al[:22] *= np.linspace(0, 1, 22)[:, None]
+    tile = Image.fromarray(np.dstack([arr, al]).astype(np.uint8), 'RGBA'); strip.alpha_composite(tile, (xo, 0))
+    xo += w - f; k += 1
+back.alpha_composite(strip, (0, base - 30))
 x = 0
 for i in range(8):
     row = rows[i % 4]; back.alpha_composite(row, (x, base - 305)); x += row.width
