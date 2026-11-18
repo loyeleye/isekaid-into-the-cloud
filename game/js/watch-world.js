@@ -247,8 +247,9 @@
     'hill-road': [['pigeon', 1380, 1520, 'day'], ['pigeon', 1400, 1500, 'day'], ['cat', 1840, 1940, 'day'], ['goat', 3640, 3800, 'day'], ['bat', 1300, 3800, 'night']],
     'main-street': [['chicken', 1380, 1520, 'day'], ['chicken', 1360, 1540, 'day'], ['dog', 2300, 2520, 'day'], ['cat', 1960, 2040, 'day'], ['sparrow', 600, 1200, 'day'], ['fox', 700, 900, 'night'], ['moth', 2000, 2080, 'night']],
     'far-lane': [['duck', 2300, 2900, 'day'], ['duck', 2400, 3000, 'day'], ['heron', 2560, 2660, 'day'], ['bee', 1000, 1260, 'day'], ['firefly', 980, 1280, 'night'], ['frog', 3540, 3660, 'night']],
-    'castle:ground': [['dove', 480, 780, 'both'], ['cat', 200, 1400, 'night']],
-    'castle:cellars': [['rat', 140, 1460, 'night'], ['rat', 300, 1300, 'night']],
+    // Indoors (Ladi, Nov 18): no animals in the castle, bar a bat up in the towers.
+    'castle:ground': [],
+    'castle:cellars': [],
     'castle:towers': [['bat', 140, 1460, 'night']],
     'castle:upper': []
   };

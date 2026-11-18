@@ -339,7 +339,7 @@
         g.addColorStop(0, 'rgba(255,214,140,.32)'); g.addColorStop(1, 'rgba(255,214,140,0)');
         c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(gx - 130, G - 180, 260, 260); c.restore();
       }
-      if (o.weather && o.weather !== 'clear') weather(c, o.weather, t);
+      if (o.weather && o.weather !== 'clear' && sc.kind !== 'castle') weather(c, o.weather, t);   // indoors: no rain on the floor (Ladi, Nov 18)
       const s = WW.near(st);
       if (s) {
         const ms = WW.moves(st);
