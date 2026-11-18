@@ -143,7 +143,7 @@
       ${!r.refused && st === 2 && miss ? `<p class="kt-miss">For the third star: ${esc(miss)}.</p>` : ''}</div>`;
     const playing = play && !r.refused;
     const mood = !r.refused && st === 3 ? 'smile' : 'neutral';
-    const { b, book } = room(s, id, s.cfg, { r, say: playing ? p('<b class="kw-who">Mira:</b> Here they come. Watch the braziers.') : verdict, mood: playing ? 'neutral' : mood },
+    const { b, book } = room(s, id, s.cfg, { r, say: playing ? p('<b class="kw-who">Mira:</b> Here they come. Watch the braziers.') : verdict, mood: playing ? 'back' : mood },
       `${playing ? '<button class="ghost" id="kt-skip">Skip ▸▸</button>' : ''}<span class="kt-after"${playing ? ' hidden' : ''}>${left > 0 && st < 3 ? `<button class="ghost" id="kt-again">Change it (${plural(left, 'firing')} left)</button>` : ''}<button class="primary" id="kt-serve">${left > 0 && st < 3 ? 'Serve the best' : 'Serve it'}</button></span>`);
     KS().wire(b, s.cfg, () => {}, { book });
     const ag = b.querySelector('#kt-again');
@@ -153,7 +153,7 @@
       const show = () => {
         const bub = b.querySelector('.kw-say > div'), a = b.querySelector('.kt-after'), sk = b.querySelector('#kt-skip'), m = b.querySelector('.kw-mira');
         if (bub) { bub.innerHTML = verdict; bub.scrollTop = 0; }
-        if (m && mood === 'smile') m.src = 'assets/img/kitchen/mira-face-smile.webp';
+        if (m) { m.src = `assets/img/kitchen/mira-face-${mood}.webp`; m.classList.remove('back'); }
         if (a) a.hidden = false; if (sk) sk.remove();
       };
       const stop = KS().play(b, r, show);
