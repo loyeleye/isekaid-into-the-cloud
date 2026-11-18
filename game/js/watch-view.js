@@ -26,7 +26,7 @@
     hobb: ['#5a4a3a', '#cfcfcf'], pell: ['#4a5a3a', '#2a2a2a'], wen: ['#a05a6a', '#e0e0e0'], ayo: ['#8a3a2a', '#1a1a1a'],
     aigerim: ['#3a7a6a', '#2a1a1a'], doug: ['#6a6a7a', '#8a6a4a'], tess: ['#b08a3a', '#5a3a1a'], hollis: ['#5a3a2a', '#6a6a6a'],
     odu: ['#2a4a6a', '#1a1a1a'], fennel: ['#5a7a3a', '#c08040'], seymour: ['#4a4a4a', '#e0c040'], chad: ['#3a5aa0', '#e0b040'],
-    kevin: ['#1a1a24', '#1a1a24'], captain: ['#6a2a2a', '#3a3a3a']
+    kevin: ['#1a1a24', '#1a1a24'], 'intruder-pickpocket': ['#2c2c3a', '#0e0e14'], 'intruder-snuffer': ['#2e4a5e', '#0e0e14'], 'intruder-spiller': ['#6a4a22', '#2a1a0a'], 'intruder-jailer': ['#7a1e1e', '#140808'], captain: ['#6a2a2a', '#3a3a3a']
   };
   const tint = (phase) => phase === 'night' ? 'rgba(10,16,48,.55)' : phase === 'dusk' ? 'rgba(120,50,30,.22)' : phase === 'dawn' ? 'rgba(255,170,120,.12)' : null;
 
@@ -311,7 +311,14 @@
         if (p.walk && !reduced()) {   // background walkers stroll and turn at the ends of the level
           p.facing = p.facing || 1; p.x += p.facing * 120 * dt0;
           if (p.x > sc.to - 40) p.facing = -1; if (p.x < sc.from + 40) p.facing = 1;
-        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97); });
+        } const sx = X(p.x); if (sx < -40 || sx > VW + 40) return;
+        if (p.tag) {   // an intruder: a shuttered lantern's glow, so you can see them coming, and what kind they are
+          const gx = sx + (p.facing || 1) * 12, g = c.createRadialGradient(gx, G - 30, 2, gx, G - 30, 70);
+          g.addColorStop(0, 'rgba(255,190,90,.45)'); g.addColorStop(1, 'rgba(255,190,90,0)'); c.fillStyle = g; c.fillRect(gx - 70, G - 100, 140, 140);
+          c.fillStyle = '#ffcf6e'; c.beginPath(); c.arc(gx, G - 30, 3.5, 0, 7); c.fill(); }
+        person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97);
+        if (p.tag) label(c, p.tag, sx, G - 86); });
+      (o.puddles || []).filter(m => m.scene === st.scene).forEach(m => { c.fillStyle = 'rgba(176,128,44,.85)'; c.beginPath(); c.ellipse(X(m.x), G - 2, 38, 7, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(255,236,170,.55)'; c.beginPath(); c.ellipse(X(m.x) - 10, G - 4, 14, 2.5, 0, 0, 7); c.fill(); });   // spills from a spiller
       animals.forEach(a => animal(c, a, X(a.x), t));
       (o.marks || []).filter(m => m.scene === st.scene).forEach(m => {
         const sx = X(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);

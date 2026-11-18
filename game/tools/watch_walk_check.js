@@ -440,8 +440,8 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const f1 = await ev(() => [(SD.watchWalk.view.marks || []).map(m => m.text), (document.querySelector('.ww-toast') || {}).textContent || '']);
   check(f1[0].length >= 1 && /⏳ 1:5/.test(f1[0][0]) && /Somewhere/.test(f1[1]) && !/floor/.test(f1[1]), `the first break-in rings in, without saying where, and shows its fuse (${f1})`);
   await ev(() => SD.watchWalk.clock(360 - 140)); await page.waitForTimeout(500);
-  const f2 = await ev(() => { const r = SD.watchWalk.run, x = r.list[0]; return [r.locked[x.id], (SD.watchWalk.view.marks || []).map(m => m.text).join('|'), (document.querySelector('.ww-toast') || {}).textContent || '']; });
-  check(f2[0] === 'gone' && /got through/.test(f2[2]) && f2[1].split('|').filter(Boolean).length >= 1, `when its fuse runs out it gets through, and the next one is up (${f2})`);
+  const f2 = await ev(() => { const r = SD.watchWalk.run, x = r.list[0]; return [r.locked[x.id], r.list.filter(v => v.at <= 140 && !r.locked[v.id]).length, (document.querySelector('.ww-toast') || {}).textContent || '']; });
+  check(f2[0] === 'gone' && /got through|ootsteps|lookout|cleaned out|snatches|lifts|lantern/.test(f2[2]) && f2[1] >= 1, `when its fuse runs out it gets through, and the next one is up (${f2})`);
   // Kagemaru's GuardDuty bell: for one night, the floor of every break-in and every fuse, from anywhere.
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.at = null; w.fixed = {}; w.guard = 4; SD.watchWalk.walk('night'); });
   await page.waitForTimeout(300);
@@ -453,6 +453,42 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
     st.scene = x.scene; st.x = x.x > 700 ? 40 : 1280; await new Promise(z => setTimeout(z, 500)); const far = ids();
     st.x = x.x + 100; await new Promise(z => setTimeout(z, 500)); return [far, ids()]; });
   check(near[0] === 0 && near[1] === 1, `a break-in only shows up close (${near})`);
+  // Intruders (Ladi, Nov 18): 5-10s after a lock gives, someone walks in through it and prowls until you fix it.
+  const intr = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), x = r.list[0], st = r.st, out = []; x.kind = 'pickpocket';
+    const wait = ms => new Promise(z => setTimeout(z, ms)); SD.watchWalk.clock(360 - x.at - 1); await wait(400);
+    out.push(!(r.inside || {})[x.id]);                                  // not yet
+    SD.watchWalk.clock(360 - x.at - x.inAt - 1); await wait(500);
+    const p = (r.inside || {})[x.id]; out.push(!!p && (r.ppl[p.scene] || []).includes(p) && p.who === 'intruder-pickpocket');
+    w.tools = 1; w.silver = 50; st.scene = p.scene; p.cool = 0; st.x = p.x + 20; p.tx = p.x; st.moving = false; await wait(400);
+    out.push(w.tools === 0 && w.silver === 50);                         // a spare tool goes first
+    p.cool = 0; p.scene = st.scene; p.x = st.x; await wait(400); out.push(w.silver === 40);  // then 10 silver
+    w.silver = 0; p.cool = 0; p.scene = st.scene; p.x = st.x; await wait(400); out.push(/pockets empty/.test((document.querySelector('.ww-toast') || {}).textContent));   // then the lantern
+    r.fixed[x.id] = 1; await wait(500); out.push(!Object.values(r.ppl).some(a => a.includes(p)));
+    out.push(Math.abs(p.x - x.x) > 1 || p.scene !== x.scene);
+    return out; });
+  check(intr.every(Boolean), `an intruder walks in after the bell, steals a tool, then silver, and leaves when it's fixed, and didn't start at its break-in (${intr})`);
+  // Kinds (Ladi, Nov 18): a snuffer douses the lantern, a spiller's puddle slows her, a jailer ends the night.
+  const kinds = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), st = r.st, out = [], wait = ms => new Promise(z => setTimeout(z, ms));
+    const spawn = (x, kind) => { x.kind = kind; SD.watchWalk.clock(360 - x.at - x.inAt - 1); };
+    const a = r.list[2]; spawn(a, 'snuffer'); await wait(400); const ps = r.inside[a.id]; st.scene = ps.scene; ps.cool = 0; ps.x = st.x; ps.tx = ps.x; await wait(400);
+    out.push(r.dark > 0); r.fixed[a.id] = 1; r.dark = 0; await wait(300);
+    r.puddles = [{ scene: st.scene, x: st.x, life: 30 }]; await wait(300); out.push(st.slow === 0.4);
+    r.puddles = []; await wait(1600); out.push(st.slow === 1);
+    return out; });
+  check(kinds.every(Boolean), `a snuffer blows out the lantern, and a puddle slows her down for a moment (${kinds})`);
+  const roamed = await ev(async () => { const r = SD.watchWalk.run, x = r.list[1], st = r.st;
+    st.scene = 'bridge'; st.x = 880; SD.watchWalk.clock(360 - x.at - x.inAt - 1); await new Promise(z => setTimeout(z, 400));
+    const p = r.inside[x.id]; if (!p) return 'none'; p.sp = 700; p.goal = { scene: p.scene === 'castle:cellars' ? 'castle:towers' : 'castle:cellars', x: 600, name: 'Archive' }; p.state = 'go'; p.exit = null; p.tx = p.x; const seen = new Set([p.scene]), states = new Set();
+    for (let i = 0; i < 40; i++) { await new Promise(z => setTimeout(z, 100)); seen.add(p.scene); states.add(p.state); }
+    return [...seen].length + ' floors, ' + [...states].join('/'); });
+  check(/^[2-9] floors/.test(roamed) && /loot|go/.test(roamed), `an intruder heads for a room to rob and takes the stairs (${roamed})`);
+  const jail = await ev(async () => { const w = SD.watchWalk.sv(); w.day = 6; w.at = null; w.fixed = {}; w.guard = 0; SD.watchWalk.walk('night');
+    await new Promise(z => setTimeout(z, 300)); const r = SD.watchWalk.run, st = r.st, x = r.list[2];
+    SD.watchWalk.clock(360 - x.at - x.inAt - 1); await new Promise(z => setTimeout(z, 400));
+    const p = r.inside[x.id]; if (!p) return 'none'; st.scene = p.scene; p.cool = 0; p.facing = 1; st.x = p.x + 30; p.tx = p.x; st.moving = true;
+    await new Promise(z => setTimeout(z, 400)); return [p.kind, r.over, (document.querySelector('.ww-o:not([hidden])') || {}).textContent || '']; });
+  check(jail[0] === 'jailer' && jail[1] === 1 && /closet/.test(jail[2]), `from night 6 a jailer can lock her in a closet, which ends the night (${jail})`);
+  while (await page.$('.ww-o:not([hidden]) [data-a]')) { const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=d]') || await page.$('.ww-o:not([hidden]) [data-a=x]'); if (!b) break; await b.click(); await page.waitForTimeout(150); }
   const toKage = () => ev(() => { const r = SD.watchWalk.run; for (const sc in r.ppl) { const p = r.ppl[sc].find(v => v.who === 'kagemaru'); if (p) { r.st.scene = sc; r.st.x = p.x; return; } } });
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.guard = 0; w.guardTrial = 0; w.silver = 100; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   await toKage(); await use(); await page.waitForTimeout(150);

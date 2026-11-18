@@ -39,11 +39,16 @@
   // fixed within its fuse (2:00; the fuse burns while you answer). They come in pairs, and in threes once a night has
   // six, so you can't always reach them all.
   const FUSE = n => (n === 1 ? 0 : n === 9 ? 240 : 120);
+  // Arrivals are staggered (Ladi, Nov 18: "most of the chaos comes from staggered times"): uneven gaps, some close
+  // together, so a new bell often rings while you're mid-fix. Seeded by the night, so each night plays the same way.
+  const seeded = n => { let h = (n * 2654435761) >>> 0; return () => { h = (h ^ (h << 13)) >>> 0; h = (h ^ (h >>> 17)) >>> 0; h = (h ^ (h << 5)) >>> 0; return h / 4294967296; }; };
   function lightFuses(list, n) {
-    if (n === 1) return list.forEach(x => { x.at = 0; x.fuse = 0; });
-    const g = n === 9 ? 2 : list.length >= 6 ? 3 : list.length >= 3 ? 2 : 1, groups = Math.ceil(list.length / g);
-    const span = n === 9 ? 600 : nightS(n) - FUSE(n) - 30, gap = groups > 1 ? Math.min(120, span / (groups - 1)) : 0;
-    list.forEach((x, i) => { x.at = 15 + Math.floor(i / g) * gap; x.fuse = FUSE(n); });
+    if (n === 1) return list.forEach(x => { x.at = 0; x.fuse = 0; x.inAt = 0; });
+    const rnd = seeded(n * 31 + list.length), span = n === 9 ? 600 : nightS(n) - FUSE(n) - 30;
+    const gaps = list.slice(1).map(() => 0.25 + rnd() * 1.5), sum = gaps.reduce((a, b) => a + b, 0) || 1;
+    const k = Math.min(span / sum, 100 * gaps.length / sum);   // fill the night, but never more than 100s apart on average
+    let t = 15;
+    list.forEach((x, i) => { if (i) t += gaps[i - 1] * k; x.at = Math.round(t); x.fuse = FUSE(n); x.inAt = 5 + Math.floor(rnd() * 6); });
   }
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
@@ -850,11 +855,110 @@
     b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
     // Search (Ladi, Nov 18): every night, a break-in only shows when she's within 220px, so finding one takes walking.
     // On the Long Night a watcher at ward 2 or an outpost shows their whole area.
-    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < 220;
+    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < (run.dark > 0 ? 90 : 220);
     const gone = () => phase === 'night' ? nightS(w.day) - clock : 0;   // seconds into the night
     const up = x => !x.at || gone() >= x.at;                                 // has this break-in started yet?
     const fuseLeft = x => (x.fuse ? x.at + x.fuse - gone() : Infinity);
     const mm = n => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
+    // Intruders (Ladi, Nov 18): 5 to 10 seconds after a lock gives, someone gets in. They don't start at their break-in
+    // (that would give it away): they come down a stair on any floor, or in off the bridge, and move through the castle
+    // as she does, by the stairs and the bridge door, until you close the hole they came through.
+    //   Objective: each picks a room to rob and heads there. After 8s rummaging, their break-in's fuse loses 15s.
+    //   Chase: one that sees her lit lantern on its floor runs at her. Standing still in a doorway hides her, and so does
+    //   a doused lantern (but then she can't see break-ins either).
+    //   Kinds, each with its own penalty (Ladi: "the extreme ones... slower walking, less aware"):
+    //     pickpocket: quick, sharp-eyed. Snatches a spare tool, else 10 silver.
+    //     snuffer: blows out her lantern: break-ins show only from 90px for 15s.
+    //     spiller: never chases, shies away; leaves puddles of lamp oil that slow her to 40% for a moment.
+    //     jailer (night 6 on): slow, short-sighted, sees only ahead. Locks her in a closet: the night ends there. On the
+    //       Long Night, it costs 2 minutes instead. Easy to outwalk, unless a spiller's puddle slows her down.
+    //   Not on night 1. All of them get a little faster each night.
+    const KINDS = {
+      pickpocket: { sp: 95, sight: 260, rush: 1.4, in: '👣 Light, quick footsteps. Someone\'s in, after your pockets.' },
+      snuffer: { sp: 85, sight: 220, rush: 1.3, in: '👣 Footsteps, and a draught. Someone\'s in who hates a lantern.' },
+      spiller: { sp: 70, sight: 0, rush: 1, in: '👣 Sloshing footsteps. Someone\'s in, and they\'re spilling something.' },
+      jailer: { sp: 52, sight: 150, rush: 1.6, ahead: true, in: '👣 Heavy, slow footsteps, and keys jangling. Stay out of their way.' }
+    };
+    const kindFor = (x, i) => { const n = w.day, r = (i * 7 + n * 3) % 10;
+      if (n >= 6 && i === 2) return 'jailer'; if (n === 9 && i % 6 === 5) return 'jailer';
+      if (n >= 4 && r < 3) return 'snuffer'; return r < 6 ? 'pickpocket' : 'spiller'; };
+    const PROWL = ['castle:towers', 'castle:upper', 'castle:ground', 'castle:cellars', 'bridge'];
+    const crew = x => (x && x.raid ? x.raid : 'raiders').replace(/^The /, '');
+    const exits = id => WW.scene(id).spots.filter(v => (v.kind === 'stair' && !v.needs) || v.id === 'bridge-exit' || v.id === 'bridge-door');
+    const bounds = id => { const sc = WW.scene(id); return [sc.from + 30, sc.to - 30]; };
+    const pick = a => a[Math.floor(Math.random() * a.length)];
+    const ROOMS = () => WW.FLOORS.flatMap(f => WW.CASTLE[f].rooms.map(r => ({ scene: 'castle:' + f, x: (r[1] + r[2]) / 2, name: r[3] })));
+    const goal = p => { p.goal = pick(ROOMS().filter(r => !(p.goal && r.name === p.goal.name))); p.state = 'go'; aim(p); };
+    const movesAt = (scene, e) => WW.moves({ scene, x: e.x, unlocks: {}, phase: 'night' });
+    const aim = p => {   // the next x to walk to: the goal room if it's on this floor, else the way out toward it
+      if (p.goal.scene === p.scene) { p.tx = p.goal.x; p.exit = null; return; }
+      const path = WW.route({ scene: p.scene }, p.goal.scene, {}, 'night'), next = path && path[1];
+      const ex = exits(p.scene).filter(e => movesAt(p.scene, e).some(m => m.to.scene === next));
+      p.exit = ex.sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0] || pick(exits(p.scene)) || null; p.next = next;
+      p.tx = p.exit ? p.exit.x : p.x;
+    };
+    const syncProwlers = () => { Object.keys(run.ppl).forEach(k => { run.ppl[k] = run.ppl[k].filter(v => !/^intruder/.test(v.who)); });
+      (run.prowl || []).forEach(p => (run.ppl[p.scene] = run.ppl[p.scene] || []).push(p)); view.set('people', run.ppl); view.set('puddles', run.puddles || []); };
+    const intrude = x => {
+      const kind = x.kind || kindFor(x, run.list.indexOf(x)), K = KINDS[kind], scene = pick(PROWL), e = pick(exits(scene));
+      const p = { who: 'intruder-' + kind, tag: kind.charAt(0).toUpperCase() + kind.slice(1), kind, scene, x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
+      goal(p); run.inside[x.id] = p; (run.prowl = run.prowl || []).push(p); syncProwlers(); toast(K.in);
+    };
+    const leave = (p, line) => { run.prowl = (run.prowl || []).filter(v => v !== p);
+      Object.keys(run.inside).forEach(k => { if (run.inside[k] === p) run.inside[k] = null; }); syncProwlers(); if (line) toast(line); };
+    const hidden = () => { const sp = WW.near(st); return !st.moving && sp && /^door-/.test(sp.id); };
+    const hop = (p, e) => {   // take a stair or the bridge door, as she does
+      const ms = movesAt(p.scene, e), m = ms.find(v => v.to.scene === p.next) || pick(ms);
+      if (m) { p.scene = m.to.scene; p.x = m.to.x; }
+      p.cool = Math.max(p.cool, 1.5); aim(p);
+    };
+    const caught = (p, x) => {
+      const who = crew(x);
+      if (AU) AU.sfx('watchMiss');
+      if (p.kind === 'jailer') {
+        if (w.day === 9) { clock = Math.max(0, clock - 120); toast(`🔒 One of the ${who} shoves you in a closet and turns the key. Two minutes to pick your way out.`); }
+        else { run.over = 1; leave(p); busy = true;
+          sayAll([['seoyeon', 'They\'ve locked me in the linen closet.'], ['seoyeon', 'Nobody will hear me till the morning shift. That\'s the night gone.']], () => dawn()); return true; }
+      } else if (p.kind === 'snuffer') { run.dark = 15; toast(`💨 One of the ${who} blows out your lantern and runs. You can barely see.`); }
+      else if ((w.tools || 0) > 0) { w.tools--; toast(`🫳 One of the ${who} snatches a spare tool and runs.`); }
+      else if ((w.silver || 0) >= 10) { w.silver -= 10; toast(`🫳 One of the ${who} lifts 10 silver and runs.`); }
+      else toast(`🫳 One of the ${who} finds your pockets empty, and runs.`);
+      const ex = exits(p.scene).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x));   // bolt for the nearest way out
+      p.state = 'flee'; p.exit = ex[0] || null; p.next = null; p.tx = p.exit ? p.exit.x : bounds(p.scene)[p.x < st.x ? 0 : 1]; p.cool = 10; S.persist();
+      return false;
+    };
+    function prowl(dt) {
+      if (run.dark > 0) run.dark -= dt;
+      if (busy) { run.calm = 2; return; }
+      if (run.calm > 0) run.calm -= dt;
+      run.puddles = (run.puddles || []).filter(m => (m.life -= dt) > 0); view.set('puddles', run.puddles);
+      const wet = run.puddles.some(m => m.scene === st.scene && Math.abs(m.x - st.x) < 36);
+      if (wet) run.slow = 1.2; else if (run.slow > 0) run.slow -= dt;
+      st.slow = run.slow > 0 ? 0.4 : 1;
+      let moved = false;
+      for (const p of (run.prowl || []).slice()) {
+        const K = KINDS[p.kind]; p.cool -= dt;
+        const here = p.scene === st.scene, dx = st.x - p.x, ahead = !K.ahead || Math.sign(dx) === p.facing;
+        const sees = here && K.sight && run.dark <= 0 && Math.abs(dx) < K.sight && ahead && !hidden() && !(p.cool > 0) && p.state !== 'flee';
+        if (here && K.sight && !(run.calm > 0) && p.cool <= 0 && Math.abs(dx) < 50 && !hidden()) { if (caught(p, run.list.find(v => v.id === p.of))) return; continue; }
+        if (sees) { p.tx = st.x; p.state = 'chase'; }
+        else if (p.state === 'chase') { p.state = 'go'; aim(p); }
+        if (p.kind === 'spiller' && here && Math.abs(dx) < 200 && p.state === 'go' && Math.sign(p.tx - p.x) === Math.sign(dx)) { p.state = 'flee'; p.exit = null; p.tx = bounds(p.scene)[dx > 0 ? 0 : 1]; }   // shies away
+        if (p.state === 'loot') { if ((p.loot -= dt) <= 0) {
+          const x = run.list.find(v => v.id === p.of); if (x && x.fuse) x.fuse -= 15;
+          toast(`💰 The ${crew(x)} cleaned out the ${p.goal.name.toLowerCase()}. Their lock is giving faster.`); goal(p); } continue; }
+        if (Math.abs(p.tx - p.x) < 4 && p.state !== 'chase') {
+          if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); } moved = moved || sc0 !== p.scene; continue; }
+          if (p.state === 'flee') { p.state = 'go'; aim(p); continue; }
+          if (p.state === 'go' && p.goal.scene === p.scene) { p.state = 'loot'; p.loot = 8; continue; }
+          aim(p);
+        }
+        const step = Math.sign(p.tx - p.x) * Math.min(Math.abs(p.tx - p.x), p.sp * (sees ? K.rush : 1) * dt);
+        p.x += step; p.d += Math.abs(step); if (step) p.facing = Math.sign(step);
+        if (p.kind === 'spiller' && (p.drip += Math.abs(step)) > 150) { p.drip = 0; run.puddles.push({ scene: p.scene, x: p.x, life: 45 }); if (run.puddles.length > 8) run.puddles.shift(); moved = true; }
+      }
+      if (moved) syncProwlers();
+    }
     const marks = () => run.list.filter(x => !run.fixed[x.id] && run.locked[x.id] !== 'gone' && up(x) && seen(x)).map(x => {
       const f = fuseLeft(x), lk = run.locked[x.id];
       return { scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: lk ? 'Locked till dawn' : f < Infinity ? `${x.title} · ⏳ ${mm(Math.max(0, f))}` : x.title,
@@ -921,7 +1025,10 @@
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
               run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
             }
+            if (x.inAt && up(x) && gone() >= x.at + x.inAt && !(run.inside = run.inside || {})[x.id]) intrude(x);
           });
+          Object.keys(run.inside || {}).forEach(id => { const x = run.list.find(v => v.id === id), p = run.inside[id];
+            if (p && (run.fixed[id] || run.locked[id] === 'gone')) leave(p, run.fixed[id] ? `🚪 The ${crew(x)} lookout slips back out the way they came.` : ''); });
           view.set('marks', marks());
           if (!busy && run.list.every(v => run.fixed[v.id] || run.locked[v.id]) && !run.over) { run.over = 1; sayAll([['seoyeon', 'That\'s everything for tonight. Time to report at dawn.']], () => dawn()); }
         }
@@ -930,6 +1037,7 @@
           moveWalkers(dt); syncPeople();
           if ((run.mk = (run.mk || 0) + dt) > 0.3) { run.mk = 0; view.set('marks', dayMarks()); if (!run.escort) meetups(); townTalk(); }
         }
+        if (phase === 'night' && run.inside) prowl(dt);
         if (run.q) {   // a question is open: thinking time first, then the clock runs
           if (run.q.left > 0) run.q.left -= dt;
           else if (clock > 0) clock = Math.max(0, clock - dt);

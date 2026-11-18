@@ -178,7 +178,7 @@
     const sc = WW.scene(st.scene); if (!sc) return st;
     const dir = (input && input.right ? 1 : 0) - (input && input.left ? 1 : 0);
     st.moving = !!dir;
-    if (dir) { st.facing = dir; st.x = Math.max(sc.from, Math.min(sc.to, st.x + dir * WW.SPEED * dt)); st.walk += dt; }
+    if (dir) { st.facing = dir; st.x = Math.max(sc.from, Math.min(sc.to, st.x + dir * WW.SPEED * (st.slow || 1) * dt)); st.walk += dt; }   // slow: a puddle underfoot
     return st;
   };
   // What can be used from here: the nearest spot within reach, with whether it's open and what pressing does.
