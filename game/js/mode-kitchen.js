@@ -1,12 +1,15 @@
 // Mira's Kitchen (Ladi, Nov 18): Development's Lambda game, task 1.2. The rules are js/kitchen-core.js.
 // Mira runs Thornwick's infirmary kitchen from Bram's old recipe book. The kitchen is one Lambda function: the recipe
 // card on the bench is its code and configuration, and every order from the wards is a set of calls to it.
-//   - The loop: an order comes in, you set the card on the bench (memory, timeout, where the pantry connection opens,
-//     what the counter gets back, where failed photos go, which pantry, provisioned concurrency), fire the stove, and
-//     every plate says what Lambda did: served, late, 502, timed out, wrong pantry, lost or kept, with its seconds and
-//     whether it was a cold start. Up to 3 firings per order; the best one stands.
-//   - The card shows as real code and configuration, and changes as you turn the knobs, so the setting you pick is the
-//     line you'd write.
+//   - The loop (Ladi, Nov 18: "Can you use real world sprites like the other games started doing?"): the screen is the
+//     painted kitchen, edge to edge (js/kitchen-scene.js), with Mira standing in it and talking in her speech bubble.
+//     The order's tickets clip onto the rail; you set the recipe with the kitchen's own things (the stove knob, the brass
+//     timer, the pantry key on its hook or in the pot, the tray's statusCode tag, the pantry jar's label, the spoiled
+//     crate, the peg rack of cooks' hats), fire the stove and watch it play out: braziers light for cold starts, a call
+//     past the timer smokes, and every plate lands on the bench saying what Lambda did (served, late, 502, timed out,
+//     wrong pantry, lost or kept). Up to 3 firings per order; the best one stands.
+//   - Bram's book on the bench opens the recipe as real code and configuration; each change writes its line, so the
+//     setting you pick is the line you'd write.
 //   - The question is the debrief: after each order, one verified bank question on what that order taught (task 1.2
 //     first, then any Development question on it), with the shared stake table (SD.modes.ask). A miss carries its
 //     verified twin (or itself) to the next night's first debrief.
@@ -43,19 +46,11 @@
 
   const route = s => `<ol class="kt-route" aria-label="Tonight's orders">${K.ROUTE.map((id, i) => {
     const o = K.ORDERS[id], st = s.stars[id] | 0, here = i === s.step;
-    return `<li class="${here ? 'here' : i < s.step ? 'done' : ''}${o.boss ? ' boss' : ''}">${icon(o.icon)}<span>${esc(o.name)}</span>${i < s.step || (here && s.fires.length) ? `<b aria-label="${st} of 3 stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</b>` : ''}</li>`;
+    return `<li class="${here ? 'here' : i < s.step ? 'done' : ''}${o.boss ? ' boss' : ''}">${icon(o.icon)}<span>${esc(o.name)}</span>${i < s.step ? `<b aria-label="${st} of 3 stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</b>` : ''}</li>`;
   }).join('')}</ol>`;
 
   // ---- The order ticket: who is coming, how they arrive and how long they wait ----
   const KIND = { api: ['The counter', 'coffee-cup', 'API Gateway, proxy integration: waits at the hatch'], s3: ['The photo pantry', 'film-strip', 'S3 bucket: asynchronous, nobody waits'] };
-  function guestRow(g) {
-    const [name, ic] = KIND[g.kind];
-    const bits = [g.burst ? `${g.n} at once` : g.n === 1 ? '1 guest' : `${g.n}, one at a time`,
-      g.stuck ? 'a corrupt file: it hangs the code' : g.kind === 'api' ? `waits ${g.patience} s` : `wanted within ${g.patience} s`,
-      g.stage ? `${g.stage === 'prod' ? 'production' : 'test'} stage` : ''].filter(Boolean);
-    return `<li>${icon(g.stuck ? 'spider-web' : ic)}<span><b>${esc(name)}</b> · ${esc(bits.join(' · '))}</span></li>`;
-  }
-
   // ---- The recipe card: the knobs, and the code they write ----
   function codeHtml(id, c, hot) {
     const o = K.ORDERS[id], k = o.knobs, api = o.guests.some(g => g.kind === 'api'), s3 = o.guests.some(g => g.kind === 's3');
@@ -78,73 +73,92 @@
     if (k.includes('pc')) conf.push(L('pc', !pc[0] ? '<span class="kt-c"># no provisioned concurrency</span>' : pc[1] === 'latest' ? `ProvisionedConcurrency: ${pc[0]} on $LATEST` : `AutoPublishAlias: live · Provisioned: ${pc[0]}`));
     return `<pre class="kt-code" aria-label="The recipe as code">${lines.join('\n')}</pre><pre class="kt-code kt-conf" aria-label="The recipe's configuration">${conf.join('\n')}</pre>`;
   }
-  function knobHtml(key, c) {
-    const kn = K.KNOBS[key];
-    const btns = kn.opts.map(v => `<button type="button" class="${c[key] === v ? 'on' : ''}" aria-pressed="${c[key] === v}" data-k="${key}" data-v="${esc(JSON.stringify(v))}">${esc(key === 'mem' || key === 'timeout' ? kn.say(v) : short(key, v))}</button>`).join('');
-    return `<div class="kt-knob"><span class="kt-kn">${esc(kn.name)}</span><span class="kt-seg${kn.opts.length > 3 ? ' many' : ''}" role="group" aria-label="${esc(kn.name)}">${btns}</span><span class="small kt-kv">${esc(kn.say(c[key]))}</span></div>`;
-  }
-  const SHORT = { prep: { inside: 'Inside', outside: 'Outside' }, ret: { body: 'The dish', proxy: 'statusCode + body' }, dest: { false: 'Nowhere', true: 'Destination' },
-    env: { false: 'In the code', true: 'Env variable' }, pc: { none: 'None', latest5: '5 · $LATEST', alias2: '2 · live', alias5: '5 · live', alias10: '10 · live' } };
-  const short = (k, v) => (SHORT[k] && SHORT[k][String(v)]) || String(v);
+  const KS = () => SD.kitchenScene;
+  const starLine = n => `${'★'.repeat(n)}${'☆'.repeat(3 - n)}`;
 
+  // ---- The room: the painted kitchen fills the screen, Mira talks in her bubble, the dock holds the buttons ----
+  // Each change writes one line of the recipe; it floats up over Bram's book.
+  function wroteLine(id, c, k) {
+    const pc = K.pcOf(c.pc);
+    return {
+      mem: `MemorySize: ${c.mem}`, timeout: `Timeout: ${c.timeout}`,
+      prep: c.prep === 'outside' ? 'const pantry = openPantry(…); // outside the handler' : 'const pantry = openPantry(…); // inside the handler',
+      ret: c.ret === 'proxy' ? 'return { statusCode: 200, body };' : 'return dish;',
+      env: c.env ? 'PANTRY_TABLE: !Sub "${Stage}-pantry"' : "openPantry('test-pantry')",
+      dest: c.dest ? 'OnFailure: spoiled-queue' : '# no on-failure destination',
+      pc: !pc[0] ? '# no provisioned concurrency' : pc[1] === 'latest' ? `ProvisionedConcurrency: ${pc[0]} on $LATEST` : `AutoPublishAlias: live · Provisioned: ${pc[0]}`
+    }[k] || '';
+  }
+  const rule = o => o.lateOk ? `For 3 stars: nothing fails, at most ${o.lateOk} late, and a fair bill.` : 'For 3 stars: nothing fails, nothing late, and a fair bill.';
+  const guestsLine = o => o.guests.map(g => `${KIND[g.kind][0]}: ${[g.burst ? `${g.n} at once` : g.n === 1 ? '1 call' : `${g.n}, one at a time`,
+    g.stuck ? 'a corrupt file that hangs the code' : g.kind === 'api' ? `waits ${g.patience} s` : g.patience ? `within ${g.patience} s` : '',
+    g.stage === 'test' ? 'test stage' : ''].filter(Boolean).join(', ')}`).join(' · ');
+  // The screen: the room, the book's page (hidden until the book is tapped) and the dock.
+  function room(s, id, c, o2, dock) {
+    const b = panel(`<div class="kt-room">${KS().html(id, c, o2)}
+      <div class="kt-bookz" hidden role="dialog" aria-label="Bram's book: the recipe as code"><div class="kt-page"><p class="kt-pt">${icon('open-book')}Bram's book: the recipe as code</p>${codeHtml(id, c, o2.hot)}<button class="ghost" id="kt-shut">Close the book</button></div></div>
+      <div class="kt-dock"><span class="kt-nt">Night ${s.night}</span>${route(s)}<div class="kt-btns">${dock}</div></div></div>`);
+    const z = b.querySelector('.kt-bookz');
+    const book = () => { z.hidden = !z.hidden; if (!z.hidden) b.querySelector('#kt-shut').focus(); };
+    b.querySelector('#kt-shut').onclick = () => { z.hidden = true; };
+    z.onclick = e => { if (e.target === z) z.hidden = true; };
+    KS().fit(b);
+    requestAnimationFrame(() => KS().fit(b));
+    return { b, book };
+  }
+  const p = t => `<p>${t}</p>`;
+
+  // ---- The bench: the kitchen's own things set the recipe; Bram's book shows the code they write ----
   function bench(s, hot) {
     const id = K.order(s), o = K.ORDERS[id], c = s.cfg;
     const first = s.fresh && s.night === 1 && s.step === 0 && !s.fires.length;
-    const left = K.firesLeft(s);
-    const b = panel(`<p class="kt-night">Night ${s.night}</p>
-      ${route(s)}
-      ${first ? say('warm', 'This was Bram\'s kitchen. His book still works, mostly. Every order the wards send runs through one recipe card: set it, then fire the stove and see what comes back.') : ''}
-      <div class="kt-order${o.boss ? ' boss' : ''}"><div class="kt-oh">${icon(o.icon)}<span><b>${esc(o.name)}</b><br><span class="small">${esc(o.ward)}: "${esc(o.says)}"</span></span></div>
-        <p class="small">${esc(o.brief)}</p>
-        <ul class="kt-guests">${o.guests.map(guestRow).join('')}</ul>
-        <p class="small kt-ok">${o.lateOk ? `For 3 stars: nothing fails, at most ${o.lateOk} late, and a fair bill.` : 'For 3 stars: nothing fails, nothing late, and a fair bill.'}</p></div>
-      <div class="kt-bench"><div class="kt-knobs">${o.knobs.map(k => knobHtml(k, c)).join('')}</div>
-        <div class="kt-card">${codeHtml(id, c, hot)}</div></div>
-      ${s.fires.length ? `<p class="small">Last firing: ${'★'.repeat(s.fires[s.fires.length - 1].stars)}${'☆'.repeat(3 - s.fires[s.fires.length - 1].stars)} · bill ${s.fires[s.fires.length - 1].bill} GB-s · best so far ${'★'.repeat(s.stars[id] | 0) || 'none'}</p>` : ''}
-      <div class="kt-dock"><button class="ghost" id="kt-stop">☰ Stop for now</button>${s.fires.length ? '<button class="ghost" id="kt-serve">Serve the best one</button>' : ''}<button class="primary" id="kt-fire">${icon('campfire')}Fire the stove <span class="small">(${left} of ${K.FIRES} left)</span></button></div>`);
-    b.querySelectorAll('[data-k]').forEach(el => el.onclick = () => {
-      s.cfg = Object.assign({}, s.cfg, { [el.dataset.k]: JSON.parse(el.dataset.v) });
-      s.fresh = false; save(s); bench(s, el.dataset.k);
-    });
-    b.querySelector('#kt-fire').onclick = () => { s.fresh = false; s.last = { lines: K.fireNight(s, s.cfg).lines }; save(s); draw(s); };
+    const left = K.firesLeft(s), last = s.fires[s.fires.length - 1];
+    // The order first (a phone's bubble is short and scrolls), then Mira's welcome on the first night.
+    const words = `<p class="kt-claim">${icon(o.icon)} ${esc(o.name)}</p>` + p(`<b class="kw-who">${esc(o.ward)}:</b> "${esc(o.says)}"`)
+      + (first ? p('<b class="kw-who">Mira:</b> This was Bram\'s kitchen. His book still works, mostly. Every order cooks from one recipe: the knob, the timer, the key, the tray, the jar. The glowing things are yours to set. Then fire the stove and watch.') : '')
+      + `<small>${esc(o.brief)}</small><small>${esc(guestsLine(o))}</small><small><b>${esc(rule(o))}</b></small>`
+      + (last ? `<small>Last firing: ${starLine(last.stars)} · bill ${last.bill} GB-s · best so far ${'★'.repeat(s.stars[id] | 0) || 'none'}</small>` : '');
+    const { b, book } = room(s, id, c, { live: true, hot, say: words, mood: first ? 'smile' : 'neutral', wrote: hot ? wroteLine(id, c, hot) : '' },
+      `<button class="ghost" id="kt-stop" aria-label="Stop for now">☰ Stop</button>${s.fires.length ? '<button class="ghost" id="kt-serve">Serve the best</button>' : ''}<button class="primary" id="kt-fire">${icon('campfire')}Fire the stove <span class="small">(${left}/${K.FIRES})</span></button>`);
+    KS().wire(b, c, (k, v) => { s.cfg = Object.assign({}, s.cfg, { [k]: v }); s.fresh = false; save(s); bench(s, k); }, { book });
+    b.querySelector('#kt-fire').onclick = () => { s.fresh = false; s.last = { lines: K.fireNight(s, s.cfg).lines }; save(s); platesScreen(s, true); };
     const sv2 = b.querySelector('#kt-serve');
     if (sv2) sv2.onclick = () => { K.serve(s); save(s); draw(s); };
     b.querySelector('#kt-stop').onclick = () => { U.closePanel(); stopNow(); };
   }
 
-  // ---- The plates ----
-  const OUT = {
-    served: ['✓', 'Served', 'good'], late: ['⌛', 'Late', 'warn'], '502': ['502', 'Bad Gateway', 'bad'], timeout: ['⏱', 'Timed out', 'bad'],
-    wrong: ['≠', 'Wrong pantry', 'bad'], lost: ['✗', 'Lost', 'bad'], kept: ['⇩', 'Kept', 'keep']
-  };
-  function plateHtml(p, i) {
-    const [g, word, cls] = OUT[p.out];
-    const note = [p.cold ? 'cold start' : 'warm', p.tries > 1 ? `${p.tries} tries` : ''].filter(Boolean).join(' · ');
-    const label = `${word}${p.stuck ? ' (the corrupt file)' : ''}. ${p.d} seconds, ${note}.`;
-    return `<li class="kt-plate ${cls}${p.stuck ? ' stuck' : ''}" style="--i:${i}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><span class="kt-pg">${esc(g)}</span><span class="kt-pw">${esc(word)}</span><span class="kt-pd">${p.d} s${p.cold ? ' ❄' : ''}${p.tries > 1 ? ' ↻' + p.tries : ''}</span></li>`;
-  }
-  function platesScreen(s) {
+  // ---- The firing: it plays out in the room, then Mira gives the verdict ----
+  function platesScreen(s, play) {
     const id = K.order(s), o = K.ORDERS[id];
     const r = K.fire(id, s.cfg), st = K.stars(id, r), miss = K.short(id, r);
     const lines = (s.last && s.last.lines) || [];
     const left = K.firesLeft(s);
-    const groups = o.guests.map((g, gi) => {
-      const ps = r.plates.filter(p => p.g === gi);
-      return `<div class="kt-row"><p class="small"><b>${esc(KIND[g.kind][0])}</b>${g.stage ? ` · ${g.stage === 'prod' ? 'production' : 'test'}` : ''}${g.stuck ? ' · the corrupt file' : ''}</p><ul class="kt-plates">${ps.map(plateHtml).join('')}</ul></div>`;
-    }).join('');
+    const OUT = KS().OUT;
     const counts = Object.keys(OUT).filter(k => r.counts[k]).map(k => `${r.counts[k]} ${OUT[k][1].toLowerCase()}`).join(' · ');
-    const b = panel(`${route(s)}
-      <p class="kt-claim">${esc(o.name)}: ${r.refused ? 'the stove won\'t light' : `${'★'.repeat(st)}${'☆'.repeat(3 - st)}`}</p>
-      ${r.refused ? say('tired', K.TEACH.refused) : `<div class="kt-pass">${groups}</div>
-      <p class="kt-sum">${esc(counts)}</p>
-      <p class="small kt-bill">${icon('coins')}Bill <b>${r.bill} GB-s</b>${r.standing ? ` (${r.run} cooking, ${r.standing} for the provisioned cooks standing by)` : ''} · ❄ cold start · ↻ tries</p>`}
-      ${lines.filter(e => e !== 'refused').map(e => say('neutral', K.TEACH[e])).join('')}
-      ${!r.refused && st === 3 ? say('smile', s.fires.length === 1 ? 'First firing, every plate right. Bram would have written that one down.' : 'That\'s the one. Every plate right, and the bill is fair.') : ''}
-      ${!r.refused && st === 2 && miss ? `<p class="kt-miss">For the third star: ${esc(miss)}.</p>` : ''}
-      <div class="kt-dock">${left > 0 && st < 3 ? `<button class="ghost" id="kt-again">Change the card (${plural(left, 'firing')} left)</button>` : ''}<button class="primary" id="kt-serve">${left > 0 && st < 3 ? 'Serve the best one' : 'Serve it'}</button></div>`);
+    const verdict = `<div class="kt-verdict"><p class="kt-claim">${esc(o.name)}: ${r.refused ? 'the stove won\'t light' : starLine(st)}</p>
+      ${r.refused ? p(`<b class="kw-who">Mira:</b> ${esc(K.TEACH.refused)}`) : `<p><b>${esc(counts)}</b></p>
+      <small class="kt-bill">${icon('coins')}Bill <b>${r.bill} GB-s</b>${r.standing ? ` (${r.run} cooking, ${r.standing} for the provisioned cooks standing by)` : ''} · ❄ cold start · ↻ tries</small>`}
+      ${lines.filter(e => e !== 'refused').map(e => p(`<b class="kw-who">Mira:</b> ${esc(K.TEACH[e])}`)).join('')}
+      ${!r.refused && st === 3 ? p(`<b class="kw-who">Mira:</b> ${s.fires.length === 1 ? 'First firing, every plate right. Bram would have written that one down.' : 'That\'s the one. Every plate right, and the bill is fair.'}`) : ''}
+      ${!r.refused && st === 2 && miss ? `<p class="kt-miss">For the third star: ${esc(miss)}.</p>` : ''}</div>`;
+    const playing = play && !r.refused;
+    const mood = !r.refused && st === 3 ? 'smile' : 'neutral';
+    const { b, book } = room(s, id, s.cfg, { r, say: playing ? p('<b class="kw-who">Mira:</b> Here they come. Watch the braziers.') : verdict, mood: playing ? 'back' : mood },
+      `${playing ? '<button class="ghost" id="kt-skip">Skip ▸▸</button>' : ''}<span class="kt-after"${playing ? ' hidden' : ''}>${left > 0 && st < 3 ? `<button class="ghost" id="kt-again">Change it (${plural(left, 'firing')} left)</button>` : ''}<button class="primary" id="kt-serve">${left > 0 && st < 3 ? 'Serve the best' : 'Serve it'}</button></span>`);
+    KS().wire(b, s.cfg, () => {}, { book });
     const ag = b.querySelector('#kt-again');
     if (ag) ag.onclick = () => { K.again(s); save(s); draw(s); };
     b.querySelector('#kt-serve').onclick = () => { K.serve(s); save(s); draw(s); };
+    if (playing) {
+      const show = () => {
+        const bub = b.querySelector('.kw-say > div'), a = b.querySelector('.kt-after'), sk = b.querySelector('#kt-skip'), m = b.querySelector('.kw-mira');
+        if (bub) { bub.innerHTML = verdict; bub.scrollTop = 0; }
+        if (m) { m.src = `assets/img/kitchen/mira-face-${mood}.webp`; m.classList.remove('back'); }
+        if (a) a.hidden = false; if (sk) sk.remove();
+      };
+      const stop = KS().play(b, r, show);
+      b.querySelector('#kt-skip').onclick = () => stop();
+    }
   }
 
   // ---- The debrief: one question on what the order taught ----
@@ -166,11 +180,11 @@
   const verifiedTwins = (q, avoid) => ((SD.twins && SD.twins[q.id]) || []).map(x => E().find(x)).filter(x => x && E().allowed(x) && D().isVerified(x) && !avoid.has(x.id));
   function debrief(s) {
     const id = K.order(s), o = K.ORDERS[id], st = s.stars[id] | 0;
-    const b = panel(`${route(s)}
-      <p class="kt-claim">${esc(o.name)}: served ${'★'.repeat(st)}${'☆'.repeat(3 - st)}</p>
-      ${say(st === 3 ? 'smile' : st ? 'neutral' : 'tired', st === 3 ? 'Clean plates. Now tell me why it worked.' : st ? 'They ate. Now the part Bram always made me say out loud.' : 'Rough night for that ward. Say it out loud anyway: it\'s how it sticks.')}
-      <p>One question on what this order turned on. Say how sure you are.</p>
-      <div class="kt-dock"><button class="primary" id="kt-ask">Answer it</button></div>`);
+    const words = `<p class="kt-claim">${esc(o.name)}: served ${starLine(st)}</p>`
+      + p(`<b class="kw-who">Mira:</b> ${st === 3 ? 'Clean plates. Now tell me why it worked.' : st ? 'They ate. Now the part Bram always made me say out loud.' : 'Rough night for that ward. Say it out loud anyway: it\'s how it sticks.'}`)
+      + '<small>One question on what this order turned on. Say how sure you are.</small>';
+    const { b, book } = room(s, id, s.cfg, { say: words, mood: st === 3 ? 'smile' : 'neutral' }, '<button class="primary" id="kt-ask">Answer it</button>');
+    KS().wire(b, s.cfg, () => {}, { book });
     b.querySelector('#kt-ask').onclick = async () => {
       const q = debriefQuestion(s, id);
       if (!q) { K.next(s); save(s); draw(s); return; }
@@ -217,6 +231,20 @@
       return `Resume · Night ${s.night} · ${K.ORDERS[K.order(s)] ? K.ORDERS[K.order(s)].name : 'the end'}`; }
   });
   SD.kitchenUi = { draw: () => { const s = cur(); if (s) draw(s); }, start };
+  // A turned phone or a resized window: refit the room, or redraw it when it changes between the wide and tall paintings
+  // (a firing that is playing redraws as its result).
+  let rt = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      const room = document.querySelector('#panel .kt-room'), st = room && room.querySelector('.kw-stage');
+      if (!room || !st) return;
+      const lay = KS().layout();
+      if (lay === st.dataset.layout) { KS().fit(room); return; }
+      const s = cur();
+      if (s && ['bench', 'plates', 'debrief'].includes(s.phase)) (s.phase === 'plates' ? platesScreen(s, false) : draw(s));
+    }, 120);
+  });
 
   const css = document.createElement('style');
   css.textContent = `
@@ -236,7 +264,9 @@
     .kt-route .kt-gi { width: 14px; height: 14px; }
     .kt-order { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #efe3c8; color: #2a2018; border: 2px solid #8a6a40; box-shadow: 0 2px 0 #5a4024; }
     .kt-order.boss { border-color: #9e3a34; }
-    .kt-oh { display: flex; gap: 8px; align-items: flex-start; } .kt-oh .kt-gi { width: 30px; height: 30px; }
+    .kt-oh { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; list-style: none; } .kt-oh::-webkit-details-marker { display: none; } .kt-oh .kt-gi { width: 30px; height: 30px; }
+    .kt-order:not([open]) .kt-oh::after { content: '▸ more'; margin-left: auto; font-size: 12px; opacity: .7; white-space: nowrap; }
+    .kt-cardw > summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 4px 0; }
     .kt-guests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .kt-guests li { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; }
     .kt-how { opacity: .75; } .kt-ok { font-weight: 700; }
@@ -280,6 +310,34 @@
     .kt-tile b { font-family: var(--f-head); font-size: 24px; line-height: 1; } .kt-tile span { font-size: 12px; opacity: .85; }
     .kt-tile .kt-gi { width: 28px; height: 28px; fill: #f3c44e; }
     @media (min-width: 900px) { .kt-bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+    /* ---- The room (Ladi, Nov 18: "Draft is a better reference. Monster Hunt as well"): no window box. The painted
+       kitchen is the whole stage under the top bar; the dock sits under it. ---- */
+    body.in-mode[data-stage="kitchen"] #panel:has(.kt-room) { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 0; align-items: stretch; }
+    #panel .win.kt-win:has(.kt-room) { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: 100%; align-self: stretch;
+      padding: 0; border: 0; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; background: #1a1210; animation: none; }
+    #panel .win.kt-win:has(.kt-room) > .win-h { display: none; }
+    #panel .win.kt-win:has(.kt-room) > .win-b { flex: 1; padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; }
+    .kt:has(> .kt-room) { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+    .kt-room { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+    .kt-room > .kw-stage { flex: 1; min-height: 0; height: auto; }
+    .kt-room .kt-dock { position: relative; z-index: 9; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px 10px;
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(#2a1c12, #170f0a); border-top: 3px solid #6b4a30; color: #f3e6c8; }
+    .kt-room .kt-route li { background: rgba(255, 230, 190, .1); color: #f3e6c8; }
+    .kt-nt { font-family: var(--f-head); font-weight: 700; font-size: 14px; color: #f0d68a; }
+    .kt-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+    .kt-btns .kt-after { display: inline-flex; gap: 8px; flex-wrap: wrap; } .kt-btns .kt-after[hidden] { display: none; }
+    .kt-room .kt-dock button { min-height: 44px; }
+    .kt-room .kt-dock .primary { display: inline-flex; gap: 6px; align-items: center; }
+    @media (max-width: 640px) { .kt-room .kt-route { flex-wrap: nowrap; gap: 3px; } .kt-room .kt-route span { display: none; } .kt-room .kt-route li { padding: 2px 5px; font-size: 11px; } .kt-room .kt-dock { padding-top: 6px; gap: 4px 8px; } .kt-btns { width: 100%; } }
+    .kt-room .kw-say .kt-claim { font-size: 1.05em; margin-bottom: .3em; }
+    .kt-room .kw-say small .kt-gi { width: 1em; height: 1em; vertical-align: -2px; }
+    .kt-room .kw-say .kt-miss { margin-top: .3em; }
+    .kt-bookz { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(10, 6, 4, .7); }
+    .kt-bookz[hidden] { display: none; }
+    .kt-page { width: min(640px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 6px;
+      background: linear-gradient(#f8efd8, #ead9b4); color: #2a2018; box-shadow: 0 12px 30px rgba(0, 0, 0, .6), inset 0 0 0 2px #8a6a40; }
+    .kt-pt { display: flex; gap: 6px; align-items: center; font-family: var(--f-head); font-weight: 700; }
+    .kt-page #kt-shut { align-self: flex-end; min-height: 44px; }
     @media (prefers-reduced-motion: reduce) { .kt-plate, .kt-ln.hot { animation: none; } }`;
   document.head.appendChild(css);
 })();
