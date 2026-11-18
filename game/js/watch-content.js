@@ -1531,20 +1531,20 @@
   ];
 
   // Day 1's walk with the clock stopped: Mira introduces each thing as you reach it (storyboard "Night 1").
-  // Day 1: Mira walks Seo-yeon in, a step behind her the whole way, like a mother on her daughter's first day at work
-  // (Ladi, Nov 18: a humor beat that also explains why her lines keep popping up).
+  // Day 1: Mira walks Seo-yeon in, a step behind her, "just in case". She mothers by reflex but isn't pushy, and
+  // Seo-yeon stays polite (story bible, Arc 4). Ladi, Nov 18: a humor beat that also explains why her lines pop up.
   C.tutorial = [
     { at: 'base-camp', who: 'mira', lines: [
-      ['mira', 'Morning, love! I\'ll walk you round. Just today. Arrows to move.'],
-      ['seoyeon', 'Thank you, Mistress Holloway. I know how to walk.'],
-      ['mira', 'Of course you do. Arrows, though.']] },
+      ['mira', 'First day on the watch? I\'ll come with you, just in case.'],
+      ['seoyeon', 'Thank you, Mistress Holloway. I\'ll be fine.'],
+      ['mira', 'I know, love. Just in case. Arrows to walk.']] },
     { at: 'first-fork', who: 'mira', lines: [
       ['mira', 'That\'s Tess by the fork. Tap her and listen. Whatever you hear goes in your notebook by itself.'],
       ['mira', 'Don\'t believe all of it. Do believe some of it.']] },
     { at: 'first-fork', who: 'mira', lines: [
-      ['mira', 'Press up at a fork to climb a path, down to come back. Walk in the middle. Not near the edge.'],
-      ['seoyeon', 'It\'s a road, Mistress Holloway.'],
-      ['mira', 'Roads have edges.']] },
+      ['mira', 'Up at a fork climbs a path, down comes back.'],
+      ['seoyeon', 'I saw the sign.'],
+      ['mira', 'So you did.']] },
     { at: 'kagemaru-stall', who: 'mira', lines: [
       ['mira', 'That\'s Kagemaru\'s stall. Your first lantern post is free. Don\'t let him tell you otherwise.'],
       ['kagemaru', 'I am standing right here, Mira.']] },
@@ -1553,9 +1553,9 @@
       ['seoyeon', 'You don\'t know that.'],
       ['mira', 'I know that.']] },
     { at: 'castle-gate', who: 'mira', lines: [
-      ['mira', 'This is where I stop. Pell takes it from here. Come to my fire in the morning. I\'ll keep the soup on.'],
-      ['seoyeon', 'You can go home now. Really.'],
-      ['mira', 'I\'m going, love. I\'m going. I\'m not mothering you.'],
+      ['mira', 'This is where I stop. Pell takes it from here. Come by my fire in the morning, love. I\'ll keep the soup on.'],
+      ['seoyeon', 'Thank you. For coming.'],
+      ['mira', 'Just in case.'],
       ['pell', 'She told me about you four times this morning. Four.']] }
   ];
 

@@ -181,7 +181,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(seal[1] === 0, `a sealed floor has no breaches that night (cellars had ${seal[0]})`);
   // Day 1 tutorial: Mira's first line plays at the start.
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(300);
-  check(/walk you round/.test(await card()), 'day 1 opens with Mira walking you in');
+  check(/just in case/.test(await card()), 'day 1 opens with Mira walking you in');
   check(await ev(() => SD.watchWalk.view.follower && SD.watchWalk.view.follower.who === 'mira'), 'Mira follows Seo-yeon on day 1');
   for (let i = 0; i < 3; i++) await btn('[data-a=n]');
   await tp('main-street', 760); await page.waitForTimeout(200);
