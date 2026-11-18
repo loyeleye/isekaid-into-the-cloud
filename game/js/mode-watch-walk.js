@@ -34,7 +34,7 @@
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
   // Days are 6 minutes (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
   // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
-  const DAY_S = 360, JOB_S = 50, TAKE_S = 15, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : 360);
+  const DAY_S = 360, JOB_S = 50, TAKE_S = 15, GD_EACH = 8, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : 360);
   // Night fuses (Ladi, Nov 18): break-ins turn up across the night, not all at dusk, and each gets through if it isn't
   // fixed within its fuse. From night 4 they come in pairs, so you can't always reach both: routing is the skill.
   const FUSE = n => (n === 1 ? 0 : n === 9 ? 240 : 150);
@@ -55,7 +55,7 @@
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
     { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' },
-    { id: 'guard', name: 'GuardDuty bell', cost: 15, what: 'tonight only: rings with the floor of every break-in and shows each fuse, wherever you are' },
+    { id: 'guard', name: 'GuardDuty bell', cost: 0, what: 'tonight only: rings with the floor of every break-in and shows each fuse, wherever you are' },
     { id: 'watch1', name: 'Pocket watch', cost: 20, what: '+25 seconds to think on every question before your clock runs' },
     { id: 'watch2', name: 'Fine pocket watch', cost: 40, what: '+35 more seconds to think, for a friend of the stall' }];
   // Questions past day 1 (Ladi, Nov 18): you get a grace of thinking time on each one, then it eats your day or night
@@ -631,13 +631,16 @@
     body();
   }
   function shop() {
-    const w = sv(), price = it => B.price(w.bonds, 'kagemaru', it.cost);
+    // GuardDuty is priced like the real thing (Ladi, Nov 18): the first night is a free trial, then it costs by how much
+    // it watches, 8 silver per break-in due tonight.
+    const gdCost = () => (w.guardTrial ? GD_EACH * breaches(w.day).length : 0);
+    const w = sv(), price = it => it.id === 'guard' ? (w.guardTrial ? B.price(w.bonds, 'kagemaru', gdCost()) : 0) : B.price(w.bonds, 'kagemaru', it.cost);
     const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
       <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
         .filter(it => !(it.id === 'guard' && (w.day >= 9 || w.guard === w.day)))
         .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
         .map(it => { const lockd = it.id === 'watch2' && !kageDone();
-          return `<button data-b="${it.id}" ${lockd || w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${price(it)}</b><br><small>${esc(lockd ? 'Do a job for Kagemaru first' : it.what)}</small></button>`; }).join('')}</div>
+          return `<button data-b="${it.id}" ${lockd || w.silver < price(it) || (it.id === 'outpost' && w.unlocks.outpost) ? 'disabled' : ''}><b>${esc(it.name)} · ${it.id === 'guard' && !w.guardTrial ? 'free trial tonight' : price(it)}</b><br><small>${esc(lockd ? 'Do a job for Kagemaru first' : it.id === 'guard' ? it.what + ` (${w.guardTrial ? `8 per break-in, ${breaches(w.day).length} due` : 'then 8 silver per break-in due'})` : it.what)}</small></button>`; }).join('')}</div>
       <div class="row"><button class="ghost" data-a="x">Done</button></div>`);
     o.querySelector('[data-a=x]').onclick = close;
     o.querySelectorAll('[data-b]').forEach(el => el.onclick = () => {
@@ -650,7 +653,7 @@
       }
       w.silver -= price(it);
       if (it.id === 'tools') w.tools = (w.tools || 0) + 1;
-      if (it.id === 'guard') w.guard = w.day;   // good for tonight (Ladi, Nov 18: optional, every night but the last)
+      if (it.id === 'guard') { w.guard = w.day; w.guardTrial = 1; }   // good for tonight (Ladi, Nov 18: optional, every night but the last)
       if (it.id === 'watch1' || it.id === 'watch2') w.watchUp = (w.watchUp || 0) + 1;
       if (it.id === 'outpost') { w.unlocks.outpost = 1; if (run) run.st.unlocks.outpost = 1; }
       S.persist(); shop();

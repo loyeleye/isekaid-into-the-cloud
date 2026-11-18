@@ -421,6 +421,20 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const r = SD.watchWalk.run; r.st.scene = 'castle:towers'; SD.watchWalk.clock(360 - 16); }); await page.waitForTimeout(500);
   const gdt = await ev(() => [(document.querySelector('.ww-toast') || {}).textContent || '', (document.querySelector('.ww-top') || document.body).textContent]);
   check(/GuardDuty: .*on the upper floor/.test(gdt[0]) && /🔔 Upper 2:/.test(gdt[1]), `the GuardDuty bell names the floor and shows the fuse from another floor (${gdt[0]})`);
+  const toKage = () => ev(() => { const r = SD.watchWalk.run; for (const sc in r.ppl) { const p = r.ppl[sc].find(v => v.who === 'kagemaru'); if (p) { r.st.scene = sc; r.st.x = p.x; return; } } });
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.guard = 0; w.guardTrial = 0; w.silver = 100; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
+  await toKage(); await use(); await page.waitForTimeout(150);
+  const toShop = async () => { for (let i = 0; i < 12 && !(await page.$('.ww-o:not([hidden]) [data-a=s]')); i++) {
+    const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=no]') || await page.$('.ww-o:not([hidden]) [data-a=x]');
+    if (b) { await b.click(); await page.waitForTimeout(150); } else { await use(); await page.waitForTimeout(150); } } };
+  await ev(() => { ['kagemaru-upriver', 'kagemaru-prices'].forEach(id => { SD.watchWalk.sv().quests[id] = { step: 99, done: true }; }); });
+  await toShop(); await btn('[data-a=s]'); await btn('[data-b=guard]');
+  const g1 = await ev(() => [SD.watchWalk.sv().silver, SD.watchWalk.sv().guard]);
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 7; w.guard = 0; }); await btn('[data-a=x]'); await toKage(); await use(); await page.waitForTimeout(150);
+  await toShop(); await btn('[data-a=s]'); const due = await ev(() => SD.watchWalk.breaches(7).length); await btn('[data-b=guard]');
+  const g2 = await ev(() => SD.watchWalk.sv().silver);
+  check(g1[0] === 100 && g1[1] === 5 && g2 === 100 - 8 * due, `GuardDuty's first night is a free trial, then 8 silver per break-in due (${g1}, ${g2}, ${due} due)`);
+  await btn('[data-a=x]');
   check(await ev(() => { const w = SD.watchWalk.sv(); w.day = 9; const ok = !SD.watchWalk.shopItems().some(it => it.id === 'guard'); w.day = 4; return ok; }), 'no GuardDuty bell for the Long Night');
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
