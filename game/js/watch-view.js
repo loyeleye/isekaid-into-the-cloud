@@ -143,9 +143,11 @@
     const sk = art() && art().animals && art().animals[a.kind], sheet = sk && img(sk.sheet);
     const y = a.flier && (a.state === 'fly' || a.kind === 'bat' || a.kind === 'moth' || a.kind === 'firefly' || a.kind === 'bee') ? G - 60 - 30 * Math.sin(t * 2 + a.x / 50) : a.kind === 'duck' ? G + 34 : G;
     if (sheet) {
-      const anim = (sk.anims && (sk.anims[a.state] || sk.anims.idle)) || [0], f = anim[Math.floor(t * (sk.fps || 8)) % anim.length];
+      const A = sk.anims || {}, anim = A[a.state] || (a.state === 'run' && A.walk) || A.idle || [0], f = anim[Math.floor(t * (sk.fps || 8)) % anim.length];
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / sk.w));
-      c.save(); c.translate(sx, y); c.scale(a.facing, 1);
+      // Birds on the ground hop as they walk (Ladi, Nov 18), so a walk never looks like a slide.
+      const hop = a.flier && y === G && (a.state === 'walk' || a.state === 'run') ? -Math.abs(Math.sin(t * 10 + a.x * 0.1)) * 4 : 0;
+      c.save(); c.translate(sx, y + hop); c.scale(a.facing, 1);
       c.drawImage(sheet, (f % cols) * sk.w, Math.floor(f / cols) * sk.h, sk.w, sk.h, -sk.anchor[0], -sk.anchor[1], sk.w, sk.h); c.restore(); return;
     }
     const big = { horse: 46, goat: 22, dog: 18, fox: 16, cat: 12, heron: 26 }[a.kind] || 7;

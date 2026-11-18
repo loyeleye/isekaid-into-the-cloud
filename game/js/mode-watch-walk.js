@@ -164,7 +164,34 @@
     return o;
   }
   function close() { const o = wrap && wrap.querySelector('.ww-o'); if (o) { o.hidden = true; o.innerHTML = ''; } setTimeout(() => { const o2 = wrap && wrap.querySelector('.ww-o'); if (!o2 || o2.hidden) busy = false; }, 80); }
-  const line = (who, text) => `<p class="ww-say"><b>${esc(nm(who))}:</b> ${esc(text)}</p>`;
+  // Faces (Ladi, Nov 18: every dialog box shows the speaker's face). The painted portrait where the cast has one,
+  // else the head cropped from their side-view sprite (js/watch-art.js), else their initial.
+  const PORTRAIT = { seoyeon: 1, mira: 1, coo: 1, bru: 1, kagemaru: 1, lexi: 1, kai: 1, dutch: 1, wen: 1, ayo: 1, aigerim: 1, seymour: 1, chad: 1 };
+  const crops = {};
+  function cropHead(who) {
+    if (who in crops) return crops[who];
+    crops[who] = null;
+    const a = window.WATCH_ART && WATCH_ART.people && WATCH_ART.people[who];
+    if (!a) return null;
+    const im = new Image();
+    im.onload = () => {
+      try {
+        const cv = document.createElement('canvas'), n = 44; cv.width = n; cv.height = n;
+        const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+        const top = Math.max(0, a.anchor[1] - 104);   // the head sits near the top of the 112-tall frame
+        g.drawImage(im, a.anchor[0] - 22, top, 44, 44, 0, 0, n, n);
+        crops[who] = cv.toDataURL();
+        document.querySelectorAll('.ww-face[data-who="' + who + '"]').forEach(el => { el.innerHTML = `<img src="${crops[who]}" alt="">`; });
+      } catch (e) { /* a tainted canvas or a missing sheet: the initial stays */ }
+    };
+    im.src = a.sheet;
+    return null;
+  }
+  const face = who => {
+    const src = PORTRAIT[who] ? `assets/img/portraits/${who}-neutral.webp` : cropHead(who);
+    return `<span class="ww-face${PORTRAIT[who] ? ' bust' : ''}" data-who="${who}" aria-hidden="true">${src ? `<img src="${src}" alt="">` : esc(nm(who).charAt(0))}</span>`;
+  };
+  const line = (who, text) => `<p class="ww-say">${face(who)}<span><b>${esc(nm(who))}:</b> ${esc(text)}</span></p>`;
   const bars = r => `<div class="ww-bars"><span>Trusts you <i style="--v:${r.you}"></i></span><span>Trusts the sender <i style="--v:${r.tie === 'cool' ? 0 : r.sender}"></i></span></div>`;
   function sayAll(lines, then) {
     let i = 0;
@@ -177,10 +204,10 @@
     next();
   }
   // A choice question: { q, choices, answer, why }. done(ok). tries: how many misses allowed before it locks.
-  function choose(title, q, tries, done) {
+  function choose(title, q, tries, done, who) {
     let miss = 0;
     const draw = (msg) => {
-      const o = overlay(`<p class="ww-t">${esc(title)}</p><p class="ww-q">${esc(q.q)}</p>${msg || ''}
+      const o = overlay(`${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}<p class="ww-q">${esc(q.q)}</p>${msg || ''}
         <div class="ww-ch">${q.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`);
       o.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
         const i = +b.dataset.i;
@@ -255,7 +282,7 @@
     const body = () => {
       if (st.ask) {
         const tries = B.trust(w.bonds, q.giver) >= 80 ? 1 : 0;   // trust 80 perk: a second try after the explanation
-        choose(nm(q.giver) + '\'s question', st.ask, tries, ok => { if (ok) go(); else { B.add(w.bonds, q.giver, 'wrong'); S.persist(); } });
+        choose(nm(q.giver) + '\'s question', st.ask, tries, ok => { if (ok) go(); else { B.add(w.bonds, q.giver, 'wrong'); S.persist(); } }, q.giver);
       } else sayAll(st.say || [], go);
     };
     if (who && who !== q.giver) {
@@ -272,7 +299,7 @@
       const proof = () => {   // low band: one review question first (doc: Relationships)
         const pool = content().reviews || [], rv = pool.find(x => x.id === help.low) || pool.find(x => x.day <= w.day);
         if (r.band !== 'low' || !rv) return body();
-        choose(nm(who) + ' wants proof', rv, 0, ok => { if (ok) { B.add(w.bonds, who, 'chat'); setTimeout(body, 90); } });
+        choose(nm(who) + ' wants proof', rv, 0, ok => { if (ok) { B.add(w.bonds, who, 'chat'); setTimeout(body, 90); } }, who);
       };
       o.querySelector('[data-a=d]').onclick = () => { close(); setTimeout(proof, 90); };
       return;
@@ -327,7 +354,7 @@
       for (const r of pool.slice(0, n)) {
         asked++; (w.asked = w.asked || {})[r.id] = 1;
         const ok = await new Promise(res => {
-          const b = U.panel(`<p class="ww-top">Day ${w.day} · Mira's review</p><p>${esc(r.q)}</p><div class="ww-ch">${r.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`, { title: 'THE NIGHT WATCH' });
+          const b = U.panel(`<p class="ww-top">Day ${w.day} · Mira's review</p>${line('mira', r.q)}<div class="ww-ch">${r.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`, { title: 'THE NIGHT WATCH' });
           b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => {
             const good = +el.dataset.i === r.answer;
             const b2 = U.panel(`<p class="${good ? 'ww-ok' : 'ww-no'}">${good ? '✓ Right' : '✗ Not quite'}: ${esc(r.choices[r.answer])}</p><p class="ww-why">${esc(r.why)}</p><div class="row"><button class="primary" id="ww-n">Next</button></div>`, { title: 'THE NIGHT WATCH' });
@@ -516,7 +543,10 @@
     .ww-o { position: absolute; top: 0; left: 0; right: 0; min-height: 100%; display: grid; align-items: start; padding: 8px; background: rgba(4,6,20,.35); border-radius: 10px; }
     .ww-o[hidden] { display: none; }
     .ww-card { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; background: rgba(14,20,56,.97); color: #eef1ff; border: 1px solid #e9c56d; font-size: 14px; }
-    .ww-say { margin: 4px 0; line-height: 1.4; } .ww-meta { font-size: 12.5px; color: #c9d0ee; margin: 6px 0; }
+    .ww-say { margin: 4px 0; line-height: 1.4; display: flex; gap: 10px; align-items: flex-start; }
+    .ww-face { flex: none; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: #2a3466; border: 2px solid #e9c56d; color: #fff; font-weight: 700; }
+    .ww-face img { width: 100%; height: 100%; object-fit: cover; object-position: top; image-rendering: pixelated; }
+    .ww-face.bust img { image-rendering: auto; } .ww-meta { font-size: 12.5px; color: #c9d0ee; margin: 6px 0; }
     .ww-t { margin: 0 0 4px; font-weight: 700; color: #e9c56d; } .ww-q { margin: 0 0 8px; }
     .ww-ch { display: grid; gap: 6px; margin: 6px 0; }
     .ww-ch button { text-align: left; padding: 9px 10px; min-height: 44px; border-radius: 8px; border: 1px solid rgba(185,196,255,.4); background: rgba(255,255,255,.06); color: inherit; font: inherit; cursor: pointer; }
