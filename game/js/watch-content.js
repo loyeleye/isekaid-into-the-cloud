@@ -1537,10 +1537,10 @@
       'Each one burns like a fuse. Leave it too long and it gets through.'] },
     { night: 3, who: 'pell', lines: ['One try per fix. Get it wrong and it waits till dawn. Kagemaru\'s spare tools buy you a second go.', 'Every fix eats into the night. Don\'t dawdle between them.'] },
     { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'Keep your ears open. You won\'t see them coming.'] },
-    { night: 5, who: 'pell', lines: ['Busy one. Four tonight, and they come in pairs.', 'You might not reach both. Know your stairs.'] },
+    { night: 5, who: 'pell', lines: ['Busy one. Five tonight, and they come in pairs.', 'You might not reach both. Know your stairs.'] },
     { night: 6, who: 'pell', lines: ['Storm tonight. Lightning shows what the dark hides.', 'Letters. Big ones.'] },
-    { night: 7, who: 'pell', lines: ['Pairs again tonight.', 'Keys, crates and the archive.'] },
-    { night: 8, who: 'pell', lines: ['Last ordinary night.', 'Listen for loose talk.'] },
+    { night: 7, who: 'pell', lines: ['Six tonight, three at a time.', 'Keys, crates and the archive.'] },
+    { night: 8, who: 'pell', lines: ['Last ordinary night. Six again, in threes.', 'Listen for loose talk.'] },
     { night: 9, who: 'pell', lines: ['Full moon. Clear sky.', 'Everything you missed is back, and the town\'s in it too.', 'Fifteen bells. Go.'] }
   ];
 
