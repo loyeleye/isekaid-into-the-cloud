@@ -341,7 +341,9 @@
       // (Ladi, Nov 18). `top` is where the level above's rooftops end.
       const li = WW.LEVELS.indexOf(st.scene), above = WW.LEVELS[Math.max(0, li - (ramp && ramp.key === 'up' ? 2 : 1))];   // mid-climb, keep the next road's own neighbour in view
       const above2 = WW.LEVELS[WW.LEVELS.indexOf(above) - 1];   // the road two up is cut away, even where roofs would reach it
-      const top = Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
+      // With buildings on their own layers, the hillside stops at the road above's surface: one bank of earth, the
+      // one you'd climb, and above it only that road's buildings against the backdrop (Ladi, Nov 18).
+      const top = T.buildings ? SY(Y[above]) - 14 : Math.max(SY(Y[above]) - (T.roofs || 240), above2 && above !== st.scene ? SY(Y[above2]) + 40 : -1e9);
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
