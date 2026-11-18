@@ -18,7 +18,17 @@
 (function () {
   const M = SD.modes, U = SD.ui, S = SD.state, W = SD.watchData, WW = SD.watchWorld, WV = SD.watchView, B = SD.watchBonds;
   if (!M || !U || !WW || !WV || !B) return;
-  const SCH = SD.watchSchedule;   // daily schedules (js/watch-schedule.js); without it people stand still
+  const SCH = SD.watchSchedule;
+  const TOPIC_CAP = 2;
+  // The AWS topic behind each DVA-C02 Domain 2 skill, shown on every fix screen with the breach's AWS-style evidence
+  // (Ladi, Nov 18: when the story is a loose metaphor, say the service and topic outright).
+  const TOPIC = { '2.1.1': 'Identity federation', '2.1.2': 'Bearer tokens (Cognito, JWT)', '2.1.3': 'IAM access keys', '2.1.4': 'Signing requests (SigV4)',
+    '2.1.5': 'IAM roles and STS', '2.1.6': 'IAM policies and least privilege', '2.1.7': 'Fine-grained access (DynamoDB, Cognito groups)',
+    '2.1.8': 'Service-to-service authorization', '2.2.1': 'Encryption at rest and in transit', '2.2.2': 'Certificates (ACM, AWS Private CA)',
+    '2.2.3': 'Client-side vs server-side encryption', '2.2.4': 'KMS key policies', '2.2.5': 'Key pairs and self-signed certificates',
+    '2.2.6': 'Cross-account KMS', '2.2.7': 'KMS key rotation', '2.3.1': 'Classifying sensitive data (PII, PHI)',
+    '2.3.2': 'Encrypting environment variables', '2.3.3': 'Secrets Manager and Parameter Store', '2.3.4': 'Masking sensitive data in logs',
+    '2.3.5': 'Sanitizing sensitive data', '2.3.6': 'Multi-tenant data access' };   // people a day who bring up the same running joke (Pell's height, Chad's other world)   // daily schedules (js/watch-schedule.js); without it people stand still
   const esc = s => U.esc(String(s == null ? '' : s));
   const content = () => window.WATCH_CONTENT || {};
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
@@ -234,7 +244,7 @@
   function choose(title, q, tries, done, who) {
     let miss = 0;
     const draw = (msg) => {
-      const o = overlay(`${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}<p class="ww-q">${esc(q.q)}</p>${msg || ''}
+      const o = overlay(`${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
         <div class="ww-ch">${q.choices.map((c, i) => `<button data-i="${i}">${esc(c)}</button>`).join('')}</div>`);
       o.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
         const i = +b.dataset.i;
@@ -260,15 +270,26 @@
     // One running-joke aside per chat at most, then the usual talk: Chad's "another world" story (from day 6 on), then a
     // line about Pell's height (after you've met him). Each person says each once.
     const ci = content().chadIsekai || {}, pq = (content().pellTall || {}).quips || {};
-    if (!aside && ci[who] && day >= ci[who][0] && !(w.chadq = w.chadq || {})[who]) {
-      w.chadq[who] = 1; S.persist();
+    // Running jokes are idle gossip (Ladi, Nov 18): never when someone has their own business for you, and at most
+    // TOPIC_CAP people on the same topic a day, so the whole town never talks about one person at once.
+    const idle = !aside && run && run.phase === 'day' && !workFor(who), said = (w.topicDay = w.topicDay || {});
+    const room = k => !said[k] || said[k][0] !== day || said[k][1] < TOPIC_CAP;
+    const note = k => { said[k] = said[k] && said[k][0] === day ? [day, said[k][1] + 1] : [day, 1]; };
+    // A friend's secret (trust 40, from day 2): once each, before the usual talk.
+    const sec = (content().secrets || {})[who];
+    if (idle && sec && day >= 2 && B.trust(b, who) >= 40 && !(w.told = w.told || {})[who]) {
+      w.told[who] = 1; S.persist();
+      return sayAll([['seoyeon', `(${nm(who)} lowers their voice.)`]].concat(sec), () => setTimeout(() => talk(who, 1), 90));
+    }
+    if (idle && ci[who] && day >= ci[who][0] && !(w.chadq = w.chadq || {})[who] && room('chad')) {
+      w.chadq[who] = 1; note('chad'); S.persist();
       return sayAll([[who, ci[who][1]]], () => setTimeout(() => talk(who, 1), 90));
     }
-    if (!aside && w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who]) {
-      w.pellq[who] = 1; w.pellReply = who; S.persist();
+    if (idle && w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who] && room('pell')) {
+      w.pellq[who] = 1; note('pell'); w.pellReply = who; S.persist();
       return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who, 1), 90));
     }
-    B.chat(b, who);
+    gain(who, () => B.chat(b, who));
     // A quest step at this person?
     for (const q of quests()) {
       const s = qstate(q.id);
@@ -292,22 +313,216 @@
       const st = q.steps[s.step];
       if (st && st.at && st.at.who === who) { step(q); return; }
     }
+    // A small job: one question in the watch's question box. Day 1's are lessons first (Ladi, Nov 18).
+    const mini = run && run.phase === 'day' ? miniFor(who) : null;
+    if (mini) {
+      const intro = mini.teach ? (who === 'mira' ? 'Sit a minute, love. Let me show you something.' : 'Mira says you\'re new. Want to see how I keep things safe?')
+        : 'Quick one for the watch, if you\'ve a moment.';
+      const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
+      o.querySelector('[data-a=x]').onclick = close;
+      o.querySelector('[data-a=y]').onclick = () => { close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
+      return;
+    }
     const wx = WW.weather(day, run && run.phase === 'night' ? 'night' : 'day');
     const g = gossipFor(who, day, wx);
-    if (g && g.tie) B.shift(b, g.tie.a, g.tie.b, g.tie.to);
+    if (g && g.tie) { B.shift(b, g.tie.a, g.tie.b, g.tie.to); (w.known = w.known || {})[pair(g.tie.a, g.tie.b)] = g.tie.to; }
+    // What's pressing for them comes first (today's line). Once you've heard it, they idle: town news they've picked
+    // up from whoever they met (Ladi, Nov 18: a real community), else their everyday line.
+    const gh = (w.gheard = w.gheard || {});
+    let said0 = g && gh[g.id] !== day ? g.line : null;
+    if (g) gh[g.id] = day;
+    if (!said0 && run && run.phase === 'day') said0 = newsFor(who);
     const shopOpen = who === 'kagemaru' && day >= 2;
     if ((WATCHERS[who] && day >= HIRE_DAY || shopOpen) && run && run.phase === 'day' && day <= 9) {
       const paid = (w.hires = w.hires || {})[who] || 0, cost = HIRE[paid], area = WW.scene(WATCHERS[who]).name;
       const hiring = WATCHERS[who] && day >= HIRE_DAY, lv = ward(who);
-      const o = overlay(`${line(who, g ? g.line : 'Quiet day so far.')}${hiring ? line(who, wardLine(who, area, lv, Math.min(2, paid))) : ''}
-        <div class="row"><button class="ghost" data-a="x">Bye</button>${shopOpen ? '<button class="ghost" data-a="s">Shop</button>' : ''}${hiring && cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
+      const o = overlay(`${line(who, said0 || everyday(who, day))}${hiring ? line(who, wardLine(who, area, lv, Math.min(2, paid))) : ''}
+        <div class="row"><button class="ghost" data-a="x">Bye</button>${lessonBtn(who)}${shopOpen ? '<button class="ghost" data-a="s">Shop</button>' : ''}${hiring && cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
       o.querySelector('[data-a=x]').onclick = close;
       const sb = o.querySelector('[data-a=s]'); if (sb) sb.onclick = shop;
+      const lb = o.querySelector('[data-a=l]'); if (lb) lb.onclick = () => { close(); setTimeout(() => lesson(who), 90); };
       const h = o.querySelector('[data-a=h]');
       if (h) h.onclick = () => { w.silver -= cost; w.hires[who] = paid + 1; S.persist(); close(); };
       return;
     }
-    sayAll([[who, g ? g.line : who === 'pell' ? 'Mind the locks.' : 'Evening soon. Be careful up at the castle.']]);
+    if (who === 'pell' || !run || run.phase !== 'day') return sayAll([[who, said0 || (who === 'pell' ? 'Mind the locks.' : everyday(who, day))]]);
+    const o = overlay(`${line(who, said0 || everyday(who, day))}<div class="row"><button class="ghost" data-a="x">Bye</button>${lessonBtn(who)}</div>`);
+    o.querySelector('[data-a=x]').onclick = close;
+    const lb = o.querySelector('[data-a=l]'); if (lb) lb.onclick = () => { close(); setTimeout(() => lesson(who), 90); };
+  }
+  // ---- The living town (Ladi, Nov 18): everyday lines, lessons, small jobs, trust steps, the Town book ----
+  const pair = (a, b) => [a, b].sort().join('|');
+  // ---- Town news (Ladi, Nov 18: simulate a real community) ----
+  // Something happens (a night's break-ins, a job you finished) and the people who saw it know first. When two people
+  // stand together during the day, news passes between them: nearly always between friends, sometimes between
+  // acquaintances, rarely when they don't get on. So who's heard what depends on the day's schedules and on ties.
+  // Each person tells you a piece of news once, and at most TOPIC_CAP people bring up the same news on one day.
+  // w.news: [{ id, day, text, you, good }]; w.knows[id][who] = who told them ('' = saw it themselves).
+  const PASS = { warm: 0.9, neutral: 0.45, cool: 0.12 };
+  function addNews(id, day, text, you, good, origins) {
+    const w = sv(); w.news = (w.news || []).filter(n => n.id !== id && n.day >= day - 3);   // old news fades
+    w.news.push({ id, day, text, you, good: !!good });
+    const k = (w.knows = w.knows || {}); k[id] = {}; origins.forEach(o => { k[id][o] = ''; });
+    Object.keys(k).forEach(x => { if (!w.news.some(n => n.id === x)) delete k[x]; });
+  }
+  function spread(a, b2) {   // a and b2 stand together: each may pass on what the other hasn't heard
+    const w = sv(), k = w.knows || {}, ties = content().ties || {};
+    (w.news || []).forEach(n => {
+      const m = k[n.id]; if (!m) return;
+      [[a, b2], [b2, a]].forEach(([from, to]) => {
+        if (!(from in m) || to in m) return;
+        if (Math.random() < PASS[B.tie(w.bonds, ties, to, from)] || 0) m[to] = from;
+      });
+    });
+  }
+  function townTalk() {   // who's standing together right now (once per pair per day-part)
+    const ws = run.walkers.filter(v => !v.ramp && !v.go), part = Math.floor(dayT() * 6);
+    run.met = run.met || {};
+    for (let i = 0; i < ws.length; i++) for (let j = i + 1; j < ws.length; j++) {
+      const a = ws[i], b2 = ws[j]; if (a.scene !== b2.scene || Math.abs(a.x - b2.x) > 150) continue;
+      const key = pair(a.who, b2.who) + '@' + part; if (run.met[key]) continue;
+      run.met[key] = 1; spread(a.who, b2.who);
+    }
+  }
+  function newsFor(who) {
+    const w = sv(), k = w.knows || {}, told = (w.newsTold = w.newsTold || {}), said = (w.topicDay = w.topicDay || {});
+    const n = (w.news || []).slice().reverse().find(x => k[x.id] && who in k[x.id] && !told[x.id + '|' + who] &&
+      (!said[x.id] || said[x.id][0] !== w.day || said[x.id][1] < TOPIC_CAP));
+    if (!n) return null;
+    told[n.id + '|' + who] = 1;
+    said[n.id] = said[n.id] && said[n.id][0] === w.day ? [w.day, said[n.id][1] + 1] : [w.day, 1];
+    if (n.good) gain(who, () => B.add(w.bonds, who, 2));   // good word about you travels, and so does their regard
+    const src = k[n.id][who], lead = !src ? 'Did you hear?' : ['%s says', 'Heard it from %s:', '%s was telling me'][(who.length + n.day) % 3].replace('%s', nm(src));
+    const body = n.you || n.text, cap = /[?:]$/.test(lead);
+    return `${lead} ${cap ? body.charAt(0).toUpperCase() + body.slice(1) : body}.${n.good ? ' Well done.' : ''}`;
+  }
+  const everyday = (who, day) => { const L = (content().lines || {})[who]; return L && L.length ? L[(day - 1) % L.length] : 'Evening soon. Be careful up at the castle.'; };
+  const lessonBtn = who => { const d = (content().demos || {})[who]; return d ? `<button class="ghost" data-a="l">💡 ${esc(d.title)}</button>` : ''; };
+  function miniFor(who) {
+    const w = sv(), done = w.minis || {};
+    return (content().minis || []).find(m => m.who === who && w.day >= m.opens && w.day <= m.closes && !done[m.id]) || null;
+  }
+  // What's waiting at someone: a job (quest offer or step), a lesson or a quick job. Drives the markers over heads.
+  function workFor(who) {
+    const w = sv();
+    for (const q of quests()) {
+      const s = qstate(q.id); if (s.done) continue;
+      if (s.step < 0 && q.giver === who && openOn(q, w.day) && q.kind !== 'capstone') return 'Job';
+      if (s.step >= 0) { const t = q.steps[s.step]; if (t && t.at && t.at.who === who) return 'Job'; }
+    }
+    const m = miniFor(who);
+    return m ? (m.teach ? 'Lesson' : 'Quick job') + ' · 🪙 ' + m.silver : '';
+  }
+  // Trust changes go through here, so crossing a step (friend, close friend...) is announced.
+  function gain(who, f) {
+    const b = sv().bonds, T = B.TIERS || [], i0 = T.findIndex(x => x[1] === B.tier(B.trust(b, who)));
+    f();
+    const i1 = T.findIndex(x => x[1] === B.tier(B.trust(b, who)));
+    if (i1 > i0) toast(`${nm(who)} now counts you as a ${T[i1][1]}.${T[i1][0] === 40 ? ' They might tell you something tomorrow.' : ''}`);
+  }
+  function toast(text) {
+    if (!wrap) return;
+    const t = document.createElement('div'); t.className = 'ww-toast'; t.textContent = text; t.setAttribute('role', 'status');
+    wrap.appendChild(t); setTimeout(() => t.remove(), 3600);
+  }
+  // A lesson: picture by picture (content().demos[who]). Seeing one the first time adds a little trust.
+  function lesson(who, then) {
+    const d = (content().demos || {})[who]; if (!d) { if (then) then(); return; }
+    let i = 0;
+    const draw = () => {
+      const f = d.frames[i], last = i === d.frames.length - 1;
+      const o = overlay(`<p class="ww-t">💡 ${esc(d.title)}</p>
+        <div class="ww-stage" aria-label="Picture">${(f.tiles || []).map((t, k) => `<div class="ww-tile ${esc(t[2] || '')}" style="--k:${k}"><span class="ww-ti" aria-hidden="true">${esc(t[0])}</span><small>${esc(t[1])}</small></div>`).join('')}</div>
+        ${line(f.say[0], f.say[1])}<div class="row"><span class="ww-meta">${i + 1} of ${d.frames.length}</span>${i ? '<button class="ghost" data-a="b">Back</button>' : ''}<button class="primary" data-a="n">${last ? 'Got it' : 'Next'}</button></div>`);
+      o.querySelector('[data-a=n]').onclick = () => {
+        if (!last) { i++; return draw(); }
+        close();
+        const w = sv(); w.lessons = w.lessons || {};
+        if (!w.lessons[who]) { w.lessons[who] = w.day; gain(who, () => B.add(w.bonds, who, 'lesson')); S.persist(); }
+        if (then) setTimeout(then, 90);
+      };
+      const bk = o.querySelector('[data-a=b]'); if (bk) bk.onclick = () => { i--; draw(); };
+    };
+    draw();
+  }
+  // The question box, Night Watch colours: who's asking, the question, shuffled choices, how sure you are, then why.
+  // Day 1 (teach): a wrong pick explains itself and you try again. Later: one try.
+  function box(m) {
+    const order = m.opts.map((x, i) => i).sort(() => Math.random() - 0.5);
+    let pick = null;
+    const draw = note => {
+      const o = overlay(`<div class="ww-box"><p class="ww-ctx">${face(m.who)}<span>${esc(nm(m.who))}'s ${m.teach ? 'lesson' : 'question'} · 🪙 ${m.silver}</span></p>
+        <p class="ww-q">${esc(m.q)}</p>${note || ''}
+        <div class="ww-ch">${order.map(i => `<button data-i="${i}" class="${pick === i ? 'on' : ''}" aria-pressed="${pick === i}">${pick === i ? '✓ ' : ''}${esc(m.opts[i])}</button>`).join('')}</div>
+        <div class="ww-conf"><span>${m.teach ? 'Practice: no wrong answers today. How sure are you?' : 'One try. How sure are you?'}</span>
+        <div>${['Guess', 'Think so', 'Sure'].map((t, k) => `<button data-c="${k}" ${pick == null ? 'disabled' : ''}>${t}</button>`).join('')}</div></div></div>`);
+      o.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { pick = +el.dataset.i; draw(note); });
+      o.querySelectorAll('[data-c]').forEach(el => el.onclick = () => answer(+el.dataset.c));
+    };
+    const answer = conf => {
+      const w = sv(), ok = pick === m.a;
+      if (!ok && m.teach) { const was = pick; pick = null; return draw(`<p class="ww-no">✗ ${esc((m.no || [])[was] || 'Not quite.')} Try another.</p>`); }
+      (w.minis = w.minis || {})[m.id] = ok ? 'ok' : 'miss';
+      if (ok) { w.silver += m.silver; gain(m.who, () => B.add(w.bonds, m.who, 'mini')); }
+      S.persist();
+      const o = overlay(`<div class="ww-box"><p class="${ok ? 'ww-ok' : 'ww-no'}">${ok ? '✓ Right' : '✗ Not this time'}: ${esc(m.opts[m.a])}</p>
+        ${!ok && (m.no || [])[pick] ? `<p class="ww-why"><b>Yours:</b> ${esc(m.no[pick])}</p>` : ''}<p class="ww-why">${esc(m.why)}</p>
+        ${ok ? `<p class="ww-gold">🪙 +${m.silver} silver${conf === 0 ? ' · a lucky guess still counts' : ''}</p>` : conf === 2 ? '<p class="ww-meta">You were sure. Worth another look.</p>' : ''}
+        <div class="row"><button class="primary" data-a="d">Done</button></div></div>`);
+      o.querySelector('[data-a=d]').onclick = () => { close(); if (view && run && run.phase === 'day') view.set('marks', dayMarks()); };
+    };
+    draw();
+  }
+  // The Town book: everyone you've met, how much they trust you, where they are now, and who likes whom (what you've
+  // overheard or been told).
+  function townBook() {
+    const w = sv(), b = w.bonds, known = w.known || {};
+    const met = PEOPLE.filter(p => p !== 'captain' && p !== 'pell' || b.chatted[p]).concat(['chad']).filter((p, i, a) => a.indexOf(p) === i);
+    const here = who => { const v = run && run.walkers && run.walkers.find(x => x.who === who); return v ? (v.ramp ? 'on the way to ' + WW.scene(v.ramp.to.scene).name : WW.scene(v.scene).name) : ''; };
+    const ties = who => Object.keys(known).filter(k => k.split('|').includes(who)).map(k => { const o = k.split('|').find(x => x !== who) || who; return `<span class="ww-tie ${known[k]}">${known[k] === 'warm' ? '♥' : known[k] === 'cool' ? '✗' : '·'} ${esc(nm(o))}</span>`; }).join(' ');
+    const o = overlay(`<p class="ww-t">📖 Town book</p><p class="ww-meta">Trust grows when you chat, help and learn. At "friend" people share a secret. ♥ likes, ✗ won't help.</p>
+      <div class="ww-book">${met.map(p => { const n = B.trust(b, p); return `<div class="ww-who">${face(p)}<div><b>${esc(nm(p))}</b> <small>${esc(B.tier(n))}${w.hearts[p] ? ' · ❤' : ''}${(w.lessons || {})[p] ? ' · 💡' : ''}${here(p) ? ' · ' + esc(here(p)) : ''}</small>
+        <i class="ww-bar" style="--v:${n}"></i>${ties(p) ? `<div class="ww-ties">${ties(p)}</div>` : ''}</div></div>`; }).join('')}</div>
+      <div class="row"><button class="primary" data-a="x">Close</button></div>`);
+    o.querySelector('[data-a=x]').onclick = close;
+  }
+  // Walkers: everyone with a day plan moves through the day (js/watch-schedule.js).
+  const dayT = () => (run && run.escort ? 0 : Math.max(0, Math.min(1, 1 - clock / DAY_S)));
+  function moveWalkers(dt, snap) {
+    const w = sv(), wx = WW.weather(w.day, 'day'), sch = content().schedule || {}, t = dayT();
+    run.walkers.forEach(v => {
+      const plan = SCH.planFor(sch, v.who, w.day, wx); if (!plan) return;
+      const to = SCH.resolve(WW, SCH.placeAt(plan, t)); if (!to) return;
+      if (snap) { v.scene = to.scene; v.x = to.x; v.ramp = null; v.go = false; }
+      else SCH.step(WW, v, to, dt, WV.rampPath);
+    });
+  }
+  function syncPeople() {
+    const ppl = {};
+    Object.keys(run.crowd || {}).forEach(k => { ppl[k] = run.crowd[k].slice(); });
+    run.walkers.forEach(v => { if (!v.ramp) (ppl[v.scene] = ppl[v.scene] || []).push(v); });
+    run.ppl = ppl;
+    if (view) { view.set('people', ppl); view.set('climbers', run.walkers.filter(v => v.ramp)); }
+  }
+  function dayMarks() {
+    if (!run || !run.walkers) return [];
+    // While Mira walks you in, a marker shows only once she's heading to that person's stop (Ladi, Nov 18: Coo's
+    // marker appears as soon as the hint says she wants to show you the post office).
+    const tut = content().tutorial || [], shown = {};
+    if (run.escort) tut.slice(0, (run.tut || 0) + 1).forEach(t => { const sp = WW.spot(null, t.at); if (sp && sp.who) shown[sp.who] = 1; });
+    return run.walkers.filter(v => !v.ramp && (!run.escort || shown[v.who])).map(v => { const k = workFor(v.who); return k ? { scene: v.scene, x: v.x, text: k, color: '#e9c56d', h: 128 } : null; }).filter(Boolean);
+  }
+  // Meetups: two people together on your road, and you close by. You overhear them once; the Town book learns their tie.
+  function meetups() {
+    const w = sv(), st = run.st; w.heard = w.heard || {};
+    for (const m of content().meetups || []) {
+      const id = pair(m.a, m.b); if (w.heard[id]) continue;
+      const a = run.walkers.find(v => v.who === m.a && !v.ramp && v.scene === st.scene), b2 = run.walkers.find(v => v.who === m.b && !v.ramp && v.scene === st.scene);
+      if (!a || !b2 || a.go || b2.go || Math.abs(a.x - b2.x) > 150 || Math.abs((a.x + b2.x) / 2 - st.x) > 240) continue;
+      w.heard[id] = 1; (w.known = w.known || {})[id] = m.tie || (B.tie(w.bonds, content().ties || {}, m.a, m.b));
+      S.persist();
+      return sayAll([['seoyeon', `(She overhears ${nm(m.a)} and ${nm(m.b)}.)`]].concat(m.lines));
+    }
   }
   // What a watcher says about the ninth night, in their own words, instead of a ward-level readout (Ladi: keep tips as gossip).
   function wardLine(who, area, lv, paid) {
@@ -383,7 +598,13 @@
     if (r.heart) w.hearts[q.giver] = 1;
     if (r.unlock === 'seal-floor' && r.floor) (w.sealed = w.sealed || {})[r.floor] = r.permanent ? 'all' : w.day;   // no breaches there
     else if (r.unlock) { w.unlocks[r.unlock] = 1; if (run) run.st.unlocks[r.unlock] = 1; }
-    B.add(w.bonds, q.giver, q.kind === 'small' ? 'small' : 'trust');
+    gain(q.giver, () => B.add(w.bonds, q.giver, q.kind === 'small' ? 'small' : 'trust'));
+    {   // word gets round: the giver tells their friends, who pass it on (the giver thanks you in person, so not again)
+      const id = 'q-' + q.id;
+      addNews(id, w.day, `the warden sorted out a problem for ${nm(q.giver)}`, `you sorted out a problem for ${nm(q.giver)}`, true, [q.giver]);
+      (w.newsTold = w.newsTold || {})[id + '|' + q.giver] = 1;
+      (((content().ties || {})[q.giver] || {}).warm || []).forEach(f => { if (f !== 'seoyeon') w.knows[id][f] = q.giver; });
+    }
     S.persist();
     const o = overlay(`<p class="ww-ok">Quest done</p><p>🪙 +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
     o.querySelector('[data-a=d]').onclick = close;
@@ -493,12 +714,13 @@
     };
     run.keep = keep; S.persist();
     const b = U.panel(`<p class="ww-top" id="ww-top"></p><div class="ww-wrap"><div class="ww-view"></div></div>
-      <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
+      <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-book">📖 Town</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
     wrap = b.querySelector('.ww-wrap');
     const top = b.querySelector('#ww-top'), endB = b.querySelector('#ww-end');
     if (phase === 'dusk') endB.hidden = true;
     b.querySelector('#ww-quit').onclick = () => { keep(); if (view) view.stop(); view = null; M.open && M.open(); };
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
+    b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
     const seen = x => w.day !== 9 || (run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene] || Math.abs(x.x - st.x) < 220;   // night 9: search unless warded
     const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
@@ -514,7 +736,7 @@
         }
         const f = run.escort && view.follower;
         if (f && f.scene === st.scene && Math.abs(f.x - st.x) <= WW.REACH) return sayAll([['mira', 'Don\'t mind me. Pretend I\'m not here.']]);
-        const p = (people(phase, w.day)[st.scene] || []).find(v => !v.crowd && Math.abs(v.x - st.x) <= WW.REACH);
+        const p = (run.ppl[st.scene] || []).filter(v => !v.crowd && Math.abs(v.x - st.x) <= WW.REACH).sort((a, b) => Math.abs(a.x - st.x) - Math.abs(b.x - st.x))[0];
         if (p) return talk(p.who);
         const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
         if (q) return step(q);
@@ -540,7 +762,7 @@
             run.tut = (run.tut || 0) + 1; keep();
             if (t.mark) view.set('marks', [{ scene: sp.level, x: sp.x + 34, text: t.mark, color: '#e9c56d' }]);   // Mira's example: a marker over Coo
             const last = run.tut === tut.length;
-            sayAll(t.lines || [[t.who, t.line]], () => { if (t.mark) view.set('marks', marks()); if (last) homeMira(); });
+            sayAll(t.lines || [[t.who, t.line]], () => { if (t.mark) view.set('marks', run.walkers ? dayMarks() : marks()); if (last) homeMira(); });
           } else { view.set('hint', 'Mira wants to show you ' + sp.label); view.set('guide', guideTo(s, sp)); }
         }
         if (phase === 'night' && w.day === 1 && !busy && !run.rang && clock < nightS(1) / 2) {   // a humor beat: she can't help herself
@@ -549,6 +771,10 @@
         }
         if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
         if ((run.sv = (run.sv || 0) + dt) > 3) { run.sv = 0; keep(); }
+        if (phase === 'day' && run.walkers && !busy) {
+          moveWalkers(dt); syncPeople();
+          if ((run.mk = (run.mk || 0) + dt) > 0.3) { run.mk = 0; view.set('marks', dayMarks()); if (!run.escort) meetups(); townTalk(); }
+        }
         if (!busy && clock > 0) {
           clock -= dt;
           if (phase === 'night') { const bell = Math.floor((nightS(w.day) - clock) / 60); if (bell > run.bell) { run.bell = bell; } }
@@ -560,6 +786,11 @@
         if (top.textContent !== t) top.textContent = t;
       }
     });
+    if (phase === 'day' && SCH && content().schedule) {   // the living town: everyone with a plan walks it
+      run.walkers = []; run.crowd = run.ppl;
+      Object.keys(run.crowd).forEach(k => { run.crowd[k] = run.crowd[k].filter(p => { if (p.crowd) return true; run.walkers.push(Object.assign(p, { scene: k, facing: p.facing || -1, d: 0 })); return false; }); });
+      moveWalkers(0, true); syncPeople(); view.set('marks', dayMarks());
+    }
     if (phase === 'dusk') {
       const d = (content().dusk || []).find(x => x.night === w.day), P = content().pellTall || {};
       const pre = [];   // the Pell running joke: meeting him, Chad's pitch on dusk 2, his answer to the latest quip
@@ -595,7 +826,7 @@
   // ---- Fix screens ----
   function fix(x, after) {
     if (run.locked[x.id]) { sayAll([['seoyeon', 'I\'ve tried this one twice. It has to wait for morning.']]); return; }
-    const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why };
+    const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why, topic: TOPIC[x.skill] || '', ev: x.tell || '' };
     const w = sv(), tools = w.day > 1 && (w.tools || 0) > 0;
     const tries = w.day === 1 ? 99 : tools ? 2 : 1;   // spare tools: one extra try
     choose(x.title, q, tries, (ok, miss) => {
@@ -618,6 +849,14 @@
     missed.forEach(x => { w.missed[x.id] = x.raid || 'Thieves'; });
     w.silver += pay;
     const night = w.day;
+    {   // the night's news, known at first by those nearest the castle; tries growing night on night get noticed
+      const tries = run.list.length, prev = (w.tries || {})[night - 1] || 0, more = night >= 2 && tries > prev ? ', and there are more every night' : '';
+      (w.tries = w.tries || {})[night] = tries;
+      const k = missed.length, num = n => ['no', 'one', 'two', 'three', 'four', 'five', 'six'][n] || String(n);
+      if (night < 9) addNews('night-' + night, night + 1, k ? `${num(k)} break-in${k > 1 ? 's' : ''} got through at the castle last night${more}`
+        : `someone tried the castle ${num(tries)} time${tries > 1 ? 's' : ''} last night${more}`,
+        k ? null : `you stopped every break-in last night${more ? ' and there were more than ever' : ''}`, !k, ['dutch', 'mira', 'tess']);
+    }
     w.day = Math.min(10, w.day + 1);
     w.bonds.day = w.day; w.at = null;
     const xp = M.pay('watch');
@@ -669,7 +908,8 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; } };
+  SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+    clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');
   css.textContent = `
@@ -688,6 +928,31 @@
     .ww-ch { display: grid; gap: 6px; margin: 6px 0; }
     .ww-ch button { text-align: left; padding: 9px 10px; min-height: 44px; border-radius: 8px; border: 1px solid rgba(185,196,255,.4); background: rgba(255,255,255,.06); color: inherit; font: inherit; cursor: pointer; }
     /* On the cream panels (Mira's morning review): dark text. Inside the dark dialog cards: light text. (Ladi, Nov 18: contrast) */
+    .ww-toast { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(14,20,56,.95); color: #ffe9a8; border: 1px solid #e9c56d; font-size: 13px; font-weight: 600; text-align: center; animation: ww-in .3s ease-out; pointer-events: none; }
+    @keyframes ww-in { from { opacity: 0; transform: translateY(8px); } }
+    .ww-stage { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 8px 0 10px; padding: 10px 6px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px dashed rgba(233,197,109,.45); }
+    .ww-tile { width: 84px; display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: 8px; background: rgba(255,255,255,.08); border: 2px solid rgba(185,196,255,.35); text-align: center; animation: ww-in .35s ease-out both; animation-delay: calc(var(--k) * 90ms); }
+    .ww-tile small { font-size: 11.5px; line-height: 1.25; color: #eef1ff; }
+    .ww-ti { font-size: 28px; line-height: 1; font-weight: 700; color: #fff; }
+    .ww-tile.ok { border-color: #6fcf8a; background: rgba(111,207,138,.16); } .ww-tile.no { border-color: #ff9a9a; background: rgba(255,154,154,.14); }
+    .ww-tile.no small { text-decoration: line-through; } .ww-tile.dim { opacity: .45; }
+    .ww-tile.new { border-color: #e9c56d; box-shadow: 0 0 0 3px rgba(233,197,109,.35); animation: ww-pop .5s ease-out both; }
+    @keyframes ww-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } }
+    .ww-box .ww-ctx { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 12.5px; font-weight: 700; color: #e9c56d; text-transform: uppercase; letter-spacing: .04em; }
+    .ww-box .ww-ctx .ww-face { width: 36px; height: 36px; }
+    .ww-ch button.on { border-color: #e9c56d; background: rgba(233,197,109,.18); }
+    .ww-conf { display: grid; gap: 6px; margin-top: 8px; font-size: 12.5px; color: #c9d0ee; }
+    .ww-conf div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .ww-conf button { min-height: 44px; border-radius: 8px; border: 1px solid #e9c56d; background: rgba(233,197,109,.12); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    .ww-conf button:disabled { opacity: .4; cursor: default; }
+    .ww-gold { color: #ffd34d; font-weight: 700; margin: 6px 0; }
+    .ww-book { display: grid; gap: 8px; max-height: 52vh; overflow-y: auto; margin: 6px 0; }
+    .ww-who { display: flex; gap: 10px; align-items: flex-start; } .ww-who > div { flex: 1; min-width: 0; }
+    .ww-who small { color: #c9d0ee; } .ww-bar { display: block; height: 6px; margin: 4px 0; border-radius: 3px; background: linear-gradient(90deg, #e9c56d calc(var(--v) * 1%), rgba(255,255,255,.12) 0); }
+    .ww-ties { display: flex; flex-wrap: wrap; gap: 4px; } .ww-tie { font-size: 11.5px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,.08); color: #eef1ff; }
+    .ww-tie.warm { color: #ffc0cf; } .ww-tie.cool { color: #a9b4d8; }
+    .ww-topic { margin: 2px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: #9fd0ff; text-transform: uppercase; }
+    .ww-ev { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: rgba(0,0,0,.35); color: #d8f5d0; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
     .ww-ok { color: #1f6b35; font-weight: 700; } .ww-no { color: #a3261f; font-weight: 700; } .ww-why { font-size: 14px; color: #2a2f45; line-height: 1.45; }
     .ww-card .ww-ok { color: #6fcf8a; } .ww-card .ww-no { color: #ff9a9a; } .ww-card .ww-why { font-size: 13px; color: #e6e9f8; }
     .ww-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; font-size: 12px; color: #c9d0ee; }

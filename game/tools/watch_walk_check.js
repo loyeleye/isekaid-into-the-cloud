@@ -106,6 +106,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const w2 = await ev(() => SD.watchWalk.sv());
   check(w2.day === 2 && w2.silver === 20 + 30, `dawn pays 20 base + 10 for the fix (${w2.silver - 20})`);
   await shot('dawn');
+  check(await ev(() => (SD.watchWalk.sv().news || []).some(n => n.id === 'night-1')), 'a night\'s break-ins become town news at dawn');
   await page.click('#ww-next'); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.sv().reviewed === 2), 'day 2\'s morning review is marked as done');
   const s0 = await ev(() => SD.watchWalk.sv().silver);
@@ -203,6 +204,8 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await tp('main-street', 1600); await page.waitForTimeout(200);
   check(await ev(() => { const g = SD.watchWalk.view.guide; return g && g.x === 760 && g.dir === 'up'; }), 'for the post office on Hill Road, the arrow points up the fork');
   await shot('tutorial-arrow');
+  await page.waitForTimeout(400);
+  check(await ev(() => SD.watchWalk.view.marks.some(m => m.scene === 'hill-road' && /Lesson/.test(m.text))), 'Coo\'s lesson marker is up as soon as Mira heads for the post office');
   await tp('hill-road', 1440); await page.waitForTimeout(200);
   check(/marker over Coo/.test(await card()), 'Mira explains markers at Coo\'s post office');
   await shot('tutorial-coo'); await clear();
@@ -222,12 +225,103 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await btn('[data-a=y]'); await page.waitForTimeout(200);
   check(await ev(() => SD.watchWalk.run.phase === 'dusk'), 'ending the day early goes to dusk');
   await clear();
+  // ---- The living town (Ladi, Nov 18) ----
+  const town = await ev(() => {
+    const C = window.WATCH_CONTENT, WW = SD.watchWorld, bad = [];
+    Object.keys(C.schedule).forEach(who => { const s = C.schedule[who]; [s.plan].concat(Object.values(s.days || {}), s.rain ? [s.rain] : []).forEach(pl => pl.forEach(([f, p]) => { if (!SD.watchSchedule.resolve(WW, p)) bad.push(who + ' ' + JSON.stringify(p)); if (f < 0 || f > 1) bad.push(who + ' from ' + f); })); });
+    C.minis.forEach(m => { if (m.opts.length !== 4 || m.a !== 0 || (m.no || []).length !== 4 || !m.why || (m.demo && !C.demos[m.demo]) || m.opens > m.closes) bad.push('mini ' + m.id); });
+    Object.keys(C.demos).forEach(k => C.demos[k].frames.forEach((f, i) => { if (!f.say || !f.tiles || !f.tiles.length) bad.push('demo ' + k + ' ' + i); }));
+    C.meetups.forEach(m => { if (!C.schedule[m.a] || !C.schedule[m.b]) bad.push('meetup ' + m.a + '|' + m.b); });
+    const day1 = C.minis.filter(m => m.opens === 1);
+    return { bad, day1: day1.length, teach: day1.every(m => m.teach && m.demo), lines: Object.keys(C.lines).length, secrets: Object.keys(C.secrets).length };
+  });
+  check(!town.bad.length, 'every schedule place, small job, lesson and meetup resolves' + (town.bad.length ? ': ' + town.bad.slice(0, 6).join('; ') : ''));
+  check(town.day1 >= 4 && town.teach, `day 1 has ${town.day1} lessons, each teaching before it asks`);
+  check(town.lines >= 18 && town.secrets >= 18, 'everyone has everyday lines and a secret');
+  // A day-1 lesson: the pictures, then the question; a wrong pick explains and lets you try again.
+  await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200); await clear();
+  await ev(() => { const r = SD.watchWalk.run; r.tut = 99; r.escort = false; SD.watchWalk.view.set('follow', null); });
+  const s1 = await ev(() => SD.watchWalk.sv().silver);
+  await tp('main-street', 2794); await use(); await page.waitForTimeout(150);
+  check(/Show me/.test(await card()), 'Hobb offers a day-1 lesson');
+  await btn('[data-a=y]');
+  check(await ev(() => document.querySelectorAll('.ww-o:not([hidden]) .ww-tile').length) >= 2, 'the lesson shows pictures (tiles), not just text');
+  await shot('lesson');
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  check(/Practice/.test(await card()) && await ev(() => !!document.querySelector('.ww-o:not([hidden]) .ww-conf')), 'then the question box, with how-sure buttons');
+  await btn('[data-i="1"]'); await btn('[data-c="1"]');
+  check(/Try another/.test(await card()), 'a wrong pick on day 1 explains and lets you try again');
+  await btn('[data-i="0"]'); await btn('[data-c="2"]');
+  check(/Right/.test(await card()) && await ev(() => SD.watchWalk.sv().silver) === s1 + 5, 'the right answer pays 5 silver');
+  await shot('lesson-done'); await btn('[data-a=d]');
+  // Day 2: people walk their plans, up and down the ramps.
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 2; w.bonds.day = 2; w.at = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
+  await clear();
+  check(await ev(() => ['aigerim', 'chad'].every(p => SD.watchWalk.run.walkers.some(v => v.who === p))), 'Aigerim and Chad are out in town now');
+  await ev(() => SD.watchWalk.clock(300)); await page.waitForTimeout(2500);
+  const tess = await ev(() => { const v = SD.watchWalk.run.walkers.find(x => x.who === 'tess'); return [v.scene, !!v.ramp, Math.round(v.x)]; });
+  check(tess[1] || tess[0] === 'hill-road', `at midday Tess heads up to the post office by the ramp (${tess})`);
+  await ev(() => SD.watchWalk.snapTown());
+  check(await ev(() => { const v = SD.watchWalk.run.walkers.find(x => x.who === 'tess'); return v.scene === 'hill-road' && Math.abs(v.x - 1414) < 3; }), 'and arrives on Hill Road');
+  // Talking: an everyday line instead of "evening soon", and a lesson button.
+  await ev(() => { SD.watchWalk.clock(590); SD.watchWalk.snapTown(); });
+  await tp('far-lane', 2554); await use(); await page.waitForTimeout(150);
+  const odu = await card();
+  check(!/Evening soon/.test(odu) && /💡/.test(odu), 'Odu says something of his own and offers a lesson: ' + odu.slice(0, 60));
+  await btn('[data-a=l]'); check(await ev(() => document.querySelectorAll('.ww-o:not([hidden]) .ww-tile').length) >= 2, 'his lesson plays');
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  // Overheard: Kai and Wen at the café around midday.
+  await ev(() => { SD.watchWalk.clock(360); SD.watchWalk.snapTown(); });
+  await tp('main-street', 2000); await page.waitForTimeout(500);
+  check(/overhears/.test(await card()), 'walking past two friends, you overhear them: ' + (await card()).slice(0, 50));
+  await clear();
+  check(await ev(() => Object.keys(SD.watchWalk.sv().known || {}).length >= 1), 'the Town book learns who likes whom');
+  await page.click('#ww-book'); await page.waitForTimeout(150);
+  check(/Town book/.test(await card()) && /acquaintance|friend/.test(await card()), 'the Town book lists trust steps');
+  await shot('town-book'); await btn('[data-a=x]');
+  // Running jokes: at most two people a day on the same topic, and only when they've no business for you.
+  const quips = await ev(async () => {
+    const W = SD.watchWalk, w = W.sv(); w.metPell = 1; w.pellq = {}; w.topicDay = {};
+    const said = [];
+    for (const p of ['dutch', 'ayo', 'coo', 'bru', 'lexi', 'wen', 'doug']) {
+      if (W.workFor(p)) continue;
+      W.talk(p); await new Promise(r => setTimeout(r, 120));
+      const t = (document.querySelector('.ww-o:not([hidden])') || {}).textContent || '';
+      if (/Pell/.test(t)) said.push(p);
+      while (document.querySelector('.ww-o:not([hidden]) [data-a=n]')) { document.querySelector('.ww-o:not([hidden]) [data-a=n]').click(); await new Promise(r => setTimeout(r, 120)); }
+      const x = document.querySelector('.ww-o:not([hidden]) [data-a=x]'); if (x) x.click(); await new Promise(r => setTimeout(r, 120));
+    }
+    return said;
+  });
+  check(quips.length <= 2, `only two people joke about Pell the same day (${quips})`);
+  // Town news travels person to person, by who meets whom.
+  const news = await ev(async () => {
+    const W = SD.watchWalk, r0 = Math.random; Math.random = () => 0;
+    W.addNews('t-tries', W.sv().day, 'someone tried the castle three times last night', null, false, ['kagemaru']);
+    W.spread('kagemaru', 'odu'); W.spread('odu', 'fennel'); W.spread('fennel', 'hollis');
+    Math.random = r0;
+    const k = W.sv().knows['t-tries'];
+    return [k.odu, k.fennel, W.newsFor('odu'), W.newsFor('fennel'), W.newsFor('hollis'), W.newsFor('odu')];
+  });
+  check(news[0] === 'kagemaru' && news[1] === 'odu', 'news passes from Kagemaru to Odu to Fennel when they meet');
+  check(/^Kagemaru/.test(news[2]) && /tried the castle three times/.test(news[2]) && /Odu/.test(news[3]), 'they tell you in their own words, naming who told them: ' + news[2]);
+  check(news[4] === null && news[5] === null, 'at most two people bring up the same news a day, and nobody tells you twice');
+  // Trust steps and secrets.
+  await ev(() => { const w = SD.watchWalk.sv(); w.bonds.trust.ayo = 39; w.bonds.chatted.ayo = 0; SD.watchWalk.snapTown(); });
+  const ay = await ev(() => { const v = SD.watchWalk.run.walkers.find(x => x.who === 'ayo'); return [v.scene, v.x]; });
+  await tp(ay[0], ay[1]); await use(); await page.waitForTimeout(200);
+  check(await ev(() => /now counts you as a friend/.test((document.querySelector('.ww-toast') || {}).textContent || '')), 'crossing 40 trust is announced');
+  await clear(); if (await page.$('.ww-o:not([hidden]) [data-a=x]')) await btn('[data-a=x]');
+  await ev(() => { const w = SD.watchWalk.sv(); w.bonds.chatted.ayo = 2; (w.minis = w.minis || {})['m-ayo-envelope'] = 'ok'; }); await use(); await page.waitForTimeout(150);
+  check(/lowers their voice/.test(await card()), 'a friend tells you a secret');
+  await clear(); if (await page.$('.ww-o:not([hidden]) [data-a=x]')) await btn('[data-a=x]');
+
   // Capstone: Hobb at ward 4 takes the cellars.
   const cap = await ev(() => { const w = SD.watchWalk.sv(); w.day = 6; w.hires = { hobb: 2 }; w.hearts = { hobb: 1 }; SD.watchBonds.add(w.bonds, 'hobb', 60);
     ['hobb-key-pair', 'hobb-practice-crest'].forEach(id => { w.quests[id] = { step: 99, done: true }; }); SD.watchWalk.walk('day'); return SD.watchWalk.ward('hobb'); });
   await page.waitForTimeout(200);
   await tp('main-street', 2760 + 34); await use(); await page.waitForTimeout(150);
-  for (let i = 0; i < 5; i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); }   // a one-time aside (Chad's story) can come first
+  for (let i = 0; i < 10; i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); }   // one-time asides (Chad's story, a friend's secret) can come first
   if (await page.$('.ww-o:not([hidden]) [data-a=d]')) await btn('[data-a=d]');
   const capW = await ev(() => { const w = SD.watchWalk.sv(); return [w.quests['hobb-last-lock'] && w.quests['hobb-last-lock'].done, w.sealed && w.sealed.cellars]; });
   check(cap === 4 && capW[0] && capW[1] === 'all', `Hobb's capstone at ward 4 seals the cellars for good (${capW})`);

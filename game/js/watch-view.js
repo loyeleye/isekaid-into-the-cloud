@@ -311,13 +311,13 @@
         if (p.walk && !reduced()) {   // background walkers stroll and turn at the ends of the level
           p.facing = p.facing || 1; p.x += p.facing * 120 * dt0;
           if (p.x > sc.to - 40) p.facing = -1; if (p.x < sc.from + 40) p.facing = 1;
-        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97); });
+        } const sx = X(p.x); if (sx > -40 && sx < VW + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97); });
       animals.forEach(a => animal(c, a, X(a.x), t));
       (o.marks || []).filter(m => m.scene === st.scene).forEach(m => {
         const sx = X(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);
         if (sp) { const f = Math.floor(t * 8) % 4; c.drawImage(sp, f * 16, 0, 16, 16, sx - 16, G - 34, 32, 32); if (m.text) label(c, m.text, sx, G - 50); return; }
         c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
-        c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
+        const mh = m.h || 90; c.beginPath(); c.arc(sx, G - mh, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - mh - 18);
       });
       const f = follower(); if (f) person(c, f.who, X(f.x), f.facing, f.moving, f.moving ? f.d : t);
       person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk');
@@ -400,16 +400,20 @@
         c.save(); c.translate(0, SY(Y[l]) - G);
         (o.people && o.people[l] || []).forEach(p => {
           if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 120 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
-          const sx = SX(p.x); if (sx > -40 && sx < vw + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!p.walk, p.walk ? Math.abs(p.x) : t + p.x / 97);
+          const sx = SX(p.x); if (sx > -40 && sx < vw + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97);
         });
         if (l === st.scene && !ramp) animals.forEach(a => animal(c, a, SX(a.x), t));
         (o.marks || []).filter(m => m.scene === l).forEach(m => {
           const sx = SX(m.x), sp = m.sparkle && art() && art().props && img(art().props.sparkle);
           if (sp) { const f = Math.floor(t * 8) % 4; c.drawImage(sp, f * 16, 0, 16, 16, sx - 16, G - 34, 32, 32); if (m.text) label(c, m.text, sx, G - 50); return; }
           c.fillStyle = m.color || '#e9c56d'; c.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
-          c.beginPath(); c.arc(sx, G - 90, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - 108);
+          const mh = m.h || 90; c.beginPath(); c.arc(sx, G - mh, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - mh - 18);
         });
         c.restore();
+      });
+      (o.climbers || []).forEach(p => {   // townsfolk on the ramps between roads (o.climbers: { who, ramp: { path, d }, facing, d })
+        const q = pathAt(p.ramp.path, p.ramp.d), sx = SX(q[0]);
+        if (sx > -40 && sx < vw + 40) { c.save(); c.translate(0, SY(q[1]) - G); person(c, p.who, sx, p.facing || 1, true, p.d); c.restore(); }
       });
       const px = SX(pos[0]), py = SY(pos[1]), f = follower();
       if (f) {

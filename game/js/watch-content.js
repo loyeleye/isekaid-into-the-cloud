@@ -877,8 +877,8 @@
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'Coo. Eleven letters bounced today. Eleven.'],
           ['coo', 'The castle only takes letters with a fresh signature.'], ['seoyeon', 'Show me the pile.']] },
         { at: { level: 'hill-road', spot: 'post-office' }, ask: {
-          q: 'Which letter does the castle take?',
-          choices: ['Signed by someone else\'s name', 'Signed with your key two minutes ago', 'Signed yesterday, copied neatly', 'Unsigned, but on good paper'], answer: 1,
+          q: 'SigV4 (Signature Version 4). Which request to the castle API does AWS accept?',
+          choices: ['A request signed by someone else\'s key, with your name in it', 'A request signed with your own secret key two minutes ago', 'A copy of a request you signed yesterday', 'An unsigned request sent over HTTPS'], answer: 1,
           why: 'SigV4: the signature must be yours and recent. Copies and old ones are turned away.' } },
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'Coo-ah. Delivered, at least once. As promised.'],
           ['coo', 'The SDK signs for you, you know. Most people never see it.']] }
@@ -890,8 +890,8 @@
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'The bridge clerk signs with a borrowed cloak. Still bounces.'],
           ['seoyeon', 'A borrowed cloak comes with three things, not two.']] },
         { at: { level: 'hill-road', spot: 'post-office' }, ask: {
-          q: 'Signed with temporary keys and still bouncing. What\'s missing?',
-          choices: ['The clerk\'s password', 'A longer letter', 'The session token', 'A second signature'], answer: 2,
+          q: 'Temporary credentials from STS. A request is signed with the access key ID and secret access key, and still gets InvalidClientTokenId. What\'s missing?',
+          choices: ['Your IAM user password', 'A longer request body', 'The session token (X-Amz-Security-Token)', 'A second signature'], answer: 2,
           why: 'Temporary credentials are a key ID, a secret and a session token. Send the token too.' } },
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'Three parts. I\'ll stamp it on the counter. Coo.']] }
       ], clue: null },
@@ -902,8 +902,8 @@
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', '¡Mira! The Guild\'s boards should trust each other.'],
           ['bru', 'Without paying the town hall for its public crest every time. Ay, no.']] },
         { at: { level: 'hill-road', spot: 'bounty-board' }, ask: {
-          q: 'Only the Guild\'s own boards need to trust these crests. Which crest office?',
-          choices: ['A public ACM certificate', 'A self-signed crest on each board', 'No crest at all', 'AWS Private CA'], answer: 3,
+          q: 'TLS certificates. Only the Guild\'s own internal services need to trust these certificates. Where should they come from?',
+          choices: ['A public ACM certificate', 'A self-signed certificate made on each server', 'No certificate: use plain HTTP inside', 'AWS Private CA'], answer: 3,
           why: 'Private CA issues private certificates. Only machines that trust your CA trust them.' } },
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', '*stamp* Crest office open! For the public site, ACM. For us, private.']] }
       ], clue: null },
@@ -914,8 +914,8 @@
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', 'EHHH?! One board\'s crest ran out. The others renew themselves!'],
           ['seoyeon', 'Where did that one come from?'], ['bru', '...A man in the next town. We brought it in.']] },
         { at: { level: 'hill-road', spot: 'bounty-board' }, ask: {
-          q: 'Why didn\'t that crest renew?',
-          choices: ['It was imported, and ACM doesn\'t renew imports', 'ACM renews nothing', 'The board was offline', 'Crests last forever'], answer: 0,
+          q: 'AWS Certificate Manager. A certificate in ACM expired instead of renewing. Why?',
+          choices: ['It was imported, and ACM doesn\'t renew imported certificates', 'ACM never renews certificates', 'The load balancer using it was stopped', 'Certificates in ACM never expire'], answer: 0,
           why: 'ACM renews certificates it issued. Imported ones you renew and re-import yourself.' } },
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', 'I\'ll put it on the board. In red. With string.']] }
       ], clue: null },
@@ -926,8 +926,8 @@
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'Apprentice needs a practice key pair. For the workshop door.'],
           ['hobb', 'Two halves. One goes on the door. One doesn\'t.']] },
         { at: { level: 'main-street', spot: 'lock-shop' }, ask: {
-          q: 'Which half hangs on the workshop door?',
-          choices: ['Neither, read it aloud', 'The public half', 'The private half', 'Both halves'], answer: 1,
+          q: 'EC2 key pairs (public-key cryptography). Which half goes on the instance?',
+          choices: ['Neither: you type the key in at login', 'The public key', 'The private key', 'Both halves'], answer: 1,
           why: 'The door keeps the public key. The private key stays with whoever opens it.' } },
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'Hm. Right first go. Cellars won\'t bother you tonight.']] }
       ], clue: null },
@@ -938,8 +938,8 @@
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'New gate in the workshop. Wants a crest to test against.'],
           ['hobb', 'Made one myself. Drew it with a nail.']] },
         { at: { level: 'main-street', spot: 'lock-shop' }, ask: {
-          q: 'Hobb\'s home-made crest. Where may it be used?',
-          choices: ['On every gate in town', 'Nowhere, ever', 'On the practice gate only', 'On the castle\'s real gate'], answer: 2,
+          q: 'Self-signed certificates. Where is a self-signed certificate fine to use?',
+          choices: ['On every public site', 'On a production login page', 'In a test environment only', 'Nowhere, ever'], answer: 2,
           why: 'Self-signed is fine for testing. Nobody else trusts it, so it never goes on the real gate.' } },
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'Crest\'ll hold.']] }
       ], clue: null },
@@ -953,8 +953,8 @@
           help: { high: 'And it can change its own lock later. Mira will like that.', low: 'r-2-3-3-a',
             deny: 'Not today, dear. Mira and I had words about the soup.' } },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'Where should the cellar password live?',
-          choices: ['On the recipe card, smaller', 'In the cook\'s head only', 'On the cellar door', 'In a secret store the cook asks each time'], answer: 3,
+          q: 'Secrets in code. A database password is written in the app\'s source code. Where should it live?',
+          choices: ['In the code, but in a comment', 'In the developer\'s head only', 'In a public config file', 'In Secrets Manager (or a Parameter Store SecureString), fetched at run time'], answer: 3,
           why: 'Secrets Manager or a SecureString: out of code and config, fetched when needed.' } },
         { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'Good. That\'s how you clean a wound.']] }
       ], clue: null },
@@ -965,8 +965,8 @@
         { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'The strongbox has kept one combination for a week.'],
           ['mira', 'A wound you never clean festers.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'The box should change its own combination. What keeps the cook getting in?',
-          choices: ['She asks the box each time', 'She writes each new one down', 'She keeps the first one', 'She stops locking it'], answer: 0,
+          q: 'Secrets Manager rotation. The database password now rotates every 30 days. How does the app keep working?',
+          choices: ['It fetches the current secret from Secrets Manager when it needs it', 'Someone pastes each new password into the code', 'It keeps using the first password', 'Rotation is turned off for that app'], answer: 0,
           why: 'Secrets Manager rotates on a schedule. Apps that fetch it every time always have the new one.' } },
         { at: { level: 'main-street', who: 'mira' }, say: [['mira', 'There. It\'ll heal itself now. I like that in a lock.']] }
       ], clue: null },
@@ -977,8 +977,8 @@
         { at: { level: 'hill-road', who: 'lexi' }, say: [['lexi', 'Behold. The reader\'s card. Three stamps of power.'],
           ['lexi', 'Who you are. What you may borrow. And one for renewing.'], ['lexi', 'Which does the desk check? Choose wisely.']] },
         { at: { level: 'hill-road', spot: 'library' }, ask: {
-          q: 'The desk lends books. Which stamp, and what about it?',
-          choices: ['Any stamp at all', 'The borrowing stamp: its seal, date and that it\'s for this library', 'The who-you-are stamp, by its colour', 'The renewal stamp, because it lasts longest'], answer: 1,
+          q: 'Cognito tokens. An API receives a Cognito access token. What should it check?',
+          choices: ['Only that a token is present', 'The signature, expiry, issuer, and that it was issued for this app\'s client ID', 'Only the user\'s email address in the ID token', 'That the refresh token is the newest'], answer: 1,
           why: 'Check the access token: signature, expiry, issuer, and that it was issued for your app.' } },
         { at: { level: 'hill-road', who: 'lexi' }, say: [['lexi', 'The Eye of Total Recall approves.'], ['lexi', '...That was genuinely good. Thank you.']] }
       ], clue: null },
@@ -992,8 +992,8 @@
           help: { high: 'If each row started with the reader\'s name, he\'d have been stuck. Just saying.', low: 'r-2-1-7-a',
             deny: 'Lexi banned my crawlers. I\'m not helping the Index.' } },
         { at: { level: 'hill-road', spot: 'library' }, ask: {
-          q: 'Each reader may see only rows that start with their own name. How?',
-          choices: ['Hide other rows on the screen', 'Lock the catalogue', 'A LeadingKeys condition on the reader\'s ID', 'A catalogue per reader'], answer: 2,
+          q: 'DynamoDB fine-grained access. Each user may read only items whose partition key is their own user ID. How?',
+          choices: ['Filter the other items out in the app\'s screen', 'Deny all reads on the table', 'An IAM condition on dynamodb:LeadingKeys matching the caller\'s ID', 'A separate table per user'], answer: 2,
           why: 'dynamodb:LeadingKeys matches the partition key to the caller. Per row, one rule.' } },
         { at: { level: 'hill-road', who: 'lexi' }, say: [['lexi', 'Sealed. The Catalogue keeps its secrets now.']] }
       ], clue: null },
@@ -1004,8 +1004,8 @@
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'The night clerk wants his own copy of the cloak\'s key. Forever.'],
           ['kai', 'Yes, chef. Great idea. Tell him, would you?']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'What should the night clerk do instead?',
-          choices: ['Keep a copied key in his boot', 'Share the day clerk\'s key', 'Wear the cloak home', 'Borrow the cloak each shift; it wears off by morning'], answer: 3,
+          q: 'IAM roles and STS. A night clerk needs access only during the shift. What should they do instead of keeping a copied access key?',
+          choices: ['Keep the copied key, and rotate it monthly', 'Use the day clerk\'s access key', 'Get an IAM user with no expiry', 'Assume a role each shift and use the temporary credentials, which expire'], answer: 3,
           why: 'Assume the role each time. STS hands out credentials that expire.' } },
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll show you the back stair. Don\'t tell anyone I was nice.']] }
       ], clue: null },
@@ -1016,8 +1016,8 @@
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Ledger pages get sealed as they\'re filed. Good.'],
           ['kai', 'One came up the hill on an open cart. Not good.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'Pages are encrypted at rest. How do you refuse open carts?',
-          choices: ['Deny any request where aws:SecureTransport is false', 'Encrypt the pages twice', 'Turn on versioning', 'Make the bucket public'], answer: 0,
+          q: 'Encryption in transit for S3. Objects are encrypted at rest. How do you refuse plain HTTP requests?',
+          choices: ['A bucket policy that denies requests when aws:SecureTransport is false', 'Encrypt the objects twice', 'Turn on versioning', 'Make the bucket public'], answer: 0,
           why: 'At rest is the shelf; in transit is the road. A bucket policy deny refuses plain HTTP.' } },
         { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Closed carriages only. I\'ll keep the upper floor quiet tonight.']] }
       ], clue: null },
@@ -1030,8 +1030,8 @@
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'One key per hand. Each opens what that hand needs. Nothing more.']],
           help: { high: 'Tell Kane his key ring\'s too heavy too.', low: 'r-2-1-8-a', deny: 'Kane can come ask me himself.' } },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'Workers call each other\'s rooms. What should each carry?',
-          choices: ['No pass, they\'re inside', 'Its own role, allowing only the calls it makes', 'The one master pass', 'The master pass, renamed'], answer: 1,
+          q: 'Service-to-service authorization. Several Lambda functions call each other\'s APIs. What should each have?',
+          choices: ['No permissions: they\'re in the same account', 'Its own execution role, allowing only the calls it makes', 'One shared admin role', 'The shared admin role under a new name'], answer: 1,
           why: 'One role per service. If one leaks, it opens only that worker\'s doors.' } },
         { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. There\'s a stair down to the cellars. Near side. It\'s yours.']] }
       ], clue: null },
@@ -1042,8 +1042,8 @@
         { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Tavern\'s log book catches every word. Card numbers too.'],
           ['dutch', 'Records with gaps are bad. Records with secrets are worse.']] },
         { at: { level: 'main-street', spot: 'base-camp' }, ask: {
-          q: 'Keep the log, lose the card numbers. Least work?',
-          choices: ['Tear out pages each morning', 'Only let Dutch read it', 'A data protection policy that masks them as they\'re written', 'Turn the log off'], answer: 2,
+          q: 'CloudWatch Logs data protection. Logs must be kept, but card numbers must not show. Least work?',
+          choices: ['Delete log streams each morning', 'Only let one person read the logs', 'A data protection policy on the log group that masks them as they\'re ingested', 'Turn logging off'], answer: 2,
           why: 'CloudWatch Logs data protection masks matching data on the way in.' } },
         { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Bless you. That was a long one. Ground floor\'s quiet tonight.']] }
       ], clue: null },
@@ -1057,8 +1057,8 @@
           help: { high: 'And use the key\'s full address, not its nickname. Their clerks are fussy.', low: 'r-2-2-6-a',
             deny: 'Not today. That hood still owes me for rope.' } },
         { at: { level: 'main-street', spot: 'kagemaru-stall' }, ask: {
-          q: 'The buyer must open crates sealed with your key. What\'s needed?',
-          choices: ['Only their own rule', 'Only your key rule', 'Send them unsealed', 'Your key rule allows them, and their own rule allows it too'], answer: 3,
+          q: 'Cross-account KMS. Another account must decrypt data encrypted with your KMS key. What\'s needed?',
+          choices: ['Only an IAM policy in their account', 'Only your key policy', 'Send the data unencrypted', 'Your key policy allows their account, and their IAM policy allows the KMS actions too'], answer: 3,
           why: 'Cross-account KMS: your key policy and their IAM policy must both allow it.' } },
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Paid in full. How disappointing for everyone else.']] }
       ], clue: null },
@@ -1069,8 +1069,8 @@
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'My price list shows who owes me. Whole account numbers.'],
           ['kagemaru', 'Customers find it... unsettling.']] },
         { at: { level: 'main-street', spot: 'kagemaru-stall' }, ask: {
-          q: 'What should the list show?',
-          choices: ['Only the last four digits', 'The full number', 'The number, encrypted', 'The customer\'s address'], answer: 0,
+          q: 'Sanitizing sensitive data. A web page lists customers\' card numbers. What should it show?',
+          choices: ['Only the last four digits', 'The full number', 'The number encrypted on screen', 'The customer\'s home address instead'], answer: 0,
           why: 'Sanitize what\'s shown. The full number stays in the ledger.' } },
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Discreet. Like me. Ah ha ha.']] }
       ], clue: null },
@@ -1126,8 +1126,8 @@
         { at: { level: 'far-lane', spot: 'well' }, say: [['seoyeon', 'Taped inside the shaft: the bunker\'s combination.'],
           ['seoyeon', 'Where anyone could read it.']] },
         { at: { level: 'far-lane', spot: 'well' }, ask: {
-          q: 'Where does Seymour\'s combination belong?',
-          choices: ['Painted on the hatch', 'A locked store only he can open, fetched when needed', 'Taped higher up the shaft', 'On three notes instead of one'], answer: 1,
+          q: 'Secrets management. Where should a database password used by a script be kept?',
+          choices: ['Written in the script next to the command', 'In Secrets Manager, fetched by the script when it runs', 'In a sticky note on the server', 'Split across three config files'], answer: 1,
           why: 'A secret store, like Secrets Manager. Never written down by the door it opens.' } },
         { at: { level: 'hill-road', spot: 'bunker' }, say: [['seymour', 'HALT. Understood. Understood. Understood. — S.'],
           ['seymour', 'TUNNEL OPEN. BOTH WAYS. TELL NO ONE (EXCEPT YOU). — S.']] }
@@ -1142,8 +1142,8 @@
           help: { high: 'Whatever goes down that chute, seal it at the top. Trust me.', low: 'r-2-2-3-a', deny: 'Fennel never waves back. Ask her yourself.' } },
         { at: { level: 'west-road', spot: 'lookout-ruin' }, say: [['seoyeon', 'Cleared. A sack is ready to go down.']] },
         { at: { level: 'west-road', spot: 'lookout-ruin' }, ask: {
-          q: 'Thieves wait at the bottom. When should the sack be sealed?',
-          choices: ['Halfway down', 'Never, just send it faster', 'At the top, before it goes down', 'At the dock, when it lands'], answer: 2,
+          q: 'Client-side vs server-side encryption. Data must be protected before it leaves the app, all the way into S3. When do you encrypt?',
+          choices: ['Halfway, at a proxy', 'Never: send it faster', 'Client-side, in the app before upload', 'Server-side only, when S3 stores it'], answer: 2,
           why: 'Client-side: sealed before it leaves, so it\'s safe on the way. Sealing on arrival is server-side.' } },
         { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'Thank you.'], ['fennel', 'It goes down only. Mind the landing.']] }
       ],
@@ -1155,8 +1155,8 @@
         { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'The old supply hoist. Chained since before my time.'],
           ['captain', 'Its key ring decides where each rider may stop.']] },
         { at: { floor: 'cellars', room: 'barracks' }, ask: {
-          q: 'The night watch and the kitchen boy each get a hoist key. Which pair is right?',
-          choices: ['Both: every floor', 'Watch: every floor. Boy: none', 'Both: towers only', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
+          q: 'Identity-based policies and least privilege. The watch needs every floor; the kitchen boy needs the cellars and ground. Which policies are right?',
+          choices: ['Both: every floor', 'Both: the towers only', 'Watch: every floor. Boy: none', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
           why: 'An identity policy lists exactly what each principal may do. Nobody gets more than their job.' } },
         { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off. One bell tick a ride. Use it well, warden.']] }
       ], clue: null },
@@ -1167,8 +1167,8 @@
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'Every tab\'s pinned on one wall, dear. Anyone reads anyone\'s.'],
           ['wen', 'That big one\'s for "consulting lunches". Never paid.']] },
         { at: { level: 'main-street', spot: 'cafe' }, ask: {
-          q: 'How should the tabs be kept?',
-          choices: ['A slot per customer, under their name, only they and Wen open', 'One wall, bigger pins', 'One wall, smaller writing', 'Burn them nightly'], answer: 0,
+          q: 'Multi-tenant data. Each customer\'s records are in one shared table. How should access work?',
+          choices: ['Each tenant\'s items under their own key, and a policy that lets each tenant read only their own', 'Everyone reads the whole table', 'Make the table smaller', 'Delete the records nightly'], answer: 0,
           why: 'Multi-tenant: each tenant sees only the rows under their own key.' } },
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'Lovely. A lunch box each.']] }
       ] },
@@ -1176,8 +1176,8 @@
       steps: [
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'The bread boy wants his own back-door key. Forever, he says.']] },
         { at: { level: 'main-street', spot: 'cafe' }, ask: {
-          q: 'What key should he get?',
-          choices: ['No key, he can knock all day', 'One that works only on delivery mornings', 'A full copy of hers', 'The front-door key'], answer: 1,
+          q: 'Temporary access. A delivery service needs access only on delivery mornings. What should it get?',
+          choices: ['No access: it can call support', 'A role it assumes for temporary credentials that expire', 'A copy of the owner\'s access keys', 'An IAM user with admin access'], answer: 1,
           why: 'Temporary credentials: access that expires when the job is done.' } },
         { at: { level: 'main-street', who: 'wen' }, say: [['wen', 'Mornings only. He\'ll live.']] }
       ] },
@@ -1185,8 +1185,8 @@
       steps: [
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'HA! My apprentices share one forge key. They fight over it.']] },
         { at: { level: 'main-street', spot: 'forge' }, ask: {
-          q: 'What should each apprentice get?',
-          choices: ['Ayo\'s own key', 'A key to every anvil', 'A key to their own anvil only', 'A copy of the forge key'], answer: 2,
+          q: 'Least privilege. Each apprentice service writes only to its own S3 prefix. What should each get?',
+          choices: ['The owner\'s credentials', 'Write access to the whole bucket', 'A policy that allows writes only to its own prefix', 'A copy of the bucket\'s root credentials'], answer: 2,
           why: 'Least privilege: each principal gets only what its job needs.' } },
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'One anvil, one key. My grandmother would say so. She didn\'t, but she would.']] }
       ] },
@@ -1196,8 +1196,8 @@
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'A crate with a lock that knows its owner. A fine purchase.']],
           help: { high: 'The lock\'s rule names him. Not his friends. Him.', low: 'r-2-2-4-b', deny: 'Not for sale. Not to you, today.' } },
         { at: { level: 'main-street', spot: 'forge' }, ask: {
-          q: 'How do you make sure only the quartermaster opens it?',
-          choices: ['Hide the crate', 'Seal it with a key anyone may use', 'Write his name on the lid', 'The key\'s rule names only him'], answer: 3,
+          q: 'KMS key policies. Only one role should be able to decrypt with this KMS key. How?',
+          choices: ['Hide the encrypted data', 'Encrypt with a key anyone can use', 'Put the role\'s name in the object\'s tags', 'A key policy that allows kms:Decrypt only for that role'], answer: 3,
           why: 'A key policy decides who may use the key to decrypt.' } },
         { at: { level: 'main-street', who: 'ayo' }, say: [['ayo', 'HA! Sealed like a promise.']] }
       ] },
@@ -1206,8 +1206,8 @@
         { at: { level: 'main-street', who: 'aigerim' }, say: [['aigerim', 'My pages blew away at 09:14. I counted.'],
           ['aigerim', 'Would you gather them? Please?']] },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
-          q: 'Three pages: everyone\'s addresses, the healer\'s notes on her cough, the weather. Which need locking up?',
-          choices: ['The addresses and the healer\'s notes', 'Only the healer\'s notes', 'All three', 'None, it\'s a diary'], answer: 0,
+          q: 'Data classification. A diary holds everyone\'s home addresses, a patient\'s health notes, and the weather. Which are sensitive?',
+          choices: ['The addresses (PII) and the health notes (PHI)', 'Only the health notes', 'All three', 'None of it'], answer: 0,
           why: 'Addresses are PII. The healer\'s notes are PHI. The weather is public.' } },
         { at: { level: 'main-street', who: 'aigerim' }, say: [['aigerim', 'You read them so carefully. I wrote that down.']] }
       ] },
@@ -1217,8 +1217,8 @@
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'A pass that runs out. I sell those. Rarely to diarists.']],
           help: { high: 'An hour is plenty. Less is better.', low: 'r-2-1-6-a', deny: 'She writes down everything I say. No.' } },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
-          q: 'How do you share one page for one hour?',
-          choices: ['Copy the whole diary', 'A presigned link that expires in an hour', 'Make the diary public', 'Give her your keys'], answer: 1,
+          q: 'S3 presigned URLs. How do you share one private object for one hour?',
+          choices: ['Copy the whole bucket to the person', 'A presigned URL for that object that expires in an hour', 'Make the bucket public', 'Give them your access keys'], answer: 1,
           why: 'An S3 presigned URL grants one object for a set time, using the signer\'s permissions.' } },
         { at: { level: 'main-street', who: 'aigerim' }, say: [['aigerim', 'One hour. I\'ll note when it ends.']] }
       ] },
@@ -1228,8 +1228,8 @@
         { at: { level: 'main-street', who: 'hobb' }, say: [['hobb', 'Unplugged a door\'s not locked a door.']],
           help: { high: 'Switch the keys off. Then wait. Then throw them away.', low: 'r-2-1-3-b', deny: 'Doug\'s keys? I don\'t touch Doug\'s keys.' } },
         { at: { level: 'hill-road', spot: 'doug-flat' }, ask: {
-          q: 'The account is unplugged. What else?',
-          choices: ['Rename the account', 'Write the keys down for later', 'Make its access keys inactive, then delete them', 'Nothing, unplugging is enough'], answer: 2,
+          q: 'IAM access keys. A retired bot\'s IAM user is no longer used. What else should you do?',
+          choices: ['Rename the user', 'Write the keys down for later', 'Deactivate its access keys, check nothing breaks, then delete them', 'Nothing: unused keys can\'t be used'], answer: 2,
           why: 'Keys work from anywhere. Deactivate, check nothing breaks, then delete.' } },
         { at: { level: 'hill-road', who: 'doug' }, say: [['doug', 'Huh. I\'d have left them on. Don\'t tell Kevin.']] }
       ] },
@@ -1239,8 +1239,8 @@
         { at: { level: 'hill-road', who: 'bru' }, say: [['bru', 'Two heartbeats for Doug. Ay, no. One\'s in the castle.']],
           help: { high: 'His keys show when they were last used. Look there.', low: 'r-2-1-3-a', deny: 'Doug\'s row is always wrong. I\'m not helping him fix it.' } },
         { at: { level: 'hill-road', spot: 'doug-flat' }, ask: {
-          q: 'How does Doug find which key is being used?',
-          choices: ['Guess', 'Make a new key', 'Turn off the board', 'Check each access key\'s last-used date'], answer: 3,
+          q: 'IAM access keys. Something is still calling AWS with one of Doug\'s keys. How do you find which?',
+          choices: ['Guess', 'Create a new key', 'Turn off the account', 'Check each access key\'s last-used date and service'], answer: 3,
           why: 'IAM shows when and where each access key was last used.' } },
         { at: { level: 'hill-road', who: 'doug' }, say: [['doug', 'One of them was used last night. I didn\'t use it last night.']] }
       ] },
@@ -1249,8 +1249,8 @@
         { at: { level: 'main-street', who: 'tess' }, say: [['tess', 'My lamp automaton carries the lamp store code on its arm! On a tag!'],
           ['tess', 'Anyone who stops it can read it! Anyone!']] },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
-          q: 'How do you protect the code on the tag?',
-          choices: ['Seal it with a key only the automaton may use', 'Write it backwards', 'Hide the tag under its sleeve', 'Leave it, nobody stops automatons'], answer: 0,
+          q: 'Lambda environment variables. A store code sits in a Lambda environment variable. How do you protect it?',
+          choices: ['Encrypt it with a customer managed KMS key that only the function\'s role can decrypt', 'Write it backwards', 'Rename the variable', 'Leave it: environment variables are private'], answer: 0,
           why: 'Encrypt the env var with a customer managed KMS key only its role can decrypt.' } },
         { at: { level: 'main-street', who: 'tess' }, say: [['tess', 'Sealed! The safest lamp in the WHOLE kingdom.']] }
       ] },
@@ -1260,8 +1260,8 @@
         { at: { level: 'far-lane', who: 'fennel' }, say: [['fennel', 'I saw it lit. Didn\'t see the hand.']],
           help: { high: 'Next time, have the store write down who opens it.', low: 'r-2-1-6-a', deny: 'Her lamps keep me up. Ask someone else.' } },
         { at: { level: 'main-street', spot: 'first-fork' }, ask: {
-          q: 'Next time, how will you know who opened the lamp store?',
-          choices: ['Hide the lamps', 'Turn on a trail that records each opening', 'Ask around', 'Lock it with a bigger lock'], answer: 1,
+          q: 'CloudTrail data events. Next time, how will you know who read objects in the bucket?',
+          choices: ['Hide the objects', 'Turn on CloudTrail data events for the bucket', 'Ask around', 'Turn on versioning'], answer: 1,
           why: 'CloudTrail records who did what. Object reads are data events, which you turn on.' } },
         { at: { level: 'main-street', who: 'tess' }, say: [['tess', 'A record! Of EVERYONE!']] }
       ] },
@@ -1270,8 +1270,8 @@
         { at: { level: 'west-road', who: 'pell' }, say: [['captain', 'No more shared passwords at my gate.'],
           ['pell', 'You heard the Captain. Problem is, I\'ve only got the one password.']] },
         { at: { level: 'west-road', spot: 'castle-gate' }, ask: {
-          q: 'What should Pell check instead?',
-          choices: ['A password that changes daily', 'Nothing, he knows faces', 'Each visitor\'s own signed pass', 'The same password, said louder'], answer: 2,
+          q: 'Bearer tokens. The gate API uses one shared password for every visitor. What should it check instead?',
+          choices: ['A password that changes daily', 'Nothing: it knows the IP addresses', 'Each caller\'s own signed, expiring token', 'The same password, longer'], answer: 2,
           why: 'Bearer tokens: each visitor carries their own signed, expiring token.' } },
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'By the book. I like a book.']] }
       ] },
@@ -1279,8 +1279,8 @@
       steps: [
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'A messenger needs through this afternoon. Only this afternoon.']] },
         { at: { level: 'west-road', spot: 'castle-gate' }, ask: {
-          q: 'What pass do you write him?',
-          choices: ['A pass for the year', 'Pell\'s own pass', 'A pass with no date', 'One that expires at sundown'], answer: 3,
+          q: 'STS temporary credentials. A worker needs access until sundown. What do you give them?',
+          choices: ['An access key for the year', 'Pell\'s own access key', 'An access key with no expiry', 'Temporary credentials that expire at sundown'], answer: 3,
           why: 'Temporary credentials from STS last a set time, then stop working.' } },
         { at: { level: 'west-road', who: 'pell' }, say: [['pell', 'Sundown. Not a minute after.']] }
       ] },
@@ -1289,8 +1289,8 @@
         { at: { level: 'west-road', who: 'hollis' }, say: [['hollis', 'Traveller\'s pass. Another town\'s seal. Counted it twice.'],
           ['hollis', 'Still don\'t know if it\'s good.']] },
         { at: { level: 'west-road', spot: 'coach-house' }, ask: {
-          q: 'What two things should Hollis check?',
-          choices: ['It\'s from a town we trust, and issued for Pingsby', 'The colour of the wax', 'How old the traveller looks', 'That it\'s folded neatly'], answer: 0,
+          q: 'Identity federation. A token arrives from an outside identity provider. What should the app check?',
+          choices: ['That it\'s from a provider you trust, and its audience is your app', 'Only the user\'s display name', 'How old the token looks', 'That it\'s formatted neatly'], answer: 0,
           why: 'Federation: trust only your configured identity providers, and check the token is meant for you.' } },
         { at: { level: 'west-road', who: 'hollis' }, say: [['hollis', 'Two checks. I like two. Counted.']] }
       ] },
@@ -1300,8 +1300,8 @@
         { at: { level: 'hill-road', who: 'coo' }, say: [['coo', 'I receive that bag. I\'d like it sealed both ways. Coo.']],
           help: { high: 'Closed carriage on the road, locked chest in my store. Both.', low: 'r-2-2-1-a', deny: 'Coo. Hollis can bring his own questions.' } },
         { at: { level: 'west-road', spot: 'coach-house' }, ask: {
-          q: 'Safe on the road and in the store. What do you need?',
-          choices: ['A heavier bag', 'Encryption in transit and at rest', 'Only at rest', 'Only in transit'], answer: 1,
+          q: 'Encryption in transit and at rest. Data must be safe on the network and in storage. What do you need?',
+          choices: ['A bigger instance', 'TLS in transit and encryption at rest', 'Only encryption at rest', 'Only TLS in transit'], answer: 1,
           why: 'TLS covers the road. Encryption at rest covers the store. You need both.' } },
         { at: { level: 'west-road', who: 'hollis' }, say: [['hollis', 'Sealed twice. Counted twice.']] }
       ] },
@@ -1310,8 +1310,8 @@
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'My notice board shows every crate\'s owner and account number! Whole thing!'],
           ['odu', 'Very popular board. Too popular.']] },
         { at: { level: 'far-lane', spot: 'dock' }, ask: {
-          q: 'What should the board show?',
-          choices: ['Nothing about owners', 'The number backwards', 'The last four digits; the full number stays in the ledger', 'The full number'], answer: 2,
+          q: 'Masking sensitive data. A dashboard shows owners\' card numbers. What should it show?',
+          choices: ['Nothing about owners', 'The number backwards', 'The last four digits; the full number stays in the database', 'The full number'], answer: 2,
           why: 'Mask in the application before display. The record keeps the full value.' } },
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'Still popular. Less useful to thieves. Perfect!']] }
       ] },
@@ -1320,8 +1320,8 @@
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'A merchant asks: does the warehouse lock change by itself?'],
           ['odu', 'The dock\'s own key, or hers?']] },
         { at: { level: 'far-lane', spot: 'dock' }, ask: {
-          q: 'Which is true?',
-          choices: ['Both never rotate', 'Both rotate monthly', 'Rotation locks old crates', 'The dock\'s key rotates yearly; hers only if she turns it on'], answer: 3,
+          q: 'KMS key rotation. Which is true?',
+          choices: ['Neither AWS managed nor customer managed keys rotate', 'Both rotate monthly', 'Rotation makes old ciphertext unreadable', 'AWS managed keys rotate every year; customer managed keys only if you turn rotation on'], answer: 3,
           why: 'AWS managed keys rotate every year. Customer managed keys rotate only if enabled, on a period you pick.' } },
         { at: { level: 'far-lane', who: 'odu' }, say: [['odu', 'And old crates still open! I\'ll tell everyone. Everyone!']] }
       ] }
@@ -1587,9 +1587,16 @@
   // Day 1: Mira walks Seo-yeon in, a step behind her, "just in case". She mothers by reflex but isn't pushy, and
   // Seo-yeon stays polite (story bible, Arc 4). Ladi, Nov 18: a humor beat that also explains why her lines pop up.
   C.tutorial = [
-    { at: 'base-camp', who: 'mira', lines: [
-      ['mira', 'First day on the watch? I\'ll come with you, just in case.'],
-      ['seoyeon', 'Thank you, Mistress Holloway. I\'ll be fine.'],
+    { at: 'base-camp', who: 'mira', lines: [   // Mira sets the scene (Ladi, Nov 18): the watch, the patrols, why you're here
+      ['mira', 'There she is. Our new night warden.'],
+      ['seoyeon', 'Good morning, Mistress Holloway.'],
+      ['mira', 'Someone\'s been getting into the castle at night. Doors tried, keys copied, letters opened. Gone by morning.'],
+      ['mira', 'So the Captain wants a warden on the night watch. That\'s you, love.'],
+      ['mira', 'Your days are ten minutes of daylight. Walk the town and listen. People notice things.'],
+      ['mira', 'At dusk Pell meets you at the castle gate. At night you patrol the floors and fix whatever the intruder tried.'],
+      ['seoyeon', 'Understood.'],
+      ['mira', 'First day, so I\'ll come with you. Just in case.'],
+      ['seoyeon', 'Thank you. I\'ll be fine.'],
       ['mira', 'I know, love. Just in case. Arrows to walk.']] },
     { at: 'first-fork', who: 'mira', lines: [
       ['mira', 'That\'s Tess by the fork. Tap her and listen. Whatever you hear goes in your notebook by itself.'],
@@ -1601,13 +1608,12 @@
     { at: 'kagemaru-stall', who: 'mira', lines: [
       ['mira', 'That\'s Kagemaru\'s stall. Your first lantern post is free. Don\'t let him tell you otherwise.'],
       ['kagemaru', 'I am standing right here, Mira.']] },
-    { at: 'post-office', who: 'mira', mark: 'Work for you', lines: [   // mark: a marker shows over Coo while Mira explains it
-      ['mira', 'See the marker over Coo? Anyone with work for you gets one of those over their head.'],
-      ['coo', 'Mira asked me to wear it so you\'d know what to look for. Coo. It itches.'],
-      ['seoyeon', 'So nobody has work for me yet?'],
-      ['mira', 'Give it a day. They\'ll love you.'],
-      ['seoyeon', 'You don\'t know that.'],
-      ['mira', 'I know that.']] },
+    { at: 'post-office', who: 'mira', lines: [   // Coo's marker is real: Coo has a day-1 lesson (js/watch-town.js minis)
+      ['mira', 'See the marker over Coo? It means someone has something for you.'],
+      ['mira', 'Today it\'s lessons. A few folk want to show you how they keep things safe. Five silver each.'],
+      ['coo', 'Coo. Mine is about seals.'],
+      ['seoyeon', 'You arranged this.'],
+      ['mira', 'I asked around. Real work starts tomorrow.']] },
     { at: 'castle-gate', who: 'mira', lines: [
       ['mira', 'This is where I stop. Pell takes it from here. Come by my fire in the morning, love. I\'ll keep the soup on.'],
       ['seoyeon', 'Thank you. For coming.'],
