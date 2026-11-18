@@ -906,7 +906,20 @@
     };
     const leave = (p, line) => { run.prowl = (run.prowl || []).filter(v => v !== p);
       Object.keys(run.inside).forEach(k => { if (run.inside[k] === p) run.inside[k] = null; }); syncProwlers(); if (line) toast(line); };
-    const hidden = () => { const sp = WW.near(st); return !st.moving && sp && /^door-/.test(sp.id); };
+    // Hiding (Ladi, Nov 18): at night, press up at a room's doorway to step into it. Prowlers walk straight past, but she
+    // stays put and sees only from where she stands. Left, right or down brings her out.
+    const hidden = () => !!st.tucked;
+    const tuck = k => {
+      if (phase !== 'night' || busy) return true;
+      if (k === 'down' && st.tucked) { st.tucked = false; return false; }
+      const sp = WW.near(st);
+      if (k === 'up' && !st.tucked && sp && sp.kind === 'door') {
+        st.tucked = true; st.x = sp.x; st.moving = false;
+        if (!w.toldTuck) { w.toldTuck = 1; toast('🚪 Tucked into the doorway. Prowlers walk past you here. Step left or right to come out.'); }
+        return false;
+      }
+      return true;
+    };
     const hop = (p, e) => {   // take a stair or the bridge door, as she does
       const ms = movesAt(p.scene, e), m = ms.find(v => v.to.scene === p.next) || pick(ms);
       if (m) { p.scene = m.to.scene; p.x = m.to.x; }
@@ -967,7 +980,7 @@
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
     view = WV.mount(b.querySelector('.ww-view'), {
       paused: () => busy,
-      st, people: (run.ppl = people(phase, w.day)), marks: marks(), weather: wx, follow: run.escort ? 'mira' : null,
+      st, onKey: k => tuck(k), people: (run.ppl = people(phase, w.day)), marks: marks(), weather: wx, follow: run.escort ? 'mira' : null,
       hint: phase === 'night' ? '' : phase === 'dusk' ? 'Walk to Pell at the gate' : '',
       onUse(spot) {
         if (busy) return;

@@ -476,9 +476,19 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
     r.puddles = []; await wait(1600); out.push(st.slow === 1);
     return out; });
   check(kinds.every(Boolean), `a snuffer blows out the lantern, and a puddle slows her down for a moment (${kinds})`);
+  // Hiding (Ladi, Nov 18): up at a doorway tucks her in; prowlers pass; left or right brings her out.
+  const tk1 = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), st = r.st, out = [], wait = ms => new Promise(z => setTimeout(z, ms));
+    const d = SD.watchWorld.scene('castle:ground').spots.find(v => v.kind === 'door'); st.scene = 'castle:ground'; st.x = d.x + 5;
+    SD.watchWalk.view.press('up'); await wait(100); out.push(st.tucked === true && st.scene === 'castle:ground');
+    const x = r.list[3]; x.kind = 'pickpocket'; SD.watchWalk.clock(Math.min(SD.watchWalk.clock(), 360 - x.at - x.inAt - 1)); await wait(400);
+    const p = r.inside[x.id]; w.tools = 1; if (p) { p.scene = st.scene; p.x = st.x; p.tx = p.x; p.cool = 0; } await wait(400); out.push(!!p && w.tools === 1);
+    if (p) { p.x = 1200; p.tx = 1200; } return out; });
+  await page.keyboard.down('ArrowRight'); await page.waitForTimeout(150); await page.keyboard.up('ArrowRight');
+  const tk2 = await ev(() => !SD.watchWalk.run.st.tucked);
+  check(tk1.every(Boolean) && tk2, `up at a doorway hides her from a prowler, and stepping right brings her out (${tk1},${tk2})`);
   const roamed = await ev(async () => { const r = SD.watchWalk.run, x = r.list[1], st = r.st;
     st.scene = 'bridge'; st.x = 880; SD.watchWalk.clock(360 - x.at - x.inAt - 1); await new Promise(z => setTimeout(z, 400));
-    const p = r.inside[x.id]; if (!p) return 'none'; p.sp = 700; p.goal = { scene: p.scene === 'castle:cellars' ? 'castle:towers' : 'castle:cellars', x: 600, name: 'Archive' }; p.state = 'go'; p.exit = null; p.tx = p.x; const seen = new Set([p.scene]), states = new Set();
+    const p = r.inside[x.id] || (r.prowl || [])[0]; if (!p) return 'none'; p.sp = 700; p.goal = { scene: p.scene === 'castle:cellars' ? 'castle:towers' : 'castle:cellars', x: 600, name: 'Archive' }; p.state = 'go'; p.exit = null; p.tx = p.x; const seen = new Set([p.scene]), states = new Set();
     for (let i = 0; i < 40; i++) { await new Promise(z => setTimeout(z, 100)); seen.add(p.scene); states.add(p.state); }
     return [...seen].length + ' floors, ' + [...states].join('/'); });
   check(/^[2-9] floors/.test(roamed) && /loot|go/.test(roamed), `an intruder heads for a room to rob and takes the stairs (${roamed})`);

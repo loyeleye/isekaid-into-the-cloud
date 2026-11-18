@@ -248,6 +248,7 @@
         if (o.onUse) o.onUse(WW.near(st));
         return;
       }
+      if ((k === 'up' || k === 'down') && o.onKey && o.onKey(k) === false) return;   // e.g. tucking into a doorway at night
       if (k === 'up' || k === 'down') {
         const m = WW.moves(st).find(v => v.key === k);
         if (!m || ramp || (o.onMove && o.onMove(m) === false)) return;
@@ -327,7 +328,9 @@
         const mh = m.h || 90; c.beginPath(); c.arc(sx, G - mh, 8, 0, 7); c.fill(); c.globalAlpha = 1; if (m.text) label(c, m.text, sx, G - mh - 18);
       });
       const f = follower(); if (f) person(c, f.who, X(f.x), f.facing, f.moving, f.moving ? f.d : t);
+      if (st.tucked) { c.save(); c.globalAlpha = 0.5; c.translate(X(st.x), G - 4); c.scale(0.92, 0.92); c.translate(-X(st.x), -G); }   // tucked into a doorway
       person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk');
+      if (st.tucked) c.restore();
       if (!layers) frontLayer(c, sc, cam);
       if (o.guide && o.guide.scene === st.scene) guideArrow(c, X(o.guide.x), G, VW, t, o.guide.dir, o.guide.label);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn

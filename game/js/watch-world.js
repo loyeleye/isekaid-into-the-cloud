@@ -177,6 +177,7 @@
   WW.step = function (st, dt, input) {
     const sc = WW.scene(st.scene); if (!sc) return st;
     const dir = (input && input.right ? 1 : 0) - (input && input.left ? 1 : 0);
+    if (dir && st.tucked) st.tucked = false;   // stepping left or right brings her out of a doorway
     st.moving = !!dir;
     if (dir) { st.facing = dir; st.x = Math.max(sc.from, Math.min(sc.to, st.x + dir * WW.SPEED * (st.slow || 1) * dt)); st.walk += dt; }   // slow: a puddle underfoot
     return st;
