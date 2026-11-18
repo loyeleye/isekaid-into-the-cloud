@@ -34,7 +34,16 @@
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
   // Days are 6 minutes (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
   // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
-  const DAY_S = 360, JOB_S = 50, TAKE_S = 15, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
+  const DAY_S = 360, JOB_S = 50, TAKE_S = 15, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : 360);
+  // Night fuses (Ladi, Nov 18): break-ins turn up across the night, not all at dusk, and each gets through if it isn't
+  // fixed within its fuse. From night 4 they come in pairs, so you can't always reach both: routing is the skill.
+  const FUSE = n => (n === 1 ? 0 : n === 9 ? 240 : 150);
+  function lightFuses(list, n) {
+    if (n === 1) return list.forEach(x => { x.at = 0; x.fuse = 0; });
+    const g = n === 9 ? 2 : list.length >= 4 ? 2 : 1, groups = Math.ceil(list.length / g);
+    const span = n === 9 ? 600 : nightS(n) - FUSE(n) - 30, gap = groups > 1 ? Math.min(120, span / (groups - 1)) : 0;
+    list.forEach((x, i) => { x.at = 15 + Math.floor(i / g) * gap; x.fuse = FUSE(n); });
+  }
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
   const PEOPLE = ['mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'captain'];
@@ -58,7 +67,7 @@
   // wrong, 50s (Ladi, Nov 18). Both apart from the thinking time.
   const take = () => { if (run && run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - TAKE_S); toast('⏳ −0:15 to take the job.'); } };
   const qShut = () => { if (!run || !run.q) return; run.q = null;
-    if (run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - JOB_S); toast('⏳ −0:50 on the day clock for that job.'); } };
+    if (run.phase !== 'dusk' && sv().day >= 2) { clock = Math.max(0, clock - JOB_S); toast(`⏳ −0:50 on the ${run.phase} clock for that job.`); } };
   const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Taking a job costs 15 seconds of your day, and each answer 50. Kagemaru sells pocket watches for longer thinking.</p>` : ''}` : '';
   const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
   // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
@@ -742,6 +751,7 @@
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
+    if (phase === 'night') lightFuses(run.list, w.day);
     // Where you left off (Ladi, Nov 18: leaving and coming back must not refill the clock). w.at holds the day, the
     // phase, the time left and the tutorial step; it only counts for the same day and phase.
     const at = w.at && w.at.day === w.day && w.at.phase === phase ? w.at : null;
@@ -777,7 +787,15 @@
     endB.onclick = () => (phase === 'night' ? dawn() : dusk());
     b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
     const seen = x => w.day !== 9 || (run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene] || Math.abs(x.x - st.x) < 220;   // night 9: search unless warded
-    const marks = () => run.list.filter(x => !run.fixed[x.id] && seen(x)).map(x => ({ scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: run.locked[x.id] ? 'Locked till dawn' : x.title, color: run.locked[x.id] ? '#8a93b8' : '#e9c56d' }));
+    const gone = () => phase === 'night' ? nightS(w.day) - clock : 0;   // seconds into the night
+    const up = x => !x.at || gone() >= x.at;                                 // has this break-in started yet?
+    const fuseLeft = x => (x.fuse ? x.at + x.fuse - gone() : Infinity);
+    const mm = n => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
+    const marks = () => run.list.filter(x => !run.fixed[x.id] && run.locked[x.id] !== 'gone' && up(x) && seen(x)).map(x => {
+      const f = fuseLeft(x), lk = run.locked[x.id];
+      return { scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: lk ? 'Locked till dawn' : f < Infinity ? `${x.title} · ⏳ ${mm(Math.max(0, f))}` : x.title,
+        color: lk ? '#8a93b8' : f < 40 ? '#ff7b7b' : '#e9c56d' };
+    });
     const wx = WW.weather(w.day, phase === 'night' ? 'night' : 'day');
     view = WV.mount(b.querySelector('.ww-view'), {
       paused: () => busy,
@@ -786,7 +804,7 @@
       onUse(spot) {
         if (busy) return;
         if (phase === 'night') {
-          const x = run.list.find(v => !run.fixed[v.id] && v.scene === st.scene && Math.abs(v.x - st.x) <= WW.REACH);
+          const x = run.list.find(v => !run.fixed[v.id] && run.locked[v.id] !== 'gone' && up(v) && v.scene === st.scene && Math.abs(v.x - st.x) <= WW.REACH);
           if (x) return fix(x, () => view.set('marks', marks()));
         }
         const f = run.escort && view.follower;
@@ -824,7 +842,18 @@
           run.rang = 1;   // Coo flies a note up from Mira
           sayAll([['coo', 'Coo. Note from Mira. It says: "Are the doors locked?"'], ['seoyeon', 'Locking the doors is the whole job.'], ['coo', 'She sent three of these. Coo. I\'m only bringing one.']]);
         }
-        if (w.day === 9 && phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) { run.tk = 0; view.set('marks', marks()); }
+        if (phase === 'night' && ((run.tk = (run.tk || 0) + dt) > 0.25)) {
+          run.tk = 0;
+          run.list.forEach(x => {
+            if (run.fixed[x.id] || run.locked[x.id] === 'gone') return;
+            if (x.at && up(x) && !(run.rung = run.rung || {})[x.id]) { run.rung[x.id] = 1; if (gone() - x.at < 5) toast(`🔔 Trouble in the ${WW.scene(x.scene).name.toLowerCase()}: ${x.title}.`); }
+            if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
+              run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
+            }
+          });
+          view.set('marks', marks());
+          if (!busy && run.list.every(v => run.fixed[v.id] || run.locked[v.id]) && !run.over) { run.over = 1; sayAll([['seoyeon', 'That\'s everything for tonight. Time to report at dawn.']], () => dawn()); }
+        }
         if ((run.sv = (run.sv || 0) + dt) > 3) { run.sv = 0; keep(); }
         if (phase === 'day' && run.walkers && !busy) {
           moveWalkers(dt); syncPeople();
@@ -845,9 +874,10 @@
           if (phase === 'night') { const bell = Math.floor((nightS(w.day) - clock) / 60); if (bell > run.bell) { run.bell = bell; } }
           if (clock <= 0) { clock = 0; run.over = 1; setTimeout(() => (phase === 'night' ? dawn() : dusk()), 0); }
         }
-        const left = run.list.filter(x => !run.fixed[x.id]).length, lv = run.ward[st.scene];
+        const open = run.list.filter(x => !run.fixed[x.id] && !run.locked[x.id]), lv = run.ward[st.scene];
+        const left = open.filter(up).length, soon = open.length - left;
         const here = w.day === 9 && lv >= 1 ? ` · ${run.list.filter(x => x.scene === st.scene && !run.fixed[x.id]).length || 'all clear'} here (${nm(watcherOf(st.scene))})` : '';
-        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left} breach${left === 1 ? '' : 'es'} left`) + ` · 🔔 ${run.bell}` : ''}`;
+        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left ? `${left} breach${left === 1 ? '' : 'es'} now` : 'quiet'}${soon ? ' · more coming' : ''}`) + ` · 🔔 ${run.bell}` : ''}`;
         if (top.textContent !== t) top.textContent = t;
       }
     });
@@ -900,7 +930,6 @@
       if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
       if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
       S.persist(); after();
-      if (run.list.every(v => run.fixed[v.id] || run.locked[v.id])) sayAll([['seoyeon', 'That\'s everything I can do tonight. Time to report at dawn.']], () => dawn());
     });
   }
 

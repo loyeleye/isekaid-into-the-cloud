@@ -403,6 +403,18 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const midClimb = await ev(() => !!SD.watchWalk.view.ramp); await page.waitForTimeout(3000);
   check(midClimb && await ev(() => SD.watchWalk.run.st.scene === 'hill-road' && !SD.watchWalk.view.ramp), 'a ramp climb in the stacked town arrives on the road above');
   await ev(() => { SD.watchView.forceStacked = false; });
+  // Night fuses (Ladi, Nov 18): break-ins turn up across the night and get through if not fixed in time.
+  while (await page.$('.ww-o:not([hidden]) [data-a]')) { const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=d]') || await page.$('.ww-o:not([hidden]) [data-a=x]'); if (!b) break; await b.click(); await page.waitForTimeout(120); }
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.at = null; w.fixed = {}; SD.watchWalk.walk('night'); });
+  await page.waitForTimeout(400);
+  const f0 = await ev(() => [SD.watchWalk.clock(), (SD.watchWalk.view.marks || []).length, SD.watchWalk.run.list.map(x => x.at + '/' + x.fuse).join(',')]);
+  check(f0[0] <= 360 && f0[1] === 0, `a night is 6 minutes and starts quiet: break-ins come later (${f0})`);
+  await ev(() => SD.watchWalk.clock(360 - 16)); await page.waitForTimeout(500);
+  const f1 = await ev(() => [(SD.watchWalk.view.marks || []).map(m => m.text), (document.querySelector('.ww-toast') || {}).textContent || '']);
+  check(f1[0].length === 1 && /⏳ 2:/.test(f1[0][0]) && /Trouble/.test(f1[1]), `the first break-in rings in with its fuse showing (${f1})`);
+  await ev(() => SD.watchWalk.clock(360 - 170)); await page.waitForTimeout(500);
+  const f2 = await ev(() => { const r = SD.watchWalk.run, x = r.list[0]; return [r.locked[x.id], (SD.watchWalk.view.marks || []).map(m => m.text).join('|'), (document.querySelector('.ww-toast') || {}).textContent || '']; });
+  check(f2[0] === 'gone' && /got through/.test(f2[2]) && f2[1].split('|').filter(Boolean).length === 1, `when its fuse runs out it gets through, and the next one is up (${f2})`);
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} failed` : '\nall ok'); process.exit(fails.length ? 1 : 0);
