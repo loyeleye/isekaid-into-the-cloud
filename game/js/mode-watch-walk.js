@@ -246,12 +246,18 @@
     const g = (content().gossip || []).filter(x => x.who === who && x.day === day && (!x.weather || x.weather === wx));
     return g[0] || null;
   }
-  function talk(who) {
+  function talk(who, aside) {
     const w = sv(), day = w.day, b = w.bonds, ties = content().ties || {};
-    const pq = (content().pellTall || {}).quips || {};   // once each, after you've met Pell: a line about his height
-    if (w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who]) {
+    // One running-joke aside per chat at most, then the usual talk: Chad's "another world" story (from day 1), then a
+    // line about Pell's height (after you've met him). Each person says each once.
+    const ci = content().chadIsekai || {}, pq = (content().pellTall || {}).quips || {};
+    if (!aside && ci[who] && !(w.chadq = w.chadq || {})[who]) {
+      w.chadq[who] = 1; S.persist();
+      return sayAll([[who, ci[who]]], () => setTimeout(() => talk(who, 1), 90));
+    }
+    if (!aside && w.metPell && pq[who] && !(w.pellq = w.pellq || {})[who]) {
       w.pellq[who] = 1; w.pellReply = who; S.persist();
-      return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who), 90));
+      return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who, 1), 90));
     }
     B.chat(b, who);
     // A quest step at this person?

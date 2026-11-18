@@ -193,7 +193,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
     ['hobb-key-pair', 'hobb-practice-crest'].forEach(id => { w.quests[id] = { step: 99, done: true }; }); SD.watchWalk.walk('day'); return SD.watchWalk.ward('hobb'); });
   await page.waitForTimeout(200);
   await tp('main-street', 2760 + 34); await use(); await page.waitForTimeout(150);
-  for (let i = 0; i < 3; i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); }
+  for (let i = 0; i < 5; i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); }   // a one-time aside (Chad's story) can come first
   if (await page.$('.ww-o:not([hidden]) [data-a=d]')) await btn('[data-a=d]');
   const capW = await ev(() => { const w = SD.watchWalk.sv(); return [w.quests['hobb-last-lock'] && w.quests['hobb-last-lock'].done, w.sealed && w.sealed.cellars]; });
   check(cap === 4 && capW[0] && capW[1] === 'all', `Hobb's capstone at ward 4 seals the cellars for good (${capW})`);

@@ -1474,7 +1474,7 @@
       { kind: 'alibi', suspect: 'tess', spot: 'library' }),
     g('g-8-a-aigerim', 8, 'aigerim', 'main-street', 'I was home. I wrote. And it walked past at 03:00 exactly. Every night. Here.',
       { kind: 'alibi', suspect: 'aigerim', spot: 'first-fork', clue: true }),
-    g('g-8-s-chad', 8, 'wen', 'main-street', 'That man in the blazer always knows what breaks next. Funny, that.', { kind: 'suspect', suspect: 'chad', clue: true }),
+    g('g-8-s-chad', 8, 'wen', 'main-street', 'That young man in the blue pullover always knows what breaks next. Funny, that.', { kind: 'suspect', suspect: 'chad', clue: true }),
     g('g-8-chad', 8, 'chad', 'hill-road', 'Loose Lips Remediation: coat passwords, chatty logs, long numbers. Very specific. No reason.', chad),
 
     // ---- Day 9: the Long Night, clear, full moon ----
@@ -1533,6 +1533,22 @@
   // PELL IS VERY TALL (Ladi, Nov 18: a running joke). Everyone remarks on it once; Pell always answers deadpan.
   // meet: Seo-yeon's first dusk at the gate. chad: Chad's pitch at the gate on dusk 2. quips: the first time you talk
   // to each person from day 2, they say their line; Pell answers it at the next dusk.
+  // Chad's clothes (Ladi, Nov 18): a navy quarter zip and a light blue shirt, nothing like anything in town, so folk
+  // would suspect him at once unless they had a story for it. Their story: he came from another world, like the hero
+  // of legend who saved Kyu. The truth comes out in the best ending: Freya brought him over, and he came for the money.
+  // Each person says theirs once, the first time you talk to them; Chad's is his own version.
+  C.chadIsekai = {
+    tess: 'The young man in the soft blue pullover? Fell out of the sky, they say! Like the hero in the old stories. The one who saved Kyu!',
+    wen: 'That pullover isn\'t wool, dear. Nothing from round here. Folk say he came from another world, like the hero who saved Kyu.',
+    bru: 'Another world, they say. Like the old hero. That one fought monsters, though. This one fights for a meeting.',
+    ayo: 'Says he\'s a hero from another world. The last one carried a sword. This one carries slides.',
+    hobb: 'Hero from another world, is he? Never met a hero who asked for his fee up front.',
+    coo: 'He tried to post a letter to "the cloud". Coo. The hero from the stories at least knew the address.',
+    lexi: 'In the old books the hero arrives in a flash of light. This one arrived asking where to charge his laptop.',
+    mira: 'That boy in the blue pullover? They say he came from another world. He looks like he hasn\'t eaten. I\'ll send him soup.',
+    chad: 'Yes, another world. Chosen, basically. Like the legend guy. Anyway, I\'m doing a little consulting while I\'m here.'
+  };
+
   C.pellTall = {
     meet: [['seoyeon', '(She looks up. Then further up.)'], ['pell', 'Yes. Everyone does that. Evening, warden.']],
     chad: [
