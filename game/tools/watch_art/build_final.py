@@ -32,28 +32,34 @@ hill[:, :, 3] = 255; back.alpha_composite(Image.fromarray(hill, 'RGBA'), (0, bas
 rows = [Image.open(f'oldback/{lv}.webp').convert('RGBA') for lv in T.ORDER]
 bush = rows[0].crop((0, 262, rows[0].width, 306))          # the hazed hedge line along the bottom of a row
 from compose import piece, haze
-# (Ladi, Nov 18) the plain below the hazed rooftops is filled with distant villages and farmland: three wide
-# panoramas made with Gemini image generation (villages/pano-*.png), cropped to the land, hazed, cross-faded side by side
-PH = BH - base + 30; strip = Image.new('RGBA', (BW, PH)); xo = 0; k = 0
-while xo < BW:
-    p = Image.open(f'villages/pano-{k % 3 + 1}.png').convert('RGB').resize((1584, 672), Image.LANCZOS)
-    top = {1: 250, 2: 200, 3: 200}[k % 3 + 1]
-    land = p.crop((0, top + 60, 1584, top + 300)); w = round(1584 * PH / 240); land = land.resize((w, PH), Image.LANCZOS)   # zoomed so the villages sit between the horizon row and the road above in size
-    arr = np.asarray(land).astype(float); fog = np.array([150, 170, 176.0])
-    t = np.linspace(0.55, 0.3, PH)[:, None, None]   # hazier towards the horizon
-    arr = arr * (1 - t) + fog * t
-    al = np.full((PH, w), 255.0); f = 80
-    if xo: al[:, :f] = np.linspace(0, 255, f)[None, :]
-    al[:22] *= np.linspace(0, 1, 22)[:, None]
-    tile = Image.fromarray(np.dstack([arr, al]).astype(np.uint8), 'RGBA'); strip.alpha_composite(tile, (xo, 0))
-    xo += w - f; k += 1
-back.alpha_composite(strip, (0, base - 30))
-x = 0
-for i in range(16):
-    row = rows[i % 4]; row = row.resize((row.width // 2, row.height // 2), Image.LANCZOS)   # half size: further away (Ladi, Nov 18)
-    back.alpha_composite(row, (x, base - 153)); x += row.width
-    if x > BW: break
-save(back, 'out/town/back.webp')
+# (Ladi, Nov 18) the plain below the hazed rooftops is filled from three wide panoramas made with Gemini image
+# generation (tools/watch_art/<set>/pano-*.png), cropped just below their horizon, zoomed, hazed and cross-faded side
+# by side. back.webp uses the villages set; back-forest.webp (forest, terrain and lakes) and back-mix.webp (forest
+# with a few villages) are variants for Ladi to pick from.
+TOPS = {'villages': (310, 260, 260), 'forest': (200, 230, 180), 'mix': (160, 170, 160)}   # first row of land kept, per panorama
+def backdrop(sett):
+    bk = back0.copy(); PH = BH - base + 30; strip = Image.new('RGBA', (BW, PH)); xo = 0; k = 0
+    while xo < BW:
+        p = Image.open(f'{sett}/pano-{k % 3 + 1}.png').convert('RGB').resize((1584, 672), Image.LANCZOS); top = TOPS[sett][k % 3]
+        land = p.crop((0, top, 1584, top + 240)); w = round(1584 * PH / 240); land = land.resize((w, PH), Image.LANCZOS)   # zoomed so the villages sit between the horizon row and the road above in size
+        arr = np.asarray(land).astype(float); fog = np.array([150, 170, 176.0])
+        t = np.linspace(0.55, 0.3, PH)[:, None, None]   # hazier towards the horizon
+        arr = arr * (1 - t) + fog * t
+        al = np.full((PH, w), 255.0); f = 80
+        if xo: al[:, :f] = np.linspace(0, 255, f)[None, :]
+        al[:22] *= np.linspace(0, 1, 22)[:, None]
+        strip.alpha_composite(Image.fromarray(np.dstack([arr, al]).astype(np.uint8), 'RGBA'), (xo, 0))
+        xo += w - f; k += 1
+    bk.alpha_composite(strip, (0, base - 30))
+    x = 0
+    for i in range(16):
+        row = rows[i % 4]; row = row.resize((row.width // 2, row.height // 2), Image.LANCZOS)   # half size: further away (Ladi, Nov 18)
+        bk.alpha_composite(row, (x, base - 153)); x += row.width
+        if x > BW: break
+    return bk
+back0 = back.copy()
+for sett, name in (('villages', 'back'), ('forest', 'back-forest'), ('mix', 'back-mix')): save(backdrop(sett), f'out/town/{name}.webp')
+
 L['town'] = {'width': T.TW, 'height': T.TH, 'levelY': T.LY, 'ramps': ramps, 'chute': chute,
              'roofs': 115, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back.webp', 'speed': BS}, {'img': A + 'town/town.webp', 'speed': 1}],
              'buildings': {lv: A + f'town/bld-{lv}.webp' for lv in T.ORDER},
