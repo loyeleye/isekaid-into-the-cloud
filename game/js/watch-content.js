@@ -1535,15 +1535,15 @@
   // (Ladi, Nov 18: a humor beat that also explains why her lines keep popping up).
   C.tutorial = [
     { at: 'base-camp', who: 'mira', lines: [
-      ['mira', 'Morning! I\'ll walk you round. Just today. Arrows to move.'],
-      ['seoyeon', 'Mira, I know how to walk.'],
+      ['mira', 'Morning, love! I\'ll walk you round. Just today. Arrows to move.'],
+      ['seoyeon', 'Thank you, Mistress Holloway. I know how to walk.'],
       ['mira', 'Of course you do. Arrows, though.']] },
     { at: 'first-fork', who: 'mira', lines: [
       ['mira', 'That\'s Tess by the fork. Tap her and listen. Whatever you hear goes in your notebook by itself.'],
       ['mira', 'Don\'t believe all of it. Do believe some of it.']] },
     { at: 'first-fork', who: 'mira', lines: [
       ['mira', 'Press up at a fork to climb a path, down to come back. Walk in the middle. Not near the edge.'],
-      ['seoyeon', 'It\'s a road, Mira.'],
+      ['seoyeon', 'It\'s a road, Mistress Holloway.'],
       ['mira', 'Roads have edges.']] },
     { at: 'kagemaru-stall', who: 'mira', lines: [
       ['mira', 'That\'s Kagemaru\'s stall. Your first lantern post is free. Don\'t let him tell you otherwise.'],
@@ -1554,8 +1554,8 @@
       ['mira', 'I know that.']] },
     { at: 'castle-gate', who: 'mira', lines: [
       ['mira', 'This is where I stop. Pell takes it from here. Come to my fire in the morning. I\'ll keep the soup on.'],
-      ['seoyeon', 'You can go home now.'],
-      ['mira', 'I\'m going. I\'m going.'],
+      ['seoyeon', 'You can go home now. Really.'],
+      ['mira', 'I\'m going, love. I\'m going. I\'m not mothering you.'],
       ['pell', 'She told me about you four times this morning. Four.']] }
   ];
 
