@@ -8,8 +8,15 @@ A = 'assets/img/watch/'
 L = json.load(open('out/layers.json'))
 # ---- town ----
 spots = json.loads(subprocess.check_output(['node', '-e', "const W=require(process.argv[1]);const o={};for(const k of W.LEVELS)o[k]=W.TOWN[k].spots;console.log(JSON.stringify(o))", sys.argv[1]]))
-town, ramps, chute, rep = T.build(spots); print('\n'.join(rep))
+town, ramps, chute, rep, bl = T.build(spots); print('\n'.join(rep))
 save(town, 'out/town/town.webp')
+for lv in T.ORDER: save(bl[lv], f'out/town/bld-{lv}.webp')
+from PIL import ImageFilter
+for lv in T.ORDER:   # soft copy for when this road is below you (Ladi, Nov 18): see-through and blurred
+    sb = bl[lv].filter(ImageFilter.GaussianBlur(3)); a = np.asarray(sb).copy(); a[:, :, 3] = (a[:, :, 3] * 0.4).astype(np.uint8)
+    save(Image.fromarray(a, 'RGBA'), f'out/town/bld-{lv}-soft.webp')
+full = town.copy()
+for lv in T.ORDER: full.alpha_composite(bl[lv])
 far0 = Image.open('out/levels/west-road/far.webp').convert('RGBA'); FWD = 2200; FH = 600
 far = Image.new('RGBA', (FWD, FH), far0.getpixel((10, 359)))
 far.paste(Image.new('RGBA', (FWD, 360), (0, 0, 0, 0)), (0, 0))
@@ -40,9 +47,11 @@ for i in range(8):
     if x > BW: break
 save(back, 'out/town/back.webp')
 L['town'] = {'width': T.TW, 'height': T.TH, 'levelY': T.LY, 'ramps': ramps, 'chute': chute,
-             'roofs': 220, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back.webp', 'speed': BS}, {'img': A + 'town/town.webp', 'speed': 1}]}
+             'roofs': 115, 'layers': [{'img': A + 'town/far.webp', 'speed': 0.2}, {'img': A + 'town/back.webp', 'speed': BS}, {'img': A + 'town/town.webp', 'speed': 1}],
+             'buildings': {lv: A + f'town/bld-{lv}.webp' for lv in T.ORDER},
+             'buildingsSoft': {lv: A + f'town/bld-{lv}-soft.webp' for lv in T.ORDER}}
 for lv, gy in T.LY.items():   # single-level views kept for compatibility: a 360-tall crop of the town around each road
-    crop = Image.new('RGBA', (T.TW, 360)); crop.alpha_composite(town.crop((0, max(0, gy - 300), T.TW, gy + 60)), (0, max(0, 300 - gy)))
+    crop = Image.new('RGBA', (T.TW, 360)); crop.alpha_composite(full.crop((0, max(0, gy - 300), T.TW, gy + 60)), (0, max(0, 300 - gy)))
     save(crop, f'out/levels/{lv}/street.webp')
     L['levels'][lv]['layers'] = [l for l in L['levels'][lv]['layers'] if l['speed'] in (0.2, 1)]
     for p in ('back', 'front'):

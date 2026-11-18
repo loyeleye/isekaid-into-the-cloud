@@ -10,6 +10,12 @@
 //   - town: the four levels stacked on one hillside picture (width x height, road y per level in levelY). Ramps are
 //     sloped paths between the fork spots ({from:[level,x], to:[level,x], path:[[x,y],[x,y]]}, lower end first); chute
 //     is the slide from West Road down to Far Lane. Town x equals spot x. levels.<id> are 360-tall crops of it.
+//     Roads are 125 apart with a solid earth bank between them. layers (far, back, town) hold the sky, backdrop and
+//     the roads, walls and ramps; buildings.<road> holds that road's buildings, which may rise in front of the road
+//     above. Draw town, then buildings in levelY order (top road first). Clip town above levelY[road above] - roofs,
+//     skip buildings two or more roads up, and for roads below the player draw buildingsSoft.<road> instead
+//     (pre-blurred, 40% opacity) so they read as see-through. Ramps that were short are stretched to about 460 px,
+//     so their end x can differ from the fork spot x: follow ramps[].path.
 //   - floors: one painted wall per floor, 1200 wide, furnished at person scale. rooms ([id, x0, x1]), doors (x per
 //     room) and links (stair, hoist and bridge-door x) give the positions in that picture.
 //   - Birds walk on 4 frames (the sparrow hops).
@@ -267,10 +273,10 @@ window.WATCH_ART = {
   },
   "lexi": {
    "sheet": "assets/img/watch/people/lexi.png",
-   "w": 102,
+   "w": 88,
    "h": 224,
    "anchor": [
-    51,
+    44,
     212
    ],
    "anims": {
@@ -1440,12 +1446,12 @@ window.WATCH_ART = {
  },
  "town": {
   "width": 4100,
-  "height": 990,
+  "height": 735,
   "levelY": {
    "west-road": 300,
-   "hill-road": 510,
-   "main-street": 720,
-   "far-lane": 930
+   "hill-road": 425,
+   "main-street": 550,
+   "far-lane": 675
   },
   "ramps": [
    {
@@ -1455,15 +1461,15 @@ window.WATCH_ART = {
     ],
     "to": [
      "west-road",
-     2600
+     2724
     ],
     "path": [
      [
       2264,
-      510
+      425
      ],
      [
-      2600,
+      2724,
       300
      ]
     ]
@@ -1475,23 +1481,23 @@ window.WATCH_ART = {
     ],
     "to": [
      "hill-road",
-     1200
+     1220
     ],
     "path": [
      [
       760,
-      720
+      550
      ],
      [
-      1200,
-      510
+      1220,
+      425
      ]
     ]
    },
    {
     "from": [
      "far-lane",
-     560
+     780
     ],
     "to": [
      "main-street",
@@ -1499,12 +1505,12 @@ window.WATCH_ART = {
     ],
     "path": [
      [
-      560,
-      930
+      780,
+      675
      ],
      [
       320,
-      720
+      550
      ]
     ]
    },
@@ -1515,16 +1521,16 @@ window.WATCH_ART = {
     ],
     "to": [
      "main-street",
-     1680
+     1540
     ],
     "path": [
      [
       2000,
-      930
+      675
      ],
      [
-      1680,
-      720
+      1540,
+      550
      ]
     ]
    }
@@ -1536,10 +1542,10 @@ window.WATCH_ART = {
    ],
    [
     1120,
-    930
+    675
    ]
   ],
-  "roofs": 220,
+  "roofs": 115,
   "layers": [
    {
     "img": "assets/img/watch/town/far.webp",
@@ -1553,7 +1559,19 @@ window.WATCH_ART = {
     "img": "assets/img/watch/town/town.webp",
     "speed": 1
    }
-  ]
+  ],
+  "buildings": {
+   "west-road": "assets/img/watch/town/bld-west-road.webp",
+   "hill-road": "assets/img/watch/town/bld-hill-road.webp",
+   "main-street": "assets/img/watch/town/bld-main-street.webp",
+   "far-lane": "assets/img/watch/town/bld-far-lane.webp"
+  },
+  "buildingsSoft": {
+   "west-road": "assets/img/watch/town/bld-west-road-soft.webp",
+   "hill-road": "assets/img/watch/town/bld-hill-road-soft.webp",
+   "main-street": "assets/img/watch/town/bld-main-street-soft.webp",
+   "far-lane": "assets/img/watch/town/bld-far-lane-soft.webp"
+  }
  },
  "levels": {
   "west-road": {

@@ -24,6 +24,12 @@ head = """// The Night Watch's art (art thread). Shapes: js/watch-schema.md. Gen
 //   - town: the four levels stacked on one hillside picture (width x height, road y per level in levelY). Ramps are
 //     sloped paths between the fork spots ({from:[level,x], to:[level,x], path:[[x,y],[x,y]]}, lower end first); chute
 //     is the slide from West Road down to Far Lane. Town x equals spot x. levels.<id> are 360-tall crops of it.
+//     Roads are 125 apart with a solid earth bank between them. layers (far, back, town) hold the sky, backdrop and
+//     the roads, walls and ramps; buildings.<road> holds that road's buildings, which may rise in front of the road
+//     above. Draw town, then buildings in levelY order (top road first). Clip town above levelY[road above] - roofs,
+//     skip buildings two or more roads up, and for roads below the player draw buildingsSoft.<road> instead
+//     (pre-blurred, 40% opacity) so they read as see-through. Ramps that were short are stretched to about 460 px,
+//     so their end x can differ from the fork spot x: follow ramps[].path.
 //   - floors: one painted wall per floor, 1200 wide, furnished at person scale. rooms ([id, x0, x1]), doors (x per
 //     room) and links (stair, hoist and bridge-door x) give the positions in that picture.
 //   - Birds walk on 4 frames (the sparrow hops).

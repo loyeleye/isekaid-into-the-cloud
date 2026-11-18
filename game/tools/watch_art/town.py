@@ -3,8 +3,8 @@ import json, random, numpy as np
 from PIL import Image, ImageDraw
 import proc
 from compose import piece, place, haze, BLD, LEVELS, GROUND, VW
-TW, TH = 4100, 990
-LY = {'west-road': 300, 'hill-road': 510, 'main-street': 720, 'far-lane': 930}   # 210 apart (Ladi, Nov 18: climbs closer together)
+TW, TH = 4100, 735
+LY = {'west-road': 300, 'hill-road': 425, 'main-street': 550, 'far-lane': 675}   # 125 apart (Ladi, Nov 18: see only the road above, then sky and backdrop)
 ORDER = ['west-road', 'hill-road', 'main-street', 'far-lane']
 def tile(name, scale, crop_top=0):
     im = Image.open(f'bld/{name}.png').convert('RGB'); im = im.crop((0, crop_top, im.width, im.height))
@@ -24,6 +24,11 @@ def ramps_from(spots):
             if key in seen: continue
             seen.add(key)
             lo, hi = (a, b) if LY[a[0]] > LY[b[0]] else (b, a)
+            sg = 1 if hi[1] >= lo[1] else -1
+            if abs(hi[1] - lo[1]) < 460:   # gentle climb: about 3.7x the 125 rise
+                nx = lo[1] + sg * 460
+                if 300 <= nx <= TW - 300: hi = (hi[0], nx)
+                else: lo = (lo[0], hi[1] - sg * 460)   # near the map edge: lengthen the low end instead
             out.append({'from': list(lo), 'to': list(hi), 'path': [[lo[1], LY[lo[0]]], [hi[1], LY[hi[0]]]]})
     return out
 def ramp_y(r, x):
@@ -60,10 +65,12 @@ def build(spots):
     # 1) each road is a terrace edge: a stone retaining wall with a grassy earth lip that fades into the backdrop
     #    (Ladi, Nov 18: the hazed town and hills of the first demo show between the terraces, not a dirt bank)
     for i, lv in enumerate(ORDER):
-        y = LY[lv]; depth = 70
+        y = LY[lv]; nxt = LY[ORDER[i + 1]] if i + 1 < len(ORDER) else TH; depth = nxt - (y + 44) + 12
+        # (Ladi, Nov 18, roads 125 apart): a solid earth bank fills the whole gap down to the road below,
+        # so the backdrop only shows above the road above you
         bank = Image.new('RGBA', (TW, depth)); fill_tiled(bank, soil, (0, 0, TW, depth))
-        a = np.asarray(bank).copy(); a[:, :, 3] = (255 * (1 - np.linspace(0, 1, depth)) ** 1.5)[:, None].astype(np.uint8)
-        a[:, :, :3] = (a[:, :, :3] * 0.8).astype(np.uint8)
+        a = np.asarray(bank).copy(); a[:, :, 3] = 255
+        a[:, :, :3] = (a[:, :, :3] * (0.62 + 0.25 * np.linspace(0, 1, depth))[:, None, None]).astype(np.uint8)
         town.alpha_composite(Image.fromarray(a, 'RGBA'), (0, y + 44))
         fill_tiled(town, wallt, (0, y + 10, TW, y + 44))
         d.line([0, y + 44, TW, y + 44], fill=(60, 52, 44, 255), width=2)
@@ -96,6 +103,7 @@ def build(spots):
             d.line([x0, y0 - off, x1, y1 - off], fill=(124, 90, 58, 255), width=3); d.line([x0, y0 - off + 2, x1, y1 - off + 2], fill=(84, 60, 38, 255), width=1)
     # 5) buildings, top level first so the nearer (lower) levels overlap the bank behind them
     report = []
+    bl = {lv: Image.new("RGBA", (TW, TH)) for lv in ORDER}   # one buildings layer per road
     for lv in ORDER:
         W, gkind, pal, fill = LEVELS[lv]; gy = LY[lv]
         items = [(nm, x, h, 4) for nm, x, h in fill]
@@ -107,7 +115,7 @@ def build(spots):
             filler = any(nm == f[0] and x == f[1] for f in fill)
             for _ in range(12):
                 im = piece(nm, h); x0, x1, top = x - im.width / 2, x + im.width / 2, gy + sink - im.height
-                room = gy + sink - (LY[prev] + 8) if prev else 9999
+                room = 9999   # buildings may rise in front of the road above (Ladi, Nov 18); the game fades the roads below you
                 for rp in up:
                     for xx in range(int(x0), int(x1), 4):
                         ry = ramp_y(rp, xx)
@@ -119,11 +127,12 @@ def build(spots):
                 report.append(f'CLASH {lv}:{nm}@{x} needs {im.height}px, room {room:.0f}px')
             elif h < [i[2] for i in items if i[0] == nm and i[1] == x][0]: report.append(f'shrunk {lv}:{nm}@{x} to {h}px')
             if nm == 'dock': dock(town, im, x, gy); continue
-            place(town, im, x, gy + sink)
-    return town, ramps, chute, report
+            place(bl[lv], im, x, gy + sink)
+    return town, ramps, chute, report, bl
 if __name__ == '__main__':
     import sys, subprocess
     spots = json.loads(subprocess.check_output(['node', '-e', "const W=require(process.argv[1]);const o={};for(const k of W.LEVELS)o[k]=W.TOWN[k].spots;console.log(JSON.stringify(o))", sys.argv[1]]))
-    town, ramps, chute, rep = build(spots)
+    town, ramps, chute, rep, bl = build(spots)
+    for lv in ORDER: town.alpha_composite(bl[lv])
     print('\n'.join(rep)); town.save('test/town-full.png'); json.dump({'ramps': ramps, 'chute': chute}, open('test/town.json', 'w'))
     town.resize((TW // 4, TH // 4), Image.LANCZOS).save('test/town-small.png')
