@@ -24,6 +24,7 @@
     ic: { bg: 1, face: 'uptima' },
     pop: { bg: 2, face: 'dutch' },
     floor: { bg: 3, face: 'dutch' },
+    kitchen: { bg: 2, face: 'mira' },
     drill: { bg: 6, face: 'uptima' },
     sprint: { bg: 7, face: 'lexi' },
     hunt: { bg: 8, face: 'bru' },
@@ -33,10 +34,10 @@
   };
   const SPARE = [6, 4, 5];
   // The exam domains each card tests, under its name (Ladi, Nov 17), from what each mode's questions are drawn on. One
-  // game per domain: the Sorting Floor asks Development, Architect's Draft Deployment, the Fire Drill Troubleshooting
+  // game per domain: the Sorting Floor and Mira's Kitchen ask Development, Architect's Draft Deployment, the Fire Drill Troubleshooting
   // (M.pickDomain). Incident Commander takes domains 1 and 4 (IC.match), Multiplayer's card questions (the story's
   // concepts) lean on 1 and 2, and the rest draw on all four.
-  const TESTS = { story: 0, ic: [1, 4], pop: 0, floor: [1], drill: [4], sprint: 0, hunt: 0, draft: [3], duel: 0, terms: 0, mp: [1, 2] };
+  const TESTS = { story: 0, ic: [1, 4], pop: 0, floor: [1], kitchen: [1], drill: [4], sprint: 0, hunt: 0, draft: [3], duel: 0, terms: 0, mp: [1, 2] };
   const domLine = id => { const t = SD.modes && SD.modes.domainLine ? SD.modes.domainLine(TESTS[id]) : ''; return t ? `<p class="tg-dom">${esc(t)}</p>` : ''; };
   // Looping card videos (Ladi, Nov 16; prompts in project files title-loop/story-craft.md): a card id listed here plays
   // assets/video/cards/<id>.mp4 in its picture, with <id>.webp (the clip's first frame) as the still, in place of the
