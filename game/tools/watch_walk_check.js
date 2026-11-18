@@ -363,6 +363,18 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await btn('[data-a=s]'); await btn('[data-b=watch2]');
   check(await ev(() => SD.watchWalk.qGrace()) === 150, 'both watches make 2:30 a question');
   await btn('[data-a=x]');
+  // Running out of day between a big job's two questions: keep the place, go to dusk.
+  await ev(() => { const w = SD.watchWalk.sv(); w.quests['fennel-clear-chute'] = { step: 3, done: false }; SD.watchWalk.walk('day'); });
+  await page.waitForTimeout(200);
+  await ev(() => { SD.watchWalk.clock(20); const q = SD.watchWalk.quests().find(q => q.id === 'fennel-clear-chute'); SD.watchWalk.step(q); });
+  await page.waitForTimeout(150);
+  await btn('[data-i="2"]'); await btn('[data-a=d]'); await page.waitForTimeout(150);
+  const dk = await ev(() => [SD.watchWalk.sv().quests['fennel-clear-chute'].step, document.querySelector('.ww-o:not([hidden])') ? document.querySelector('.ww-o:not([hidden])').textContent : '']);
+  check(dk[0] === 4 && /tomorrow/.test(dk[1]), `out of daylight after the first question, she saves her place for tomorrow (${dk[0]})`);
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  await page.waitForTimeout(300);
+  check(await ev(() => SD.watchWalk.run && SD.watchWalk.run.phase === 'dusk'), 'then the day ends at dusk');
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   // Her party doesn't take silver: their feast job is what keeps them away (Ladi, Nov 18).
   await ev(() => { const w = SD.watchWalk.sv(); w.freed = {}; w.quests['kai-night-cloak'] = { step: 99, done: true }; delete w.quests['kai-feast-line']; SD.watchWalk.talk('kai'); });
   await page.waitForTimeout(150);
