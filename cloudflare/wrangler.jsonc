@@ -23,6 +23,9 @@
     ]
   },
   // SQLite-backed Durable Objects are the kind the Workers Free plan allows.
+  // Pull request preview builds (Workers Builds runs `npx wrangler preview`) need this block, even empty; the settings
+  // above apply to previews as they are.
+  "previews": {},
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Room", "SaveSlot", "Directory"] }
   ]
