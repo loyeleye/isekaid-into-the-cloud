@@ -155,7 +155,7 @@
   // The walk-in ends at the castle gate: Mira goes back to her fire, and the hint clears.
   function homeMira() {
     if (!run || !run.escort) return;
-    run.escort = false; view.set('follow', null); view.set('hint', '');
+    run.escort = false; view.set('follow', null); view.set('hint', ''); music(tune('day'));
     (run.ppl['main-street'] = run.ppl['main-street'] || []).push({ who: 'mira', x: (WW.spot('main-street', 'base-camp') || { x: 560 }).x + 34 });
   }
 
@@ -378,6 +378,7 @@
   async function morning() {
     const w = sv();
     B.newDay(w.bonds, w.day);
+    music('watchMorning');
     if (w.day >= 2) await review();
     if (w.day >= HIRE_DAY && !w.toldHire) await tellHire();
     walk('day');
@@ -424,6 +425,22 @@
   }
 
   // ---- Walking (day, dusk and night share this) ----
+  // ---- Music (Ladi's Mureka takes, Nov 17; CREDITS.md). The storm and Long Night tracks are being redone, so nights
+  // 5 to 9 keep the calm night track until they land. Stings are the songs' own endings, so they resolve. ----
+  const AU = SD.audio;
+  if (AU) AU.add({
+    songs: { watchDay: 'm-watch-day', watchRain: 'm-watch-day-rain', watchWalkin: 'm-watch-walkin', watchDusk: 'm-watch-dusk', watchNight: 'm-watch-night', watchMorning: 'm-watch-morning' },
+    samples: { watchFix: 'j-watch-fix', watchMiss: 'j-watch-miss' },   // over the night track, so it keeps playing
+    jingles: { watchDawn: 'j-watch-dawn', watchEndLanterns: 'j-watch-end-lanterns', watchEndMorning: 'j-watch-end-morning', watchEndFall: 'j-watch-end-fall' }
+  });
+  const tune = phase => {
+    const w = sv(), wx = WW.weather(w.day, 'day');
+    return phase === 'night' ? 'watchNight' : phase === 'dusk' ? 'watchDusk'
+      : run && run.escort ? 'watchWalkin' : wx === 'rain' || wx === 'mist' ? 'watchRain' : 'watchDay';
+  };
+  const music = name => { if (AU) AU.music(name, true); };
+  const jingle = (name, then) => { if (AU) AU.jingle(name, then); };
+
   function walk(phase, opts) {
     opts = opts || {};
     const w = sv();
@@ -433,6 +450,7 @@
       x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
     run.escort = phase === 'day' && w.day === 1 && !!(content().tutorial || []).length;   // Mira walks you in on day 1 (Ladi, Nov 18)
+    music(tune(phase));
     if (phase === 'night' && w.day === 9) {   // ward levels act before you arrive (doc: Ward level)
       Object.keys(WATCHERS).forEach(k => {
         const lv = ward(k), mine = run.list.filter(x => x.scene === WATCHERS[k]);
@@ -529,6 +547,7 @@
       if (tools && miss >= 2) w.tools--;
       const keeper = watcherOf(x.scene);
       if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
+      if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
       S.persist(); after();
       if (run.list.every(v => run.fixed[v.id] || run.locked[v.id])) sayAll([['seoyeon', 'That\'s everything I can do tonight. Time to report at dawn.']], () => dawn());
     });
@@ -549,6 +568,7 @@
     const xp = M.pay('watch');
     S.persist();
     if (view) view.stop(); view = null; run = null;
+    jingle('watchDawn', 'watchMorning');
     const b = U.panel(`<p class="ww-top">Night ${night} · Dawn</p>
       <ul class="nw-rows">${fixed.map(x => `<li class="nw-r ok"><span class="nw-rr">✓</span><span>${esc(x.title)}</span></li>`).join('')}${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)}${night < 9 ? ' · comes back on the Long Night' : ''}</span></li>`).join('')}</ul>
       <p class="ww-pay">🪙 Pay: ${PAY.base} base + ${fixed.length * PAY.fix} for fixes${fines ? ` ${fines} in fines` : ''} = ${pay} · ${w.silver} saved</p>
@@ -569,6 +589,7 @@
     if (view) view.stop(); view = null; run = null;
     const e = endingFor(missed.length);
     w.ending = e.id; w.day = 10;
+    jingle({ lanterns: 'watchEndLanterns', morning: 'watchEndMorning', fall: 'watchEndFall' }[e.id], 'watchMorning');
     const xp = M.pay('watch');
     S.persist();
     const b = U.panel(`<p class="ww-top">The Long Night · Dawn</p><h3 class="ww-end">${esc(e.name)}</h3><p>${esc(e.text)}</p>
