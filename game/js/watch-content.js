@@ -154,7 +154,7 @@
 
     // ---- Night 4: The Neighbour's Bucket ----
     { id: 'bridge-both-signs', night: 4, skill: '2.1.6', fix: 'door', built: 'bsign',
-      where: { floor: 'upper', room: 'bridge-tower' },
+      where: { level: 'bridge', x: 520 },   // on the bridge itself: the way to the neighbour (another account)
       title: 'The storehouse needs both signs',
       story: 'The bridge clerk has the right key, yet the neighbour\'s storehouse still turns her back.',
       tell: 'AccessDenied: s3:GetObject (bucket in another account)',
@@ -299,7 +299,7 @@
       ], raid: 'Vault Crackers' },
 
     { id: 'bridge-neighbour-crates', night: 7, skill: '2.2.6', fix: 'sealing-bench',
-      where: { floor: 'upper', room: 'bridge-tower' },
+      where: { level: 'bridge', x: 700 },   // on the bridge itself: the way to the neighbour (another account)
       title: 'The neighbour\'s sealed crates',
       story: 'The neighbour must open crates you sealed. Their clerk gets "access denied" at the strongroom.',
       tell: 'AccessDeniedException: kms:Decrypt (key in account 1111...)',

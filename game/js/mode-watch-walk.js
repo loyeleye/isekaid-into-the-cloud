@@ -36,11 +36,12 @@
   // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
   const DAY_S = 360, JOB_S = 50, TAKE_S = 15, GD_EACH = 8, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : 360);
   // Night fuses (Ladi, Nov 18): break-ins turn up across the night, not all at dusk, and each gets through if it isn't
-  // fixed within its fuse. From night 4 they come in pairs, so you can't always reach both: routing is the skill.
-  const FUSE = n => (n === 1 ? 0 : n === 9 ? 240 : 150);
+  // fixed within its fuse (2:00; the fuse burns while you answer). They come in pairs, and in threes once a night has
+  // six, so you can't always reach them all.
+  const FUSE = n => (n === 1 ? 0 : n === 9 ? 240 : 120);
   function lightFuses(list, n) {
     if (n === 1) return list.forEach(x => { x.at = 0; x.fuse = 0; });
-    const g = n === 9 ? 2 : list.length >= 4 ? 2 : 1, groups = Math.ceil(list.length / g);
+    const g = n === 9 ? 2 : list.length >= 6 ? 3 : list.length >= 3 ? 2 : 1, groups = Math.ceil(list.length / g);
     const span = n === 9 ? 600 : nightS(n) - FUSE(n) - 30, gap = groups > 1 ? Math.min(120, span / (groups - 1)) : 0;
     list.forEach((x, i) => { x.at = 15 + Math.floor(i / g) * gap; x.fuse = FUSE(n); });
   }
@@ -127,6 +128,20 @@
       list = back.concat(list);
     }
     if (n === 1) list = list.slice(0, 1);   // night 1: one breach, on the ground floor (doc: Night 1)
+    // Copycats (Ladi, Nov 18: nights were too easy): from night 3, break-ins you've seen before come back on another
+    // floor, the ones you missed first. Spaced practice, and enough break-ins that a clean night needs about 130% of
+    // the 6 minutes (about 85s each: walk, think, and the 50s a fix takes).
+    const CC = { 3: 2, 4: 2, 5: 1, 6: 3, 7: 2, 8: 3 };
+    if (CC[n]) {
+      const pool = []; for (let k = 2; k < n; k++) allFor(k).forEach(b => pool.push(b));
+      pool.sort((a, b) => (w0.missed[b.id] ? 1 : 0) - (w0.missed[a.id] ? 1 : 0) || ((a.id.length * 31 + n) % 17) - ((b.id.length * 31 + n) % 17));
+      const open = WW.FLOORS.filter(f => !(sealed[f] === 'all' || sealed[f] === n));
+      pool.slice(0, CC[n]).forEach((b, i) => {
+        const from = b.where && b.where.floor, floors = open.filter(f => f !== from), f = floors[(n + i) % floors.length] || open[0];
+        const rooms = WW.CASTLE[f].rooms, room = rooms[(n * 3 + i) % rooms.length][0];
+        list.push(Object.assign({}, b, { id: `cc${n}-${b.id}`, orig: b.id, copy: true, where: { floor: f, room }, title: b.title + ' (again)' }));
+      });
+    }
     return list.map((b, i) => {
       const scene = b.where && b.where.level ? b.where.level : 'castle:' + ((b.where && b.where.floor) || 'ground');
       const sc = WW.scene(scene);
@@ -979,7 +994,7 @@
     choose(x.title, q, tries, (ok, miss) => {
       if (tools && miss >= 1) w.tools--;
       const keeper = watcherOf(x.scene);
-      if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
+      if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (x.orig) delete sv().missed[x.orig]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
       if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
       S.persist(); after();
     });
@@ -992,7 +1007,7 @@
     if (w.day === 9) return ending(missed, fixed);
     const fines = w.day === 1 ? 0 : missed.length * PAY.miss;
     const pay = PAY.base + fixed.length * PAY.fix + fines;
-    missed.forEach(x => { w.missed[x.id] = x.raid || 'Thieves'; });
+    missed.forEach(x => { w.missed[x.orig || x.id] = x.raid || 'Thieves'; });   // a missed copycat brings its original back on night 9
     w.silver += pay;
     const night = w.day;
     {   // the night's news, known at first by those nearest the castle; tries growing night on night get noticed
