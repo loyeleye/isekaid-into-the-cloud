@@ -15,11 +15,11 @@ const INTENDED = {
   double: [['stdq', 'condwrite'], { vis: 2, batch: 2 }],
   ledger: [['fifo'], { vis: 2, batch: 1 }],
   crowd: [['sns', 'filter'], {}],
-  alibi: [['deny'], {}],
-  hunch: [['stdq', 'sns', 'filter', 'dlq', 'condwrite'], { vis: 2, batch: 2 }]
+  regulars: [['cache', 'gsi'], {}],
+  hunch: [['stdq', 'sns', 'filter', 'dlq', 'condwrite', 'shard'], { vis: 2, batch: 2 }]
 };
 const LAZY = { none: [], queue: ['stdq'], reserve: ['reserve'], backoff: ['backoff'], fanout: ['sns'], 'queue+ledger': ['stdq', 'condwrite'] };
-const claims = Object.keys(F.CLAIMS).filter(id => !F.CLAIMS[id].boss);
+const claims = Object.keys(F.CLAIMS).filter(id => !F.CLAIMS[id].boss && !F.CLAIMS[id].legacy);
 const spill = (id, b, k) => F.simClaim(id, b, k || { vis: 1, batch: 2 }).spill;
 
 const best = {};
@@ -42,7 +42,11 @@ check(spill('crowd', ['sns']) > spill('crowd', ['sns', 'filter']) + 10, 'Fan-Out
 check(spill('crowd', ['eb']) === spill('crowd', ['sns', 'filter']), 'an EventBridge rule and a filtered Fan-Out both work on the Crowd');
 check(spill('double', ['stdq', 'condwrite'], { vis: 1, batch: 2 }) > spill('double', ['stdq', 'condwrite'], { vis: 2, batch: 2 }) ||
   spill('double', ['fifo'], { vis: 1, batch: 2 }) > spill('double', ['fifo'], { vis: 2, batch: 2 }), 'a short visibility timeout costs on heavy tickets');
-check(spill('alibi', ['leastpriv']) > spill('alibi', ['deny']), 'least privilege alone lets Allow * through; an explicit deny stops it');
+check(spill('regulars', ['cache']) > spill('regulars', ['cache', 'gsi']), 'on the Regulars, the cache alone still scans for the status lookups; a GSI makes them Queries');
+check(spill('regulars', ['gsi']) > spill('regulars', ['cache', 'gsi']) + 5, 'without the door cache, the repeated price checks bounce');
+{ const a = F.simClaim('regulars', ['cache', 'gsi']).counts, b = F.simClaim('regulars', ['cache']).counts;
+  check(a.cached > 0 && !a.scanned && b.scanned > 0, `the cache answers repeats at the door (${a.cached}) and the GSI removes the scans (${b.scanned} without it)`); }
+check(spill('hunch', ['stdq', 'sns', 'filter', 'dlq', 'condwrite']) > spill('hunch', ['stdq', 'sns', 'filter', 'dlq', 'condwrite', 'shard']), 'on the Hunch, the hot key costs until its writes are spread');
 
 // Whole nights. smart: plays the claim's lesson pieces first, then any piece, then Mop; sets the knobs.
 const playable = (s, pred) => { const f = s.fight; for (let h = 0; h < f.hand.length; h++) if (!F.why(s, h) && pred(s.deck[f.hand[h]])) return h; return -1; };
