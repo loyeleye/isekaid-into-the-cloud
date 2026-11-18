@@ -350,7 +350,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(qc[0] < 299.5 && qc[0] > 297 && /clock is running/.test(qc[1]), `after the grace, the open question eats the day clock (${qc})`);
   await btn('[data-i="0"]'); await btn('[data-a=d]');
   const qe = await ev(() => { const c = SD.watchWalk.clock(); return [SD.watchWalk.run.q, c]; }); await page.waitForTimeout(300);
-  check(qe[0] === null && qe[1] < qc[0] - 59 && qe[1] > qc[0] - 62, `answering stops the question timer and the job takes a minute of the day (${qc[0]} -> ${qe[1]})`);
+  check(qe[0] === null && qe[1] < qc[0] - 49 && qe[1] > qc[0] - 52, `answering stops the question timer and the answer takes 50s of the day (${qc[0]} -> ${qe[1]})`);
   await ev(() => { const w = SD.watchWalk.sv(); w.silver = 100; delete w.quests['kagemaru-upriver']; delete w.quests['kagemaru-prices']; });
   await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
   while (!(await page.$('.ww-o:not([hidden]) [data-a=s]')) && await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');

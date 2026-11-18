@@ -34,7 +34,7 @@
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
   // Days are 6 minutes (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
   // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
-  const DAY_S = 360, JOB_S = 60, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
+  const DAY_S = 360, JOB_S = 50, TAKE_S = 15, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
   const PEOPLE = ['mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'captain'];
@@ -54,10 +54,12 @@
   const qGrace = () => { const n = sv().watchUp || 0; return QBUF + (n >= 1 ? QUP[0] : 0) + (n >= 2 ? QUP[1] : 0); };
   const kageDone = () => quests().some(q => q.giver === 'kagemaru' && qstate(q.id).done);
   const qOpen = () => { const w = sv(); if (run && run.phase !== 'dusk' && w.day >= 2 && !run.q) { run.q = { left: qGrace(), of: qGrace(), first: !w.toldQ }; w.toldQ = 1; } };
-  // A finished question (right or wrong) takes a minute of the day: the work itself, apart from the thinking time.
+  // Taking a job costs 15s (a small commitment: drop it and that's gone), and each question you finish, right or
+  // wrong, 50s (Ladi, Nov 18). Both apart from the thinking time.
+  const take = () => { if (run && run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - TAKE_S); toast('⏳ −0:15 to take the job.'); } };
   const qShut = () => { if (!run || !run.q) return; run.q = null;
-    if (run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - JOB_S); toast('⏳ −1:00 on the day clock for that job.'); } };
-  const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Each job you finish in the day also takes a minute. Kagemaru sells pocket watches for longer thinking.</p>` : ''}` : '';
+    if (run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - JOB_S); toast('⏳ −0:50 on the day clock for that job.'); } };
+  const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Taking a job costs 15 seconds of your day, and each answer 50. Kagemaru sells pocket watches for longer thinking.</p>` : ''}` : '';
   const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
   // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
   // Her party (Ladi, Nov 18) already trusts her and wouldn't take her silver. What stops them is the harvest-moon
@@ -332,7 +334,7 @@
           const o = overlay(`${ask.map(t => line(who, t)).join('')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
             <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">${q.reward.silver ? `Help · ${q.reward.silver} silver` : 'I\'ll find someone'}</button></div>`);
           o.querySelector('[data-a=no]').onclick = close;
-          o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; close(); setTimeout(() => step(q), 90); };
+          o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; take(); close(); setTimeout(() => step(q), 90); };
           return;
         }
         continue;
@@ -349,7 +351,7 @@
         : 'Quick one for the watch, if you\'ve a moment.';
       const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
       o.querySelector('[data-a=x]').onclick = close;
-      o.querySelector('[data-a=y]').onclick = () => { close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
+      o.querySelector('[data-a=y]').onclick = () => { if (!mini.teach) take(); close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
       return;
     }
     const wx = WW.weather(day, run && run.phase === 'night' ? 'night' : 'day');
