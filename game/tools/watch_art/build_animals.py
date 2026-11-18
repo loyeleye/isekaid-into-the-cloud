@@ -7,7 +7,7 @@ H = dict(horse=66, crow=14, rabbit=14, owl=20, pigeon=13, cat=20, goat=34, bat=1
 POSES = json.load(open('anim-poses.json'))
 meta = {}
 for k, h in H.items():
-    names = ['idle'] + [p for p in POSES[k] if os.path.exists(f'anim/{k}-{p}.png')]
+    names = ['idle'] + [p for p in POSES[k] + ['w1', 'w2', 'w3', 'w4'] if os.path.exists(f'anim/{k}-{p}.png')]  # w1-w4: the birds' 4-frame walk (or hop)
     if not os.path.exists(f'anim/{k}-idle.png'): continue
     cuts = {n: cutout(f'anim/{k}-{n}.png') for n in names}
     base = cuts['idle'].getbbox(); s = h / (base[3] - base[1])
@@ -32,6 +32,9 @@ for k, h in H.items():
     elif 'walk' in ix: an['run'] = [ix['walk'], ix['idle']]
     if 'fly' in ix: an['fly'] = [ix['fly'], ix.get('fly2', ix['fly'])]
     if k in ('bat', 'butterfly'): an['fly'] = [ix['idle'], ix['fly2']]; an['idle'] = an['fly']
+    if all(f'w{i}' in ix for i in (1, 2, 3, 4)):
+        an['walk'] = [ix[f'w{i}'] for i in (1, 2, 3, 4)]
+        if 'run' not in ix: an['run'] = an['walk']
     if 'perch' in ix: an['perch'] = [ix['perch']]
     if 'sleep' in ix: an['sleep'] = [ix['sleep']]
     if k == 'bat': an['sleep'] = an['perch']

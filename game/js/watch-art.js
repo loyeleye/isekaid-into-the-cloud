@@ -7,6 +7,12 @@
 //   - Layers are 360 tall, drawn at native size offset by -camera x speed. Each is exactly as wide as its speed needs
 //     (about speed x width + 1280). Street layers have the ground line at y 300 and the buildings at the spot x
 //     values in js/watch-world.js. Castle windows are transparent so the sky (layer 1) shows through.
+//   - town: the four levels stacked on one hillside picture (width x height, road y per level in levelY). Ramps are
+//     sloped paths between the fork spots ({from:[level,x], to:[level,x], path:[[x,y],[x,y]]}, lower end first); chute
+//     is the slide from West Road down to Far Lane. Town x equals spot x. levels.<id> are 360-tall crops of it.
+//   - floors: one painted wall per floor, 1200 wide, furnished at person scale. rooms ([id, x0, x1]), doors (x per
+//     room) and links (stair, hoist and bridge-door x) give the positions in that picture.
+//   - Birds walk on 4 frames (the sparrow hops).
 //   - Weather overlays are tiles that loop in both directions (rain and storm 480x360, the rest 640x360).
 //   - The sparkle prop is a 4-frame 16x16 strip.
 window.WATCH_ART = {
@@ -23,25 +29,39 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     9,
+     9,
+     9,
+     9
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ],
     "lantern": [
-     4,
-     4
+     6,
+     6,
+     6,
+     6,
+     10,
+     10,
+     10,
+     10
     ],
     "lanternWalk": [
-     5,
-     4
+     7,
+     6,
+     8,
+     10
     ]
    },
    "fps": 8
@@ -57,17 +77,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -83,17 +109,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -109,43 +141,55 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
   },
   "coo": {
    "sheet": "assets/img/watch/people/coo.png",
-   "w": 64,
+   "w": 66,
    "h": 112,
    "anchor": [
-    32,
+    33,
     106
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -161,17 +205,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -187,17 +237,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -213,17 +269,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -239,17 +301,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -265,17 +333,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -291,17 +365,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -317,17 +397,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -343,17 +429,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -369,17 +461,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -395,17 +493,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -421,17 +525,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -447,17 +557,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -473,17 +589,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -499,17 +621,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -525,17 +653,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -551,17 +685,23 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
    "fps": 8
@@ -577,13 +717,19 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
    "fps": 8
@@ -599,13 +745,19 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
    "fps": 8
@@ -621,13 +773,19 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
    "fps": 8
@@ -643,13 +801,19 @@ window.WATCH_ART = {
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
    "fps": 8
@@ -695,12 +859,16 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
-     0,
-     1
+     5,
+     6,
+     7,
+     8
     ],
     "run": [
-     1,
-     0
+     5,
+     6,
+     7,
+     8
     ],
     "fly": [
      2,
@@ -749,6 +917,18 @@ window.WATCH_ART = {
     "fly": [
      1,
      2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ]
    },
    "fps": 6
@@ -766,12 +946,16 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
-     0,
-     1
+     5,
+     6,
+     7,
+     8
     ],
     "run": [
-     1,
-     0
+     5,
+     6,
+     7,
+     8
     ],
     "fly": [
      2,
@@ -874,8 +1058,10 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
-     0,
-     1
+     3,
+     4,
+     5,
+     6
     ],
     "run": [
      2,
@@ -912,10 +1098,10 @@ window.WATCH_ART = {
   },
   "sparrow": {
    "sheet": "assets/img/watch/animals/sparrow.png",
-   "w": 14,
+   "w": 16,
    "h": 14,
    "anchor": [
-    7,
+    8,
     12
    ],
    "anims": {
@@ -925,6 +1111,18 @@ window.WATCH_ART = {
     "fly": [
      1,
      2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ]
    },
    "fps": 6
@@ -965,12 +1163,16 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
-     0,
-     1
+     4,
+     5,
+     6,
+     7
     ],
     "run": [
-     1,
-     0
+     4,
+     5,
+     6,
+     7
     ],
     "fly": [
      2,
@@ -995,12 +1197,16 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
-     0,
-     1
+     3,
+     4,
+     5,
+     6
     ],
     "run": [
-     1,
-     0
+     3,
+     4,
+     5,
+     6
     ],
     "fly": [
      2,
@@ -1043,6 +1249,18 @@ window.WATCH_ART = {
     "fly": [
      1,
      2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ]
    },
    "fps": 6
@@ -1181,6 +1399,118 @@ window.WATCH_ART = {
   "day": "assets/img/watch/sky/day.webp",
   "night": "assets/img/watch/sky/night.webp"
  },
+ "town": {
+  "width": 4100,
+  "height": 1200,
+  "levelY": {
+   "west-road": 300,
+   "hill-road": 580,
+   "main-street": 860,
+   "far-lane": 1140
+  },
+  "ramps": [
+   {
+    "from": [
+     "hill-road",
+     2264
+    ],
+    "to": [
+     "west-road",
+     2600
+    ],
+    "path": [
+     [
+      2264,
+      580
+     ],
+     [
+      2600,
+      300
+     ]
+    ]
+   },
+   {
+    "from": [
+     "main-street",
+     760
+    ],
+    "to": [
+     "hill-road",
+     1200
+    ],
+    "path": [
+     [
+      760,
+      860
+     ],
+     [
+      1200,
+      580
+     ]
+    ]
+   },
+   {
+    "from": [
+     "far-lane",
+     560
+    ],
+    "to": [
+     "main-street",
+     320
+    ],
+    "path": [
+     [
+      560,
+      1140
+     ],
+     [
+      320,
+      860
+     ]
+    ]
+   },
+   {
+    "from": [
+     "far-lane",
+     2000
+    ],
+    "to": [
+     "main-street",
+     1680
+    ],
+    "path": [
+     [
+      2000,
+      1140
+     ],
+     [
+      1680,
+      860
+     ]
+    ]
+   }
+  ],
+  "chute": [
+   [
+    1440,
+    300
+   ],
+   [
+    1120,
+    1140
+   ]
+  ],
+  "layers": [
+   {
+    "img": "assets/img/watch/town/far.webp",
+    "speed": 0.2
+   },
+   {
+    "img": "assets/img/watch/town/town.webp",
+    "speed": 1
+   }
+  ]
+ },
  "levels": {
   "west-road": {
    "width": 3500,
@@ -1191,16 +1521,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/west-road/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/west-road/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/west-road/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1213,16 +1535,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/hill-road/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/hill-road/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/hill-road/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1235,16 +1549,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/main-street/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/main-street/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/main-street/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1257,24 +1563,45 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/far-lane/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/far-lane/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/far-lane/front.webp",
-     "speed": 1.3
     }
    ]
   }
  },
  "floors": {
   "towers": {
-   "width": 1600,
+   "width": 1200,
    "ground": 300,
+   "rooms": [
+    [
+     "watchtower",
+     166,
+     412
+    ],
+    [
+     "lookout",
+     412,
+     660
+    ],
+    [
+     "captain",
+     660,
+     1148
+    ]
+   ],
+   "doors": {
+    "lookout": 562,
+    "captain": 810
+   },
+   "links": {
+    "stair-left": 75,
+    "stair-right": 1120,
+    "cellar-stair": 150,
+    "back-stair": 1040,
+    "hoist": 600,
+    "bridge-door": 1085
+   },
    "layers": [
     {
      "img": "assets/img/watch/floors/towers/far.webp",
@@ -1283,16 +1610,41 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/towers/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/towers/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "upper": {
-   "width": 1600,
+   "width": 1200,
    "ground": 300,
+   "rooms": [
+    [
+     "wardrobe",
+     191,
+     600
+    ],
+    [
+     "ledger",
+     600,
+     806
+    ],
+    [
+     "bridge-tower",
+     806,
+     1016
+    ]
+   ],
+   "doors": {
+    "ledger": 712,
+    "bridge-tower": 919
+   },
+   "links": {
+    "stair-left": 75,
+    "stair-right": 1120,
+    "cellar-stair": 150,
+    "back-stair": 1040,
+    "hoist": 600,
+    "bridge-door": 1085
+   },
    "layers": [
     {
      "img": "assets/img/watch/floors/upper/far.webp",
@@ -1301,16 +1653,47 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/upper/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/upper/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "ground": {
-   "width": 1600,
+   "width": 1200,
    "ground": 300,
+   "rooms": [
+    [
+     "gate",
+     150,
+     375
+    ],
+    [
+     "hall",
+     375,
+     600
+    ],
+    [
+     "post-room",
+     600,
+     825
+    ],
+    [
+     "tavern",
+     825,
+     1050
+    ]
+   ],
+   "doors": {
+    "hall": 431,
+    "post-room": 660,
+    "tavern": 885
+   },
+   "links": {
+    "stair-left": 75,
+    "stair-right": 1120,
+    "cellar-stair": 150,
+    "back-stair": 1040,
+    "hoist": 600,
+    "bridge-door": 1085
+   },
    "layers": [
     {
      "img": "assets/img/watch/floors/ground/far.webp",
@@ -1319,16 +1702,41 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/ground/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/ground/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "cellars": {
-   "width": 1600,
+   "width": 1200,
    "ground": 300,
+   "rooms": [
+    [
+     "archive",
+     161,
+     382
+    ],
+    [
+     "strongroom",
+     382,
+     600
+    ],
+    [
+     "barracks",
+     600,
+     1065
+    ]
+   ],
+   "doors": {
+    "strongroom": 490,
+    "barracks": 712
+   },
+   "links": {
+    "stair-left": 75,
+    "stair-right": 1120,
+    "cellar-stair": 150,
+    "back-stair": 1040,
+    "hoist": 600,
+    "bridge-door": 1085
+   },
    "layers": [
     {
      "img": "assets/img/watch/floors/cellars/far.webp",
@@ -1337,10 +1745,6 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/cellars/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/cellars/front.webp",
-     "speed": 1.3
     }
    ]
   },

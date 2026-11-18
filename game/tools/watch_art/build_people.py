@@ -10,9 +10,9 @@ HT = dict(seoyeon=76, mira=82, kai=84, dutch=92, coo=74, bru=80, kagemaru=90, le
           **{'townsfolk-1': 80, 'townsfolk-2': 84, 'townsfolk-3': 80})
 FH, FOOT = 112, 106          # frame height and the feet line inside it
 def frames_for(k):
-    if k == 'seoyeon': return ['stand', 'walkA', 'walkB', 'talk', 'lantern', 'lanternwalk']
-    if k.startswith('townsfolk') or k == 'kevin': return ['stand', 'walkA', 'walkB']
-    return ['stand', 'walkA', 'walkB', 'talk']
+    if k == 'seoyeon': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk', 'lantern', 'lanternwalk', 'lanternwalkB']
+    if k.startswith('townsfolk') or k == 'kevin': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
+    return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk']
 def src(k, f): return f'base/{k}.png' if f == 'stand' else f'pose/{k}-{f}.png'
 def prep(path, scale):
     im = cutout(path)
@@ -46,13 +46,24 @@ for k in HT:
         d.ellipse([ax - sw // 2, FOOT - 3, ax + sw // 2, FOOT + 3], fill=(20, 16, 30, 70))
         fr.alpha_composite(im, (round(ax - cx), round(FOOT - bot)))
         sheet.alpha_composite(fr, (i * FW, 0))
+    # breathing: copy the standing (and lantern) frame with the upper body lifted 1 px; the waist row is repeated
+    def breathe(src_i):
+        cell = sheet.crop((src_i * FW, 0, (src_i + 1) * FW, FH)); a = np.asarray(cell).copy()
+        solid = np.where((a[:, :, 3] == 255).any(1))[0]; top = solid.min(); waist = top + int(0.52 * (FOOT - top))
+        a[top - 1: waist, :] = a[top: waist + 1, :]
+        return Image.fromarray(a, 'RGBA')
+    extra = [('breathe', breathe(order.index('stand')))]
+    if 'lantern' in order: extra.append(('lanternBreathe', breathe(order.index('lantern'))))
+    big = Image.new('RGBA', (FW * (len(order) + len(extra)), FH)); big.alpha_composite(sheet, (0, 0))
+    for j, (nm, im) in enumerate(extra): big.alpha_composite(im, ((len(order) + j) * FW, 0)); order.append(nm)
+    sheet = big
     sheet.save(f'{OUT}/{k}.png', optimize=True)
     idx = {f: i for i, f in enumerate(order)}
     def g(*names): return [idx[n] for n in names if n in idx]
-    anims = {'idle': g('stand', 'stand'), 'walk': g('walkA', 'stand', 'walkB', 'stand') if 'walkA' in idx else g('stand')}
-    if 'walkA' in idx and 'walkB' in idx: anims['walk'] = [idx['walkA'], idx['walkB'], idx['walkA'], idx['walkB']]
+    anims = {'idle': g('stand', 'stand', 'stand', 'stand', 'breathe', 'breathe', 'breathe', 'breathe'), 'walk': g('walkA', 'stand', 'walkB', 'stand') if 'walkA' in idx else g('stand')}
+    if 'walkA' in idx and 'walkB' in idx: anims['walk'] = [idx['walkA'], idx['walkB'], idx.get('walkC', idx['walkA']), idx.get('walkD', idx['walkB'])]
     if 'talk' in idx: anims['talk'] = g('stand', 'talk')
-    if 'lantern' in idx: anims['lantern'] = g('lantern', 'lantern'); anims['lanternWalk'] = g('lanternwalk', 'lantern')
+    if 'lantern' in idx: anims['lantern'] = g('lantern', 'lantern', 'lantern', 'lantern', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe'); anims['lanternWalk'] = g('lanternwalk', 'lantern', 'lanternwalkB', 'lanternBreathe') if 'lanternwalkB' in idx else g('lanternwalk', 'lantern')
     meta[k] = {'w': FW, 'h': FH, 'anchor': [ax, FOOT], 'frames': order, 'anims': anims}
     print(k, FW, order)
 json.dump(meta, open(f'{OUT}/meta.json', 'w'), indent=1)
