@@ -1,8 +1,8 @@
-// Headless check of the Night Watch (js/mode-watch.js on js/mode-drill.js and js/drill-core.js) at phone width (375px):
-// it's registered with its own save, the picker and the title carousel list it under Security, Seo-yeon opens the
-// night, night 1's five drills (three of its own, The Wrong Badge and the boss) each warm up with their fault, a desk
-// shows the drill's dials, every fix contains it, every postmortem is a verified Domain 2 question, the end screen,
-// and the Fire Drill's own save is untouched. Night 2 forks.
+// Headless check of the Night Watch (js/mode-watch.js, js/watch-data.js) at phone width (375px), build step 1: it's
+// registered with its own save and stage, the carousel marks it Security, the first-run walkthrough, the moon
+// calendar, the day's gossip (with Mira at the camp) and the floor plan, each night's pins and tiles, the dawn report
+// with candles and pay, and a verified Domain 2 debrief on the night's task statement. Plays every night: a perfect
+// plan lights 3 candles; leaving the plan as it starts leaves breaches.
 // Run from game/:  node tools/watch_check.js     SHOTS=dir saves screenshots (DSF=2 at twice the pixels).
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -34,19 +34,11 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const r = await page.evaluate(() => {
       const w = innerWidth, bad = [];
       if (document.documentElement.scrollWidth > w) bad.push('document ' + document.documentElement.scrollWidth);
-      document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => { if (el.closest('.rm-cam, .rm')) return; const b = el.getBoundingClientRect(); if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right)); });
+      document.querySelectorAll('#panel:not([hidden]) .win *').forEach(el => { const b = el.getBoundingClientRect(); if (b.width && (b.right > w + 1 || b.left < -1)) bad.push((el.id || el.className || el.tagName) + ' ' + Math.round(b.left) + '..' + Math.round(b.right)); });
       return bad.slice(0, 5);
     });
     check(!r.length, `no horizontal scroll at 375px (${where})${r.length ? ': ' + r.join(', ') : ''}`);
   };
-  const settle = () => page.waitForFunction(() => !document.querySelector('#panel .db.playing, #panel .rm.playing') && !document.querySelector('#dr-skip'), null, { timeout: 15000 });
-  const cut = async () => {
-    for (let i = 0; i < 4 && await page.$('#dr-cut-next:not([disabled])'); i++) { await page.click('#dr-cut-next:not([disabled])'); await page.waitForTimeout(60); }
-    await page.waitForFunction(() => !document.querySelector('#dr-cut-next[disabled]'), null, { timeout: 5000 });
-  };
-  const place = async id => { await page.evaluate(id => { const s = SD.state.save.watch, at = SD.drill.CARDS[id].at; s.at = at; s.zoom = true;
-    const i = SD.drillCode ? SD.drillCode.blockOf(s.drill.drill, at, id) : -1; s.blk = i >= 0 ? { k: at, d: s.drill.drill, i } : null;
-    SD.state.persist(); SD.watchUi.draw(); const m = document.querySelector('.dr-more'); if (m && i < 0) m.open = true; }, id); await page.click(`[data-card="${id}"]`); };
   const answer = (right, conf) => page.evaluate(async ([right, conf]) => {
     const p = document.querySelector('#panel'), q = SD.modes.current();
     const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -67,75 +59,71 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
   await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }' });
   await page.click('#t-start');
   await page.waitForSelector('#today-card:not([hidden])');
-  await page.evaluate(() => { if (SD.drillBoard) SD.drillBoard.STEP_MS = 5; if (SD.drillRoom) SD.drillRoom.STEP_MS = 5; if (SD.typeOnce) SD.typeOnce.off = true;
+  await page.evaluate(() => { if (SD.typeOnce) SD.typeOnce.off = true;
     SD.state.save.examTrack = 'DVA'; SD.state.save.examDate = '2026-11-30'; SD.state.save.todaySkip = true; SD.state.persist(); SD.today.render(); });
 
-  check(await page.evaluate(() => !!SD.modes.get('watch') && !!SD.modes.get('drill') && SD.watchUi && SD.drillUi && SD.watchUi !== SD.drillUi), 'the Night Watch and the Fire Drill are both registered, each with its own screen');
+  // The data holds together: every night's slots exist, start on a real tile, and have a narrow fix.
+  const data = await page.evaluate(() => { const W = SD.watchData, bad = [];
+    W.NIGHTS.forEach(n => n.set.forEach(([id, t]) => { const s = W.SLOTS[id];
+      if (!s) bad.push(n.id + ':' + id); else { if (!s.tiles[t]) bad.push(n.id + ':' + id + '=' + t); if (!Object.values(s.tiles).some(x => x.res === 'ok')) bad.push(id + ' has no ok tile'); if (!n.open.includes(s.room)) bad.push(n.id + ':' + id + ' in a dark room'); } }));
+    const tasks = new Set(W.NIGHTS.flatMap(n => n.set.map(([id]) => W.SLOTS[id].task)));
+    return { bad, tasks: [...tasks].sort(), n: W.NIGHTS.length };
+  });
+  check(!data.bad.length, `every night's slots are real, start on a real tile, have a narrow fix and sit in a lit room${data.bad.length ? ': ' + data.bad.join(', ') : ''}`);
+  check(data.tasks.join() === '2.1,2.2,2.3' && data.n === 9, `nine nights cover tasks ${data.tasks.join(', ')}`);
+  const qs = await page.evaluate(() => SD.watchData.NIGHTS.map(n => { const q = SD.watch.question(n); return q ? [n.id, SD.exam.domainOf(q), String(SD.exam.taskOf(q)), SD.topicDrill.isVerified(q)] : [n.id, 0]; }));
+  check(qs.every(x => x[1] === 2 && x[3]), `every night has a verified Domain 2 debrief (${qs.map(x => x[0] + ':' + x[2]).join(', ')})`);
+
   check(await page.evaluate(() => SD.modes.domainLine([2]) === 'Security'), 'its domain line reads Security');
   const card = await page.evaluate(() => { const c = document.querySelector('[data-game="watch"], [data-mode="watch"]'); return c ? c.textContent : ''; });
-  check(/Night Watch/.test(card) && /Security/.test(card), `the title's carousel has its card, marked Security (${card.replace(/\s+/g, ' ').trim().slice(0, 80)})`);
+  check(/Night Watch/.test(card) && /Security/.test(card), `the title's carousel has its card, marked Security`);
   await page.evaluate(() => SD.modes.open());
   check(/Host: Seo-yeon/.test(await txt('[data-mode="watch"]')), 'the picker lists it, hosted by Seo-yeon');
   await page.click('[data-mode="watch"]');
   await page.waitForTimeout(200);
-  check(await page.evaluate(() => document.body.dataset.stage === 'watch' && /Night Watch/i.test(document.querySelector('#ms-name').textContent)), 'it opens on its own stage, named in the top bar');
-  check(/locked things/.test(await txt('#panel')), 'Uptima opens the night with the Night Watch\'s own line');
-  await shot('cutscene');
-  await cut();
-  let t = await txt('#panel');
-  check(/Night 1/.test(t) && /Possibly both/.test(t), 'the map opens on Night 1, with Seo-yeon\'s bell line');
-  const rows = await page.$$eval('.dr-row', r => r.map(x => [...x.querySelectorAll('.dr-door')].map(d => d.dataset.drill)));
-  check(rows.length === 5 && rows.every(r => r.length === 1) && rows[0][0] === 'night', `night 1 is one path of five, the boss on top (${rows.map(r => r.join('/')).join(' < ')})`);
-  await noHScroll('map'); await shot('map');
+  check(await page.evaluate(() => document.body.dataset.stage === 'watch'), 'it opens on its own stage');
+  for (let i = 0; i < 3; i++) { await page.click('#md-next'); await page.waitForTimeout(30); }
+  check(await page.$$eval('.nw-moon', m => m.length) === 9 && await page.$$eval('.nw-moon.locked', m => m.length) === 8, 'the moon calendar shows nine nights, only the first open');
+  await noHScroll('calendar'); await shot('calendar');
 
-  const night1 = ['cloak', 'badge', 'letter', 'lips', 'night'];
-  const asked = [];
-  for (const id of night1) {
-    await page.click('.dr-door.reach'); await settle();
-    let s = await st();
-    check(s.phase === 'drill' && s.drill.drill === id && s.drill.log.length === 1 && !s.drill.log[0].ok, `${id}: the warm-up run shows the fault`);
-    await cut().catch(() => {});
-    if (['cloak', 'letter', 'lips'].includes(id)) { await noHScroll(id + ' warm-up'); await shot(id + '-warmup'); }
-    const fix = await page.evaluate(id => SD.drill.DRILLS[id].fix[0], id);
-    for (const c of fix) await place(c);
-    if (id === 'letter') { await noHScroll('letter desk'); await shot('letter-desk'); }
-    if (id === 'lips') { await shot('lips-desk'); }
-    await page.click('#dr-deploy'); await settle();
-    s = await st();
-    check(s.drill.state === 'contained', `${id}: ${fix.join(' + ')} contains it on the first deploy`);
-    if (id === 'cloak') await shot('cloak-contained');
-    await page.click('#dr-next');
-    if (id === 'cloak') { await noHScroll('debrief'); await shot('debrief'); }
-    await page.click('#dr-ask');
-    await cut();
+  const nights = await page.evaluate(() => SD.watchData.NIGHTS.map(n => ({ id: n.id, set: n.set.map(([id]) => [id, Object.keys(SD.watchData.SLOTS[id].tiles).find(k => SD.watchData.SLOTS[id].tiles[k].res === 'ok')]) })));
+  for (let i = 0; i < nights.length; i++) {
+    const n = nights[i];
+    await page.click(`.nw-moon[data-n="${i}"]`);
+    let t = await txt('#panel');
+    if (i === 0) {
+      check(/Mira:/.test(t) && /Tess the lamplighter:/.test(t), 'the day opens with the gossip, and Mira at the camp says where to start');
+      check(await page.$$eval('.nw-room', r => r.length) === 13 && await page.$$eval('.nw-floor', f => f.length) === 4 && await page.$$eval('.nw-room.lit', r => r.length) === 3, 'the floor plan has thirteen rooms on four floors, three lit on night 1');
+      await noHScroll('day'); await shot('day');
+    }
+    check(await page.$$eval('.nw-pin', p => p.length) === n.set.length, `${n.id}: one pin for each thing to set (${n.set.length})`);
+    // Night 2 is left as it starts, to see breaches; every other night gets the narrow fix.
+    if (i !== 1) for (const [slot, tile] of n.set) {
+      await page.click(`.nw-pin[data-slot="${slot}"]`);
+      if (i === 0) { await noHScroll('tray'); await shot('tray'); }
+      await page.click(`.nw-tile[data-tile="${tile}"]`);
+    }
+    if (i === 3) { await noHScroll('day night 4'); await shot('day-4'); }
+    await page.click('#nw-seal');
+    t = await txt('#panel');
+    const lit = await page.$$eval('.nw-c.on', c => c.length);
+    if (i === 1) check(lit < 3 && /breach/.test(t), `${n.id}: the plan as it starts leaves breaches (${lit} candles)`);
+    else check(lit === 3, `${n.id}: the narrow fixes light all three candles`);
+    if (i === 0 || i === 1) { await noHScroll('dawn'); await shot(i ? 'dawn-breaches' : 'dawn'); }
+    await page.click('#nw-q');
     await page.waitForFunction(() => !!SD.modes.current() && document.querySelector('#panel [data-c]'));
-    if (id === 'cloak') await shot('postmortem');
-    const a = await answer(true, 1);
-    asked.push(a);
+    if (i === 0) await shot('question');
+    await answer(true, 1);
     await page.waitForSelector('#q-next', { timeout: 5000 }).catch(() => {});
     if (await page.$('#q-next')) await page.click('#q-next');
-    await page.waitForFunction(() => ['map', 'end'].includes(SD.state.save.watch.phase));
-    await cut().catch(() => {});
+    await page.waitForSelector('#nw-cal');
+    if (i === 0) await shot('paid');
+    await page.click('#nw-cal');
   }
-  check(asked.length === 5 && asked.every(a => a.dom === 2 && a.verified), `every postmortem was a verified Domain 2 question (${asked.map(a => a.id + ':' + a.dom).join(', ')})`);
-  let s = await st();
-  check(s.phase === 'end' && s.budget > 90, `the night ends with budget to spare (${s.budget}%)`);
-  await cut().catch(() => {});
-  t = await txt('#panel');
-  check(/all drills closed/.test(t) && /5/.test(t), 'the end screen reports the night');
-  await noHScroll('end'); await shot('end');
-  check(await page.evaluate(() => !SD.state.save.drill && !!SD.state.save.watchKeep && SD.state.save.watchKeep.night === 1), 'the Fire Drill\'s save is untouched; the Night Watch keeps its own');
-  await page.click('#dr-done');
-  // Night 2 forks: two choices a row.
-  await page.evaluate(() => SD.watchUi.start());
-  await page.waitForTimeout(100); await cut();
-  const rows2 = await page.$$eval('.dr-row', r => r.map(x => x.querySelectorAll('.dr-door').length));
-  check(/Night 2/.test(await txt('#panel')) && rows2.slice(1).every(n => n === 2), `night 2 forks: two drills a row (${rows2.join(', ')})`);
-  await shot('night2');
-  // The Fire Drill still opens on its own night 1.
-  await page.evaluate(() => { SD.ui.closePanel(); SD.drillUi.start(); });
-  await page.waitForTimeout(100); await cut();
-  check(await page.evaluate(() => SD.state.save.drill && SD.state.save.drill.night === 1) && await page.$$eval('.dr-door.boss', x => x.length) >= 1, 'the Fire Drill still starts its own night');
+  const s = await st();
+  check(s.night === 8 && Object.keys(s.best).length === 9 && s.silver > 0 && s.missed.badge === 1, `the save keeps nights, candles, silver and the missed breaches (night ${s.night + 1}, ${s.silver} silver, missed ${JSON.stringify(s.missed)})`);
+  await shot('calendar-end');
+  check(await page.evaluate(() => !SD.state.save.drill), 'the Fire Drill\'s save is untouched');
 
   check(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   await browser.close(); server.close();
