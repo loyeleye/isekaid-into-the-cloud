@@ -26,7 +26,7 @@
     hobb: ['#5a4a3a', '#cfcfcf'], pell: ['#4a5a3a', '#2a2a2a'], wen: ['#a05a6a', '#e0e0e0'], ayo: ['#8a3a2a', '#1a1a1a'],
     aigerim: ['#3a7a6a', '#2a1a1a'], doug: ['#6a6a7a', '#8a6a4a'], tess: ['#b08a3a', '#5a3a1a'], hollis: ['#5a3a2a', '#6a6a6a'],
     odu: ['#2a4a6a', '#1a1a1a'], fennel: ['#5a7a3a', '#c08040'], seymour: ['#4a4a4a', '#e0c040'], chad: ['#3a5aa0', '#e0b040'],
-    kevin: ['#1a1a24', '#1a1a24'], 'intruder-pickpocket': ['#2c2c3a', '#0e0e14'], 'intruder-snuffer': ['#2e4a5e', '#0e0e14'], 'intruder-spiller': ['#6a4a22', '#2a1a0a'], 'intruder-jailer': ['#7a1e1e', '#140808'], staff: ['#e2d8c0', '#5a4632'], 'intruder-impersonator': ['#e2d8c0', '#5a4632'], captain: ['#6a2a2a', '#3a3a3a']
+    kevin: ['#1a1a24', '#1a1a24'], 'intruder-pickpocket': ['#2c2c3a', '#0e0e14'], 'intruder-snuffer': ['#2e4a5e', '#0e0e14'], 'intruder-spiller': ['#6a4a22', '#2a1a0a'], 'intruder-jailer': ['#7a1e1e', '#140808'], staff: ['#e2d8c0', '#5a4632'], 'intruder-replayer': ['#4a3a6a', '#141018'], 'intruder-escalator': ['#5a6a2a', '#141408'], 'intruder-eavesdropper': ['#3a4a3a', '#101410'], 'intruder-exfiltrator': ['#6a5a3a', '#181410'], 'intruder-rummager': ['#5a3a2a', '#140c08'], 'intruder-forger': ['#6a2a5a', '#180814'], 'intruder-secrethunter': ['#2a3a5a', '#080c18'], 'intruder-impersonator': ['#e2d8c0', '#5a4632'], 'intruder-turncloak': ['#3b4a8f', '#0e0e14'], 'intruder-turncloak-bare': ['#3a2a3a', '#0e0e14'], captain: ['#6a2a2a', '#3a3a3a']
   };
   const tint = (phase) => phase === 'night' ? 'rgba(10,16,48,.55)' : phase === 'dusk' ? 'rgba(120,50,30,.22)' : phase === 'dawn' ? 'rgba(255,170,120,.12)' : null;
 

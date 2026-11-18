@@ -1534,13 +1534,13 @@
   C.dusk = [   // matched to the night as it plays now: break-ins arrive across the night on fuses (Ladi, Nov 18)
     { night: 1, who: 'pell', lines: ['Evening, warden. First night.', 'One break-in tonight, and no rush. You won\'t see it till you\'re close, so walk the floors. Find it, fix it, report at dawn.', 'The kitchen\'s working late for the feast. A cook with a tray, walking the ground floor. Harmless. Let them by.'] },
     { night: 2, who: 'pell', lines: ['From tonight they don\'t all come at once.', 'When a lock gives, you\'ll hear it. Finding where is your job.',
-      'Each one burns like a fuse. Leave it too long and it gets through.'] },
-    { night: 3, who: 'pell', lines: ['One try per fix. Get it wrong and it waits till dawn. Kagemaru\'s spare tools buy you a second go.', 'Every fix eats into the night. Don\'t dawdle between them.'] },
-    { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'Keep your ears open. You won\'t see them coming.'] },
-    { night: 5, who: 'pell', lines: ['Busy one. Five tonight, close together.', 'And watch the kitchen staff. A real cook always has their hands full.', 'You might not reach both. Know your stairs.'] },
-    { night: 6, who: 'pell', lines: ['Storm tonight. Lightning shows what the dark hides.', 'Letters. Big ones.'] },
-    { night: 7, who: 'pell', lines: ['Six tonight, three at a time.', 'Keys, crates and the archive.'] },
-    { night: 8, who: 'pell', lines: ['Last ordinary night. Six again, in threes.', 'Listen for loose talk.'] },
+      'Each one burns like a fuse. Leave it too long and it gets through.', 'And they\'re coming inside now. Pickpockets, quick ones. Keep your distance or keep a spare tool.'] },
+    { night: 3, who: 'pell', lines: ['One try per fix. Get it wrong and it waits till dawn. Kagemaru\'s spare tools buy you a second go.', 'Every fix eats into the night. Don\'t dawdle between them.', 'Two new sorts. Spillers leave lamp oil on the floor, so watch your feet. Rummagers stay on one floor and open every drawer, and every lock on that floor gives faster.'] },
+    { night: 4, who: 'pell', lines: ['Fog coming in. Windows\'ll go grey.', 'Keep your ears open. You won\'t see them coming.', 'Snuffers tonight. They\'ll blow your lantern out. And forgers hang fake all-clear seals on broken locks. Look close before you walk past one.'] },
+    { night: 5, who: 'pell', lines: ['Busy one. Five tonight, close together.', 'And watch the kitchen staff. A real cook always has their hands full.', 'Exfiltrators too. One robs a room, then runs for the bridge. Stand in its way.', 'You might not reach both. Know your stairs.'] },
+    { night: 6, who: 'pell', lines: ['Storm tonight. Lightning shows what the dark hides.', 'Letters. Big ones.', 'Someone listens on the stairs tonight. Pass close and they\'ll shout where you are. And the jailer\'s out. Slow, but if they reach you, you\'re in a closet till morning.'] },
+    { night: 7, who: 'pell', lines: ['Six tonight, three at a time.', 'Keys, crates and the archive.', 'Escalators start small and stuck on one floor. Every room they rob gives them more. Catch them early. And secret-hunters want your notes.'] },
+    { night: 8, who: 'pell', lines: ['Last ordinary night. Six again, in threes.', 'Listen for loose talk.', 'Replayers copy your fixes. Fix a lock, and one heads straight for it to undo it.', 'And a turncloak, over the bridge from next door. It wears one of our cloaks with a real pass. Wait for the pass to run out, or revoke it.'] },
     { night: 9, who: 'pell', lines: ['Full moon. Clear sky.', 'Everything you missed is back, and the town\'s in it too.', 'Fifteen bells. Go.'] }
   ];
 

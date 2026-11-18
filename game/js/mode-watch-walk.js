@@ -61,7 +61,7 @@
   const SHOP = [{ id: 'tools', name: 'Spare tools', cost: 10, what: 'one extra try on a fix tonight' },
     // Ladi, Nov 18: a one-off that removes an intruder but leaves its break-in open. Named for IAM's "revoke active
     // sessions": the stolen pass stops working, and the guards walk them out.
-    { id: 'writ', name: 'Revocation writ', cost: 12, what: 'one use: walk up to an intruder and revoke their stolen pass. They\'re walked out. Their break-in stays open' },
+    { id: 'writ', name: 'Revoke active sessions', cost: 12, what: 'one use: walk up to an intruder and revoke their stolen pass. They\'re walked out. Their break-in stays open' },
     { id: 'post', name: 'Lantern post', cost: 15, what: 'one area glows on the Long Night: you see its breaches from afar' },
     { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' },
     { id: 'guard', name: 'GuardDuty bell', cost: 0, what: 'tonight only: rings with the floor of every break-in and shows each fuse, wherever you are' },
@@ -72,7 +72,7 @@
   const QBUF = 90, QUP = [25, 35];
   const qGrace = () => { const n = sv().watchUp || 0; return QBUF + (n >= 1 ? QUP[0] : 0) + (n >= 2 ? QUP[1] : 0); };
   const kageDone = () => quests().some(q => q.giver === 'kagemaru' && qstate(q.id).done);
-  const qOpen = () => { const w = sv(); if (run && run.phase !== 'dusk' && w.day >= 2 && !run.q) { run.q = { left: qGrace(), of: qGrace(), first: !w.toldQ }; w.toldQ = 1; } };
+  const qOpen = () => { const w = sv(); if (run && run.phase !== 'dusk' && w.day >= 2 && !run.q) { const g = run.half ? Math.round(qGrace() / 2) : qGrace(); run.half = 0; run.q = { left: g, of: g, first: !w.toldQ }; w.toldQ = 1; } };
   // Taking a job costs 15s (a small commitment: drop it and that's gone), and each question you finish, right or
   // wrong, 50s (Ladi, Nov 18). Both apart from the thinking time.
   const take = () => { if (run && run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - TAKE_S); toast('⏳ −0:15 to take the job.'); } };
@@ -699,7 +699,7 @@
     // it watches, 8 silver per break-in due tonight.
     const gdCost = () => (w.guardTrial ? GD_EACH * breaches(w.day).length : 0);
     const w = sv(), price = it => it.id === 'guard' ? (w.guardTrial ? B.price(w.bonds, 'kagemaru', gdCost()) : 0) : B.price(w.bonds, 'kagemaru', it.cost);
-    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0} · writs ${w.writs || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
+    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0} · revokes ${w.writs || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
       <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'writ' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
         .filter(it => !(it.id === 'guard' && (w.day >= 9 || w.guard === w.day)))
         .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
@@ -859,7 +859,7 @@
     b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
     // Search (Ladi, Nov 18): every night, a break-in only shows when she's within 220px, so finding one takes walking.
     // On the Long Night a watcher at ward 2 or an outpost shows their whole area.
-    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < (run.dark > 0 ? 90 : 220);
+    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < (x.forged ? 40 : run.dark > 0 ? 90 : 220);   // forged: a fake all-clear hides it till you're on it
     const gone = () => phase === 'night' ? nightS(w.day) - clock : 0;   // seconds into the night
     const up = x => !x.at || gone() >= x.at;                                 // has this break-in started yet?
     const fuseLeft = x => (x.fuse ? x.at + x.fuse - gone() : Infinity);
@@ -879,6 +879,26 @@
     //     impersonator (night 5 on): dressed as feast staff. Real staff carry a tray or sack along their route; this
     //       one has empty hands and wanders where staff never go. It drops the act within 110px and grabs 15 silver
     //       (or a spare tool). Anyone can look right: check what they're doing.
+    //   More kinds (Ladi, Nov 18: cover every section of the security domain, and mix them so no two nights match):
+    //     replayer (2.1.4 SigV4): heads for the lock you just fixed. Gets there within 60s and the fix comes undone,
+    //       the way a copied signed request works only while it's fresh.
+    //     escalator (2.1.6, 2.1.8): starts slow and stuck on its floor. Each room it robs gives it more rights: the
+    //       stairs, then speed, then it grabs like a pickpocket.
+    //     eavesdropper (2.2.1, 2.2.3): lurks at a stair. Pass within earshot and it calls out where she is: every
+    //       intruder makes for her for 15s.
+    //     exfiltrator (2.3.1, 2.3.5): robs one room, then makes for the far end of the bridge. Out: 20 silver gone.
+    //       Stand in its way and you catch it: the loot back and 10 silver.
+    //     turncloak (2.1.5 roles and STS, 2.2.6 cross-account; Ladi wanted roles to feel unlike the impersonator):
+    //       comes over the bridge from the neighbour's side, takes a watch cloak at the wardrobe (assumes a role) and
+    //       robs rooms in it, twice as fast. The cloak is temporary credentials: for 45s its pass checks out and you
+    //       can't stop it. When the session runs out it walks back to the wardrobe to renew, and on that walk (and
+    //       the 4s at the rack) you can catch it. Revoke active sessions, the real IAM role button, works any time.
+    //     rummager (2.1.7, 2.3.6): stays on its floor and opens every drawer, twice as fast, and every break-in on that
+    //       floor burns 10s faster each time.
+    //     forger (2.2.2, 2.2.5): hangs a forged all-clear seal on an open break-in, which then shows only from 40px.
+    //     secret-hunter (2.3.2, 2.3.3): quick, sharp-eyed. Grabs her notes: her next question has half the thinking time.
+    //   Long Night: each break-in's intruder is a coin flip, its section's kind or a random one.
+    //   Not on night 1. All of them get a little faster each night.
     //   Not on night 1. All of them get a little faster each night.
     //   Busy map (Ladi, Nov 18: "not a lot of space to walk around"): at most 3 intruders inside at once, one new kind
     //   a night, at most 3 kinds a night, one jailer, and the kind's name shows only when it's close.
@@ -889,21 +909,51 @@
       snuffer: { sp: 85, sight: 220, rush: 1.3, in: '👣 Footsteps, and a draught. Someone\'s in who hates a lantern.' },
       spiller: { sp: 70, sight: 0, rush: 1, in: '👣 Sloshing footsteps. Someone\'s in, and they\'re spilling something.' },
       jailer: { sp: 52, sight: 150, rush: 1.6, ahead: true, in: '👣 Heavy, slow footsteps, and keys jangling. Stay out of their way.' },
-      impersonator: { sp: 62, sight: 110, rush: 2.2, in: '👣 Footsteps that sound like the kitchen staff. But the kitchen\'s short tonight.' }
+      impersonator: { sp: 62, sight: 110, rush: 2.2, in: '👣 Footsteps that sound like the kitchen staff. But the kitchen\'s short tonight.' },
+      replayer: { sp: 90, sight: 0, rush: 1, tag: 'Replayer', in: '👣 Footsteps that sound like yours. Someone\'s copying your every move.' },
+      escalator: { sp: 50, sight: 0, rush: 1.3, tag: 'Escalator', in: '👣 Shuffling footsteps. Someone small got in. For now.' },
+      eavesdropper: { sp: 60, sight: 0, rush: 1, tag: 'Eavesdropper', in: '👣 Soft footsteps, then nothing. Someone\'s listening on a stair.' },
+      exfiltrator: { sp: 75, sight: 0, rush: 1, tag: 'Exfiltrator', in: '👣 Footsteps and an empty sack. Someone\'s here to carry things off.' },
+      rummager: { sp: 70, sight: 0, rush: 1, tag: 'Rummager', in: '👣 Drawers sliding open, one after another. Someone\'s rummaging.' },
+      forger: { sp: 75, sight: 0, rush: 1, tag: 'Forger', in: '👣 Footsteps, and the smell of sealing wax.' },
+      secrethunter: { sp: 88, sight: 220, rush: 1.4, tag: 'Secret-hunter', in: '👣 Quick footsteps, and paper rustling. Someone\'s after your notes.' },
+      turncloak: { sp: 78, sight: 0, rush: 1, tag: 'Turncloak', in: '👣 Footsteps on the bridge, from the neighbour\'s side. Someone with their pass is coming for a cloak.' }
     };
-    const ROSTER = { 2: ['pickpocket'], 3: ['pickpocket', 'spiller'], 4: ['pickpocket', 'spiller', 'snuffer'], 5: ['impersonator', 'spiller', 'snuffer'],
-      6: ['impersonator', 'snuffer'], 7: ['pickpocket', 'spiller'], 8: ['impersonator', 'snuffer'], 9: ['impersonator', 'spiller'] };
+    // Two new kinds a night from night 3, at most 3 kinds on any night (Ladi, Nov 18), and every kind before night 9.
+    const ROSTER = { 2: ['pickpocket'], 3: ['spiller', 'rummager', 'pickpocket'], 4: ['snuffer', 'forger', 'spiller'],
+      5: ['impersonator', 'exfiltrator', 'snuffer'], 6: ['eavesdropper', 'impersonator', 'jailer'], 7: ['escalator', 'secrethunter', 'forger'],
+      8: ['replayer', 'turncloak', 'jailer'] };
+    const SECTION = { '2.1.1': 'impersonator', '2.1.2': 'impersonator', '2.1.3': 'pickpocket', '2.1.4': 'replayer', '2.1.5': 'turncloak',
+      '2.1.6': 'escalator', '2.1.7': 'rummager', '2.1.8': 'escalator', '2.2.1': 'eavesdropper', '2.2.2': 'forger', '2.2.3': 'eavesdropper',
+      '2.2.4': 'jailer', '2.2.5': 'forger', '2.2.6': 'turncloak', '2.2.7': 'jailer', '2.3.1': 'exfiltrator', '2.3.2': 'secrethunter',
+      '2.3.3': 'secrethunter', '2.3.4': 'snuffer', '2.3.5': 'exfiltrator', '2.3.6': 'rummager' };
     const MAX_IN = 3;
-    const kindFor = (x, i) => { const n = w.day, R = ROSTER[n] || ['pickpocket'];
-      if (n >= 6 && i === 2) return 'jailer';   // one jailer a night
-      return R[(i + n) % R.length]; };
+    const BOSS = ['jailer', 'turncloak'];   // the late heavy kinds: at most one each a night, two on the Long Night (Ladi, Nov 18)
+    const kindFor = (x, i) => { const n = w.day;
+      if (n === 9) {   // the Long Night: half the time the break-in's own section, half the time anyone
+        const r = seeded(i * 13 + 9), tied = r() < 0.5, all = Object.keys(KINDS).filter(k => !BOSS.includes(k));
+        const k = tied && SECTION[x.skill] ? SECTION[x.skill] : all[Math.floor(r() * all.length)];
+        const had = run.list.slice(0, i).filter((v, j) => (v.kind || kindFor(v, j)) === k).length;
+        return BOSS.includes(k) && had >= 2 ? 'pickpocket' : k; }
+      const R = ROSTER[n] || ['pickpocket'], rest = R.filter(k => !BOSS.includes(k));
+      if (R.includes('jailer') && i === 2) return 'jailer';   // one jailer a night
+      if (R.includes('turncloak') && i === 4) return 'turncloak';   // and one turncloak
+      return rest[(i + n) % rest.length]; };
     const PROWL = ['castle:towers', 'castle:upper', 'castle:ground', 'castle:cellars', 'bridge'];
     const crew = x => (x && x.raid ? x.raid : 'raiders').replace(/^The /, '');
     const exits = id => WW.scene(id).spots.filter(v => (v.kind === 'stair' && !v.needs) || v.id === 'bridge-exit' || v.id === 'bridge-door');
     const bounds = id => { const sc = WW.scene(id); return [sc.from + 30, sc.to - 30]; };
     const pick = a => a[Math.floor(Math.random() * a.length)];
     const ROOMS = () => WW.FLOORS.flatMap(f => WW.CASTLE[f].rooms.map(r => ({ scene: 'castle:' + f, x: (r[1] + r[2]) / 2, name: r[3] })));
-    const goal = p => { p.goal = pick(ROOMS().filter(r => !(p.goal && r.name === p.goal.name))); p.state = 'go'; aim(p); };
+    const stuck = p => p.kind === 'rummager' || (p.kind === 'escalator' && p.lvl < 1);   // these keep to their floor
+    const goal = p => { p.goal = pick(ROOMS().filter(r => !(p.goal && r.name === p.goal.name) && (!stuck(p) || r.scene === p.scene))) || { scene: p.scene, x: p.x, name: 'hall' }; p.state = 'go'; aim(p); };
+    const lurk = p => { const f = pick(PROWL.filter(v => v !== 'bridge')), e = pick(exits(f).filter(v => v.kind === 'stair')) || { x: bounds(f)[0] };
+      p.goal = { scene: f, x: e.x + 30, name: 'stair', lurk: 1 }; p.state = 'go'; p.lurkT = 30; aim(p); };
+    const forge = p => { const open = run.list.filter(v => up(v) && !run.fixed[v.id] && !run.locked[v.id] && !v.forged && v.scene !== 'bridge' && /^castle:/.test(v.scene));
+      const v = pick(open); if (!v) return goal(p); p.goal = { scene: v.scene, x: v.x, name: v.title, forge: v.id }; p.state = 'go'; aim(p); };
+    const SESSION = 45, RENEW = 4;
+    const cloak = p => { p.goal = { scene: 'castle:upper', x: roomX('castle:upper', 'wardrobe'), name: 'Wardrobe', renew: 1 }; p.state = 'go'; aim(p); };
+    const cloakTag = p => p.sess > 0 ? `Turncloak · ⏳ ${Math.ceil(p.sess)}s` : 'Turncloak · session over';
     const movesAt = (scene, e) => WW.moves({ scene, x: e.x, unlocks: {}, phase: 'night' });
     const aim = p => {   // the next x to walk to: the goal room if it's on this floor, else the way out toward it
       if (p.goal.scene === p.scene) { p.tx = p.goal.x; p.exit = null; return; }
@@ -915,12 +965,20 @@
     const syncProwlers = () => { Object.keys(run.ppl).forEach(k => { run.ppl[k] = run.ppl[k].filter(v => !v.night); });
       (run.prowl || []).concat(run.staff || []).forEach(p => (run.ppl[p.scene] = run.ppl[p.scene] || []).push(p)); view.set('people', run.ppl); view.set('puddles', run.puddles || []); };
     const intrude = x => {
-      const kind = x.kind || kindFor(x, run.list.indexOf(x)), K = KINDS[kind], scene = pick(PROWL), e = pick(exits(scene));
+      const kind = x.kind = x.kind || kindFor(x, run.list.indexOf(x)), K = KINDS[kind];
+      const scene = kind === 'turncloak' ? 'bridge' : pick(PROWL), e = kind === 'turncloak' ? { x: WW.scene('bridge').to - 20 } : pick(exits(scene));
       const mask = kind === 'impersonator';
-      const p = { night: 1, who: mask ? 'staff' : 'intruder-' + kind, tag: mask ? '' : kind.charAt(0).toUpperCase() + kind.slice(1), mask, kind, scene, x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
-      goal(p); run.inside[x.id] = p; (run.prowl = run.prowl || []).push(p); syncProwlers(); toast(K.in);
+      const p = { night: 1, who: mask ? 'staff' : 'intruder-' + kind, tag: mask ? '' : K.tag || kind.charAt(0).toUpperCase() + kind.slice(1), mask, kind, scene,
+        x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, lvl: 0, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
+      if (kind === 'turncloak') { p.sess = 0; p.who = 'intruder-turncloak-bare'; p.tag = cloakTag(p); }
+      if (kind === 'eavesdropper') lurk(p); else if (kind === 'forger') forge(p); else if (kind === 'turncloak') cloak(p); else goal(p);
+      run.inside[x.id] = p; (run.prowl = run.prowl || []).push(p); syncProwlers(); toast(K.in);
     };
-    const leave = (p, line) => { run.prowl = (run.prowl || []).filter(v => v !== p);
+    // The door queue (Ladi, Nov 18): when one leaves, the next waits 5s, and a backlog comes in one at a time, 5s apart.
+    // After Revoke active sessions, nobody new for 10s.
+    const QGAP = 5, WRIT_GAP = 10;
+    const hold = s2 => { run.gate = Math.max(run.gate || 0, gone() + s2); };
+    const leave = (p, line, gap) => { hold(gap || QGAP); run.prowl = (run.prowl || []).filter(v => v !== p);
       Object.keys(run.inside).forEach(k => { if (run.inside[k] === p) run.inside[k] = null; }); syncProwlers(); if (line) toast(line); };
     // Hiding (Ladi, Nov 18): at night, press up at a room's doorway to step into it. Prowlers walk straight past, but she
     // stays put and sees only from where she stands. Left, right or down brings her out.
@@ -948,7 +1006,8 @@
         if (w.day === 9) { clock = Math.max(0, clock - 120); toast(`🔒 One of the ${who} shoves you in a closet and turns the key. Two minutes to pick your way out.`); }
         else { run.over = 1; leave(p); busy = true;
           sayAll([['seoyeon', 'They\'ve locked me in the linen closet.'], ['seoyeon', 'Nobody will hear me till the morning shift. That\'s the night gone.']], () => dawn()); return true; }
-      } else if (p.kind === 'snuffer') { run.dark = 15; toast(`💨 One of the ${who} blows out your lantern and runs. You can barely see.`); }
+      } else if (p.kind === 'secrethunter') { run.half = 1; toast(`📜 One of the ${who} reads your notes and runs. Your next question gets half the thinking time.`); }
+      else if (p.kind === 'snuffer') { run.dark = 15; toast(`💨 One of the ${who} blows out your lantern and runs. You can barely see.`); }
       else if (p.kind === 'impersonator' && (w.silver || 0) >= 15) { w.silver -= 15; toast(`🫳 The fake cook lifts 15 silver and runs.`); }
       else if ((w.tools || 0) > 0) { w.tools--; toast(`🫳 One of the ${who} snatches a spare tool and runs.`); }
       else if ((w.silver || 0) >= 10) { w.silver -= 10; toast(`🫳 One of the ${who} lifts 10 silver and runs.`); }
@@ -966,17 +1025,22 @@
       syncProwlers();
     };
     // Walking up to someone at night. Staff show their kitchen pass. Asking a fake cook for theirs makes them bolt
-    // (check who they are). A revocation writ removes an intruder for the night, but its break-in stays open.
+    // (check who they are). Revoke active sessions removes an intruder for the night, but its break-in stays open.
     function nightMeet(p) {
       if (p.carry) return sayAll([['seoyeon', 'Kitchen pass?'], ['seoyeon', 'Stamped, signed and dated tonight. Mind the tray.']]);
       const x = run.list.find(v => v.id === p.of);
       if (p.mask) { p.mask = false; p.who = 'intruder-impersonator'; p.tag = 'Impersonator'; p.state = 'flee'; p.cool = 10;
         const ex = exits(p.scene).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x)); p.exit = ex[0] || null; p.tx = p.exit ? p.exit.x : p.x; syncProwlers();
         return sayAll([['seoyeon', 'Kitchen pass?'], ['seoyeon', 'No pass, no tray, and now they\'re running. That was no cook.']]); }
-      if ((w.writs || 0) > 0) { w.writs--; (run.out = run.out || {})[p.of] = 1; leave(p); S.persist();
-        return sayAll([['seoyeon', 'By order of the castle, your pass is revoked.'], ['seoyeon', `The guards will walk this one of the ${crew(x)} out. The lock they came through is still broken, though.`]]); }
-      return sayAll([['seoyeon', 'I can\'t make them leave without a revocation writ. Kagemaru sells them.']]);
+      if (p.kind === 'turncloak' && p.sess > 0 && !((w.writs || 0) > 0))
+        return sayAll([['seoyeon', 'Pass? A real watch cloak, and a real pass from the castle next door. It checks out, for now.'],
+          ['seoyeon', 'Either I wait for the session to run out, or I revoke it. Kagemaru sells Revoke active sessions orders.']]);
+      if ((w.writs || 0) > 0) { w.writs--; (run.out = run.out || {})[p.of] = 1; leave(p, '', WRIT_GAP); S.persist();
+        return sayAll([['seoyeon', 'Revoking your active sessions. That pass is dead.'], ['seoyeon', `The guards will walk this one of the ${crew(x)} out. The lock they came through is still broken, though.`]]); }
+      return sayAll([['seoyeon', 'I can\'t make them leave without a Revoke active sessions order. Kagemaru sells them.']]);
     }
+    run.kindFor = kindFor; run.tie = SECTION;   // for the checks
+    run.admit = x => { run.inside = run.inside || {}; if (!run.inside[x.id]) intrude(x); return run.inside[x.id]; };   // for the checks
     function prowl(dt) {
       if (!run.staff) hireStaff();
       if (run.dark > 0) run.dark -= dt;
@@ -996,20 +1060,58 @@
       let moved = false;
       for (const p of (run.prowl || []).slice()) {
         const K = KINDS[p.kind]; p.cool -= dt;
-        const here = p.scene === st.scene, dx = st.x - p.x, ahead = !K.ahead || Math.sign(dx) === p.facing;
-        const sees = here && K.sight && !(run.dark > 0) && Math.abs(dx) < K.sight && ahead && !hidden() && !(p.cool > 0) && p.state !== 'flee';
+        const xo = run.list.find(v => v.id === p.of);
+        const here = p.scene === st.scene, dx = st.x - p.x;
+        if (p.kind === 'exfiltrator' && here && Math.abs(dx) < 40 && !(run.calm > 0)) {   // stand in its way and you catch it
+          w.silver = (w.silver || 0) + 10; (run.out = run.out || {})[p.of] = 1; leave(p, '🪤 You catch the exfiltrator with the sack. Loot back, and 10 silver from the Captain.'); S.persist(); moved = true; continue; }
+        if (p.kind === 'turncloak') {
+          const was = p.sess > 0; if (was) p.sess -= dt;
+          if (was && p.sess <= 0 && p.lame) { leave(p, '⌛ The turncloak\'s session ran out, and the rack won\'t give it another. It slinks back over the bridge.'); moved = true; continue; }
+          if (was && p.sess <= 0) { p.sess = 0; p.who = 'intruder-turncloak-bare'; cloak(p);
+            toast('⌛ The turncloak\'s session ran out. It\'s heading back to the wardrobe to renew. Catch it on the way.'); }
+          const t = cloakTag(p); if (t !== p.tag) { p.tag = t; moved = true; }
+          if (!(p.sess > 0) && here && Math.abs(dx) < 40 && !(run.calm > 0)) {
+            w.silver = (w.silver || 0) + 10; (run.out = run.out || {})[p.of] = 1;
+            leave(p, '🪤 You catch the turncloak between sessions, with no cloak and no pass. 10 silver from the Captain.'); S.persist(); moved = true; continue; }
+          if (p.state === 'renew') { if ((p.loot -= dt) <= 0) { p.sess = SESSION; p.who = 'intruder-turncloak'; p.tag = cloakTag(p); moved = true;
+            toast('🧥 Someone took a watch cloak off the wardrobe rack. For the next 45 seconds, their pass checks out.'); goal(p); } continue; }
+        }
+        if (p.kind === 'eavesdropper' && p.state === 'lurk') {
+          if (here && Math.abs(dx) < 180 && !hidden() && !(p.cool > 0)) { p.cool = 20;
+            (run.prowl || []).forEach(o => { if (o !== p && KINDS[o.kind].sight) { o.goal = { scene: st.scene, x: st.x, name: 'warden' }; o.state = 'go'; aim(o); } });
+            toast('📢 "The warden\'s on the ' + WW.scene(st.scene).name.toLowerCase() + '!" Someone on the stair gave you away.'); }
+          if ((p.lurkT -= dt) <= 0) lurk(p); continue; }
+        const sight = p.kind === 'escalator' && p.lvl >= 3 ? 200 : K.sight;
+        const ahead = !K.ahead || Math.sign(dx) === p.facing;
+        const sees = here && sight && !(run.dark > 0) && Math.abs(dx) < sight && ahead && !hidden() && !(p.cool > 0) && p.state !== 'flee';
         if (p.mask && sees) { p.mask = false; p.who = 'intruder-impersonator'; p.tag = 'Impersonator'; moved = true; toast('🎭 That\'s no cook. Empty hands, and they\'re coming for you.'); }
-        if (here && K.sight && !(run.calm > 0) && p.cool <= 0 && Math.abs(dx) < 50 && !hidden()) { if (caught(p, run.list.find(v => v.id === p.of))) return; continue; }
+        if (here && sight && !(run.calm > 0) && p.cool <= 0 && Math.abs(dx) < 50 && !hidden()) { if (caught(p, run.list.find(v => v.id === p.of))) return; continue; }
+        if (p.kind === 'replayer' && run.lastFix && run.lastFix.id !== p.done && gone() - run.lastFix.t < 60 && !(p.goal && p.goal.replay === run.lastFix.id)) {
+          const f = run.lastFix; p.goal = { scene: f.scene, x: f.x, name: 'fixed lock', replay: f.id }; p.state = 'go'; aim(p); }
         if (sees) { p.tx = st.x; p.state = 'chase'; }
         else if (p.state === 'chase') { p.state = 'go'; aim(p); }
         if (p.kind === 'spiller' && here && Math.abs(dx) < 200 && p.state === 'go' && Math.sign(p.tx - p.x) === Math.sign(dx)) { p.state = 'flee'; p.exit = null; p.tx = bounds(p.scene)[dx > 0 ? 0 : 1]; }   // shies away
         if (p.state === 'loot') { if ((p.loot -= dt) <= 0) {
-          const x = run.list.find(v => v.id === p.of); if (x && x.fuse) x.fuse -= 15;
-          toast(`💰 The ${crew(x)} cleaned out the ${p.goal.name.toLowerCase()}. Their lock is giving faster.`); goal(p); } continue; }
+          const x = xo;
+          if (p.kind === 'rummager') { run.list.forEach(v => { if (v.scene === p.scene && v.fuse && !run.fixed[v.id]) v.fuse -= 10; });
+            toast(`🗄 Every drawer in the ${p.goal.name.toLowerCase()} is open. Every lock on the ${WW.scene(p.scene).name.toLowerCase()} is giving faster.`); }
+          else { if (x && x.fuse) x.fuse -= 15; toast(`💰 The ${crew(x)} cleaned out the ${p.goal.name.toLowerCase()}. Their lock is giving faster.`); }
+          if (p.kind === 'escalator') { p.lvl++; if (p.lvl === 2) p.sp *= 1.5;
+            toast(['', '⬆ The escalator picked up more rights: it can take the stairs now.', '⬆ The escalator picked up more rights: it moves faster now.', '⬆ The escalator has all the rights it wants. Now it comes for you.'][Math.min(3, p.lvl)]); }
+          if (p.kind === 'exfiltrator') { p.goal = { scene: 'bridge', x: WW.scene('bridge').to - 20, name: 'bridge', away: 1 }; p.state = 'go'; aim(p); } else goal(p); } continue; }
         if (Math.abs(p.tx - p.x) < 4 && p.state !== 'chase') {
           if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); if (p.kind === 'impersonator') { p.mask = true; p.who = 'staff'; p.tag = ''; } } moved = moved || sc0 !== p.scene; continue; }
           if (p.state === 'flee') { p.state = 'go'; aim(p); continue; }
-          if (p.state === 'go' && p.goal.scene === p.scene) { p.state = 'loot'; p.loot = 8; continue; }
+          if (p.state === 'go' && p.goal.scene === p.scene) {
+            if (p.goal.lurk) { p.state = 'lurk'; continue; }
+            if (p.goal.renew) { p.state = 'renew'; p.loot = RENEW; continue; }
+            if (p.goal.away) { const pen = Math.min(20, w.silver || 0); w.silver -= pen; (run.out = run.out || {})[p.of] = 1; leave(p, `🌉 The exfiltrator is over the bridge with a full sack.${pen ? ` ${pen} silver gone.` : ''}`); S.persist(); moved = true; continue; }
+            if (p.goal.forge) { const v = run.list.find(u => u.id === p.goal.forge); if (v && !run.fixed[v.id]) { v.forged = 1; toast('🖋 Someone hung a forged all-clear on a broken lock. It looks fixed from a distance.'); } forge(p); continue; }
+            if (p.goal.replay) { const v = run.list.find(u => u.id === p.goal.replay); p.done = p.goal.replay;
+              if (v && run.fixed[v.id] && gone() - run.lastFix.t < 60) { delete run.fixed[v.id]; delete (w.fixed || {})[v.id]; v.at = gone(); v.fuse = 60; if (run.rung) delete run.rung[v.id];
+                toast(`🔁 Someone replayed a copy of your fix. ${v.title} is open again.`); }
+              goal(p); continue; }
+            p.state = 'loot'; p.loot = p.kind === 'rummager' || p.kind === 'turncloak' ? 4 : 8; continue; }
           aim(p);
         }
         const step = Math.sign(p.tx - p.x) * Math.min(Math.abs(p.tx - p.x), p.sp * (sees ? K.rush : 1) * dt);
@@ -1088,9 +1190,11 @@
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
               run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
             }
-            if (x.inAt && up(x) && gone() >= x.at + x.inAt && !((run.inside = run.inside || {})[x.id]) && !(run.out || {})[x.id] && (run.prowl || []).length < MAX_IN) intrude(x);
+            if (x.inAt && up(x) && gone() >= x.at + x.inAt && !((run.inside = run.inside || {})[x.id]) && !(run.out || {})[x.id] && (run.prowl || []).length < MAX_IN && gone() >= (run.gate || 0)) { intrude(x); hold(QGAP); }
           });
           Object.keys(run.inside || {}).forEach(id => { const x = run.list.find(v => v.id === id), p = run.inside[id];
+            if (p && p.kind === 'turncloak' && run.fixed[id] && p.sess > 0) {   // a fixed trust policy stops new sessions, not the live one
+              if (!p.lame) { p.lame = 1; toast('🧥 Fixed. No more cloaks for the neighbour\'s side, but the one already out stays good till its session ends. Or revoke it now.'); } return; }
             if (p && (run.fixed[id] || run.locked[id] === 'gone')) leave(p, run.fixed[id] ? `🚪 The ${crew(x)} lookout slips back out the way they came.` : ''); });
           view.set('marks', marks());
           if (!busy && run.list.every(v => run.fixed[v.id] || run.locked[v.id]) && !run.over) { run.over = 1; sayAll([['seoyeon', 'That\'s everything for tonight. Time to report at dawn.']], () => dawn()); }
@@ -1170,7 +1274,7 @@
     choose(x.title, q, tries, (ok, miss) => {
       if (tools && miss >= 1) w.tools--;
       const keeper = watcherOf(x.scene);
-      if (ok) { run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (x.orig) delete sv().missed[x.orig]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
+      if (ok) { run.lastFix = { id: x.id, t: run.phase === 'night' ? nightS(w.day) - clock : 0, scene: x.scene, x: x.x }; run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (x.orig) delete sv().missed[x.orig]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
       if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
       S.persist(); after();
     });
