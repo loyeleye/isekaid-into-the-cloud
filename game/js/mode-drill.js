@@ -1028,7 +1028,7 @@
     body.dr-pm.in-mode #panel .win.quiz { background: #24382c; border: 12px solid #6b4a2a; border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .7), inset 0 0 40px rgba(0, 0, 0, .45); }
     body.dr-pm.in-mode #panel .win.quiz .win-b { background: transparent; color: #f2f2e6; }
     body.dr-pm.in-mode #panel .win.quiz .win-h { background: transparent; color: #f2f2e6; border-bottom: 2px dashed rgba(242, 242, 230, .35); }
-    body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
+    body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem):not(.ms-lt *) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
     body.dr-pm.in-mode #panel .win.quiz button:not(.primary):not(.ghost) { background: #f6efdc; color: #17131f; border: 3px solid #17131f; border-radius: 10px; box-shadow: 0 4px 0 #0c0a10; }`;
   document.head.appendChild(css);
 })();

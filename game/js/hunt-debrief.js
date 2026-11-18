@@ -501,8 +501,9 @@
     .hd-sat .conf > .muted { color: #e6d3a6; }
     .hd-sat .conf-b { margin-top: 4px; }
     /* Before an option is picked the stakes still read: dark wood, not a washed-out light button. */
-    .hd-sat .conf-b button:disabled { background: rgba(28, 22, 16, .9); color: #cdbb93; border-color: rgba(255, 210, 130, .3); opacity: .8; }
-    .hd-sat .conf-b button:disabled .up { color: #8fd6a0; } .hd-sat .conf-b button:disabled .dn { color: #f09a8a; }
+    /* #panel .win.hd-win: inside the game-mode stage the glass palette's button rule (an id selector) would otherwise win. */
+    :is(#panel .win.hd-win.hd-win, #panel) .hd-sat .conf-b button:disabled { background: rgba(28, 22, 16, .9); color: #e6d3a6; border-color: rgba(255, 210, 130, .3); opacity: 1; }
+    :is(#panel .win.hd-win.hd-win, #panel) .hd-sat .conf-b button:disabled .up { color: #8fd6a0; } :is(#panel .win.hd-win.hd-win, #panel) .hd-sat .conf-b button:disabled .dn { color: #f09a8a; }
     .hd-sat .stake-help { margin: 4px 0 0; color: #c9bca4; }
     .hd-sat :is(.type-first, .say-first, .num, .order-done) { color: #efe6d2; }
     /* Type it first, in the scene: dark wood like the rest of the satchel, the hint readable, the box wide enough for its words. */
