@@ -64,27 +64,30 @@
 
   // ---- The opening (Ladi, Nov 17: "needs an opening scene or something to give context of what the game is about and
   // the goal") ----
-  // Seymour and Kai on the Quarter's own paintings, one line a beat: who they are, why the Quarter is lived in, what a
+  // Seymour and Kai, one line a beat, told in the third person (Kai is the one rebuilding; Ladi, Nov 17): who they are, why the Quarter is lived in, what a
   // job, a renovation and the permit are, and how a night is won (its Grand Opening). It plays once, before the first
   // new night a save starts (a night in progress isn't interrupted), Skip ends it at any beat, and the board's
   // "The opening" button replays it. Like Fire Drill's cutscenes, the interface drops away and a tap moves it on.
   // Each beat: [who, line, backdrop, Seymour's pose, Kai's face]. Recorded by tools/reno_vo.py (*-mg-reno-open-*).
   const OPEN = [
-    ['seymour', 'Halt. Name, business, two forms of identification. ...Ah. The new architect. Sir Seymour Backups. I inspect Pingsby\'s Quarter. Twice.', 'street', 'proud', 'neutral'],
-    ['kai', 'I\'m Kai. I\'m a cook. He made me your assistant. There was a form.', 'street', 'proud', 'neutral'],
-    ['seymour', 'Freya deleted this whole Quarter. Luckily, I insisted on versioning. We brought every house back from under her delete markers.', 'quarter-map', 'inspect', 'neutral'],
-    ['kai', 'So people live here again. Which means nobody moves out while you fix the place.', 'quarter-map', 'inspect', 'worried'],
+    ['seymour', 'Halt. Name, business, two forms of identification. ...Ah. Kai. The cook who signed up to rebuild Pingsby\'s Quarter. Sir Seymour Backups. I inspect it. Twice.', 'street', 'proud', 'neutral'],
+    ['kai', 'I came to fix one kitchen. Somehow I signed a form for the whole Quarter.', 'street', 'proud', 'neutral'],
+    ['seymour', 'Freya deleted this whole Quarter. Luckily, I insisted on versioning. We brought every house back from under her delete markers.', 'lookout', 'inspect', 'neutral'],
+    ['kai', 'So people live here again. Which means nobody moves out while I fix the place.', 'lookout', 'inspect', 'worried'],
     ['seymour', 'Each job is a renovation: a new version of someone\'s building. You choose how to ship it, while the residents keep coming home.', 'street', 'proud', 'neutral'],
     ['seymour', 'The client\'s rules are chalked on the slate. Then I run your plan twice. Once sound. Once with a cracked beam.', 'street', 'inspect', 'neutral'],
     ['kai', 'He cracks the beam on purpose. Every time. He calls it procedure.', 'street', 'inspect', 'neutral'],
-    ['seymour', 'Then the permit: one question about what you just did. If the plan held and your answer is right, I sign. The building stands.', 'permit-office', 'stamp', 'happy'],
-    ['kai', 'Anything less, and it stays under scaffolding. You get another go later.', 'permit-office', 'disapprove', 'worried'],
+    ['seymour', 'Then the permit: one question about what you just did. If the plan held and your answer is right, I sign. The building stands.', 'office', 'stamp', 'happy'],
+    ['kai', 'Anything less, and it stays under scaffolding. I get another go later.', 'office', 'disapprove', 'worried'],
     ['seymour', 'Five jobs a night. The last is the Grand Opening. If its plan holds, we cut the ribbon, and the night is yours.', 'square', 'approve', 'happy'],
     ['kai', 'The first Grand Opening is my kitchen. So. No pressure.', 'square', 'approve', 'happy'],
     ['seymour', 'Three plans per job. Read the whole scroll. I\'ll be right here. Watching. Supportively.', 'street', 'proud', 'neutral']
   ];
-  // Where a narrow screen centres each painting: the gate end of the street, the map's middle, the permit desk, the arch.
-  const OPEN_X = { street: 760, 'quarter-map': 960, 'permit-office': 1120 };
+  // Each beat is a close-up on a backdrop painted for it, seen from standing height with an open lower third for the
+  // two of them to stand on, like the permit office (Ladi, Nov 17: the first version put them on paintings that didn't
+  // match their size, such as the Quarter map seen from above). Sogni, CREDITS.md. focus: where a phone's narrower
+  // shot centres.
+  const SETS = { street: ['open-street', 900], lookout: ['open-lookout', 900], office: ['permit-office', 1120], square: ['open-square', 940] };
   function opening(done) {
     const RS = SD.renoStreet;
     if (!RS) { done(); return; }
@@ -93,10 +96,8 @@
     const show = () => {
       const [who, line, bg, pose, face] = OPEN[i];
       const ui = `<div class="rs-row"><span class="rs-chip">${i + 1} / ${OPEN.length}</span><button class="ghost rn-oskip" id="rn-oskip" type="button">Skip</button></div><div class="rs-row rn-oline ${who}">${bubble(who, line)}</div>`;
-      // The square is the Grand Opening's own scene (the ribbon arch, a crowd waiting); the rest are plain paintings.
-      const where = bg === 'square' ? { plaza: true, cut: false, folk: 8 } : { bg, focus: OPEN_X[bg] };
-      const b = panel(`<div class="rn-bleed rn-open">${RS.scene(Object.assign(where, { shot: 'close', close: pose, kai: face, ui,
-        label: `The opening, ${i + 1} of ${OPEN.length}: ${who === 'kai' ? 'Kai' : 'Sir Seymour Backups'} speaking` }))}</div>
+      const b = panel(`<div class="rn-bleed rn-open">${RS.scene({ shot: 'close', bg: SETS[bg][0], focus: SETS[bg][1], close: pose, kai: face, ui,
+        label: `The opening, ${i + 1} of ${OPEN.length}: ${who === 'kai' ? 'Kai' : 'Sir Seymour Backups'} speaking` })}</div>
         <div class="rn-dock"><button class="primary" id="rn-onext">${i + 1 < OPEN.length ? 'Next ▸' : 'To tonight\'s jobs'}</button></div>`);
       const el = b.querySelector('.rs');
       if (el) el.dataset.talk = 'done';        // Kai's mouth moves on his own lines only
@@ -1165,7 +1166,7 @@
   // The permit office (Ladi's Sogni painting, Nov 17): one close-up for every district. Seymour stands at his desk with
   // his magnifier while you answer; a right answer gets his stamp, a wrong one his disapproval. Kai waits on the left.
   const PERMIT_X = 1120;   // a narrow screen centres on the desk's corner, so the desk side stays in view
-  const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'permit-office', focus: PERMIT_X, close: pose, kai: face, ui,
+  const permitScene = (pose, face, ui) => SD.renoStreet.scene({ shot: 'close', bg: 'office', focus: PERMIT_X, close: pose, kai: face, ui,
     label: 'The permit office: Sir Seymour Backups at his desk, Kai waiting for the verdict' });
   const PERMIT_ASK = 'Before I sign, one question about what you just did. Tell me how sure you are. Take your time. Within reason.';
   function debriefScreen(s) {
@@ -1515,6 +1516,8 @@
     .rn-open .rs { cursor: pointer; }
     .rn-open .rn-oline { justify-content: flex-end; }
     .rn-open .rn-oline.kai { justify-content: flex-start; }
+    /* A phone shows them shoulder to shoulder, so the line sits up in the sky, clear of both faces. */
+    .rn-open .rs:not(.rs-wide) .rs-ui { justify-content: flex-start; }
     .rn-open .rn-oline .rs-say { margin: 0; max-width: min(520px, 94%); font-size: 16px; box-shadow: 0 6px 14px rgba(0,0,0,.4); }
     .rn-open .rn-oskip { padding: 4px 14px; min-height: 0; border-radius: 10px; background: rgba(23,19,31,.82); color: #fff; border: 1px solid rgba(255,255,255,.4); font-weight: 700; }
     .rn-lab { flex: 0 0 100%; font-weight: 700; }
