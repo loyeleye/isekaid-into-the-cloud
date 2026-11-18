@@ -44,5 +44,18 @@ const wet = WW.spawn('main-street', 'day', 'rain', 3); WW.animals(wet, 1, 0);
 check(wet.every(a => a.state === 'sleep' || a.state === 'perch'), 'in rain the animals shelter');
 check(WW.weather(3, 'day') === 'wind' && WW.weather(6, 'night') === 'storm' && WW.weather(9, 'night') === 'clear', 'the weather calendar matches the doc');
 
+// With the castle art loaded, floors are 1200 wide and rooms, doors and stairs come from WATCH_ART.floors.
+global.window = global.window || {}; require('../js/watch-art.js'); WW.artSync();
+const AF = window.WATCH_ART.floors, AL = AF.ground.links;
+check(WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.width - 10, 'castle floors take their width from the art');
+check(floorKeys('cellars', AL['stair-right']) === 'up' && floorKeys('upper', AL['stair-right']) === 'down', 'right stair sits where the art draws it');
+check(floorKeys('upper', AL['back-stair'], { 'back-stair': 1 }) === 'up', 'back stair sits where the art draws it');
+check(WW.scene('castle:ground').spots.find(s => s.id === 'door-hall').x === AF.ground.doors.hall, 'doors sit where the art draws them');
+{ // spots used with the same key (●) must be far enough apart that the nearest one is clearly the one you mean
+  const useKey = v => v.kind !== 'room' && v.kind !== 'stair', bad = [];
+  WW.FLOORS.forEach(f => { const sp = WW.scene('castle:' + f).spots.filter(useKey); sp.forEach((a, i) => sp.slice(i + 1).forEach(b => { if (Math.abs(a.x - b.x) < 30) bad.push(f + ':' + a.id + '/' + b.id); })); });
+  check(!bad.length, 'no two spots used with the same key are on top of each other' + (bad.length ? ' (' + bad.join(', ') + ')' : ''));
+}
+
 console.log(fails.length ? `\n${fails.length} failed` : '\nall ok');
 process.exit(fails.length ? 1 : 0);

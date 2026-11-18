@@ -108,7 +108,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await shot('dawn');
 
   // Stairs and the back stair at night.
-  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: 1450 }));
+  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: 1040 }));
   await page.waitForTimeout(150);
   await ev(() => document.querySelector('.ww-o:not([hidden]) button') && document.querySelector('.ww-o:not([hidden]) button').click());
   await ev(() => SD.watchWalk.view.press('up')); await page.waitForTimeout(100);

@@ -267,10 +267,12 @@
       if (stacked()) return drawTown();
       camX = camY = null;
       const sc = WW.scene(st.scene), phase = st.phase;
-      const cam = Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
+      const layers = layerImgs(sc);
+      // With painted art, the camera stops at the ends of the main (speed 1) layer, so you never see past a wall.
+      const main = layers && layers.find(l => l.speed === 1), mi = main && img(main.img), artW = mi && mi.naturalWidth * (VH / mi.naturalHeight);
+      const cam = artW ? Math.max(0, Math.min(artW - VW, st.x - VW / 2)) : Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
       const X = x => x - cam;
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
-      const layers = layerImgs(sc);
       sky(c, phase, sc.kind, !!layers);
       if (layers) layers.forEach(l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } });
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }

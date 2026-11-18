@@ -74,8 +74,10 @@
     return null;
   };
 
-  // ---- The castle: four floors, 1600 wide. Rooms by x range; doors (lock slots) sit between rooms. ----
-  const FW = 1600;
+  // ---- The castle: four floors. Rooms by x range; doors (lock slots) sit between rooms. ----
+  // These are the pre-art numbers (1600 wide). Once WATCH_ART.floors loads (1200 wide, one painted wall each), artSync()
+  // takes room ranges, door x and stair x from the art so the walls and the logic line up.
+  let FW = 1600, BRIDGE_X = 1590, OUTPOST_X = 640;
   const C = {
     towers: { name: 'Towers', rooms: [['watchtower', 120, 460, 'Watchtower'], ['lookout', 460, 790, 'Lookout'], ['captain', 810, 1480, 'Captain\'s room']] },
     upper: { name: 'Upper floor', rooms: [['wardrobe', 120, 790, 'Wardrobe'], ['ledger', 810, 1140, 'Ledger room'], ['bridge-tower', 1140, 1480, 'Bridge tower']] },
@@ -93,12 +95,33 @@
     { id: 'hoist', x: 800, joins: ['towers', 'upper', 'ground', 'cellars'], needs: 'hoist', lift: true }
   ];
   WW.LINKS = LINKS;
+  let synced = false;
+  function artSync() {
+    if (synced) return;
+    const F = typeof window !== 'undefined' && window.WATCH_ART && window.WATCH_ART.floors;
+    if (!F || !F.ground || !F.ground.rooms) return;
+    synced = true;
+    FW = F.ground.width || FW; WW.FLOOR_W = FW;
+    Object.keys(C).forEach(f => {
+      const a = F[f]; if (!a || !a.rooms) return;
+      const names = Object.fromEntries(C[f].rooms.map(r => [r[0], r[3]]));
+      C[f].rooms = a.rooms.map(([id, x0, x1]) => [id, x0, x1, names[id] || id]);
+      C[f].doors = a.doors || {};
+    });
+    const L = F.ground.links || {};
+    LINKS.forEach(l => { if (L[l.id] != null) l.x = L[l.id]; });
+    if (L['bridge-door'] != null) BRIDGE_X = L['bridge-door'];
+    const g = C.ground.rooms.find(r => r[0] === 'gate'); if (g) OUTPOST_X = Math.round((g[1] + g[2]) / 2) + 20;   // in the gate room, clear of the doors
+    const op = T['main-street'].spots.find(v => v.id === 'outpost'); if (op) op.to.x = OUTPOST_X;
+  }
+  WW.artSync = artSync;
 
   // Every scene, by id: town levels by level id, castle floors as castle:<floor>, plus the bridge.
   WW.scene = function (id) {
+    artSync();
     if (T[id]) return { id, kind: 'town', name: T[id].name, from: T[id].from, to: T[id].to, spots: T[id].spots };
     if (id === 'bridge') return { id, kind: 'bridge', name: 'The bridge', from: 40, to: 900, spots: [
-      { id: 'bridge-door', x: 40, kind: 'travel', label: 'Back to the bridge tower', to: { scene: 'castle:upper', x: 1560 }, dir: 'use' },
+      { id: 'bridge-door', x: 40, kind: 'travel', label: 'Back to the bridge tower', to: { scene: 'castle:upper', x: BRIDGE_X - 30 }, dir: 'use' },
       { id: 'neighbour-door', x: 880, kind: 'fix', fix: 'door', label: 'The neighbour\'s door (their account: you can\'t go in)' }
     ] };
     const m = /^castle:(\w+)$/.exec(id);
@@ -107,16 +130,17 @@
       LINKS.forEach(l => { if (l.joins.includes(f)) spots.push({ id: l.id, x: l.x, kind: l.lift ? 'lift' : 'stair', label: l.lift ? 'Supply hoist' : 'Stairs', link: l, needs: l.needs }); });
       C[f].rooms.forEach(([rid, a, b, name], i) => {
         spots.push({ id: 'room-' + rid, x: (a + b) / 2, kind: 'room', room: rid, label: name });
-        if (i > 0) spots.push({ id: 'door-' + rid, x: a, kind: 'door', room: rid, label: name + ' door' });
+        if (i > 0) spots.push({ id: 'door-' + rid, x: (C[f].doors || {})[rid] != null ? C[f].doors[rid] : a, kind: 'door', room: rid, label: name + ' door' });
       });
-      if (f === 'upper') spots.push({ id: 'bridge-exit', x: 1590, kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });
-      if (f === 'ground') spots.push({ id: 'outpost-back', x: 640, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1300 }, dir: 'use', dawn: true, needs: 'outpost' });
+      if (f === 'upper') spots.push({ id: 'bridge-exit', x: BRIDGE_X, kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });
+      if (f === 'ground') spots.push({ id: 'outpost-back', x: OUTPOST_X, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1300 }, dir: 'use', dawn: true, needs: 'outpost' });
       if (f === 'ground') spots.push({ id: 'castle-exit', x: 40, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
       return { id, kind: 'castle', floor: f, name: C[f].name, from: 30, to: FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
     }
     return null;
   };
   WW.roomAt = function (floor, x) {
+    artSync();
     const r = C[floor] && C[floor].rooms.find(([, a, b]) => x >= a && x <= b);
     return r ? r[0] : null;
   };
