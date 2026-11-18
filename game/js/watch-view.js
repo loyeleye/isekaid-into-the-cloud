@@ -255,7 +255,11 @@
     function follower() {
       if (!o.follow) return (fol = null);
       if (!fol || fol.who !== o.follow) fol = { who: o.follow, scene: st.scene, x: st.x - 60, d: 0, moving: false, facing: 1 };
-      if (ramp) { fol.ramp = Math.max(0, ramp.d - 55); fol.moving = true; fol.d += WW.SPEED * dt0 * 0.8; return fol; }
+      if (ramp) {   // on a ramp she faces the way the path runs at her spot, not the way she last walked
+        fol.ramp = Math.max(0, ramp.d - 55); fol.moving = true; fol.d += WW.SPEED * dt0 * 0.8;
+        const a = pathAt(ramp.path, Math.max(0, fol.ramp - 2)), b = pathAt(ramp.path, fol.ramp + 2); if (b[0] !== a[0]) fol.facing = Math.sign(b[0] - a[0]);
+        return fol;
+      }
       fol.ramp = null;
       if (fol.scene !== st.scene) { fol.scene = st.scene; fol.x = st.x - st.facing * 58; }
       const dx = st.x - st.facing * 58 - fol.x;
@@ -326,8 +330,15 @@
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
       sky(c, phase, 'town', true);
       const SX = x => x - camX, SY = y => y - camY;
-      const levels = WW.LEVELS.filter(l => SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
-      if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (p) c.drawImage(p, -camX * l.speed, -camY * l.speed); });
+      const lvI = WW.LEVELS.indexOf(st.scene);
+      const levels = WW.LEVELS.filter((l, i) => i >= lvI - 1 && SY(Y[l]) > -60 && SY(Y[l]) - 260 < VH);
+      // Only your road and the one above it are drawn; higher terraces drop away so the backdrop and sky show
+      // (Ladi, Nov 18). `top` is where the level above's rooftops end.
+      const li = WW.LEVELS.indexOf(ramp ? (ramp.key === 'up' ? ramp.to.scene : st.scene) : st.scene), above = WW.LEVELS[Math.max(0, li - 1)];
+      const top = SY(Y[above]) - (T.roofs || 240);
+      if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
+        if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, VW, VH - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
+        else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
       else {
         farLayer(c, { kind: 'town', id: 'west-road' }, camX);
         WW.LEVELS.forEach(l => {   // each road and the hillside face below it, down to the next road

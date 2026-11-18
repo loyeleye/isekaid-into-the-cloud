@@ -69,6 +69,7 @@
   WW.ALIAS = { 'kagemaru-stall': 'stall', 'cafe-back-door': 'cafe', 'key-cabinet': 'lock-shop', 'library-archive': 'library',
     'post-counter': 'post-office', harbourmaster: 'dock', 'first-fork': 'fork-main-up', 'castle-gate': 'pell-gate' };
   WW.spot = function (level, id) {
+    artSync();
     const real = WW.ALIAS[id] || id, lv = level ? [level] : Object.keys(T);
     for (const l of lv) { const s = T[l] && T[l].spots.find(v => v.id === real); if (s) return Object.assign({ level: l }, s); }
     return null;
@@ -97,7 +98,25 @@
   ];
   WW.LINKS = LINKS;
   let synced = false;
+  // Town forks follow the painted ramps (WATCH_ART.town.ramps, lower end first), so the art can move a climb and the
+  // fork spots on both roads move with it.
+  let rampsSynced = false;
+  function rampSync() {
+    const R = typeof window !== 'undefined' && window.WATCH_ART && window.WATCH_ART.town && window.WATCH_ART.town.ramps;
+    if (rampsSynced || !R) return;
+    rampsSynced = true;
+    R.forEach(r => {
+      const [lo, lx] = r.from, [hi, hx] = r.to;
+      const up = T[lo] && T[lo].spots.find(v => v.kind === 'fork' && v.to.scene === hi && !v.moved);
+      const dn = T[hi] && T[hi].spots.find(v => v.kind === 'fork' && v.to.scene === lo && !v.moved);
+      if (up) { up.x = lx; up.to.x = hx; up.moved = 1; }
+      if (dn) { dn.x = hx; dn.to.x = lx; dn.moved = 1; }
+    });
+    Object.values(T).forEach(t => t.spots.sort((p, q) => p.x - q.x));
+  }
+  WW.rampSync = rampSync;
   function artSync() {
+    rampSync();
     if (synced) return;
     const F = typeof window !== 'undefined' && window.WATCH_ART && window.WATCH_ART.floors;
     if (!F || !F.ground || !F.ground.rooms) return;
