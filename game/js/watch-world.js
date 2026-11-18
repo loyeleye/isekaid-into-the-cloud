@@ -48,6 +48,7 @@
       { id: 'fork-main-up', x: 760, kind: 'fork', label: 'Up to Hill Road', to: { scene: 'hill-road', x: 1200 }, dir: 'up', who: 'tess' },
       { id: 'forge', x: 1120, kind: 'place', label: 'Forge' },
       { id: 'bakery', x: 1440, kind: 'place', label: 'Bakery' },
+      { id: 'outpost', x: 1300, kind: 'gate', label: 'Watch outpost (a door to the castle)', to: { scene: 'castle:ground', x: 640 }, dir: 'use', needs: 'outpost' },
       { id: 'fork-main-down', x: 1680, kind: 'fork', label: 'Down to the Far Lane', to: { scene: 'far-lane', x: 2000 }, dir: 'down' },
       { id: 'cafe', x: 2000, kind: 'fix', fix: 'door', label: 'Cache Café', who: 'wen' },
       { id: 'stall', x: 2400, kind: 'fix', fix: 'badge-desk', label: 'Kagemaru\'s stall', who: 'kagemaru' },
@@ -109,6 +110,7 @@
         if (i > 0) spots.push({ id: 'door-' + rid, x: a, kind: 'door', room: rid, label: name + ' door' });
       });
       if (f === 'upper') spots.push({ id: 'bridge-exit', x: 1590, kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });
+      if (f === 'ground') spots.push({ id: 'outpost-back', x: 640, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1300 }, dir: 'use', dawn: true, needs: 'outpost' });
       if (f === 'ground') spots.push({ id: 'castle-exit', x: 40, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
       return { id, kind: 'castle', floor: f, name: C[f].name, from: 30, to: FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
     }

@@ -196,6 +196,19 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const capW = await ev(() => { const w = SD.watchWalk.sv(); return [w.quests['hobb-last-lock'] && w.quests['hobb-last-lock'].done, w.sealed && w.sealed.cellars]; });
   check(cap === 4 && capW[0] && capW[1] === 'all', `Hobb's capstone at ward 4 seals the cellars for good (${capW})`);
 
+  // The shop.
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 3; w.silver = 100; w.hires = { kagemaru: 2 }; w.unlocks = {}; SD.watchWalk.walk('day'); });
+  await page.waitForTimeout(200);
+  await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
+  await btn('[data-a=s]'); await btn('[data-b=tools]'); await btn('[data-b=outpost]'); await btn('[data-b=post]'); await btn('[data-p="far-lane"]');
+  const sh = await ev(() => { const w = SD.watchWalk.sv(); return [w.silver, w.tools, w.unlocks.outpost, w.posts['far-lane']]; });
+  check(sh[0] === 100 - 10 - 60 - 15 && sh[1] === 1 && sh[2] && sh[3], `the shop sells tools, an outpost and a lantern post (${sh})`);
+  await btn('[data-a=x]');
+  await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150);
+  while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // Pell's dusk lines
+  await tp('main-street', 1300); await use(); await page.waitForTimeout(250);
+  check(await ev(() => SD.watchWalk.run.phase === 'night' && SD.watchWalk.run.st.scene === 'castle:ground'), 'at dusk the outpost door leads into the castle');
+
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
