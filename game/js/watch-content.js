@@ -1099,6 +1099,7 @@
     { id: 'kai-capstone', giver: 'kai', kind: 'capstone', opens: 6, closes: 8, skill: null, needs: { ward: 4 },
       reward: { silver: 50, heart: false, unlock: 'seal-floor', floor: 'upper', permanent: true },
       lines: {
+        duty: ['Upper floor? I\'d love to. But I\'m cooking the harvest feast that night.', 'Get somebody on my line and we\'ll talk.'],
         trust: ['Upper floor? Maybe. Do one more thing for me first.'],
         pay: ['I\'ve worked worse night shifts. Never for free.'],
         yes: ['I\'ve worked worse night shifts for less. Upper floor\'s mine.', 'Anything moves up there, I\'ll tell it exactly what I think of it.'],
@@ -1108,6 +1109,7 @@
     { id: 'dutch-capstone', giver: 'dutch', kind: 'capstone', opens: 6, closes: 8, skill: null, needs: { ward: 4 },
       reward: { silver: 50, heart: false, unlock: 'seal-floor', floor: 'ground', permanent: true },
       lines: {
+        duty: ['Ground floor. Can\'t, kid. I\'m riding down to the feast with the Captain that night.', 'Find me a stand-in first.'],
         trust: ['Ground floor. I\'m thinking about it. Prove me right once more.'],
         pay: ['I walk halls for pay, kid. That\'s the job.'],
         yes: ['Spent half my life walking halls at night with a ring of keys.', 'Ground floor\'s mine. Nobody gets past me twice.'],

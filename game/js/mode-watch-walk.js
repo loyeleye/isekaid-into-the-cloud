@@ -46,7 +46,14 @@
     { id: 'outpost', name: 'Outpost', cost: 60, what: 'a door from Main Street into the castle, kept all game' }];
   const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
   // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
-  const ward = who => { const w = sv(); return Math.min(2, (w.hires || {})[who] || 0) + (w.hearts[who] ? 1 : 0) + (B.trust(w.bonds, who) >= 60 ? 1 : 0); };
+  // Her party (Ladi, Nov 18) already trusts her and wouldn't take her silver. What stops them is the harvest-moon
+  // feast on the ninth night: each has a job there. Find someone they trust to cover it (their 'duty' quest) for 2
+  // levels; their two quests are the other 2. Until then they're at 0: busy elsewhere.
+  const PARTY = ['mira', 'kai', 'dutch'];
+  const questsDone = who => (sv().helped || {})[who] || 0;   // their quests finished (each one taught them a fix)
+  const ward = who => { const w = sv();
+    if (PARTY.includes(who)) return (w.freed || {})[who] ? 2 + Math.min(2, questsDone(who)) : 0;
+    return Math.min(2, (w.hires || {})[who] || 0) + (w.hearts[who] ? 1 : 0) + (B.trust(w.bonds, who) >= 60 ? 1 : 0); };
   const OLD_ROOM = { tower: 'watchtower', bridge: 'bridge-tower', post: 'post-room', strong: 'strongroom' };
   const FIX_OF = { lock: 'door', key: 'badge-desk' };
 
@@ -290,20 +297,24 @@
       return sayAll([[who, pq[who][0]]], () => setTimeout(() => talk(who, 1), 90));
     }
     gain(who, () => B.chat(b, who));
-    // A quest step at this person?
+    // A quest step at this person? Errands you're already on come before anything new they'd ask of you.
+    const doing = quests().find(q => { const s = qstate(q.id), st = s.step >= 0 && !s.done && q.steps[s.step]; return st && st.at && st.at.who === who; });
+    if (doing) { step(doing); return; }
     for (const q of quests()) {
       const s = qstate(q.id);
       if (s.done) continue;
       if (s.step < 0) {
         if (q.giver === who && openOn(q, day) && q.kind === 'capstone') {   // needs ward level 4: both hires and trust
           const paid = Math.min(2, (w.hires || {})[who] || 0), trustLv = ward(who) - paid, L = q.lines || {};
-          const set = trustLv < 2 ? L.trust : paid < 2 ? L.pay : L.yes;
-          sayAll((set || ['Not yet.']).map(t => [who, t]), () => { if (trustLv >= 2 && paid >= 2) finish(q); });
+          const party = PARTY.includes(who), lv = ward(who), set = party ? (!(w.freed || {})[who] ? L.duty : lv < 4 ? L.trust : L.yes)
+            : trustLv < 2 ? L.trust : paid < 2 ? L.pay : L.yes;
+          sayAll((set || ['Not yet.']).map(t => [who, t]), () => { if (party ? lv >= 4 : trustLv >= 2 && paid >= 2) finish(q); });
           return;
         }
         if (q.giver === who && openOn(q, day)) {
-          const o = overlay(`${line(who, 'Have you got a minute? I could use the watch\'s help.')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
-            <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">Help · ${q.reward.silver} silver</button></div>`);
+          const ask = (q.lines && q.lines.offer) || ['Have you got a minute? I could use the watch\'s help.'];
+          const o = overlay(`${ask.map(t => line(who, t)).join('')}${q.reward.unlock ? line(who, 'Do this and I\'ll show you a shortcut nobody else uses.') : ''}
+            <div class="row"><button class="ghost" data-a="no">Not now</button><button class="primary" data-a="yes">${q.reward.silver ? `Help · ${q.reward.silver} silver` : 'I\'ll find someone'}</button></div>`);
           o.querySelector('[data-a=no]').onclick = close;
           o.querySelector('[data-a=yes]').onclick = () => { s.step = 0; close(); setTimeout(() => step(q), 90); };
           return;
@@ -337,9 +348,9 @@
     const shopOpen = who === 'kagemaru' && day >= 2;
     if ((WATCHERS[who] && day >= HIRE_DAY || shopOpen) && run && run.phase === 'day' && day <= 9) {
       const paid = (w.hires = w.hires || {})[who] || 0, cost = HIRE[paid], area = WW.scene(WATCHERS[who]).name;
-      const hiring = WATCHERS[who] && day >= HIRE_DAY, lv = ward(who);
+      const hiring = WATCHERS[who] && day >= HIRE_DAY, lv = ward(who), friend = PARTY.includes(who);
       const o = overlay(`${line(who, said0 || everyday(who, day))}${hiring ? line(who, wardLine(who, area, lv, Math.min(2, paid))) : ''}
-        <div class="row"><button class="ghost" data-a="x">Bye</button>${lessonBtn(who)}${shopOpen ? '<button class="ghost" data-a="s">Shop</button>' : ''}${hiring && cost ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
+        <div class="row"><button class="ghost" data-a="x">Bye</button>${lessonBtn(who)}${shopOpen ? '<button class="ghost" data-a="s">Shop</button>' : ''}${hiring && cost && !friend ? `<button class="primary" data-a="h" ${w.silver < cost ? 'disabled' : ''}>Hire · ${cost} silver</button>` : ''}</div>`);
       o.querySelector('[data-a=x]').onclick = close;
       const sb = o.querySelector('[data-a=s]'); if (sb) sb.onclick = shop;
       const lb = o.querySelector('[data-a=l]'); if (lb) lb.onclick = () => { close(); setTimeout(() => lesson(who), 90); };
@@ -531,6 +542,12 @@
   }
   // What a watcher says about the ninth night, in their own words, instead of a ward-level readout (Ladi: keep tips as gossip).
   function wardLine(who, area, lv, paid) {
+    if (PARTY.includes(who)) {   // friends: no silver. What's in the way is the feast, then how much they know of the castle.
+      if (!(sv().freed || {})[who]) return `I'd watch the ${area} for you in a heartbeat. But I've a job at the harvest feast that night. Find someone to take it and I'm yours.`;
+      return [, , `The ${area} on the ninth night is mine. I'll mark every break-in for you. Help me with what's bothering me and I'll do more.`,
+        `I'll fix a break-in in the ${area} myself before you get there. One more thing sorted and I'll take it all.`,
+        `The ${area} on the ninth night? Leave it to me. All of it.`][lv];
+    }
     const say = [`On the ninth night? I could keep an eye on the ${area}, I suppose. Can't promise much. I hardly know you.`,
       `On the ninth night I'd watch the ${area} and tell you how many got in. That's about all.`,
       `On the ninth night I'd mark every break-in round the ${area} for you.`,
@@ -601,6 +618,8 @@
     s.done = true;
     w.silver += r.silver || 0;
     if (r.heart) w.hearts[q.giver] = 1;
+    if (r.heart) (w.helped = w.helped || {})[q.giver] = ((w.helped || {})[q.giver] || 0) + 1;
+    if (r.free) (w.freed = w.freed || {})[q.giver] = 1;   // a cover found for their feast job
     if (r.unlock === 'seal-floor' && r.floor) (w.sealed = w.sealed || {})[r.floor] = r.permanent ? 'all' : w.day;   // no breaches there
     else if (r.unlock) { w.unlocks[r.unlock] = 1; if (run) run.st.unlocks[r.unlock] = 1; }
     gain(q.giver, () => B.add(w.bonds, q.giver, q.kind === 'small' ? 'small' : 'trust'));
@@ -913,7 +932,7 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, ward, WATCHERS, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+  SD.watchWalk = { sv, breaches, ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
     clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');

@@ -132,10 +132,13 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
     SD.watchWalk.breaches(2).forEach(b => { w.missed[b.id] = 1; });              // missed both night-2 breaches
     w.hires = { dutch: 2, hobb: 2, kagemaru: 1, bru: 2 }; w.hearts = { dutch: 1, kai: 1 };
     SD.watchBonds.add(w.bonds, 'dutch', 60);
+    w.wardNoFree = SD.watchWalk.ward('dutch');   // hires and trust don't count for the party
+    w.freed = { dutch: 1 }; w.helped = { dutch: 2 };
     return SD.watchWalk.breaches(9).map(b => b.scene);
   });
   check(n9.length === 6 && n9.filter(s => s.startsWith('castle')).length === 2 && n9.slice(2).every(s => !s.startsWith('castle')), `the Long Night brings back the missed breaches and adds town ones (${n9.join(', ')})`);
-  check(await ev(() => SD.watchWalk.ward('dutch')) === 4, 'paid 2 + a heart + trust 60 makes ward level 4');
+  check(await ev(() => SD.watchWalk.sv().wardNoFree) === 0, 'Dutch stays at ward 0 until someone covers his feast job, whatever you pay or how much he trusts you');
+  check(await ev(() => SD.watchWalk.ward('dutch')) === 4, 'a covered feast job (2) and both his quests (2) make Dutch ward level 4');
   await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150); await btn('[data-a=n]');
   check(await ev(() => !!SD.watchWalk.sv().retry), 'the Long Night saves a retry point at dusk');
   await tp('west-road', 3280); await use(); await page.waitForTimeout(250); await btn('[data-a=n]');
@@ -335,6 +338,20 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const sh = await ev(() => { const w = SD.watchWalk.sv(); return [w.silver, w.tools, w.unlocks.outpost, w.posts['far-lane']]; });
   check(sh[0] === 100 - 10 - 60 - 15 && sh[1] === 1 && sh[2] && sh[3], `the shop sells tools, an outpost and a lantern post (${sh})`);
   await btn('[data-a=x]');
+  // Her party doesn't take silver: their feast job is what keeps them away (Ladi, Nov 18).
+  await ev(() => { const w = SD.watchWalk.sv(); w.freed = {}; w.quests['kai-night-cloak'] = { step: 99, done: true }; delete w.quests['kai-feast-line']; SD.watchWalk.talk('kai'); });
+  await page.waitForTimeout(150);
+  for (let i = 0; i < 10 && !(await page.$('.ww-o:not([hidden]) [data-a=yes]')); i++) { if (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]'); else break; }
+  const duty = await ev(() => { const o = document.querySelector('.ww-o:not([hidden])'); return { text: o ? o.textContent : '', hire: !!(o && o.querySelector('[data-a=h]')), yes: !!(o && o.querySelector('[data-a=yes]')) }; });
+  check(duty.yes && !duty.hire && /harvest feast/.test(duty.text), `Kai offers his feast job instead of a Hire button (${duty.text.slice(0, 90)})`);
+  await btn('[data-a=yes]');
+  check(await ev(() => SD.watchWalk.sv().quests['kai-feast-line'].step >= 0 && SD.watchWalk.ward('kai') === 0), 'until Wen covers the feast, Kai is at ward 0');
+  for (let i = 0; i < 6 && await page.$('.ww-o:not([hidden]) [data-a=n]'); i++) await btn('[data-a=n]');
+  await ev(() => SD.watchWalk.talk('wen')); await page.waitForTimeout(150);
+  const wen = await ev(() => { const o = document.querySelector('.ww-o:not([hidden])'); return [SD.watchWalk.sv().quests['kai-feast-line'].step, o ? o.textContent : '']; });
+  check(wen[0] === 1 && /Kai|Prove/.test(wen[1]), `Kai sends you to Wen to cover his feast job (${wen[0]}: ${wen[1].slice(0, 60)})`);
+  await ev(() => { const w = SD.watchWalk.sv(); w.quests['kai-feast-line'] = { step: 99, done: true }; w.freed = { kai: 1 }; w.helped = { kai: 1 }; });
+  check(await ev(() => SD.watchWalk.ward('kai')) === 3, 'freed, with one of his quests done, Kai is at ward 3');
   await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150);
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // Pell's dusk lines
   await tp('main-street', 1335); await use(); await page.waitForTimeout(250);
