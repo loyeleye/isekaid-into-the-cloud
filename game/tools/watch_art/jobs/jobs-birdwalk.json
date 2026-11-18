@@ -1,0 +1,290 @@
+[
+ {
+  "out": "anim/crow-w1.png",
+  "ref": "anim/crow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 404,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/crow-w2.png",
+  "ref": "anim/crow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 414,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/crow-w3.png",
+  "ref": "anim/crow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 424,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/crow-w4.png",
+  "ref": "anim/crow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 434,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/pigeon-w1.png",
+  "ref": "anim/pigeon-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 406,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/pigeon-w2.png",
+  "ref": "anim/pigeon-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 416,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/pigeon-w3.png",
+  "ref": "anim/pigeon-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 426,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/pigeon-w4.png",
+  "ref": "anim/pigeon-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 436,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/chicken-w1.png",
+  "ref": "anim/chicken-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 407,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/chicken-w2.png",
+  "ref": "anim/chicken-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 417,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/chicken-w3.png",
+  "ref": "anim/chicken-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 427,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/chicken-w4.png",
+  "ref": "anim/chicken-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 437,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/duck-w1.png",
+  "ref": "anim/duck-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 404,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/duck-w2.png",
+  "ref": "anim/duck-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 414,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/duck-w3.png",
+  "ref": "anim/duck-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 424,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/duck-w4.png",
+  "ref": "anim/duck-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 434,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/heron-w1.png",
+  "ref": "anim/heron-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 405,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/heron-w2.png",
+  "ref": "anim/heron-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 415,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/heron-w3.png",
+  "ref": "anim/heron-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 425,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/heron-w4.png",
+  "ref": "anim/heron-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 435,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/dove-w1.png",
+  "ref": "anim/dove-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 404,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/dove-w2.png",
+  "ref": "anim/dove-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 414,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/dove-w3.png",
+  "ref": "anim/dove-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 424,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/dove-w4.png",
+  "ref": "anim/dove-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 434,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/owl-w1.png",
+  "ref": "anim/owl-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 403,
+  "prompt": "Change only the legs and head: walking to the right, its far leg planted under the body and its near leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/owl-w2.png",
+  "ref": "anim/owl-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 413,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the near foot planted in front and the far foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/owl-w3.png",
+  "ref": "anim/owl-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 423,
+  "prompt": "Change only the legs and head: walking to the right, its near leg planted under the body and its far leg lifted and swinging forward with the foot just off the ground, head pushed forward. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/owl-w4.png",
+  "ref": "anim/owl-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 433,
+  "prompt": "Change only the legs and head: walking to the right, both feet on the ground in a long stride, the far foot planted in front and the near foot behind, head pulled back. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/sparrow-w1.png",
+  "ref": "anim/sparrow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 407,
+  "prompt": "Change only the pose: crouched low on both feet, about to hop to the right, body tilted forward, wings tucked. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/sparrow-w2.png",
+  "ref": "anim/sparrow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 417,
+  "prompt": "Change only the pose: springing up off the ground to the right, legs stretched down behind, toes just leaving the ground, wings tucked. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/sparrow-w3.png",
+  "ref": "anim/sparrow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 427,
+  "prompt": "Change only the pose: in the middle of a small hop to the right, both feet tucked up a little above the ground, wings tucked. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ },
+ {
+  "out": "anim/sparrow-w4.png",
+  "ref": "anim/sparrow-idle.png",
+  "w": 1024,
+  "h": 1024,
+  "seed": 437,
+  "prompt": "Change only the pose: landing from a hop to the right, both legs reaching forward and down to touch the ground, wings slightly lifted for balance. Keep this exact bird, colours, pixel-art style, size and strict side profile facing right, only one bird, plain white background, small soft grey shadow under the feet, light from the upper left.",
+  "model": "krea2_identity_edit_v1_2"
+ }
+]
