@@ -32,7 +32,9 @@
   const esc = s => U.esc(String(s == null ? '' : s));
   const content = () => window.WATCH_CONTENT || {};
   const PAY = { base: 20, fix: 10, miss: -10, review: 10, each: 3 };
-  const DAY_S = 600, nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
+  // Days are 6 minutes from day 2 (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
+  // job takes about 130% of an average day. Day 1 keeps 10 minutes for Mira's walk and the lessons.
+  const DAY_1 = 600, DAY_S = 360, JOB_S = 60, dayLen = d => (d === 1 ? DAY_1 : DAY_S), nightS = n => (n === 9 ? 900 : n >= 5 ? 600 : 480);
   const NAME = Object.assign({ seoyeon: 'Seo-yeon', kevin: 'Hooded Stranger', captain: 'The Captain' }, (W && W.WHO) || {});
   const nm = who => NAME[who] || who.charAt(0).toUpperCase() + who.slice(1);
   const PEOPLE = ['mira', 'coo', 'bru', 'kagemaru', 'lexi', 'kai', 'dutch', 'hobb', 'pell', 'wen', 'ayo', 'aigerim', 'doug', 'tess', 'hollis', 'odu', 'fennel', 'seymour', 'captain'];
@@ -52,8 +54,10 @@
   const qGrace = () => { const n = sv().watchUp || 0; return QBUF + (n >= 1 ? QUP[0] : 0) + (n >= 2 ? QUP[1] : 0); };
   const kageDone = () => quests().some(q => q.giver === 'kagemaru' && qstate(q.id).done);
   const qOpen = () => { const w = sv(); if (run && run.phase !== 'dusk' && w.day >= 2 && !run.q) { run.q = { left: qGrace(), of: qGrace(), first: !w.toldQ }; w.toldQ = 1; } };
-  const qShut = () => { if (run) run.q = null; };
-  const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Kagemaru sells pocket watches for longer.</p>` : ''}` : '';
+  // A finished question (right or wrong) takes a minute of the day: the work itself, apart from the thinking time.
+  const qShut = () => { if (!run || !run.q) return; run.q = null;
+    if (run.phase === 'day' && sv().day >= 2) { clock = Math.max(0, clock - JOB_S); toast('⏳ −1:00 on the day clock for that job.'); } };
+  const qLine = () => run && run.q ? `<div class="ww-qbar" aria-hidden="true"><i></i></div><p class="ww-qt" role="timer"></p>${run.q.first ? `<p class="ww-meta">From today, every question gives you ${Math.floor(qGrace() / 60)}:${String(qGrace() % 60).padStart(2, '0')} to think. After that it uses your clock. Each job you finish in the day also takes a minute. Kagemaru sells pocket watches for longer thinking.</p>` : ''}` : '';
   const watcherOf = scene => Object.keys(WATCHERS).find(k => WATCHERS[k] === scene) || null;
   // Ward level 0-4: up to 2 paid, up to 2 from trust (their quest's heart, and trust in you of 60 or more).
   // Her party (Ladi, Nov 18) already trusts her and wouldn't take her silver. What stops them is the harvest-moon
@@ -519,7 +523,7 @@
     o.querySelector('[data-a=x]').onclick = close;
   }
   // Walkers: everyone with a day plan moves through the day (js/watch-schedule.js).
-  const dayT = () => (run && run.escort ? 0 : Math.max(0, Math.min(1, 1 - clock / DAY_S)));
+  const dayT = () => (run && run.escort ? 0 : Math.max(0, Math.min(1, 1 - clock / dayLen(sv().day))));
   function moveWalkers(dt, snap) {
     const w = sv(), wx = WW.weather(w.day, 'day'), sch = content().schedule || {}, t = dayT();
     run.walkers.forEach(v => {
@@ -746,7 +750,7 @@
         else if (lv >= 3 && mine[0]) run.fixed[mine[0].id] = 'ward';
       });
     }
-    clock = phase === 'night' ? nightS(w.day) : phase === 'day' ? DAY_S : 0;
+    clock = phase === 'night' ? nightS(w.day) : phase === 'day' ? dayLen(w.day) : 0;
     if (at && at.left != null) clock = Math.max(0, Math.min(clock, at.left));
     run.list.forEach(x => { if (w.fixed[x.id] && !run.fixed[x.id]) run.fixed[x.id] = 1; });   // tonight's fixes so far
     w.at = { day: w.day, phase, left: clock, tut: run.tut, locked: run.locked, scene: st.scene, x: Math.round(st.x) };

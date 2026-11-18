@@ -261,20 +261,20 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 2; w.bonds.day = 2; w.at = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   await clear();
   check(await ev(() => ['aigerim', 'chad'].every(p => SD.watchWalk.run.walkers.some(v => v.who === p))), 'Aigerim and Chad are out in town now');
-  await ev(() => SD.watchWalk.clock(300)); await page.waitForTimeout(2500);
+  await ev(() => SD.watchWalk.clock(180)); await page.waitForTimeout(2500);
   const tess = await ev(() => { const v = SD.watchWalk.run.walkers.find(x => x.who === 'tess'); return [v.scene, !!v.ramp, Math.round(v.x)]; });
   check(tess[1] || tess[0] === 'hill-road', `at midday Tess heads up to the post office by the ramp (${tess})`);
   await ev(() => SD.watchWalk.snapTown());
   check(await ev(() => { const v = SD.watchWalk.run.walkers.find(x => x.who === 'tess'); return v.scene === 'hill-road' && Math.abs(v.x - 1414) < 3; }), 'and arrives on Hill Road');
   // Talking: an everyday line instead of "evening soon", and a lesson button.
-  await ev(() => { SD.watchWalk.clock(590); SD.watchWalk.snapTown(); });
+  await ev(() => { SD.watchWalk.clock(354); SD.watchWalk.snapTown(); });
   await tp('far-lane', 2554); await use(); await page.waitForTimeout(150);
   const odu = await card();
   check(!/Evening soon/.test(odu) && /💡/.test(odu), 'Odu says something of his own and offers a lesson: ' + odu.slice(0, 60));
   await btn('[data-a=l]'); check(await ev(() => document.querySelectorAll('.ww-o:not([hidden]) .ww-tile').length) >= 2, 'his lesson plays');
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
   // Overheard: Kai and Wen at the café around midday.
-  await ev(() => { SD.watchWalk.clock(360); SD.watchWalk.snapTown(); });
+  await ev(() => { SD.watchWalk.clock(216); SD.watchWalk.snapTown(); });
   await tp('main-street', 2000); await page.waitForTimeout(500);
   check(/overhears/.test(await card()), 'walking past two friends, you overhear them: ' + (await card()).slice(0, 50));
   await clear();
@@ -350,7 +350,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(qc[0] < 299.5 && qc[0] > 297 && /clock is running/.test(qc[1]), `after the grace, the open question eats the day clock (${qc})`);
   await btn('[data-i="0"]'); await btn('[data-a=d]');
   const qe = await ev(() => { const c = SD.watchWalk.clock(); return [SD.watchWalk.run.q, c]; }); await page.waitForTimeout(300);
-  check(qe[0] === null, 'answering stops the question timer');
+  check(qe[0] === null && qe[1] < qc[0] - 59 && qe[1] > qc[0] - 62, `answering stops the question timer and the job takes a minute of the day (${qc[0]} -> ${qe[1]})`);
   await ev(() => { const w = SD.watchWalk.sv(); w.silver = 100; delete w.quests['kagemaru-upriver']; delete w.quests['kagemaru-prices']; });
   await tp('main-street', 2400 + 34); await use(); await page.waitForTimeout(150);
   while (!(await page.$('.ww-o:not([hidden]) [data-a=s]')) && await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
