@@ -108,7 +108,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await shot('dawn');
 
   // Stairs and the back stair at night.
-  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: 1040 }));
+  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: SD.watchWorld.LINKS.find(l => l.id === 'back-stair').x }));
   await page.waitForTimeout(150);
   await ev(() => document.querySelector('.ww-o:not([hidden]) button') && document.querySelector('.ww-o:not([hidden]) button').click());
   await ev(() => SD.watchWalk.view.press('up')); await page.waitForTimeout(100);
@@ -135,7 +135,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await tp('west-road', 3280); await use(); await page.waitForTimeout(250); await btn('[data-a=n]');
   const r9 = await ev(() => { const r = SD.watchWalk.run; return { ground: r.ward['castle:ground'], wardFixed: Object.values(r.fixed).filter(v => v === 'ward').length }; });
   check(r9.ground === 4 && r9.wardFixed >= 2, `Dutch at level 4 clears the ground floor before you arrive (${JSON.stringify(r9)})`);
-  await tp('castle:ground', 40); await use(); await page.waitForTimeout(150);
+  await tp('castle:ground', await ev(() => SD.watchWorld.scene('castle:ground').spots.find(v => v.id === 'castle-exit').x)); await use(); await page.waitForTimeout(150);
   check(await ev(() => SD.watchWalk.run.st.scene === 'west-road'), 'on the Long Night the castle gate leads back to town');
   await shot('long-night');
   await ev(() => SD.watchWalk.dawn()); await page.waitForSelector('.ww-end');

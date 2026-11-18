@@ -77,7 +77,8 @@
   // ---- The castle: four floors. Rooms by x range; doors (lock slots) sit between rooms. ----
   // These are the pre-art numbers (1600 wide). Once WATCH_ART.floors loads (1200 wide, one painted wall each), artSync()
   // takes room ranges, door x and stair x from the art so the walls and the logic line up.
-  let FW = 1600, BRIDGE_X = 1590, OUTPOST_X = 640;
+  let FW = 1600, BRIDGE_X = 1590, OUTPOST_X = 640, EXIT_X = 40;
+  WW.ENTRY_X = 160;   // where you stand on the ground floor after coming in through the main gate
   const C = {
     towers: { name: 'Towers', rooms: [['watchtower', 120, 460, 'Watchtower'], ['lookout', 460, 790, 'Lookout'], ['captain', 810, 1480, 'Captain\'s room']] },
     upper: { name: 'Upper floor', rooms: [['wardrobe', 120, 790, 'Wardrobe'], ['ledger', 810, 1140, 'Ledger room'], ['bridge-tower', 1140, 1480, 'Bridge tower']] },
@@ -111,7 +112,9 @@
     const L = F.ground.links || {};
     LINKS.forEach(l => { if (L[l.id] != null) l.x = L[l.id]; });
     if (L['bridge-door'] != null) BRIDGE_X = L['bridge-door'];
-    const g = C.ground.rooms.find(r => r[0] === 'gate'); if (g) OUTPOST_X = Math.round((g[1] + g[2]) / 2) + 20;   // in the gate room, clear of the doors
+    const g = C.ground.rooms.find(r => r[0] === 'gate');
+    if (g) { EXIT_X = g[1] + 50; WW.ENTRY_X = g[1] + 100; T['west-road'].spots.find(v => v.id === 'pell-gate').to.x = WW.ENTRY_X; }   // the main gate is in the gate room, clear of the hoist shaft
+    if (g) OUTPOST_X = Math.round((g[1] + g[2]) / 2) + 20;   // in the gate room, clear of the doors
     const op = T['main-street'].spots.find(v => v.id === 'outpost'); if (op) op.to.x = OUTPOST_X;
   }
   WW.artSync = artSync;
@@ -134,7 +137,7 @@
       });
       if (f === 'upper') spots.push({ id: 'bridge-exit', x: BRIDGE_X, kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });
       if (f === 'ground') spots.push({ id: 'outpost-back', x: OUTPOST_X, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1300 }, dir: 'use', dawn: true, needs: 'outpost' });
-      if (f === 'ground') spots.push({ id: 'castle-exit', x: 40, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
+      if (f === 'ground') spots.push({ id: 'castle-exit', x: EXIT_X, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
       return { id, kind: 'castle', floor: f, name: C[f].name, from: 30, to: FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
     }
     return null;

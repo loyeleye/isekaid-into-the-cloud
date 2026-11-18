@@ -147,7 +147,7 @@
       }));
     } else {
       put('castle:towers', 'captain', 1150);
-      if (day === 1) put('castle:ground', 'pell', 230);
+      if (day === 1) { WW.artSync(); put('castle:ground', 'pell', WW.ENTRY_X + 70); }
     }
     return out;
   }
@@ -424,7 +424,7 @@
     if (view) view.stop();
     busy = false;   // a new screen replaces any open talk
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
-      x: opts.x != null ? opts.x : phase === 'night' ? 160 : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
+      x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
     run.escort = phase === 'day' && w.day === 1 && !!(content().tutorial || []).length;   // Mira walks you in on day 1 (Ladi, Nov 18)
     if (phase === 'night' && w.day === 9) {   // ward levels act before you arrive (doc: Ward level)
