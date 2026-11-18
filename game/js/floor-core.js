@@ -15,7 +15,7 @@
   F.CAP = 3; F.HAND = 5; F.BUDGET = 100; F.GUARD = 3;
 
   // ---- Spills: what each event costs the error budget ----
-  F.COST = { throttled: 1, gaveUp: 3, unanswered: 3, dupe: 2, order: 2, rejected: 1, fail: 1, leak: 4, lost: 2, parked: 1 };
+  F.COST = { throttled: 1, gaveUp: 3, unanswered: 3, dupe: 2, order: 2, rejected: 1, fail: 1, leak: 4, lost: 2, parked: 1, hot: 1, scanned: 2 };
 
   // ---- Cards. kind: 'piece' stays on the floor for the claim; 'act' is used up. needs: 'queue' = only with a queue.
   // q: the bank pattern its debrief question is picked by. Every rule is in js/aws-sim.js with its AWS docs link.
@@ -72,13 +72,27 @@
       text: 'Nail a Deny to the door. Even a ticket carrying Allow * is turned back.',
       back: 'IAM: an explicit deny overrides any allow.',
       q: /explicit deny|"Effect": ?"Deny"|\bDeny\b/i },
+    // The Development cut (Ladi, Nov 18): the door is API Gateway and Kai's ledger is DynamoDB. These replace the two
+    // IAM pieces (Least Privilege, Explicit Deny), which stay defined only so an older save's deck still loads.
+    cache: { name: 'Door Cache', who: 'Seo-yeon', kind: 'piece', cost: 1, icon: 'files', slot: 'door',
+      text: 'The door keeps a copy of each answer for a while. The same question again gets the copy, and no desk is asked.',
+      back: 'API Gateway caching, set per stage: a GET response is cached for its TTL (default 300 seconds, up to 3,600), and the same request is answered from the cache without calling the backend.',
+      q: /API Gateway|cache key|cach(e|ing)/i },
+    gsi: { name: 'Index Card', who: 'Kai', kind: 'piece', cost: 1, icon: 'bookshelf',
+      text: 'Kai files a second index by status. A lookup by status goes straight to its shelf instead of reading every page.',
+      back: 'A DynamoDB global secondary index has its own partition key, so a lookup on that attribute is a Query, not a Scan that reads every item. GSI reads are eventually consistent.',
+      q: /secondary index|\bGSI\b|\bLSI\b|\bScan\b|\bQuery\b|partition key|sort key/i },
+    shard: { name: 'Spread the Keys', who: 'Kai', kind: 'piece', cost: 1, icon: 'split-arrows',
+      text: 'Add a suffix to the busy key, so its writes land on different shelves instead of piling onto one.',
+      back: 'DynamoDB write sharding: a random or calculated suffix on a low-cardinality partition key spreads its writes across partitions. Each partition takes up to 1,000 WCU.',
+      q: /partition key|hot (partition|key)|write shard|high[- ]cardinality|ProvisionedThroughputExceeded/i },
     redrive: { name: 'Redrive', who: 'Mira', kind: 'act', cost: 1, icon: 'return-arrow', needs: 'bin',
       text: 'Fix the clerk, then send the bin\'s tickets back to the rack. They\'re handled this time.',
       back: 'Messages can be moved out of a dead-letter queue back to their source once the bug is fixed.',
       q: /redrive|dead-letter/i }
   };
   const C = F.CARDS;
-  F.STARTER = ['patch', 'patch', 'guard', 'guard', 'stdq', 'sns', 'condwrite', 'leastpriv', 'backoff', 'dlq'];
+  F.STARTER = ['patch', 'patch', 'guard', 'guard', 'stdq', 'sns', 'condwrite', 'cache', 'backoff', 'dlq'];
   F.cost = e => (e.up && C[e.id].kind === 'piece' ? Math.max(0, C[e.id].cost - 1) : C[e.id].cost);
   F.cardText = e => (e.up && C[e.id].upText ? C[e.id].upText : C[e.id].text) + (e.up && !C[e.id].upText && C[e.id].kind === 'piece' ? ' (Proven: costs 1 less.)' : '');
 
@@ -90,12 +104,12 @@
     rush: { name: 'The Rush', home: 'thornwick', lead: 'Mira', sprite: 'mailstorm', says: 'Everyone at once!',
       desks: [{ id: 'main', name: 'Mira\'s desk', base: 2 }], pool: { total: 6, neighbour: 4 },
       waves: () => [plain('r1-', 8), plain('r2-', 2), plain('r3-', 2)], limit: 7,
-      lesson: ['stdq', 'reserve', 'backoff'], reward: ['reserve', 'partial'],
+      lesson: ['stdq', 'reserve', 'backoff'], reward: ['reserve', 'gsi'],
       cleared: ['mira', 'smile', 'Ten people, two stools, and not one of them bounced. I\'m framing that rack.'] },
     bell: { name: 'The Bell-ringer', home: 'thornwick', lead: 'Mira', sprite: 'mailstorm', says: 'I\'ll wait. Right here.',
       desks: [{ id: 'main', name: 'Mira\'s desk', base: 4 }], pool: { total: 6, neighbour: 4 },
       waves: () => [plain('b1-', 4, { sync: true }), plain('b2-', 4, { sync: true }), plain('b3-', 4, { sync: true }), plain('b4-', 2, { sync: true })], limit: 8,
-      lesson: ['reserve', 'backoff', 'stdq'], reward: ['reserve', 'filter'],
+      lesson: ['reserve', 'backoff', 'stdq'], reward: ['gsi', 'filter'],
       cleared: ['mira', 'warm', 'They wanted answers, not ticket numbers. They got answers.'] },
     poison: { name: 'The Poison Pen', home: 'arcanum', lead: 'Dutch', sprite: 'hotshard', says: 'Read me again. And again.',
       desks: [{ id: 'main', name: 'Dutch\'s desk', base: 2 }], pool: { total: 6, neighbour: 4 },
@@ -122,13 +136,25 @@
         const mix = (w, n) => Array.from({ length: n }, (_, i) => T(`c${w}-${i}`, { tag: i % 2 ? 'peak' : 'thornwick' }));
         return [mix(1, 4), mix(2, 4), mix(3, 4), mix(4, 2)];
       }, limit: 8,
-      lesson: ['sns', 'filter', 'eb'], reward: ['eb', 'deny'],
+      lesson: ['sns', 'filter', 'eb'], reward: ['eb', 'shard'],
       cleared: ['seoyeon', 'neutral', 'Each desk did its own paperwork. As it should. As it always should.'] },
-    alibi: { name: 'Hooded Alibi', home: 'peak', lead: 'Seo-yeon', sprite: 'shadowhero', says: 'I\'m allowed. Probably.',
+    // The Regulars (Nov 18, replacing the Hooded Alibi's IAM lesson): callers waiting at the door, most asking the price
+    // of the same thing again (a cache key), one asking by status (a lookup on a non-key attribute).
+    regulars: { name: 'The Regulars', home: 'peak', lead: 'Seo-yeon', sprite: 'shadowhero', art: 'alibi', says: 'Same as last time, please.',
+      desks: [{ id: 'main', name: 'Seo-yeon\'s desk', base: 2 }], pool: { total: 6, neighbour: 4 },
+      waves: () => {
+        const ask = (w, n) => Array.from({ length: n }, (_, i) => T(`g${w}-${i}`, { sync: true, same: 'price' }));
+        const by = w => T(`g${w}-s`, { sync: true, lookup: true });
+        return [ask(1, 3).concat([by(1)]), ask(2, 4).concat([by(2)]), ask(3, 3).concat([by(3)]), ask(4, 2)];
+      }, limit: 8,
+      lesson: ['cache', 'gsi', 'reserve'], reward: ['shard', 'filter'],
+      cleared: ['seoyeon', 'tired', 'Same question forty times. Forty answers, and the clerks never looked up. That\'s service.'] },
+    // Off the map since Nov 18 (its lesson was Security); kept so a night saved on it still resumes.
+    alibi: { name: 'Hooded Alibi', home: 'peak', lead: 'Seo-yeon', sprite: 'shadowhero', says: 'I\'m allowed. Probably.', legacy: true,
       desks: [{ id: 'main', name: 'Seo-yeon\'s desk', base: 2 }], pool: { total: 6, neighbour: 4 },
       waves: () => [plain('a1-', 2).concat([T('a1-f', { forbidden: true })]), plain('a2-', 1).concat([T('a2-f', { forbidden: true }), T('a2-s', { forbidden: true, badge: true })]),
         plain('a3-', 1).concat([T('a3-s', { forbidden: true, badge: true })]), plain('a4-', 2)], limit: 7,
-      lesson: ['leastpriv', 'deny'], reward: ['deny', 'filter'],
+      lesson: ['leastpriv', 'deny'], reward: ['gsi', 'filter'],
       cleared: ['seoyeon', 'tired', 'Alibi withdrawn. File it under "nobody". Twice.'] },
     hunch: { name: 'The Hunch', home: 'arcanum', lead: 'Dutch', sprite: null, boss: true, says: 'Trust me',
       desks: [{ id: 'mira', name: 'Mira\'s desk', takes: 'thornwick', base: 2 }, { id: 'seo', name: 'Seo-yeon\'s desk', takes: 'peak', base: 2 }], pool: { total: 8, neighbour: 4 },
@@ -136,14 +162,14 @@
         const tg = i => (i % 2 ? 'peak' : 'thornwick');
         const w = (n, k, extra) => Array.from({ length: k }, (_, i) => T(`h${n}-${i}`, Object.assign({ tag: tg(i) }, extra && extra(i))));
         return [w(1, 6), w(2, 3, i => (i === 0 ? { dup: true } : {})).concat([T('h2-x', { tag: 'thornwick', poison: true })]),
-          w(3, 3, i => (i === 1 ? { work: 2 } : {})).concat([T('h3-f', { tag: 'peak', forbidden: true })]),
+          w(3, 3, i => Object.assign({ hotkey: true }, i === 1 ? { work: 2 } : {})),
           w(4, 4, i => (i === 2 ? { dup: true } : {})), w(5, 2)];
       }, limit: 10,
-      lesson: ['sns', 'stdq', 'dlq', 'condwrite', 'leastpriv'], reward: [],
+      lesson: ['sns', 'stdq', 'dlq', 'condwrite', 'shard'], reward: [],
       cleared: ['dutch', 'smile', 'Huh. Smaller than it sounded.'] }
   };
   // The map: one row per claim, then the Hunch. Night 1 is one path (L7); later nights fork in the first three rows.
-  F.ROWS = [['rush', 'bell'], ['poison', 'alibi'], ['double', 'ledger'], ['crowd']];
+  F.ROWS = [['rush', 'bell'], ['poison', 'regulars'], ['double', 'ledger'], ['crowd']];
   F.choices = (night, row) => (night <= 1 ? F.ROWS[row].slice(0, 1) : F.ROWS[row].slice());
 
   // ---- Dutch, the first time each rule shows (TEACH), and the claim lines ----
@@ -160,6 +186,9 @@
     dlq: 'Third failure. Into the bin. It can\'t block the line from there.',
     leak: 'Nobody should have been allowed to do that. Now somebody has.',
     denied: 'Not on the list. Didn\'t get past the door.',
+    cached: 'Same question, same answer. The door handed him the copy, and no clerk lifted a pen.',
+    scanned: 'He asked by status, and the ledger is filed by name. Somebody read every page to find it, and paid for every page.',
+    hot: 'Everybody wrote to the same shelf at once. It takes one at a time. Back of the line.',
     parked: 'Still in the bin. Parked isn\'t done.',
     lost: 'Never got handled. Somebody\'s still waiting.'
   };
@@ -253,6 +282,9 @@
       case 'backoff': w.retry.backoff = true; break;
       case 'leastpriv': w.door.leastPriv = true; break;
       case 'deny': w.door.explicitDeny = true; w.door.leastPriv = true; break;
+      case 'cache': w.cache = { ttl: 5 }; break;
+      case 'gsi': w.gsi = true; break;
+      case 'shard': w.shard = true; break;
       case 'redrive': f.redriven = (f.redriven | 0) + AS.redrive(w, true); break;
     }
     if (c.kind === 'piece') f.pieces.push({ i, id: e.id }); else f.discard.push(i);
@@ -331,6 +363,9 @@
     if (tk.work > 1) a.push(['heavy', 'Heavy: 2 turns of work']);
     if (tk.badge) a.push(['star', 'Carries Allow *']);
     else if (tk.forbidden) a.push(['lock', 'Not allowed']);
+    if (tk.same != null) a.push(['same', 'Asks the same as the others: same cache key']);
+    if (tk.lookup) a.push(['look', 'Asks by status, not by name']);
+    if (tk.hotkey) a.push(['hot', 'Writes to the busy key']);
     if (tk.tag && tk.tag !== 'any') a.push(['tag', tk.tag === 'peak' ? 'From Burning Peak' : 'From Thornwick']);
     return a;
   };

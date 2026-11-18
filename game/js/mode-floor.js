@@ -24,7 +24,7 @@
   const head = (who, mood) => { try { return SD.art && SD.art.portrait ? `<span class="fl-head">${SD.art.portrait(who, 34, mood || 'neutral')}</span>` : ''; } catch (e) { return ''; } };
   const say = (who, mood, line) => `<p class="fl-say" data-vo="${esc(who + '|' + line)}">${head(who, mood)}<span><b>${esc(NAMES[who] || who)}:</b> ${esc(line)}</span></p>`;
   // The claimants, drawn with PixelLab (tools/floor_art.py, assets/img/monsters/floor-<id>.webp).
-  if (SD.art && SD.art.addFoe) Object.keys(F.CLAIMS).forEach(id => { if (!F.CLAIMS[id].boss) SD.art.addFoe('floor-' + id, { col: '#c9a07a', anim: 'float', src: `assets/img/monsters/floor-${id}.webp` }); });
+  if (SD.art && SD.art.addFoe) Object.keys(F.CLAIMS).forEach(id => { if (!F.CLAIMS[id].boss) SD.art.addFoe('floor-' + id, { col: '#c9a07a', anim: 'float', src: `assets/img/monsters/floor-${F.CLAIMS[id].art || id}.webp` }); });
   const foe = id => { try { return F.CLAIMS[id].boss ? (SD.pop && SD.pop.HUNCH_SVG) || '' : SD.art.enemy('floor-' + id); } catch (e) { return ''; } };
   const HOME = { thornwick: 'Thornwick', peak: 'Burning Peak', halcyon: 'Halcyon', arcanum: 'the Arcanum' };
   const panel = html => U.panel(`<div class="fl">${html}</div>`, { title: TITLE, onClose: stopNow, cls: 'fl-win' });
@@ -98,7 +98,8 @@
   const SHORT = { patch: '+1 stool, this turn', guard: 'Catch 3 of the spill', stdq: 'Tickets wait, not bounce', fifo: 'In order, no repeats',
     dlq: '3rd fail drops in the bin', partial: 'Only the bad one returns', condwrite: 'Handled twice costs 0', sns: 'Every desk gets a copy',
     filter: 'Each bell rings its own', eb: 'Route by pattern', reserve: 'Bolt 4 stools per desk', backoff: 'Retry after 1, then 2',
-    leastpriv: 'Only the allowed get in', deny: 'Deny beats Allow *', redrive: 'Bin back to the rack' };
+    leastpriv: 'Only the allowed get in', deny: 'Deny beats Allow *', redrive: 'Bin back to the rack',
+    cache: 'Repeat asks get the copy', gsi: 'Look up by status', shard: 'Busy key, many shelves' };
   function cardHtml(id, o) {
     const c = C[id], kind = c.kind === 'piece' ? 'piece' : 'act';
     const foot = o.why ? `<span class="fl-why">${esc(o.why)}</span>` : o.who ? `<span class="fl-tag">${esc(o.who)}</span>` : `<span class="fl-tag">${kind === 'piece' ? 'Stays' : 'This turn'}</span>`;
@@ -123,7 +124,7 @@
     o = o || {};
     const q = cur() && cur().fight && cur().fight.world.queue;
     const st = F.stamps(tk);
-    const glyph = { bell: icon('ringing-bell'), num: `<b>${esc(tk.group + tk.n)}</b>`, dup: '<b>×2</b>', heavy: icon('hourglass'), star: '<b>✱</b>', lock: icon('padlock'), tag: `<b>${tk.tag === 'peak' ? 'P' : 'T'}</b>` };
+    const glyph = { bell: icon('ringing-bell'), num: `<b>${esc(tk.group + tk.n)}</b>`, dup: '<b>×2</b>', heavy: icon('hourglass'), star: '<b>✱</b>', lock: icon('padlock'), same: icon('files'), look: icon('magnifying-glass'), hot: icon('campfire'), tag: `<b>${tk.tag === 'peak' ? 'P' : 'T'}</b>` };
     const cls = ['fl-tk', tk.tag && tk.tag !== 'any' ? 'tag-' + tk.tag : '', o.hidden ? 'down' : '', o.cls || ''].join(' ');
     const again = !o.hidden && o.recv > 0;
     const label = again ? `Received ${plural(o.recv, 'time')} already${q && q.dlq ? ' (the bin takes a failing ticket at 3)' : ''}` : o.hidden ? `Face down: shows again in ${plural(o.hidden, 'turn')}` : o.back ? `Retries in ${plural(o.back, 'turn')}, attempt ${(tk.attempts | 0) + 1} of 3` : (st.map(x => x[1]).join(', ') || 'A plain ticket');
@@ -146,7 +147,7 @@
     const nc = w.pool ? w.pool.total - Object.keys(stools).reduce((a, k) => a + stools[k] - (w.desks.find(d => d.id === k).extra || 0), 0) : 0;
     const wave = F.wave(s);
     const pieces = f.pieces.map(p => p.id);
-    const door = pieces.filter(id => C[id].slot === 'door').map(id => `<span class="fl-piece">${icon(C[id].icon)}${esc(C[id].name)}</span>`).join('') || '<span class="muted small">Open: no policy on it</span>';
+    const door = pieces.filter(id => C[id].slot === 'door').map(id => `<span class="fl-piece">${icon(C[id].icon)}${esc(C[id].name)}</span>`).join('') || '<span class="muted small">Open: no cache on it</span>';
     const router = pieces.find(id => C[id].slot === 'router');
     const routerHtml = router ? `<span class="fl-piece">${icon(C[router].icon)}${esc(C[router].name)}${router === 'sns' && w.router.filter ? ' + filter policy' : ''}</span>` : `<span class="muted small">None: everything goes to ${esc(w.desks[0].name)}</span>`;
     const rack = q ? `<div class="fl-zone fl-rack">${sprite('ic-live/rack', 'fl-zs')}<div class="fl-zh"><b>${q.fifo ? 'FIFO rack' : 'The rack'}</b>
@@ -157,7 +158,7 @@
     const last = f.lastOut;
     const counts = {};
     (f.last || []).forEach(e => { counts[e.type] = (counts[e.type] | 0) + 1; });
-    const WORD = { done: 'handled', throttled: 'bounced (429)', gaveUp: 'gave up', unanswered: 'left unanswered', dupe: 'handled twice', dupeBlocked: 'second write blocked', deduped: 'copy dropped', order: 'out of order', rejected: 'wrong desk', fail: 'failed', dlq: 'into the bin', leak: 'leaked', denied: 'turned back' };
+    const WORD = { done: 'handled', throttled: 'bounced (429)', gaveUp: 'gave up', unanswered: 'left unanswered', dupe: 'handled twice', dupeBlocked: 'second write blocked', deduped: 'copy dropped', order: 'out of order', rejected: 'wrong desk', fail: 'failed', dlq: 'into the bin', leak: 'leaked', denied: 'turned back', cached: 'answered from the cache', scanned: 'found by a full scan', hot: 'held at a busy shelf' };
     const result = last ? `<div class="fl-result${last.spill ? ' spilt' : ''}" aria-live="polite">${Object.keys(WORD).filter(k => counts[k]).map(k => `<span>${counts[k]} ${WORD[k]}</span>`).join(' · ') || 'Nothing moved.'}
         <b>${last.spill ? `Spilled −${last.spill}` : 'No spill'}${last.caught ? ` · Mop caught ${last.caught}` : ''}</b></div>
         ${last.lines.map(t => say('dutch', 'neutral', F.TEACH[t])).join('')}` : (f.turn === 0 && s.cleared === 0 && s.night === 1 ? say('dutch', 'neutral', 'Tickets come down the chute. The clerks handle them. Play what you want on the floor, then pull the lever.') : '');
@@ -237,8 +238,8 @@
   }
   const POP = { done: ['✓', 'good'], deduped: ['copy dropped', 'good'], dupeBlocked: ['2nd write blocked', 'good'], dlq: ['→ bin', ''],
     throttled: ['429', 'bad'], gaveUp: ['gave up', 'bad'], unanswered: ['no answer', 'bad'], dupe: ['×2 handled', 'bad'], order: ['out of order', 'bad'],
-    rejected: ['wrong desk', 'bad'], fail: ['failed', 'bad'], leak: ['leaked!', 'bad'], denied: ['turned back', ''] };
-  const SFX = { done: 'card', throttled: 'resist', denied: 'resist', gaveUp: 'hurt', leak: 'hurt', fail: 'hurt', dlq: 'thud' };
+    rejected: ['wrong desk', 'bad'], fail: ['failed', 'bad'], leak: ['leaked!', 'bad'], denied: ['turned back', ''], cached: ['from cache', 'good'], scanned: ['full scan', ''], hot: ['busy shelf', 'bad'] };
+  const SFX = { done: 'card', throttled: 'resist', denied: 'resist', cached: 'card', hot: 'resist', gaveUp: 'hurt', leak: 'hurt', fail: 'hurt', dlq: 'thud' };
   function fx(name) { try { if (SD.audio && SD.audio.sfx) SD.audio.sfx(name); } catch (e) { /* no sound */ } }
   function popAt(r, text, cls) {
     if (!r) return;
@@ -283,7 +284,7 @@
       g.style.left = src.left + 'px'; g.style.top = src.top + 'px';
       document.body.appendChild(g); turnNodes.push(g);
       const c = r => [r.left + r.width / 2 - (src.left + src.width / 2), r.top + r.height / 2 - (src.top + src.height / 2)];
-      const desk = e.type === 'denied' ? at('[data-zone="door"]') : deskR(e.desk);
+      const desk = (e.type === 'denied' || e.type === 'cached') ? at('[data-zone="door"]') : deskR(e.desk);
       const [x1, y1] = desk ? c(desk) : [0, 0];
       const k = [{ transform: 'translate(0, 0)' }, { transform: `translate(${x1}px, ${y1}px)`, offset: .55 }];
       let end = desk, fade = 'scale(.5)';
@@ -333,7 +334,7 @@
     }
     const re = C[cardId] && C[cardId].q;
     const text = q => [q.q].concat(q.opts || []).join(' ');
-    const r = M.pick({ match: q => !!re && re.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    const r = M.pickDomain(1, { match: q => !!re && re.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
     const it = r.items[0];
     return it ? { q: E().find(it.q), why: 'card' } : null;
   }

@@ -524,6 +524,7 @@
     if (e.warm && !e.teach) { e.teach = D.teachFor(f, e, s.taught); e.teach.forEach(t => { s.taught[t] = 1; }); keep().taught = s.taught; save(s); if (e.teach.length) draw(s); }
   }
 
+  const SVC_TOPIC = { gate: 'apigateway', queue: 'sqs', fn: 'lambda', store: 'dynamodb' };
   // ---- The debrief: "why did that work?" (or, after an escalation, "what was it?") ----
   function debriefQuestion(s) {
     const k = keep(), d = D.DRILLS[s.drill.drill];
@@ -533,7 +534,13 @@
       if (q && E().allowed(q) && !used.has(q.id)) { k.carry = s.carry.slice(); return q; }
     }
     const text = q => [q.q].concat(q.opts || []).join(' ');
-    const r = M.pick({ match: q => d.q.test(text(q)), n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) });
+    // Troubleshooting questions only (Ladi, Nov 17: one game per exam domain): on the drill's cause, else on the cause
+    // station's service, else (no Domain 4 question on either) the cause's own question from any domain.
+    const o = { n: 1, verifiedOnly: true, mix: 0, avoid: Array.from(used) };
+    const svc = String(d.cause || '').split('+').map(k => SVC_TOPIC[k]).filter(Boolean);
+    let r = M.pick(Object.assign({}, o, { match: q => d.q.test(text(q)) && M.inDomain(q, 4) }));
+    if (!r.items.length && svc.length) r = M.pick(Object.assign({}, o, { match: q => svc.includes(String(q.topic || '').toLowerCase().replace(/[\s_-]+/g, '')) && M.inDomain(q, 4) }));
+    if (!r.items.length) r = M.pick(Object.assign({}, o, { match: q => d.q.test(text(q)) }));
     return r.items[0] ? E().find(r.items[0].q) : null;
   }
   // Type it once (js/type-once.js): after the postmortem, the lead has you write the fix into the runbook, its key
@@ -862,6 +869,7 @@
     }
     /* The living war room (js/drill-room.js): the room is the screen; the station's desk slides up over it. */
     .dr-roomw { position: relative; }
+    .dr-top, .dr-jar { position: relative; z-index: 3; }   /* her cloud (.rm-perch, z-index 2) hangs behind these */
     .dr-hint { flex: 1 1 auto; align-self: center; font-weight: 700; font-size: 14px; opacity: .85; }
     .dr-roomw.zoomed .dr-stamp { display: none; }   /* the verdict stamp stays with the room view, off the lead you pushed in on */
     .dr-tray { position: relative; z-index: 8; margin-top: 8px; animation: drtray .4s cubic-bezier(.2, .8, .2, 1) both; }
@@ -1028,7 +1036,7 @@
     body.dr-pm.in-mode #panel .win.quiz { background: #24382c; border: 12px solid #6b4a2a; border-radius: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .7), inset 0 0 40px rgba(0, 0, 0, .45); }
     body.dr-pm.in-mode #panel .win.quiz .win-b { background: transparent; color: #f2f2e6; }
     body.dr-pm.in-mode #panel .win.quiz .win-h { background: transparent; color: #f2f2e6; border-bottom: 2px dashed rgba(242, 242, 230, .35); }
-    body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
+    body.dr-pm.in-mode #panel .win.quiz :is(h2, h3, p, label, legend, .q, .stem):not(.ms-lt *) { color: #f2f2e6; font-family: 'Patrick Hand', 'Comic Sans MS', 'Segoe Print', cursive, var(--f-body); }
     body.dr-pm.in-mode #panel .win.quiz button:not(.primary):not(.ghost) { background: #f6efdc; color: #17131f; border: 3px solid #17131f; border-radius: 10px; box-shadow: 0 4px 0 #0c0a10; }`;
   document.head.appendChild(css);
 })();

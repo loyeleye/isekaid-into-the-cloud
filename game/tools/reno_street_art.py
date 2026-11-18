@@ -15,6 +15,8 @@ JOBS = {
     'street': ('street-wide.png', 1072),
     'office-yard': ('office-yard.png', 1072), 'bridge': ('bridge-wide.png', 1072), 'square': ('square-wide.png', 1072),
     'quarter-map': ('quarter-map.png', 1072), 'permit-office': ('permit-office.png', 1072), 'wall': ('wall-close.png', 1072),
+    # The opening's close-ups (Nov 17): Seymour and Kai stand on their open lower third, like the permit office.
+    'open-street': ('open-street-close.png', 1072), 'open-square': ('open-square-close.png', 1072), 'open-lookout': ('open-lookout-close.png', 1072),
     'poster': ('cut/poster-blank.png', 420), 'pin': ('cut/pin.png', 160), 'arch': ('cut/ribbon-arch.png', 640), 'arch-cut': ('cut/ribbon-cut.png', 640),
     'poster-down': ('cut/poster-down.png', 420), 'res-cheer': ('cut/resident-cheer.png', 260), 'res-cheer2': ('cut/resident-cheer2.png', 256),
     'lever': ('cut/brass-lever.png', 160), 'blueprint': ('cut/blueprint-roll.png', 160),

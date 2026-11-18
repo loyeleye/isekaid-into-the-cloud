@@ -327,6 +327,16 @@
     return { items, verified: items.filter(it => it.v).length, topped: a.topped, avail: { n: mine.length, v: mine.filter(D.isVerified).length }, name: p ? p.name : (E ? E.NAME : '') };
   };
 
+  // One exam domain per game (Ladi, Nov 17): the Sorting Floor asks Development, Architect's Draft Deployment and the
+  // Fire Drill Troubleshooting (the Night Watch, Security). On the DVA-C02 track a pick tries the domain first and falls
+  // back to the whole match only when the domain has none; on another exam the domains differ, so nothing is narrowed.
+  M.inDomain = (q, d) => { const E = SD.exam; return !E || !E.track || E.track() !== 'DVA' || E.domainOf(q) === d; };
+  M.pickDomain = function (d, o) {
+    const m = o.match || (() => true);
+    const r = M.pick(Object.assign({}, o, { match: q => m(q) && M.inDomain(q, d) }));
+    return r.items.length ? r : M.pick(o);
+  };
+
   // ---- Results ----
   // Pip's last word on every results screen (Story review): one typed sentence, kept in S.save.pipNotes.
   M.pipHtml = function () {

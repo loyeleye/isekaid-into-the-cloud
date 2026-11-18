@@ -462,7 +462,10 @@
   D.SIX_X_EXCEPT = { fuse: 'The fault is the short window: VisibilityTimeout 30 against a 60 s function timeout.' };
 
   // ---- The night: two floors of two drills and a boss. Night 1 is one path; later nights fork (L7). ----
-  D.ROWS = [['storm', 'cold', 'pass', 'quota'], ['hot', 'locked', 'shelf', 'cache'], ['badge', 'canary', 'vault', 'upload'], ['herd'], ['fuse', 'single', 'quiet', 'receipt'], ['poison', 'stampede', 'catch'], ['midnight']];
+  // Troubleshooting only (Ladi, Nov 17: one game per exam domain): the security drills (pass, locked, badge, vault) go to
+  // the Night Watch and The Bad Canary to Architect's Draft. Their definitions stay above, and tools/drill_check.js still
+  // opens them by id.
+  D.ROWS = [['storm', 'cold', 'quota'], ['hot', 'shelf', 'cache'], ['upload', 'receipt'], ['herd'], ['fuse', 'single', 'quiet'], ['poison', 'stampede', 'catch'], ['midnight']];
   D.choices = (night, row) => (night <= 1 ? D.ROWS[row].slice(0, 1) : D.ROWS[row].slice());
 
   // ---- One run ----

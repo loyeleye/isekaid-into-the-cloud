@@ -175,6 +175,7 @@ body:has(#dialog:not([hidden])) .hub-hint { display: none; }
    verdict, the heal on Continue and the "Why Trust" row above it. */
 .conf-b .stake { display: block; font: 700 11px var(--f-body); letter-spacing: .02em; opacity: .85; }
 .conf-b .stake .up { color: #17834f; } .conf-b .stake .dn { color: #c43a3a; }
+.conf-b button[data-c="2"]:not(:disabled) .stake .up { color: #062a16; } .conf-b button[data-c="2"]:not(:disabled) .stake .dn { color: #4f0c0c; }   /* on the gold Sure button */
 .stake-help { margin: 14px 0 0; }
 .stake-help summary { cursor: pointer; list-style-position: inside; }
 .stake-help summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
@@ -633,7 +634,7 @@ button.on[aria-pressed="true"] { background: #dcebff; box-shadow: 0 3px 0 var(--
 #dialog[data-who="narr"] #dlg-text { font-size: 21px; color: #fff; font-weight: 700; }
 #dialog[data-who="narr"] .dlg-foot { color: #cfc6ee; justify-content: center; }
 #dialog[data-who="system"] .dlg-box { background: linear-gradient(180deg, #3d5bd8, #23318f); color: #fff; border-color: #fff; outline: 3px solid var(--ink); }
-#dialog[data-who="system"] .dlg-foot, #dialog[data-who="system"] #dlg-skip { color: #c9d4ff; }
+#dialog[data-who="system"] .dlg-foot, #dialog[data-who="system"] #dlg-skip, #dialog[data-who="narr"] #dlg-skip { color: #c9d4ff; }
 #dialog[data-who="gary"] .dlg-box { border-color: var(--ink); background: #fff7cf; }
 #dialog[data-who="latency"] .dlg-box { background: #efe6ff; }
 .dlg-nm { position: absolute; top: -16px; left: 14px; display: flex; gap: 8px; align-items: baseline; padding: 2px 12px; background: var(--blue); color: #fff; border: 3px solid var(--ink); border-radius: 12px; max-width: calc(100% - 28px); }
@@ -1052,6 +1053,9 @@ body { background: var(--bg); }
 #screen-run .run-hud { border-bottom-color: rgba(226, 219, 203, .2); }
 #screen-run .map-title, #screen-run > .muted, #screen-run .muted { color: #b3aa9a; }
 #screen-run .map-title { color: var(--bone); }
+/* Inside the light fight cards the night's pale grey is unreadable: the paper's muted ink instead (Ladi, Nov 17). */
+#screen-run :is(.foe-zone, .me-zone, .clog, .intent, .card, .foe-card, .win) .muted { color: #554c5e; }
+#screen-run :is(.foe-zone, .me-zone) .slot:not(.on) { color: #5f5878; }
 .map { background: #16141c; }
 /* The battle backdrop, drained and darkened under the fighters. */
 .stage::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40, 42, 66, .7), rgba(22, 20, 32, .55)); mix-blend-mode: multiply; pointer-events: none; }
@@ -1665,6 +1669,9 @@ body.qs-paused *:not(#qs-pause):not(#qs-pause *) { animation-play-state: paused 
 <script src="js/mode-floor.js"></script>
 <!-- The Lost and Found card opens a chooser: the Sorting Floor or the heap (js/lf-hub.js) -->
 <script src="js/lf-hub.js"></script>
+<!-- Mira's Kitchen: Development's Lambda game (js/kitchen-core.js rules, js/mode-kitchen.js screens) -->
+<script src="js/kitchen-core.js"></script>
+<script src="js/mode-kitchen.js"></script>
 <!-- The Fire Drill: four stations, one hidden fault, real metrics (js/aws-sim-ops.js adds the operations rules) -->
 <script src="js/aws-sim-ops.js"></script>
 <script src="js/drill-core.js"></script>

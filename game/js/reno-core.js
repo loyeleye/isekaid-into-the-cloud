@@ -40,6 +40,13 @@
     // The Blueprint Office: the teardown's outcome.
     keep: { text: (k, job) => `Keep the data in ${nameOf(job, k)}`, icon: 'jar',
       ok: (g, b, k) => !!(g.res.find(r => r.id === k) || {}).data, got: (g, b, k) => ((g.res.find(r => r.id === k) || {}).data ? 'kept' : 'gone') },
+    // The crate and the line (Nov 18).
+    once: { text: (k, job) => `The library is packed once and shared by all ${job.fn.pkg.fns} bells`, icon: 'jar',
+      ok: g => g.pkg === 'layer', got: g => (g.pkg === 'layer' ? 'one layer, shared' : g.pkg === 'image' ? 'copied into each image' : 'copied into each .zip') },
+    noShip: { text: () => 'A broken version never leaves the yard', icon: 'gate',
+      ok: (g, b) => b.shipped === false || (!b.caughtBy && b.soot === 0), got: (g, b) => (b.shipped === false ? 'stopped at the build' : b.caughtBy ? `deployed, then caught by the ${b.caughtBy === 'pre' ? 'pre-traffic hook' : b.caughtBy === 'post' ? 'post-traffic hook' : 'alarm'}` : 'it shipped') },
+    signed: { text: () => 'A person signs off before it ships', icon: 'seal',
+      ok: g => !!g.approved, got: g => (g.approved ? 'signed off' : 'nobody signed') },
     nightly: { text: k => `Costs at most ${k} lumber a night afterwards`, icon: 'lumber',
       ok: (g, b, k) => g.lumber <= k, got: g => `${g.lumber} a night` },
     noRun: { text: (k, job) => `Nothing of ${nameOf(job, k)} left running`, icon: 'gate',
@@ -104,6 +111,20 @@
     grandBridge: { d: 'lam', client: 'pip', title: 'Grand Opening: the bridge', grand: true, crack: 'load',
       scroll: 'Everyone crosses tonight! If it breaks under the crowd, one person at most and everyone back straight away. By minute seven, please. Sorry. Thank you.',
       fn: () => ({ demand: 10 }), slate: () => [['soot', 1], ['back', 1], ['sundown', 7]] },
+    // The crate (task 3.1): how the function is packed.
+    bigShrine: { d: 'lam', client: 'pip', title: 'The oracle shrine', crack: null, q: 'crate',
+      scroll: 'The new shrine\'s oracle is a 600 MB model, plus the code. They say it won\'t fit in a crate. Sorry. Could it be up by minute three?',
+      fn: () => ({ demand: 10, pkg: { mb: 640, fns: 1 } }), slate: () => [['sundown', 3]] },
+    sharedRope: { d: 'lam', client: 'marrow', title: 'Three bells, one rope', crack: null, q: 'crate',
+      scroll: 'Three bells use the same rope library. I want it packed once and shared by all three, not copied into every bell. Ring the new one by minute three.',
+      fn: () => ({ demand: 10, pkg: { mb: 40, fns: 3 } }), slate: () => [['once'], ['sundown', 3]] },
+    // The line (task 3.4): the pipeline before Deploy.
+    nightlyBuild: { d: 'lam', client: 'pip', title: 'The sum that was wrong', crack: 'unit', pipe: true, q: 'line',
+      scroll: 'Last time the shrine added the offerings up wrong. A plain unit test would have caught it before it ever left the yard. Nobody on the bridge should even see it. By minute six.',
+      fn: () => ({ demand: 10 }), slate: () => [['noShip'], ['sundown', 6]] },
+    signedBell: { d: 'lam', client: 'marrow', title: 'The tower\'s rules', crack: 'test', pipe: true, q: 'line',
+      scroll: 'The tower\'s rule: a person signs off before any new chime goes up. And last time the chime had no permission to ring the tower. Nobody hears a broken one. By minute nine.',
+      fn: () => ({ demand: 10 }), slate: () => [['signed'], ['soot', 0], ['sundown', 9]] },
     // The Blueprint Office (CloudFormation)
     ledger: { d: 'cfn', client: 'coo', title: 'The post office ledger',
       scroll: 'Coo. The old post office stack comes down tonight. The ledger table stays: every letter ever sent is in it. Two lumber a night is all the Quarter can spare.',
@@ -116,7 +137,16 @@
     sweep: { d: 'cfn', client: 'dutch', title: 'Grand Opening: Freya\'s leftovers', grand: true,
       scroll: 'The stack Freya left behind comes down. Keep the case files (the database) and the evidence table. Nothing of hers stays running. Three lumber a night, tops.',
       stack: () => [{ id: 'rooms', type: 'ec2', name: 'Freya\'s rooms' }, { id: 'files', type: 'rds', name: 'the case files' }, { id: 'table', type: 'ddb', name: 'the evidence table' }, { id: 'board', type: 's3', name: 'her notice board' }],
-      slate: () => [['keep', 'files'], ['keep', 'table'], ['nightly', 3], ['noRun', 'rooms'], ['noRun', 'board']] }
+      slate: () => [['keep', 'files'], ['keep', 'table'], ['nightly', 3], ['noRun', 'rooms'], ['noRun', 'board']] },
+    // Stack updates (Nov 18): the change set marks what gets replaced, and UpdateReplacePolicy decides the old one's fate.
+    recount: { d: 'cfn', update: true, client: 'coo', title: 'The ledger\'s new numbers',
+      scroll: 'Coo. The ledger\'s order numbers were written as words. Tonight they become numbers, and Seymour\'s change set says the ledger table gets replaced. Keep every old letter. Two lumber a night, no more.',
+      stack: () => [{ id: 'rooms', type: 'ec2', name: 'the sorting rooms' }, { id: 'ledger', type: 'ddb', name: 'the ledger', replace: true }],
+      slate: () => [['keep', 'ledger'], ['nightly', 2]] },
+    rebuild: { d: 'cfn', update: true, client: 'mira', title: 'The well, rebuilt',
+      scroll: 'The records well is being rebuilt tonight, and the change set says Replacement: True. The new well starts empty, so keep the old records somewhere. One lumber a night is all I have.',
+      stack: () => [{ id: 'beds', type: 'ec2', name: 'the beds' }, { id: 'well', type: 'rds', name: 'the records well', replace: true }],
+      slate: () => [['keep', 'well'], ['nightly', 1]] }
   };
 
   // The first three nights each open one district (L7); from night 4 a mix, with last night's misses first.
@@ -156,10 +186,10 @@
   // ---- One job ----
   R.job = function (id, seed) {
     const t = R.T[id], rnd = R.rng(seed || 1);
-    const job = { id, d: t.d, client: t.client, title: t.title, scroll: t.scroll, grand: !!t.grand, crack: t.crack || null };
+    const job = { id, d: t.d, client: t.client, title: t.title, scroll: t.scroll, grand: !!t.grand, crack: t.crack || null, pipe: !!t.pipe, q: t.q || null };
     if (t.d === 'eb') { job.street = t.street(rnd); job.hand = t.hand || AD.EB.slice(); }
     if (t.d === 'lam') job.fn = t.fn(rnd);
-    if (t.d === 'cfn') job.stack = t.stack(rnd);
+    if (t.d === 'cfn') { job.stack = t.stack(rnd); job.update = !!t.update; }
     job.slate = t.slate(job).map(([k, v]) => ({ k, v }));
     job.lines = job.slate.map(l => R.SLATE[l.k].text(l.v, job));
     return job;
@@ -168,8 +198,8 @@
   // ---- Plans ----
   R.defaultPlan = function (job, last) {
     if (job.d === 'eb') { const p = Object.assign({ policy: job.hand[0], batch: 1, ignoreHC: false, split: 10, evalT: 2, wait: 0 }, last || {}); if (!job.hand.includes(p.policy)) p.policy = job.hand[0]; return p; }
-    if (job.d === 'lam') return Object.assign({ cfg: 'all', wait: 5, every: 1, alarm: false, pre: false, post: false, publish: false }, last || {});
-    const p = {}; job.stack.forEach(r => { p[r.id] = AD.cfnDefault(r.type); }); return p;
+    if (job.d === 'lam') return Object.assign({ cfg: 'all', wait: 5, every: 1, alarm: false, pre: false, post: false, publish: false, pkg: 'zip', build: false, approval: false }, last || {});
+    const p = {}; job.stack.forEach(r => { p[r.id] = job.update ? 'Delete' : AD.cfnDefault(r.type); }); return p;
   };
   R.plans = function (job) {
     const out = [];
@@ -182,9 +212,11 @@
       });
     } else if (job.d === 'lam') {
       const cfgs = [{ cfg: 'all' }].concat(AD.CANARY.map(wait => ({ cfg: 'canary', wait })), AD.LINEAR.map(every => ({ cfg: 'linear', every })));
-      cfgs.forEach(c => [false, true].forEach(alarm => [false, true].forEach(pre => [false, true].forEach(post => out.push(Object.assign({ alarm, pre, post, publish: true }, c))))));
+      const pkgs = job.fn.pkg ? ['zip', 'layer', 'image'] : ['zip'], two = job.pipe ? [false, true] : [false];
+      cfgs.forEach(c => [false, true].forEach(alarm => [false, true].forEach(pre => [false, true].forEach(post => pkgs.forEach(pkg => two.forEach(build => two.forEach(approval =>
+        out.push(Object.assign({ alarm, pre, post, publish: true, pkg, build, approval }, c)))))))));
     } else {
-      const ids = job.stack.map(r => r.id), opts = ['Delete', 'Retain', 'Snapshot'];
+      const ids = job.stack.filter(r => !job.update || r.replace).map(r => r.id), opts = ['Delete', 'Retain', 'Snapshot'];
       const rec = (i, p) => { if (i === ids.length) return out.push(Object.assign({}, p)); opts.forEach(o => { p[ids[i]] = o; rec(i + 1, p); }); };
       rec(0, {});
     }
@@ -198,7 +230,7 @@
     let g, b, refused = null;
     if (job.d === 'eb') { g = AD.ebRun(job.street, plan, false); b = AD.ebRun(job.street, plan, true); refused = g.refused; }
     else if (job.d === 'lam') { g = AD.lamRun(job.fn, plan, 'good'); b = AD.lamRun(job.fn, plan, job.crack || 'good'); refused = g.refused; g.lumber = 0; b.lumber = 0; g.turned = b.turned = 0; }
-    else { g = AD.cfnTeardown(job.stack, plan); b = g; refused = g.refused; }
+    else { g = job.update ? AD.cfnUpdate(job.stack, plan) : AD.cfnTeardown(job.stack, plan); b = g; refused = g.refused; }
     if (refused) return { refused, good: g, bad: b, lines: [], pass: false };
     const lines = job.slate.map(l => {
       const S = R.SLATE[l.k];

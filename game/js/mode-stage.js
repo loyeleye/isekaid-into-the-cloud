@@ -38,14 +38,16 @@
   // Painted plates, one id per mode once both its plates are in assets/img/stage/ (prompts: project files mode-stage/).
   // The Sorting Floor's sorting room (Gemini, Nov 16). The Fire Drill's war room is a Gemini image too
   // (project files game-modes/multiplayer-real/art-and-music.md).
-  const PLATES = ['floor', 'drill', 'lf'];
+  // Mira's Kitchen: Bram's cottage kitchen (Sogni, Nov 18).
+  const PLATES = ['floor', 'drill', 'lf', 'kitchen'];
   // A mode that plays in a sibling's place: the Night Watch keeps the Fire Drill's war room, after dark (js/mode-watch.js).
   const PLATE_OF = { watch: 'drill' };
   // Mode id: the song file in assets/audio/ (no extension), for modes without their own music. Duel and Sprint have theirs.
   // Incident Commander's live incident loop starts on its menu (Ladi, Nov 17: "the music should start playing on this
   // screen"), and plays through both shifts; js/ic-live.js keeps it going rather than starting it over.
   // 'lf' is the Lost and Found's chooser (js/lf-hub.js): the Sorting Floor's song, which carries on through either door.
-  const MUSIC = { floor: 'm-floor', drill: 'm-drill', watch: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor' };
+  // Mira's Kitchen borrows chapter 3's cafe song.
+  const MUSIC = { floor: 'm-floor', drill: 'm-drill', watch: 'm-drill', draft: 'm-reno-street', ic: 'm-ic-live', terms: 'm-terms', lf: 'm-floor', kitchen: 'm-c3-cafe' };
   // Mode id: { win, lose } jingle files in assets/audio/.
   const STINGS = { floor: { win: 'j-floor-win', lose: 'j-floor-lose' }, drill: { win: 'j-drill-win', lose: 'j-drill-lose' }, watch: { win: 'j-drill-win', lose: 'j-drill-lose' }, draft: { win: 'j-reno-ribbon' } };
   const still = () => (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(navigator.connection && navigator.connection.saveData);
@@ -216,7 +218,7 @@
 
   // Paper surfaces: dark ink on a light sheet.
   const LIGHT = 'body.in-mode #panel :is(' + ['sprint'].map(id => `body[data-stage="${id}"] .win-b`)
-    .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)']).join(', ') + ')';
+    .concat(['body[data-stage="ic"] .win.quiz .win-b', 'body[data-stage="ic"] .win-b:has(> .md-walk)', 'body[data-stage="ic"] .icl-pred']).join(', ') + ')';
   const FRAME = id => `body.in-mode[data-stage="${id}"] #panel`;
   const css = document.createElement('style');
   css.textContent = `
@@ -272,8 +274,15 @@
     body.in-mode #panel .win :is(.pop-dock, .sp-tray, .conf) { border-top-color: rgba(236, 228, 212, .14); }
     /* A pale box a mode painted itself: the old palette back inside it. */
     body.in-mode #panel .win .ms-lt { --cream: #d6cdb9; --paper: #c7bca4; --bone: #e2dbcb; --ink: #17131f; --muted: #554c5e; --line: #9a8f78;
-      --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e; }
+      --blue: #3f5f80; --blue-d: #2a4360; --sun: #b8923a; --mi-ink: #17131f; --mi-muted: #554c5e;
+      --qf-ink: #17131f; --qf-blue: #3f5f80; --qf-blue-d: #2a4360; --qf-sun: #e2c26a; }   /* the question formats' ink, set once on .qf from the glass palette */
     body.in-mode #panel .win .ms-lt-c { color: #17131f; }
+    body.in-mode #panel .win .qf.ms-lt { --qf-ink: #17131f; }
+    body.in-mode #panel .win .ms-lt a { color: #2a4360; }
+    body.in-mode #panel .win .warn { color: #e8a94a; }
+    /* The stakes are read before an answer is picked, so the confidence row stays legible while it waits. */
+    body.in-mode #panel .win .conf-b button:disabled { opacity: .82; }
+    body.in-mode #panel .win .ms-lt .warn, ${LIGHT} .warn { color: #7f4c00; }   /* the glass's pale link blue is unreadable on paper */
     /* ---- Incident Commander: the camp's pager board ---- */
     /* No window box (Ladi, Nov 16: every mode gets its own edge-to-edge layout, like Monster Hunt): the shift fills the
        stage under the bar, Uptima's watch room behind a darker wash, and only the notes, cards and reports are paper.
@@ -428,7 +437,7 @@
     ${FRAME('pop')} .pop-card:not(.on) { background: #fffaf0; }
     ${FRAME('pop')} .pop-li.blank { color: #c9bfae; border-color: #c9bfae; }
     ${FRAME('pop')} .win :is(.opt, .conf-b button):not(.primary):not(:disabled):hover { background: #fffaf0; }
-    ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"] { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
+    ${FRAME('pop')} .win .opt.on, ${FRAME('pop')} .win button.on[aria-pressed="true"], ${FRAME('pop')} .win .pop-quick button.on:not(.primary) { background: #dbe6f0; border-color: #2a4360; color: #2a2018; }
     @media (max-width: 600px) {
       ${FRAME('draft')} .win { padding: 8px 6px 0; border-radius: 14px 14px 0 0; }
       ${FRAME('sprint')} .win { padding: 24px 6px 0; border-radius: 14px 14px 0 0; }

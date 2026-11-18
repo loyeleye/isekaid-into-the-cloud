@@ -14,7 +14,9 @@ const LESSON = {
   grandRow: p => p.policy === 'rollingBatch',
   firstBell: p => p.cfg === 'all', rush: p => p.cfg === 'canary' && p.alarm, testable: p => p.pre, careful: p => p.alarm,
   lateCheck: p => p.pre && p.cfg === 'all', grandBridge: p => p.cfg === 'canary' && p.alarm,
-  ledger: p => p.ledger === 'Retain', well: p => p.well === 'Snapshot', sweep: p => p.files === 'Snapshot' && p.table === 'Retain'
+  ledger: p => p.ledger === 'Retain', well: p => p.well === 'Snapshot', sweep: p => p.files === 'Snapshot' && p.table === 'Retain',
+  recount: p => p.ledger === 'Retain', rebuild: p => p.well === 'Snapshot',
+  bigShrine: p => p.pkg === 'image', sharedRope: p => p.pkg === 'layer', nightlyBuild: p => p.build, signedBell: p => p.approval && p.pre
 };
 const lazyPass = {};
 Object.keys(R.T).forEach(id => {

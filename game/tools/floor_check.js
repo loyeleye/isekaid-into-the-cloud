@@ -190,7 +190,7 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
     const s = await st();
     if (s.phase === 'end' || s.phase === 'zero') break;
     if (s.phase === 'map') await page.click('.fl-door.reach');
-    await finishClaim(['stdq', 'sns', 'filter', 'eb', 'dlq', 'condwrite', 'leastpriv', 'deny', 'reserve', 'partial', 'guard', 'patch', 'redrive']);
+    await finishClaim(['stdq', 'sns', 'filter', 'eb', 'dlq', 'condwrite', 'cache', 'gsi', 'shard', 'reserve', 'partial', 'guard', 'patch', 'redrive']);
     const s3 = await st();
     if (s3.phase === 'debrief') await proof(true, 1);
     if ((await st()).phase === 'reward') await page.click('[data-take]');

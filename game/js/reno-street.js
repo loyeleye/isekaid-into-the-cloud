@@ -237,8 +237,16 @@
     let out = '';
     const n = o.stack.length, worldW = Math.max(W, yx(n - 1) + 260);
     for (let i = 0; i * W < worldW; i++) out += `<img class="rs-bg${i % 2 ? ' flip' : ''}" src="${IMG(YARD_ART.bg)}" alt="" draggable="false" style="left:${i * W}px">`;
+    // A stack update (Nov 18): only the resources the change set marks Replacement: True take a plaque; the rest
+    // update in place and stand as they are.
+    const upd = o.stack.some(x => x.replace);
     o.stack.forEach((r, i) => {
       const cx = yx(i), res = o.res && i < (o.upto == null ? n : o.upto) ? o.res.find(x => x.id === r.id) : null;
+      if (upd && !r.replace) {
+        out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}: ${YARD_SAYS[r.type]}, updated in place (Replacement: False)` });
+        out += `<span class="rs-plq${res ? ' done' : ''}" style="left:${px(cx - 90)};top:${px(YF - YA * (YARD_ART[r.type] || [0, 0, 1])[2] - 56)}">${res ? 'Updated in place' : 'Replacement: False'}</span>`;
+        return;
+      }
       const pol = res ? res.policy : (o.plan && o.plan[r.id]) || 'Delete';
       if (!res) out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}: ${YARD_SAYS[r.type]}, marked ${pol}` });
       else if (res.kept === 'running') out += shadow(cx, YF, 300) + yardSp(r.type, cx, YF, { alt: `${r.name}, kept running (Retain)`, cls: 'rs-kept' }) + `<img class="rs-sp rs-seal" src="${IMG('yard-seal')}" alt="a wax-sealed Retain tag" draggable="false" style="left:${px(cx + 40)};top:${px(YF - YA * 1.25)};width:${px(YA * 0.6 * 176 / 240)};height:${px(YA * 0.6)}">`;
