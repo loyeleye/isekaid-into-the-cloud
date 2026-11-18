@@ -208,7 +208,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await btn('[data-a=x]');
   await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150);
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // Pell's dusk lines
-  await tp('main-street', 1300); await use(); await page.waitForTimeout(250);
+  await tp('main-street', 1335); await use(); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.run.phase === 'night' && SD.watchWalk.run.st.scene === 'castle:ground'), 'at dusk the outpost door leads into the castle');
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);

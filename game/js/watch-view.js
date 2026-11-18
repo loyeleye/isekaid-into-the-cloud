@@ -184,7 +184,7 @@
   const townArt = () => (art() && art().town) || null;
   V.town = function () {
     const a = townArt() || {}, levelY = a.levelY || TOWN_Y;
-    return { width: a.width || 4100, height: a.height || 1200, levelY, layers: a.layers || null, ramps: a.ramps || [], chute: a.chute || null, roofs: a.roofs || 0 };
+    return { width: a.width || 4100, height: a.height || 1200, levelY, layers: a.layers || null, buildings: a.buildings || null, buildingsSoft: a.buildingsSoft || null, ramps: a.ramps || [], chute: a.chute || null, roofs: a.roofs || 0 };
   };
   // The path walked for a move between levels: a painted ramp if there is one (either direction), else a straight line.
   V.rampPath = function (fromScene, fromX, to) {
@@ -345,7 +345,17 @@
       if (T.layers) T.layers.forEach(l => { const p = img(l.img); if (!p) return;
         if (l.speed === 1) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
         else c.drawImage(p, -camX * l.speed, -camY * l.speed); });
-      else {
+      if (T.buildings) {   // each road's buildings, top road first: yours and the one above solid, roads below you
+        // see-through and soft so they read as distant (Ladi, Nov 18); two or more roads up aren't drawn at all.
+        const ai = WW.LEVELS.indexOf(above);
+        WW.LEVELS.forEach((l, i) => {
+          if (i < ai) return;
+          const p = img((i > li && T.buildingsSoft && T.buildingsSoft[l]) || T.buildings[l]); if (!p) return;
+          if (i === ai && above !== st.scene) { c.save(); c.beginPath(); c.rect(0, top, vw, vh - top); c.clip(); c.drawImage(p, -camX, -camY); c.restore(); }
+          else c.drawImage(p, -camX, -camY);
+        });
+      }
+      if (!T.layers) {
         farLayer(c, { kind: 'town', id: 'west-road' }, camX);
         WW.LEVELS.forEach(l => {   // each road and the hillside face below it, down to the next road
           const y = SY(Y[l]); if (y > vh || y + 300 < 0) return;
