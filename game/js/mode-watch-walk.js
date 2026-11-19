@@ -1020,7 +1020,8 @@
       const kind = x.kind = x.kind || kindFor(x, run.list.indexOf(x)), K = KINDS[kind];
       const scene = kind === 'turncloak' ? 'bridge' : pick(PROWL), e = kind === 'turncloak' ? { x: WW.scene('bridge').to - 20 } : pick(exits(scene));
       const mask = kind === 'impersonator';
-      const p = { night: 1, who: mask ? 'staff' : 'intruder-' + kind, tag: mask ? '' : K.tag || kind.charAt(0).toUpperCase() + kind.slice(1), mask, kind, scene,
+      const p = { night: 1, who: 'intruder-' + kind,   // the impersonator's sprite wears the cook's whites
+        tag: mask ? '' : K.tag || kind.charAt(0).toUpperCase() + kind.slice(1), mask, kind, scene,
         x: e ? e.x : bounds(scene)[0], go: true, d: 0, drip: 0, facing: 1, of: x.id, cool: 3, lvl: 0, sp: K.sp * (1 + 0.04 * Math.min(w.day, 9)) };
       if (kind === 'turncloak') { p.sess = 0; p.who = 'intruder-turncloak-bare'; p.tag = cloakTag(p); }
       if (kind === 'eavesdropper') lurk(p); else if (kind === 'forger') forge(p); else if (kind === 'turncloak') cloak(p); else goal(p);
@@ -1075,7 +1076,7 @@
     const hireStaff = () => {
       const n = w.day < 6 ? 1 : 2;   // from night 1, so you know the staff long before anyone dresses as one
       run.staff = STAFF.slice(0, n).map(d => { const a = roomX(d.scene, d.a), b = d.b ? roomX(d.scene, d.b) : (exits(d.scene).find(v => v.kind === 'stair') || {}).x;
-        return { night: 1, who: 'staff', scene: d.scene, x: a, a, b, tx: b, go: true, d: 0, facing: 1, carry: d.carry, sp: 55, rest: 0 }; });
+        return { night: 1, who: d.carry === 'tray' ? 'staff-cook' : 'staff-porter', scene: d.scene, x: a, a, b, tx: b, go: true, d: 0, facing: 1, carry: d.carry, sp: 55, rest: 0 }; });
       syncProwlers();
     };
     // Walking up to someone at night. Staff show their kitchen pass. Asking a fake cook for theirs makes them bolt
@@ -1154,7 +1155,7 @@
             toast(['', '⬆ The escalator picked up more rights: it can take the stairs now.', '⬆ The escalator picked up more rights: it moves faster now.', '⬆ The escalator has all the rights it wants. Now it comes for you.'][Math.min(3, p.lvl)]); }
           if (p.kind === 'exfiltrator') { p.goal = { scene: 'bridge', x: WW.scene('bridge').to - 20, name: 'bridge', away: 1 }; p.state = 'go'; aim(p); } else goal(p); } continue; }
         if (Math.abs(p.tx - p.x) < 4 && p.state !== 'chase') {
-          if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); if (p.kind === 'impersonator') { p.mask = true; p.who = 'staff'; p.tag = ''; } } moved = moved || sc0 !== p.scene; continue; }
+          if (p.exit) { const sc0 = p.scene; hop(p, p.exit); if (p.state === 'flee') { p.state = 'go'; aim(p); if (p.kind === 'impersonator') { p.mask = true; p.tag = ''; } } moved = moved || sc0 !== p.scene; continue; }
           if (p.state === 'flee') { p.state = 'go'; aim(p); continue; }
           if (p.state === 'go' && p.goal.scene === p.scene) {
             if (p.goal.lurk) { p.state = 'lurk'; continue; }

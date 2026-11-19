@@ -1,0 +1,206 @@
+[
+ {
+  "out": "pose/pickpocket-walkA.png",
+  "ref": "base/pickpocket.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/pickpocket-walkB.png",
+  "ref": "base/pickpocket.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/snuffer-walkA.png",
+  "ref": "base/snuffer.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/snuffer-walkB.png",
+  "ref": "base/snuffer.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/spiller-walkA.png",
+  "ref": "base/spiller.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/spiller-walkB.png",
+  "ref": "base/spiller.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/jailer-walkA.png",
+  "ref": "base/jailer.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/jailer-walkB.png",
+  "ref": "base/jailer.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/eavesdropper-walkA.png",
+  "ref": "base/eavesdropper.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/eavesdropper-walkB.png",
+  "ref": "base/eavesdropper.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/rummager-walkA.png",
+  "ref": "base/rummager.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/rummager-walkB.png",
+  "ref": "base/rummager.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/porter-walkA.png",
+  "ref": "base/porter.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/porter-walkB.png",
+  "ref": "base/porter.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/replayer-walkA.png",
+  "ref": "base/replayer.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/replayer-walkB.png",
+  "ref": "base/replayer.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/escalator-walkA.png",
+  "ref": "base/escalator.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/escalator-walkB.png",
+  "ref": "base/escalator.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/forger-walkA.png",
+  "ref": "base/forger.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/forger-walkB.png",
+  "ref": "base/forger.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/secrethunter-walkA.png",
+  "ref": "base/secrethunter.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/secrethunter-walkB.png",
+  "ref": "base/secrethunter.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/exfiltrator-walkA.png",
+  "ref": "base/exfiltrator.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/exfiltrator-walkB.png",
+  "ref": "base/exfiltrator.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-walkA.png",
+  "ref": "base/turncloak.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-walkB.png",
+  "ref": "base/turncloak.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-bare-walkA.png",
+  "ref": "base/turncloak-bare.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-bare-walkB.png",
+  "ref": "base/turncloak-bare.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/cook-walkA.png",
+  "ref": "base/cook.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/cook-walkB.png",
+  "ref": "base/cook.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/impersonator-walkA.png",
+  "ref": "base/impersonator.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/impersonator-walkB.png",
+  "ref": "base/impersonator.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/hollis-v2-walkA.png",
+  "ref": "base/hollis.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. He holds the clipboard down at his side in one hand, at waist height, not up in front of him. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/hollis-v2-walkB.png",
+  "ref": "base/hollis.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. He holds the clipboard down at his side in one hand, at waist height, not up in front of him. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

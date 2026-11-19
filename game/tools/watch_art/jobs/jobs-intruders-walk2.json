@@ -1,0 +1,206 @@
+[
+ {
+  "out": "pose/pickpocket-walkC.png",
+  "ref": "pose/pickpocket-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/pickpocket-walkD.png",
+  "ref": "pose/pickpocket-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/snuffer-walkC.png",
+  "ref": "pose/snuffer-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/snuffer-walkD.png",
+  "ref": "pose/snuffer-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/spiller-walkC.png",
+  "ref": "pose/spiller-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/spiller-walkD.png",
+  "ref": "pose/spiller-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/jailer-walkC.png",
+  "ref": "pose/jailer-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/jailer-walkD.png",
+  "ref": "pose/jailer-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/eavesdropper-walkC.png",
+  "ref": "pose/eavesdropper-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/eavesdropper-walkD.png",
+  "ref": "pose/eavesdropper-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/rummager-walkC.png",
+  "ref": "pose/rummager-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/rummager-walkD.png",
+  "ref": "pose/rummager-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/porter-walkC.png",
+  "ref": "pose/porter-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/porter-walkD.png",
+  "ref": "pose/porter-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/replayer-walkC.png",
+  "ref": "pose/replayer-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/replayer-walkD.png",
+  "ref": "pose/replayer-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/escalator-walkC.png",
+  "ref": "pose/escalator-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/escalator-walkD.png",
+  "ref": "pose/escalator-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/forger-walkC.png",
+  "ref": "pose/forger-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/forger-walkD.png",
+  "ref": "pose/forger-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/secrethunter-walkC.png",
+  "ref": "pose/secrethunter-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/secrethunter-walkD.png",
+  "ref": "pose/secrethunter-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/exfiltrator-walkC.png",
+  "ref": "pose/exfiltrator-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/exfiltrator-walkD.png",
+  "ref": "pose/exfiltrator-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-walkC.png",
+  "ref": "pose/turncloak-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-walkD.png",
+  "ref": "pose/turncloak-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-bare-walkC.png",
+  "ref": "pose/turncloak-bare-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/turncloak-bare-walkD.png",
+  "ref": "pose/turncloak-bare-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/cook-walkC.png",
+  "ref": "pose/cook-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/cook-walkD.png",
+  "ref": "pose/cook-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/impersonator-walkC.png",
+  "ref": "pose/impersonator-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/impersonator-walkD.png",
+  "ref": "pose/impersonator-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/hollis-v2-walkC.png",
+  "ref": "pose/hollis-v2-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. He holds the clipboard down at his side in one hand, at waist height, not up in front of him. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/hollis-v2-walkD.png",
+  "ref": "pose/hollis-v2-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. He holds the clipboard down at his side in one hand, at waist height, not up in front of him. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

@@ -510,13 +510,13 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   // Feast staff and the impersonator (Ladi, Nov 18).
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.at = null; w.fixed = {}; w.guard = 0; SD.watchWalk.walk('night'); }); await page.waitForTimeout(400);
   const imp = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), st = r.st, out = [], wait = ms => new Promise(z => setTimeout(z, ms));
-    out.push((r.staff || []).length >= 1 && r.staff.every(p => p.carry && p.who === 'staff'));
+    out.push((r.staff || []).length >= 1 && r.staff.every(p => p.carry && /^staff-(cook|porter)$/.test(p.who)));
     (r.prowl || []).slice().forEach(p => { p.scene = 'castle:towers'; p.x = 1200; p.tx = 1200; });   // out of the way
     const x = r.list.find(v => !r.fixed[v.id] && !r.locked[v.id] && !(r.inside || {})[v.id]); if (!x) return 'no free break-in';
     x.kind = 'impersonator'; (r.prowl || []).forEach(p => { if (p !== null) p.of = p.of; }); const before = (r.prowl || []).length;
     r.prowl = (r.prowl || []).slice(0, 2); (SD.watchWalk.run.gate = 0, SD.watchWalk.clock(Math.min(SD.watchWalk.clock(), 360 - x.at - x.inAt - 1))); await wait(500);
     const p = r.inside[x.id] || r.admit(x); if (!p) return 'not spawned ' + before;
-    out.push(p.who === 'staff' && !p.carry && !p.tag);
+    out.push(p.who === 'intruder-impersonator' && !p.carry && !p.tag);
     r.prowl = [p]; r.gate = 9999; r.dark = 0;   // just this one, lantern lit
     w.silver = 40; w.tools = 0; st.scene = p.scene; st.tucked = false; st.x = p.x + 200; p.tx = p.x; p.cool = 0; p.state = 'loot'; p.loot = 99; p.exit = null; await wait(300); out.push(p.mask === true);   // too far to tell
     st.x = p.x + 70; await wait(80); out.push(p.mask === false && p.tag === 'Impersonator');   // before it grabs, bolts and hops a stair (and masks up again)

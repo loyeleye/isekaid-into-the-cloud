@@ -354,7 +354,7 @@
           g.addColorStop(0, 'rgba(255,190,90,.45)'); g.addColorStop(1, 'rgba(255,190,90,0)'); c.fillStyle = g; c.fillRect(gx - 70, G - 100, 140, 140);
           c.fillStyle = '#ffcf6e'; c.beginPath(); c.arc(gx, G - 30, 3.5, 0, 7); c.fill(); }
         person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97);
-        if (p.carry) { const hx = sx + (p.facing || 1) * 11; c.fillStyle = p.carry === 'tray' ? '#c8c2b0' : '#a8875a';   // staff carry a tray or a sack
+        if (p.carry && !(art() && art().people && art().people[p.who])) { const hx = sx + (p.facing || 1) * 11; c.fillStyle = p.carry === 'tray' ? '#c8c2b0' : '#a8875a';   // staff carry a tray or a sack
           if (p.carry === 'tray') c.fillRect(hx - 9, G - 46, 18, 3); else { c.beginPath(); c.ellipse(hx, G - 40, 8, 10, 0, 0, 7); c.fill(); } }
         if (p.tag && Math.abs(p.x - st.x) < 260) label(c, p.tag, sx, G - 86); });   // names only up close: a quiet floor stays quiet
       (o.puddles || []).filter(m => m.scene === st.scene).forEach(m => { c.fillStyle = 'rgba(176,128,44,.85)'; c.beginPath(); c.ellipse(X(m.x), G - 2, 38, 7, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(255,236,170,.55)'; c.beginPath(); c.ellipse(X(m.x) - 10, G - 4, 14, 2.5, 0, 0, 7); c.fill(); });   // spills from a spiller

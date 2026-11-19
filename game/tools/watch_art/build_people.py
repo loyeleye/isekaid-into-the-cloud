@@ -8,6 +8,7 @@ os.makedirs(OUT, exist_ok=True)
 HT = dict(seoyeon=76, mira=82, kai=84, dutch=92, coo=74, bru=80, kagemaru=90, lexi=79, wen=76, ayo=90, aigerim=84, chad=86,
           seymour=96, hobb=74, pell=140, tess=60, doug=82, hollis=84, odu=86, fennel=84, captain=88, kevin=88,
           **{'townsfolk-1': 80, 'townsfolk-2': 84, 'townsfolk-3': 80})
+if os.environ.get('WATCH_HT'): HT = json.load(open(os.environ['WATCH_HT']))   # build only these people (e.g. the intruders)
 RES = 2                      # sheets are drawn at 2x and tagged scale 1/RES, so they stay sharp on high-res screens
 FH0, FOOT0 = 112, 106        # frame height and feet line at 1x (taller people get a taller frame)
 def frames_for(k):

@@ -1,0 +1,14 @@
+[
+ {
+  "out": "rain/seoyeon-rain-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 81,
+  "prompt": "Dress this exact character in a hooded raincoat for a rainy day: a knee-length waxed oilskin raincoat in deep mustard yellow, hood up over her hair, buttoned, her dark boots below. Keep her face, her pose, the katana at her hip, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "rain/seoyeon-rain-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 82,
+  "prompt": "Dress this exact character in a hooded raincoat for a rainy day: a knee-length waxed oilskin raincoat in dark slate blue, hood up over her hair, buttoned, her dark boots below. Keep her face, her pose, the katana at her hip, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]
