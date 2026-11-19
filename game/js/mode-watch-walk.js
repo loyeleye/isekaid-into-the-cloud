@@ -5,7 +5,7 @@
 //   Dusk:    you're put at Pell's gate on the West Road. Pell's briefing, then through the gate to the castle.
 //   Night:   walk the four floors, find each breach marker and pick the narrow fix (one retry; a second miss locks
 //            it until dawn). A bell every minute; when time runs out, dawn comes.
-//   Dawn:    pay: base 45 (Ladi, Nov 19: room for two Revoke active sessions a night), +10 a fix, -10 a missed breach (night 1 has no fines).
+//   Dawn:    pay: base 30 (Ladi, Nov 19), +10 a fix, -10 a missed breach (night 1 has no fines).
 // Content comes from window.WATCH_CONTENT (js/watch-content.js, the content thread); until it's there, the night's
 // breaches come from the v2 locks in js/watch-data.js and three placeholder shortcut quests stand in.
 //   Watchers: talk to one of the eight in the day to hire them (50, then 80). Ward level 0-4 = paid (up to 2) +
@@ -31,7 +31,7 @@
     '2.3.5': 'Sanitizing sensitive data', '2.3.6': 'Multi-tenant data access' };   // people a day who bring up the same running joke (Pell's height, Chad's other world)   // daily schedules (js/watch-schedule.js); without it people stand still
   const esc = s => U.esc(String(s == null ? '' : s));
   const content = () => window.WATCH_CONTENT || {};
-  const PAY = { base: 45, fix: 10, miss: -10, review: 10, each: 3 };
+  const PAY = { base: 30, fix: 10, miss: -10, review: 10, each: 3 };
   // Days are 6 minutes (Ladi, Nov 18), with each answered question costing a minute: measured so doing every
   // job takes about 130% of an average day. Day 1 is 6 minutes too (Ladi, Nov 18); its lessons cost no minute.
   const DAY_S = 360, JOB_S = 50, TAKE_S = 15, GD_EACH = 8, dayLen = () => DAY_S, nightS = n => (n === 9 ? 900 : 360);
