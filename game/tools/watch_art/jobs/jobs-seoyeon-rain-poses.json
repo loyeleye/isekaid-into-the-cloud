@@ -1,0 +1,32 @@
+[
+ {
+  "out": "rain/sy-walkA.png",
+  "ref": "rain/seoyeon-rain-1.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "rain/sy-walkB.png",
+  "ref": "rain/seoyeon-rain-1.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "rain/sy-talk.png",
+  "ref": "rain/seoyeon-rain-1.png",
+  "seed": 73,
+  "prompt": "Change only the pose: talking to someone in front, standing still, one hand raised at chest height in an open-palm gesture, mouth open mid-word. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "rain/sy-walkC.png",
+  "ref": "rain/sy-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "rain/sy-walkD.png",
+  "ref": "rain/sy-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

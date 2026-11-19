@@ -1,0 +1,26 @@
+[
+ {
+  "out": "final2/turncloak-bare-1.png",
+  "ref": "redo/turncloak-1.png",
+  "seed": 41,
+  "prompt": "Take off his long dark blue cloak and hood completely: he now wears only the green tunic with a small green crest on the chest, grey sleeves, a brown belt and the green boots, with empty hands. Keep the same face, hair, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final2/impersonator-1.png",
+  "ref": "redo/impersonator-1.png",
+  "seed": 61,
+  "prompt": "Under the white cap, fill the band above the forehead with more of her curly chestnut-brown hair, so only cap and curls show on her head. Keep the same face, clothes, apron, black boots, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final2/turncloak-bare-2.png",
+  "ref": "redo/turncloak-1.png",
+  "seed": 42,
+  "prompt": "Take off his long dark blue cloak and hood completely: he now wears only the green tunic with a small green crest on the chest, grey sleeves, a brown belt and the green boots, with empty hands. Keep the same face, hair, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final2/impersonator-2.png",
+  "ref": "redo/impersonator-1.png",
+  "seed": 62,
+  "prompt": "Under the white cap, fill the band above the forehead with more of her curly chestnut-brown hair, so only cap and curls show on her head. Keep the same face, clothes, apron, black boots, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ }
+]

@@ -3,10 +3,14 @@
 // runs the days and nights. Shapes shared with the art and content threads: js/watch-schema.md.
 //   - The town is four stacked side-view levels (West Road on top, Hill Road, Main Street, the Far Lane at the
 //     bottom). Forks in the road join them: stand at a fork and press up or down.
-//   - The castle is four floors, one on screen at a time, joined by the left stair (ground, upper, towers) and the
-//     right stair (cellars, ground, upper). Quests add the cellar stair (left, ground to cellars), the back stair
-//     (right, upper to towers) and the supply hoist in the middle (every floor). The bridge leaves the upper floor's
-//     far end for the neighbour's castle; you walk to their door, never inside.
+//   - The castle is four floors, one on screen at a time (HD repaint, Nov 19: js/watch-art-castle.js). Stairs (Ladi,
+//     Nov 19): both ends of every floor have a stair up and a stair down, except the cellars (up only) and the towers
+//     (down only). Six stairs, three per side. Two are drawn but blocked until a quest opens them (storyboard,
+//     Castle shortcuts): Dutch's the near (left) stair between the ground floor and the cellars, Kai's the far (right)
+//     stair between the upper floor and the towers. A ladder runs through the trapdoors in the middle of every floor,
+//     a stretch at a time on the same quests (Dutch: cellars-ground, Kai: upper-towers, the Captain: the whole way).
+//     The bridge leaves the upper floor at the bridge tower for the neighbour's castle; you walk to their door, never inside.
+//   - On the cellars, upper floor and towers, rooms are archways: walking in opens a popup with the room's painting.
 //   - Shortcuts from big quests: the lookout chute (West Road down to the Far Lane cottage, down only) and Seymour's
 //     tunnel (Hill Road bunker to the Far Lane well, both ways).
 //   - Wildlife: scenery only. Each animal wanders a home zone, scatters a few steps when you come close, shelters in
@@ -16,7 +20,7 @@
   const WW = {};
   WW.GROUND = 300;
   WW.VIEW_H = 360;
-  WW.SPEED = 230;            // walking speed, px per second
+  WW.SPEED = 200;              // walking speed, px per second
   WW.REACH = 56;             // how close you must stand to use something
   WW.FLOORS = ['towers', 'upper', 'ground', 'cellars'];
   WW.LEVELS = ['west-road', 'hill-road', 'main-street', 'far-lane'];
@@ -46,9 +50,9 @@
       { id: 'path-down', x: 320, kind: 'fork', label: 'Down to the Far Lane', to: { scene: 'far-lane', x: 560 }, dir: 'down' },
       { id: 'base-camp', x: 560, kind: 'place', label: 'Base Camp', who: 'mira', also: ['kai', 'dutch', 'ayo'] },
       { id: 'fork-main-up', x: 760, kind: 'fork', label: 'Up to Hill Road', to: { scene: 'hill-road', x: 1200 }, dir: 'up', who: 'tess' },
-      { id: 'forge', x: 1120, kind: 'place', label: 'Forge' },
+      { id: 'forge', x: 1230, kind: 'place', label: 'Forge' },   // clear of the main-to-hill ramp (760 to 1220)
       { id: 'bakery', x: 1440, kind: 'place', label: 'Bakery' },
-      { id: 'outpost', x: 1300, kind: 'gate', label: 'Watch outpost (a door to the castle)', to: { scene: 'castle:ground', x: 640 }, dir: 'use', needs: 'outpost' },
+      { id: 'outpost', x: 1335, kind: 'gate', label: 'Watch outpost (a door to the castle)', to: { scene: 'castle:ground', x: 640 }, dir: 'use', needs: 'outpost' },
       { id: 'fork-main-down', x: 1680, kind: 'fork', label: 'Down to the Far Lane', to: { scene: 'far-lane', x: 2000 }, dir: 'down' },
       { id: 'cafe', x: 2000, kind: 'fix', fix: 'door', label: 'Cache Café', who: 'wen' },
       { id: 'stall', x: 2400, kind: 'fix', fix: 'badge-desk', label: 'Kagemaru\'s stall', who: 'kagemaru' },
@@ -69,13 +73,17 @@
   WW.ALIAS = { 'kagemaru-stall': 'stall', 'cafe-back-door': 'cafe', 'key-cabinet': 'lock-shop', 'library-archive': 'library',
     'post-counter': 'post-office', harbourmaster: 'dock', 'first-fork': 'fork-main-up', 'castle-gate': 'pell-gate' };
   WW.spot = function (level, id) {
+    artSync();
     const real = WW.ALIAS[id] || id, lv = level ? [level] : Object.keys(T);
     for (const l of lv) { const s = T[l] && T[l].spots.find(v => v.id === real); if (s) return Object.assign({ level: l }, s); }
     return null;
   };
 
-  // ---- The castle: four floors, 1600 wide. Rooms by x range; doors (lock slots) sit between rooms. ----
-  const FW = 1600;
+  // ---- The castle: four floors. Rooms by x range; doors (lock slots) sit between rooms. ----
+  // These are the pre-art numbers (1600 wide). Once WATCH_ART.floors loads (1200 wide, one painted wall each), artSync()
+  // takes room ranges, door x and stair x from the art so the walls and the logic line up.
+  let FW = 1600, BRIDGE_X = 1590, OUTPOST_X = 640, EXIT_X = 40;
+  WW.ENTRY_X = 160;   // where you stand on the ground floor after coming in through the main gate
   const C = {
     towers: { name: 'Towers', rooms: [['watchtower', 120, 460, 'Watchtower'], ['lookout', 460, 790, 'Lookout'], ['captain', 810, 1480, 'Captain\'s room']] },
     upper: { name: 'Upper floor', rooms: [['wardrobe', 120, 790, 'Wardrobe'], ['ledger', 810, 1140, 'Ledger room'], ['bridge-tower', 1140, 1480, 'Bridge tower']] },
@@ -84,39 +92,105 @@
   };
   WW.CASTLE = C;
   WW.FLOOR_W = FW;
-  // Stairs and lifts. `needs` names the unlock a quest gives (doc: Castle shortcuts).
+  // Stairs and the ladder. at: x per floor (the art's links map overrides these). needs: the quest unlock that clears a
+  // blocked stair; the art's floors[f].stairs[id].block is the overlay drawn over it while it's blocked.
+  // The ladder's stretches open with quest unlocks (doc: Castle shortcuts): any of the listed unlocks opens that stretch.
   const LINKS = [
-    { id: 'stair-left', x: 70, joins: ['ground', 'upper', 'towers'] },
-    { id: 'stair-right', x: 1530, joins: ['cellars', 'ground', 'upper'] },
-    { id: 'cellar-stair', x: 150, joins: ['cellars', 'ground'], needs: 'cellar-stair' },
-    { id: 'back-stair', x: 1450, joins: ['upper', 'towers'], needs: 'back-stair' },
-    { id: 'hoist', x: 800, joins: ['towers', 'upper', 'ground', 'cellars'], needs: 'hoist', lift: true }
+    { id: 'stair-left', x: 70, at: {}, joins: ['cellars', 'ground'], needs: 'cellar-stair' },
+    { id: 'stair-right', x: 1530, at: {}, joins: ['ground', 'upper'] },
+    { id: 'back-stair', x: 1450, at: { upper: 150 }, joins: ['upper', 'towers'] },
+    { id: 'east-cellar-stair', x: 1350, at: {}, joins: ['cellars', 'ground'] },
+    { id: 'west-mid-stair', x: 260, at: {}, joins: ['ground', 'upper'] },
+    { id: 'east-tower-stair', x: 1350, at: {}, joins: ['upper', 'towers'], needs: 'back-stair' },
+    { id: 'ladder', x: 800, at: {}, joins: ['towers', 'upper', 'ground', 'cellars'], lift: true }
   ];
+  const LADDER = { 'cellars|ground': ['cellar-stair', 'hoist'], 'ground|upper': ['hoist'], 'upper|towers': ['back-stair', 'hoist'] };
+  const linkX = (l, f) => (l.at[f] != null ? l.at[f] : l.x);
+  WW.linkX = linkX;
+  // The floors the ladder reaches from floor f with these unlocks: every stretch on the way must be open.
+  WW.ladderTo = function (unlocks, f) {
+    const F = ['cellars', 'ground', 'upper', 'towers'], i = F.indexOf(f), out = [];
+    const ok = (a, b) => (LADDER[a + '|' + b] || []).some(u => unlocks && unlocks[u]);
+    for (let j = i + 1; j < F.length && ok(F[j - 1], F[j]); j++) out.push(F[j]);
+    for (let j = i - 1; j >= 0 && ok(F[j], F[j + 1]); j--) out.push(F[j]);
+    return out;
+  };
   WW.LINKS = LINKS;
+  let synced = false;
+  // Town forks follow the painted ramps (WATCH_ART.town.ramps, lower end first), so the art can move a climb and the
+  // fork spots on both roads move with it.
+  let rampsSynced = false;
+  function rampSync() {
+    const R = typeof window !== 'undefined' && window.WATCH_ART && window.WATCH_ART.town && window.WATCH_ART.town.ramps;
+    if (rampsSynced || !R) return;
+    rampsSynced = true;
+    R.forEach(r => {
+      const [lo, lx] = r.from, [hi, hx] = r.to;
+      const up = T[lo] && T[lo].spots.find(v => v.kind === 'fork' && v.to.scene === hi && !v.moved);
+      const dn = T[hi] && T[hi].spots.find(v => v.kind === 'fork' && v.to.scene === lo && !v.moved);
+      if (up) { up.x = lx; up.to.x = hx; up.moved = 1; }
+      if (dn) { dn.x = hx; dn.to.x = lx; dn.moved = 1; }
+    });
+    Object.values(T).forEach(t => t.spots.sort((p, q) => p.x - q.x));
+  }
+  WW.rampSync = rampSync;
+  function artSync() {
+    rampSync();
+    if (synced) return;
+    const A = typeof window !== 'undefined' && window.WATCH_ART;
+    if (A && A.floors && window.WATCH_ART_CASTLE && !A.floors.hd) { Object.assign(A.floors, window.WATCH_ART_CASTLE.floors); A.floors.hd = 1; }   // the HD floors replace the old ones
+    const F = A && A.floors;
+    if (!F || !F.ground || !F.ground.rooms) return;
+    synced = true;
+    FW = F.ground.width || FW; WW.FLOOR_W = FW;
+    Object.keys(C).forEach(f => {
+      const a = F[f]; if (!a || !a.rooms) return;
+      const names = Object.fromEntries(C[f].rooms.map(r => [r[0], r[3]]));
+      C[f].rooms = a.rooms.map(([id, x0, x1]) => [id, x0, x1, names[id] || id]);
+      C[f].doors = a.doors || {};
+      C[f].popup = a.popupRooms || [];
+      if (a.walls) C[f].walls = a.walls;   // the painted end walls' inside faces: she stops there (Ladi, Nov 19)
+      const L = a.links || {};
+      LINKS.forEach(l => { if (L[l.id] != null) l.at[f] = L[l.id]; });
+      if (f === 'upper' && L['bridge-door'] != null) BRIDGE_X = L['bridge-door'];
+    });
+    const g = C.ground.rooms.find(r => r[0] === 'gate');
+    if (g) { EXIT_X = Math.round(g[1] + (g[2] - g[1]) * 0.78); WW.ENTRY_X = EXIT_X - 50; T['west-road'].spots.find(v => v.id === 'pell-gate').to.x = WW.ENTRY_X; }   // the painted main gate, right of the badge desk (HD floor: clear of the cellar stair)
+    if (g) OUTPOST_X = Math.round((g[1] + g[2]) / 2) + 20;   // in the gate room, clear of the doors
+    const op = T['main-street'].spots.find(v => v.id === 'outpost'); if (op) op.to.x = OUTPOST_X;
+  }
+  WW.artSync = artSync;
 
   // Every scene, by id: town levels by level id, castle floors as castle:<floor>, plus the bridge.
   WW.scene = function (id) {
+    artSync();
     if (T[id]) return { id, kind: 'town', name: T[id].name, from: T[id].from, to: T[id].to, spots: T[id].spots };
     if (id === 'bridge') return { id, kind: 'bridge', name: 'The bridge', from: 40, to: 900, spots: [
-      { id: 'bridge-door', x: 40, kind: 'travel', label: 'Back to the bridge tower', to: { scene: 'castle:upper', x: 1560 }, dir: 'use' },
+      { id: 'bridge-door', x: 40, kind: 'travel', label: 'Back to the bridge tower', to: { scene: 'castle:upper', x: BRIDGE_X - 30 }, dir: 'use' },
       { id: 'neighbour-door', x: 880, kind: 'fix', fix: 'door', label: 'The neighbour\'s door (their account: you can\'t go in)' }
     ] };
     const m = /^castle:(\w+)$/.exec(id);
     if (m && C[m[1]]) {
       const f = m[1], spots = [];
-      LINKS.forEach(l => { if (l.joins.includes(f)) spots.push({ id: l.id, x: l.x, kind: l.lift ? 'lift' : 'stair', label: l.lift ? 'Supply hoist' : 'Stairs', link: l, needs: l.needs }); });
+      LINKS.forEach(l => { if (!l.joins.includes(f)) return;
+        const o = l.joins.find(g => g !== f), up = WW.FLOORS.indexOf(o) < WW.FLOORS.indexOf(f);
+        spots.push({ id: l.id, x: linkX(l, f), kind: l.lift ? 'lift' : 'stair', label: l.lift ? 'Ladder' : l.needs ? 'Blocked stair ' + (up ? 'up' : 'down') + ' to the ' + C[o].name.toLowerCase() : 'Stairs', link: l, floor: f, needs: l.needs, up }); });
       C[f].rooms.forEach(([rid, a, b, name], i) => {
+        const pop = (C[f].popup || []).includes(rid), dx = (C[f].doors || {})[rid];
+        if (pop) { spots.push({ id: 'door-' + rid, x: dx != null ? dx : (a + b) / 2, kind: 'door', popup: true, room: rid, label: name }); return; }   // an archway: walk in for the popup
         spots.push({ id: 'room-' + rid, x: (a + b) / 2, kind: 'room', room: rid, label: name });
-        if (i > 0) spots.push({ id: 'door-' + rid, x: a, kind: 'door', room: rid, label: name + ' door' });
+        if (i > 0) spots.push({ id: 'door-' + rid, x: dx != null ? dx : a, kind: 'door', room: rid, label: name + ' door' });
       });
-      if (f === 'upper') spots.push({ id: 'bridge-exit', x: 1590, kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });
-      if (f === 'ground') spots.push({ id: 'outpost-back', x: 640, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1300 }, dir: 'use', dawn: true, needs: 'outpost' });
-      if (f === 'ground') spots.push({ id: 'castle-exit', x: 40, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
-      return { id, kind: 'castle', floor: f, name: C[f].name, from: 30, to: FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
+      if (f === 'upper') spots.push({ id: 'bridge-exit', x: BRIDGE_X + ((C.upper.popup || []).includes('bridge-tower') ? 60 : 0), kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });   // through the bridge tower's arch, clear of its doorway
+      if (f === 'ground') spots.push({ id: 'outpost-back', x: OUTPOST_X, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1335 }, dir: 'use', dawn: true, needs: 'outpost' });
+      if (f === 'ground') spots.push({ id: 'castle-exit', x: EXIT_X, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
+      const wl = C[f].walls;
+      return { id, kind: 'castle', floor: f, name: C[f].name, from: wl ? wl[0] + 26 : 30, to: wl ? wl[1] - 34 : FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
     }
     return null;
   };
   WW.roomAt = function (floor, x) {
+    artSync();
     const r = C[floor] && C[floor].rooms.find(([, a, b]) => x >= a && x <= b);
     return r ? r[0] : null;
   };
@@ -131,8 +205,9 @@
   WW.step = function (st, dt, input) {
     const sc = WW.scene(st.scene); if (!sc) return st;
     const dir = (input && input.right ? 1 : 0) - (input && input.left ? 1 : 0);
+    if (dir && st.tucked) st.tucked = false;   // stepping left or right brings her out of a doorway
     st.moving = !!dir;
-    if (dir) { st.facing = dir; st.x = Math.max(sc.from, Math.min(sc.to, st.x + dir * WW.SPEED * dt)); st.walk += dt; }
+    if (dir) { st.facing = dir; st.x = Math.max(sc.from, Math.min(sc.to, st.x + dir * WW.SPEED * (st.slow || 1) * dt)); st.walk += dt; }   // slow: a puddle underfoot
     return st;
   };
   // What can be used from here: the nearest spot within reach, with whether it's open and what pressing does.
@@ -145,7 +220,8 @@
   WW.open = function (st, s) {
     if (!s) return false;
     if (s.needs && !st.unlocks[s.needs]) return false;
-    if (s.kind === 'gate') return st.phase === 'dusk' || st.phase === 'night';
+    if (s.kind === 'lift') return WW.ladderTo(st.unlocks, s.floor).length > 0;
+    if (s.kind === 'gate') return st.phase === 'dusk' || st.phase === 'night' || (st.phase === 'day' && !!s.dusk);   // by day, the castle gate ends the day early (Ladi, Nov 18)
     if (s.dawn) return st.phase !== 'night' || st.night === 9;   // the Long Night spans town and castle
     return true;
   };
@@ -154,16 +230,17 @@
     const s = WW.near(st); if (!s) return [];
     const out = [];
     if ((s.kind === 'fork' || s.kind === 'travel' || s.kind === 'gate') && s.to) {
-      if (WW.open(st, s)) out.push({ key: s.dir === 'use' ? 'use' : s.dir, to: s.to, label: s.label, via: s.id });
+      if (WW.open(st, s)) out.push({ key: s.dir === 'use' ? 'use' : s.dir, to: s.to, label: s.kind === 'gate' && st.phase === 'day' ? 'End the day early' : s.label, via: s.id });
     }
     if ((s.kind === 'stair' || s.kind === 'lift') && WW.open(st, s)) {
       const l = s.link, f = WW.scene(st.scene).floor, i = WW.FLOORS.indexOf(f);
       if (l.lift) {
-        l.joins.filter(g => g !== f).forEach(g => out.push({ key: 'floor:' + g, to: { scene: 'castle:' + g, x: l.x }, label: 'Hoist to the ' + C[g].name.toLowerCase(), via: l.id }));
+        const to = WW.ladderTo(st.unlocks, f).sort((a, b) => WW.FLOORS.indexOf(a) - WW.FLOORS.indexOf(b));
+        to.forEach(g => out.push({ key: 'floor:' + g, to: { scene: 'castle:' + g, x: linkX(l, g) }, label: (WW.FLOORS.indexOf(g) < i ? 'Climb to the ' : 'Climb down to the ') + C[g].name.toLowerCase(), via: l.id }));
       } else {
         const up = WW.FLOORS[i - 1], dn = WW.FLOORS[i + 1];
-        if (up && l.joins.includes(up)) out.push({ key: 'up', to: { scene: 'castle:' + up, x: l.x }, label: 'Up to the ' + C[up].name.toLowerCase(), via: l.id });
-        if (dn && l.joins.includes(dn)) out.push({ key: 'down', to: { scene: 'castle:' + dn, x: l.x }, label: 'Down to the ' + C[dn].name.toLowerCase(), via: l.id });
+        if (up && l.joins.includes(up)) out.push({ key: 'up', to: { scene: 'castle:' + up, x: linkX(l, up) }, label: 'Up to the ' + C[up].name.toLowerCase(), via: l.id });
+        if (dn && l.joins.includes(dn)) out.push({ key: 'down', to: { scene: 'castle:' + dn, x: linkX(l, dn) }, label: 'Down to the ' + C[dn].name.toLowerCase(), via: l.id });
       }
     }
     return out;
@@ -200,8 +277,9 @@
     'hill-road': [['pigeon', 1380, 1520, 'day'], ['pigeon', 1400, 1500, 'day'], ['cat', 1840, 1940, 'day'], ['goat', 3640, 3800, 'day'], ['bat', 1300, 3800, 'night']],
     'main-street': [['chicken', 1380, 1520, 'day'], ['chicken', 1360, 1540, 'day'], ['dog', 2300, 2520, 'day'], ['cat', 1960, 2040, 'day'], ['sparrow', 600, 1200, 'day'], ['fox', 700, 900, 'night'], ['moth', 2000, 2080, 'night']],
     'far-lane': [['duck', 2300, 2900, 'day'], ['duck', 2400, 3000, 'day'], ['heron', 2560, 2660, 'day'], ['bee', 1000, 1260, 'day'], ['firefly', 980, 1280, 'night'], ['frog', 3540, 3660, 'night']],
-    'castle:ground': [['dove', 480, 780, 'both'], ['cat', 200, 1400, 'night']],
-    'castle:cellars': [['rat', 140, 1460, 'night'], ['rat', 300, 1300, 'night']],
+    // Indoors (Ladi, Nov 18): no animals in the castle, bar a bat up in the towers.
+    'castle:ground': [],
+    'castle:cellars': [],
     'castle:towers': [['bat', 140, 1460, 'night']],
     'castle:upper': []
   };

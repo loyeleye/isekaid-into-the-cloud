@@ -1,0 +1,140 @@
+[
+ {
+  "out": "tess/tess-rain.png",
+  "ref": "base/tess-rain.png",
+  "seed": 93,
+  "prompt": "Put out the flame: the burning wick at the tip of her pole is now a dark, wet, smoking-out wick with no fire, and the hanging lantern is unlit and dark glass, no glow. Keep everything else exactly the same: the character, green raincoat with the hood up, the pole, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "tess/townsfolk-1-rain.png",
+  "ref": "base/townsfolk-1-rain.png",
+  "seed": 94,
+  "prompt": "Cover the basket she carries with a checked cloth tucked over the top against the rain, so the bread inside is hidden. Keep everything else exactly the same: the character, green raincoat with the hood up, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "pose/tess-rain-walkA.png",
+  "ref": "base/tess-rain.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkB.png",
+  "ref": "base/tess-rain.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/townsfolk-1-rain-walkA.png",
+  "ref": "base/townsfolk-1-rain.png",
+  "seed": 71,
+  "prompt": "Change only the pose: walking to the right in mid-stride, front leg stepping forward with the heel down, back leg pushing off behind with toes on the ground, the free arm swinging opposite to the legs. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/townsfolk-1-rain-walkB.png",
+  "ref": "base/townsfolk-1-rain.png",
+  "seed": 72,
+  "prompt": "Change only the pose: walking to the right at the passing position of a walk cycle, legs nearly together under the body with the back knee slightly bent and lifted, arms close to the sides. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkC.png",
+  "ref": "pose/tess-rain-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkD.png",
+  "ref": "pose/tess-rain-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/townsfolk-1-rain-walkC.png",
+  "ref": "pose/townsfolk-1-rain-walkA.png",
+  "seed": 31,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/townsfolk-1-rain-walkD.png",
+  "ref": "pose/townsfolk-1-rain-walkB.png",
+  "seed": 32,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/aigerim-rain-walkC.png",
+  "ref": "pose/aigerim-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/bru-rain-walkC.png",
+  "ref": "pose/bru-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/doug-rain-walkC.png",
+  "ref": "pose/doug-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/dutch-rain-walkC.png",
+  "ref": "pose/dutch-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/lexi-rain-walkC.png",
+  "ref": "pose/lexi-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/mira-rain-walkD.png",
+  "ref": "pose/mira-rain-walkB.png",
+  "seed": 133,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/odu-rain-walkC.png",
+  "ref": "pose/odu-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkC.png",
+  "ref": "pose/tess-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkD.png",
+  "ref": "pose/tess-rain-walkB.png",
+  "seed": 133,
+  "prompt": "Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/townsfolk-1-rain-walkC.png",
+  "ref": "pose/townsfolk-1-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/wen-rain-walkC.png",
+  "ref": "pose/wen-rain-walkA.png",
+  "seed": 132,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both legs keep the same trousers and the same boots as the other leg, nothing bare. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/mira-rain-walkD.png",
+  "ref": "pose/mira-rain-walkB.png",
+  "seed": 190,
+  "prompt": "Both feet wear the same brown leather boots as the other foot, with the trousers or skirt down to the boot tops, no bare skin on the legs. Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/tess-rain-walkD.png",
+  "ref": "pose/tess-rain-walkB.png",
+  "seed": 190,
+  "prompt": "Both feet wear the same brown leather boots as the other foot, with the trousers or skirt down to the boot tops, no bare skin on the legs. Change only the legs and arms, to the opposite passing step of the walk: the leg that is now lifted goes down to support the weight under the body, and the other leg is the one lifted with its knee slightly bent, passing forward. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

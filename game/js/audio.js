@@ -344,7 +344,9 @@
     stopCur(0.05);
     const resume = () => { if (back) { A.loopName = null; A.music(back); } };
     if (JING[name] && playBuf(JING[name], musicBus, 1.6, () => setTimeout(resume, 250))) return;
-    play(name, resume);
+    if (TRACKS[name]) { play(name, resume); return; }
+    if (JING[name]) loadBuf(JING[name]);
+    setTimeout(resume, 250);   // no sting to play (still loading, or missing): go straight back to the music, never to silence
   };
   A.stop = function () { A.loopName = null; want = null; A.weather(null); A.place(null); if (ctx) stopCur(0.3); };
   // Later chapters bring their own recordings (js/arc.js): { songs: {name: file}, samples: {...}, jingles: {...} }.

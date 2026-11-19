@@ -4,8 +4,15 @@
    and an explicit deny beats any allow. */
 (function () {
   'use strict';
-  var START = 20, START_HIGH = 40, HIGH = { mira: 1, pell: 1, kagemaru: 1 };
-  var GAIN = { chat: 2, small: 10, trust: 20, wrong: -5, breach: -5 };
+  // Starting trust in Seo-yeon, from the main game (Ladi, Nov 18; set shortly after its finale, no spoilers):
+  // her party are family by now; the returning townsfolk worked beside her at camp but aren't close; the castle's
+  // people and this town's locals barely know her. Kagemaru is an odd one: kept for his shop prices, never shown.
+  var START = 15, START_HIGH = 40, HIGH = { mira: 80, kai: 80, dutch: 70, lexi: 35, aigerim: 30, coo: 25, bru: 25, wen: 25,
+    seymour: 25, ayo: 25, doug: 20, captain: 30, pell: 25, kagemaru: 40 };
+  var GAIN = { chat: 2, mini: 5, lesson: 3, small: 10, trust: 20, wrong: -5, breach: -5 };
+  // Named steps of trust (Ladi, Nov 18: a richer relationship engine). Crossing one is announced; 40 unlocks a secret.
+  var TIERS = [[0, 'stranger'], [20, 'acquaintance'], [40, 'friend'], [60, 'close friend'], [80, 'trusted friend']];
+  function tier(n) { var t = TIERS[0][1]; TIERS.forEach(function (x) { if (n >= x[0]) t = x[1]; }); return t; }
   var CAP = { warm: 80, neutral: 50, cool: 0 };
   var PERKS = [
     { at: 40, id: 'secret-gossip' },
@@ -16,7 +23,7 @@
 
   // b = { trust: {who: n}, chatted: {who: day}, today: {'a|b': 'warm'|'cool'|'neutral'}, day }
   function create(day) { return { trust: {}, chatted: {}, today: {}, day: day || 1 }; }
-  function trust(b, who) { return who in b.trust ? b.trust[who] : (HIGH[who] ? START_HIGH : START); }
+  function trust(b, who) { return who in b.trust ? b.trust[who] : (HIGH[who] || START); }
   function add(b, who, kind) {
     var d = typeof kind === 'number' ? kind : (GAIN[kind] || 0);
     b.trust[who] = clamp(trust(b, who) + d); return b.trust[who];
@@ -59,7 +66,7 @@
     return n >= d.at && d.shops.indexOf(who) >= 0 ? Math.round(cost * (1 - d.off)) : cost;
   }
 
-  var api = { START: START, GAIN: GAIN, CAP: CAP, PERKS: PERKS, create: create, trust: trust, add: add, chat: chat,
+  var api = { TIERS: TIERS, tier: tier, START: START, GAIN: GAIN, CAP: CAP, PERKS: PERKS, create: create, trust: trust, add: add, chat: chat,
     newDay: newDay, tie: tie, shift: shift, refer: refer, vouchers: vouchers, perks: perks, price: price };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') { window.SD = window.SD || {}; window.SD.watchBonds = api; }

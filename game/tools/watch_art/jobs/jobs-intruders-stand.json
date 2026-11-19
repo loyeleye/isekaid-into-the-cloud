@@ -1,0 +1,194 @@
+[
+ {
+  "out": "stand/pickpocket-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 723,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a quick, slim thief in a short charcoal-grey hooded jerkin and soft dark boots, a cloth mask over the lower face, thin gloved fingers, a small coin pouch on the belt, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/pickpocket-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 736,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a quick, slim thief in a short charcoal-grey hooded jerkin and soft dark boots, a cloth mask over the lower face, thin gloved fingers, a small coin pouch on the belt, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/snuffer-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 720,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a lanky thief in a long slate-blue coat and a dark cowl, a soot-smudged face, carrying a long brass candle-snuffer pole over one shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/snuffer-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 733,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a lanky thief in a long slate-blue coat and a dark cowl, a soot-smudged face, carrying a long brass candle-snuffer pole over one shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/spiller-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 720,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stout thief in a stained brown smock and oil-dark boots, carrying a dented tin oil can whose spout drips, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/spiller-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 733,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stout thief in a stained brown smock and oil-dark boots, carrying a dented tin oil can whose spout drips, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/jailer-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 719,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a big, slow brute in a dark red tabard over chain mail and a heavy iron-bound helmet, a huge iron key ring on the belt and a loop of chain over one forearm, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/jailer-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 732,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a big, slow brute in a dark red tabard over chain mail and a heavy iron-bound helmet, a huge iron key ring on the belt and a loop of chain over one forearm, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/impersonator-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 725,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a person dressed as castle kitchen staff in a cream cook's tunic, apron and soft cap, but with both hands empty, a shifty sideways glance, and a black thief's boot showing under the apron hem, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/impersonator-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 738,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a person dressed as castle kitchen staff in a cream cook's tunic, apron and soft cap, but with both hands empty, a shifty sideways glance, and a black thief's boot showing under the apron hem, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/cook-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 717,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a friendly castle cook in a cream tunic, long apron and soft cap, carrying a wooden tray with a covered dish and a loaf of bread in both hands, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/cook-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 730,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a friendly castle cook in a cream tunic, long apron and soft cap, carrying a wooden tray with a covered dish and a loaf of bread in both hands, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/porter-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 719,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a castle porter in a brown work vest, rolled sleeves and a flat cap, carrying a full grain sack over one shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/porter-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 732,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a castle porter in a brown work vest, rolled sleeves and a flat cap, carrying a full grain sack over one shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/replayer-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 721,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a thin thief in a deep violet coat with a satchel stuffed with copied papers, holding up a copied letter with a red wax seal, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/replayer-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 734,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a thin thief in a deep violet coat with a satchel stuffed with copied papers, holding up a copied letter with a red wax seal, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/escalator-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 722,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a small, scrawny thief in a patched olive-green tunic, carrying a short wooden ladder over one shoulder, a ring of mismatched keys on the belt, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/escalator-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 735,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a small, scrawny thief in a patched olive-green tunic, carrying a short wooden ladder over one shoulder, a ring of mismatched keys on the belt, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/eavesdropper-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 725,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a hunched listener in a mossy grey-green hooded cloak, holding a brass ear trumpet to one ear, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/eavesdropper-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 738,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a hunched listener in a mossy grey-green hooded cloak, holding a brass ear trumpet to one ear, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/exfiltrator-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 724,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a wiry runner in a tan travelling coat with a scarf over the face, a large empty burlap sack slung over the shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/exfiltrator-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 737,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a wiry runner in a tan travelling coat with a scarf over the face, a large empty burlap sack slung over the shoulder, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/rummager-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 721,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a scruffy thief in a rust-brown coat covered in pockets, a small lamp on the belt, an armful of loose papers and an open drawer box, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/rummager-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 734,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a scruffy thief in a rust-brown coat covered in pockets, a small lamp on the belt, an armful of loose papers and an open drawer box, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/forger-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 719,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a neat thief in a plum-coloured coat with ink-stained fingers and a quill behind the ear, holding a stick of red sealing wax and a brass seal stamp, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/forger-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 732,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a neat thief in a plum-coloured coat with ink-stained fingers and a quill behind the ear, holding a stick of red sealing wax and a brass seal stamp, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/secrethunter-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 725,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a sharp-eyed thief in a navy coat holding a magnifying glass, a stolen notebook tucked under one arm, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/secrethunter-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 738,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a sharp-eyed thief in a navy coat holding a magnifying glass, a stolen notebook tucked under one arm, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/turncloak-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 722,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stranger wearing a castle night-watch guard's long dark blue cloak with a brass watch badge, hood down, over a green tunic from another castle that shows at the cuffs, and green boots, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/turncloak-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 735,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stranger wearing a castle night-watch guard's long dark blue cloak with a brass watch badge, hood down, over a green tunic from another castle that shows at the cuffs, and green boots, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/turncloak-bare-1.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 727,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stranger in a green and grey tunic and green boots from another castle, a small green crest on the chest, no cloak, empty hands, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "stand/turncloak-bare-2.png",
+  "ref": "people/seoyeon-stand.png",
+  "seed": 740,
+  "prompt": "Using only the art style, pixel density and side-profile staging of this image, draw a different character: a stranger in a green and grey tunic and green boots from another castle, a small green crest on the chest, no cloak, empty hands, in strict side profile facing right (only the right side visible, one eye, nose pointing right). Full body, standing on flat ground, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

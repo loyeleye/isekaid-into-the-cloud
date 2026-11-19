@@ -1,0 +1,43 @@
+[
+ {
+  "out": "final/replayer.png",
+  "ref": "redo/replayer-2.png",
+  "prompt": "Remove any sword or scabbard and any red headband or ribbon. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/escalator.png",
+  "ref": "redo/escalator-1.png",
+  "prompt": "Remove the sword and its scabbard; he carries no sword. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/secrethunter.png",
+  "ref": "redo/secrethunter-2.png",
+  "prompt": "Remove the green tassel hanging from her hand or belt. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/exfiltrator.png",
+  "ref": "redo/exfiltrator-2.png",
+  "prompt": "Make both of his hands and fingers the same dark brown skin as his face. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/turncloak.png",
+  "ref": "redo/turncloak-1.png",
+  "prompt": "Remove any sword or scabbard and any red headband or ribbon. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/cook.png",
+  "ref": "redo/cook-1.png",
+  "prompt": "Remove the red headband under the white cap; only curly brown hair shows under the cap. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/impersonator.png",
+  "ref": "redo/impersonator-1.png",
+  "prompt": "Remove the red headband under the white cap; only curly brown hair shows under the cap. Keep everything else exactly the same: the character, face, hair, clothes, props, pose, colours, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ },
+ {
+  "out": "final/turncloak-bare.png",
+  "ref": "redo/turncloak-bare-2.png",
+  "ref2": "redo/turncloak-1.png",
+  "prompt": "Give the character in the first image the exact face and hair of the man in the second image. Remove any sword or scabbard and any red headband. Keep the first image's green tunic, grey sleeves, green boots, pose, pixel-art style, strict side profile facing right, white background and soft grey shadow."
+ }
+]

@@ -1,13 +1,13 @@
 import json
 P = json.load(open('out/people/meta.json')); A = json.load(open('out/animals/meta.json')); L = json.load(open('out/layers.json'))
 def ent(base, k, m):
-    return {'sheet': f'assets/img/watch/{base}/{k}.png', 'w': m['w'], 'h': m['h'], 'anchor': m['anchor'], 'anims': m['anims'], 'fps': m.get('fps', 8)}
+    return {'sheet': f'assets/img/watch/{base}/{k}.png', 'w': m['w'], 'h': m['h'], 'anchor': m['anchor'], 'anims': m['anims'], 'fps': m.get('fps', 8), **({'scale': m['scale']} if m.get('scale', 1) != 1 else {})}
 art = {
  'version': 1,
  'people': {k: ent('people', k, m) for k, m in P.items()},
  'animals': {k: ent('animals', k, m) for k, m in A.items()},
  'skies': {'day': 'assets/img/watch/sky/day.webp', 'night': 'assets/img/watch/sky/night.webp'},
- 'levels': L['levels'], 'floors': L['floors'],
+ 'town': L['town'], 'levels': L['levels'], 'floors': L['floors'],
  'weather': {w: f'assets/img/watch/weather/{w}.png' for w in ('rain', 'storm', 'fog', 'mist', 'wind')},
  'props': {k: f'assets/img/watch/props/{k}.png' for k in ('hoist-door', 'hoist-platform', 'stair-left', 'stair-right', 'cellar-stair', 'back-stair', 'sparkle', 'lantern')},
  'sparkle': {'w': 16, 'h': 16, 'frames': 4, 'fps': 8},
@@ -21,6 +21,18 @@ head = """// The Night Watch's art (art thread). Shapes: js/watch-schema.md. Gen
 //   - Layers are 360 tall, drawn at native size offset by -camera x speed. Each is exactly as wide as its speed needs
 //     (about speed x width + 1280). Street layers have the ground line at y 300 and the buildings at the spot x
 //     values in js/watch-world.js. Castle windows are transparent so the sky (layer 1) shows through.
+//   - town: the four levels stacked on one hillside picture (width x height, road y per level in levelY). Ramps are
+//     sloped paths between the fork spots ({from:[level,x], to:[level,x], path:[[x,y],[x,y]]}, lower end first); chute
+//     is the slide from West Road down to Far Lane. Town x equals spot x. levels.<id> are 360-tall crops of it.
+//     Roads are 125 apart with a solid earth bank between them. layers (far, back, town) hold the sky, backdrop and
+//     the roads, walls and ramps; buildings.<road> holds that road's buildings, which may rise in front of the road
+//     above. Draw town, then buildings in levelY order (top road first). Clip town above levelY[road above] - roofs,
+//     skip buildings two or more roads up, and for roads below the player draw buildingsSoft.<road> instead
+//     (pre-blurred, 40% opacity) so they read as see-through. Ramps that were short are stretched to about 460 px,
+//     so their end x can differ from the fork spot x: follow ramps[].path.
+//   - floors: one painted wall per floor, 1200 wide, furnished at person scale. rooms ([id, x0, x1]), doors (x per
+//     room) and links (stair, hoist and bridge-door x) give the positions in that picture.
+//   - Birds walk on 4 frames (the sparrow hops).
 //   - Weather overlays are tiles that loop in both directions (rain and storm 480x360, the rest 640x360).
 //   - The sparkle prop is a 4-frame 16x16 strip.
 """

@@ -7,6 +7,18 @@
 //   - Layers are 360 tall, drawn at native size offset by -camera x speed. Each is exactly as wide as its speed needs
 //     (about speed x width + 1280). Street layers have the ground line at y 300 and the buildings at the spot x
 //     values in js/watch-world.js. Castle windows are transparent so the sky (layer 1) shows through.
+//   - town: the four levels stacked on one hillside picture (width x height, road y per level in levelY). Ramps are
+//     sloped paths between the fork spots ({from:[level,x], to:[level,x], path:[[x,y],[x,y]]}, lower end first); chute
+//     is the slide from West Road down to Far Lane. Town x equals spot x. levels.<id> are 360-tall crops of it.
+//     Roads are 125 apart with a solid earth bank between them. layers (far, back, town) hold the sky, backdrop and
+//     the roads, walls and ramps; buildings.<road> holds that road's buildings, which may rise in front of the road
+//     above. Draw town, then buildings in levelY order (top road first). Clip town above levelY[road above] - roofs,
+//     skip buildings two or more roads up, and for roads below the player draw buildingsSoft.<road> instead
+//     (pre-blurred, 40% opacity) so they read as see-through. Ramps that were short are stretched to about 460 px,
+//     so their end x can differ from the fork spot x: follow ramps[].path.
+//   - floors: one painted wall per floor, 1200 wide, furnished at person scale. rooms ([id, x0, x1]), doors (x per
+//     room) and links (stair, hoist and bridge-door x) give the positions in that picture.
+//   - Birds walk on 4 frames (the sparrow hops).
 //   - Weather overlays are tiles that loop in both directions (rain and storm 480x360, the rest 640x360).
 //   - The sparkle prop is a 4-frame 16x16 strip.
 window.WATCH_ART = {
@@ -14,655 +26,838 @@ window.WATCH_ART = {
  "people": {
   "seoyeon": {
    "sheet": "assets/img/watch/people/seoyeon.png",
-   "w": 58,
-   "h": 112,
+   "w": 108,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    54,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     9,
+     9,
+     9,
+     9
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ],
     "lantern": [
-     4,
-     4
+     6,
+     6,
+     6,
+     6,
+     10,
+     10,
+     10,
+     10
     ],
     "lanternWalk": [
-     5,
-     4
+     7,
+     6,
+     8,
+     10
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "mira": {
    "sheet": "assets/img/watch/people/mira.png",
-   "w": 52,
-   "h": 112,
+   "w": 100,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    50,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kai": {
    "sheet": "assets/img/watch/people/kai.png",
-   "w": 58,
-   "h": 112,
+   "w": 114,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    57,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "dutch": {
    "sheet": "assets/img/watch/people/dutch.png",
-   "w": 68,
-   "h": 112,
+   "w": 126,
+   "h": 224,
    "anchor": [
-    34,
-    106
+    63,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "coo": {
    "sheet": "assets/img/watch/people/coo.png",
-   "w": 64,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    32,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "bru": {
    "sheet": "assets/img/watch/people/bru.png",
-   "w": 50,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    25,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kagemaru": {
    "sheet": "assets/img/watch/people/kagemaru.png",
-   "w": 54,
-   "h": 112,
+   "w": 104,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    52,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "lexi": {
    "sheet": "assets/img/watch/people/lexi.png",
-   "w": 54,
-   "h": 112,
+   "w": 88,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    44,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "wen": {
    "sheet": "assets/img/watch/people/wen.png",
-   "w": 48,
-   "h": 112,
+   "w": 92,
+   "h": 224,
    "anchor": [
-    24,
-    106
+    46,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "ayo": {
    "sheet": "assets/img/watch/people/ayo.png",
-   "w": 62,
-   "h": 112,
+   "w": 120,
+   "h": 224,
    "anchor": [
-    31,
-    106
+    60,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "aigerim": {
    "sheet": "assets/img/watch/people/aigerim.png",
-   "w": 52,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "chad": {
    "sheet": "assets/img/watch/people/chad.png",
-   "w": 58,
-   "h": 112,
+   "w": 108,
+   "h": 224,
    "anchor": [
-    29,
-    106
+    54,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "seymour": {
    "sheet": "assets/img/watch/people/seymour.png",
-   "w": 66,
-   "h": 112,
+   "w": 126,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    63,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "hobb": {
    "sheet": "assets/img/watch/people/hobb.png",
-   "w": 48,
-   "h": 112,
+   "w": 90,
+   "h": 224,
    "anchor": [
-    24,
-    106
+    45,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "pell": {
    "sheet": "assets/img/watch/people/pell.png",
-   "w": 72,
-   "h": 112,
+   "w": 190,
+   "h": 300,
    "anchor": [
-    36,
-    106
+    95,
+    288
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "tess": {
    "sheet": "assets/img/watch/people/tess.png",
-   "w": 94,
-   "h": 112,
+   "w": 146,
+   "h": 224,
    "anchor": [
-    47,
-    106
+    73,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "doug": {
    "sheet": "assets/img/watch/people/doug.png",
-   "w": 56,
-   "h": 112,
+   "w": 104,
+   "h": 224,
    "anchor": [
-    28,
-    106
+    52,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "hollis": {
    "sheet": "assets/img/watch/people/hollis.png",
-   "w": 60,
-   "h": 112,
+   "w": 114,
+   "h": 224,
    "anchor": [
-    30,
-    106
+    57,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "odu": {
    "sheet": "assets/img/watch/people/odu.png",
-   "w": 62,
-   "h": 112,
+   "w": 118,
+   "h": 224,
    "anchor": [
-    31,
-    106
+    59,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "fennel": {
    "sheet": "assets/img/watch/people/fennel.png",
-   "w": 50,
-   "h": 112,
+   "w": 92,
+   "h": 224,
    "anchor": [
-    25,
-    106
+    46,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "captain": {
    "sheet": "assets/img/watch/people/captain.png",
-   "w": 66,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     6,
+     6,
+     6,
+     6
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ],
     "talk": [
      0,
-     3
+     5
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "kevin": {
    "sheet": "assets/img/watch/people/kevin.png",
-   "w": 52,
-   "h": 112,
+   "w": 98,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    49,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-1": {
    "sheet": "assets/img/watch/people/townsfolk-1.png",
-   "w": 54,
-   "h": 112,
+   "w": 102,
+   "h": 224,
    "anchor": [
-    27,
-    106
+    51,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-2": {
    "sheet": "assets/img/watch/people/townsfolk-2.png",
-   "w": 66,
-   "h": 112,
+   "w": 128,
+   "h": 224,
    "anchor": [
-    33,
-    106
+    64,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   },
   "townsfolk-3": {
    "sheet": "assets/img/watch/people/townsfolk-3.png",
-   "w": 52,
-   "h": 112,
+   "w": 102,
+   "h": 224,
    "anchor": [
-    26,
-    106
+    51,
+    212
    ],
    "anims": {
     "idle": [
      0,
-     0
+     0,
+     0,
+     0,
+     5,
+     5,
+     5,
+     5
     ],
     "walk": [
      1,
      2,
-     1,
-     2
+     3,
+     4
     ]
    },
-   "fps": 8
+   "fps": 8,
+   "scale": 0.5
   }
  },
  "animals": {
   "horse": {
    "sheet": "assets/img/watch/animals/horse.png",
-   "w": 74,
-   "h": 71,
+   "w": 147,
+   "h": 141,
    "anchor": [
-    37,
-    69
+    73,
+    137
    ],
    "anims": {
     "idle": [
@@ -680,27 +875,32 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "crow": {
    "sheet": "assets/img/watch/animals/crow.png",
-   "w": 23,
-   "h": 19,
+   "w": 45,
+   "h": 38,
    "anchor": [
-    11,
-    17
+    22,
+    34
    ],
    "anims": {
     "idle": [
      0
     ],
     "walk": [
-     0,
-     1
+     5,
+     6,
+     7,
+     8
     ],
     "run": [
-     1,
-     0
+     5,
+     6,
+     7,
+     8
     ],
     "fly": [
      2,
@@ -710,15 +910,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "rabbit": {
    "sheet": "assets/img/watch/animals/rabbit.png",
-   "w": 17,
-   "h": 18,
+   "w": 34,
+   "h": 36,
    "anchor": [
-    8,
-    16
+    17,
+    32
    ],
    "anims": {
     "idle": [
@@ -732,15 +933,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "owl": {
    "sheet": "assets/img/watch/animals/owl.png",
-   "w": 22,
-   "h": 24,
+   "w": 44,
+   "h": 49,
    "anchor": [
-    11,
-    22
+    22,
+    45
    ],
    "anims": {
     "idle": [
@@ -749,29 +951,46 @@ window.WATCH_ART = {
     "fly": [
      1,
      2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "pigeon": {
    "sheet": "assets/img/watch/animals/pigeon.png",
-   "w": 17,
-   "h": 17,
+   "w": 35,
+   "h": 35,
    "anchor": [
-    8,
-    15
+    17,
+    31
    ],
    "anims": {
     "idle": [
      0
     ],
     "walk": [
-     0,
-     1
+     5,
+     6,
+     7,
+     8
     ],
     "run": [
-     1,
-     0
+     5,
+     6,
+     7,
+     8
     ],
     "fly": [
      2,
@@ -781,15 +1000,16 @@ window.WATCH_ART = {
      4
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "cat": {
    "sheet": "assets/img/watch/animals/cat.png",
-   "w": 25,
-   "h": 24,
+   "w": 50,
+   "h": 48,
    "anchor": [
-    12,
-    22
+    25,
+    44
    ],
    "anims": {
     "idle": [
@@ -807,15 +1027,16 @@ window.WATCH_ART = {
      3
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "goat": {
    "sheet": "assets/img/watch/animals/goat.png",
-   "w": 46,
-   "h": 39,
+   "w": 92,
+   "h": 77,
    "anchor": [
-    23,
-    37
+    46,
+    73
    ],
    "anims": {
     "idle": [
@@ -833,15 +1054,16 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "bat": {
    "sheet": "assets/img/watch/animals/bat.png",
-   "w": 19,
-   "h": 20,
+   "w": 38,
+   "h": 39,
    "anchor": [
-    9,
-    18
+    19,
+    35
    ],
    "anims": {
     "idle": [
@@ -859,133 +1081,13 @@ window.WATCH_ART = {
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "chicken": {
    "sheet": "assets/img/watch/animals/chicken.png",
-   "w": 20,
-   "h": 21,
-   "anchor": [
-    10,
-    19
-   ],
-   "anims": {
-    "idle": [
-     0
-    ],
-    "walk": [
-     0,
-     1
-    ],
-    "run": [
-     2,
-     0
-    ]
-   },
-   "fps": 6
-  },
-  "dog": {
-   "sheet": "assets/img/watch/animals/dog.png",
-   "w": 36,
-   "h": 30,
-   "anchor": [
-    18,
-    28
-   ],
-   "anims": {
-    "idle": [
-     0
-    ],
-    "walk": [
-     0,
-     1
-    ],
-    "run": [
-     2,
-     0
-    ],
-    "sleep": [
-     3
-    ]
-   },
-   "fps": 6
-  },
-  "sparrow": {
-   "sheet": "assets/img/watch/animals/sparrow.png",
-   "w": 14,
-   "h": 14,
-   "anchor": [
-    7,
-    12
-   ],
-   "anims": {
-    "idle": [
-     0
-    ],
-    "fly": [
-     1,
-     2
-    ]
-   },
-   "fps": 6
-  },
-  "fox": {
-   "sheet": "assets/img/watch/animals/fox.png",
-   "w": 35,
-   "h": 26,
-   "anchor": [
-    17,
-    24
-   ],
-   "anims": {
-    "idle": [
-     0
-    ],
-    "walk": [
-     0,
-     1
-    ],
-    "run": [
-     2,
-     0
-    ]
-   },
-   "fps": 6
-  },
-  "duck": {
-   "sheet": "assets/img/watch/animals/duck.png",
-   "w": 22,
-   "h": 19,
-   "anchor": [
-    11,
-    17
-   ],
-   "anims": {
-    "idle": [
-     0
-    ],
-    "walk": [
-     0,
-     1
-    ],
-    "run": [
-     1,
-     0
-    ],
-    "fly": [
-     2,
-     2
-    ],
-    "sleep": [
-     3
-    ]
-   },
-   "fps": 6
-  },
-  "heron": {
-   "sheet": "assets/img/watch/animals/heron.png",
    "w": 39,
-   "h": 40,
+   "h": 42,
    "anchor": [
     19,
     38
@@ -995,19 +1097,167 @@ window.WATCH_ART = {
      0
     ],
     "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     2,
+     0
+    ]
+   },
+   "fps": 6,
+   "scale": 0.5
+  },
+  "dog": {
+   "sheet": "assets/img/watch/animals/dog.png",
+   "w": 72,
+   "h": 60,
+   "anchor": [
+    36,
+    56
+   ],
+   "anims": {
+    "idle": [
+     0
+    ],
+    "walk": [
      0,
      1
     ],
     "run": [
-     1,
+     2,
      0
+    ],
+    "sleep": [
+     3
+    ]
+   },
+   "fps": 6,
+   "scale": 0.5
+  },
+  "sparrow": {
+   "sheet": "assets/img/watch/animals/sparrow.png",
+   "w": 16,
+   "h": 14,
+   "anchor": [
+    8,
+    12
+   ],
+   "anims": {
+    "idle": [
+     0
+    ],
+    "fly": [
+     1,
+     2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
+    ]
+   },
+   "fps": 6
+  },
+  "fox": {
+   "sheet": "assets/img/watch/animals/fox.png",
+   "w": 70,
+   "h": 52,
+   "anchor": [
+    35,
+    48
+   ],
+   "anims": {
+    "idle": [
+     0
+    ],
+    "walk": [
+     0,
+     1
+    ],
+    "run": [
+     2,
+     0
+    ]
+   },
+   "fps": 6,
+   "scale": 0.5
+  },
+  "duck": {
+   "sheet": "assets/img/watch/animals/duck.png",
+   "w": 43,
+   "h": 39,
+   "anchor": [
+    21,
+    35
+   ],
+   "anims": {
+    "idle": [
+     0
+    ],
+    "walk": [
+     4,
+     5,
+     6,
+     7
+    ],
+    "run": [
+     4,
+     5,
+     6,
+     7
+    ],
+    "fly": [
+     2,
+     2
+    ],
+    "sleep": [
+     3
+    ]
+   },
+   "fps": 6,
+   "scale": 0.5
+  },
+  "heron": {
+   "sheet": "assets/img/watch/animals/heron.png",
+   "w": 78,
+   "h": 80,
+   "anchor": [
+    39,
+    76
+   ],
+   "anims": {
+    "idle": [
+     0
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ],
     "fly": [
      2,
      2
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "frog": {
    "sheet": "assets/img/watch/animals/frog.png",
@@ -1030,11 +1280,11 @@ window.WATCH_ART = {
   },
   "dove": {
    "sheet": "assets/img/watch/animals/dove.png",
-   "w": 18,
-   "h": 17,
+   "w": 37,
+   "h": 34,
    "anchor": [
-    9,
-    15
+    18,
+    30
    ],
    "anims": {
     "idle": [
@@ -1043,9 +1293,22 @@ window.WATCH_ART = {
     "fly": [
      1,
      2
+    ],
+    "walk": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "run": [
+     3,
+     4,
+     5,
+     6
     ]
    },
-   "fps": 6
+   "fps": 6,
+   "scale": 0.5
   },
   "rat": {
    "sheet": "assets/img/watch/animals/rat.png",
@@ -1179,7 +1442,138 @@ window.WATCH_ART = {
  },
  "skies": {
   "day": "assets/img/watch/sky/day.webp",
-  "night": "assets/img/watch/sky/night.webp"
+  "night": "assets/img/watch/sky/night.webp",
+  "overcast": "assets/img/watch/sky/overcast.webp"
+ },
+ "town": {
+  "width": 4100,
+  "height": 735,
+  "levelY": {
+   "west-road": 300,
+   "hill-road": 425,
+   "main-street": 550,
+   "far-lane": 675
+  },
+  "ramps": [
+   {
+    "from": [
+     "hill-road",
+     2264
+    ],
+    "to": [
+     "west-road",
+     2724
+    ],
+    "path": [
+     [
+      2264,
+      425
+     ],
+     [
+      2724,
+      300
+     ]
+    ]
+   },
+   {
+    "from": [
+     "main-street",
+     760
+    ],
+    "to": [
+     "hill-road",
+     1220
+    ],
+    "path": [
+     [
+      760,
+      550
+     ],
+     [
+      1220,
+      425
+     ]
+    ]
+   },
+   {
+    "from": [
+     "far-lane",
+     780
+    ],
+    "to": [
+     "main-street",
+     320
+    ],
+    "path": [
+     [
+      780,
+      675
+     ],
+     [
+      320,
+      550
+     ]
+    ]
+   },
+   {
+    "from": [
+     "far-lane",
+     2000
+    ],
+    "to": [
+     "main-street",
+     1540
+    ],
+    "path": [
+     [
+      2000,
+      675
+     ],
+     [
+      1540,
+      550
+     ]
+    ]
+   }
+  ],
+  "chute": [
+   [
+    1440,
+    300
+   ],
+   [
+    1120,
+    675
+   ]
+  ],
+  "roofs": 115,
+  "layers": [
+   {
+    "img": "assets/img/watch/town/far.webp",
+    "speed": 0.2
+   },
+   {
+    "img": "assets/img/watch/town/back-forest.webp",
+    "speed": 0.3,
+    "y": -70
+   },
+   {
+    "img": "assets/img/watch/town/town.webp",
+    "speed": 1
+   }
+  ],
+  "buildings": {
+   "west-road": "assets/img/watch/town/bld-west-road.webp",
+   "hill-road": "assets/img/watch/town/bld-hill-road.webp",
+   "main-street": "assets/img/watch/town/bld-main-street.webp",
+   "far-lane": "assets/img/watch/town/bld-far-lane.webp"
+  },
+  "buildingsSoft": {
+   "west-road": "assets/img/watch/town/bld-west-road-soft.webp",
+   "hill-road": "assets/img/watch/town/bld-hill-road-soft.webp",
+   "main-street": "assets/img/watch/town/bld-main-street-soft.webp",
+   "far-lane": "assets/img/watch/town/bld-far-lane-soft.webp"
+  }
  },
  "levels": {
   "west-road": {
@@ -1191,16 +1585,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/west-road/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/west-road/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/west-road/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1213,16 +1599,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/hill-road/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/hill-road/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/hill-road/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1235,16 +1613,8 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/main-street/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/main-street/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/main-street/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1257,24 +1627,49 @@ window.WATCH_ART = {
      "speed": 0.2
     },
     {
-     "img": "assets/img/watch/levels/far-lane/back.webp",
-     "speed": 0.5
-    },
-    {
      "img": "assets/img/watch/levels/far-lane/street.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/levels/far-lane/front.webp",
-     "speed": 1.3
     }
    ]
   }
  },
  "floors": {
   "towers": {
-   "width": 1600,
+   "width": 1296,
    "ground": 300,
+   "rooms": [
+    [
+     "watchtower",
+     262,
+     508
+    ],
+    [
+     "lookout",
+     508,
+     756
+    ],
+    [
+     "captain",
+     756,
+     1244
+    ]
+   ],
+   "doors": {
+    "lookout": 658,
+    "captain": 906
+   },
+   "links": {
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
+   },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/towers/far.webp",
@@ -1283,16 +1678,45 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/towers/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/towers/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "upper": {
-   "width": 1600,
+   "width": 1296,
    "ground": 300,
+   "rooms": [
+    [
+     "wardrobe",
+     287,
+     696
+    ],
+    [
+     "ledger",
+     696,
+     902
+    ],
+    [
+     "bridge-tower",
+     902,
+     1112
+    ]
+   ],
+   "doors": {
+    "ledger": 808,
+    "bridge-tower": 1015
+   },
+   "links": {
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
+   },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/upper/far.webp",
@@ -1301,16 +1725,51 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/upper/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/upper/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "ground": {
-   "width": 1600,
+   "width": 1296,
    "ground": 300,
+   "rooms": [
+    [
+     "gate",
+     246,
+     471
+    ],
+    [
+     "hall",
+     471,
+     696
+    ],
+    [
+     "post-room",
+     696,
+     921
+    ],
+    [
+     "tavern",
+     921,
+     1146
+    ]
+   ],
+   "doors": {
+    "hall": 527,
+    "post-room": 756,
+    "tavern": 981
+   },
+   "links": {
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
+   },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/ground/far.webp",
@@ -1319,16 +1778,45 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/ground/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/ground/front.webp",
-     "speed": 1.3
     }
    ]
   },
   "cellars": {
-   "width": 1600,
+   "width": 1296,
    "ground": 300,
+   "rooms": [
+    [
+     "archive",
+     257,
+     478
+    ],
+    [
+     "strongroom",
+     478,
+     696
+    ],
+    [
+     "barracks",
+     696,
+     1161
+    ]
+   ],
+   "doors": {
+    "strongroom": 586,
+    "barracks": 808
+   },
+   "links": {
+    "stair-left": 171,
+    "stair-right": 1216,
+    "cellar-stair": 246,
+    "back-stair": 1136,
+    "hoist": 55,
+    "bridge-door": 1173
+   },
+   "walls": [
+    96,
+    1296
+   ],
    "layers": [
     {
      "img": "assets/img/watch/floors/cellars/far.webp",
@@ -1337,10 +1825,6 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/cellars/wall.webp",
      "speed": 1
-    },
-    {
-     "img": "assets/img/watch/floors/cellars/front.webp",
-     "speed": 1.3
     }
    ]
   },
@@ -1355,6 +1839,11 @@ window.WATCH_ART = {
     {
      "img": "assets/img/watch/floors/bridge/street.webp",
      "speed": 1
+    },
+    {
+     "img": "assets/img/watch/floors/bridge/deck-front.webp",
+     "speed": 1,
+     "over": true
     },
     {
      "img": "assets/img/watch/floors/bridge/front.webp",
