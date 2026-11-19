@@ -1840,6 +1840,11 @@ window.WATCH_ART = {
      "speed": 1
     },
     {
+     "img": "assets/img/watch/floors/bridge/deck-front.webp",
+     "speed": 1,
+     "over": true
+    },
+    {
      "img": "assets/img/watch/floors/bridge/front.webp",
      "speed": 1.3
     }

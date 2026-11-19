@@ -327,7 +327,8 @@
       const X = x => x - cam;
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
       sky(c, phase, sc.kind, !!layers);
-      if (layers) layers.forEach(l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } });
+      const drawLayer = l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } };
+      if (layers) layers.filter(l => !l.over).forEach(drawLayer);   // over: drawn after the people (the bridge's front crenellations)
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });   // archway rooms have painted signs
       if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
@@ -363,7 +364,7 @@
       if (st.tucked) { c.save(); c.globalAlpha = 0.5; c.translate(X(st.x), G - 4); c.scale(0.92, 0.92); c.translate(-X(st.x), -G); }   // tucked into a doorway
       person(c, 'seoyeon', X(st.x), st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk');
       if (st.tucked) c.restore();
-      if (!layers) frontLayer(c, sc, cam);
+      if (!layers) frontLayer(c, sc, cam); else layers.filter(l => l.over).forEach(drawLayer);
       if (o.guide && o.guide.scene === st.scene) guideArrow(c, X(o.guide.x), G, VW, t, o.guide.dir, o.guide.label);
       const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
       if (phase === 'night' || phase === 'dusk') {   // Seo-yeon's lantern lights the ground around her, over the tint
