@@ -1,8 +1,9 @@
 // The Night Watch's castle intruders, the feast staff and Hollis's new walk (Nov 19), built by tools/watch_art/build_people.py
-// from the renders in jobs/jobs-intruders-*.json and merged over WATCH_ART.people. who: intruder-<kind>, staff-cook, staff-porter.
+// from the renders in jobs/jobs-intruders-*.json (and Seo-yeon's day-5 raincoat, jobs-seoyeon-rain*.json) and merged over WATCH_ART.people. who: intruder-<kind>, staff-cook, staff-porter.
 (function () {
   const A = window.WATCH_ART = window.WATCH_ART || {}; A.people = A.people || {};
   Object.assign(A.people, {
+ "seoyeon-rain": {"sheet": "assets/img/watch/people/seoyeon-rain.png", "w": 114, "h": 224, "anchor": [57, 212], "anims": {"idle": [0, 0, 0, 0, 6, 6, 6, 6], "walk": [1, 2, 3, 4], "talk": [0, 5]}, "fps": 8, "scale": 0.5},
  "intruder-pickpocket": {
   "sheet": "assets/img/watch/people/intruders/pickpocket.png",
   "w": 98,

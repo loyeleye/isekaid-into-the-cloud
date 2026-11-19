@@ -667,7 +667,7 @@
     const tut = content().tutorial || [], shown = {};
     if (run.escort) tut.slice(0, (run.tut || 0) + 1).forEach(t => { const sp = WW.spot(null, t.at); if (sp && sp.who) shown[sp.who] = 1; });
     const doors = Object.keys(run.indoor || {}).map(id => { const sp = WW.spot(null, id), ws = run.indoor[id];
-      return sp && { scene: sp.level, x: sp.x, text: '🚪 ' + ws.map(nm).join(', ') + (ws.some(workFor) ? ' · Job' : ''), color: '#9bb7d4', h: 150 }; }).filter(Boolean);
+      return sp && { scene: sp.level, x: sp.x, text: '🚪 ' + ws.map(nm).join(', ') + (ws.some(workFor) ? ' · Job' : ''), color: '#9bb7d4', h: 178 }; }).filter(Boolean);
     return doors.concat(run.walkers.filter(v => !v.ramp && !v.inside && (!run.escort || shown[v.who])).map(v => { const k = workFor(v.who); return k ? { scene: v.scene, x: v.x, text: k, color: '#e9c56d', h: 128 } : null; }).filter(Boolean));
   }
   // Meetups: two people together on your road, and you close by. You overhear them once; the Town book learns their tie.

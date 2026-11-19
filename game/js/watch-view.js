@@ -11,6 +11,7 @@
   // walk 14 px below the art's ground line, on the floor rather than along its back edge (Ladi, Nov 19).
   const CASTLE_DROP = 14;
   let G = WW.GROUND;
+  let rainCoat = false;   // Seo-yeon wears her raincoat on a rain day (Ladi, Nov 19); set each frame
   const V = SD.watchView = {};
   V.TOWN_ZOOM = 0.85;   // town drawn at 85% so more of the road above and the backdrop fit (Ladi's pick, Nov 18)
   const art = () => window.WATCH_ART || null;
@@ -156,6 +157,7 @@
   const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
   function person(c, who, sx, facing, moving, t, lit) {
+    if (who === 'seoyeon' && rainCoat && art() && art().people && art().people['seoyeon-rain']) who = 'seoyeon-rain';
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
     if (!sheet) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill(); }   // art has its shadow baked in
     if (sheet) {
@@ -331,6 +333,7 @@
       const cam = artW ? Math.max(0, Math.min(artW - VW, st.x - VW / 2)) : Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
       const X = x => x - cam;
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
+      rainCoat = (o.weather === 'rain' || o.weather === 'storm') && (phase === 'day' || phase === 'dawn');
       sky(c, phase, sc.kind, !!layers, o.weather);
       const drawLayer = l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } };
       if (layers) layers.filter(l => !l.over).forEach(drawLayer);   // over: drawn after the people (the bridge's front crenellations)
@@ -398,6 +401,7 @@
       if (camX == null) { camX = tx; camY = ty; }
       const k = Math.min(1, dt0 * 6); camX += (tx - camX) * k; camY += (ty - camY) * k;   // the camera eases after her
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
+      rainCoat = (o.weather === 'rain' || o.weather === 'storm') && (phase === 'day' || phase === 'dawn');
       sky(c, phase, 'town', true, o.weather);
       c.save(); c.scale(Z, Z);
       const SX = x => x - camX, SY = y => y - camY;
