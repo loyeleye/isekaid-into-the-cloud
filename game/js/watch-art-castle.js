@@ -50,6 +50,26 @@ window.WATCH_ART_CASTLE = {
     1200,
     1360
    ],
+   "ladderArt": {
+    "down": {
+     "img": "assets/img/watch/floors/ground/ladder-down.webp",
+     "box": [
+      1215,
+      132,
+      1336,
+      316
+     ]
+    },
+    "up": {
+     "img": "assets/img/watch/floors/ground/ladder-up.webp",
+     "box": [
+      1238,
+      0,
+      1317,
+      300
+     ]
+    }
+   },
    "stairs": {
     "stair-left": {
      "x": [
@@ -177,6 +197,17 @@ window.WATCH_ART_CASTLE = {
      "speed": 1
     }
    ],
+   "ladderArt": {
+    "up": {
+     "img": "assets/img/watch/floors/cellars/ladder-up.webp",
+     "box": [
+      1205,
+      33,
+      1409,
+      313
+     ]
+    }
+   },
    "stairs": {
     "stair-left": {
      "x": [
@@ -269,6 +300,26 @@ window.WATCH_ART_CASTLE = {
     1200,
     1360
    ],
+   "ladderArt": {
+    "down": {
+     "img": "assets/img/watch/floors/upper/ladder-down.webp",
+     "box": [
+      1215,
+      132,
+      1336,
+      316
+     ]
+    },
+    "up": {
+     "img": "assets/img/watch/floors/upper/ladder-up.webp",
+     "box": [
+      1238,
+      0,
+      1317,
+      300
+     ]
+    }
+   },
    "stairs": {
     "west-mid-stair": {
      "x": [
@@ -393,6 +444,17 @@ window.WATCH_ART_CASTLE = {
     1194,
     1360
    ],
+   "ladderArt": {
+    "down": {
+     "img": "assets/img/watch/floors/towers/ladder-down.webp",
+     "box": [
+      1211,
+      132,
+      1333,
+      316
+     ]
+    }
+   },
    "stairs": {
     "back-stair": {
      "x": [
