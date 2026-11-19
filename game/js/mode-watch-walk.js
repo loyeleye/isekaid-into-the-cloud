@@ -943,11 +943,11 @@
 
   // ---- Walking (day, dusk and night share this) ----
   // ---- Music (Ladi's Mureka takes, Nov 17 and 19; CREDITS.md). Nights 1 to 8 play the night track and night 9 the
-  // Long Night's own (Nov 19); storm days use the rain-day theme. Stings are the songs' own endings, so they resolve. ----
+  // Long Night's own (Nov 19); storm days use the rain-day theme. Stings are the songs' own endings, so they resolve; a fix or a miss
+  // plays the generic synth correct and wrong stings over the night track (Ladi, Nov 18). ----
   const AU = SD.audio;
   if (AU) AU.add({
     songs: { watchDay: 'm-watch-day', watchRain: 'm-watch-day-rain', watchWalkin: 'm-watch-walkin', watchDusk: 'm-watch-dusk', watchNight: 'm-watch-night', watchLongNight: 'm-watch-longnight', watchMorning: 'm-watch-morning' },
-    samples: { watchFix: 'j-watch-fix', watchMiss: 'j-watch-miss' },   // over the night track, so it keeps playing
     jingles: { watchDawn: 'j-watch-dawn', watchEndLanterns: 'j-watch-end-lanterns', watchEndMorning: 'j-watch-end-morning', watchEndFall: 'j-watch-end-fall' }
   });
   const tune = phase => {
@@ -1153,7 +1153,7 @@
     const PURSE = 20, canTake = n => Math.max(0, Math.min(n, (w.silver || 0) - PURSE));
     const caught = (p, x) => {
       const who = crew(x);
-      if (AU) AU.sfx('watchMiss');
+      if (AU) AU.sfx('incorrect');
       if (p.kind === 'jailer') {
         if (w.day === 9) { clock = Math.max(0, clock - 120); toast(`🔒 One of the ${who} shoves you in a closet and turns the key. Two minutes to pick your way out.`); }
         else { run.over = 1; leave(p); busy = true;
@@ -1344,7 +1344,7 @@
               toast(gd ? `🔔 GuardDuty: ${x.title}, on the ${WW.scene(x.scene).name.toLowerCase()}.` : k ? `🔔 ${nm(k)}: "Trouble on the ${WW.scene(x.scene).name}!"` : `🔔 Somewhere in the ${w.day === 9 ? 'town' : 'castle'}, a lock gives.`);
             } }
             if (x.fuse && fuseLeft(x) <= 0 && !busy) {   // the fuse ran out: it got through
-              run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('watchMiss');
+              run.locked[x.id] = 'gone'; toast(`💨 Too late: ${x.title} got through.`); if (AU) AU.sfx('incorrect');
             }
             if (x.inAt && up(x) && gone() >= x.at + x.inAt && !((run.inside = run.inside || {})[x.id]) && !(run.out || {})[x.id] && (run.prowl || []).length < MAX_IN && gone() >= (run.gate || 0)) { intrude(x); hold(QGAP); }
           });
@@ -1432,7 +1432,7 @@
       if (tools && miss >= 1) w.tools--;
       const keeper = watcherOf(x.scene);
       if (ok) { run.lastFix = { id: x.id, t: run.phase === 'night' ? nightS(w.day) - clock : 0, scene: x.scene, x: x.x }; run.fixed[x.id] = 1; sv().fixed[x.id] = 1; delete sv().missed[x.id]; if (x.orig) delete sv().missed[x.orig]; if (keeper) B.add(sv().bonds, keeper, 3); } else run.locked[x.id] = 1;
-      if (AU) AU.sfx(ok ? 'watchFix' : 'watchMiss');
+      if (AU) AU.sfx(ok ? 'correct' : 'incorrect');
       S.persist(); after();
     });
   }
