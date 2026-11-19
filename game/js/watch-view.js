@@ -156,6 +156,7 @@
   }
   const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
+  const ladderArt = f => { const A = window.WATCH_ART && window.WATCH_ART.floors; return (A && A[f] && A[f].ladderArt) || {}; };
   function person(c, who, sx, facing, moving, t, lit) {
     if (rainCoat && art() && art().people && art().people[who + '-rain']) who += '-rain';   // rain gear on a rain day, for whoever has it
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
@@ -343,7 +344,11 @@
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'stair' && s.needs && !st.unlocks[s.needs]).forEach(s => blockage(c, s, X, sc.floor));   // blocked stairs (Ladi, Nov 19)
       if (layers && sc.kind === 'castle') {   // the ladder through the trapdoors, once a quest opens a stretch of it from this floor
         const h = sc.spots.find(v => v.kind === 'lift');
-        if (h && WW.open(st, h)) { const hx = X(h.x), top = sc.floor === 'towers' ? G - 6 : 0, bot = sc.floor === 'cellars' ? G : G + 60;
+        const LA = ladderArt(sc.floor), F4 = ['cellars', 'ground', 'upper', 'towers'], fi = F4.indexOf(sc.floor);
+        const reach = h ? WW.ladderTo(st.unlocks, sc.floor) : [], dn = LA.down && reach.includes(F4[fi - 1]), upA = LA.up && reach.includes(F4[fi + 1]);
+        if (dn || upA) [dn && LA.down, upA && LA.up].filter(Boolean).forEach(a => { const im = img(a.img), k = VH / 360;   // painted ladder pieces (art thread, Nov 19)
+          if (im) c.drawImage(im, X(a.box[0]), a.box[1] * k, a.box[2] - a.box[0], (a.box[3] - a.box[1]) * k); });   // drawn like the stair blocks
+        else if (h && WW.open(st, h)) { const hx = X(h.x), top = sc.floor === 'towers' ? G - 6 : 0, bot = sc.floor === 'cellars' ? G : G + 60;
           c.save(); c.strokeStyle = '#7a5a34'; c.lineWidth = 4; c.beginPath(); c.moveTo(hx - 13, top); c.lineTo(hx - 13, bot); c.moveTo(hx + 13, top); c.lineTo(hx + 13, bot); c.stroke();
           c.lineWidth = 3; c.beginPath(); for (let y = bot - 14; y > top; y -= 22) { c.moveTo(hx - 13, y); c.lineTo(hx + 13, y); } c.stroke(); c.restore(); }
       }
