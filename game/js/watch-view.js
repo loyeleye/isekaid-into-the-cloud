@@ -300,13 +300,13 @@
       sky(c, phase, sc.kind, !!layers);
       if (layers) layers.forEach(l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } });
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
-      if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });
+      if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });   // archway rooms have painted signs
       if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
-      if (layers && sc.kind === 'castle') {   // the hoist in its shaft: the platform, behind a gate until the Captain's quest
-        const h = sc.spots.find(v => v.kind === 'lift'), P = art().props || {};
-        if (h) { const pl = img(P['hoist-platform']), gt = img(P['hoist-door']), hx = X(h.x);
-          if (pl) c.drawImage(pl, hx - pl.naturalWidth / 2, G - pl.naturalHeight, pl.naturalWidth, pl.naturalHeight);
-          if (gt && h.needs && !st.unlocks[h.needs]) c.drawImage(gt, hx - gt.naturalWidth / 2, G - gt.naturalHeight, gt.naturalWidth, gt.naturalHeight); }
+      if (layers && sc.kind === 'castle') {   // the ladder through the trapdoors, once a quest opens a stretch of it from this floor
+        const h = sc.spots.find(v => v.kind === 'lift');
+        if (h && WW.open(st, h)) { const hx = X(h.x), top = sc.floor === 'towers' ? G - 6 : 0, bot = sc.floor === 'cellars' ? G : G + 60;
+          c.save(); c.strokeStyle = '#7a5a34'; c.lineWidth = 4; c.beginPath(); c.moveTo(hx - 13, top); c.lineTo(hx - 13, bot); c.moveTo(hx + 13, top); c.lineTo(hx + 13, bot); c.stroke();
+          c.lineWidth = 3; c.beginPath(); for (let y = bot - 14; y > top; y -= 22) { c.moveTo(hx - 13, y); c.lineTo(hx + 13, y); } c.stroke(); c.restore(); }
       }
       (o.people && o.people[st.scene] || []).forEach(p => {
         if (p.walk && !reduced()) {   // background walkers stroll and turn at the ends of the level

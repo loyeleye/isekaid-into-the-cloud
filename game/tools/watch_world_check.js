@@ -1,6 +1,6 @@
 // Pure-logic check of the Night Watch's world (js/watch-world.js): every town level and castle floor is reachable,
 // shortcuts open only after their quests (the chute is down only, the tunnel both ways), the castle's gate to the
-// hill opens only at dusk, the quest stairs and the hoist join the right floors, and wildlife stays in its zone.
+// hill opens only at dusk, the stairs and the ladder join the right floors, and wildlife stays in its zone.
 // Run from game/:  node tools/watch_world_check.js
 const WW = require('../js/watch-world.js');
 const fails = [];
@@ -26,13 +26,14 @@ check(keys(at('hill-road', 3720, { tunnel: 1 })) === 'down' && keys(at('far-lane
 check(keys(at('far-lane', 3600, {})) === '', 'the tunnel is shut before Seymour\'s quest');
 
 const floorKeys = (f, x, u) => keys(at('castle:' + f, x, u, 'night'));
-check(floorKeys('ground', 70) === 'up', 'left stair from the ground floor goes up only');
-check(floorKeys('upper', 70) === 'down,up', 'left stair from the upper floor goes up and down');
-check(floorKeys('cellars', 1530) === 'up' && floorKeys('upper', 1530) === 'down', 'right stair joins cellars to upper');
-check(floorKeys('ground', 150) === '' && floorKeys('ground', 150, { 'cellar-stair': 1 }) === 'down', 'the cellar stair opens with Dutch\'s quest');
-check(floorKeys('upper', 1450, { 'back-stair': 1 }) === 'up' && floorKeys('towers', 1450, { 'back-stair': 1 }) === 'down', 'the back stair joins upper and towers');
-check(floorKeys('ground', 800) === '', 'the hoist is chained before the Captain\'s quest');
-check(floorKeys('ground', 800, { hoist: 1 }) === 'floor:cellars,floor:towers,floor:upper', 'the hoist stops at every other floor');
+// One stair per pair of floors (HD floors, Nov 19), and the ladder through the trapdoors, opened a stretch at a time.
+check(floorKeys('cellars', 70) === 'up' && floorKeys('ground', 70) === 'down', 'the left stair joins the cellars and the ground floor');
+check(floorKeys('ground', 1530) === 'up' && floorKeys('upper', 1530) === 'down', 'the right stair joins the ground and upper floors');
+check(floorKeys('upper', 150) === 'up' && floorKeys('towers', 1450) === 'down', 'the back stair joins the upper floor and the towers, at its own x on each');
+check(floorKeys('ground', 800) === '', 'the ladder is chained before any quest');
+check(floorKeys('ground', 800, { 'cellar-stair': 1 }) === 'floor:cellars' && floorKeys('upper', 800, { 'cellar-stair': 1 }) === '', 'Dutch\'s quest opens the ladder from the ground floor to the cellars');
+check(floorKeys('towers', 800, { 'back-stair': 1 }) === 'floor:upper' && floorKeys('ground', 800, { 'back-stair': 1 }) === '', 'Kai\'s quest opens the ladder from the upper floor to the towers');
+check(floorKeys('ground', 800, { hoist: 1 }) === 'floor:cellars,floor:towers,floor:upper', 'the Captain\'s quest opens the ladder to every floor');
 check(WW.roomAt('upper', 300) === 'wardrobe' && WW.roomAt('upper', 1300) === 'bridge-tower', 'the upper floor runs Wardrobe (big, left), Ledger, Bridge tower');
 
 const st = at('main-street', 560, {});
@@ -49,15 +50,20 @@ const wet = WW.spawn('main-street', 'day', 'rain', 3); WW.animals(wet, 1, 0);
 check(wet.every(a => a.state === 'sleep' || a.state === 'perch'), 'in rain the animals shelter');
 check(WW.weather(3, 'day') === 'wind' && WW.weather(6, 'night') === 'storm' && WW.weather(9, 'night') === 'clear', 'the weather calendar matches the doc');
 
-// With the castle art loaded, floors are 1200 wide and rooms, doors and stairs come from WATCH_ART.floors.
-global.window = global.window || {}; require('../js/watch-art.js'); WW.artSync();
-const AF = window.WATCH_ART.floors, AL = AF.ground.links;
-check(WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.width - 10, 'castle floors take their width from the art');
-check(floorKeys('cellars', AL['stair-right']) === 'up' && floorKeys('upper', AL['stair-right']) === 'down', 'right stair sits where the art draws it');
-check(floorKeys('upper', AL['back-stair'], { 'back-stair': 1 }) === 'up', 'back stair sits where the art draws it');
-check(WW.scene('castle:ground').spots.find(s => s.id === 'door-hall').x === AF.ground.doors.hall, 'doors sit where the art draws them');
+// With the castle art loaded (the HD floors in js/watch-art-castle.js replace the old ones), rooms, doors and stairs come from the art.
+global.window = global.window || {}; require('../js/watch-art.js'); require('../js/watch-art-castle.js'); WW.artSync();
+const AF = window.WATCH_ART.floors, L = f => AF[f].links;
+check(AF.hd === 1 && WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.width - 10, 'castle floors take the HD art and its width');
+check(floorKeys('cellars', L('cellars')['stair-left']) === 'up' && floorKeys('ground', L('ground')['stair-left']) === 'down', 'the left stair sits where the art draws it, on both floors');
+check(floorKeys('ground', L('ground')['stair-right']) === 'up' && floorKeys('upper', L('upper')['stair-right']) === 'down', 'the right stair sits where the art draws it');
+check(floorKeys('upper', L('upper')['back-stair']) === 'up' && floorKeys('towers', L('towers')['back-stair']) === 'down', 'the back stair sits where the art draws it');
+{ const m = WW.moves(at('castle:ground', L('ground')['stair-left'], {}, 'night'))[0];
+  check(m && m.to.x === L('cellars')['stair-left'], 'taking a stair lands you on that stair on the next floor'); }
+check(floorKeys('ground', L('ground').ladder, { hoist: 1 }) === 'floor:cellars,floor:towers,floor:upper', 'the ladder sits on the trapdoors');
+check(WW.scene('castle:upper').spots.some(s => s.id === 'door-wardrobe' && s.popup && s.x === AF.upper.doors.wardrobe), 'archway rooms are doorways that open a popup');
+check(WW.roomAt('cellars', AF.cellars.doors.tavern) === 'tavern' && !WW.CASTLE.ground.rooms.some(r => r[0] === 'tavern'), 'the tavern is in the cellars now');
 { // spots used with the same key (●) must be far enough apart that the nearest one is clearly the one you mean
-  const useKey = v => v.kind !== 'room' && v.kind !== 'stair', bad = [];
+  const useKey = v => v.kind !== 'room' && v.kind !== 'stair' && !v.popup, bad = [];   // a popup doorway is used with ● only to walk in
   WW.FLOORS.forEach(f => { const sp = WW.scene('castle:' + f).spots.filter(useKey); sp.forEach((a, i) => sp.slice(i + 1).forEach(b => { if (Math.abs(a.x - b.x) < 30) bad.push(f + ':' + a.id + '/' + b.id); })); });
   check(!bad.length, 'no two spots used with the same key are on top of each other' + (bad.length ? ' (' + bad.join(', ') + ')' : ''));
 }

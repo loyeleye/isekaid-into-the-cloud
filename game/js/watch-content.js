@@ -362,7 +362,7 @@
       ], raid: 'Eavesdroppers' },
 
     { id: 'tavern-log', night: 8, skill: '2.3.4', fix: 'hiding-spot', built: 'logs',
-      where: { floor: 'ground', room: 'tavern' },
+      where: { floor: 'cellars', room: 'tavern' },
       title: 'The tavern\'s log',
       story: 'Workers read card numbers aloud in the tavern. The log book writes every word down.',
       tell: 'INFO order 812 paid with card 4111 1111 1111 1111',
@@ -1007,7 +1007,7 @@
           q: 'IAM roles and STS. A night clerk needs access only during the shift. What should they do instead of keeping a copied access key?',
           choices: ['Keep the copied key, and rotate it monthly', 'An IAM user whose key is disabled each morning', 'A new access key each shift, deleted at dawn', 'Assume a role each shift; the credentials expire'], answer: 3,
           why: 'Assume the role each time. STS hands out credentials that expire.' } },
-        { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll show you the back stair. Don\'t tell anyone I was nice.']] }
+        { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll unchain the ladder hatch from the upper floor to the towers. Don\'t tell anyone I was nice.']] }
       ], clue: null },
 
     { id: 'kai-sealed-default', giver: 'kai', kind: 'trust', opens: 5, closes: 7, skill: '2.2.1',
@@ -1117,7 +1117,7 @@
         nightly: 'Ground floor\'s quiet. Keep moving.'
       }, steps: [], clue: null },
 
-    // ------------------------------------------- Fast travel and the hoist ---------------------------------------
+    // ------------------------------------------- Fast travel and the ladder --------------------------------------
     { id: 'seymour-second-copy', giver: 'seymour', kind: 'fast-travel', opens: 3, closes: 6, skill: '2.3.3',
       reward: { silver: 30, heart: false, unlock: 'tunnel' },
       steps: [
@@ -1162,8 +1162,8 @@
     { id: 'captain-hoist-key', giver: 'captain', kind: 'shortcut', opens: 5, closes: 7, skill: '2.1.6',
       reward: { silver: 30, heart: false, unlock: 'hoist' },
       steps: [
-        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'The old supply hoist. Chained since before my time.'],
-          ['captain', 'Its key ring decides where each rider may stop.']] },
+        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'The old ladder through the trapdoors. Every hatch chained since before my time.'],
+          ['captain', 'Its key ring decides which hatches each climber may pass.']] },
         { at: { floor: 'cellars', room: 'barracks' }, ask: {
           q: 'Identity-based policies and least privilege. The watch needs every floor; the kitchen boy needs the cellars and ground. Which policies are right?',
           choices: ['Watch: every floor. Boy: every floor too', 'Watch: towers only. Boy: cellars and ground', 'Watch: every floor. Boy: the cellars only', 'Watch: every floor. Boy: cellars and ground'], answer: 3,
@@ -1172,7 +1172,7 @@
           q: 'IAM permissions boundaries. Crew leads may create roles for their crews, but no role they create should ever reach the towers. What enforces that?',
           choices: ['Trust each lead to write careful policies', 'A permissions boundary required on roles they make', 'A deny on the towers in each crew lead\'s own policy', 'An AWS Config rule that reports tower access'], answer: 1,
           why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles. A deny in a lead\'s own policy limits the lead, not the roles they make, and a Config rule only reports after the fact.' } },
-        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off. One bell tick a ride. Use it well, warden.']] }
+        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off, every hatch. One bell tick a climb. Use it well, warden.']] }
       ], clue: null },
 
     // ---------------------------------------------- Small quests ------------------------------------------------
@@ -1425,7 +1425,7 @@
     g('g-5-coo-cart', 5, 'coo', 'hill-road', 'Locked chest. Open cart. One without the other is half a delivery.', tip),
     g('g-5-bru-crunch', 5, 'bru', 'hill-road', 'Four quests open today! Crest office closes after today. Ay, no, choose!', lead),
     g('g-5-hobb-close', 5, 'hobb', 'main-street', 'Key pair\'s last day. Crest after that.', lead),
-    g('g-5-captain-lead', 5, 'pell', 'west-road', 'Captain wants the old hoist looked at. Chained since before me.', lead),
+    g('g-5-captain-lead', 5, 'pell', 'west-road', 'Captain wants the old trapdoor ladder looked at. Chained since before me.', lead),
     g('g-5-tess-names', 5, 'tess', 'main-street', 'It\'s Old Hobb! He made the locks. He kept copies. Obviously!', { kind: 'suspect', suspect: 'hobb' }),
     g('g-5-ayo-names', 5, 'ayo', 'main-street', 'Hobb? HA! Hobb can\'t sit still past nine. I\'d say the hooded stall man.', { kind: 'suspect', suspect: 'kagemaru' }),
     g('g-5-chad', 5, 'chad', 'main-street', 'Rainy-day bundle: Key Rule Wellness, Drawer Isolation, Crate Tenancy and Carriage Closure. Four for one!', chad),

@@ -114,11 +114,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(await ev(() => SD.watchWalk.run && SD.watchWalk.run.phase === 'day' && !/Mira's review/.test(document.body.textContent)) && await ev(() => SD.watchWalk.sv().silver) === s0, 'coming back the same morning skips the review (no second pay)');
 
   // Stairs and the back stair at night.
-  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: SD.watchWorld.LINKS.find(l => l.id === 'back-stair').x }));
+  await ev(() => SD.watchWalk.walk('night', { scene: 'castle:upper', x: SD.watchWorld.linkX(SD.watchWorld.LINKS.find(l => l.id === 'back-stair'), 'upper') }));
   await page.waitForTimeout(150);
   await ev(() => document.querySelector('.ww-o:not([hidden]) button') && document.querySelector('.ww-o:not([hidden]) button').click());
   await ev(() => SD.watchWalk.view.press('up')); await page.waitForTimeout(100);
-  check(await ev(() => SD.watchWalk.run.st.scene === 'castle:towers'), 'the back stair goes from the upper floor to the towers once unlocked');
+  check(await ev(() => SD.watchWalk.run.st.scene === 'castle:towers'), 'the back stair goes from the upper floor to the towers');
 
   // Hiring, ward levels and the Long Night.
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.silver = 200; SD.watchWalk.walk('day'); });
@@ -436,7 +436,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await page.waitForTimeout(400);
   const f0 = await ev(() => [SD.watchWalk.clock(), (SD.watchWalk.view.marks || []).length, SD.watchWalk.run.list.map(x => x.at + '/' + x.fuse).join(',')]);
   check(f0[0] <= 360 && f0[1] === 0, `a night is 6 minutes and starts quiet: break-ins come later (${f0})`);
-  await ev(() => SD.watchWalk.clock(360 - 16)); await page.waitForTimeout(500);
+  await ev(() => { const r = SD.watchWalk.run, x = r.list.slice().sort((a, b) => a.at - b.at)[0]; r.st.scene = x.scene; r.st.x = x.x + 100; SD.watchWalk.clock(360 - 16); }); await page.waitForTimeout(500);   // close enough to see it
   const f1 = await ev(() => [(SD.watchWalk.view.marks || []).map(m => m.text), (document.querySelector('.ww-toast') || {}).textContent || '']);
   check(f1[0].length >= 1 && /⏳ 1:5/.test(f1[0][0]) && /Somewhere/.test(f1[1]) && !/floor/.test(f1[1]), `the first break-in rings in, without saying where, and shows its fuse (${f1})`);
   await ev(() => SD.watchWalk.clock(360 - 140)); await page.waitForTimeout(500);
@@ -605,6 +605,20 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(g1[0] === 100 && g1[1] === 5 && g2 === 100 - 8 * due, `GuardDuty's first night is a free trial, then 8 silver per break-in due (${g1}, ${g2}, ${due} due)`);
   await btn('[data-a=x]');
   check(await ev(() => { const w = SD.watchWalk.sv(); w.day = 9; const ok = !SD.watchWalk.shopItems().some(it => it.id === 'guard'); w.day = 4; return ok; }), 'no GuardDuty bell for the Long Night');
+  // Archway rooms (HD floors, Nov 19): walking in opens the room's painting; a break-in there is fixed in the same popup.
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.at = null; w.fixed = {}; w.guard = 0; SD.watchWalk.walk('night'); }); await page.waitForTimeout(300);
+  const pop = await ev(async () => { const r = SD.watchWalk.run, st = r.st, wait = ms => new Promise(z => setTimeout(z, ms)), out = [];
+    r.gate = 9999; r.prowl = []; r.inside = {}; r.list.forEach(x => { x.at = 9999; });
+    const d = SD.watchWorld.scene('castle:upper').spots.find(v => v.id === 'door-wardrobe'); st.scene = 'castle:upper'; st.x = d.x;
+    SD.watchWalk.view.press('use'); await wait(150); let o = document.querySelector('.ww-o:not([hidden])');
+    out.push(!!(o && o.querySelector('.ww-room') && /Wardrobe/.test(o.textContent)));
+    const b = o && o.querySelector('[data-a=d]'); if (b) b.click(); await wait(200);
+    const x = r.list.find(v => v.scene !== 'bridge' && /^castle:(cellars|upper|towers)$/.test(v.scene)); if (!x) return out.concat('no archway break-in');
+    x.at = 0; x.inAt = 0; st.scene = x.scene; st.x = x.x; await wait(200); SD.watchWalk.view.press('use'); await wait(150);
+    o = document.querySelector('.ww-o:not([hidden])'); out.push(!!(o && o.querySelector('.ww-room') && o.querySelector('[data-i]')));
+    return out; });
+  check(pop.every(v => v === true), `walking into an archway room opens its painting, and its break-in is fixed in the same popup (${pop})`);
+  while (await page.$('.ww-o:not([hidden]) [data-a]')) { const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=d]') || await page.$('.ww-o:not([hidden]) [data-a=x]'); if (!b) break; await b.click(); await page.waitForTimeout(150); }
   check(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   await browser.close(); server.close();
   console.log(fails.length ? `\n${fails.length} failed` : '\nall ok'); process.exit(fails.length ? 1 : 0);

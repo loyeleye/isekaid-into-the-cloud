@@ -102,6 +102,7 @@
   function roomX(floor, room, salt) {
     const r = WW.CASTLE[floor] && WW.CASTLE[floor].rooms.find(x => x[0] === room);
     if (!r) return 800;
+    if ((WW.CASTLE[floor].popup || []).includes(room)) { const d = (WW.CASTLE[floor].doors || {})[room]; return d != null ? d : (r[1] + r[2]) / 2; }   // an archway room: the break-in is at its doorway
     const span = r[2] - r[1];
     return Math.round(r[1] + span * (0.3 + 0.4 * ((salt * 37) % 10) / 10));
   }
@@ -150,6 +151,10 @@
         list.push(Object.assign({}, b, { id: `cc${n}-${b.id}`, orig: b.id, copy: true, where: { floor: f, room }, title: b.title + ' (again)' }));
       });
     }
+    // The HD floors moved some rooms (the tavern is in the cellars now): follow the room to its floor.
+    const floorOf = room => WW.FLOORS.find(f => WW.CASTLE[f].rooms.some(r => r[0] === room));
+    list = list.map(b => b.where && b.where.room && b.where.floor && !WW.CASTLE[b.where.floor].rooms.some(r => r[0] === b.where.room) && floorOf(b.where.room)
+      ? Object.assign({}, b, { where: Object.assign({}, b.where, { floor: floorOf(b.where.room) }) }) : b);
     return list.map((b, i) => {
       const scene = b.where && b.where.level ? b.where.level : 'castle:' + ((b.where && b.where.floor) || 'ground');
       const sc = WW.scene(scene);
@@ -170,7 +175,7 @@
             'An IAM user\'s access keys in each function\'s env vars',
             'Keep the shared role, but add a permissions boundary'], answer: 0,
           why: 'An execution role per function keeps each one to least privilege. Lambda gets the role\'s temporary credentials for you, so long-term keys aren\'t needed, and a boundary on a shared role still lets every function reach every table.' } },
-        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, take the key to the old cellar stair by the gate.']] }
+        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, take the key to the ladder hatch down to the cellars.']] }
       ] },
     { id: 'kai-night-cloak', giver: 'kai', kind: 'shortcut', opens: 3, closes: 5, skill: '2.1', reward: { silver: 20, heart: true, unlock: 'back-stair' },
       steps: [
@@ -180,16 +185,16 @@
           choices: ['Assume a role at the start of each shift',
             'A long-term access key, deleted each morning', 'A bucket policy allowing their IP at night'], answer: 0,
           why: 'Assuming a role returns temporary security credentials from AWS STS that expire on their own. A long-term key lasts until someone deletes it, and an IP rule lets anyone on that network in.' } },
-        { at: { who: 'kai' }, say: [['kai', 'A cloak on a hook. Take the back stair key: it runs from the upper floor to the towers.']] }
+        { at: { who: 'kai' }, say: [['kai', 'A cloak on a hook. Take the ladder hatch key: it runs from the upper floor to the towers.']] }
       ] },
     { id: 'captain-hoist-key', giver: 'captain', kind: 'big', opens: 5, closes: 7, skill: '2.1', reward: { silver: 30, heart: false, unlock: 'hoist' },
       steps: [
-        { at: { who: 'captain' }, say: [['captain', 'The hoist reaches every floor, so its key is the most dangerous one in the keep.']] },
+        { at: { who: 'captain' }, say: [['captain', 'The ladder reaches every floor, so its key is the most dangerous one in the keep.']] },
         { at: { who: 'captain' }, ask: { q: 'One permission can reach every floor. What keeps it safest?',
           choices: ['A role the watch assumes only on patrol, logged',
             'An IAM user for the watch, with MFA on its sign-in', 'Attach it to every worker, with a permissions boundary'], answer: 0,
           why: 'Granting wide access through a role that is assumed only when needed limits how long anyone holds it, and CloudTrail records each AssumeRole call. A standing IAM user holds the access all the time, and a boundary on every worker still gives every worker the hoist.' } },
-        { at: { who: 'captain' }, say: [['captain', 'Good. The hoist is yours. Pull the cord for the floor you want.']] }
+        { at: { who: 'captain' }, say: [['captain', 'Good. The ladder is yours, every hatch. Climb to the floor you want.']] }
       ] }
   ];
   const quests = () => (content().quests && content().quests.length ? content().quests : FALLBACK_QUESTS);
@@ -297,6 +302,24 @@
     next();
   }
   // A choice question: { q, choices, answer, why }. done(ok). tries: how many misses allowed before it locks.
+  // Archway rooms (HD floors, Nov 19, Ladi: like Mira's Kitchen): walking in opens the room's painting with Seo-yeon
+  // standing in it, and a break-in there is fixed in the same popup.
+  const INT = () => (window.WATCH_ART_CASTLE && WATCH_ART_CASTLE.interiors) || {};
+  function roomArt(room) {
+    const r = room && INT()[room]; if (!r) return '';
+    const me = window.WATCH_ART && WATCH_ART.people && WATCH_ART.people.seoyeon;
+    const fx = r.focus ? r.focus[0] : r.w / 2, left = Math.max(4, Math.min(80, (fx / r.w) * 100 - 22)), bottom = ((r.h - (r.floorY || r.h * 0.8)) / r.h) * 100;
+    if (me) setTimeout(() => { const cv = wrap && wrap.querySelector('.ww-room canvas'); if (!cv) return; const im = new Image();
+      im.onload = () => { const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0, me.w, me.h, 0, 0, me.w, me.h); }; im.src = me.sheet; }, 0);
+    return `<div class="ww-room" style="background-image:url('${r.img}')">${me ? `<canvas width="${me.w}" height="${me.h}" style="left:${left.toFixed(1)}%;bottom:${bottom.toFixed(1)}%" aria-hidden="true"></canvas>` : ''}</div>`;
+  }
+  function roomPop(spot) {
+    if (!INT()[spot.room]) return;
+    const o = overlay(`${roomArt(spot.room)}<p class="ww-t">${esc(spot.label)}</p><p class="ww-q">Nothing out of place in here.</p><div class="row"><button class="primary" data-a="d">Step out</button></div>`);
+    o.querySelector('[data-a=d]').onclick = close;
+  }
+  const popRoom = x => { const f = /^castle:(\w+)$/.exec(x.scene || ''), room = x.where && x.where.room;
+    return f && room && (WW.CASTLE[f[1]].popup || []).includes(room) ? room : null; };
   function choose(title, q, tries, done, who) {
     let miss = 0;
     // Shuffle the order each time a question opens, so where the right answer sits tells you nothing (Ladi, Nov 18).
@@ -304,7 +327,7 @@
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     qOpen();
     const draw = (msg) => {
-      const o = overlay(`${qLine()}${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
+      const o = overlay(`${roomArt(q.room)}${qLine()}${who ? `<p class="ww-say">${face(who)}<span class="ww-t">${esc(title)}</span></p>` : `<p class="ww-t">${esc(title)}</p>`}${q.topic ? `<p class="ww-topic">AWS · ${esc(q.topic)}</p>` : ''}<p class="ww-q">${esc(q.q)}</p>${q.ev ? `<pre class="ww-ev">${esc(q.ev)}</pre>` : ''}${msg || ''}
         <div class="ww-ch">${order.map(i => `<button data-i="${i}">${esc(q.choices[i])}</button>`).join('')}</div>`);
       o.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
         const i = +b.dataset.i;
@@ -902,7 +925,7 @@
     //   Not on night 1. All of them get a little faster each night.
     //   Busy map (Ladi, Nov 18: "not a lot of space to walk around"): at most 3 intruders inside at once, one new kind
     //   a night, at most 3 kinds a night, one jailer, and the kind's name shows only when it's close.
-    // Feast staff (from night 1, Ladi: so the first impersonator isn't confusing; 2 from night 6): a cook on the ground floor (tavern to great hall) and a porter in the
+    // Feast staff (from night 1, Ladi: so the first impersonator isn't confusing; 2 from night 6): a cook on the ground floor (great hall to the cellar stair, for the tavern below) and a porter in the
     // cellars (barracks stores to the stair). Not security, so no help, and squeezing past one slows her a little.
     const KINDS = {
       pickpocket: { sp: 95, sight: 260, rush: 1.4, in: '👣 Light, quick footsteps. Someone\'s in, after your pockets.' },
@@ -1016,7 +1039,7 @@
       p.state = 'flee'; p.exit = ex[0] || null; p.next = null; p.tx = p.exit ? p.exit.x : bounds(p.scene)[p.x < st.x ? 0 : 1]; p.cool = 10; S.persist();
       return false;
     };
-    const STAFF = [{ scene: 'castle:ground', a: 'tavern', b: 'hall', carry: 'tray' }, { scene: 'castle:cellars', a: 'barracks', b: null, carry: 'sack' }];
+    const STAFF = [{ scene: 'castle:ground', a: 'hall', b: null, carry: 'tray' }, { scene: 'castle:cellars', a: 'barracks', b: null, carry: 'sack' }];
     const roomX = (scene, id) => { const r = WW.CASTLE[WW.scene(scene).floor].rooms.find(v => v[0] === id); return r ? (r[1] + r[2]) / 2 : null; };
     const hireStaff = () => {
       const n = w.day < 6 ? 1 : 2;   // from night 1, so you know the staff long before anyone dresses as one
@@ -1146,6 +1169,7 @@
         if (p) return talk(p.who);
         const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
         if (q) return step(q);
+        if (spot && spot.popup) return roomPop(spot);
       },
       onMove(m) {
         if (busy) return false;
@@ -1158,7 +1182,7 @@
       },
       onLift(moves) {
         if (busy) return;
-        const o = overlay(`<p class="ww-t">Supply hoist</p><div class="ww-ch">${moves.map(m => `<button data-k="${m.key}">${esc(m.label)}</button>`).join('')}</div><div class="row"><button class="ghost" data-a="x">Stay</button></div>`);
+        const o = overlay(`<p class="ww-t">Ladder</p><div class="ww-ch">${moves.map(m => `<button data-k="${m.key}">${esc(m.label)}</button>`).join('')}</div><div class="row"><button class="ghost" data-a="x">Stay</button></div>`);
         o.querySelectorAll('[data-k]').forEach(el => el.onclick = () => { WW.go(st, el.dataset.k); if (phase === 'night') clock -= 60; close(); });
         o.querySelector('[data-a=x]').onclick = close;
       },
@@ -1268,7 +1292,7 @@
   // ---- Fix screens ----
   function fix(x, after) {
     if (run.locked[x.id]) { sayAll([['seoyeon', 'I got this one wrong. It has to wait for morning.']]); return; }
-    const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why, topic: TOPIC[x.skill] || '', ev: x.tell || '' };
+    const best = x.choices.findIndex(c => c.best), q = { q: x.story, choices: x.choices.map(c => c.text), answer: best, why: x.choices[best].why, topic: TOPIC[x.skill] || '', ev: x.tell || '', room: popRoom(x) };
     const w = sv(), tools = w.day > 1 && (w.tools || 0) > 0;
     const tries = w.day === 1 ? 99 : tools ? 1 : 0;   // one try per fix (Ladi, Nov 18); spare tools buy a second
     choose(x.title, q, tries, (ok, miss) => {
@@ -1403,6 +1427,8 @@
     .ww-qt.on { color: #d24c4c; }
     .ww-card .ww-qt { color: #b9c4ff; } .ww-card .ww-qt.on { color: #ff9d9d; }
     .ww-topic { margin: 2px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: #9fd0ff; text-transform: uppercase; }
+    .ww-room { position: relative; margin: -4px 0 8px; aspect-ratio: 16 / 9; border-radius: 8px; background: #111 center / cover no-repeat; overflow: hidden; }
+    .ww-room canvas { position: absolute; height: 46%; width: auto; image-rendering: auto; }
     .ww-ev { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: rgba(0,0,0,.35); color: #d8f5d0; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
     .ww-ok { color: #1f6b35; font-weight: 700; } .ww-no { color: #a3261f; font-weight: 700; } .ww-why { font-size: 14px; color: #2a2f45; line-height: 1.45; }
     .ww-card .ww-ok { color: #6fcf8a; } .ww-card .ww-no { color: #ff9a9a; } .ww-card .ww-why { font-size: 13px; color: #e6e9f8; }
