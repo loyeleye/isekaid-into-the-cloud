@@ -26,10 +26,10 @@ window.WATCH_ART_CASTLE = {
    "doors": {},
    "popupRooms": [],
    "links": {
-    "stair-left": 128,
+    "stair-left": 104,
     "west-mid-stair": 306,
     "stair-right": 2234,
-    "east-cellar-stair": 2487,
+    "east-cellar-stair": 2505,
     "ladder": 1280
    },
    "walls": [
@@ -53,17 +53,17 @@ window.WATCH_ART_CASTLE = {
    "stairs": {
     "stair-left": {
      "x": [
-      54,
-      201
+      38,
+      182
      ],
      "dir": "down",
-     "use": 128,
+     "use": 104,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       54,
-       144,
-       201,
+       60,
+       179,
+       149,
        304
       ]
      }
@@ -76,12 +76,12 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 306,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/ground/block-west-mid-stair.webp",
       "box": [
-       255,
-       211,
-       364,
-       303
+       201,
+       181,
+       316,
+       290
       ]
      }
     },
@@ -93,28 +93,28 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 2234,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/ground/block-stair-right.webp",
       "box": [
-       2183,
-       211,
-       2291,
-       303
+       2164,
+       175,
+       2274,
+       283
       ]
      }
     },
     "east-cellar-stair": {
      "x": [
-      2413,
-      2560
+      2433,
+      2576
      ],
      "dir": "down",
-     "use": 2487,
+     "use": 2505,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2413,
-       144,
-       2560,
+       2454,
+       179,
+       2555,
        304
       ]
      }
@@ -186,12 +186,12 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 300,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/cellars/block-stair-left.webp",
       "box": [
-       274,
-       211,
-       383,
-       303
+       255,
+       179,
+       377,
+       292
       ]
      }
     },
@@ -203,12 +203,12 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 2314,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/cellars/block-east-cellar-stair.webp",
       "box": [
-       2254,
-       211,
-       2363,
-       303
+       2237,
+       179,
+       2359,
+       292
       ]
      }
     }
@@ -245,9 +245,9 @@ window.WATCH_ART_CASTLE = {
     "bridge-tower"
    ],
    "links": {
-    "west-mid-stair": 128,
+    "west-mid-stair": 104,
     "back-stair": 300,
-    "stair-right": 2487,
+    "stair-right": 2505,
     "east-tower-stair": 2314,
     "ladder": 1280
    },
@@ -272,17 +272,17 @@ window.WATCH_ART_CASTLE = {
    "stairs": {
     "west-mid-stair": {
      "x": [
-      54,
-      201
+      38,
+      182
      ],
      "dir": "down",
-     "use": 128,
+     "use": 104,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       54,
-       144,
-       201,
+       60,
+       179,
+       149,
        304
       ]
      }
@@ -295,28 +295,28 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 300,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/upper/block-back-stair.webp",
       "box": [
-       274,
-       211,
-       383,
-       303
+       255,
+       179,
+       377,
+       292
       ]
      }
     },
     "stair-right": {
      "x": [
-      2413,
-      2560
+      2433,
+      2576
      ],
      "dir": "down",
-     "use": 2487,
+     "use": 2505,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2413,
-       144,
-       2560,
+       2454,
+       179,
+       2555,
        304
       ]
      }
@@ -329,12 +329,12 @@ window.WATCH_ART_CASTLE = {
      "dir": "up",
      "use": 2314,
      "block": {
-      "img": "assets/img/watch/floors/stair-block-up.webp",
+      "img": "assets/img/watch/floors/upper/block-east-tower-stair.webp",
       "box": [
-       2254,
-       211,
-       2363,
-       303
+       2237,
+       179,
+       2359,
+       292
       ]
      }
     }
@@ -396,34 +396,34 @@ window.WATCH_ART_CASTLE = {
    "stairs": {
     "back-stair": {
      "x": [
-      68,
-      264
+      66,
+      267
      ],
      "dir": "down",
      "use": 166,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       68,
-       91,
-       264,
+       96,
+       130,
+       237,
        304
       ]
      }
     },
     "east-tower-stair": {
      "x": [
-      2359,
-      2556
+      2357,
+      2558
      ],
      "dir": "down",
      "use": 2457,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2359,
-       91,
-       2556,
+       2387,
+       130,
+       2528,
        304
       ]
      }
