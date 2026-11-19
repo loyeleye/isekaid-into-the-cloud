@@ -1,6 +1,7 @@
 # Export the HD castle floors and room interiors into the game, and write js/watch-art-castle.js.
 # Usage (from game/): python3 tools/watch_art/castle/export_castle.py <folder with the final PNGs>
-#   expects <src>/{ground,cellars,upper,towers}.png (4096x512) and <src>/blocks/block-{up,down}.png (white background) and <src>/rooms/<room>.png (1600x896)
+#   expects <src>/{ground,cellars,upper,towers}.png (4096x564: archway pits show below the floor), <src>/blocks/block-down.png
+#   (white background) and <src>/barricades/ from stair_barricades.py and <src>/rooms/<room>.png (1600x896)
 # Floors are scaled to engine units (x0.638: floor line y=470 -> 300 of a 360-tall layer); the 4096-wide masters stay in the
 # project folder (sogni/night-watch/castle-work) for a later DPR re-export.
 import json, os, sys
@@ -38,14 +39,18 @@ ROOM_FLOOR = {'cellars': ['archive', 'strongroom', 'barracks', 'tavern'], 'upper
 # Stairs (Ladi, Nov 19): middle floors have a stair up and an archway down at both ends, the cellars a stair up at each end,
 # the towers an archway down at each end. Each id joins the same stair on two floors. native [x0, x1], dir, and the box
 # where the engine draws the lock overlay (blocks/<dir>.webp) while the stair's quest isn't done; link x = where you use it.
-DOWN_S, DOWN_T = [85, 315, 226, 476], None
+# up stairs: box = the slope-following barricade's own box (stair_barricades.py), down: the archway's opening
+BAR = json.load(open(f'{src}/barricades/barricades.json'))
+def up(f, sid, span, use): return (span, 'up', BAR[f'{f}/{sid}'], use, f'{f}-{sid}')
+def dn(span, box, use): return (span, 'down', box, use, None)
+GL, GR = dn([60, 285], [94, 281, 233, 476], 163), dn([3811, 4036], [3845, 281, 4003, 476], 3924)
 STAIRS = {
- 'cellars': {'stair-left': ([60, 520], 'up', [430, 330, 600, 474], 470), 'east-cellar-stair': ([3496, 4036], 'up', [3532, 330, 3702, 474], 3626)},
- 'ground':  {'stair-left': ([85, 315], 'down', [85, 226, 315, 476], 200), 'west-mid-stair': ([60, 560], 'up', [400, 330, 570, 474], 480),
-             'stair-right': ([3420, 4030], 'up', [3420, 330, 3590, 474], 3500), 'east-cellar-stair': ([3781, 4011], 'down', [3781, 226, 4011, 476], 3896)},
- 'upper':   {'west-mid-stair': ([85, 315], 'down', [85, 226, 315, 476], 200), 'back-stair': ([60, 600], 'up', [430, 330, 600, 474], 470),
-             'stair-right': ([3781, 4011], 'down', [3781, 226, 4011, 476], 3896), 'east-tower-stair': ([3496, 4036], 'up', [3532, 330, 3702, 474], 3626)},
- 'towers':  {'back-stair': ([106, 414], 'down', [106, 143, 414, 476], 260), 'east-tower-stair': ([3696, 4004], 'down', [3696, 143, 4004, 476], 3850)},
+ 'cellars': {'stair-left': up('cellars', 'stair-left', [60, 520], 470), 'east-cellar-stair': up('cellars', 'east-cellar-stair', [3496, 4036], 3626)},
+ 'ground':  {'stair-left': GL, 'west-mid-stair': up('ground', 'west-mid-stair', [60, 560], 480),
+             'stair-right': up('ground', 'stair-right', [3420, 4030], 3500), 'east-cellar-stair': GR},
+ 'upper':   {'west-mid-stair': GL, 'back-stair': up('upper', 'back-stair', [60, 600], 470),
+             'stair-right': GR, 'east-tower-stair': up('upper', 'east-tower-stair', [3496, 4036], 3626)},
+ 'towers':  {'back-stair': dn([103, 418], [150, 204, 371, 476], 260), 'east-tower-stair': dn([3693, 4008], [3740, 204, 3961, 476], 3850)},
 }
 LINKS = {f: {**{k: v[3] for k, v in st.items()}, **({'ladder': {'cellars': 1994, 'ground': 2005, 'upper': 2005, 'towers': 2000}[f]})} for f, st in STAIRS.items()}
 def block(name):
@@ -53,7 +58,9 @@ def block(name):
     white = a[..., :3].min(axis=2) > 232; a[white, 3] = 0
     ys, xs = np.where(~white); im = Image.fromarray(a).crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
     webp(im, f'{A}floors/stair-block-{name.split("-")[1]}.webp')
-block('block-up'); block('block-down')
+block('block-down')
+for k in BAR:
+    f, sid = k.split('/'); webp(Image.open(f'{src}/barricades/{f}-{sid}.png').convert('RGBA'), f'{A}floors/{f}/block-{sid}.webp')
 def E(x): return round(x * SCALE)
 out, interiors = {}, {}
 for f, g in FLOORS.items():
@@ -67,7 +74,7 @@ for f, g in FLOORS.items():
               'layers': [{'img': A + f'floors/{f}/far.webp', 'speed': 0.2}, {'img': A + f'floors/{f}/wall-v2.webp', 'speed': 1}]}
     if g.get('trapdoor'): out[f]['trapdoor'] = [E(g['trapdoor'][0]), E(g['trapdoor'][1])]
     out[f]['stairs'] = {k: {'x': [E(v[0][0]), E(v[0][1])], 'dir': v[1], 'use': E(v[3]),
-                            'block': {'img': A + f'floors/stair-block-{v[1]}.webp', 'box': [E(n) for n in v[2]]}} for k, v in STAIRS[f].items()}
+                            'block': {'img': A + (f'floors/{f}/block-{v[4]}.webp'.replace(f'{f}-', '') if v[4] else 'floors/stair-block-down.webp'), 'box': [E(n) for n in v[2]]}} for k, v in STAIRS[f].items()}
     for rid in ROOM_FLOOR.get(f, []):
         im = Image.open(f'{src}/rooms/{rid}.png').convert('RGB').crop((64, 36, 1536, 860)).resize((1600, 900), Image.LANCZOS)
         webp(im, f'{A}rooms/{rid}.webp'); fx, fy = FOCUS[rid]
