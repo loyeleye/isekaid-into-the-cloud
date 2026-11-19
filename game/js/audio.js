@@ -371,12 +371,6 @@
     heal: t => ['C5', 'G5', 'C6', 'E6'].forEach((n, i) => tone({ wave: 'sine', f: freq(n), t: t + i * 0.07, dur: 0.18, vol: 0.12, r: 0.12 })),
     right: t => ['E5', 'G5', 'C6'].forEach((n, i) => tone({ wave: 'square', f: freq(n), t: t + i * 0.07, dur: 0.1, vol: 0.07 })),
     wrong: t => { tone({ wave: 'square', f: 150, t, dur: 0.12, vol: 0.09 }); tone({ wave: 'square', f: 140, t: t + 0.15, dur: 0.2, vol: 0.09 }); },
-    // Generic correct and wrong stings, synth only (no recorded sample), used over a mode's music (Ladi, Nov 18: the
-    // Night Watch's fix and miss). Correct rises to a ringing chime; wrong drops a buzzy minor second.
-    correct: t => { ['G5', 'C6'].forEach((n, i) => tone({ wave: 'square', f: freq(n), t: t + i * 0.08, dur: 0.09, vol: 0.06 }));
-      tone({ wave: 'triangle', f: freq('E6'), t: t + 0.16, dur: 0.38, vol: 0.13, r: 0.3 }); tone({ wave: 'sine', f: freq('C7'), t: t + 0.16, dur: 0.3, vol: 0.05, r: 0.25 }); },
-    incorrect: t => { tone({ wave: 'sawtooth', f: freq('E3'), t, dur: 0.14, vol: 0.07, lp: 1400 }); tone({ wave: 'sawtooth', f: freq('D#3'), f2: freq('C3'), t: t + 0.17, dur: 0.34, vol: 0.07, r: 0.2, lp: 1200 });
-      tone({ wave: 'triangle', f: freq('E2'), f2: freq('C2'), t: t + 0.17, dur: 0.34, vol: 0.14, r: 0.2 }); },
     door: t => { hiss({ t, dur: 0.12, vol: 0.25, type: 'lowpass', f: 500 }); tone({ wave: 'triangle', f: 110, f2: 70, t, dur: 0.15, vol: 0.3 }); },
     // Walking a path to the next place (doors keep the door): four soft footfalls.
     steps: t => [0, 0.3, 0.6, 0.9].forEach((d, i) => hiss({ t: t + d, dur: 0.07, vol: 0.2 - i * 0.03, type: 'lowpass', f: 700, f2: 250 })),
