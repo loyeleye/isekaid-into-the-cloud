@@ -437,7 +437,22 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150);
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // Pell's dusk lines
   await tp('main-street', 1335); await use(); await page.waitForTimeout(250);
+  check(/The castle plan/.test(await card()) && !!(await page.$('.ww-o:not([hidden]) [data-s]')), 'at the gate Pell hands over the castle plan first');
+  await btn('[data-a=x]'); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.run.phase === 'night' && SD.watchWalk.run.st.scene === 'castle:ground'), 'at dusk the outpost door leads into the castle');
+  {   // the plan: a narrow pin cancels its break-in, a wide one brings it early on a short fuse, a narrow-too-far one fines
+    const r = await ev(() => { const w = SD.watchWalk.sv(), d = w.day;
+      const P = SD.watchWalk.planFor(d); if (!P) return 'no plan on day ' + d;
+      const id = Object.keys(P.targets)[0]; if (!id) return 'no target';
+      const sl = SD.watchData.SLOTS[id], k = r => Object.keys(sl.tiles).find(t => sl.tiles[t].res === r);
+      w.plan = { day: d, pins: [{ slot: id, tile: k('ok'), res: 'ok', target: P.targets[id] }] }; SD.watchWalk.walk('night');
+      const gone = !SD.watchWalk.run.list.some(b => b.id === P.targets[id]);
+      const wide = k('wide') || k('leak'); w.plan = { day: d, pins: [{ slot: id, tile: wide, res: sl.tiles[wide].res, target: P.targets[id] }] }; SD.watchWalk.walk('night');
+      const x = SD.watchWalk.run.list.find(b => b.id === P.targets[id]);
+      w.plan = null; return gone && x && x.at <= 10 && x.fuse <= 60 ? 'ok' : JSON.stringify({ gone, at: x && x.at, fuse: x && x.fuse }); });
+    check(r === 'ok', `a narrow pin cancels its break-in and a wide one brings it early on a 1:00 fuse (${r})`);
+    await page.waitForTimeout(300); while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  }
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');

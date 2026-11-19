@@ -165,6 +165,78 @@
     });
   }
 
+  // ---- The castle plan at dusk (Ladi, Nov 19; backlog "Floor plan at dusk, light version") ----
+  // Pell hands you the plan at the gate with one pin (two from night 5). Each pin sets one room's lock or a worker's
+  // key from the old floor-plan tiles (js/watch-data.js W.SLOTS). Narrow (ok): one of tonight's break-ins in that
+  // room never happens. Too wide (wide, leak): it comes 10s in on a 1:00 fuse. Too narrow (block): a worker is
+  // turned away, a 5 silver fine. A room with no break-in tonight does nothing either way, so the day's word (Pell
+  // names one room where trouble is talked about) is what makes a pin count. Nights 2 to 8 only.
+  const PLAN_SLOT = { gate: 'gate', hall: 'pw', ledger: 'badge', wardrobe: 'cloak', 'bridge-tower': 'bkey', bridge: 'bsign',
+    strongroom: 'drawer', 'post-room': 'letter', archive: 'vault', tavern: 'logs' };
+  const PLAN_FINE = 5;
+  const planPins = n => (n >= 5 ? 2 : 1);
+  const slotRoom = id => Object.keys(PLAN_SLOT).find(r => PLAN_SLOT[r] === id);
+  const roomNm = r => { for (const f of WW.FLOORS) { const x = WW.CASTLE[f].rooms.find(q => q[0] === r); if (x) return x[3]; } return r === 'bridge' ? 'Bridge' : r; };
+  function planFor(n) {
+    if (!W || !W.SLOTS || n < 2 || n > 8) return null;
+    const list = breaches(n), targets = {};
+    list.forEach(b => { const r = b.where && (b.where.room || (b.where.level === 'bridge' ? 'bridge' : null)), id = r && PLAN_SLOT[r]; if (id && W.SLOTS[id] && !targets[id]) targets[id] = b.id; });
+    const real = Object.keys(targets), rnd = seeded(n * 97 + 11);
+    const decoys = Object.keys(W.SLOTS).filter(id => !targets[id] && slotRoom(id)).sort(() => rnd() - 0.5);
+    const opts = real.slice(0, 3).concat(decoys).slice(0, Math.max(4, Math.min(5, real.length + 2)));
+    opts.sort(() => rnd() - 0.5);
+    const hint = real.length ? real[Math.floor(rnd() * real.length)] : null;
+    return { n, pins: planPins(n), opts, targets, hint };
+  }
+  // At the gate, before the night: pick a room, then its setting. Calls go() when done (or skipped).
+  function planCard(go) {
+    const w = sv(), P = planFor(w.day);
+    if (!P || (w.plan && w.plan.day === w.day)) return go();
+    const plan = { day: w.day, pins: [] };
+    const room = id => roomNm(slotRoom(id));
+    const pick = () => {
+      if (plan.pins.length >= P.pins) return finish();
+      const left = P.opts.filter(id => !plan.pins.some(p => p.slot === id));
+      const o = overlay(`<p class="ww-t">The castle plan</p>${plan.pins.length ? '' : line('pell', P.hint ? `Word in town today was about the ${room(P.hint).toLowerCase()}. Make of that what you will.` : 'Quiet day in town. Pin what you like.')}
+        ${line('pell', P.pins > 1 ? `Two pins tonight. ${plan.pins.length ? 'One left.' : 'Set a room the way it should be, and it holds.'}` : 'One pin. Set a room the way it should be, and it holds.')}
+        <div class="ww-ch">${left.map(id => `<button data-s="${id}">${esc(room(id))} · ${esc(W.SLOTS[id].name)}</button>`).join('')}</div>
+        <div class="row"><button class="ghost" data-a="x">No pin tonight</button></div>`);
+      o.querySelectorAll('[data-s]').forEach(el => el.onclick = () => tiles(el.dataset.s));
+      o.querySelector('[data-a=x]').onclick = finish;
+    };
+    const tiles = id => {
+      const sl = W.SLOTS[id], keys = Object.keys(sl.tiles), rnd = seeded(w.day * 13 + id.length);
+      keys.sort(() => rnd() - 0.5);
+      const o = overlay(`<p class="ww-t">${esc(room(id))} · ${esc(sl.name)}</p><p>${esc(sl.ask)}</p>
+        <div class="ww-ch">${keys.map(k => `<button data-k="${k}">${sl.tiles[k].icon || ''} ${esc(sl.tiles[k].label)}</button>`).join('')}</div>
+        <div class="row"><button class="ghost" data-a="b">Back</button></div>`);
+      o.querySelectorAll('[data-k]').forEach(el => el.onclick = () => {
+        const t = sl.tiles[el.dataset.k];
+        plan.pins.push({ slot: id, tile: el.dataset.k, res: t.res, target: P.targets[id] || null });
+        if (t.res === 'block') w.silver = Math.max(0, w.silver - PLAN_FINE);   // charged now, so leaving and coming back can't repeat it
+        pick();
+      });
+      o.querySelector('[data-a=b]').onclick = pick;
+    };
+    const finish = () => { w.plan = plan; S.persist(); close(); go(); };
+    pick();
+  }
+  // Tonight's list with the plan applied: narrow pins cancel their break-in, wide ones bring it early on a short fuse.
+  function applyPlan(list, n) {
+    const w = sv(), plan = w.plan && w.plan.day === n ? w.plan : null, notes = [];
+    if (!plan) return { list, notes, kept: [] };
+    const kept = [];
+    plan.pins.forEach(p => {
+      const sl = W.SLOTS[p.slot], t = sl && sl.tiles[p.tile], rm = roomNm(slotRoom(p.slot)), x = p.target && list.find(b => b.id === p.target);
+      if (!t) return;
+      if (p.res === 'block') notes.push(`📌 ${rm}: a worker was turned away (${PLAN_FINE} silver fine). ${t.line}`);
+      else if (!x) notes.push(`📌 ${rm}: quiet tonight. The pin made no difference.`);
+      else if (p.res === 'ok') { kept.push(x); list = list.filter(b => b !== x); notes.push(`📌 ${rm}: the plan held. That break-in never happens. ${t.line}`); }
+      else { x.at = Math.min(x.at || 0, 10); x.fuse = Math.min(x.fuse || 60, 60); notes.push(`📌 ${rm}: set too wide. Someone's already trying it, on a short fuse. ${t.line}`); }
+    });
+    return { list, notes, kept };
+  }
+
   // ---- Quests ----
   const FALLBACK_QUESTS = [
     { id: 'dutch-own-pass', giver: 'dutch', kind: 'shortcut', opens: 2, closes: 4, skill: '2.1', reward: { silver: 20, heart: true, unlock: 'cellar-stair' },
@@ -872,7 +944,7 @@
     const st = WW.create({ scene: opts.scene || (phase === 'night' ? 'castle:ground' : phase === 'dusk' ? 'west-road' : 'main-street'),
       x: opts.x != null ? opts.x : phase === 'night' ? (WW.artSync(), WW.ENTRY_X) : phase === 'dusk' ? 3180 : 600, unlocks: w.unlocks, phase, night: w.day });
     run = { phase, st, list: phase === 'night' ? breaches(w.day) : [], tries: {}, locked: {}, fixed: {}, bell: 0, ward: {} };
-    if (phase === 'night') lightFuses(run.list, w.day);
+    if (phase === 'night') { lightFuses(run.list, w.day); const pl = applyPlan(run.list, w.day); run.list = pl.list; run.planNotes = pl.notes; run.planKept = pl.kept; }
     // Where you left off (Ladi, Nov 18: leaving and coming back must not refill the clock). w.at holds the day, the
     // phase, the time left and the tutorial step; it only counts for the same day and phase.
     const at = w.at && w.at.day === w.day && w.at.phase === phase ? w.at : null;
@@ -1211,7 +1283,8 @@
         if (phase === 'day' && m.via === 'pell-gate') { setTimeout(endEarly, 0); return false; }
         // Dusk is the walk to the gate, not more time in town (Ladi, Nov 18): the way down the hill is closed.
         if (phase === 'dusk' && !/^castle:/.test(m.to.scene)) { setTimeout(() => sayAll([['pell', 'Town\'s shutting up for the night, warden. The gate\'s this way.']]), 0); return false; }
-        if (/^castle:/.test(m.to.scene) && phase !== 'night') { setTimeout(() => walk('night', m.via === 'pell-gate' ? {} : { scene: m.to.scene, x: m.to.x }), 0); return false; }
+        if (/^castle:/.test(m.to.scene) && phase !== 'night') { const go = () => walk('night', m.via === 'pell-gate' ? {} : { scene: m.to.scene, x: m.to.x });
+          setTimeout(() => (phase === 'dusk' ? planCard(go) : go()), 0); return false; }   // the castle plan first, at dusk
         if (m.via === 'castle-exit' && phase === 'night' && w.day !== 9) return false;
         return true;
       },
@@ -1304,6 +1377,7 @@
     if (phase === 'night' && w.day === 9) sayAll([['pell', 'The Long Night. Every lock you missed is open again, and there are new ones in town. The castle gate stays open tonight: the town is ours to search too.']]);
     if (phase === 'dusk' && w.day === 9 && !w.retry) w.retry = JSON.stringify(Object.assign({}, w, { retry: null }));
     if (phase === 'night' && w.day === 1) sayAll([['pell', 'One problem tonight, at the main gate. Walk to the glowing marker and press use.']]);
+    if (phase === 'night' && run.planNotes && run.planNotes.length && !opts.resume) { const ns = run.planNotes; setTimeout(() => ns.forEach((t, i) => setTimeout(() => toast(t), i * 4200)), 600); }
   }
   function dusk() { walk('dusk'); }
   // The castle gate by day: head up early and the night starts sooner (Ladi, Nov 18). Asks first, so a stray press
@@ -1344,6 +1418,7 @@
     if (!run || run.phase !== 'night') return;
     const w = sv(), fixed = run.list.filter(x => run.fixed[x.id]), missed = run.list.filter(x => !run.fixed[x.id]);
     if (w.day === 9) return ending(missed, fixed);
+    const planKept = run.planKept || [];
     const fines = w.day === 1 ? 0 : missed.length * PAY.miss;
     const pay = Math.max(0, PAY.base + fixed.length * PAY.fix + fines);   // fines never take more than the night's pay
     missed.forEach(x => { w.missed[x.orig || x.id] = x.raid || 'Thieves'; });   // a missed copycat brings its original back on night 9
@@ -1366,7 +1441,7 @@
     // Mira's whole morning song under the dawn report and her review (Ladi, Nov 18: it went quiet after the sting).
     setTimeout(() => { if (!run && AU && AU.loopName !== 'watchMorning') music('watchMorning'); }, 5600);
     const b = U.panel(`<p class="ww-top">Night ${night} · Dawn</p>
-      <ul class="nw-rows">${fixed.map(x => `<li class="nw-r ok"><span class="nw-rr">✓</span><span>${esc(x.title)}</span></li>`).join('')}${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)}${night < 9 ? ' · comes back on the Long Night' : ''}</span></li>`).join('')}</ul>
+      <ul class="nw-rows">${planKept.map(x => `<li class="nw-r ok"><span class="nw-rr">📌</span><span>${esc(x.title)} · kept out by the plan</span></li>`).join('')}${fixed.map(x => `<li class="nw-r ok"><span class="nw-rr">✓</span><span>${esc(x.title)}</span></li>`).join('')}${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)}${night < 9 ? ' · comes back on the Long Night' : ''}</span></li>`).join('')}</ul>
       <p class="ww-pay">${COIN} Pay: ${PAY.base} base + ${fixed.length * PAY.fix} for fixes${fines ? ` ${fines} in fines` : ''} = ${pay} · ${w.silver} saved</p>
       ${xp ? `<p class="small muted">${esc(xp)}</p>` : ''}
       <div class="row"><button class="primary" id="ww-next">${w.day > 9 ? 'The end' : 'Day ' + w.day}</button></div>`, { title: 'THE NIGHT WATCH' });
@@ -1410,7 +1485,7 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, qGrace, shopItems: () => SHOP.filter(it => !(it.id === 'guard' && (sv().day >= 9 || sv().guard === sv().day))), step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+  SD.watchWalk = { sv, breaches, planFor, qGrace, shopItems: () => SHOP.filter(it => !(it.id === 'guard' && (sv().day >= 9 || sv().guard === sv().day))), step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
     clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');
