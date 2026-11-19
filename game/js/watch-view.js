@@ -38,8 +38,9 @@
   // ---- Layers ----
   function sky(c, phase, sceneKind, hasLayers, weather) {
     const night = phase === 'night' || phase === 'dusk', wet = weather === 'rain' || weather === 'storm';   // rain by day: overcast, no sun (Ladi, Nov 19)
-    const a = art(), pic = a && a.skies && img(a.skies[night ? 'night' : wet && a.skies.overcast ? 'overcast' : 'day']);
-    if (pic) c.drawImage(pic, 0, 0, VW, VH);
+    const a = art(), cloud = wet && a && a.skies && a.skies.overcast;   // a rain night is clouded over too: no moon or stars
+    const pic = a && a.skies && img(a.skies[cloud ? 'overcast' : night ? 'night' : 'day']);
+    if (pic) { c.drawImage(pic, 0, 0, VW, VH); if (cloud && night) { c.fillStyle = 'rgba(8,12,30,.72)'; c.fillRect(0, 0, VW, VH); } }
     else {
       const g = c.createLinearGradient(0, 0, 0, G);
       const top = { day: '#7fb4e6', dawn: '#e9b394', dusk: '#d27a5a', night: '#0c1430' }[phase] || '#7fb4e6';
@@ -337,7 +338,10 @@
       rainCoat = (o.weather === 'rain' || o.weather === 'storm') && (phase === 'day' || phase === 'dawn');
       sky(c, phase, sc.kind, !!layers, o.weather);
       const drawLayer = l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } };
-      if (layers) layers.filter(l => !l.over).forEach(drawLayer);   // over: drawn after the people (the bridge's front crenellations)
+      // Rain through the castle windows (Ladi, Nov 19): the weather goes behind the wall, so it shows only where the
+      // windows (and the towers' open roof) are cut out of it.
+      const wetIn = sc.kind === 'castle' && (o.weather === 'rain' || o.weather === 'storm');
+      if (layers) layers.filter(l => !l.over).forEach((l, i, all) => { if (wetIn && l === all.find(m => m.speed === 1)) weather(c, o.weather, t); drawLayer(l); });   // over: drawn after the people (the bridge's front crenellations)
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });   // archway rooms have painted signs
       if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
