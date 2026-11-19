@@ -1007,7 +1007,7 @@
           q: 'IAM roles and STS. A night clerk needs access only during the shift. What should they do instead of keeping a copied access key?',
           choices: ['Keep the copied key, and rotate it monthly', 'An IAM user whose key is disabled each morning', 'A new access key each shift, deleted at dawn', 'Assume a role each shift; the credentials expire'], answer: 3,
           why: 'Assume the role each time. STS hands out credentials that expire.' } },
-        { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll unchain the ladder hatch from the upper floor to the towers. Don\'t tell anyone I was nice.']] }
+        { at: { level: 'main-street', who: 'kai' }, say: [['kai', 'Fine. I\'ll unchain the ladder hatch to the towers, and the east tower stair. Don\'t tell anyone I was nice.']] }
       ], clue: null },
 
     { id: 'kai-sealed-default', giver: 'kai', kind: 'trust', opens: 5, closes: 7, skill: '2.2.1',
@@ -1033,7 +1033,7 @@
           q: 'Service-to-service authorization. Several Lambda functions call each other\'s APIs. What should each have?',
           choices: ['No permissions: they\'re in the same account', 'Its own role, allowing only the calls it makes', 'One shared role with every call any of them needs', 'Access keys for each, kept in env vars'], answer: 1,
           why: 'One role per service. If one leaks, it opens only that worker\'s doors.' } },
-        { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. There\'s a stair down to the cellars. Near side. It\'s yours.']] }
+        { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. The far stair down to the cellars, east end, and the ladder hatch. Both yours.']] }
       ], clue: null },
 
     { id: 'dutch-loose-talk', giver: 'dutch', kind: 'trust', opens: 6, closes: 8, skill: '2.3.4',
@@ -1172,7 +1172,7 @@
           q: 'IAM permissions boundaries. Crew leads may create roles for their crews, but no role they create should ever reach the towers. What enforces that?',
           choices: ['Trust each lead to write careful policies', 'A permissions boundary required on roles they make', 'A deny on the towers in each crew lead\'s own policy', 'An AWS Config rule that reports tower access'], answer: 1,
           why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles. A deny in a lead\'s own policy limits the lead, not the roles they make, and a Config rule only reports after the fact.' } },
-        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off, every hatch. One bell tick a climb. Use it well, warden.']] }
+        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off, every hatch, and the west stair up from the ground floor. One bell tick a climb. Use it well, warden.']] }
       ], clue: null },
 
     // ---------------------------------------------- Small quests ------------------------------------------------

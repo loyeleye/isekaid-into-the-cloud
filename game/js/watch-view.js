@@ -116,6 +116,19 @@
     c.fillStyle = '#4a3020'; c.fillRect(sx - 13, G - 62, 26, 62);                       // a door sized to a person
     c.fillStyle = 'rgba(255,230,160,.7)'; c.fillRect(sx - 44, G - h + 24, 18, 16); c.fillRect(sx + 26, G - h + 24, 18, 16);
   }
+  // A blocked stair (Ladi, Nov 19): the art's overlay (floors[f].stairs[id].block: img and box in layer px, floor at
+  // 300) stretched to its box, else boards nailed across it, drawn here as a stand-in.
+  function blockage(c, s, X, f) {
+    const A = window.WATCH_ART && window.WATCH_ART.floors, d = A && A[f] && A[f].stairs && A[f].stairs[s.id], b = d && d.block, p = b && img(b.img);
+    if (p) { const k = VH / 360, [x0, y0, x1, y1] = b.box; c.drawImage(p, X(x0), y0 * k, x1 - x0, (y1 - y0) * k); return; }
+    const sx = X(s.x);
+    c.save(); c.lineCap = 'round';
+    const plank = (x0, y0, x1, y1) => { c.strokeStyle = '#3a2a1a'; c.lineWidth = 11; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      c.strokeStyle = '#8a6438'; c.lineWidth = 7; c.stroke(); };
+    if (s.up) { plank(sx - 34, G - 8, sx + 34, G - 74); plank(sx - 34, G - 74, sx + 34, G - 8); plank(sx - 40, G - 44, sx + 40, G - 44); }
+    else { plank(sx - 46, G + 2, sx + 46, G - 4); plank(sx - 44, G + 9, sx + 44, G + 6); }
+    c.restore();
+  }
   function label(c, text, sx, y, strong) {
     c.font = (strong ? '600 ' : '') + '12px system-ui, sans-serif';
     const w = c.measureText(text).width + 10;
@@ -318,6 +331,7 @@
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
       if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'room').forEach(s => { label(c, s.label, X(s.x), 40); });   // archway rooms have painted signs
       if (!layers) sc.spots.forEach(s => { const sx = X(s.x); if (sx > -120 && sx < VW + 120) building(c, s, sx, sc); });   // painted layers hold the buildings
+      if (sc.kind === 'castle') sc.spots.filter(s => s.kind === 'stair' && s.needs && !st.unlocks[s.needs]).forEach(s => blockage(c, s, X, sc.floor));   // blocked stairs (Ladi, Nov 19)
       if (layers && sc.kind === 'castle') {   // the ladder through the trapdoors, once a quest opens a stretch of it from this floor
         const h = sc.spots.find(v => v.kind === 'lift');
         if (h && WW.open(st, h)) { const hx = X(h.x), top = sc.floor === 'towers' ? G - 6 : 0, bot = sc.floor === 'cellars' ? G : G + 60;

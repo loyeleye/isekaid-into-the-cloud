@@ -53,9 +53,26 @@ check(WW.weather(3, 'day') === 'wind' && WW.weather(6, 'night') === 'storm' && W
 // With the castle art loaded (the HD floors in js/watch-art-castle.js replace the old ones), rooms, doors and stairs come from the art.
 global.window = global.window || {}; require('../js/watch-art.js'); require('../js/watch-art-castle.js'); WW.artSync();
 const AF = window.WATCH_ART.floors, L = f => AF[f].links;
-check(AF.hd === 1 && WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.width - 10, 'castle floors take the HD art and its width');
+check(AF.hd === 1 && WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.walls[1] - 34, 'castle floors take the HD art, its width and its end walls');
 check(floorKeys('cellars', L('cellars')['stair-left']) === 'up' && floorKeys('ground', L('ground')['stair-left']) === 'down', 'the left stair sits where the art draws it, on both floors');
-check(floorKeys('ground', L('ground')['stair-right']) === 'up' && floorKeys('upper', L('upper')['stair-right']) === 'down', 'the right stair sits where the art draws it');
+check(floorKeys('ground', L('ground')['stair-right']) === 'up' && floorKeys('upper', WW.linkX(WW.LINKS.find(l => l.id === 'stair-right'), 'upper')) === 'down', 'the right stair rises where the ground floor draws it');
+// Ladi, Nov 19: both ends of every floor have a stair up and a stair down (the cellars only up, the towers only down).
+// Three are blocked until a quest; they show but don't move you.
+{ const ALL = { 'cellar-stair': 1, hoist: 1, 'back-stair': 1 }, W = WW.FLOOR_W / 2;
+  const ends = (f, u) => { const out = { left: [], right: [] };
+    WW.scene('castle:' + f).spots.filter(s => s.kind === 'stair').forEach(s => out[s.x < W ? 'left' : 'right'].push(floorKeys(f, s.x, u))); return out; };
+  const want = { towers: ['down'], upper: ['down', 'up'], ground: ['down', 'up'], cellars: ['up'] };
+  WW.FLOORS.forEach(f => { const e = ends(f, ALL);
+    check(['left', 'right'].every(k => e[k].slice().sort().join() === want[f].join()), `${f}: each end has ${want[f].join(' and ')} once the quests are done`); });
+  const shut = WW.LINKS.filter(l => l.needs);
+  check(shut.length === 3 && shut.every(l => l.joins.every(f => floorKeys(f, WW.linkX(l, f)) === '')), 'the three blocked stairs are shut before their quests');
+  check(shut.every(l => l.joins.every(f => floorKeys(f, WW.linkX(l, f), { [l.needs]: 1 }) !== '')), 'each blocked stair opens with its quest');
+  check(shut.every(l => l.joins.every(f => /^Blocked stair (up|down) to the /.test(WW.scene('castle:' + f).spots.find(s => s.id === l.id).label))), 'a blocked stair says where it goes');
+  const lft = WW.LINKS.filter(l => !l.lift).every(l => l.joins.every(f => (WW.linkX(l, f) < W) === (WW.linkX(l, l.joins[0]) < W)));
+  check(lft, 'every stair stays on its side: a left stair lands you on the left of the next floor'); }
+WW.FLOORS.forEach(f => { const sc = WW.scene('castle:' + f), w = AF[f].walls, st = at('castle:' + f, 300, {});
+  WW.step(st, 100, { right: 1 }); const r = st.x; WW.step(st, 100, { left: 1 });
+  check(r < w[1] - 20 && st.x > w[0] + 10, `${f}: she stops at the end walls (${Math.round(st.x)} to ${Math.round(r)})`); });
 check(floorKeys('upper', L('upper')['back-stair']) === 'up' && floorKeys('towers', L('towers')['back-stair']) === 'down', 'the back stair sits where the art draws it');
 { const m = WW.moves(at('castle:ground', L('ground')['stair-left'], {}, 'night'))[0];
   check(m && m.to.x === L('cellars')['stair-left'], 'taking a stair lands you on that stair on the next floor'); }

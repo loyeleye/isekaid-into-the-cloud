@@ -3,11 +3,13 @@
 // runs the days and nights. Shapes shared with the art and content threads: js/watch-schema.md.
 //   - The town is four stacked side-view levels (West Road on top, Hill Road, Main Street, the Far Lane at the
 //     bottom). Forks in the road join them: stand at a fork and press up or down.
-//   - The castle is four floors, one on screen at a time (HD repaint, Nov 19: js/watch-art-castle.js). One stair
-//     joins each pair of floors, and each sits at its own x on each floor: cellars to ground (left), ground to upper
-//     (right), upper to towers (the back stair, left on the upper floor, right in the towers). A ladder runs through
-//     the trapdoors in the middle of every floor. Quests open it a stretch at a time: Dutch's from the cellars to the
-//     ground floor, Kai's from the upper floor to the towers, the Captain's the whole way. The bridge leaves the
+//   - The castle is four floors, one on screen at a time (HD repaint, Nov 19: js/watch-art-castle.js). Stairs (Ladi,
+//     Nov 19): both ends of every floor have a stair up and a stair down, except the cellars (up only) and the towers
+//     (down only). Six stairs, three per side. Three are open from the start (cellars-ground left, ground-upper right,
+//     upper-towers left); the other three are drawn but blocked until a quest opens them: Dutch's the right stair
+//     down to the cellars, the Captain's the left stair from the ground floor up, Kai's the right stair to the
+//     towers. A ladder runs through the trapdoors in the middle of every floor, a stretch at a time on the same
+//     quests (Dutch: cellars-ground, Kai: upper-towers, the Captain: the whole way). The bridge leaves the
 //     upper floor at the bridge tower for the neighbour's castle; you walk to their door, never inside.
 //   - On the cellars, upper floor and towers, rooms are archways: walking in opens a popup with the room's painting.
 //   - Shortcuts from big quests: the lookout chute (West Road down to the Far Lane cottage, down only) and Seymour's
@@ -91,12 +93,16 @@
   };
   WW.CASTLE = C;
   WW.FLOOR_W = FW;
-  // Stairs and the ladder. at: x per floor (from the art). The ladder's stretches open with quest unlocks (doc:
-  // Castle shortcuts): any of the listed unlocks opens that stretch.
+  // Stairs and the ladder. at: x per floor (the art's links map overrides these). needs: the quest unlock that clears a
+  // blocked stair; the art's floors[f].stairs[id].block is the overlay drawn over it while it's blocked.
+  // The ladder's stretches open with quest unlocks (doc: Castle shortcuts): any of the listed unlocks opens that stretch.
   const LINKS = [
     { id: 'stair-left', x: 70, at: {}, joins: ['cellars', 'ground'] },
     { id: 'stair-right', x: 1530, at: {}, joins: ['ground', 'upper'] },
     { id: 'back-stair', x: 1450, at: { upper: 150 }, joins: ['upper', 'towers'] },
+    { id: 'east-cellar-stair', x: 1350, at: {}, joins: ['cellars', 'ground'], needs: 'cellar-stair' },
+    { id: 'west-mid-stair', x: 260, at: {}, joins: ['ground', 'upper'], needs: 'hoist' },
+    { id: 'east-tower-stair', x: 1350, at: {}, joins: ['upper', 'towers'], needs: 'back-stair' },
     { id: 'ladder', x: 800, at: {}, joins: ['towers', 'upper', 'ground', 'cellars'], lift: true }
   ];
   const LADDER = { 'cellars|ground': ['cellar-stair', 'hoist'], 'ground|upper': ['hoist'], 'upper|towers': ['back-stair', 'hoist'] };
@@ -144,6 +150,7 @@
       C[f].rooms = a.rooms.map(([id, x0, x1]) => [id, x0, x1, names[id] || id]);
       C[f].doors = a.doors || {};
       C[f].popup = a.popupRooms || [];
+      if (a.walls) C[f].walls = a.walls;   // the painted end walls' inside faces: she stops there (Ladi, Nov 19)
       const L = a.links || {};
       LINKS.forEach(l => { if (L[l.id] != null) l.at[f] = L[l.id]; });
       if (f === 'upper' && L['bridge-door'] != null) BRIDGE_X = L['bridge-door'];
@@ -166,7 +173,9 @@
     const m = /^castle:(\w+)$/.exec(id);
     if (m && C[m[1]]) {
       const f = m[1], spots = [];
-      LINKS.forEach(l => { if (l.joins.includes(f)) spots.push({ id: l.id, x: linkX(l, f), kind: l.lift ? 'lift' : 'stair', label: l.lift ? 'Ladder' : 'Stairs', link: l, floor: f }); });
+      LINKS.forEach(l => { if (!l.joins.includes(f)) return;
+        const o = l.joins.find(g => g !== f), up = WW.FLOORS.indexOf(o) < WW.FLOORS.indexOf(f);
+        spots.push({ id: l.id, x: linkX(l, f), kind: l.lift ? 'lift' : 'stair', label: l.lift ? 'Ladder' : l.needs ? 'Blocked stair ' + (up ? 'up' : 'down') + ' to the ' + C[o].name.toLowerCase() : 'Stairs', link: l, floor: f, needs: l.needs, up }); });
       C[f].rooms.forEach(([rid, a, b, name], i) => {
         const pop = (C[f].popup || []).includes(rid), dx = (C[f].doors || {})[rid];
         if (pop) { spots.push({ id: 'door-' + rid, x: dx != null ? dx : (a + b) / 2, kind: 'door', popup: true, room: rid, label: name }); return; }   // an archway: walk in for the popup
@@ -176,7 +185,8 @@
       if (f === 'upper') spots.push({ id: 'bridge-exit', x: BRIDGE_X + ((C.upper.popup || []).includes('bridge-tower') ? 60 : 0), kind: 'travel', label: 'Out onto the bridge', to: { scene: 'bridge', x: 60 }, dir: 'use' });   // through the bridge tower's arch, clear of its doorway
       if (f === 'ground') spots.push({ id: 'outpost-back', x: OUTPOST_X, kind: 'travel', label: 'Outpost door to Main Street', to: { scene: 'main-street', x: 1335 }, dir: 'use', dawn: true, needs: 'outpost' });
       if (f === 'ground') spots.push({ id: 'castle-exit', x: EXIT_X, kind: 'travel', label: 'Down to the town', to: { scene: 'west-road', x: 3240 }, dir: 'use', dawn: true });
-      return { id, kind: 'castle', floor: f, name: C[f].name, from: 30, to: FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
+      const wl = C[f].walls;
+      return { id, kind: 'castle', floor: f, name: C[f].name, from: wl ? wl[0] + 26 : 30, to: wl ? wl[1] - 34 : FW - 10, spots: spots.sort((p, q) => p.x - q.x) };
     }
     return null;
   };

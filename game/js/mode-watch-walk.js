@@ -175,7 +175,7 @@
             'An IAM user\'s access keys in each function\'s env vars',
             'Keep the shared role, but add a permissions boundary'], answer: 0,
           why: 'An execution role per function keeps each one to least privilege. Lambda gets the role\'s temporary credentials for you, so long-term keys aren\'t needed, and a boundary on a shared role still lets every function reach every table.' } },
-        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, take the key to the ladder hatch down to the cellars.']] }
+        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, the keys to the east stair down to the cellars and the ladder hatch.']] }
       ] },
     { id: 'kai-night-cloak', giver: 'kai', kind: 'shortcut', opens: 3, closes: 5, skill: '2.1', reward: { silver: 20, heart: true, unlock: 'back-stair' },
       steps: [
@@ -185,7 +185,7 @@
           choices: ['Assume a role at the start of each shift',
             'A long-term access key, deleted each morning', 'A bucket policy allowing their IP at night'], answer: 0,
           why: 'Assuming a role returns temporary security credentials from AWS STS that expire on their own. A long-term key lasts until someone deletes it, and an IP rule lets anyone on that network in.' } },
-        { at: { who: 'kai' }, say: [['kai', 'A cloak on a hook. Take the ladder hatch key: it runs from the upper floor to the towers.']] }
+        { at: { who: 'kai' }, say: [['kai', 'A cloak on a hook. Take the keys to the east tower stair and the ladder hatch to the towers.']] }
       ] },
     { id: 'captain-hoist-key', giver: 'captain', kind: 'big', opens: 5, closes: 7, skill: '2.1', reward: { silver: 30, heart: false, unlock: 'hoist' },
       steps: [
@@ -194,7 +194,7 @@
           choices: ['A role the watch assumes only on patrol, logged',
             'An IAM user for the watch, with MFA on its sign-in', 'Attach it to every worker, with a permissions boundary'], answer: 0,
           why: 'Granting wide access through a role that is assumed only when needed limits how long anyone holds it, and CloudTrail records each AssumeRole call. A standing IAM user holds the access all the time, and a boundary on every worker still gives every worker the hoist.' } },
-        { at: { who: 'captain' }, say: [['captain', 'Good. The ladder is yours, every hatch. Climb to the floor you want.']] }
+        { at: { who: 'captain' }, say: [['captain', 'Good. The ladder is yours, every hatch, and the west stair up from the ground floor.']] }
       ] }
   ];
   const quests = () => (content().quests && content().quests.length ? content().quests : FALLBACK_QUESTS);
@@ -308,15 +308,18 @@
   function roomArt(room) {
     const r = room && INT()[room]; if (!r) return '';
     const me = window.WATCH_ART && WATCH_ART.people && WATCH_ART.people.seoyeon;
-    const fx = r.focus ? r.focus[0] : r.w / 2, left = Math.max(4, Math.min(80, (fx / r.w) * 100 - 22)), bottom = ((r.h - (r.floorY || r.h * 0.8)) / r.h) * 100;
+    const fx = r.focus ? r.focus[0] : r.w / 2, left = Math.max(4, Math.min(80, (fx / r.w) * 100 - 22)), pad = me && me.anchor ? (me.h - me.anchor[1]) / me.h * 46 : 0,
+      bottom = ((r.h - Math.max(r.floorY || 0, r.h * 0.9)) / r.h) * 100 - pad;   // feet on the front of the floor, past the furniture (Ladi, Nov 19); 46: the sprite's height in % (CSS)
     if (me) setTimeout(() => { const cv = wrap && wrap.querySelector('.ww-room canvas'); if (!cv) return; const im = new Image();
       im.onload = () => { const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0, me.w, me.h, 0, 0, me.w, me.h); }; im.src = me.sheet; }, 0);
     return `<div class="ww-room" style="background-image:url('${r.img}')">${me ? `<canvas width="${me.w}" height="${me.h}" style="left:${left.toFixed(1)}%;bottom:${bottom.toFixed(1)}%" aria-hidden="true"></canvas>` : ''}</div>`;
   }
   function roomPop(spot) {
     if (!INT()[spot.room]) return;
-    const o = overlay(`${roomArt(spot.room)}<p class="ww-t">${esc(spot.label)}</p><p class="ww-q">Nothing out of place in here.</p><div class="row"><button class="primary" data-a="d">Step out</button></div>`);
+    const out = spot.room === 'bridge-tower' && WW.scene(run ? run.st.scene : '').spots.find(v => v.id === 'bridge-exit');   // the bridge leaves from here (Ladi, Nov 19)
+    const o = overlay(`${roomArt(spot.room)}<p class="ww-t">${esc(spot.label)}</p><p class="ww-q">Nothing out of place in here.</p><div class="row">${out ? '<button class="primary" data-a="b">Walk onto the bridge</button><button class="ghost" data-a="d">Step out</button>' : '<button class="primary" data-a="d">Step out</button>'}</div>`);
     o.querySelector('[data-a=d]').onclick = close;
+    if (out) o.querySelector('[data-a=b]').onclick = () => { close(); run.st.x = out.x; WW.go(run.st, 'use'); };
   }
   const popRoom = x => { const f = /^castle:(\w+)$/.exec(x.scene || ''), room = x.where && x.where.room;
     return f && room && (WW.CASTLE[f[1]].popup || []).includes(room) ? room : null; };
