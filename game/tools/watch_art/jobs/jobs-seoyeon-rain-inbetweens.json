@@ -1,0 +1,26 @@
+[
+ {
+  "out": "pose/seoyeon-rain-walkB2.png",
+  "ref": "pose/seoyeon-rain-walkB.png",
+  "seed": 599,
+  "prompt": "Change only the legs and arms, to the moment just after this: the lifted leg swings forward and reaches ahead with the heel just above the ground, the support leg straightens and rolls onto the ball of the foot behind, arms swinging a little wider. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, both boots on, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/seoyeon-rain-walkD2.png",
+  "ref": "pose/seoyeon-rain-walkD.png",
+  "seed": 605,
+  "prompt": "Change only the legs and arms, to the moment just after this: the lifted leg swings forward and reaches ahead with the heel just above the ground, the support leg straightens and rolls onto the ball of the foot behind, arms swinging a little wider. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, both boots on, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/seoyeon-rain-walkA2.png",
+  "ref": "pose/seoyeon-rain-walkB.png",
+  "seed": 1232,
+  "prompt": "Change only the legs, to a moment slightly earlier in the walk: the lifted leg is further back, trailing behind the body with its knee bent and its boot raised off the ground, sole facing back, and the supporting leg is a little ahead of the hips with its boot flat on the ground. Both legs and both boots clearly visible. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ },
+ {
+  "out": "pose/seoyeon-rain-walkC2.png",
+  "ref": "pose/seoyeon-rain-walkD.png",
+  "seed": 1242,
+  "prompt": "Change only the legs, to a moment slightly earlier in the walk: the lifted leg is further back, trailing behind the body with its knee bent and its boot raised off the ground, sole facing back, and the supporting leg is a little ahead of the hips with its boot flat on the ground. Both legs and both boots clearly visible. Still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]

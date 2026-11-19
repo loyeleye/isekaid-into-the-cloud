@@ -12,6 +12,7 @@ if os.environ.get('WATCH_HT'): HT = json.load(open(os.environ['WATCH_HT']))   # 
 RES = 2                      # sheets are drawn at 2x and tagged scale 1/RES, so they stay sharp on high-res screens
 FH0, FOOT0 = 112, 106        # frame height and feet line at 1x (taller people get a taller frame)
 def frames_for(k):
+    if k == 'seoyeon-rain': return ['stand', 'walkA', 'walkA2', 'walkB', 'walkB2', 'walkC', 'walkC2', 'walkD', 'walkD2', 'talk']   # 8-step walk (Ladi, Nov 19)
     if k == 'seoyeon': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk', 'lantern', 'lanternwalk', 'lanternwalkB']
     if k.startswith('townsfolk') or k == 'kevin' or (k.endswith('-rain') and k != 'seoyeon-rain'): return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
     return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk']
@@ -66,8 +67,10 @@ for k in HT:
     def g(*names): return [idx[n] for n in names if n in idx]
     anims = {'idle': g('stand', 'stand', 'stand', 'stand', 'breathe', 'breathe', 'breathe', 'breathe'), 'walk': g('walkA', 'stand', 'walkB', 'stand') if 'walkA' in idx else g('stand')}
     if 'walkA' in idx and 'walkB' in idx: anims['walk'] = [idx['walkA'], idx['walkB'], idx.get('walkC', idx['walkA']), idx.get('walkD', idx['walkB'])]
+    if 'walkA2' in idx: anims['walk'] = g('walkA', 'walkA2', 'walkB', 'walkB2', 'walkC', 'walkC2', 'walkD', 'walkD2')   # twice the steps, half the stride each
     if 'talk' in idx: anims['talk'] = g('stand', 'talk')
     if 'lantern' in idx: anims['lantern'] = g('lantern', 'lantern', 'lantern', 'lantern', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe', 'lanternBreathe'); anims['lanternWalk'] = g('lanternwalk', 'lantern', 'lanternwalkB', 'lanternBreathe') if 'lanternwalkB' in idx else g('lanternwalk', 'lantern')
     meta[k] = {'w': FW, 'h': FH, 'anchor': [ax, FOOT], 'scale': 1 / RES, 'frames': order, 'anims': anims}
+    if 'walkA2' in idx: meta[k]['stride'] = 17   # px walked per frame (the view's default is 34 for four steps)
     print(k, FW, order)
 json.dump(meta, open(f'{OUT}/meta.json', 'w'), indent=1)

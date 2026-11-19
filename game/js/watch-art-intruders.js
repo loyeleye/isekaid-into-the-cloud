@@ -22,7 +22,7 @@
  "townsfolk-1-rain": {"sheet": "assets/img/watch/people/rain/townsfolk-1-rain.png", "w": 104, "h": 224, "anchor": [52, 212], "anims": {"idle": [0, 0, 0, 0, 5, 5, 5, 5], "walk": [1, 2, 3, 4]}, "fps": 8, "scale": 0.5},
  "townsfolk-2-rain": {"sheet": "assets/img/watch/people/rain/townsfolk-2-rain.png", "w": 130, "h": 224, "anchor": [65, 212], "anims": {"idle": [0, 0, 0, 0, 5, 5, 5, 5], "walk": [1, 2, 3, 4]}, "fps": 8, "scale": 0.5},
  "townsfolk-3-rain": {"sheet": "assets/img/watch/people/rain/townsfolk-3-rain.png", "w": 124, "h": 224, "anchor": [62, 212], "anims": {"idle": [0, 0, 0, 0, 5, 5, 5, 5], "walk": [1, 2, 3, 4]}, "fps": 8, "scale": 0.5},
- "seoyeon-rain": {"sheet": "assets/img/watch/people/seoyeon-rain.png", "w": 114, "h": 224, "anchor": [57, 212], "anims": {"idle": [0, 0, 0, 0, 6, 6, 6, 6], "walk": [1, 2, 3, 4], "talk": [0, 5]}, "fps": 8, "scale": 0.5},
+ "seoyeon-rain": {"sheet": "assets/img/watch/people/seoyeon-rain.png", "w": 130, "h": 224, "anchor": [65, 212], "anims": {"idle": [0, 0, 0, 0, 10, 10, 10, 10], "walk": [1, 2, 3, 4, 5, 6, 7, 8], "talk": [0, 9]}, "fps": 8, "scale": 0.5, "stride": 17},
  "intruder-pickpocket": {
   "sheet": "assets/img/watch/people/intruders/pickpocket.png",
   "w": 98,

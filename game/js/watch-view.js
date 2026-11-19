@@ -164,7 +164,7 @@
       const A = p.anims || {}, anim = (lit && (moving ? A.lanternWalk || A.lantern : A.lantern)) || (moving ? A.walk : A.idle) || [0];   // lit: Seo-yeon's lantern at night
       // Walking steps by distance, not time (Ladi, Nov 18: the walks looked frantic): one frame per STRIDE px, so the
       // feet keep pace with the ground at any speed. Standing still cycles slowly (breathing). t is px when moving.
-      const f = anim[Math.floor(moving ? t / STRIDE : t * IDLE_FPS) % anim.length];
+      const f = anim[Math.floor(moving ? t / (p.stride || STRIDE) : t * IDLE_FPS) % anim.length];   // an 8-step walk sets stride 17
       const cols = Math.max(1, Math.floor(sheet.naturalWidth / p.w));
       const k = p.scale || 1;   // sheets are painted at 2x and carry scale 0.5
       c.save(); c.translate(sx, G); c.scale(facing * k, k);
