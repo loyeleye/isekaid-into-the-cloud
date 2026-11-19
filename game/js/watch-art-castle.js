@@ -166,8 +166,8 @@ window.WATCH_ART_CASTLE = {
    "rooms": [
     [
      "watchtower",
-     236,
-     428
+     424,
+     616
     ],
     [
      "lookout",
@@ -181,7 +181,7 @@ window.WATCH_ART_CASTLE = {
     ]
    ],
    "doors": {
-    "watchtower": 332,
+    "watchtower": 520,
     "lookout": 1506,
     "captain": 1778
    },
@@ -191,7 +191,7 @@ window.WATCH_ART_CASTLE = {
     "captain"
    ],
    "links": {
-    "back-stair": 2419,
+    "back-stair": 191,
     "ladder": 1277
    },
    "walls": [
