@@ -68,7 +68,7 @@ npx wrangler login      # sign in to the separate account
 npm run deploy:anon
 ```
 
-`anon-build.js` copies `game/` to `cloudflare/dist-anon/` (ignored by git) and, in every text file, replaces the author's first name (code comments, the credits file), unlinks the links to the author's GitHub repositories and replaces their names, and points any claude.ai link to the game at the site itself. It stops the deploy if any of them is left. `wrangler.anon.jsonc` is `wrangler.jsonc` serving that copy. To update the anonymous copy, pull the latest `main` and run `npm run deploy:anon` again while signed in to that account.
+`anon-build.js` copies `game/` to `cloudflare/dist-anon/` (ignored by git) and, in every text file, replaces the author's first name (code comments, the credits file), unlinks the links to the author's GitHub repositories and replaces their names, points any claude.ai link to the game at the site itself, and turns any other claude.ai link (design docs cited in notes) into the words "a design doc". It stops the deploy if any of them is left. `wrangler.anon.jsonc` is `wrangler.jsonc` serving that copy. To update the anonymous copy, pull the latest `main` and run `npm run deploy:anon` again while signed in to that account.
 
 What it can't hide: if the repository is public, searching the game's title or its dialogue finds it. Players never see commit authors, the account's email, or how it was deployed.
 

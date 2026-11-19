@@ -7,7 +7,7 @@
 //   - the author's first name, in code comments and the credits files, becomes "the designer"
 //   - links to the author's GitHub repositories keep their text and lose the link; bare repository names become
 //     "the first game's repository" (the prequel) or "the game's repository"
-//   - links to the author's claude.ai pages become this site's own page
+//   - the link to the game's claude.ai page becomes this site's own page; other claude.ai links become "a design doc"
 // It then fails if any of those strings is left, so a new mention can't slip into a deploy unnoticed.
 const fs = require('fs');
 const path = require('path');
@@ -25,7 +25,13 @@ const REPOS = [
   [/\bloyeleye\/system-design-study\b/g, "the first game's repository"],
   [/\bloyeleye\/[\w.-]+/g, "the game's repository"],
 ];
-const LINKS = [[/https:\/\/claude\.ai\/artifact\/7iQ6fzRDp1iw1y6NJEg74p/g, '/']];
+// The game's own artifact becomes this site; any other claude.ai page (design docs cited in comments and notes, such
+// as js/watch-schema.md's storyboard) loses its address and keeps a plain label.
+const LINKS = [
+  [/https:\/\/claude\.ai\/artifact\/7iQ6fzRDp1iw1y6NJEg74p/g, '/'],
+  [/\(https:\/\/claude\.ai\/artifact\/[\w-]+\)/g, '(a design doc)'],
+  [/https:\/\/claude\.ai\/artifact\/[\w-]+/g, 'a design doc'],
+];
 // What must not be left anywhere in the build.
 const LEAKS = [/\bLadi\b/, /loyeleye/i, /oyeleye/i, /claude\.ai\/artifact\//];
 
