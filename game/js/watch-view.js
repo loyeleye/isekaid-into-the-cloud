@@ -455,7 +455,8 @@
         bld(l);
         const lsc = WW.scene(l);
         c.save(); c.translate(0, SY(Y[l]) - G);
-        (o.people && o.people[l] || []).forEach(p => {
+        const far = Math.abs(WW.LEVELS.indexOf(l) - WW.LEVELS.indexOf(st.scene)) > 1;   // two roads away: nobody drawn there (Ladi, Nov 19: they walked in the sky)
+        (!far && o.people && o.people[l] || []).forEach(p => {
           if (p.walk && !reduced()) { p.facing = p.facing || 1; p.x += p.facing * 120 * dt0; if (p.x > lsc.to - 40) p.facing = -1; if (p.x < lsc.from + 40) p.facing = 1; }
           const sx = SX(p.x); if (sx > -40 && sx < vw + 40) person(c, p.who, sx, p.facing || (p.x < st.x ? 1 : -1), !!(p.walk || p.go), p.walk ? Math.abs(p.x) : p.go ? p.d : t + p.x / 97);
         });
