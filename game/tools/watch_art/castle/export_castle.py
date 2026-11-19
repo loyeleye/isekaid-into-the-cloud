@@ -43,7 +43,7 @@ BAR = json.load(open(f'{src}/barricades/barricades.json'))
 def up(f, sid, span, use): return (span, 'up', BAR[f'{f}/{sid}'], use, f'{f}-{sid}')
 def dn(span, box, use): return (span, 'down', box, use, None)
 # down: the boarded-up archway (block_down.py) placed around the arch centre cx at scale s (towers' archways are 1.4x)
-def abox(cx, s=1): return [round(cx - 118 * s), round(476 - 121 * s), round(cx + 117 * s), round(476 + 46 * s)]
+def abox(cx, s=1, sill=476): return [round(cx - 118 * s), round(sill - 121 * s), round(cx + 117 * s), round(sill + 46 * s)]
 GL, GR = dn([60, 285], abox(172), 163), dn([3811, 4036], abox(3923), 3924)
 STAIRS = {
  'cellars': {'stair-left': up('cellars', 'stair-left', [60, 520], 470), 'east-cellar-stair': up('cellars', 'east-cellar-stair', [3496, 4036], 3626)},
@@ -51,7 +51,7 @@ STAIRS = {
              'stair-right': up('ground', 'stair-right', [3420, 4030], 3500), 'east-cellar-stair': GR},
  'upper':   {'west-mid-stair': GL, 'back-stair': up('upper', 'back-stair', [60, 600], 470),
              'stair-right': GR, 'east-tower-stair': up('upper', 'east-tower-stair', [3496, 4036], 3626)},
- 'towers':  {'back-stair': dn([103, 418], abox(260, 1.4), 260), 'east-tower-stair': dn([3693, 4008], abox(3850, 1.4), 3850)},
+ 'towers':  {'back-stair': dn([180, 340], abox(260, 0.91, 466), 260), 'east-tower-stair': dn([3770, 3930], abox(3850, 0.91, 466), 3850)},
 }
 LINKS = {f: {**{k: v[3] for k, v in st.items()}, **({'ladder': {'cellars': 1994, 'ground': 2005, 'upper': 2005, 'towers': 2000}[f]})} for f, st in STAIRS.items()}
 def block(name):

@@ -396,35 +396,35 @@ window.WATCH_ART_CASTLE = {
    "stairs": {
     "back-stair": {
      "x": [
-      66,
-      267
+      115,
+      217
      ],
      "dir": "down",
      "use": 166,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       61,
-       196,
-       271,
-       345
+       98,
+       227,
+       234,
+       324
       ]
      }
     },
     "east-tower-stair": {
      "x": [
-      2357,
-      2558
+      2406,
+      2509
      ],
      "dir": "down",
      "use": 2457,
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2352,
-       196,
-       2562,
-       345
+       2389,
+       227,
+       2525,
+       324
       ]
      }
     }
