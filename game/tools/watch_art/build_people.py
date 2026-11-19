@@ -13,7 +13,7 @@ RES = 2                      # sheets are drawn at 2x and tagged scale 1/RES, so
 FH0, FOOT0 = 112, 106        # frame height and feet line at 1x (taller people get a taller frame)
 def frames_for(k):
     if k == 'seoyeon': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk', 'lantern', 'lanternwalk', 'lanternwalkB']
-    if k.startswith('townsfolk') or k == 'kevin': return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
+    if k.startswith('townsfolk') or k == 'kevin' or (k.endswith('-rain') and k != 'seoyeon-rain'): return ['stand', 'walkA', 'walkB', 'walkC', 'walkD']
     return ['stand', 'walkA', 'walkB', 'walkC', 'walkD', 'talk']
 def src(k, f): return f'base/{k}.png' if f == 'stand' else f'pose/{k}-{f}.png'
 WIDE = dict(tess=1.25)       # Tess drawn broader: a short, sturdy woman rather than a child (Ladi, Nov 18)
@@ -35,7 +35,7 @@ for k in HT:
     if 'stand' not in fs: continue
     FH = RES * max(FH0, HT[k] + 10); FOOT = FH - RES * (FH0 - FOOT0)
     st = cutout(src(k, 'stand')); bb = st.getbbox(); scale = RES * HT[k] / (bb[3] - bb[1])
-    parts = [prep(src(k, f), scale, WIDE.get(k, 1.0)) for f in fs]
+    parts = [prep(src(k, f), scale, WIDE.get(k.removesuffix('-rain'), 1.0)) for f in fs]
     half = 0
     for im, cx, bot in parts:
         b = im.getbbox(); half = max(half, cx - b[0], b[2] - cx)
