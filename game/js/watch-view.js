@@ -199,7 +199,11 @@
   // ---- Weather overlays ----
   function weather(c, kind, t) {
     const a = art(), pic = a && a.weather && img(a.weather[kind]);
-    if (pic) { const off = (t * 120) % VW; c.drawImage(pic, -off, 0, VW, VH); c.drawImage(pic, VW - off, 0, VW, VH); return; }
+    if (pic) {   // rain and storm fall down and a little left along their streaks (Ladi, Nov 19); the rest drift left
+      const wet = kind === 'rain' || kind === 'storm', ox = (t * (wet ? 160 : 120)) % VW, oy = wet ? (t * (kind === 'storm' ? 760 : 560)) % VH : 0;
+      [0, 1].forEach(i => [0, 1].forEach(j => { if (j && !oy) return; c.drawImage(pic, i * VW - ox, oy - j * VH, VW, VH); }));
+      if (kind === 'storm' && V.STORM_FLASH(t)) { c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(0, 0, VW, VH); }
+      return; }
     if (kind === 'rain' || kind === 'storm') {
       c.strokeStyle = 'rgba(200,220,255,.45)'; c.lineWidth = 1;
       c.beginPath(); for (let i = 0; i < 90; i++) { const x = (i * 53 + t * 300) % (VW + 40) - 20, y = (i * 97 + t * 700) % VH; c.moveTo(x, y); c.lineTo(x - 4, y + 12); } c.stroke();
