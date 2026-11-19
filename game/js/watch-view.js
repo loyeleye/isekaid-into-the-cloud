@@ -32,11 +32,12 @@
     odu: ['#2a4a6a', '#1a1a1a'], fennel: ['#5a7a3a', '#c08040'], seymour: ['#4a4a4a', '#e0c040'], chad: ['#3a5aa0', '#e0b040'],
     kevin: ['#1a1a24', '#1a1a24'], 'intruder-pickpocket': ['#2c2c3a', '#0e0e14'], 'intruder-snuffer': ['#2e4a5e', '#0e0e14'], 'intruder-spiller': ['#6a4a22', '#2a1a0a'], 'intruder-jailer': ['#7a1e1e', '#140808'], staff: ['#e2d8c0', '#5a4632'], 'intruder-replayer': ['#4a3a6a', '#141018'], 'intruder-escalator': ['#5a6a2a', '#141408'], 'intruder-eavesdropper': ['#3a4a3a', '#101410'], 'intruder-exfiltrator': ['#6a5a3a', '#181410'], 'intruder-rummager': ['#5a3a2a', '#140c08'], 'intruder-forger': ['#6a2a5a', '#180814'], 'intruder-secrethunter': ['#2a3a5a', '#080c18'], 'intruder-impersonator': ['#e2d8c0', '#5a4632'], 'intruder-turncloak': ['#3b4a8f', '#0e0e14'], 'intruder-turncloak-bare': ['#3a2a3a', '#0e0e14'], captain: ['#6a2a2a', '#3a3a3a']
   };
-  const tint = (phase) => phase === 'night' ? 'rgba(10,16,48,.55)' : phase === 'dusk' ? 'rgba(120,50,30,.22)' : phase === 'dawn' ? 'rgba(255,170,120,.12)' : null;
+  const tint = (phase, weather) => phase === 'night' ? 'rgba(10,16,48,.55)' : phase === 'dusk' ? 'rgba(120,50,30,.22)' : phase === 'dawn' ? 'rgba(255,170,120,.12)' : weather === 'rain' || weather === 'storm' ? 'rgba(40,50,70,.24)' : null;   // a grey wet day
 
   // ---- Layers ----
-  function sky(c, phase, sceneKind, hasLayers) {
-    const a = art(), pic = a && a.skies && img(a.skies[phase === 'night' || phase === 'dusk' ? 'night' : 'day']);
+  function sky(c, phase, sceneKind, hasLayers, weather) {
+    const night = phase === 'night' || phase === 'dusk', wet = weather === 'rain' || weather === 'storm';   // rain by day: overcast, no sun (Ladi, Nov 19)
+    const a = art(), pic = a && a.skies && img(a.skies[night ? 'night' : wet && a.skies.overcast ? 'overcast' : 'day']);
     if (pic) c.drawImage(pic, 0, 0, VW, VH);
     else {
       const g = c.createLinearGradient(0, 0, 0, G);
@@ -47,7 +48,7 @@
         c.fillStyle = 'rgba(255,255,255,.8)';
         for (let i = 0; i < 40; i++) c.fillRect((i * 97) % VW, (i * 53) % 150, 1.5, 1.5);
         c.fillStyle = '#f2ecd0'; c.beginPath(); c.arc(VW - 80, 60, 18, 0, 7); c.fill();        // the moon, upper right
-      } else if (phase === 'day') {
+      } else if (phase === 'day' && !wet) {
         c.fillStyle = 'rgba(255,240,180,.9)'; c.beginPath(); c.arc(70, 50, 22, 0, 7); c.fill();  // the sun, upper left
       }
     }
@@ -330,7 +331,7 @@
       const cam = artW ? Math.max(0, Math.min(artW - VW, st.x - VW / 2)) : Math.max(sc.from - 80, Math.min(sc.to + 80 - VW, st.x - VW / 2));
       const X = x => x - cam;
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
-      sky(c, phase, sc.kind, !!layers);
+      sky(c, phase, sc.kind, !!layers, o.weather);
       const drawLayer = l => { const p = img(l.img); if (p) { const off = -cam * l.speed; c.drawImage(p, off, 0, p.naturalWidth * (VH / p.naturalHeight), VH); } };
       if (layers) layers.filter(l => !l.over).forEach(drawLayer);   // over: drawn after the people (the bridge's front crenellations)
       else { farLayer(c, sc, cam); backLayer(c, sc, cam); ground(c, sc); }
@@ -370,7 +371,7 @@
       if (st.tucked) c.restore();
       if (!layers) frontLayer(c, sc, cam); else layers.filter(l => l.over).forEach(drawLayer);
       if (o.guide && o.guide.scene === st.scene) guideArrow(c, X(o.guide.x), G, VW, t, o.guide.dir, o.guide.label);
-      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
+      const tn = tint(phase, o.weather); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, VW, VH); }   // day art, tinted for dusk, night and dawn
       if (phase === 'night' || phase === 'dusk') {   // Seo-yeon's lantern lights the ground around her, over the tint
         const gx = X(st.x), g = c.createRadialGradient(gx, G - 50, 10, gx, G - 50, 130);
         g.addColorStop(0, 'rgba(255,214,140,.32)'); g.addColorStop(1, 'rgba(255,214,140,0)');
@@ -397,7 +398,7 @@
       if (camX == null) { camX = tx; camY = ty; }
       const k = Math.min(1, dt0 * 6); camX += (tx - camX) * k; camY += (ty - camY) * k;   // the camera eases after her
       if (animalsFor !== st.scene + phase) { animals = WW.spawn(st.scene, phase, o.weather, hash(st.scene)); animalsFor = st.scene + phase; }
-      sky(c, phase, 'town', true);
+      sky(c, phase, 'town', true, o.weather);
       c.save(); c.scale(Z, Z);
       const SX = x => x - camX, SY = y => y - camY;
       const lvI = WW.LEVELS.indexOf(st.scene);
@@ -470,7 +471,7 @@
       c.save(); c.translate(0, py - G); person(c, 'seoyeon', px, st.facing, st.moving, st.moving ? st.walk * WW.SPEED : t, phase === 'night' || phase === 'dusk'); c.restore();
       if (o.guide && Y[o.guide.scene] != null && !ramp) guideArrow(c, SX(o.guide.x), SY(Y[o.guide.scene]), vw, t, o.guide.dir, o.guide.label);
       if (!T.layers) frontLayer(c, sc, camX);
-      const tn = tint(phase); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, vw, vh); }
+      const tn = tint(phase, o.weather); if (tn) { c.fillStyle = tn; c.fillRect(0, 0, vw, vh); }
       const hintAt = s0 => [SX(s0.x) * Z, (py - 160) * Z];
       if (phase === 'night' || phase === 'dusk') {
         const g = c.createRadialGradient(px, py - 50, 10, px, py - 50, 130);

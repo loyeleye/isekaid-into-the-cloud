@@ -1442,7 +1442,8 @@ window.WATCH_ART = {
  },
  "skies": {
   "day": "assets/img/watch/sky/day.webp",
-  "night": "assets/img/watch/sky/night.webp"
+  "night": "assets/img/watch/sky/night.webp",
+  "overcast": "assets/img/watch/sky/overcast.webp"
  },
  "town": {
   "width": 4100,
