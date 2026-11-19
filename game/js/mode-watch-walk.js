@@ -918,17 +918,17 @@
   }
 
   // ---- Walking (day, dusk and night share this) ----
-  // ---- Music (Ladi's Mureka takes, Nov 17; CREDITS.md). The storm and Long Night tracks are being redone, so nights
-  // 5 to 9 keep the calm night track until they land. Stings are the songs' own endings, so they resolve. ----
+  // ---- Music (Ladi's Mureka takes, Nov 17 and 19; CREDITS.md). Nights 1 to 8 play the night track and night 9 the
+  // Long Night's own (Nov 19); storm days use the rain-day theme. Stings are the songs' own endings, so they resolve. ----
   const AU = SD.audio;
   if (AU) AU.add({
-    songs: { watchDay: 'm-watch-day', watchRain: 'm-watch-day-rain', watchWalkin: 'm-watch-walkin', watchDusk: 'm-watch-dusk', watchNight: 'm-watch-night', watchMorning: 'm-watch-morning' },
+    songs: { watchDay: 'm-watch-day', watchRain: 'm-watch-day-rain', watchWalkin: 'm-watch-walkin', watchDusk: 'm-watch-dusk', watchNight: 'm-watch-night', watchLongNight: 'm-watch-longnight', watchMorning: 'm-watch-morning' },
     samples: { watchFix: 'j-watch-fix', watchMiss: 'j-watch-miss' },   // over the night track, so it keeps playing
     jingles: { watchDawn: 'j-watch-dawn', watchEndLanterns: 'j-watch-end-lanterns', watchEndMorning: 'j-watch-end-morning', watchEndFall: 'j-watch-end-fall' }
   });
   const tune = phase => {
     const w = sv(), wx = WW.weather(w.day, 'day');
-    return phase === 'night' ? 'watchNight' : phase === 'dusk' ? 'watchDusk'
+    return phase === 'night' ? (w.day === 9 ? 'watchLongNight' : 'watchNight') : phase === 'dusk' ? 'watchDusk'
       : run && run.escort ? 'watchWalkin' : wx === 'rain' || wx === 'storm' || wx === 'mist' ? 'watchRain' : 'watchDay';
   };
   const music = name => { if (AU) AU.music(name, true); };
