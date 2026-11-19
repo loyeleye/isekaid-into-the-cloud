@@ -11,7 +11,7 @@
   // walk 14 px below the art's ground line, on the floor rather than along its back edge (Ladi, Nov 19).
   const CASTLE_DROP = 14;
   let G = WW.GROUND;
-  let rainCoat = false;   // Seo-yeon wears her raincoat on a rain day (Ladi, Nov 19); set each frame
+  let rainCoat = false;   // rain gear on a rain day by daylight (Ladi, Nov 19: Seo-yeon and the townsfolk); set each frame
   const V = SD.watchView = {};
   V.TOWN_ZOOM = 0.85;   // town drawn at 85% so more of the road above and the backdrop fit (Ladi's pick, Nov 18)
   const art = () => window.WATCH_ART || null;
@@ -157,7 +157,7 @@
   const STRIDE = 34, IDLE_FPS = 1.5;
   // ---- People: art sprite if there is one, else a side-view figure 64 tall, feet on the ground ----
   function person(c, who, sx, facing, moving, t, lit) {
-    if (who === 'seoyeon' && rainCoat && art() && art().people && art().people['seoyeon-rain']) who = 'seoyeon-rain';
+    if (rainCoat && art() && art().people && art().people[who + '-rain']) who += '-rain';   // rain gear on a rain day, for whoever has it
     const a = art(), p = a && a.people && a.people[who], sheet = p && img(p.sheet);
     if (!sheet) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(sx, G + 2, 16, 4, 0, 0, 7); c.fill(); }   // art has its shadow baked in
     if (sheet) {

@@ -1033,7 +1033,7 @@
           q: 'Service-to-service authorization. Several Lambda functions call each other\'s APIs. What should each have?',
           choices: ['No permissions: they\'re in the same account', 'Its own role, allowing only the calls it makes', 'One shared role with every call any of them needs', 'Access keys for each, kept in env vars'], answer: 1,
           why: 'One role per service. If one leaks, it opens only that worker\'s doors.' } },
-        { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. The far stair down to the cellars, east end, and the ladder hatch. Both yours.']] }
+        { at: { level: 'main-street', who: 'dutch' }, say: [['dutch', 'Good. The near stair down to the cellars, by the gate, and the ladder hatch. Both yours.']] }
       ], clue: null },
 
     { id: 'dutch-loose-talk', giver: 'dutch', kind: 'trust', opens: 6, closes: 8, skill: '2.3.4',
@@ -1172,7 +1172,7 @@
           q: 'IAM permissions boundaries. Crew leads may create roles for their crews, but no role they create should ever reach the towers. What enforces that?',
           choices: ['Trust each lead to write careful policies', 'A permissions boundary required on roles they make', 'A deny on the towers in each crew lead\'s own policy', 'An AWS Config rule that reports tower access'], answer: 1,
           why: 'A permissions boundary sets the most a role can ever do, whatever its own policies say. Make the leads attach it (the iam:PermissionsBoundary condition key) when they create roles. A deny in a lead\'s own policy limits the lead, not the roles they make, and a Config rule only reports after the fact.' } },
-        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off, every hatch, and the west stair up from the ground floor. One bell tick a climb. Use it well, warden.']] }
+        { at: { floor: 'towers', room: 'captain' }, say: [['captain', 'Chains off, every hatch. One bell tick a climb. Use it well, warden.']] }
       ], clue: null },
 
     // ---------------------------------------------- Small quests ------------------------------------------------

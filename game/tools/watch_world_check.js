@@ -27,7 +27,7 @@ check(keys(at('far-lane', 3600, {})) === '', 'the tunnel is shut before Seymour\
 
 const floorKeys = (f, x, u) => keys(at('castle:' + f, x, u, 'night'));
 // One stair per pair of floors (HD floors, Nov 19), and the ladder through the trapdoors, opened a stretch at a time.
-check(floorKeys('cellars', 70) === 'up' && floorKeys('ground', 70) === 'down', 'the left stair joins the cellars and the ground floor');
+check(floorKeys('cellars', 70, { 'cellar-stair': 1 }) === 'up' && floorKeys('ground', 70, { 'cellar-stair': 1 }) === 'down', 'the left stair joins the cellars and the ground floor');
 check(floorKeys('ground', 1530) === 'up' && floorKeys('upper', 1530) === 'down', 'the right stair joins the ground and upper floors');
 check(floorKeys('upper', 150) === 'up' && floorKeys('towers', 1450) === 'down', 'the back stair joins the upper floor and the towers, at its own x on each');
 check(floorKeys('ground', 800) === '', 'the ladder is chained before any quest');
@@ -54,7 +54,7 @@ check(WW.weather(3, 'day') === 'wind' && WW.weather(6, 'night') === 'storm' && W
 global.window = global.window || {}; require('../js/watch-art.js'); require('../js/watch-art-castle.js'); WW.artSync();
 const AF = window.WATCH_ART.floors, L = f => AF[f].links;
 check(AF.hd === 1 && WW.FLOOR_W === AF.ground.width && WW.scene('castle:ground').to === AF.ground.walls[1] - 34, 'castle floors take the HD art, its width and its end walls');
-check(floorKeys('cellars', L('cellars')['stair-left']) === 'up' && floorKeys('ground', L('ground')['stair-left']) === 'down', 'the left stair sits where the art draws it, on both floors');
+check(floorKeys('cellars', L('cellars')['stair-left'], { 'cellar-stair': 1 }) === 'up' && floorKeys('ground', L('ground')['stair-left'], { 'cellar-stair': 1 }) === 'down', 'the left stair sits where the art draws it, on both floors');
 check(floorKeys('ground', L('ground')['stair-right']) === 'up' && floorKeys('upper', WW.linkX(WW.LINKS.find(l => l.id === 'stair-right'), 'upper')) === 'down', 'the right stair rises where the ground floor draws it');
 // Ladi, Nov 19: both ends of every floor have a stair up and a stair down (the cellars only up, the towers only down).
 // Three are blocked until a quest; they show but don't move you.
@@ -65,7 +65,7 @@ check(floorKeys('ground', L('ground')['stair-right']) === 'up' && floorKeys('upp
   WW.FLOORS.forEach(f => { const e = ends(f, ALL);
     check(['left', 'right'].every(k => e[k].slice().sort().join() === want[f].join()), `${f}: each end has ${want[f].join(' and ')} once the quests are done`); });
   const shut = WW.LINKS.filter(l => l.needs);
-  check(shut.length === 3 && shut.every(l => l.joins.every(f => floorKeys(f, WW.linkX(l, f)) === '')), 'the three blocked stairs are shut before their quests');
+  check(shut.length === 2 && shut.map(l => l.id).sort().join() === 'east-tower-stair,stair-left' && shut.every(l => l.joins.every(f => floorKeys(f, WW.linkX(l, f)) === '')), 'the two blocked stairs (near cellar stair, far tower stair) are shut before their quests');
   check(shut.every(l => l.joins.every(f => floorKeys(f, WW.linkX(l, f), { [l.needs]: 1 }) !== '')), 'each blocked stair opens with its quest');
   check(shut.every(l => l.joins.every(f => /^Blocked stair (up|down) to the /.test(WW.scene('castle:' + f).spots.find(s => s.id === l.id).label))), 'a blocked stair says where it goes');
   const lft = WW.LINKS.filter(l => !l.lift).every(l => l.joins.every(f => (WW.linkX(l, f) < W) === (WW.linkX(l, l.joins[0]) < W)));
@@ -74,7 +74,7 @@ WW.FLOORS.forEach(f => { const sc = WW.scene('castle:' + f), w = AF[f].walls, st
   WW.step(st, 100, { right: 1 }); const r = st.x; WW.step(st, 100, { left: 1 });
   check(r < w[1] - 20 && st.x > w[0] + 10, `${f}: she stops at the end walls (${Math.round(st.x)} to ${Math.round(r)})`); });
 check(floorKeys('upper', L('upper')['back-stair']) === 'up' && floorKeys('towers', L('towers')['back-stair']) === 'down', 'the back stair sits where the art draws it');
-{ const m = WW.moves(at('castle:ground', L('ground')['stair-left'], {}, 'night'))[0];
+{ const m = WW.moves(at('castle:ground', L('ground')['stair-left'], { 'cellar-stair': 1 }, 'night'))[0];
   check(m && m.to.x === L('cellars')['stair-left'], 'taking a stair lands you on that stair on the next floor'); }
 check(floorKeys('ground', L('ground').ladder, { hoist: 1 }) === 'floor:cellars,floor:towers,floor:upper', 'the ladder sits on the trapdoors');
 check(WW.scene('castle:upper').spots.some(s => s.id === 'door-wardrobe' && s.popup && s.x === AF.upper.doors.wardrobe), 'archway rooms are doorways that open a popup');

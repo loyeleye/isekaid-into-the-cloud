@@ -5,12 +5,11 @@
 //     bottom). Forks in the road join them: stand at a fork and press up or down.
 //   - The castle is four floors, one on screen at a time (HD repaint, Nov 19: js/watch-art-castle.js). Stairs (Ladi,
 //     Nov 19): both ends of every floor have a stair up and a stair down, except the cellars (up only) and the towers
-//     (down only). Six stairs, three per side. Three are open from the start (cellars-ground left, ground-upper right,
-//     upper-towers left); the other three are drawn but blocked until a quest opens them: Dutch's the right stair
-//     down to the cellars, the Captain's the left stair from the ground floor up, Kai's the right stair to the
-//     towers. A ladder runs through the trapdoors in the middle of every floor, a stretch at a time on the same
-//     quests (Dutch: cellars-ground, Kai: upper-towers, the Captain: the whole way). The bridge leaves the
-//     upper floor at the bridge tower for the neighbour's castle; you walk to their door, never inside.
+//     (down only). Six stairs, three per side. Two are drawn but blocked until a quest opens them (storyboard,
+//     Castle shortcuts): Dutch's the near (left) stair between the ground floor and the cellars, Kai's the far (right)
+//     stair between the upper floor and the towers. A ladder runs through the trapdoors in the middle of every floor,
+//     a stretch at a time on the same quests (Dutch: cellars-ground, Kai: upper-towers, the Captain: the whole way).
+//     The bridge leaves the upper floor at the bridge tower for the neighbour's castle; you walk to their door, never inside.
 //   - On the cellars, upper floor and towers, rooms are archways: walking in opens a popup with the room's painting.
 //   - Shortcuts from big quests: the lookout chute (West Road down to the Far Lane cottage, down only) and Seymour's
 //     tunnel (Hill Road bunker to the Far Lane well, both ways).
@@ -97,11 +96,11 @@
   // blocked stair; the art's floors[f].stairs[id].block is the overlay drawn over it while it's blocked.
   // The ladder's stretches open with quest unlocks (doc: Castle shortcuts): any of the listed unlocks opens that stretch.
   const LINKS = [
-    { id: 'stair-left', x: 70, at: {}, joins: ['cellars', 'ground'] },
+    { id: 'stair-left', x: 70, at: {}, joins: ['cellars', 'ground'], needs: 'cellar-stair' },
     { id: 'stair-right', x: 1530, at: {}, joins: ['ground', 'upper'] },
     { id: 'back-stair', x: 1450, at: { upper: 150 }, joins: ['upper', 'towers'] },
-    { id: 'east-cellar-stair', x: 1350, at: {}, joins: ['cellars', 'ground'], needs: 'cellar-stair' },
-    { id: 'west-mid-stair', x: 260, at: {}, joins: ['ground', 'upper'], needs: 'hoist' },
+    { id: 'east-cellar-stair', x: 1350, at: {}, joins: ['cellars', 'ground'] },
+    { id: 'west-mid-stair', x: 260, at: {}, joins: ['ground', 'upper'] },
     { id: 'east-tower-stair', x: 1350, at: {}, joins: ['upper', 'towers'], needs: 'back-stair' },
     { id: 'ladder', x: 800, at: {}, joins: ['towers', 'upper', 'ground', 'cellars'], lift: true }
   ];

@@ -175,7 +175,7 @@
             'An IAM user\'s access keys in each function\'s env vars',
             'Keep the shared role, but add a permissions boundary'], answer: 0,
           why: 'An execution role per function keeps each one to least privilege. Lambda gets the role\'s temporary credentials for you, so long-term keys aren\'t needed, and a boundary on a shared role still lets every function reach every table.' } },
-        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, the keys to the east stair down to the cellars and the ladder hatch.']] }
+        { at: { who: 'dutch' }, say: [['dutch', 'Own passes all round. Here, the keys to the near stair down to the cellars and the ladder hatch.']] }
       ] },
     { id: 'kai-night-cloak', giver: 'kai', kind: 'shortcut', opens: 3, closes: 5, skill: '2.1', reward: { silver: 20, heart: true, unlock: 'back-stair' },
       steps: [
@@ -194,7 +194,7 @@
           choices: ['A role the watch assumes only on patrol, logged',
             'An IAM user for the watch, with MFA on its sign-in', 'Attach it to every worker, with a permissions boundary'], answer: 0,
           why: 'Granting wide access through a role that is assumed only when needed limits how long anyone holds it, and CloudTrail records each AssumeRole call. A standing IAM user holds the access all the time, and a boundary on every worker still gives every worker the hoist.' } },
-        { at: { who: 'captain' }, say: [['captain', 'Good. The ladder is yours, every hatch, and the west stair up from the ground floor.']] }
+        { at: { who: 'captain' }, say: [['captain', 'Good. The ladder is yours, every hatch. Climb to the floor you want.']] }
       ] }
   ];
   const quests = () => (content().quests && content().quests.length ? content().quests : FALLBACK_QUESTS);
