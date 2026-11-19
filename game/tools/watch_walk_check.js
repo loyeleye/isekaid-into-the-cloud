@@ -448,11 +448,15 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const r = SD.watchWalk.run; r.st.scene = 'castle:towers'; SD.watchWalk.clock(360 - 16); }); await page.waitForTimeout(500);
   const gdt = await ev(() => [(document.querySelector('.ww-toast') || {}).textContent || '', (document.querySelector('.ww-top') || document.body).textContent]);
   check(/GuardDuty: .*, on the /.test(gdt[0]) && /🔔 [\w ]+ 1:5/.test(gdt[1]), `the GuardDuty bell names the floor and shows the fuse from another floor (${gdt[0]} | ${gdt[1]})`);
-  // Search, every night: a break-in shows only when she's within 220px of it.
-  const near = await ev(async () => { const r = SD.watchWalk.run, x = r.list.find(v => !v.at || v.at <= 20), st = r.st, ids = () => (SD.watchWalk.view.marks || []).filter(m => m.scene === x.scene && m.x === x.x).length;
-    st.scene = x.scene; st.x = x.x > 700 ? 40 : 1280; await new Promise(z => setTimeout(z, 500)); const far = ids();
-    st.x = x.x + 100; await new Promise(z => setTimeout(z, 500)); return [far, ids()]; });
-  check(near[0] === 0 && near[1] === 1, `a break-in only shows up close (${near})`);
+  // Search (Ladi, Nov 19): a break-in shows from across the floor, but with the lantern out only up close, and a
+  // forged one reads "All clear" until she's on it.
+  const near = await ev(async () => { const r = SD.watchWalk.run, x = r.list.find(v => !v.at || v.at <= 20), st = r.st, wait = ms => new Promise(z => setTimeout(z, ms));
+    const mk = () => (SD.watchWalk.view.marks || []).find(m => m.scene === x.scene && m.x === x.x);
+    st.scene = x.scene; st.x = x.x > 700 ? 40 : 1280; await wait(500); const far = !!mk();
+    r.dark = 15; await wait(400); const dark = !!mk(); r.dark = 0;
+    x.forged = 1; await wait(400); const forged = (mk() || {}).text; st.x = x.x + 20; await wait(400); const close = (mk() || {}).text; x.forged = 0;
+    return [far, !dark, forged === '✓ All clear', close !== '✓ All clear']; });
+  check(near.every(Boolean), `a break-in shows from across the floor, not with the lantern out, and a forged one reads all clear from afar (${near})`);
   // Intruders (Ladi, Nov 18): 5-10s after a lock gives, someone walks in through it and prowls until you fix it.
   const intr = await ev(async () => { const r = SD.watchWalk.run, w = SD.watchWalk.sv(), x = r.list[0], st = r.st, out = []; x.kind = 'pickpocket';
     const wait = ms => new Promise(z => setTimeout(z, ms)); SD.watchWalk.clock(360 - x.at - 1); await wait(400);
@@ -462,7 +466,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
     w.tools = 1; w.silver = 50; st.scene = p.scene; p.cool = 0; st.x = p.x + 20; p.tx = p.x; st.moving = false; await wait(400);
     out.push(w.tools === 0 && w.silver === 50);                         // a spare tool goes first
     p.cool = 0; p.scene = st.scene; p.x = st.x; await wait(400); out.push(w.silver === 40);  // then 10 silver
-    w.silver = 0; p.cool = 0; p.scene = st.scene; p.x = st.x; await wait(400); out.push(/pockets empty/.test((document.querySelector('.ww-toast') || {}).textContent));   // then the lantern
+    w.silver = 20; p.cool = 0; p.scene = st.scene; p.x = st.x; await wait(400); out.push(w.silver === 20 && /last 20 silver/.test((document.querySelector('.ww-toast') || {}).textContent));   // never her last 20 (Ladi, Nov 19)
     r.fixed[x.id] = 1; await wait(500); out.push(!Object.values(r.ppl).some(a => a.includes(p)));
     out.push(Math.abs(p.x - x.x) > 1 || p.scene !== x.scene);
     return out; });

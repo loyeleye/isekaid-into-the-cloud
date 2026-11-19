@@ -6,7 +6,11 @@
 // Controls: arrows or A/D walk, W/S or up/down take a fork or a stair, E, Enter or Space use; on touch, buttons.
 (function () {
   if (!window.SD || !SD.watchWorld) return;
-  const WW = SD.watchWorld, G = WW.GROUND, VW = 640, VH = WW.VIEW_H;
+  const WW = SD.watchWorld, VW = 640, VH = WW.VIEW_H;
+  // The feet line. In the castle the painted floor runs from about y 290 (the wall) to 326 (its front edge), so people
+  // walk 14 px below the art's ground line, on the floor rather than along its back edge (Ladi, Nov 19).
+  const CASTLE_DROP = 14;
+  let G = WW.GROUND;
   const V = SD.watchView = {};
   V.TOWN_ZOOM = 0.85;   // town drawn at 85% so more of the road above and the backdrop fit (Ladi's pick, Nov 18)
   const art = () => window.WATCH_ART || null;
@@ -228,7 +232,7 @@
   // ---- Mount: canvas + touch controls + the loop ----
   // o: { st (from WW.create), people: { sceneId: [{ who, x }] }, marks: [{ scene, x, text }], weather, onUse(spot), onMove(move), hint, guide }
   V.mount = function (host, o) {
-    host.innerHTML = `<div class="wv"><canvas class="wv-c" width="${VW}" height="${VH}" aria-label="The town, side view"></canvas>
+    host.innerHTML = `<div class="wv"><div class="wv-box"><canvas class="wv-c" width="${VW}" height="${VH}" aria-label="The town, side view"></canvas></div>
       <p class="wv-where" aria-live="polite"></p>
       <div class="wv-pad" role="group" aria-label="Controls">
         <button data-k="left" aria-label="Walk left">◀</button><button data-k="up" aria-label="Go up">▲</button>
@@ -287,10 +291,22 @@
       else { fol.moving = false; fol.facing = st.x >= fol.x ? 1 : -1; }
       return fol;
     }
+    // Crisp at any size (full window, Ladi Nov 19): the backing store follows the canvas's on-screen size and the
+    // screen's pixel ratio, and everything is drawn in 640x360 view units on top of that.
+    let K = 1;
+    function fit() {
+      const shown = cv.clientWidth || VW;
+      const want = Math.max(1, Math.min(3, Math.round((shown * (window.devicePixelRatio || 1) / VW) * 4) / 4));
+      if (want !== K || cv.width !== Math.round(VW * want)) { K = want; cv.width = Math.round(VW * K); cv.height = Math.round(VH * K); }
+      c.setTransform(K, 0, 0, K, 0, 0); c.imageSmoothingQuality = 'high';
+    }
     function draw() {
+      fit();
+      G = WW.GROUND;
       if (stacked()) return drawTown();
       camX = camY = null;
       const sc = WW.scene(st.scene), phase = st.phase;
+      if (sc.kind === 'castle' && layerImgs(sc)) G = WW.GROUND + CASTLE_DROP;
       const layers = layerImgs(sc);
       // With painted art, the camera stops at the ends of the main (speed 1) layer, so you never see past a wall.
       const main = layers && layers.find(l => l.speed === 1), mi = main && img(main.img), artW = mi && mi.naturalWidth * (VH / mi.naturalHeight);
@@ -483,6 +499,7 @@
   const css = document.createElement('style');
   css.textContent = `
     .wv { display: grid; gap: 6px; }
+    .wv-box { display: grid; place-items: center; }
     .wv-c { width: 100%; height: auto; aspect-ratio: ${VW} / ${VH}; border-radius: 10px; background: #0c1430; image-rendering: auto; touch-action: none; }
     .wv-where { margin: 0; font-size: 13px; font-weight: 600; color: #3b4470; text-align: center; }
     .wv-pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }

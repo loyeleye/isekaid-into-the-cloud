@@ -444,7 +444,7 @@
     const who = mini.who, hello = (content().lessonHello || {})[who];
     // They already know Seo-yeon, just not well yet (Ladi, Nov 18): a plain hello, not "Mira says you're new".
     const intro = mini.teach ? hello || 'Morning, Seo-yeon. Got a minute? I could show you something.' : 'Quick one for the watch, if you\'ve a moment.';
-    const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · 🪙 ${mini.silver}</button></div>`);
+    const o = overlay(`${line(who, intro)}<div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="y">${mini.teach ? 'Show me' : 'Help'} · ${COIN} ${mini.silver}</button></div>`);
     o.querySelector('[data-a=x]').onclick = close;
     o.querySelector('[data-a=y]').onclick = () => { if (!mini.teach) take(); close(); setTimeout(() => (mini.teach && mini.demo ? lesson(mini.demo, () => box(mini)) : box(mini)), 90); };
   }
@@ -452,7 +452,7 @@
   // the keys a job needs, a least-privilege minigame with no wrong-answer penalty.
   function buyStep(who, st, go) {
     const w = sv(), b = st.buy;
-    const o = overlay(`${(st.say || []).map(l => line(l[0], l[1])).join('')}<p class="ww-meta">🪙 ${w.silver}</p>
+    const o = overlay(`${(st.say || []).map(l => line(l[0], l[1])).join('')}<p class="ww-meta">${COIN} ${w.silver}</p>
       <div class="row"><button class="ghost" data-a="x">Not now</button><button class="primary" data-a="b" ${w.silver < b.cost ? 'disabled' : ''}>Buy ${esc(b.item)} · ${b.cost} silver</button></div>`);
     o.querySelector('[data-a=x]').onclick = close;
     o.querySelector('[data-a=b]').onclick = () => { w.silver -= b.cost; S.persist(); close(); toast(`🧺 ${b.item} bought.`); setTimeout(go, 90); };
@@ -536,7 +536,7 @@
       if (s.step >= 0) { const t = q.steps[s.step]; if (t && t.at && t.at.who === who) return 'Job'; }
     }
     const m = miniFor(who);
-    return m ? (m.teach ? 'Lesson' : 'Quick job') + ' · 🪙 ' + m.silver : '';
+    return m ? (m.teach ? 'Lesson' : 'Quick job') + ' · ' + m.silver + ' silver' : '';   // drawn on the canvas: words, not the coin
   }
   // Trust changes go through here, so crossing a step (friend, close friend...) is announced.
   function gain(who, f) {
@@ -545,6 +545,8 @@
     const i1 = T.findIndex(x => x[1] === B.tier(B.trust(b, who)));
     if (i1 > i0 && who !== 'kagemaru') toast(`${nm(who)} now counts you as a ${T[i1][1]}.${T[i1][0] === 40 ? ' They might tell you something tomorrow.' : ''}`);
   }
+  // Silver, so a silver coin (Ladi, Nov 19: the gold 🪙 emoji read as gold).
+  const COIN = '<span class="ww-coin" aria-hidden="true"></span>';
   function toast(text) {
     if (!wrap) return;
     wrap.querySelectorAll('.ww-toast').forEach(x => x.remove());   // one at a time
@@ -578,7 +580,7 @@
     let pick = null;
     qOpen();
     const draw = note => {
-      const o = overlay(`${qLine()}<div class="ww-box"><p class="ww-ctx">${face(m.who)}<span>${esc(nm(m.who))}'s ${m.teach ? 'lesson' : 'question'} · 🪙 ${m.silver}</span></p>
+      const o = overlay(`${qLine()}<div class="ww-box"><p class="ww-ctx">${face(m.who)}<span>${esc(nm(m.who))}'s ${m.teach ? 'lesson' : 'question'} · ${COIN} ${m.silver}</span></p>
         <p class="ww-q">${esc(m.q)}</p>${note || ''}
         <div class="ww-ch">${order.map(i => `<button data-i="${i}" class="${pick === i ? 'on' : ''}" aria-pressed="${pick === i}">${pick === i ? '✓ ' : ''}${esc(m.opts[i])}</button>`).join('')}</div>
         <div class="ww-conf"><span>${m.teach ? 'Practice: no wrong answers today. How sure are you?' : 'One try. How sure are you?'}</span>
@@ -595,7 +597,7 @@
       S.persist();
       const o = overlay(`<div class="ww-box"><p class="${ok ? 'ww-ok' : 'ww-no'}">${ok ? '✓ Right' : '✗ Not this time'}: ${esc(m.opts[m.a])}</p>
         ${!ok && (m.no || [])[pick] ? `<p class="ww-why"><b>Yours:</b> ${esc(m.no[pick])}</p>` : ''}<p class="ww-why">${esc(m.why)}</p>
-        ${ok ? `<p class="ww-gold">🪙 +${m.silver} silver${conf === 0 ? ' · a lucky guess still counts' : ''}</p>` : conf === 2 ? '<p class="ww-meta">You were sure. Worth another look.</p>' : ''}
+        ${ok ? `<p class="ww-gold">${COIN} +${m.silver} silver${conf === 0 ? ' · a lucky guess still counts' : ''}</p>` : conf === 2 ? '<p class="ww-meta">You were sure. Worth another look.</p>' : ''}
         <div class="row"><button class="primary" data-a="d">Done</button></div></div>`);
       o.querySelector('[data-a=d]').onclick = () => { close(); if (view && run && run.phase === 'day') view.set('marks', dayMarks()); };
     };
@@ -722,7 +724,7 @@
     // it watches, 8 silver per break-in due tonight.
     const gdCost = () => (w.guardTrial ? GD_EACH * breaches(w.day).length : 0);
     const w = sv(), price = it => it.id === 'guard' ? (w.guardTrial ? B.price(w.bonds, 'kagemaru', gdCost()) : 0) : B.price(w.bonds, 'kagemaru', it.cost);
-    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">🪙 ${w.silver} · spare tools ${w.tools || 0} · revokes ${w.writs || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
+    const o = overlay(`${line('kagemaru', 'Take a look. Quality gear.')}<p class="ww-meta">${COIN} ${w.silver} · spare tools ${w.tools || 0} · revokes ${w.writs || 0}${w.unlocks.outpost ? ' · outpost built' : ''}</p>
       <div class="ww-ch">${SHOP.filter(it => it.id === 'tools' || it.id === 'writ' || it.id === 'guard' || it.id === 'watch1' || it.id === 'watch2' || w.toldHire)
         .filter(it => !(it.id === 'guard' && (w.day >= 9 || w.guard === w.day)))
         .filter(it => !(it.id === 'watch1' && (w.watchUp || 0) >= 1) && !(it.id === 'watch2' && ((w.watchUp || 0) < 1 || w.watchUp >= 2)))
@@ -764,7 +766,7 @@
       (((content().ties || {})[q.giver] || {}).warm || []).forEach(f => { if (f !== 'seoyeon') w.knows[id][f] = q.giver; });
     }
     S.persist();
-    const o = overlay(`<p class="ww-ok">Quest done</p><p>🪙 +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
+    const o = overlay(`<p class="ww-ok">Quest done</p><p>${COIN} +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
     o.querySelector('[data-a=d]').onclick = close;
   }
 
@@ -873,7 +875,7 @@
     };
     run.keep = keep; S.persist();
     const b = U.panel(`<p class="ww-top" id="ww-top"></p><div class="ww-wrap"><div class="ww-view"></div></div>
-      <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-book">📖 Town</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH' });
+      <div class="row"><button class="ghost" id="ww-quit">Save and leave</button><button class="ghost" id="ww-book">📖 Town</button><button class="ghost" id="ww-end">${phase === 'night' ? 'End the night' : phase === 'day' ? 'End the day' : ''}</button></div>`, { title: 'THE NIGHT WATCH', cls: 'ww-full' });
     wrap = b.querySelector('.ww-wrap');
     const top = b.querySelector('#ww-top'), endB = b.querySelector('#ww-end');
     if (phase === 'dusk') endB.hidden = true;
@@ -882,7 +884,10 @@
     b.querySelector('#ww-book').onclick = () => { if (!busy) townBook(); };
     // Search (Ladi, Nov 18): every night, a break-in only shows when she's within 220px, so finding one takes walking.
     // On the Long Night a watcher at ward 2 or an outpost shows their whole area.
-    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || Math.abs(x.x - st.x) < (x.forged ? 40 : run.dark > 0 ? 90 : 220);   // forged: a fake all-clear hides it till you're on it
+    // Search (Ladi, Nov 19: back to seeing them from anywhere on the floor): a break-in shows from across the floor,
+    // except while a snuffer has her lantern out (90px). A forger's all-clear makes one look fixed till she's on it.
+    const seen = x => (w.day === 9 && ((run.ward[x.scene] || 0) >= 2 || (w.posts || {})[x.scene])) || !(run.dark > 0) || Math.abs(x.x - st.x) < 90;
+    const fooled = x => x.forged && Math.abs(x.x - st.x) >= 40;
     const gone = () => phase === 'night' ? nightS(w.day) - clock : 0;   // seconds into the night
     const up = x => !x.at || gone() >= x.at;                                 // has this break-in started yet?
     const fuseLeft = x => (x.fuse ? x.at + x.fuse - gone() : Infinity);
@@ -918,7 +923,7 @@
     //       the 4s at the rack) you can catch it. Revoke active sessions, the real IAM role button, works any time.
     //     rummager (2.1.7, 2.3.6): stays on its floor and opens every drawer, twice as fast, and every break-in on that
     //       floor burns 10s faster each time.
-    //     forger (2.2.2, 2.2.5): hangs a forged all-clear seal on an open break-in, which then shows only from 40px.
+    //     forger (2.2.2, 2.2.5): hangs a forged all-clear seal on an open break-in: it reads "All clear" until she's within 40px.
     //     secret-hunter (2.3.2, 2.3.3): quick, sharp-eyed. Grabs her notes: her next question has half the thinking time.
     //   Long Night: each break-in's intruder is a coin flip, its section's kind or a random one.
     //   Not on night 1. All of them get a little faster each night.
@@ -1022,6 +1027,8 @@
       if (m) { p.scene = m.to.scene; p.x = m.to.x; }
       p.cool = Math.max(p.cool, 1.5); aim(p);
     };
+    // Thieves never take her last 20 silver (Ladi, Nov 19: silver shouldn't hit 0 in the Night Watch).
+    const PURSE = 20, canTake = n => Math.max(0, Math.min(n, (w.silver || 0) - PURSE));
     const caught = (p, x) => {
       const who = crew(x);
       if (AU) AU.sfx('watchMiss');
@@ -1031,10 +1038,10 @@
           sayAll([['seoyeon', 'They\'ve locked me in the linen closet.'], ['seoyeon', 'Nobody will hear me till the morning shift. That\'s the night gone.']], () => dawn()); return true; }
       } else if (p.kind === 'secrethunter') { run.half = 1; toast(`📜 One of the ${who} reads your notes and runs. Your next question gets half the thinking time.`); }
       else if (p.kind === 'snuffer') { run.dark = 15; toast(`💨 One of the ${who} blows out your lantern and runs. You can barely see.`); }
-      else if (p.kind === 'impersonator' && (w.silver || 0) >= 15) { w.silver -= 15; toast(`🫳 The fake cook lifts 15 silver and runs.`); }
+      else if (p.kind === 'impersonator' && canTake(15)) { const n = canTake(15); w.silver -= n; toast(`🫳 The fake cook lifts ${n} silver and runs.`); }
       else if ((w.tools || 0) > 0) { w.tools--; toast(`🫳 One of the ${who} snatches a spare tool and runs.`); }
-      else if ((w.silver || 0) >= 10) { w.silver -= 10; toast(`🫳 One of the ${who} lifts 10 silver and runs.`); }
-      else toast(`🫳 One of the ${who} finds your pockets empty, and runs.`);
+      else if (canTake(10)) { const n = canTake(10); w.silver -= n; toast(`🫳 One of the ${who} lifts ${n} silver and runs.`); }
+      else toast(`🫳 One of the ${who} finds only your last ${PURSE} silver, sewn in where nobody can reach, and runs.`);
       const ex = exits(p.scene).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x));   // bolt for the nearest way out
       p.state = 'flee'; p.exit = ex[0] || null; p.next = null; p.tx = p.exit ? p.exit.x : bounds(p.scene)[p.x < st.x ? 0 : 1]; p.cool = 10; S.persist();
       return false;
@@ -1128,7 +1135,7 @@
           if (p.state === 'go' && p.goal.scene === p.scene) {
             if (p.goal.lurk) { p.state = 'lurk'; continue; }
             if (p.goal.renew) { p.state = 'renew'; p.loot = RENEW; continue; }
-            if (p.goal.away) { const pen = Math.min(20, w.silver || 0); w.silver -= pen; (run.out = run.out || {})[p.of] = 1; leave(p, `🌉 The exfiltrator is over the bridge with a full sack.${pen ? ` ${pen} silver gone.` : ''}`); S.persist(); moved = true; continue; }
+            if (p.goal.away) { const pen = canTake(20); w.silver -= pen; (run.out = run.out || {})[p.of] = 1; leave(p, `🌉 The exfiltrator is over the bridge with a full sack.${pen ? ` ${pen} silver gone.` : ''}`); S.persist(); moved = true; continue; }
             if (p.goal.forge) { const v = run.list.find(u => u.id === p.goal.forge); if (v && !run.fixed[v.id]) { v.forged = 1; toast('🖋 Someone hung a forged all-clear on a broken lock. It looks fixed from a distance.'); } forge(p); continue; }
             if (p.goal.replay) { const v = run.list.find(u => u.id === p.goal.replay); p.done = p.goal.replay;
               if (v && run.fixed[v.id] && gone() - run.lastFix.t < 60) { delete run.fixed[v.id]; delete (w.fixed || {})[v.id]; v.at = gone(); v.fuse = 60; if (run.rung) delete run.rung[v.id];
@@ -1145,6 +1152,7 @@
     }
     const marks = () => run.list.filter(x => !run.fixed[x.id] && run.locked[x.id] !== 'gone' && up(x) && seen(x)).map(x => {
       const f = fuseLeft(x), lk = run.locked[x.id];
+      if (fooled(x)) return { scene: x.scene, x: x.x, text: '✓ All clear', color: '#8a93b8' };   // the forged seal, from a distance
       return { scene: x.scene, x: x.x, sparkle: x.fix === 'hiding-spot', text: lk ? 'Locked till dawn' : f < Infinity ? `${x.title} · ⏳ ${mm(Math.max(0, f))}` : x.title,
         color: lk ? '#8a93b8' : f < 40 ? '#ff7b7b' : '#e9c56d' };
     });
@@ -1248,8 +1256,8 @@
         const left = open.filter(up).length, soon = open.length - left;
         const gd = phase === 'night' && w.guard === w.day && w.day < 9 ? open.filter(up).map(x => `${WW.scene(x.scene).name.replace(/ floor$/i, '')} ${mm(Math.max(0, fuseLeft(x)))}`) : [];
         const here = w.day === 9 && lv >= 1 ? ` · ${run.list.filter(x => x.scene === st.scene && !run.fixed[x.id]).length || 'all clear'} here (${nm(watcherOf(st.scene))})` : '';
-        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · 🪙 ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · 🪙 ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left ? `${left} breach${left === 1 ? '' : 'es'} now` : 'quiet'}${soon ? ' · more coming' : ''}${gd.length ? ' · 🔔 ' + gd.join(', ') : ''}`) + ` · 🔔 ${run.bell}` : ''}`;
-        if (top.textContent !== t) top.textContent = t;
+        const t = phase === 'dusk' ? `Day ${w.day} · Dusk · ${COIN} ${w.silver}` : `${phase === 'night' ? 'Night' : 'Day'} ${w.day} · ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}${busy && !(run.q && run.q.left <= 0) ? ' (paused)' : ''} · ${COIN} ${w.silver}${phase === 'night' ? (w.day === 9 ? here : ` · ${left ? `${left} breach${left === 1 ? '' : 'es'} now` : 'quiet'}${soon ? ' · more coming' : ''}${gd.length ? ' · 🔔 ' + gd.join(', ') : ''}`) + ` · 🔔 ${run.bell}` : ''}`;
+        if (top.dataset.t !== t) { top.dataset.t = t; top.innerHTML = t; }   // holds the silver coin
       }
     });
     if (phase === 'day' && SCH && content().schedule) {   // the living town: everyone with a plan walks it
@@ -1310,7 +1318,7 @@
     const w = sv(), fixed = run.list.filter(x => run.fixed[x.id]), missed = run.list.filter(x => !run.fixed[x.id]);
     if (w.day === 9) return ending(missed, fixed);
     const fines = w.day === 1 ? 0 : missed.length * PAY.miss;
-    const pay = PAY.base + fixed.length * PAY.fix + fines;
+    const pay = Math.max(0, PAY.base + fixed.length * PAY.fix + fines);   // fines never take more than the night's pay
     missed.forEach(x => { w.missed[x.orig || x.id] = x.raid || 'Thieves'; });   // a missed copycat brings its original back on night 9
     w.silver += pay;
     const night = w.day;
@@ -1332,7 +1340,7 @@
     setTimeout(() => { if (!run && AU && AU.loopName !== 'watchMorning') music('watchMorning'); }, 5600);
     const b = U.panel(`<p class="ww-top">Night ${night} · Dawn</p>
       <ul class="nw-rows">${fixed.map(x => `<li class="nw-r ok"><span class="nw-rr">✓</span><span>${esc(x.title)}</span></li>`).join('')}${missed.map(x => `<li class="nw-r leak"><span class="nw-rr">✗</span><span>${esc(x.title)}${night < 9 ? ' · comes back on the Long Night' : ''}</span></li>`).join('')}</ul>
-      <p class="ww-pay">🪙 Pay: ${PAY.base} base + ${fixed.length * PAY.fix} for fixes${fines ? ` ${fines} in fines` : ''} = ${pay} · ${w.silver} saved</p>
+      <p class="ww-pay">${COIN} Pay: ${PAY.base} base + ${fixed.length * PAY.fix} for fixes${fines ? ` ${fines} in fines` : ''} = ${pay} · ${w.silver} saved</p>
       ${xp ? `<p class="small muted">${esc(xp)}</p>` : ''}
       <div class="row"><button class="primary" id="ww-next">${w.day > 9 ? 'The end' : 'Day ' + w.day}</button></div>`, { title: 'THE NIGHT WATCH' });
     b.querySelector('#ww-next').onclick = () => (w.day > 9 ? ending() : morning());
@@ -1381,6 +1389,22 @@
   const css = document.createElement('style');
   css.textContent = `
     .ww-wrap { position: relative; }
+    .ww-coin { display: inline-block; width: .9em; height: .9em; border-radius: 50%; vertical-align: -.1em; background: radial-gradient(circle at 35% 30%, #ffffff 0 12%, #d9dde4 30%, #9aa1ad 70%, #6d7480 100%); box-shadow: inset 0 0 0 1.5px #5d636e; }
+    /* Full window (Ladi, Nov 19): the walking screen fills the window; the view keeps 16:9 and grows to fit, and
+       talk and question cards float over it at a readable width. */
+    #panel:has(> .win.ww-full) { padding: 0; }
+    #panel > .win.ww-full { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
+    .win.ww-full > .win-b { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px max(12px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .win.ww-full .ww-top { margin: 0; }
+    .win.ww-full .ww-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .win.ww-full .ww-view, .win.ww-full .wv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .win.ww-full .wv-box { flex: 1 1 0; min-height: 0; container-type: size; }
+    .win.ww-full .wv-c { width: min(100cqw, 100cqh * 16 / 9); }
+    .win.ww-full .wv-pad { width: min(640px, 100%); margin: 0 auto; }
+    .win.ww-full .ww-o { bottom: 0; overflow-y: auto; justify-items: center; }
+    .win.ww-full .ww-card { max-width: 680px; }
+    @media (max-aspect-ratio: 1 / 1) { .win.ww-full .ww-view, .win.ww-full .wv { flex: 0 0 auto; } .win.ww-full .wv-box { flex: 0 0 auto; container-type: normal; } .win.ww-full .wv-c { width: 100%; } }
+    .win.ww-full > .win-b > .row { justify-content: center; }
     .ww-pay { font-weight: 700; color: #7a5410; }
     .ww-end { margin: 4px 0; color: #2c3566; }
     .ww-top { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #2c3566; }
