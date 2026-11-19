@@ -1470,6 +1470,7 @@
       { kind: 'alibi', suspect: 'kagemaru', spot: 'kagemaru-stall' }),
     g('g-7-a-hobb', 7, 'coo', 'hill-road', 'Hobb\'s repair letters: cellar drains, every night this week. Signed and timed. Coo.',
       { kind: 'alibi', suspect: 'hobb', spot: 'post-office' }),
+    g('g-7-strongroom', 7, 'dutch', 'main-street', 'The strongroom\'s master key has never once been changed. Clerks are scared old letters won\'t open.'),   // night 7: strongroom-tumblers (Nov 19)
     g('g-7-chad', 7, 'chad', 'main-street', 'Vault Transformation: midnight passwords, shared crates, rotating tumblers, sorted scrolls. Ask me how.', chad),
 
     // ---- Day 8: clear ----
@@ -1490,6 +1491,7 @@
     g('g-8-a-aigerim', 8, 'aigerim', 'main-street', 'I was home. I wrote. And it walked past at 03:00 exactly. Every night. Here.',
       { kind: 'alibi', suspect: 'aigerim', spot: 'first-fork', clue: true }),
     g('g-8-s-chad', 8, 'wen', 'main-street', 'That young man in the blue pullover always knows what breaks next. Funny, that.', { kind: 'suspect', suspect: 'chad', clue: true }),
+    g('g-8-hall', 8, 'mira', 'main-street', 'The clerk\'s coat hangs in the great hall all day. Password pinned right on it, they say.'),   // night 8: hall-coat-password (Nov 19)
     g('g-8-chad', 8, 'chad', 'hill-road', 'Loose Lips Remediation: coat passwords, chatty logs, long numbers. Very specific. No reason.', chad),
 
     // ---- Day 9: the Long Night, clear, full moon ----

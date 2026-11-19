@@ -186,7 +186,10 @@
     const opts = real.slice(0, 3).concat(decoys).slice(0, Math.max(4, Math.min(5, real.length + 2)));
     opts.sort(() => rnd() - 0.5);
     const hint = real.length ? real[Math.floor(rnd() * real.length)] : null;
-    return { n, pins: planPins(n), opts, targets, hint };
+    // Pell quotes the town (Ladi, Nov 19): a line you heard today about a room with a break-in, else one he overheard.
+    const gh = sv().gheard || {}, talk = dayTalk(n).filter(g => !g.clue && real.some(id => (g.room || '') === slotRoom(id) || (ROOM_RX[slotRoom(id)] || /$^/).test(g.line)));
+    const quote = talk.find(g => gh[g.id] === n) || talk[Math.floor(rnd() * talk.length)] || null;
+    return { n, pins: planPins(n), opts, targets, hint, quote };
   }
   // At the gate, before the night: pick a room, then its setting. Calls go() when done (or skipped).
   function planCard(go) {
@@ -197,7 +200,7 @@
     const pick = () => {
       if (plan.pins.length >= P.pins) return finish();
       const left = P.opts.filter(id => !plan.pins.some(p => p.slot === id));
-      const o = overlay(`<p class="ww-t">The castle plan</p>${plan.pins.length ? '' : line('pell', P.hint ? `Word in town today was about the ${room(P.hint).toLowerCase()}. Make of that what you will.` : 'Quiet day in town. Pin what you like.')}
+      const o = overlay(`<p class="ww-t">The castle plan</p>${plan.pins.length ? '' : line('pell', P.quote ? `${(sv().gheard || {})[P.quote.id] === w.day ? 'You heard' : 'I heard'} ${nm(P.quote.who)} today: "${P.quote.line}" Make of that what you will.` : P.hint ? `Word in town today was about the ${room(P.hint).toLowerCase()}. Make of that what you will.` : 'Quiet day in town. Pin what you like.')}
         ${line('pell', P.pins > 1 ? `Two pins tonight. ${plan.pins.length ? 'One left.' : 'Set a room the way it should be, and it holds.'}` : 'One pin. Set a room the way it should be, and it holds.')}
         <div class="ww-ch">${left.map(id => `<button data-s="${id}">${esc(room(id))} · ${esc(W.SLOTS[id].name)}</button>`).join('')}</div>
         <div class="row"><button class="ghost" data-a="x">No pin tonight</button></div>`);
@@ -420,9 +423,30 @@
   }
 
   // ---- Talking ----
+  // Today's gossip, theirs: the first line you haven't heard today, so talking again gets the next one (Ladi, Nov 19:
+  // gossip should point at the break-ins often enough; second lines were never heard).
   function gossipFor(who, day, wx) {
-    const g = (content().gossip || []).filter(x => x.who === who && x.day === day && (!x.weather || x.weather === wx));
-    return g[0] || null;
+    const gh = sv().gheard || {};
+    const g = dayTalk(day).filter(x => x.who === who && (!x.weather || x.weather === wx));
+    return g.find(x => gh[x.id] !== day) || g[0] || null;
+  }
+  // Rooms gossip can point at: a line names the room, or the trouble that lives there.
+  const ROOM_RX = { gate: /castle gate|\bgate\b/i, ledger: /ledger|order clerk/i, lookout: /lookout/i, wardrobe: /wardrobe|cloak/i,
+    bridge: /bridge|neighbour/i, hall: /great hall|\bhall\b/i, strongroom: /strongroom/i, barracks: /barracks/i, 'post-room': /post room|letters?\b/i,
+    captain: /captain/i, archive: /archive/i, tavern: /tavern/i, watchtower: /watchtower/i, 'bridge-tower': /bridge/i };
+  const roomOf = b => b && b.where && (b.where.room || (b.where.level === 'bridge' ? 'bridge' : null));
+  // Copycats have no written gossip, so one person with nothing else to say that day mentions where each is headed.
+  const CC_SAY = [r => `Someone was asking the way to the ${r} last night. Same questions as before.`,
+    r => `Heard boots near the ${r}. Same trick as last time, if you ask me.`,
+    r => `The ${r}'s got someone's interest. Tried it once already, didn't they?`];
+  function dayTalk(day) {
+    const base = (content().gossip || []).filter(x => x.day === day);
+    if (day < 3 || day > 8) return base;
+    const busy = new Set(base.map(x => x.who)), free = PEOPLE.filter(p => !busy.has(p) && !['pell', 'captain', 'seymour'].includes(p));   // Seymour only speaks in capitals
+    const cc = breaches(day).filter(b => b.copy), out = base.slice();
+    cc.forEach((b, i) => { const who = free[(day * 3 + i) % (free.length || 1)]; const r = roomNm(roomOf(b)) || 'castle';
+      if (who) out.push({ id: `g-cc-${b.id}`, day, who, line: CC_SAY[(day + i) % CC_SAY.length](r.toLowerCase()), room: roomOf(b), copycat: true }); });
+    return out;
   }
   function talk(who, aside) {
     const w = sv(), day = w.day, b = w.bonds, ties = content().ties || {};
@@ -1485,7 +1509,7 @@
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
   });
-  SD.watchWalk = { sv, breaches, planFor, qGrace, shopItems: () => SHOP.filter(it => !(it.id === 'guard' && (sv().day >= 9 || sv().guard === sv().day))), step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
+  SD.watchWalk = { sv, breaches, planFor, dayTalk, qGrace, shopItems: () => SHOP.filter(it => !(it.id === 'guard' && (sv().day >= 9 || sv().guard === sv().day))), step: q => step(q), choose: (t, q, n, d) => choose(t, q, n, d || (() => {})), ward, WATCHERS, PARTY, ENDINGS, endingFor, quests, people, morning, walk, dawn, talk, fix: x => fix(x, () => {}), get run() { return run; }, get view() { return view; }, get busy() { return busy; },
     clock: n => { if (n != null) clock = n; return clock; }, addNews, newsFor, spread, snapTown: () => { if (run && run.walkers) { moveWalkers(0, true); syncPeople(); } }, workFor, townBook };
 
   const css = document.createElement('style');

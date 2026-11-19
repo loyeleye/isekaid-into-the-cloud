@@ -441,6 +441,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await btn('[data-a=x]'); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.run.phase === 'night' && SD.watchWalk.run.st.scene === 'castle:ground'), 'at dusk the outpost door leads into the castle');
   {   // the plan: a narrow pin cancels its break-in, a wide one brings it early on a short fuse, a narrow-too-far one fines
+    const g = await ev(() => { const out = [];
+      for (let d = 3; d <= 8; d++) { const cc = SD.watchWalk.breaches(d).filter(b => b.copy), said = SD.watchWalk.dayTalk(d).filter(x => x.copycat);
+        if (cc.length !== said.length) out.push(`day ${d}: ${cc.length} copycats, ${said.length} lines`); const P = SD.watchWalk.planFor(d); if (!P.quote) out.push(`day ${d}: Pell has nothing to quote`); }
+      return out.join('; ') || 'ok'; });
+    check(g === 'ok', `every copycat break-in gets a line of gossip, and Pell always has a town line to quote (${g})`);
     const r = await ev(() => { const w = SD.watchWalk.sv(), d = w.day;
       const P = SD.watchWalk.planFor(d); if (!P) return 'no plan on day ' + d;
       const id = Object.keys(P.targets)[0]; if (!id) return 'no target';
