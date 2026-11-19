@@ -1,6 +1,6 @@
 # Export the HD castle floors and room interiors into the game, and write js/watch-art-castle.js.
 # Usage (from game/): python3 tools/watch_art/castle/export_castle.py <folder with the final PNGs>
-#   expects <src>/{ground,cellars,upper,towers}.png (4096x512) and <src>/rooms/<room>.png (1600x896)
+#   expects <src>/{ground,cellars,upper,towers}.png (4096x512; ground 4096x564 with the cellar stair below the floor) and <src>/rooms/<room>.png (1600x896)
 # Floors are scaled to engine units (x0.638: floor line y=470 -> 300 of a 360-tall layer); the 4096-wide masters stay in the
 # project folder (sogni/night-watch/castle-work) for a later DPR re-export.
 import json, os, sys
@@ -21,7 +21,7 @@ def key_windows(a, f):
     return a
 FLOORS = {   # x in native px of the 4096-wide floor (engine x = x * scale)
  'ground':  {'doorways': [], 'walkthrough': [['gate', 300, 1225], ['hall', 1290, 1840], ['post-room', 2325, 3190]],
-             'trapdoor': [1880, 2130], 'stairs': {'up-left': [60, 420], 'up-right': [3420, 3900]}},
+             'trapdoor': [1880, 2130], 'stairs': {'down-left': [230, 520], 'up-right': [3420, 3900]}},
  'cellars': {'doorways': [['archive', 899], ['strongroom', 1459], ['barracks', 2579], ['tavern', 3139]],
              'trapdoor': None, 'ladder': 1994, 'stairs': {'up-left': [80, 500]}},
  'upper':   {'doorways': [['wardrobe', 990], ['ledger', 1590], ['bridge-tower', 2775]],
@@ -37,7 +37,7 @@ ROOM_FLOOR = {'cellars': ['archive', 'strongroom', 'barracks', 'tavern'], 'upper
               'towers': ['watchtower', 'lookout', 'captain']}
 LINKS = {   # link id -> native x per floor; the engine pairs the same id across floors
  'cellars': {'stair-left': 290, 'ladder': 1994},
- 'ground':  {'stair-left': 240, 'stair-right': 3660, 'ladder': 2005},
+ 'ground':  {'stair-left': 375, 'stair-right': 3660, 'ladder': 2005},
  'upper':   {'stair-right': 3750, 'back-stair': 310, 'ladder': 2005, 'bridge-door': 2775},
  'towers':  {'back-stair': 3790, 'ladder': 2000},
 }
@@ -45,7 +45,7 @@ def E(x): return round(x * SCALE)
 out, interiors = {}, {}
 for f, g in FLOORS.items():
     a = np.asarray(Image.open(f'{src}/{f}.png').convert('RGBA')).copy()
-    im = Image.fromarray(key_windows(a, f), 'RGBA'); W = E(4096); im = im.resize((W, E(512)), Image.LANCZOS)
+    im = Image.fromarray(key_windows(a, f), 'RGBA'); W = E(4096); im = im.resize((W, min(360, E(im.height))), Image.LANCZOS)   # ground is 564 tall: its cellar stair drops below the floor
     lay = Image.new('RGBA', (W, 360), (24, 20, 26, 255)); lay.paste(im, (0, 0))      # paste keeps windows see-through
     webp(lay, f'{A}floors/{f}/wall-v2.webp')
     rooms = [[n, E(x0), E(x1)] for n, x0, x1 in g.get('walkthrough', [])] + [[n, E(cx - 150), E(cx + 150)] for n, cx in g['doorways']]

@@ -26,7 +26,7 @@ window.WATCH_ART_CASTLE = {
    "doors": {},
    "popupRooms": [],
    "links": {
-    "stair-left": 153,
+    "stair-left": 239,
     "stair-right": 2336,
     "ladder": 1280
    },
