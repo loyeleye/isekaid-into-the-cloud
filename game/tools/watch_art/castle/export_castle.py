@@ -43,20 +43,24 @@ ROOM_FLOOR = {'cellars': ['archive', 'strongroom', 'barracks', 'tavern'], 'upper
 BAR = json.load(open(f'{src}/barricades/barricades.json'))
 def up(f, sid, span, use): return (span, 'up', BAR[f'{f}/{sid}'], use, f'{f}-{sid}')
 def dn(span, box, use): return (span, 'down', box, use, None)
-GL, GR = dn([60, 285], [94, 281, 233, 476], 163), dn([3811, 4036], [3845, 281, 4003, 476], 3924)
+# down: the boarded-up archway (block_down.py) placed around the arch centre cx at scale s (towers' archways are 1.4x)
+def abox(cx, s=1): return [round(cx - 118 * s), round(476 - 121 * s), round(cx + 117 * s), round(476 + 46 * s)]
+GL, GR = dn([60, 285], abox(172), 163), dn([3811, 4036], abox(3923), 3924)
 STAIRS = {
  'cellars': {'stair-left': up('cellars', 'stair-left', [60, 520], 470), 'east-cellar-stair': up('cellars', 'east-cellar-stair', [3496, 4036], 3626)},
  'ground':  {'stair-left': GL, 'west-mid-stair': up('ground', 'west-mid-stair', [60, 560], 480),
              'stair-right': up('ground', 'stair-right', [3420, 4030], 3500), 'east-cellar-stair': GR},
  'upper':   {'west-mid-stair': GL, 'back-stair': up('upper', 'back-stair', [60, 600], 470),
              'stair-right': GR, 'east-tower-stair': up('upper', 'east-tower-stair', [3496, 4036], 3626)},
- 'towers':  {'back-stair': dn([103, 418], [150, 204, 371, 476], 260), 'east-tower-stair': dn([3693, 4008], [3740, 204, 3961, 476], 3850)},
+ 'towers':  {'back-stair': dn([103, 418], abox(260, 1.4), 260), 'east-tower-stair': dn([3693, 4008], abox(3850, 1.4), 3850)},
 }
 LINKS = {f: {**{k: v[3] for k, v in st.items()}, **({'ladder': {'cellars': 1994, 'ground': 2005, 'upper': 2005, 'towers': 2000}[f]})} for f, st in STAIRS.items()}
 def block(name):
     a = np.asarray(Image.open(f'{src}/blocks/{name}.png').convert('RGBA')).copy()
-    white = a[..., :3].min(axis=2) > 232; a[white, 3] = 0
-    ys, xs = np.where(~white); im = Image.fromarray(a).crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+    if a[..., 3].min() == 255:                      # old white-background renders: key the white out and trim
+        white = a[..., :3].min(axis=2) > 232; a[white, 3] = 0
+        ys, xs = np.where(~white); im = Image.fromarray(a).crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+    else: im = Image.fromarray(a)                   # cut-outs with their own alpha fill their box exactly
     webp(im, f'{A}floors/stair-block-{name.split("-")[1]}.webp')
 block('block-down')
 for k in BAR:
