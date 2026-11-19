@@ -38,7 +38,7 @@ for y in range(470 - 1, -30, -1):
 # cols 170..340), cut where it differs from the bare vault; the straight ladder hangs from it
 cr, ce = load(f'{d}/cellars-ref.png'), load(f'{d}/cellars-3601.png')
 hc = cut(cr, ce, region(170, 340, 14, 50))[14:50, 170:340]
-HX, HY = 255 - 170, 66                                   # hatch centre (tile px) and its native top
+HX, HY = 255 - 170, 0                                    # hatch centre (tile px); its top sits at the top of the ceiling (Ladi)
 canvas = np.zeros((470, 170, 4), np.uint8); canvas[HY:HY + 36] = hc
 lx = HX - 47                                              # the ladder (95 wide, centred on the hatch) from the hatch down
 m = up[HY + 24:, :, 3:] / 255; reg = canvas[HY + 24:, lx:lx + 95]
@@ -46,5 +46,10 @@ reg[..., :3] = (reg[..., :3] * (1 - m) + up[HY + 24:, :, :3] * m).astype(np.uint
 for f in ('ground', 'upper'):
     J[f]['up'] = save(canvas, 1997 - HX, 0, f'{f}-up')
 # cellars (Ladi: should match the others): the same straight ladder and Sogni hatch, at the cellars' ladder x (1994)
-J['cellars'] = {'up': save(canvas, 1994 - HX, 0, 'cellars-up')}
+dark = np.zeros((470, 170, 4), np.uint8)                 # cellars (Ladi): a black opening in the vault crown instead of the planks
+dark[:40, HX - 62:HX + 62, :3] = (14, 11, 10); dark[:40, HX - 62:HX + 62, 3] = 255
+dark[35:40, HX - 62:HX + 62, :3] = (96, 66, 38)
+reg = dark[24:, lx:lx + 95]; m = up[24:, :, 3:] / 255
+reg[..., :3] = (reg[..., :3] * (1 - m) + up[24:, :, :3] * m).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], up[24:, :, 3])
+J['cellars'] = {'up': save(dark, 1994 - HX, 0, 'cellars-up')}
 json.dump(J, open(f'{out}/ladder.json', 'w'), indent=1); print(J)
