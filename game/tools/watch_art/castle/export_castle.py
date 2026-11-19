@@ -14,7 +14,7 @@ def key_windows(a, f):
     m = ((g > r + 22) & (g > b + 22) & (g > 90)) | ((g > b + 40) & (g > r + 5) & (g > 120))   # #00FF00 window glass, also under lantern glow
     if f == 'towers':                                                  # open battlement arches: sky blue and white cloud
         box = np.zeros_like(m)
-        for x0, x1 in ((880, 1590), (3150, 3690)): box[90:440, x0:x1] = True
+        for x0, x1 in ((380, 560), (1120, 1590), (3150, 3700)): box[90:440, x0:x1] = True
         mx, mn = np.maximum(np.maximum(r, g), b), np.minimum(np.minimum(r, g), b)
         m |= box & (((b >= r - 3) & ((r + g + b) > 330)) | ((mn > 165) & (mx - mn < 30)))
     a[m, 3] = 0
@@ -26,8 +26,8 @@ FLOORS = {   # x in native px of the 4096-wide floor (engine x = x * scale)
              'trapdoor': None, 'ladder': 1994, 'stairs': {'up-left': [80, 500]}},
  'upper':   {'doorways': [['wardrobe', 990], ['ledger', 1590], ['bridge-tower', 2775]],
              'trapdoor': [1880, 2130], 'stairs': {'up-left': [60, 560], 'down-right': [3500, 4000]}},
- 'towers':  {'doorways': [['watchtower', 520], ['lookout', 2360], ['captain', 2786]],
-             'trapdoor': [1870, 2130], 'stairs': {'down-right': [3550, 4030]}},
+ 'towers':  {'doorways': [['watchtower', 815], ['lookout', 2360], ['captain', 2786]],
+             'trapdoor': [1870, 2130], 'stairs': {'down-left': [60, 655]}},
 }
 # focus = the object the breach marker sits on, floorY = where Seo-yeon's feet go (1600x900 interior px)
 FOCUS = {'archive': [1020, 480], 'barracks': [960, 540], 'bridge-tower': [1000, 420], 'captain': [1080, 600],
@@ -39,7 +39,7 @@ LINKS = {   # link id -> native x per floor; the engine pairs the same id across
  'cellars': {'stair-left': 290, 'ladder': 1994},
  'ground':  {'stair-left': 375, 'stair-right': 3660, 'ladder': 2005},
  'upper':   {'stair-right': 3750, 'back-stair': 310, 'ladder': 2005, 'bridge-door': 2775},
- 'towers':  {'back-stair': 3790, 'ladder': 2000},
+ 'towers':  {'back-stair': 300, 'ladder': 2000},
 }
 def E(x): return round(x * SCALE)
 out, interiors = {}, {}
