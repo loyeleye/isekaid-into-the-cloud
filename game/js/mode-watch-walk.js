@@ -780,6 +780,7 @@
     if (r.heart) w.hearts[q.giver] = 1;
     if (r.heart) (w.helped = w.helped || {})[q.giver] = ((w.helped || {})[q.giver] || 0) + 1;
     if (r.free) (w.freed = w.freed || {})[q.giver] = 1;   // a cover found for their feast job
+    if (r.writs) w.writs = (w.writs || 0) + r.writs;   // free Revoke active sessions (Kagemaru's price-list quest)
     if (r.unlock === 'seal-floor' && r.floor) (w.sealed = w.sealed || {})[r.floor] = r.permanent ? 'all' : w.day;   // no breaches there
     else if (r.unlock) { w.unlocks[r.unlock] = 1; if (run) run.st.unlocks[r.unlock] = 1; }
     gain(q.giver, () => B.add(w.bonds, q.giver, q.kind === 'small' ? 'small' : 'trust'));
@@ -790,7 +791,7 @@
       (((content().ties || {})[q.giver] || {}).warm || []).forEach(f => { if (f !== 'seoyeon') w.knows[id][f] = q.giver; });
     }
     S.persist();
-    const o = overlay(`<p class="ww-ok">Quest done</p><p>${COIN} +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
+    const o = overlay(`<p class="ww-ok">Quest done</p><p>${COIN} +${r.silver || 0} silver${r.heart ? ' · ❤ ' + esc(nm(q.giver)) + '\'s trust' : ''}${r.writs ? ' · 📜 ' + r.writs + ' free Revoke active sessions' : ''}${r.unlock === 'seal-floor' ? ' · the ' + esc(r.floor || '') + ' sealed ' + (r.permanent ? 'for good' : 'tonight') : r.unlock ? ' · new shortcut: ' + esc(r.unlock.replace('-', ' ')) : ''}</p><div class="row"><button class="primary" data-a="d">OK</button></div>`);
     o.querySelector('[data-a=d]').onclick = close;
   }
 
@@ -856,7 +857,7 @@
   const tune = phase => {
     const w = sv(), wx = WW.weather(w.day, 'day');
     return phase === 'night' ? 'watchNight' : phase === 'dusk' ? 'watchDusk'
-      : run && run.escort ? 'watchWalkin' : wx === 'rain' || wx === 'mist' ? 'watchRain' : 'watchDay';
+      : run && run.escort ? 'watchWalkin' : wx === 'rain' || wx === 'storm' || wx === 'mist' ? 'watchRain' : 'watchDay';
   };
   const music = name => { if (AU) AU.music(name, true); };
   const jingle = (name, then) => { if (AU) AU.jingle(name, then); };

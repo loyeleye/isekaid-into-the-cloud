@@ -59,6 +59,7 @@
 //   breaches[].area    night 9 only: which of the eight areas it belongs to; night 9 has a pool, pick about one per area
 //   breaches[].tell    the one AWS-style line shown when you inspect it
 //   quests[].reward.floor / .permanent / .extra   which floor a seal-floor covers, whether it lasts, a tip-off or free item
+//   quests[].reward.writs                          free Revoke active sessions orders
 //   quests[].needs     capstones: { ward: 4 }; their lines are in quests[].lines instead of an ask
 //   gossip[].kind      'tip' | 'clue' | 'lead' | 'weather' | 'chad' | 'suspect' | 'alibi' | 'hot'
 //   gossip[].suspect   for suspect and alibi lines; gossip[].hot: the area a day-9 'hot' line names
@@ -1064,7 +1065,7 @@
       ], clue: null },
 
     { id: 'kagemaru-prices', giver: 'kagemaru', kind: 'trust', opens: 6, closes: 8, skill: '2.3.4',
-      reward: { silver: 20, heart: true, unlock: null, extra: 'free-lantern' },
+      reward: { silver: 20, heart: true, unlock: null, extra: 'free-lantern', writs: 2 },   // two free Revoke active sessions (Ladi, Nov 19),
       steps: [
         { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'My price list shows who owes me. Whole account numbers.'],
           ['kagemaru', 'Customers find it... unsettling.']] },
@@ -1072,7 +1073,7 @@
           q: 'Sanitizing sensitive data. A web page lists customers\' card numbers. What should it show?',
           choices: ['Only the last four digits', 'The full number, to signed-in staff', 'The number encrypted on screen', 'The number hashed with SHA-256'], answer: 0,
           why: 'Sanitize what\'s shown. The full number stays in the ledger.' } },
-        { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Discreet. Like me. Ah ha ha.']] }
+        { at: { level: 'main-street', who: 'kagemaru' }, say: [['kagemaru', 'Discreet. Like me. Ah ha ha.'], ['kagemaru', 'Two revoke orders, on the house. For the pests that get past your locks.']] }
       ], clue: null },
 
     // ------------------------------------------------ Capstones -------------------------------------------------

@@ -105,6 +105,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await page.waitForSelector('#ww-next');
   const w2 = await ev(() => SD.watchWalk.sv());
   check(w2.day === 2 && w2.silver === 20 + 40, `dawn pays 30 base + 10 for the fix (${w2.silver - 20})`);
+  check(await ev(() => ((window.WATCH_CONTENT || window.__C).quests.find(q => q.id === 'kagemaru-prices') || {}).reward.writs === 2), "Kagemaru's price-list quest gives two free Revoke active sessions");
   await shot('dawn');
   check(await ev(() => (SD.watchWalk.sv().news || []).some(n => n.id === 'night-1')), 'a night\'s break-ins become town news at dawn');
   await page.click('#ww-next'); await page.waitForTimeout(250);
