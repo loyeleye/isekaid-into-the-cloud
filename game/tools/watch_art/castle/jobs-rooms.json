@@ -1,0 +1,72 @@
+[
+ {
+  "out": "hd/rooms/archive.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1200,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a tall iron-bound scroll vault cabinet with a big padlock and a small clock above it. Around it, smaller and darker, shelves of scrolls and bound ledgers, a reading desk with a candle. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/strongroom.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1201,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a huge round iron vault door with a big tumbler dial, set in the back wall. Around it, smaller and darker, iron-bound chests and coin sacks behind a grille, one lantern. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/barracks.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1202,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a big stack of merchants' wooden crates, each tied with a different coloured ribbon, piled in one store corner. Around it, smaller and darker, bunk beds, a small glowing iron stove, a spear rack. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/tavern.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1203,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a wooden bar counter with a big open log book and a lantern on it, and a board of hanging room keys behind it. Around it, smaller and darker, ale barrels on racks under a brick vault, a round table with stools. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/wardrobe.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1204,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a rail of red and blue cloaks, each with a dangling paper tag. Around it, smaller and darker, tall wooden wardrobes, a standing mirror, a small chest. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/ledger.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1205,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a tall cabinet of many small locked drawers with brass keyholes. Around it, smaller and darker, a long clerk's desk with open ledgers and an inkpot, a notice board. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/bridge-tower.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1206,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: an open arched doorway onto a night stone bridge, with sealed wooden crates stacked by it. Around it, smaller and darker, a guard post bench, a lantern on a hook, rope coils. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/watchtower.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1207,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a big brass bell hanging in a timber frame. Around it, smaller and darker, a brass telescope on a tripod by an open arch onto the night sky and battlements. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/lookout.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1208,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a wooden desk with an open guest book and a stack of wooden passes. Around it, smaller and darker, open arches onto the starry night sky over the town rooftops, a rack of signal flags. No text, no letters."
+ },
+ {
+  "out": "hd/rooms/captain.png",
+  "w": 1600,
+  "h": 896,
+  "seed": 1209,
+  "prompt": "High-detail pixel art interior of a room in a medieval stone castle at night, warm candlelight, strict side view straight on, eye level, empty of people, big simple readable shapes. The painting fills the whole frame edge to edge: no border, no rounded corners, no black vignette. The stone floor runs across the whole picture near the bottom. The left third is clear open floor in front of rough stone wall with a wall torch, no frames or empty panels on it. Right of centre stands one large clear focal object: a heavy desk with a red wax seal, a stick of sealing wax, a candle and a stack of letters. Around it, smaller and darker, a high-backed red chair, a bookcase, a framed town map, a suit of armour. No text, no letters."
+ }
+]
