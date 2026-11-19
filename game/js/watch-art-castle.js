@@ -346,24 +346,24 @@ window.WATCH_ART_CASTLE = {
    "rooms": [
     [
      "watchtower",
-     424,
-     616
+     608,
+     800
     ],
     [
      "lookout",
-     1411,
-     1602
+     1436,
+     1628
     ],
     [
      "captain",
-     1683,
-     1874
+     1901,
+     2093
     ]
    ],
    "doors": {
-    "watchtower": 520,
-    "lookout": 1506,
-    "captain": 1778
+    "watchtower": 704,
+    "lookout": 1532,
+    "captain": 1997
    },
    "popupRooms": [
     "watchtower",
