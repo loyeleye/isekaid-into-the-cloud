@@ -131,22 +131,12 @@
     b.querySelector('#nw-cal').onclick = calendar;
   }
 
-  M.register({
-    id: 'watch', name: 'The Night Watch', host: 'Seo-yeon', minutes: 'about 10',
-    blurb: 'Hear the town\'s gossip by day, set the castle\'s locks and keys, and see who gets in by morning. Security only.',
-    start: () => { M.walkFirst('watch', [
-      { title: 'The day', html: '<p>Somebody\'s getting into the castle at night. In the day, listen to the gossip: it tells you which lock is wrong.</p>' },
-      { title: 'The plan', html: '<p>The castle\'s floor plan shows tonight\'s locks (policies on rooms) and keys (what each worker may do). Tap a pin, then pick the narrowest setting that still lets the worker through.</p>' },
-      { title: 'Dawn', html: '<p>Three candles: every errand done, no thief or leak, and no spare keys. Then one exam question from the Security domain.</p>' }
-    ]).then(calendar); },
-    status: () => { const w = S.save && S.save.watch; return w && w.v === 2 && (w.night || w.silver) ? `Night ${w.night + 1} of ${W.NIGHTS.length} · ${w.silver} silver` : ''; }
-  });
+  // Retired from the menu (Ladi, Nov 19): the Night Watch entry now starts the walkable mode (js/mode-watch-walk.js),
+  // which registers under the id 'watch'. This file stays for the walkable mode's nw- report styles and SD.watch.question.
   SD.watch = { calendar, day, dawn, question };
 
   const css = document.createElement('style');
   css.textContent = `
-    body.in-mode[data-stage="watch"] #mode-stage .ms-bg { filter: brightness(.5) saturate(.7) hue-rotate(-14deg); }
-    body.in-mode[data-stage="watch"] #mode-stage .ms-wash { background: linear-gradient(180deg, rgba(10, 18, 48, .6), rgba(6, 10, 28, .75)); }
     .nw-say { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; font-size: 14px; line-height: 1.35; }
     .nw-head { flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(255,255,255,.08); }
     .nw-step { margin: 0 0 6px; font-size: 13px; letter-spacing: .02em; color: #b9c4ff; }

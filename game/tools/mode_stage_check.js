@@ -51,8 +51,10 @@ const check = (ok, what) => { if (!ok) fails.push(what); console.log((ok ? 'ok  
       const name = await page.evaluate(id => SD.modes.get(id).name, id);
       check(s.active === (id === 'pop' ? 'lf' : id) && s.stage && s.name === name,   // the Lost and Found card opens its chooser's stage, 'lf'
       `${w}px ${id}: the stage opens with the mode's name in the top bar`);
-      check(/cards\/\w+\.webp|stage\/[\w-]+\.webp/.test(s.setting), `${w}px ${id}: its own setting (card loop or painted plate) fills the screen (${s.setting.slice(-30)})`);
-      check(s.underBar && s.tall > (id === 'pop' ? .2 : .5) && s.titleCovered,   // the Lost and Found's chooser is short on purpose, so Dutch shows below it
+      // The walkable Night Watch draws its own town and castle over the whole screen, bar included (Home still leaves).
+      const own = id === 'watch';
+      check(own || /cards\/\w+\.webp|stage\/[\w-]+\.webp/.test(s.setting), `${w}px ${id}: its own setting (card loop or painted plate) fills the screen (${s.setting.slice(-30)})`);
+      check((own || s.underBar) && s.tall > (id === 'pop' ? .2 : .5) && s.titleCovered,   // the Lost and Found's chooser is short on purpose, so Dutch shows below it
         `${w}px ${id}: the window fills the stage under the bar and the title is gone (${Math.round(s.tall * 100)}% tall${s.underBar ? '' : ', overlaps the bar'}${s.titleCovered ? '' : ', title shows'})`);
       check(!s.wide, `${w}px ${id}: no horizontal scroll`);
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `stage-${id}-${w}.png`) });
