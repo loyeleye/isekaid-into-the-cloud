@@ -36,7 +36,10 @@ for k in HT:
     if 'stand' not in fs: continue
     FH = RES * max(FH0, HT[k] + 10); FOOT = FH - RES * (FH0 - FOOT0)
     st = cutout(src(k, 'stand')); bb = st.getbbox(); scale = RES * HT[k] / (bb[3] - bb[1])
-    parts = [prep(src(k, f), scale, WIDE.get(k.removesuffix('-rain'), 1.0)) for f in fs]
+    def fscale(f):   # rain walk renders came back zoomed in (Ladi, Nov 19: giants): size each frame to the standing height
+        if not k.endswith('-rain') or f == 'stand': return scale
+        b = cutout(src(k, f)).getbbox(); return RES * HT[k] / (b[3] - b[1])
+    parts = [prep(src(k, f), fscale(f), WIDE.get(k.removesuffix('-rain'), 1.0)) for f in fs]
     half = 0
     for im, cx, bot in parts:
         b = im.getbbox(); half = max(half, cx - b[0], b[2] - cx)
