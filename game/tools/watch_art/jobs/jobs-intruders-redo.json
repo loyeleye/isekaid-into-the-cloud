@@ -1,0 +1,110 @@
+[
+ {
+  "out": "redo/replayer-1.png",
+  "ref": "stand/replayer-1.png",
+  "seed": 925,
+  "prompt": "Change only the head and hair of this character: make it a gaunt middle-aged man with receding grey-streaked hair slicked back and a thin dark moustache. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/replayer-2.png",
+  "ref": "stand/replayer-1.png",
+  "seed": 942,
+  "prompt": "Change only the head and hair of this character: make it a gaunt middle-aged man with receding grey-streaked hair slicked back and a thin dark moustache. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/escalator-1.png",
+  "ref": "stand/escalator-1.png",
+  "seed": 926,
+  "prompt": "Change only the head and hair of this character: make it a stocky young man with a shaved head and a short ginger beard. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/escalator-2.png",
+  "ref": "stand/escalator-1.png",
+  "seed": 943,
+  "prompt": "Change only the head and hair of this character: make it a stocky young man with a shaved head and a short ginger beard. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/forger-1.png",
+  "ref": "stand/forger-1.png",
+  "seed": 923,
+  "prompt": "Change only the head and hair of this character: make it an elderly woman with white hair in a tight bun and small round spectacles, a quill tucked behind her ear. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/forger-2.png",
+  "ref": "stand/forger-1.png",
+  "seed": 940,
+  "prompt": "Change only the head and hair of this character: make it an elderly woman with white hair in a tight bun and small round spectacles, a quill tucked behind her ear. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/secrethunter-1.png",
+  "ref": "stand/secrethunter-1.png",
+  "seed": 929,
+  "prompt": "Change only the head and hair of this character: make it a sharp-featured woman with a long blonde braid down her back and a narrow nose. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/secrethunter-2.png",
+  "ref": "stand/secrethunter-1.png",
+  "seed": 946,
+  "prompt": "Change only the head and hair of this character: make it a sharp-featured woman with a long blonde braid down her back and a narrow nose. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/exfiltrator-1.png",
+  "ref": "stand/exfiltrator-2.png",
+  "seed": 928,
+  "prompt": "Change only the head and hair of this character: make it a broad-faced man with dark brown skin and close-cropped black hair, the red scarf still pulled up over his mouth and nose. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/exfiltrator-2.png",
+  "ref": "stand/exfiltrator-2.png",
+  "seed": 945,
+  "prompt": "Change only the head and hair of this character: make it a broad-faced man with dark brown skin and close-cropped black hair, the red scarf still pulled up over his mouth and nose. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/turncloak-1.png",
+  "ref": "stand/turncloak-1.png",
+  "seed": 926,
+  "prompt": "Change only the head and hair of this character: make it a lanky man with wavy auburn shoulder-length hair and a long clean-shaven face, hood down. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/turncloak-2.png",
+  "ref": "stand/turncloak-1.png",
+  "seed": 943,
+  "prompt": "Change only the head and hair of this character: make it a lanky man with wavy auburn shoulder-length hair and a long clean-shaven face, hood down. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/turncloak-bare-1.png",
+  "ref": "stand/turncloak-bare-1.png",
+  "seed": 931,
+  "prompt": "Change only the head and hair of this character: make it a lanky man with wavy auburn shoulder-length hair and a long clean-shaven face. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/turncloak-bare-2.png",
+  "ref": "stand/turncloak-bare-1.png",
+  "seed": 948,
+  "prompt": "Change only the head and hair of this character: make it a lanky man with wavy auburn shoulder-length hair and a long clean-shaven face. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/cook-1.png",
+  "ref": "stand/cook-2.png",
+  "seed": 921,
+  "prompt": "Change only the head and hair of this character: make it curly chestnut-brown hair showing under the white cap, a round friendly face with freckles. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/cook-2.png",
+  "ref": "stand/cook-2.png",
+  "seed": 938,
+  "prompt": "Change only the head and hair of this character: make it curly chestnut-brown hair showing under the white cap, a round friendly face with freckles. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/impersonator-1.png",
+  "ref": "stand/impersonator-2.png",
+  "seed": 929,
+  "prompt": "Change only the head and hair of this character: make it curly chestnut-brown hair showing under the white cap, a round face with freckles. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ },
+ {
+  "out": "redo/impersonator-2.png",
+  "ref": "stand/impersonator-2.png",
+  "seed": 946,
+  "prompt": "Change only the head and hair of this character: make it curly chestnut-brown hair showing under the white cap, a round face with freckles. Remove any red headband or red ribbons from the head, and remove any sword or scabbard. Keep the same clothes, props, body, pose, strict right-facing side profile, pixel-art style, white background and soft grey shadow."
+ }
+]

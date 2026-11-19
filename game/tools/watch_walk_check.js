@@ -284,6 +284,23 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const order = await ev(() => [...document.querySelectorAll('.ww-o:not([hidden]) .ww-who b')].map(b => b.textContent));
   check(order.length > 3 && order.join('|') === order.slice().sort((x, y) => x.replace(/^(Grandma|Old|The) /, '').localeCompare(y.replace(/^(Grandma|Old|The) /, ''))).join('|'), `the Town book is in alphabetical order (${order.join(', ')})`);
   await shot('town-book'); await btn('[data-a=x]');
+  // Rain indoors (Ladi, Nov 19): on day 5 (rain) people wait inside buildings; knock to pick who to talk to.
+  await clear();
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.bonds.day = 5; w.at = null; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200); await clear();
+  await ev(() => SD.watchWalk.snapTown()); await page.waitForTimeout(100);
+  const ind = await ev(() => { const r = SD.watchWalk.run; return { indoor: r.indoor, seen: Object.values(r.ppl).flat().map(v => v.who), sey: r.walkers.find(v => v.who === 'seymour') }; });
+  const rooms = Object.keys(ind.indoor || {});
+  check(rooms.length >= 3 && rooms.every(k => ind.indoor[k].every(w => !ind.seen.includes(w))), `on a rain day people wait indoors, out of sight (${rooms.map(k => k + ':' + ind.indoor[k].join('+')).join(', ')})`);
+  check(ind.sey && !ind.sey.inside, 'Seymour stays out in the rain');
+  const multi = rooms.find(k => ind.indoor[k].length > 1) || rooms[0];
+  const sp = await ev(id => { const s = SD.watchWorld.spot(null, id); return [s.level, s.x]; }, multi);
+  await tp(sp[0], sp[1]); await use(); await page.waitForTimeout(150);
+  const kn = await ev(() => [...document.querySelectorAll('.ww-o:not([hidden]) [data-w]')].map(b => b.dataset.w));
+  check(kn.length === ind.indoor[multi].length && /knock/.test(await card()), `knocking at the ${multi} lists everyone inside (${kn.join(', ')})`);
+  await btn('[data-w]'); await page.waitForTimeout(150);
+  check(!(await page.$('.ww-o:not([hidden]) [data-w]')) && (await card()).length > 0, 'picking someone talks to them');
+  await clear(); while (await page.$('.ww-o:not([hidden]) [data-a=x]')) await btn('[data-a=x]');
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 2; w.bonds.day = 2; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200); await clear();
   // Running jokes: at most two people a day on the same topic, and only when they've no business for you.
   const quips = await ev(async () => {
     const W = SD.watchWalk, w = W.sv(); w.metPell = 1; w.pellq = {}; w.topicDay = {};
@@ -595,7 +612,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(ln[1] >= 3 && ln[1] < ln[0] && ln[2] <= 2 && ln[3] >= 5, `on the Long Night, some intruders match their break-in's section and the rest are mixed (${ln[1]} of ${ln[0]} tied, ${ln[2]} jailers, ${ln[3]} kinds)`);
   await ev(() => { SD.watchWalk.run.gate = 9999; SD.watchWalk.run.prowl = []; SD.watchWalk.run.inside = {}; });
   const toKage = () => ev(() => { const r = SD.watchWalk.run; for (const sc in r.ppl) { const p = r.ppl[sc].find(v => v.who === 'kagemaru'); if (p) { r.st.scene = sc; r.st.x = p.x; return; } } });
-  await ev(() => { const w = SD.watchWalk.sv(); w.day = 5; w.guard = 0; w.guardTrial = 0; w.silver = 100; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
+  await ev(() => { const w = SD.watchWalk.sv(); w.day = 4; w.guard = 0; w.guardTrial = 0; w.silver = 100; SD.watchWalk.walk('day'); }); await page.waitForTimeout(200);
   await toKage(); await use(); await page.waitForTimeout(150);
   const toShop = async () => { for (let i = 0; i < 12 && !(await page.$('.ww-o:not([hidden]) [data-a=s]')); i++) {
     const b = await page.$('.ww-o:not([hidden]) [data-a=n]') || await page.$('.ww-o:not([hidden]) [data-a=no]') || await page.$('.ww-o:not([hidden]) [data-a=x]');
@@ -606,7 +623,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => { const w = SD.watchWalk.sv(); w.day = 7; w.guard = 0; }); await btn('[data-a=x]'); await toKage(); await use(); await page.waitForTimeout(150);
   await toShop(); await btn('[data-a=s]'); const due = await ev(() => SD.watchWalk.breaches(7).length); await btn('[data-b=guard]');
   const g2 = await ev(() => SD.watchWalk.sv().silver);
-  check(g1[0] === 100 && g1[1] === 5 && g2 === 100 - 8 * due, `GuardDuty's first night is a free trial, then 8 silver per break-in due (${g1}, ${g2}, ${due} due)`);
+  check(g1[0] === 100 && g1[1] === 4 && g2 === 100 - 8 * due, `GuardDuty's first night is a free trial, then 8 silver per break-in due (${g1}, ${g2}, ${due} due)`);
   await btn('[data-a=x]');
   check(await ev(() => { const w = SD.watchWalk.sv(); w.day = 9; const ok = !SD.watchWalk.shopItems().some(it => it.id === 'guard'); w.day = 4; return ok; }), 'no GuardDuty bell for the Long Night');
   // Archway rooms (HD floors, Nov 19): walking in opens the room's painting; a break-in there is fixed in the same popup.

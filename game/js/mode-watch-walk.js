@@ -629,15 +629,34 @@
     const w = sv(), wx = WW.weather(w.day, 'day'), sch = content().schedule || {}, t = dayT();
     run.walkers.forEach(v => {
       const plan = SCH.planFor(sch, v.who, w.day, wx); if (!plan) return;
-      const to = SCH.resolve(WW, SCH.placeAt(plan, t)); if (!to) return;
+      const pl = SCH.placeAt(plan, t), to = SCH.resolve(WW, pl); if (!to) return;
+      v.place = typeof pl === 'string' ? pl : pl.at;
       if (snap) { v.scene = to.scene; v.x = to.x; v.ramp = null; v.go = false; }
       else SCH.step(WW, v, to, dt, WV.rampPath);
     });
   }
+  // Rain indoors (Ladi, Nov 19): on a rain or storm day, whoever has reached a building waits inside it, out of sight.
+  // Knock at its door to see who's in and pick who to talk to. Seymour stays out in his armour; people walking between
+  // places are still out on the road.
+  const WET = { rain: 1, storm: 1 }, INDOOR_KINDS = { fix: 1, place: 1 };
+  function indoors(v) {
+    if (!WET[WW.weather(sv().day, 'day')] || v.who === 'seymour' || v.go || v.ramp || !v.place) return null;
+    const sp = WW.spot(null, v.place);
+    return sp && INDOOR_KINDS[sp.kind] && sp.level === v.scene ? v.place : null;
+  }
+  function knock(spot) {
+    const who = (run.indoor || {})[spot.id] || [];
+    const o = overlay(`<p class="ww-t">${esc(spot.label || 'Door')}</p><p class="ww-q">${(run.knocked || {})[spot.id] ? 'You\'re still dripping by the door.' : 'You knock, and someone lets you in out of the rain.'}${who.length > 1 ? ' Who do you want to talk to?' : ''}</p>
+      <div class="ww-ch">${who.map(k => `<button data-w="${esc(k)}">${face(k)} ${esc(nm(k))}${workFor(k) ? ` · ${esc(workFor(k))}` : ''}</button>`).join('')}</div>
+      <div class="row"><button class="ghost" data-a="x">Back out into the rain</button></div>`);
+    o.querySelector('[data-a=x]').onclick = close;
+    o.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { close(); (run.knocked = run.knocked || {})[spot.id] = 1; talk(b.dataset.w); });
+  }
   function syncPeople() {
     const ppl = {};
     Object.keys(run.crowd || {}).forEach(k => { ppl[k] = run.crowd[k].slice(); });
-    run.walkers.forEach(v => { if (!v.ramp) (ppl[v.scene] = ppl[v.scene] || []).push(v); });
+    run.indoor = {};
+    run.walkers.forEach(v => { v.inside = indoors(v); if (v.inside) (run.indoor[v.inside] = run.indoor[v.inside] || []).push(v.who); else if (!v.ramp) (ppl[v.scene] = ppl[v.scene] || []).push(v); });
     run.ppl = ppl;
     if (view) { view.set('people', ppl); view.set('climbers', run.walkers.filter(v => v.ramp)); }
   }
@@ -647,7 +666,9 @@
     // marker appears as soon as the hint says she wants to show you the post office).
     const tut = content().tutorial || [], shown = {};
     if (run.escort) tut.slice(0, (run.tut || 0) + 1).forEach(t => { const sp = WW.spot(null, t.at); if (sp && sp.who) shown[sp.who] = 1; });
-    return run.walkers.filter(v => !v.ramp && (!run.escort || shown[v.who])).map(v => { const k = workFor(v.who); return k ? { scene: v.scene, x: v.x, text: k, color: '#e9c56d', h: 128 } : null; }).filter(Boolean);
+    const doors = Object.keys(run.indoor || {}).map(id => { const sp = WW.spot(null, id), ws = run.indoor[id];
+      return sp && { scene: sp.level, x: sp.x, text: '🚪 ' + ws.map(nm).join(', ') + (ws.some(workFor) ? ' · Job' : ''), color: '#9bb7d4', h: 150 }; }).filter(Boolean);
+    return doors.concat(run.walkers.filter(v => !v.ramp && !v.inside && (!run.escort || shown[v.who])).map(v => { const k = workFor(v.who); return k ? { scene: v.scene, x: v.x, text: k, color: '#e9c56d', h: 128 } : null; }).filter(Boolean));
   }
   // Meetups: two people together on your road, and you close by. You overhear them once; the Town book learns their tie.
   function meetups() {
@@ -1180,6 +1201,7 @@
         if (p) return talk(p.who);
         const q = quests().find(q => { const s = qstate(q.id), t = q.steps[s.step]; return !s.done && s.step >= 0 && t && t.at && t.at.spot && spot && (WW.ALIAS[t.at.spot] || t.at.spot) === spot.id; });
         if (q) return step(q);
+        if (phase === 'day' && spot && (run.indoor || {})[spot.id]) return knock(spot);
         if (spot && spot.popup) return roomPop(spot);
       },
       onMove(m) {
@@ -1421,6 +1443,7 @@
     .ww-t { margin: 0 0 4px; font-weight: 700; color: #e9c56d; } .ww-q { margin: 0 0 8px; }
     .ww-ch { display: grid; gap: 6px; margin: 6px 0; }
     .ww-ch button { text-align: left; padding: 9px 10px; min-height: 44px; border-radius: 8px; border: 1px solid rgba(185,196,255,.4); background: rgba(255,255,255,.06); color: inherit; font: inherit; cursor: pointer; }
+    .ww-ch button:has(.ww-face) { display: flex; align-items: center; gap: 10px; }
     /* On the cream panels (Mira's morning review): dark text. Inside the dark dialog cards: light text. (Ladi, Nov 18: contrast) */
     .ww-toast { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(14,20,56,.95); color: #ffe9a8; border: 1px solid #e9c56d; font-size: 13px; font-weight: 600; text-align: center; animation: ww-in .3s ease-out; pointer-events: none; }
     @keyframes ww-in { from { opacity: 0; transform: translateY(8px); } }
