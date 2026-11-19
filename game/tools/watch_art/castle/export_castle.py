@@ -13,11 +13,10 @@ def webp(im, p): os.makedirs(os.path.dirname(p), exist_ok=True); im.save(p, 'WEB
 def key_windows(a, f):
     r, g, b = (a[..., i].astype(int) for i in range(3))
     m = ((g > r + 22) & (g > b + 22) & (g > 90)) | ((g > b + 40) & (g > r + 5) & (g > 120))   # #00FF00 window glass, also under lantern glow
-    if f == 'towers':                                                  # open battlement arches: sky blue and white cloud
-        box = np.zeros_like(m)
-        for x0, x1 in ((1120, 1590), (3150, 3700)): box[90:440, x0:x1] = True
-        mx, mn = np.maximum(np.maximum(r, g), b), np.minimum(np.minimum(r, g), b)
-        m |= box & (((b >= r - 3) & ((r + g + b) > 330)) | ((mn > 165) & (mx - mn < 30)))
+    # the towers are an open rooftop now (Nov 19): its sky is #00FF00 too. Despill the green fringe left round the edges.
+    mx = np.maximum(r, b); spill = ~m & (g > mx + 6); a[spill, 1] = (mx[spill] + 6).clip(0, 255)
+    near = np.zeros_like(m); near[1:-1, 1:-1] = m[:-2, 1:-1] | m[2:, 1:-1] | m[1:-1, :-2] | m[1:-1, 2:]
+    a[near & ~m, 3] = np.minimum(a[near & ~m, 3], 200)
     a[m, 3] = 0
     return a
 FLOORS = {   # x in native px of the 4096-wide floor (engine x = x * scale)
@@ -27,7 +26,7 @@ FLOORS = {   # x in native px of the 4096-wide floor (engine x = x * scale)
              'trapdoor': None, 'ladder': 1994},
  'upper':   {'doorways': [['wardrobe', 990], ['ledger', 1590], ['bridge-tower', 2775]],
              'trapdoor': [1880, 2130]},
- 'towers':  {'doorways': [['watchtower', 815], ['lookout', 2360], ['captain', 2786]],
+ 'towers':  {'doorways': [['watchtower', 1103], ['lookout', 2400], ['captain', 3129]],
              'trapdoor': [1870, 2130]},
 }
 # focus = the object the breach marker sits on, floorY = where Seo-yeon's feet go (1600x900 interior px)
