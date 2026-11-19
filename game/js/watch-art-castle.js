@@ -63,9 +63,9 @@ window.WATCH_ART_CASTLE = {
     "up": {
      "img": "assets/img/watch/floors/ground/ladder-up.webp",
      "box": [
-      1238,
-      0,
-      1317,
+      1220,
+      42,
+      1326,
       300
      ]
     }
@@ -201,10 +201,10 @@ window.WATCH_ART_CASTLE = {
     "up": {
      "img": "assets/img/watch/floors/cellars/ladder-up.webp",
      "box": [
-      1205,
-      33,
-      1409,
-      313
+      1219,
+      42,
+      1324,
+      300
      ]
     }
    },
@@ -313,9 +313,9 @@ window.WATCH_ART_CASTLE = {
     "up": {
      "img": "assets/img/watch/floors/upper/ladder-up.webp",
      "box": [
-      1238,
-      0,
-      1317,
+      1220,
+      42,
+      1326,
       300
      ]
     }
