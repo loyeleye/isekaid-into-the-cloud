@@ -61,10 +61,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       60,
-       179,
-       149,
-       304
+       34,
+       227,
+       184,
+       333
       ]
      }
     },
@@ -112,10 +112,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2454,
-       179,
-       2555,
-       304
+       2429,
+       227,
+       2579,
+       333
       ]
      }
     }
@@ -280,10 +280,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       60,
-       179,
-       149,
-       304
+       34,
+       227,
+       184,
+       333
       ]
      }
     },
@@ -314,10 +314,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2454,
-       179,
-       2555,
-       304
+       2429,
+       227,
+       2579,
+       333
       ]
      }
     },
@@ -404,10 +404,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       96,
-       130,
-       237,
-       304
+       61,
+       196,
+       271,
+       345
       ]
      }
     },
@@ -421,10 +421,10 @@ window.WATCH_ART_CASTLE = {
      "block": {
       "img": "assets/img/watch/floors/stair-block-down.webp",
       "box": [
-       2387,
-       130,
-       2528,
-       304
+       2352,
+       196,
+       2562,
+       345
       ]
      }
     }
