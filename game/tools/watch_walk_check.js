@@ -105,6 +105,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await page.waitForSelector('#ww-next');
   const w2 = await ev(() => SD.watchWalk.sv());
   check(w2.day === 2 && w2.silver === 20 + 40, `dawn pays 30 base + 10 for the fix (${w2.silver - 20})`);
+  check(await ev(() => ((window.WATCH_CONTENT || window.__C).quests.find(q => q.id === 'kagemaru-prices') || {}).reward.writs === 2), "Kagemaru's price-list quest gives two free Revoke active sessions");
   await shot('dawn');
   check(await ev(() => (SD.watchWalk.sv().news || []).some(n => n.id === 'night-1')), 'a night\'s break-ins become town news at dawn');
   await page.click('#ww-next'); await page.waitForTimeout(250);
@@ -436,7 +437,27 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await ev(() => SD.watchWalk.walk('dusk')); await page.waitForTimeout(150);
   while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');   // Pell's dusk lines
   await tp('main-street', 1335); await use(); await page.waitForTimeout(250);
+  check(/The castle plan/.test(await card()) && !!(await page.$('.ww-o:not([hidden]) [data-s]')), 'at the gate Pell hands over the castle plan first');
+  await btn('[data-a=x]'); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.run.phase === 'night' && SD.watchWalk.run.st.scene === 'castle:ground'), 'at dusk the outpost door leads into the castle');
+  {   // the plan: a narrow pin cancels its break-in, a wide one brings it early on a short fuse, a narrow-too-far one fines
+    const g = await ev(() => { const out = [];
+      for (let d = 3; d <= 8; d++) { const cc = SD.watchWalk.breaches(d).filter(b => b.copy), said = SD.watchWalk.dayTalk(d).filter(x => x.copycat);
+        if (cc.length !== said.length) out.push(`day ${d}: ${cc.length} copycats, ${said.length} lines`); const P = SD.watchWalk.planFor(d); if (!P.quote) out.push(`day ${d}: Pell has nothing to quote`); }
+      return out.join('; ') || 'ok'; });
+    check(g === 'ok', `every copycat break-in gets a line of gossip, and Pell always has a town line to quote (${g})`);
+    const r = await ev(() => { const w = SD.watchWalk.sv(), d = w.day;
+      const P = SD.watchWalk.planFor(d); if (!P) return 'no plan on day ' + d;
+      const id = Object.keys(P.targets)[0]; if (!id) return 'no target';
+      const sl = SD.watchData.SLOTS[id], k = r => Object.keys(sl.tiles).find(t => sl.tiles[t].res === r);
+      w.plan = { day: d, pins: [{ slot: id, tile: k('ok'), res: 'ok', target: P.targets[id] }] }; SD.watchWalk.walk('night');
+      const gone = !SD.watchWalk.run.list.some(b => b.id === P.targets[id]);
+      const wide = k('wide') || k('leak'); w.plan = { day: d, pins: [{ slot: id, tile: wide, res: sl.tiles[wide].res, target: P.targets[id] }] }; SD.watchWalk.walk('night');
+      const x = SD.watchWalk.run.list.find(b => b.id === P.targets[id]);
+      w.plan = null; return gone && x && x.at <= 10 && x.fuse <= 60 ? 'ok' : JSON.stringify({ gone, at: x && x.at, fuse: x && x.fuse }); });
+    check(r === 'ok', `a narrow pin cancels its break-in and a wide one brings it early on a 1:00 fuse (${r})`);
+    await page.waitForTimeout(300); while (await page.$('.ww-o:not([hidden]) [data-a=n]')) await btn('[data-a=n]');
+  }
 
   const hs = await ev(() => document.documentElement.scrollWidth <= innerWidth);
   check(hs, 'no horizontal scroll at 375px');
