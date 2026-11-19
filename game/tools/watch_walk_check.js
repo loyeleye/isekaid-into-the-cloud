@@ -104,7 +104,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   await btn(`[data-i="${best}"]`); await btn('[data-a=d]'); await btn('[data-a=n]');
   await page.waitForSelector('#ww-next');
   const w2 = await ev(() => SD.watchWalk.sv());
-  check(w2.day === 2 && w2.silver === 20 + 30, `dawn pays 20 base + 10 for the fix (${w2.silver - 20})`);
+  check(w2.day === 2 && w2.silver === 20 + 55, `dawn pays 45 base + 10 for the fix (${w2.silver - 20})`);
   await shot('dawn');
   check(await ev(() => (SD.watchWalk.sv().news || []).some(n => n.id === 'night-1')), 'a night\'s break-ins become town news at dawn');
   await page.click('#ww-next'); await page.waitForTimeout(250);
