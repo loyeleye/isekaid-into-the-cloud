@@ -76,6 +76,15 @@ for f, g in FLOORS.items():
               'popupRooms': [n for n, _ in g['doorways']], 'links': {k: E(v) for k, v in LINKS[f].items()}, 'walls': [E(40), E(4056)],
               'layers': [{'img': A + f'floors/{f}/far.webp', 'speed': 0.2}, {'img': A + f'floors/{f}/wall-v2.webp', 'speed': 1}]}
     if g.get('trapdoor'): out[f]['trapdoor'] = [E(g['trapdoor'][0]), E(g['trapdoor'][1])]
+    # the unlocked ladder (ladder_art.py): down = open trapdoor with the ladder's top in it, up = ladder to the ceiling hatch.
+    # Draw a piece while its stretch of ladder is open (down: to the floor below, up: to the floor above), in layer px.
+    LJ = json.load(open(f'{src}/ladder/ladder.json'))
+    if f in LJ:
+        out[f]['ladderArt'] = {}
+        for part, b in LJ[f].items():
+            pi = Image.open(f'{src}/ladder/{f}-{part}.png').convert('RGBA'); bx = [E(n) for n in b]
+            webp(pi.resize((bx[2] - bx[0], bx[3] - bx[1]), Image.LANCZOS), f'{A}floors/{f}/ladder-{part}.webp')
+            out[f]['ladderArt'][part] = {'img': f'{A}floors/{f}/ladder-{part}.webp', 'box': bx}
     out[f]['stairs'] = {k: {'x': [E(v[0][0]), E(v[0][1])], 'dir': v[1], 'use': E(v[3]),
                             'block': {'img': A + (f'floors/{f}/block-{v[4]}.webp'.replace(f'{f}-', '') if v[4] else 'floors/stair-block-down.webp'), 'box': [E(n) for n in v[2]]}} for k, v in STAIRS[f].items()}
     for rid in ROOM_FLOOR.get(f, []):
