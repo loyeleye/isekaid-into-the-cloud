@@ -3,7 +3,7 @@
 # every take on the ground and upper floor crops, so those floors (and the cellars, to match) reuse the towers' open trapdoor (down) and a ladder
 # built by stacking one rung-length of the towers' ladder up to the ceiling with a dark hatch (up).
 # Writes <out>/<floor>-<down|up>.png (RGBA) and <out>/ladder.json: native box [x0, y0, x1, y1] per piece.
-# usage: python3 ladder_art.py <dir with <floor>-ref.png, towers-3601.png, cellars-3601.png> <out>
+# usage: python3 ladder_art.py <dir with <floor>-ref.png, towers-3601.png> <out> (the floor pictures are in <out>/..)
 import sys, os, json, numpy as np
 from PIL import Image, ImageFilter
 d, out = sys.argv[1:3]; os.makedirs(out, exist_ok=True)
@@ -34,22 +34,22 @@ for y in range(470 - 1, -30, -1):
     if (y - (196 + 52)) % 30 == 0:
         for k in range(30):
             if 0 <= y + k < 470: up[y + k, :, :3] = seg[k].clip(0, 255); up[y + k, :, 3] = sa[k]
-# the ceiling hatch (Ladi preferred it): the plank frame Sogni painted in the cellar vault (seed 3601, crop rows 14..50,
-# cols 170..340), cut where it differs from the bare vault; the straight ladder hangs from it
-cr, ce = load(f'{d}/cellars-ref.png'), load(f'{d}/cellars-3601.png')
-hc = cut(cr, ce, region(170, 340, 14, 50))[14:50, 170:340]
-HX, HY = 255 - 170, 0                                    # hatch centre (tile px); its top sits at the top of the ceiling (Ladi)
-canvas = np.zeros((470, 170, 4), np.uint8); canvas[HY:HY + 36] = hc
-lx = HX - 47                                              # the ladder (95 wide, centred on the hatch) from the hatch down
-m = up[HY + 24:, :, 3:] / 255; reg = canvas[HY + 24:, lx:lx + 95]
-reg[..., :3] = (reg[..., :3] * (1 - m) + up[HY + 24:, :, :3] * m).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], up[HY + 24:, :, 3])
-for f in ('ground', 'upper'):
-    J[f]['up'] = save(canvas, 1997 - HX, 0, f'{f}-up')
-# cellars (Ladi: should match the others): the same straight ladder and Sogni hatch, at the cellars' ladder x (1994)
-dark = np.zeros((470, 170, 4), np.uint8)                 # cellars (Ladi): a black opening in the vault crown instead of the planks
-dark[:40, HX - 62:HX + 62, :3] = (14, 11, 10); dark[:40, HX - 62:HX + 62, 3] = 255
-dark[35:40, HX - 62:HX + 62, :3] = (96, 66, 38)
-reg = dark[24:, lx:lx + 95]; m = up[24:, :, 3:] / 255
-reg[..., :3] = (reg[..., :3] * (1 - m) + up[24:, :, :3] * m).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], up[24:, :, 3])
-J['cellars'] = {'up': save(dark, 1994 - HX, 0, 'cellars-up')}
+# up (Ladi, Nov 19: keep it simple): the ladder runs straight up to the top of the picture and passes behind the ceiling,
+# i.e. it is hidden wherever the floor's own picture shows ceiling: wooden beams and brackets, or the vault's bricks.
+FL = os.path.join(out, '..')
+for f, cx in (('ground', 1997), ('upper', 1997), ('cellars', 1994)):
+    x0 = cx - 47; img = np.asarray(Image.open(f'{FL}/{f}.png').convert('RGB'))[:470, x0:x0 + 95].astype(int)
+    r, g, b = img[..., 0], img[..., 1], img[..., 2]
+    if f == 'cellars':                                                        # brick: hide everything above the vault ring's lower edge
+        br = (r > g + 15) & (r > b + 20) & (r > 70); br[200:] = False; ceil = np.zeros_like(br)
+        for x in range(95):
+            ys = np.where(br[:, x])[0]
+            if len(ys): ceil[:ys.max() + 1, x] = True
+        ceil[:32] = True                                                      # the ring's shadowed crown
+    else:
+        ceil = (r > g + 6) & (g > b + 4) & (r - b > 35) & (r > 80)            # wood
+        ceil[:58] = True; ceil[110:] = False                                  # the beam band, and brackets above y 110
+    ceil = np.asarray(Image.fromarray(ceil.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.7))) / 255
+    piece = up.copy(); piece[..., 3] = (piece[..., 3] * (1 - ceil)).astype(np.uint8)
+    J.setdefault(f, {})['up'] = save(piece, x0, 0, f'{f}-up')
 json.dump(J, open(f'{out}/ladder.json', 'w'), indent=1); print(J)
