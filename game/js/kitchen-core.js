@@ -138,11 +138,12 @@
     const gb = c.mem / 1024, plates = [];
     let bill = 0;
     const run = (g, cold) => {
-      const d = (cold ? K.INIT + (c.prep === 'outside' ? (g.setup || 0) : 0) : 0) + (c.prep === 'inside' ? (g.setup || 0) : 0) + g.work * 1024 / c.mem;
+      const init = cold ? K.INIT + (c.prep === 'outside' ? (g.setup || 0) : 0) : 0;
+      const d = init + (c.prep === 'inside' ? (g.setup || 0) : 0) + g.work * 1024 / c.mem;
       const timedOut = g.stuck || d > c.timeout + 1e-9;
       const billed = timedOut ? c.timeout : d;
       bill += gb * billed;
-      return { d: round(billed), timedOut };
+      return { d: round(billed), timedOut, init: round(Math.min(init, billed)) };
     };
     o.guests.forEach((g, gi) => {
       let fresh = 0;
@@ -151,10 +152,12 @@
         let cold;
         if (g.burst) cold = i >= g.n - fresh;
         else { cold = warm < 1; if (cold) warm = 1; }
-        const p = { g: gi, i, kind: g.kind, stage: g.stage, stuck: !!g.stuck, cold, tries: 1 };
+        // cook: which execution environment (burner) took it; att: every try, for the firing to play out.
+        const p = { g: gi, i, kind: g.kind, stage: g.stage, stuck: !!g.stuck, cold, tries: 1, burst: !!g.burst, cook: g.burst ? i : 0, att: [] };
         let a = run(g, cold);
+        p.att.push(a);
         if (g.kind === 's3') {
-          while (a.timedOut && p.tries < K.TRIES) { p.tries++; a = run(g, false); }
+          while (a.timedOut && p.tries < K.TRIES) { p.tries++; a = run(g, false); p.att.push(a); }
           p.d = a.d;
           if (a.timedOut) p.out = c.dest ? 'kept' : 'lost';
           else if (g.stage === 'prod' && !c.env) p.out = 'wrong';
@@ -171,10 +174,12 @@
       }
     });
     const standing = pcOn === 'alias' ? pcN * gb * (o.window || 10) : 0;
+    // The stove: one burner per execution environment the order can need, the provisioned ones lit before it starts.
+    const burners = Math.max(1, pcOn === 'alias' ? pcN : 0, ...o.guests.map(g => (g.burst ? g.n : 1)));
     const counts = {};
     plates.forEach(p => { counts[p.out] = (counts[p.out] | 0) + 1; });
     const fails = plates.filter(p => p.fail).length, late = counts.late | 0;
-    return { plates, counts, bill: round(bill + standing), run: round(bill), standing: round(standing), fails, late, refused: null, events: events(plates, c) };
+    return { plates, counts, bill: round(bill + standing), run: round(bill), standing: round(standing), fails, late, refused: null, events: events(plates, c), burners, prelit: pcOn === 'alias' ? pcN : 0 };
   };
   function events(plates, c) {
     const ev = [];
