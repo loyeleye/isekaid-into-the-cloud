@@ -1,0 +1,8 @@
+[
+ {
+  "out": "pose/cook-walkC.png",
+  "ref": "pose/cook-walkA.png",
+  "seed": 57,
+  "prompt": "Change only the legs and arms, to the opposite step of the walk: the leg that is now behind swings forward and plants its heel in front, the leg that is now in front pushes off behind on its toes, and the arms swing the other way. Both feet wear the same dark brown leather boots as now. Same stride length, still walking to the right. Keep this exact character, outfit, props, colours, pixel-art style, size and strict side profile facing right, only one character, plain white background, small soft grey shadow under the feet, light from the upper left."
+ }
+]
