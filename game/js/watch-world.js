@@ -149,7 +149,7 @@
       if (f === 'upper' && L['bridge-door'] != null) BRIDGE_X = L['bridge-door'];
     });
     const g = C.ground.rooms.find(r => r[0] === 'gate');
-    if (g) { EXIT_X = g[1] + 50; WW.ENTRY_X = g[1] + 100; T['west-road'].spots.find(v => v.id === 'pell-gate').to.x = WW.ENTRY_X; }   // the main gate is in the gate room, clear of the hoist shaft
+    if (g) { EXIT_X = Math.round(g[1] + (g[2] - g[1]) * 0.78); WW.ENTRY_X = EXIT_X - 50; T['west-road'].spots.find(v => v.id === 'pell-gate').to.x = WW.ENTRY_X; }   // the painted main gate, right of the badge desk (HD floor: clear of the cellar stair)
     if (g) OUTPOST_X = Math.round((g[1] + g[2]) / 2) + 20;   // in the gate room, clear of the doors
     const op = T['main-street'].spots.find(v => v.id === 'outpost'); if (op) op.to.x = OUTPOST_X;
   }
