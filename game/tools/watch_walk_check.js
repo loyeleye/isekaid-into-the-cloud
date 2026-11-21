@@ -29,7 +29,7 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   const btn = async sel => { await page.waitForSelector('.ww-o:not([hidden]) ' + sel); await page.click('.ww-o:not([hidden]) ' + sel); await page.waitForTimeout(120); };
   const card = () => page.evaluate(() => { const o = document.querySelector('.ww-o:not([hidden])'); return o ? o.textContent : ''; });
 
-  check(await ev(() => SD.modes.list().some(m => m.id === 'watch-walk')), 'the walkable mode is registered');
+  check(await ev(() => SD.modes.list().some(m => m.id === 'watch' && m.name === 'The Night Watch' && /castle/.test(m.blurb)) && !SD.modes.list().some(m => m.id === 'watch-walk')), 'the menu has one Night Watch, and it is the walkable mode');
   check(await ev(() => !!(window.WATCH_CONTENT && window.WATCH_CONTENT.breaches)), 'the content file loads');
   await ev(() => { window.__C = window.WATCH_CONTENT; window.WATCH_CONTENT = null; });   // first, the placeholder path
   await ev(() => { SD.state.save.watch3 = null; SD.watchWalk.walk('day'); });
@@ -214,11 +214,11 @@ const fails = []; const check = (ok, what) => { if (!ok) fails.push(what); conso
   check(/marker over Coo/.test(await card()), 'Mira explains markers at Coo\'s post office');
   await shot('tutorial-coo'); await clear();
   // Leaving and coming back keeps the time left and the tutorial step (Ladi, Nov 18: no fresh 10 minutes).
-  await ev(() => { SD.watchWalk.run.keep(); SD.watchWalk.sv().at.left = 125; SD.state.persist && SD.state.persist(); SD.modes.list().find(m => m.id === 'watch-walk').start(); });
+  await ev(() => { SD.watchWalk.run.keep(); SD.watchWalk.sv().at.left = 125; SD.state.persist && SD.state.persist(); SD.modes.list().find(m => m.id === 'watch').start(); });
   await page.waitForTimeout(300);
   const back = await ev(() => [document.querySelector('#ww-top').textContent, SD.watchWalk.run.phase, SD.watchWalk.run.tut, !!SD.watchWalk.view.follower]);
   check(/Day 1 · 2:0/.test(back[0]) && back[1] === 'day' && back[2] === 5 && back[3], `coming back resumes the day with its time left and Mira's walk (${back})`);
-  await tp('hill-road', 1700); await ev(() => { SD.watchWalk.run.keep(); SD.modes.list().find(m => m.id === 'watch-walk').start(); }); await page.waitForTimeout(250);
+  await tp('hill-road', 1700); await ev(() => { SD.watchWalk.run.keep(); SD.modes.list().find(m => m.id === 'watch').start(); }); await page.waitForTimeout(250);
   check(await ev(() => SD.watchWalk.run.st.scene === 'hill-road' && Math.abs(SD.watchWalk.run.st.x - 1700) < 2), 'coming back puts you where you stood, not at base camp');
   // The castle gate ends the day early; Mira says so at her last stop.
   await tp('west-road', 3280); await page.waitForTimeout(200);

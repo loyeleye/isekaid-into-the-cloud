@@ -1504,7 +1504,8 @@
   }
 
   M.register({
-    id: 'watch-walk', name: 'The Night Watch (walkable preview)', host: 'Seo-yeon', minutes: 'about 20 a day and night',
+    // The menu's Night Watch (Ladi, Nov 19): it took over the text mode's id, card, video and daily pay.
+    id: 'watch', name: 'The Night Watch', host: 'Seo-yeon', minutes: 'about 20 a day and night',
     blurb: 'Walk the town by day for gossip and quests, then patrol the castle at night and fix each breach. Security only.',
     start: () => { const w = sv(); return w.at && w.at.day === w.day && w.day <= 9 ? walk(w.at.phase, { resume: true }) : morning(); },
     status: () => { const w = S.save && S.save.watch3; return w && w.v === 3 ? `Day ${Math.min(9, w.day)} of 9 · ${w.silver} silver` : ''; }
